@@ -6,7 +6,7 @@ val scala3Version = "3.4.1"
 val scala2Version = "2.13.11"
 val scalametaVersion = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
-val zioVersion = "2.0.10"
+val zioVersion = "2.1.1"
 val laminarVersion = "17.0.0"
 
 lazy val projectPath = settingKey[File]("projectPath")
@@ -115,10 +115,10 @@ lazy val backend =
         file("scripts/type-explorer-compile-project.sh") -> "bin/type-explorer-compile-project.sh",
       libraryDependencies ++= Seq(
         "dev.zio"                 %% "zio-http"                 % "3.0.0-RC4",
-        "dev.zio"                 %% "zio-logging"              % "2.1.13",
+        "dev.zio"                 %% "zio-logging"              % "2.2.2",
         "dev.zio"                 %% "zio-logging-slf4j"        % "2.1.13",
         "dev.zio"                 %% "zio-logging-slf4j-bridge" % "2.1.13",
-        "org.json4s"              %% "json4s-native"            % "4.0.6",
+        "org.json4s"              %% "json4s-native"            % "4.0.7",
         "guru.nidi"                % "graphviz-java"            % "0.18.1",
         "net.sourceforge.plantuml" % "plantuml"                 % "1.2023.9",
         "com.lihaoyi" %% "scalatags" % "0.11.1" cross CrossVersion.for3Use2_13 // Needed until org.scalameta-common upgrades to 3.x
