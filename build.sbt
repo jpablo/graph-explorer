@@ -2,12 +2,12 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 
 val typeExplorerVersion = "0.3.0"
 
-val scala3Version = "3.4.0"
+val scala3Version = "3.4.1"
 val scala2Version = "2.13.11"
 val scalametaVersion = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
 val zioVersion = "2.0.10"
-val laminarVersion = "16.0.0"
+val laminarVersion = "17.0.0"
 
 lazy val projectPath = settingKey[File]("projectPath")
 

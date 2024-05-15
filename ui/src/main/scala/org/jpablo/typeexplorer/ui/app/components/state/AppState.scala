@@ -29,8 +29,7 @@ class AppState(
     AppState.selectOrCreateProject(persistedAppState, projectId)
 
   val fullGraph: Signal[InheritanceGraph] =
-    activeProject.basePaths.flatMap: paths =>
-      fetchFullInheritanceGraph(paths)
+    activeProject.basePaths.flatMapSwitch(fetchFullInheritanceGraph)
 
   def deleteProject(projectId: ProjectId): Unit =
     persistedAppState.update(_.deleteProject(projectId))

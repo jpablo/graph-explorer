@@ -39,7 +39,7 @@ case class InheritanceTabState(appState: AppState, pageId: String):
   val inheritanceSvgDiagram: Signal[InheritanceSvgDiagram] =
     appState.basePaths
       .combineWith(pageV.signal.distinct)
-      .flatMap(fetchInheritanceSVGDiagram)
+      .flatMapSwitch(fetchInheritanceSVGDiagram)
       .startWith(InheritanceSvgDiagram.empty)
 
 end InheritanceTabState

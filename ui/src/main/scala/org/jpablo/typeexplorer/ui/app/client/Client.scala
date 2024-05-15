@@ -26,21 +26,18 @@ def fetchApiPath(path: String): FetchEventStreamBuilder =
 def fetchDocuments(
     paths: Signal[List[Path]]
 ): EventStream[List[TextDocumentsWithSource]] =
-  for
-    path <- paths
-    lst <-
-      if path.isEmpty then EventStream.fromValue(List.empty)
-      else
-        val qs = path.map(p => "path=" + p).mkString("&")
-        for response <- fetchApiPath("semanticdb?" + qs).arrayBuffer yield
-          val ia =
-            Int8Array(response.data, 0, length = response.data.byteLength)
-          TextDocumentsWithSourceSeq
-            .parseFrom(ia.toArray)
-            .documentsWithSource
-            .toList
-            .sortBy(_.semanticDbUri)
-  yield lst
+  paths.flatMapSwitch: path =>
+    if path.isEmpty then EventStream.fromValue(List.empty)
+    else
+      val qs = path.map(p => "path=" + p).mkString("&")
+      for response <- fetchApiPath("semanticdb?" + qs).arrayBuffer yield
+        val ia =
+          Int8Array(response.data, 0, length = response.data.byteLength)
+        TextDocumentsWithSourceSeq
+          .parseFrom(ia.toArray)
+          .documentsWithSource
+          .toList
+          .sortBy(_.semanticDbUri)
 
 def fetchFullInheritanceGraph(
     basePaths: List[Path]
@@ -48,16 +45,15 @@ def fetchFullInheritanceGraph(
   if basePaths.isEmpty then EventStream.empty
   else
     val qs = basePaths.map("path=" + _).mkString("&")
-    for
-      response <- fetchApiPath(s"${Endpoints.classes}?$qs").text
-      classes <- EventStream.fromTry {
-        response.data
-          .fromJson[InheritanceGraph]
-          .left
-          .map(Exception(_))
-          .toTry
-      }
-    yield classes
+    fetchApiPath(s"${Endpoints.classes}?$qs").text
+      .flatMapSwitch: response =>
+        EventStream.fromTry {
+          response.data
+            .fromJson[InheritanceGraph]
+            .left
+            .map(Exception(_))
+            .toTry
+        }
 }.startWith(InheritanceGraph.empty)
 
 def fetchInheritanceSVGDiagram(
@@ -84,27 +80,24 @@ def fetchCallGraphSVGDiagram(
     diagram: Signal[(DiagramType, Path)]
 ): EventStream[dom.Element] =
   val parser = dom.DOMParser()
-  for
-    (diagramType, path) <- diagram
-    doc <-
-      if path.toString.isEmpty
-      then EventStream.fromValue(div().ref)
-      else
-        val fetchEventStreamBuilder = diagramType match
-          case DiagramType.Inheritance => fetchApiPath("inheritance?path=" + path)
-          case DiagramType.CallGraph   => fetchApiPath("call-graph?path=" + path)
+  diagram.flatMapSwitch { case (diagramType, path) =>
+    (if path.toString.isEmpty
+     then EventStream.fromValue(div().ref)
+     else
+       val endpoint = diagramType match
+         case DiagramType.Inheritance => "inheritance"
+         case DiagramType.CallGraph   => "call-graph"
 
-        fetchEventStreamBuilder.text.map: fetchResponse =>
-          parser
-            .parseFromString(fetchResponse.data, dom.MIMEType.`image/svg+xml`)
-            .documentElement
-//      errorNode = doc.querySelector("parsererror")
-  yield doc
+       fetchApiPath(s"$endpoint?path=$path").text.map: fetchResponse =>
+         parser
+           .parseFromString(fetchResponse.data, dom.MIMEType.`image/svg+xml`)
+           .documentElement
+    )
+  }
 
 def fetchSourceCode(paths: Signal[Path])(docPath: Path) =
-  for
-    path <- paths
-    response <- fetchApiPath(
+  paths.flatMapSwitch: path =>
+    fetchApiPath(
       s"${Endpoints.classes}?path=${encodeURIComponent(path.toString + "/" + docPath)}"
     ).text
-  yield response.data
+      .map(response => response.data)
