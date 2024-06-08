@@ -134,6 +134,25 @@ lazy val backend =
 val publicDev = taskKey[String]("output directory for `npm run dev`")
 val publicProd = taskKey[String]("output directory for `npm run build`")
 
+lazy val viewer =
+  project
+    .in(file("viewer"))
+    .dependsOn(shared.js)
+    .enablePlugins(ScalaJSPlugin)
+    .settings(
+      name := "viewer",
+      libraryDependencies ++= Seq(
+        "org.scala-js" %%% "scalajs-dom" % "2.2.0",
+        "com.raquo"    %%% "laminar"     % laminarVersion,
+        "io.laminext"  %%% "fetch"       % "0.15.0",
+        "com.raquo"    %%% "waypoint"    % "7.0.0"
+      ),
+      excludeDependencies ++= Seq(
+        "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
+      ),
+      Compile / mainClass := Some("org.example.Main")
+    )
+
 lazy val ui =
   project
     .in(file("ui"))
