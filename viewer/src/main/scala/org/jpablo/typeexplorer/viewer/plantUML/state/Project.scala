@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.inheritanceTab.state
+package org.jpablo.typeexplorer.viewer.plantUML.state
 
 import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.shared.inheritance.{DiagramOptions, PackagesOptions, ProjectSettings}

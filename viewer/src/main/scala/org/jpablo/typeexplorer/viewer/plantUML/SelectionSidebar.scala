@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.inheritanceTab
+package org.jpablo.typeexplorer.viewer.plantUML
 
 import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
@@ -7,8 +7,8 @@ import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.shared.inheritance.InheritanceGraph
 //import org.jpablo.typeexplorer.ui.app
-import org.jpablo.typeexplorer.viewer.inheritanceTab.state.*
-import org.jpablo.typeexplorer.viewer.inheritanceTab.state.InheritanceTabState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.plantUML.state.*
+import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 

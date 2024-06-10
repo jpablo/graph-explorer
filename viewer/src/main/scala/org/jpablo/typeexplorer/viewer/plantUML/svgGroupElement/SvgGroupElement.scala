@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.inheritanceTab.svgGroupElement
+package org.jpablo.typeexplorer.viewer.plantUML.svgGroupElement
 
 import org.jpablo.typeexplorer.shared.models
 import org.scalajs.dom

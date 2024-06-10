@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.inheritanceTab.state
+package org.jpablo.typeexplorer.viewer.plantUML.state
 
 import org.jpablo.typeexplorer.BuildInfo
 import zio.json.JsonCodec

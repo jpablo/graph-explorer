@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.inheritanceTab
+package org.jpablo.typeexplorer.viewer.plantUML
 
 import com.raquo.airstream.core.EventStream
 import com.raquo.laminar.api.L.*
@@ -8,7 +8,7 @@ import org.jpablo.typeexplorer.shared.inheritance.InheritanceGraph
 import org.jpablo.typeexplorer.shared.models.{Namespace, NamespaceKind, GraphSymbol}
 import org.jpablo.typeexplorer.shared.tree.Tree
 import org.jpablo.typeexplorer.viewer.domUtils.{details, open, summary}
-import org.jpablo.typeexplorer.viewer.inheritanceTab.state.InheritanceTabState
+import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLAnchorElement, HTMLLIElement, HTMLUListElement}
 import org.jpablo.typeexplorer.viewer.extensions.*

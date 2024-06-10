@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.inheritanceTab.state
+package org.jpablo.typeexplorer.viewer.plantUML.state
 
 import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.airstream.ownership.OneTimeOwner
@@ -7,8 +7,8 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import org.jpablo.typeexplorer.shared.inheritance.{DiagramOptions, InheritanceGraph, Path, SymbolOptions}
 import org.jpablo.typeexplorer.shared.models.GraphSymbol
-import org.jpablo.typeexplorer.viewer.inheritanceTab.InheritanceSvgDiagram
-import org.jpablo.typeexplorer.viewer.inheritanceTab.state.InheritanceTabState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.plantUML.InheritanceSvgDiagram
+import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState.ActiveSymbols
 import org.scalajs.dom
 import org.jpablo.typeexplorer.viewer.extensions.*
 

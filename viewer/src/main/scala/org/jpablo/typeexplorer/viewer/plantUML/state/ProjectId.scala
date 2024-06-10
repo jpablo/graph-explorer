@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.inheritanceTab.state
+package org.jpablo.typeexplorer.viewer.plantUML.state
 
 import zio.json.*
 

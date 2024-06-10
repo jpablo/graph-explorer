@@ -1,9 +1,9 @@
-package org.jpablo.typeexplorer.viewer.inheritanceTab
+package org.jpablo.typeexplorer.viewer.plantUML
 
 import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.laminar.api.L.*
-import org.jpablo.typeexplorer.viewer.inheritanceTab.state.CanvasSelectionOps
-import org.jpablo.typeexplorer.viewer.inheritanceTab.svgGroupElement.*
+import org.jpablo.typeexplorer.viewer.plantUML.state.CanvasSelectionOps
+import org.jpablo.typeexplorer.viewer.plantUML.svgGroupElement.*
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
