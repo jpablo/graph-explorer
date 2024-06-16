@@ -3,7 +3,7 @@ module.exports = {
     important: true,
     content: [
         './index.html',
-        './ui/target/scala-*/**/*.js'
+        './viewer/target/scala-*/**/*.js'
     ],
     theme: {
         extend: {},

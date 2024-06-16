@@ -149,19 +149,25 @@ lazy val viewer =
 //          .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("org.jpablo.typeexplorer.ui")))
           .withSourceMap(true)
       },
+      externalNpm := {
+        // scala.sys.process.Process(List("npm", "install", "--silent", "--no-audit", "--no-fund"), baseDirectory.value).!
+        baseDirectory.value / ".."
+      },
       libraryDependencies ++= Seq(
         "com.raquo"                  %%% "laminar"     % laminarVersion,
-        "com.raquo"                  %%% "waypoint"    % "7.0.0",
-        "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
+        "com.raquo"                  %%% "waypoint"    % "8.0.0",
         "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
         "dev.zio"                    %%% "zio-json"    % "0.6.1",
         "dev.zio"                    %%% "zio-prelude" % zioPreludeVersion,
-        "io.laminext"                %%% "fetch"       % "0.15.0",
-        "org.scala-js"               %%% "scalajs-dom" % "2.2.0",
-      )
-//      excludeDependencies ++= Seq(
-//        "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
-//      )
+        "io.laminext"                %%% "fetch"       % "0.17.0",
+        "org.scala-js"               %%% "scalajs-dom" % "2.2.0"
+      ),
+      excludeDependencies ++= Seq(
+        "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
+      ),
+      publicDev                      := linkerOutputDirectory((Compile / fastLinkJS).value).getAbsolutePath,
+      publicProd                     := linkerOutputDirectory((Compile / fullLinkJS).value).getAbsolutePath,
+      Compile / semanticdbTargetRoot := projectPath.value
     )
 
 lazy val ui =
@@ -188,13 +194,13 @@ lazy val ui =
       libraryDependencies ++= Seq(
         "org.scala-js" %%% "scalajs-dom" % "2.2.0",
         "com.raquo"    %%% "laminar"     % laminarVersion,
-        "io.laminext"  %%% "fetch"       % "0.15.0",
-        "com.raquo"    %%% "waypoint"    % "7.0.0"
+        "io.laminext"  %%% "fetch"       % "0.17.0",
+        "com.raquo"    %%% "waypoint"    % "8.0.0"
       ),
       excludeDependencies ++= Seq(
         "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
       ),
-      publicDev                      := linkerOutputDirectory((Compile / fastLinkJS).value).getAbsolutePath,
+//      publicDev                      := linkerOutputDirectory((Compile / fastLinkJS).value).getAbsolutePath,
       publicProd                     := linkerOutputDirectory((Compile / fullLinkJS).value).getAbsolutePath,
       Compile / semanticdbTargetRoot := projectPath.value
     )
