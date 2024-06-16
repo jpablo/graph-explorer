@@ -4,14 +4,14 @@ import com.raquo.airstream.core.EventStream
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.jpablo.typeexplorer.shared.inheritance.InheritanceGraph
-import org.jpablo.typeexplorer.shared.models.{Namespace, NamespaceKind, GraphSymbol}
-import org.jpablo.typeexplorer.shared.tree.Tree
+import org.jpablo.typeexplorer.viewer.models.{GraphSymbol, Namespace, NamespaceKind}
+import org.jpablo.typeexplorer.viewer.tree.Tree
 import org.jpablo.typeexplorer.viewer.domUtils.{details, open, summary}
 import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLAnchorElement, HTMLLIElement, HTMLUListElement}
 import org.jpablo.typeexplorer.viewer.extensions.*
+import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 
 /** Builds a collapsable tree based on the given inheritance diagram.
   *

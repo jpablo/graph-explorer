@@ -1,6 +1,6 @@
 package org.jpablo.typeexplorer.viewer.plantUML.svgGroupElement
 
-import org.jpablo.typeexplorer.shared.models
+import org.jpablo.typeexplorer.viewer.models
 import org.scalajs.dom
 
 sealed trait SvgGroupElement(val ref: dom.SVGGElement):

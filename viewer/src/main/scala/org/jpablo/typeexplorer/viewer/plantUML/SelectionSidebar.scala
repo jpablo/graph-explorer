@@ -5,7 +5,6 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
-import org.jpablo.typeexplorer.shared.inheritance.InheritanceGraph
 //import org.jpablo.typeexplorer.ui.app
 import org.jpablo.typeexplorer.viewer.plantUML.state.*
 import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState.ActiveSymbols

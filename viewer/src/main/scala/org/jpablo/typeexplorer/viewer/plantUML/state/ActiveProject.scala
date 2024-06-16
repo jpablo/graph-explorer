@@ -4,7 +4,6 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Owner
 import com.softwaremill.quicklens.*
-import org.jpablo.typeexplorer.shared.inheritance.{DiagramOptions, PackagesOptions, Path, ProjectSettings}
 
 /** Convenience wrapper around a Var[Project]
   */

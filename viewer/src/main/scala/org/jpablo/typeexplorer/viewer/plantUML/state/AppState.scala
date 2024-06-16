@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.storedString
-import org.jpablo.typeexplorer.shared.inheritance.{InheritanceGraph, Path}
+import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 
 /** In-memory App State
   */
@@ -50,7 +50,9 @@ object AppState:
     AppState(
       persistentVar(
         storedString("persistedAppState", initial = "{}"),
-        initial = PersistedAppState()
+        initial  = PersistedAppState(),
+        fromJson = _ => Left("Ok"),
+        toJson   = _ => "{}"
       ),
       projectId,
       fetchFullInheritanceGraph

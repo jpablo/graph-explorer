@@ -137,20 +137,31 @@ val publicProd = taskKey[String]("output directory for `npm run build`")
 lazy val viewer =
   project
     .in(file("viewer"))
-    .dependsOn(shared.js)
+//    .dependsOn(shared.js)
     .enablePlugins(ScalaJSPlugin)
+    .enablePlugins(BuildInfoPlugin)
     .settings(
-      name := "viewer",
+      name                            := "viewer",
+      scalaJSUseMainModuleInitializer := true,
+      Compile / mainClass             := Some("org.jpablo.typeexplorer.viewer.Viewer"),
+      scalaJSLinkerConfig ~= {
+        _.withModuleKind(ModuleKind.ESModule)
+//          .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("org.jpablo.typeexplorer.ui")))
+          .withSourceMap(true)
+      },
       libraryDependencies ++= Seq(
-        "org.scala-js" %%% "scalajs-dom" % "2.2.0",
-        "com.raquo"    %%% "laminar"     % laminarVersion,
-        "io.laminext"  %%% "fetch"       % "0.15.0",
-        "com.raquo"    %%% "waypoint"    % "7.0.0"
-      ),
-      excludeDependencies ++= Seq(
-        "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
-      ),
-      Compile / mainClass := Some("org.example.Main")
+        "com.raquo"                  %%% "laminar"     % laminarVersion,
+        "com.raquo"                  %%% "waypoint"    % "7.0.0",
+        "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
+        "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
+        "dev.zio"                    %%% "zio-json"    % "0.6.1",
+        "dev.zio"                    %%% "zio-prelude" % zioPreludeVersion,
+        "io.laminext"                %%% "fetch"       % "0.15.0",
+        "org.scala-js"               %%% "scalajs-dom" % "2.2.0",
+      )
+//      excludeDependencies ++= Seq(
+//        "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
+//      )
     )
 
 lazy val ui =
@@ -199,7 +210,7 @@ def linkerOutputDirectory(v: Attributed[org.scalajs.linker.interface.Report]): F
 lazy val root =
   project
     .in(file("."))
-    .aggregate(protos.jvm, backend, ui, shared.js, shared.jvm)
+    .aggregate(protos.jvm, backend, ui, viewer, shared.js, shared.jvm)
     .settings(
       name := "type-explorer",
       welcomeMessage

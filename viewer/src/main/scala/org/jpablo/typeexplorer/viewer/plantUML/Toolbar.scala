@@ -4,7 +4,8 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import com.softwaremill.quicklens.*
-import org.jpablo.typeexplorer.shared.inheritance.{InheritanceGraph, toPlantUML}
+import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
+//import org.jpablo.typeexplorer.shared.inheritance.{InheritanceGraph, toPlantUML}
 import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.jpablo.typeexplorer.viewer.widgets.Icons.*

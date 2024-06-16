@@ -1,6 +1,7 @@
 package org.jpablo.typeexplorer.viewer.plantUML.state
 
-import org.jpablo.typeexplorer.BuildInfo
+//import org.jpablo.typeexplorer.BuildInfo
+import buildinfo.BuildInfo
 import zio.json.JsonCodec
 
 /** Structure of the persisted state (in local storage)
@@ -9,7 +10,7 @@ case class PersistedAppState(
     projects:            Map[ProjectId, Project] = Map.empty,
     lastActiveProjectId: Option[ProjectId] = None,
     version:             String = BuildInfo.version
-) derives JsonCodec:
+):
 
   def selectOrCreateProject(projectId: ProjectId): Project =
     projects.getOrElse(projectId, Project(projectId))

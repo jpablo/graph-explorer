@@ -14,12 +14,17 @@ case class PersistentVar[A](v: Var[A]):
   val update = v.update
   val updater = v.updater
 
-def persistentVar[A: JsonCodec](storedString: StoredString, initial: A)(using
+def persistentVar[A](
+    storedString: StoredString,
+    initial:      A,
+    fromJson:     String => Either[String, A],
+    toJson:       A => String
+)(using
     Owner
 ): PersistentVar[A] =
   val str = storedString.signal.observe.now()
   val aVar =
-    Var(str.fromJson[A].left.map(dom.console.error(_)).getOrElse(initial))
+    Var(fromJson(str).left.map(dom.console.error(_)).getOrElse(initial))
   aVar.signal.foreach: a =>
-    storedString.set(a.toJson)
+    storedString.set(toJson(a))
   PersistentVar(aVar)

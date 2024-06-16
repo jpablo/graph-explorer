@@ -1,14 +1,14 @@
 package org.jpablo.typeexplorer.viewer.plantUML
 
 import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState.ActiveSymbols
-import org.jpablo.typeexplorer.viewer.plantUML.state.{AppState, InheritanceTabState, Project}
+import org.jpablo.typeexplorer.viewer.plantUML.state.{AppState, InheritanceTabState, PackagesOptions, Project}
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
 import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.viewer.widgets.*
-import org.jpablo.typeexplorer.shared.models
+import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.extensions.*
-import org.jpablo.typeexplorer.shared.inheritance.{InheritanceGraph, PackagesOptions}
+import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 
 def PackagesTreeComponent(appState: AppState, tabState: InheritanceTabState) =
   val showOptions = Var(false)
