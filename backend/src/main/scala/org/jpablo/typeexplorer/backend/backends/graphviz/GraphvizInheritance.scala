@@ -49,7 +49,9 @@ object GraphvizInheritance:
       filteredDiagram.arrows.toSeq.map: (source, target) =>
         node(source.toString) `link` to(node(target.toString))
 
-    graph(name).directed.graphAttr
+    graph(name)
+      .directed
+      .graphAttr
       .`with`(Rank.dir(RankDir.BOTTOM_TO_TOP))
       // https://graphviz.org/doc/info/shapes.html#html
       // ...In effect, shape=plain is shorthand for shape=none width=0 height=0 margin=0...

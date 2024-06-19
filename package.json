@@ -8,6 +8,9 @@
     "build": "NODE_OPTIONS='--max-old-space-size=4096' vite build",
     "preview": "vite preview"
   },
+  "dependencies": {
+    "@viz-js/viz": "3.3.0"
+  },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.9",
     "autoprefixer": "^10.4.13",
