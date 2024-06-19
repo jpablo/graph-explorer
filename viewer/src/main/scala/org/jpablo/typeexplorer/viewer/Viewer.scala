@@ -2,24 +2,42 @@ package org.jpablo.typeexplorer.viewer
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.jpablo.typeexplorer.viewer.backends.graphviz.GraphvizInheritance.toDot
 import org.jpablo.typeexplorer.viewer.examples.Example1
 import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 import org.jpablo.typeexplorer.viewer.models.GraphSymbol
 import org.jpablo.typeexplorer.viewer.plantUML.state.{CanvasSelectionOps, Path, ProjectId}
 import org.jpablo.typeexplorer.viewer.plantUML.{CanvasContainer, InheritanceSvgDiagram}
 import org.scalajs.dom
+import org.scalajs.dom.SVGSVGElement
+
+import scala.scalajs.js
 
 object Viewer:
 
+  val graph: Val[InheritanceGraph] = Signal.fromValue(Example1.diagram)
+
   def main(args: Array[String]): Unit =
     println("hello world")
-    render(dom.document.querySelector("#app"), createApp(ProjectId("project-0")))
+    val vizInstance = js.Dynamic.global.Viz.instance().asInstanceOf[js.Promise[js.Dynamic]]
+    vizInstance.`then` { viz =>
+      dom.console.log(viz)
+      val svgElem = viz.renderSVGElement("digraph { a -> b }").asInstanceOf[SVGSVGElement]
+      val diagram = Signal.fromValue(InheritanceSvgDiagram(svgElem))
 
+      val appElem =
+        createApp(
+          ProjectId("project-0"),
+          diagram
+        )
+      render(dom.document.querySelector("#app"), appElem)
+    }
+    val g = toDot("", Example1.diagram)
 
-  val graph = Signal.fromValue(Example1.diagram)
-  val diagram = Signal.fromValue(InheritanceSvgDiagram.empty)
-
-  private def createApp(projectId: ProjectId): ReactiveHtmlElement[dom.HTMLDivElement] =
+  private def createApp(
+      projectId: ProjectId,
+      diagram:   Val[InheritanceSvgDiagram]
+  ): ReactiveHtmlElement[dom.HTMLDivElement] =
     given Owner = unsafeWindowOwner
 
     val zoomValue = Var(1.0)
@@ -37,4 +55,3 @@ object Viewer:
     windowEvents(_.onError).foreach: e =>
       errors.emit(e.message)
     errors
-

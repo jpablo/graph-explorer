@@ -6,20 +6,20 @@ import org.jpablo.typeexplorer.viewer.plantUML.state.{DiagramOptions, ProjectSet
 
 object GraphvizInheritance:
 
-  def toGraph(
+  def toDot(
       name:            String,
-      iGraph:          InheritanceGraph,
-      symbolOptions:   Map[models.GraphSymbol, Option[SymbolOptions]],
-      diagramOptions:  DiagramOptions,
-      projectSettings: ProjectSettings
+      graph:           InheritanceGraph,
+      symbolOptions:   Map[models.GraphSymbol, Option[SymbolOptions]] = Map.empty,
+      diagramOptions:  DiagramOptions = DiagramOptions(),
+      projectSettings: ProjectSettings = ProjectSettings()
   ): String =
 
     val declarations =
-      iGraph.namespaces.map: ns =>
+      graph.namespaces.map: ns =>
         s"""${ns.symbol}[label="${ns.displayName}"]"""
 
     val arrows =
-      iGraph.arrows.toSeq.map: (source, target) =>
+      graph.arrows.toSeq.map: (source, target) =>
         s""" $source -> $target"""
 
     s"""
