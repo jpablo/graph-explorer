@@ -1,7 +1,7 @@
-package org.jpablo.typeexplorer.viewer.plantUML
+package org.jpablo.typeexplorer.viewer.components
 
-import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState.ActiveSymbols
-import org.jpablo.typeexplorer.viewer.plantUML.state.{AppState, InheritanceTabState, PackagesOptions, Project}
+import org.jpablo.typeexplorer.viewer.components.state.InheritanceTabState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.components.state.{AppState, InheritanceTabState, PackagesOptions, Project}
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
 import com.softwaremill.quicklens.*

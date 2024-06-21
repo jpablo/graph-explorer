@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.plantUML.state
+package org.jpablo.typeexplorer.viewer.components.state
 
 import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.airstream.ownership.OneTimeOwner
@@ -9,8 +9,8 @@ import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 import org.jpablo.typeexplorer.viewer.models.GraphSymbol
 //import org.jpablo.typeexplorer.shared.inheritance.{DiagramOptions, InheritanceGraph, Path, SymbolOptions}
 //import org.jpablo.typeexplorer.shared.models.GraphSymbol
-import org.jpablo.typeexplorer.viewer.plantUML.InheritanceSvgDiagram
-import org.jpablo.typeexplorer.viewer.plantUML.state.InheritanceTabState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.components.InheritanceSvgDiagram
+import org.jpablo.typeexplorer.viewer.components.state.InheritanceTabState.ActiveSymbols
 import org.scalajs.dom
 import org.jpablo.typeexplorer.viewer.extensions.*
 

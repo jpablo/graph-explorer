@@ -2,7 +2,7 @@ package org.jpablo.typeexplorer.viewer.backends.graphviz
 
 import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.plantUML.state.{DiagramOptions, ProjectSettings, SymbolOptions}
+import org.jpablo.typeexplorer.viewer.components.state.{DiagramOptions, ProjectSettings, SymbolOptions}
 
 object GraphvizInheritance:
 

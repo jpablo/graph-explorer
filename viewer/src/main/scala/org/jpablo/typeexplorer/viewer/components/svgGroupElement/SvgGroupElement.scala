@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.plantUML.svgGroupElement
+package org.jpablo.typeexplorer.viewer.components.svgGroupElement
 
 import org.jpablo.typeexplorer.viewer.models
 import org.scalajs.dom

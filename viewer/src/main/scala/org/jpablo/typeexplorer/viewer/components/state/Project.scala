@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.plantUML.state
+package org.jpablo.typeexplorer.viewer.components.state
 
 import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.viewer.models.GraphSymbol

@@ -1,9 +1,9 @@
-package org.jpablo.typeexplorer.viewer.plantUML
+package org.jpablo.typeexplorer.viewer.components
 
 import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 import org.jpablo.typeexplorer.viewer.tree.Tree
 import org.jpablo.typeexplorer.viewer.models.{GraphSymbol, Method, Namespace, NamespaceKind}
-import org.jpablo.typeexplorer.viewer.plantUML.state.{DiagramOptions, ProjectSettings, SymbolOptions}
+import org.jpablo.typeexplorer.viewer.components.state.{DiagramOptions, ProjectSettings, SymbolOptions}
 
 case class PlantUML(diagram: String)
 

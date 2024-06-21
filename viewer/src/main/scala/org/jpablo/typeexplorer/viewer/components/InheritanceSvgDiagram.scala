@@ -1,9 +1,9 @@
-package org.jpablo.typeexplorer.viewer.plantUML
+package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.plantUML.svgGroupElement.{ClusterElement, LinkElement, NamespaceElement}
+import org.jpablo.typeexplorer.viewer.components.svgGroupElement.{ClusterElement, LinkElement, NamespaceElement}
 import org.scalajs.dom
 class InheritanceSvgDiagram(svgElement: dom.SVGSVGElement):
   export svgElement.querySelector

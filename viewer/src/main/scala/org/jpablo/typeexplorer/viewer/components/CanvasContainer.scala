@@ -1,9 +1,9 @@
-package org.jpablo.typeexplorer.viewer.plantUML
+package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.laminar.api.L.*
-import org.jpablo.typeexplorer.viewer.plantUML.state.CanvasSelectionOps
-import org.jpablo.typeexplorer.viewer.plantUML.svgGroupElement.*
+import org.jpablo.typeexplorer.viewer.components.state.CanvasSelectionOps
+import org.jpablo.typeexplorer.viewer.components.svgGroupElement.*
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 

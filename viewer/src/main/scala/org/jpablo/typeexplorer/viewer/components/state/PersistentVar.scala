@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.plantUML.state
+package org.jpablo.typeexplorer.viewer.components.state
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
