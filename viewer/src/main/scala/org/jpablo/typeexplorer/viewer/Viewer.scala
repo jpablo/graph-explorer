@@ -3,11 +3,10 @@ package org.jpablo.typeexplorer.viewer
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.typeexplorer.viewer.backends.graphviz.GraphvizInheritance.toDot
+import org.jpablo.typeexplorer.viewer.components.state.{AppState, CanvasSelectionOps, ProjectId}
+import org.jpablo.typeexplorer.viewer.components.{CanvasContainer, InheritanceSvgDiagram, TopLevel}
 import org.jpablo.typeexplorer.viewer.examples.Example1
-import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 import org.jpablo.typeexplorer.viewer.models.GraphSymbol
-import org.jpablo.typeexplorer.viewer.components.state.{CanvasSelectionOps, Path, ProjectId}
-import org.jpablo.typeexplorer.viewer.components.{CanvasContainer, InheritanceSvgDiagram}
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 
@@ -36,6 +35,8 @@ object Viewer:
     val fitDiagram = EventBus[Unit]()
     val canvasSelectionV = Var(Set.empty[GraphSymbol])
     val canvasSelection = CanvasSelectionOps(canvasSelectionV)
+    val appState: AppState = ???
+    TopLevel(appState/*: AppState*/, "pageId")
     CanvasContainer(diagram, canvasSelection, zoomValue, fitDiagram.events)
 
   private def setupErrorHandling()(using Owner): EventBus[String] =

@@ -2,7 +2,6 @@ package org.jpablo.typeexplorer.viewer.components.state
 
 //import org.jpablo.typeexplorer.BuildInfo
 import buildinfo.BuildInfo
-import zio.json.JsonCodec
 
 /** Structure of the persisted state (in local storage)
   */

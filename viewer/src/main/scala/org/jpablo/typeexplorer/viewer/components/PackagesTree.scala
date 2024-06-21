@@ -68,7 +68,7 @@ class TreeElement(tabState: InheritanceTabState):
     a(
       idAttr := ns.symbol.toString,
       cls    := "font-['JetBrains_Mono'] rounded-box p-1 m-px cursor-pointer",
-      cls.toggle("active") <-- isActive,
+      cls("active") <-- isActive,
       TreeElement.stereotype(ns),
       div(
         cls := "truncate",

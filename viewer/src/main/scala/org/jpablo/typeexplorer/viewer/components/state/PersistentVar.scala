@@ -4,7 +4,6 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.StoredString
 import org.scalajs.dom
-import zio.json.*
 
 /** A marker class to indicate that changes to the contents are persisted.
   */

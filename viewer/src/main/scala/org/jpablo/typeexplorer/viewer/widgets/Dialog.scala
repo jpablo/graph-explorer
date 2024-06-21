@@ -8,7 +8,7 @@ import org.scalajs.dom.HTMLDialogElement
 
 def SimpleDialog(open: Var[Boolean], contents: Modifier[ReactiveHtmlElement.Base]*) =
   Dialog(
-    mods = cls.toggle("modal-open") <-- open.signal
+    mods = cls("modal-open") <-- open.signal
   )(
     contents
   )(
