@@ -2,7 +2,6 @@ package org.jpablo.typeexplorer.viewer.components.state
 
 import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
-import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.storedString
 import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 
@@ -18,24 +17,20 @@ class AppState(
     packagesOptions,
     diagramOptions,
     pages,
-    newPage,
-    setActivePage,
-    closePage,
-    closeActivePage,
     update as updateActiveProject
   }
 
+  val project: Signal[Project] =
+    persistedAppState.signal.map(_.project)
+
   val activeProject: ActiveProject =
-    AppState.selectOrCreateProject(persistedAppState, projectId)
+    val p = persistedAppState.zoom(_.project)((pas, p) => pas.copy(project = p))
+    ActiveProject(PersistentVar(p))
 
   val fullGraph: Signal[InheritanceGraph] =
     activeProject.basePaths.flatMapSwitch(fetchFullInheritanceGraph)
 
-  def deleteProject(projectId: ProjectId): Unit =
-    persistedAppState.update(_.deleteProject(projectId))
 
-  val projects: Signal[Map[ProjectId, Project]] =
-    persistedAppState.signal.map(_.projects)
 
   val appConfigDialogOpenV = Var(false)
 
@@ -50,28 +45,12 @@ object AppState:
     AppState(
       persistentVar(
         storedString("persistedAppState", initial = "{}"),
-        initial  = PersistedAppState(),
+        initial  = PersistedAppState(Project(ProjectId("???"))),
         fromJson = _ => Left("Ok"),
         toJson   = _ => "{}"
       ),
       projectId,
       fetchFullInheritanceGraph
     )
-
-  /** Select an existing project or create a new one. The new project will be persisted only after the first update.
-    */
-  private def selectOrCreateProject(
-      persistedAppState: PersistentVar[PersistedAppState],
-      projectId:         ProjectId
-  )(using Owner): ActiveProject =
-    ActiveProject {
-      PersistentVar {
-        persistedAppState
-          .zoom(_.selectOrCreateProject(projectId)): (persistedAppState, selectedProject) =>
-            persistedAppState
-              .modify(_.projects)
-              .using(_ + (selectedProject.id -> selectedProject))
-      }
-    }
 
 end AppState

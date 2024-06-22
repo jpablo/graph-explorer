@@ -27,7 +27,7 @@ case class InheritanceTabState(
   given owner: Owner = OneTimeOwner(() => ())
   // this should be a subset of activeSymbols' keys
   private val canvasSelectionV = Var(Set.empty[GraphSymbol])
-  private val pageV = appState.activeProject.pageV(pageId)
+  private val pageV = appState.activeProject.pageV
 
   val activeSymbolsV: Var[Map[GraphSymbol, Option[SymbolOptions]]] =
     pageV.zoom(_.activeSymbols.toMap)((p, s) => p.copy(activeSymbols = s.toList))

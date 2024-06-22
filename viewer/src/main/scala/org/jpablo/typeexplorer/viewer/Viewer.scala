@@ -6,6 +6,7 @@ import org.jpablo.typeexplorer.viewer.backends.graphviz.GraphvizInheritance.toDo
 import org.jpablo.typeexplorer.viewer.components.state.{AppState, CanvasSelectionOps, ProjectId}
 import org.jpablo.typeexplorer.viewer.components.{CanvasContainer, InheritanceSvgDiagram, TopLevel}
 import org.jpablo.typeexplorer.viewer.examples.Example1
+import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
 import org.jpablo.typeexplorer.viewer.models.GraphSymbol
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
@@ -14,21 +15,22 @@ import scala.scalajs.js
 
 object Viewer:
 
-//  val graph: Val[InheritanceGraph] = Signal.fromValue(Example1.diagram)
+  val graph: Val[InheritanceGraph] = Signal.fromValue(Example1.diagram)
 
   def main(args: Array[String]): Unit =
     println("hello world")
-    val g = toDot("", Example1.diagram)
+    val g = toDot("", graph.now())
     val vizInstance = js.Dynamic.global.Viz.instance().asInstanceOf[js.Promise[js.Dynamic]]
     vizInstance.`then`: viz =>
       val svgElem = InheritanceSvgDiagram(viz.renderSVGElement(g).asInstanceOf[SVGSVGElement])
       val diagram = Signal.fromValue(svgElem)
-      val appElem = createApp(ProjectId("project-0"), diagram)
+      val appElem = createApp(ProjectId("project-0"), diagram, graph)
       render(dom.document.querySelector("#app"), appElem)
 
   private def createApp(
       projectId: ProjectId,
-      diagram:   Val[InheritanceSvgDiagram]
+      diagram:   Val[InheritanceSvgDiagram],
+      graph:     Val[InheritanceGraph]
   ): ReactiveHtmlElement[dom.HTMLDivElement] =
     given Owner = unsafeWindowOwner
     val zoomValue = Var(1.0)
@@ -36,7 +38,7 @@ object Viewer:
     val canvasSelectionV = Var(Set.empty[GraphSymbol])
     val canvasSelection = CanvasSelectionOps(canvasSelectionV)
     val appState: AppState = ???
-    TopLevel(appState/*: AppState*/, "pageId")
+    TopLevel(appState, "pageId", graph)
     CanvasContainer(diagram, canvasSelection, zoomValue, fitDiagram.events)
 
   private def setupErrorHandling()(using Owner): EventBus[String] =

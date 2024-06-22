@@ -26,38 +26,13 @@ case class ActiveProject(project: PersistentVar[Project])(using o: Owner):
   val projectSettings: Signal[ProjectSettings] =
     project.signal.map(_.projectSettings).distinct
 
-  val diagramOptions: Signal[Vector[DiagramOptions]] =
-    project.signal.map(_.pages.map(_.diagramOptions)).distinct
+  val diagramOptions: Signal[DiagramOptions] =
+    project.signal.map(_.page.diagramOptions)
 
-  def pageV(pageId: String): Var[Page] =
-    project.zoom { p =>
-      p.pages.find(_.id == pageId).getOrElse(p.pages.last)
-    }((p, page) => p.modify(_.pages.eachWhere(_.id == pageId)).setTo(page))
+  def pageV: Var[Page] =
+    project.zoom(_.page)((p, page) => p.modify(_.page).setTo(page))
 
-  val pages: Signal[Vector[Page]] =
-    project.signal.map(_.pages).distinct
-
-  def newPage(): Unit = {
-    val page: Page = Page()
-    project.update { p =>
-      p.modify(_.pages)
-        .using(_ :+ page)
-        .modify(_.activePage)
-        .using(_ => p.pages.length)
-    }
-  }
-
-  def closePage(i: Int): Unit =
-    project.update(_.modify(_.pages).using(_.patch(i, Nil, 1)))
-
-  def closeActivePage(): Unit =
-    project.update: p =>
-      p.modify(_.pages).using(_.patch(p.activePage, Nil, 1))
-
-  def setActivePage(id: String): Unit =
-    project.update(_.setActivePageId(id))
-
-  def getActivePageId: Signal[String] =
-    project.signal.map(_.activePageId)
+  val pages: Signal[Page] =
+    project.signal.map(_.page)
 
 end ActiveProject
