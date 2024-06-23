@@ -78,9 +78,9 @@ class CanvasSelectionOps(
     val selection = canvasSelectionV.now()
     val relatedDiagram: ViewerGraph = selector(subGraph, selection)
     val arrowSymbols = relatedDiagram.arrows.map((a, b) => ViewerNodeId(s"${b}_$a"))
-    extend(relatedDiagram.symbols)
+    extend(relatedDiagram.nodeIds)
     extend(arrowSymbols)
-    svgDiagram.select(relatedDiagram.symbols)
+    svgDiagram.select(relatedDiagram.nodeIds)
     svgDiagram.select(arrowSymbols)
 
 end CanvasSelectionOps
@@ -145,6 +145,6 @@ class ActiveSymbolsOps(
     ep.compose(_.sample(combined)) --> { (diagram, selection) =>
       if selection.nonEmpty then
         val diagram1 = selection.foldLeft(ViewerGraph.empty)((acc, s) => f(diagram, s) ++ acc)
-        extend(diagram1.symbols.toSeq)
+        extend(diagram1.nodeIds.toSeq)
     }
 end ActiveSymbolsOps

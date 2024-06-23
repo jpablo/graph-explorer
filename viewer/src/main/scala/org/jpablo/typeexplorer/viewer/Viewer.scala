@@ -29,7 +29,7 @@ object Viewer:
   ): ReactiveHtmlElement[dom.HTMLDivElement] =
     given Owner = unsafeWindowOwner
     val id = ProjectId("project-0")
-    val allSymbols = graph.now().symbols.map(_ -> None).toMap
+    val allSymbols = graph.now().nodeIds.map(_ -> None).toMap
     val project = Project(id).modify(_.page.activeSymbols).setTo(allSymbols)
     val appState = AppState(Var(PersistedAppState(project, "")), graph)
     val viewerState = ViewerState(appState.activeProject.pageV, appState.fullGraph, renderDot)
