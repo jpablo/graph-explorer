@@ -12,10 +12,14 @@ def NodesList(
     viewerState: ViewerState,
     graph:       Signal[ViewerGraph]
 ): ReactiveHtmlElement[HTMLUListElement] =
-  val lis = graph.map: g =>
-    g.namespaces.toList.map: s =>
-      NodeRow(viewerState, s)
-  ul(children <-- lis)
+  val lis =
+    graph.map:
+      _.namespaces.toList.sortBy(_.displayName).map: s =>
+        NodeRow(viewerState, s)
+  ul(
+    cls := "menu menu-sm bg-base-200 rounded-box",
+    children <-- lis
+  )
 
 
 def NodeRow(tabState: ViewerState, ns: Namespace) =
@@ -23,8 +27,8 @@ def NodeRow(tabState: ViewerState, ns: Namespace) =
   li(
     a(
       idAttr := ns.symbol.toString,
-      cls    := "font-['JetBrains_Mono'] rounded-box cursor-pointer",
-      cls("active") <-- isActive,
+      cls    := "font-['JetBrains_Mono'] cursor-pointer",
+      cls("font-bold") <-- isActive,
       div(
         cls := "truncate",
         ns.displayName
