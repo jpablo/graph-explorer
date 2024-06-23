@@ -11,37 +11,28 @@ enum NamespaceKind derives JsonCodec:
   case Unknown
 //  case Other(name: String)
 
-opaque type GraphSymbol = String
+opaque type ViewerNodeId = String
 
-object GraphSymbol:
-  def apply(value: String): GraphSymbol = value
-  def empty: GraphSymbol = ""
-  extension (s: GraphSymbol) def toString: String = s
-  given JsonCodec[GraphSymbol] = JsonCodec.string
-  given JsonFieldDecoder[GraphSymbol] = JsonFieldDecoder.string
-  given JsonFieldEncoder[GraphSymbol] = JsonFieldEncoder.string
+object ViewerNodeId:
+  def apply(value: String): ViewerNodeId = value
+  def empty: ViewerNodeId = ""
+  extension (s: ViewerNodeId) def toString: String = s
+  given JsonCodec[ViewerNodeId] = JsonCodec.string
+  given JsonFieldDecoder[ViewerNodeId] = JsonFieldDecoder.string
+  given JsonFieldEncoder[ViewerNodeId] = JsonFieldEncoder.string
 
 case class Package(name: String)
 
-case class SymbolRange(
-    startLine: Int,
-    startChar: Int,
-    endLine:   Int,
-    endChar:   Int
+case class ViewerNode(
+    nodeId:      ViewerNodeId,
+    displayName: String,
+    kind:        NamespaceKind = NamespaceKind.Class,
+    methods:     List[Method] = List.empty,
+    basePath:    Option[String] = None
 ) derives JsonCodec
 
-
-case class Namespace(
-    symbol:        GraphSymbol,
-    displayName:   String,
-    kind:          NamespaceKind = NamespaceKind.Class,
-    methods:       List[Method] = List.empty,
-    basePath:      Option[String] = None,
-    range:         Option[SymbolRange] = None
-) derives JsonCodec
-
-case class Method(symbol: GraphSymbol, displayName: String, returnType: Option[Namespace]) derives JsonCodec
+case class Method(symbol: ViewerNodeId, displayName: String, returnType: Option[ViewerNode]) derives JsonCodec
 
 object Method:
-  def apply(name: String, returnType: Option[Namespace] = None): Method =
-    Method(GraphSymbol(name), name, returnType)
+  def apply(name: String, returnType: Option[ViewerNode] = None): Method =
+    Method(ViewerNodeId(name), name, returnType)

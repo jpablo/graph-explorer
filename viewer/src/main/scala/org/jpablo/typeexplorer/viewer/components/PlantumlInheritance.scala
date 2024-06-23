@@ -2,14 +2,14 @@ package org.jpablo.typeexplorer.viewer.components
 
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.tree.Tree
-import org.jpablo.typeexplorer.viewer.models.{GraphSymbol, Method, Namespace, NamespaceKind}
+import org.jpablo.typeexplorer.viewer.models.{ViewerNodeId, Method, ViewerNode, NamespaceKind}
 import org.jpablo.typeexplorer.viewer.components.state.{DiagramOptions, ProjectSettings, SymbolOptions}
 
 case class PlantUML(diagram: String)
 
 extension (diagram: ViewerGraph)
   def toPlantUML(
-      symbols:         Map[GraphSymbol, Option[SymbolOptions]],
+      symbols:         Map[ViewerNodeId, Option[SymbolOptions]],
       diagramOptions:  DiagramOptions = DiagramOptions(),
       projectSettings: ProjectSettings = ProjectSettings()
   ): PlantUML =
@@ -19,12 +19,12 @@ object PlantumlInheritance:
 
   def toPlantUML(
       iGraph:          ViewerGraph,
-      symbols:         Map[GraphSymbol, Option[SymbolOptions]],
+      symbols:         Map[ViewerNodeId, Option[SymbolOptions]],
       diagramOptions:  DiagramOptions = DiagramOptions(),
       projectSettings: ProjectSettings
   ): PlantUML =
     val filteredDiagram =
-      iGraph.filterBy(ns => !projectSettings.hiddenSymbols.contains(ns.symbol))
+      iGraph.filterBy(ns => !projectSettings.hiddenSymbols.contains(ns.nodeId))
     val declarations =
       filteredDiagram.toTrees.children.map(renderTree(diagramOptions, projectSettings, symbols))
 
@@ -55,8 +55,8 @@ object PlantumlInheritance:
   private def renderTree(
       diagramOptions:  DiagramOptions,
       projectSettings: ProjectSettings,
-      symbols:         Map[GraphSymbol, Option[SymbolOptions]]
-  ): Tree[Namespace] => String =
+      symbols:         Map[ViewerNodeId, Option[SymbolOptions]]
+  ): Tree[ViewerNode] => String =
     case Tree.Branch(label, path, children) =>
       s"""
          |namespace "$label" as ${path.mkString(".")} {
@@ -64,7 +64,7 @@ object PlantumlInheritance:
          |}
          |""".stripMargin
     case Tree.Leaf(_, ns) =>
-      renderNamespace(ns, diagramOptions, projectSettings, symbols.getOrElse(ns.symbol, None))
+      renderNamespace(ns, diagramOptions, projectSettings, symbols.getOrElse(ns.nodeId, None))
 
   // certain characters are interpreted by plantuml, so we use unicode codes instead
   private val replacementTable = Map(
@@ -76,12 +76,12 @@ object PlantumlInheritance:
     s1
 
   private def renderNamespace(
-      ns:              Namespace,
+      ns:              ViewerNode,
       diagramOptions:  DiagramOptions,
       projectSettings: ProjectSettings,
       symbolOptions:   Option[SymbolOptions]
   ): String =
-    val header = s"""class "${replaceMultiple(ns.displayName)}" as ${ns.symbol}"""
+    val header = s"""class "${replaceMultiple(ns.displayName)}" as ${ns.nodeId}"""
     val stereotype = ns.kind match
       case NamespaceKind.Object        => """ << (O, #44ad7d) >>"""
       case NamespaceKind.PackageObject => """ << (P, lightblue) >>"""

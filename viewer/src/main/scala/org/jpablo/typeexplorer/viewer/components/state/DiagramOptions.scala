@@ -2,7 +2,7 @@ package org.jpablo.typeexplorer.viewer.components.state
 
 import zio.json.*
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.models.GraphSymbol
+import org.jpablo.typeexplorer.viewer.models.ViewerNodeId
 
 type Path = String
 
@@ -16,7 +16,7 @@ case class PackagesOptions(
 case class ProjectSettings(
     basePaths:     List[Path] = List.empty,
     hiddenFields:  List[String] = DiagramOptions.hiddenFields,
-    hiddenSymbols: List[GraphSymbol] = DiagramOptions.hiddenSymbols
+    hiddenSymbols: List[ViewerNodeId] = DiagramOptions.hiddenSymbols
 ) derives JsonCodec
 
 // diagram configuration (tab specific)

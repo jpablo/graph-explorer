@@ -6,7 +6,7 @@ import org.jpablo.typeexplorer.viewer.models
 object Example1 {
 
   private def makeClass(name: String) =
-    models.Namespace(models.GraphSymbol(name), name, models.NamespaceKind.Class)
+    models.ViewerNode(models.ViewerNodeId(name), name, models.NamespaceKind.Class)
 
   val base0 = makeClass("base0")
   val base1 = makeClass("base1")
@@ -41,12 +41,12 @@ object Example1 {
 
   val diagram = ViewerGraph(
     arrows = Set(
-      base1.symbol -> base0.symbol,
-      base2.symbol -> base0.symbol,
-      classA.symbol -> base1.symbol,
-      classA.symbol -> base2.symbol,
-      classB.symbol -> classA.symbol,
-      classC.symbol -> classA.symbol,
+      base1.nodeId -> base0.nodeId,
+      base2.nodeId -> base0.nodeId,
+      classA.nodeId -> base1.nodeId,
+      classA.nodeId -> base2.nodeId,
+      classB.nodeId -> classA.nodeId,
+      classC.nodeId -> classA.nodeId,
     ),
     Set(base0, base1, base2, classA, classB, classC)
   )

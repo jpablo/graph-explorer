@@ -9,14 +9,14 @@ object Graphviz:
   def toDot(
       name:            String,
       graph:           ViewerGraph,
-      symbolOptions:   Map[models.GraphSymbol, Option[SymbolOptions]] = Map.empty,
+      symbolOptions:   Map[models.ViewerNodeId, Option[SymbolOptions]] = Map.empty,
       diagramOptions:  DiagramOptions = DiagramOptions(),
       projectSettings: ProjectSettings = ProjectSettings()
   ): String =
 
     val declarations =
-      graph.namespaces.map: ns =>
-        s"""${ns.symbol}[label="${ns.displayName}"]"""
+      graph.nodes.map: ns =>
+        s"""${ns.nodeId}[label="${ns.displayName}"]"""
 
     val arrows =
       graph.arrows.toSeq.map: (source, target) =>
