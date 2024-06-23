@@ -6,14 +6,12 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
-import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.models.GraphSymbol
 import org.jpablo.typeexplorer.viewer.components.SvgDiagram
 import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
-import org.scalajs.dom
 import org.jpablo.typeexplorer.viewer.extensions.*
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
+import org.jpablo.typeexplorer.viewer.models.GraphSymbol
+import org.scalajs.dom
 
 object ViewerState:
   type ActiveSymbols = Map[GraphSymbol, Option[SymbolOptions]]

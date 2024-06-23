@@ -2,14 +2,13 @@ package org.jpablo.typeexplorer.viewer
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
+import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.viewer.components.state.*
 import org.jpablo.typeexplorer.viewer.components.{SvgDiagram, TopLevel}
 import org.jpablo.typeexplorer.viewer.examples.Example1
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
-import com.softwaremill.quicklens.*
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

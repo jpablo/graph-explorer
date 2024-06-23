@@ -14,11 +14,11 @@
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.9",
     "autoprefixer": "^10.4.13",
-    "daisyui": "^4.4.11",
+    "daisyui": "^4.12.6",
     "postcss": "^8.4.31",
     "sass": "^1.58.0",
     "tailwindcss": "^3.3.3",
     "typescript": "4.9.5",
-    "vite": "4.2.3"
+    "vite": "5.3.1"
   }
 }
