@@ -10,13 +10,12 @@ import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 
-def PackagesTreeComponent(appState: AppState, tabState: ViewerState) =
+def PackagesTreeComponent(appState: AppState, viewerState: ViewerState) =
   val showOptions = Var(false)
   val filterBySymbolName = Var("")
-  val activeSymbols = tabState.activeSymbols.signal
-  val filteredDiagram: EventStream[ViewerGraph] =
+  val activeSymbols = viewerState.activeSymbols.signal
+  val filteredGraph: Signal[ViewerGraph] =
     filteredDiagramEvent(appState, activeSymbols, filterBySymbolName.signal)
-
   div(
     cls := "bg-base-100 rounded-box overflow-auto p-1 z-10",
     // --- controls ---
@@ -37,13 +36,13 @@ def PackagesTreeComponent(appState: AppState, tabState: ViewerState) =
         controlled(
           value <-- filterBySymbolName,
           onInput.mapToValue --> filterBySymbolName
-        ),
+        )
 //        onKeyDown.filter(e => e.key == "Enter" || e.key == "Escape") --> appState.appConfigDialogOpenV.set(false)
       ).smallInput
     ),
     div(
       cls := "overflow-auto mt-1",
-      child <-- PackagesTree(tabState, filteredDiagram)
+      Nodes(viewerState, filteredGraph)
     )
   )
 
@@ -51,7 +50,7 @@ private def filteredDiagramEvent(
     appState:           AppState,
     activeSymbols:      Signal[ActiveSymbols],
     filterBySymbolName: Signal[String]
-): EventStream[ViewerGraph] =
+): Signal[ViewerGraph] =
   appState.fullGraph
     .combineWith(
       appState.packagesOptions,
@@ -60,16 +59,16 @@ private def filteredDiagramEvent(
       // a full tree redraw, but just modifies the relevant nodes
       activeSymbols
     )
-    .changes
-    .debounce(300)
+//    .changes
+//    .debounce(300)
     .map:
       (
-          diagram:         ViewerGraph,
+          graph:           ViewerGraph,
           packagesOptions: PackagesOptions,
           w:               String,
           activeSymbols:   ActiveSymbols
       ) =>
-        diagram
+        graph
           .orElse(w.isBlank, _.filterBySymbolName(w))
           .subdiagramByKinds(packagesOptions.nsKind)
           .orElse(!packagesOptions.onlyActive, _.subdiagram(activeSymbols.keySet))

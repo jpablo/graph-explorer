@@ -15,17 +15,34 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 
 /** Builds a collapsable tree based on the given inheritance diagram.
   *
-  * @param diagrams
+  * @param graph
+  *   The diagram
+  * @return
+  *   A List of trees, one for each top level package in the diagram: e.g. ["com..., ", "java.io..."]
+  */
+def Nodes(
+    viewerState: ViewerState,
+    graph:       Signal[ViewerGraph]
+): ReactiveHtmlElement[HTMLUListElement] =
+  val treeElement = TreeElement(viewerState)
+  val lis = graph.map: g =>
+    g.namespaces.toList.map: s =>
+      li(treeElement.PackageMember(s))
+  ul(children <-- lis)
+
+/** Builds a collapsable tree based on the given inheritance diagram.
+  *
+  * @param graph
   *   The diagram
   * @return
   *   A List of trees, one for each top level package in the diagram: e.g. ["com..., ", "java.io..."]
   */
 def PackagesTree(
     tabState: ViewerState,
-    diagrams: EventStream[ViewerGraph]
+    graph:    Signal[ViewerGraph]
 ): EventStream[ReactiveHtmlElement[HTMLUListElement]] =
   val treeElement = TreeElement(tabState)
-  for diagram <- diagrams
+  for diagram <- graph.changes
   yield treeElement
     .render(diagram.toTrees.children)
     .amend(
@@ -63,7 +80,7 @@ class TreeElement(tabState: ViewerState):
           case b: Tree.Branch[?] => Package(b.label, b.path, b.children)
     )
 
-  private def PackageMember(ns: Namespace) =
+  def PackageMember(ns: Namespace) =
     val isActive = tabState.activeSymbols.signal.map(_.contains(ns.symbol))
     a(
       idAttr := ns.symbol.toString,

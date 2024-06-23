@@ -29,7 +29,7 @@ def ErrorToast(messages: EventBus[String]) =
   div(
     messages.events --> hidden.set(false),
     cls := "toast toast-center",
-    cls.toggle("hidden") <-- hidden.signal,
+    cls("hidden") <-- hidden.signal,
     div(
       cls := "alert alert-error",
       child.text <-- messages.events,
