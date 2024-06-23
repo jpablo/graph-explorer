@@ -4,7 +4,7 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.components.state.{DiagramOptions, ProjectSettings, SymbolOptions}
 
-object GraphvizInheritance:
+object Graphviz:
 
   def toDot(
       name:            String,
@@ -32,4 +32,4 @@ object GraphvizInheritance:
        |}
        |""".stripMargin
 
-end GraphvizInheritance
+end Graphviz

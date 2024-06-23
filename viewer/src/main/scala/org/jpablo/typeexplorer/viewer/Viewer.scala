@@ -2,7 +2,7 @@ package org.jpablo.typeexplorer.viewer
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.jpablo.typeexplorer.viewer.backends.graphviz.GraphvizInheritance.toDot
+import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
 import org.jpablo.typeexplorer.viewer.components.state.*
 import org.jpablo.typeexplorer.viewer.components.{SvgDiagram, TopLevel}
 import org.jpablo.typeexplorer.viewer.examples.Example1
@@ -20,20 +20,23 @@ object Viewer:
   def main(args: Array[String]): Unit =
     val graph = Signal.fromValue(Example1.diagram)
     val viz = new GraphViz
-    for svgElem <- viz.render(toDot("", graph.now())) do
-      val appElem = createApp(svgElem, graph)
-      render(dom.document.querySelector("#app"), appElem)
+    val appElem = createApp(graph, buildSvgDiagram(viz))
+    render(dom.document.querySelector("#app"), appElem)
 
   private def createApp(
-      svgElem: SVGSVGElement,
-      graph:   Val[ViewerGraph]
+      graph:     Val[ViewerGraph],
+      renderDot: String => Signal[SvgDiagram]
   ): ReactiveHtmlElement[dom.HTMLDivElement] =
     given Owner = unsafeWindowOwner
     val id = ProjectId("project-0")
-    val svgDiagramV = Signal.fromValue(SvgDiagram(svgElem))
     val appState = AppState(Var(PersistedAppState(Project(id), "")), graph)
-    val viewerState = ViewerState(appState.activeProject.pageV, appState.fullGraph, svgDiagramV)
-    TopLevel(appState, viewerState, graph, svgDiagramV)
+    val viewerState = ViewerState(appState.activeProject.pageV, appState.fullGraph, renderDot)
+    TopLevel(appState, viewerState, graph, viewerState.svgDiagram)
+
+  private def buildSvgDiagram(viz: GraphViz)(s: String): Signal[SvgDiagram] =
+    Signal
+      .fromFuture(viz.render(s).map(e => SvgDiagram(e)))
+      .map(_.getOrElse(SvgDiagram.empty))
 
   private def setupErrorHandling()(using Owner): EventBus[String] =
     val errors = new EventBus[String]
