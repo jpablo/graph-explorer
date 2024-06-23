@@ -42,7 +42,7 @@ def NodesPanel(appState: AppState, viewerState: ViewerState) =
     ),
     div(
       cls := "overflow-auto mt-1",
-      Nodes(viewerState, filteredGraph)
+      NodesList(viewerState, filteredGraph)
     )
   )
 

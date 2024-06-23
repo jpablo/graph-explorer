@@ -8,7 +8,7 @@ import org.jpablo.typeexplorer.viewer.models.Namespace
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLAnchorElement, HTMLLIElement, HTMLUListElement}
 
-def Nodes(
+def NodesList(
     viewerState: ViewerState,
     graph:       Signal[ViewerGraph]
 ): ReactiveHtmlElement[HTMLUListElement] =
