@@ -10,7 +10,7 @@ import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 
-def PackagesTreeComponent(appState: AppState, viewerState: ViewerState) =
+def NodesPanel(appState: AppState, viewerState: ViewerState) =
   val showOptions = Var(false)
   val filterBySymbolName = Var("")
   val activeSymbols = viewerState.activeSymbols.signal

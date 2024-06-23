@@ -29,7 +29,7 @@ def TopLevel(
       sidebar = _.amend(
         div(
           cls := "p-4 w-96 bg-base-100 text-base-content h-full",
-          PackagesTreeComponent(appState, viewerState)
+          NodesPanel(appState, viewerState)
         )
       )
     ).amend(
