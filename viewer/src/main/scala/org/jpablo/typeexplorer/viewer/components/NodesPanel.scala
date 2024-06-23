@@ -69,7 +69,7 @@ private def filteredDiagramEvent(
       ) =>
         graph
           .orElse(w.isBlank, _.filterBySymbolName(w))
-          .subgraphByKinds(packagesOptions.nsKind)
+//          .subgraphByKinds(packagesOptions.kinds)
           .orElse(!packagesOptions.onlyActive, _.subgraph(activeSymbols.keySet))
 
 private def Options(appState: AppState) =
@@ -86,15 +86,17 @@ private def Options(appState: AppState) =
         toggle = true
       ),
       hr(),
-//      for kind <- appState.fullGraph.map(_.nodes.map(_.kind))
-//      yield LabeledCheckbox(
-//        id = s"show-ns-kind-$kind",
-//        kind.toString,
-//        isChecked = appState.packagesOptions
-//          .map(_.nsKind)
-//          .map(_.contains(kind)),
-//        clickHandler = Observer: b =>
-//          appState.updateActiveProject(_.modify(_.packagesOptions.nsKind).using(_.toggleWith(kind, b)))
-//      )
+      children <--
+        appState.fullGraph.map(_.kinds).map: kinds =>
+          for kind <- kinds.toList
+          yield LabeledCheckbox(
+            id = s"show-ns-kind-$kind",
+            kind.toString,
+            isChecked = appState.packagesOptions
+              .map(_.kinds)
+              .map(_.contains(kind)),
+            clickHandler = Observer: b =>
+              appState.updateActiveProject(_.modify(_.packagesOptions.kinds).using(_.toggleWith(kind, b)))
+          )
     )
   )

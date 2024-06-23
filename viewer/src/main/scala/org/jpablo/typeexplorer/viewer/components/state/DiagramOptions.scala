@@ -8,7 +8,7 @@ type Path = String
 // packages tree configuration
 case class PackagesOptions(
     onlyActive: Boolean = false,
-    nsKind:     Set[ViewerKind] = Set.empty
+    kinds:      Set[ViewerKind] = Set.empty
 )
 
 // project configuration

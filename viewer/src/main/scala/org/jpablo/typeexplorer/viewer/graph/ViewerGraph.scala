@@ -34,11 +34,14 @@ case class ViewerGraph(
       .transform((_, ss) => ss.map(_._1))
       .withDefaultValue(Set.empty)
 
-  private lazy val nodesById: Map[ViewerNodeId, ViewerNode] =
+  private lazy val nodeById: Map[ViewerNodeId, ViewerNode] =
     nodes.groupMapReduce(_.nodeId)(identity)((_, b) => b)
 
-  private lazy val nsByKind: Map[ViewerKind, Set[ViewerNode]] =
+  private lazy val nodesByKind: Map[ViewerKind, Set[ViewerNode]] =
     nodes.groupBy(_.kind)
+    
+  lazy val kinds =
+    nodes.map(_.kind)
 
   private def arrowsForNodeIds(ids: Set[ViewerNodeId]): Set[Arrow] =
     for
@@ -49,12 +52,12 @@ case class ViewerGraph(
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
   def subgraph(ids: Set[ViewerNodeId]): ViewerGraph =
-    val foundIds = nodesById.keySet.intersect(ids)
-    val foundNodes = foundIds.map(nodesById)
+    val foundIds = nodeById.keySet.intersect(ids)
+    val foundNodes = foundIds.map(nodeById)
     ViewerGraph(arrowsForNodeIds(foundIds), foundNodes)
 
   def subgraphByKinds(kinds: Set[ViewerKind]): ViewerGraph =
-    val foundKinds = nsByKind.filter((kind, _) => kinds.contains(kind))
+    val foundKinds = nodesByKind.filter((kind, _) => kinds.contains(kind))
     val foundNS = foundKinds.values.flatten.toSet
     ViewerGraph(arrowsForNodeIds(foundNS.map(_.nodeId)), foundNS)
 
