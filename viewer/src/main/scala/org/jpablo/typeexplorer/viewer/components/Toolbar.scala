@@ -20,7 +20,7 @@ def Toolbar(
     fitDiagram: EventBus[Unit]
 //    appConfigDialogOpenV: Var[Boolean]
 ) =
-  val drawerId = s"drawer-tab-${tabState}.pageId"
+  val drawerId = s"drawer-id"
   div(
     cls := "shadow bg-base-100 rounded-box flex items-center gap-4 p-0.5 absolute top-1 left-2/4 -translate-x-2/4 z-10",
     // -------- package selector --------
