@@ -113,7 +113,7 @@ private def onDotClicked(
     dom.window.navigator.clipboard.writeText(
       Graphviz.toDot(
         "",
-        fullDiagram.subdiagram(activeSymbols.keySet),
+        fullDiagram.subgraph(activeSymbols.keySet),
         diagramOptions = options
       )
     )

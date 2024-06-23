@@ -48,12 +48,12 @@ case class ViewerGraph(
 
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
-  def subdiagram(ids: Set[ViewerNodeId]): ViewerGraph =
+  def subgraph(ids: Set[ViewerNodeId]): ViewerGraph =
     val foundIds = nodesById.keySet.intersect(ids)
     val foundNodes = foundIds.map(nodesById)
     ViewerGraph(arrowsForNodeIds(foundIds), foundNodes)
 
-  def subdiagramByKinds(kinds: Set[NamespaceKind]): ViewerGraph =
+  def subgraphByKinds(kinds: Set[NamespaceKind]): ViewerGraph =
     val foundKinds = nsByKind.filter((kind, _) => kinds.contains(kind))
     val foundNS = foundKinds.values.flatten.toSet
     ViewerGraph(arrowsForNodeIds(foundNS.map(_.nodeId)), foundNS)
@@ -69,7 +69,7 @@ case class ViewerGraph(
       .flatten
 
   private def allRelated(ids: Set[ViewerNodeId], r: ViewerNodeId => Set[ViewerNodeId]): ViewerGraph =
-    subdiagram(unfold(ids, r) ++ ids)
+    subgraph(unfold(ids, r) ++ ids)
 
   def parentsOfAll(ids:  Set[ViewerNodeId]): ViewerGraph = allRelated(ids, directParents)
   def childrenOfAll(ids: Set[ViewerNodeId]): ViewerGraph = allRelated(ids, directChildren)
@@ -95,10 +95,10 @@ case class ViewerGraph(
   /** Creates a new subdiagram with all the symbols containing the given String.
     */
   def filterBySymbolName(str: String): ViewerGraph =
-    subdiagram(nodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase)))
+    subgraph(nodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase)))
 
   def filterBy(p: ViewerNode => Boolean): ViewerGraph =
-    subdiagram(nodes.filter(p).map(_.nodeId))
+    subgraph(nodes.filter(p).map(_.nodeId))
 end ViewerGraph
 
 object ViewerGraph:

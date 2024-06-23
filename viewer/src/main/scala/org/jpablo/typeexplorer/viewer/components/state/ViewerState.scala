@@ -43,7 +43,7 @@ case class ViewerState(
     graph
       .combineWith(pageV.signal.distinct)
       .flatMapSwitch: (g, p) =>
-        renderDot(toDot("", g.subdiagram(p.activeSymbols.keySet)))
+        renderDot(toDot("", g.subgraph(p.activeSymbols.keySet)))
 
 end ViewerState
 
@@ -74,7 +74,7 @@ class CanvasSelectionOps(
       svgDiagram:    SvgDiagram,
       activeSymbols: ActiveSymbols
   ): Unit =
-    val subGraph: ViewerGraph = graph.subdiagram(activeSymbols.keySet)
+    val subGraph: ViewerGraph = graph.subgraph(activeSymbols.keySet)
     val selection = canvasSelectionV.now()
     val relatedDiagram: ViewerGraph = selector(subGraph, selection)
     val arrowSymbols = relatedDiagram.arrows.map((a, b) => ViewerNodeId(s"${b}_$a"))

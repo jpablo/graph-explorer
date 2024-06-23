@@ -70,8 +70,8 @@ private def filteredDiagramEvent(
       ) =>
         graph
           .orElse(w.isBlank, _.filterBySymbolName(w))
-          .subdiagramByKinds(packagesOptions.nsKind)
-          .orElse(!packagesOptions.onlyActive, _.subdiagram(activeSymbols.keySet))
+          .subgraphByKinds(packagesOptions.nsKind)
+          .orElse(!packagesOptions.onlyActive, _.subgraph(activeSymbols.keySet))
 
 private def Options(appState: AppState) =
   div(
