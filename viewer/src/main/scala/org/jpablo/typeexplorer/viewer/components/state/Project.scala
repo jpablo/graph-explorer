@@ -1,6 +1,6 @@
 package org.jpablo.typeexplorer.viewer.components.state
 
-import org.jpablo.typeexplorer.viewer.models.GraphSymbol
+import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
 
 import scala.scalajs.js
 
@@ -10,15 +10,12 @@ case class Project(
     advancedMode:    Boolean = false,
     packagesOptions: PackagesOptions = PackagesOptions(),
     projectSettings: ProjectSettings = ProjectSettings(),
-    page:            Page = Page(),
-    activePage:      Int = 0
+    page:            Page = Page()
 )
-
-type ActiveSymbolsSeq = List[(GraphSymbol, Option[SymbolOptions])]
 
 case class Page(
     id: String = js.Dynamic.global.crypto.randomUUID().toString,
-    // This can't be a Map[A, Option[B]], as zio-json will remove entries with None values
-    activeSymbols:  ActiveSymbolsSeq = List.empty,
+    // The symbols currently shown in the diagram?
+    activeSymbols:  ActiveSymbols = Map.empty,
     diagramOptions: DiagramOptions = DiagramOptions()
 )

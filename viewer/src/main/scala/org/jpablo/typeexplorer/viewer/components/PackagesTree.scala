@@ -7,11 +7,11 @@ import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.typeexplorer.viewer.models.{GraphSymbol, Namespace, NamespaceKind}
 import org.jpablo.typeexplorer.viewer.tree.Tree
 import org.jpablo.typeexplorer.viewer.domUtils.{details, open, summary}
-import org.jpablo.typeexplorer.viewer.components.state.InheritanceTabState
+import org.jpablo.typeexplorer.viewer.components.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLAnchorElement, HTMLLIElement, HTMLUListElement}
 import org.jpablo.typeexplorer.viewer.extensions.*
-import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
+import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 
 /** Builds a collapsable tree based on the given inheritance diagram.
   *
@@ -21,8 +21,8 @@ import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
   *   A List of trees, one for each top level package in the diagram: e.g. ["com..., ", "java.io..."]
   */
 def PackagesTree(
-    tabState: InheritanceTabState,
-    diagrams: EventStream[InheritanceGraph]
+    tabState: ViewerState,
+    diagrams: EventStream[ViewerGraph]
 ): EventStream[ReactiveHtmlElement[HTMLUListElement]] =
   val treeElement = TreeElement(tabState)
   for diagram <- diagrams
@@ -40,7 +40,7 @@ val leafSymbols: Tree[Namespace] => List[GraphSymbol] =
   case Tree.Branch(_, _, children) => children.flatMap(leafSymbols)
   case Tree.Leaf(_, ns)            => List(ns.symbol)
 
-class TreeElement(tabState: InheritanceTabState):
+class TreeElement(tabState: ViewerState):
   private val openBranches = Var(Set.empty[List[String]])
 
   def render(

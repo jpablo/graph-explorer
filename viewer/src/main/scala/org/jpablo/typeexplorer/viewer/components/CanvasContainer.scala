@@ -8,7 +8,7 @@ import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
 def CanvasContainer(
-    inheritanceSvgDiagram: Signal[InheritanceSvgDiagram],
+    inheritanceSvgDiagram: Signal[SvgDiagram],
     canvasSelection:       CanvasSelectionOps,
     zoomValue:             Var[Double],
     fitDiagram:            EventStream[Unit]
@@ -65,7 +65,7 @@ def CanvasContainer(
 
 private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
     ev:      dom.MouseEvent,
-    diagram: InheritanceSvgDiagram
+    diagram: SvgDiagram
 ): Unit =
 
   // 1. Identify and parse the element that was clicked

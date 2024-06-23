@@ -3,43 +3,37 @@ package org.jpablo.typeexplorer.viewer
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.typeexplorer.viewer.backends.graphviz.GraphvizInheritance.toDot
-import org.jpablo.typeexplorer.viewer.components.state.{AppState, CanvasSelectionOps, ProjectId}
-import org.jpablo.typeexplorer.viewer.components.{CanvasContainer, InheritanceSvgDiagram, TopLevel}
+import org.jpablo.typeexplorer.viewer.components.state.*
+import org.jpablo.typeexplorer.viewer.components.{SvgDiagram, TopLevel}
 import org.jpablo.typeexplorer.viewer.examples.Example1
-import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
-import org.jpablo.typeexplorer.viewer.models.GraphSymbol
+import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.scalajs.js
+import scala.scalajs.js.Promise
 
 object Viewer:
 
-  val graph: Val[InheritanceGraph] = Signal.fromValue(Example1.diagram)
-
   def main(args: Array[String]): Unit =
-    println("hello world")
-    val g = toDot("", graph.now())
-    val vizInstance = js.Dynamic.global.Viz.instance().asInstanceOf[js.Promise[js.Dynamic]]
-    vizInstance.`then`: viz =>
-      val svgElem = InheritanceSvgDiagram(viz.renderSVGElement(g).asInstanceOf[SVGSVGElement])
-      val diagram = Signal.fromValue(svgElem)
-      val appElem = createApp(ProjectId("project-0"), diagram, graph)
+    val graph = Signal.fromValue(Example1.diagram)
+    val viz = new GraphViz
+    for svgElem <- viz.render(toDot("", graph.now())) do
+      val appElem = createApp(svgElem, graph)
       render(dom.document.querySelector("#app"), appElem)
 
   private def createApp(
-      projectId: ProjectId,
-      diagram:   Val[InheritanceSvgDiagram],
-      graph:     Val[InheritanceGraph]
+      svgElem: SVGSVGElement,
+      graph:   Val[ViewerGraph]
   ): ReactiveHtmlElement[dom.HTMLDivElement] =
     given Owner = unsafeWindowOwner
-    val zoomValue = Var(1.0)
-    val fitDiagram = EventBus[Unit]()
-    val canvasSelectionV = Var(Set.empty[GraphSymbol])
-    val canvasSelection = CanvasSelectionOps(canvasSelectionV)
-    val appState: AppState = ???
-    TopLevel(appState, "pageId", graph)
-    CanvasContainer(diagram, canvasSelection, zoomValue, fitDiagram.events)
+    val id = ProjectId("project-0")
+    val svgDiagramV = Signal.fromValue(SvgDiagram(svgElem))
+    val appState = AppState(Var(PersistedAppState(Project(id), "")), graph)
+    val viewerState = ViewerState(appState.activeProject.pageV, appState.fullGraph, svgDiagramV)
+    TopLevel(appState, viewerState, graph, svgDiagramV)
 
   private def setupErrorHandling()(using Owner): EventBus[String] =
     val errors = new EventBus[String]
@@ -48,3 +42,13 @@ object Viewer:
     windowEvents(_.onError).foreach: e =>
       errors.emit(e.message)
     errors
+
+class GraphViz:
+  private val instance: Future[js.Dynamic] =
+    js.Dynamic.global.Viz
+      .instance()
+      .asInstanceOf[js.Promise[js.Dynamic]]
+      .toFuture
+
+  def render(g: String): Future[SVGSVGElement] =
+    instance.map(_.renderSVGElement(g).asInstanceOf[SVGSVGElement])

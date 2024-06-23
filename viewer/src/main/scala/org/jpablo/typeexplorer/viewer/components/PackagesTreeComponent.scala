@@ -1,20 +1,20 @@
 package org.jpablo.typeexplorer.viewer.components
 
-import org.jpablo.typeexplorer.viewer.components.state.InheritanceTabState.ActiveSymbols
-import org.jpablo.typeexplorer.viewer.components.state.{AppState, InheritanceTabState, PackagesOptions, Project}
+import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.components.state.{AppState, ViewerState, PackagesOptions, Project}
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
 import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.extensions.*
-import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
+import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 
-def PackagesTreeComponent(appState: AppState, tabState: InheritanceTabState) =
+def PackagesTreeComponent(appState: AppState, tabState: ViewerState) =
   val showOptions = Var(false)
   val filterBySymbolName = Var("")
   val activeSymbols = tabState.activeSymbols.signal
-  val filteredDiagram: EventStream[InheritanceGraph] =
+  val filteredDiagram: EventStream[ViewerGraph] =
     filteredDiagramEvent(appState, activeSymbols, filterBySymbolName.signal)
 
   div(
@@ -51,7 +51,7 @@ private def filteredDiagramEvent(
     appState:           AppState,
     activeSymbols:      Signal[ActiveSymbols],
     filterBySymbolName: Signal[String]
-): EventStream[InheritanceGraph] =
+): EventStream[ViewerGraph] =
   appState.fullGraph
     .combineWith(
       appState.packagesOptions,
@@ -64,7 +64,7 @@ private def filteredDiagramEvent(
     .debounce(300)
     .map:
       (
-          diagram:         InheritanceGraph,
+          diagram:         ViewerGraph,
           packagesOptions: PackagesOptions,
           w:               String,
           activeSymbols:   ActiveSymbols

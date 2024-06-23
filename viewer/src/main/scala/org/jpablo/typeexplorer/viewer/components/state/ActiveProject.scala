@@ -3,11 +3,10 @@ package org.jpablo.typeexplorer.viewer.components.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Owner
-import com.softwaremill.quicklens.*
 
 /** Convenience wrapper around a Var[Project]
   */
-case class ActiveProject(project: PersistentVar[Project])(using o: Owner):
+case class ActiveProject(project: Var[Project])(using o: Owner):
 
   //  export project.{signal, update, updater}
   val signal = project.signal
@@ -30,7 +29,7 @@ case class ActiveProject(project: PersistentVar[Project])(using o: Owner):
     project.signal.map(_.page.diagramOptions)
 
   def pageV: Var[Page] =
-    project.zoom(_.page)((p, page) => p.modify(_.page).setTo(page))
+    project.zoom(_.page)((p, page) => p.copy(page = page))
 
   val pages: Signal[Page] =
     project.signal.map(_.page)

@@ -14,7 +14,6 @@ import scala.annotation.targetName
 
 type Arrow = (GraphSymbol, GraphSymbol)
 
-
 /** A simplified representation of entities and subtype relationships
   *
   * @param arrows
@@ -22,7 +21,7 @@ type Arrow = (GraphSymbol, GraphSymbol)
   * @param namespaces
   *   Classes, Objects, Traits, etc
   */
-case class InheritanceGraph(
+case class ViewerGraph(
     arrows:     Set[Arrow],
     namespaces: Set[Namespace] = Set.empty
 ):
@@ -93,15 +92,15 @@ case class InheritanceGraph(
 
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
-  def subdiagram(symbols: Set[GraphSymbol]): InheritanceGraph =
+  def subdiagram(symbols: Set[GraphSymbol]): ViewerGraph =
     val foundSymbols = nsBySymbol.keySet.intersect(symbols)
     val foundNS = foundSymbols.map(nsBySymbol)
-    InheritanceGraph(arrowsForSymbols(foundSymbols), foundNS)
+    ViewerGraph(arrowsForSymbols(foundSymbols), foundNS)
 
-  def subdiagramByKinds(kinds: Set[NamespaceKind]): InheritanceGraph =
+  def subdiagramByKinds(kinds: Set[NamespaceKind]): ViewerGraph =
     val foundKinds = nsByKind.filter((kind, _) => kinds.contains(kind))
     val foundNS = foundKinds.values.flatten.toSet
-    InheritanceGraph(arrowsForSymbols(foundNS.map(_.symbol)), foundNS)
+    ViewerGraph(arrowsForSymbols(foundNS.map(_.symbol)), foundNS)
 
   // Note: doesn't handle loops.
   // How efficient is this compared to the tail rec version above?
@@ -113,14 +112,14 @@ case class InheritanceGraph(
       }
       .flatten
 
-  private def allRelated(ss: Set[GraphSymbol], r: GraphSymbol => Set[GraphSymbol]): InheritanceGraph =
+  private def allRelated(ss: Set[GraphSymbol], r: GraphSymbol => Set[GraphSymbol]): ViewerGraph =
     subdiagram(unfold(ss, r) ++ ss)
 
-  def parentsOfAll(symbols:  Set[GraphSymbol]): InheritanceGraph = allRelated(symbols, directParents)
-  def childrenOfAll(symbols: Set[GraphSymbol]): InheritanceGraph = allRelated(symbols, directChildren)
+  def parentsOfAll(symbols:  Set[GraphSymbol]): ViewerGraph = allRelated(symbols, directParents)
+  def childrenOfAll(symbols: Set[GraphSymbol]): ViewerGraph = allRelated(symbols, directChildren)
 
-  def parentsOf(symbol:  GraphSymbol): InheritanceGraph = allRelated(Set(symbol), directParents)
-  def childrenOf(symbol: GraphSymbol): InheritanceGraph = allRelated(Set(symbol), directChildren)
+  def parentsOf(symbol:  GraphSymbol): ViewerGraph = allRelated(Set(symbol), directParents)
+  def childrenOf(symbol: GraphSymbol): ViewerGraph = allRelated(Set(symbol), directChildren)
 
   lazy val toTrees: Tree[Namespace] =
     val paths =
@@ -131,27 +130,27 @@ case class InheritanceGraph(
     * in both diagrams.
     */
   @targetName("combine")
-  def ++(other: InheritanceGraph): InheritanceGraph =
-    InheritanceGraph(
+  def ++(other: ViewerGraph): ViewerGraph =
+    ViewerGraph(
       arrows     = arrows ++ other.arrows,
       namespaces = namespaces ++ other.namespaces
     )
 
   /** Creates a new subdiagram with all the symbols containing the given String.
     */
-  def filterBySymbolName(str: String): InheritanceGraph =
+  def filterBySymbolName(str: String): ViewerGraph =
     subdiagram(symbols.filter(_.toString.toLowerCase.contains(str.toLowerCase)))
 
-  def filterBy(p: Namespace => Boolean): InheritanceGraph =
+  def filterBy(p: Namespace => Boolean): ViewerGraph =
     subdiagram(namespaces.filter(p).map(_.symbol))
 
-end InheritanceGraph
+end ViewerGraph
 
-object InheritanceGraph:
+object ViewerGraph:
 
-  given Commutative[InheritanceGraph] with Identity[InheritanceGraph] with
-    def identity = InheritanceGraph.empty
-    def combine(l: => InheritanceGraph, r: => InheritanceGraph) = l ++ r
+  given Commutative[ViewerGraph] with Identity[ViewerGraph] with
+    def identity = ViewerGraph.empty
+    def combine(l: => ViewerGraph, r: => ViewerGraph) = l ++ r
 
 //  // TODO: make this configurable
 //  val excluded =
@@ -165,7 +164,7 @@ object InheritanceGraph:
 //    )
 
   // In Scala 3.2 the type annotation is needed.
-  val empty: InheritanceGraph = new InheritanceGraph(Set.empty)
+  val empty: ViewerGraph = new ViewerGraph(Set.empty)
 
 //  case class SymbolData(
 //      symbolInfo:       SymbolInformation,
@@ -241,4 +240,4 @@ object InheritanceGraph:
 //
 //  end from
 
-end InheritanceGraph
+end ViewerGraph

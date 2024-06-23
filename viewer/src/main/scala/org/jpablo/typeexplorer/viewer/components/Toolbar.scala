@@ -4,9 +4,9 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import com.softwaremill.quicklens.*
-import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
+import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 //import org.jpablo.typeexplorer.shared.inheritance.{InheritanceGraph, toPlantUML}
-import org.jpablo.typeexplorer.viewer.components.state.InheritanceTabState
+import org.jpablo.typeexplorer.viewer.components.state.ViewerState
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.jpablo.typeexplorer.viewer.widgets.Icons.*
 import org.jpablo.typeexplorer.viewer.widgets.{Join, Tooltip}
@@ -14,13 +14,13 @@ import org.scalajs.dom
 import org.scalajs.dom.{HTMLDivElement, HTMLElement}
 
 def Toolbar(
-    fullGraph:  Signal[InheritanceGraph],
-    tabState:   InheritanceTabState,
+    fullGraph:  Signal[ViewerGraph],
+    tabState:   ViewerState,
     zoomValue:  Var[Double],
     fitDiagram: EventBus[Unit]
 //    appConfigDialogOpenV: Var[Boolean]
 ) =
-  val drawerId = s"drawer-tab-${tabState.pageId}"
+  val drawerId = s"drawer-tab-${tabState}.pageId"
   div(
     cls := "shadow bg-base-100 rounded-box flex items-center gap-4 p-0.5 absolute top-1 left-2/4 -translate-x-2/4 z-10",
     // -------- package selector --------
@@ -65,7 +65,7 @@ def Toolbar(
           li(
             a(
               "svg",
-              onClick.compose(_.sample(tabState.inheritanceSvgDiagram)) --> { diagram =>
+              onClick.compose(_.sample(tabState.svgDiagram)) --> { diagram =>
                 dom.window.navigator.clipboard.writeText(diagram.toSVGText)
               }
             )
@@ -98,8 +98,8 @@ def Toolbar(
   )
 
 private def onPlantUMLClicked(
-    fullGraph: Signal[InheritanceGraph],
-    tabState:  InheritanceTabState
+    fullGraph: Signal[ViewerGraph],
+    tabState:  ViewerState
 ) =
   onClick.compose(
     _.sample(
@@ -107,7 +107,7 @@ private def onPlantUMLClicked(
       tabState.activeSymbols.signal,
       tabState.diagramOptionsV
     )
-  ) --> { (fullDiagram: InheritanceGraph, activeSymbols, options) =>
+  ) --> { (fullDiagram: ViewerGraph, activeSymbols, options) =>
     dom.window.navigator.clipboard.writeText(
       fullDiagram
         .subdiagram(activeSymbols.keySet)

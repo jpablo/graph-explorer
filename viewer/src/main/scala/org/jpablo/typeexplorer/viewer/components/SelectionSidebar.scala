@@ -7,13 +7,13 @@ import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 //import org.jpablo.typeexplorer.ui.app
 import org.jpablo.typeexplorer.viewer.components.state.*
-import org.jpablo.typeexplorer.viewer.components.state.InheritanceTabState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 
 def SelectionSidebar(
     appState: AppState,
-    tabState: InheritanceTabState
+    tabState: ViewerState
 ) =
 
   val activeSymbols: Signal[ActiveSymbols] =
@@ -54,7 +54,7 @@ def SelectionSidebar(
                 "Copy as SVG",
                 disabled <-- selectionEmpty,
                 onClick.compose(
-                  _.sample(tabState.inheritanceSvgDiagram, tabState.canvasSelection.signal)
+                  _.sample(tabState.svgDiagram, tabState.canvasSelection.signal)
                 ) --> { (svgDiagram, canvasSelection) =>
                   dom.window.navigator.clipboard
                     .writeText(svgDiagram.toSVGText(canvasSelection))
@@ -100,7 +100,7 @@ def SelectionSidebar(
                 onClick.compose(
                   _.sample(
                     appState.fullGraph,
-                    tabState.inheritanceSvgDiagram,
+                    tabState.svgDiagram,
                     activeSymbols
                   )
                 ) -->
@@ -115,7 +115,7 @@ def SelectionSidebar(
                 onClick.compose(
                   _.sample(
                     appState.fullGraph,
-                    tabState.inheritanceSvgDiagram,
+                    tabState.svgDiagram,
                     activeSymbols
                   )
                 ) -->

@@ -5,7 +5,8 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.components.svgGroupElement.{ClusterElement, LinkElement, NamespaceElement}
 import org.scalajs.dom
-class InheritanceSvgDiagram(svgElement: dom.SVGSVGElement):
+
+class SvgDiagram(svgElement: dom.SVGSVGElement):
   export svgElement.querySelector
 
   val origW = svgElement.width.baseVal.value
@@ -71,5 +72,5 @@ class InheritanceSvgDiagram(svgElement: dom.SVGSVGElement):
   def getElementById(id: String): dom.Element =
     svgElement.querySelector(s"[id='$id']")
 
-object InheritanceSvgDiagram:
-  val empty = InheritanceSvgDiagram(svg.svg(svg.width := "0px", svg.height := "0px").ref)
+object SvgDiagram:
+  val empty = SvgDiagram(svg.svg(svg.width := "0px", svg.height := "0px").ref)

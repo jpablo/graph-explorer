@@ -1,6 +1,5 @@
 package org.jpablo.typeexplorer.viewer.components.state
 
-//import org.jpablo.typeexplorer.BuildInfo
 import buildinfo.BuildInfo
 
 /** Structure of the persisted state (in local storage)

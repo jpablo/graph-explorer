@@ -11,7 +11,7 @@ def Drawer(
   div(
     cls := "drawer",
     cls := (if drawerEnd then "drawer-end" else ""),
-    input(idAttr := id, tpe := "checkbox", cls := "drawer-toggle"),
+    input(cls := "drawer-toggle", idAttr := id, tpe := "checkbox"),
     content(div(cls := "drawer-content")),
     sidebar(
       div(

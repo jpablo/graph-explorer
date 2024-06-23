@@ -1,6 +1,6 @@
 package org.jpablo.typeexplorer.viewer.examples
 
-import org.jpablo.typeexplorer.viewer.graph.InheritanceGraph
+import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models
 
 object Example1 {
@@ -39,7 +39,7 @@ object Example1 {
     └──────┘    └──────┘
    */
 
-  val diagram = InheritanceGraph(
+  val diagram = ViewerGraph(
     arrows = Set(
       base1.symbol -> base0.symbol,
       base2.symbol -> base0.symbol,
