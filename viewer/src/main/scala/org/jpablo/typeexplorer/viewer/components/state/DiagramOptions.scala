@@ -9,7 +9,6 @@ type Path = String
 // packages tree configuration
 case class PackagesOptions(
     onlyActive: Boolean = false,
-    onlyTests:  Boolean = false,
     nsKind:     Set[models.NamespaceKind] = models.NamespaceKind.values.toSet
 ) derives JsonCodec
 

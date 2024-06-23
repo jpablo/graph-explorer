@@ -72,7 +72,6 @@ private def filteredDiagramEvent(
           .orElse(w.isBlank, _.filterBySymbolName(w))
           .subdiagramByKinds(packagesOptions.nsKind)
           .orElse(!packagesOptions.onlyActive, _.subdiagram(activeSymbols.keySet))
-          .orElse(packagesOptions.onlyTests, _.filterBy(!_.inTest))
 
 private def Options(appState: AppState) =
   div(
@@ -85,15 +84,6 @@ private def Options(appState: AppState) =
         isChecked = appState.packagesOptions.map(_.onlyActive),
         clickHandler = Observer: _ =>
           appState.updateActiveProject(_.modify(_.packagesOptions.onlyActive).using(!_)),
-        toggle = true
-      ),
-      hr(),
-      LabeledCheckbox(
-        s"filter-by-scope",
-        "Tests",
-        isChecked = appState.packagesOptions.map(_.onlyTests),
-        clickHandler = Observer: _ =>
-          appState.updateActiveProject(_.modify(_.packagesOptions.onlyTests).using(!_)),
         toggle = true
       ),
       hr(),

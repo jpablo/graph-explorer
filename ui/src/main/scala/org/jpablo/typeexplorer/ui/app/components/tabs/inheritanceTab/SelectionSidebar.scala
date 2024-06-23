@@ -32,7 +32,7 @@ def SelectionSidebar(
           ul(
             // ----- remove selection -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               a(
                 "Remove",
                 disabled <-- selectionEmpty,
@@ -41,7 +41,7 @@ def SelectionSidebar(
             ),
             // ----- remove complement -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               a(
                 "Keep",
                 disabled <-- selectionEmpty,
@@ -50,7 +50,7 @@ def SelectionSidebar(
             ),
             // ----- copy as svg -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               a(
                 "Copy as SVG",
                 disabled <-- selectionEmpty,
@@ -64,7 +64,7 @@ def SelectionSidebar(
             ),
             // ----- augment selection with parents -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               a(
                 "Add parents",
                 disabled <-- selectionEmpty,
@@ -73,7 +73,7 @@ def SelectionSidebar(
             ),
             // ----- augment selection with children -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               a(
                 "Add children",
                 disabled <-- selectionEmpty,
@@ -82,7 +82,7 @@ def SelectionSidebar(
             ),
             // ----- add selection to set of hidden symbols -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               a(
                 "Hide",
                 disabled <-- selectionEmpty,
@@ -94,7 +94,7 @@ def SelectionSidebar(
             ),
             // ----- select parents -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               a(
                 "Select parents",
                 disabled <-- selectionEmpty,
@@ -110,7 +110,7 @@ def SelectionSidebar(
             ),
             // ----- select children -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               a(
                 "Select children",
                 onClick.compose(
@@ -125,7 +125,7 @@ def SelectionSidebar(
             ),
             // ----- show fields -----
             li(
-              cls.toggle("disabled") <-- selectionEmpty,
+              cls("disabled") <-- selectionEmpty,
               LabeledCheckbox(
                 id       = "fields-checkbox-3",
                 labelStr = "Show fields",

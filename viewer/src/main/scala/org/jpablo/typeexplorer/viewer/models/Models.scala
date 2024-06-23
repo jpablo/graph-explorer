@@ -36,13 +36,9 @@ case class Namespace(
     displayName:   String,
     kind:          NamespaceKind = NamespaceKind.Class,
     methods:       List[Method] = List.empty,
-    documentURI:   Option[String] = None,
-    semanticDbUri: Option[String] = None,
     basePath:      Option[String] = None,
     range:         Option[SymbolRange] = None
-) derives JsonCodec:
-  lazy val inTest =
-    documentURI.exists(_.contains("src/test"))
+) derives JsonCodec
 
 case class Method(symbol: GraphSymbol, displayName: String, returnType: Option[Namespace]) derives JsonCodec
 
