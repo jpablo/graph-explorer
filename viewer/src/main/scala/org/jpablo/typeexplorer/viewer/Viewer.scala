@@ -9,6 +9,7 @@ import org.jpablo.typeexplorer.viewer.examples.Example1
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
+import com.softwaremill.quicklens.*
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -29,13 +30,15 @@ object Viewer:
   ): ReactiveHtmlElement[dom.HTMLDivElement] =
     given Owner = unsafeWindowOwner
     val id = ProjectId("project-0")
-    val appState = AppState(Var(PersistedAppState(Project(id), "")), graph)
+    val allSymbols = graph.now().symbols.map(_ -> None).toMap
+    val project = Project(id).modify(_.page.activeSymbols).setTo(allSymbols)
+    val appState = AppState(Var(PersistedAppState(project, "")), graph)
     val viewerState = ViewerState(appState.activeProject.pageV, appState.fullGraph, renderDot)
     TopLevel(appState, viewerState, graph, viewerState.svgDiagram)
 
   private def buildSvgDiagram(viz: GraphViz)(s: String): Signal[SvgDiagram] =
     Signal
-      .fromFuture(viz.render(s).map(e => SvgDiagram(e)))
+      .fromFuture(viz.render(s).map(SvgDiagram.apply))
       .map(_.getOrElse(SvgDiagram.empty))
 
   private def setupErrorHandling()(using Owner): EventBus[String] =
