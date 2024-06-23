@@ -86,6 +86,7 @@ private def Options(appState: AppState) =
         toggle = true
       ),
       hr(),
+      // TODO: this is not working, fix it
       children <--
         appState.fullGraph.map(_.kinds).map: kinds =>
           for kind <- kinds.toList

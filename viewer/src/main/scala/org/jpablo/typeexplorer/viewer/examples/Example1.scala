@@ -41,12 +41,12 @@ object Example1 {
 
   val diagram = ViewerGraph(
     arrows = Set(
-      base1.nodeId -> base0.nodeId,
-      base2.nodeId -> base0.nodeId,
-      classA.nodeId -> base1.nodeId,
-      classA.nodeId -> base2.nodeId,
-      classB.nodeId -> classA.nodeId,
-      classC.nodeId -> classA.nodeId,
+      base1.id -> base0.id,
+      base2.id -> base0.id,
+      classA.id -> base1.id,
+      classA.id -> base2.id,
+      classB.id -> classA.id,
+      classC.id -> classA.id,
     ),
     Set(base0, base1, base2, classA, classB, classC)
   )

@@ -77,7 +77,7 @@ class CanvasSelectionOps(
     val subGraph: ViewerGraph = graph.subgraph(activeSymbols.keySet)
     val selection = canvasSelectionV.now()
     val relatedDiagram: ViewerGraph = selector(subGraph, selection)
-    val arrowSymbols = relatedDiagram.arrows.map((a, b) => ViewerNodeId(s"${b}_$a"))
+    val arrowSymbols = relatedDiagram.arrows.map(_.toTuple).map((a, b) => ViewerNodeId(s"${b}_$a"))
     extend(relatedDiagram.nodeIds)
     extend(arrowSymbols)
     svgDiagram.select(relatedDiagram.nodeIds)

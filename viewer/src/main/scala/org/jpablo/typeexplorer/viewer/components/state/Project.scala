@@ -1,8 +1,7 @@
 package org.jpablo.typeexplorer.viewer.components.state
 
 import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
-
-import scala.scalajs.js
+import org.jpablo.typeexplorer.viewer.utils.Utils
 
 case class Project(
     id:              ProjectId,
@@ -14,7 +13,7 @@ case class Project(
 )
 
 case class Page(
-    id: String = js.Dynamic.global.crypto.randomUUID().toString,
+    id: String = Utils.randomUUID(),
     // The symbols currently shown in the diagram?
     activeSymbols:  ActiveSymbols = Map.empty,
     diagramOptions: DiagramOptions = DiagramOptions()

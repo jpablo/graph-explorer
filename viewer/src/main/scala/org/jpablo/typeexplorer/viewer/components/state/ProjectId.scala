@@ -2,8 +2,6 @@ package org.jpablo.typeexplorer.viewer.components.state
 
 import zio.json.*
 
-import scala.scalajs.js
-
 case class ProjectId(value: String) extends AnyVal
 
 object ProjectId:
@@ -16,6 +14,3 @@ object ProjectId:
     JsonFieldEncoder.string.contramap(_.value)
   given JsonFieldDecoder[ProjectId] =
     JsonFieldDecoder.string.map(ProjectId(_))
-
-  def random =
-    ProjectId(js.Dynamic.global.crypto.randomUUID().toString)

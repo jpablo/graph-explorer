@@ -23,10 +23,10 @@ def NodesList(
 
 
 def NodeRow(tabState: ViewerState, ns: ViewerNode) =
-  val isActive = tabState.activeSymbols.signal.map(_.contains(ns.nodeId))
+  val isActive = tabState.activeSymbols.signal.map(_.contains(ns.id))
   li(
     a(
-      idAttr := ns.nodeId.toString,
+      idAttr := ns.id.toString,
       cls    := "font-['JetBrains_Mono'] cursor-pointer",
       cls("font-bold") <-- isActive,
       div(
@@ -34,8 +34,8 @@ def NodeRow(tabState: ViewerState, ns: ViewerNode) =
         ns.displayName
       ),
       onClick.preventDefault.stopPropagation --> { _ =>
-        tabState.activeSymbols.toggle(ns.nodeId)
-        tabState.canvasSelection.toggle(ns.nodeId)
+        tabState.activeSymbols.toggle(ns.id)
+        tabState.canvasSelection.toggle(ns.id)
       }
     )
   )

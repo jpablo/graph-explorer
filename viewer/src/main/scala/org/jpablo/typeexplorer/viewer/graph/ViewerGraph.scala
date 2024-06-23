@@ -1,12 +1,10 @@
 package org.jpablo.typeexplorer.viewer.graph
 
-import org.jpablo.typeexplorer.viewer.models.{ViewerKind, ViewerNode, ViewerNodeId}
+import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerKind, ViewerNode, ViewerNodeId}
 import org.jpablo.typeexplorer.viewer.tree.Tree
 import zio.prelude.{Commutative, Identity}
 
 import scala.annotation.targetName
-
-type Arrow = (ViewerNodeId, ViewerNodeId)
 
 /** A simplified representation of entities and subtype relationships
   *
@@ -17,10 +15,10 @@ type Arrow = (ViewerNodeId, ViewerNodeId)
   */
 case class ViewerGraph(
     arrows: Set[Arrow],
-    nodes:  Set[ViewerNode] = Set.empty
+    nodes:  Set[ViewerNode]
 ):
   lazy val nodeIds =
-    nodes.map(_.nodeId)
+    nodes.map(_.id)
 
   private lazy val directParents: ViewerNodeId => Set[ViewerNodeId] =
     arrows
@@ -35,19 +33,19 @@ case class ViewerGraph(
       .withDefaultValue(Set.empty)
 
   private lazy val nodeById: Map[ViewerNodeId, ViewerNode] =
-    nodes.groupMapReduce(_.nodeId)(identity)((_, b) => b)
+    nodes.groupMapReduce(_.id)(identity)((_, b) => b)
 
   private lazy val nodesByKind: Map[ViewerKind, Set[ViewerNode]] =
     nodes.groupBy(_.kind)
-    
+
   lazy val kinds =
     nodes.map(_.kind)
 
   private def arrowsForNodeIds(ids: Set[ViewerNodeId]): Set[Arrow] =
     for
-      arrow @ (a, b) <- arrows
-      if (ids contains a) && (ids contains b)
-    yield arrow
+      a <- arrows
+      if (ids contains a.source) && (ids contains a.target)
+    yield a
 
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
@@ -59,7 +57,7 @@ case class ViewerGraph(
   def subgraphByKinds(kinds: Set[ViewerKind]): ViewerGraph =
     val foundKinds = nodesByKind.filter((kind, _) => kinds.contains(kind))
     val foundNS = foundKinds.values.flatten.toSet
-    ViewerGraph(arrowsForNodeIds(foundNS.map(_.nodeId)), foundNS)
+    ViewerGraph(arrowsForNodeIds(foundNS.map(_.id)), foundNS)
 
   // Note: doesn't handle loops.
   // How efficient is this compared to the tail rec version above?
@@ -82,7 +80,7 @@ case class ViewerGraph(
 
   lazy val toTrees: Tree[ViewerNode] =
     val paths =
-      for ns <- nodes.toList yield (ns.nodeId.toString.split("/").init.toList, ns.displayName, ns)
+      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.displayName, ns)
     Tree.fromPaths(paths, ".")
 
   /** Combines the diagram on the left with the diagram on the right. No new arrows are introduced beyond those present
@@ -101,14 +99,25 @@ case class ViewerGraph(
     subgraph(nodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase)))
 
   def filterBy(p: ViewerNode => Boolean): ViewerGraph =
-    subgraph(nodes.filter(p).map(_.nodeId))
+    subgraph(nodes.filter(p).map(_.id))
 end ViewerGraph
 
 object ViewerGraph:
+
+  @targetName("extra")
+  def apply(
+      arrows: Set[(ViewerNodeId, ViewerNodeId)],
+      nodes:  Set[ViewerNode] = Set.empty
+  ): ViewerGraph =
+    new ViewerGraph(
+      arrows = arrows.map((a, b) => Arrow(a, b)),
+      nodes  = nodes
+    )
+
   given Commutative[ViewerGraph] with Identity[ViewerGraph] with
     def identity = ViewerGraph.empty
     def combine(l: => ViewerGraph, r: => ViewerGraph) = l ++ r
 
   // In Scala 3.2 the type annotation is needed.
-  val empty: ViewerGraph = new ViewerGraph(Set.empty)
+  val empty: ViewerGraph = ViewerGraph(Set.empty, Set.empty)
 end ViewerGraph
