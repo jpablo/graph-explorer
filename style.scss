@@ -4,12 +4,12 @@ label[for ^= show-ns-kind-] {
 }
 
 // drawer
-.te-parent-5 {
+.te-parent-x-5 {
   // border: 3px solid palegreen;
 }
 
 // drawer-content
-.te-parent-4 {
+.te-parent-x-4 {
   display: flex !important;
   flex-direction: column !important;
   // TODO: why is this needed but not for width?
@@ -22,7 +22,7 @@ label[for ^= show-ns-kind-] {
 
 // tabs area (tablist)
 // 2nd child of a flex element
-.te-parent-3 {
+.te-parent-x-3 {
   flex-grow: 1; // fill the remaining vertical space
   grid-template-rows: auto 1fr;
   // border: 3px solid orange !important;
@@ -30,7 +30,7 @@ label[for ^= show-ns-kind-] {
 
 // tabpanel
 // the minimum size is set to its children
-.te-parent-2 {
+.te-parent-x-2 {
   align-self: stretch; // expand to fill the parent's width
   justify-self: stretch; // expand to fill the parent's height
   min-width: 0;
@@ -38,7 +38,7 @@ label[for ^= show-ns-kind-] {
   // border: 5px solid green !important;
 }
 
-.te-parent-1 {
+.te-parent-x-1 {
   // TODO: why is this needed but not for width?
   // -------------------------
   height: 100% !important;
@@ -51,11 +51,11 @@ label[for ^= show-ns-kind-] {
 .te-parent {
   // TODO: why is this needed but not for width?
   // -------------------------
-  height: 100% !important;
+  height: 100vh !important;
   // -------------------------
   overflow: auto !important;
   display: flex !important;
-  // border: 3px solid red;
+  border: 2px solid red;
 }
 
 svg {
