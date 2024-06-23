@@ -4,6 +4,8 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import com.softwaremill.quicklens.*
+import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.typeexplorer.viewer.components.state.DiagramOptions
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 //import org.jpablo.typeexplorer.shared.inheritance.{InheritanceGraph, toPlantUML}
 import org.jpablo.typeexplorer.viewer.components.state.ViewerState
@@ -71,7 +73,7 @@ def Toolbar(
             )
           ),
           li(
-            a("plantuml", onPlantUMLClicked(fullGraph, tabState))
+            a("dot", onDotClicked(fullGraph, tabState))
           )
         )
       )
@@ -97,7 +99,7 @@ def Toolbar(
     )
   )
 
-private def onPlantUMLClicked(
+private def onDotClicked(
     fullGraph: Signal[ViewerGraph],
     tabState:  ViewerState
 ) =
@@ -107,11 +109,12 @@ private def onPlantUMLClicked(
       tabState.activeSymbols.signal,
       tabState.diagramOptionsV
     )
-  ) --> { (fullDiagram: ViewerGraph, activeSymbols, options) =>
+  ) --> { (fullDiagram: ViewerGraph, activeSymbols, options: DiagramOptions) =>
     dom.window.navigator.clipboard.writeText(
-      fullDiagram
-        .subdiagram(activeSymbols.keySet)
-        .toPlantUML(activeSymbols, options)
-        .diagram
+      Graphviz.toDot(
+        "",
+        fullDiagram.subdiagram(activeSymbols.keySet),
+        diagramOptions = options
+      )
     )
   }

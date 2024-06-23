@@ -21,14 +21,11 @@ object ViewerNodeId:
   given JsonFieldDecoder[ViewerNodeId] = JsonFieldDecoder.string
   given JsonFieldEncoder[ViewerNodeId] = JsonFieldEncoder.string
 
-case class Package(name: String)
 
 case class ViewerNode(
     nodeId:      ViewerNodeId,
     displayName: String,
     kind:        NamespaceKind = NamespaceKind.Class,
-    methods:     List[Method] = List.empty,
-    basePath:    Option[String] = None
 ) derives JsonCodec
 
 case class Method(symbol: ViewerNodeId, displayName: String, returnType: Option[ViewerNode]) derives JsonCodec
