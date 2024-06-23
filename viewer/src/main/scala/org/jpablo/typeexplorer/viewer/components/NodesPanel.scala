@@ -6,7 +6,6 @@ import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
 import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.viewer.widgets.*
-import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 
@@ -87,15 +86,15 @@ private def Options(appState: AppState) =
         toggle = true
       ),
       hr(),
-      for kind <- models.NamespaceKind.values.toList
-      yield LabeledCheckbox(
-        id = s"show-ns-kind-$kind",
-        kind.toString,
-        isChecked = appState.packagesOptions
-          .map(_.nsKind)
-          .map(_.contains(kind)),
-        clickHandler = Observer: b =>
-          appState.updateActiveProject(_.modify(_.packagesOptions.nsKind).using(_.toggleWith(kind, b)))
-      )
+//      for kind <- appState.fullGraph.map(_.nodes.map(_.kind))
+//      yield LabeledCheckbox(
+//        id = s"show-ns-kind-$kind",
+//        kind.toString,
+//        isChecked = appState.packagesOptions
+//          .map(_.nsKind)
+//          .map(_.contains(kind)),
+//        clickHandler = Observer: b =>
+//          appState.updateActiveProject(_.modify(_.packagesOptions.nsKind).using(_.toggleWith(kind, b)))
+//      )
     )
   )

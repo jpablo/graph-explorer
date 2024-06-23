@@ -1,6 +1,6 @@
 package org.jpablo.typeexplorer.viewer.graph
 
-import org.jpablo.typeexplorer.viewer.models.{ViewerNodeId, ViewerNode, NamespaceKind}
+import org.jpablo.typeexplorer.viewer.models.{ViewerKind, ViewerNode, ViewerNodeId}
 import org.jpablo.typeexplorer.viewer.tree.Tree
 import zio.prelude.{Commutative, Identity}
 
@@ -37,7 +37,7 @@ case class ViewerGraph(
   private lazy val nodesById: Map[ViewerNodeId, ViewerNode] =
     nodes.groupMapReduce(_.nodeId)(identity)((_, b) => b)
 
-  private lazy val nsByKind: Map[NamespaceKind, Set[ViewerNode]] =
+  private lazy val nsByKind: Map[ViewerKind, Set[ViewerNode]] =
     nodes.groupBy(_.kind)
 
   private def arrowsForNodeIds(ids: Set[ViewerNodeId]): Set[Arrow] =
@@ -53,7 +53,7 @@ case class ViewerGraph(
     val foundNodes = foundIds.map(nodesById)
     ViewerGraph(arrowsForNodeIds(foundIds), foundNodes)
 
-  def subgraphByKinds(kinds: Set[NamespaceKind]): ViewerGraph =
+  def subgraphByKinds(kinds: Set[ViewerKind]): ViewerGraph =
     val foundKinds = nsByKind.filter((kind, _) => kinds.contains(kind))
     val foundNS = foundKinds.values.flatten.toSet
     ViewerGraph(arrowsForNodeIds(foundNS.map(_.nodeId)), foundNS)

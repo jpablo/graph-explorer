@@ -1,34 +1,33 @@
 package org.jpablo.typeexplorer.viewer.components.state
 
-import zio.json.*
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.models.ViewerNodeId
+import org.jpablo.typeexplorer.viewer.models.{ViewerKind, ViewerNodeId}
 
 type Path = String
 
 // packages tree configuration
 case class PackagesOptions(
     onlyActive: Boolean = false,
-    nsKind:     Set[models.NamespaceKind] = models.NamespaceKind.values.toSet
-) derives JsonCodec
+    nsKind:     Set[ViewerKind] = Set.empty
+)
 
 // project configuration
 case class ProjectSettings(
     basePaths:     List[Path] = List.empty,
     hiddenFields:  List[String] = DiagramOptions.hiddenFields,
     hiddenSymbols: List[ViewerNodeId] = DiagramOptions.hiddenSymbols
-) derives JsonCodec
+)
 
 // diagram configuration (tab specific)
 case class DiagramOptions(
     showFields:     Boolean = false,
     showSignatures: Boolean = false
-) derives JsonCodec
+)
 
 case class SymbolOptions(
     showFields:     Boolean = false,
     showSignatures: Boolean = false
-) derives JsonCodec
+)
 
 object DiagramOptions:
 
