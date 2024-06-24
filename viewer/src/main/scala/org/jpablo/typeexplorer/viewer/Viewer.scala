@@ -14,9 +14,11 @@ import org.scalajs.dom
 object Viewer:
 
   def main(args: Array[String]): Unit =
-    val graph = Signal.fromValue(Example1.diagram)
-    val viz = new Graphviz
-    val appElem = createApp(graph, viz.renderDot)
+    val appElem = 
+      createApp(
+        graph = Signal.fromValue(Example1.diagram), 
+        renderDot = (new Graphviz).renderDot
+      )
     render(dom.document.querySelector("#app"), appElem)
 
   private def createApp(
