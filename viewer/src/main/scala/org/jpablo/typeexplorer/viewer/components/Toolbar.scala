@@ -7,20 +7,19 @@ import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.typeexplorer.viewer.components.state.DiagramOptions
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-//import org.jpablo.typeexplorer.shared.inheritance.{InheritanceGraph, toPlantUML}
 import org.jpablo.typeexplorer.viewer.components.state.ViewerState
-import org.jpablo.typeexplorer.viewer.widgets.*
 import org.jpablo.typeexplorer.viewer.widgets.Icons.*
-import org.jpablo.typeexplorer.viewer.widgets.{Join, Tooltip}
+import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLDivElement, HTMLElement}
+import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
 
 def Toolbar(
-    fullGraph:  Signal[ViewerGraph],
-    tabState:   ViewerState,
-    zoomValue:  Var[Double],
-    fitDiagram: EventBus[Unit]
-//    appConfigDialogOpenV: Var[Boolean]
+    fullGraph:       Signal[ViewerGraph],
+    tabState:        ViewerState,
+    zoomValue:       Var[Double],
+    fitDiagram:      EventBus[Unit],
+    replaceTextOpen: Var[Boolean]
 ) =
   val drawerId = s"drawer-id"
   div(
@@ -50,6 +49,10 @@ def Toolbar(
     ),
     // -------- actions toolbar --------
     Join(
+      Button(
+        Tooltip("from clipboard", "replace"),
+        onClick --> replaceTextOpen.set(true)
+      ).tiny,
       Button(
         "remove all",
         onClick --> tabState.activeSymbols.clear()
@@ -111,10 +114,11 @@ private def onDotClicked(
     )
   ) --> { (fullDiagram: ViewerGraph, activeSymbols, options: DiagramOptions) =>
     dom.window.navigator.clipboard.writeText(
-      Graphviz.toDot(
-        "",
-        fullDiagram.subgraph(activeSymbols.keySet),
-        diagramOptions = options
-      )
+      fullDiagram
+        .subgraph(activeSymbols.keySet)
+        .toDot(
+          "",
+          diagramOptions = options
+        )
     )
   }

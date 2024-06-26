@@ -160,7 +160,7 @@ lazy val viewer =
         "dev.zio"                    %%% "zio-json"    % "0.6.1",
         "dev.zio"                    %%% "zio-prelude" % zioPreludeVersion,
         "io.laminext"                %%% "fetch"       % "0.17.0",
-        "org.scala-js"               %%% "scalajs-dom" % "2.2.0",
+        "org.scala-js"               %%% "scalajs-dom" % "2.8.0",
         "org.scalameta"              %%% "munit"       % "1.0.0" % Test
       ),
       excludeDependencies ++= Seq(

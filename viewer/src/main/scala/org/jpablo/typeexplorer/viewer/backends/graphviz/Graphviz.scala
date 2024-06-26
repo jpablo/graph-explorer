@@ -26,26 +26,25 @@ class Graphviz:
       .fromFuture(renderSVGElement(s).map(SvgDiagram.apply))
       .map(_.getOrElse(SvgDiagram.empty))
 
-
 object Graphviz:
 
-  def toDot(
-      name:            String,
-      graph:           ViewerGraph,
-      symbolOptions:   Map[models.ViewerNodeId, Option[SymbolOptions]] = Map.empty,
-      diagramOptions:  DiagramOptions = DiagramOptions(),
-      projectSettings: ProjectSettings = ProjectSettings()
-  ): String =
+  extension (graph: ViewerGraph)
+    def toDot(
+        name:            String,
+        symbolOptions:   Map[models.ViewerNodeId, Option[SymbolOptions]] = Map.empty,
+        diagramOptions:  DiagramOptions = DiagramOptions(),
+        projectSettings: ProjectSettings = ProjectSettings()
+    ): String =
 
-    val declarations =
-      graph.nodes.map: ns =>
-        s"""${ns.id}[label="${ns.displayName}"]"""
+      val declarations =
+        graph.nodes.map: ns =>
+          s"""${ns.id}[label="${ns.displayName}"]"""
 
-    val arrows =
-      graph.arrows.toSeq.map: a =>
-        s""" ${a.source} -> ${a.target}"""
+      val arrows =
+        graph.arrows.toSeq.map: a =>
+          s""" ${a.source} -> ${a.target}"""
 
-    s"""
+      s"""
        |digraph G {
        | rankdir=LR
        | ${declarations.mkString("\n  ")}

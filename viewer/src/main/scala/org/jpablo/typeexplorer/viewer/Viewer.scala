@@ -10,13 +10,12 @@ import org.jpablo.typeexplorer.viewer.examples.Example1
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.scalajs.dom
 
-
 object Viewer:
 
   def main(args: Array[String]): Unit =
-    val appElem = 
+    val appElem =
       createApp(
-        graph = Signal.fromValue(Example1.diagram), 
+        graph = Signal.fromValue(Example1.graph),
         renderDot = (new Graphviz).renderDot
       )
     render(dom.document.querySelector("#app"), appElem)

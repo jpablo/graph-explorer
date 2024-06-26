@@ -39,7 +39,7 @@ object Example1 {
     └──────┘    └──────┘
    */
 
-  val diagram =
+  val graph =
     ViewerGraph(
       arrows = Set(
         base1.id  -> base0.id,

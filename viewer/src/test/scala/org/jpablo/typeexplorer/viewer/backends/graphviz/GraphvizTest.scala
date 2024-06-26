@@ -5,7 +5,7 @@ import org.jpablo.typeexplorer.viewer.examples.Example1
 
 class GraphvizTest extends munit.FunSuite {
  test("dot generation") {
-   val g = toDot("laminar", Example1.diagram)
-   println(g)
+   val g = Example1.graph.toDot("laminar")
+     println(g)
  }
 }
