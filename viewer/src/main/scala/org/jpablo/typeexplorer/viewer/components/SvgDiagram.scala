@@ -28,10 +28,10 @@ class SvgDiagram(svgElement: dom.SVGSVGElement):
   def clusters =
     ClusterElement.selectAll(svgElement)
 
-  def elementSymbols: Set[models.ViewerNodeId] =
+  def elementSymbols: Set[models.NodeId] =
     namespaceElements.map(_.symbol).toSet
 
-  def select(symbols: Set[models.ViewerNodeId]): Unit =
+  def select(symbols: Set[models.NodeId]): Unit =
     for elem <- selectableElements if symbols.contains(elem.symbol) do elem.select()
 
   def unselectAll(): Unit =
@@ -45,14 +45,14 @@ class SvgDiagram(svgElement: dom.SVGSVGElement):
 
   case class BBox(x: Double, y: Double, width: Double, height: Double)
 
-  private def buildSvgElement(id: models.ViewerNodeId) =
+  private def buildSvgElement(id: models.NodeId) =
     val el =
       getElementById("elem_" + id.toString()).asInstanceOf[dom.SVGSVGElement]
     val e = DomApi.unsafeParseSvgString(el.outerHTML)
     val bbox = el.getBBox()
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
-  def toSVGText(ids: Set[models.ViewerNodeId]): String =
+  def toSVGText(ids: Set[models.NodeId]): String =
     if (ids.isEmpty) ""
     else
       val (svgs, boxes) = ids.map(buildSvgElement).unzip

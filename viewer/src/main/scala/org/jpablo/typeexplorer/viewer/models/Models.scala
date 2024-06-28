@@ -4,13 +4,13 @@ import org.jpablo.typeexplorer.viewer.utils.Utils
 
 // ---- Vertices ------
 
-case class ViewerNodeId(value: String) extends AnyVal:
+case class NodeId(value: String) extends AnyVal:
   override def toString: String = value
 
 type ViewerKind = Option[String]
 
 case class ViewerNode(
-    id:          ViewerNodeId,
+    id:          NodeId,
     displayName: String,
     kind:        ViewerKind = None
 )
@@ -25,9 +25,9 @@ object ArrowId:
 end ArrowId
 
 case class Arrow(
-    source: ViewerNodeId,
-    target: ViewerNodeId,
+    source: NodeId,
+    target: NodeId,
     id:     ArrowId = ArrowId.random()
 ):
-  def toTuple: (ViewerNodeId, ViewerNodeId) =
+  def toTuple: (NodeId, NodeId) =
     (source, target)

@@ -10,11 +10,11 @@ import org.jpablo.typeexplorer.viewer.components.SvgDiagram
 import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.models.ViewerNodeId
+import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.scalajs.dom
 
 object ViewerState:
-  type ActiveSymbols = Map[ViewerNodeId, Option[SymbolOptions]]
+  type ActiveSymbols = Map[NodeId, Option[SymbolOptions]]
 
 case class ViewerState(
     pageV:      Var[Page],
@@ -25,7 +25,7 @@ case class ViewerState(
   given owner: Owner = OneTimeOwner(() => ())
 
   // this should be a subset of activeSymbols' keys
-  private val canvasSelectionV = Var(Set.empty[ViewerNodeId])
+  private val canvasSelectionV = Var(Set.empty[NodeId])
 
   val activeSymbolsV: Var[ActiveSymbols] =
     pageV.zoom(_.activeSymbols)((p, s) => p.copy(activeSymbols = s))
@@ -48,17 +48,17 @@ case class ViewerState(
 end ViewerState
 
 class CanvasSelectionOps(
-    canvasSelectionV: Var[Set[ViewerNodeId]] = Var(Set.empty)
+    canvasSelectionV: Var[Set[NodeId]] = Var(Set.empty)
 ):
   export canvasSelectionV.now
   val signal = canvasSelectionV.signal
 
-  def toggle(s:  ViewerNodeId): Unit = canvasSelectionV.update(_.toggle(s))
-  def replace(s: ViewerNodeId): Unit = canvasSelectionV.set(Set(s))
-  def extend(s:  ViewerNodeId): Unit = canvasSelectionV.update(_ + s)
+  def toggle(s:  NodeId): Unit = canvasSelectionV.update(_.toggle(s))
+  def replace(s: NodeId): Unit = canvasSelectionV.set(Set(s))
+  def extend(s:  NodeId): Unit = canvasSelectionV.update(_ + s)
 
-  def extend(ss: Set[ViewerNodeId]): Unit = canvasSelectionV.update(_ ++ ss)
-  def remove(ss: Set[ViewerNodeId]): Unit = canvasSelectionV.update(_ -- ss)
+  def extend(ss: Set[NodeId]): Unit = canvasSelectionV.update(_ ++ ss)
+  def remove(ss: Set[NodeId]): Unit = canvasSelectionV.update(_ -- ss)
 
   def clear(): Unit = canvasSelectionV.set(Set.empty)
 
@@ -69,7 +69,7 @@ class CanvasSelectionOps(
     selectRelated(_.childrenOfAll(_), graph, svgDiagram, activeSymbols)
 
   private def selectRelated(
-      selector:      (ViewerGraph, Set[ViewerNodeId]) => ViewerGraph,
+      selector:      (ViewerGraph, Set[NodeId]) => ViewerGraph,
       graph:         ViewerGraph,
       svgDiagram:    SvgDiagram,
       activeSymbols: ActiveSymbols
@@ -77,7 +77,7 @@ class CanvasSelectionOps(
     val subGraph: ViewerGraph = graph.subgraph(activeSymbols.keySet)
     val selection = canvasSelectionV.now()
     val relatedDiagram: ViewerGraph = selector(subGraph, selection)
-    val arrowSymbols = relatedDiagram.arrows.map(_.toTuple).map((a, b) => ViewerNodeId(s"${b}_$a"))
+    val arrowSymbols = relatedDiagram.arrows.map(_.toTuple).map((a, b) => NodeId(s"${b}_$a"))
     extend(relatedDiagram.nodeIds)
     extend(arrowSymbols)
     svgDiagram.select(relatedDiagram.nodeIds)
@@ -88,20 +88,20 @@ end CanvasSelectionOps
 class ActiveSymbolsOps(
     val activeSymbolsV:   Var[ActiveSymbols],
     val graph:            Signal[ViewerGraph],
-    val canvasSelectionV: Var[Set[ViewerNodeId]]
+    val canvasSelectionV: Var[Set[NodeId]]
 ):
 
   val signal = activeSymbolsV.signal
 
-  def toggle(s: ViewerNodeId): Unit =
+  def toggle(s: NodeId): Unit =
     activeSymbolsV.update: activeSymbols =>
       if activeSymbols.contains(s) then activeSymbols - s
       else activeSymbols + (s -> None)
 
-  def extend(s: ViewerNodeId): Unit =
+  def extend(s: NodeId): Unit =
     activeSymbolsV.update(_ + (s -> None))
 
-  def extend(ss: collection.Seq[ViewerNodeId]): Unit =
+  def extend(ss: collection.Seq[NodeId]): Unit =
     activeSymbolsV.update(_ ++ ss.map(_ -> None))
 
   def clear(): Unit =
@@ -119,7 +119,7 @@ class ActiveSymbolsOps(
   /** Modify `activeSymbols` based on the given function `f`
     */
   def applyOnSelection[E <: dom.Event](
-      f: (ActiveSymbols, Set[ViewerNodeId]) => ActiveSymbols
+      f: (ActiveSymbols, Set[NodeId]) => ActiveSymbols
   )(ep: EventProp[E]) =
     ep.compose(_.sample(canvasSelectionV)) --> { selection =>
       activeSymbolsV.update(f(_, selection))
@@ -138,7 +138,7 @@ class ActiveSymbolsOps(
   /** Updates activeSymbols with the given function `f` and the current canvas selection.
     */
   private def addSelectionWith[E <: dom.Event](
-      f:  (ViewerGraph, ViewerNodeId) => ViewerGraph,
+      f:  (ViewerGraph, NodeId) => ViewerGraph,
       ep: EventProp[E]
   ): Base =
     val combined = graph.combineWith(canvasSelectionV.signal)

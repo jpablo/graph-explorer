@@ -1,6 +1,6 @@
 package org.jpablo.typeexplorer.viewer.graph
 
-import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerKind, ViewerNode, ViewerNodeId}
+import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerKind, ViewerNode, NodeId}
 import org.jpablo.typeexplorer.viewer.tree.Tree
 import org.jpablo.typeexplorer.viewer.utils.CSV
 import zio.prelude.{Commutative, Identity}
@@ -21,19 +21,19 @@ case class ViewerGraph(
   lazy val nodeIds =
     nodes.map(_.id)
 
-  private lazy val directParents: ViewerNodeId => Set[ViewerNodeId] =
+  private lazy val directParents: NodeId => Set[NodeId] =
     arrows
       .groupBy(_._1)
       .transform((_, ss) => ss.map(_._2))
       .withDefaultValue(Set.empty)
 
-  private lazy val directChildren: ViewerNodeId => Set[ViewerNodeId] =
+  private lazy val directChildren: NodeId => Set[NodeId] =
     arrows
       .groupBy(_._2)
       .transform((_, ss) => ss.map(_._1))
       .withDefaultValue(Set.empty)
 
-  private lazy val nodeById: Map[ViewerNodeId, ViewerNode] =
+  private lazy val nodeById: Map[NodeId, ViewerNode] =
     nodes.groupMapReduce(_.id)(identity)((_, b) => b)
 
   private lazy val nodesByKind: Map[ViewerKind, Set[ViewerNode]] =
@@ -42,7 +42,7 @@ case class ViewerGraph(
   lazy val kinds =
     nodes.map(_.kind)
 
-  private def arrowsForNodeIds(ids: Set[ViewerNodeId]): Set[Arrow] =
+  private def arrowsForNodeIds(ids: Set[NodeId]): Set[Arrow] =
     for
       a <- arrows
       if (ids contains a.source) && (ids contains a.target)
@@ -50,7 +50,7 @@ case class ViewerGraph(
 
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
-  def subgraph(ids: Set[ViewerNodeId]): ViewerGraph =
+  def subgraph(ids: Set[NodeId]): ViewerGraph =
     val foundIds = nodeById.keySet.intersect(ids)
     val foundNodes = foundIds.map(nodeById)
     ViewerGraph(arrowsForNodeIds(foundIds), foundNodes)
@@ -62,7 +62,7 @@ case class ViewerGraph(
 
   // Note: doesn't handle loops.
   // How efficient is this compared to the tail rec version above?
-  def unfold(ids: Set[ViewerNodeId], related: ViewerNodeId => Set[ViewerNodeId]): Set[ViewerNodeId] =
+  def unfold(ids: Set[NodeId], related: NodeId => Set[NodeId]): Set[NodeId] =
     Set
       .unfold(ids) { ss =>
         val ss2 = ss.flatMap(related)
@@ -70,14 +70,14 @@ case class ViewerGraph(
       }
       .flatten
 
-  private def allRelated(ids: Set[ViewerNodeId], r: ViewerNodeId => Set[ViewerNodeId]): ViewerGraph =
+  private def allRelated(ids: Set[NodeId], r: NodeId => Set[NodeId]): ViewerGraph =
     subgraph(unfold(ids, r) ++ ids)
 
-  def parentsOfAll(ids:  Set[ViewerNodeId]): ViewerGraph = allRelated(ids, directParents)
-  def childrenOfAll(ids: Set[ViewerNodeId]): ViewerGraph = allRelated(ids, directChildren)
+  def parentsOfAll(ids:  Set[NodeId]): ViewerGraph = allRelated(ids, directParents)
+  def childrenOfAll(ids: Set[NodeId]): ViewerGraph = allRelated(ids, directChildren)
 
-  def parentsOf(id:  ViewerNodeId): ViewerGraph = allRelated(Set(id), directParents)
-  def childrenOf(id: ViewerNodeId): ViewerGraph = allRelated(Set(id), directChildren)
+  def parentsOf(id:  NodeId): ViewerGraph = allRelated(Set(id), directParents)
+  def childrenOf(id: NodeId): ViewerGraph = allRelated(Set(id), directChildren)
 
   lazy val toTrees: Tree[ViewerNode] =
     val paths =
@@ -107,7 +107,7 @@ object ViewerGraph:
 
   @targetName("extra")
   def apply(
-      arrows: Set[(ViewerNodeId, ViewerNodeId)],
+      arrows: Set[(NodeId, NodeId)],
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     new ViewerGraph(
@@ -118,7 +118,7 @@ object ViewerGraph:
   def from(csv: CSV): ViewerGraph =
     val arrows =
       csv.rows.map: row =>
-        ViewerNodeId(row(0)) -> ViewerNodeId(row(1))
+        NodeId(row(0)) -> NodeId(row(1))
     ViewerGraph(arrows.toSet)
 
   given Commutative[ViewerGraph] with Identity[ViewerGraph] with

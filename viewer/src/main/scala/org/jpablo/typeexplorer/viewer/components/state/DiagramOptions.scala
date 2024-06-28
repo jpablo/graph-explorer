@@ -1,7 +1,7 @@
 package org.jpablo.typeexplorer.viewer.components.state
 
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.models.{ViewerKind, ViewerNodeId}
+import org.jpablo.typeexplorer.viewer.models.{ViewerKind, NodeId}
 
 type Path = String
 
@@ -15,7 +15,7 @@ case class PackagesOptions(
 case class ProjectSettings(
     basePaths:     List[Path] = List.empty,
     hiddenFields:  List[String] = DiagramOptions.hiddenFields,
-    hiddenSymbols: List[ViewerNodeId] = DiagramOptions.hiddenSymbols
+    hiddenSymbols: List[NodeId] = DiagramOptions.hiddenSymbols
 )
 
 // diagram configuration (tab specific)

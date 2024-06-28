@@ -31,7 +31,7 @@ object Graphviz:
   extension (graph: ViewerGraph)
     def toDot(
         name:            String,
-        symbolOptions:   Map[models.ViewerNodeId, Option[SymbolOptions]] = Map.empty,
+        symbolOptions:   Map[models.NodeId, Option[SymbolOptions]] = Map.empty,
         diagramOptions:  DiagramOptions = DiagramOptions(),
         projectSettings: ProjectSettings = ProjectSettings()
     ): String =

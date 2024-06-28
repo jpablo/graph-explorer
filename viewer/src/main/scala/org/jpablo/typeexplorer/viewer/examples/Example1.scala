@@ -6,7 +6,7 @@ import org.jpablo.typeexplorer.viewer.models
 object Example1 {
 
   private def makeClass(name: String) =
-    models.ViewerNode(models.ViewerNodeId(name), name)
+    models.ViewerNode(models.NodeId(name), name)
 
   val base0 = makeClass("base0")
   val base1 = makeClass("base1")
