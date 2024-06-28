@@ -13,6 +13,7 @@ import org.scalajs.dom
 object Viewer:
 
   def main(args: Array[String]): Unit =
+//    Signal.fromValue(Example1.graph).
     val appElem =
       createApp(
         graph = Signal.fromValue(Example1.graph),

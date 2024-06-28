@@ -3,8 +3,10 @@ package org.jpablo.typeexplorer.viewer.utils
 import scala.util.matching.Regex
 import scala.collection.mutable.ArrayBuffer
 
+case class CSV(rows: Array[Array[String]])
+
 // https://www.bennadel.com/blog/1504-ask-ben-parsing-csv-strings-with-javascript-exec-regular-expression-command.htm
-def CSVToArray(strData: String, strDelimiter: String = ","): Array[Array[String]] =
+def CSVToArray(strData: String, strDelimiter: String = ","): CSV =
   val objPattern =
     Regex(
       s"(\\Q$strDelimiter\\E|\\r?\\n|\\r|^)" +
@@ -38,4 +40,4 @@ def CSVToArray(strData: String, strDelimiter: String = ","): Array[Array[String]
     arrData.last += strMatchedValue
 
   // Convert ArrayBuffer[ArrayBuffer[String]] to Array[Array[String]]
-  arrData.map(_.toArray).toArray
+  CSV(arrData.map(_.toArray).toArray)

@@ -7,8 +7,8 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.widgets.{Drawer, SimpleDialog}
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
-
 import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.typeexplorer.viewer.utils.CSVToArray
 
 def TopLevel(
     appState:    AppState,
@@ -19,6 +19,8 @@ def TopLevel(
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
   val replaceText = Var("")
+  val csv = replaceText.signal.map(CSVToArray(_))
+  // csv to ViewerGraph
   val replaceTextOpen = Var(false)
   div(
     cls := "bg-base-100 border-base-300 rounded-box",
