@@ -13,14 +13,11 @@ import org.jpablo.typeexplorer.viewer.utils.CSVToArray
 def TopLevel(
     appState:    AppState,
     viewerState: ViewerState,
-    fullGraph:   Signal[ViewerGraph],
+    replaceText: Var[String],
     svgDiagram:  Signal[SvgDiagram]
 ): ReactiveHtmlElement[HTMLDivElement] =
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
-  val replaceText = Var("")
-  val csv = replaceText.signal.map(CSVToArray(_))
-  // csv to ViewerGraph
   val replaceTextOpen = Var(false)
   div(
     cls := "bg-base-100 border-base-300 rounded-box",
@@ -29,7 +26,7 @@ def TopLevel(
       drawerEnd = false,
       content = _.amend(
         CanvasContainer(viewerState.svgDiagram, viewerState.canvasSelection, zoomValue, fitDiagram.events),
-        Toolbar(fullGraph, viewerState, zoomValue, fitDiagram, replaceTextOpen),
+        Toolbar(appState.fullGraph, viewerState, zoomValue, fitDiagram, replaceTextOpen),
         SelectionSidebar(appState, viewerState)
       ),
       sidebar = _.amend(
@@ -43,7 +40,6 @@ def TopLevel(
     ),
     ReplaceGraphDialog(replaceText, replaceTextOpen)
   )
-
 
 def ReplaceGraphDialog(text: Var[String], open: Var[Boolean]) =
   SimpleDialog(
