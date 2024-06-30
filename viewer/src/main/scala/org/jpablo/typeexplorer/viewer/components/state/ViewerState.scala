@@ -54,7 +54,6 @@ case class ViewerState(
     graph
       .combineWith(pageV.signal.distinct)
       .flatMapSwitch: (g, p) =>
-        println("--> 1")
         renderDot(g.subgraph(p.activeSymbols.keySet).toDot(""))
 
 end ViewerState

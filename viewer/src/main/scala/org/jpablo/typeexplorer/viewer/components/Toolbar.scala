@@ -49,7 +49,7 @@ def Toolbar(
     ),
     // -------- actions toolbar --------
     Join(
-      Button(Tooltip("from clipboard", "replace"), onClick --> replaceTextOpen.set(true)).tiny,
+      Button(Tooltip("CSV", "contents"), onClick --> replaceTextOpen.set(true)).tiny,
       Button(
         "add all",
         onClick.compose(_.sample(tabState.allNodeIds).map(_.toSeq)) --> (tabState.activeSymbols.extend(_))

@@ -1,7 +1,6 @@
 package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.typeexplorer.viewer.components.state.{AppState, ViewerState}
 import org.jpablo.typeexplorer.viewer.widgets.{Drawer, SimpleDialog}
@@ -42,12 +41,12 @@ def TopLevel(
 def ReplaceGraphDialog(text: Var[String], open: Var[Boolean]) =
   SimpleDialog(
     open,
-    input(
-      tpe         := "text",
-      cls         := "input input-bordered w-full",
+    textArea(
+      cls := "textarea textarea-bordered whitespace-nowrap w-full",
       placeholder := "Replace graph",
-      focus <-- open.signal.changes,
-      controlled(value <-- text, onInput.mapToValue --> text),
-      onKeyDown.filter(e => e.key == "Enter" || e.key == "Escape") --> open.set(false)
+      controlled(
+        value <-- text,
+        onInput.mapToValue --> text
+      )
     )
   )
