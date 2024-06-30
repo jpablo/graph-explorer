@@ -10,9 +10,8 @@ class ViewerGraphSpec extends munit.FunSuite:
 
   test("single arrow"):
     val g = ViewerGraph.from(CSVToArray("a,b"))
-    assertEquals(g.arrows.size, 1)
-    assertEquals(g.arrows.head.source.value, "a")
-    assertEquals(g.arrows.head.target.value, "b")
+    val expected = Set(Arrow("a", "b")).map(_.toTuple)
+    assertEquals(g.arrows.map(_.toTuple), expected)
 
 
   test("two arrows"):
@@ -22,7 +21,7 @@ class ViewerGraphSpec extends munit.FunSuite:
         |c,d""".stripMargin
     val g = ViewerGraph.from(CSVToArray(csv))
     assertEquals(g.arrows.size, 2)
-    val arrows: Set[(NodeId, NodeId)] = g.arrows.map(_.toTuple)
+    val arrows = g.arrows.map(_.toTuple)
     val expected = Set(Arrow("a", "b"), Arrow("c", "d")).map(_.toTuple)
     assertEquals(arrows, expected)
 

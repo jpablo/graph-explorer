@@ -14,6 +14,9 @@ import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.scalajs.dom
 
 object ViewerState:
+  /**
+   * The Ids of nodes displayed in the diagram
+   */
   type ActiveSymbols = Map[NodeId, Option[SymbolOptions]]
 
 case class ViewerState(
@@ -33,8 +36,16 @@ case class ViewerState(
   val diagramOptionsV: Var[DiagramOptions] =
     pageV.zoom(_.diagramOptions)((p, s) => p.copy(diagramOptions = s))
 
+  val allNodeIds: Signal[Set[NodeId]] =
+    graph.map(_.nodeIds)
+
   val canvasSelection =
     CanvasSelectionOps(canvasSelectionV)
+
+  def addAll() =
+    // 1. take the current value of all allSymbols (currAllSymbols)
+    // 2. call activeSymbolsV.update(as => as ++ currAllSymbols)
+    ()
 
   val activeSymbols =
     ActiveSymbolsOps(activeSymbolsV, graph, canvasSelectionV)
@@ -136,14 +147,16 @@ class ActiveSymbolsOps(
   def addSelectionParents[E <: dom.Event](ep: EventProp[E]) =
     addSelectionWith(_.parentsOf(_), ep)
 
+  private val graphWithSelection =
+    graph.combineWith(canvasSelectionV.signal)
+
   /** Updates activeSymbols with the given function `f` and the current canvas selection.
     */
   private def addSelectionWith[E <: dom.Event](
       f:  (ViewerGraph, NodeId) => ViewerGraph,
       ep: EventProp[E]
   ): Base =
-    val combined = graph.combineWith(canvasSelectionV.signal)
-    ep.compose(_.sample(combined)) --> { (diagram, selection) =>
+    ep.compose(_.sample(graphWithSelection)) --> { (diagram, selection) =>
       if selection.nonEmpty then
         val diagram1 = selection.foldLeft(ViewerGraph.empty)((acc, s) => f(diagram, s) ++ acc)
         extend(diagram1.nodeIds.toSeq)

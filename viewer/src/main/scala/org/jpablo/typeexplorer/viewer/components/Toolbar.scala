@@ -49,14 +49,12 @@ def Toolbar(
     ),
     // -------- actions toolbar --------
     Join(
+      Button(Tooltip("from clipboard", "replace"), onClick --> replaceTextOpen.set(true)).tiny,
       Button(
-        Tooltip("from clipboard", "replace"),
-        onClick --> replaceTextOpen.set(true)
+        "add all",
+        onClick.compose(_.sample(tabState.allNodeIds).map(_.toSeq)) --> (tabState.activeSymbols.extend(_))
       ).tiny,
-      Button(
-        "remove all",
-        onClick --> tabState.activeSymbols.clear()
-      ).tiny,
+      Button("remove all", onClick --> tabState.activeSymbols.clear()).tiny,
       div(
         cls := "dropdown dropdown-hover",
         label(
