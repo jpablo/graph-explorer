@@ -9,7 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@viz-js/viz": "3.3.0"
+    "@viz-js/viz": "3.3.0",
+    "jsdom": "^24.1.0"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.9",

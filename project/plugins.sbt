@@ -8,6 +8,10 @@ addSbtPlugin("org.scalameta"               % "sbt-scalafmt"             % "2.4.6
 addSbtPlugin("com.eed3si9n"                % "sbt-buildinfo"            % "0.11.0")
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.17"
+//libraryDependencies += "org.scala-js" %% "scalajs-env-jsdom-nodejs" % "1.1.0"
+libraryDependencies += "io.github.gmkumar2005" %% "scala-js-env-playwright" % "0.1.11"
+
+
 addDependencyTreePlugin
 
 ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always

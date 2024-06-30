@@ -112,10 +112,13 @@ object ViewerGraph:
   ): ViewerGraph =
     new ViewerGraph(
       arrows = arrows.map((a, b) => Arrow(a, b)),
-      nodes  = nodes
+      nodes = arrows
+        .flatMap(a => Set(a._1, a._2))
+        .map(id => ViewerNode(id, id.toString))
     )
 
   def from(csv: CSV): ViewerGraph =
+    println(csv.toList)
     val arrows =
       csv.rows.map: row =>
         NodeId(row(0)) -> NodeId(row(1))

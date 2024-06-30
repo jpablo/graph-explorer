@@ -31,3 +31,8 @@ case class Arrow(
 ):
   def toTuple: (NodeId, NodeId) =
     (source, target)
+
+object Arrow:
+  def apply(s: String, t: String) =
+    new Arrow(NodeId(s), NodeId(t))
+end Arrow

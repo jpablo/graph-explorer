@@ -2,11 +2,9 @@ package org.jpablo.typeexplorer.viewer
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.typeexplorer.viewer.components.state.*
 import org.jpablo.typeexplorer.viewer.components.{SvgDiagram, TopLevel}
-import org.jpablo.typeexplorer.viewer.examples.Example1
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.utils.CSVToArray
 import org.scalajs.dom
@@ -38,10 +36,10 @@ object Viewer:
     val viewerState = ViewerState(appState.activeProject.pageV, appState.fullGraph, renderDot)
     TopLevel(appState, viewerState, replaceText, viewerState.svgDiagram)
 
-  private def setupErrorHandling()(using Owner): EventBus[String] =
-    val errors = new EventBus[String]
-    AirstreamError.registerUnhandledErrorCallback: ex =>
-      errors.emit(ex.getMessage)
-    windowEvents(_.onError).foreach: e =>
-      errors.emit(e.message)
-    errors
+//  private def setupErrorHandling()(using Owner): EventBus[String] =
+//    val errors = new EventBus[String]
+//    AirstreamError.registerUnhandledErrorCallback: ex =>
+//      errors.emit(ex.getMessage)
+//    windowEvents(_.onError).foreach: e =>
+//      errors.emit(e.message)
+//    errors

@@ -1,14 +1,12 @@
 package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.typeexplorer.viewer.components.state.{AppState, ViewerState}
-import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.widgets.{Drawer, SimpleDialog}
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
-import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.typeexplorer.viewer.utils.CSVToArray
 
 def TopLevel(
     appState:    AppState,

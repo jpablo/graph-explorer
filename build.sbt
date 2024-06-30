@@ -143,7 +143,8 @@ lazy val viewer =
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
-      Compile / mainClass             := Some("org.jpablo.typeexplorer.viewer.Viewer"),
+      scalacOptions ++= Seq("-explain"),
+      Compile / mainClass := Some("org.jpablo.typeexplorer.viewer.Viewer"),
       scalaJSLinkerConfig ~= {
         _.withModuleKind(ModuleKind.ESModule)
 //          .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("org.jpablo.typeexplorer.ui")))
@@ -166,9 +167,16 @@ lazy val viewer =
       excludeDependencies ++= Seq(
         "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
       ),
+//      jsEnv                          := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
+      Test / jsEnv := new jsenv.playwright.PWEnv(
+        browserName = "chrome",
+        headless = true,
+        showLogs = true
+      ),
       publicDev                      := linkerOutputDirectory((Compile / fastLinkJS).value).getAbsolutePath,
       publicProd                     := linkerOutputDirectory((Compile / fullLinkJS).value).getAbsolutePath,
-      Compile / semanticdbTargetRoot := projectPath.value
+      Compile / semanticdbTargetRoot := projectPath.value,
+      testFrameworks += new TestFramework("munit.Framework")
     )
 
 lazy val ui =
