@@ -5,6 +5,7 @@ import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.typeexplorer.viewer.components.TopLevel
 import org.jpablo.typeexplorer.viewer.components.state.*
+import org.jpablo.typeexplorer.viewer.examples.Example1
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.utils.CSVToArray
 import org.scalajs.dom
@@ -18,17 +19,16 @@ object Viewer:
   private def createApp(): ReactiveHtmlElement[dom.HTMLDivElement] =
     given Owner = unsafeWindowOwner
     val id = ProjectId("project-0")
-    val replaceText: Var[String] = Var("a,b")
+    val csvString: Var[String] = Var(Example1.graph.toCSV.asString())
     val graph: Signal[ViewerGraph] =
-      replaceText.signal
+      csvString.signal
         .map(CSVToArray(_))
         .map(ViewerGraph.from)
-//    val allSymbols = graph.now().nodeIds.map(_ -> None).toMap
     val project = Project(id)
     val appState = AppState(Var(PersistedAppState(project, "")), graph)
     val renderDot = (new Graphviz).renderDot
     val viewerState = ViewerState(appState.activeProject.pageV, appState.fullGraph, renderDot)
-    TopLevel(appState, viewerState, replaceText, viewerState.svgDiagram)
+    TopLevel(appState, viewerState, csvString, viewerState.svgDiagram)
 
 //  private def setupErrorHandling()(using Owner): EventBus[String] =
 //    val errors = new EventBus[String]

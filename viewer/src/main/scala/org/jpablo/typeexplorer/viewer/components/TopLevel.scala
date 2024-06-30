@@ -9,10 +9,10 @@ import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
 def TopLevel(
-    appState:    AppState,
+    appState   :    AppState,
     viewerState: ViewerState,
-    replaceText: Var[String],
-    svgDiagram:  Signal[SvgDiagram]
+    csvString  : Var[String],
+    svgDiagram :  Signal[SvgDiagram]
 ): ReactiveHtmlElement[HTMLDivElement] =
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
@@ -36,7 +36,7 @@ def TopLevel(
     ).amend(
       cls := "te-parent-1"
     ),
-    ReplaceGraphDialog(replaceText, replaceTextOpen)
+    ReplaceGraphDialog(csvString, replaceTextOpen)
   )
 
 def ReplaceGraphDialog(text: Var[String], open: Var[Boolean]) =

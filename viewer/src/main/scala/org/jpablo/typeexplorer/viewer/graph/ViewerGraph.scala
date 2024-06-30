@@ -101,6 +101,13 @@ case class ViewerGraph(
 
   def filterBy(p: ViewerNode => Boolean): ViewerGraph =
     subgraph(nodes.filter(p).map(_.id))
+
+  def toCSV: CSV =
+    CSV(
+      arrows
+        .map(a => Array(a.source.toString, a.target.toString))
+        .toArray
+    )
 end ViewerGraph
 
 object ViewerGraph:
@@ -118,7 +125,6 @@ object ViewerGraph:
     )
 
   def from(csv: CSV): ViewerGraph =
-    println(csv.toList)
     val arrows =
       csv.rows.map: row =>
         NodeId(row(0)) -> NodeId(row(1))

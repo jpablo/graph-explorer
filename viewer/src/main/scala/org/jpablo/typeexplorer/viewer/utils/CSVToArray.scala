@@ -8,6 +8,9 @@ case class CSV(rows: Array[Array[String]]):
   def toList =
     rows.toList.map(_.toList)
 
+  def asString(strDelimiter: String = ",") =
+    rows.map(_.mkString(strDelimiter)).mkString("\n")
+
   def equal(other: CSV): Boolean =
     Array.equals(rows.map(_.toList), other.rows.map(_.toList))
 
