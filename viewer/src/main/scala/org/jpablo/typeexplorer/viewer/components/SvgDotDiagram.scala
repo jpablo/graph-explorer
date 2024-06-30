@@ -3,21 +3,26 @@ package org.jpablo.typeexplorer.viewer.components
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.components.svgGroupElement.{ClusterElement, LinkElement, NamespaceElement}
+import org.jpablo.typeexplorer.viewer.components.svgGroupElement.{ClusterElement, LinkElement, NamespaceElement, SelectableElement}
 import org.scalajs.dom
 
-class SvgDiagram(svgElement: dom.SVGSVGElement):
+class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   export svgElement.querySelector
 
   val origW = svgElement.width.baseVal.value
   val origH = svgElement.height.baseVal.value
 
+  svgElement.setAttribute("class", "graphviz")
+  // graphviz adds a polygon as diagram background
+  val n = svgElement.querySelector("g > polygon[fill='white']")
+  if n != null then
+    n.parentNode.removeChild(n)
   svgElement.removeAttribute("style")
   svgElement.removeAttribute("width")
   svgElement.removeAttribute("height")
 
   private def selectableElements =
-    NamespaceElement.selectAll(svgElement) ++ LinkElement.selectAll(svgElement)
+    SelectableElement.selectAll(svgElement)
 
   private def namespaceElements =
     NamespaceElement.selectAll(svgElement)
@@ -32,7 +37,7 @@ class SvgDiagram(svgElement: dom.SVGSVGElement):
     namespaceElements.map(_.symbol).toSet
 
   def select(symbols: Set[models.NodeId]): Unit =
-    for elem <- selectableElements if symbols.contains(elem.symbol) do elem.select()
+    for elem <- selectableElements if symbols.contains(elem.nodeId) do elem.select()
 
   def unselectAll(): Unit =
     selectableElements.foreach(_.unselect())
@@ -72,5 +77,5 @@ class SvgDiagram(svgElement: dom.SVGSVGElement):
   def getElementById(id: String): dom.Element =
     svgElement.querySelector(s"[id='$id']")
 
-object SvgDiagram:
-  val empty = SvgDiagram(svg.svg(svg.width := "0px", svg.height := "0px").ref)
+object SvgDotDiagram:
+  val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px").ref)

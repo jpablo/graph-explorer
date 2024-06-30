@@ -58,7 +58,30 @@ label[for ^= show-ns-kind-] {
   border: 2px solid red;
 }
 
-svg {
+svg.graphviz {
+
+  g {
+    .node {
+      &:hover {
+        outline: 3px solid rgb(251 191 36);
+        cursor: pointer;
+      }
+    }
+
+    .edge {
+      &:hover {
+        path, polygon {
+          stroke: rgb(251 191 36) !important;
+          stroke-width: 3.0 !important;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+
+}
+
+svg.plantuml {
   flex-shrink: 0;
 
   // clusters are packages

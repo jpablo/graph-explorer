@@ -8,7 +8,6 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.widgets.Icons.*
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
-import org.scalajs.dom.{HTMLDivElement, HTMLElement}
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
 import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ViewerState}
 

@@ -1,7 +1,7 @@
 package org.jpablo.typeexplorer.viewer.backends.graphviz
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.typeexplorer.viewer.components.SvgDiagram
+import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ProjectSettings, SymbolOptions}
@@ -21,10 +21,10 @@ class Graphviz:
   private def renderSVGElement(g: String): Future[SVGSVGElement] =
     instance.map(_.renderSVGElement(g).asInstanceOf[SVGSVGElement])
 
-  def renderDot(s: String): Signal[SvgDiagram] =
+  def renderDot(s: String): Signal[SvgDotDiagram] =
     Signal
-      .fromFuture(renderSVGElement(s).map(SvgDiagram.apply))
-      .map(_.getOrElse(SvgDiagram.empty))
+      .fromFuture(renderSVGElement(s).map(SvgDotDiagram.apply))
+      .map(_.getOrElse(SvgDotDiagram.empty))
 
 object Graphviz:
 
@@ -38,7 +38,7 @@ object Graphviz:
 
       val declarations =
         graph.nodes.map: ns =>
-          s"""${ns.id}[label="${ns.displayName}"]"""
+          s"""${ns.id}[label="${ns.displayName}-label"]"""
 
       val arrows =
         graph.arrows.toSeq.map: a =>

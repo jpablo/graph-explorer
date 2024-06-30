@@ -8,7 +8,7 @@ import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
 def CanvasContainer(
-    inheritanceSvgDiagram: Signal[SvgDiagram],
+    inheritanceSvgDiagram: Signal[SvgDotDiagram],
     canvasSelection:       CanvasSelectionOps,
     zoomValue:             Var[Double],
     fitDiagram:            EventStream[Unit]
@@ -63,42 +63,75 @@ def CanvasContainer(
     }
   )
 
+//private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
+//    ev:      dom.MouseEvent,
+//    diagram: SvgDotDiagram
+//): Unit =
+//
+//  // 1. Identify and parse the element that was clicked
+//  val selectedElement: Option[SvgGroupElement] =
+//    ev.target
+//      .asInstanceOf[dom.Element]
+//      .path
+//      .takeWhile(_.isInstanceOf[dom.SVGElement])
+//      .map(SvgGroupElement.fromDomSvgElement)
+//      .collectFirst { case Some(g) => g }
+//
+//  // 2. Update selected element's appearance
+//  selectedElement match
+//    case Some(g) =>
+//      g match
+//
+//        case _: (LinkElement | NamespaceElement) =>
+//          if ev.metaKey then
+//            g.toggle()
+//            canvasSelection.toggle(g.symbol)
+//          else
+//            diagram.unselectAll()
+//            g.select()
+//            canvasSelection.replace(g.symbol)
+//
+//        case cluster: ClusterElement =>
+//          if !ev.metaKey then
+//            diagram.unselectAll()
+//            canvasSelection.clear()
+//          // select all boxes inside this cluster
+//          for ns <- diagram.clusterElements(cluster) do
+//            ns.select()
+//            canvasSelection.extend(ns.symbol)
+//
+//    case None =>
+//      diagram.unselectAll()
+//      canvasSelection.clear()
+
 private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
     ev:      dom.MouseEvent,
-    diagram: SvgDiagram
+    diagram: SvgDotDiagram
 ): Unit =
-
   // 1. Identify and parse the element that was clicked
-  val selectedElement: Option[SvgGroupElement] =
+  val selectedElement: Option[SelectableElement] =
     ev.target
       .asInstanceOf[dom.Element]
       .path
       .takeWhile(_.isInstanceOf[dom.SVGElement])
-      .map(SvgGroupElement.fromDomSvgElement)
+      .map(SelectableElement.from)
       .collectFirst { case Some(g) => g }
 
   // 2. Update selected element's appearance
   selectedElement match
     case Some(g) =>
       g match
-
-        case _: (LinkElement | NamespaceElement) =>
+        case elem: NodeElement =>
           if ev.metaKey then
-            g.toggle()
-            canvasSelection.toggle(g.symbol)
+            elem.toggle()
+            canvasSelection.toggle(elem.nodeId)
           else
             diagram.unselectAll()
-            g.select()
-            canvasSelection.replace(g.symbol)
+            elem.select()
+            canvasSelection.replace(elem.nodeId)
 
-        case cluster: ClusterElement =>
-          if !ev.metaKey then
-            diagram.unselectAll()
-            canvasSelection.clear()
-          // select all boxes inside this cluster
-          for ns <- diagram.clusterElements(cluster) do
-            ns.select()
-            canvasSelection.extend(ns.symbol)
+        case element: EdgeElement => ???
+
 
     case None =>
       diagram.unselectAll()

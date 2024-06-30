@@ -3,6 +3,49 @@ package org.jpablo.typeexplorer.viewer.components.svgGroupElement
 import org.jpablo.typeexplorer.viewer.models
 import org.scalajs.dom
 
+sealed trait SelectableElement:
+  def select(): Unit
+  def unselect(): Unit
+  def toggle(): Unit
+
+object SelectableElement:
+
+  def from(e: dom.Element): Option[NodeElement] =
+    if isDiagramElement(e, "node") then Some(NodeElement(e.asInstanceOf[dom.SVGGElement]))
+    else None
+
+  def selectAll(e: dom.Element) =
+    e.querySelectorAll("g").flatMap(from)
+
+
+  private def isDiagramElement(e: dom.Element, cls: String) =
+    e.tagName == "g" && e.classList.contains(cls)
+
+end SelectableElement
+
+class NodeElement(ref: dom.SVGGElement) extends SelectableElement:
+  private val selectedClass = "selected"
+  private val selectKey = "outline"
+  private val selectStyle = "3px solid rgb(245 158 11)"
+  val id = ref.querySelector("title").textContent
+  val nodeId = models.NodeId(id)
+
+  def select(): Unit =
+    ref.classList.add(selectedClass)
+    ref.updateStyle(selectKey -> selectStyle)
+
+  def unselect(): Unit =
+    ref.classList.remove(selectedClass)
+    ref.removeStyle(selectKey)
+
+  def toggle(): Unit =
+    if ref.classList.contains(selectedClass) then
+      unselect()
+    else
+      select()
+
+trait EdgeElement extends SelectableElement
+
 sealed trait SvgGroupElement(val ref: dom.SVGGElement):
   def prefix: String
 //  def box: Option[dom.SVGElement]

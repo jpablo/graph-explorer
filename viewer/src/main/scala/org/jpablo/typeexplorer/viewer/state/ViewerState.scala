@@ -6,7 +6,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
-import org.jpablo.typeexplorer.viewer.components.SvgDiagram
+import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
@@ -22,7 +22,7 @@ object ViewerState:
 case class ViewerState(
     pageV:      Var[Page],
     graph:      Signal[ViewerGraph],
-    renderDot:  String => Signal[SvgDiagram]
+    renderDot:  String => Signal[SvgDotDiagram]
 ):
   // TODO: verify that subscriptions are killed when the tab is closed
   given owner: Owner = OneTimeOwner(() => ())
@@ -50,7 +50,7 @@ case class ViewerState(
   val activeSymbols =
     ActiveSymbolsOps(activeSymbolsV, graph, canvasSelectionV)
 
-  val svgDiagram: Signal[SvgDiagram] =
+  val svgDiagram: Signal[SvgDotDiagram] =
     graph
       .combineWith(pageV.signal.distinct)
       .flatMapSwitch: (g, p) =>
@@ -73,16 +73,16 @@ class CanvasSelectionOps(
 
   def clear(): Unit = canvasSelectionV.set(Set.empty)
 
-  def selectParents(graph: ViewerGraph, svgDiagram: SvgDiagram, activeSymbols: ActiveSymbols): Unit =
+  def selectParents(graph: ViewerGraph, svgDiagram: SvgDotDiagram, activeSymbols: ActiveSymbols): Unit =
     selectRelated(_.parentsOfAll(_), graph, svgDiagram, activeSymbols)
 
-  def selectChildren(graph: ViewerGraph, svgDiagram: SvgDiagram, activeSymbols: ActiveSymbols): Unit =
+  def selectChildren(graph: ViewerGraph, svgDiagram: SvgDotDiagram, activeSymbols: ActiveSymbols): Unit =
     selectRelated(_.childrenOfAll(_), graph, svgDiagram, activeSymbols)
 
   private def selectRelated(
       selector:      (ViewerGraph, Set[NodeId]) => ViewerGraph,
       graph:         ViewerGraph,
-      svgDiagram:    SvgDiagram,
+      svgDiagram:    SvgDotDiagram,
       activeSymbols: ActiveSymbols
   ): Unit =
     val subGraph: ViewerGraph = graph.subgraph(activeSymbols.keySet)

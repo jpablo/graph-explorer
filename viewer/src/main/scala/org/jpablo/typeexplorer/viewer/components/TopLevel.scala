@@ -12,7 +12,7 @@ def TopLevel(
     appState   :    AppState,
     viewerState: ViewerState,
     csvString  : Var[String],
-    svgDiagram :  Signal[SvgDiagram]
+    svgDiagram :  Signal[SvgDotDiagram]
 ): ReactiveHtmlElement[HTMLDivElement] =
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
