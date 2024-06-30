@@ -1,13 +1,13 @@
-package org.jpablo.typeexplorer.viewer.components
+package org.jpablo.typeexplorer.viewer.components.nodes
 
-import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
-import org.jpablo.typeexplorer.viewer.components.state.{AppState, ViewerState, PackagesOptions, Project}
 import com.raquo.laminar.api.L.*
-import io.laminext.syntax.core.*
 import com.softwaremill.quicklens.*
-import org.jpablo.typeexplorer.viewer.widgets.*
+import io.laminext.syntax.core.*
+import org.jpablo.typeexplorer.viewer.state.ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
+import org.jpablo.typeexplorer.viewer.state.{AppState, PackagesOptions, Project, ViewerState}
+import org.jpablo.typeexplorer.viewer.widgets.*
 
 def NodesPanel(appState: AppState, viewerState: ViewerState) =
   val showOptions = Var(false)

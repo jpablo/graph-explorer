@@ -1,6 +1,6 @@
-package org.jpablo.typeexplorer.viewer.components.state
+package org.jpablo.typeexplorer.viewer.state
 
-import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
+import ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.utils.Utils
 
 case class Project(

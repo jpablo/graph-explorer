@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.components.SvgDiagram
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.components.state.{DiagramOptions, ProjectSettings, SymbolOptions}
+import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ProjectSettings, SymbolOptions}
 import org.scalajs.dom.SVGSVGElement
 
 import scala.concurrent.ExecutionContext.Implicits.global

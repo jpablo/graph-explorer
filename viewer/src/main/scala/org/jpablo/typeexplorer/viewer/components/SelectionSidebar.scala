@@ -5,9 +5,9 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
+import org.jpablo.typeexplorer.viewer.state.{AppState, ViewerState}
 //import org.jpablo.typeexplorer.ui.app
-import org.jpablo.typeexplorer.viewer.components.state.*
-import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.state.ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 

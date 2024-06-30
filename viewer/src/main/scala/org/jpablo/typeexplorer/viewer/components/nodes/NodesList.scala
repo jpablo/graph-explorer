@@ -1,10 +1,10 @@
-package org.jpablo.typeexplorer.viewer.components
+package org.jpablo.typeexplorer.viewer.components.nodes
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.jpablo.typeexplorer.viewer.components.state.ViewerState
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.ViewerNode
+import org.jpablo.typeexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLAnchorElement, HTMLLIElement, HTMLUListElement}
 
@@ -22,7 +22,7 @@ def NodesList(
   )
 
 
-def NodeRow(tabState: ViewerState, ns: ViewerNode) =
+private def NodeRow(tabState: ViewerState, ns: ViewerNode) =
   val isActive = tabState.activeSymbols.signal.map(_.contains(ns.id))
   li(
     a(

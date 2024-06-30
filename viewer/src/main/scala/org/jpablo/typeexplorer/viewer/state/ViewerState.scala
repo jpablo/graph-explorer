@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.components.state
+package org.jpablo.typeexplorer.viewer.state
 
 import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.airstream.ownership.OneTimeOwner
@@ -7,7 +7,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
 import org.jpablo.typeexplorer.viewer.components.SvgDiagram
-import org.jpablo.typeexplorer.viewer.components.state.ViewerState.ActiveSymbols
+import ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId

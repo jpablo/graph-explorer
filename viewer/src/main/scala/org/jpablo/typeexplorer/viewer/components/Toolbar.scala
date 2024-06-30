@@ -3,16 +3,14 @@ package org.jpablo.typeexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import com.softwaremill.quicklens.*
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.typeexplorer.viewer.components.state.DiagramOptions
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.components.state.ViewerState
 import org.jpablo.typeexplorer.viewer.widgets.Icons.*
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLDivElement, HTMLElement}
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
+import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ViewerState}
 
 def Toolbar(
     fullGraph:       Signal[ViewerGraph],
@@ -27,7 +25,7 @@ def Toolbar(
     // -------- package selector --------
     Join(
       Tooltip(
-        text = "Package Selector",
+        text = "Select visible nodes",
         input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
         label(
           forId := drawerId,
@@ -37,16 +35,16 @@ def Toolbar(
       ).amend(cls := "flex-none")
     ),
     // -------- fields and signatures --------
-    Join(
-      LabeledCheckbox(
-        id        = "fields-checkbox-1",
-        labelStr  = "fields",
-        isChecked = tabState.diagramOptionsV.signal.map(_.showFields),
-        clickHandler = tabState.diagramOptionsV
-          .updater(_.modify(_.showFields).setTo(_)),
-        toggle = true
-      )
-    ),
+//    Join(
+//      LabeledCheckbox(
+//        id        = "fields-checkbox-1",
+//        labelStr  = "fields",
+//        isChecked = tabState.diagramOptionsV.signal.map(_.showFields),
+//        clickHandler = tabState.diagramOptionsV
+//          .updater(_.modify(_.showFields).setTo(_)),
+//        toggle = true
+//      )
+//    ),
     // -------- actions toolbar --------
     Join(
       Button(Tooltip("CSV", "contents"), onClick --> replaceTextOpen.set(true)).tiny,

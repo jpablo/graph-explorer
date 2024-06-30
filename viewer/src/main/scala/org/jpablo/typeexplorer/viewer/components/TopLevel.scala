@@ -2,7 +2,8 @@ package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.jpablo.typeexplorer.viewer.components.state.{AppState, ViewerState}
+import org.jpablo.typeexplorer.viewer.components.nodes.NodesPanel
+import org.jpablo.typeexplorer.viewer.state.{AppState, ViewerState}
 import org.jpablo.typeexplorer.viewer.widgets.{Drawer, SimpleDialog}
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement

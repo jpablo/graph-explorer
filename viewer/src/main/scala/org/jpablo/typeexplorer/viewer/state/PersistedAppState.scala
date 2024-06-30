@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.components.state
+package org.jpablo.typeexplorer.viewer.state
 
 import buildinfo.BuildInfo
 
