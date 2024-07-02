@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.components.svgGroupElement
+package org.jpablo.typeexplorer.viewer.components.selectable
 
 import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.models.NodeId
@@ -55,8 +55,6 @@ class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectKey = "outline"
   val selectStyle = "3px solid rgb(245 158 11)"
 
-//  ref.querySelector("path").removeAttribute("stroke")
-
   def endpointIds: Option[(NodeId, NodeId)] =
     val input = title
     val i = input.indexOf("->")
@@ -69,39 +67,6 @@ class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
         None
     else
       None
-
-
-//  def select(): Unit =
-//    for el <- ref.children do el.updateStyle("stroke" -> "rgb(245 158 11)", "stroke-width" -> "3.0")
-//
-//  def unselect(): Unit =
-//    for el <- ref.children do el.updateStyle("stroke" -> "#181818", "stroke-width" -> "1.0")
-
-
-
-//  ---------------------------------------------
-
-sealed trait SvgGroupElement(val ref: dom.SVGGElement):
-  def prefix: String
-//  def box: Option[dom.SVGElement]
-  private def selectKey = "outline"
-  private def selectStyle = "3px solid rgb(245 158 11)"
-
-  val id = ref.id.stripPrefix(prefix)
-  val symbol = models.NodeId(id)
-  private val selectedClass = "selected"
-
-  def select(): Unit =
-    ref.classList.add(selectedClass)
-    ref.updateStyle(selectKey -> selectStyle)
-
-  def unselect(): Unit =
-    ref.classList.remove(selectedClass)
-    ref.removeStyle(selectKey)
-
-  def toggle(): Unit =
-    if ref.classList.contains(selectedClass) then unselect() else select()
-
 
 
 extension (e: dom.Element)

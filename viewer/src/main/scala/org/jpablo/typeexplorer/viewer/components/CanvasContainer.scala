@@ -2,7 +2,7 @@ package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.laminar.api.L.*
-import org.jpablo.typeexplorer.viewer.components.svgGroupElement.*
+import org.jpablo.typeexplorer.viewer.components.selectable.*
 import org.jpablo.typeexplorer.viewer.state.CanvasSelectionOps
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement

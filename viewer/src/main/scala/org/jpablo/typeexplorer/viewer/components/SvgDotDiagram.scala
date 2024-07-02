@@ -2,7 +2,7 @@ package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
-import org.jpablo.typeexplorer.viewer.components.svgGroupElement.SelectableElement
+import org.jpablo.typeexplorer.viewer.components.selectable.SelectableElement
 import org.jpablo.typeexplorer.viewer.models
 import org.scalajs.dom
 
