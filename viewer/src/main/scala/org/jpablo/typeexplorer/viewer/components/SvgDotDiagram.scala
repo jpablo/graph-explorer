@@ -2,7 +2,7 @@ package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
-import org.jpablo.typeexplorer.viewer.components.svgGroupElement.{ClusterElement, NamespaceElement, SelectableElement}
+import org.jpablo.typeexplorer.viewer.components.svgGroupElement.SelectableElement
 import org.jpablo.typeexplorer.viewer.models
 import org.scalajs.dom
 
@@ -24,17 +24,8 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   private def selectableElements =
     SelectableElement.selectAll(svgElement)
 
-  private def namespaceElements =
-    NamespaceElement.selectAll(svgElement)
-
-  def clusterElements(cluster: ClusterElement) =
-    namespaceElements.filter(_.id.startsWith(cluster.idWithSlashes))
-
-  def clusters =
-    ClusterElement.selectAll(svgElement)
-
   def elementSymbols: Set[models.NodeId] =
-    namespaceElements.map(_.symbol).toSet
+    selectableElements.map(_.nodeId).toSet
 
   def select(symbols: Set[models.NodeId]): Unit =
     for elem <- selectableElements if symbols.contains(elem.nodeId) do elem.select()
