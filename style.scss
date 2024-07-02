@@ -69,6 +69,11 @@ svg.graphviz {
     }
 
     .edge {
+
+      //&.selected {
+      //  stroke: rgb(251 191 36) !important;
+      //}
+
       &:hover {
         path, polygon {
           stroke: rgb(251 191 36) !important;

@@ -63,9 +63,9 @@ class CanvasSelectionOps(
   export canvasSelectionV.now
   val signal = canvasSelectionV.signal
 
-  def toggle(s:  NodeId): Unit = canvasSelectionV.update(_.toggle(s))
-  def replace(s: NodeId): Unit = canvasSelectionV.set(Set(s))
-  def extend(s:  NodeId): Unit = canvasSelectionV.update(_ + s)
+  def toggle(ss:   NodeId*): Unit = canvasSelectionV.update(ss.foldLeft(_)(_.toggle(_)))
+  def replace(ss: NodeId*): Unit = canvasSelectionV.set(ss.toSet)
+  def extend(s:   NodeId): Unit = canvasSelectionV.update(_ + s)
 
   def extend(ss: Set[NodeId]): Unit = canvasSelectionV.update(_ ++ ss)
   def remove(ss: Set[NodeId]): Unit = canvasSelectionV.update(_ -- ss)

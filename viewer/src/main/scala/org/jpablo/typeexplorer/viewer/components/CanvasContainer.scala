@@ -121,16 +121,25 @@ private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
   selectedElement match
     case Some(g) =>
       g match
-        case elem: NodeElement =>
+        case node: NodeElement =>
           if ev.metaKey then
-            elem.toggle()
-            canvasSelection.toggle(elem.nodeId)
+            node.toggle()
+            canvasSelection.toggle(node.nodeId)
           else
             diagram.unselectAll()
-            elem.select()
-            canvasSelection.replace(elem.nodeId)
+            node.select()
+            canvasSelection.replace(node.nodeId)
 
-        case element: EdgeElement => ???
+        case edge: EdgeElement =>
+          if ev.metaKey then
+            edge.toggle()
+            for pp <- edge.endpointIds do
+              canvasSelection.toggle(pp._1, pp._2)
+          else
+            diagram.unselectAll()
+            edge.select()
+            for pp <- edge.endpointIds do
+              canvasSelection.replace(pp._1, pp._2)
 
 
     case None =>

@@ -1,34 +1,15 @@
 package org.jpablo.typeexplorer.viewer.components.svgGroupElement
 
 import org.jpablo.typeexplorer.viewer.models
+import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.scalajs.dom
 
-sealed trait SelectableElement:
-  def select(): Unit
-  def unselect(): Unit
-  def toggle(): Unit
-
-object SelectableElement:
-
-  def from(e: dom.Element): Option[NodeElement] =
-    if isDiagramElement(e, "node") then Some(NodeElement(e.asInstanceOf[dom.SVGGElement]))
-    else None
-
-  def selectAll(e: dom.Element) =
-    e.querySelectorAll("g").flatMap(from)
-
-
-  private def isDiagramElement(e: dom.Element, cls: String) =
-    e.tagName == "g" && e.classList.contains(cls)
-
-end SelectableElement
-
-class NodeElement(ref: dom.SVGGElement) extends SelectableElement:
-  private val selectedClass = "selected"
-  private val selectKey = "outline"
-  private val selectStyle = "3px solid rgb(245 158 11)"
-  val id = ref.querySelector("title").textContent
-  val nodeId = models.NodeId(id)
+sealed trait SelectableElement(ref: dom.SVGGElement):
+  def selectedClass: String
+  def selectKey: String
+  def selectStyle: String
+  protected val title = ref.querySelector("title").textContent
+  val nodeId = models.NodeId(title)
 
   def select(): Unit =
     ref.classList.add(selectedClass)
@@ -44,7 +25,61 @@ class NodeElement(ref: dom.SVGGElement) extends SelectableElement:
     else
       select()
 
-trait EdgeElement extends SelectableElement
+object SelectableElement:
+
+  def from(e: dom.Element): Option[SelectableElement] =
+    if isDiagramElement(e, "node") then
+      Some(NodeElement(e.asInstanceOf[dom.SVGGElement]))
+    else if isDiagramElement(e, "edge") then
+      Some(EdgeElement(e.asInstanceOf[dom.SVGGElement]))
+    else
+      None
+
+  def selectAll(e: dom.Element) =
+    e.querySelectorAll("g").flatMap(from)
+
+
+  private def isDiagramElement(e: dom.Element, cls: String) =
+    e.tagName == "g" && e.classList.contains(cls)
+
+end SelectableElement
+
+class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
+  val selectedClass = "selected"
+  val selectKey = "outline"
+  val selectStyle = "3px solid rgb(245 158 11)"
+
+
+class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
+  val selectedClass = "selected"
+  val selectKey = "outline"
+  val selectStyle = "3px solid rgb(245 158 11)"
+
+//  ref.querySelector("path").removeAttribute("stroke")
+
+  def endpointIds: Option[(NodeId, NodeId)] =
+    val input = title
+    val i = input.indexOf("->")
+    if i > 0 && i < input.length - 2 then
+      val l = input.substring(0, i).trim
+      val r = input.substring(i + 2).trim
+      if l.nonEmpty && r.nonEmpty then
+        Some((NodeId(l), NodeId(r)))
+      else
+        None
+    else
+      None
+
+
+//  def select(): Unit =
+//    for el <- ref.children do el.updateStyle("stroke" -> "rgb(245 158 11)", "stroke-width" -> "3.0")
+//
+//  def unselect(): Unit =
+//    for el <- ref.children do el.updateStyle("stroke" -> "#181818", "stroke-width" -> "1.0")
+
+
+
+//  ---------------------------------------------
 
 sealed trait SvgGroupElement(val ref: dom.SVGGElement):
   def prefix: String
@@ -69,7 +104,7 @@ sealed trait SvgGroupElement(val ref: dom.SVGGElement):
 
 object SvgGroupElement:
   def fromDomSvgElement(e: dom.Element): Option[SvgGroupElement] =
-    NamespaceElement.from(e) orElse ClusterElement.from(e) orElse LinkElement.from(e)
+    NamespaceElement.from(e) orElse ClusterElement.from(e)
 
 class NamespaceElement(ref: dom.SVGGElement) extends SvgGroupElement(ref):
   def prefix = NamespaceElement.prefix
@@ -119,26 +154,6 @@ object ClusterElement:
   def selectAll(e: dom.Element) =
     e.querySelectorAll(selector).flatMap(from)
 
-class LinkElement(ref: dom.SVGGElement) extends SvgGroupElement(ref):
-  def prefix = LinkElement.prefix
-  def box: Option[dom.SVGElement] = None
-
-  override def select(): Unit =
-    for el <- ref.children do el.updateStyle("stroke" -> "rgb(245 158 11)", "stroke-width" -> "3.0")
-
-  override def unselect(): Unit =
-    for el <- ref.children do el.updateStyle("stroke" -> "#181818", "stroke-width" -> "1.0")
-
-object LinkElement:
-  val prefix = "link_"
-  private val selector = s"g[id ^= $prefix]"
-
-  def from(e: dom.Element): Option[LinkElement] =
-    if e.isLink then Some(LinkElement(e.asInstanceOf[dom.SVGGElement]))
-    else None
-
-  def selectAll(e: dom.Element) =
-    e.querySelectorAll(selector).flatMap(from)
 
 extension (e: dom.Element)
   def path =
@@ -150,7 +165,7 @@ extension (e: dom.Element)
 
   def isNamespace = e.isDiagramElement(NamespaceElement.prefix)
   def isPackage = e.isDiagramElement(ClusterElement.prefix)
-  def isLink = e.isDiagramElement(LinkElement.prefix)
+//  def isLink = e.isDiagramElement(LinkElement.prefix)
 
   def fill = e.getAttribute("fill")
   def fill_=(c: String) = e.setAttribute("fill", c)
