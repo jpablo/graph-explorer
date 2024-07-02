@@ -38,11 +38,11 @@ object Graphviz:
 
       val declarations =
         graph.nodes.map: ns =>
-          s"""${ns.id}[label="${ns.displayName}-label"]"""
+          s""" "${ns.id}"[label="${ns.displayName}"]"""
 
       val arrows =
         graph.arrows.toSeq.map: a =>
-          s""" ${a.source} -> ${a.target}"""
+          s""" "${a.source}" -> "${a.target}" """
 
       s"""
        |digraph G {

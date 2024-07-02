@@ -70,6 +70,15 @@ def SelectionSidebar(
                 tabState.activeSymbols.addSelectionParents(onClick)
               )
             ),
+            // ----- augment selection with direct parents -----
+            li(
+              cls("disabled") <-- selectionEmpty,
+              a(
+                "Add direct parents",
+                disabled <-- selectionEmpty,
+                tabState.activeSymbols.addSelectionDirectParents(onClick)
+              )
+            ),
             // ----- augment selection with children -----
             li(
               cls("disabled") <-- selectionEmpty,
@@ -105,6 +114,22 @@ def SelectionSidebar(
                   )
                 ) -->
                   tabState.canvasSelection.selectParents.tupled
+              )
+            ),
+            // ----- select direct parents -----
+            li(
+              cls("disabled") <-- selectionEmpty,
+              a(
+                "Select direct parents",
+                disabled <-- selectionEmpty,
+                onClick.compose(
+                  _.sample(
+                    appState.fullGraph,
+                    tabState.svgDiagram,
+                    activeSymbols
+                  )
+                ) -->
+                  tabState.canvasSelection.selectDirectParents.tupled
               )
             ),
             // ----- select children -----

@@ -2,8 +2,8 @@ package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
+import org.jpablo.typeexplorer.viewer.components.svgGroupElement.{ClusterElement, NamespaceElement, SelectableElement}
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.components.svgGroupElement.{ClusterElement, LinkElement, NamespaceElement, SelectableElement}
 import org.scalajs.dom
 
 class SvgDotDiagram(svgElement: dom.SVGSVGElement):

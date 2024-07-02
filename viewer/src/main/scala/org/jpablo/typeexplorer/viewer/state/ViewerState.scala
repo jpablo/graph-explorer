@@ -14,15 +14,14 @@ import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.scalajs.dom
 
 object ViewerState:
-  /**
-   * The Ids of nodes displayed in the diagram
-   */
+  /** The Ids of nodes displayed in the diagram
+    */
   type ActiveSymbols = Map[NodeId, Option[SymbolOptions]]
 
 case class ViewerState(
-    pageV:      Var[Page],
-    graph:      Signal[ViewerGraph],
-    renderDot:  String => Signal[SvgDotDiagram]
+    pageV:     Var[Page],
+    graph:     Signal[ViewerGraph],
+    renderDot: String => Signal[SvgDotDiagram]
 ):
   // TODO: verify that subscriptions are killed when the tab is closed
   given owner: Owner = OneTimeOwner(() => ())
@@ -73,11 +72,10 @@ class CanvasSelectionOps(
 
   def clear(): Unit = canvasSelectionV.set(Set.empty)
 
-  def selectParents(graph: ViewerGraph, svgDiagram: SvgDotDiagram, activeSymbols: ActiveSymbols): Unit =
-    selectRelated(_.parentsOfAll(_), graph, svgDiagram, activeSymbols)
-
-  def selectChildren(graph: ViewerGraph, svgDiagram: SvgDotDiagram, activeSymbols: ActiveSymbols): Unit =
-    selectRelated(_.childrenOfAll(_), graph, svgDiagram, activeSymbols)
+  def selectParents = selectRelated(_.parentsOfAll(_), _, _, _)
+  def selectChildren = selectRelated(_.childrenOfAll(_), _, _, _)
+  def selectDirectParents = selectRelated(_.directParentsOfAll(_), _, _, _)
+  def selectDirectChildren = selectRelated(_.directChildrenOfAll(_), _, _, _)
 
   private def selectRelated(
       selector:      (ViewerGraph, Set[NodeId]) => ViewerGraph,
@@ -145,6 +143,9 @@ class ActiveSymbolsOps(
     */
   def addSelectionParents[E <: dom.Event](ep: EventProp[E]) =
     addSelectionWith(_.parentsOf(_), ep)
+
+  def addSelectionDirectParents[E <: dom.Event](ep: EventProp[E]) =
+    addSelectionWith(_.directParentsOf(_), ep)
 
   private val graphWithSelection =
     graph.combineWith(canvasSelectionV.signal)

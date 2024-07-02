@@ -73,11 +73,18 @@ case class ViewerGraph(
   private def allRelated(ids: Set[NodeId], r: NodeId => Set[NodeId]): ViewerGraph =
     subgraph(unfold(ids, r) ++ ids)
 
+  private def directRelated(ids: Set[NodeId], r: NodeId => Set[NodeId]): ViewerGraph =
+    subgraph(ids.flatMap(r))
+
   def parentsOfAll(ids:  Set[NodeId]): ViewerGraph = allRelated(ids, directParents)
   def childrenOfAll(ids: Set[NodeId]): ViewerGraph = allRelated(ids, directChildren)
-
-  def parentsOf(id:  NodeId): ViewerGraph = allRelated(Set(id), directParents)
+  def parentsOf(id: NodeId): ViewerGraph = allRelated(Set(id), directParents)
   def childrenOf(id: NodeId): ViewerGraph = allRelated(Set(id), directChildren)
+
+  def directParentsOfAll(ids:  Set[NodeId]): ViewerGraph = directRelated(ids, directParents)
+  def directChildrenOfAll(ids: Set[NodeId]): ViewerGraph = directRelated(ids, directChildren)
+  def directParentsOf(id:  NodeId): ViewerGraph = directParentsOfAll(Set(id))
+  def directChildrenOf(id:  NodeId): ViewerGraph = directChildrenOfAll(Set(id))
 
   lazy val toTrees: Tree[ViewerNode] =
     val paths =
@@ -126,7 +133,10 @@ object ViewerGraph:
 
   def from(csv: CSV): ViewerGraph =
     val arrows =
-      csv.rows.map: row =>
+      for
+        row <- csv.rows
+        if row.length >= 2
+      yield
         NodeId(row(0)) -> NodeId(row(1))
     ViewerGraph(arrows.toSet)
 
