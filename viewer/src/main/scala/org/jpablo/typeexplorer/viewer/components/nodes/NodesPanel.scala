@@ -9,12 +9,12 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.state.{AppState, PackagesOptions, Project, ViewerState}
 import org.jpablo.typeexplorer.viewer.widgets.*
 
-def NodesPanel(appState: AppState, viewerState: ViewerState) =
+def NodesPanel(state: ViewerState) =
   val showOptions = Var(false)
   val filterBySymbolName = Var("")
-  val activeSymbols = viewerState.activeSymbols.signal
+  val activeSymbols = state.activeSymbols.signal
   val filteredGraph: Signal[ViewerGraph] =
-    filteredDiagramEvent(appState, activeSymbols, filterBySymbolName.signal)
+    filteredDiagramEvent(state, activeSymbols, filterBySymbolName.signal)
   div(
     cls := "bg-base-100 rounded-box overflow-auto p-1 z-10",
     // --- controls ---
@@ -27,32 +27,32 @@ def NodesPanel(appState: AppState, viewerState: ViewerState) =
         toggle       = true
       ),
       showOptions.signal.childWhenTrue:
-        Options(appState)
+        Options(state)
       ,
       Search(
         placeholder := "filter",
-//        focus <-- appState.appConfigDialogOpenV.signal.changes,
+//        focus <-- viewerState.appConfigDialogOpenV.signal.changes,
         controlled(
           value <-- filterBySymbolName,
           onInput.mapToValue --> filterBySymbolName
         )
-//        onKeyDown.filter(e => e.key == "Enter" || e.key == "Escape") --> appState.appConfigDialogOpenV.set(false)
+//        onKeyDown.filter(e => e.key == "Enter" || e.key == "Escape") --> viewerState.appConfigDialogOpenV.set(false)
       ).smallInput
     ),
     div(
       cls := "overflow-auto mt-1",
-      NodesList(viewerState, filteredGraph)
+      NodesList(state, filteredGraph)
     )
   )
 
 private def filteredDiagramEvent(
-    appState:           AppState,
+    state:              ViewerState,
     activeSymbols:      Signal[ActiveSymbols],
     filterBySymbolName: Signal[String]
 ): Signal[ViewerGraph] =
-  appState.fullGraph
+  state.fullGraph
     .combineWith(
-      appState.project.packagesOptions,
+      state.project.packagesOptions,
       filterBySymbolName,
       // TODO: consider another approach where changing activeSymbols does not trigger
       // a full tree redraw, but just modifies the relevant nodes
@@ -72,7 +72,7 @@ private def filteredDiagramEvent(
 //          .subgraphByKinds(packagesOptions.kinds)
           .orElse(!packagesOptions.onlyActive, _.subgraph(activeSymbols.keySet))
 
-private def Options(appState: AppState) =
+private def Options(state: ViewerState) =
   div(
     cls := "card card-compact p-1 m-2 mb-2 border-slate-300 border-[1px]",
     div(
@@ -80,24 +80,26 @@ private def Options(appState: AppState) =
       LabeledCheckbox(
         id        = s"filter-by-active",
         labelStr  = "only active",
-        isChecked = appState.project.packagesOptions.map(_.onlyActive),
+        isChecked = state.project.packagesOptions.map(_.onlyActive),
         clickHandler = Observer: _ =>
-          appState.project.update(_.modify(_.packagesOptions.onlyActive).using(!_)),
+          state.project.update(_.modify(_.packagesOptions.onlyActive).using(!_)),
         toggle = true
       ),
       hr(),
       // TODO: this is not working, fix it
       children <--
-        appState.fullGraph.map(_.kinds).map: kinds =>
-          for kind <- kinds.toList
-          yield LabeledCheckbox(
-            id = s"show-ns-kind-$kind",
-            kind.toString,
-            isChecked = appState.project.packagesOptions
-              .map(_.kinds)
-              .map(_.contains(kind)),
-            clickHandler = Observer: b =>
-              appState.project.update(_.modify(_.packagesOptions.kinds).using(_.toggleWith(kind, b)))
-          )
+        state.fullGraph
+          .map(_.kinds)
+          .map: kinds =>
+            for kind <- kinds.toList
+            yield LabeledCheckbox(
+              id = s"show-ns-kind-$kind",
+              kind.toString,
+              isChecked = state.project.packagesOptions
+                .map(_.kinds)
+                .map(_.contains(kind)),
+              clickHandler = Observer: b =>
+                state.project.update(_.modify(_.packagesOptions.kinds).using(_.toggleWith(kind, b)))
+            )
     )
   )

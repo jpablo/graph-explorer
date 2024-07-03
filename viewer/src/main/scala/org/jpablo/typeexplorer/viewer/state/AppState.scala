@@ -6,12 +6,9 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 
 class AppState(
-    projectV:      Var[Project],
     val fullGraph: Signal[ViewerGraph],
     version:       String = BuildInfo.version
 )(using o: Owner):
-
-  val project: ActiveProject =
-    ActiveProject(projectV)
-
   val appConfigDialogOpenV = Var(false)
+  val project =
+    ProjectOps(Var(Project(ProjectId("project-0"))))

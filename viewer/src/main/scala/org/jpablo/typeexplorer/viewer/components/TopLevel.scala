@@ -9,10 +9,8 @@ import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
 def TopLevel(
-    appState   :    AppState,
-    viewerState: ViewerState,
-    csvString  : Var[String],
-    svgDiagram :  Signal[SvgDotDiagram]
+    state:     ViewerState,
+    csvString: Var[String]
 ): ReactiveHtmlElement[HTMLDivElement] =
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
@@ -23,14 +21,14 @@ def TopLevel(
       id        = s"drawer-id",
       drawerEnd = false,
       content = _.amend(
-        CanvasContainer(viewerState.svgDiagram, viewerState.canvasSelection, zoomValue, fitDiagram.events),
-        Toolbar(appState.fullGraph, viewerState, zoomValue, fitDiagram, replaceTextOpen),
-        SelectionSidebar(appState, viewerState)
+        CanvasContainer(state.svgDiagram, state.canvasSelection, zoomValue, fitDiagram.events),
+        Toolbar(state.fullGraph, state, zoomValue, fitDiagram, replaceTextOpen),
+        SelectionSidebar(state)
       ),
       sidebar = _.amend(
         div(
           cls := "p-4 w-96 bg-base-100 text-base-content h-full",
-          NodesPanel(appState, viewerState)
+          NodesPanel(state)
         )
       )
     ).amend(
@@ -43,7 +41,7 @@ def ReplaceGraphDialog(text: Var[String], open: Var[Boolean]) =
   SimpleDialog(
     open,
     textArea(
-      cls := "textarea textarea-bordered whitespace-nowrap w-full",
+      cls         := "textarea textarea-bordered whitespace-nowrap w-full",
       placeholder := "Replace graph",
       controlled(
         value <-- text,

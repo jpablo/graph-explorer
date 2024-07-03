@@ -19,12 +19,17 @@ object ViewerState:
   type ActiveSymbols = Map[NodeId, Option[SymbolOptions]]
 
 case class ViewerState(
-    pageV:     Var[Page],
-    graph:     Signal[ViewerGraph],
+    fullGraph: Signal[ViewerGraph],
     renderDot: String => Signal[SvgDotDiagram]
 ):
   // TODO: verify that subscriptions are killed when the tab is closed
   given owner: Owner = OneTimeOwner(() => ())
+
+  val appConfigDialogOpenV = Var(false)
+  val project =
+    ProjectOps(Var(Project(ProjectId("project-0"))))
+
+  val pageV: Var[Page] = project.page
 
   // this should be a subset of activeSymbols' keys
   private val canvasSelectionV = Var(Set.empty[NodeId])
@@ -36,21 +41,16 @@ case class ViewerState(
     pageV.zoom(_.diagramOptions)((p, s) => p.copy(diagramOptions = s))
 
   val allNodeIds: Signal[Set[NodeId]] =
-    graph.map(_.nodeIds)
+    fullGraph.map(_.nodeIds)
 
   val canvasSelection =
     CanvasSelectionOps(canvasSelectionV)
 
-  def addAll() =
-    // 1. take the current value of all allSymbols (currAllSymbols)
-    // 2. call activeSymbolsV.update(as => as ++ currAllSymbols)
-    ()
-
   val activeSymbols =
-    ActiveSymbolsOps(activeSymbolsV, graph, canvasSelectionV)
+    ActiveSymbolsOps(activeSymbolsV, fullGraph, canvasSelectionV)
 
   val svgDiagram: Signal[SvgDotDiagram] =
-    graph
+    fullGraph
       .combineWith(pageV.signal.distinct)
       .flatMapSwitch: (g, p) =>
         renderDot(g.subgraph(p.activeSymbols.keySet).toDot(""))
@@ -63,7 +63,7 @@ class CanvasSelectionOps(
   export canvasSelectionV.now
   val signal = canvasSelectionV.signal
 
-  def toggle(ss:   NodeId*): Unit = canvasSelectionV.update(ss.foldLeft(_)(_.toggle(_)))
+  def toggle(ss:  NodeId*): Unit = canvasSelectionV.update(ss.foldLeft(_)(_.toggle(_)))
   def replace(ss: NodeId*): Unit = canvasSelectionV.set(ss.toSet)
   def extend(s:   NodeId): Unit = canvasSelectionV.update(_ + s)
 

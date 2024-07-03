@@ -6,7 +6,7 @@ import com.raquo.laminar.api.L.Owner
 
 /** Convenience wrapper around a Var[Project]
   */
-case class ActiveProject(project: Var[Project])(using o: Owner):
+case class ProjectOps(project: Var[Project])(using o: Owner):
 
   //  export project.{signal, update, updater}
   val signal = project.signal
@@ -28,10 +28,7 @@ case class ActiveProject(project: Var[Project])(using o: Owner):
   val diagramOptions: Signal[DiagramOptions] =
     project.signal.map(_.page.diagramOptions)
 
-  def pageV: Var[Page] =
+  def page: Var[Page] =
     project.zoom(_.page)((p, page) => p.copy(page = page))
 
-  val pages: Signal[Page] =
-    project.signal.map(_.page)
-
-end ActiveProject
+end ProjectOps

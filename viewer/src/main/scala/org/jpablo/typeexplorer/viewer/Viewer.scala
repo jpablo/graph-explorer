@@ -18,17 +18,20 @@ object Viewer:
 
   private def createApp(): ReactiveHtmlElement[dom.HTMLDivElement] =
     given Owner = unsafeWindowOwner
-    val id = ProjectId("project-0")
-    val csvString: Var[String] = Var(Example1.graph.toCSV.asString())
-    val graph: Signal[ViewerGraph] =
-      csvString.signal
-        .map(CSVToArray(_))
-        .map(ViewerGraph.from)
-    val project = Project(id)
-    val appState = AppState(Var(project), graph)
+
     val renderDot = (new Graphviz).renderDot
-    val viewerState = ViewerState(appState.project.pageV, appState.fullGraph, renderDot)
-    TopLevel(appState, viewerState, csvString, viewerState.svgDiagram)
+
+    val csvString: Var[String] =
+      Var(Example1.graph.toCSV.asString())
+
+    val graph: Signal[ViewerGraph] =
+      csvString.signal.map(CSVToArray(_)).map(ViewerGraph.from)
+
+
+//    val appState = AppState(graph)
+    val viewerState = ViewerState(graph, renderDot)
+
+    TopLevel(viewerState, csvString)
 
 //  private def setupErrorHandling()(using Owner): EventBus[String] =
 //    val errors = new EventBus[String]

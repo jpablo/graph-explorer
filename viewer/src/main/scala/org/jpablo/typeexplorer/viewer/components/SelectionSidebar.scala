@@ -11,11 +11,7 @@ import org.jpablo.typeexplorer.viewer.state.ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 
-def SelectionSidebar(
-    appState: AppState,
-    tabState: ViewerState
-) =
-
+def SelectionSidebar(tabState: ViewerState) =
   val activeSymbols: Signal[ActiveSymbols] =
     tabState.activeSymbols.signal
 
@@ -95,7 +91,7 @@ def SelectionSidebar(
                 "Hide",
                 disabled <-- selectionEmpty,
                 onClick -->
-                  appState.project.update:
+                  tabState.project.update:
                     _.modify(_.projectSettings.hiddenSymbols)
                       .using(_ ++ tabState.canvasSelection.now())
               )
@@ -108,7 +104,7 @@ def SelectionSidebar(
                 disabled <-- selectionEmpty,
                 onClick.compose(
                   _.sample(
-                    appState.fullGraph,
+                    tabState.fullGraph,
                     tabState.svgDiagram,
                     activeSymbols
                   )
@@ -124,7 +120,7 @@ def SelectionSidebar(
                 disabled <-- selectionEmpty,
                 onClick.compose(
                   _.sample(
-                    appState.fullGraph,
+                    tabState.fullGraph,
                     tabState.svgDiagram,
                     activeSymbols
                   )
@@ -139,7 +135,7 @@ def SelectionSidebar(
                 "Select children",
                 onClick.compose(
                   _.sample(
-                    appState.fullGraph,
+                    tabState.fullGraph,
                     tabState.svgDiagram,
                     activeSymbols
                   )

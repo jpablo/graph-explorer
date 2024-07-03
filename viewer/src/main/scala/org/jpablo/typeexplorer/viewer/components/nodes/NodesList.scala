@@ -9,21 +9,21 @@ import org.scalajs.dom
 import org.scalajs.dom.{HTMLAnchorElement, HTMLLIElement, HTMLUListElement}
 
 def NodesList(
-    viewerState: ViewerState,
+    state: ViewerState,
     graph:       Signal[ViewerGraph]
 ): ReactiveHtmlElement[HTMLUListElement] =
   val lis =
     graph.map:
       _.nodes.toList.sortBy(_.displayName).map: s =>
-        NodeRow(viewerState, s)
+        NodeRow(state, s)
   ul(
     cls := "menu menu-sm bg-base-200 rounded-box",
     children <-- lis
   )
 
 
-private def NodeRow(tabState: ViewerState, ns: ViewerNode) =
-  val isActive = tabState.activeSymbols.signal.map(_.contains(ns.id))
+private def NodeRow(state: ViewerState, ns: ViewerNode) =
+  val isActive = state.activeSymbols.signal.map(_.contains(ns.id))
   li(
     a(
       idAttr := ns.id.toString,
@@ -34,8 +34,8 @@ private def NodeRow(tabState: ViewerState, ns: ViewerNode) =
         ns.displayName
       ),
       onClick.preventDefault.stopPropagation --> { _ =>
-        tabState.activeSymbols.toggle(ns.id)
-        tabState.canvasSelection.toggle(ns.id)
+        state.activeSymbols.toggle(ns.id)
+        state.canvasSelection.toggle(ns.id)
       }
     )
   )
