@@ -6,7 +6,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
-import org.jpablo.typeexplorer.viewer.state.ViewerState.VisibleNodes
+import org.jpablo.typeexplorer.viewer.state.VisibleNodes
 import org.scalajs.dom
 
 /** The Ids of nodes displayed in the diagram

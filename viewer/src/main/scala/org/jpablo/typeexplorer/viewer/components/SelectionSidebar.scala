@@ -6,7 +6,7 @@ import com.raquo.laminar.api.features.unitArrows
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.state.ViewerState
-import org.jpablo.typeexplorer.viewer.state.ViewerState.VisibleNodes
+import org.jpablo.typeexplorer.viewer.state.VisibleNodes
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 

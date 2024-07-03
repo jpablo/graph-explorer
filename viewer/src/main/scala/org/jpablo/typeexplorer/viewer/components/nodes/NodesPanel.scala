@@ -5,8 +5,7 @@ import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.state.ViewerState.VisibleNodes
-import org.jpablo.typeexplorer.viewer.state.{PackagesOptions, Project, ViewerState}
+import org.jpablo.typeexplorer.viewer.state.{PackagesOptions, Project, ViewerState, VisibleNodes}
 import org.jpablo.typeexplorer.viewer.widgets.*
 
 def NodesPanel(state: ViewerState) =

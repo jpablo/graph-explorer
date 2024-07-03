@@ -1,6 +1,5 @@
 package org.jpablo.typeexplorer.viewer.state
 
-import ViewerState.VisibleNodes
 import org.jpablo.typeexplorer.viewer.utils.Utils
 
 case class Project(
