@@ -99,13 +99,13 @@ def Toolbar(
 
 private def onDotClicked(
     fullGraph: Signal[ViewerGraph],
-    tabState:  ViewerState
+    state:     ViewerState
 ) =
   onClick.compose(
     _.sample(
       fullGraph,
-      tabState.visibleNodes.signal,
-      tabState.diagramOptionsV
+      state.visibleNodes.signal,
+      state.diagramOptionsV
     )
   ) --> { (fullDiagram: ViewerGraph, visibleNodes, options: DiagramOptions) =>
     dom.window.navigator.clipboard.writeText(
