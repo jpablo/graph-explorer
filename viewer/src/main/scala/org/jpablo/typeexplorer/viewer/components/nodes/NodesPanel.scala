@@ -5,14 +5,14 @@ import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.state.ViewerState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.state.ViewerState.VisibleNodes
 import org.jpablo.typeexplorer.viewer.state.{PackagesOptions, Project, ViewerState}
 import org.jpablo.typeexplorer.viewer.widgets.*
 
 def NodesPanel(state: ViewerState) =
   val showOptions = Var(false)
   val filterBySymbolName = Var("")
-  val activeSymbols = state.activeSymbols.signal
+  val activeSymbols = state.visibleNodes.signal
   val filteredGraph: Signal[ViewerGraph] =
     filteredDiagramEvent(state, activeSymbols, filterBySymbolName.signal)
   div(
@@ -47,7 +47,7 @@ def NodesPanel(state: ViewerState) =
 
 private def filteredDiagramEvent(
     state:              ViewerState,
-    activeSymbols:      Signal[ActiveSymbols],
+    activeSymbols:      Signal[VisibleNodes],
     filterBySymbolName: Signal[String]
 ): Signal[ViewerGraph] =
   state.fullGraph
@@ -65,7 +65,7 @@ private def filteredDiagramEvent(
           graph:           ViewerGraph,
           packagesOptions: PackagesOptions,
           w:               String,
-          activeSymbols:   ActiveSymbols
+          activeSymbols:   VisibleNodes
       ) =>
         graph
           .orElse(w.isBlank, _.filterBySymbolName(w))

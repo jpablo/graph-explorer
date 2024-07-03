@@ -6,13 +6,13 @@ import com.raquo.laminar.api.features.unitArrows
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.state.ViewerState
-import org.jpablo.typeexplorer.viewer.state.ViewerState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.state.ViewerState.VisibleNodes
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 
 def SelectionSidebar(tabState: ViewerState) =
-  val activeSymbols: Signal[ActiveSymbols] =
-    tabState.activeSymbols.signal
+  val activeSymbols: Signal[VisibleNodes] =
+    tabState.visibleNodes.signal
 
   val selectionEmpty =
     tabState.canvasSelection.signal.map(_.isEmpty)
@@ -30,7 +30,7 @@ def SelectionSidebar(tabState: ViewerState) =
               a(
                 "Remove",
                 disabled <-- selectionEmpty,
-                tabState.activeSymbols.applyOnSelection((all, sel) => all -- sel)(onClick)
+                tabState.visibleNodes.applyOnSelection((all, sel) => all -- sel)(onClick)
               )
             ),
             // ----- remove complement -----
@@ -39,7 +39,7 @@ def SelectionSidebar(tabState: ViewerState) =
               a(
                 "Keep",
                 disabled <-- selectionEmpty,
-                tabState.activeSymbols.applyOnSelection((all, sel) => all.filter((k, _) => sel.contains(k)))(onClick)
+                tabState.visibleNodes.applyOnSelection((all, sel) => all.filter((k, _) => sel.contains(k)))(onClick)
               )
             ),
             // ----- copy as svg -----
@@ -62,7 +62,7 @@ def SelectionSidebar(tabState: ViewerState) =
               a(
                 "Add parents",
                 disabled <-- selectionEmpty,
-                tabState.activeSymbols.addSelectionParents(onClick)
+                tabState.visibleNodes.addSelectionParents(onClick)
               )
             ),
             // ----- augment selection with direct parents -----
@@ -71,7 +71,7 @@ def SelectionSidebar(tabState: ViewerState) =
               a(
                 "Add direct parents",
                 disabled <-- selectionEmpty,
-                tabState.activeSymbols.addSelectionDirectParents(onClick)
+                tabState.visibleNodes.addSelectionDirectParents(onClick)
               )
             ),
             // ----- augment selection with children -----
@@ -80,7 +80,7 @@ def SelectionSidebar(tabState: ViewerState) =
               a(
                 "Add children",
                 disabled <-- selectionEmpty,
-                tabState.activeSymbols.addSelectionChildren(onClick)
+                tabState.visibleNodes.addSelectionChildren(onClick)
               )
             ),
             // ----- add selection to set of hidden symbols -----
@@ -148,7 +148,7 @@ def SelectionSidebar(tabState: ViewerState) =
               LabeledCheckbox(
                 id       = "fields-checkbox-3",
                 labelStr = "Show fields",
-                isChecked = tabState.activeSymbolsV.signal
+                isChecked = tabState.visibleNodesV.signal
                   .combineWith(tabState.canvasSelection.signal)
                   .map: (activeSymbols, selection) =>
                     val activeSelection =
@@ -158,7 +158,7 @@ def SelectionSidebar(tabState: ViewerState) =
                 ,
                 isDisabled = selectionEmpty,
                 clickHandler = Observer: b =>
-                  tabState.activeSymbols.updateSelectionOptions(
+                  tabState.visibleNodes.updateSelectionOptions(
                     _.copy(showFields = b)
                   ),
                 toggle = true

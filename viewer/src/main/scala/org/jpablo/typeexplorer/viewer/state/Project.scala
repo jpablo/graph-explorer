@@ -1,6 +1,6 @@
 package org.jpablo.typeexplorer.viewer.state
 
-import ViewerState.ActiveSymbols
+import ViewerState.VisibleNodes
 import org.jpablo.typeexplorer.viewer.utils.Utils
 
 case class Project(
@@ -15,6 +15,6 @@ case class Project(
 case class Page(
     id: String = Utils.randomUUID(),
     // The symbols currently shown in the diagram?
-    activeSymbols:  ActiveSymbols = Map.empty,
+    activeSymbols:  VisibleNodes = Map.empty,
     diagramOptions: DiagramOptions = DiagramOptions()
 )

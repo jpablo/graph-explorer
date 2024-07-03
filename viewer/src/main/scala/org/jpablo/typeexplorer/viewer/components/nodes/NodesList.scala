@@ -23,7 +23,7 @@ def NodesList(
 
 
 private def NodeRow(state: ViewerState, ns: ViewerNode) =
-  val isActive = state.activeSymbols.signal.map(_.contains(ns.id))
+  val isActive = state.visibleNodes.signal.map(_.contains(ns.id))
   li(
     a(
       idAttr := ns.id.toString,
@@ -34,7 +34,7 @@ private def NodeRow(state: ViewerState, ns: ViewerNode) =
         ns.displayName
       ),
       onClick.preventDefault.stopPropagation --> { _ =>
-        state.activeSymbols.toggle(ns.id)
+        state.visibleNodes.toggle(ns.id)
         state.canvasSelection.toggle(ns.id)
       }
     )

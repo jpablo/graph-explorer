@@ -7,7 +7,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
-import ViewerState.ActiveSymbols
+import ViewerState.VisibleNodes
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
@@ -17,7 +17,7 @@ import org.scalajs.dom
 object ViewerState:
   /** The Ids of nodes displayed in the diagram
     */
-  type ActiveSymbols = Map[NodeId, Option[SymbolOptions]]
+  type VisibleNodes = Map[NodeId, Option[NodeOptions]]
 
 case class ViewerState(
     initialSource: String,
@@ -32,15 +32,16 @@ case class ViewerState(
     source.signal.map(CSVToArray(_)).map(ViewerGraph.from)
 
   val appConfigDialogOpenV = Var(false)
+
   val project =
     ProjectOps(Var(Project(ProjectId("project-0"))))
 
-  val pageV: Var[Page] = project.page
+  private val pageV: Var[Page] = project.page
 
-  // this should be a subset of activeSymbols' keys
+  // this should be a subset of visibleNodesV keys
   private val canvasSelectionV = Var(Set.empty[NodeId])
 
-  val activeSymbolsV: Var[ActiveSymbols] =
+  val visibleNodesV: Var[VisibleNodes] =
     pageV.zoom(_.activeSymbols)((p, s) => p.copy(activeSymbols = s))
 
   val diagramOptionsV: Var[DiagramOptions] =
@@ -52,8 +53,8 @@ case class ViewerState(
   val canvasSelection =
     CanvasSelectionOps(canvasSelectionV)
 
-  val activeSymbols =
-    ActiveSymbolsOps(activeSymbolsV, fullGraph, canvasSelectionV)
+  val visibleNodes =
+    VisibleNodesOps(visibleNodesV, fullGraph, canvasSelectionV)
 
   val svgDiagram: Signal[SvgDotDiagram] =
     fullGraph
@@ -87,7 +88,7 @@ class CanvasSelectionOps(
       selector:      (ViewerGraph, Set[NodeId]) => ViewerGraph,
       graph:         ViewerGraph,
       svgDiagram:    SvgDotDiagram,
-      activeSymbols: ActiveSymbols
+      activeSymbols: VisibleNodes
   ): Unit =
     val subGraph: ViewerGraph = graph.subgraph(activeSymbols.keySet)
     val selection = canvasSelectionV.now()
@@ -99,72 +100,3 @@ class CanvasSelectionOps(
     svgDiagram.select(arrowSymbols)
 
 end CanvasSelectionOps
-
-class ActiveSymbolsOps(
-    val activeSymbolsV:   Var[ActiveSymbols],
-    val graph:            Signal[ViewerGraph],
-    val canvasSelectionV: Var[Set[NodeId]]
-):
-
-  val signal = activeSymbolsV.signal
-
-  def toggle(s: NodeId): Unit =
-    activeSymbolsV.update: activeSymbols =>
-      if activeSymbols.contains(s) then activeSymbols - s
-      else activeSymbols + (s -> None)
-
-  def extend(s: NodeId): Unit =
-    activeSymbolsV.update(_ + (s -> None))
-
-  def extend(ss: collection.Seq[NodeId]): Unit =
-    activeSymbolsV.update(_ ++ ss.map(_ -> None))
-
-  def clear(): Unit =
-    activeSymbolsV.set(Map.empty)
-
-  /** Updates (selected) active symbol's options based on the given function `f`
-    */
-  def updateSelectionOptions(f: SymbolOptions => SymbolOptions): Unit =
-    val canvasSelection = canvasSelectionV.now()
-    activeSymbolsV.update:
-      _.transform: (sym, options) =>
-        if canvasSelection.contains(sym) then Some(f(options.getOrElse(SymbolOptions())))
-        else options
-
-  /** Modify `activeSymbols` based on the given function `f`
-    */
-  def applyOnSelection[E <: dom.Event](
-      f: (ActiveSymbols, Set[NodeId]) => ActiveSymbols
-  )(ep: EventProp[E]) =
-    ep.compose(_.sample(canvasSelectionV)) --> { selection =>
-      activeSymbolsV.update(f(_, selection))
-    }
-
-  /** Adds all children of the canvas selection to activeSymbols
-    */
-  def addSelectionChildren[E <: dom.Event](ep: EventProp[E]) =
-    addSelectionWith(_.childrenOf(_), ep)
-
-  /** Adds all parents of the canvas selection to activeSymbols
-    */
-  def addSelectionParents[E <: dom.Event](ep: EventProp[E]) =
-    addSelectionWith(_.parentsOf(_), ep)
-
-  def addSelectionDirectParents[E <: dom.Event](ep: EventProp[E]) =
-    addSelectionWith(_.directParentsOf(_), ep)
-
-  private val graphWithSelection =
-    graph.combineWith(canvasSelectionV.signal)
-
-  /** Updates activeSymbols with the given function `f` and the current canvas selection.
-    */
-  private def addSelectionWith[E <: dom.Event](
-      f:  (ViewerGraph, NodeId) => ViewerGraph,
-      ep: EventProp[E]
-  ): Base =
-    ep.compose(_.sample(graphWithSelection)) --> { (diagram, selection) =>
-      if selection.nonEmpty then
-        val diagram1 = selection.foldLeft(ViewerGraph.empty)((acc, s) => f(diagram, s) ++ acc)
-        extend(diagram1.nodeIds.toSeq)
-    }
-end ActiveSymbolsOps

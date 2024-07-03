@@ -24,7 +24,7 @@ case class DiagramOptions(
     showSignatures: Boolean = false
 )
 
-case class SymbolOptions(
+case class NodeOptions(
     showFields:     Boolean = false,
     showSignatures: Boolean = false
 )

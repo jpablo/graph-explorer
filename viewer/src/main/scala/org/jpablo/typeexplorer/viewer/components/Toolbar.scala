@@ -49,9 +49,9 @@ def Toolbar(
       Button(Tooltip("CSV", "contents"), onClick --> replaceTextOpen.set(true)).tiny,
       Button(
         "add all",
-        onClick.compose(_.sample(tabState.allNodeIds).map(_.toSeq)) --> (tabState.activeSymbols.extend(_))
+        onClick.compose(_.sample(tabState.allNodeIds).map(_.toSeq)) --> (tabState.visibleNodes.extend(_))
       ).tiny,
-      Button("remove all", onClick --> tabState.activeSymbols.clear()).tiny,
+      Button("remove all", onClick --> tabState.visibleNodes.clear()).tiny,
       div(
         cls := "dropdown dropdown-hover",
         label(
@@ -104,7 +104,7 @@ private def onDotClicked(
   onClick.compose(
     _.sample(
       fullGraph,
-      tabState.activeSymbols.signal,
+      tabState.visibleNodes.signal,
       tabState.diagramOptionsV
     )
   ) --> { (fullDiagram: ViewerGraph, activeSymbols, options: DiagramOptions) =>
