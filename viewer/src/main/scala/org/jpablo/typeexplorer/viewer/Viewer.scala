@@ -14,7 +14,6 @@ object Viewer:
     render(dom.document.querySelector("#app"), appElem)
 
   private def createApp() =
-    given Owner = unsafeWindowOwner
     val renderDot = (new Graphviz).renderDot
     val state = ViewerState(Example1.graph.toCSV.asString(), renderDot)
     TopLevel(state)

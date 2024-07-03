@@ -145,5 +145,5 @@ object ViewerGraph:
     def combine(l: => ViewerGraph, r: => ViewerGraph) = l ++ r
 
   // In Scala 3.2 the type annotation is needed.
-  val empty: ViewerGraph = ViewerGraph(Set.empty, Set.empty)
+  val empty = ViewerGraph(Set.empty, Set.empty)
 end ViewerGraph

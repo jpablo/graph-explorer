@@ -15,12 +15,11 @@ case class ViewerState(
     initialSource: String,
     renderDot:     String => Signal[SvgDotDiagram]
 ):
-  // TODO: verify that subscriptions are killed when the tab is closed
   given owner: Owner = OneTimeOwner(() => ())
 
   val source = Var(initialSource)
 
-  val fullGraph =
+  val fullGraph: Signal[ViewerGraph] =
     source.signal.map(CSVToArray(_)).map(ViewerGraph.from)
 
   val appConfigDialogOpenV = Var(false)
@@ -28,10 +27,8 @@ case class ViewerState(
   val project =
     ProjectOps(Var(Project(ProjectId("project-0"))))
 
-  private val pageV: Var[Page] = project.page
-
   val diagramOptionsV: Var[DiagramOptions] =
-    pageV.zoom(_.diagramOptions)((p, s) => p.copy(diagramOptions = s))
+    project.page.zoom(_.diagramOptions)((p, s) => p.copy(diagramOptions = s))
 
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)
@@ -44,7 +41,7 @@ case class ViewerState(
     DiagramSelectionOps(diagramSelectionV)
   // -------------------------------
   val visibleNodesV: Var[VisibleNodes] =
-    pageV.zoom(_.visibleNodes)((p, s) => p.copy(visibleNodes = s))
+    project.page.zoom(_.visibleNodes)((p, s) => p.copy(visibleNodes = s))
 
   val visibleNodes =
     VisibleNodesOps(visibleNodesV, fullGraph, diagramSelectionV)
@@ -52,8 +49,8 @@ case class ViewerState(
 
   val svgDiagram: Signal[SvgDotDiagram] =
     fullGraph
-      .combineWith(pageV.signal.distinct)
-      .flatMapSwitch: (g, p) =>
-        renderDot(g.subgraph(p.visibleNodes.keySet).toDot(""))
+      .combineWith(project.page.signal.distinct)
+      .flatMapSwitch: (graph, page) =>
+        renderDot(graph.subgraph(page.visibleNodes.keySet).toDot(""))
 
 end ViewerState
