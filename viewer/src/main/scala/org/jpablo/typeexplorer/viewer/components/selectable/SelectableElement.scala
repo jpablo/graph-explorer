@@ -35,7 +35,7 @@ object SelectableElement:
     else
       None
 
-  def selectAll(e: dom.Element) =
+  def findAll(e: dom.Element): collection.Seq[SelectableElement] =
     e.querySelectorAll("g").flatMap(from)
 
 

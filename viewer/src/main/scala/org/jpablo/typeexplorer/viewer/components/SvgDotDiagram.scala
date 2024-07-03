@@ -4,6 +4,7 @@ import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.components.selectable.SelectableElement
 import org.jpablo.typeexplorer.viewer.models
+import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.scalajs.dom
 
 class SvgDotDiagram(svgElement: dom.SVGSVGElement):
@@ -22,7 +23,7 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   svgElement.removeAttribute("height")
 
   private def selectableElements =
-    SelectableElement.selectAll(svgElement)
+    SelectableElement.findAll(svgElement)
 
   def elementSymbols: Set[models.NodeId] =
     selectableElements.map(_.nodeId).toSet
@@ -32,6 +33,7 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
 
   def unselectAll(): Unit =
     selectableElements.foreach(_.unselect())
+    
 
   def toLaminar =
     foreignSvgElement(svgElement)

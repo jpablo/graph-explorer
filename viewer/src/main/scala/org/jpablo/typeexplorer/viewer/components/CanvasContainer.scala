@@ -3,6 +3,7 @@ package org.jpablo.typeexplorer.viewer.components
 import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.components.selectable.*
+import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.CanvasSelectionOps
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
@@ -50,7 +51,7 @@ def CanvasContainer(
       Seq(
         cls <-- flexJustification,
         child <-- inheritanceSvgDiagram.map: diagram =>
-          val selection/*: Set[GraphSymbol]*/ = canvasSelection.now()
+          val selection /*: Set[GraphSymbol]*/ = canvasSelection.now()
           diagram.select(selection)
           // remove elements not present in the new diagram (such elements did exist in the previous diagram)
           canvasSelection.remove(selection -- diagram.elementSymbols)
@@ -134,13 +135,16 @@ private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
           if ev.metaKey then
             edge.toggle()
             for pp <- edge.endpointIds do
-              canvasSelection.toggle(pp._1, pp._2)
+              val ids = Set(pp._1, pp._2)
+              diagram.select(ids)
+              canvasSelection.toggle(ids.toSeq*)
           else
             diagram.unselectAll()
             edge.select()
             for pp <- edge.endpointIds do
-              canvasSelection.replace(pp._1, pp._2)
-
+              val ids = Set(pp._1, pp._2)
+              diagram.select(ids)
+              canvasSelection.replace(ids.toSeq*)
 
     case None =>
       diagram.unselectAll()
