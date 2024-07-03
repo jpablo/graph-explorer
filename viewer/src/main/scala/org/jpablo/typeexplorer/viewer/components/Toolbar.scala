@@ -12,7 +12,6 @@ import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
 import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ViewerState}
 
 def Toolbar(
-    fullGraph:       Signal[ViewerGraph],
     state:           ViewerState,
     zoomValue:       Var[Double],
     fitDiagram:      EventBus[Unit],
@@ -71,7 +70,7 @@ def Toolbar(
             )
           ),
           li(
-            a("dot", onDotClicked(fullGraph, state))
+            a("dot", onDotClicked(state))
           )
         )
       )
@@ -97,13 +96,10 @@ def Toolbar(
     )
   )
 
-private def onDotClicked(
-    fullGraph: Signal[ViewerGraph],
-    state:     ViewerState
-) =
+private def onDotClicked(state: ViewerState) =
   onClick.compose(
     _.sample(
-      fullGraph,
+      state.fullGraph,
       state.visibleNodes.signal,
       state.diagramOptionsV
     )

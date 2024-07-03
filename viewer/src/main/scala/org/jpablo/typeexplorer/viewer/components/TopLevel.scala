@@ -19,7 +19,7 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
       drawerEnd = false,
       content = _.amend(
         CanvasContainer(state.svgDiagram, state.diagramSelection, zoomValue, fitDiagram.events),
-        Toolbar(state.fullGraph, state, zoomValue, fitDiagram, replaceTextOpen),
+        Toolbar(state, zoomValue, fitDiagram, replaceTextOpen),
         SelectionSidebar(state)
       ),
       sidebar = _.amend(

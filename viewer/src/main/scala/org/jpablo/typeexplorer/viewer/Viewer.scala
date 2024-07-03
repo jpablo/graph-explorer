@@ -1,7 +1,6 @@
 package org.jpablo.typeexplorer.viewer
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.typeexplorer.viewer.components.TopLevel
 import org.jpablo.typeexplorer.viewer.examples.Example1
