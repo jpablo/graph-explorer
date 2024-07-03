@@ -22,20 +22,20 @@ def NodesList(
   )
 
 
-private def NodeRow(state: ViewerState, ns: ViewerNode) =
-  val isActive = state.visibleNodes.signal.map(_.contains(ns.id))
+private def NodeRow(state: ViewerState, node: ViewerNode) =
+  val isActive = state.visibleNodes.signal.map(_.contains(node.id))
   li(
     a(
-      idAttr := ns.id.toString,
+      idAttr := node.id.toString,
       cls    := "font-['JetBrains_Mono'] cursor-pointer",
       cls("font-bold") <-- isActive,
       div(
         cls := "truncate",
-        ns.displayName
+        node.displayName
       ),
       onClick.preventDefault.stopPropagation --> { _ =>
-        state.visibleNodes.toggle(ns.id)
-        state.canvasSelection.toggle(ns.id)
+        state.visibleNodes.toggle(node.id)
+        state.canvasSelection.toggle(node.id)
       }
     )
   )

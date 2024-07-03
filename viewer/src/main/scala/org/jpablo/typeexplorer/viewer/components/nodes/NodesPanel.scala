@@ -45,8 +45,8 @@ def NodesPanel(state: ViewerState) =
   )
 
 private def filteredDiagramEvent(
-    state             :              ViewerState,
-    visibleNodes      :      Signal[VisibleNodes],
+    state:          ViewerState,
+    visibleNodes:   Signal[VisibleNodes],
     filterByNodeId: Signal[String]
 ): Signal[ViewerGraph] =
   state.fullGraph

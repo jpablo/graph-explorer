@@ -9,26 +9,26 @@ import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
 def CanvasContainer(
-    inheritanceSvgDiagram: Signal[SvgDotDiagram],
-    canvasSelection:       CanvasSelectionOps,
-    zoomValue:             Var[Double],
-    fitDiagram:            EventStream[Unit]
+    svgDiagram:      Signal[SvgDotDiagram],
+    canvasSelection: CanvasSelectionOps,
+    zoomValue:       Var[Double],
+    fitDiagram:      EventStream[Unit]
 ) =
   val svgSize =
     zoomValue.signal
-      .combineWith(inheritanceSvgDiagram)
+      .combineWith(svgDiagram)
       .map((z, diagram) => (z * diagram.origW, z * diagram.origH))
   div(
     cls             := "te-parent p-1 z-10",
     backgroundImage := "radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px)",
     backgroundSize  := "5px 5px",
     onClick.preventDefault
-      .compose(_.withCurrentValueOf(inheritanceSvgDiagram)) --> handleSvgClick(canvasSelection).tupled,
+      .compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(canvasSelection).tupled,
     inContext { svgParent =>
       def parentSizeNow() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
       fitDiagram
-        .sample(inheritanceSvgDiagram)
+        .sample(svgDiagram)
         .foreach { diagram =>
           val (parentWidth, parentHeight) = parentSizeNow()
           val z = math.min(parentWidth / diagram.origW, parentHeight / diagram.origH)
@@ -50,7 +50,7 @@ def CanvasContainer(
             )
       Seq(
         cls <-- flexJustification,
-        child <-- inheritanceSvgDiagram.map: diagram =>
+        child <-- svgDiagram.map: diagram =>
           val selection /*: Set[GraphSymbol]*/ = canvasSelection.now()
           diagram.select(selection)
           // remove elements not present in the new diagram (such elements did exist in the previous diagram)
@@ -65,8 +65,8 @@ def CanvasContainer(
   )
 
 private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
-    ev:      dom.MouseEvent,
-    diagram: SvgDotDiagram
+    ev:         dom.MouseEvent,
+    svgDiagram: SvgDotDiagram
 ): Unit =
   // 1. Identify and parse the element that was clicked
   val selectedElement: Option[SelectableElement] =
@@ -86,7 +86,7 @@ private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
             node.toggle()
             canvasSelection.toggle(node.nodeId)
           else
-            diagram.unselectAll()
+            svgDiagram.unselectAll()
             node.select()
             canvasSelection.replace(node.nodeId)
 
@@ -95,16 +95,16 @@ private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
             edge.toggle()
             for pp <- edge.endpointIds do
               val ids = Set(pp._1, pp._2)
-              diagram.select(ids)
+              svgDiagram.select(ids)
               canvasSelection.toggle(ids.toSeq*)
           else
-            diagram.unselectAll()
+            svgDiagram.unselectAll()
             edge.select()
             for pp <- edge.endpointIds do
               val ids = Set(pp._1, pp._2)
-              diagram.select(ids)
+              svgDiagram.select(ids)
               canvasSelection.replace(ids.toSeq*)
 
     case None =>
-      diagram.unselectAll()
+      svgDiagram.unselectAll()
       canvasSelection.clear()
