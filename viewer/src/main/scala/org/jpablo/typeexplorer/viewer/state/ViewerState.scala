@@ -11,6 +11,7 @@ import ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
+import org.jpablo.typeexplorer.viewer.utils.CSVToArray
 import org.scalajs.dom
 
 object ViewerState:
@@ -19,11 +20,16 @@ object ViewerState:
   type ActiveSymbols = Map[NodeId, Option[SymbolOptions]]
 
 case class ViewerState(
-    fullGraph: Signal[ViewerGraph],
-    renderDot: String => Signal[SvgDotDiagram]
+    initialSource: String,
+    renderDot:     String => Signal[SvgDotDiagram]
 ):
   // TODO: verify that subscriptions are killed when the tab is closed
   given owner: Owner = OneTimeOwner(() => ())
+
+  val source = Var(initialSource)
+
+  val fullGraph =
+    source.signal.map(CSVToArray(_)).map(ViewerGraph.from)
 
   val appConfigDialogOpenV = Var(false)
   val project =

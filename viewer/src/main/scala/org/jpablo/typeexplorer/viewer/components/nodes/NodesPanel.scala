@@ -3,10 +3,10 @@ package org.jpablo.typeexplorer.viewer.components.nodes
 import com.raquo.laminar.api.L.*
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
-import org.jpablo.typeexplorer.viewer.state.ViewerState.ActiveSymbols
 import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.state.{AppState, PackagesOptions, Project, ViewerState}
+import org.jpablo.typeexplorer.viewer.state.ViewerState.ActiveSymbols
+import org.jpablo.typeexplorer.viewer.state.{PackagesOptions, Project, ViewerState}
 import org.jpablo.typeexplorer.viewer.widgets.*
 
 def NodesPanel(state: ViewerState) =
