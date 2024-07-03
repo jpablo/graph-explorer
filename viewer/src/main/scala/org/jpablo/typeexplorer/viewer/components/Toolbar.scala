@@ -13,7 +13,7 @@ import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ViewerState}
 
 def Toolbar(
     fullGraph:       Signal[ViewerGraph],
-    tabState:        ViewerState,
+    state:           ViewerState,
     zoomValue:       Var[Double],
     fitDiagram:      EventBus[Unit],
     replaceTextOpen: Var[Boolean]
@@ -38,8 +38,8 @@ def Toolbar(
 //      LabeledCheckbox(
 //        id        = "fields-checkbox-1",
 //        labelStr  = "fields",
-//        isChecked = tabState.diagramOptionsV.signal.map(_.showFields),
-//        clickHandler = tabState.diagramOptionsV
+//        isChecked = state.diagramOptionsV.signal.map(_.showFields),
+//        clickHandler = state.diagramOptionsV
 //          .updater(_.modify(_.showFields).setTo(_)),
 //        toggle = true
 //      )
@@ -49,9 +49,9 @@ def Toolbar(
       Button(Tooltip("CSV", "contents"), onClick --> replaceTextOpen.set(true)).tiny,
       Button(
         "add all",
-        onClick.compose(_.sample(tabState.allNodeIds).map(_.toSeq)) --> (tabState.visibleNodes.extend(_))
+        onClick.compose(_.sample(state.allNodeIds).map(_.toSeq)) --> (state.visibleNodes.extend(_))
       ).tiny,
-      Button("remove all", onClick --> tabState.visibleNodes.clear()).tiny,
+      Button("remove all", onClick --> state.visibleNodes.clear()).tiny,
       div(
         cls := "dropdown dropdown-hover",
         label(
@@ -65,13 +65,13 @@ def Toolbar(
           li(
             a(
               "svg",
-              onClick.compose(_.sample(tabState.svgDiagram)) --> { diagram =>
+              onClick.compose(_.sample(state.svgDiagram)) --> { diagram =>
                 dom.window.navigator.clipboard.writeText(diagram.toSVGText)
               }
             )
           ),
           li(
-            a("dot", onDotClicked(fullGraph, tabState))
+            a("dot", onDotClicked(fullGraph, state))
           )
         )
       )
