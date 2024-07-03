@@ -41,7 +41,7 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   def toSVGText: String =
     svgElement.outerHTML
 
-  case class BBox(x: Double, y: Double, width: Double, height: Double)
+  private case class BBox(x: Double, y: Double, width: Double, height: Double)
 
   private def buildSvgElement(id: models.NodeId) =
     val el =

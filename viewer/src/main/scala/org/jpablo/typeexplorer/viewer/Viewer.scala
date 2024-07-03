@@ -6,7 +6,7 @@ import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.typeexplorer.viewer.components.TopLevel
 import org.jpablo.typeexplorer.viewer.examples.Example1
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.state.{AppState, PersistedAppState, Project, ProjectId, ViewerState}
+import org.jpablo.typeexplorer.viewer.state.{AppState, Project, ProjectId, ViewerState}
 import org.jpablo.typeexplorer.viewer.utils.CSVToArray
 import org.scalajs.dom
 
@@ -25,9 +25,9 @@ object Viewer:
         .map(CSVToArray(_))
         .map(ViewerGraph.from)
     val project = Project(id)
-    val appState = AppState(Var(PersistedAppState(project, "")), graph)
+    val appState = AppState(Var(project), graph)
     val renderDot = (new Graphviz).renderDot
-    val viewerState = ViewerState(appState.activeProject.pageV, appState.fullGraph, renderDot)
+    val viewerState = ViewerState(appState.project.pageV, appState.fullGraph, renderDot)
     TopLevel(appState, viewerState, csvString, viewerState.svgDiagram)
 
 //  private def setupErrorHandling()(using Owner): EventBus[String] =

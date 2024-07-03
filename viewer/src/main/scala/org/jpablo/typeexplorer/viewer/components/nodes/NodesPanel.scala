@@ -52,7 +52,7 @@ private def filteredDiagramEvent(
 ): Signal[ViewerGraph] =
   appState.fullGraph
     .combineWith(
-      appState.packagesOptions,
+      appState.project.packagesOptions,
       filterBySymbolName,
       // TODO: consider another approach where changing activeSymbols does not trigger
       // a full tree redraw, but just modifies the relevant nodes
@@ -80,9 +80,9 @@ private def Options(appState: AppState) =
       LabeledCheckbox(
         id        = s"filter-by-active",
         labelStr  = "only active",
-        isChecked = appState.packagesOptions.map(_.onlyActive),
+        isChecked = appState.project.packagesOptions.map(_.onlyActive),
         clickHandler = Observer: _ =>
-          appState.updateActiveProject(_.modify(_.packagesOptions.onlyActive).using(!_)),
+          appState.project.update(_.modify(_.packagesOptions.onlyActive).using(!_)),
         toggle = true
       ),
       hr(),
@@ -93,11 +93,11 @@ private def Options(appState: AppState) =
           yield LabeledCheckbox(
             id = s"show-ns-kind-$kind",
             kind.toString,
-            isChecked = appState.packagesOptions
+            isChecked = appState.project.packagesOptions
               .map(_.kinds)
               .map(_.contains(kind)),
             clickHandler = Observer: b =>
-              appState.updateActiveProject(_.modify(_.packagesOptions.kinds).using(_.toggleWith(kind, b)))
+              appState.project.update(_.modify(_.packagesOptions.kinds).using(_.toggleWith(kind, b)))
           )
     )
   )

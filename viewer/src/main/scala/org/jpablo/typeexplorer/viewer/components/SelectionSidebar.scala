@@ -95,7 +95,7 @@ def SelectionSidebar(
                 "Hide",
                 disabled <-- selectionEmpty,
                 onClick -->
-                  appState.updateActiveProject:
+                  appState.project.update:
                     _.modify(_.projectSettings.hiddenSymbols)
                       .using(_ ++ tabState.canvasSelection.now())
               )
