@@ -7,20 +7,20 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
 
-type CanvasSelection = Set[NodeId]
+type DiagramSelection = Set[NodeId]
 
-class CanvasSelectionOps(canvasSelectionV: Var[CanvasSelection] = Var(Set.empty)):
-  export canvasSelectionV.now
-  val signal = canvasSelectionV.signal
+class DiagramSelectionOps(diagramSelection: Var[DiagramSelection] = Var(Set.empty)):
+  export diagramSelection.now
+  val signal = diagramSelection.signal
 
-  def toggle(ss:  NodeId*): Unit = canvasSelectionV.update(ss.foldLeft(_)(_.toggle(_)))
-  def replace(ss: NodeId*): Unit = canvasSelectionV.set(ss.toSet)
-  def extend(s:   NodeId): Unit = canvasSelectionV.update(_ + s)
+  def toggle(ss:  NodeId*): Unit = diagramSelection.update(ss.foldLeft(_)(_.toggle(_)))
+  def replace(ss: NodeId*): Unit = diagramSelection.set(ss.toSet)
+  def extend(s:   NodeId): Unit = diagramSelection.update(_ + s)
 
-  def extend(ss: CanvasSelection): Unit = canvasSelectionV.update(_ ++ ss)
-  def remove(ss: CanvasSelection): Unit = canvasSelectionV.update(_ -- ss)
+  def extend(ss: DiagramSelection): Unit = diagramSelection.update(_ ++ ss)
+  def remove(ss: DiagramSelection): Unit = diagramSelection.update(_ -- ss)
 
-  def clear(): Unit = canvasSelectionV.set(Set.empty)
+  def clear(): Unit = diagramSelection.set(Set.empty)
 
   def selectParents = selectRelated(_.parentsOfAll(_), _, _, _)
   def selectChildren = selectRelated(_.childrenOfAll(_), _, _, _)
@@ -28,18 +28,17 @@ class CanvasSelectionOps(canvasSelectionV: Var[CanvasSelection] = Var(Set.empty)
   def selectDirectChildren = selectRelated(_.directChildrenOfAll(_), _, _, _)
 
   private def selectRelated(
-      selector:     (ViewerGraph, CanvasSelection) => ViewerGraph,
+      selector:     (ViewerGraph, DiagramSelection) => ViewerGraph,
       graph:        ViewerGraph,
       svgDiagram:   SvgDotDiagram,
       visibleNodes: VisibleNodes
   ): Unit =
     val subGraph: ViewerGraph = graph.subgraph(visibleNodes.keySet)
-    val selection = canvasSelectionV.now()
-    val relatedDiagram: ViewerGraph = selector(subGraph, selection)
+    val relatedDiagram: ViewerGraph = selector(subGraph, diagramSelection.now())
     val arrowIds = relatedDiagram.arrows.map(_.toTuple).map((a, b) => NodeId(s"${b}_$a"))
     extend(relatedDiagram.nodeIds)
     extend(arrowIds)
     svgDiagram.select(relatedDiagram.nodeIds)
     svgDiagram.select(arrowIds)
 
-end CanvasSelectionOps
+end DiagramSelectionOps

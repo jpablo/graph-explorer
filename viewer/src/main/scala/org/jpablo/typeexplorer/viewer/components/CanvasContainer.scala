@@ -4,15 +4,15 @@ import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.components.selectable.*
 import org.jpablo.typeexplorer.viewer.models.NodeId
-import org.jpablo.typeexplorer.viewer.state.CanvasSelectionOps
+import org.jpablo.typeexplorer.viewer.state.DiagramSelectionOps
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
 def CanvasContainer(
-    svgDiagram:      Signal[SvgDotDiagram],
-    canvasSelection: CanvasSelectionOps,
-    zoomValue:       Var[Double],
-    fitDiagram:      EventStream[Unit]
+    svgDiagram:       Signal[SvgDotDiagram],
+    diagramSelection: DiagramSelectionOps,
+    zoomValue:        Var[Double],
+    fitDiagram:       EventStream[Unit]
 ) =
   val svgSize =
     zoomValue.signal
@@ -23,7 +23,7 @@ def CanvasContainer(
     backgroundImage := "radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px)",
     backgroundSize  := "5px 5px",
     onClick.preventDefault
-      .compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(canvasSelection).tupled,
+      .compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
     inContext { svgParent =>
       def parentSizeNow() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
@@ -51,10 +51,10 @@ def CanvasContainer(
       Seq(
         cls <-- flexJustification,
         child <-- svgDiagram.map: diagram =>
-          val selection /*: Set[GraphSymbol]*/ = canvasSelection.now()
+          val selection /*: Set[GraphSymbol]*/ = diagramSelection.now()
           diagram.select(selection)
           // remove elements not present in the new diagram (such elements did exist in the previous diagram)
-          canvasSelection.remove(selection -- diagram.nodeIds)
+          diagramSelection.remove(selection -- diagram.nodeIds)
 
           diagram.toLaminar.amend(
             svg.width <-- svgSize.map(_._1.toString + "px"),
@@ -64,7 +64,7 @@ def CanvasContainer(
     }
   )
 
-private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
+private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     ev:         dom.MouseEvent,
     svgDiagram: SvgDotDiagram
 ): Unit =
@@ -84,11 +84,11 @@ private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
         case node: NodeElement =>
           if ev.metaKey then
             node.toggle()
-            canvasSelection.toggle(node.nodeId)
+            diagramSelection.toggle(node.nodeId)
           else
             svgDiagram.unselectAll()
             node.select()
-            canvasSelection.replace(node.nodeId)
+            diagramSelection.replace(node.nodeId)
 
         case edge: EdgeElement =>
           if ev.metaKey then
@@ -96,15 +96,15 @@ private def handleSvgClick(canvasSelection: CanvasSelectionOps)(
             for pp <- edge.endpointIds do
               val ids = Set(pp._1, pp._2)
               svgDiagram.select(ids)
-              canvasSelection.toggle(ids.toSeq*)
+              diagramSelection.toggle(ids.toSeq*)
           else
             svgDiagram.unselectAll()
             edge.select()
             for pp <- edge.endpointIds do
               val ids = Set(pp._1, pp._2)
               svgDiagram.select(ids)
-              canvasSelection.replace(ids.toSeq*)
+              diagramSelection.replace(ids.toSeq*)
 
     case None =>
       svgDiagram.unselectAll()
-      canvasSelection.clear()
+      diagramSelection.clear()

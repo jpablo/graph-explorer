@@ -35,7 +35,7 @@ private def NodeRow(state: ViewerState, node: ViewerNode) =
       ),
       onClick.preventDefault.stopPropagation --> { _ =>
         state.visibleNodes.toggle(node.id)
-        state.canvasSelection.toggle(node.id)
+        state.diagramSelection.toggle(node.id)
       }
     )
   )

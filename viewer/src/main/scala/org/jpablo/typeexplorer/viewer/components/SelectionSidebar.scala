@@ -15,7 +15,7 @@ def SelectionSidebar(state: ViewerState) =
     state.visibleNodes.signal
 
   val selectionEmpty =
-    state.canvasSelection.signal.map(_.isEmpty)
+    state.diagramSelection.signal.map(_.isEmpty)
   div(
     cls := "absolute right-0 top-2 z-10",
     selectionEmpty.childWhenFalse(
@@ -49,7 +49,7 @@ def SelectionSidebar(state: ViewerState) =
                 "Copy as SVG",
                 disabled <-- selectionEmpty,
                 onClick.compose(
-                  _.sample(state.svgDiagram, state.canvasSelection.signal)
+                  _.sample(state.svgDiagram, state.diagramSelection.signal)
                 ) --> { (svgDiagram, canvasSelection) =>
                   dom.window.navigator.clipboard
                     .writeText(svgDiagram.toSVGText(canvasSelection))
@@ -92,7 +92,7 @@ def SelectionSidebar(state: ViewerState) =
                 onClick -->
                   state.project.update:
                     _.modify(_.projectSettings.hiddenNodeIds)
-                      .using(_ ++ state.canvasSelection.now())
+                      .using(_ ++ state.diagramSelection.now())
               )
             ),
             // ----- select parents -----
@@ -108,7 +108,7 @@ def SelectionSidebar(state: ViewerState) =
                     visibleNodes
                   )
                 ) -->
-                  state.canvasSelection.selectParents.tupled
+                  state.diagramSelection.selectParents.tupled
               )
             ),
             // ----- select direct parents -----
@@ -124,7 +124,7 @@ def SelectionSidebar(state: ViewerState) =
                     visibleNodes
                   )
                 ) -->
-                  state.canvasSelection.selectDirectParents.tupled
+                  state.diagramSelection.selectDirectParents.tupled
               )
             ),
             // ----- select children -----
@@ -139,7 +139,7 @@ def SelectionSidebar(state: ViewerState) =
                     visibleNodes
                   )
                 ) -->
-                  state.canvasSelection.selectChildren.tupled
+                  state.diagramSelection.selectChildren.tupled
               )
             ),
             // ----- show fields -----
@@ -149,7 +149,7 @@ def SelectionSidebar(state: ViewerState) =
                 id       = "fields-checkbox-3",
                 labelStr = "Show fields",
                 isChecked = state.visibleNodesV.signal
-                  .combineWith(state.canvasSelection.signal)
+                  .combineWith(state.diagramSelection.signal)
                   .map: (visibleNodes, selection) =>
                     val activeSelection =
                       visibleNodes.filter((s, _) => selection.contains(s))

@@ -8,9 +8,7 @@ import org.jpablo.typeexplorer.viewer.widgets.{Drawer, SimpleDialog}
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
-def TopLevel(
-    state:     ViewerState,
-): ReactiveHtmlElement[HTMLDivElement] =
+def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
   val replaceTextOpen = Var(false)
@@ -20,7 +18,7 @@ def TopLevel(
       id        = s"drawer-id",
       drawerEnd = false,
       content = _.amend(
-        CanvasContainer(state.svgDiagram, state.canvasSelection, zoomValue, fitDiagram.events),
+        CanvasContainer(state.svgDiagram, state.diagramSelection, zoomValue, fitDiagram.events),
         Toolbar(state.fullGraph, state, zoomValue, fitDiagram, replaceTextOpen),
         SelectionSidebar(state)
       ),

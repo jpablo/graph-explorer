@@ -31,7 +31,7 @@ case class ViewerState(
   private val pageV: Var[Page] = project.page
 
   // this should be a subset of visibleNodesV keys
-  private val canvasSelectionV = Var(Set.empty[NodeId])
+  private val diagramSelectionV = Var(Set.empty[NodeId])
 
   val visibleNodesV: Var[VisibleNodes] =
     pageV.zoom(_.visibleNodes)((p, s) => p.copy(visibleNodes = s))
@@ -42,11 +42,11 @@ case class ViewerState(
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)
 
-  val canvasSelection =
-    CanvasSelectionOps(canvasSelectionV)
+  val diagramSelection =
+    DiagramSelectionOps(diagramSelectionV)
 
   val visibleNodes =
-    VisibleNodesOps(visibleNodesV, fullGraph, canvasSelectionV)
+    VisibleNodesOps(visibleNodesV, fullGraph, diagramSelectionV)
 
   val svgDiagram: Signal[SvgDotDiagram] =
     fullGraph
