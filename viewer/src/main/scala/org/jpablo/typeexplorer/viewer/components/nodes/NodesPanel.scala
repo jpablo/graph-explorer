@@ -10,10 +10,10 @@ import org.jpablo.typeexplorer.viewer.widgets.*
 
 def NodesPanel(state: ViewerState) =
   val showOptions = Var(false)
-  val filterBySymbolName = Var("")
-  val activeSymbols = state.visibleNodes.signal
+  val filterByNodeId = Var("")
+  val visibleNodes = state.visibleNodes.signal
   val filteredGraph: Signal[ViewerGraph] =
-    filteredDiagramEvent(state, activeSymbols, filterBySymbolName.signal)
+    filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
     cls := "bg-base-100 rounded-box overflow-auto p-1 z-10",
     // --- controls ---
@@ -32,8 +32,8 @@ def NodesPanel(state: ViewerState) =
         placeholder := "filter",
 //        focus <-- viewerState.appConfigDialogOpenV.signal.changes,
         controlled(
-          value <-- filterBySymbolName,
-          onInput.mapToValue --> filterBySymbolName
+          value <-- filterByNodeId,
+          onInput.mapToValue --> filterByNodeId
         )
 //        onKeyDown.filter(e => e.key == "Enter" || e.key == "Escape") --> viewerState.appConfigDialogOpenV.set(false)
       ).smallInput
@@ -45,17 +45,17 @@ def NodesPanel(state: ViewerState) =
   )
 
 private def filteredDiagramEvent(
-    state:              ViewerState,
-    activeSymbols:      Signal[VisibleNodes],
-    filterBySymbolName: Signal[String]
+    state             :              ViewerState,
+    visibleNodes      :      Signal[VisibleNodes],
+    filterByNodeId: Signal[String]
 ): Signal[ViewerGraph] =
   state.fullGraph
     .combineWith(
       state.project.packagesOptions,
-      filterBySymbolName,
+      filterByNodeId,
       // TODO: consider another approach where changing activeSymbols does not trigger
       // a full tree redraw, but just modifies the relevant nodes
-      activeSymbols
+      visibleNodes
     )
 //    .changes
 //    .debounce(300)
@@ -64,12 +64,12 @@ private def filteredDiagramEvent(
           graph:           ViewerGraph,
           packagesOptions: PackagesOptions,
           w:               String,
-          activeSymbols:   VisibleNodes
+          visibleNodes:    VisibleNodes
       ) =>
         graph
-          .orElse(w.isBlank, _.filterBySymbolName(w))
+          .orElse(w.isBlank, _.filterByNodeId(w))
 //          .subgraphByKinds(packagesOptions.kinds)
-          .orElse(!packagesOptions.onlyActive, _.subgraph(activeSymbols.keySet))
+          .orElse(!packagesOptions.onlyActive, _.subgraph(visibleNodes.keySet))
 
 private def Options(state: ViewerState) =
   div(

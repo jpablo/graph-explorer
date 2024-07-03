@@ -34,7 +34,7 @@ case class ViewerState(
   private val canvasSelectionV = Var(Set.empty[NodeId])
 
   val visibleNodesV: Var[VisibleNodes] =
-    pageV.zoom(_.activeSymbols)((p, s) => p.copy(activeSymbols = s))
+    pageV.zoom(_.visibleNodes)((p, s) => p.copy(visibleNodes = s))
 
   val diagramOptionsV: Var[DiagramOptions] =
     pageV.zoom(_.diagramOptions)((p, s) => p.copy(diagramOptions = s))
@@ -52,6 +52,6 @@ case class ViewerState(
     fullGraph
       .combineWith(pageV.signal.distinct)
       .flatMapSwitch: (g, p) =>
-        renderDot(g.subgraph(p.activeSymbols.keySet).toDot(""))
+        renderDot(g.subgraph(p.visibleNodes.keySet).toDot(""))
 
 end ViewerState

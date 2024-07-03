@@ -3,8 +3,7 @@ package org.jpablo.typeexplorer.viewer.backends.graphviz
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ProjectSettings, NodeOptions}
+import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ProjectSettings, VisibleNodes}
 import org.scalajs.dom.SVGSVGElement
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -31,7 +30,7 @@ object Graphviz:
   extension (graph: ViewerGraph)
     def toDot(
         name:            String,
-        symbolOptions:   Map[models.NodeId, Option[NodeOptions]] = Map.empty,
+        visibleNodes:    VisibleNodes = Map.empty,
         diagramOptions:  DiagramOptions = DiagramOptions(),
         projectSettings: ProjectSettings = ProjectSettings()
     ): String =

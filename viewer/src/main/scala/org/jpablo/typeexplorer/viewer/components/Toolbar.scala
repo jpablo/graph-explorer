@@ -107,10 +107,10 @@ private def onDotClicked(
       tabState.visibleNodes.signal,
       tabState.diagramOptionsV
     )
-  ) --> { (fullDiagram: ViewerGraph, activeSymbols, options: DiagramOptions) =>
+  ) --> { (fullDiagram: ViewerGraph, visibleNodes, options: DiagramOptions) =>
     dom.window.navigator.clipboard.writeText(
       fullDiagram
-        .subgraph(activeSymbols.keySet)
+        .subgraph(visibleNodes.keySet)
         .toDot(
           "",
           diagramOptions = options

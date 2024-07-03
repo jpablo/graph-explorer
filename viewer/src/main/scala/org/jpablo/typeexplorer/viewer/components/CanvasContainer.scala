@@ -54,7 +54,7 @@ def CanvasContainer(
           val selection /*: Set[GraphSymbol]*/ = canvasSelection.now()
           diagram.select(selection)
           // remove elements not present in the new diagram (such elements did exist in the previous diagram)
-          canvasSelection.remove(selection -- diagram.elementSymbols)
+          canvasSelection.remove(selection -- diagram.nodeIds)
 
           diagram.toLaminar.amend(
             svg.width <-- svgSize.map(_._1.toString + "px"),

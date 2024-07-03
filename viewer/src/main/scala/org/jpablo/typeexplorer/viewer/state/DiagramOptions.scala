@@ -15,7 +15,7 @@ case class PackagesOptions(
 case class ProjectSettings(
     basePaths:     List[Path] = List.empty,
     hiddenFields:  List[String] = DiagramOptions.hiddenFields,
-    hiddenSymbols: List[NodeId] = DiagramOptions.hiddenSymbols
+    hiddenNodeIds: List[NodeId] = DiagramOptions.hiddenSymbols
 )
 
 // diagram configuration (tab specific)

@@ -14,32 +14,32 @@ import org.scalajs.dom
 type VisibleNodes = Map[NodeId, Option[NodeOptions]]
 
 class VisibleNodesOps(
-    val activeSymbolsV:   Var[VisibleNodes],
+    val visibleNodesV:    Var[VisibleNodes],
     val graph:            Signal[ViewerGraph],
     val canvasSelectionV: Var[Set[NodeId]]
 ):
 
-  val signal = activeSymbolsV.signal
+  val signal = visibleNodesV.signal
 
   def toggle(s: NodeId): Unit =
-    activeSymbolsV.update: activeSymbols =>
-      if activeSymbols.contains(s) then activeSymbols - s
-      else activeSymbols + (s -> None)
+    visibleNodesV.update: visibleNodes =>
+      if visibleNodes.contains(s) then visibleNodes - s
+      else visibleNodes + (s -> None)
 
   def extend(s: NodeId): Unit =
-    activeSymbolsV.update(_ + (s -> None))
+    visibleNodesV.update(_ + (s -> None))
 
   def extend(ss: collection.Seq[NodeId]): Unit =
-    activeSymbolsV.update(_ ++ ss.map(_ -> None))
+    visibleNodesV.update(_ ++ ss.map(_ -> None))
 
   def clear(): Unit =
-    activeSymbolsV.set(Map.empty)
+    visibleNodesV.set(Map.empty)
 
   /** Updates (selected) active symbol's options based on the given function `f`
     */
   def updateSelectionOptions(f: NodeOptions => NodeOptions): Unit =
     val canvasSelection = canvasSelectionV.now()
-    activeSymbolsV.update:
+    visibleNodesV.update:
       _.transform: (sym, options) =>
         if canvasSelection.contains(sym) then Some(f(options.getOrElse(NodeOptions())))
         else options
@@ -50,7 +50,7 @@ class VisibleNodesOps(
       f: (VisibleNodes, Set[NodeId]) => VisibleNodes
   )(ep: EventProp[E]) =
     ep.compose(_.sample(canvasSelectionV)) --> { selection =>
-      activeSymbolsV.update(f(_, selection))
+      visibleNodesV.update(f(_, selection))
     }
 
   /** Adds all children of the canvas selection to activeSymbols

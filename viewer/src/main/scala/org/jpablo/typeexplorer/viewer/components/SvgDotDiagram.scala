@@ -25,15 +25,15 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   private def selectableElements =
     SelectableElement.findAll(svgElement)
 
-  def elementSymbols: Set[models.NodeId] =
+  def nodeIds: Set[models.NodeId] =
     selectableElements.map(_.nodeId).toSet
 
-  def select(symbols: Set[models.NodeId]): Unit =
-    for elem <- selectableElements if symbols.contains(elem.nodeId) do elem.select()
+  def select(ids: Set[models.NodeId]): Unit =
+    for elem <- selectableElements if ids.contains(elem.nodeId) do elem.select()
 
   def unselectAll(): Unit =
     selectableElements.foreach(_.unselect())
-    
+
 
   def toLaminar =
     foreignSvgElement(svgElement)

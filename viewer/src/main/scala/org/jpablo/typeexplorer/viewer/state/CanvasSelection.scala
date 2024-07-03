@@ -28,18 +28,18 @@ class CanvasSelectionOps(canvasSelectionV: Var[CanvasSelection] = Var(Set.empty)
   def selectDirectChildren = selectRelated(_.directChildrenOfAll(_), _, _, _)
 
   private def selectRelated(
-      selector:      (ViewerGraph, CanvasSelection) => ViewerGraph,
-      graph:         ViewerGraph,
-      svgDiagram:    SvgDotDiagram,
-      activeSymbols: VisibleNodes
+      selector:     (ViewerGraph, CanvasSelection) => ViewerGraph,
+      graph:        ViewerGraph,
+      svgDiagram:   SvgDotDiagram,
+      visibleNodes: VisibleNodes
   ): Unit =
-    val subGraph: ViewerGraph = graph.subgraph(activeSymbols.keySet)
+    val subGraph: ViewerGraph = graph.subgraph(visibleNodes.keySet)
     val selection = canvasSelectionV.now()
     val relatedDiagram: ViewerGraph = selector(subGraph, selection)
-    val arrowSymbols = relatedDiagram.arrows.map(_.toTuple).map((a, b) => NodeId(s"${b}_$a"))
+    val arrowIds = relatedDiagram.arrows.map(_.toTuple).map((a, b) => NodeId(s"${b}_$a"))
     extend(relatedDiagram.nodeIds)
-    extend(arrowSymbols)
+    extend(arrowIds)
     svgDiagram.select(relatedDiagram.nodeIds)
-    svgDiagram.select(arrowSymbols)
+    svgDiagram.select(arrowIds)
 
 end CanvasSelectionOps

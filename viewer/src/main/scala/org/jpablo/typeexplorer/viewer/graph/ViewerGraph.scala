@@ -103,7 +103,7 @@ case class ViewerGraph(
 
   /** Creates a new subdiagram with all the symbols containing the given String.
     */
-  def filterBySymbolName(str: String): ViewerGraph =
+  def filterByNodeId(str: String): ViewerGraph =
     subgraph(nodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase)))
 
   def filterBy(p: ViewerNode => Boolean): ViewerGraph =

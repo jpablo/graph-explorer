@@ -14,6 +14,6 @@ case class Project(
 case class Page(
     id: String = Utils.randomUUID(),
     // The symbols currently shown in the diagram?
-    activeSymbols:  VisibleNodes = Map.empty,
+    visibleNodes:   VisibleNodes = Map.empty,
     diagramOptions: DiagramOptions = DiagramOptions()
 )
