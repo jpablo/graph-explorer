@@ -6,12 +6,16 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
-import org.jpablo.typeexplorer.viewer.state.VisibleNodes
 import org.scalajs.dom
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 
 /** The Ids of nodes displayed in the diagram
   */
 type VisibleNodes = Map[NodeId, Option[NodeOptions]]
+
+object VisibleNodes:
+  given JsonValueCodec[(VisibleNodes, String)] = JsonCodecMaker.make
 
 class VisibleNodesOps(
     val visibleNodesV:    Var[VisibleNodes],

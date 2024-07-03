@@ -10,17 +10,18 @@ import org.scalajs.dom.{HTMLAnchorElement, HTMLLIElement, HTMLUListElement}
 
 def NodesList(
     state: ViewerState,
-    graph:       Signal[ViewerGraph]
+    graph: Signal[ViewerGraph]
 ): ReactiveHtmlElement[HTMLUListElement] =
   val lis =
     graph.map:
-      _.nodes.toList.sortBy(_.displayName).map: s =>
-        NodeRow(state, s)
+      _.nodes.toList
+        .sortBy(_.displayName)
+        .map: s =>
+          NodeRow(state, s)
   ul(
     cls := "menu menu-sm bg-base-200 rounded-box",
     children <-- lis
   )
-
 
 private def NodeRow(state: ViewerState, node: ViewerNode) =
   val isActive = state.visibleNodes.signal.map(_.contains(node.id))
@@ -39,5 +40,3 @@ private def NodeRow(state: ViewerState, node: ViewerNode) =
       }
     )
   )
-
-

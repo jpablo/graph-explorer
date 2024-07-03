@@ -17,7 +17,7 @@ case class ViewerState(
 ):
   given owner: Owner = OneTimeOwner(() => ())
 
-  val source = Var(initialSource)
+  val source: Var[Path] = Var(initialSource)
 
   val fullGraph: Signal[ViewerGraph] =
     source.signal.map(CSVToArray(_)).map(ViewerGraph.from)
@@ -52,5 +52,9 @@ case class ViewerState(
       .combineWith(project.page.signal.distinct)
       .flatMapSwitch: (graph, page) =>
         renderDot(graph.subgraph(page.visibleNodes.keySet).toDot(""))
+
+  def storage: Signal[(VisibleNodes, String)] =
+    visibleNodesV.signal.combineWith(source.signal)
+
 
 end ViewerState
