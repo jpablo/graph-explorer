@@ -73,10 +73,6 @@ extension (e: dom.Element)
   def path =
     e +: LazyList.unfold(e)(e => Option(e.parentNode.asInstanceOf[dom.Element]).map(e => (e, e)))
 
-  def isDiagramElement(prefix: String) =
-    e.tagName == "g" && e
-      .hasAttribute("id") && e.getAttribute("id").startsWith(prefix)
-
   def fill = e.getAttribute("fill")
   def fill_=(c: String) = e.setAttribute("fill", c)
 
