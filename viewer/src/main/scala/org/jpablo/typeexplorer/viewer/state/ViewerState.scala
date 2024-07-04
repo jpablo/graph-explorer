@@ -20,7 +20,7 @@ case class ViewerState(
 ):
   given owner: Owner = OneTimeOwner(() => ())
 
-  val source: Var[Path] = Var(initialSource)
+  val source: Var[String] = Var(initialSource)
 
   val fullGraph: Signal[ViewerGraph] =
     source.signal.map(CSVToArray(_)).map(ViewerGraph.from)
@@ -57,16 +57,15 @@ case class ViewerState(
         renderDot(graph.subgraph(page.visibleNodes.keySet).toDot(""))
 
   // ---- storage ----
-  private def storage: Signal[(VisibleNodes, String)] =
+  private def persistableEvents: Signal[(VisibleNodes, String)] =
     visibleNodesV.signal.combineWith(source.signal)
 
   private def restoreState() =
     val ss = storedString("viewer.state", initial = "{}")
-    val str = ss.signal.observe.now()
-    val (vn, s) = readFromString(str)
-    visibleNodesV.set(vn)
-    source.set(s)
-    storage.foreach: a =>
+    val (nodes0, source0) = readFromString(ss.signal.observe.now())
+    visibleNodesV.set(nodes0)
+    source.set(source0)
+    for a <- persistableEvents do
       ss.set(writeToString(a))
 
   restoreState()
