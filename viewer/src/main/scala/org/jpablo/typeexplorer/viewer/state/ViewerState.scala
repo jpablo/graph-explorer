@@ -1,14 +1,17 @@
 package org.jpablo.typeexplorer.viewer.state
 
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
+import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
+import org.jpablo.typeexplorer.viewer.state.VisibleNodes.given
 import org.jpablo.typeexplorer.viewer.utils.CSVToArray
 
 case class ViewerState(
@@ -53,8 +56,19 @@ case class ViewerState(
       .flatMapSwitch: (graph, page) =>
         renderDot(graph.subgraph(page.visibleNodes.keySet).toDot(""))
 
-  def storage: Signal[(VisibleNodes, String)] =
+  // ---- storage ----
+  private def storage: Signal[(VisibleNodes, String)] =
     visibleNodesV.signal.combineWith(source.signal)
 
+  private def restoreState() =
+    val ss = storedString("viewer.state", initial = "{}")
+    val str = ss.signal.observe.now()
+    val (vn, s) = readFromString(str)
+    visibleNodesV.set(vn)
+    source.set(s)
+    storage.foreach: a =>
+      ss.set(writeToString(a))
+
+  restoreState()
 
 end ViewerState
