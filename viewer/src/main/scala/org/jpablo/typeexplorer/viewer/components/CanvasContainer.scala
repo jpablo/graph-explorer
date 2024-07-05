@@ -22,8 +22,8 @@ def CanvasContainer(
     cls             := "te-parent p-1 z-10",
     backgroundImage := "radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px)",
     backgroundSize  := "5px 5px",
-    onClick.preventDefault
-      .compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
+//    onMouseOver.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleOnMouseOver(diagramSelection).tupled,
+    onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
     inContext { svgParent =>
       def parentSizeNow() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
@@ -108,3 +108,48 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     case None =>
       svgDiagram.unselectAll()
       diagramSelection.clear()
+
+//private def handleOnMouseOver(diagramSelection: DiagramSelectionOps)(
+//    ev:         dom.MouseEvent,
+//    svgDiagram: SvgDotDiagram
+//): Unit =
+//  // 1. Identify and parse the element that was clicked
+//  val selectedElement: Option[SelectableElement] =
+//    ev.target
+//      .asInstanceOf[dom.Element]
+//      .path
+//      .takeWhile(_.isInstanceOf[dom.SVGElement])
+//      .map(SelectableElement.from)
+//      .collectFirst { case Some(g) => g }
+//
+//  // 2. Update selected element's appearance
+//  selectedElement match
+//    case Some(g) =>
+//      g match
+//        case node: NodeElement =>
+//          if ev.metaKey then
+//            node.toggle()
+//            diagramSelection.toggle(node.nodeId)
+//          else
+//            svgDiagram.unselectAll()
+//            node.select()
+//            diagramSelection.replace(node.nodeId)
+//
+//        case edge: EdgeElement =>
+//          if ev.metaKey then
+//            edge.toggle()
+//            for pp <- edge.endpointIds do
+//              val ids = Set(pp._1, pp._2)
+//              svgDiagram.select(ids)
+//              diagramSelection.toggle(ids.toSeq*)
+//          else
+//            svgDiagram.unselectAll()
+//            edge.select()
+//            for pp <- edge.endpointIds do
+//              val ids = Set(pp._1, pp._2)
+//              svgDiagram.select(ids)
+//              diagramSelection.replace(ids.toSeq*)
+//
+//    case None =>
+//      svgDiagram.unselectAll()
+//      diagramSelection.clear()

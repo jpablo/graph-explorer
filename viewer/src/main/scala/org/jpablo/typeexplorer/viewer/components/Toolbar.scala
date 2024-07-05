@@ -3,6 +3,7 @@ package org.jpablo.typeexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
+import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.widgets.Icons.*
@@ -15,6 +16,7 @@ def Toolbar(
     state:           ViewerState,
     zoomValue:       Var[Double],
     fitDiagram:      EventBus[Unit],
+    drawerOpen:      Var[Boolean],
     replaceTextOpen: Var[Boolean]
 ) =
   val drawerId = s"drawer-id"
@@ -27,8 +29,8 @@ def Toolbar(
         input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
         label(
           forId := drawerId,
-          cls   := "btn btn-ghost btn-sm bi bi-boxes"
-//          onClick --> appConfigDialogOpenV.set(true)
+          cls   := "btn btn-ghost btn-sm bi bi-boxes",
+          onClick --> drawerOpen.toggle()
         )
       ).amend(cls := "flex-none")
     ),

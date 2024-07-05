@@ -2,6 +2,7 @@ package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
+import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.components.nodes.NodesPanel
 import org.jpablo.typeexplorer.viewer.state.ViewerState
 import org.jpablo.typeexplorer.viewer.widgets.{Drawer, SimpleDialog}
@@ -12,25 +13,13 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
   val replaceTextOpen = Var(false)
+  val drawerOpen = Var(true)
   div(
-    cls := "bg-base-100 border-base-300 rounded-box",
-    Drawer(
-      id        = s"drawer-id",
-      drawerEnd = false,
-      content = _.amend(
-        CanvasContainer(state.svgDiagram, state.diagramSelection, zoomValue, fitDiagram.events),
-        Toolbar(state, zoomValue, fitDiagram, replaceTextOpen),
-        SelectionSidebar(state)
-      ),
-      sidebar = _.amend(
-        div(
-          cls := "p-4 w-96 bg-base-100 text-base-content h-full",
-          NodesPanel(state)
-        )
-      )
-    ).amend(
-      cls := "te-parent-1"
-    ),
+    cls := "bg-base-100 border-base-300 rounded-box flex",
+    drawerOpen.signal.childWhenTrue(NodesPanel(state)),
+    CanvasContainer(state.svgDiagram, state.diagramSelection, zoomValue, fitDiagram.events),
+    Toolbar(state, zoomValue, fitDiagram, drawerOpen, replaceTextOpen),
+    SelectionSidebar(state),
     ReplaceGraphDialog(state.source, replaceTextOpen)
   )
 

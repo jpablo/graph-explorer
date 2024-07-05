@@ -1,6 +1,7 @@
 package org.jpablo.typeexplorer.viewer.widgets
 
 import com.raquo.laminar.api.L.*
+import io.laminext.syntax.core.*
 
 def Drawer(
     id:        String,
@@ -8,14 +9,19 @@ def Drawer(
     content:   Div => Div = identity,
     sidebar:   Div => Div = identity
 ) =
+  val drawerOpen = Var(true)
   div(
     cls := "drawer",
-    cls := (if drawerEnd then "drawer-end" else ""),
-    input(cls := "drawer-toggle", idAttr := id, tpe := "checkbox"),
-    content(div(cls := "drawer-content")),
+    cls("lg:drawer-open") <-- drawerOpen,
+    cls("drawer-end") := drawerEnd,
+    input(
+      cls := "drawer-toggle", idAttr := id, tpe := "checkbox",
+      onClick.mapToValue --> (_ => {println("clicked"); drawerOpen.toggle() })
+    ),
+    content(div(cls("drawer-content"))),
     sidebar(
       div(
-        cls := "drawer-side z-20 h-full absolute",
+        cls := "drawer-side",
         label(forId := id, cls := "drawer-overlay")
       )
     )
