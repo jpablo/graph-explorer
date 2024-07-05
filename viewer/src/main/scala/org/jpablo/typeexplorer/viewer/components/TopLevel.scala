@@ -17,7 +17,8 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
   div(
     cls    := "bg-base-100 border-base-300 rounded-box flex h-screen",
     idAttr := "top-level",
-    drawerOpen.signal.childWhenTrue(NodesPanel(state)),
+    drawerOpen.signal.childWhenTrue:
+      NodesPanel(state),
     CanvasContainer(state.svgDiagram, state.diagramSelection, zoomValue, fitDiagram.events),
     Toolbar(state, zoomValue, fitDiagram, drawerOpen, replaceTextOpen),
     SelectionSidebar(state),

@@ -15,10 +15,13 @@ def NodesPanel(state: ViewerState) =
   val filteredGraph: Signal[ViewerGraph] =
     filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
-    cls := "bg-base-100 rounded-box overflow-auto p-1 z-10 w-64 flex-shrink-0 overflow-y-auto h-full",
+//    cls := "bg-base-100 rounded-box overflow-auto p-1 z-10 w-64 flex-shrink-0 overflow-y-auto h-full",
+    cls    := "bg-base-100 rounded-box p-1 z-10 w-64 flex-shrink-0 h-full flex flex-col",
     idAttr := "nodes-panel",
     // --- controls ---
     form(
+      idAttr := "nodes-panel-controls",
+      cls    := "sticky top-0 bg-base-100 z-20 pb-2",
       LabeledCheckbox(
         "show-options-toggle",
         "options",
@@ -27,21 +30,23 @@ def NodesPanel(state: ViewerState) =
         toggle       = true
       ),
       showOptions.signal.childWhenTrue:
-        Options(state)
-      ,
+        Options(state),
       Search(
         placeholder := "filter",
-//        focus <-- viewerState.appConfigDialogOpenV.signal.changes,
         controlled(
           value <-- filterByNodeId,
           onInput.mapToValue --> filterByNodeId
         )
-//        onKeyDown.filter(e => e.key == "Enter" || e.key == "Escape") --> viewerState.appConfigDialogOpenV.set(false)
       ).smallInput
     ),
+    // Scrollable content
     div(
-      cls := "overflow-auto mt-1",
-      NodesList(state, filteredGraph)
+      cls := "overflow-y-auto flex-grow",
+      // List of nodes
+      div(
+        cls := "overflow-auto mt-1",
+        NodesList(state, filteredGraph)
+      )
     )
   )
 
@@ -85,21 +90,21 @@ private def Options(state: ViewerState) =
           state.project.update(_.modify(_.packagesOptions.onlyActive).using(!_)),
         toggle = true
       ),
-      hr(),
+//      hr(),
       // TODO: this is not working, fix it
-      children <--
-        state.fullGraph
-          .map(_.kinds)
-          .map: kinds =>
-            for kind <- kinds.toList
-            yield LabeledCheckbox(
-              id = s"show-ns-kind-$kind",
-              kind.toString,
-              isChecked = state.project.packagesOptions
-                .map(_.kinds)
-                .map(_.contains(kind)),
-              clickHandler = Observer: b =>
-                state.project.update(_.modify(_.packagesOptions.kinds).using(_.toggleWith(kind, b)))
-            )
+//      children <--
+//        state.fullGraph
+//          .map(_.kinds)
+//          .map: kinds =>
+//            for kind <- kinds.toList
+//            yield LabeledCheckbox(
+//              id = s"show-ns-kind-$kind",
+//              kind.toString,
+//              isChecked = state.project.packagesOptions
+//                .map(_.kinds)
+//                .map(_.contains(kind)),
+//              clickHandler = Observer: b =>
+//                state.project.update(_.modify(_.packagesOptions.kinds).using(_.toggleWith(kind, b)))
+//            )
     )
   )
