@@ -15,7 +15,7 @@ def NodesPanel(state: ViewerState) =
   val filteredGraph: Signal[ViewerGraph] =
     filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
-    cls := "bg-base-100 rounded-box overflow-auto p-1 z-10",
+    cls := "bg-base-100 rounded-box overflow-auto p-1 z-10 w-64 flex-shrink-0 overflow-y-auto h-full",
     idAttr := "nodes-panel",
     // --- controls ---
     form(

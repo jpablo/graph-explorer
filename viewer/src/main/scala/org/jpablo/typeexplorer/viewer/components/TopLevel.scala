@@ -5,7 +5,7 @@ import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.components.nodes.NodesPanel
 import org.jpablo.typeexplorer.viewer.state.ViewerState
-import org.jpablo.typeexplorer.viewer.widgets.{Drawer, SimpleDialog}
+import org.jpablo.typeexplorer.viewer.widgets.SimpleDialog
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
@@ -15,7 +15,7 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
   val replaceTextOpen = Var(false)
   val drawerOpen = Var(true)
   div(
-    cls    := "bg-base-100 border-base-300 rounded-box flex",
+    cls    := "bg-base-100 border-base-300 rounded-box flex h-screen",
     idAttr := "top-level",
     drawerOpen.signal.childWhenTrue(NodesPanel(state)),
     CanvasContainer(state.svgDiagram, state.diagramSelection, zoomValue, fitDiagram.events),

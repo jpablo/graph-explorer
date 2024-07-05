@@ -35,17 +35,6 @@ def Toolbar(
         )
       ).amend(cls := "flex-none")
     ),
-    // -------- fields and signatures --------
-//    Join(
-//      LabeledCheckbox(
-//        id        = "fields-checkbox-1",
-//        labelStr  = "fields",
-//        isChecked = state.diagramOptionsV.signal.map(_.showFields),
-//        clickHandler = state.diagramOptionsV
-//          .updater(_.modify(_.showFields).setTo(_)),
-//        toggle = true
-//      )
-//    ),
     // -------- actions toolbar --------
     Join(
       Button(Tooltip("CSV", "contents"), onClick --> replaceTextOpen.set(true)).tiny,
