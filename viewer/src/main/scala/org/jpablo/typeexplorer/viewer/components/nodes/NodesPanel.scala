@@ -16,6 +16,7 @@ def NodesPanel(state: ViewerState) =
     filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
     cls := "bg-base-100 rounded-box overflow-auto p-1 z-10",
+    idAttr := "nodes-panel",
     // --- controls ---
     form(
       LabeledCheckbox(

@@ -17,7 +17,8 @@ def SelectionSidebar(state: ViewerState) =
   val selectionEmpty =
     state.diagramSelection.signal.map(_.isEmpty)
   div(
-    cls := "absolute right-0 top-2 z-10",
+    cls    := "absolute right-0 top-2 z-10",
+    idAttr := "selection-sidebar",
     selectionEmpty.childWhenFalse(
       ul(
         cls := "menu shadow bg-base-100 rounded-box m-2 p-0",

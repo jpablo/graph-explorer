@@ -3,51 +3,6 @@ label[for ^= show-ns-kind-] {
   padding: 0 0 2px;
 }
 
-// drawer
-.te-parent-x-5 {
-  // border: 3px solid palegreen;
-}
-
-// drawer-content
-.te-parent-x-4 {
-  display: flex !important;
-  flex-direction: column !important;
-  // TODO: why is this needed but not for width?
-  // -------------------------
-  height: 100vh !important;
-  // -------------------------
-  overflow: hidden !important;
-  // border: 3px solid darkcyan;
-}
-
-// tabs area (tablist)
-// 2nd child of a flex element
-.te-parent-x-3 {
-  flex-grow: 1; // fill the remaining vertical space
-  grid-template-rows: auto 1fr;
-  // border: 3px solid orange !important;
-}
-
-// tabpanel
-// the minimum size is set to its children
-.te-parent-x-2 {
-  align-self: stretch; // expand to fill the parent's width
-  justify-self: stretch; // expand to fill the parent's height
-  min-width: 0;
-  min-height: 0;
-  // border: 5px solid green !important;
-}
-
-.te-parent-x-1 {
-  // TODO: why is this needed but not for width?
-  // -------------------------
-  height: 100% !important;
-  // -------------------------
-  // this is needed for the floating toolbars
-  position: relative !important;
-  // border: 2px dotted blue;
-}
-
 .te-parent {
   // TODO: why is this needed but not for width?
   // -------------------------

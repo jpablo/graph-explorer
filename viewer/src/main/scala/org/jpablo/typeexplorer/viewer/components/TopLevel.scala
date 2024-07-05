@@ -15,7 +15,8 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
   val replaceTextOpen = Var(false)
   val drawerOpen = Var(true)
   div(
-    cls := "bg-base-100 border-base-300 rounded-box flex",
+    cls    := "bg-base-100 border-base-300 rounded-box flex",
+    idAttr := "top-level",
     drawerOpen.signal.childWhenTrue(NodesPanel(state)),
     CanvasContainer(state.svgDiagram, state.diagramSelection, zoomValue, fitDiagram.events),
     Toolbar(state, zoomValue, fitDiagram, drawerOpen, replaceTextOpen),
@@ -29,9 +30,6 @@ def ReplaceGraphDialog(text: Var[String], open: Var[Boolean]) =
     textArea(
       cls         := "textarea textarea-bordered whitespace-nowrap w-full",
       placeholder := "Replace graph",
-      controlled(
-        value <-- text,
-        onInput.mapToValue --> text
-      )
+      controlled(value <-- text, onInput.mapToValue --> text)
     )
   )
