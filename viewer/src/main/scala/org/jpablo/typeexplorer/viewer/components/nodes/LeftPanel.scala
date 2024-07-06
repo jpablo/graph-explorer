@@ -36,7 +36,7 @@ def LeftPanel(state: ViewerState) =
         role := "tabpanel",
         cls  := "tab-content bg-base-100 border-base-300 rounded-box p-2",
         textArea(
-          cls := "textarea textarea-bordered whitespace-nowrap w-full h-[calc(100vh-6rem)]",
+          cls := "textarea textarea-bordered whitespace-nowrap w-full h-screen",
           placeholder := "Replace source",
           controlled(value <-- state.source, onInput.mapToValue --> state.source)
         )
@@ -57,7 +57,7 @@ def LeftPanel(state: ViewerState) =
         // --- controls ---
         form(
           idAttr := "nodes-panel-controls",
-          cls    := "sticky top-0 bg-base-100 z-20 pb-2",
+          cls    := "bg-base-100 z-20 pb-2",
           LabeledCheckbox(
             "show-options-toggle",
             "options",
@@ -78,7 +78,7 @@ def LeftPanel(state: ViewerState) =
         ),
         // Scrollable content
         div(
-          cls := "overflow-y-auto flex-grow",
+          cls := "overflow-y-auto h-screen",
           // List of nodes
           div(
             cls := "overflow-auto mt-1",
