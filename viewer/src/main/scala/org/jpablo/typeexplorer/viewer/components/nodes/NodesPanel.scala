@@ -15,8 +15,6 @@ def NodesPanel(state: ViewerState) =
   val filteredGraph: Signal[ViewerGraph] =
     filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
-//    cls := "bg-base-100 rounded-box overflow-auto p-1 z-10 w-64 flex-shrink-0 overflow-y-auto h-full",
-//    cls    := "bg-base-100 rounded-box p-1 z-10 w-64 flex-shrink-0 h-full flex flex-col",
     cls    := "bg-base-100 rounded-box p-1 z-10 w-64 flex-shrink-0 h-full flex flex-col overflow-x-hidden",
     idAttr := "nodes-panel",
 
@@ -37,9 +35,9 @@ def NodesPanel(state: ViewerState) =
         role := "tabpanel",
         cls  := "tab-content bg-base-100 border-base-300 rounded-box p-2",
         textArea(
-//          cls         := "textarea textarea-bordered whitespace-nowrap w-full h-full",
           cls := "textarea textarea-bordered whitespace-nowrap w-full h-[calc(100vh-6rem)]",
-          placeholder := "Replace source"
+          placeholder := "Replace source",
+          controlled(value <-- state.source, onInput.mapToValue --> state.source)
         )
       ),
 

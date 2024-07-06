@@ -17,7 +17,6 @@ def Toolbar(
     zoomValue:       Var[Double],
     fitDiagram:      EventBus[Unit],
     drawerOpen:      Var[Boolean],
-    replaceTextOpen: Var[Boolean]
 ) =
   val drawerId = s"drawer-id"
   div(
@@ -37,7 +36,6 @@ def Toolbar(
     ),
     // -------- actions toolbar --------
     Join(
-      Button(Tooltip("CSV", "contents"), onClick --> replaceTextOpen.set(true)).tiny,
       Button(
         "add all",
         onClick.compose(_.sample(state.allNodeIds).map(_.toSeq)) --> (state.visibleNodes.extend(_))
