@@ -3,6 +3,22 @@ label[for ^= show-ns-kind-] {
   padding: 0 0 2px;
 }
 
+#top-level {
+  border: 2px solid red !important;
+  background-color: red !important;
+}
+
+#nodes-panel {
+  background-color: yellow !important;
+  border: 2px solid orange !important;
+}
+
+#tab-list {
+  flex-grow: 1;
+  border: 2px solid blue !important;
+  background-color: gray;
+}
+
 .te-parent {
   // TODO: why is this needed but not for width?
   // -------------------------

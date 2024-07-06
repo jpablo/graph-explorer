@@ -8,22 +8,23 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.state.{PackagesOptions, Project, ViewerState, VisibleNodes}
 import org.jpablo.typeexplorer.viewer.widgets.*
 
-def NodesPanel(state: ViewerState) =
+def LeftPanel(state: ViewerState) =
   val showOptions = Var(false)
   val filterByNodeId = Var("")
   val visibleNodes = state.visibleNodes.signal
   val filteredGraph: Signal[ViewerGraph] =
     filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
-    cls    := "bg-base-100 rounded-box p-1 z-10 w-64 flex-shrink-0 h-full flex flex-col overflow-x-hidden",
+    cls    := "bg-base-100 p-1 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden",
     idAttr := "nodes-panel",
 
     // Tabs
     div(
       role := "tablist",
+      idAttr := "tab-list",
       cls  := "tabs tabs-lifted tabs-xs",
 
-      // Graph Tab
+      // Source Tab
       input(
         typ        := "radio",
         nameAttr   := "nodes_panel_tabs",
