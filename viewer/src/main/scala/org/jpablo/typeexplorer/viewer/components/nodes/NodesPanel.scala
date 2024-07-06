@@ -16,36 +16,76 @@ def NodesPanel(state: ViewerState) =
     filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
 //    cls := "bg-base-100 rounded-box overflow-auto p-1 z-10 w-64 flex-shrink-0 overflow-y-auto h-full",
-    cls    := "bg-base-100 rounded-box p-1 z-10 w-64 flex-shrink-0 h-full flex flex-col",
+//    cls    := "bg-base-100 rounded-box p-1 z-10 w-64 flex-shrink-0 h-full flex flex-col",
+    cls    := "bg-base-100 rounded-box p-1 z-10 w-64 flex-shrink-0 h-full flex flex-col overflow-x-hidden",
     idAttr := "nodes-panel",
-    // --- controls ---
-    form(
-      idAttr := "nodes-panel-controls",
-      cls    := "sticky top-0 bg-base-100 z-20 pb-2",
-      LabeledCheckbox(
-        "show-options-toggle",
-        "options",
-        showOptions.signal,
-        clickHandler = Observer(_ => showOptions.update(!_)),
-        toggle       = true
-      ),
-      showOptions.signal.childWhenTrue:
-        Options(state),
-      Search(
-        placeholder := "filter",
-        controlled(
-          value <-- filterByNodeId,
-          onInput.mapToValue --> filterByNodeId
-        )
-      ).smallInput
-    ),
-    // Scrollable content
+
+    // Tabs
     div(
-      cls := "overflow-y-auto flex-grow",
-      // List of nodes
+      role := "tablist",
+      cls  := "tabs tabs-lifted tabs-xs",
+
+      // Graph Tab
+      input(
+        typ        := "radio",
+        nameAttr   := "nodes_panel_tabs",
+        role       := "tab",
+        cls        := "tab",
+        aria.label := "Source"
+      ),
       div(
-        cls := "overflow-auto mt-1",
-        NodesList(state, filteredGraph)
+        role := "tabpanel",
+        cls  := "tab-content bg-base-100 border-base-300 rounded-box p-2",
+        textArea(
+//          cls         := "textarea textarea-bordered whitespace-nowrap w-full h-full",
+          cls := "textarea textarea-bordered whitespace-nowrap w-full h-[calc(100vh-6rem)]",
+          placeholder := "Replace source"
+        )
+      ),
+
+      // Nodes Tab
+      input(
+        typ            := "radio",
+        nameAttr       := "nodes_panel_tabs",
+        role           := "tab",
+        cls            := "tab",
+        aria.label     := "Nodes",
+        defaultChecked := true
+      ),
+      div(
+        role := "tabpanel",
+        cls  := "tab-content bg-base-100 border-base-300 rounded-box p-2",
+        // --- controls ---
+        form(
+          idAttr := "nodes-panel-controls",
+          cls    := "sticky top-0 bg-base-100 z-20 pb-2",
+          LabeledCheckbox(
+            "show-options-toggle",
+            "options",
+            showOptions.signal,
+            clickHandler = Observer(_ => showOptions.update(!_)),
+            toggle       = true
+          ),
+          showOptions.signal.childWhenTrue:
+            Options(state)
+          ,
+          Search(
+            placeholder := "filter",
+            controlled(
+              value <-- filterByNodeId,
+              onInput.mapToValue --> filterByNodeId
+            )
+          ).smallInput
+        ),
+        // Scrollable content
+        div(
+          cls := "overflow-y-auto flex-grow",
+          // List of nodes
+          div(
+            cls := "overflow-auto mt-1",
+            NodesList(state, filteredGraph)
+          )
+        )
       )
     )
   )
@@ -89,7 +129,7 @@ private def Options(state: ViewerState) =
         clickHandler = Observer: _ =>
           state.project.update(_.modify(_.packagesOptions.onlyActive).using(!_)),
         toggle = true
-      ),
+      )
 //      hr(),
       // TODO: this is not working, fix it
 //      children <--
