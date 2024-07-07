@@ -4,18 +4,25 @@ label[for ^= show-ns-kind-] {
 }
 
 #top-level {
-  //border: 2px solid red !important;
-  //background-color: red !important;
+  #nodes-panel {
+
+    #nodes-source {
+      flex-grow: 1;
+    }
+
+    #nodes-panel-controls {
+    }
+
+    #nodes-menu {
+      flex-grow: 1;
+    }
+  }
 }
 
-#nodes-panel {
-  //background-color: yellow !important;
-  //border: 2px solid orange !important;
-}
 
 #tab-list {
-  flex-grow: 1;
-  //border: 2px solid blue !important;
+  //flex-grow: 1;
+  border: 2px solid blue !important;
   //background-color: gray;
 }
 

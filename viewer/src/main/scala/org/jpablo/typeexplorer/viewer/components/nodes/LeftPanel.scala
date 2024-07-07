@@ -7,8 +7,10 @@ import org.jpablo.typeexplorer.viewer.extensions.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.state.{PackagesOptions, Project, ViewerState, VisibleNodes}
 import org.jpablo.typeexplorer.viewer.widgets.*
+import com.raquo.laminar.api.features.unitArrows
 
 def LeftPanel(state: ViewerState) =
+  val visibleTab = Var(0)
   val showOptions = Var(false)
   val filterByNodeId = Var("")
   val visibleNodes = state.visibleNodes.signal
@@ -17,75 +19,49 @@ def LeftPanel(state: ViewerState) =
   div(
     cls    := "bg-base-100 p-1 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden",
     idAttr := "nodes-panel",
-
-    // Tabs
     div(
-      role := "tablist",
-      idAttr := "tab-list",
-      cls  := "tabs tabs-lifted tabs-xs",
+      Button("Source", onClick --> visibleTab.set(0)).tiny,
+      Button("Nodes", onClick --> visibleTab.set(1)).tiny
+    ),
 
-      // Source Tab
-      input(
-        typ        := "radio",
-        nameAttr   := "nodes_panel_tabs",
-        role       := "tab",
-        cls        := "tab",
-        aria.label := "Source"
-      ),
-      div(
-        role := "tabpanel",
-        cls  := "tab-content bg-base-100 border-base-300 rounded-box p-2",
-        textArea(
-          cls := "textarea textarea-bordered whitespace-nowrap w-full h-screen",
-          placeholder := "Replace source",
-          controlled(value <-- state.source, onInput.mapToValue --> state.source)
-        )
-      ),
+    textArea(
+      idAttr := "nodes-source",
+      cls    := "textarea textarea-bordered whitespace-nowrap w-full",
+      cls("hidden") <-- visibleTab.signal.map(_ != 0),
+      placeholder := "Replace source",
+      controlled(value <-- state.source, onInput.mapToValue --> state.source)
+    ),
 
-      // Nodes Tab
-      input(
-        typ            := "radio",
-        nameAttr       := "nodes_panel_tabs",
-        role           := "tab",
-        cls            := "tab",
-        aria.label     := "Nodes",
-        defaultChecked := true
+    // --- controls ---
+    form(
+      idAttr := "nodes-panel-controls",
+      cls    := "bg-base-100 z-20 pb-2",
+      cls("hidden") <-- visibleTab.signal.map(_ != 1),
+      LabeledCheckbox(
+        "show-options-toggle",
+        "options",
+        showOptions.signal,
+        clickHandler = Observer(_ => showOptions.update(!_)),
+        toggle       = true
       ),
-      div(
-        role := "tabpanel",
-        cls  := "tab-content bg-base-100 border-base-300 rounded-box p-2",
-        // --- controls ---
-        form(
-          idAttr := "nodes-panel-controls",
-          cls    := "bg-base-100 z-20 pb-2",
-          LabeledCheckbox(
-            "show-options-toggle",
-            "options",
-            showOptions.signal,
-            clickHandler = Observer(_ => showOptions.update(!_)),
-            toggle       = true
-          ),
-          showOptions.signal.childWhenTrue:
-            Options(state)
-          ,
-          Search(
-            placeholder := "filter",
-            controlled(
-              value <-- filterByNodeId,
-              onInput.mapToValue --> filterByNodeId
-            )
-          ).smallInput
-        ),
-        // Scrollable content
-        div(
-          cls := "overflow-y-auto h-screen",
-          // List of nodes
-          div(
-            cls := "overflow-auto mt-1",
-            NodesList(state, filteredGraph)
-          )
+      showOptions.signal.childWhenTrue:
+        Options(state)
+      ,
+      Search(
+        placeholder := "filter",
+        controlled(
+          value <-- filterByNodeId,
+          onInput.mapToValue --> filterByNodeId
         )
-      )
+      ).smallInput
+    ),
+    // Scrollable content
+    div(
+      idAttr := "nodes-menu",
+      cls    := "overflow-y-auto flex-grow",
+      cls("hidden") <-- visibleTab.signal.map(_ != 1),
+      // List of nodes
+      NodesList(state, filteredGraph)
     )
   )
 
