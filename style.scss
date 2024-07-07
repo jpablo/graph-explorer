@@ -9,6 +9,10 @@ label[for ^= show-ns-kind-] {
     //background-color: red !important;
     @apply bg-base-100 p-2 gap-2 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden;
 
+    #nodes-panel-tab-buttons {
+      @apply flex gap-1;
+    }
+
     #nodes-source {
       flex-grow: 1;
       @apply  whitespace-nowrap w-full;
