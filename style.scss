@@ -4,9 +4,9 @@ label[for ^= show-ns-kind-] {
 }
 
 #top-level {
-  #nodes-panel {
+  @apply bg-base-100 border-base-300 flex h-screen;
 
-    //background-color: red !important;
+  #nodes-panel {
     @apply bg-base-100 p-2 gap-2 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden;
 
     #nodes-panel-tab-buttons {
@@ -15,7 +15,7 @@ label[for ^= show-ns-kind-] {
 
     #nodes-source {
       flex-grow: 1;
-      @apply  whitespace-nowrap w-full;
+      @apply whitespace-nowrap w-full;
     }
 
     #nodes-panel-controls {
@@ -27,24 +27,20 @@ label[for ^= show-ns-kind-] {
       @apply overflow-y-auto flex-grow;
     }
   }
+
+  #canvas-container {
+    @apply  p-1 z-10 flex-grow overflow-y-auto h-full;
+    // TODO: why is this needed but not for width?
+    // -------------------------
+    height: 100vh !important;
+    // -------------------------
+    overflow: auto !important;
+    display: flex !important;
+    //border: 2px solid red;
+  }
+
 }
 
-
-#tab-list {
-  //flex-grow: 1;
-  border: 2px solid blue !important;
-  //background-color: gray;
-}
-
-.te-parent {
-  // TODO: why is this needed but not for width?
-  // -------------------------
-  height: 100vh !important;
-  // -------------------------
-  overflow: auto !important;
-  display: flex !important;
-  //border: 2px solid red;
-}
 
 svg.graphviz {
 

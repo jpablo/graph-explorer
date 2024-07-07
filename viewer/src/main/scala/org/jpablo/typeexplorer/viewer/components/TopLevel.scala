@@ -13,7 +13,6 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
   val fitDiagram = EventBus[Unit]()
   val drawerOpen = Var(true)
   div(
-    cls    := "bg-base-100 border-base-300 flex h-screen",
     idAttr := "top-level",
     drawerOpen.signal.childWhenTrue:
       LeftPanel(state),

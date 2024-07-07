@@ -19,7 +19,6 @@ def CanvasContainer(
       .combineWith(svgDiagram)
       .map((z, diagram) => (z * diagram.origW, z * diagram.origH))
   div(
-    cls             := "te-parent p-1 z-10 flex-grow overflow-y-auto h-full",
     idAttr          := "canvas-container",
     flexGrow        := 1,
     backgroundImage := "radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px)",
