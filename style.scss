@@ -6,15 +6,21 @@ label[for ^= show-ns-kind-] {
 #top-level {
   #nodes-panel {
 
+    //background-color: red !important;
+    @apply bg-base-100 p-2 gap-2 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden;
+
     #nodes-source {
       flex-grow: 1;
+      @apply  whitespace-nowrap w-full;
     }
 
     #nodes-panel-controls {
+      @apply bg-base-100 z-20 pb-2;
     }
 
     #nodes-menu {
       flex-grow: 1;
+      @apply overflow-y-auto flex-grow;
     }
   }
 }

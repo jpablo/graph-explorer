@@ -14,20 +14,21 @@ def LeftPanel(state: ViewerState) =
   val showOptions = Var(false)
   val filterByNodeId = Var("")
   val visibleNodes = state.visibleNodes.signal
+  def isVisible(i: Int) = visibleTab.signal.map(_ == i)
   val filteredGraph: Signal[ViewerGraph] =
     filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
-    cls    := "bg-base-100 p-1 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden",
     idAttr := "nodes-panel",
     div(
-      Button("Source", onClick --> visibleTab.set(0)).tiny,
-      Button("Nodes", onClick --> visibleTab.set(1)).tiny
+      idAttr := "nodes-panel-tab-buttons",
+      Button("Source", cls("btn-active") <-- isVisible(0), onClick --> visibleTab.set(0)).tiny,
+      Button("Nodes", cls("btn-active") <-- isVisible(1), onClick --> visibleTab.set(1)).tiny
     ),
 
     textArea(
       idAttr := "nodes-source",
-      cls    := "textarea textarea-bordered whitespace-nowrap w-full",
-      cls("hidden") <-- visibleTab.signal.map(_ != 0),
+      cls    := "textarea textarea-bordered",
+      cls("hidden") <-- !isVisible(0),
       placeholder := "Replace source",
       controlled(value <-- state.source, onInput.mapToValue --> state.source)
     ),
@@ -35,8 +36,7 @@ def LeftPanel(state: ViewerState) =
     // --- controls ---
     form(
       idAttr := "nodes-panel-controls",
-      cls    := "bg-base-100 z-20 pb-2",
-      cls("hidden") <-- visibleTab.signal.map(_ != 1),
+      cls("hidden") <-- !isVisible(1),
       LabeledCheckbox(
         "show-options-toggle",
         "options",
@@ -58,8 +58,7 @@ def LeftPanel(state: ViewerState) =
     // Scrollable content
     div(
       idAttr := "nodes-menu",
-      cls    := "overflow-y-auto flex-grow",
-      cls("hidden") <-- visibleTab.signal.map(_ != 1),
+      cls("hidden") <-- !isVisible(1),
       // List of nodes
       NodesList(state, filteredGraph)
     )
