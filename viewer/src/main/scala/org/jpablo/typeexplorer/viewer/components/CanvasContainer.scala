@@ -20,9 +20,6 @@ def CanvasContainer(
       .map((z, diagram) => (z * diagram.origW, z * diagram.origH))
   div(
     idAttr          := "canvas-container",
-    flexGrow        := 1,
-    backgroundImage := "radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px)",
-    backgroundSize  := "5px 5px",
 //    onMouseOver.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleOnMouseOver(diagramSelection).tupled,
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
     inContext { svgParent =>
