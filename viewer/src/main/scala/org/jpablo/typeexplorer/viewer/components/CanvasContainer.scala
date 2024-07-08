@@ -26,6 +26,10 @@ def CanvasContainer(
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
+    onWheel --> { w =>
+      if w.metaKey then h.update(_ + w.deltaY)
+      else xy.update((x, y) => (x + w.deltaX, y + w.deltaY))
+    },
     inContext { canvasContainer =>
       def parentSize() = (canvasContainer.ref.offsetWidth, canvasContainer.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
@@ -49,14 +53,9 @@ def CanvasContainer(
           diagram.toLaminar.amend(
             svg.transform <-- xy.signal
               .combineWith(h.signal)
-              .map { (x, y, h)  =>
+              .map: (x, y, h)  =>
                 val s = 1 + h / diagram.origH.max(1)
                 s"translate(${-x} ${-y}) scale($s $s)"
-              },
-            onWheel --> { ev =>
-              if ev.metaKey then h.update(_ + ev.deltaY)
-              else xy.update((x, y) => (x + ev.deltaX, y + ev.deltaY))
-            }
           )
       )
     }
