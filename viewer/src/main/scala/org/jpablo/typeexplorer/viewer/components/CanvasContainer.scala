@@ -21,14 +21,13 @@ def CanvasContainer(
    * */
 
   // viewBox attribute
-  val xy = Var((0.0, 0.0))
-  val h = Var(0.0)
+  val translateXY = Var((0.0, 0.0))
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
-    onWheel --> { w =>
-      if w.metaKey then h.update(_ + w.deltaY)
-      else xy.update((x, y) => (x + w.deltaX, y + w.deltaY))
+    onWheel --> { wEv =>
+      if wEv.metaKey then zoomValue.update(_ + wEv.deltaY / dom.window.innerHeight.max(1))
+      else translateXY.update((x, y) => (x + wEv.deltaX, y + wEv.deltaY))
     },
     inContext { canvasContainer =>
       def parentSize() = (canvasContainer.ref.offsetWidth, canvasContainer.ref.offsetHeight)
@@ -51,11 +50,10 @@ def CanvasContainer(
           diagramSelection.remove(selection -- diagram.nodeIds)
 
           diagram.toLaminar.amend(
-            svg.transform <-- xy.signal
-              .combineWith(h.signal)
-              .map: (x, y, h)  =>
-                val s = 1 + h / diagram.origH.max(1)
-                s"translate(${-x} ${-y}) scale($s $s)"
+            svg.transform <-- translateXY.signal
+              .combineWith(zoomValue.signal)
+              .map: (x, y, z) =>
+                s"translate(${-x} ${-y}) scale($z $z)"
           )
       )
     }
