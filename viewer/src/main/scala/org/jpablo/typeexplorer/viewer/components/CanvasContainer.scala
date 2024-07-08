@@ -8,8 +8,6 @@ import org.jpablo.typeexplorer.viewer.state.DiagramSelectionOps
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
-import scala.scalajs.js
-
 def CanvasContainer(
     svgDiagram:       Signal[SvgDotDiagram],
     diagramSelection: DiagramSelectionOps,
@@ -23,6 +21,7 @@ def CanvasContainer(
 
    * */
   val xy = Var((0.0, 0.0))
+  val wh = Var((2227.0, 1698.0))
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
@@ -46,8 +45,13 @@ def CanvasContainer(
           diagramSelection.remove(selection -- diagram.nodeIds)
 
           diagram.toLaminar.amend(
-            svg.viewBox <-- xy.signal.map((x, y) => s"$x $y 2227 1698"),
-            onWheel --> (ev => xy.update((x, y) => (ev.deltaX + x, ev.deltaY + y)))
+            svg.viewBox <-- xy.signal
+              .combineWith(wh.signal)
+              .map((x, y, w, h) => s"$x $y $w $h"),
+            onWheel --> { ev =>
+              if ev.metaKey then wh.update((w, h) => (w, h + ev.deltaY))
+              else xy.update((x, y) => (x + ev.deltaX, y + ev.deltaY))
+            }
           )
       )
     }
