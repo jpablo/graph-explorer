@@ -18,10 +18,11 @@ def CanvasContainer(
   Notes on Miro:
   - zoom: [25%, 400%]
   - zoom control: Cmd + vertical wheel
-
    * */
+
+  // viewBox attribute
   val xy = Var((0.0, 0.0))
-  val wh = Var((2227.0, 1698.0))
+  val wh = Var((1.0, 1.0))
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
@@ -39,6 +40,8 @@ def CanvasContainer(
 
       Seq(
         child <-- svgDiagram.map: diagram =>
+//          println((diagram.origW, diagram.origH))
+          wh.set((diagram.origW, diagram.origH))
           val selection = diagramSelection.now()
           diagram.select(selection)
           // remove elements not present in the new diagram (such elements did exist in the previous diagram)
@@ -47,9 +50,17 @@ def CanvasContainer(
           diagram.toLaminar.amend(
             svg.viewBox <-- xy.signal
               .combineWith(wh.signal)
-              .map((x, y, w, h) => s"$x $y $w $h"),
+              .map { (x, y, w, h) =>
+                println(s"$x $y $w $h")
+                s"$x $y $w $h"
+              },
             onWheel --> { ev =>
-              if ev.metaKey then wh.update((w, h) => (w, h + ev.deltaY))
+              if ev.metaKey then wh.update { (w, h) =>
+                if h + ev.deltaY > 100 then
+                  (w + ev.deltaY, h + ev.deltaY)
+                else
+                  (h, h)
+              }
               else xy.update((x, y) => (x + ev.deltaX, y + ev.deltaY))
             }
           )
