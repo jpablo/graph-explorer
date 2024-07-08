@@ -43,11 +43,13 @@ svg.graphviz {
   background-color: lightgray;
 
   position: absolute !important;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 98%;
-  height: 98%;
+  //top: 50%;
+  //left: 50%;
+  //transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  //width: 98%;
+  //height: 98%;
 
   g {
     .node {

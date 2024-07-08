@@ -22,7 +22,7 @@ def CanvasContainer(
 
   // viewBox attribute
   val xy = Var((0.0, 0.0))
-  val wh = Var((1.0, 1.0))
+  val h = Var(0.0)
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
@@ -40,27 +40,21 @@ def CanvasContainer(
 
       Seq(
         child <-- svgDiagram.map: diagram =>
-//          println((diagram.origW, diagram.origH))
-          wh.set((diagram.origW, diagram.origH))
+
           val selection = diagramSelection.now()
           diagram.select(selection)
           // remove elements not present in the new diagram (such elements did exist in the previous diagram)
           diagramSelection.remove(selection -- diagram.nodeIds)
 
           diagram.toLaminar.amend(
-            svg.viewBox <-- xy.signal
-              .combineWith(wh.signal)
-              .map { (x, y, w, h) =>
-                println(s"$x $y $w $h")
-                s"$x $y $w $h"
+            svg.transform <-- xy.signal
+              .combineWith(h.signal)
+              .map { (x, y, h)  =>
+                val s = 1 + h / diagram.origH.max(1)
+                s"translate(${-x} ${-y}) scale($s $s)"
               },
             onWheel --> { ev =>
-              if ev.metaKey then wh.update { (w, h) =>
-                if h + ev.deltaY > 100 then
-                  (w + ev.deltaY, h + ev.deltaY)
-                else
-                  (h, h)
-              }
+              if ev.metaKey then h.update(_ + ev.deltaY)
               else xy.update((x, y) => (x + ev.deltaX, y + ev.deltaY))
             }
           )
