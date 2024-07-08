@@ -14,13 +14,6 @@ def CanvasContainer(
     zoomValue:        Var[Double],
     fitDiagram:       EventStream[Unit]
 ) =
-  /*
-  Notes on Miro:
-  - zoom: [25%, 400%]
-  - zoom control: Cmd + vertical wheel
-   * */
-
-  // viewBox attribute
   val translateXY = Var((0.0, 0.0))
   div(
     idAttr := "canvas-container",
@@ -35,9 +28,9 @@ def CanvasContainer(
       fitDiagram
         .sample(svgDiagram)
         .foreach { diagram =>
-//          val (parentWidth, parentHeight) = parentSize()
-//          val z = math.min(parentWidth / diagram.origW, parentHeight / diagram.origH)
-//          zoomValue.set(z)
+          val (parentWidth, parentHeight) = parentSize()
+          val z = math.min(parentWidth / diagram.origW, parentHeight / diagram.origH)
+          zoomValue.set(z)
           // TODO: is there a way to avoid unsafeWindowOwner here?
         }(unsafeWindowOwner)
 

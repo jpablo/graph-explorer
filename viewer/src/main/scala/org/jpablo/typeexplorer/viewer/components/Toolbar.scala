@@ -75,7 +75,7 @@ def Toolbar(
       input(
         tpe      := "range",
         cls      := "range range-xs pr-3",
-        minAttr  := 0.1.toString,
+        minAttr  := 0.25.toString,
         maxAttr  := 5.0.toString,
         stepAttr := "0.05",
         controlled(
