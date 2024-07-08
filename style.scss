@@ -29,15 +29,25 @@ label[for ^= show-ns-kind-] {
   }
 
   #canvas-container {
-    @apply  p-1 z-10 flex-grow overflow-y-auto h-full;
+    @apply  p-1 z-10 flex-grow overflow-auto flex;
     background-image: radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px);
     background-size: 5px 5px;
+    position: relative;
   }
 
 }
 
 
 svg.graphviz {
+
+  background-color: lightgray;
+
+  position: absolute !important;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 98%;
+  height: 98%;
 
   g {
     .node {

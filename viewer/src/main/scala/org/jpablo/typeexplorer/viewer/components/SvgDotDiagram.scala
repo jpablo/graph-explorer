@@ -13,14 +13,19 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   val origW = svgElement.width.baseVal.value
   val origH = svgElement.height.baseVal.value
 
+  dom.console.log(s"[SvgDotDiagram] origW: $origW, origH: $origH")
+
   svgElement.setAttribute("class", "graphviz")
   // graphviz adds a polygon as diagram background
   val n = svgElement.querySelector("g > polygon[fill='white']")
   if n != null then
     n.parentNode.removeChild(n)
   svgElement.removeAttribute("style")
-  svgElement.removeAttribute("width")
-  svgElement.removeAttribute("height")
+//  dom.console.log(svgElement.width.baseVal.value)
+//  svgElement.removeAttribute("width")
+//  svgElement.removeAttribute("height")
+
+  // ------------------
 
   private def selectableElements =
     SelectableElement.findAll(svgElement)
@@ -43,6 +48,7 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
 
   private case class BBox(x: Double, y: Double, width: Double, height: Double)
 
+  // TODO: probably broken. Verify and fix.
   private def buildSvgElement(id: models.NodeId) =
     val el =
       getElementById("elem_" + id.toString()).asInstanceOf[dom.SVGSVGElement]

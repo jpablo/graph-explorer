@@ -8,55 +8,46 @@ import org.jpablo.typeexplorer.viewer.state.DiagramSelectionOps
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
+import scala.scalajs.js
+
 def CanvasContainer(
     svgDiagram:       Signal[SvgDotDiagram],
     diagramSelection: DiagramSelectionOps,
     zoomValue:        Var[Double],
     fitDiagram:       EventStream[Unit]
 ) =
-  val svgSize =
-    zoomValue.signal
-      .combineWith(svgDiagram)
-      .map((z, diagram) => (z * diagram.origW, z * diagram.origH))
+  /*
+  Notes on Miro:
+  - zoom: [25%, 400%]
+  - zoom control: Cmd + vertical wheel
+
+   * */
+  val xy = Var((0.0, 0.0))
   div(
-    idAttr          := "canvas-container",
-//    onMouseOver.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleOnMouseOver(diagramSelection).tupled,
+    idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
-    inContext { svgParent =>
-      def parentSizeNow() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
+    inContext { canvasContainer =>
+      def parentSize() = (canvasContainer.ref.offsetWidth, canvasContainer.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
       fitDiagram
         .sample(svgDiagram)
         .foreach { diagram =>
-          val (parentWidth, parentHeight) = parentSizeNow()
-          val z = math.min(parentWidth / diagram.origW, parentHeight / diagram.origH)
-          zoomValue.set(z)
+//          val (parentWidth, parentHeight) = parentSize()
+//          val z = math.min(parentWidth / diagram.origW, parentHeight / diagram.origH)
+//          zoomValue.set(z)
           // TODO: is there a way to avoid unsafeWindowOwner here?
         }(unsafeWindowOwner)
 
-      // Center the diagram *only* when the parent container is wider than the svg diagram.
-      // Otherwise the left side of the diagram is not accessible with scroll bars (as they only extend to the right).
-      val flexJustification =
-        windowEvents(_.onResize).mapToUnit
-          .startWith(())
-          .combineWith(svgSize)
-          .map: (svgWidth, svgHeight) =>
-            val (parentWidth, parentHeight) = parentSizeNow()
-            Seq(
-              if parentWidth < svgWidth then "justify-start" else "justify-center",
-              if parentHeight < svgHeight then "items-start" else "items-center"
-            )
       Seq(
-        cls <-- flexJustification,
         child <-- svgDiagram.map: diagram =>
-          val selection /*: Set[GraphSymbol]*/ = diagramSelection.now()
+          val selection = diagramSelection.now()
           diagram.select(selection)
           // remove elements not present in the new diagram (such elements did exist in the previous diagram)
           diagramSelection.remove(selection -- diagram.nodeIds)
 
           diagram.toLaminar.amend(
-            svg.width <-- svgSize.map(_._1.toString + "px"),
-            svg.height <-- svgSize.map(_._2.toString + "px")
+            svg.viewBox <-- xy.signal.map((x, y) => s"$x $y 2227 1698"),
+            onWheel --> (ev => xy.update((x, y) => (ev.deltaX + x, ev.deltaY + y)))
           )
       )
     }
