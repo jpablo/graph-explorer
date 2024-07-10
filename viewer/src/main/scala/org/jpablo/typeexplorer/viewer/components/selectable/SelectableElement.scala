@@ -70,7 +70,7 @@ class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
 
 
 extension (e: dom.Element)
-  def path =
+  def parentNodes =
     e +: LazyList.unfold(e)(e => Option(e.parentNode.asInstanceOf[dom.Element]).map(e => (e, e)))
 
   def fill = e.getAttribute("fill")

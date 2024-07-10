@@ -60,6 +60,7 @@ case class ViewerState(
   private def persistableEvents: Signal[(VisibleNodes, String)] =
     visibleNodesV.signal.combineWith(source.signal)
 
+  // -- 
   private def restoreState() =
     val ss = storedString("viewer.state", initial = "{}")
     val (nodes0, source0) = readFromString(ss.signal.observe.now())
