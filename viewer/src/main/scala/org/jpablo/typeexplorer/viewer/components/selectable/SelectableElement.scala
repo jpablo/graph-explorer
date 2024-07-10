@@ -6,18 +6,15 @@ import org.scalajs.dom
 
 sealed trait SelectableElement(ref: dom.SVGGElement):
   def selectedClass: String
-  def selectKey: String
-  def selectStyle: String
+
   protected val title = ref.querySelector("title").textContent
   val nodeId = models.NodeId(title)
 
   def select(): Unit =
     ref.classList.add(selectedClass)
-    ref.updateStyle(selectKey -> selectStyle)
 
   def unselect(): Unit =
     ref.classList.remove(selectedClass)
-    ref.removeStyle(selectKey)
 
   def toggle(): Unit =
     if ref.classList.contains(selectedClass) then
@@ -46,8 +43,6 @@ end SelectableElement
 
 class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
-  val selectKey = "outline"
-  val selectStyle = "3px solid rgb(245 158 11)"
 
 
 class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):

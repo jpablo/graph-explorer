@@ -50,7 +50,8 @@ def CanvasContainer(
       )
     },
     onWheel --> { wEv =>
-      if wEv.metaKey then zoomValue.update(_ - wEv.deltaY / dom.window.innerHeight.max(1))
+      val h = dom.window.innerHeight.max(1)
+      if wEv.metaKey then zoomValue.update(_ - wEv.deltaY / h)
       else translateXY.update((x, y) => (x - wEv.deltaX, y - wEv.deltaY))
     }
   )

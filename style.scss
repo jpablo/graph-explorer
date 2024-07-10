@@ -40,37 +40,42 @@ label[for ^= show-ns-kind-] {
 
 svg.graphviz {
 
-  background-color: lightgray;
-
+  //background-color: lightgray;
   position: absolute !important;
-  //top: 50%;
-  //left: 50%;
-  //transform: translate(-50%, -50%);
-  //width: 500px;
-  //height: 500px;
-  //width: 98%;
-  //height: 98%;
 
   g {
     .node {
       &:hover {
-        outline: 3px solid rgb(251 191 36);
+        outline: 1px solid rgb(251 191 36);
         cursor: pointer;
+      }
+      &.selected {
+        outline: 1px solid rgb(245 158 11);
       }
     }
 
     .edge {
 
-      //&.selected {
-      //  stroke: rgb(251 191 36) !important;
-      //}
-
       &:hover {
         path, polygon {
-          stroke: rgb(251 191 36) !important;
-          stroke-width: 3.0 !important;
+          stroke: rgb(251 191 36);
+          stroke-width: 2.0;
           cursor: pointer;
         }
+        polygon {
+          fill: rgb(251 191 36);
+        }
+      }
+
+      &.selected {
+        * {
+          stroke: rgb(245 158 11);
+          stroke-width: 1.0;
+        }
+        polygon {
+          fill: rgb(245 158 11);
+        }
+
       }
     }
   }
