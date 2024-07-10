@@ -29,7 +29,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #canvas-container {
-    @apply  p-1 z-10 flex-grow overflow-auto flex;
+    @apply  p-1 z-10 flex-grow overflow-hidden flex;
     background-image: radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px);
     background-size: 5px 5px;
     position: relative;
