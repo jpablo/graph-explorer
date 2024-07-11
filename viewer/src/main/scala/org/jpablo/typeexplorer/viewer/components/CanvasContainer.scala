@@ -44,8 +44,7 @@ def CanvasContainer(
           diagram.toLaminar.amend(
             svg.transform <-- translateXY.signal
               .combineWith(zoomValue.signal)
-              .map: (x, y, z) =>
-                s"translate(${x} ${y}) scale($z)"
+              .map((x, y, z) => s"translate($x $y) scale($z)")
           )
       )
     },

@@ -28,7 +28,7 @@ private def NodeRow(state: ViewerState, node: ViewerNode) =
   li(
     a(
       idAttr := node.id.toString,
-      cls    := "font-['JetBrains_Mono'] cursor-pointer",
+      cls    := "cursor-pointer",
       cls("font-bold") <-- isActive,
       div(
         cls := "truncate",

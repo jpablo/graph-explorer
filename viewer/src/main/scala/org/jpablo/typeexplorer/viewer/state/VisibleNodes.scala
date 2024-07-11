@@ -70,18 +70,15 @@ class VisibleNodesOps(
   def addSelectionDirectParents[E <: dom.Event](ep: EventProp[E]) =
     addSelectionWith(_.directParentsOf(_), ep)
 
-  private val graphWithSelection =
-    graph.combineWith(canvasSelectionV.signal)
-
   /** Updates activeSymbols with the given function `f` and the current canvas selection.
     */
   private def addSelectionWith[E <: dom.Event](
       f:  (ViewerGraph, NodeId) => ViewerGraph,
       ep: EventProp[E]
   ): Base =
-    ep.compose(_.sample(graphWithSelection)) --> { (diagram, selection) =>
+    ep.compose(_.sample(graph.combineWith(canvasSelectionV.signal))) --> { (graph, selection) =>
       if selection.nonEmpty then
-        val diagram1 = selection.foldLeft(ViewerGraph.empty)((acc, s) => f(diagram, s) ++ acc)
+        val diagram1 = selection.foldLeft(ViewerGraph.empty)((acc, s) => f(graph, s) ++ acc)
         extend(diagram1.nodeIds.toSeq)
     }
 end VisibleNodesOps
