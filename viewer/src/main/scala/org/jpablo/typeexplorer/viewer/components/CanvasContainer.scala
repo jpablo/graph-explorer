@@ -19,17 +19,6 @@ def CanvasContainer(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
     onWheel --> handleWheel(zoomValue, translateXY),
-    child <-- svgDiagram.map: diagram =>
-      val selection = diagramSelection.now()
-      diagram.select(selection)
-      // remove elements not present in the new diagram (such elements did exist in the previous diagram)
-      diagramSelection.remove(selection -- diagram.nodeIds)
-      diagram.toLaminar.amend(
-        svg.transform <-- translateXY.signal
-          .combineWith(zoomValue.signal)
-          .map((x, y, z) => s"translate($x $y) scale($z)")
-      )
-    ,
     inContext { svgParent =>
       def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
@@ -40,7 +29,22 @@ def CanvasContainer(
           translateXY.set((trX, trY))
           zoomValue.set(z)
         }(unsafeWindowOwner)
-      emptyNode
+
+      child <-- svgDiagram.map: svgDiagram =>
+        val selection = diagramSelection.now()
+        svgDiagram.select(selection)
+        // remove elements not present in the new diagram (such elements did exist in the previous diagram)
+        diagramSelection.remove(selection -- svgDiagram.nodeIds)
+
+        val (trX, trY, z) = translateAndScale(parentSize(), svgDiagram.orig)
+        translateXY.set((trX, trY))
+        zoomValue.set(z)
+
+        svgDiagram.toLaminar.amend(
+          svg.transform <-- translateXY.signal
+            .combineWith(zoomValue.signal)
+            .map((x, y, z) => s"translate($x $y) scale($z)")
+        )
     }
   )
 
@@ -50,7 +54,7 @@ def translateAndScale(parentSize: (Double, Double), orig: (Double, Double)) =
   val z = math.min(parentWidth / origW, parentHeight / origH)
   val trX = (parentWidth - origW) / 2
   val trY = (parentHeight - origH) / 2
-  (trX, trY, z)
+  (trX, trY, if z == Double.PositiveInfinity then 1 else z)
 
 private def handleWheel(zoomValue: Var[Double], translateXY: Var[(Double, Double)])(wEv: WheelEvent) =
   val h = dom.window.innerHeight.max(1)

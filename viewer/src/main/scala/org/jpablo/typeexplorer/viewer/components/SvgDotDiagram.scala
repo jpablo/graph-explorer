@@ -25,9 +25,6 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   if n != null then
     n.parentNode.removeChild(n)
   svgElement.removeAttribute("style")
-//  dom.console.log(svgElement.width.baseVal.value)
-//  svgElement.removeAttribute("width")
-//  svgElement.removeAttribute("height")
 
   // ------------------
 
