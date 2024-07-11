@@ -24,13 +24,9 @@ def CanvasContainer(
       fitDiagram
         .sample(svgDiagram)
         .foreach { svgDiagram =>
-          val (parentWidth, parentHeight) = parentSize()
-          val z = math.min(parentWidth / svgDiagram.origW, parentHeight / svgDiagram.origH)
-          val trX = (parentWidth - svgDiagram.origW) / 2
-          val trY = (parentHeight - svgDiagram.origH) / 2
-          zoomValue.set(z)
+          val (trX, trY, z) = translateAndScale(parentSize(), svgDiagram.orig)
           translateXY.set((trX, trY))
-          // TODO: is there a way to avoid unsafeWindowOwner here?
+          zoomValue.set(z)
         }(unsafeWindowOwner)
 
       Seq(
@@ -54,6 +50,15 @@ def CanvasContainer(
       else translateXY.update((x, y) => (x - wEv.deltaX, y - wEv.deltaY))
     }
   )
+
+def translateAndScale(parentSize: (Double, Double), orig: (Double, Double)) =
+  val (parentWidth, parentHeight) = parentSize
+  val (origW, origH) = orig
+  val z = math.min(parentWidth / origW, parentHeight / origH)
+  val trX = (parentWidth - origW) / 2
+  val trY = (parentHeight - origH) / 2
+  (trX, trY, z)
+
 
 private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     ev:         dom.MouseEvent,
