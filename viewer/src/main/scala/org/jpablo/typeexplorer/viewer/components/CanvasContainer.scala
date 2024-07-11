@@ -6,7 +6,7 @@ import org.jpablo.typeexplorer.viewer.components.selectable.*
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.DiagramSelectionOps
 import org.scalajs.dom
-import org.scalajs.dom.HTMLDivElement
+import org.scalajs.dom.{HTMLDivElement, WheelEvent}
 
 def CanvasContainer(
     svgDiagram:       Signal[SvgDotDiagram],
@@ -18,11 +18,7 @@ def CanvasContainer(
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
-    onWheel --> { wEv =>
-      val h = dom.window.innerHeight.max(1)
-      if wEv.metaKey then zoomValue.update(_ - wEv.deltaY / h)
-      else translateXY.update((x, y) => (x - wEv.deltaX, y - wEv.deltaY))
-    },
+    onWheel --> handleWheel(zoomValue, translateXY),
     child <-- svgDiagram.map: diagram =>
       val selection = diagramSelection.now()
       diagram.select(selection)
@@ -32,7 +28,8 @@ def CanvasContainer(
         svg.transform <-- translateXY.signal
           .combineWith(zoomValue.signal)
           .map((x, y, z) => s"translate($x $y) scale($z)")
-      ),
+      )
+    ,
     inContext { svgParent =>
       def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
@@ -44,7 +41,7 @@ def CanvasContainer(
           zoomValue.set(z)
         }(unsafeWindowOwner)
       emptyNode
-    },
+    }
   )
 
 def translateAndScale(parentSize: (Double, Double), orig: (Double, Double)) =
@@ -54,6 +51,11 @@ def translateAndScale(parentSize: (Double, Double), orig: (Double, Double)) =
   val trX = (parentWidth - origW) / 2
   val trY = (parentHeight - origH) / 2
   (trX, trY, z)
+
+private def handleWheel(zoomValue: Var[Double], translateXY: Var[(Double, Double)])(wEv: WheelEvent) =
+  val h = dom.window.innerHeight.max(1)
+  if wEv.metaKey then zoomValue.update(_ - wEv.deltaY / h)
+  else translateXY.update((x, y) => (x - wEv.deltaX, y - wEv.deltaY))
 
 private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     ev:         dom.MouseEvent,
