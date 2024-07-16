@@ -52,18 +52,14 @@ def CanvasContainer(
 private def adjustSizeWith(
     translateXY: ((Double, Double)) => Unit,
     zoomValue:   Double => Unit
-)(parentSize: () => (Double, Double))(svgDiagram: SvgDotDiagram) =
-  val (trX, trY, z) = calcXYZ(parentSize(), svgDiagram.orig)
-  translateXY(trX, trY)
-  zoomValue(z)
-
-private def calcXYZ(parentSize: (Double, Double), orig: (Double, Double)) =
-  val (parentWidth, parentHeight) = parentSize
-  val (origW, origH) = orig
+)(parentSize: () => (Double, Double))(svgDiagram: SvgDotDiagram): Unit =
+  val (parentWidth, parentHeight) = parentSize()
+  val (origW, origH) = svgDiagram.orig
   val z = math.min(parentWidth / origW, parentHeight / origH)
   val trX = (parentWidth - origW) / 2
   val trY = (parentHeight - origH) / 2
-  (trX, trY, if z == Double.PositiveInfinity then 1 else z)
+  translateXY(trX, trY)
+  zoomValue(if z == Double.PositiveInfinity then 1 else z)
 
 private def handleWheel(zoomValue: Var[Double], translateXY: Var[(Double, Double)])(wEv: WheelEvent) =
   val h = dom.window.innerHeight.max(1)
