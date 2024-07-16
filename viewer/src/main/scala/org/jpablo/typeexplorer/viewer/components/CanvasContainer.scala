@@ -7,6 +7,7 @@ import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.DiagramSelectionOps
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLDivElement, WheelEvent}
+import io.laminext.syntax.core.*
 
 def CanvasContainer(
     svgDiagram:       Signal[SvgDotDiagram],
@@ -19,7 +20,8 @@ def CanvasContainer(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
     onWheel --> handleWheel(zoomValue, translateXY),
-    inContext { svgParent =>
+    onMountBind { ctx =>
+      val svgParent = ctx.thisNode
       def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
       fitDiagram
@@ -28,23 +30,31 @@ def CanvasContainer(
           val (trX, trY, z) = translateAndScale(parentSize(), svgDiagram.orig)
           translateXY.set((trX, trY))
           zoomValue.set(z)
-        }(unsafeWindowOwner)
+        }(ctx.owner)
 
-      child <-- svgDiagram.map: svgDiagram =>
-        val selection = diagramSelection.now()
-        svgDiagram.select(selection)
-        // remove elements not present in the new diagram (such elements did exist in the previous diagram)
-        diagramSelection.remove(selection -- svgDiagram.nodeIds)
+      resizeObserver --> { e =>
+        svgDiagram.foreach { svgDiagram =>
+          val (trX, trY, z) = translateAndScale(parentSize(), svgDiagram.orig)
+          translateXY.set((trX, trY))
+          zoomValue.set(z)
+        }(ctx.owner)
+      }
+    },
+    inContext { svgParent => // aka #canvas-container
+      def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
+      Seq(
+        child <-- svgDiagram.map: svgDiagram =>
+          val selection = diagramSelection.now()
+          svgDiagram.select(selection)
+          // remove elements not present in the new diagram (such elements did exist in the previous diagram)
+          diagramSelection.remove(selection -- svgDiagram.nodeIds)
 
-        val (trX, trY, z) = translateAndScale(parentSize(), svgDiagram.orig)
-        translateXY.set((trX, trY))
-        zoomValue.set(z)
-
-        svgDiagram.toLaminar.amend(
-          svg.transform <-- translateXY.signal
-            .combineWith(zoomValue.signal)
-            .map((x, y, z) => s"translate($x $y) scale($z)")
-        )
+          svgDiagram.toLaminar.amend(
+            svg.transform <-- translateXY.signal
+              .combineWith(zoomValue.signal)
+              .map((x, y, z) => s"translate($x $y) scale($z)")
+          )
+      )
     }
   )
 
