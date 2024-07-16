@@ -15,30 +15,21 @@ def CanvasContainer(
     zoomValue:        Var[Double],
     fitDiagram:       EventStream[Unit]
 ) =
-  val translateXY = Var((0.0, 0.0))
+  val translateXY: Var[(Double, Double)] = Var((0.0, 0.0))
+  val adjustSize = adjustSizeWith(translateXY.set, zoomValue.set)
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
     onWheel --> handleWheel(zoomValue, translateXY),
     onMountBind { ctx =>
       val svgParent = ctx.thisNode
-      def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
+      def parentSize(): (Double, Double) = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
       fitDiagram
         .sample(svgDiagram)
-        .foreach { svgDiagram =>
-          val (trX, trY, z) = translateAndScale(parentSize(), svgDiagram.orig)
-          translateXY.set((trX, trY))
-          zoomValue.set(z)
-        }(ctx.owner)
+        .foreach(adjustSize(parentSize))(ctx.owner)
 
-      resizeObserver --> { e =>
-        svgDiagram.foreach { svgDiagram =>
-          val (trX, trY, z) = translateAndScale(parentSize(), svgDiagram.orig)
-          translateXY.set((trX, trY))
-          zoomValue.set(z)
-        }(ctx.owner)
-      }
+      resizeObserver --> (_ => svgDiagram.foreach(adjustSize(parentSize))(ctx.owner))
     },
     inContext { svgParent => // aka #canvas-container
       def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
@@ -58,7 +49,15 @@ def CanvasContainer(
     }
   )
 
-def translateAndScale(parentSize: (Double, Double), orig: (Double, Double)) =
+private def adjustSizeWith(
+    translateXY: ((Double, Double)) => Unit,
+    zoomValue:   Double => Unit
+)(parentSize: () => (Double, Double))(svgDiagram: SvgDotDiagram) =
+  val (trX, trY, z) = calcXYZ(parentSize(), svgDiagram.orig)
+  translateXY(trX, trY)
+  zoomValue(z)
+
+private def calcXYZ(parentSize: (Double, Double), orig: (Double, Double)) =
   val (parentWidth, parentHeight) = parentSize
   val (origW, origH) = orig
   val z = math.min(parentWidth / origW, parentHeight / origH)
