@@ -12,7 +12,7 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes.given
-import org.jpablo.typeexplorer.viewer.utils.CSVToArray
+import org.jpablo.typeexplorer.viewer.source.CSV
 
 case class ViewerState(
     initialSource: String,
@@ -23,7 +23,12 @@ case class ViewerState(
   val source: Var[String] = Var(initialSource)
 
   val fullGraph: Signal[ViewerGraph] =
-    source.signal.map(CSVToArray(_)).map(ViewerGraph.from)
+    source.signal.map(parseSource)
+
+  private def parseSource(source: String): ViewerGraph =
+    val csv = CSV.fromString(source)
+    if csv.isEmpty then ViewerGraph.from(csv)
+    else ViewerGraph.from(csv)
 
   val appConfigDialogOpenV = Var(false)
 
@@ -60,14 +65,13 @@ case class ViewerState(
   private def persistableEvents: Signal[(VisibleNodes, String)] =
     visibleNodesV.signal.combineWith(source.signal)
 
-  // -- 
+  // --
   private def restoreState() =
     val ss = storedString("viewer.state", initial = "{}")
     val (nodes0, source0) = readFromString(ss.signal.observe.now())
     visibleNodesV.set(nodes0)
     source.set(source0)
-    for a <- persistableEvents do
-      ss.set(writeToString(a))
+    for a <- persistableEvents do ss.set(writeToString(a))
 
   restoreState()
 

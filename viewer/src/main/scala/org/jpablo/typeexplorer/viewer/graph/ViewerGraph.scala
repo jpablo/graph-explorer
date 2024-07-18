@@ -2,7 +2,7 @@ package org.jpablo.typeexplorer.viewer.graph
 
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerKind, ViewerNode, NodeId}
 import org.jpablo.typeexplorer.viewer.tree.Tree
-import org.jpablo.typeexplorer.viewer.utils.CSV
+import org.jpablo.typeexplorer.viewer.source.CSV
 import zio.prelude.{Commutative, Identity}
 
 import scala.annotation.targetName
