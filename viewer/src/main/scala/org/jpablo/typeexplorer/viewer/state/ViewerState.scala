@@ -6,13 +6,12 @@ import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
-import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz.toDot
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes.given
-import org.jpablo.typeexplorer.viewer.source.CSV
+import org.jpablo.typeexplorer.viewer.formats.{CSV, Dot}
 
 case class ViewerState(
     initialSource: String,
@@ -59,7 +58,8 @@ case class ViewerState(
     fullGraph
       .combineWith(project.page.signal.distinct)
       .flatMapSwitch: (graph, page) =>
-        renderDot(graph.subgraph(page.visibleNodes.keySet).toDot(""))
+
+        renderDot(Dot.fromViewerGraph(graph.subgraph(page.visibleNodes.keySet)).toString)
 
   // ---- storage ----
   private def persistableEvents: Signal[(VisibleNodes, String)] =

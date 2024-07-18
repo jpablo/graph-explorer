@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.source
+package org.jpablo.typeexplorer.viewer.formats
 
 import scala.collection.mutable.ArrayBuffer
 import scala.compiletime.asMatchable

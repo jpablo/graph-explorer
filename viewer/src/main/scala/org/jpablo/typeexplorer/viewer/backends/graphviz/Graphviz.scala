@@ -2,8 +2,6 @@ package org.jpablo.typeexplorer.viewer.backends.graphviz
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
-import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
-import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ProjectSettings, VisibleNodes}
 import org.scalajs.dom.SVGSVGElement
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -24,31 +22,3 @@ class Graphviz:
     Signal
       .fromFuture(renderSVGElement(s).map(SvgDotDiagram.apply))
       .map(_.getOrElse(SvgDotDiagram.empty))
-
-object Graphviz:
-
-  extension (graph: ViewerGraph)
-    def toDot(
-        name:            String,
-        visibleNodes:    VisibleNodes = Map.empty,
-        diagramOptions:  DiagramOptions = DiagramOptions(),
-        projectSettings: ProjectSettings = ProjectSettings()
-    ): String =
-
-      val declarations =
-        graph.nodes.map: ns =>
-          s""" "${ns.id}"[label="${ns.displayName}"]"""
-
-      val arrows =
-        graph.arrows.toSeq.map: a =>
-          s""" "${a.source}" -> "${a.target}" """
-
-      s"""
-       |digraph G {
-       | rankdir=LR
-       | ${declarations.mkString("\n  ")}
-       |
-       | ${arrows.mkString("\n  ")}
-       |
-       |}
-       |""".stripMargin

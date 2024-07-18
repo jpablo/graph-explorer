@@ -1,6 +1,6 @@
 package org.jpablo.typeexplorer.viewer.utils
 
-import org.jpablo.typeexplorer.viewer.source.CSV
+import org.jpablo.typeexplorer.viewer.formats.CSV
 
 class CSVToArraySpec extends munit.FunSuite:
   test("empty string"):
