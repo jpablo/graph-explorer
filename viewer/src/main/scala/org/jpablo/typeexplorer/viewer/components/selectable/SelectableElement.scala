@@ -1,7 +1,7 @@
 package org.jpablo.typeexplorer.viewer.components.selectable
 
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.models.NodeId
+import org.jpablo.typeexplorer.viewer.models.{Arrow, NodeId}
 import org.scalajs.dom
 
 sealed trait SelectableElement(ref: dom.SVGGElement):
@@ -51,17 +51,7 @@ class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectStyle = "3px solid rgb(245 158 11)"
 
   def endpointIds: Option[(NodeId, NodeId)] =
-    val input = title
-    val i = input.indexOf("->")
-    if i > 0 && i < input.length - 2 then
-      val l = input.substring(0, i).trim
-      val r = input.substring(i + 2).trim
-      if l.nonEmpty && r.nonEmpty then
-        Some((NodeId(l), NodeId(r)))
-      else
-        None
-    else
-      None
+    Arrow.fromString(title).map(_.toTuple)
 
 
 extension (e: dom.Element)

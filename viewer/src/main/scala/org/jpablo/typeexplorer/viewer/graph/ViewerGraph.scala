@@ -1,8 +1,8 @@
 package org.jpablo.typeexplorer.viewer.graph
 
-import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerKind, ViewerNode, NodeId}
-import org.jpablo.typeexplorer.viewer.tree.Tree
 import org.jpablo.typeexplorer.viewer.formats.CSV
+import org.jpablo.typeexplorer.viewer.models.{Arrow, NodeId, ViewerKind, ViewerNode}
+import org.jpablo.typeexplorer.viewer.tree.Tree
 import zio.prelude.{Commutative, Identity}
 
 import scala.annotation.targetName
@@ -125,20 +125,11 @@ object ViewerGraph:
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     new ViewerGraph(
-      arrows = arrows.map((a, b) => Arrow(a, b)),
+      arrows = arrows.map(Arrow(_, _)),
       nodes = arrows
         .flatMap(a => Set(a._1, a._2))
-        .map(id => ViewerNode(id, id.toString))
+        .map(id => ViewerNode(id, id.toString)) ++ nodes
     )
-
-  def from(csv: CSV): ViewerGraph =
-    val arrows =
-      for
-        row <- csv.rows
-        if row.length >= 2
-      yield
-        NodeId(row(0)) -> NodeId(row(1))
-    ViewerGraph(arrows.toSet)
 
   given Commutative[ViewerGraph] with Identity[ViewerGraph] with
     def identity = ViewerGraph.empty

@@ -8,7 +8,6 @@ import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.scalajs.dom
 
 class SvgDotDiagram(svgElement: dom.SVGSVGElement):
-  export svgElement.querySelector
 
   val origW = svgElement.width.baseVal.value
   val origH = svgElement.height.baseVal.value

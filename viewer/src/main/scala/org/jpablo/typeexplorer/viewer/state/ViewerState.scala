@@ -22,12 +22,13 @@ case class ViewerState(
   val source: Var[String] = Var(initialSource)
 
   val fullGraph: Signal[ViewerGraph] =
-    source.signal.map(parseSource)
+    source.signal.flatMapSwitch(parseSource)
 
-  private def parseSource(source: String): ViewerGraph =
-    val csv = CSV.fromString(source)
-    if csv.isEmpty then ViewerGraph.from(csv)
-    else ViewerGraph.from(csv)
+  // TODO: selection of format should be explicit
+  private def parseSource(source: String): Signal[ViewerGraph] =
+    val csv = CSV(source)
+    if csv.isEmpty then Dot(source).toViewerGraph(renderDot)
+    else Signal.fromValue(csv.toViewerGraph)
 
   val appConfigDialogOpenV = Var(false)
 
@@ -58,7 +59,6 @@ case class ViewerState(
     fullGraph
       .combineWith(project.page.signal.distinct)
       .flatMapSwitch: (graph, page) =>
-
         renderDot(Dot.fromViewerGraph(graph.subgraph(page.visibleNodes.keySet)).toString)
 
   // ---- storage ----

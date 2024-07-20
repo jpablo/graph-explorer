@@ -2,18 +2,16 @@ package org.jpablo.typeexplorer.viewer.examples
 
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models
+import org.jpablo.typeexplorer.viewer.models.ViewerNode.node
 
 object Example1 {
 
-  private def makeClass(name: String) =
-    models.ViewerNode(models.NodeId(name), name)
-
-  val base0 = makeClass("base0")
-  val base1 = makeClass("base1")
-  val base2 = makeClass("base2")
-  val classA = makeClass("classA")
-  val classB = makeClass("classB")
-  val classC = makeClass("classC")
+  val base0 = node("base0")
+  val base1 = node("base1")
+  val base2 = node("base2")
+  val classA = node("classA")
+  val classB = node("classB")
+  val classC = node("classC")
 
   /*
           ┌─────┐

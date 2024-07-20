@@ -95,17 +95,15 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
         case edge: EdgeElement =>
           if ev.metaKey then
             edge.toggle()
-            for pp <- edge.endpointIds do
-              val ids = Set(pp._1, pp._2)
-              svgDiagram.select(ids)
-              diagramSelection.toggle(ids.toSeq*)
+            for (a, b) <- edge.endpointIds do
+              svgDiagram.select(Set(a, b))
+              diagramSelection.toggle(a, b)
           else
             svgDiagram.unselectAll()
             edge.select()
-            for pp <- edge.endpointIds do
-              val ids = Set(pp._1, pp._2)
-              svgDiagram.select(ids)
-              diagramSelection.replace(ids.toSeq*)
+            for (a, b) <- edge.endpointIds do
+              svgDiagram.select(Set(a, b))
+              diagramSelection.replace(a, b)
 
     case None =>
       svgDiagram.unselectAll()

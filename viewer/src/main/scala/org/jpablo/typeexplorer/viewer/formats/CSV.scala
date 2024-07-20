@@ -1,5 +1,8 @@
 package org.jpablo.typeexplorer.viewer.formats
 
+import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
+import org.jpablo.typeexplorer.viewer.models.NodeId
+
 import scala.collection.mutable.ArrayBuffer
 import scala.compiletime.asMatchable
 import scala.util.matching.Regex
@@ -17,9 +20,15 @@ case class CSV(rows: Array[Array[String]]):
   def equal(other: CSV): Boolean =
     Array.equals(rows.map(_.toList), other.rows.map(_.toList))
 
+  def toViewerGraph: ViewerGraph =
+    val arrows =
+      for row <- rows if row.length >= 2 yield
+        NodeId(row(0)) -> NodeId(row(1))
+    ViewerGraph(arrows.toSet)
+
 object CSV:
   // https://www.bennadel.com/blog/1504-ask-ben-parsing-csv-strings-with-javascript-exec-regular-expression-command.htm
-  def fromString(strData: String, strDelimiter: String = ","): CSV =
+  def apply(strData: String, strDelimiter: String = ","): CSV =
     val objPattern =
       Regex(
         s"(\\Q$strDelimiter\\E|\\r?\\n|\\r|^)" +
@@ -48,7 +57,7 @@ object CSV:
 
       // Check to see which kind of value we captured (quoted or unquoted).
       val strMatchedValue = m.group(quoted) match
-        case null => m.group(unquoted)            // We found a non-quoted value.
+        case null   => m.group(unquoted)            // We found a non-quoted value.
         case quoted => quoted.replace("\"\"", "\"") // We found a quoted value. Unescape any double quotes.
       // Add the value to the current row in the data ArrayBuffer.
       if arrData.nonEmpty then arrData.last += strMatchedValue
@@ -60,4 +69,3 @@ end CSV
 val delimiter = "Delimiter"
 val quoted = "Quoted"
 val unquoted = "Unquoted"
-

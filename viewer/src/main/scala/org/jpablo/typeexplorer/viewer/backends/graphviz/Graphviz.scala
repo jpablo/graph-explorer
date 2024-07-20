@@ -20,5 +20,5 @@ class Graphviz:
 
   def renderDot(s: String): Signal[SvgDotDiagram] =
     Signal
-      .fromFuture(renderSVGElement(s).map(SvgDotDiagram.apply))
+      .fromFuture(renderSVGElement(s).map(SvgDotDiagram(_)))
       .map(_.getOrElse(SvgDotDiagram.empty))

@@ -1,10 +1,24 @@
 package org.jpablo.typeexplorer.viewer.formats
 
+import com.raquo.airstream.core.Signal
+import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
+import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
 
 case class Dot(source: String):
   override def toString: String = source
 
+  def toViewerGraph(render: String => Signal[SvgDotDiagram]): Signal[ViewerGraph] =
+    render(source).map: diagram =>
+      def textContent(cls: String) =
+        diagram.ref
+          .querySelectorAll(s".$cls > title")
+          .map(_.textContent)
+
+      val arrows = textContent(".edge").flatMap(Arrow.fromString).toSet
+      val nodes = textContent(".node").map(ViewerNode.node).toSet
+
+      ViewerGraph(arrows, nodes)
 
 case class Digraph(
     declarations: Set[String],
@@ -23,9 +37,6 @@ case class Digraph(
        |""".stripMargin
 
 object Dot:
-
-  def fromString(source: String): Dot =
-    Dot(source)
 
   def fromViewerGraph(graph: ViewerGraph): Dot =
     val declarations =

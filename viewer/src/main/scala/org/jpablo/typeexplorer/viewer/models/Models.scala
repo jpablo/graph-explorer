@@ -15,6 +15,10 @@ case class ViewerNode(
     kind:        ViewerKind = None
 )
 
+object ViewerNode:
+  def node(name: String) =
+    ViewerNode(NodeId(name), name)
+
 // ---- Edges ------
 
 case class ArrowId(value: String) extends AnyVal:
@@ -22,7 +26,7 @@ case class ArrowId(value: String) extends AnyVal:
 
 object ArrowId:
   def random(): ArrowId = ArrowId(Utils.randomUUID())
-end ArrowId
+
 
 case class Arrow(
     source: NodeId,
@@ -35,4 +39,17 @@ case class Arrow(
 object Arrow:
   def apply(s: String, t: String) =
     new Arrow(NodeId(s), NodeId(t))
-end Arrow
+
+  def fromString(input: String): Option[Arrow] =
+    val i = input.indexOf("->")
+    if i > 0 && i < input.length - 2 then
+      val l = input.substring(0, i).trim
+      val r = input.substring(i + 2).trim
+      if l.nonEmpty && r.nonEmpty then
+        Some(Arrow(NodeId(l), NodeId(r)))
+      else
+        None
+    else
+      None
+
+
