@@ -12,7 +12,7 @@ case class Dot(source: String):
     render(source).map: diagram =>
       def textContent(cls: String) =
         diagram.ref
-          .querySelectorAll(s".$cls > title")
+          .querySelectorAll(s"$cls > title")
           .map(_.textContent)
 
       val arrows = textContent(".edge").flatMap(Arrow.fromString).toSet

@@ -22,13 +22,14 @@ case class ViewerState(
   val source: Var[String] = Var(initialSource)
 
   val fullGraph: Signal[ViewerGraph] =
-    source.signal.flatMapSwitch(parseSource)
+    source.signal.flatMapSwitch(parseSource(InputFormats.dot))
 
   // TODO: selection of format should be explicit
-  private def parseSource(source: String): Signal[ViewerGraph] =
-    val csv = CSV(source)
-    if csv.isEmpty then Dot(source).toViewerGraph(renderDot)
-    else Signal.fromValue(csv.toViewerGraph)
+  private def parseSource(format: InputFormats)(source: String): Signal[ViewerGraph] =
+    format match
+      case InputFormats.csv => Signal.fromValue(CSV(source).toViewerGraph)
+      case InputFormats.dot => Dot(source).toViewerGraph(renderDot)
+      
 
   val appConfigDialogOpenV = Var(false)
 
@@ -76,3 +77,7 @@ case class ViewerState(
   restoreState()
 
 end ViewerState
+
+
+enum InputFormats:
+  case csv, dot
