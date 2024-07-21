@@ -31,6 +31,7 @@ const replacementForPublic = isDev()
   : printSbtTask("publicProd");
 
 export default defineConfig({
+  // publicDir: 'viewer/src/main/resources',
   build: {
     sourcemap: true,
     outDir: "backend/src/universal/static"

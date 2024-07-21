@@ -4,6 +4,7 @@ import com.raquo.airstream.core.Signal
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
+import org.scalajs.dom
 
 case class Dot(source: String):
   override def toString: String = source

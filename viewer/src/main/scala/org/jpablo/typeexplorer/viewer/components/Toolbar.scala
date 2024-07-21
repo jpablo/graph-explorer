@@ -28,7 +28,8 @@ def Toolbar(
         input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
         label(
           forId := drawerId,
-          cls   := "btn btn-ghost btn-sm bi bi-boxes",
+          cls   := "btn btn-ghost btn-sm bi bi-layout-sidebar",
+          cls("btn-active") <-- drawerOpen,
           onClick --> drawerOpen.toggle()
         )
       ).amend(cls := "flex-none")
