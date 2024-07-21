@@ -12,10 +12,11 @@ import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes.given
 import org.jpablo.typeexplorer.viewer.formats.{CSV, Dot}
+import org.jpablo.typeexplorer.viewer.formats.Dot.toDot
 
 case class ViewerState(
     initialSource: String,
-    renderDot:     String => Signal[SvgDotDiagram]
+    renderDot:     Dot => Signal[SvgDotDiagram]
 ):
   given owner: Owner = OneTimeOwner(() => ())
 
@@ -29,7 +30,6 @@ case class ViewerState(
     format match
       case InputFormats.csv => Signal.fromValue(CSV(source).toViewerGraph)
       case InputFormats.dot => Dot(source).toViewerGraph(renderDot)
-      
 
   val appConfigDialogOpenV = Var(false)
 
@@ -60,7 +60,10 @@ case class ViewerState(
     fullGraph
       .combineWith(project.page.signal.distinct)
       .flatMapSwitch: (graph, page) =>
-        renderDot(Dot.fromViewerGraph(graph.subgraph(page.visibleNodes.keySet)).toString)
+        renderDot:
+          graph
+            .subgraph(page.visibleNodes.keySet)
+            .toDot
 
   // ---- storage ----
   private def persistableEvents: Signal[(VisibleNodes, String)] =
@@ -77,7 +80,6 @@ case class ViewerState(
   restoreState()
 
 end ViewerState
-
 
 enum InputFormats:
   case csv, dot

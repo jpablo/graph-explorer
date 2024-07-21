@@ -9,8 +9,8 @@ import org.scalajs.dom
 case class Dot(source: String):
   override def toString: String = source
 
-  def toViewerGraph(render: String => Signal[SvgDotDiagram]): Signal[ViewerGraph] =
-    render(source).map: diagram =>
+  def toViewerGraph(render: Dot => Signal[SvgDotDiagram]): Signal[ViewerGraph] =
+    render(this).map: diagram =>
       def textContent(cls: String) =
         diagram.ref
           .querySelectorAll(s"$cls > title")
@@ -39,13 +39,14 @@ case class Digraph(
 
 object Dot:
 
-  def fromViewerGraph(graph: ViewerGraph): Dot =
-    val declarations =
-      graph.nodes.map: ns =>
-        s""" "${ns.id}"[label="${ns.displayName}"]"""
+  extension (graph: ViewerGraph)
+    def toDot: Dot =
+      val declarations =
+        graph.nodes.map: ns =>
+          s""" "${ns.id}"[label="${ns.displayName}"]"""
 
-    val arrows =
-      graph.arrows.toSeq.map: a =>
-        s""" "${a.source}" -> "${a.target}" """
+      val arrows =
+        graph.arrows.toSeq.map: a =>
+          s""" "${a.source}" -> "${a.target}" """
 
-    Dot(Digraph(declarations, arrows, "LR").toString)
+      Dot(Digraph(declarations, arrows, "LR").toString)

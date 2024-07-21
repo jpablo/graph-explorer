@@ -2,6 +2,7 @@ package org.jpablo.typeexplorer.viewer.backends.graphviz
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
+import org.jpablo.typeexplorer.viewer.formats.Dot
 import org.scalajs.dom.SVGSVGElement
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,7 +19,7 @@ class Graphviz:
   private def renderSVGElement(g: String): Future[SVGSVGElement] =
     instance.map(_.renderSVGElement(g).asInstanceOf[SVGSVGElement])
 
-  def renderDot(s: String): Signal[SvgDotDiagram] =
+  def renderDot(dot: Dot): Signal[SvgDotDiagram] =
     Signal
-      .fromFuture(renderSVGElement(s).map(SvgDotDiagram(_)))
+      .fromFuture(renderSVGElement(dot.toString).map(SvgDotDiagram(_)))
       .map(_.getOrElse(SvgDotDiagram.empty))

@@ -10,6 +10,8 @@ import org.jpablo.typeexplorer.viewer.widgets.Icons.*
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ViewerState}
+import org.jpablo.typeexplorer.viewer.formats.Dot.toDot
+
 
 def Toolbar(
     state:           ViewerState,
@@ -95,5 +97,5 @@ private def onDotClicked(state: ViewerState) =
     )
   ) --> { (fullDiagram: ViewerGraph, visibleNodes, options: DiagramOptions) =>
     dom.window.navigator.clipboard.writeText:
-      Dot.fromViewerGraph(fullDiagram.subgraph(visibleNodes.keySet)).toString
+      fullDiagram.subgraph(visibleNodes.keySet).toDot.toString
   }
