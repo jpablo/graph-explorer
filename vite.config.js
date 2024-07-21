@@ -32,6 +32,7 @@ const replacementForPublic = isDev()
 
 export default defineConfig({
   // publicDir: 'viewer/src/main/resources',
+  root: '.',
   build: {
     sourcemap: true,
     outDir: "backend/src/universal/static"

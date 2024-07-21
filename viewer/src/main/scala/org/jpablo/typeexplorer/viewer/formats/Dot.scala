@@ -6,21 +6,28 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
 import org.scalajs.dom
 
-case class Dot(source: String):
+import scala.scalajs.js
+
+case class Dot(source: String, parse: String => js.Object):
   override def toString: String = source
 
-  def toViewerGraph(render: Dot => Signal[SvgDotDiagram]): Signal[ViewerGraph] =
-    render(this).map: diagram =>
-      def textContent(cls: String) =
-        diagram.ref
-          .querySelectorAll(s"$cls > title")
-          .map(_.textContent)
+  lazy val ast: js.Object =
+    parse(source)
 
-      val arrows = textContent(".edge").flatMap(Arrow.fromString).toSet
-      val nodes = textContent(".node").map(ViewerNode.node).toSet
+  def toViewerGraph: Signal[ViewerGraph] =
+    dom.console.log(ast)
+    Signal.fromValue(ViewerGraph(Set.empty, Set.empty))
 
-      ViewerGraph(arrows, nodes)
-
+//  def toViewerGraph(render: Dot => Signal[SvgDotDiagram]): Signal[ViewerGraph] =
+//    render(this).map: diagram =>
+//      def textContent(cls: String) =
+//        diagram.ref.querySelectorAll(s"$cls > title").map(_.textContent)
+//
+//      val arrows = textContent(".edge").flatMap(Arrow.fromString).toSet
+//      val nodes = textContent(".node").map(ViewerNode.node).toSet
+//
+//      ViewerGraph(arrows, nodes)
+//
 case class Digraph(
     declarations: Set[String],
     arrows:       Seq[String],
@@ -49,4 +56,4 @@ object Dot:
         graph.arrows.toSeq.map: a =>
           s""" "${a.source}" -> "${a.target}" """
 
-      Dot(Digraph(declarations, arrows, "LR").toString)
+      Dot(Digraph(declarations, arrows, "LR").toString, ???)

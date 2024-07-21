@@ -6,6 +6,7 @@ import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
+import org.jpablo.typeexplorer.viewer.backends.graphviz.DotParser
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
@@ -29,7 +30,9 @@ case class ViewerState(
   private def parseSource(format: InputFormats)(source: String): Signal[ViewerGraph] =
     format match
       case InputFormats.csv => Signal.fromValue(CSV(source).toViewerGraph)
-      case InputFormats.dot => Dot(source).toViewerGraph(renderDot)
+      case InputFormats.dot =>
+        println(s"[parseSource] $format. About to use DotParser")
+        Dot(source, DotParser.parse).toViewerGraph
 
   val appConfigDialogOpenV = Var(false)
 
