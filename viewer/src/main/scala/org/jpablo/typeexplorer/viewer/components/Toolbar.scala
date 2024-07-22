@@ -4,13 +4,12 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.laminext.syntax.core.*
-import org.jpablo.typeexplorer.viewer.formats.Dot
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.widgets.Icons.*
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ViewerState}
-import org.jpablo.typeexplorer.viewer.formats.Dot.toDot
+import org.jpablo.typeexplorer.viewer.formats.dot.Dot.toDot
 
 
 def Toolbar(
@@ -97,5 +96,5 @@ private def onDotClicked(state: ViewerState) =
     )
   ) --> { (fullDiagram: ViewerGraph, visibleNodes, options: DiagramOptions) =>
     dom.window.navigator.clipboard.writeText:
-      fullDiagram.subgraph(visibleNodes.keySet).toDot.toString
+      fullDiagram.subgraph(visibleNodes.keySet).toDot.value
   }

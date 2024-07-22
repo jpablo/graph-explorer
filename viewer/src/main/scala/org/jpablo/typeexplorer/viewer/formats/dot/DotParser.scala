@@ -1,4 +1,4 @@
-package org.jpablo.typeexplorer.viewer.backends.graphviz
+package org.jpablo.typeexplorer.viewer.formats.dot
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*

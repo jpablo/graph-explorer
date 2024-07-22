@@ -1,7 +1,9 @@
 package org.jpablo.typeexplorer.viewer.state
 
 import org.jpablo.typeexplorer.viewer.models
-import org.jpablo.typeexplorer.viewer.models.{ViewerKind, NodeId}
+import org.jpablo.typeexplorer.viewer.models.{NodeId, ViewerKind}
+import upickle.default.*
+
 
 type Path = String
 
@@ -14,8 +16,8 @@ case class PackagesOptions(
 // project configuration
 case class ProjectSettings(
     basePaths:     List[Path] = List.empty,
-    hiddenFields:  List[String] = DiagramOptions.hiddenFields,
-    hiddenNodeIds: List[NodeId] = DiagramOptions.hiddenSymbols
+    hiddenFields:  List[String] = List.empty,
+    hiddenNodeIds: List[NodeId] = List.empty
 )
 
 // diagram configuration (tab specific)
@@ -27,26 +29,7 @@ case class DiagramOptions(
 case class NodeOptions(
     showFields:     Boolean = false,
     showSignatures: Boolean = false
-)
+) derives ReadWriter
 
-object DiagramOptions:
 
-  val hiddenFields = List(
-    "canEqual",
-    "copy",
-    "equals",
-    "hashCode",
-    "productArity",
-    "productElement",
-    "productIterator",
-    "productPrefix",
-    "toString",
-    "_1",
-    "_2",
-    "_3",
-    "_4"
-  )
 
-  val hiddenSymbols = List()
-
-end DiagramOptions

@@ -28,8 +28,6 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
     "-Wunused:imports"
   )
 
-
-
 val publicDev = taskKey[String]("output directory for `npm run dev`")
 val publicProd = taskKey[String]("output directory for `npm run build`")
 
@@ -52,16 +50,15 @@ lazy val viewer =
         baseDirectory.value / ".."
       },
       libraryDependencies ++= Seq(
-        "com.raquo"                             %%% "laminar"               % laminarVersion,
-        "com.raquo"                             %%% "waypoint"              % "8.0.0",
-        "com.softwaremill.quicklens"            %%% "quicklens"             % "1.9.0",
-        "dev.zio"                               %%% "zio-json"              % "0.6.1",
-        "dev.zio"                               %%% "zio-prelude"           % zioPreludeVersion,
-        "io.laminext"                           %%% "fetch"                 % "0.17.0",
-        "org.scala-js"                          %%% "scalajs-dom"           % "2.8.0",
-        "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core"   % "2.30.3",
-        "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % "2.30.3", //% "compile-internal",
-        "org.scalameta"                         %%% "munit"                 % "1.0.0"  % Test
+        "com.raquo"                  %%% "laminar"     % laminarVersion,
+        "com.raquo"                  %%% "waypoint"    % "8.0.0",
+        "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
+        "dev.zio"                    %%% "zio-json"    % "0.6.1",
+        "dev.zio"                    %%% "zio-prelude" % zioPreludeVersion,
+        "io.laminext"                %%% "fetch"       % "0.17.0",
+        "org.scala-js"               %%% "scalajs-dom" % "2.8.0",
+        "com.lihaoyi"                %%% "upickle"     % "4.0.0-RC1",
+        "org.scalameta"              %%% "munit"       % "1.0.0" % Test
       ),
       excludeDependencies ++= Seq(
         "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
@@ -77,7 +74,6 @@ lazy val viewer =
       Compile / semanticdbTargetRoot := projectPath.value,
       testFrameworks += new TestFramework("munit.Framework")
     )
-
 
 def linkerOutputDirectory(v: Attributed[org.scalajs.linker.interface.Report]): File =
   v.get(scalaJSLinkerOutputDirectory.key).getOrElse {

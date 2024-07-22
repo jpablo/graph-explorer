@@ -1,23 +1,23 @@
 package org.jpablo.typeexplorer.viewer.state
 
-import com.github.plokhotnyuk.jsoniter_scala.core.*
+//import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
-import org.jpablo.typeexplorer.viewer.backends.graphviz.DotParser
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
+import org.jpablo.typeexplorer.viewer.formats.CSV
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
-import org.jpablo.typeexplorer.viewer.state.VisibleNodes.given
-import org.jpablo.typeexplorer.viewer.formats.{CSV, Dot}
-import org.jpablo.typeexplorer.viewer.formats.Dot.toDot
+import org.jpablo.typeexplorer.viewer.formats.dot.Dot.toDot
+import org.jpablo.typeexplorer.viewer.formats.dot.{Dot, DotParser, DotString}
+import upickle.default.*
 
 case class ViewerState(
     initialSource: String,
-    renderDot:     Dot => Signal[SvgDotDiagram]
+    renderDot:     DotString => Signal[SvgDotDiagram]
 ):
   given owner: Owner = OneTimeOwner(() => ())
 
@@ -32,7 +32,7 @@ case class ViewerState(
       case InputFormats.csv => Signal.fromValue(CSV(source).toViewerGraph)
       case InputFormats.dot =>
         println(s"[parseSource] $format. About to use DotParser")
-        Dot(source, DotParser.parse).toViewerGraph
+        Dot.toViewerGraph(source, DotParser.parse)
 
   val appConfigDialogOpenV = Var(false)
 
@@ -75,10 +75,10 @@ case class ViewerState(
   // --
   private def restoreState() =
     val ss = storedString("viewer.state", initial = "{}")
-    val (nodes0, source0) = readFromString(ss.signal.observe.now())
+    val (nodes0, source0) = read[(VisibleNodes, String)](ss.signal.observe.now())
     visibleNodesV.set(nodes0)
     source.set(source0)
-    for a <- persistableEvents do ss.set(writeToString(a))
+    for a <- persistableEvents do ss.set(write(a))
 
   restoreState()
 

@@ -1,11 +1,15 @@
 package org.jpablo.typeexplorer.viewer.models
 
+import upickle.default.*
 import org.jpablo.typeexplorer.viewer.utils.Utils
 
 // ---- Vertices ------
 
-case class NodeId(value: String) extends AnyVal:
+case class NodeId(value: String):
   override def toString: String = value
+
+object NodeId:
+  given rw: ReadWriter[NodeId] = stringKeyRW(readwriter[String].bimap[NodeId](_.value, NodeId(_)))
 
 type ViewerKind = Option[String]
 
@@ -27,7 +31,6 @@ case class ArrowId(value: String) extends AnyVal:
 object ArrowId:
   def random(): ArrowId = ArrowId(Utils.randomUUID())
 
-
 case class Arrow(
     source: NodeId,
     target: NodeId,
@@ -45,11 +48,6 @@ object Arrow:
     if i > 0 && i < input.length - 2 then
       val l = input.substring(0, i).trim
       val r = input.substring(i + 2).trim
-      if l.nonEmpty && r.nonEmpty then
-        Some(Arrow(NodeId(l), NodeId(r)))
-      else
-        None
-    else
-      None
-
-
+      if l.nonEmpty && r.nonEmpty then Some(Arrow(NodeId(l), NodeId(r)))
+      else None
+    else None
