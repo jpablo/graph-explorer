@@ -44,13 +44,13 @@ case class Attr(
 case class EdgeStmt(
     location: Location,
     @key("edge_list")
-    edgeList: List[NodeId],
+    edgeList: List[DotNodeId],
     @key("attr_list")
     attrList: List[Attr]
 ) extends GraphElement
     derives ReadWriter
 
-case class NodeId(
+case class DotNodeId(
     location: Location,
     id:       String
 ) derives ReadWriter

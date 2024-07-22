@@ -1,16 +1,14 @@
 package org.jpablo.typeexplorer.viewer.formats.dot
 
 import com.raquo.airstream.core.Signal
-import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraph
+import org.jpablo.typeexplorer.viewer.formats.dot.ast.{AttrStmt, DiGraph, EdgeStmt, Newline, Pad, StmtSep}
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
+import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
 import org.scalajs.dom
 
 import scala.scalajs.js
 import scala.scalajs.js.JSON
 import upickle.default.*
-//import com.github.plokhotnyuk.jsoniter_scala.macros.*
-//import com.github.plokhotnyuk.jsoniter_scala.core.*
-
 
 case class DotString(value: String) extends AnyVal:
   override def toString: String = value
@@ -33,14 +31,29 @@ case class Digraph(
 
 object Dot:
   def toViewerGraph(source: String, parse: String => js.Object): Signal[ViewerGraph] =
-    dom.console.log("Dot.toViewerGraph")
     val json = JSON.stringify(parse(source))
-    dom.console.log(json)
     val ast = read[List[DiGraph]](json)
-    println(ast)
-    // TODO: use the ast to create a ViewerGraph
-    Signal.fromValue(ViewerGraph(Set.empty, Set.empty))
+    val diGraph = ast.head // Assuming there's only one digraph
 
+    val nodes =
+      diGraph.children
+        .collect { case EdgeStmt(_, edgeList, _) =>
+          edgeList.map(node => ViewerNode.node(node.id))
+        }
+        .flatten
+        .toSet
+
+    val arrows = diGraph.children
+      .collect {
+        case EdgeStmt(_, edgeList, _) if edgeList.size >= 2 =>
+          edgeList.sliding(2).map { case List(source, target) =>
+            Arrow(source.id, target.id)
+          }
+      }
+      .flatten
+      .toSet
+
+    Signal.fromValue(ViewerGraph(arrows, nodes))
 
   extension (graph: ViewerGraph)
     def toDot: DotString =
