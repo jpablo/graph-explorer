@@ -30,7 +30,7 @@ case class ViewerState(
   private def parseSource(format: InputFormats)(source: String): Signal[ViewerGraph] =
     format match
       case InputFormats.csv => Signal.fromValue(CSV(source).toViewerGraph)
-      case InputFormats.dot => Dot.toViewerGraph(source, DotParserT.parse)
+      case InputFormats.dot => Signal.fromValue(Dot.toViewerGraph(source))
 
   val appConfigDialogOpenV = Var(false)
 

@@ -32,8 +32,9 @@ case class Digraph(
        |""".stripMargin
 
 object Dot:
-  def toViewerGraph(source: String, parse: String => Try[List[DiGraph]]): Signal[ViewerGraph] =
-    val ast = parse(source).getOrElse(Nil)
+  
+  def toViewerGraph(source: String): ViewerGraph =
+    val ast = DotParserT.parse(source).getOrElse(Nil)
     val diGraph = ast.head // Assuming there's only one digraph
 
     val nodes =
@@ -55,7 +56,7 @@ object Dot:
         .flatten
         .toSet
 
-    Signal.fromValue(ViewerGraph(arrows, nodes))
+    ViewerGraph(arrows, nodes)
 
   extension (graph: ViewerGraph)
     def toDot: DotString =
