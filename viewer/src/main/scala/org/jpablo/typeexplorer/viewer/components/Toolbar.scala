@@ -9,7 +9,7 @@ import org.jpablo.typeexplorer.viewer.widgets.Icons.*
 import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 import org.jpablo.typeexplorer.viewer.state.{DiagramOptions, ViewerState}
-import org.jpablo.typeexplorer.viewer.formats.dot.DotString.*
+import org.jpablo.typeexplorer.viewer.formats.dot.Dot.*
 
 
 def Toolbar(

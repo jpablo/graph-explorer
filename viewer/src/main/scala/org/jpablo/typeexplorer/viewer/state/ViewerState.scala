@@ -8,7 +8,7 @@ import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.formats.CSV
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot
-import org.jpablo.typeexplorer.viewer.formats.dot.DotString.*
+import org.jpablo.typeexplorer.viewer.formats.dot.Dot.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
