@@ -1,19 +1,16 @@
 package org.jpablo.typeexplorer.viewer.formats.dot
 
-import com.raquo.airstream.core.Signal
-import org.jpablo.typeexplorer.viewer.formats.dot.ast.{AttrStmt, DiGraph, EdgeStmt, Newline, Pad, StmtSep}
+import com.raquo.laminar.api.L.*
+import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
+import org.jpablo.typeexplorer.viewer.formats.dot.ast.{DiGraph, EdgeStmt}
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
-import org.scalajs.dom
 
-import scala.scalajs.js
-import scala.scalajs.js.JSON
-import upickle.default.*
-
-import scala.util.Try
 
 case class DotString(value: String) extends AnyVal:
   override def toString: String = value
+
 
 case class Digraph(
     declarations: Set[String],
@@ -31,10 +28,13 @@ case class Digraph(
        |}
        |""".stripMargin
 
-object Dot:
-  
-  def toViewerGraph(source: String): ViewerGraph =
-    val ast = DotParserT.parse(source).getOrElse(Nil)
+
+case class Dot(value: String):
+
+  val ast: List[DiGraph] =
+    DotParserT.parse(value).getOrElse(Nil)
+
+  def toViewerGraph: ViewerGraph =
     val diGraph = ast.head // Assuming there's only one digraph
 
     val nodes =
@@ -58,6 +58,11 @@ object Dot:
 
     ViewerGraph(arrows, nodes)
 
+object DotString:
+  extension (dot: DotString)
+    def toSvgDiagram: Signal[SvgDotDiagram] =
+      (new Graphviz).renderDot(dot)
+
   extension (graph: ViewerGraph)
     def toDot: DotString =
       val declarations =
@@ -71,3 +76,5 @@ object Dot:
       DotString(
         Digraph(declarations, arrows, "LR").toString
       )
+
+

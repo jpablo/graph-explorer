@@ -1,7 +1,6 @@
 package org.jpablo.typeexplorer.viewer
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.typeexplorer.viewer.components.TopLevel
 import org.jpablo.typeexplorer.viewer.state.ViewerState
 import org.scalajs.dom
@@ -14,8 +13,7 @@ object Viewer:
     render(dom.document.querySelector("#app"), appElem)
 
   private def createApp()(using Owner) =
-    val renderDot = (new Graphviz).renderDot
-    val state = ViewerState("", renderDot)
+    val state = ViewerState()
     TopLevel(state)
 
 

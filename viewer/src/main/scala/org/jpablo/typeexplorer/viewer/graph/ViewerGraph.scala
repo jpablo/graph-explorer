@@ -7,6 +7,9 @@ import zio.prelude.{Commutative, Identity}
 
 import scala.annotation.targetName
 
+trait Decoder[A]:
+  def decode(s: String): Either[String, A]
+
 /** A simplified representation of entities and subtype relationships
   *
   * @param arrows
@@ -134,6 +137,7 @@ object ViewerGraph:
   given Commutative[ViewerGraph] with Identity[ViewerGraph] with
     def identity = ViewerGraph.empty
     def combine(l: => ViewerGraph, r: => ViewerGraph) = l ++ r
+
 
   // In Scala 3.2 the type annotation is needed.
   val empty = ViewerGraph(Set.empty, Set.empty)

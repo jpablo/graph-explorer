@@ -54,7 +54,7 @@ lazy val viewer =
         "com.raquo"                  %%% "waypoint"    % "8.0.0",
         "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
         "dev.zio"                    %%% "zio-json"    % "0.6.1",
-        "dev.zio"                    %%% "zio-prelude" % zioPreludeVersion,
+        "dev.zio"                    %%% "zio-prelude" % "1.0.0-RC27",
         "io.laminext"                %%% "fetch"       % "0.17.0",
         "org.scala-js"               %%% "scalajs-dom" % "2.8.0",
         "com.lihaoyi"                %%% "upickle"     % "4.0.0-RC1",

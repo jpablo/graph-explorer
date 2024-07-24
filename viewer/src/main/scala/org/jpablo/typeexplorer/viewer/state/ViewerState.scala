@@ -1,6 +1,5 @@
 package org.jpablo.typeexplorer.viewer.state
 
-//import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
@@ -8,17 +7,14 @@ import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.formats.CSV
+import org.jpablo.typeexplorer.viewer.formats.dot.Dot
+import org.jpablo.typeexplorer.viewer.formats.dot.DotString.*
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
-import org.jpablo.typeexplorer.viewer.formats.dot.Dot.toDot
-import org.jpablo.typeexplorer.viewer.formats.dot.{Dot, DotParser, DotParserT, DotString}
 import upickle.default.*
 
-case class ViewerState(
-    initialSource: String,
-    renderDot:     DotString => Signal[SvgDotDiagram]
-):
+case class ViewerState(initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
 
   val source: Var[String] = Var(initialSource)
@@ -30,7 +26,7 @@ case class ViewerState(
   private def parseSource(format: InputFormats)(source: String): Signal[ViewerGraph] =
     format match
       case InputFormats.csv => Signal.fromValue(CSV(source).toViewerGraph)
-      case InputFormats.dot => Signal.fromValue(Dot.toViewerGraph(source))
+      case InputFormats.dot => Signal.fromValue(Dot(source).toViewerGraph)
 
   val appConfigDialogOpenV = Var(false)
 
@@ -61,10 +57,10 @@ case class ViewerState(
     fullGraph
       .combineWith(project.page.signal.distinct)
       .flatMapSwitch: (graph, page) =>
-        renderDot:
-          graph
-            .subgraph(page.visibleNodes.keySet)
-            .toDot
+        graph
+          .subgraph(page.visibleNodes.keySet)
+          .toDot
+          .toSvgDiagram
 
   // ---- storage ----
   private def persistableEvents: Signal[(VisibleNodes, String)] =
