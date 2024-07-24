@@ -10,6 +10,8 @@ import scala.scalajs.js
 import scala.scalajs.js.JSON
 import upickle.default.*
 
+import scala.util.Try
+
 case class DotString(value: String) extends AnyVal:
   override def toString: String = value
 
@@ -30,28 +32,28 @@ case class Digraph(
        |""".stripMargin
 
 object Dot:
-  def toViewerGraph(source: String, parse: String => js.Object): Signal[ViewerGraph] =
-    val json = JSON.stringify(parse(source))
-    val ast = read[List[DiGraph]](json)
+  def toViewerGraph(source: String, parse: String => Try[List[DiGraph]]): Signal[ViewerGraph] =
+    val ast = parse(source).getOrElse(Nil)
     val diGraph = ast.head // Assuming there's only one digraph
 
     val nodes =
       diGraph.children
         .collect { case EdgeStmt(_, edgeList, _) =>
-          edgeList.map(node => ViewerNode.node(node.id))
+          edgeList.map(_.id).map(ViewerNode.node)
         }
         .flatten
         .toSet
 
-    val arrows = diGraph.children
-      .collect {
-        case EdgeStmt(_, edgeList, _) if edgeList.size >= 2 =>
-          edgeList.sliding(2).map { case List(source, target) =>
-            Arrow(source.id, target.id)
-          }
-      }
-      .flatten
-      .toSet
+    val arrows =
+      diGraph.children
+        .collect {
+          case EdgeStmt(_, edgeList, _) if edgeList.size >= 2 =>
+            edgeList.sliding(2).map { case List(source, target) =>
+              Arrow(source.id, target.id)
+            }
+        }
+        .flatten
+        .toSet
 
     Signal.fromValue(ViewerGraph(arrows, nodes))
 

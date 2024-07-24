@@ -12,7 +12,7 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot.toDot
-import org.jpablo.typeexplorer.viewer.formats.dot.{Dot, DotParser, DotString}
+import org.jpablo.typeexplorer.viewer.formats.dot.{Dot, DotParser, DotParserT, DotString}
 import upickle.default.*
 
 case class ViewerState(
@@ -30,9 +30,7 @@ case class ViewerState(
   private def parseSource(format: InputFormats)(source: String): Signal[ViewerGraph] =
     format match
       case InputFormats.csv => Signal.fromValue(CSV(source).toViewerGraph)
-      case InputFormats.dot =>
-        println(s"[parseSource] $format. About to use DotParser")
-        Dot.toViewerGraph(source, DotParser.parse)
+      case InputFormats.dot => Dot.toViewerGraph(source, DotParserT.parse)
 
   val appConfigDialogOpenV = Var(false)
 
