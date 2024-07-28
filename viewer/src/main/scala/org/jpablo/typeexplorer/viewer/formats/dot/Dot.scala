@@ -12,17 +12,20 @@ case class Dot(value: String):
   override def toString: String =
     value
 
-  val ast: List[DiGraph] =
+  val buildAST: List[DiGraph] =
     DotParserT.parse(value).getOrElse(Nil)
 
 
 object Dot:
+  private val gvInstance = new Graphviz
+
   extension (dot: Dot)
     def toSvgDiagram: Signal[SvgDotDiagram] =
-      (new Graphviz).renderDot(dot)
+      gvInstance.renderDot(dot)
 
     def toViewerGraph: ViewerGraph =
-      val diGraph = dot.ast.head // Assuming there's only one digraph
+      // TODO: handle errors
+      val diGraph = dot.buildAST.head // Assuming there's only one digraph
 
       val nodes =
         diGraph.children

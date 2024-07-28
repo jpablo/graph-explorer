@@ -47,10 +47,10 @@ case class ViewerState(initialSource: String = ""):
           .toDot
           .toSvgDiagram
 
-  val appConfigDialogOpenV = Var(false)
-
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)
+
+  val appConfigDialogOpenV = Var(false)
 
   // -------------------------------
   // this should be a subset of visibleNodesV keys
