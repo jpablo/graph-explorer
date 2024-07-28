@@ -16,7 +16,7 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
     idAttr := "top-level",
     leftPanelOpen.signal.childWhenTrue:
       LeftPanel(state),
-    CanvasContainer(state.svgDiagram, state.diagramSelection, zoomValue, fitDiagram.events),
+    CanvasContainer(state, zoomValue, fitDiagram.events),
     Toolbar(state, zoomValue, fitDiagram, leftPanelOpen),
     SelectionSidebar(state),
   )

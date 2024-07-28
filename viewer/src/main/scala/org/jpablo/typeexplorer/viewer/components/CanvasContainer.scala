@@ -4,41 +4,42 @@ import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.components.selectable.*
 import org.jpablo.typeexplorer.viewer.models.NodeId
-import org.jpablo.typeexplorer.viewer.state.DiagramSelectionOps
+import org.jpablo.typeexplorer.viewer.state.{DiagramSelectionOps, ViewerState}
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLDivElement, WheelEvent}
 import io.laminext.syntax.core.*
 
 def CanvasContainer(
-    svgDiagram:       Signal[SvgDotDiagram],
-    diagramSelection: DiagramSelectionOps,
-    zoomValue:        Var[Double],
-    fitDiagram:       EventStream[Unit]
+    state:      ViewerState,
+    zoomValue:  Var[Double],
+    fitDiagram: EventStream[Unit]
 ) =
   val translateXY: Var[(Double, Double)] = Var((0.0, 0.0))
   val adjustSize = adjustSizeWith(translateXY.set, zoomValue.set)
   div(
     idAttr := "canvas-container",
-    onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram)) --> handleSvgClick(diagramSelection).tupled,
+    onClick.preventDefault.compose(_.withCurrentValueOf(state.svgDiagram)) --> handleSvgClick(
+      state.diagramSelection
+    ).tupled,
     onWheel --> handleWheel(zoomValue, translateXY),
     onMountBind { ctx =>
       val svgParent = ctx.thisNode
       def parentSize(): (Double, Double) = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       // scale the diagram to fit the parent container whenever the "fit" button is clicked
       fitDiagram
-        .sample(svgDiagram)
+        .sample(state.svgDiagram)
         .foreach(adjustSize(parentSize))(ctx.owner)
 
-      resizeObserver --> (_ => svgDiagram.foreach(adjustSize(parentSize))(ctx.owner))
+      resizeObserver --> (_ => state.svgDiagram.foreach(adjustSize(parentSize))(ctx.owner))
     },
     inContext { svgParent => // aka #canvas-container
       def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
       Seq(
-        child <-- svgDiagram.map: svgDiagram =>
-          val selection = diagramSelection.now()
+        child <-- state.svgDiagram.map: svgDiagram =>
+          val selection = state.diagramSelection.now()
           svgDiagram.select(selection)
           // remove elements not present in the new diagram (such elements did exist in the previous diagram)
-          diagramSelection.remove(selection -- svgDiagram.nodeIds)
+          state.diagramSelection.remove(selection -- svgDiagram.nodeIds)
 
           svgDiagram.toLaminar.amend(
             svg.transform <-- translateXY.signal
@@ -111,7 +112,7 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
 
 //private def handleOnMouseOver(diagramSelection: DiagramSelectionOps)(
 //    ev:         dom.MouseEvent,
-//    svgDiagram: SvgDotDiagram
+//    state.svgDiagram: SvgDotDiagram
 //): Unit =
 //  // 1. Identify and parse the element that was clicked
 //  val selectedElement: Option[SelectableElement] =
@@ -131,7 +132,7 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
 //            node.toggle()
 //            diagramSelection.toggle(node.nodeId)
 //          else
-//            svgDiagram.unselectAll()
+//            state.svgDiagram.unselectAll()
 //            node.select()
 //            diagramSelection.replace(node.nodeId)
 //
@@ -140,16 +141,16 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
 //            edge.toggle()
 //            for pp <- edge.endpointIds do
 //              val ids = Set(pp._1, pp._2)
-//              svgDiagram.select(ids)
+//              state.svgDiagram.select(ids)
 //              diagramSelection.toggle(ids.toSeq*)
 //          else
-//            svgDiagram.unselectAll()
+//            state.svgDiagram.unselectAll()
 //            edge.select()
 //            for pp <- edge.endpointIds do
 //              val ids = Set(pp._1, pp._2)
-//              svgDiagram.select(ids)
+//              state.svgDiagram.select(ids)
 //              diagramSelection.replace(ids.toSeq*)
 //
 //    case None =>
-//      svgDiagram.unselectAll()
+//      state.svgDiagram.unselectAll()
 //      diagramSelection.clear()

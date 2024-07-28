@@ -17,23 +17,37 @@ import upickle.default.*
 case class ViewerState(initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
 
-  val source: Var[String] = Var(initialSource)
-
-  val fullGraph: Signal[ViewerGraph] =
-    source.signal.map(parseSource(InputFormats.dot))
-
-  private def parseSource(format: InputFormats)(source: String): ViewerGraph =
-      format match
-        case InputFormats.csv => CSV(source).toViewerGraph
-        case InputFormats.dot => Dot(source).toViewerGraph
-
-  val appConfigDialogOpenV = Var(false)
-
   val project =
     ProjectOps(Var(Project(ProjectId("project-0"))))
 
   val diagramOptionsV: Var[DiagramOptions] =
     project.page.zoom(_.diagramOptions)((p, s) => p.copy(diagramOptions = s))
+
+  // --------------------------------
+
+  // 0: initial source
+  val source: Var[String] = Var(initialSource)
+
+  // 1. parse source and create a graph
+  val fullGraph: Signal[ViewerGraph] =
+    source.signal.map(parseSource(InputFormats.dot))
+
+  private def parseSource(format: InputFormats)(source: String): ViewerGraph =
+    format match
+      case InputFormats.csv => CSV(source).toViewerGraph
+      case InputFormats.dot => Dot(source).toViewerGraph
+
+  // 2. transform graph to SVG
+  val svgDiagram: Signal[SvgDotDiagram] =
+    fullGraph
+      .combineWith(project.page.signal.distinct)
+      .flatMapSwitch: (graph, page) =>
+        graph
+          .subgraph(page.visibleNodes.keySet)
+          .toDot
+          .toSvgDiagram
+
+  val appConfigDialogOpenV = Var(false)
 
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)
@@ -51,15 +65,6 @@ case class ViewerState(initialSource: String = ""):
   val visibleNodes =
     VisibleNodesOps(visibleNodesV, fullGraph, diagramSelectionV)
   // -------------------------------
-
-  val svgDiagram: Signal[SvgDotDiagram] =
-    fullGraph
-      .combineWith(project.page.signal.distinct)
-      .flatMapSwitch: (graph, page) =>
-        graph
-          .subgraph(page.visibleNodes.keySet)
-          .toDot
-          .toSvgDiagram
 
   // ---- storage ----
   private def persistableEvents: Signal[(VisibleNodes, String)] =
