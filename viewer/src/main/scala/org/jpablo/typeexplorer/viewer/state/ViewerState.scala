@@ -20,13 +20,12 @@ case class ViewerState(initialSource: String = ""):
   val source: Var[String] = Var(initialSource)
 
   val fullGraph: Signal[ViewerGraph] =
-    source.signal.flatMapSwitch(parseSource(InputFormats.dot))
+    source.signal.map(parseSource(InputFormats.dot))
 
-  // TODO: selection of format should be explicit
-  private def parseSource(format: InputFormats)(source: String): Signal[ViewerGraph] =
-    format match
-      case InputFormats.csv => Signal.fromValue(CSV(source).toViewerGraph)
-      case InputFormats.dot => Signal.fromValue(Dot(source).toViewerGraph)
+  private def parseSource(format: InputFormats)(source: String): ViewerGraph =
+      format match
+        case InputFormats.csv => CSV(source).toViewerGraph
+        case InputFormats.dot => Dot(source).toViewerGraph
 
   val appConfigDialogOpenV = Var(false)
 
