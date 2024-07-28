@@ -3,8 +3,32 @@ package org.jpablo.typeexplorer.viewer.formats.dot.ast
 import org.jpablo.typeexplorer.viewer.formats.dot.ast.Location.Position
 import upickle.implicits.key
 import upickle.default.*
+import com.softwaremill.quicklens.*
 
-case class DiGraph(location: Location, children: List[GraphElement], id: String) derives ReadWriter
+case class DiGraph(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
+  def allNodesIds: Set[String] =
+    children
+      .collect { case EdgeStmt(_, edgeList, _) => edgeList.map(_.id) }
+      .flatten
+      .toSet
+
+  def allArrows: Set[(String, String)] =
+    children
+      .collect {
+        case EdgeStmt(_, edgeList, _) if edgeList.size >= 2 =>
+          edgeList
+            .sliding(2)
+            .collect { case List(source, target) =>
+              (source.id, target.id)
+            }
+      }
+      .flatten
+      .toSet
+
+  def removeNodes(nodeIds: Set[String]): DiGraph =
+    this
+      .modify(_.children.each.when[EdgeStmt].edgeList)
+      .using(_.filterNot(n => nodeIds.contains(n.id)))
 
 case class Location(start: Position, end: Position) derives ReadWriter
 

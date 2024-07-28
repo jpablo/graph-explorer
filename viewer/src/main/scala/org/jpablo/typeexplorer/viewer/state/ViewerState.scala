@@ -9,6 +9,7 @@ import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.formats.CSV
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot.*
+import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraph
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
@@ -32,16 +33,27 @@ case class ViewerState(initialSource: String = ""):
   val fullGraph: Signal[ViewerGraph] =
     source.signal.map(parseSource(InputFormats.dot))
 
+  val fullGraphWithSource: Signal[ViewerGraph] =
+    source.signal.map(parseSource(InputFormats.dot))
+
   private def parseSource(format: InputFormats)(source: String): ViewerGraph =
     format match
-      case InputFormats.csv => CSV(source).toViewerGraph
-      case InputFormats.dot => Dot(source).toViewerGraph
+      case InputFormats.csv =>
+        CSV(source).toViewerGraph
+      case InputFormats.dot =>
+        // Dot => ViewerGraph discards existing format
+        val ast: DiGraph = Dot(source).buildAST.head
+        ast.toViewerGraph
+//        Dot(source).toViewerGraph
 
-  // 2. transform graph to SVG
+  // 2. transform graph to SVG using visible nodes
   val svgDiagram: Signal[SvgDotDiagram] =
     fullGraph
       .combineWith(project.page.signal.distinct)
       .flatMapSwitch: (graph, page) =>
+        // idea: instead of ViewerGraph.toDot, reuse the initial DotAST value
+        // and *remove* invisibleNodes from the AST and then use it to render the SVG
+        val invisible = graph.nodes.map(_.id) -- page.visibleNodes.keySet
         graph
           .subgraph(page.visibleNodes.keySet)
           .toDot

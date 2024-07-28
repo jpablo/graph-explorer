@@ -7,17 +7,23 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.{DiGraph, EdgeStmt}
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
 
-
 case class Dot(value: String):
   override def toString: String =
     value
 
+  // TODO: handle errors
   val buildAST: List[DiGraph] =
     DotParserT.parse(value).getOrElse(Nil)
 
-
 object Dot:
   private val gvInstance = new Graphviz
+
+  extension (diGraph: DiGraph)
+    def toViewerGraph: ViewerGraph =
+      ViewerGraph(
+        arrows = diGraph.allArrows.map(Arrow.apply.tupled),
+        nodes = diGraph.allNodesIds.map(ViewerNode.node)
+      )
 
   extension (dot: Dot)
     def toSvgDiagram: Signal[SvgDotDiagram] =
@@ -25,29 +31,8 @@ object Dot:
 
     def toViewerGraph: ViewerGraph =
       // TODO: handle errors
-      val diGraph = dot.buildAST.head // Assuming there's only one digraph
-
-      val nodes =
-        diGraph.children
-          .collect { case EdgeStmt(_, edgeList, _) =>
-            edgeList.map(_.id).map(ViewerNode.node)
-          }
-          .flatten
-          .toSet
-
-      val arrows =
-        diGraph.children
-          .collect {
-            case EdgeStmt(_, edgeList, _) if edgeList.size >= 2 =>
-              edgeList.sliding(2).map { case List(source, target) =>
-                Arrow(source.id, target.id)
-              }
-          }
-          .flatten
-          .toSet
-
-      ViewerGraph(arrows, nodes)
-
+      // Assuming there's only one digraph
+      dot.buildAST.map(_.toViewerGraph).head
 
   extension (graph: ViewerGraph)
     def toDot: Dot =
@@ -64,11 +49,10 @@ object Dot:
       )
 end Dot
 
-
 case class Digraph(
-  declarations: Set[String],
-  arrows:       Seq[String],
-  rankdir:      "LR" | "TB"
+    declarations: Set[String],
+    arrows:       Seq[String],
+    rankdir:      "LR" | "TB"
 ):
   override def toString: String =
     s"""
@@ -80,4 +64,3 @@ case class Digraph(
        |
        |}
        |""".stripMargin
-
