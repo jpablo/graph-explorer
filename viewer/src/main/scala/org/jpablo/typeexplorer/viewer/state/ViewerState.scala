@@ -64,16 +64,6 @@ case class ViewerState(initialSource: String = ""):
         // If it is not available, build a new Dot from scratch.
         modifiedDot.getOrElse(newDot).toSvgDiagram
 
-  val svgDiagram1: Signal[SvgDotDiagram] =
-    fullGraph
-      .combineWith(project.page.signal.distinct)
-      .flatMapSwitch: (graph, page) =>
-        val invisible = graph.nodes.map(_.id) -- page.visibleNodes.keySet
-        graph
-          .subgraph(page.visibleNodes.keySet)
-          .toDot
-          .toSvgDiagram
-
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)
 
