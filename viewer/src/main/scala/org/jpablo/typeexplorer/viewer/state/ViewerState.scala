@@ -31,28 +31,43 @@ case class ViewerState(initialSource: String = ""):
 
   // 1. parse source and create a graph
   val fullGraph: Signal[ViewerGraph] =
+    source.signal.map(parseSource(InputFormats.dot)(_)._2)
+
+  val fullGraphWithSource: Signal[(Option[DiGraph], ViewerGraph)] =
     source.signal.map(parseSource(InputFormats.dot))
 
-  val fullGraphWithSource: Signal[ViewerGraph] =
-    source.signal.map(parseSource(InputFormats.dot))
-
-  private def parseSource(format: InputFormats)(source: String): ViewerGraph =
+  private def parseSource(format: InputFormats)(source: String): (Option[DiGraph], ViewerGraph) =
     format match
       case InputFormats.csv =>
-        CSV(source).toViewerGraph
+        (None, CSV(source).toViewerGraph)
       case InputFormats.dot =>
         // Dot => ViewerGraph discards existing format
         val ast: DiGraph = Dot(source).buildAST.head
-        ast.toViewerGraph
+        (Some(ast), ast.toViewerGraph)
 //        Dot(source).toViewerGraph
 
   // 2. transform graph to SVG using visible nodes
   val svgDiagram: Signal[SvgDotDiagram] =
+    fullGraphWithSource
+      .combineWith(project.page.signal.distinct)
+      .flatMapSwitch: (originalDotAST, fullGraph, page) =>
+        // Reuse the initial DotAST value and *remove* invisibleNodes from the AST
+        // and use it to render the SVG
+        val nodesNotVisible = fullGraph.nodes.map(_.id) -- page.visibleNodes.keySet
+        val modifiedDot =
+          originalDotAST
+            .map(_.removeNodes(nodesNotVisible.map(_.value)))
+            .map(_.toDot)
+        lazy val newDot =
+          fullGraph.subgraph(page.visibleNodes.keySet).toDot
+        // The original AST is used to render the SVG.
+        // If it is not available, build a new Dot from scratch.
+        modifiedDot.getOrElse(newDot).toSvgDiagram
+
+  val svgDiagram1: Signal[SvgDotDiagram] =
     fullGraph
       .combineWith(project.page.signal.distinct)
       .flatMapSwitch: (graph, page) =>
-        // idea: instead of ViewerGraph.toDot, reuse the initial DotAST value
-        // and *remove* invisibleNodes from the AST and then use it to render the SVG
         val invisible = graph.nodes.map(_.id) -- page.visibleNodes.keySet
         graph
           .subgraph(page.visibleNodes.keySet)

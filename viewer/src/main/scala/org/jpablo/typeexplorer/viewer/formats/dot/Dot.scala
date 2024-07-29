@@ -19,6 +19,9 @@ object Dot:
   private val gvInstance = new Graphviz
 
   extension (diGraph: DiGraph)
+    def toDot: Dot =
+      Dot(diGraph.toString)
+
     def toViewerGraph: ViewerGraph =
       ViewerGraph(
         arrows = diGraph.allArrows.map(Arrow.apply.tupled),

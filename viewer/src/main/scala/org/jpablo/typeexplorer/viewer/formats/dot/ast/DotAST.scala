@@ -30,6 +30,33 @@ case class DiGraph(location: Location, children: List[GraphElement], id: String)
       .modify(_.children.each.when[EdgeStmt].edgeList)
       .using(_.filterNot(n => nodeIds.contains(n.id)))
 
+  override def toString: String = {
+    def graphElement(element: GraphElement): String =
+      element match
+        case Newline(_) => "\n"
+        case Pad(_)     => " "
+        case AttrStmt(_, target, attrList) =>
+          if target == "graph" || target == "node" || target == "edge" then s"$target [${buildAttrList(attrList)}]"
+          else s"$target [${buildAttrList(attrList)}];"
+        case EdgeStmt(_, edgeList, attrList) =>
+          val edges = edgeList.map(_.id).mkString(" -> ")
+          if attrList.isEmpty then s"$edges;" else s"$edges [${buildAttrList(attrList)}];"
+        case StmtSep(_) => ""
+
+    def buildAttrList(attrList: List[Attr]): String =
+      attrList.map(attr => s"${attr.id}=${attr.attrEq}").mkString(", ")
+
+    val header = s"digraph ${this.id} {\n"
+    val body = this.children
+      .map(graphElement)
+      .filter(_.nonEmpty)
+      .mkString("\n")
+    val footer = "\n}"
+
+    header + body + footer
+  }
+end DiGraph
+
 case class Location(start: Position, end: Position) derives ReadWriter
 
 object Location:
