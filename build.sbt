@@ -2,7 +2,7 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 
 val typeExplorerVersion = "0.3.0"
 
-val scala3Version = "3.4.1"
+val scala3Version = "3.4.2"
 val scala2Version = "2.13.11"
 val scalametaVersion = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
@@ -39,7 +39,7 @@ lazy val viewer =
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
-      scalacOptions ++= Seq("-explain"),
+      scalacOptions ++= Seq("-explain", "-Ycheck-all-patmat"),
       Compile / mainClass := Some("org.jpablo.typeexplorer.viewer.Viewer"),
       scalaJSLinkerConfig ~= {
         _.withModuleKind(ModuleKind.ESModule)
@@ -50,15 +50,16 @@ lazy val viewer =
         baseDirectory.value / ".."
       },
       libraryDependencies ++= Seq(
-        "com.raquo"                  %%% "laminar"     % laminarVersion,
-        "com.raquo"                  %%% "waypoint"    % "8.0.0",
-        "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
-        "dev.zio"                    %%% "zio-json"    % "0.6.1",
-        "dev.zio"                    %%% "zio-prelude" % "1.0.0-RC27",
-        "io.laminext"                %%% "fetch"       % "0.17.0",
-        "org.scala-js"               %%% "scalajs-dom" % "2.8.0",
-        "com.lihaoyi"                %%% "upickle"     % "4.0.0-RC1",
-        "org.scalameta"              %%% "munit"       % "1.0.0" % Test
+        "com.raquo"                  %%% "laminar"          % laminarVersion,
+        "com.raquo"                  %%% "waypoint"         % "8.0.0",
+        "com.softwaremill.quicklens" %%% "quicklens"        % "1.9.0",
+        "dev.zio"                    %%% "zio-json"         % "0.6.1",
+        "dev.zio"                    %%% "zio-prelude"      % "1.0.0-RC27",
+        "io.laminext"                %%% "fetch"            % "0.17.0",
+        "org.scala-js"               %%% "scalajs-dom"      % "2.8.0",
+        "com.lihaoyi"                %%% "upickle"          % "4.0.0-RC1",
+        "org.scalameta"              %%% "munit"            % "1.0.0"  % Test,
+        "org.scalameta"              %%% "munit-scalacheck" % "1.0.0" % Test
       ),
       excludeDependencies ++= Seq(
         "org.scala-lang.modules" %% "scala-collection-compat_sjs1"

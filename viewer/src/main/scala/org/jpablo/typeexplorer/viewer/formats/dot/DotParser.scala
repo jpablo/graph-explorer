@@ -1,6 +1,7 @@
 package org.jpablo.typeexplorer.viewer.formats.dot
 
 import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraph
+import org.scalajs.dom
 import upickle.default.*
 
 import scala.scalajs.js
@@ -16,5 +17,8 @@ object DotParser extends js.Object:
 
 object DotParserT:
   def parse(dotString: String): Try[List[DiGraph]] =
+    dom.console.log("2.5 org.jpablo.typeexplorer.viewer.formats.dot.DotParserT.parse")
     Try:
-      read[List[DiGraph]](JSON.stringify(DotParser.parse(dotString)))
+      val j = DotParser.parse(dotString)
+      val str = JSON.stringify(j)
+      read[List[DiGraph]](str)

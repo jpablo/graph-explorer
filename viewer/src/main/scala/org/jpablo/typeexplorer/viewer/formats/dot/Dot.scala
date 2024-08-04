@@ -6,6 +6,10 @@ import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.formats.dot.ast.{DiGraph, EdgeStmt}
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
+import org.scalajs.dom
+import upickle.default.*
+
+import scala.util.{Failure, Success}
 
 case class Dot(value: String):
   override def toString: String =
@@ -13,19 +17,31 @@ case class Dot(value: String):
 
   // TODO: handle errors
   val buildAST: List[DiGraph] =
-    DotParserT.parse(value).getOrElse(Nil)
+    dom.console.log("2. org.jpablo.typeexplorer.viewer.formats.dot.Dot.buildAST")
+    dom.console.log(value)
+    DotParserT.parse(value) match
+      case Failure(exception) =>
+        dom.console.log("---> 2.5 Error in DotParserT.parse !")
+        dom.console.log(exception.toString)
+        dom.console.log(value)
+        dom.console.log("<--- 2.5 ")
+        List.empty
+      case Success(value) =>
+        value
 
 object Dot:
   private val gvInstance = new Graphviz
 
   extension (diGraph: DiGraph)
     def toDot: Dot =
-      Dot(diGraph.toString)
+      dom.console.log("3.5 org.jpablo.typeexplorer.viewer.formats.dot.Dot.toDot")
+      dom.console.log(s"3.5 ${write(diGraph)}")
+      Dot(diGraph.render)
 
     def toViewerGraph: ViewerGraph =
       ViewerGraph(
         arrows = diGraph.allArrows.map(Arrow.apply.tupled),
-        nodes = diGraph.allNodesIds.map(ViewerNode.node)
+        nodes  = diGraph.allNodesIds.map(ViewerNode.node)
       )
 
   extension (dot: Dot)
@@ -33,8 +49,10 @@ object Dot:
       gvInstance.renderDot(dot)
 
     def toViewerGraph: ViewerGraph =
+      dom.console.log("org.jpablo.typeexplorer.viewer.formats.dot.Dot.toViewerGraph")
       // TODO: handle errors
       // Assuming there's only one digraph
+      dom.console.log(dot.buildAST)
       dot.buildAST.map(_.toViewerGraph).head
 
   extension (graph: ViewerGraph)

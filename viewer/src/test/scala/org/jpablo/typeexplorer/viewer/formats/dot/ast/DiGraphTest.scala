@@ -1,15 +1,36 @@
 package org.jpablo.typeexplorer.viewer.formats.dot.ast
 
-import munit.FunSuite
+import munit.ScalaCheckSuite
+import org.jpablo.typeexplorer.viewer.formats.dot.Dot
 import upickle.default.*
+import org.scalacheck.Prop.*
 
-class DiGraphTest extends FunSuite:
+class DiGraphTest extends ScalaCheckSuite:
+//
+//  property("scalacheck"):
+//    forAll: (n: Int) =>
+//      println(n)
+//      assert(n >= n)
+
+//  test("serialization test 2"):
+//    val ast = Dot(json2).buildAST.headOption
+//    println(ast)
+
   test("serialization test"):
     val g = read[List[DiGraph]](json1)
 
     assert(g.length == 1)
 
-
+val json2 =
+  """
+    |digraph G {
+    | rankdir=LR;
+    | String [shape=box];
+    | String -> Dot;
+    | Dot -> DotAST -> ViewerGraph;
+    | ViewerGraph -> Dot1;
+    | Dot1 -> SvgDiagram;
+    |}""".stripMargin
 
 val json1 =
   """
