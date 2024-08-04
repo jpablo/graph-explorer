@@ -4,6 +4,7 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.Location.Position
 import upickle.implicits.key
 import upickle.default.*
 import com.softwaremill.quicklens.*
+import org.scalajs.dom
 
 case class DiGraph(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
 
@@ -27,11 +28,13 @@ case class DiGraph(location: Location, children: List[GraphElement], id: String)
       .toSet
 
   def removeNodes(nodeIds: Set[String]): DiGraph =
+    dom.console.log("DotAST] removeNodes")
     this
       .modify(_.children.each.when[EdgeStmt].edgeList)
       .using(_.filterNot(n => nodeIds.contains(n.id)))
 
   def render: String = {
+    dom.console.log("[DotAST] render")
     def graphElement(element: GraphElement, i: Int): String =
       element match
         case Newline(_) => "\n"
@@ -43,24 +46,24 @@ case class DiGraph(location: Location, children: List[GraphElement], id: String)
           if attrs.isEmpty then "" else s"$target $attrs"
 
         case EdgeStmt(_, edgeList, attrList) =>
-          val edges = edgeList.map(_.id).mkString(" -> ")
+          val edges = edgeList.map(_.id).mkString("\"", "\" -> \"", "\"")
           edges + buildAttrList(attrList)
 
         case StmtSep(_) => ""
 
         case NodeStmt(_, nodeId, attrList) =>
-          nodeId.id + buildAttrList(attrList)
+          "\"" + nodeId.id + "\"" + buildAttrList(attrList)
 
     def buildAttrList(attrList: List[Attr]): String =
-      val r = attrList.map(attr => s"${attr.id}=${attr.attrEq}")
+      val r = attrList.map(attr => s"${attr.id}=\"${attr.attrEq}\"")
       if r.isEmpty then "" else r.mkString(" [", ", ", "];")
 
-    val header = s"digraph ${this.id} {\n"
+    val header = s"digraph ${this.id} {"
     val body = this.children.zipWithIndex
       .map(graphElement)
       .filter(_.nonEmpty)
-      .mkString("\n")
-    val footer = "\n}"
+      .mkString("")
+    val footer = "}"
 
     header + body + footer
   }

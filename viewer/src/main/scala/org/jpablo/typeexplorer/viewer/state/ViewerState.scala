@@ -13,6 +13,7 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraph
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
+import org.scalajs.dom
 import upickle.default.*
 
 enum InputFormats:
@@ -44,6 +45,7 @@ case class ViewerState(initialSource: String = ""):
       case InputFormats.csv =>
         (None, CSV(source).toViewerGraph)
       case InputFormats.dot =>
+        dom.console.log("parseSource: dot")
         val ast = Dot(source).buildAST.headOption
         (ast, ast.map(_.toViewerGraph).getOrElse(ViewerGraph.empty))
 

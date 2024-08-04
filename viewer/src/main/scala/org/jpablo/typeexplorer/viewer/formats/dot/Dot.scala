@@ -17,14 +17,17 @@ case class Dot(value: String):
 
   // TODO: handle errors
   val buildAST: List[DiGraph] =
+    dom.console.log("buildAST (before parse)")
+    dom.console.log(value)
     DotParserT.parse(value) match
       case Failure(exception) =>
         dom.console.log("---> 2.5 Error in DotParserT.parse !")
         dom.console.log(exception.toString)
         dom.console.log(value)
-        dom.console.log("<--- 2.5 ")
+        dom.console.log("<--- 2.5 Error in DotParserT.parse !")
         List.empty
       case Success(value) =>
+        dom.console.log("<--- 2.5 Success in DotParserT.parse")
         value
 
 object Dot:
