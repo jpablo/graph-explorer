@@ -42,18 +42,17 @@ case class DiGraph(location: Location, children: List[GraphElement], id: String)
         case Pad(_) => " "
 
         case AttrStmt(_, target, attrList) =>
-          val al = buildAttrList(attrList)
-          if al.isEmpty then "" else s"$target $al"
+          val attrs = buildAttrList(attrList)
+          if attrs.isEmpty then "" else s"$target $attrs"
 
         case EdgeStmt(_, edgeList, attrList) =>
-          val r0 = edgeList.map(_.id).mkString(" -> ")
-          r0 + buildAttrList(attrList)
+          val edges = edgeList.map(_.id).mkString(" -> ")
+          edges + buildAttrList(attrList)
 
         case StmtSep(_) => ""
 
         case NodeStmt(_, nodeId, attrList) =>
-          val r0 = nodeId.id
-          r0 + buildAttrList(attrList)
+          nodeId.id + buildAttrList(attrList)
 
     def buildAttrList(attrList: List[Attr]): String =
       val r = attrList.map(attr => s"${attr.id}=${attr.attrEq}")
