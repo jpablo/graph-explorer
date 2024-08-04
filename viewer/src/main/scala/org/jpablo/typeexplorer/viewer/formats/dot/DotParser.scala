@@ -17,7 +17,6 @@ object DotParser extends js.Object:
 
 object DotParserT:
   def parse(dotString: String): Try[List[DiGraph]] =
-    dom.console.log("2.5 org.jpablo.typeexplorer.viewer.formats.dot.DotParserT.parse")
     Try:
       val j = DotParser.parse(dotString)
       val str = JSON.stringify(j)

@@ -4,7 +4,6 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.Location.Position
 import upickle.implicits.key
 import upickle.default.*
 import com.softwaremill.quicklens.*
-import org.scalajs.dom
 
 case class DiGraph(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
 
@@ -28,13 +27,11 @@ case class DiGraph(location: Location, children: List[GraphElement], id: String)
       .toSet
 
   def removeNodes(nodeIds: Set[String]): DiGraph =
-    dom.console.log("3. org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraph.removeNodes")
     this
       .modify(_.children.each.when[EdgeStmt].edgeList)
       .using(_.filterNot(n => nodeIds.contains(n.id)))
 
   def render: String = {
-    dom.console.log("3.6 org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraph.render")
     def graphElement(element: GraphElement, i: Int): String =
       element match
         case Newline(_) => "\n"
@@ -65,7 +62,6 @@ case class DiGraph(location: Location, children: List[GraphElement], id: String)
       .mkString("\n")
     val footer = "\n}"
 
-    dom.console.log(s"3.6 ${header + body + footer}")
     header + body + footer
   }
 

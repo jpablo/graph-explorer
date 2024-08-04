@@ -17,8 +17,6 @@ case class Dot(value: String):
 
   // TODO: handle errors
   val buildAST: List[DiGraph] =
-    dom.console.log("2. org.jpablo.typeexplorer.viewer.formats.dot.Dot.buildAST")
-    dom.console.log(value)
     DotParserT.parse(value) match
       case Failure(exception) =>
         dom.console.log("---> 2.5 Error in DotParserT.parse !")
@@ -34,8 +32,6 @@ object Dot:
 
   extension (diGraph: DiGraph)
     def toDot: Dot =
-      dom.console.log("3.5 org.jpablo.typeexplorer.viewer.formats.dot.Dot.toDot")
-      dom.console.log(s"3.5 ${write(diGraph)}")
       Dot(diGraph.render)
 
     def toViewerGraph: ViewerGraph =
@@ -49,10 +45,8 @@ object Dot:
       gvInstance.renderDot(dot)
 
     def toViewerGraph: ViewerGraph =
-      dom.console.log("org.jpablo.typeexplorer.viewer.formats.dot.Dot.toViewerGraph")
       // TODO: handle errors
       // Assuming there's only one digraph
-      dom.console.log(dot.buildAST)
       dot.buildAST.map(_.toViewerGraph).head
 
   extension (graph: ViewerGraph)

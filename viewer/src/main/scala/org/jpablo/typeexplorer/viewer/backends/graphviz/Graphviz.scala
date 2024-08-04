@@ -18,12 +18,8 @@ class Graphviz:
       .toFuture
 
   private def renderSVGElement(g: String): Future[SVGSVGElement] =
-    dom.console.log("==> about to call instance.map")
     instance
-      .map { viz =>
-        dom.console.log("==> about to call renderSVGElement")
-        viz.renderSVGElement(g).asInstanceOf[SVGSVGElement]
-      }
+      .map(_.renderSVGElement(g).asInstanceOf[SVGSVGElement])
       .transform {
         case scala.util.Success(value) =>
           scala.util.Success(value)
