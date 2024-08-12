@@ -25,7 +25,8 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
     "-language:implicitConversions",
     "-source:future",
     "-deprecation",
-    "-Wunused:imports"
+    "-Wunused:imports",
+    "-Xfatal-warnings"
   )
 
 val publicDev = taskKey[String]("output directory for `npm run dev`")
