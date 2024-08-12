@@ -9,7 +9,7 @@ import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.formats.CSV
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot.*
-import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraph
+import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
@@ -34,13 +34,13 @@ case class ViewerState(initialSource: String = ""):
   val source: Var[String] = Var(initialSource)
 
   // 1. parse source and create a graph
-  val fullGraph: Signal[ViewerGraph] =
-    source.signal.map(parseSource(InputFormats.dot)(_)._2)
-
-  private val fullGraphWithSource: Signal[(Option[DiGraph], ViewerGraph)] =
+  private val fullGraphWithSource: Signal[(Option[DiGraphAST], ViewerGraph)] =
     source.signal.map(parseSource(InputFormats.dot))
 
-  private def parseSource(format: InputFormats)(source: String): (Option[DiGraph], ViewerGraph) =
+  val fullGraph: Signal[ViewerGraph] =
+    fullGraphWithSource.map(_._2)
+
+  private def parseSource(format: InputFormats)(source: String): (Option[DiGraphAST], ViewerGraph) =
     format match
       case InputFormats.csv =>
         (None, CSV(source).toViewerGraph)
@@ -96,8 +96,8 @@ case class ViewerState(initialSource: String = ""):
   private def restoreState() =
     val ss = storedString("viewer.state", initial = "{}")
     val (nodes0, source0) = read[(VisibleNodes, String)](ss.signal.observe.now())
-    visibleNodesV.set(nodes0)
     source.set(source0)
+    visibleNodesV.set(nodes0)
     for a <- persistableEvents do ss.set(write(a))
 
   restoreState()

@@ -3,37 +3,22 @@ package org.jpablo.typeexplorer.viewer.formats.dot
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
-import org.jpablo.typeexplorer.viewer.formats.dot.ast.{DiGraph, EdgeStmt}
+import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
-import org.scalajs.dom
-import upickle.default.*
-
-import scala.util.{Failure, Success}
 
 case class Dot(value: String):
   override def toString: String =
     value
 
   // TODO: handle errors
-  val buildAST: List[DiGraph] =
-    dom.console.log("buildAST (before parse)")
-    dom.console.log(value)
-    DotParserT.parse(value) match
-      case Failure(exception) =>
-        dom.console.log("---> 2.5 Error in DotParserT.parse !")
-        dom.console.log(exception.toString)
-        dom.console.log(value)
-        dom.console.log("<--- 2.5 Error in DotParserT.parse !")
-        List.empty
-      case Success(value) =>
-        dom.console.log("<--- 2.5 Success in DotParserT.parse")
-        value
+  val buildAST: List[DiGraphAST] =
+    DotParserT.parse(value).getOrElse(Nil)
 
 object Dot:
   private val gvInstance = new Graphviz
 
-  extension (diGraph: DiGraph)
+  extension (diGraph: DiGraphAST)
     def toDot: Dot =
       Dot(diGraph.render)
 
@@ -47,10 +32,10 @@ object Dot:
     def toSvgDiagram: Signal[SvgDotDiagram] =
       gvInstance.renderDot(dot)
 
-    def toViewerGraph: ViewerGraph =
-      // TODO: handle errors
-      // Assuming there's only one digraph
-      dot.buildAST.map(_.toViewerGraph).head
+//    def toViewerGraph: ViewerGraph =
+//      // TODO: handle errors
+//      // Assuming there's only one digraph
+//      dot.buildAST.map(_.toViewerGraph).head
 
   extension (graph: ViewerGraph)
     def toDot: Dot =

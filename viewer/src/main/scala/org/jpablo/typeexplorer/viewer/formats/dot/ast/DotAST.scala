@@ -6,7 +6,7 @@ import upickle.default.*
 import com.softwaremill.quicklens.*
 import org.scalajs.dom
 
-case class DiGraph(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
+case class DiGraphAST(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
 
   def allNodesIds: Set[String] =
     children
@@ -16,18 +16,15 @@ case class DiGraph(location: Location, children: List[GraphElement], id: String)
 
   def allArrows: Set[(String, String)] =
     children
-      .collect {
+      .collect:
         case EdgeStmt(_, edgeList, _) if edgeList.size >= 2 =>
           edgeList
             .sliding(2)
-            .collect { case List(source, target) =>
-              (source.id, target.id)
-            }
-      }
+            .collect { case List(source, target) => (source.id, target.id) }
       .flatten
       .toSet
 
-  def removeNodes(nodeIds: Set[String]): DiGraph =
+  def removeNodes(nodeIds: Set[String]): DiGraphAST =
     dom.console.log("DotAST] removeNodes")
     this
       .modify(_.children.each.when[EdgeStmt].edgeList)
@@ -68,7 +65,7 @@ case class DiGraph(location: Location, children: List[GraphElement], id: String)
     header + body + footer
   }
 
-end DiGraph
+end DiGraphAST
 
 case class Location(start: Position, end: Position) derives ReadWriter
 
@@ -87,38 +84,89 @@ case class Pad(location: Location) extends GraphElement derives ReadWriter
 
 @key("attr_stmt")
 case class AttrStmt(
-    location: Location,
-    target:   String,
-    @key("attr_list")
-    attrList: List[Attr]
+    location:                   Location,
+    target:                     String,
+    @key("attr_list") attrList: List[Attr]
 ) extends GraphElement
     derives ReadWriter
 
 @key("attr")
-case class Attr(location: Location, id: String, @key("eq") attrEq: String) derives ReadWriter
+case class Attr(location: Location, id: String, @key("eq") attrEq: AttrEqSting /* | AttrEq*/ ) derives ReadWriter
+
+@key("id")
+case class AttrEqSting(value: String) derives ReadWriter
+
+//object AttrEqSting:
+//  given ReadWriter[AttrEqSting] = readwriter[String].bimap[AttrEqSting](_.value, AttrEqSting(_))
+//end AttrEqSting
+
+@key("id")
+case class AttrEq(
+    location: Location,
+    value:    String,
+    html:     Boolean = false
+) derives ReadWriter
+
+object Attr:
+//  val rw = ReadWriter.merge(readwriter[AttrEq], readwriter[String])
+//  println(rw)
+
+//  val a1 = AttrEq(Location(Position(0, 0, 0), Position(0, 0, 0)), "value", false)
+//  println(write(a1))
+//    def write0: AttrEq => Js.Value = a =>
+//      Js.Obj(
+//        "location" -> writeJs(a.location),
+//        "value"    -> Js.Str(a.value),
+//        "html"     -> Js.Bool(a.html)
+//      )
+//
+//    def read0: Js.Value => AttrEq = {
+//      case Js.Obj(fields) =>
+//        AttrEq(
+//          readJs[Location](fields("location")),
+//          fields("value").str,
+//          fields("html").bool
+//        )
+//      case _ => throw new Exception("Invalid JSON")
+//    }
+
+//  given ReadWriter[AttrEqSting | AttrEq] =
+//    ReadWriter
+//      .merge(readwriter[AttrEqSting], readwriter[AttrEq])
+//      .bimap[AttrEqSting | AttrEq](
+//        {
+//          case s: AttrEqSting => s
+//          case a: AttrEq => a
+//        },
+//        {
+//          case s: AttrEqSting => s
+//          case a: AttrEq => a
+//        }
+//      )
+
+end Attr
 
 @key("node_stmt")
 case class NodeStmt(
-    location: Location,
-    @key("node_id")
-    nodeId: DotNodeId,
-    @key("attr_list")
-    attrList: List[Attr]
+    location:                   Location,
+    @key("node_id") nodeId:     DotNodeId,
+    @key("attr_list") attrList: List[Attr]
 ) extends GraphElement
     derives ReadWriter
 
 @key("edge_stmt")
 case class EdgeStmt(
-    location: Location,
-    @key("edge_list")
-    edgeList: List[DotNodeId],
-    @key("attr_list")
-    attrList: List[Attr]
+    location:                   Location,
+    @key("edge_list") edgeList: List[DotNodeId],
+    @key("attr_list") attrList: List[Attr]
 ) extends GraphElement
     derives ReadWriter
 
 @key("node_id")
-case class DotNodeId(location: Location, id: String) derives ReadWriter
+case class DotNodeId(location: Location, id: String, port: Option[Port] = None) derives ReadWriter
 
 @key("stmt_sep")
 case class StmtSep(location: Location) extends GraphElement derives ReadWriter
+
+@key("port")
+case class Port(location: Location, id: String) derives ReadWriter

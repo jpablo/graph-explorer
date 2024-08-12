@@ -57,7 +57,7 @@ lazy val viewer =
         "dev.zio"                    %%% "zio-prelude"      % "1.0.0-RC27",
         "io.laminext"                %%% "fetch"            % "0.17.0",
         "org.scala-js"               %%% "scalajs-dom"      % "2.8.0",
-        "com.lihaoyi"                %%% "upickle"          % "4.0.0-RC1",
+        "com.lihaoyi"                %%% "upickle"          % "4.0.0",
         "org.scalameta"              %%% "munit"            % "1.0.0"  % Test,
         "org.scalameta"              %%% "munit-scalacheck" % "1.0.0" % Test
       ),

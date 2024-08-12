@@ -17,7 +17,7 @@ class DiGraphTest extends ScalaCheckSuite:
 //    println(ast)
 
   test("serialization test"):
-    val g = read[List[DiGraph]](json1)
+    val g = read[List[DiGraphAST]](json1)
 
     assert(g.length == 1)
 
