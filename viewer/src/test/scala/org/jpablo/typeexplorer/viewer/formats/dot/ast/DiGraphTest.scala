@@ -1,9 +1,7 @@
 package org.jpablo.typeexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
-import org.jpablo.typeexplorer.viewer.formats.dot.Dot
 import upickle.default.*
-import org.scalacheck.Prop.*
 
 class DiGraphTest extends ScalaCheckSuite:
 //

@@ -28,7 +28,8 @@ object DotParserT:
             dom.console.log(dotString)
             dom.console.log("<== Error in DotParserT.parse !")
             f
-          case s @ scala.util.Success(value) =>
+          case s @ scala.util.Success(_) =>
             dom.console.log("<== Success in DotParserT.parse !")
+            dom.console.log(str)
             s
     yield ast

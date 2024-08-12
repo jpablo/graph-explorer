@@ -18,6 +18,8 @@ class Graphviz:
       .toFuture
 
   private def renderSVGElement(g: String): Future[SVGSVGElement] =
+    dom.console.log("==> renderSVGElement")
+    println(s)
     instance
       .map(_.renderSVGElement(g).asInstanceOf[SVGSVGElement])
       .transform {

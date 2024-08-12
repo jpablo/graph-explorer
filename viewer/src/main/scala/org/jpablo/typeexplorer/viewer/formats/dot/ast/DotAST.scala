@@ -42,7 +42,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
           val attrs = buildAttrList(attrList)
           if attrs.isEmpty then "" else s"$target $attrs"
 
-        case EdgeStmt(_, edgeList, attrList) =>
+        case EdgeStmt(loc, edgeList, attrList) =>
           val edges = edgeList.map(_.id).mkString("\"", "\" -> \"", "\"")
           edges + buildAttrList(attrList)
 
@@ -53,8 +53,8 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
         case Comment(_) => ""
 
-        case Subgraph(_, children) =>
-          children.map(graphElement).mkString("{", "", "}")
+        case Subgraph(_, children, id) =>
+          children.map(graphElement).mkString(s"subgraph ${id.getOrElse("")} {", "", "}")
 
     def buildAttrList(attrList: List[Attr]): String =
       val r = attrList.map(attr => s"${attr.id}=\"${attr.attrEq}\"")
@@ -91,26 +91,14 @@ case class Pad(location: Location) extends GraphElement derives ReadWriter
 case class Comment(location: Location) extends GraphElement derives ReadWriter
 
 @key("attr_stmt")
-case class AttrStmt(
-    location:                   Location,
-    target:                     String,
-    @key("attr_list") attrList: List[Attr]
-) extends GraphElement
+case class AttrStmt(location: Location, target: String, @key("attr_list") attrList: List[Attr]) extends GraphElement
     derives ReadWriter
 
 @key("attr")
 case class Attr(location: Location, id: String, @key("eq") attrEq: String | AttrEq) derives ReadWriter
 
-//object AttrEqSting:
-//  given ReadWriter[AttrEqSting] = readwriter[String].bimap[AttrEqSting](_.value, AttrEqSting(_))
-//end AttrEqSting
-
 @key("id")
-case class AttrEq(
-    location: Location,
-    value:    String,
-    html:     Boolean = false
-) derives ReadWriter
+case class AttrEq(location: Location, value: String, html: Boolean = false) derives ReadWriter
 
 object Attr:
 
@@ -129,12 +117,8 @@ object Attr:
 end Attr
 
 @key("node_stmt")
-case class NodeStmt(
-    location:                   Location,
-    @key("node_id") nodeId:     DotNodeId,
-    @key("attr_list") attrList: List[Attr]
-) extends GraphElement
-    derives ReadWriter
+case class NodeStmt(location: Location, @key("node_id") nodeId: DotNodeId, @key("attr_list") attrList: List[Attr])
+    extends GraphElement derives ReadWriter
 
 @key("edge_stmt")
 case class EdgeStmt(
@@ -154,5 +138,5 @@ case class Port(location: Location, id: String) derives ReadWriter
 case class StmtSep(location: Location) extends GraphElement derives ReadWriter
 
 @key("subgraph")
-case class Subgraph(location: Location, children: List[GraphElement]/*, id: String*/) extends GraphElement
+case class Subgraph(location: Location, children: List[GraphElement], id: Option[String]) extends GraphElement
     derives ReadWriter
