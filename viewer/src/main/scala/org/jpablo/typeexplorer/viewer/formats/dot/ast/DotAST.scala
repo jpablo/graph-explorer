@@ -8,21 +8,30 @@ import org.scalajs.dom
 
 case class DiGraphAST(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
 
-  def allNodesIds: Set[String] =
-    children
-      .collect { case EdgeStmt(_, edgeList, _) => edgeList.map(_.id) }
+  private def _allNodesIds(elems: List[GraphElement]): Set[String] =
+    elems
+      .collect:
+        case EdgeStmt(_, edgeList, _) => edgeList.map(_.id)
+        case Subgraph(_, children, _) => _allNodesIds(children)
       .flatten
       .toSet
 
-  def allArrows: Set[(String, String)] =
-    children
+  def allNodesIds: Set[String] =
+    _allNodesIds(children)
+
+  private def _allArrows(elems: List[GraphElement]): Set[(String, String)] =
+    elems
       .collect:
         case EdgeStmt(_, edgeList, _) if edgeList.size >= 2 =>
           edgeList
             .sliding(2)
             .collect { case List(source, target) => (source.id, target.id) }
+        case Subgraph(_, children, _) => _allArrows(children)
       .flatten
       .toSet
+
+  def allArrows: Set[(String, String)] =
+    _allArrows(children)
 
   def removeNodes(nodeIds: Set[String]): DiGraphAST =
     dom.console.log("DotAST] removeNodes")
