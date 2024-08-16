@@ -34,25 +34,31 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
     _allArrows(children)
 
   def removeNodes(nodeIds: Set[String]): DiGraphAST =
-    dom.console.log("DotAST] removeNodes")
-    this
-      .modify(_.children.each.when[EdgeStmt].edgeList)
-      .using(_.filterNot(n => nodeIds.contains(n.id)))
+    def removeElement(element: GraphElement): Option[GraphElement] =
+      element match
+        case e: EdgeStmt => Some(e.modify(_.edgeList).using(_.filterNot(n => nodeIds.contains(n.id))))
+        case g: Subgraph => Some(g.modify(_.children).using(_.flatMap(removeElement)))
+        case n: NodeStmt if nodeIds.contains(n.nodeId.id) => None
+        case other                                        => Some(other)
 
-  def render: String = {
+    this.modify(_.children).using(_.flatMap(removeElement))
+
+  def render: String =
     dom.console.log("[DotAST] render")
-    def graphElement(element: GraphElement): String =
+    def renderElement(element: GraphElement): String =
+      println(s"element: $element")
       element match
         case Newline(_) => "\n"
 
-        case Pad(_) => " "
+        case Pad(_) => ""
 
         case AttrStmt(_, target, attrList) =>
           val attrs = buildAttrList(attrList)
           if attrs.isEmpty then "" else s"$target $attrs"
 
-        case EdgeStmt(loc, edgeList, attrList) =>
-          val edges = edgeList.map(_.id).mkString("\"", "\" -> \"", "\"")
+        case EdgeStmt(_, edgeList, attrList) =>
+          val edges = edgeList.map(n => s"\"${n.id}\"")
+            .mkString(" -> ")
           edges + buildAttrList(attrList)
 
         case StmtSep(_) => ""
@@ -63,7 +69,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
         case Comment(_) => ""
 
         case Subgraph(_, children, id) =>
-          children.map(graphElement).mkString(s"subgraph ${id.getOrElse("")} {", "", "}")
+          children.map(renderElement).mkString(s"subgraph ${id.getOrElse("")} {", "", "}")
 
     def buildAttrList(attrList: List[Attr]): String =
       val r = attrList.map(attr => s"${attr.id}=\"${attr.attrEq}\"")
@@ -71,13 +77,13 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
     val header = s"digraph ${this.id} {"
     val body = this.children
-      .map(graphElement)
+      .map(renderElement)
       .filter(_.nonEmpty)
       .mkString("")
     val footer = "}"
 
     header + body + footer
-  }
+  end render
 
 end DiGraphAST
 
