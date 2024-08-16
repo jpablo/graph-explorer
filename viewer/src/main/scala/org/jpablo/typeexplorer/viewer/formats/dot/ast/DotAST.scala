@@ -46,43 +46,37 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
   def render: String =
     dom.console.log("[DotAST] render")
     def renderElement(element: GraphElement): String =
-      println(s"element: $element")
       element match
         case Newline(_) => "\n"
 
         case Pad(_) => ""
 
         case AttrStmt(_, target, attrList) =>
-          val attrs = buildAttrList(attrList)
+          val attrs = renderAttrList(attrList)
           if attrs.isEmpty then "" else s"$target $attrs"
 
         case EdgeStmt(_, edgeList, attrList) =>
-          val edges = edgeList.map(n => s"\"${n.id}\"")
-            .mkString(" -> ")
-          edges + buildAttrList(attrList)
+          edgeList.map(n => s"\"${n.id}\"").mkString(" -> ") + renderAttrList(attrList)
 
         case StmtSep(_) => ""
 
         case NodeStmt(_, nodeId, attrList) =>
-          "\"" + nodeId.id + "\"" + buildAttrList(attrList)
+          "\"" + nodeId.id + "\"" + renderAttrList(attrList)
 
         case Comment(_) => ""
 
         case Subgraph(_, children, id) =>
           children.map(renderElement).mkString(s"subgraph ${id.getOrElse("")} {", "", "}")
 
-    def buildAttrList(attrList: List[Attr]): String =
+    def renderAttrList(attrList: List[Attr]): String =
       val r = attrList.map(attr => s"${attr.id}=\"${attr.attrEq}\"")
       if r.isEmpty then "" else r.mkString(" [", ", ", "];")
 
-    val header = s"digraph ${this.id} {"
     val body = this.children
       .map(renderElement)
       .filter(_.nonEmpty)
       .mkString("")
-    val footer = "}"
-
-    header + body + footer
+    s"digraph ${this.id} {$body}"
   end render
 
 end DiGraphAST
