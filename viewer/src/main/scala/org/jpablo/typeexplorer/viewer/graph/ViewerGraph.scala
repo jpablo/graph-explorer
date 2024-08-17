@@ -63,31 +63,32 @@ case class ViewerGraph(
     val foundNS = foundKinds.values.flatten.toSet
     ViewerGraph(arrowsForNodeIds(foundNS.map(_.id)), foundNS)
 
-  // Note: doesn't handle loops.
-  // How efficient is this compared to the tail rec version above?
-  def unfold(ids: Set[NodeId], related: NodeId => Set[NodeId]): Set[NodeId] =
+  /** Unfolds a set of ids using a function that returns the related ids.
+    */
+  def unfold(ids0: Set[NodeId], f: NodeId => Set[NodeId]): Set[NodeId] =
+    // How efficient is this compared to a tail rec version?
     Set
-      .unfold(ids) { ss =>
-        val ss2 = ss.flatMap(related)
-        if ss2.isEmpty then None else Some((ss2, ss2))
-      }
+      .unfold((ids0, Set.empty[NodeId])): (ids, visited) =>
+        val newBatch = ids.flatMap(f) -- visited
+        if newBatch.isEmpty then None
+        else Some((newBatch, (newBatch, visited ++ newBatch)))
       .flatten
 
-  private def allRelated(ids: Set[NodeId], r: NodeId => Set[NodeId]): ViewerGraph =
-    subgraph(unfold(ids, r) ++ ids)
+  private def allRelated(ids: Set[NodeId], f: NodeId => Set[NodeId]): ViewerGraph =
+    subgraph(unfold(ids, f))
 
-  private def directRelated(ids: Set[NodeId], r: NodeId => Set[NodeId]): ViewerGraph =
-    subgraph(ids.flatMap(r))
+  private def directRelated(ids: Set[NodeId], f: NodeId => Set[NodeId]): ViewerGraph =
+    subgraph(ids.flatMap(f))
 
   def parentsOfAll(ids:  Set[NodeId]): ViewerGraph = allRelated(ids, directParents)
   def childrenOfAll(ids: Set[NodeId]): ViewerGraph = allRelated(ids, directChildren)
-  def parentsOf(id: NodeId): ViewerGraph = allRelated(Set(id), directParents)
-  def childrenOf(id: NodeId): ViewerGraph = allRelated(Set(id), directChildren)
+  def parentsOf(id:      NodeId): ViewerGraph = allRelated(Set(id), directParents)
+  def childrenOf(id:     NodeId): ViewerGraph = allRelated(Set(id), directChildren)
 
   def directParentsOfAll(ids:  Set[NodeId]): ViewerGraph = directRelated(ids, directParents)
   def directChildrenOfAll(ids: Set[NodeId]): ViewerGraph = directRelated(ids, directChildren)
-  def directParentsOf(id:  NodeId): ViewerGraph = directParentsOfAll(Set(id))
-  def directChildrenOf(id:  NodeId): ViewerGraph = directChildrenOfAll(Set(id))
+  def directParentsOf(id:      NodeId): ViewerGraph = directParentsOfAll(Set(id))
+  def directChildrenOf(id:     NodeId): ViewerGraph = directChildrenOfAll(Set(id))
 
   lazy val toTrees: Tree[ViewerNode] =
     val paths =
@@ -137,7 +138,6 @@ object ViewerGraph:
   given Commutative[ViewerGraph] with Identity[ViewerGraph] with
     def identity = ViewerGraph.empty
     def combine(l: => ViewerGraph, r: => ViewerGraph) = l ++ r
-
 
   // In Scala 3.2 the type annotation is needed.
   val empty = ViewerGraph(Set.empty, Set.empty)
