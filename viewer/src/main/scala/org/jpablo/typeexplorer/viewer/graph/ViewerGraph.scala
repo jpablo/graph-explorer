@@ -65,7 +65,7 @@ case class ViewerGraph(
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
-  def unfold(ids0: Set[NodeId], f: NodeId => Set[NodeId]): Set[NodeId] =
+  def unfold(f: NodeId => Set[NodeId], ids0: Set[NodeId]): Set[NodeId] =
     // How efficient is this compared to a tail rec version?
     Set
       .unfold((ids0, Set.empty[NodeId])): (ids, visited) =>
@@ -74,21 +74,23 @@ case class ViewerGraph(
         else Some((newBatch, (newBatch, visited ++ newBatch)))
       .flatten
 
-  private def allRelated(ids: Set[NodeId], f: NodeId => Set[NodeId]): ViewerGraph =
-    subgraph(unfold(ids, f))
+  private def allRelated(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
+    subgraph(unfold(f, ids))
 
-  private def directRelated(ids: Set[NodeId], f: NodeId => Set[NodeId]): ViewerGraph =
+  private def directRelated(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
     subgraph(ids.flatMap(f))
 
-  def parentsOfAll(ids:  Set[NodeId]): ViewerGraph = allRelated(ids, directParents)
-  def childrenOfAll(ids: Set[NodeId]): ViewerGraph = allRelated(ids, directChildren)
-  def parentsOf(id:      NodeId): ViewerGraph = allRelated(Set(id), directParents)
-  def childrenOf(id:     NodeId): ViewerGraph = allRelated(Set(id), directChildren)
+  val parentsOfAll = allRelated(directParents)
+  val childrenOfAll = allRelated(directChildren)
 
-  def directParentsOfAll(ids:  Set[NodeId]): ViewerGraph = directRelated(ids, directParents)
-  def directChildrenOfAll(ids: Set[NodeId]): ViewerGraph = directRelated(ids, directChildren)
-  def directParentsOf(id:      NodeId): ViewerGraph = directParentsOfAll(Set(id))
-  def directChildrenOf(id:     NodeId): ViewerGraph = directChildrenOfAll(Set(id))
+  def parentsOf(id:  NodeId): ViewerGraph = allRelated(directParents)(Set(id))
+  def childrenOf(id: NodeId): ViewerGraph = allRelated(directChildren)(Set(id))
+
+  val directParentsOfAll = directRelated(directParents)
+  val directChildrenOfAll = directRelated(directChildren)
+
+  def directParentsOf(id:  NodeId): ViewerGraph = directParentsOfAll(Set(id))
+  def directChildrenOf(id: NodeId): ViewerGraph = directChildrenOfAll(Set(id))
 
   lazy val toTrees: Tree[ViewerNode] =
     val paths =
