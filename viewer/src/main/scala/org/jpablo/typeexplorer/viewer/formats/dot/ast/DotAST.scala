@@ -4,7 +4,6 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.Location.Position
 import upickle.implicits.key
 import upickle.default.*
 import com.softwaremill.quicklens.*
-import org.scalajs.dom
 
 case class DiGraphAST(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
 
@@ -44,7 +43,6 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
     this.modify(_.children).using(_.flatMap(removeElement))
 
   def render: String =
-    dom.console.log("[DotAST] render")
     def renderElement(element: GraphElement): String =
       element match
         case Newline(_) => "\n"

@@ -14,8 +14,6 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   val orig = (origW, origH)
   val ref = svgElement
 
-  dom.console.log(s"[SvgDotDiagram] origW: $origW, origH: $origH")
-
   def size = (svgElement.width.baseVal.value, svgElement.height.baseVal.value)
 
   svgElement.setAttribute("class", "graphviz")

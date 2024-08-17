@@ -14,10 +14,6 @@ def NodesList(
 ): ReactiveHtmlElement[HTMLUListElement] =
   val lis =
     graph.map: g =>
-      println(s"------- NodesList (${g.nodes.size}): : ----------")
-      println(g.nodes.toList.map(_.displayName).sorted.mkString(","))
-      println(s"------- Arrows (${g.arrows.size}): ----------")
-      println(g.arrows.toList.map(a => s"${a.source} -> ${a.target}").sorted.mkString("\n"))
       g.nodes.toList
         .sortBy(_.displayName)
         .map: s =>

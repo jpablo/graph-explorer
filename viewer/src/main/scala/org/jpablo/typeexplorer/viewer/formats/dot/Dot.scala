@@ -35,11 +35,6 @@ object Dot:
     def toSvgDiagram: Signal[SvgDotDiagram] =
       gvInstance.renderDot(dot)
 
-//    def toViewerGraph: ViewerGraph =
-//      // TODO: handle errors
-//      // Assuming there's only one digraph
-//      dot.buildAST.map(_.toViewerGraph).head
-
   extension (graph: ViewerGraph)
     def toDot: Dot =
       val declarations =
