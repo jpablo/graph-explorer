@@ -89,13 +89,14 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
           children.map(renderElement).mkString(s"subgraph ${id.getOrElse("")} {", "", "}")
 
     def renderAttrList(attrList: List[Attr]): String =
-      dom.console.log(s"attrList: $attrList")
-      val r = attrList.map { attr =>
-        attr.attrEq match
-          case a: AttrEq => s"${attr.id}=\"${a.value}\""
-          case s: String => s"${attr.id}=\"$s\""
-      }
-      if r.isEmpty then "" else r.mkString(" [", ", ", "];")
+      attrList match
+        case Nil => ""
+        case nel =>
+          nel
+            .map:
+              case Attr(_, id, AttrEq(_, value, html)) => s"$id=\"$value\""
+              case Attr(_, id, s)                      => s"$id=\"$s\""
+            .mkString(" [", ", ", "];")
 
     val body = this.children
       .map(renderElement)
