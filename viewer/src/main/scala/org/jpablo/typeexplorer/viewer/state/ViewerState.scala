@@ -13,7 +13,6 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
-import org.scalajs.dom
 import upickle.default.*
 
 enum InputFormats:
@@ -94,7 +93,6 @@ case class ViewerState(initialSource: String = ""):
   // --
   private def restoreState() =
     val ss = storedString("viewer.state", initial = "[{}, \"\"]")
-    dom.console.log(ss.signal.observe.now())
     val (nodes0, source0) = read[(VisibleNodes, String)](ss.signal.observe.now())
     source.set(source0)
     visibleNodesV.set(nodes0)

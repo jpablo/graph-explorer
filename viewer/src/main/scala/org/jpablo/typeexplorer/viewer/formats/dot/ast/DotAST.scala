@@ -4,6 +4,7 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.Location.Position
 import upickle.implicits.key
 import upickle.default.*
 import com.softwaremill.quicklens.*
+import org.scalajs.dom
 
 case class DiGraphAST(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
 
@@ -33,6 +34,8 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
     _allArrows(children)
 
   def removeNodes(nodeIds: Set[String]): DiGraphAST =
+    dom.console.log(s"[DiGraphAST.removeNodes]")
+
     def removeElement(element: GraphElement): Option[GraphElement] =
       element match
         case e: EdgeStmt => Some(e.modify(_.edgeList).using(_.filterNot(n => nodeIds.contains(n.id))))
@@ -40,9 +43,22 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
         case n: NodeStmt if nodeIds.contains(n.nodeId.id) => None
         case other                                        => Some(other)
 
-    this.modify(_.children).using(_.flatMap(removeElement))
+    def optimize(lst: List[GraphElement]): List[GraphElement] =
+      lst match
+        case h :: EdgeStmt(_, Nil, _) :: t => optimize(h :: t)
+        case Pad(_) :: Newline(_) :: t     => optimize(t)
+        case h :: t                        => h :: optimize(t)
+        case Nil                           => Nil
+
+    this
+      .modify(_.children)
+      .using(_.flatMap(removeElement))
+      .modify(_.children)
+      .using(optimize)
 
   def render: String =
+    dom.console.log(s"[DiGraphAST.render]")
+    dom.console.log(write(this))
     def renderElement(element: GraphElement): String =
       element match
         case Newline(_) => "\n"
@@ -51,15 +67,21 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
         case AttrStmt(_, target, attrList) =>
           val attrs = renderAttrList(attrList)
-          if attrs.isEmpty then "" else s"$target $attrs"
+          val x = if attrs.isEmpty then "" else s"$target $attrs"
+          println(s"target: $target, attrs: $attrs")
+          x
 
         case EdgeStmt(_, edgeList, attrList) =>
-          edgeList.map(n => s"\"${n.id}\"").mkString(" -> ") + renderAttrList(attrList)
+          val x = edgeList.map(n => s"\"${n.id}\"").mkString(" -> ") + renderAttrList(attrList)
+          println(s"edge: $x")
+          x
 
         case StmtSep(_) => ""
 
         case NodeStmt(_, nodeId, attrList) =>
-          "\"" + nodeId.id + "\"" + renderAttrList(attrList)
+          val x = "\"" + nodeId.id + "\"" + renderAttrList(attrList)
+          println(s"node: $x")
+          x
 
         case Comment(_) => ""
 
@@ -74,7 +96,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
       .map(renderElement)
       .filter(_.nonEmpty)
       .mkString("")
-    s"digraph ${this.id} {$body}"
+    s"digraph \"${this.id}\" {$body}"
   end render
 
 end DiGraphAST
