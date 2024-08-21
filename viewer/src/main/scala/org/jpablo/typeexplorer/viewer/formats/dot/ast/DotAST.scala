@@ -36,10 +36,10 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
   def removeNodes(nodeIds: Set[String]): DiGraphAST =
     dom.console.log(s"[DiGraphAST.removeNodes]")
 
-    def removeElement(element: GraphElement): Option[GraphElement] =
+    def remove(element: GraphElement): Option[GraphElement] =
       element match
         case e: EdgeStmt => Some(e.modify(_.edgeList).using(_.filterNot(n => nodeIds.contains(n.id))))
-        case g: Subgraph => Some(g.modify(_.children).using(_.flatMap(removeElement)))
+        case g: Subgraph => Some(g.modify(_.children).using(_.flatMap(remove)))
         case n: NodeStmt if nodeIds.contains(n.nodeId.id) => None
         case other                                        => Some(other)
 
@@ -52,7 +52,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
     this
       .modify(_.children)
-      .using(_.flatMap(removeElement))
+      .using(_.flatMap(remove))
       .modify(_.children)
       .using(optimize)
 
@@ -91,11 +91,15 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
     def renderAttrList(attrList: List[Attr]): String =
       attrList match
         case Nil => ""
-        case nel =>
-          nel
+        case attrs =>
+          attrs
             .map:
-              case Attr(_, id, AttrEq(_, value, html)) => s"$id=\"$value\""
-              case Attr(_, id, s)                      => s"$id=\"$s\""
+              case Attr(_, id, AttrEq(_, value, html)) =>
+                if html then
+                  s"$id=<$value>"
+                else
+                  s"$id=\"$value\""
+              case Attr(_, id, s) => s"$id=\"$s\""
             .mkString(" [", ", ", "];")
 
     val body = this.children
