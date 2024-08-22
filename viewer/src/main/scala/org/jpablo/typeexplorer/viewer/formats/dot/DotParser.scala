@@ -19,6 +19,8 @@ object DotParserT:
     for
       j <- Try(DotParser.parse(dotString))
       str = JSON.stringify(j)
+      _ = dom.console.log(s"==> DotParserT.parse")
+      _ = dom.console.log(j)
       ast <-
         Try(read[List[DiGraphAST]](str)) match
           case f @ scala.util.Failure(exception) =>

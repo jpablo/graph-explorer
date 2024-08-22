@@ -48,10 +48,10 @@ case class ViewerState(initialSource: String = ""):
         (ast, ast.map(_.toViewerGraph).getOrElse(ViewerGraph.empty))
 
   // 2. transform graph to SVG using visible nodes
-  val svgDiagram: Signal[SvgDotDiagram] =
+  val visibleAsDOT: Signal[Dot] =
     fullGraphWithSource
       .combineWith(project.page.signal.distinct)
-      .flatMapSwitch: (originalDotAST, fullGraph, page) =>
+      .map: (originalDotAST, fullGraph, page) =>
         // Reuse the initial DotAST value and *remove* invisibleNodes from the AST
         // and use it to render the SVG.
         // This works as long as we don't change the style via the UI. In that case
@@ -65,7 +65,10 @@ case class ViewerState(initialSource: String = ""):
           fullGraph.subgraph(page.visibleNodes.keySet).toDot
         // The original AST is used to render the SVG.
         // If it is not available, build a new Dot from scratch.
-        modifiedDot.getOrElse(newDot).toSvgDiagram
+        modifiedDot.getOrElse(newDot)
+
+  val svgDiagram: Signal[SvgDotDiagram] =
+    visibleAsDOT.flatMapSwitch(_.toSvgDiagram)
 
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)

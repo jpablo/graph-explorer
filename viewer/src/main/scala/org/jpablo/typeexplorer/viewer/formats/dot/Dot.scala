@@ -23,7 +23,7 @@ object Dot:
 
   extension (diGraph: DiGraphAST)
     def toDot: Dot =
-      diGraph.children.foreach(println)
+      diGraph.children.foreach(c => dom.console.log(c.toString))
       Dot(diGraph.render)
 
     def toViewerGraph: ViewerGraph =
