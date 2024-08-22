@@ -78,21 +78,15 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
         case AttrStmt(target, attrList) =>
           val attrs = renderAttrList(attrList)
-          val x = if attrs.isEmpty then "" else s"$target $attrs"
-          dom.console.log(s"target: $target, attrs: $attrs")
-          x
+          if attrs.isEmpty then "" else s"$target $attrs"
 
         case EdgeStmt(edgeList, attrList) =>
-          val x = edgeList.map(n => s"\"${n.id}\"").mkString(" -> ") + renderAttrList(attrList)
-          dom.console.log(s"edge: $x")
-          x
+          edgeList.map(n => s"\"${n.id}\"").mkString(" -> ") + renderAttrList(attrList)
 
         case StmtSep() => ""
 
         case NodeStmt(nodeId, attrList) =>
-          val x = "\"" + nodeId.id + "\"" + renderAttrList(attrList)
-          dom.console.log(s"node: $x")
-          x
+          "\"" + nodeId.id + "\"" + renderAttrList(attrList)
 
         case Comment() => ""
 
