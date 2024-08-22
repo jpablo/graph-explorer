@@ -45,16 +45,19 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
     def optimize(lst: List[GraphElement]): List[GraphElement] =
       lst match
-        case h :: EdgeStmt(_, Nil, _) :: t => optimize(h :: t)
-        case Pad(_) :: Newline(_) :: t     => optimize(t)
-        case h :: t                        => h :: optimize(t)
-        case Nil                           => Nil
+        case h :: EdgeStmt(_, Nil, _) :: t      => optimize(h :: t)
+        case h :: EdgeStmt(_, _ :: Nil, _) :: t => optimize(h :: t)
+        case Pad(_) :: Newline(_) :: t          => optimize(t)
+        case h :: t                             => h :: optimize(t)
+        case Nil                                => Nil
 
     this
       .modify(_.children)
       .using(_.flatMap(remove))
       .modify(_.children)
       .using(optimize)
+      .modify(_.children)
+      .using(_.distinct)
 
   def render: String =
     dom.console.log(s"[DiGraphAST.render]")
@@ -95,10 +98,8 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
           attrs
             .map:
               case Attr(_, id, AttrEq(_, value, html)) =>
-                if html then
-                  s"$id=<$value>"
-                else
-                  s"$id=\"$value\""
+                if html then s"$id=<$value>"
+                else s"$id=\"$value\""
               case Attr(_, id, s) => s"$id=\"$s\""
             .mkString(" [", ", ", "];")
 
@@ -144,12 +145,12 @@ object Attr:
   given ReadWriter[String | AttrEq] =
     readwriter[ujson.Value].bimap[String | AttrEq](
       {
-        case s: String => ujson.Str(s)
+        case s: String => writeJs(s)
         case a: AttrEq => writeJs(a)
       },
       {
         case ujson.Str(s) => s
-        case json         => read[AttrEq](json)
+        case jsValue      => read[AttrEq](jsValue)
       }
     )
 
