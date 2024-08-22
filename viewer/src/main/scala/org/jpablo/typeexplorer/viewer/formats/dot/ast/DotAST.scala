@@ -45,19 +45,27 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
     def optimize(lst: List[GraphElement]): List[GraphElement] =
       lst match
-        case h :: EdgeStmt(Nil, _) :: t      => optimize(h :: t)
-        case h :: EdgeStmt(_ :: Nil, _) :: t => optimize(h :: t)
-        case Pad() :: Newline() :: t         => optimize(t)
-        case h :: t                          => h :: optimize(t)
-        case Nil                             => Nil
+        case h :: EdgeStmt(ids, _) :: t if ids.length < 2 => optimize(h :: t)
+        case Pad() :: Newline() :: t                      => optimize(t)
+        case h :: t                                       => h :: optimize(t)
+        case Nil                                          => Nil
+
+    def dedup(lst: List[GraphElement]): List[GraphElement] =
+      lst
+        .foldLeft((List.empty[GraphElement], Set.empty[GraphElement])):
+          case ((acc, visited), e: EdgeStmt) if visited.contains(e) => (acc, visited)
+          case ((acc, visited), n: NodeStmt) if visited.contains(n) => (acc, visited)
+          case ((acc, visited), e)                                  => (e :: acc, visited + e)
+        ._1
+        .reverse
 
     this
       .modify(_.children)
       .using(_.flatMap(remove))
       .modify(_.children)
       .using(optimize)
-//      .modify(_.children)
-//      .using(_.distinct)
+      .modify(_.children)
+      .using(dedup)
 
   def render: String =
     dom.console.log(s"[DiGraphAST.render]")
@@ -100,7 +108,8 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
               case Attr(id, AttrEq(value, html)) =>
                 if html then s"$id=<$value>"
                 else s"$id=\"$value\""
-              case Attr(id, s) => s"$id=\"$s\""
+              case Attr("style", "stroke-dasharray: 5,5") => s"style=\"dashed\""
+              case Attr(id, s: String)                    => s"$id=\"$s\""
             .mkString(" [", ", ", "];")
 
     val body = this.children
