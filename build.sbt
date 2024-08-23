@@ -2,7 +2,7 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 
 val typeExplorerVersion = "0.3.0"
 
-val scala3Version = "3.4.2"
+val scala3Version = "3.5.0"
 val scala2Version = "2.13.11"
 val scalametaVersion = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
@@ -20,8 +20,8 @@ ThisBuild / version           := typeExplorerVersion
 ThisBuild / semanticdbVersion := scalametaVersion
 ThisBuild / scalacOptions ++= // Scala 3.x options
   Seq(
-    "-Ykind-projector:underscores",
-    "-Ysafe-init",
+//    "-Ykind-projector:underscores",
+    "-Wsafe-init",
     "-language:implicitConversions",
     "-source:future",
     "-deprecation",

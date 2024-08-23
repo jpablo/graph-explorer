@@ -7,7 +7,6 @@ import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 import org.jpablo.typeexplorer.viewer.state.ViewerState
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
-import org.jpablo.typeexplorer.viewer.widgets.*
 import org.scalajs.dom
 
 def SelectionSidebar(state: ViewerState) =
@@ -141,28 +140,6 @@ def SelectionSidebar(state: ViewerState) =
                   )
                 ) -->
                   state.diagramSelection.selectChildren.tupled
-              )
-            ),
-            // ----- show fields -----
-            li(
-              cls("disabled") <-- selectionEmpty,
-              LabeledCheckbox(
-                id       = "fields-checkbox-3",
-                labelStr = "Show fields",
-                isChecked = state.visibleNodesV.signal
-                  .combineWith(state.diagramSelection.signal)
-                  .map: (visibleNodes, selection) =>
-                    val activeSelection =
-                      visibleNodes.filter((s, _) => selection.contains(s))
-                    // true when activeSelection is nonEmpty AND every option exists and showFields == true
-                    activeSelection.nonEmpty && activeSelection.forall((_, o) => o.exists(_.showFields))
-                ,
-                isDisabled = selectionEmpty,
-                clickHandler = Observer: b =>
-                  state.visibleNodes.updateSelectionOptions(
-                    _.copy(showFields = b)
-                  ),
-                toggle = true
               )
             )
           )

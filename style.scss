@@ -46,16 +46,19 @@ svg.graphviz {
   g {
     .node {
       &:hover {
-        outline: 1px solid rgb(251 191 36);
+        outline: 4px solid rgb(251 191 36);
         cursor: pointer;
       }
       &.selected {
         outline: 1px solid rgb(245 158 11);
       }
+
+      polygon {
+        fill: white;
+      }
     }
 
     .edge {
-
       &:hover {
         path, polygon {
           stroke: rgb(251 191 36);
@@ -66,16 +69,14 @@ svg.graphviz {
           fill: rgb(251 191 36);
         }
       }
-
       &.selected {
         * {
           stroke: rgb(245 158 11);
-          stroke-width: 1.0;
+          stroke-width: 2.0;
         }
         polygon {
           fill: rgb(245 158 11);
         }
-
       }
     }
   }

@@ -74,7 +74,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
       element match
         case Newline() => "\n"
 
-        case Pad() => ""
+        case Pad() => " "
 
         case AttrStmt(target, attrList) =>
           val attrs = renderAttrList(attrList)
