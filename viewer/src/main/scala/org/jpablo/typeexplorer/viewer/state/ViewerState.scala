@@ -48,7 +48,7 @@ case class ViewerState(initialSource: String = ""):
         (ast, ast.map(_.toViewerGraph).getOrElse(ViewerGraph.empty))
 
   // 2. transform graph to SVG using visible nodes
-  val visibleAsDOT: Signal[Dot] =
+  val visibleDOT: Signal[Dot] =
     fullGraphWithSource
       .combineWith(project.page.signal.distinct)
       .map: (originalDotAST, fullGraph, page) =>
@@ -68,7 +68,7 @@ case class ViewerState(initialSource: String = ""):
         modifiedDot.getOrElse(newDot)
 
   val svgDiagram: Signal[SvgDotDiagram] =
-    visibleAsDOT.flatMapSwitch(_.toSvgDiagram)
+    visibleDOT.flatMapSwitch(_.toSvgDiagram)
 
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)

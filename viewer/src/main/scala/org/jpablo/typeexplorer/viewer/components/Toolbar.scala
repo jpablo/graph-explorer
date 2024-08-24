@@ -61,7 +61,7 @@ def Toolbar(
           li(
             a(
               "dot",
-              onClick.compose(_.sample(state.visibleAsDOT)) -->  { dot =>
+              onClick.compose(_.sample(state.visibleDOT)) -->  { dot =>
                 dom.window.navigator.clipboard.writeText(dot.value)
               }
             )

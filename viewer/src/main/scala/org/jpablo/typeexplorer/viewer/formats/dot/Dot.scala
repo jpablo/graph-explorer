@@ -6,10 +6,9 @@ import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
-import org.scalajs.dom
 
 case class Dot(value: String):
-  dom.console.log(value)
+//  org.scalajs.dom.console.log(value)
 
   override def toString: String =
     value
@@ -23,6 +22,7 @@ object Dot:
 
   extension (diGraph: DiGraphAST)
     def toDot: Dot =
+//      dom.console.log(s"[Dot.toDot]")
       Dot(diGraph.render)
 
     def toViewerGraph: ViewerGraph =

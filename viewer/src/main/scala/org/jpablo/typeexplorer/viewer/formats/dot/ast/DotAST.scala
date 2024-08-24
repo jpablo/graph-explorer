@@ -4,34 +4,33 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.Location.Position
 import upickle.implicits.key
 import upickle.default.*
 import com.softwaremill.quicklens.*
-import org.scalajs.dom
 
 case class DiGraphAST(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
 
-  private def _allNodesIds(elems: List[GraphElement]): Set[String] =
-    elems
-      .collect:
-        case EdgeStmt(edgeList, _) => edgeList.map(_.id)
-        case Subgraph(children, _) => _allNodesIds(children)
-      .flatten
-      .toSet
-
   def allNodesIds: Set[String] =
-    _allNodesIds(children)
+    def go(elems: List[GraphElement]): Set[String] =
+      elems
+        .collect:
+          case NodeStmt(nodeId, _)   => Set(nodeId.id)
+          case EdgeStmt(edgeList, _) => edgeList.map(_.id)
+          case Subgraph(children, _) => go(children)
+        .flatten
+        .toSet
 
-  private def _allArrows(elems: List[GraphElement]): Set[(String, String)] =
-    elems
-      .collect:
-        case EdgeStmt(edgeList, _) if edgeList.size >= 2 =>
-          edgeList
-            .sliding(2)
-            .collect { case List(source, target) => (source.id, target.id) }
-        case Subgraph(children, _) => _allArrows(children)
-      .flatten
-      .toSet
+    go(children)
 
   def allArrows: Set[(String, String)] =
-    _allArrows(children)
+    def go(elems: List[GraphElement]): Set[(String, String)] =
+      elems
+        .collect:
+          case EdgeStmt(edgeList, _) if edgeList.size >= 2 =>
+            edgeList
+              .sliding(2)
+              .collect { case List(source, target) => (source.id, target.id) }
+          case Subgraph(children, _) => go(children)
+        .flatten
+        .toSet
+    go(children)
 
   def removeNodes(nodeIds: Set[String]): DiGraphAST =
     dom.console.log(s"[DiGraphAST.removeNodes]")
