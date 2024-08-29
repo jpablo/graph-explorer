@@ -18,10 +18,10 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
 
   svgElement.setAttribute("class", "graphviz")
   // graphviz adds a polygon as diagram background
-  val n = svgElement.querySelector("g > polygon[fill='white']")
-  if n != null then
-    n.parentNode.removeChild(n)
-  svgElement.removeAttribute("style")
+//  val n = svgElement.querySelector("g > polygon[fill='white']")
+//  if n != null then
+//    n.parentNode.removeChild(n)
+//  svgElement.removeAttribute("style")
 
   // ------------------
 
@@ -75,4 +75,4 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
     svgElement.querySelector(s"[id='$id']")
 
 object SvgDotDiagram:
-  val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px").ref)
+  val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()).ref)

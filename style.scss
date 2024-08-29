@@ -33,6 +33,7 @@ label[for ^= show-ns-kind-] {
     background-image: radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px);
     background-size: 5px 5px;
     position: relative;
+    border: 3px dotted blue;
   }
 
 }
@@ -41,9 +42,11 @@ label[for ^= show-ns-kind-] {
 svg.graphviz {
 
   //background-color: lightgray;
-  position: absolute !important;
+  //position: absolute !important;
+  border: 5px solid red;
 
   g {
+
     .node {
       &:hover {
         outline: 4px solid rgb(251 191 36);

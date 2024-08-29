@@ -33,7 +33,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
     go(children)
 
   def removeNodes(nodeIds: Set[String]): DiGraphAST =
-    dom.console.log(s"[DiGraphAST.removeNodes]")
+//    dom.console.log(s"[DiGraphAST.removeNodes]")
 
     def remove(element: GraphElement): Option[GraphElement] =
       element match
@@ -67,8 +67,8 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
       .using(dedup)
 
   def render: String =
-    dom.console.log(s"[DiGraphAST.render]")
-    dom.console.log(write(this))
+//    dom.console.log(s"[DiGraphAST.render]")
+//    dom.console.log(write(this))
     def renderElement(element: GraphElement): String =
       element match
         case Newline() => "\n"

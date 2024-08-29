@@ -23,6 +23,7 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
 //    "-Ykind-projector:underscores",
     "-Wsafe-init",
     "-language:implicitConversions",
+    "-language:experimental.namedTuples",
     "-source:future",
     "-deprecation",
     "-Wunused:imports",
