@@ -33,34 +33,33 @@ label[for ^= show-ns-kind-] {
     background-size: 5px 5px;
     position: relative;
     border: 3px dotted blue;
-    
+
     justify-content: center; /* Center horizontally */
 
     svg.graphviz {
 
       border: 5px solid red;
-    
+
       #graph0 {
-        transform-origin: center;
+        transform-origin: 50% -50%;
       }
-    
+
       g {
-    
         .node {
           &:hover {
             outline: 4px solid rgb(251 191 36);
             cursor: pointer;
           }
-    
+
           &.selected {
             outline: 4px solid rgb(245 158 11);
           }
-    
+
           polygon {
             fill: white;
           }
         }
-    
+
         .edge {
           &:hover {
             path, polygon {
@@ -68,26 +67,26 @@ label[for ^= show-ns-kind-] {
               stroke-width: 2.0;
               cursor: pointer;
             }
-    
+
             polygon {
               fill: rgb(251 191 36);
             }
           }
-    
+
           &.selected {
             * {
               stroke: rgb(245 158 11);
               stroke-width: 2.0;
             }
-    
+
             polygon {
               fill: rgb(245 158 11);
             }
           }
         }
       }
-    
-    }    
+
+    }
   }
 
 }
