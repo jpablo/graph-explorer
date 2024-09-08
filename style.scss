@@ -1,4 +1,3 @@
-
 label[for ^= show-ns-kind-] {
   padding: 0 0 2px;
 }
@@ -29,62 +28,70 @@ label[for ^= show-ns-kind-] {
   }
 
   #canvas-container {
-    @apply  p-1 z-10 flex-grow overflow-hidden flex;
-    background-image: radial-gradient(oklch(var(--bc)/.2) .5px,oklch(var(--b2)/1) .5px);
+    @apply p-1 z-10 flex-grow overflow-hidden flex;
+    background-image: radial-gradient(oklch(var(--bc)/.2) .5px, oklch(var(--b2)/1) .5px);
     background-size: 5px 5px;
     position: relative;
     border: 3px dotted blue;
+    
+    justify-content: center; /* Center horizontally */
+
+    svg.graphviz {
+
+      border: 5px solid red;
+    
+      #graph0 {
+        transform-origin: center;
+      }
+    
+      g {
+    
+        .node {
+          &:hover {
+            outline: 4px solid rgb(251 191 36);
+            cursor: pointer;
+          }
+    
+          &.selected {
+            outline: 4px solid rgb(245 158 11);
+          }
+    
+          polygon {
+            fill: white;
+          }
+        }
+    
+        .edge {
+          &:hover {
+            path, polygon {
+              stroke: rgb(251 191 36);
+              stroke-width: 2.0;
+              cursor: pointer;
+            }
+    
+            polygon {
+              fill: rgb(251 191 36);
+            }
+          }
+    
+          &.selected {
+            * {
+              stroke: rgb(245 158 11);
+              stroke-width: 2.0;
+            }
+    
+            polygon {
+              fill: rgb(245 158 11);
+            }
+          }
+        }
+      }
+    
+    }    
   }
 
 }
 
-
-svg.graphviz {
-
-  //background-color: lightgray;
-  //position: absolute !important;
-  border: 5px solid red;
-
-  g {
-
-    .node {
-      &:hover {
-        outline: 4px solid rgb(251 191 36);
-        cursor: pointer;
-      }
-      &.selected {
-        outline: 4px solid rgb(245 158 11);
-      }
-
-      polygon {
-        fill: white;
-      }
-    }
-
-    .edge {
-      &:hover {
-        path, polygon {
-          stroke: rgb(251 191 36);
-          stroke-width: 2.0;
-          cursor: pointer;
-        }
-        polygon {
-          fill: rgb(251 191 36);
-        }
-      }
-      &.selected {
-        * {
-          stroke: rgb(245 158 11);
-          stroke-width: 2.0;
-        }
-        polygon {
-          fill: rgb(245 158 11);
-        }
-      }
-    }
-  }
-
-}
 
 svg.plantuml {
   flex-shrink: 0;

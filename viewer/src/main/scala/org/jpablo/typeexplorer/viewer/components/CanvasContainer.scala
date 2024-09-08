@@ -8,6 +8,7 @@ import org.jpablo.typeexplorer.viewer.state.{DiagramSelectionOps, ViewerState}
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLDivElement, SVGSVGElement, WheelEvent}
 import com.raquo.laminar.api.features.unitArrows
+import org.scalajs.dom.svg.G
 
 type ZoomValue = (zoom: Double, mousePos: Option[(Double, Double)])
 
@@ -20,8 +21,8 @@ def CanvasContainer(
   val translateXY: Var[(Double, Double)] = Var((0.0, 0.0))
   val mousePos = Var((0.0, 0.0))
 
-  mousePos.signal.foreach(p => dom.console.log(s"mousePos: $p"))(state.owner)
-  val adjustSize = adjustSizeWith(translateXY.set, zoomValue.set)
+//  mousePos.signal.foreach(p => dom.console.log(s"mousePos: $p"))(state.owner)
+//  val adjustSize = adjustSizeWith(translateXY.set, zoomValue.set)
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(state.svgDiagram)) --> handleSvgClick(
@@ -50,7 +51,7 @@ def CanvasContainer(
           state.diagramSelection.remove(selection -- svgDiagram.nodeIds)
 
           val ref: SVGSVGElement = svgDiagram.ref
-          val g = ref.querySelector("g").asInstanceOf[dom.svg.G]
+          val g: G = svgDiagram.topGroup
           val elem =
             foreignSvgElement(g)
               .amend(
@@ -61,6 +62,7 @@ def CanvasContainer(
                       val (mx, my) = mousePos.now()
                       // s"translate(${mx} ${my}) scale(${z}) translate(${-mx} ${-my}) translate($x $y)"
                       s"scale($z) translate($x $y)"
+//                      s"matrix($z 0 0 $z $x $y)"
               )
 
           val (x, y) = {
@@ -112,7 +114,7 @@ private def handleWheel(
 )(wEv: WheelEvent) =
   // print the current mouse position to the console
   val h = dom.window.innerHeight.max(1)
-  if wEv.metaKey then zoomValue.update(_ - wEv.deltaY / h)
+  if wEv.metaKey then zoomValue.update(d => (d - wEv.deltaY / h).max(0))
   else translateXY.update((x, y) => (x - wEv.deltaX, y - wEv.deltaY))
 
 private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
