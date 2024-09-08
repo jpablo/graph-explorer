@@ -42,12 +42,13 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
         case n: NodeStmt if nodeIds.contains(n.nodeId.id) => None
         case other                                        => Some(other)
 
-    def optimize(lst: List[GraphElement]): List[GraphElement] =
-      lst match
-        case h :: EdgeStmt(ids, _) :: t if ids.length < 2 => optimize(h :: t)
-        case Pad() :: Newline() :: t                      => optimize(t)
-        case h :: t                                       => h :: optimize(t)
-        case Nil                                          => Nil
+    @annotation.tailrec
+    def optimize(children: List[GraphElement], acc: List[GraphElement] = List.empty): List[GraphElement] =
+      children match
+        case h :: EdgeStmt(ids, _) :: t if ids.length < 2 => optimize(h :: t, acc)
+        case Pad() :: Newline() :: t                      => optimize(t, acc)
+        case h :: t                                       => optimize(t, h :: acc)
+        case Nil                                          => acc.reverse
 
     def dedup(lst: List[GraphElement]): List[GraphElement] =
       lst
@@ -62,7 +63,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
       .modify(_.children)
       .using(_.flatMap(remove))
       .modify(_.children)
-      .using(optimize)
+      .using(optimize(_))
       .modify(_.children)
       .using(dedup)
 
