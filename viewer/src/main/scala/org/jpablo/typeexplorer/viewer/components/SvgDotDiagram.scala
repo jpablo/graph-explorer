@@ -2,6 +2,7 @@ package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.typeexplorer.viewer.components.selectable.SelectableElement
 import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.models.NodeId
@@ -18,6 +19,8 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
     (if g == null then dom.document.createElement("g") else g).asInstanceOf[dom.svg.G]
 
   def size = (svgElement.width.baseVal.value, svgElement.height.baseVal.value)
+
+  def viewBox = svgElement.viewBox.baseVal
 
   svgElement.setAttribute("class", "graphviz")
   // graphviz adds a polygon as diagram background
@@ -40,9 +43,8 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   def unselectAll(): Unit =
     selectableElements.foreach(_.unselect())
 
-
-  def toLaminar =
-    foreignSvgElement(svgElement)
+//  def toLaminar: ReactiveSvgElement[svg.Element] =
+//    foreignSvgElement(svgElement)
 
   def toSVGText: String =
     svgElement.outerHTML
@@ -79,3 +81,28 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
 
 object SvgDotDiagram:
   val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()).ref)
+
+  def withTransform(transform: Signal[String])(svgElement: dom.SVGSVGElement): ReactiveSvgElement[dom.SVGSVGElement] =
+    val firstGroup: dom.svg.G =
+      val g0 = svgElement.querySelector("g")
+      (if g0 == null then dom.document.createElement("g") else g0).asInstanceOf[dom.svg.G]
+
+    val g: dom.svg.G = firstGroup
+    val elem = foreignSvgElement(g).amend(svg.transform <-- transform)
+    val (gX, gY) = getTranslate(g)
+    val viewBox = svgElement.viewBox.baseVal
+    svg.svg(
+      svg.xmlns      := "http://www.w3.org/2000/svg",
+      svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
+      svg.viewBox    := s"${viewBox.x - gX} ${viewBox.y - gY} ${viewBox.width} ${viewBox.height}",
+      svg.cls        := "graphviz",
+      elem
+    )
+
+  private def getTranslate(g: dom.svg.G): Point2d =
+    val transformList = g.transform.baseVal
+    (for {
+      i <- 0 until transformList.numberOfItems
+      transform = transformList.getItem(i)
+      if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
+    } yield (transform.matrix.e, transform.matrix.f)).headOption.getOrElse((0.0, 0.0))
