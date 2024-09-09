@@ -8,6 +8,7 @@ import org.jpablo.typeexplorer.viewer.state.{DiagramSelectionOps, ViewerState}
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLDivElement, SVGSVGElement, WheelEvent}
 import com.raquo.laminar.api.features.unitArrows
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.scalajs.dom.svg.G
 
 type ZoomValue = (zoom: Double, mousePos: Option[(Double, Double)])
@@ -21,79 +22,120 @@ def CanvasContainer(
   val translateXY: Var[(Double, Double)] = Var((0.0, 0.0))
   val mousePos = Var((0.0, 0.0))
 
+  val svgElement: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
+    state.svgDiagram.map { svgDotDiagram =>
+      val ref: dom.SVGSVGElement = svgDotDiagram.ref
+      val g: G = svgDotDiagram.firstGroup
+      val elem =
+        foreignSvgElement(g)
+          .amend(
+            svg.transform <-- translateXY.signal
+              .combineWith(zoomValue.signal)
+              .map:
+                case (x, y, z) =>
+                  val (mx, my) = mousePos.now()
+                  // s"translate(${mx} ${my}) scale(${z}) translate(${-mx} ${-my}) translate($x $y)"
+                  s"scale($z) translate($x $y)"
+//                      s"matrix($z 0 0 $z $x $y)"
+          )
+
+      val (x, y) = {
+        val transformList = g.transform.baseVal
+        (for {
+          i <- 0 until transformList.numberOfItems
+          transform = transformList.getItem(i)
+          if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
+        } yield (transform.matrix.e, transform.matrix.f)).headOption.getOrElse((0.0, 0.0))
+      }
+      dom.console.log(s"Translation values: ($x, $y)")
+
+      val viewBox = ref.viewBox.baseVal
+
+      svg.svg(
+        svg.xmlns := "http://www.w3.org/2000/svg",
+        svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
+//            svg.width      := ref.width.baseVal.valueAsString,
+//            svg.height     := ref.height.baseVal.valueAsString,
+        svg.viewBox := s"${viewBox.x - x} ${viewBox.y - y} ${viewBox.width} ${viewBox.height}",
+        svg.cls := "graphviz",
+        elem
+      )
+    }
+
+  val svgDiagram2: Signal[SvgDotDiagram] = svgElement.map(_.ref).map(SvgDotDiagram(_))
 //  mousePos.signal.foreach(p => dom.console.log(s"mousePos: $p"))(state.owner)
 //  val adjustSize = adjustSizeWith(translateXY.set, zoomValue.set)
   div(
     idAttr := "canvas-container",
-    onClick.preventDefault.compose(_.withCurrentValueOf(state.svgDiagram)) --> handleSvgClick(
-      state.diagramSelection
-    ).tupled,
+    onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram2)) -->
+      handleSvgClick(state.diagramSelection).tupled,
     onMouseMove.preventDefault.map(e => (e.clientX, e.clientY)) --> mousePos,
     onWheel --> handleWheel(zoomValue, translateXY),
-    fitDiagram.sample(state.svgDiagram) --> {
+    fitDiagram.sample(svgDiagram2) --> {
       zoomValue.set(1)
       translateXY.set((0, 0))
     },
+    child <-- svgElement
 //     onMountBind { ctx =>
 //       val svgParent = ctx.thisNode
 //       def parentSize(): (Double, Double) = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
 //       // the initial resize of the diagram
 //       resizeObserver --> (_ => state.svgDiagram.foreach(adjustSize(parentSize))(ctx.owner))
 //     },
-    inContext { svgParent => // aka #canvas-container
-      // def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
-
-      Seq(
-        child <-- state.svgDiagram.map: svgDiagram =>
-          val selection = state.diagramSelection.now()
-          svgDiagram.select(selection)
-          // remove elements not present in the new diagram (such elements did exist in the previous diagram)
-          state.diagramSelection.remove(selection -- svgDiagram.nodeIds)
-
-          val ref: SVGSVGElement = svgDiagram.ref
-          val g: G = svgDiagram.topGroup
-          val elem =
-            foreignSvgElement(g)
-              .amend(
-                svg.transform <-- translateXY.signal
-                  .combineWith(zoomValue.signal)
-                  .map:
-                    case (x, y, z) =>
-                      val (mx, my) = mousePos.now()
-                      // s"translate(${mx} ${my}) scale(${z}) translate(${-mx} ${-my}) translate($x $y)"
-                      s"scale($z) translate($x $y)"
-//                      s"matrix($z 0 0 $z $x $y)"
-              )
-
-          val (x, y) = {
-            val transformList = g.transform.baseVal
-            (for {
-              i <- 0 until transformList.numberOfItems
-              transform = transformList.getItem(i)
-              if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
-            } yield (transform.matrix.e, transform.matrix.f)).headOption.getOrElse((0.0, 0.0))
-          }
-          dom.console.log(s"Translation values: ($x, $y)")
-
-          val viewBox = ref.viewBox.baseVal
-
-          svg.svg(
-            svg.xmlns      := "http://www.w3.org/2000/svg",
-            svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
-//            svg.width      := ref.width.baseVal.valueAsString,
-//            svg.height     := ref.height.baseVal.valueAsString,
-            svg.viewBox := s"${viewBox.x - x} ${viewBox.y - y} ${viewBox.width} ${viewBox.height}",
-            svg.cls     := "graphviz",
-            elem
-          )
-          // svgDiagram.toLaminar
-//            .amend(
-//              svg.children(0).transform <-- translateXY.signal
-//                .combineWith(zoomValue.signal)
-//                .map((x, y, z) => s"translate($x $y) scale($z)")
-//            )
-      )
-    }
+//    inContext { svgParent => // aka #canvas-container
+//      // def parentSize() = (svgParent.ref.offsetWidth, svgParent.ref.offsetHeight)
+//
+//      Seq(
+//        child <-- state.svgDiagram.map: svgDotDiagram =>
+//          val selection = state.diagramSelection.now()
+//          svgDotDiagram.select(selection)
+//          // remove elements not present in the new diagram (such elements did exist in the previous diagram)
+//          state.diagramSelection.remove(selection -- svgDotDiagram.nodeIds)
+//
+//          val ref: SVGSVGElement = svgDotDiagram.ref
+//          val g: G = svgDotDiagram.firstGroup
+//          val elem =
+//            foreignSvgElement(g)
+//              .amend(
+//                svg.transform <-- translateXY.signal
+//                  .combineWith(zoomValue.signal)
+//                  .map:
+//                    case (x, y, z) =>
+//                      val (mx, my) = mousePos.now()
+//                      // s"translate(${mx} ${my}) scale(${z}) translate(${-mx} ${-my}) translate($x $y)"
+//                      s"scale($z) translate($x $y)"
+////                      s"matrix($z 0 0 $z $x $y)"
+//              )
+//
+//          val (x, y) = {
+//            val transformList = g.transform.baseVal
+//            (for {
+//              i <- 0 until transformList.numberOfItems
+//              transform = transformList.getItem(i)
+//              if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
+//            } yield (transform.matrix.e, transform.matrix.f)).headOption.getOrElse((0.0, 0.0))
+//          }
+//          dom.console.log(s"Translation values: ($x, $y)")
+//
+//          val viewBox = ref.viewBox.baseVal
+//
+//          svg.svg(
+//            svg.xmlns      := "http://www.w3.org/2000/svg",
+//            svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
+////            svg.width      := ref.width.baseVal.valueAsString,
+////            svg.height     := ref.height.baseVal.valueAsString,
+//            svg.viewBox := s"${viewBox.x - x} ${viewBox.y - y} ${viewBox.width} ${viewBox.height}",
+//            svg.cls     := "graphviz",
+//            elem
+//          )
+//          // svgDiagram.toLaminar
+////            .amend(
+////              svg.children(0).transform <-- translateXY.signal
+////                .combineWith(zoomValue.signal)
+////                .map((x, y, z) => s"translate($x $y) scale($z)")
+////            )
+//      )
+//    }
   )
 
 private def adjustSizeWith(
@@ -118,16 +160,16 @@ private def handleWheel(
   else translateXY.update((x, y) => (x - wEv.deltaX, y - wEv.deltaY))
 
 private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
-    ev:         dom.MouseEvent,
+    event:      dom.MouseEvent,
     svgDiagram: SvgDotDiagram
 ): Unit =
   // 1. Identify and parse the element that was clicked
   val selectedElement: Option[SelectableElement] =
-    ev.target
+    event.target
       .asInstanceOf[dom.Element]
       .parentNodes
       .takeWhile(_.isInstanceOf[dom.SVGElement])
-      .map(SelectableElement.from)
+      .map(SelectableElement.build)
       .collectFirst { case Some(g) => g }
 
   // 2. Update selected element's appearance
@@ -135,7 +177,7 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     case Some(g) =>
       g match
         case node: NodeElement =>
-          if ev.metaKey then
+          if event.metaKey then
             node.toggle()
             diagramSelection.toggle(node.nodeId)
           else
@@ -144,7 +186,7 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
             diagramSelection.replace(node.nodeId)
 
         case edge: EdgeElement =>
-          if ev.metaKey then
+          if event.metaKey then
             edge.toggle()
             for (a, b) <- edge.endpointIds do
               svgDiagram.select(Set(a, b))
@@ -159,6 +201,7 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     case None =>
       svgDiagram.unselectAll()
       diagramSelection.clear()
+
 //private def handleOnMouseOver(diagramSelection: DiagramSelectionOps)(
 //    ev:         dom.MouseEvent,
 //    state.svgDiagram: SvgDotDiagram

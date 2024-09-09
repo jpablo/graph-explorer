@@ -39,9 +39,13 @@ label[for ^= show-ns-kind-] {
     svg.graphviz {
 
       border: 5px solid red;
+      width: 100%;
 
       #graph0 {
         transform-origin: 50% -50%;
+        polygon {
+          stroke: green;
+        }
       }
 
       g {

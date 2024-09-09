@@ -13,7 +13,7 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   val origH = svgElement.height.baseVal.value
   val orig = (origW, origH)
   val ref = svgElement
-  val topGroup: dom.svg.G =
+  val firstGroup: dom.svg.G =
     val g = svgElement.querySelector("g")
     (if g == null then dom.document.createElement("g") else g).asInstanceOf[dom.svg.G]
 

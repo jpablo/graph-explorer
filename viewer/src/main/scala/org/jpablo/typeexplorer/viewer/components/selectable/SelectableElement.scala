@@ -24,7 +24,7 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
 
 object SelectableElement:
 
-  def from(e: dom.Element): Option[SelectableElement] =
+  def build(e: dom.Element): Option[SelectableElement] =
     if isDiagramElement(e, "node") then
       Some(NodeElement(e.asInstanceOf[dom.SVGGElement]))
     else if isDiagramElement(e, "edge") then
@@ -33,7 +33,7 @@ object SelectableElement:
       None
 
   def findAll(e: dom.Element): collection.Seq[SelectableElement] =
-    e.querySelectorAll("g").flatMap(from)
+    e.querySelectorAll("g").flatMap(build)
 
 
   private def isDiagramElement(e: dom.Element, cls: String) =
