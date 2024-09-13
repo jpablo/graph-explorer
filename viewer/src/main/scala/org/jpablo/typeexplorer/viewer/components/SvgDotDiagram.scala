@@ -8,6 +8,8 @@ import org.jpablo.typeexplorer.viewer.models
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.scalajs.dom
 
+import scala.scalajs.js
+
 class SvgDotDiagram(svgElement: dom.SVGSVGElement):
 
   val origW = svgElement.width.baseVal.value
@@ -19,8 +21,6 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
     (if g == null then dom.document.createElement("g") else g).asInstanceOf[dom.svg.G]
 
   def size = (svgElement.width.baseVal.value, svgElement.height.baseVal.value)
-
-  def viewBox = svgElement.viewBox.baseVal
 
   svgElement.setAttribute("class", "graphviz")
   // graphviz adds a polygon as diagram background
@@ -100,9 +100,11 @@ object SvgDotDiagram:
     )
 
   private def getTranslate(g: dom.svg.G): Point2d =
-    val transformList = g.transform.baseVal
-    (for {
-      i <- 0 until transformList.numberOfItems
-      transform = transformList.getItem(i)
-      if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
-    } yield (transform.matrix.e, transform.matrix.f)).headOption.getOrElse((0.0, 0.0))
+    if js.isUndefined(g.transform) then (0.0, 0.0)
+    else
+      val transformList = g.transform.baseVal
+      (for {
+        i <- 0 until transformList.numberOfItems
+        transform = transformList.getItem(i)
+        if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
+      } yield (transform.matrix.e, transform.matrix.f)).headOption.getOrElse((0.0, 0.0))
