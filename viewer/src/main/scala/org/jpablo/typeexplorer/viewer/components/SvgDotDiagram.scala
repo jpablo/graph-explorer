@@ -43,9 +43,6 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   def unselectAll(): Unit =
     selectableElements.foreach(_.unselect())
 
-//  def toLaminar: ReactiveSvgElement[svg.Element] =
-//    foreignSvgElement(svgElement)
-
   def toSVGText: String =
     svgElement.outerHTML
 

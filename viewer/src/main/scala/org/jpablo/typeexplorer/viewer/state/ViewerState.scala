@@ -18,6 +18,13 @@ import upickle.default.*
 enum InputFormats:
   case csv, dot
 
+case class PersistedState(
+    visibleNodes:    VisibleNodes,
+    source:          String,
+    sideBarVisible:  Boolean = false,
+    sideBarTabIndex: Int = 0
+) derives ReadWriter
+
 case class ViewerState(initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
 
@@ -73,8 +80,6 @@ case class ViewerState(initialSource: String = ""):
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)
 
-  val appConfigDialogOpenV = Var(false)
-
   // -------------------------------
   // this should be a subset of visibleNodesV keys
   private val diagramSelectionV = Var(Set.empty[NodeId])
@@ -87,18 +92,26 @@ case class ViewerState(initialSource: String = ""):
 
   val visibleNodes =
     VisibleNodesOps(visibleNodesV, fullGraph, diagramSelectionV)
+  // -------------- UI state -----------------
+  val sideBarVisible = Var(false)
+  val sideBarTabIndex = Var(0)
+
   // -------------------------------
 
   // ---- storage ----
-  private def persistableEvents: Signal[(VisibleNodes, String)] =
-    visibleNodesV.signal.combineWith(source.signal)
+  private def persistableEvents: Signal[PersistedState] =
+    visibleNodesV.signal
+      .combineWith(source.signal, sideBarVisible.signal, sideBarTabIndex.signal)
+      .map(PersistedState.apply)
 
   // --
   private def restoreState() =
-    val ss = storedString("viewer.state", initial = "[{}, \"\"]")
-    val (nodes0, source0) = read[(VisibleNodes, String)](ss.signal.observe.now())
-    source.set(source0)
-    visibleNodesV.set(nodes0)
+    val ss = storedString("viewer.state", initial = "{\"visibleNodes\":{},\"source\":\"\", \"sideBarVisible\":false}")
+    val state0 = read[PersistedState](ss.signal.observe.now())
+    source.set(state0.source)
+    visibleNodesV.set(state0.visibleNodes)
+    sideBarVisible.set(state0.sideBarVisible)
+    sideBarTabIndex.set(state0.sideBarTabIndex)
     for a <- persistableEvents do ss.set(write(a))
 
   restoreState()

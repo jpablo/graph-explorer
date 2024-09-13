@@ -9,12 +9,10 @@ import org.jpablo.typeexplorer.viewer.widgets.*
 import org.jpablo.typeexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom
 
-
 def Toolbar(
-    state:           ViewerState,
-    zoomValue:       Var[Double],
-    fitDiagram:      EventBus[Unit],
-    drawerOpen:      Var[Boolean],
+    state:      ViewerState,
+    zoomValue:  Var[Double],
+    fitDiagram: EventBus[Unit]
 ) =
   val drawerId = s"drawer-id"
   div(
@@ -28,8 +26,8 @@ def Toolbar(
         label(
           forId := drawerId,
           cls   := "btn btn-ghost btn-sm bi bi-layout-sidebar",
-          cls("btn-active") <-- drawerOpen,
-          onClick --> drawerOpen.toggle()
+          cls("btn-active") <-- state.sideBarVisible,
+          onClick --> state.sideBarVisible.toggle()
         )
       ).amend(cls := "flex-none")
     ),
@@ -61,7 +59,7 @@ def Toolbar(
           li(
             a(
               "dot",
-              onClick.compose(_.sample(state.visibleDOT)) -->  { dot =>
+              onClick.compose(_.sample(state.visibleDOT)) --> { dot =>
                 dom.window.navigator.clipboard.writeText(dot.value)
               }
             )

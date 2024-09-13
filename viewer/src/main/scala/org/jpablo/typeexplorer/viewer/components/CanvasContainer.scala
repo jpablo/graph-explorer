@@ -31,7 +31,6 @@ def CanvasContainer(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgDiagram2)) -->
       handleSvgClick(state.diagramSelection).tupled,
-//    onMouseMove.preventDefault.map(e => (e.clientX, e.clientY)) --> mousePos,
     onWheel --> handleWheel(zoomValue, translateXY),
     fitDiagram --> {
       zoomValue.set(1)
