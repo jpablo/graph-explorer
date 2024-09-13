@@ -10,7 +10,7 @@ import org.jpablo.typeexplorer.viewer.widgets.*
 import com.raquo.laminar.api.features.unitArrows
 
 def LeftPanel(state: ViewerState) =
-  val visibleTab = Var(0)
+  val visibleTab = state.sideBarTabIndex
   val showOptions = Var(false)
   val filterByNodeId = Var("")
   val visibleNodes = state.visibleNodes.signal
