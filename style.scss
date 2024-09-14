@@ -32,13 +32,13 @@ label[for ^= show-ns-kind-] {
     background-image: radial-gradient(oklch(var(--bc)/.2) .5px, oklch(var(--b2)/1) .5px);
     background-size: 5px 5px;
     position: relative;
-    border: 3px dotted blue;
+    //border: 3px dotted blue;
 
     justify-content: center; /* Center horizontally */
 
     svg.graphviz {
 
-      border: 5px solid red;
+      //border: 5px solid red;
       width: 100%;
 
       #graph0 {

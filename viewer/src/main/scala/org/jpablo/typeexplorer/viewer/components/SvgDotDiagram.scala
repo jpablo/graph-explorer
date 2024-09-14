@@ -12,22 +12,15 @@ import scala.scalajs.js
 
 class SvgDotDiagram(svgElement: dom.SVGSVGElement):
 
-  val origW = svgElement.width.baseVal.value
-  val origH = svgElement.height.baseVal.value
-  val orig = (origW, origH)
   val ref = svgElement
-  val firstGroup: dom.svg.G =
-    val g = svgElement.querySelector("g")
-    (if g == null then dom.document.createElement("g") else g).asInstanceOf[dom.svg.G]
-
   def size = (svgElement.width.baseVal.value, svgElement.height.baseVal.value)
 
   svgElement.setAttribute("class", "graphviz")
   // graphviz adds a polygon as diagram background
-//  val n = svgElement.querySelector("g > polygon[fill='white']")
-//  if n != null then
-//    n.parentNode.removeChild(n)
-//  svgElement.removeAttribute("style")
+  val n = svgElement.querySelector("g > polygon[fill='white']")
+  if n != null then
+    n.parentNode.removeChild(n)
+  svgElement.removeAttribute("style")
 
   // ------------------
 
