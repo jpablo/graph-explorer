@@ -21,7 +21,8 @@ extension [A](a: Point2d[A])(using MathOps[A])
   def -(b: Point2d[A]): Point2d[A] = (x = a.x - b.x, y = a.y - b.y)
   def *(b: A): Point2d[A] = (a.x * b, a.y * b)
 
-case class SvgUnit (value: Double) extends AnyVal
+case class SvgUnit (value: Double) extends AnyVal:
+  override def toString: String = value.toString
 
 object SvgUnit:
   val origin: Point2d[SvgUnit] = (SvgUnit(0.0), SvgUnit(0.0))

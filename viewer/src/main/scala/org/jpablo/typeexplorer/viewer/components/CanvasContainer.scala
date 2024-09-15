@@ -9,7 +9,8 @@ import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.{DiagramSelectionOps, ViewerState}
 import org.scalajs.dom
 
-case class ScreenUnit(value: Double) extends AnyVal
+case class ScreenUnit(value: Double) extends AnyVal:
+  override def toString: String = value.toString
 
 extension (p: Point2d[ScreenUnit]) def toSvgUnit: Point2d[SvgUnit] = (SvgUnit(p.x.value), SvgUnit(p.y.value))
 
@@ -35,7 +36,7 @@ def CanvasContainer(
   div(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(svgElement)) --> handleSvgClick(state.diagramSelection).tupled,
-    onWheel --> handleWheel(zoomValue, translateXY),
+    onWheel.compose(_.withCurrentValueOf(svgElement)) --> handleWheel(zoomValue, translateXY).tupled,
     fitDiagram --> {
       zoomValue.set(1)
       translateXY.set(SvgUnit.origin)
@@ -47,11 +48,25 @@ end CanvasContainer
 private def handleWheel(
     zoomValue:   Var[Double],
     translateXY: Var[Point2d[SvgUnit]]
-)(wEv: dom.WheelEvent) =
+)(wEv: dom.WheelEvent, svgDiagram: ReactiveSvgElement[dom.SVGSVGElement]) =
   val h = dom.window.innerHeight.max(1)
-  val deltaSvg = wEv.delta.toSvgUnit
-  if wEv.metaKey then zoomValue.update(d => (d - wEv.deltaY / h).max(0))
-  else translateXY.update(_ - deltaSvg)
+  val w = dom.window.innerWidth.max(1)
+  val currentZoom = zoomValue.now()
+
+  val svgWidth: Double = svgDiagram.ref.viewBox.baseVal.width
+  val svgHeight: Double = svgDiagram.ref.viewBox.baseVal.width
+
+  val scaleX = svgWidth / w
+  val scaleY = svgHeight / h
+
+  val svgDelta: Point2d[SvgUnit] =
+    (
+      SvgUnit(wEv.deltaX * scaleX / currentZoom),
+      SvgUnit(wEv.deltaY * scaleY / currentZoom)
+    )
+
+  if wEv.metaKey then zoomValue.update(z => (z - wEv.deltaY / h).max(0))
+  else translateXY.update(_ - svgDelta)
 
 private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     event:      dom.MouseEvent,
