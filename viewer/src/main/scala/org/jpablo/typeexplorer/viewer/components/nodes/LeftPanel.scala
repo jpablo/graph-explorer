@@ -88,7 +88,6 @@ private def filteredDiagramEvent(
       ) =>
         graph
           .orElse(w.isBlank, _.filterByNodeId(w))
-//          .subgraphByKinds(packagesOptions.kinds)
           .orElse(!packagesOptions.onlyActive, _.subgraph(visibleNodes.keySet))
 
 private def Options(state: ViewerState) =
@@ -104,21 +103,5 @@ private def Options(state: ViewerState) =
           state.project.update(_.modify(_.packagesOptions.onlyActive).using(!_)),
         toggle = true
       )
-//      hr(),
-      // TODO: this is not working, fix it
-//      children <--
-//        state.fullGraph
-//          .map(_.kinds)
-//          .map: kinds =>
-//            for kind <- kinds.toList
-//            yield LabeledCheckbox(
-//              id = s"show-ns-kind-$kind",
-//              kind.toString,
-//              isChecked = state.project.packagesOptions
-//                .map(_.kinds)
-//                .map(_.contains(kind)),
-//              clickHandler = Observer: b =>
-//                state.project.update(_.modify(_.packagesOptions.kinds).using(_.toggleWith(kind, b)))
-//            )
     )
   )

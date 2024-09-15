@@ -10,6 +10,27 @@ import org.scalajs.dom
 
 import scala.scalajs.js
 
+trait MathOps[A]:
+  extension (a: A)
+    def -(b: A): A
+    def *(z: A): A
+
+type Point2d[A] = (x: A, y: A)
+
+extension [A](a: Point2d[A])(using MathOps[A])
+  def -(b: Point2d[A]): Point2d[A] = (x = a.x - b.x, y = a.y - b.y)
+  def *(b: A): Point2d[A] = (a.x * b, a.y * b)
+
+case class SvgUnit (value: Double) extends AnyVal
+
+object SvgUnit:
+  val origin: Point2d[SvgUnit] = (SvgUnit(0.0), SvgUnit(0.0))
+
+  given MathOps[SvgUnit] with
+    extension (a: SvgUnit)
+      def -(b: SvgUnit): SvgUnit = SvgUnit(a.value - b.value)
+      def *(z: SvgUnit): SvgUnit = SvgUnit(a.value * z.value)
+
 class SvgDotDiagram(svgElement: dom.SVGSVGElement):
 
   val ref = svgElement
@@ -18,8 +39,7 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
   svgElement.setAttribute("class", "graphviz")
   // graphviz adds a polygon as diagram background
   val n = svgElement.querySelector("g > polygon[fill='white']")
-  if n != null then
-    n.parentNode.removeChild(n)
+  if n != null then n.parentNode.removeChild(n)
   svgElement.removeAttribute("style")
 
   // ------------------
@@ -84,17 +104,18 @@ object SvgDotDiagram:
     svg.svg(
       svg.xmlns      := "http://www.w3.org/2000/svg",
       svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
-      svg.viewBox    := s"${viewBox.x - gX} ${viewBox.y - gY} ${viewBox.width} ${viewBox.height}",
+      svg.viewBox    := s"${viewBox.x - gX.value} ${viewBox.y - gY.value} ${viewBox.width} ${viewBox.height}",
       svg.cls        := "graphviz",
       elem
     )
 
-  private def getTranslate(g: dom.svg.G): Point2d =
-    if js.isUndefined(g.transform) then (0.0, 0.0)
+  private def getTranslate(g: dom.svg.G): Point2d[SvgUnit] =
+    if js.isUndefined(g.transform) then SvgUnit.origin
     else
       val transformList = g.transform.baseVal
       (for {
         i <- 0 until transformList.numberOfItems
         transform = transformList.getItem(i)
         if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
-      } yield (transform.matrix.e, transform.matrix.f)).headOption.getOrElse((0.0, 0.0))
+      } yield (SvgUnit(transform.matrix.e), SvgUnit(transform.matrix.f))).headOption
+        .getOrElse(SvgUnit.origin)

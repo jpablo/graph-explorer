@@ -9,35 +9,36 @@ import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.{DiagramSelectionOps, ViewerState}
 import org.scalajs.dom
 
-type Point2d = (x: Double, y: Double)
+case class ScreenUnit(value: Double) extends AnyVal
 
-extension (p: Point2d) def -(other: Point2d): Point2d = (p.x - other.x, p.y - other.y)
+extension (p: Point2d[ScreenUnit]) def toSvgUnit: Point2d[SvgUnit] = (SvgUnit(p.x.value), SvgUnit(p.y.value))
 
-extension (we: dom.WheelEvent) def delta: Point2d = (we.deltaX, we.deltaY)
+extension (we: dom.WheelEvent) def delta: Point2d[ScreenUnit] = (ScreenUnit(we.deltaX), ScreenUnit(we.deltaY))
 
 def CanvasContainer(
     state:      ViewerState,
     zoomValue:  Var[Double],
     fitDiagram: EventStream[Unit]
 ) =
-  val translateXY: Var[Point2d] = Var((0.0, 0.0))
+  val translateXY: Var[Point2d[SvgUnit]] = Var(SvgUnit.origin)
 
   val transform: Signal[String] =
     zoomValue.signal
       .combineWith(translateXY.signal)
-      .map((z, t) => s"scale($z) translate(${t.x} ${t.y})")
+      .map { (z, p) =>
+        s"scale($z) translate(${p.x} ${p.y})"
+      }
 
   val svgElement =
     state.svgDiagram.map(_.ref).map(SvgDotDiagram.withTransform(transform))
 
   div(
     idAttr := "canvas-container",
-    onClick.preventDefault.compose(_.withCurrentValueOf(svgElement)) -->
-      handleSvgClick(state.diagramSelection).tupled,
+    onClick.preventDefault.compose(_.withCurrentValueOf(svgElement)) --> handleSvgClick(state.diagramSelection).tupled,
     onWheel --> handleWheel(zoomValue, translateXY),
     fitDiagram --> {
       zoomValue.set(1)
-      translateXY.set((0, 0))
+      translateXY.set(SvgUnit.origin)
     },
     child <-- svgElement
   )
@@ -45,11 +46,12 @@ end CanvasContainer
 
 private def handleWheel(
     zoomValue:   Var[Double],
-    translateXY: Var[Point2d]
+    translateXY: Var[Point2d[SvgUnit]]
 )(wEv: dom.WheelEvent) =
   val h = dom.window.innerHeight.max(1)
+  val deltaSvg = wEv.delta.toSvgUnit
   if wEv.metaKey then zoomValue.update(d => (d - wEv.deltaY / h).max(0))
-  else translateXY.update(_ - wEv.delta)
+  else translateXY.update(_ - deltaSvg)
 
 private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     event:      dom.MouseEvent,
