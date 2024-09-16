@@ -49,24 +49,19 @@ private def handleWheel(
     zoomValue:   Var[Double],
     translateXY: Var[Point2d[SvgUnit]]
 )(wEv: dom.WheelEvent, svgDiagram: ReactiveSvgElement[dom.SVGSVGElement]) =
-  val h = dom.window.innerHeight.max(1)
-  val w = dom.window.innerWidth.max(1)
-  val currentZoom = zoomValue.now()
+  val clientHeight = dom.window.innerHeight.max(1)
+  val clientWidth = dom.window.innerWidth.max(1)
 
-  val svgWidth: Double = svgDiagram.ref.viewBox.baseVal.width
-  val svgHeight: Double = svgDiagram.ref.viewBox.baseVal.width
-
-  val scaleX = svgWidth / w
-  val scaleY = svgHeight / h
-
-  val svgDelta: Point2d[SvgUnit] =
-    (
-      SvgUnit(wEv.deltaX * scaleX / currentZoom),
-      SvgUnit(wEv.deltaY * scaleY / currentZoom)
-    )
-
-  if wEv.metaKey then zoomValue.update(z => (z - wEv.deltaY / h).max(0))
-  else translateXY.update(_ - svgDelta)
+  if wEv.metaKey && wEv.deltaY != 0 then
+    zoomValue.update: z =>
+      (z - wEv.deltaY / clientHeight).max(0.001)
+//    (z - z / (wEv.deltaY * 20)).max(0.001)
+  else
+    val viewBox = svgDiagram.ref.viewBox.baseVal
+    val z = zoomValue.now()
+    val scale = (viewBox.width / clientWidth).max(viewBox.height / clientHeight)
+    val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))
+    translateXY.update(_ - svgDelta)
 
 private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     event:      dom.MouseEvent,
