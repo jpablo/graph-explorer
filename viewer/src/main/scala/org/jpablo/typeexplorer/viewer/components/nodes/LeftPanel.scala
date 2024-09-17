@@ -8,6 +8,7 @@ import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.state.{PackagesOptions, Project, ViewerState, VisibleNodes}
 import org.jpablo.typeexplorer.viewer.widgets.*
 import com.raquo.laminar.api.features.unitArrows
+import org.scalajs.dom
 
 def LeftPanel(state: ViewerState) =
   val visibleTab = state.sideBarTabIndex
@@ -15,7 +16,7 @@ def LeftPanel(state: ViewerState) =
   val filterByNodeId = Var("")
   val visibleNodes = state.visibleNodes.signal
   def isVisible(i: Int) = visibleTab.signal.map(_ == i)
-  val filteredGraph: Signal[ViewerGraph] =
+  val filteredGraph =
     filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
   div(
     idAttr := "nodes-panel",
@@ -24,13 +25,15 @@ def LeftPanel(state: ViewerState) =
       Button("Source", cls("btn-active") <-- isVisible(0), onClick --> visibleTab.set(0)).tiny,
       Button("Nodes", cls("btn-active") <-- isVisible(1), onClick --> visibleTab.set(1)).tiny
     ),
-
     textArea(
       idAttr := "nodes-source",
       cls    := "textarea textarea-bordered",
       cls("hidden") <-- !isVisible(0),
       placeholder := "Replace source",
-      controlled(value <-- state.source, onInput.mapToValue --> state.source)
+      value <-- state.source,
+      onInput(_.debounce(300)) --> { (e: dom.Event) =>
+        state.source.set(e.target.asInstanceOf[dom.html.TextArea].value)
+      }
     ),
 
     // --- controls ---
