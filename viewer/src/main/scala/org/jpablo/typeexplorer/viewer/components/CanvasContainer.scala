@@ -54,7 +54,7 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
     event:      dom.MouseEvent,
     svgDiagram: ReactiveSvgElement[dom.SVGSVGElement]
 ): Unit =
-  val svgDotDiagram = SvgDotDiagram(svgDiagram.ref)
+  val svgDotDiagram = SvgDotDiagram(svgDiagram)
   // 1. Identify and parse the element that was clicked
   val selectedElement: Option[SelectableElement] =
     event.target

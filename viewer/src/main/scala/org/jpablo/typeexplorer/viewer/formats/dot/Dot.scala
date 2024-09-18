@@ -2,10 +2,10 @@ package org.jpablo.typeexplorer.viewer.formats.dot
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.typeexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.{Arrow, ViewerNode}
+import org.scalajs.dom.SVGSVGElement
 
 case class Dot(value: String):
 //  org.scalajs.dom.console.log(value)
@@ -32,8 +32,8 @@ object Dot:
       )
 
   extension (dot: Dot)
-    def toSvgDiagram: Signal[SvgDotDiagram] =
-      gvInstance.renderDot(dot)
+    def toSvg: Signal[SVGSVGElement] =
+      gvInstance.renderToSvg(dot)
 
   extension (graph: ViewerGraph)
     def toDot: Dot =

@@ -4,8 +4,9 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import io.laminext.syntax.core.*
-import org.jpablo.typeexplorer.viewer.components.{Point2d, SvgDotDiagram, SvgUnit}
+import org.jpablo.typeexplorer.viewer.components.{SvgDotDiagram, SvgUnit}
 import org.jpablo.typeexplorer.viewer.formats.CSV
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot.*
@@ -13,6 +14,7 @@ import org.jpablo.typeexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.typeexplorer.viewer.graph.ViewerGraph
 import org.jpablo.typeexplorer.viewer.models.NodeId
 import org.jpablo.typeexplorer.viewer.state.VisibleNodes
+import org.scalajs.dom.SVGSVGElement
 import upickle.default.*
 
 enum InputFormats:
@@ -74,20 +76,20 @@ case class ViewerState(initialSource: String = ""):
         // If it is not available, build a new Dot from scratch.
         modifiedDot.getOrElse(newDot)
 
+  // ---- SvgDotDiagram ----
   val translateXY = Var(SvgUnit.origin)
   val zoomValue = Var(1.0)
   val transform =
     zoomValue.signal.combineWith(translateXY.signal).map: (z, p) =>
       s"scale($z) translate(${p.x} ${p.y})"
 
-  val svgDiagramElement =
+  val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
     visibleDOT
-      .flatMapSwitch(_.toSvgDiagram)
-      .map(_.ref)
+      .flatMapSwitch(_.toSvg)
       .map(SvgDotDiagram.withTransform(transform))
 
   val svgDotDiagram: Signal[SvgDotDiagram] =
-    svgDiagramElement.map(svg => SvgDotDiagram(svg.ref))
+    svgDiagramElement.map(SvgDotDiagram.apply)
 
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)

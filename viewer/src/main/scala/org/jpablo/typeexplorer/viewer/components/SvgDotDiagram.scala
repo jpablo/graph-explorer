@@ -32,21 +32,21 @@ object SvgUnit:
       def -(b: SvgUnit): SvgUnit = SvgUnit(a.value - b.value)
       def *(z: SvgUnit): SvgUnit = SvgUnit(a.value * z.value)
 
-class SvgDotDiagram(svgElement: dom.SVGSVGElement):
+class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
 
-  val ref = svgElement
-  def size = (svgElement.width.baseVal.value, svgElement.height.baseVal.value)
+  val ref = svgElement.ref
+  def size = (ref.width.baseVal.value, ref.height.baseVal.value)
 
-  svgElement.setAttribute("class", "graphviz")
+  ref.setAttribute("class", "graphviz")
   // graphviz adds a polygon as diagram background
-  val n = svgElement.querySelector("g > polygon[fill='white']")
+  val n = ref.querySelector("g > polygon[fill='white']")
   if n != null then n.parentNode.removeChild(n)
-  svgElement.removeAttribute("style")
+  ref.removeAttribute("style")
 
   // ------------------
 
   private def selectableElements =
-    SelectableElement.findAll(svgElement)
+    SelectableElement.findAll(ref)
 
   def nodeIds: Set[models.NodeId] =
     selectableElements.map(_.nodeId).toSet
@@ -58,7 +58,7 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
     selectableElements.foreach(_.unselect())
 
   def toSVGText: String =
-    svgElement.outerHTML
+    ref.outerHTML
 
   private case class BBox(x: Double, y: Double, width: Double, height: Double)
 
@@ -88,10 +88,10 @@ class SvgDotDiagram(svgElement: dom.SVGSVGElement):
       s.ref.outerHTML
 
   def getElementById(id: String): dom.Element =
-    svgElement.querySelector(s"[id='$id']")
+    ref.querySelector(s"[id='$id']")
 
 object SvgDotDiagram:
-  val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()).ref)
+  val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()))
 
   def withTransform(transform: Signal[String])(svgElement: dom.SVGSVGElement): ReactiveSvgElement[dom.SVGSVGElement] =
     val firstGroup: dom.svg.G =

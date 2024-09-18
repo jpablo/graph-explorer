@@ -17,9 +17,9 @@ class Graphviz:
       .asInstanceOf[js.Promise[js.Dynamic]]
       .toFuture
 
-  private def renderSVGElement(g: String): Future[SVGSVGElement] =
+  private def renderSVGElement(g: String): Future[dom.SVGSVGElement] =
     instance
-      .map(_.renderSVGElement(g).asInstanceOf[SVGSVGElement])
+      .map(_.renderSVGElement(g).asInstanceOf[dom.SVGSVGElement])
       .transform {
         case scala.util.Success(value) =>
           scala.util.Success(value)
@@ -29,7 +29,8 @@ class Graphviz:
           scala.util.Failure(exception)
       }
 
-  def renderDot(dot: Dot): Signal[SvgDotDiagram] =
+  def renderToSvg(dot: Dot): Signal[SVGSVGElement] =
     Signal
-      .fromFuture(renderSVGElement(dot.value).map(SvgDotDiagram(_)))
-      .map(_.getOrElse(SvgDotDiagram.empty))
+      .fromFuture(renderSVGElement(dot.value))
+      .map(_.getOrElse(SvgDotDiagram.empty.ref))
+
