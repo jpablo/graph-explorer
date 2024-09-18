@@ -62,7 +62,6 @@ def SelectionSidebar(state: ViewerState) =
               a(
                 "Add successors",
                 disabled <-- selectionEmpty,
-//                state.visibleNodes.addSelectionParents(onClick)
                 state.visibleNodes.addSelectionWith(onClick)((g, id) => g.unfoldSuccessors(Set(id)))
               )
             ),
@@ -72,7 +71,6 @@ def SelectionSidebar(state: ViewerState) =
               a(
                 "Add direct successors",
                 disabled <-- selectionEmpty,
-//                state.visibleNodes.addSelectionDirectParents(onClick)
                 state.visibleNodes.addSelectionWith(onClick)((g, id) => g.directSuccessors(Set(id)))
               )
             ),
@@ -82,7 +80,6 @@ def SelectionSidebar(state: ViewerState) =
               a(
                 "Add predecessors",
                 disabled <-- selectionEmpty,
-//                state.visibleNodes.addSelectionChildren(onClick),
                 state.visibleNodes.addSelectionWith(onClick)((g, id) => g.unfoldPredecessors(Set(id)))
               )
             ),
@@ -92,22 +89,21 @@ def SelectionSidebar(state: ViewerState) =
               a(
                 "Add direct predecessors",
                 disabled <-- selectionEmpty,
-//                state.visibleNodes.addSelectionDirectParents(onClick)
                 state.visibleNodes.addSelectionWith(onClick)((g, id) => g.directPredecessors(Set(id)))
               )
             ),
-            // ----- add selection to set of hidden symbols -----
-            li(
-              cls("disabled") <-- selectionEmpty,
-              a(
-                "Hide",
-                disabled <-- selectionEmpty,
-                onClick -->
-                  state.project.update:
-                    _.modify(_.projectSettings.hiddenNodeIds)
-                      .using(_ ++ state.diagramSelection.now())
-              )
-            ),
+//            // ----- add selection to set of hidden symbols -----
+//            li(
+//              cls("disabled") <-- selectionEmpty,
+//              a(
+//                "Hide",
+//                disabled <-- selectionEmpty,
+//                onClick -->
+//                  state.project.update:
+//                    _.modify(_.projectSettings.hiddenNodeIds)
+//                      .using(_ ++ state.diagramSelection.now())
+//              )
+//            ),
             // ----- select parents -----
             li(
               cls("disabled") <-- selectionEmpty,

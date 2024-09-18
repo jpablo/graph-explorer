@@ -22,7 +22,6 @@ object Dot:
 
   extension (diGraph: DiGraphAST)
     def toDot: Dot =
-//      dom.console.log(s"[Dot.toDot]")
       Dot(diGraph.render)
 
     def toViewerGraph: ViewerGraph =
