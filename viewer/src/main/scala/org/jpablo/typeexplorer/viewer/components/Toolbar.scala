@@ -11,7 +11,6 @@ import org.scalajs.dom
 
 def Toolbar(
     state:      ViewerState,
-    zoomValue:  Var[Double],
     fitDiagram: EventBus[Unit]
 ) =
   val drawerId = s"drawer-id"
@@ -51,7 +50,7 @@ def Toolbar(
           li(
             a(
               "svg",
-              onClick.compose(_.sample(state.svgDiagram)) --> { diagram =>
+              onClick.compose(_.sample(state.svgDotDiagram)) --> { diagram =>
                 dom.window.navigator.clipboard.writeText(diagram.toSVGText)
               }
             )
@@ -69,9 +68,9 @@ def Toolbar(
     ),
     // ----------
     Join(
-      Button(span.dashIcon, onClick --> zoomValue.update(_ * 0.9)).tiny,
+      Button(span.dashIcon, onClick --> state.zoomValue.update(_ * 0.9)).tiny,
       Button("fit", onClick --> fitDiagram.emit(())).tiny,
-      Button(span.plusIcon, onClick --> zoomValue.update(_ * 1.1)).tiny
+      Button(span.plusIcon, onClick --> state.zoomValue.update(_ * 1.1)).tiny
     ),
     Join(
       input(
@@ -81,8 +80,8 @@ def Toolbar(
         maxAttr  := 5.0.toString,
         stepAttr := "0.05",
         controlled(
-          value <-- zoomValue.signal.map(_.toString),
-          onInput.mapToValue.map(_.toDouble) --> zoomValue
+          value <-- state.zoomValue.signal.map(_.toString),
+          onInput.mapToValue.map(_.toDouble) --> state.zoomValue
         )
       )
     )

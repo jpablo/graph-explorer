@@ -1,14 +1,11 @@
 package org.jpablo.typeexplorer.viewer.graph
 
 import org.jpablo.typeexplorer.viewer.formats.CSV
-import org.jpablo.typeexplorer.viewer.models.{Arrow, NodeId, ViewerKind, ViewerNode}
+import org.jpablo.typeexplorer.viewer.models.{Arrow, NodeId, ViewerNode}
 import org.jpablo.typeexplorer.viewer.tree.Tree
 import zio.prelude.{Commutative, Identity}
 
 import scala.annotation.targetName
-
-trait Decoder[A]:
-  def decode(s: String): Either[String, A]
 
 /** A simplified representation of entities and subtype relationships
   *
@@ -21,29 +18,27 @@ case class ViewerGraph(
     arrows: Set[Arrow],
     nodes:  Set[ViewerNode]
 ):
+
+  lazy val stats =
+    s"Nodes: ${nodes.size}, Arrows: ${arrows.size}"
+
   lazy val nodeIds =
     nodes.map(_.id)
 
-  private lazy val directParents: NodeId => Set[NodeId] =
+  private lazy val findDirectSuccessors: NodeId => Set[NodeId] =
     arrows
-      .groupBy(_._1)
-      .transform((_, ss) => ss.map(_._2))
+      .groupBy(_.source)
+      .transform((_, ss) => ss.map(_.target))
       .withDefaultValue(Set.empty)
 
-  private lazy val directChildren: NodeId => Set[NodeId] =
+  private lazy val findDirectPredecessors: NodeId => Set[NodeId] =
     arrows
-      .groupBy(_._2)
-      .transform((_, ss) => ss.map(_._1))
+      .groupBy(_.target)
+      .transform((_, ss) => ss.map(_.source))
       .withDefaultValue(Set.empty)
 
   private lazy val nodeById: Map[NodeId, ViewerNode] =
     nodes.groupMapReduce(_.id)(identity)((_, b) => b)
-
-  private lazy val nodesByKind: Map[ViewerKind, Set[ViewerNode]] =
-    nodes.groupBy(_.kind)
-
-  lazy val kinds =
-    nodes.map(_.kind)
 
   private def arrowsForNodeIds(ids: Set[NodeId]): Set[Arrow] =
     for
@@ -54,14 +49,8 @@ case class ViewerGraph(
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
   def subgraph(ids: Set[NodeId]): ViewerGraph =
-    val foundIds = nodeById.keySet.intersect(ids)
-    val foundNodes = foundIds.map(nodeById)
-    ViewerGraph(arrowsForNodeIds(foundIds), foundNodes)
-
-  def subgraphByKinds(kinds: Set[ViewerKind]): ViewerGraph =
-    val foundKinds = nodesByKind.filter((kind, _) => kinds.contains(kind))
-    val foundNS = foundKinds.values.flatten.toSet
-    ViewerGraph(arrowsForNodeIds(foundNS.map(_.id)), foundNS)
+    val foundNodes = nodeById.collect { case (id, node) if ids.contains(id) => node }
+    ViewerGraph(arrowsForNodeIds(ids), foundNodes.toSet)
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
@@ -74,23 +63,17 @@ case class ViewerGraph(
         else Some((newBatch, (newBatch, visited ++ newBatch)))
       .flatten
 
-  private def allRelated(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
+  private def subgraphUnfoldWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
     subgraph(unfold(f, ids))
 
-  private def directRelated(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
+  private def subgraphWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
     subgraph(ids.flatMap(f))
 
-  val parentsOfAll = allRelated(directParents)
-  val childrenOfAll = allRelated(directChildren)
+  val directSuccessors: Set[NodeId] => ViewerGraph = subgraphWith(findDirectSuccessors)
+  val unfoldSuccessors: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(findDirectSuccessors)
 
-  def parentsOf(id:  NodeId): ViewerGraph = allRelated(directParents)(Set(id))
-  def childrenOf(id: NodeId): ViewerGraph = allRelated(directChildren)(Set(id))
-
-  val directParentsOfAll = directRelated(directParents)
-  val directChildrenOfAll = directRelated(directChildren)
-
-  def directParentsOf(id:  NodeId): ViewerGraph = directParentsOfAll(Set(id))
-  def directChildrenOf(id: NodeId): ViewerGraph = directChildrenOfAll(Set(id))
+  val directPredecessors: Set[NodeId] => ViewerGraph = subgraphWith(findDirectPredecessors)
+  val unfoldPredecessors: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(findDirectPredecessors)
 
   lazy val toTrees: Tree[ViewerNode] =
     val paths =

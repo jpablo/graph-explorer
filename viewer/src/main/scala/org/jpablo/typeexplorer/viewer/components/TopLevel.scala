@@ -9,13 +9,12 @@ import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 
 def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
-  val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
   div(
     idAttr := "top-level",
     state.sideBarVisible.signal.childWhenTrue:
       LeftPanel(state),
-    CanvasContainer(state, zoomValue, fitDiagram.events),
-    Toolbar(state, zoomValue, fitDiagram),
+    CanvasContainer(state, fitDiagram.events),
+    Toolbar(state, fitDiagram),
     SelectionSidebar(state),
   )

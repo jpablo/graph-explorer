@@ -5,7 +5,7 @@ import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
-import org.jpablo.typeexplorer.viewer.components.SvgDotDiagram
+import org.jpablo.typeexplorer.viewer.components.{Point2d, SvgDotDiagram, SvgUnit}
 import org.jpablo.typeexplorer.viewer.formats.CSV
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot
 import org.jpablo.typeexplorer.viewer.formats.dot.Dot.*
@@ -74,8 +74,20 @@ case class ViewerState(initialSource: String = ""):
         // If it is not available, build a new Dot from scratch.
         modifiedDot.getOrElse(newDot)
 
-  val svgDiagram: Signal[SvgDotDiagram] =
-    visibleDOT.flatMapSwitch(_.toSvgDiagram)
+  val translateXY = Var(SvgUnit.origin)
+  val zoomValue = Var(1.0)
+  val transform =
+    zoomValue.signal.combineWith(translateXY.signal).map: (z, p) =>
+      s"scale($z) translate(${p.x} ${p.y})"
+
+  val svgDiagramElement =
+    visibleDOT
+      .flatMapSwitch(_.toSvgDiagram)
+      .map(_.ref)
+      .map(SvgDotDiagram.withTransform(transform))
+
+  val svgDotDiagram: Signal[SvgDotDiagram] =
+    svgDiagramElement.map(svg => SvgDotDiagram(svg.ref))
 
   val allNodeIds: Signal[Set[NodeId]] =
     fullGraph.map(_.nodeIds)

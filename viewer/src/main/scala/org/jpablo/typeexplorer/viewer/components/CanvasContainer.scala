@@ -18,30 +18,17 @@ extension (we: dom.WheelEvent) def delta: Point2d[ScreenUnit] = (ScreenUnit(we.d
 
 def CanvasContainer(
     state:      ViewerState,
-    zoomValue:  Var[Double],
     fitDiagram: EventStream[Unit]
 ) =
-  val translateXY: Var[Point2d[SvgUnit]] = Var(SvgUnit.origin)
-
-  val transform: Signal[String] =
-    zoomValue.signal
-      .combineWith(translateXY.signal)
-      .map { (z, p) =>
-        s"scale($z) translate(${p.x} ${p.y})"
-      }
-
-  val svgElement =
-    state.svgDiagram.map(_.ref).map(SvgDotDiagram.withTransform(transform))
-
   div(
     idAttr := "canvas-container",
-    onClick.preventDefault.compose(_.withCurrentValueOf(svgElement)) --> handleSvgClick(state.diagramSelection).tupled,
-    onWheel.compose(_.withCurrentValueOf(svgElement)) --> handleWheel(zoomValue, translateXY).tupled,
+    onClick.preventDefault.compose(_.withCurrentValueOf(state.svgDiagramElement)) --> handleSvgClick(state.diagramSelection).tupled,
+    onWheel.compose(_.withCurrentValueOf(state.svgDiagramElement)) --> handleWheel(state.zoomValue, state.translateXY).tupled,
     fitDiagram --> {
-      zoomValue.set(1)
-      translateXY.set(SvgUnit.origin)
+      state.zoomValue.set(1)
+      state.translateXY.set(SvgUnit.origin)
     },
-    child <-- svgElement
+    child <-- state.svgDiagramElement
   )
 end CanvasContainer
 

@@ -22,23 +22,21 @@ class DiagramSelectionOps(diagramSelection: Var[DiagramSelection] = Var(Set.empt
 
   def clear(): Unit = diagramSelection.set(Set.empty)
 
-  def selectParents = selectRelated(_.parentsOfAll(_), _, _, _)
-  def selectChildren = selectRelated(_.childrenOfAll(_), _, _, _)
-  def selectDirectParents = selectRelated(_.directParentsOfAll(_), _, _, _)
-  def selectDirectChildren = selectRelated(_.directChildrenOfAll(_), _, _, _)
+  def selectSuccessors = selectRelated(_.unfoldSuccessors(_))
+  def selectPredecessors = selectRelated(_.unfoldPredecessors(_))
+  def selectDirectSuccessors = selectRelated(_.directSuccessors(_))
+  def selectDirectPredecessors: (ViewerGraph, SvgDotDiagram, VisibleNodes) => Unit = selectRelated(_.directPredecessors(_))
 
-  private def selectRelated(
-      selector:     (ViewerGraph, DiagramSelection) => ViewerGraph,
+  private def selectRelated(selector: (ViewerGraph, DiagramSelection) => ViewerGraph)(
       graph:        ViewerGraph,
       svgDiagram:   SvgDotDiagram,
       visibleNodes: VisibleNodes
   ): Unit =
     val subGraph: ViewerGraph = graph.subgraph(visibleNodes.keySet)
     val relatedDiagram: ViewerGraph = selector(subGraph, diagramSelection.now())
-    val arrowIds = relatedDiagram.arrows.map(_.toTuple).map((a, b) => NodeId(s"${b}_$a"))
-    extend(relatedDiagram.nodeIds)
-    extend(arrowIds)
-    svgDiagram.select(relatedDiagram.nodeIds)
-    svgDiagram.select(arrowIds)
+    val arrowIds = relatedDiagram.arrows.map(_.toTuple).zipWithIndex.map((ab, i) => NodeId(s"${ab._1}->${ab._2}:$i"))
+    val relatedIds = relatedDiagram.nodeIds ++ arrowIds
+    extend(relatedIds)
+    svgDiagram.select(relatedIds)
 
 end DiagramSelectionOps

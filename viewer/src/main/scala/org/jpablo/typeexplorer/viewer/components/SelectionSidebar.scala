@@ -49,7 +49,7 @@ def SelectionSidebar(state: ViewerState) =
                 "Copy as SVG",
                 disabled <-- selectionEmpty,
                 onClick.compose(
-                  _.sample(state.svgDiagram, state.diagramSelection.signal)
+                  _.sample(state.svgDotDiagram, state.diagramSelection.signal)
                 ) --> { (svgDiagram, canvasSelection) =>
                   dom.window.navigator.clipboard
                     .writeText(svgDiagram.toSVGText(canvasSelection))
@@ -60,27 +60,40 @@ def SelectionSidebar(state: ViewerState) =
             li(
               cls("disabled") <-- selectionEmpty,
               a(
-                "Add parents",
+                "Add successors",
                 disabled <-- selectionEmpty,
-                state.visibleNodes.addSelectionParents(onClick)
+//                state.visibleNodes.addSelectionParents(onClick)
+                state.visibleNodes.addSelectionWith(onClick)((g, id) => g.unfoldSuccessors(Set(id)))
               )
             ),
-            // ----- augment selection with direct parents -----
+            // ----- augment selection with direct successors -----
             li(
               cls("disabled") <-- selectionEmpty,
               a(
-                "Add direct parents",
+                "Add direct successors",
                 disabled <-- selectionEmpty,
-                state.visibleNodes.addSelectionDirectParents(onClick)
+//                state.visibleNodes.addSelectionDirectParents(onClick)
+                state.visibleNodes.addSelectionWith(onClick)((g, id) => g.directSuccessors(Set(id)))
               )
             ),
             // ----- augment selection with children -----
             li(
               cls("disabled") <-- selectionEmpty,
               a(
-                "Add children",
+                "Add predecessors",
                 disabled <-- selectionEmpty,
-                state.visibleNodes.addSelectionChildren(onClick)
+//                state.visibleNodes.addSelectionChildren(onClick),
+                state.visibleNodes.addSelectionWith(onClick)((g, id) => g.unfoldPredecessors(Set(id)))
+              )
+            ),
+            // ----- augment selection with direct predecessors -----
+            li(
+              cls("disabled") <-- selectionEmpty,
+              a(
+                "Add direct predecessors",
+                disabled <-- selectionEmpty,
+//                state.visibleNodes.addSelectionDirectParents(onClick)
+                state.visibleNodes.addSelectionWith(onClick)((g, id) => g.directPredecessors(Set(id)))
               )
             ),
             // ----- add selection to set of hidden symbols -----
@@ -99,47 +112,62 @@ def SelectionSidebar(state: ViewerState) =
             li(
               cls("disabled") <-- selectionEmpty,
               a(
-                "Select parents",
+                "Select successors",
                 disabled <-- selectionEmpty,
                 onClick.compose(
                   _.sample(
                     state.fullGraph,
-                    state.svgDiagram,
+                    state.svgDotDiagram,
                     visibleNodes
                   )
                 ) -->
-                  state.diagramSelection.selectParents.tupled
+                  state.diagramSelection.selectSuccessors.tupled
               )
             ),
             // ----- select direct parents -----
             li(
               cls("disabled") <-- selectionEmpty,
               a(
-                "Select direct parents",
+                "Select direct successors",
                 disabled <-- selectionEmpty,
                 onClick.compose(
                   _.sample(
                     state.fullGraph,
-                    state.svgDiagram,
+                    state.svgDotDiagram,
                     visibleNodes
                   )
                 ) -->
-                  state.diagramSelection.selectDirectParents.tupled
+                  state.diagramSelection.selectDirectSuccessors.tupled
               )
             ),
-            // ----- select children -----
+            // ----- select predecessors -----
             li(
               cls("disabled") <-- selectionEmpty,
               a(
-                "Select children",
+                "Select predecessors",
                 onClick.compose(
                   _.sample(
                     state.fullGraph,
-                    state.svgDiagram,
+                    state.svgDotDiagram,
                     visibleNodes
                   )
                 ) -->
-                  state.diagramSelection.selectChildren.tupled
+                  state.diagramSelection.selectPredecessors.tupled
+              )
+            ),
+            // ----- select direct predecessors -----
+            li(
+              cls("disabled") <-- selectionEmpty,
+              a(
+                "Select direct predecessors",
+                onClick.compose(
+                  _.sample(
+                    state.fullGraph,
+                    state.svgDotDiagram,
+                    visibleNodes
+                  )
+                ) -->
+                  state.diagramSelection.selectDirectPredecessors.tupled
               )
             )
           )
