@@ -2,11 +2,8 @@ package org.jpablo.typeexplorer.viewer.components
 
 import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
-import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
-import org.jpablo.typeexplorer.viewer.state.ViewerState
-import org.jpablo.typeexplorer.viewer.state.VisibleNodes
+import org.jpablo.typeexplorer.viewer.state.{ViewerState, VisibleNodes}
 import org.scalajs.dom
 
 def SelectionSidebar(state: ViewerState) =
