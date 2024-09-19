@@ -3,7 +3,6 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 val graphExplorerVersion = "0.3.0"
 
 val scala3Version = "3.5.0"
-val scala2Version = "2.13.11"
 val scalametaVersion = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
 val zioVersion = "2.1.1"
@@ -52,8 +51,6 @@ lazy val viewer =
         "com.raquo"                  %%% "laminar"          % laminarVersion,
         "com.raquo"                  %%% "waypoint"         % "8.0.0",
         "com.softwaremill.quicklens" %%% "quicklens"        % "1.9.0",
-        "dev.zio"                    %%% "zio-json"         % "0.6.1",
-        "dev.zio"                    %%% "zio-prelude"      % "1.0.0-RC27",
         "io.laminext"                %%% "fetch"            % "0.17.0",
         "org.scala-js"               %%% "scalajs-dom"      % "2.8.0",
         "com.lihaoyi"                %%% "upickle"          % "4.0.0",

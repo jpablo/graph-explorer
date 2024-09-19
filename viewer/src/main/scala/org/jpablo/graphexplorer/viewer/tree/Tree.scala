@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.tree
 
 import com.softwaremill.quicklens.*
-import zio.prelude.NonEmptyList
 
 enum Tree[+A]:
   case Branch(label: Tree.Label, path: List[Tree.Label], override val children: List[Tree[A]])
@@ -19,7 +18,7 @@ object Tree:
 
   def fromPaths[A](paths: List[LeafWithPath[A]], sep: String = "/", prefix: List[Tree.Label] = List.empty): Tree[A] =
     val leaves = paths.collect { case (Nil, label, data) => Leaf(label, data) }
-    val nonEmptyPaths = paths.collect { case (h :: t, label, data) => (NonEmptyList(h, t*), label, data) }
+    val nonEmptyPaths = paths.collect { case (h :: t, label, data) => (h :: t, label, data) }
 
     val leafGroups: List[(Label, List[LeafWithPath[A]])] =
       nonEmptyPaths
@@ -39,7 +38,7 @@ object Tree:
       children = nodes.sortBy(_.label) ++ leaves.sortBy(_.label)
     )
 
-  private def pathTail[B](path: (NonEmptyList[Label], Label, B)): LeafWithPath[B] =
+  private def pathTail[B](path: (List[Label], Label, B)): LeafWithPath[B] =
     path.copy(_1 = path._1.tail)
 
   private def node[A](label: Label, trees: List[Tree[A]], path: List[Tree.Label], sep: String): Tree[A] =
