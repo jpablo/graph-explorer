@@ -2,11 +2,11 @@
 
 # UI
 # Compile ScalaJs code to JS
-sbt "ui/fullLinkJS"
+sbt "viewer/fullLinkJS"
 
 pwd # /home/runner/work/type-explorer/type-explorer
 
-ls -l /home/runner/work/type-explorer/type-explorer/ui/target/scala-3.3.1/ui-opt
+ls -l /home/runner/work/graph-explorer/graph-explorer/viewer/target/scala-3.5.0/ui-opt
 
 # Bundle JS code with Vite
 npm run build

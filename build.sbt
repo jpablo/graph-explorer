@@ -1,6 +1,6 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 
-val typeExplorerVersion = "0.3.0"
+val graphExplorerVersion = "0.3.0"
 
 val scala3Version = "3.5.0"
 val scala2Version = "2.13.11"
@@ -9,14 +9,11 @@ val zioPreludeVersion = "1.0.0-RC16"
 val zioVersion = "2.1.1"
 val laminarVersion = "17.0.0"
 
-lazy val projectPath = settingKey[File]("projectPath")
-
 Global / onChangedBuildSource := ReloadOnSourceChanges
-Global / projectPath          := (ThisBuild / baseDirectory).value / ".type-explorer/meta"
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
 ThisBuild / organization      := "org.jpablo"
 ThisBuild / scalaVersion      := scala3Version
-ThisBuild / version           := typeExplorerVersion
+ThisBuild / version           := graphExplorerVersion
 ThisBuild / semanticdbVersion := scalametaVersion
 ThisBuild / scalacOptions ++= // Scala 3.x options
   Seq(
@@ -42,7 +39,7 @@ lazy val viewer =
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
       scalacOptions ++= Seq("-explain", "-Ycheck-all-patmat"),
-      Compile / mainClass := Some("org.jpablo.typeexplorer.viewer.Viewer"),
+      Compile / mainClass := Some("org.jpablo.graphexplorer.viewer.Viewer"),
       scalaJSLinkerConfig ~= {
         _.withModuleKind(ModuleKind.ESModule)
           .withSourceMap(true)
@@ -74,7 +71,6 @@ lazy val viewer =
       ),
       publicDev                      := linkerOutputDirectory((Compile / fastLinkJS).value).getAbsolutePath,
       publicProd                     := linkerOutputDirectory((Compile / fullLinkJS).value).getAbsolutePath,
-      Compile / semanticdbTargetRoot := projectPath.value,
       testFrameworks += new TestFramework("munit.Framework")
     )
 
@@ -90,7 +86,7 @@ lazy val root =
     .in(file("."))
     .aggregate(viewer)
     .settings(
-      name := "type-explorer",
+      name := "graph-explorer",
       welcomeMessage
     )
 
@@ -98,12 +94,10 @@ def welcomeMessage = onLoadMessage := {
   import scala.Console
   def header(text:  String): String = s"${Console.RED}$text${Console.RESET}"
   def item(text:    String): String = s"${Console.GREEN}> ${Console.CYAN}$text${Console.RESET}"
-  def subItem(text: String): String = s"  ${Console.YELLOW}> ${Console.CYAN}$text${Console.RESET}"
 
-  s"""|${header(s"Type Explorer ${version.value}")}
+  s"""|${header(s"Graph Explorer ${version.value}")}
       |
       |Useful sbt tasks:
-      |${item("~ backend/reStart")} - start backend server
-      |${item("~ ui/fastLinkJS")} - compile ui
+      |${item("~ viewer/fastLinkJS")} - compile ui
       """.stripMargin
 }
