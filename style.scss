@@ -50,7 +50,7 @@ label[for ^= show-ns-kind-] {
         .node {
           &:hover {
             cursor: pointer;
-            ellipse {
+            ellipse, polygon {
               stroke: rgb(251 191 36);
               stroke-width: 5.0;
               fill: rgba(251, 191, 36, 0.1);
@@ -58,7 +58,7 @@ label[for ^= show-ns-kind-] {
           }
 
           &.selected {
-            ellipse {
+            ellipse, polygon {
               stroke: rgb(245 158 11);
               stroke-width: 5.0;
               fill: rgba(245, 158, 11, 0.1);
@@ -66,7 +66,7 @@ label[for ^= show-ns-kind-] {
 
           }
 
-          ellipse {
+          ellipse, polygon {
             fill: white;
           }
         }
