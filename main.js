@@ -1,4 +1,5 @@
 import './style.css'
 import './style.scss'
 import './dotParser.js'
+import './node_modules/@viz-js/viz/lib/viz-standalone.js'
 import '@public/main.js'
