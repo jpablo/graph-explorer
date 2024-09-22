@@ -1,13 +1,25 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="cupcake">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-X50XSRFP8E"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+
+        gtag('js', new Date());
+        gtag('config', 'G-X50XSRFP8E');
+    </script>
     <meta charset="UTF-8">
     <title>Graph Explorer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet" >
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
-    <div id="app"></div>
-    <script type="module" src="./main.js"></script>
+<div id="app"></div>
+<script type="module" src="./main.js"></script>
 </body>
 </html>
