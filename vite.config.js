@@ -33,10 +33,12 @@ const replacementForPublic = isDev()
 
 export default defineConfig({
     // publicDir: 'viewer/src/main/resources',
+    // base: "/abc",
     root: '.',
     build: {
         sourcemap: true,
-        outDir: "backend/src/universal/static"
+        // outDir: "backend/src/universal/static"
+        // (default == "./dist")
     },
     resolve: {
         alias: [

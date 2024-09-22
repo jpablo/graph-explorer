@@ -11,11 +11,8 @@ import scala.concurrent.Future
 import scala.scalajs.js
 
 class Graphviz:
-  private val instance: Future[js.Dynamic] =
-    js.Dynamic.global.Viz
-      .instance()
-      .asInstanceOf[js.Promise[js.Dynamic]]
-      .toFuture
+  private val instance: Future[Viz] =
+    VizJS.instance().toFuture
 
   private def renderSVGElement(g: String): Future[dom.SVGSVGElement] =
     instance
@@ -33,4 +30,3 @@ class Graphviz:
     Signal
       .fromFuture(renderSVGElement(dot.value))
       .map(_.getOrElse(SvgDotDiagram.empty.ref))
-
