@@ -84,5 +84,13 @@ def Toolbar(
           onInput.mapToValue.map(_.toDouble) --> state.zoomValue
         )
       )
+    ),
+    Join(
+      a(
+        cls    := "btn btn-xs",
+        href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
+        target := "_blank",
+        i(cls := "bi bi-github")
+      )
     )
   )

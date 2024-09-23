@@ -29,7 +29,7 @@ def LeftPanel(state: ViewerState) =
       idAttr := "nodes-source",
       cls    := "textarea textarea-bordered",
       cls("hidden") <-- !isVisible(0),
-      placeholder := "Replace source",
+      placeholder := "DOT source",
       value <-- state.source,
       onInput(_.debounce(300)) --> { (e: dom.Event) =>
         state.source.set(e.target.asInstanceOf[dom.html.TextArea].value)
@@ -52,10 +52,7 @@ def LeftPanel(state: ViewerState) =
       ,
       Search(
         placeholder := "filter",
-        controlled(
-          value <-- filterByNodeId,
-          onInput.mapToValue --> filterByNodeId
-        )
+        controlled(value <-- filterByNodeId, onInput.mapToValue --> filterByNodeId)
       ).smallInput
     ),
     // Scrollable content

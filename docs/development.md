@@ -19,22 +19,6 @@ $ npm install
 
 ## Development
 
-### Running the Backend
-
-From `sbt`:
-
-Auto-reloading:
-
-```
- ~ backend/reStart
-```
-
-Or manually just once:
-
-```
-backend/runMain org.jpablo.typeexplorer.backend.webApp.WebApp
-```
-
 ### Running the UI
 
 Open two terminals.
@@ -42,16 +26,13 @@ In the first one, start `sbt` and, within, continuously build the Scala.js proje
 
 ```
 $ sbt
-...
-> ~ ui/fastLinkJS
-...
+> ~ viewer/fastLinkJS
 ```
 
 In the second one, start the Vite development server with
 
 ```
 $ npm run dev
-...
 ```
 
 Follow the URL presented to you by Vite to open the application.
@@ -63,11 +44,12 @@ You can now continuously edit files in the subproject `UI`, for example the `Mai
 Make a production build with
 
 ```
+sbt "viewer/fullLinkJS"
 $ npm run build
 ```
 
 You can then find the built files in the `dist/` directory.
-You will need an HTTP server, such as `python3 -m http.server`, to open the files, as Vite rewrites `<script>` tags to prevent cross-origin requests.
+You will need an HTTP server, such as `python3 -m http.server 8000`, to open the files, as Vite rewrites `<script>` tags to prevent cross-origin requests.
 
 
 # License
