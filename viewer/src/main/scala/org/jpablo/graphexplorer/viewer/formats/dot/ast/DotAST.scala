@@ -34,10 +34,10 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
   def removeNodes(nodeIds: Set[String]): DiGraphAST =
 
-    def remove(element: GraphElement): Option[GraphElement] =
+    def removeFrom(element: GraphElement): Option[GraphElement] =
       element match
         case e: EdgeStmt => Some(e.modify(_.edgeList).using(_.filterNot(n => nodeIds.contains(n.id))))
-        case g: Subgraph => Some(g.modify(_.children).using(_.flatMap(remove)))
+        case g: Subgraph => Some(g.modify(_.children).using(_.flatMap(removeFrom)))
         case n: NodeStmt if nodeIds.contains(n.nodeId.id) => None
         case other                                        => Some(other)
 
@@ -60,7 +60,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
 
     this
       .modify(_.children)
-      .using(_.flatMap(remove))
+      .using(_.flatMap(removeFrom))
       .modify(_.children)
       .using(optimize(_))
       .modify(_.children)

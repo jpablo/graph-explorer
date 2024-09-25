@@ -5,7 +5,6 @@ import org.jpablo.graphexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.state.VisibleNodes
 
 type DiagramSelection = Set[NodeId]
 
@@ -22,17 +21,17 @@ class DiagramSelectionOps(diagramSelection: Var[DiagramSelection] = Var(Set.empt
 
   def clear(): Unit = diagramSelection.set(Set.empty)
 
-  def selectSuccessors = selectRelated(_.unfoldSuccessors(_))
-  def selectPredecessors = selectRelated(_.unfoldPredecessors(_))
-  def selectDirectSuccessors = selectRelated(_.directSuccessors(_))
-  def selectDirectPredecessors = selectRelated(_.directPredecessors(_))
+  val selectSuccessors = selectRelated(_.allSuccessorsGraph(_))
+  val selectPredecessors = selectRelated(_.allPredecessorsGraph(_))
+  val selectDirectSuccessors = selectRelated(_.directSuccessorsGraph(_))
+  val selectDirectPredecessors = selectRelated(_.directPredecessorsGraph(_))
 
   private def selectRelated(selector: (ViewerGraph, DiagramSelection) => ViewerGraph)(
-      fullGraph:    ViewerGraph,
-      svgDiagram:   SvgDotDiagram,
-      visibleNodes: VisibleNodes
+      fullGraph:   ViewerGraph,
+      svgDiagram:  SvgDotDiagram,
+      hiddenNodes: HiddenNodes
   ): Unit =
-    val subGraph: ViewerGraph = fullGraph.subgraph(visibleNodes.keySet)
+    val subGraph: ViewerGraph = fullGraph.remove(hiddenNodes)
     val relatedDiagram: ViewerGraph = selector(subGraph, diagramSelection.now())
     val arrowIds = relatedDiagram.arrows.map(_.toTuple).zipWithIndex.map((ab, i) => NodeId(s"${ab._1}->${ab._2}:$i"))
     val relatedIds = relatedDiagram.nodeIds ++ arrowIds

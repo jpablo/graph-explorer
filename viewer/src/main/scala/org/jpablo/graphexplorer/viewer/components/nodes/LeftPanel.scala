@@ -1,23 +1,22 @@
 package org.jpablo.graphexplorer.viewer.components.nodes
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.api.features.unitArrows
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.state.{PackagesOptions, Project, ViewerState, VisibleNodes}
+import org.jpablo.graphexplorer.viewer.state.{Project, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.*
-import com.raquo.laminar.api.features.unitArrows
 import org.scalajs.dom
 
 def LeftPanel(state: ViewerState) =
   val visibleTab = state.sideBarTabIndex
   val showOptions = Var(false)
   val filterByNodeId = Var("")
-  val visibleNodes = state.visibleNodes.signal
   def isVisible(i: Int) = visibleTab.signal.map(_ == i)
   val filteredGraph =
-    filteredDiagramEvent(state, visibleNodes, filterByNodeId.signal)
+    filteredDiagramEvent(state, filterByNodeId.signal)
   div(
     idAttr := "nodes-panel",
     div(
@@ -66,29 +65,18 @@ def LeftPanel(state: ViewerState) =
 
 private def filteredDiagramEvent(
     state:          ViewerState,
-    visibleNodes:   Signal[VisibleNodes],
     filterByNodeId: Signal[String]
 ): Signal[ViewerGraph] =
   state.fullGraph
     .combineWith(
       state.project.packagesOptions,
       filterByNodeId,
-      // TODO: consider another approach where changing activeSymbols does not trigger
-      // a full tree redraw, but just modifies the relevant nodes
-      visibleNodes
+      state.hiddenNodesS
     )
-//    .changes
-//    .debounce(300)
-    .map:
-      (
-          graph:           ViewerGraph,
-          packagesOptions: PackagesOptions,
-          w:               String,
-          visibleNodes:    VisibleNodes
-      ) =>
-        graph
-          .orElse(w.isBlank, _.filterByNodeId(w))
-          .orElse(!packagesOptions.onlyActive, _.subgraph(visibleNodes.keySet))
+    .map: (fullGraph, packagesOptions, filter, hiddenNodes) =>
+      fullGraph
+        .orElse(filter.isBlank, _.filterByNodeId(filter))
+        .orElse(!packagesOptions.onlyActive, _.remove(hiddenNodes))
 
 private def Options(state: ViewerState) =
   div(

@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom
+import scala.util.chaining.*
 
 def Toolbar(
     state:      ViewerState,
@@ -32,11 +33,9 @@ def Toolbar(
     ),
     // -------- actions toolbar --------
     Join(
-      Button(
-        "add all",
-        onClick.compose(_.sample(state.allNodeIds).map(_.toSeq)) --> (state.visibleNodes.extend(_))
-      ).tiny,
-      Button("remove all", onClick --> state.visibleNodes.clear()).tiny,
+      Button("roots", onClick --> state.keepRootsOnly()).tiny,
+      Button("add all", onClick --> state.showAllNodes()).tiny,
+      Button("remove all", onClick pipe state.hideAllNodes).tiny,
       div(
         cls := "dropdown dropdown-hover",
         label(
@@ -48,20 +47,10 @@ def Toolbar(
           tabIndex := 0,
           cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52",
           li(
-            a(
-              "svg",
-              onClick.compose(_.sample(state.svgDotDiagram)) --> { diagram =>
-                dom.window.navigator.clipboard.writeText(diagram.toSVGText)
-              }
-            )
+            a("svg", onClick pipe state.copyAsSVG(dom.window.navigator.clipboard.writeText))
           ),
           li(
-            a(
-              "dot",
-              onClick.compose(_.sample(state.visibleDOT)) --> { dot =>
-                dom.window.navigator.clipboard.writeText(dot.value)
-              }
-            )
+            a("dot", onClick pipe state.copyAsDOT(dom.window.navigator.clipboard.writeText))
           )
         )
       )

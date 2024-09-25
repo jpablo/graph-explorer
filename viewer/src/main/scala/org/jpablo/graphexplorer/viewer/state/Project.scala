@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.utils.Utils
 
 case class Project(
@@ -12,8 +13,7 @@ case class Project(
 )
 
 case class Page(
-    id: String = Utils.randomUUID(),
-    // The symbols currently shown in the diagram?
-    visibleNodes:   VisibleNodes = Map.empty,
+    id:             String = Utils.randomUUID(),
+    hiddenNodes:    Set[NodeId] = Set.empty,
     diagramOptions: DiagramOptions = DiagramOptions()
 )

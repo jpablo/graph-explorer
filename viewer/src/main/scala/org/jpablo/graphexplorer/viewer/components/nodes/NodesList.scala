@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.models.ViewerNode
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLAnchorElement, HTMLLIElement, HTMLUListElement}
+import com.raquo.laminar.api.features.unitArrows
 
 def NodesList(
     state: ViewerState,
@@ -24,19 +25,15 @@ def NodesList(
   )
 
 private def NodeRow(state: ViewerState, node: ViewerNode) =
-  val isActive = state.visibleNodes.signal.map(_.contains(node.id))
   li(
     a(
       idAttr := node.id.toString,
       cls    := "cursor-pointer",
-      cls("font-bold") <-- isActive,
+      cls("font-bold") <-- state.isVisible(node.id),
       div(
         cls := "truncate",
         node.displayName
       ),
-      onClick.preventDefault.stopPropagation --> { _ =>
-        state.visibleNodes.toggle(node.id)
-        state.diagramSelection.toggle(node.id)
-      }
+      onClick.preventDefault.stopPropagation --> state.toggleNode(node.id)
     )
   )

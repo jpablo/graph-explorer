@@ -24,13 +24,13 @@ case class ViewerGraph(
   lazy val nodeIds =
     nodes.map(_.id)
 
-  private lazy val findDirectSuccessors: NodeId => Set[NodeId] =
+  private lazy val directSuccessors: NodeId => Set[NodeId] =
     arrows
       .groupBy(_.source)
       .transform((_, ss) => ss.map(_.target))
       .withDefaultValue(Set.empty)
 
-  private lazy val findDirectPredecessors: NodeId => Set[NodeId] =
+  private lazy val directPredecessors: NodeId => Set[NodeId] =
     arrows
       .groupBy(_.target)
       .transform((_, ss) => ss.map(_.source))
@@ -45,11 +45,23 @@ case class ViewerGraph(
       if (ids contains a.source) && (ids contains a.target)
     yield a
 
+  private def arrowsWithoutNodeIds(ids: Set[NodeId]): Set[Arrow] =
+    arrows
+      .filterNot(a => ids.contains(a.source) || ids.contains(a.target))
+
+  lazy val findRoots: Set[NodeId] =
+    for n <- nodes if directPredecessors(n.id).isEmpty
+    yield n.id
+
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
   def subgraph(ids: Set[NodeId]): ViewerGraph =
     val foundNodes = nodeById.collect { case (id, node) if ids.contains(id) => node }
     ViewerGraph(arrowsForNodeIds(ids), foundNodes.toSet)
+
+  def remove(ids: Set[NodeId]): ViewerGraph =
+    val foundNodes = nodeById.collect { case (id, node) if !ids.contains(id) => node }
+    ViewerGraph(arrowsWithoutNodeIds(ids), foundNodes.toSet)
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
@@ -68,11 +80,11 @@ case class ViewerGraph(
   private def subgraphWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
     subgraph(ids.flatMap(f))
 
-  val directSuccessors: Set[NodeId] => ViewerGraph = subgraphWith(findDirectSuccessors)
-  val unfoldSuccessors: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(findDirectSuccessors)
+  val directSuccessorsGraph: Set[NodeId] => ViewerGraph = subgraphWith(directSuccessors)
+  val directPredecessorsGraph: Set[NodeId] => ViewerGraph = subgraphWith(directPredecessors)
 
-  val directPredecessors: Set[NodeId] => ViewerGraph = subgraphWith(findDirectPredecessors)
-  val unfoldPredecessors: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(findDirectPredecessors)
+  val allSuccessorsGraph: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(directSuccessors)
+  val allPredecessorsGraph: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(directPredecessors)
 
   lazy val toTrees: Tree[ViewerNode] =
     val paths =

@@ -1,17 +1,15 @@
 package org.jpablo.graphexplorer.viewer.components
 
-import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.state.{ViewerState, VisibleNodes}
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 
 def SelectionSidebar(state: ViewerState) =
-  val visibleNodes: Signal[VisibleNodes] =
-    state.visibleNodes.signal
-
   val selectionEmpty =
     state.diagramSelection.signal.map(_.isEmpty)
+  val disableClassIfEmpty = cls("disabled") <-- selectionEmpty
+  val disableAttrIfEmpty = disabled <-- selectionEmpty
   div(
     cls    := "absolute right-0 top-2 z-10",
     idAttr := "selection-sidebar",
@@ -23,143 +21,82 @@ def SelectionSidebar(state: ViewerState) =
           ul(
             // ----- remove selection -----
             li(
-              cls("disabled") <-- selectionEmpty,
-              a(
-                "Remove",
-                disabled <-- selectionEmpty,
-                state.visibleNodes.applyOnSelection((all, sel) => all -- sel)(onClick)
-              )
+              disableClassIfEmpty,
+              a("Remove", disableAttrIfEmpty, state.hideSelectedNodes(onClick))
             ),
             // ----- remove complement -----
             li(
-              cls("disabled") <-- selectionEmpty,
-              a(
-                "Keep",
-                disabled <-- selectionEmpty,
-                state.visibleNodes.applyOnSelection((all, sel) => all.filter((k, _) => sel.contains(k)))(onClick)
-              )
+              disableClassIfEmpty,
+              a("Remove others", disableAttrIfEmpty, state.hideNonSelectedNodes(onClick))
             ),
             // ----- copy as svg -----
             li(
-              cls("disabled") <-- selectionEmpty,
+              disableClassIfEmpty,
               a(
                 "Copy as SVG",
-                disabled <-- selectionEmpty,
+                disableAttrIfEmpty,
                 onClick.compose(
                   _.sample(state.svgDotDiagram, state.diagramSelection.signal)
                 ) --> { (svgDiagram, canvasSelection) =>
-                  dom.window.navigator.clipboard
-                    .writeText(svgDiagram.toSVGText(canvasSelection))
+                  dom.window.navigator.clipboard.writeText(svgDiagram.toSVGText(canvasSelection))
                 }
               )
             ),
             // ----- augment selection with parents -----
             li(
-              cls("disabled") <-- selectionEmpty,
-              a(
-                "Add successors",
-                disabled <-- selectionEmpty,
-                state.visibleNodes.addSelectionWith(onClick)((g, id) => g.unfoldSuccessors(Set(id)))
-              )
+              disableClassIfEmpty,
+              a("Add successors", disableAttrIfEmpty, state.showAllSuccessors(onClick))
             ),
             // ----- augment selection with direct successors -----
             li(
-              cls("disabled") <-- selectionEmpty,
-              a(
-                "Add direct successors",
-                disabled <-- selectionEmpty,
-                state.visibleNodes.addSelectionWith(onClick)((g, id) => g.directSuccessors(Set(id)))
-              )
+              disableClassIfEmpty,
+              a("Add direct successors", disableAttrIfEmpty, state.showDirectSuccessors(onClick))
             ),
             // ----- augment selection with children -----
             li(
-              cls("disabled") <-- selectionEmpty,
-              a(
-                "Add predecessors",
-                disabled <-- selectionEmpty,
-                state.visibleNodes.addSelectionWith(onClick)((g, id) => g.unfoldPredecessors(Set(id)))
-              )
+              disableClassIfEmpty,
+              a("Add predecessors", disableAttrIfEmpty, state.showAllPredecessors(onClick))
             ),
             // ----- augment selection with direct predecessors -----
             li(
-              cls("disabled") <-- selectionEmpty,
-              a(
-                "Add direct predecessors",
-                disabled <-- selectionEmpty,
-                state.visibleNodes.addSelectionWith(onClick)((g, id) => g.directPredecessors(Set(id)))
-              )
+              disableClassIfEmpty,
+              a("Add direct predecessors", disableAttrIfEmpty, state.showDirectPredecessors(onClick))
             ),
-//            // ----- add selection to set of hidden symbols -----
-//            li(
-//              cls("disabled") <-- selectionEmpty,
-//              a(
-//                "Hide",
-//                disabled <-- selectionEmpty,
-//                onClick -->
-//                  state.project.update:
-//                    _.modify(_.projectSettings.hiddenNodeIds)
-//                      .using(_ ++ state.diagramSelection.now())
-//              )
-//            ),
             // ----- select parents -----
             li(
-              cls("disabled") <-- selectionEmpty,
+              disableClassIfEmpty,
               a(
                 "Select successors",
-                disabled <-- selectionEmpty,
-                onClick.compose(
-                  _.sample(
-                    state.fullGraph,
-                    state.svgDotDiagram,
-                    visibleNodes
-                  )
-                ) -->
+                disableAttrIfEmpty,
+                onClick.compose(_.sample(state.fullGraph, state.svgDotDiagram, state.hiddenNodesS)) -->
                   state.diagramSelection.selectSuccessors.tupled
               )
             ),
             // ----- select direct parents -----
             li(
-              cls("disabled") <-- selectionEmpty,
+              disableClassIfEmpty,
               a(
                 "Select direct successors",
-                disabled <-- selectionEmpty,
-                onClick.compose(
-                  _.sample(
-                    state.fullGraph,
-                    state.svgDotDiagram,
-                    visibleNodes
-                  )
-                ) -->
+                disableAttrIfEmpty,
+                onClick.compose(_.sample(state.fullGraph, state.svgDotDiagram, state.hiddenNodesS)) -->
                   state.diagramSelection.selectDirectSuccessors.tupled
               )
             ),
             // ----- select predecessors -----
             li(
-              cls("disabled") <-- selectionEmpty,
+              disableClassIfEmpty,
               a(
                 "Select predecessors",
-                onClick.compose(
-                  _.sample(
-                    state.fullGraph,
-                    state.svgDotDiagram,
-                    visibleNodes
-                  )
-                ) -->
+                onClick.compose(_.sample(state.fullGraph, state.svgDotDiagram, state.hiddenNodesS)) -->
                   state.diagramSelection.selectPredecessors.tupled
               )
             ),
             // ----- select direct predecessors -----
             li(
-              cls("disabled") <-- selectionEmpty,
+              disableClassIfEmpty,
               a(
                 "Select direct predecessors",
-                onClick.compose(
-                  _.sample(
-                    state.fullGraph,
-                    state.svgDotDiagram,
-                    visibleNodes
-                  )
-                ) -->
+                onClick.compose(_.sample(state.fullGraph, state.svgDotDiagram, state.hiddenNodesS)) -->
                   state.diagramSelection.selectDirectPredecessors.tupled
               )
             )
