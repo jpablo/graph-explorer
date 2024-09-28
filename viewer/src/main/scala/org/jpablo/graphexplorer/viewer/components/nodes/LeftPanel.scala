@@ -4,19 +4,20 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
+import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.state.{Project, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.*
-import org.scalajs.dom
 
 def LeftPanel(state: ViewerState) =
-  val visibleTab = state.sideBarTabIndex
+  val visibleTab = state.leftPanelTabIndex
   val showOptions = Var(false)
   val filterByNodeId = Var("")
   def isVisible(i: Int) = visibleTab.signal.map(_ == i)
   val filteredGraph =
     filteredDiagramEvent(state, filterByNodeId.signal)
+
   div(
     idAttr := "nodes-panel",
     div(
@@ -24,15 +25,30 @@ def LeftPanel(state: ViewerState) =
       Button("Source", cls("btn-active") <-- isVisible(0), onClick --> visibleTab.set(0)).tiny,
       Button("Nodes", cls("btn-active") <-- isVisible(1), onClick --> visibleTab.set(1)).tiny
     ),
+    // --- DOT resources ---
+    div(
+      cls := "flex gap-2",
+      cls("hidden") <-- !isVisible(0),
+      select(
+        cls := "select select-bordered select-xs max-w-xs",
+        option("Select example", disabled := true, selected := true),
+        DotExamples.examples.keys.toSeq.sorted.map { example => option(example, value := example) },
+        onChange.mapToValue --> { example => state.source.set(DotExamples.examples(example)) }
+      ),
+      a(
+        cls    := "link",
+        href   := "https://www.graphviz.org/documentation/",
+        target := "_blank",
+        "Graphviz"
+      )
+    ),
     textArea(
       idAttr := "nodes-source",
       cls    := "textarea textarea-bordered",
       cls("hidden") <-- !isVisible(0),
       placeholder := "DOT source",
       value <-- state.source,
-      onInput(_.debounce(300)) --> { (e: dom.Event) =>
-        state.source.set(e.target.asInstanceOf[dom.html.TextArea].value)
-      }
+      onInput.mapToValue.compose(_.debounce(300)) --> state.source.set
     ),
 
     // --- controls ---

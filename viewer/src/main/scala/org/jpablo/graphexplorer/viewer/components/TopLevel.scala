@@ -12,7 +12,7 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
   val fitDiagram = EventBus[Unit]()
   div(
     idAttr := "top-level",
-    state.sideBarVisible.signal.childWhenTrue:
+    state.leftPanelVisible.signal.childWhenTrue:
       LeftPanel(state),
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram),

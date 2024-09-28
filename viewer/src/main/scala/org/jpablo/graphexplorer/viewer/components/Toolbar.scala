@@ -26,8 +26,8 @@ def Toolbar(
         label(
           forId := drawerId,
           cls   := "btn btn-ghost btn-sm bi bi-layout-sidebar",
-          cls("btn-active") <-- state.sideBarVisible,
-          onClick --> state.sideBarVisible.toggle()
+          cls("btn-active") <-- state.leftPanelVisible,
+          onClick --> state.leftPanelVisible.toggle()
         )
       ).amend(cls := "flex-none")
     ),

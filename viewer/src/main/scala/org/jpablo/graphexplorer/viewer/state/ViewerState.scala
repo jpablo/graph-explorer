@@ -21,10 +21,10 @@ enum InputFormats:
   case csv, dot
 
 case class PersistedState(
-    hiddenNodes:     Set[NodeId],
-    source:          String,
-    sideBarVisible:  Boolean = false,
-    sideBarTabIndex: Int = 0
+    hiddenNodes:      Set[NodeId],
+    source:           String,
+    leftPanelVisible: Boolean,
+    sideBarTabIndex:  Int = 0
 ) derives ReadWriter
 
 object PersistedState:
@@ -118,8 +118,8 @@ case class ViewerState(initialSource: String = ""):
     }
 
   // -------------- UI state -----------------
-  val sideBarVisible = Var(false)
-  val sideBarTabIndex = Var(0)
+  val leftPanelVisible = Var(true)
+  val leftPanelTabIndex = Var(0)
 
   // -------- Public API -----------
 
@@ -170,11 +170,11 @@ case class ViewerState(initialSource: String = ""):
 
   private def persistableEvents: Signal[PersistedState] =
     project.hiddenNodesV.signal
-      .combineWith(source.signal, sideBarVisible.signal, sideBarTabIndex.signal)
+      .combineWith(source.signal, leftPanelVisible.signal, leftPanelTabIndex.signal)
       .map(PersistedState.apply)
 
   private def restoreState() =
-    val ss = storedString("viewer.state", initial = "{\"hiddenNodes\":[],\"source\":\"\", \"sideBarVisible\":false}")
+    val ss = storedString("viewer.state", initial = "{\"hiddenNodes\":[],\"source\":\"\", \"leftPanelVisible\":true}")
     val state0 =
       try read[PersistedState](ss.signal.observe.now())
       catch
@@ -183,8 +183,8 @@ case class ViewerState(initialSource: String = ""):
           PersistedState.empty
     source.set(state0.source)
     project.hiddenNodesV.set(state0.hiddenNodes)
-    sideBarVisible.set(state0.sideBarVisible)
-    sideBarTabIndex.set(state0.sideBarTabIndex)
+    leftPanelVisible.set(state0.leftPanelVisible)
+    leftPanelTabIndex.set(state0.sideBarTabIndex)
     for a <- persistableEvents do ss.set(write(a))
 
   restoreState()
