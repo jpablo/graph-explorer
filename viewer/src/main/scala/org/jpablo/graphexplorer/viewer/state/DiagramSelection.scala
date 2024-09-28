@@ -34,7 +34,7 @@ class DiagramSelectionOps(diagramSelection: Var[DiagramSelection] = Var(Set.empt
     val subGraph: ViewerGraph = fullGraph.remove(hiddenNodes)
     val relatedDiagram: ViewerGraph = selector(subGraph, diagramSelection.now())
     val arrowIds = relatedDiagram.arrows.map(_.toTuple).zipWithIndex.map((ab, i) => NodeId(s"${ab._1}->${ab._2}:$i"))
-    val relatedIds = relatedDiagram.nodeIds ++ arrowIds
+    val relatedIds = relatedDiagram.allNodeIds ++ arrowIds
     extend(relatedIds)
     svgDiagram.select(relatedIds)
 

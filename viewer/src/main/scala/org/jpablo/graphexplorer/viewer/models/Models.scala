@@ -40,8 +40,8 @@ case class Arrow(
     (source, target)
 
 object Arrow:
-  def apply(s: String, t: String) =
-    new Arrow(NodeId(s), NodeId(t))
+  def apply(t: (String, String)): Arrow =
+    new Arrow(NodeId(t._1), NodeId(t._2))
 
   def fromString(input: String): Option[Arrow] =
     val i = input.indexOf("->")

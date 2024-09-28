@@ -93,7 +93,7 @@ case class ViewerState(initialSource: String = ""):
     svgDiagramElement.map(SvgDotDiagram.apply)
 
   val allNodeIds: Signal[Set[NodeId]] =
-    fullGraph.map(_.nodeIds)
+    fullGraph.map(_.allNodeIds)
 
   // -------------------------------
   // this should be a subset of visibleNodesV keys
@@ -125,23 +125,26 @@ case class ViewerState(initialSource: String = ""):
 
   // -------- Public API -----------
 
+  def keepRootsOnly[E <: dom.Event](e: EventProp[E]) =
+    updateHiddenNodes(e)((_, _, g) => g.allNodeIds -- g.roots)
+
   def hideSelectedNodes[E <: dom.Event](e: EventProp[E]) =
     updateHiddenNodes(e)((hidden, sel, _) => hidden ++ sel)
 
   def hideNonSelectedNodes[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden ++ (g.nodes.map(_.id) -- sel))
+    updateHiddenNodes(e)((hidden, sel, g) => hidden ++ (g.allNodeIds -- sel))
 
   def showAllSuccessors[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.allSuccessorsGraph(sel).nodeIds)
+    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.allSuccessorsGraph(sel).allNodeIds)
 
   def showDirectSuccessors[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.directSuccessorsGraph(sel).nodeIds)
+    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.directSuccessorsGraph(sel).allNodeIds)
 
   def showAllPredecessors[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.allPredecessorsGraph(sel).nodeIds)
+    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.allPredecessorsGraph(sel).allNodeIds)
 
   def showDirectPredecessors[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.directPredecessorsGraph(sel).nodeIds)
+    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.directPredecessorsGraph(sel).allNodeIds)
 
   def showAllNodes() =
     hiddenNodes.clear()
@@ -154,9 +157,6 @@ case class ViewerState(initialSource: String = ""):
 
   def copyAsDOT[E <: dom.Event](write: String => Any)(event: EventProp[E]) =
     event(_.sample(visibleDOT)) --> { diagram => write(diagram.value) }
-
-  def keepRootsOnly() =
-    ()
 
   def isVisible(id: NodeId) = hiddenNodesS.map(!_.contains(id))
 

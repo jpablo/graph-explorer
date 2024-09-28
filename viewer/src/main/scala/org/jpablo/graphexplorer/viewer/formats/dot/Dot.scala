@@ -26,7 +26,7 @@ object Dot:
 
     def toViewerGraph: ViewerGraph =
       ViewerGraph(
-        arrows = diGraph.allArrows.map(Arrow.apply.tupled),
+        arrows = diGraph.allArrows.map(Arrow.apply),
         nodes  = diGraph.allNodesIds.map(ViewerNode.node)
       )
 

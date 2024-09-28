@@ -33,7 +33,7 @@ def Toolbar(
     ),
     // -------- actions toolbar --------
     Join(
-      Button("roots", onClick --> state.keepRootsOnly()).tiny,
+      Button("roots", onClick pipe state.keepRootsOnly).tiny,
       Button("add all", onClick --> state.showAllNodes()).tiny,
       Button("remove all", onClick pipe state.hideAllNodes).tiny,
       div(

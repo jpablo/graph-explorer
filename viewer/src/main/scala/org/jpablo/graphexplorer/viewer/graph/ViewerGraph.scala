@@ -9,9 +9,9 @@ import scala.annotation.targetName
 /** A simplified representation of entities and subtype relationships
   *
   * @param arrows
-  *   A pair `(a, b)` means that `a` is a subtype of `b`
+  *   Only NodeIds are used for ends of arrows. For the full definition of a node use the nodes field.
   * @param nodes
-  *   Classes, Objects, Traits, etc
+  *   Either isolated nodes or full node definitions for arrow ends
   */
 case class ViewerGraph(
     arrows: Set[Arrow],
@@ -21,16 +21,16 @@ case class ViewerGraph(
   lazy val stats =
     s"Nodes: ${nodes.size}, Arrows: ${arrows.size}"
 
-  lazy val nodeIds =
-    nodes.map(_.id)
+  lazy val allNodeIds: Set[NodeId] =
+    nodes.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
 
-  private lazy val directSuccessors: NodeId => Set[NodeId] =
+  private lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
     arrows
       .groupBy(_.source)
       .transform((_, ss) => ss.map(_.target))
       .withDefaultValue(Set.empty)
 
-  private lazy val directPredecessors: NodeId => Set[NodeId] =
+  private lazy val directPredecessors: Map[NodeId, Set[NodeId]] =
     arrows
       .groupBy(_.target)
       .transform((_, ss) => ss.map(_.source))
@@ -40,18 +40,17 @@ case class ViewerGraph(
     nodes.groupMapReduce(_.id)(identity)((_, b) => b)
 
   private def arrowsForNodeIds(ids: Set[NodeId]): Set[Arrow] =
-    for
-      a <- arrows
-      if (ids contains a.source) && (ids contains a.target)
-    yield a
+    arrows
+      .filter(a => (ids contains a.source) && (ids contains a.target))
 
   private def arrowsWithoutNodeIds(ids: Set[NodeId]): Set[Arrow] =
     arrows
-      .filterNot(a => ids.contains(a.source) || ids.contains(a.target))
+      .filterNot(a => (ids contains a.source) || (ids contains a.target))
 
-  lazy val findRoots: Set[NodeId] =
-    for n <- nodes if directPredecessors(n.id).isEmpty
-    yield n.id
+  /** allNodeIds that are not in the target of any arrow
+    */
+  lazy val roots: Set[NodeId] =
+    allNodeIds -- arrows.map(_.target)
 
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
@@ -104,7 +103,7 @@ case class ViewerGraph(
   /** Creates a new subdiagram with all the symbols containing the given String.
     */
   def filterByNodeId(str: String): ViewerGraph =
-    subgraph(nodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase)))
+    subgraph(allNodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase)))
 
   def filterBy(p: ViewerNode => Boolean): ViewerGraph =
     subgraph(nodes.filter(p).map(_.id))
