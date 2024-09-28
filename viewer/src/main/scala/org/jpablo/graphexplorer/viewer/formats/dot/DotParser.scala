@@ -9,6 +9,8 @@ import scala.scalajs.js.JSON
 import scala.scalajs.js.annotation.*
 import scala.util.Try
 
+// https://github.com/magjac/graphviz-visual-editor
+
 @js.native
 @JSImport("/dotParser.js", JSImport.Namespace)
 object DotParser extends js.Object:

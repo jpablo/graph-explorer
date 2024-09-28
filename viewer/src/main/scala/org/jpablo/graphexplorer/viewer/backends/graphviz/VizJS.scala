@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport
 
-// https://github.com/mdaines/viz-js?tab=readme-ov-file
+// https://github.com/mdaines/viz-js
 
 @js.native
 @JSImport("@viz-js/viz", JSImport.Namespace)
