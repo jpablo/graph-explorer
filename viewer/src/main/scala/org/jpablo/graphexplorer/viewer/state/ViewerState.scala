@@ -36,17 +36,12 @@ case class ViewerState(initialSource: String = ""):
   val project =
     ProjectOps(Var(Project(ProjectId("project-0"))))
 
-  // --------------------------------
-
   // 0: initial source
   val source: Var[String] = Var(initialSource)
 
   // 1. parse source and create a graph
   private val fullGraphWithSourceAST: Signal[(ViewerGraph, Option[DiGraphAST])] =
     source.signal.map(parseSource(InputFormats.dot))
-
-  val fullGraph: Signal[ViewerGraph] =
-    fullGraphWithSourceAST.map(_._1)
 
   private def parseSource(format: InputFormats)(sourceStr: String): (ViewerGraph, Option[DiGraphAST]) =
     format match
@@ -56,10 +51,22 @@ case class ViewerState(initialSource: String = ""):
         val ast = Dot(sourceStr).buildAST.headOption
         (ast.map(_.toViewerGraph).getOrElse(ViewerGraph.empty), ast)
 
+  val fullGraph: Signal[ViewerGraph] =
+    fullGraphWithSourceAST.map(_._1)
+
+  val translateXY = Var(SvgUnit.origin)
+  val zoomValue = Var(1.0)
+  val transform =
+    zoomValue.signal
+      .combineWith(translateXY.signal)
+      .map: (z, p) =>
+        s"scale($z) translate(${p.x} ${p.y})"
+
   // 2. transform graph to SVG using visible nodes
-  val visibleDOT: Signal[Dot] =
+  private val visibleDOT: Signal[Dot] =
     fullGraphWithSourceAST
       .combineWith(project.page.signal.distinct)
+      .tapEach(_ => resetView())
       .map: (fullGraph, sourceDotAST, page) =>
         // (Until ViewerGraph supports all DOT attributes, we need to keep the original DOT AST)
         // Idea: *remove* invisible nodes from the original AST and use it to render the SVG.
@@ -76,18 +83,11 @@ case class ViewerState(initialSource: String = ""):
         visibleFromSourceDot.getOrElse(visibleSimpleDot)
 
   // ---- SvgDotDiagram ----
-  val translateXY = Var(SvgUnit.origin)
-  val zoomValue = Var(1.0)
-  val transform =
-    zoomValue.signal
-      .combineWith(translateXY.signal)
-      .map: (z, p) =>
-        s"scale($z) translate(${p.x} ${p.y})"
 
   val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
     visibleDOT
       .flatMapSwitch(_.toSvg)
-      .map(SvgDotDiagram.withTransform(transform))
+      .map(SvgDotDiagram.svgWithTransform(transform))
 
   val svgDotDiagram: Signal[SvgDotDiagram] =
     svgDiagramElement.map(SvgDotDiagram.apply)
@@ -121,9 +121,11 @@ case class ViewerState(initialSource: String = ""):
   val sideBarVisible = Var(false)
   val sideBarTabIndex = Var(0)
 
-  // -------------------------------
-
   // -------- Public API -----------
+
+  def resetView() =
+    zoomValue.set(1.0)
+    translateXY.set(SvgUnit.origin)
 
   def keepRootsOnly[E <: dom.Event](e: EventProp[E]) =
     updateHiddenNodes(e)((_, _, g) => g.allNodeIds -- g.roots)
@@ -163,15 +165,14 @@ case class ViewerState(initialSource: String = ""):
   def toggleNode(id: NodeId) =
     hiddenNodes.toggle(id)
     diagramSelection.toggle(id)
-  // -------------------------------
 
-  // ---- storage ----
+  // -------- storage ------------
+
   private def persistableEvents: Signal[PersistedState] =
     project.hiddenNodesV.signal
       .combineWith(source.signal, sideBarVisible.signal, sideBarTabIndex.signal)
       .map(PersistedState.apply)
 
-  // --
   private def restoreState() =
     val ss = storedString("viewer.state", initial = "{\"hiddenNodes\":[],\"source\":\"\", \"sideBarVisible\":false}")
     val state0 =

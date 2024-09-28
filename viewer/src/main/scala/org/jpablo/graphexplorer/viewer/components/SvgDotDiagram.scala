@@ -93,7 +93,7 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
 object SvgDotDiagram:
   val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()))
 
-  def withTransform(transform: Signal[String])(svgElement: dom.SVGSVGElement): ReactiveSvgElement[dom.SVGSVGElement] =
+  def svgWithTransform(transform: Signal[String])(svgElement: dom.SVGSVGElement): ReactiveSvgElement[dom.SVGSVGElement] =
     val firstGroup: dom.svg.G =
       val g0 = svgElement.querySelector("g")
       (if g0 == null then dom.document.createElement("g") else g0).asInstanceOf[dom.svg.G]

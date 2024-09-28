@@ -17,10 +17,7 @@ def CanvasContainer(
     idAttr := "canvas-container",
     onClick.preventDefault.compose(_.withCurrentValueOf(state.svgDiagramElement)) --> handleSvgClick(state.diagramSelection).tupled,
     onWheel.compose(_.withCurrentValueOf(state.svgDiagramElement)) --> handleWheel(state.zoomValue, state.translateXY).tupled,
-    fitDiagram --> {
-      state.zoomValue.set(1)
-      state.translateXY.set(SvgUnit.origin)
-    },
+    fitDiagram --> state.resetView(),
     child <-- state.svgDiagramElement
   )
 
