@@ -76,6 +76,7 @@ case class ViewerState(initialSource: String = ""):
           sourceDotAST
             .map(_.removeNodes(page.hiddenNodes.map(_.value)))
             .map(_.toDot)
+
         lazy val visibleSimpleDot =
           fullGraph.remove(page.hiddenNodes).toDot
         // The original AST is used to render the SVG.

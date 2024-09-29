@@ -20,15 +20,16 @@ object DotParserT:
   def parse(dotString: String): Try[List[DiGraphAST]] =
     for
       j <- Try(DotParser.parse(dotString))
+//      _ = dom.console.log(j)
       str = JSON.stringify(j)
       ast <-
         Try(read[List[DiGraphAST]](str)) match
           case f @ scala.util.Failure(exception) =>
-            dom.console.log("==> Error in DotParserT.parse !")
-            dom.console.log(exception.toString)
-            dom.console.log(str)
-            dom.console.log(dotString)
-            dom.console.log("<== Error in DotParserT.parse !")
+            dom.console.error("==> Error in DotParserT.parse !")
+            dom.console.error(exception.toString)
+            dom.console.error(str)
+            dom.console.error(dotString)
+            dom.console.error("<== Error in DotParserT.parse !")
             f
           case s @ scala.util.Success(_) =>
             s

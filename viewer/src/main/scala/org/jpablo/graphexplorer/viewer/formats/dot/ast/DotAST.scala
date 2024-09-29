@@ -5,14 +5,19 @@ import upickle.implicits.key
 import upickle.default.*
 import com.softwaremill.quicklens.*
 
-case class DiGraphAST(location: Location, children: List[GraphElement], id: String) derives ReadWriter:
+case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) derives ReadWriter:
 
   def allNodesIds: Set[String] =
     def go(elems: List[GraphElement]): Set[String] =
       elems
         .collect:
-          case NodeStmt(nodeId, _)   => Set(nodeId.id)
-          case EdgeStmt(edgeList, _) => edgeList.map(_.id)
+          case NodeStmt(nodeId, _) => Set(nodeId.id)
+          case EdgeStmt(edgeList, _) =>
+            edgeList
+              .flatMap:
+                case DotNodeId(id, _)      => Set(id)
+                case Subgraph(children, _) => go(children)
+              .toSet
           case Subgraph(children, _) => go(children)
         .flatten
         .toSet
@@ -20,34 +25,67 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
     go(children)
 
   def allArrows: Set[(String, String)] =
+    // TODO: make this tail recursive
     def go(elems: List[GraphElement]): Set[(String, String)] =
       elems
         .collect:
-          case EdgeStmt(edgeList, _) if edgeList.size >= 2 =>
-            edgeList
-              .sliding(2)
-              .collect { case List(source, target) => (source.id, target.id) }
+          case EdgeStmt(edgeList, _) =>
+            edgeList.sliding(2).foldLeft(Set.empty[(String, String)]) {
+
+              case (acc, List(Subgraph(children, _))) => go(children) ++ acc
+
+              case (acc, List(DotNodeId(id1, _), DotNodeId(id2, _))) => Set(id1 -> id2) ++ acc
+
+              case (acc, List(DotNodeId(id, _), Subgraph(children, _))) =>
+                acc ++ go(children).flatMap((a, b) => Set(id -> a, id -> b, a -> b))
+
+              case (acc, List(Subgraph(children, _), DotNodeId(id, _))) =>
+                acc ++ go(children).flatMap((a, b) => Set(a -> b, a -> id, b -> id))
+
+              case (acc, List(Subgraph(children1, _), Subgraph(children2, _))) =>
+                val arrows1 = DiGraphAST(children1).allArrows
+                val arrows2 = DiGraphAST(children2).allArrows
+                val nodeIds1 = DiGraphAST(children1).allNodesIds
+                val nodeIds2 = DiGraphAST(children2).allNodesIds
+                nodeIds1.flatMap(a => nodeIds2.map(b => a -> b)) ++ arrows1 ++ arrows2 ++ acc
+              case (acc, _) => acc
+            }
+
           case Subgraph(children, _) => go(children)
         .flatten
         .toSet
+
     go(children)
 
-  def removeNodes(nodeIds: Set[String]): DiGraphAST =
+  def removeNodes(idsToRemove: Set[String]): DiGraphAST =
 
     def removeFrom(element: GraphElement): Option[GraphElement] =
       element match
-        case e: EdgeStmt => Some(e.modify(_.edgeList).using(_.filterNot(n => nodeIds.contains(n.id))))
-        case g: Subgraph => Some(g.modify(_.children).using(_.flatMap(removeFrom)))
-        case n: NodeStmt if nodeIds.contains(n.nodeId.id) => None
-        case other                                        => Some(other)
+        case NodeStmt(nodeId, _) if idsToRemove contains nodeId.id => None
+
+        case Subgraph(children, id) =>
+          val remainingChildren = children.flatMap(removeFrom)
+          if remainingChildren.isEmpty then None else Some(Subgraph(remainingChildren, id))
+
+        case EdgeStmt(edgeList, attrList) =>
+          val remainingEdges = edgeList.flatMap {
+            case DotNodeId(id, _) if idsToRemove contains id => None
+            case Subgraph(children, id) =>
+              val remainingChildren = children.flatMap(removeFrom)
+              if remainingChildren.isEmpty then None else Some(Subgraph(remainingChildren, id))
+            case other => Some(other)
+          }
+          if remainingEdges.isEmpty then None else Some(EdgeStmt(remainingEdges, attrList))
+
+        case other => Some(other)
 
     @annotation.tailrec
     def optimize(children: List[GraphElement], acc: List[GraphElement] = List.empty): List[GraphElement] =
       children match
-        case h :: EdgeStmt(ids, _) :: t if ids.length < 2 => optimize(h :: t, acc)
-        case Pad() :: Newline() :: t                      => optimize(t, acc)
-        case h :: t                                       => optimize(t, h :: acc)
-        case Nil                                          => acc.reverse
+        case h :: EdgeStmt(edges, _) :: t if edges.length < 2 => optimize(h :: t, acc)
+        case Pad() :: Newline() :: t                          => optimize(t, acc)
+        case h :: t                                           => optimize(t, h :: acc)
+        case Nil                                              => acc.reverse
 
     def dedup(lst: List[GraphElement]): List[GraphElement] =
       lst
@@ -78,7 +116,11 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
           if attrs.isEmpty then "" else s"$target $attrs"
 
         case EdgeStmt(edgeList, attrList) =>
-          edgeList.map(n => s"\"${n.id}\"").mkString(" -> ") + renderAttrList(attrList)
+          edgeList
+            .map:
+              case n: DotNodeId => s"\"${n.id}\""
+              case s: Subgraph  => renderElement(s)
+            .mkString(" -> ") + renderAttrList(attrList)
 
         case StmtSep() => ""
 
@@ -88,7 +130,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
         case Comment() => ""
 
         case Subgraph(children, id) =>
-          children.map(renderElement).mkString(s"subgraph ${id.getOrElse("")} {", "", "}")
+          children.map(renderElement).mkString(s"subgraph ${id.getOrElse("")}{", "", "}")
 
     def renderAttrList(attrList: List[Attr]): String =
       attrList match
@@ -107,7 +149,7 @@ case class DiGraphAST(location: Location, children: List[GraphElement], id: Stri
       .map(renderElement)
       .filter(_.nonEmpty)
       .mkString("")
-    s"digraph \"${this.id}\" {$body}"
+    s"digraph ${id.map(id => s"\"$id\" ").getOrElse(" ")}{$body}"
   end render
 
 end DiGraphAST
@@ -119,6 +161,20 @@ object Location:
 
 @key("type")
 sealed trait GraphElement derives ReadWriter
+
+object GraphElement:
+  given ReadWriter[DotNodeId | Subgraph] =
+    readwriter[ujson.Value].bimap[DotNodeId | Subgraph](
+      {
+        case s: DotNodeId => writeJs(s)
+        case a: Subgraph  => writeJs(a)
+      },
+      { jsValue =>
+        if jsValue("type") == ujson.Str("node_id") then read[DotNodeId](jsValue)
+        else read[Subgraph](jsValue)
+      }
+    )
+end GraphElement
 
 @key("newline")
 case class Newline() extends GraphElement derives ReadWriter
@@ -139,7 +195,6 @@ case class Attr(id: String, @key("eq") attrEq: String | AttrEq) derives ReadWrit
 case class AttrEq(value: String, html: Boolean = false) derives ReadWriter
 
 object Attr:
-
   given ReadWriter[String | AttrEq] =
     readwriter[ujson.Value].bimap[String | AttrEq](
       {
@@ -151,16 +206,18 @@ object Attr:
         case jsValue      => read[AttrEq](jsValue)
       }
     )
-
 end Attr
 
 @key("node_stmt")
-case class NodeStmt(@key("node_id") nodeId: DotNodeId, @key("attr_list") attrList: List[Attr]) extends GraphElement
+case class NodeStmt(
+    @key("node_id") nodeId:     DotNodeId,
+    @key("attr_list") attrList: List[Attr]
+) extends GraphElement
     derives ReadWriter
 
 @key("edge_stmt")
 case class EdgeStmt(
-    @key("edge_list") edgeList: List[DotNodeId],
+    @key("edge_list") edgeList: List[DotNodeId | Subgraph],
     @key("attr_list") attrList: List[Attr]
 ) extends GraphElement
     derives ReadWriter
@@ -175,4 +232,4 @@ case class Port(id: String) derives ReadWriter
 case class StmtSep() extends GraphElement derives ReadWriter
 
 @key("subgraph")
-case class Subgraph(children: List[GraphElement], id: Option[String]) extends GraphElement derives ReadWriter
+case class Subgraph(children: List[GraphElement], id: Option[String] = None) extends GraphElement derives ReadWriter

@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerNode}
+import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 
 case class Dot(value: String):
