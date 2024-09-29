@@ -5,6 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import com.softwaremill.quicklens.*
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
+import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.state.{Project, ViewerState}
@@ -32,13 +33,14 @@ def LeftPanel(state: ViewerState) =
       select(
         cls := "select select-bordered select-xs max-w-xs",
         option("Select example", disabled := true, selected := true),
-        DotExamples.examples.keys.toSeq.sorted.map { example => option(example, value := example) },
-        onChange.mapToValue --> { example => state.source.set(DotExamples.examples(example)) }
+        examples.keys.map(name => option(name, value := name)),
+        onChange.mapToValue.map(examples).flatMap(FetchStream.get(_)) --> state.source.set
       ),
       a(
         cls    := "link",
         href   := "https://www.graphviz.org/documentation/",
         target := "_blank",
+        title  := "Visit the Graphviz documentation for more information",
         "Graphviz"
       )
     ),
