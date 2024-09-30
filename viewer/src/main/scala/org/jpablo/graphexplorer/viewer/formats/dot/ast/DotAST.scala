@@ -7,61 +7,9 @@ import com.softwaremill.quicklens.*
 
 case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) derives ReadWriter:
 
-  def allNodesIds: Set[String] =
-    def go(elems: List[GraphElement]): Set[String] =
-      elems
-        .collect:
-          case NodeStmt(nodeId, _) => Set(nodeId.id)
-          case EdgeStmt(edgeList, _) =>
-            edgeList
-              .flatMap:
-                case DotNodeId(id, _)      => Set(id)
-                case Subgraph(children, _) => go(children)
-              .toSet
-          case Subgraph(children, _) => go(children)
-        .flatten
-        .toSet
+  lazy val allNodesIds: Set[String] = findAllNodeIds(children)
 
-    go(children)
-
-  def allArrows: Set[(String, String)] =
-    // TODO: make this tail recursive
-    def go(elems: List[GraphElement]): Set[(String, String)] =
-      elems
-        .collect:
-          case EdgeStmt(edgeList, _) =>
-            edgeList.sliding(2).foldLeft(Set.empty[(String, String)]) {
-
-              case (acc, List(Subgraph(children, _))) => go(children) ++ acc
-
-              case (acc, List(DotNodeId(id1, _), DotNodeId(id2, _))) => Set(id1 -> id2) ++ acc
-
-              case (acc, List(DotNodeId(id, _), Subgraph(children, _))) =>
-                val childrenGraph = DiGraphAST(children)
-                val arrows1 = childrenGraph.allArrows
-                val nodeIds1 = childrenGraph.allNodesIds
-                nodeIds1.map(a => id -> a) ++ arrows1 ++ acc
-
-              case (acc, List(Subgraph(children, _), DotNodeId(id, _))) =>
-                val childrenGraph = DiGraphAST(children)
-                val arrows1 = childrenGraph.allArrows
-                val nodeIds1 = childrenGraph.allNodesIds
-                nodeIds1.map(a => a -> id) ++ arrows1 ++ acc
-
-              case (acc, List(Subgraph(children1, _), Subgraph(children2, _))) =>
-                val arrows1 = DiGraphAST(children1).allArrows
-                val arrows2 = DiGraphAST(children2).allArrows
-                val nodeIds1 = DiGraphAST(children1).allNodesIds
-                val nodeIds2 = DiGraphAST(children2).allNodesIds
-                nodeIds1.flatMap(a => nodeIds2.map(b => a -> b)) ++ arrows1 ++ arrows2 ++ acc
-              case (acc, _) => acc
-            }
-
-          case Subgraph(children, _) => go(children)
-        .flatten
-        .toSet
-
-    go(children)
+  lazy val allArrows: Set[(String, String)] = findAllArrows(children)
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
 
@@ -160,13 +108,73 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
 end DiGraphAST
 
+def findAllNodeIds(children: List[GraphElement]): Set[String] =
+  children.toSet.flatMap(_.allNodesIds)
+
+def findAllArrows(children: List[GraphElement]): Set[(String, String)] =
+  children.toSet.flatMap(_.allArrows)
+
+
 case class Location(start: Position, end: Position) derives ReadWriter
 
 object Location:
   case class Position(offset: Int, line: Int, column: Int) derives ReadWriter
 
 @key("type")
-sealed trait GraphElement derives ReadWriter
+sealed trait GraphElement derives ReadWriter:
+
+  lazy val allNodesIds: Set[String] =
+    def go(elems: List[GraphElement]): Set[String] =
+      elems
+        .collect:
+          case NodeStmt(nodeId, _) => Set(nodeId.id)
+          case EdgeStmt(edgeList, _) =>
+            edgeList
+              .flatMap:
+                case DotNodeId(id, _)      => Set(id)
+                case Subgraph(children, _) => go(children)
+              .toSet
+          case Subgraph(children, _) => go(children)
+        .flatten
+        .toSet
+
+    go(List(this))
+
+  lazy val allArrows: Set[(String, String)] =
+    // TODO: make this tail recursive
+    def go(elems: List[GraphElement]): Set[(String, String)] =
+      elems
+        .collect:
+          case EdgeStmt(edgeList, _) =>
+            edgeList.sliding(2).foldLeft(Set.empty[(String, String)]) {
+
+              case (acc, List(Subgraph(children, _))) => go(children) ++ acc
+
+              case (acc, List(DotNodeId(id1, _), DotNodeId(id2, _))) => Set(id1 -> id2) ++ acc
+
+              case (acc, List(DotNodeId(id, _), Subgraph(children, _))) =>
+                findAllNodeIds(children).map(a => id -> a) ++ findAllArrows(children) ++ acc
+
+              case (acc, List(Subgraph(children, _), DotNodeId(id, _))) =>
+                findAllNodeIds(children).map(a => a -> id) ++ findAllArrows(children) ++ acc
+
+              case (acc, List(Subgraph(children1, _), Subgraph(children2, _))) =>
+                findAllNodeIds(children1)
+                  .flatMap(a => findAllNodeIds(children2).map(b => a -> b)) ++
+                  findAllArrows(children1) ++
+                  findAllArrows(children2) ++
+                  acc
+
+              case (acc, _) => acc
+            }
+
+          case Subgraph(children, _) => go(children)
+        .flatten
+        .toSet
+
+    go(List(this))
+
+end GraphElement
 
 object GraphElement:
   given ReadWriter[DotNodeId | Subgraph] =
