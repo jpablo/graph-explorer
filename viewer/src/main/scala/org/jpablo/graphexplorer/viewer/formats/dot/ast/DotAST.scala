@@ -5,6 +5,8 @@ import upickle.implicits.key
 import upickle.default.*
 import com.softwaremill.quicklens.*
 
+import scala.annotation.tailrec
+
 case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) derives ReadWriter:
 
   lazy val allNodesIds: Set[String] = findAllNodeIds(children)
@@ -114,7 +116,6 @@ def findAllNodeIds(children: List[GraphElement]): Set[String] =
 def findAllArrows(children: List[GraphElement]): Set[(String, String)] =
   children.toSet.flatMap(_.allArrows)
 
-
 case class Location(start: Position, end: Position) derives ReadWriter
 
 object Location:
@@ -124,21 +125,24 @@ object Location:
 sealed trait GraphElement derives ReadWriter:
 
   lazy val allNodesIds: Set[String] =
-    def go(elems: List[GraphElement]): Set[String] =
-      elems
-        .collect:
-          case NodeStmt(nodeId, _) => Set(nodeId.id)
-          case EdgeStmt(edgeList, _) =>
-            edgeList
-              .flatMap:
-                case DotNodeId(id, _)      => Set(id)
-                case Subgraph(children, _) => go(children)
-              .toSet
-          case Subgraph(children, _) => go(children)
-        .flatten
-        .toSet
+    @tailrec
+    def go(remaining: List[GraphElement], acc: Set[String]): Set[String] =
+      remaining match
+        case Nil => acc
+        case h :: t =>
+          h match
+            case NodeStmt(nodeId, _) => go(t, acc + nodeId.id)
+            case EdgeStmt(edgeList, _) =>
+              val newElements =
+                edgeList
+                  .flatMap:
+                    case n: DotNodeId          => List(NodeStmt(n, Nil))
+                    case Subgraph(children, _) => children
+              go(newElements ++ t, acc)
+            case Subgraph(children, _) => go(children ++ t, acc)
+            case _                     => go(t, acc)
 
-    go(List(this))
+    go(List(this), Set.empty)
 
   lazy val allArrows: Set[(String, String)] =
     // TODO: make this tail recursive
