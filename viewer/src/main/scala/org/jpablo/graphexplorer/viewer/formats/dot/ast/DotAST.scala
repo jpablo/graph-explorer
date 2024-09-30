@@ -37,10 +37,16 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
               case (acc, List(DotNodeId(id1, _), DotNodeId(id2, _))) => Set(id1 -> id2) ++ acc
 
               case (acc, List(DotNodeId(id, _), Subgraph(children, _))) =>
-                acc ++ go(children).flatMap((a, b) => Set(id -> a, id -> b, a -> b))
+                val childrenGraph = DiGraphAST(children)
+                val arrows1 = childrenGraph.allArrows
+                val nodeIds1 = childrenGraph.allNodesIds
+                nodeIds1.map(a => id -> a) ++ arrows1 ++ acc
 
               case (acc, List(Subgraph(children, _), DotNodeId(id, _))) =>
-                acc ++ go(children).flatMap((a, b) => Set(a -> b, a -> id, b -> id))
+                val childrenGraph = DiGraphAST(children)
+                val arrows1 = childrenGraph.allArrows
+                val nodeIds1 = childrenGraph.allNodesIds
+                nodeIds1.map(a => a -> id) ++ arrows1 ++ acc
 
               case (acc, List(Subgraph(children1, _), Subgraph(children2, _))) =>
                 val arrows1 = DiGraphAST(children1).allArrows
@@ -61,7 +67,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
     def removeFrom(element: GraphElement): Option[GraphElement] =
       element match
-        case NodeStmt(nodeId, _) if idsToRemove contains nodeId.id => None
+        case NodeStmt(DotNodeId(id, _), _) if idsToRemove contains id => None
 
         case Subgraph(children, id) =>
           val remainingChildren = children.flatMap(removeFrom)
@@ -80,12 +86,12 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
         case other => Some(other)
 
     @annotation.tailrec
-    def optimize(children: List[GraphElement], acc: List[GraphElement] = List.empty): List[GraphElement] =
+    def optimize(acc: List[GraphElement] = Nil, children: List[GraphElement]): List[GraphElement] =
       children match
-        case h :: EdgeStmt(edges, _) :: t if edges.length < 2 => optimize(h :: t, acc)
-        case Pad() :: Newline() :: t                          => optimize(t, acc)
-        case h :: t                                           => optimize(t, h :: acc)
-        case Nil                                              => acc.reverse
+        case h :: EdgeStmt(edges, _) :: t if edges.isEmpty => optimize(acc, h :: t)
+        case Pad() :: Newline() :: t                       => optimize(acc, t)
+        case h :: t                                        => optimize(h :: acc, t)
+        case Nil                                           => acc.reverse
 
     def dedup(lst: List[GraphElement]): List[GraphElement] =
       lst
@@ -100,7 +106,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
       .modify(_.children)
       .using(_.flatMap(removeFrom))
       .modify(_.children)
-      .using(optimize(_))
+      .using(optimize(Nil, _))
       .modify(_.children)
       .using(dedup)
 
