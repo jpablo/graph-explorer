@@ -20,6 +20,7 @@ object DotParserT:
   def parse(dotString: String): Try[List[DiGraphAST]] =
     for
       j <- Try(DotParser.parse(dotString))
+//      _ = dom.console.log(dotString)
 //      _ = dom.console.log(j)
       str = JSON.stringify(j)
       ast <-

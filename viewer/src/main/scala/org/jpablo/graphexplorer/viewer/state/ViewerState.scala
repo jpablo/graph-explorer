@@ -182,6 +182,7 @@ case class ViewerState(initialSource: String = ""):
         (e: Throwable) =>
           dom.console.error(s"Error reading state: $e")
           PersistedState.empty
+//    dom.console.log(state0.source)
     source.set(state0.source)
     project.hiddenNodesV.set(state0.hiddenNodes)
     leftPanelVisible.set(state0.leftPanelVisible)
