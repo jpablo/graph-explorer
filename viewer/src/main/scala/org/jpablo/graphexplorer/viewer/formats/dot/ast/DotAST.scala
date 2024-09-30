@@ -15,6 +15,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
 
+    // TODO: make this tail recursive
     def removeFrom(element: GraphElement): Option[GraphElement] =
       element match
         case NodeStmt(DotNodeId(id, _), _) if idsToRemove contains id => None
@@ -24,13 +25,10 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
           if remainingChildren.isEmpty then None else Some(Subgraph(remainingChildren, id))
 
         case EdgeStmt(edgeList, attrList) =>
-          val remainingEdges = edgeList.flatMap {
+          val remainingEdges = edgeList.flatMap:
             case DotNodeId(id, _) if idsToRemove contains id => None
-            case Subgraph(children, id) =>
-              val remainingChildren = children.flatMap(removeFrom)
-              if remainingChildren.isEmpty then None else Some(Subgraph(remainingChildren, id))
-            case other => Some(other)
-          }
+            case Subgraph(children, id)                      => Some(Subgraph(children.flatMap(removeFrom), id))
+            case other                                       => Some(other)
           if remainingEdges.isEmpty then None else Some(EdgeStmt(remainingEdges, attrList))
 
         case other => Some(other)

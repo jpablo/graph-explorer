@@ -18,6 +18,7 @@ case class Dot(value: String):
   val buildAST: List[DiGraphAST] =
     DotParserT.parse(value).getOrElse(Nil)
 
+import upickle.default.*
 object Dot:
   private val gvInstance = new Graphviz
 
