@@ -145,41 +145,35 @@ sealed trait GraphElement derives ReadWriter:
     go(List(this), Set.empty)
 
   lazy val allArrows: Set[(String, String)] =
-    // TODO: make this tail recursive
     @tailrec
     def go(remaining: List[GraphElement], acc: Set[(String, String)] = Set.empty): Set[(String, String)] =
-//      dom.console.log(s"--> allArrows")
-//      dom.console.log(acc.toString)
       remaining match
         case Nil => acc
         case h :: remaining1 =>
           h match
             case EdgeStmt(edgeList, _) =>
-
               val args: Iterator[(List[GraphElement], Set[(String, String)])] =
                 edgeList
                   .sliding(2)
-                  .map {
-                    case List(Subgraph(children, _)) => (children ++ remaining1, acc)
-
-                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (remaining1, acc + (id1 -> id2))
+                  .map:
+                    case List(Subgraph(children, _))                => (children, Set.empty)
+                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(id1 -> id2))
 
                     case List(DotNodeId(id, _), Subgraph(children, _)) =>
-                      val newArrows = findAllNodeIds(children).map(a => id -> a)
-                      (children ++ remaining1, acc ++ newArrows)
+                      (children, findAllNodeIds(children).map(a => id -> a))
 
                     case List(Subgraph(children, _), DotNodeId(id, _)) =>
-                      val newArrows = findAllNodeIds(children).map(a => a -> id)
-                      (children ++ remaining1, acc ++ newArrows)
+                      (children, findAllNodeIds(children).map(a => a -> id))
 
                     case List(Subgraph(children1, _), Subgraph(children2, _)) =>
-                      val newArrows = findAllNodeIds(children1).flatMap(a => findAllNodeIds(children2).map(b => a -> b))
-                      (children1 ++ children2 ++ remaining1, acc ++ newArrows)
+                      (
+                        children1 ++ children2,
+                        findAllNodeIds(children1).flatMap(a => findAllNodeIds(children2).map(b => a -> b))
+                      )
+                    case _ => (Nil, Set.empty)
 
-                    case _ => (remaining1, acc)
-                  }
-              val (rems, accs) = args.toList.unzip
-              go(rems.flatten, accs.toSet.flatten)
+              val (remaining2, acc1) = args.toList.unzip
+              go(remaining2.flatten ++ remaining1, acc ++ acc1.toSet.flatten)
             case Subgraph(children, _) => go(children ++ remaining1, acc)
             case _                     => go(remaining1, acc)
 
