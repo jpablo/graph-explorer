@@ -18,11 +18,13 @@ case class Dot(value: String):
 
   // TODO: handle errors
   val buildAST: List[DiGraphAST] =
-    DotParserT.parse(value) match
-      case Failure(exception) =>
-        dom.console.error(exception.toString)
-        List.empty
-      case Success(asts) => asts
+    if value.isEmpty then List.empty
+    else
+      DotParserT.parse(value) match
+        case Failure(exception) =>
+          dom.console.error(exception.toString)
+          List.empty
+        case Success(asts) => asts
 
 object Dot:
   private val gvInstance = new Graphviz
