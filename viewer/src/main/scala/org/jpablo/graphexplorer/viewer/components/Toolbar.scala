@@ -51,6 +51,9 @@ def Toolbar(
           ),
           li(
             a("dot", onClick pipe state.copyAsDOT(dom.window.navigator.clipboard.writeText))
+          ),
+          li(
+            a("json dot AST", onClick pipe state.copyAsJSON(dom.window.navigator.clipboard.writeText))
           )
         )
       )

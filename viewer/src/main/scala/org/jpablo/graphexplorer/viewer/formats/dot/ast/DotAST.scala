@@ -16,30 +16,40 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
 
     // TODO: make this tail recursive
-    def removeFrom(element: GraphElement): Option[GraphElement] =
+
+    def removeFrom(element: GraphElement): List[GraphElement] =
       element match
-        case NodeStmt(DotNodeId(id, _), _) if idsToRemove contains id => None
+        case NodeStmt(DotNodeId(id, _), _) if idsToRemove contains id => Nil
 
         case Subgraph(children, id) =>
           val remainingChildren = children.flatMap(removeFrom)
-          if remainingChildren.isEmpty then None else Some(Subgraph(remainingChildren, id))
+          if remainingChildren.isEmpty then Nil else List(Subgraph(remainingChildren, id))
 
         case EdgeStmt(edgeList, attrList) =>
-          val remainingEdges = edgeList.flatMap:
-            case DotNodeId(id, _) if idsToRemove contains id => None
-            case Subgraph(children, id)                      => Some(Subgraph(children.flatMap(removeFrom), id))
-            case other                                       => Some(other)
-          if remainingEdges.isEmpty then None else Some(EdgeStmt(remainingEdges, attrList))
+          val remainingEdges: List[List[DotNodeId | Subgraph]] =
+            edgeList.foldLeft(Nil):
+              case (acc, n: DotNodeId) =>
+                acc match
+                  case _ if idsToRemove contains n.id => Nil :: acc
+                  case Nil                            => (n :: Nil) :: Nil
+                  case h :: t                         => (n :: h) :: t
 
-        case other => Some(other)
+              case (acc, Subgraph(children, id)) =>
+                val visibleChildren = children.flatMap(removeFrom)
+                if visibleChildren.isEmpty then Nil :: acc // remove the subgraph if it's empty
+                else (Subgraph(visibleChildren, id) :: acc.headOption.getOrElse(Nil)) :: acc.tail
 
-    @annotation.tailrec
+          remainingEdges.reverse.map(es => EdgeStmt(es.reverse, attrList))
+
+        case other => List(other)
+
+    @tailrec
     def optimize(acc: List[GraphElement] = Nil, children: List[GraphElement]): List[GraphElement] =
       children match
-        case h :: EdgeStmt(edges, _) :: t if edges.isEmpty => optimize(acc, h :: t)
-        case Pad() :: Newline() :: t                       => optimize(acc, t)
-        case h :: t                                        => optimize(h :: acc, t)
-        case Nil                                           => acc.reverse
+        case h :: EdgeStmt(Nil, _) :: t => optimize(acc, h :: t)
+        case Pad() :: Newline() :: t    => optimize(acc, t)
+        case h :: t                     => optimize(h :: acc, t)
+        case Nil                        => acc.reverse
 
     def dedup(lst: List[GraphElement]): List[GraphElement] =
       lst

@@ -36,6 +36,15 @@ case class ViewerState(initialSource: String = ""):
   val project =
     ProjectOps(Var(Project(ProjectId("project-0"))))
 
+  val translateXY = Var(SvgUnit.origin)
+  val zoomValue = Var(1.0)
+  val transform =
+    zoomValue.signal
+      .combineWith(translateXY.signal)
+      .map: (z, p) =>
+        s"scale($z) translate(${p.x} ${p.y})"
+
+
   // 0: initial source
   val source: Var[String] = Var(initialSource)
 
@@ -54,34 +63,25 @@ case class ViewerState(initialSource: String = ""):
   val fullGraph: Signal[ViewerGraph] =
     fullGraphWithSourceAST.map(_._1)
 
-  val translateXY = Var(SvgUnit.origin)
-  val zoomValue = Var(1.0)
-  val transform =
-    zoomValue.signal
-      .combineWith(translateXY.signal)
-      .map: (z, p) =>
-        s"scale($z) translate(${p.x} ${p.y})"
+  private val fullAST: Signal[Option[DiGraphAST]] =
+    fullGraphWithSourceAST.map(_._2)
+
+  private val visibleAST: Signal[Option[DiGraphAST]] =
+    fullAST
+      .combineWith(project.page.signal.distinct)
+      .tapEach(_ => resetView())
+      .map((fullAST, page) => fullAST.map(_.removeNodes(page.hiddenNodes.map(_.value))))
 
   // 2. transform graph to SVG using visible nodes
   private val visibleDOT: Signal[Dot] =
-    fullGraphWithSourceAST
-      .combineWith(project.page.signal.distinct)
+    fullGraph
+      .combineWith(project.page.signal.distinct, visibleAST)
       .tapEach(_ => resetView())
-      .map: (fullGraph, sourceDotAST, page) =>
-        // (Until ViewerGraph supports all DOT attributes, we need to keep the original DOT AST)
-        // Idea: *remove* invisible nodes from the original AST and use it to render the SVG.
-        // This works as long as we don't change the style via the UI. In that case
-        // we might need to import the full AST into an internal model (currently not implemented).
-        val visibleFromSourceDot =
-          sourceDotAST
-            .map(_.removeNodes(page.hiddenNodes.map(_.value)))
-            .map(_.toDot)
-
-        lazy val visibleSimpleDot =
-          fullGraph.remove(page.hiddenNodes).toDot
+      .map: (fullGraph, page, visibleAST) =>
+        lazy val visibleSimpleDot = fullGraph.remove(page.hiddenNodes).toDot
         // The original AST is used to render the SVG.
         // If it is not available, build a new Dot from scratch.
-        visibleFromSourceDot.getOrElse(visibleSimpleDot)
+        visibleAST.map(_.toDot).getOrElse(visibleSimpleDot)
 
   // ---- SvgDotDiagram ----
 
@@ -160,6 +160,9 @@ case class ViewerState(initialSource: String = ""):
 
   def copyAsDOT[E <: dom.Event](write: String => Any)(event: EventProp[E]) =
     event(_.sample(visibleDOT)) --> { diagram => write(diagram.value) }
+
+  def copyAsJSON[E <: dom.Event](write: String => Any)(event: EventProp[E]) =
+    event(_.sample(visibleAST).collect { case Some(ast) => ast }) --> { ast => write(writeJs(ast).toString) }
 
   def isVisible(id: NodeId) = hiddenNodesS.map(!_.contains(id))
 
