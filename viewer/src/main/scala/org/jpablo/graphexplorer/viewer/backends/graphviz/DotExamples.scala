@@ -8,6 +8,10 @@ object DotExamples:
     "Empty Graph"          -> "/examples/empty-graph.dot",
     "Finite State Machine" -> "/examples/finite-state-machine.dot",
     "Clusters"             -> "/examples/clusters.dot",
+    "Color Wheel"          -> "/examples/glitches/color-wheel.dot",
+    "Data Structures"      -> "/examples/data-structures.dot",
     "HTML"                 -> "/examples/html.dot",
-    "Styles"               -> "/examples/styles.dot",
+    "Network Map"          -> "/examples/glitches/network-map.dot",
+    "sbt dependencies"     -> "/examples/sbt-project-dependencies.dot",
+    "Styles"               -> "/examples/styles.dot"
   )

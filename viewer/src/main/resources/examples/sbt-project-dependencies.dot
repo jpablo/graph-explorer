@@ -1,0 +1,159 @@
+digraph "dependency-graph" {
+    graph[rankdir="LR"; splines=polyline]
+    edge [
+    arrowtail="none"
+    ]
+    "app.tulz:tuplez-full-light_sjs1_3:0.4.0"[shape=box label=<app.tulz<BR/><B>tuplez-full-light_sjs1_3</B><BR/>0.4.0> style="" penwidth="5" color="#D1606F"]
+    "be.doeraene:url-dsl_sjs1_3:0.6.1"[shape=box label=<be.doeraene<BR/><B>url-dsl_sjs1_3</B><BR/>0.6.1> style="" penwidth="5" color="#5DB48E"]
+    "com.lihaoyi:geny_sjs1_3:1.1.1"[shape=box label=<com.lihaoyi<BR/><B>geny_sjs1_3</B><BR/>1.1.1> style="" penwidth="5" color="#149B52"]
+    "com.lihaoyi:ujson_sjs1_3:4.0.0"[shape=box label=<com.lihaoyi<BR/><B>ujson_sjs1_3</B><BR/>4.0.0> style="" penwidth="5" color="#149B52"]
+    "com.lihaoyi:upack_sjs1_3:4.0.0"[shape=box label=<com.lihaoyi<BR/><B>upack_sjs1_3</B><BR/>4.0.0> style="" penwidth="5" color="#149B52"]
+    "com.lihaoyi:upickle-core_sjs1_3:4.0.0"[shape=box label=<com.lihaoyi<BR/><B>upickle-core_sjs1_3</B><BR/>4.0.0> style="" penwidth="5" color="#149B52"]
+    "com.lihaoyi:upickle-implicits_sjs1_3:4.0.0"[shape=box label=<com.lihaoyi<BR/><B>upickle-implicits_sjs1_3</B><BR/>4.0.0> style="" penwidth="5" color="#149B52"]
+    "com.lihaoyi:upickle_sjs1_3:4.0.0"[shape=box label=<com.lihaoyi<BR/><B>upickle_sjs1_3</B><BR/>4.0.0> style="" penwidth="5" color="#149B52"]
+    "com.raquo:airstream_sjs1_3:17.0.0"[shape=box label=<com.raquo<BR/><B>airstream_sjs1_3</B><BR/>17.0.0> style="dashed" penwidth="3" color="#11BA80"]
+    "com.raquo:airstream_sjs1_3:17.1.0"[shape=box label=<com.raquo<BR/><B>airstream_sjs1_3</B><BR/>17.1.0> style="" penwidth="5" color="#11BA80"]
+    "com.raquo:ew_sjs1_3:0.2.0"[shape=box label=<com.raquo<BR/><B>ew_sjs1_3</B><BR/>0.2.0> style="" penwidth="5" color="#11BA80"]
+    "com.raquo:laminar_sjs1_3:17.0.0"[shape=box label=<com.raquo<BR/><B>laminar_sjs1_3</B><BR/>17.0.0> style="dashed" penwidth="3" color="#11BA80"]
+    "com.raquo:laminar_sjs1_3:17.0.0"[shape=box label=<com.raquo<BR/><B>laminar_sjs1_3</B><BR/>17.0.0> style="dashed" penwidth="3" color="#11BA80"]
+    "com.raquo:laminar_sjs1_3:17.0.0"[shape=box label=<com.raquo<BR/><B>laminar_sjs1_3</B><BR/>17.0.0> style="dashed" penwidth="3" color="#11BA80"]
+    "com.raquo:laminar_sjs1_3:17.1.0"[shape=box label=<com.raquo<BR/><B>laminar_sjs1_3</B><BR/>17.1.0> style="" penwidth="5" color="#11BA80"]
+    "com.raquo:waypoint_sjs1_3:8.0.0"[shape=box label=<com.raquo<BR/><B>waypoint_sjs1_3</B><BR/>8.0.0> style="" penwidth="5" color="#11BA80"]
+    "com.softwaremill.quicklens:quicklens_sjs1_3:1.9.0"[shape=box label=<com.softwaremill.quicklens<BR/><B>quicklens_sjs1_3</B><BR/>1.9.0> style="" penwidth="5" color="#A3CE7E"]
+    "io.laminext:core_sjs1_3:0.17.0"[shape=box label=<io.laminext<BR/><B>core_sjs1_3</B><BR/>0.17.0> style="" penwidth="5" color="#24190A"]
+    "io.laminext:fetch_sjs1_3:0.17.0"[shape=box label=<io.laminext<BR/><B>fetch_sjs1_3</B><BR/>0.17.0> style="" penwidth="5" color="#24190A"]
+    "io.laminext:util_sjs1_3:0.17.0"[shape=box label=<io.laminext<BR/><B>util_sjs1_3</B><BR/>0.17.0> style="" penwidth="5" color="#24190A"]
+    "org.jpablo:viewer_sjs1_3:0.3.0"[shape=box label=<org.jpablo<BR/><B>viewer_sjs1_3</B><BR/>0.3.0> style="" penwidth="5" color="#75AADB"]
+    "org.scala-js:scalajs-dom_sjs1_3:2.8.0"[shape=box label=<org.scala-js<BR/><B>scalajs-dom_sjs1_3</B><BR/>2.8.0> style="" penwidth="5" color="#7D91E1"]
+    "org.scala-js:scalajs-javalib:1.16.0"[shape=box label=<org.scala-js<BR/><B>scalajs-javalib</B><BR/>1.16.0> style="" penwidth="5" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.10.1"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.10.1> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.12.0"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.12.0> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.13.1"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.13.1> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.13.1"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.13.1> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.13.1"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.13.1> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.13.1"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.13.1> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.13.1"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.13.1> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.14.0"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.14.0> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.16.0"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.16.0> style="" penwidth="5" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.7.1"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.7.1> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.9.0"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.9.0> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-library_2.13:1.9.0"[shape=box label=<org.scala-js<BR/><B>scalajs-library_2.13</B><BR/>1.9.0> style="dashed" penwidth="3" color="#7D91E1"]
+    "org.scala-js:scalajs-scalalib_2.13:2.13.13+1.16.0"[shape=box label=<org.scala-js<BR/><B>scalajs-scalalib_2.13</B><BR/>2.13.13+1.16.0> style="" penwidth="5" color="#7D91E1"]
+    "org.scala-lang:scala3-library_sjs1_3:3.1.3"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.1.3> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.2.0"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.2.0> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.2.0"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.2.0> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.2.1"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.2.1> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.3.1> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.3.1> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.3.1> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.3.1> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.3.1> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.3.1> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.3.1> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.3"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.3.3> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.4.2> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.4.2> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.4.2> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.4.2> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.4.2> style="dashed" penwidth="3" color="#2A7255"]
+    "org.scala-lang:scala3-library_sjs1_3:3.5.0"[shape=box label=<org.scala-lang<BR/><B>scala3-library_sjs1_3</B><BR/>3.5.0> style="" penwidth="5" color="#2A7255"]
+    "app.tulz:tuplez-full-light_sjs1_3:0.4.0" -> "org.scala-js:scalajs-library_2.13:1.9.0"
+    "app.tulz:tuplez-full-light_sjs1_3:0.4.0" -> "org.scala-lang:scala3-library_sjs1_3:3.2.1"
+    "be.doeraene:url-dsl_sjs1_3:0.6.1" -> "app.tulz:tuplez-full-light_sjs1_3:0.4.0"
+    "be.doeraene:url-dsl_sjs1_3:0.6.1" -> "org.scala-js:scalajs-library_2.13:1.9.0"
+    "be.doeraene:url-dsl_sjs1_3:0.6.1" -> "org.scala-lang:scala3-library_sjs1_3:3.2.0"
+    "com.lihaoyi:geny_sjs1_3:1.1.1" -> "org.scala-js:scalajs-library_2.13:1.12.0"
+    "com.lihaoyi:geny_sjs1_3:1.1.1" -> "org.scala-lang:scala3-library_sjs1_3:3.3.1"
+    "com.lihaoyi:ujson_sjs1_3:4.0.0" -> "com.lihaoyi:upickle-core_sjs1_3:4.0.0"
+    "com.lihaoyi:ujson_sjs1_3:4.0.0" -> "org.scala-js:scalajs-library_2.13:1.13.1"
+    "com.lihaoyi:ujson_sjs1_3:4.0.0" -> "org.scala-lang:scala3-library_sjs1_3:3.4.2"
+    "com.lihaoyi:upack_sjs1_3:4.0.0" -> "com.lihaoyi:upickle-core_sjs1_3:4.0.0"
+    "com.lihaoyi:upack_sjs1_3:4.0.0" -> "org.scala-js:scalajs-library_2.13:1.13.1"
+    "com.lihaoyi:upack_sjs1_3:4.0.0" -> "org.scala-lang:scala3-library_sjs1_3:3.4.2"
+    "com.lihaoyi:upickle-core_sjs1_3:4.0.0" -> "com.lihaoyi:geny_sjs1_3:1.1.1"
+    "com.lihaoyi:upickle-core_sjs1_3:4.0.0" -> "org.scala-js:scalajs-library_2.13:1.13.1"
+    "com.lihaoyi:upickle-core_sjs1_3:4.0.0" -> "org.scala-lang:scala3-library_sjs1_3:3.4.2"
+    "com.lihaoyi:upickle-implicits_sjs1_3:4.0.0" -> "com.lihaoyi:upickle-core_sjs1_3:4.0.0"
+    "com.lihaoyi:upickle-implicits_sjs1_3:4.0.0" -> "org.scala-js:scalajs-library_2.13:1.13.1"
+    "com.lihaoyi:upickle-implicits_sjs1_3:4.0.0" -> "org.scala-lang:scala3-library_sjs1_3:3.4.2"
+    "com.lihaoyi:upickle_sjs1_3:4.0.0" -> "com.lihaoyi:ujson_sjs1_3:4.0.0"
+    "com.lihaoyi:upickle_sjs1_3:4.0.0" -> "com.lihaoyi:upack_sjs1_3:4.0.0"
+    "com.lihaoyi:upickle_sjs1_3:4.0.0" -> "com.lihaoyi:upickle-implicits_sjs1_3:4.0.0"
+    "com.lihaoyi:upickle_sjs1_3:4.0.0" -> "org.scala-js:scalajs-library_2.13:1.13.1"
+    "com.lihaoyi:upickle_sjs1_3:4.0.0" -> "org.scala-lang:scala3-library_sjs1_3:3.4.2"
+    "com.raquo:airstream_sjs1_3:17.0.0" -> "com.raquo:airstream_sjs1_3:17.1.0" [label="Evicted By" style="dashed"]
+    "com.raquo:airstream_sjs1_3:17.1.0" -> "app.tulz:tuplez-full-light_sjs1_3:0.4.0"
+    "com.raquo:airstream_sjs1_3:17.1.0" -> "com.raquo:ew_sjs1_3:0.2.0"
+    "com.raquo:airstream_sjs1_3:17.1.0" -> "org.scala-js:scalajs-dom_sjs1_3:2.8.0"
+    "com.raquo:airstream_sjs1_3:17.1.0" -> "org.scala-js:scalajs-library_2.13:1.16.0"
+    "com.raquo:airstream_sjs1_3:17.1.0" -> "org.scala-lang:scala3-library_sjs1_3:3.3.3"
+    "com.raquo:ew_sjs1_3:0.2.0" -> "org.scala-js:scalajs-library_2.13:1.14.0"
+    "com.raquo:ew_sjs1_3:0.2.0" -> "org.scala-lang:scala3-library_sjs1_3:3.3.1"
+    "com.raquo:laminar_sjs1_3:17.0.0" -> "com.raquo:laminar_sjs1_3:17.1.0" [label="Evicted By" style="dashed"]
+    "com.raquo:laminar_sjs1_3:17.0.0" -> "com.raquo:laminar_sjs1_3:17.1.0" [label="Evicted By" style="dashed"]
+    "com.raquo:laminar_sjs1_3:17.0.0" -> "com.raquo:laminar_sjs1_3:17.1.0" [label="Evicted By" style="dashed"]
+    "com.raquo:laminar_sjs1_3:17.1.0" -> "com.raquo:airstream_sjs1_3:17.1.0"
+    "com.raquo:laminar_sjs1_3:17.1.0" -> "com.raquo:ew_sjs1_3:0.2.0"
+    "com.raquo:laminar_sjs1_3:17.1.0" -> "org.scala-js:scalajs-library_2.13:1.16.0"
+    "com.raquo:laminar_sjs1_3:17.1.0" -> "org.scala-lang:scala3-library_sjs1_3:3.3.1"
+    "com.raquo:waypoint_sjs1_3:8.0.0" -> "be.doeraene:url-dsl_sjs1_3:0.6.1"
+    "com.raquo:waypoint_sjs1_3:8.0.0" -> "com.raquo:airstream_sjs1_3:17.0.0"
+    "com.raquo:waypoint_sjs1_3:8.0.0" -> "org.scala-js:scalajs-dom_sjs1_3:2.8.0"
+    "com.raquo:waypoint_sjs1_3:8.0.0" -> "org.scala-js:scalajs-library_2.13:1.16.0"
+    "com.raquo:waypoint_sjs1_3:8.0.0" -> "org.scala-lang:scala3-library_sjs1_3:3.3.1"
+    "com.softwaremill.quicklens:quicklens_sjs1_3:1.9.0" -> "org.scala-js:scalajs-library_2.13:1.10.1"
+    "com.softwaremill.quicklens:quicklens_sjs1_3:1.9.0" -> "org.scala-lang:scala3-library_sjs1_3:3.2.0"
+    "io.laminext:core_sjs1_3:0.17.0" -> "com.raquo:laminar_sjs1_3:17.0.0"
+    "io.laminext:core_sjs1_3:0.17.0" -> "org.scala-js:scalajs-library_2.13:1.16.0"
+    "io.laminext:core_sjs1_3:0.17.0" -> "org.scala-lang:scala3-library_sjs1_3:3.3.1"
+    "io.laminext:fetch_sjs1_3:0.17.0" -> "com.raquo:laminar_sjs1_3:17.0.0"
+    "io.laminext:fetch_sjs1_3:0.17.0" -> "io.laminext:core_sjs1_3:0.17.0"
+    "io.laminext:fetch_sjs1_3:0.17.0" -> "io.laminext:util_sjs1_3:0.17.0"
+    "io.laminext:fetch_sjs1_3:0.17.0" -> "org.scala-js:scalajs-library_2.13:1.16.0"
+    "io.laminext:fetch_sjs1_3:0.17.0" -> "org.scala-lang:scala3-library_sjs1_3:3.3.1"
+    "io.laminext:util_sjs1_3:0.17.0" -> "com.raquo:laminar_sjs1_3:17.0.0"
+    "io.laminext:util_sjs1_3:0.17.0" -> "org.scala-js:scalajs-library_2.13:1.16.0"
+    "io.laminext:util_sjs1_3:0.17.0" -> "org.scala-lang:scala3-library_sjs1_3:3.3.1"
+    "org.jpablo:viewer_sjs1_3:0.3.0" -> "com.lihaoyi:upickle_sjs1_3:4.0.0"
+    "org.jpablo:viewer_sjs1_3:0.3.0" -> "com.raquo:laminar_sjs1_3:17.1.0"
+    "org.jpablo:viewer_sjs1_3:0.3.0" -> "com.raquo:waypoint_sjs1_3:8.0.0"
+    "org.jpablo:viewer_sjs1_3:0.3.0" -> "com.softwaremill.quicklens:quicklens_sjs1_3:1.9.0"
+    "org.jpablo:viewer_sjs1_3:0.3.0" -> "io.laminext:fetch_sjs1_3:0.17.0"
+    "org.jpablo:viewer_sjs1_3:0.3.0" -> "org.scala-js:scalajs-dom_sjs1_3:2.8.0"
+    "org.jpablo:viewer_sjs1_3:0.3.0" -> "org.scala-js:scalajs-library_2.13:1.16.0"
+    "org.jpablo:viewer_sjs1_3:0.3.0" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0"
+    "org.scala-js:scalajs-dom_sjs1_3:2.8.0" -> "org.scala-js:scalajs-library_2.13:1.7.1"
+    "org.scala-js:scalajs-dom_sjs1_3:2.8.0" -> "org.scala-lang:scala3-library_sjs1_3:3.1.3"
+    "org.scala-js:scalajs-library_2.13:1.10.1" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.12.0" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.13.1" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.13.1" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.13.1" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.13.1" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.13.1" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.14.0" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.16.0" -> "org.scala-js:scalajs-javalib:1.16.0"
+    "org.scala-js:scalajs-library_2.13:1.16.0" -> "org.scala-js:scalajs-scalalib_2.13:2.13.13+1.16.0"
+    "org.scala-js:scalajs-library_2.13:1.7.1" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.9.0" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-library_2.13:1.9.0" -> "org.scala-js:scalajs-library_2.13:1.16.0" [label="Evicted By" style="dashed"]
+    "org.scala-js:scalajs-scalalib_2.13:2.13.13+1.16.0" -> "org.scala-js:scalajs-javalib:1.16.0"
+    "org.scala-lang:scala3-library_sjs1_3:3.1.3" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.2.0" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.2.0" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.2.1" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.1" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.3.3" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.4.2" -> "org.scala-lang:scala3-library_sjs1_3:3.5.0" [label="Evicted By" style="dashed"]
+    "org.scala-lang:scala3-library_sjs1_3:3.5.0" -> "org.scala-js:scalajs-library_2.13:1.16.0"
+}
