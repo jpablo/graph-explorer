@@ -41,6 +41,7 @@ label[for ^= show-ns-kind-] {
 
       #graph0 {
         transform-origin: 50% -50%;
+
         polygon {
           //stroke: green;
         }
@@ -50,6 +51,7 @@ label[for ^= show-ns-kind-] {
         .node {
           &:hover {
             cursor: pointer;
+
             ellipse, polygon {
               stroke: rgb(251 191 36);
               stroke-width: 5.0;
@@ -63,11 +65,10 @@ label[for ^= show-ns-kind-] {
               stroke-width: 5.0;
               fill: rgba(245, 158, 11, 0.1);
             }
-
           }
 
           ellipse, polygon {
-            fill: white;
+            fill: rgba(255, 255, 255, 0.1);
           }
         }
 

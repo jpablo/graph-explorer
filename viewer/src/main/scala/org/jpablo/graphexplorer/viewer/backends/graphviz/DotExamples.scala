@@ -8,5 +8,6 @@ object DotExamples:
     "Empty Graph"          -> "/examples/empty-graph.dot",
     "Finite State Machine" -> "/examples/finite-state-machine.dot",
     "Clusters"             -> "/examples/clusters.dot",
-    "Styles"               -> "/examples/styles.dot"
+    "HTML"                 -> "/examples/html.dot",
+    "Styles"               -> "/examples/styles.dot",
   )
