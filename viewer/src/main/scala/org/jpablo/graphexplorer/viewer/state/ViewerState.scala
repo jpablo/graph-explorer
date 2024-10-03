@@ -127,41 +127,8 @@ case class ViewerState(initialSource: String = ""):
     zoomValue.set(1.0)
     translateXY.set(SvgUnit.origin)
 
-  def keepRootsOnly[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((_, _, g) => g.allNodeIds -- g.roots)
-
-  def hideSelectedNodes[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, _) => hidden ++ sel)
-
-  def hideNonSelectedNodes[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden ++ (g.allNodeIds -- sel))
-
-  def showAllSuccessors[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.allSuccessorsGraph(sel).allNodeIds)
-
-  def showDirectSuccessors[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.directSuccessorsGraph(sel).allNodeIds)
-
-  def showAllPredecessors[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.allPredecessorsGraph(sel).allNodeIds)
-
-  def showDirectPredecessors[E <: dom.Event](e: EventProp[E]) =
-    updateHiddenNodes(e)((hidden, sel, g) => hidden -- g.directPredecessorsGraph(sel).allNodeIds)
-
   def showAllNodes() =
     hiddenNodes.clear()
-
-  def hideAllNodes[E <: dom.Event](event: EventProp[E]) =
-    event(_.sample(allNodeIds).map(_.toSeq)) --> (hiddenNodes.extend(_))
-
-  def copyAsSVG[E <: dom.Event](write: String => Any)(event: EventProp[E]) =
-    event(_.sample(svgDotDiagram)) --> { diagram => write(diagram.toSVGText) }
-
-  def copyAsDOT[E <: dom.Event](write: String => Any)(event: EventProp[E]) =
-    event(_.sample(visibleDOT)) --> { diagram => write(diagram.value) }
-
-  def copyAsJSON[E <: dom.Event](write: String => Any)(event: EventProp[E]) =
-    event(_.sample(visibleAST).collect { case Some(ast) => ast }) --> { ast => write(writeJs(ast).toString) }
 
   def isVisible(id: NodeId) = hiddenNodesS.map(!_.contains(id))
 
@@ -173,6 +140,55 @@ case class ViewerState(initialSource: String = ""):
     fullGraph
       .combineWith(nodeIdFilter)
       .map(_.filterByNodeId(_))
+
+  object eventHandlers:
+    extension [E <: dom.Event](ev: EventProp[E])
+      def hideSelectedNodes =
+        updateHiddenNodes(ev)((hidden, sel, _) => hidden ++ sel)
+
+      def hideNonSelectedNodes =
+        updateHiddenNodes(ev)((hidden, sel, g) => hidden ++ (g.allNodeIds -- sel))
+
+      def showAllSuccessors =
+        updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.allSuccessorsGraph(sel).allNodeIds)
+
+      def showDirectSuccessors =
+        updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.directSuccessorsGraph(sel).allNodeIds)
+
+      def showAllPredecessors =
+        updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.allPredecessorsGraph(sel).allNodeIds)
+
+      def showDirectPredecessors =
+        updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.directPredecessorsGraph(sel).allNodeIds)
+
+      def selectSuccessors =
+        ev(_.sample(fullGraph, svgDotDiagram, hiddenNodesS)) --> diagramSelection.selectSuccessors.tupled
+
+      def selectPredecessors =
+        ev(_.sample(fullGraph, svgDotDiagram, hiddenNodesS)) --> diagramSelection.selectPredecessors.tupled
+
+      def selectDirectSuccessors =
+        ev(_.sample(fullGraph, svgDotDiagram, hiddenNodesS)) --> diagramSelection.selectDirectSuccessors.tupled
+
+      def selectDirectPredecessors =
+        ev(_.sample(fullGraph, svgDotDiagram, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
+
+      def copyAsSVG(writeText: String => Any) =
+        ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram, canvasSelection) =>
+          writeText(svgDiagram.toSVGText(canvasSelection))
+        }
+
+      def copyAsDOT(writeText: String => Any) =
+        ev(_.sample(visibleDOT)) --> { diagram => writeText(diagram.value) }
+
+      def copyAsJSON(writeText: String => Any) =
+        ev(_.sample(visibleAST).collect { case Some(ast) => ast }) --> { ast => writeText(writeJs(ast).toString) }
+
+      def keepRootsOnly =
+        updateHiddenNodes(ev)((_, _, g) => g.allNodeIds -- g.roots)
+
+      def hideAllNodes =
+        ev(_.sample(allNodeIds).map(_.toSeq)) --> (hiddenNodes.extend(_))
 
   // -------- storage ------------
 

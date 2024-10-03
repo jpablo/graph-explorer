@@ -6,7 +6,7 @@ import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selectable.*
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 
 def CanvasContainer(
@@ -15,12 +15,21 @@ def CanvasContainer(
 ) =
   div(
     idAttr := "canvas-container",
-    onClick.preventDefault.compose(_.withCurrentValueOf(state.svgDiagramElement)) --> handleSvgClick(state.diagramSelection).tupled,
-    onWheel.compose(_.withCurrentValueOf(state.svgDiagramElement)) --> handleWheel(state.zoomValue, state.translateXY).tupled,
+    inContext { thisNode =>
+      state.diagramSelection.signal --> { selectedNodes =>
+        for elem <- SelectableElement.findAll(thisNode.ref) do
+          if selectedNodes contains elem.nodeId then elem.select()
+          else elem.unselect()
+      }
+    },
+    onClick.preventDefault --> handleSvgClick(state),
+    onWheel(_.withCurrentValueOf(state.svgDiagramElement)) --> handleWheel(
+      state.zoomValue,
+      state.translateXY
+    ).tupled,
     fitDiagram --> state.resetView(),
     child <-- state.svgDiagramElement
   )
-
 
 private def handleWheel(
     zoomValue:   Var[Double],
@@ -39,11 +48,7 @@ private def handleWheel(
     val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))
     translateXY.update(_ - svgDelta)
 
-private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
-    event:      dom.MouseEvent,
-    svgDiagram: ReactiveSvgElement[dom.SVGSVGElement]
-): Unit =
-  val svgDotDiagram = SvgDotDiagram(svgDiagram)
+private def handleSvgClick(state: ViewerState)(event: dom.MouseEvent): Unit =
   // 1. Identify and parse the element that was clicked
   val selectedElement: Option[SelectableElement] =
     event.target
@@ -53,33 +58,18 @@ private def handleSvgClick(diagramSelection: DiagramSelectionOps)(
       .map(SelectableElement.build)
       .collectFirst { case Some(g) => g }
 
-  // 2. Update selected element's appearance
+  // 2. Update selection based on user action
   selectedElement match
-    case Some(g) =>
-      g match
-        case node: NodeElement =>
-          if event.metaKey then
-            node.toggle()
-            diagramSelection.toggle(node.nodeId)
-          else
-            svgDotDiagram.unselectAll()
-            node.select()
-            diagramSelection.replace(node.nodeId)
+    case None => state.diagramSelection.clear()
+    case Some(element) =>
+      (element, event.metaKey) match
+        case (n @ NodeElement(_), false) => state.diagramSelection.replace(n.nodeId)
+        case (n @ NodeElement(_), true)  => state.diagramSelection.toggle(n.nodeId)
 
-        case edge: EdgeElement =>
-          if event.metaKey then
-            edge.toggle()
-            for (a, b) <- edge.endpointIds do
-              svgDotDiagram.select(Set(a, b))
-              diagramSelection.toggle(a, b)
-          else
-            svgDotDiagram.unselectAll()
-            edge.select()
-            for (a, b) <- edge.endpointIds do
-              svgDotDiagram.select(Set(a, b))
-              diagramSelection.replace(a, b)
+        case (e @ EdgeElement(_), false) =>
+          e.endpointIds.foreach((a, b) => state.diagramSelection.replace(a, b, e.nodeId))
 
-    case None =>
-      svgDotDiagram.unselectAll()
-      diagramSelection.clear()
+        case (e @ EdgeElement(_), true) =>
+          e.endpointIds.foreach((a, b) => state.diagramSelection.toggle(a, b, e.nodeId))
+
 end handleSvgClick

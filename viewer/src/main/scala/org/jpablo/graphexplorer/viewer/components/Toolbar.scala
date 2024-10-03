@@ -8,12 +8,13 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom
-import scala.util.chaining.*
+import org.scalajs.dom.window
 
 def Toolbar(
     state:      ViewerState,
     fitDiagram: EventBus[Unit]
 ) =
+  import state.eventHandlers.*
   val drawerId = s"drawer-id"
   div(
     cls := "shadow bg-base-100 rounded-box flex items-center gap-4 p-0.5 absolute top-1 left-2/4 -translate-x-2/4 z-10",
@@ -33,9 +34,9 @@ def Toolbar(
     ),
     // -------- actions toolbar --------
     Join(
-      Button("roots", onClick pipe state.keepRootsOnly).tiny,
+      Button("roots", onClick.keepRootsOnly).tiny,
       Button("add all", onClick --> state.showAllNodes()).tiny,
-      Button("remove all", onClick pipe state.hideAllNodes).tiny,
+      Button("remove all", onClick.hideAllNodes).tiny,
       div(
         cls := "dropdown dropdown-hover",
         label(
@@ -46,15 +47,9 @@ def Toolbar(
         ul(
           tabIndex := 0,
           cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52",
-          li(
-            a("svg", onClick pipe state.copyAsSVG(dom.window.navigator.clipboard.writeText))
-          ),
-          li(
-            a("dot", onClick pipe state.copyAsDOT(dom.window.navigator.clipboard.writeText))
-          ),
-          li(
-            a("json dot AST", onClick pipe state.copyAsJSON(dom.window.navigator.clipboard.writeText))
-          )
+          li(a("svg", onClick.copyAsSVG(window.navigator.clipboard.writeText))),
+          li(a("dot", onClick.copyAsDOT(window.navigator.clipboard.writeText))),
+          li(a("json dot AST", onClick.copyAsJSON(window.navigator.clipboard.writeText)))
         )
       )
     ),

@@ -112,7 +112,8 @@ def LeftPanel(state: ViewerState) =
                     cls   := "truncate",
                     title := s"${arrow.source} → ${arrow.target}",
                     s"${arrow.source} → ${arrow.target}"
-                  )
+                  ),
+                  onClick.preventDefault.stopPropagation --> state.diagramSelection.toggle(arrow.source, arrow.target)
                 )
               )
       )
