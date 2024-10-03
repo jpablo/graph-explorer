@@ -14,18 +14,28 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 def LeftPanel(state: ViewerState) =
   val visibleTab = state.leftPanelTabIndex
   val showOptions = Var(false)
-  val filterByNodeId = Var("")
+  val filterNodesByNodeId = Var("")
+  val filterEdgesByNodeId = Var("")
   def isVisible(i: Int) = visibleTab.signal.map(_ == i)
-  val filteredGraph =
-    filteredDiagramEvent(state, filterByNodeId.signal)
+  val filteredGraph = filteredDiagramEvent(state, filterNodesByNodeId.signal)
 
   div(
     idAttr := "nodes-panel",
     div(
       idAttr := "nodes-panel-tab-buttons",
       Button("Source", cls("btn-active") <-- isVisible(0), onClick --> visibleTab.set(0)).tiny,
-      Button("Nodes", cls("btn-active") <-- isVisible(1), onClick --> visibleTab.set(1)).tiny
+      Button(
+        child <-- state.fullGraph.map(_.summary.nodes).map(n => s"Nodes ($n)"),
+        cls("btn-active") <-- isVisible(1),
+        onClick --> visibleTab.set(1)
+      ).tiny,
+      Button(
+        child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Edges ($n)"),
+        cls("btn-active") <-- isVisible(2),
+        onClick --> visibleTab.set(2)
+      ).tiny
     ),
+    // ------ TAB: 0 ------
     // --- DOT resources ---
     div(
       cls := "flex gap-2",
@@ -53,6 +63,7 @@ def LeftPanel(state: ViewerState) =
       onInput.mapToValue.compose(_.debounce(300)) --> state.source.set
     ),
 
+    // ------ TAB: 1 ------
     // --- controls ---
     form(
       idAttr := "nodes-panel-controls",
@@ -64,12 +75,10 @@ def LeftPanel(state: ViewerState) =
         clickHandler = Observer(_ => showOptions.update(!_)),
         toggle       = true
       ),
-      showOptions.signal.childWhenTrue:
-        Options(state)
-      ,
+      showOptions.signal.childWhenTrue(Options(state)),
       Search(
         placeholder := "filter",
-        controlled(value <-- filterByNodeId, onInput.mapToValue --> filterByNodeId)
+        controlled(value <-- filterNodesByNodeId, onInput.mapToValue --> filterNodesByNodeId)
       ).smallInput
     ),
     // Scrollable content
@@ -78,6 +87,35 @@ def LeftPanel(state: ViewerState) =
       cls("hidden") <-- !isVisible(1),
       // List of nodes
       NodesList(state, filteredGraph)
+    ),
+    // ------ TAB: 2 ------
+    div(
+      cls("hidden") <-- !isVisible(2),
+      Search(
+        placeholder := "filter",
+        controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
+      ).smallInput,
+      ul(
+        cls := "menu menu-sm bg-base-200 rounded-box",
+        children <-- state.fullGraph
+          .combineWith(filterEdgesByNodeId.signal)
+          .map((g, str) => g.filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str)))
+          .map(_.toList.sortBy(a => (a.source.toString, a.target.toString)))
+          .map:
+            _.map: arrow =>
+              li(
+                a(
+                  idAttr := arrow.id.toString,
+                  cls    := "cursor-pointer",
+                  div(
+                    cls   := "truncate",
+                    cls   := "truncate",
+                    title := s"${arrow.source} → ${arrow.target}",
+                    s"${arrow.source} → ${arrow.target}"
+                  )
+                )
+              )
+      )
     )
   )
 

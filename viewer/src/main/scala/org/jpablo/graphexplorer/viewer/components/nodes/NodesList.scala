@@ -13,18 +13,13 @@ def NodesList(
     state: ViewerState,
     graph: Signal[ViewerGraph]
 ): ReactiveHtmlElement[HTMLUListElement] =
-  val lis =
-    graph.map: g =>
-      g.nodes.toList
-        .sortBy(_.displayName)
-        .map: s =>
-          NodeRow(state, s)
   ul(
     cls := "menu menu-sm bg-base-200 rounded-box",
-    children <-- lis
+    children <-- graph.map: g =>
+      g.nodes.toList.sortBy(_.displayName).map(NodeRow(state))
   )
 
-private def NodeRow(state: ViewerState, node: ViewerNode) =
+private def NodeRow(state: ViewerState)(node: ViewerNode) =
   li(
     a(
       idAttr := node.id.toString,

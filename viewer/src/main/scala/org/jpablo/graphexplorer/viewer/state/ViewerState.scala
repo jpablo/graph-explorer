@@ -44,7 +44,6 @@ case class ViewerState(initialSource: String = ""):
       .map: (z, p) =>
         s"scale($z) translate(${p.x} ${p.y})"
 
-
   // 0: initial source
   val source: Var[String] = Var(initialSource)
 
@@ -169,6 +168,11 @@ case class ViewerState(initialSource: String = ""):
   def toggleNode(id: NodeId) =
     hiddenNodes.toggle(id)
     diagramSelection.toggle(id)
+
+  def filterByNodeId(nodeIdFilter: Signal[String]): Signal[ViewerGraph] =
+    fullGraph
+      .combineWith(nodeIdFilter)
+      .map(_.filterByNodeId(_))
 
   // -------- storage ------------
 

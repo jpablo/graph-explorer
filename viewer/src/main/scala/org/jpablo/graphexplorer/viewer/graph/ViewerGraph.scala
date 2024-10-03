@@ -18,8 +18,11 @@ case class ViewerGraph(
     nodes:  Set[ViewerNode]
 ):
 
-  lazy val stats =
-    s"Nodes: ${nodes.size}, Arrows: ${arrows.size}"
+  lazy val summary =
+    ViewerGraph.Summary(
+      nodes  = nodes.size,
+      arrows = arrows.size
+    )
 
   lazy val allNodeIds: Set[NodeId] =
     nodes.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
@@ -103,10 +106,14 @@ case class ViewerGraph(
   /** Creates a new subdiagram with all the symbols containing the given String.
     */
   def filterByNodeId(str: String): ViewerGraph =
-    subgraph(allNodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase)))
+    val ids = allNodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase))
+    subgraph(ids)
+    
+  def filterNodesBy(p: NodeId => Boolean): Set[NodeId] =
+    allNodeIds.filter(p)
 
-  def filterBy(p: ViewerNode => Boolean): ViewerGraph =
-    subgraph(nodes.filter(p).map(_.id))
+  def filterArrowsBy(p: Arrow => Boolean) =
+    arrows.filter(p)
 
   def toCSV: CSV =
     CSV(
@@ -132,4 +139,10 @@ object ViewerGraph:
 
   // In Scala 3.2 the type annotation is needed.
   val empty = ViewerGraph(Set.empty, Set.empty)
+
+  case class Summary(
+      nodes:  Int,
+      arrows: Int
+  )
+
 end ViewerGraph
