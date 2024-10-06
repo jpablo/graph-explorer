@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.tree.Tree
+import org.scalajs.dom
 
 import scala.annotation.targetName
 
@@ -26,6 +27,8 @@ case class ViewerGraph(
 
   lazy val allNodeIds: Set[NodeId] =
     nodes.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
+
+  lazy val allArrowIds: Set[NodeId] = arrows.map(_.nodeId)
 
   private lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
     arrows
@@ -57,13 +60,20 @@ case class ViewerGraph(
 
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
-  def subgraph(ids: Set[NodeId]): ViewerGraph =
-    val foundNodes = nodeById.collect { case (id, node) if ids.contains(id) => node }
-    ViewerGraph(arrowsForNodeIds(ids), foundNodes.toSet)
+  private def subgraph(ids: Set[NodeId]): ViewerGraph =
+    dom.console.log(s"--> subgraph($ids) --")
+    val foundNodes: Set[ViewerNode] = nodeById.collect { case (id, node) if ids.contains(id) => node }.toSet
+    val foundNodeIds = foundNodes.map(_.id)
+    dom.console.log(s"foundNodeIds: $foundNodeIds")
+    arrows.toSeq.sortBy(_.source.value).foreach(a => dom.console.log(s"\t$a"))
+    val relevantArrows = arrows.filter(a => (foundNodeIds contains a.source) && (foundNodeIds contains a.target))
+    dom.console.log(s"relevantArrows: $relevantArrows")
+    dom.console.log("<----")
+    ViewerGraph(relevantArrows, foundNodes)
 
-  def remove(ids: Set[NodeId]): ViewerGraph =
-    val foundNodes = nodeById.collect { case (id, node) if !ids.contains(id) => node }
-    ViewerGraph(arrowsWithoutNodeIds(ids), foundNodes.toSet)
+  def remove(toRemove: Set[NodeId]): ViewerGraph =
+    val foundNodes = nodeById.collect { case (id, node) if !toRemove.contains(id) => node }
+    ViewerGraph(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
@@ -77,10 +87,13 @@ case class ViewerGraph(
       .flatten
 
   private def subgraphUnfoldWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
-    subgraph(unfold(f, ids))
+    subgraph(ids ++ unfold(f, ids))
 
   private def subgraphWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
-    subgraph(ids.flatMap(f))
+    dom.console.log(s"--> subgraphWith($ids) --")
+    dom.console.log(ids.flatMap(f).toString)
+    dom.console.log("<----")
+    subgraph(ids ++ ids.flatMap(f))
 
   val directSuccessorsGraph: Set[NodeId] => ViewerGraph = subgraphWith(directSuccessors)
   val directPredecessorsGraph: Set[NodeId] => ViewerGraph = subgraphWith(directPredecessors)
@@ -108,7 +121,7 @@ case class ViewerGraph(
   def filterByNodeId(str: String): ViewerGraph =
     val ids = allNodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase))
     subgraph(ids)
-    
+
   def filterNodesBy(p: NodeId => Boolean): Set[NodeId] =
     allNodeIds.filter(p)
 
@@ -131,10 +144,8 @@ object ViewerGraph:
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     new ViewerGraph(
-      arrows = arrows.map(Arrow(_, _)),
-      nodes = arrows
-        .flatMap(a => Set(a._1, a._2))
-        .map(id => ViewerNode(id, id.toString)) ++ nodes
+      arrows = arrows.map(t => Arrow(t._1, t._2)),
+      nodes  = nodes
     )
 
   // In Scala 3.2 the type annotation is needed.

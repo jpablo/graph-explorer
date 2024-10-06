@@ -48,14 +48,8 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
   private def selectableElements =
     SelectableElement.findAll(ref)
 
-  def nodeIds: Set[models.NodeId] =
-    selectableElements.map(_.nodeId).toSet
-
   def select(ids: Set[models.NodeId]): Unit =
     for elem <- selectableElements if ids.contains(elem.nodeId) do elem.select()
-
-  def unselectAll(): Unit =
-    selectableElements.foreach(_.unselect())
 
   def toSVGText: String =
     ref.outerHTML

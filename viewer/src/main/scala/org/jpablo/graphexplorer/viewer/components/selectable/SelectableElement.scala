@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.components.selectable
 
-import org.jpablo.graphexplorer.viewer.components.selectable.SelectableElement.queryTitle
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import org.scalajs.dom
@@ -9,8 +8,10 @@ import org.scalajs.dom.Element
 sealed trait SelectableElement(ref: dom.SVGGElement):
   def selectedClass: String
 
-  protected val title = queryTitle(ref)
-  val nodeId = models.NodeId(title)
+  protected val title = ref.querySelector("title").textContent
+  protected val idAttr = ref.id
+
+  def nodeId: NodeId
 
   def select(): Unit =
     ref.classList.add(selectedClass)
@@ -24,30 +25,29 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
 
 object SelectableElement:
 
-  def build(e: dom.Element): Option[SelectableElement] =
+  def fromDomElement(e: dom.Element): Option[SelectableElement] =
     if isDiagramElement(e, "node") then Some(NodeElement(e.asInstanceOf[dom.SVGGElement]))
     else if isDiagramElement(e, "edge") then Some(EdgeElement(e.asInstanceOf[dom.SVGGElement]))
     else None
 
   def findAll(e: dom.Element): collection.Seq[SelectableElement] =
-    e.querySelectorAll("g").flatMap(build)
+    e.querySelectorAll("g").flatMap(fromDomElement)
 
   private def isDiagramElement(e: dom.Element, cls: String) =
     e.tagName == "g" && e.classList.contains(cls)
-
-  def queryTitle(e: dom.Element): String =
-    e.querySelector("title").textContent
 
 end SelectableElement
 
 case class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
+  val nodeId: NodeId = models.NodeId(title)
 
 case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
+  val nodeId: NodeId = models.NodeId(idAttr)
 
-  def endpointIds: Option[(NodeId, NodeId)] =
-    Arrow.fromGraphvizTitle(title).map(_.toTuple)
+  def toArrow: Option[Arrow] =
+    Arrow.fromGraphvizTitle(title, idAttr)
 
 extension (e: dom.Element)
   def parentNodes: LazyList[Element] =

@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.ViewerNode
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 
@@ -29,13 +29,15 @@ case class Dot(value: String):
 object Dot:
   private val gvInstance = new Graphviz
 
+  lazy val empty = Dot("digraph G { } ")
+
   extension (diGraph: DiGraphAST)
     def toDot: Dot =
       Dot(diGraph.render)
 
     def toViewerGraph: ViewerGraph =
       ViewerGraph(
-        arrows = diGraph.allArrows.map(Arrow.apply),
+        arrows = diGraph.allArrows,
         nodes  = diGraph.allNodesIds.map(ViewerNode.node)
       )
 
@@ -43,19 +45,6 @@ object Dot:
     def toSvg: Signal[SVGSVGElement] =
       gvInstance.renderToSvg(dot)
 
-  extension (graph: ViewerGraph)
-    def toDot: Dot =
-      val declarations =
-        graph.nodes.map: ns =>
-          s""" "${ns.id}"[label="${ns.displayName}"]"""
-
-      val arrows =
-        graph.arrows.toSeq.map: a =>
-          s""" "${a.source}" -> "${a.target}" """
-
-      Dot(
-        Digraph(declarations, arrows, "LR").toString
-      )
 end Dot
 
 case class Digraph(

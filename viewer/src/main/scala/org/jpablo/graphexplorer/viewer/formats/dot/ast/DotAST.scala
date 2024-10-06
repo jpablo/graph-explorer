@@ -4,6 +4,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
 import upickle.implicits.key
 import upickle.default.*
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.models.Arrow
 
 import scala.annotation.tailrec
 
@@ -11,7 +12,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   lazy val allNodesIds: Set[String] = findAllNodeIds(children)
 
-  lazy val allArrows: Set[(String, String)] = findAllArrows(children)
+  lazy val allArrows: Set[Arrow] = findAllArrows(children)
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
 
@@ -118,10 +119,14 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
 end DiGraphAST
 
+object DiGraphAST:
+  val empty: DiGraphAST = DiGraphAST(Nil)
+end DiGraphAST
+
 def findAllNodeIds(children: List[GraphElement]): Set[String] =
   children.toSet.flatMap(_.allNodesIds)
 
-def findAllArrows(children: List[GraphElement]): Set[(String, String)] =
+def findAllArrows(children: List[GraphElement]): Set[Arrow] =
   children.toSet.flatMap(_.allArrows)
 
 case class Location(start: Position, end: Position) derives ReadWriter
@@ -152,35 +157,36 @@ sealed trait GraphElement derives ReadWriter:
 
     go(List(this), Set.empty)
 
-  lazy val allArrows: Set[(String, String)] =
+  lazy val allArrows: Set[Arrow] =
     @tailrec
-    def go(remaining: List[GraphElement], acc: Set[(String, String)] = Set.empty): Set[(String, String)] =
+    def go(remaining: List[GraphElement], acc: Set[Arrow] = Set.empty): Set[Arrow] =
       remaining match
         case Nil => acc
         case h :: remaining1 =>
           h match
             case EdgeStmt(edgeList, _) =>
-              val args: Iterator[(List[GraphElement], Set[(String, String)])] =
+              val args: Iterator[(List[GraphElement], Set[Arrow])] =
                 edgeList
                   .sliding(2)
                   .map:
                     case List(Subgraph(children, _))                => (children, Set.empty)
-                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(id1 -> id2))
+                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2)))
 
                     case List(DotNodeId(id, _), Subgraph(children, _)) =>
-                      (children, findAllNodeIds(children).map(a => id -> a))
+                      (children, findAllNodeIds(children).map(a => Arrow(id -> a)))
 
                     case List(Subgraph(children, _), DotNodeId(id, _)) =>
-                      (children, findAllNodeIds(children).map(a => a -> id))
+                      (children, findAllNodeIds(children).map(a => Arrow(a -> id)))
 
                     case List(Subgraph(children1, _), Subgraph(children2, _)) =>
                       (
                         children1 ++ children2,
-                        findAllNodeIds(children1).flatMap(a => findAllNodeIds(children2).map(b => a -> b))
+                        findAllNodeIds(children1).flatMap(a => findAllNodeIds(children2).map(b => Arrow(a -> b)))
                       )
                     case _ => (Nil, Set.empty)
 
               val (remaining2, acc1) = args.toList.unzip
+
               go(remaining2.flatten ++ remaining1, acc ++ acc1.toSet.flatten)
             case Subgraph(children, _) => go(children ++ remaining1, acc)
             case _                     => go(remaining1, acc)

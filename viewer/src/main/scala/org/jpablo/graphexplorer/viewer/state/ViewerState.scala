@@ -7,7 +7,6 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.{SvgDotDiagram, SvgUnit}
-import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
@@ -16,9 +15,6 @@ import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 import upickle.default.*
-
-enum InputFormats:
-  case csv, dot
 
 case class PersistedState(
     hiddenNodes:      Set[NodeId],
@@ -47,49 +43,40 @@ case class ViewerState(initialSource: String = ""):
   // 0: initial source
   val source: Var[String] = Var(initialSource)
 
-  // 1. parse source and create a graph
-  private val fullGraphWithSourceAST: Signal[(ViewerGraph, Option[DiGraphAST])] =
-    source.signal.map(parseSource(InputFormats.dot))
+  // 1. parse source
+  // String ~> Dot ~> DiGraphAST
+  private val fullAST: Signal[DiGraphAST] =
+    source.signal.map(src => Dot(src).buildAST.headOption.getOrElse(DiGraphAST.empty))
 
-  private def parseSource(format: InputFormats)(sourceStr: String): (ViewerGraph, Option[DiGraphAST]) =
-    format match
-      case InputFormats.csv =>
-        (CSV(sourceStr).toViewerGraph, None)
-      case InputFormats.dot =>
-        val ast = Dot(sourceStr).buildAST.headOption
-        (ast.map(_.toViewerGraph).getOrElse(ViewerGraph.empty), ast)
-
+  // 2. DiGraphAST ~> ViewerGraph
+  // Arrows are assigned consecutive ids starting from 1
   val fullGraph: Signal[ViewerGraph] =
-    fullGraphWithSourceAST.map(_._1)
+    fullAST.tapEach(_ => dom.console.log("[fullGraph]")).map(_.toViewerGraph)
 
-  private val fullAST: Signal[Option[DiGraphAST]] =
-    fullGraphWithSourceAST.map(_._2)
-
-  private val visibleAST: Signal[Option[DiGraphAST]] =
+  // 3. Remove hidden nodes from Dot AST
+  // DiGraphAST ~[removeNodes]~> DiGraphAST
+  private val visibleAST: Signal[DiGraphAST] =
     fullAST
-      .combineWith(project.page.signal.distinct)
+      .combineWith(project.hiddenNodesV.signal)
       .tapEach(_ => resetView())
-      .map((fullAST, page) => fullAST.map(_.removeNodes(page.hiddenNodes.map(_.value))))
+      .map((fullAST, hiddenNodes) => fullAST.removeNodes(hiddenNodes.map(_.value)))
+      .tapEach(_ => dom.console.log("[visibleAST]"))
 
-  // 2. transform graph to SVG using visible nodes
+  // 4. transform visible AST back to Visible Dot
+  // DiGraphAST ~> Dot
   private val visibleDOT: Signal[Dot] =
-    fullGraph
-      .combineWith(project.page.signal.distinct, visibleAST)
-      .tapEach(_ => resetView())
-      .map: (fullGraph, page, visibleAST) =>
-        lazy val visibleSimpleDot = fullGraph.remove(page.hiddenNodes).toDot
-        // The original AST is used to render the SVG.
-        // If it is not available, build a new Dot from scratch.
-        visibleAST.map(_.toDot).getOrElse(visibleSimpleDot)
+    visibleAST.map(_.toDot)
 
   // ---- SvgDotDiagram ----
 
+  // 5. Render visible Dot to SVG
+  // Dot ~> SVGSVGElement
   val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
     visibleDOT
       .flatMapSwitch(_.toSvg)
       .map(SvgDotDiagram.svgWithTransform(transform))
 
-  val svgDotDiagram: Signal[SvgDotDiagram] =
+  private val svgDotDiagram: Signal[SvgDotDiagram] =
     svgDiagramElement.map(SvgDotDiagram.apply)
 
   val allNodeIds: Signal[Set[NodeId]] =
@@ -162,16 +149,16 @@ case class ViewerState(initialSource: String = ""):
         updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.directPredecessorsGraph(sel).allNodeIds)
 
       def selectSuccessors =
-        ev(_.sample(fullGraph, svgDotDiagram, hiddenNodesS)) --> diagramSelection.selectSuccessors.tupled
+        ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectSuccessors.tupled
 
       def selectPredecessors =
-        ev(_.sample(fullGraph, svgDotDiagram, hiddenNodesS)) --> diagramSelection.selectPredecessors.tupled
+        ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectPredecessors.tupled
 
       def selectDirectSuccessors =
-        ev(_.sample(fullGraph, svgDotDiagram, hiddenNodesS)) --> diagramSelection.selectDirectSuccessors.tupled
+        ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectSuccessors.tupled
 
       def selectDirectPredecessors =
-        ev(_.sample(fullGraph, svgDotDiagram, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
+        ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
 
       def copyAsSVG(writeText: String => Any) =
         ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram, canvasSelection) =>
@@ -182,7 +169,7 @@ case class ViewerState(initialSource: String = ""):
         ev(_.sample(visibleDOT)) --> { diagram => writeText(diagram.value) }
 
       def copyAsJSON(writeText: String => Any) =
-        ev(_.sample(visibleAST).collect { case Some(ast) => ast }) --> { ast => writeText(writeJs(ast).toString) }
+        ev(_.sample(visibleAST)) --> { ast => writeText(writeJs(ast).toString) }
 
       def keepRootsOnly =
         updateHiddenNodes(ev)((_, _, g) => g.allNodeIds -- g.roots)

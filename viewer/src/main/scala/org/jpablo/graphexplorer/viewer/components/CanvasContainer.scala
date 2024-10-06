@@ -23,10 +23,8 @@ def CanvasContainer(
       }
     },
     onClick.preventDefault --> handleSvgClick(state),
-    onWheel(_.withCurrentValueOf(state.svgDiagramElement)) --> handleWheel(
-      state.zoomValue,
-      state.translateXY
-    ).tupled,
+    onWheel(_.withCurrentValueOf(state.svgDiagramElement)) -->
+      handleWheel(state.zoomValue, state.translateXY).tupled,
     fitDiagram --> state.resetView(),
     child <-- state.svgDiagramElement
   )
@@ -55,7 +53,7 @@ private def handleSvgClick(state: ViewerState)(event: dom.MouseEvent): Unit =
       .asInstanceOf[dom.Element]
       .parentNodes
       .takeWhile(_.isInstanceOf[dom.SVGElement])
-      .map(SelectableElement.build)
+      .map(SelectableElement.fromDomElement)
       .collectFirst { case Some(g) => g }
 
   // 2. Update selection based on user action
@@ -63,13 +61,13 @@ private def handleSvgClick(state: ViewerState)(event: dom.MouseEvent): Unit =
     case None => state.diagramSelection.clear()
     case Some(element) =>
       (element, event.metaKey) match
-        case (n @ NodeElement(_), false) => state.diagramSelection.replace(n.nodeId)
+        case (n @ NodeElement(_), false) => state.diagramSelection.set(n.nodeId)
         case (n @ NodeElement(_), true)  => state.diagramSelection.toggle(n.nodeId)
-
         case (e @ EdgeElement(_), false) =>
-          e.endpointIds.foreach((a, b) => state.diagramSelection.replace(a, b, e.nodeId))
-
+          e.toArrow.foreach { a =>
+            state.diagramSelection.set(a.source, a.target, e.nodeId)
+          }
         case (e @ EdgeElement(_), true) =>
-          e.endpointIds.foreach((a, b) => state.diagramSelection.toggle(a, b, e.nodeId))
+          e.toArrow.foreach(a => state.diagramSelection.toggle(a.source, a.target, e.nodeId))
 
 end handleSvgClick
