@@ -8,6 +8,8 @@ import org.jpablo.graphexplorer.viewer.models.Arrow
 
 import scala.annotation.tailrec
 
+type EdgeElement = DotNodeId | Subgraph
+
 case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) derives ReadWriter:
 
   lazy val allNodesIds: Set[String] = findAllNodeIds(children)
@@ -27,18 +29,21 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
           if remainingChildren.isEmpty then Nil else List(Subgraph(remainingChildren, id))
 
         case EdgeStmt(edgeList, attrList) =>
-          val remainingEdges: List[List[DotNodeId | Subgraph]] =
+          def insertEdgeElem(acc: List[List[EdgeElement]], edgeElem: EdgeElement) =
+            acc match
+              case Nil    => (edgeElem :: Nil) :: Nil
+              case h :: t => (edgeElem :: h) :: t
+
+          val remainingEdges: List[List[EdgeElement]] =
             edgeList.foldLeft(Nil):
-              case (acc, n: DotNodeId) =>
-                acc match
-                  case _ if idsToRemove contains n.id => Nil :: acc
-                  case Nil                            => (n :: Nil) :: Nil
-                  case h :: t                         => (n :: h) :: t
+              case (acc, edgeElem: DotNodeId) =>
+                if idsToRemove contains edgeElem.id then Nil :: acc
+                else insertEdgeElem(acc, edgeElem)
 
               case (acc, Subgraph(children, id)) =>
                 val visibleChildren = children.flatMap(removeFrom)
-                if visibleChildren.isEmpty then Nil :: acc // remove the subgraph if it's empty
-                else (Subgraph(visibleChildren, id) :: acc.headOption.getOrElse(Nil)) :: acc.tail
+                if visibleChildren.isEmpty then Nil :: acc
+                else insertEdgeElem(acc, edgeElem = Subgraph(visibleChildren, id))
 
           remainingEdges.reverse.map(es => EdgeStmt(es.reverse, attrList))
 
@@ -196,8 +201,8 @@ sealed trait GraphElement derives ReadWriter:
 end GraphElement
 
 object GraphElement:
-  given ReadWriter[DotNodeId | Subgraph] =
-    readwriter[ujson.Value].bimap[DotNodeId | Subgraph](
+  given ReadWriter[EdgeElement] =
+    readwriter[ujson.Value].bimap[EdgeElement](
       {
         case s: DotNodeId => writeJs(s)
         case a: Subgraph  => writeJs(a)
@@ -250,7 +255,7 @@ case class NodeStmt(
 
 @key("edge_stmt")
 case class EdgeStmt(
-    @key("edge_list") edgeList: List[DotNodeId | Subgraph],
+    @key("edge_list") edgeList: List[EdgeElement],
     @key("attr_list") attrList: List[Attr]
 ) extends GraphElement
     derives ReadWriter
