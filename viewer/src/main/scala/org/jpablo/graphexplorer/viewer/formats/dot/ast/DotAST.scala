@@ -16,6 +16,10 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   lazy val allArrows: Set[Arrow] = findAllArrows(children)
 
+  // add an attribute [id=nextId] to all edges
+  def attachIds: DiGraphAST =
+    this.modify(_.children).using(_.map(_.attachId))
+
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
 
     // TODO: make this tail recursive
@@ -142,6 +146,20 @@ object Location:
 @key("type")
 sealed trait GraphElement derives ReadWriter:
 
+  // add an attribute [id=nextId] to all edges
+  def attachId: GraphElement =
+    this match
+
+      case EdgeStmt(edgeList, attrList) =>
+        val edgeListWithIds = edgeList.map:
+          case Subgraph(children, id) => Subgraph(children.map(_.attachId), id)
+          case other                  => other
+
+        EdgeStmt(edgeListWithIds, Attr("id", EdgeStmt.nextId.toString) :: attrList)
+
+      case Subgraph(children, id) => Subgraph(children.map(_.attachId), id)
+      case other                  => other
+
   lazy val allNodesIds: Set[String] =
     @tailrec
     def go(remaining: List[GraphElement], acc: Set[String]): Set[String] =
@@ -229,7 +247,6 @@ case class AttrStmt(target: String, @key("attr_list") attrList: List[Attr]) exte
 @key("attr")
 case class Attr(id: String, @key("eq") attrEq: String | AttrEq) derives ReadWriter
 
-@key("id")
 case class AttrEq(value: String, html: Boolean = false) derives ReadWriter
 
 object Attr:
@@ -259,6 +276,15 @@ case class EdgeStmt(
     @key("attr_list") attrList: List[Attr]
 ) extends GraphElement
     derives ReadWriter
+
+object EdgeStmt:
+  private var idx = 0
+
+  def nextId =
+    idx += 1
+    idx
+
+end EdgeStmt
 
 @key("node_id")
 case class DotNodeId(id: String, port: Option[Port] = None) derives ReadWriter

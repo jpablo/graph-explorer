@@ -46,7 +46,11 @@ case class ViewerState(initialSource: String = ""):
   // 1. parse source
   // String ~> Dot ~> DiGraphAST
   private val fullAST: Signal[DiGraphAST] =
-    source.signal.map(src => Dot(src).buildAST.headOption.getOrElse(DiGraphAST.empty))
+    source.signal.map: src =>
+      Dot(src).buildAST
+        .headOption
+        .map(_.attachIds)
+        .getOrElse(DiGraphAST.empty)
 
   // 2. DiGraphAST ~> ViewerGraph
   // Arrows are assigned consecutive ids starting from 1
