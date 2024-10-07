@@ -105,7 +105,7 @@ def LeftPanel(state: ViewerState) =
             _.map: arrow =>
               li(
                 a(
-                  idAttr := arrow.id.toString,
+                  idAttr := arrow.nodeId.toString,
                   cls    := "cursor-pointer",
                   div(
                     cls   := "truncate",

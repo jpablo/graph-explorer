@@ -55,7 +55,7 @@ case class ViewerState(initialSource: String = ""):
   // 2. DiGraphAST ~> ViewerGraph
   // Arrows are assigned consecutive ids starting from 1
   val fullGraph: Signal[ViewerGraph] =
-    fullAST.tapEach(_ => dom.console.log("[fullGraph]")).map(_.toViewerGraph)
+    fullAST.map(_.toViewerGraph)
 
   // 3. Remove hidden nodes from Dot AST
   // DiGraphAST ~[removeNodes]~> DiGraphAST
@@ -64,7 +64,6 @@ case class ViewerState(initialSource: String = ""):
       .combineWith(project.hiddenNodesV.signal)
       .tapEach(_ => resetView())
       .map((fullAST, hiddenNodes) => fullAST.removeNodes(hiddenNodes.map(_.value)))
-      .tapEach(_ => dom.console.log("[visibleAST]"))
 
   // 4. transform visible AST back to Visible Dot
   // DiGraphAST ~> Dot

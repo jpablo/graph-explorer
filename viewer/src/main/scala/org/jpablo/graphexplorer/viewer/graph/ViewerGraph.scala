@@ -144,7 +144,7 @@ object ViewerGraph:
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     new ViewerGraph(
-      arrows = arrows.map(t => Arrow(t._1, t._2)),
+      arrows = arrows.map(t => Arrow(t._1, t._2, None)),
       nodes  = nodes
     )
 

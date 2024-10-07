@@ -146,7 +146,7 @@ object Location:
 @key("type")
 sealed trait GraphElement derives ReadWriter:
 
-  // add an attribute [id=nextId] to all edges
+  // add an attribute [id=$nextId] to all edges
   def attachId: GraphElement =
     this match
 
@@ -187,24 +187,24 @@ sealed trait GraphElement derives ReadWriter:
         case Nil => acc
         case h :: remaining1 =>
           h match
-            case EdgeStmt(edgeList, _) =>
+            case e @ EdgeStmt(edgeList, _) =>
               val args: Iterator[(List[GraphElement], Set[Arrow])] =
                 edgeList
                   .sliding(2)
                   .map:
                     case List(Subgraph(children, _))                => (children, Set.empty)
-                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2)))
+                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, e.idAttr)))
 
                     case List(DotNodeId(id, _), Subgraph(children, _)) =>
-                      (children, findAllNodeIds(children).map(a => Arrow(id -> a)))
+                      (children, findAllNodeIds(children).map(a => Arrow(id -> a, e.idAttr)))
 
                     case List(Subgraph(children, _), DotNodeId(id, _)) =>
-                      (children, findAllNodeIds(children).map(a => Arrow(a -> id)))
+                      (children, findAllNodeIds(children).map(a => Arrow(a -> id, e.idAttr)))
 
                     case List(Subgraph(children1, _), Subgraph(children2, _)) =>
                       (
                         children1 ++ children2,
-                        findAllNodeIds(children1).flatMap(a => findAllNodeIds(children2).map(b => Arrow(a -> b)))
+                        findAllNodeIds(children1).flatMap(a => findAllNodeIds(children2).map(b => Arrow(a -> b, e.idAttr)))
                       )
                     case _ => (Nil, Set.empty)
 
@@ -275,7 +275,13 @@ case class EdgeStmt(
     @key("edge_list") edgeList: List[EdgeElement],
     @key("attr_list") attrList: List[Attr]
 ) extends GraphElement
-    derives ReadWriter
+    derives ReadWriter:
+  def idAttr: Option[String] =
+    attrList
+      .flatMap:
+        case Attr("id", value: String) => Some(value)
+        case _ => None
+      .headOption
 
 object EdgeStmt:
   private var idx = 0

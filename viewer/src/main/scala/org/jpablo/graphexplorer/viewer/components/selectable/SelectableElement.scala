@@ -44,10 +44,14 @@ case class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
 
 case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
-  val nodeId: NodeId = models.NodeId(idAttr)
 
-  def toArrow: Option[Arrow] =
+  lazy val toArrow: Option[Arrow] =
     Arrow.fromGraphvizTitle(title, idAttr)
+
+  // if parsing fails, use the title as the nodeId
+  lazy val nodeId: NodeId =
+    toArrow.map(_.nodeId).getOrElse(models.NodeId(title))
+end EdgeElement
 
 extension (e: dom.Element)
   def parentNodes: LazyList[Element] =
