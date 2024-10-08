@@ -13,7 +13,6 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 
 def LeftPanel(state: ViewerState) =
   val visibleTab = state.leftPanelTabIndex
-  val showOptions = Var(false)
   val filterNodesByNodeId = Var("")
   val filterEdgesByNodeId = Var("")
   def isVisible(i: Int) = visibleTab.signal.map(_ == i)
@@ -35,8 +34,8 @@ def LeftPanel(state: ViewerState) =
         onClick --> visibleTab.set(2)
       ).tiny
     ),
-    // ------ TAB: 0 ------
-    // --- DOT resources ---
+    // ------ TAB 0: Source ------
+    // --- DOT sources ---
     div(
       cls := "flex gap-2",
       cls("hidden") <-- !isVisible(0),
@@ -63,19 +62,12 @@ def LeftPanel(state: ViewerState) =
       onInput.mapToValue.compose(_.debounce(300)) --> state.source.set
     ),
 
-    // ------ TAB: 1 ------
+    // ------ TAB 1: Nodes ------
     // --- controls ---
     form(
       idAttr := "nodes-panel-controls",
       cls("hidden") <-- !isVisible(1),
-      LabeledCheckbox(
-        "show-options-toggle",
-        "options",
-        showOptions.signal,
-        clickHandler = Observer(_ => showOptions.update(!_)),
-        toggle       = true
-      ),
-      showOptions.signal.childWhenTrue(Options(state)),
+      Options(state),
       Search(
         placeholder := "filter",
         controlled(value <-- filterNodesByNodeId, onInput.mapToValue --> filterNodesByNodeId)
@@ -113,7 +105,8 @@ def LeftPanel(state: ViewerState) =
                     title := s"${arrow.source} → ${arrow.target}",
                     s"${arrow.source} → ${arrow.target}"
                   ),
-                  onClick.preventDefault.stopPropagation --> state.diagramSelection.toggle(arrow.source, arrow.target)
+                  onClick.preventDefault.stopPropagation --> state.diagramSelection
+                    .set(arrow.source, arrow.target, arrow.nodeId)
                 )
               )
       )
@@ -136,17 +129,12 @@ private def filteredDiagramEvent(
         .orElse(!packagesOptions.onlyActive, _.remove(hiddenNodes))
 
 private def Options(state: ViewerState) =
-  div(
-    cls := "card card-compact p-1 m-2 mb-2 border-slate-300 border-[1px]",
-    div(
-      cls := "card-body p-1",
-      LabeledCheckbox(
-        id        = s"filter-by-active",
-        labelStr  = "only active",
-        isChecked = state.project.packagesOptions.map(_.onlyActive),
-        clickHandler = Observer: _ =>
-          state.project.update(_.modify(_.packagesOptions.onlyActive).using(!_)),
-        toggle = true
-      )
+  Join(
+    LabeledCheckbox(
+      id        = s"filter-by-active",
+      labelStr  = "only active",
+      isChecked = state.project.packagesOptions.map(_.onlyActive),
+      clickHandler = Observer: _ =>
+        state.project.update(_.modify(_.packagesOptions.onlyActive).using(!_))
     )
   )

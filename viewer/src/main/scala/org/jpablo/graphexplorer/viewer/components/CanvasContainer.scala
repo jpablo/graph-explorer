@@ -64,10 +64,8 @@ private def handleSvgClick(state: ViewerState)(event: dom.MouseEvent): Unit =
         case (n @ NodeElement(_), false) => state.diagramSelection.set(n.nodeId)
         case (n @ NodeElement(_), true)  => state.diagramSelection.toggle(n.nodeId)
         case (e @ EdgeElement(_), false) =>
-          e.toArrow.foreach { a =>
-            state.diagramSelection.set(a.source, a.target, e.nodeId)
-          }
+          e.toArrow.foreach(a => state.diagramSelection.set(a.source, a.target, a.nodeId))
         case (e @ EdgeElement(_), true) =>
-          e.toArrow.foreach(a => state.diagramSelection.toggle(a.source, a.target, e.nodeId))
+          e.toArrow.foreach(a => state.diagramSelection.toggle(a.source, a.target, a.nodeId))
 
 end handleSvgClick

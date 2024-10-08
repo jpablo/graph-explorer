@@ -23,7 +23,7 @@ def LabeledCheckbox(
     toggle:       Boolean = false
 ) =
   div(
-    cls := "_form-control",
+    cls := "form-control",
     label(
       forId := id,
       cls   := "label cursor-pointer",
@@ -34,10 +34,7 @@ def LabeledCheckbox(
         tpe          := "checkbox",
         disabled <-- isDisabled,
         cls := (if toggle then "toggle toggle-xs" else "checkbox checkbox-xs"),
-        controlled(
-          checked <-- isChecked,
-          onClick.mapToChecked --> clickHandler
-        )
+        controlled(checked <-- isChecked, onClick.mapToChecked --> clickHandler)
       )
     )
   )
