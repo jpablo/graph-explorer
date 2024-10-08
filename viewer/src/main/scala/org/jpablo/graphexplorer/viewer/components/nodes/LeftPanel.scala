@@ -94,7 +94,7 @@ def LeftPanel(state: ViewerState) =
         controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
       ).smallInput,
       div(
-        cls := "overflow-x-auto rounded-box",
+        cls := "overflow-x-auto rounded-box bg-base-100",
         table(
           cls := "table",
           thead(tr(th("Source"), th(""), th("Target"))),
@@ -110,26 +110,14 @@ def LeftPanel(state: ViewerState) =
               .map:
                 _.map: arrow =>
                   tr(
-                    cls := "whitespace-nowrap hover",
-                    td(
-                      cls := "truncate",
-                      cls("font-bold") <-- state.isVisible(arrow.source),
-                      arrow.source.toString
-                    ),
+                    cls := "whitespace-nowrap hover cursor-pointer",
+                    cls("font-bold") <-- state.isEdgeVisible(arrow.nodeId),
+                    cls("bg-base-200") <-- state.isSelected(arrow.nodeId),
+                    td(cls := "truncate", cls("bg-base-200") <-- state.isSelected(arrow.source), arrow.source.toString),
                     td("→"),
-                    td(
-                      cls := "truncate",
-                      cls("font-bold") <-- state.isVisible(arrow.target),
-                      arrow.target.toString
-                    )
-//                    a(
-//                      idAttr := arrow.nodeId.toString,
-//                      cls    := "cursor-pointer",
-//                      span(cls := "truncate", title := arrow.nodeId.toString, s"${arrow.source}"),
-//                      span(cls := "truncate", title := arrow.nodeId.toString, s"${arrow.target}"),
-//                      onClick.preventDefault.stopPropagation --> state.diagramSelection
-//                        .set(arrow.source, arrow.target, arrow.nodeId)
-//                    )
+                    td(cls := "truncate", cls("bg-base-200") <-- state.isSelected(arrow.target), arrow.target.toString),
+                    onClick.preventDefault.stopPropagation --> state.diagramSelection
+                      .set(arrow.source, arrow.target, arrow.nodeId)
                   )
           )
         )

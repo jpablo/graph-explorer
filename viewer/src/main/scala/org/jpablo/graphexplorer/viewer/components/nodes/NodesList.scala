@@ -14,17 +14,18 @@ def NodesList(
     graph: Signal[ViewerGraph]
 ): ReactiveHtmlElement[HTMLUListElement] =
   ul(
-    cls := "menu menu-sm bg-base-200 rounded-box",
+    cls := "menu menu-sm bg-base-100 rounded-box",
     children <-- graph.map: g =>
       g.nodes.toList.sortBy(_.displayName).map(NodeRow(state))
   )
 
 private def NodeRow(state: ViewerState)(node: ViewerNode) =
   li(
+    cls("bg-base-200") <-- state.isSelected(node.id),
     a(
       idAttr := node.id.toString,
       cls    := "cursor-pointer",
-      cls("font-bold") <-- state.isVisible(node.id),
+      cls("font-bold") <-- state.isNodeVisible(node.id),
       div(
         cls := "truncate",
         node.displayName

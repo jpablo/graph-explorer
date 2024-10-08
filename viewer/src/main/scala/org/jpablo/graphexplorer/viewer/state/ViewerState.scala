@@ -47,8 +47,7 @@ case class ViewerState(initialSource: String = ""):
   // String ~> Dot ~> DiGraphAST
   private val fullAST: Signal[DiGraphAST] =
     source.signal.map: src =>
-      Dot(src).buildAST
-        .headOption
+      Dot(src).buildAST.headOption
         .map(_.attachIds)
         .getOrElse(DiGraphAST.empty)
 
@@ -69,6 +68,9 @@ case class ViewerState(initialSource: String = ""):
   // DiGraphAST ~> Dot
   private val visibleDOT: Signal[Dot] =
     visibleAST.map(_.toDot)
+
+  val visibleGraph: Signal[ViewerGraph] =
+    visibleAST.map(_.toViewerGraph)
 
   // ---- SvgDotDiagram ----
 
@@ -120,7 +122,11 @@ case class ViewerState(initialSource: String = ""):
   def showAllNodes() =
     hiddenNodes.clear()
 
-  def isVisible(id: NodeId) = hiddenNodesS.map(!_.contains(id))
+  def isNodeVisible(id: NodeId) = hiddenNodesS.map(!_.contains(id))
+
+  def isEdgeVisible(id: NodeId) = visibleGraph.map(_.allArrowIds.contains(id))
+
+  def isSelected(id: NodeId) = diagramSelection.signal.map(_.contains(id))
 
   def toggleNode(id: NodeId) =
     hiddenNodes.toggle(id)
