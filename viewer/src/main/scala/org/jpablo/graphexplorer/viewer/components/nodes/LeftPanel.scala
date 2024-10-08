@@ -96,7 +96,7 @@ def LeftPanel(state: ViewerState) =
       div(
         cls := "overflow-x-auto rounded-box bg-base-100",
         table(
-          cls := "table",
+          cls := "table table-xs table-pin-rows table-pin-cols",
           thead(tr(th("Source"), th(""), th("Target"))),
           tbody(
             children <-- state.fullGraph
@@ -113,9 +113,9 @@ def LeftPanel(state: ViewerState) =
                     cls := "whitespace-nowrap hover cursor-pointer",
                     cls("font-bold") <-- state.isEdgeVisible(arrow.nodeId),
                     cls("bg-base-200") <-- state.isSelected(arrow.nodeId),
-                    td(cls := "truncate", cls("bg-base-200") <-- state.isSelected(arrow.source), arrow.source.toString),
+                    td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.source), arrow.source.toString),
                     td("→"),
-                    td(cls := "truncate", cls("bg-base-200") <-- state.isSelected(arrow.target), arrow.target.toString),
+                    td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.target.toString),
                     onClick.preventDefault.stopPropagation --> state.diagramSelection
                       .set(arrow.source, arrow.target, arrow.nodeId)
                   )
