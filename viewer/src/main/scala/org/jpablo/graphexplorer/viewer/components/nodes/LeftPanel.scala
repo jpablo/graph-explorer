@@ -66,9 +66,7 @@ def LeftPanel(state: ViewerState) =
     form(
       idAttr := "nodes-panel-controls",
       cls("hidden") <-- !isVisible(1),
-      Join(
-        LabeledCheckbox(id = s"filter-by-active", labelStr = "only active", isChecked = onlyActiveNodes)
-      ),
+      Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only active", isChecked = onlyActiveNodes)),
       Search(
         placeholder := "filter",
         controlled(value <-- filterNodesByNodeId, onInput.mapToValue --> filterNodesByNodeId)
@@ -84,9 +82,7 @@ def LeftPanel(state: ViewerState) =
     // ------ TAB: 2 ------
     div(
       cls("hidden") <-- !isVisible(2),
-      Join(
-        LabeledCheckbox(id = s"filter-by-active", labelStr = "only active", isChecked = onlyActiveEdges)
-      ),
+      Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only active", isChecked = onlyActiveEdges)),
       Search(
         placeholder := "filter",
         controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
@@ -99,26 +95,27 @@ def LeftPanel(state: ViewerState) =
         cls := "table table-xs table-pin-rows",
         thead(tr(th("Source"), th(""), th("Target"))),
         tbody(
-          children <-- state.fullGraph
-            .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS)
-            .map((g, onlyActive, str, hiddenNodes) =>
-              g
-                .orElse(!onlyActive, _.remove(hiddenNodes))
-                .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
-            )
-            .map(_.toList.sorted)
-            .map:
-              _.map: arrow =>
-                tr(
-                  cls := "whitespace-nowrap hover cursor-pointer",
-                  cls("font-bold") <-- state.isEdgeVisible(arrow.nodeId),
-                  cls("bg-base-200") <-- state.isSelected(arrow.nodeId),
-                  td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.source), arrow.source.toString),
-                  td("→"),
-                  td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.target.toString),
-                  onClick.preventDefault.stopPropagation --> state.diagramSelection
-                    .set(arrow.source, arrow.target, arrow.nodeId)
-                )
+          children <--
+            state
+              .fullGraph
+              .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS)
+              .map: (fullGraph, onlyActive, str, hiddenNodes) =>
+                fullGraph
+                  .orElse(!onlyActive, _.remove(hiddenNodes))
+                  .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
+                  .toList
+                  .sorted
+              .map:
+                _.map: arrow =>
+                  tr(
+                    cls := "whitespace-nowrap hover cursor-pointer",
+                    cls("font-bold") <-- state.isEdgeVisible(arrow.nodeId),
+                    cls("bg-base-200") <-- state.isSelected(arrow.nodeId),
+                    td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.source), arrow.source.toString),
+                    td("→"),
+                    td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.target.toString),
+                    onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnArrow(arrow)
+                  )
         )
       )
     )
@@ -128,10 +125,8 @@ private def filteredDiagramEvent(
     state:          ViewerState,
     onlyActive:     Signal[Boolean],
     filterByNodeId: Signal[String]
-): Signal[ViewerGraph] =
-  state.fullGraph
-    .combineWith(onlyActive, filterByNodeId, state.hiddenNodesS)
-    .map: (fullGraph, onlyActive, filter, hiddenNodes) =>
-      fullGraph
-        .orElse(filter.isBlank, _.filterByNodeId(filter))
-        .orElse(!onlyActive, _.remove(hiddenNodes))
+): Signal[ViewerGraph] = state
+  .fullGraph
+  .combineWith(onlyActive, filterByNodeId, state.hiddenNodesS)
+  .map: (fullGraph, onlyActive, filter, hiddenNodes) =>
+    fullGraph.orElse(filter.isBlank, _.filterByNodeId(filter)).orElse(!onlyActive, _.remove(hiddenNodes))
