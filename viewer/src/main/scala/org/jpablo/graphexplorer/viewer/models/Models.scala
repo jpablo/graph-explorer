@@ -70,3 +70,13 @@ object Arrow:
       if l.nonEmpty && r.nonEmpty then Some(Arrow(NodeId(l), NodeId(r), Some(idAttr)))
       else None
     else None
+
+  given scala.Ordering[Arrow] with
+    def compare(x: Arrow, y: Arrow): Int =
+      val s = x.source.value.compareTo(y.source.value)
+      if s == 0 then
+        val t = x.target.value.compareTo(y.target.value)
+        if t == 0 then x.idAttr.getOrElse("").compareTo(y.idAttr.getOrElse(""))
+        else t
+      else s
+end Arrow

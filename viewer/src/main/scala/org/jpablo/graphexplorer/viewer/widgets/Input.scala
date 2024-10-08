@@ -17,9 +17,8 @@ def Search(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
 def LabeledCheckbox(
     id:           String,
     labelStr:     String,
-    isChecked:    Signal[Boolean],
+    isChecked:    Var[Boolean],
     isDisabled:   Signal[Boolean] = Signal.fromValue(false),
-    clickHandler: Observer[Boolean],
     toggle:       Boolean = false
 ) =
   div(
@@ -34,7 +33,7 @@ def LabeledCheckbox(
         tpe          := "checkbox",
         disabled <-- isDisabled,
         cls := (if toggle then "toggle toggle-xs" else "checkbox checkbox-xs"),
-        controlled(checked <-- isChecked, onClick.mapToChecked --> clickHandler)
+        controlled(checked <-- isChecked, onClick.mapToChecked --> isChecked)
       )
     )
   )
