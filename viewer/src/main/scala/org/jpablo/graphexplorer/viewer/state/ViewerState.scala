@@ -69,7 +69,7 @@ case class ViewerState(initialSource: String = ""):
   private val visibleDOT: Signal[Dot] =
     visibleAST.map(_.toDot)
 
-  val visibleGraph: Signal[ViewerGraph] =
+  private val visibleGraph: Signal[ViewerGraph] =
     visibleAST.map(_.toViewerGraph)
 
   // ---- SvgDotDiagram ----
