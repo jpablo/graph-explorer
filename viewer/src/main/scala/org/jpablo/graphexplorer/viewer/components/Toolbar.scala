@@ -22,7 +22,7 @@ def Toolbar(
     // -------- package selector --------
     Join(
       Tooltip(
-        text = "Digram source",
+        text = "Diagram source",
         input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
         label(
           forId := drawerId,
