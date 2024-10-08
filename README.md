@@ -1,5 +1,7 @@
 # Graph Explorer
 
+https://graph-explorer.net
+
 Explore graphs in a visual way.
 
 ## Requirements
