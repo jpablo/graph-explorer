@@ -187,27 +187,29 @@ sealed trait GraphElement derives ReadWriter:
         case Nil => acc
         case h :: remaining1 =>
           h match
-            case e @ EdgeStmt(edgeList, attrList) =>
+            case EdgeStmt(edgeList, attrList) =>
+              // TODO: Handle AttrEq as well (for html labels)
               val attrs = attrList.map(attr => attr.id -> attr.attrEq.toString).toMap
               val args: Iterator[(List[GraphElement], Set[Arrow])] =
                 edgeList
                   .sliding(2)
                   .map:
                     case List(Subgraph(children, _))                => (children, Set.empty)
-                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, e.idAttr, attrs)))
+                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, attrs)))
 
                     case List(DotNodeId(id, _), Subgraph(children, _)) =>
-                      (children, findAllNodeIds(children).map(a => Arrow(id -> a, e.idAttr, attrs)))
+                      (children, findAllNodeIds(children).map(a => Arrow(id -> a, attrs)))
 
                     case List(Subgraph(children, _), DotNodeId(id, _)) =>
-                      (children, findAllNodeIds(children).map(a => Arrow(a -> id, e.idAttr, attrs)))
+                      (children, findAllNodeIds(children).map(a => Arrow(a -> id, attrs)))
 
                     case List(Subgraph(children1, _), Subgraph(children2, _)) =>
                       (
                         children1 ++ children2,
-                        findAllNodeIds(children1).flatMap(a =>
-                          findAllNodeIds(children2).map(b => Arrow(a -> b, e.idAttr, attrs))
-                        )
+                        for
+                          a <- findAllNodeIds(children1)
+                          b <- findAllNodeIds(children2)
+                        yield Arrow(a -> b, attrs)
                       )
                     case _ => (Nil, Set.empty)
 
@@ -278,13 +280,7 @@ case class EdgeStmt(
     @key("edge_list") edgeList: List[EdgeElement],
     @key("attr_list") attrList: List[Attr]
 ) extends GraphElement
-    derives ReadWriter:
-  def idAttr: Option[String] =
-    attrList
-      .flatMap:
-        case Attr("id", value: String) => Some(value)
-        case _                         => None
-      .headOption
+    derives ReadWriter
 
 object EdgeStmt:
   private var idx = 0

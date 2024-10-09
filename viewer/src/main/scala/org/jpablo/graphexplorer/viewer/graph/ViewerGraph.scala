@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.formats.CSV
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.tree.Tree
 
 import scala.annotation.targetName
@@ -135,7 +135,7 @@ object ViewerGraph:
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     new ViewerGraph(
-      arrows = arrows.map(t => Arrow(t._1, t._2, None)),
+      arrows = arrows.map(t => Arrow(t._1, t._2, Attributes.empty)),
       nodes  = nodes
     )
 
