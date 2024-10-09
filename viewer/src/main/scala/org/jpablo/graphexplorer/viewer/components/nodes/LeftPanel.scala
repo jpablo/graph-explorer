@@ -66,7 +66,7 @@ def LeftPanel(state: ViewerState) =
     form(
       idAttr := "nodes-panel-controls",
       cls("hidden") <-- !isVisible(1),
-      Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only active", isChecked = onlyActiveNodes)),
+      Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveNodes)),
       Search(
         placeholder := "filter",
         controlled(value <-- filterNodesByNodeId, onInput.mapToValue --> filterNodesByNodeId)
@@ -82,7 +82,7 @@ def LeftPanel(state: ViewerState) =
     // ------ TAB: 2 ------
     div(
       cls("hidden") <-- !isVisible(2),
-      Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only active", isChecked = onlyActiveEdges)),
+      Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),
       Search(
         placeholder := "filter",
         controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
