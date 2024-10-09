@@ -15,18 +15,20 @@ def CanvasContainer(
 ) =
   div(
     idAttr := "canvas-container",
-    inContext { thisNode =>
-      state.diagramSelection.signal --> { selectedNodes =>
-        for elem <- SelectableElement.findAll(thisNode.ref) do
-          if selectedNodes contains elem.nodeId then elem.select()
-          else elem.unselect()
-      }
-    },
     onClick.preventDefault --> handleSvgClick(state),
     onWheel(_.withCurrentValueOf(state.svgDiagramElement)) -->
       handleWheel(state.zoomValue, state.translateXY).tupled,
     fitDiagram --> state.resetView(),
-    child <-- state.svgDiagramElement
+    child <-- state.svgDiagramElement,
+    inContext: thisNode =>
+      // Sync svg style with internal state
+      state.diagramSelection.signal --> { selectedNodes =>
+        for elem <- SelectableElement.findAll(thisNode.ref) do
+          if selectedNodes contains elem.nodeId then
+            elem.select()
+          else
+            elem.unselect()
+      }
   )
 
 private def handleWheel(

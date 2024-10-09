@@ -1,10 +1,10 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
-import upickle.implicits.key
-import upickle.default.*
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
 import org.jpablo.graphexplorer.viewer.models.Arrow
+import upickle.default.*
+import upickle.implicits.key
 
 import scala.annotation.tailrec
 
@@ -187,24 +187,27 @@ sealed trait GraphElement derives ReadWriter:
         case Nil => acc
         case h :: remaining1 =>
           h match
-            case e @ EdgeStmt(edgeList, _) =>
+            case e @ EdgeStmt(edgeList, attrList) =>
+              val attrs = attrList.map(attr => attr.id -> attr.attrEq.toString).toMap
               val args: Iterator[(List[GraphElement], Set[Arrow])] =
                 edgeList
                   .sliding(2)
                   .map:
                     case List(Subgraph(children, _))                => (children, Set.empty)
-                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, e.idAttr)))
+                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, e.idAttr, attrs)))
 
                     case List(DotNodeId(id, _), Subgraph(children, _)) =>
-                      (children, findAllNodeIds(children).map(a => Arrow(id -> a, e.idAttr)))
+                      (children, findAllNodeIds(children).map(a => Arrow(id -> a, e.idAttr, attrs)))
 
                     case List(Subgraph(children, _), DotNodeId(id, _)) =>
-                      (children, findAllNodeIds(children).map(a => Arrow(a -> id, e.idAttr)))
+                      (children, findAllNodeIds(children).map(a => Arrow(a -> id, e.idAttr, attrs)))
 
                     case List(Subgraph(children1, _), Subgraph(children2, _)) =>
                       (
                         children1 ++ children2,
-                        findAllNodeIds(children1).flatMap(a => findAllNodeIds(children2).map(b => Arrow(a -> b, e.idAttr)))
+                        findAllNodeIds(children1).flatMap(a =>
+                          findAllNodeIds(children2).map(b => Arrow(a -> b, e.idAttr, attrs))
+                        )
                       )
                     case _ => (Nil, Set.empty)
 
@@ -280,7 +283,7 @@ case class EdgeStmt(
     attrList
       .flatMap:
         case Attr("id", value: String) => Some(value)
-        case _ => None
+        case _                         => None
       .headOption
 
 object EdgeStmt:

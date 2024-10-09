@@ -93,7 +93,7 @@ def LeftPanel(state: ViewerState) =
       cls := "overflow-x-auto rounded-box bg-base-100",
       table(
         cls := "table table-xs table-pin-rows",
-        thead(tr(th("Source"), th(""), th("Target"))),
+        thead(tr(th("Source"), th(""), th("Target"), th("Label"))),
         tbody(
           children <--
             state
@@ -114,7 +114,12 @@ def LeftPanel(state: ViewerState) =
                     td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.source), arrow.source.toString),
                     td("→"),
                     td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.target.toString),
-                    onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnArrow(arrow)
+                    td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.target.toString),
+                    onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnArrow(arrow),
+                    onDblClick.preventDefault.stopPropagation --> { _ =>
+                      state.toggleNode(arrow.source)
+                      state.toggleNode(arrow.target)
+                    }
                   )
         )
       )

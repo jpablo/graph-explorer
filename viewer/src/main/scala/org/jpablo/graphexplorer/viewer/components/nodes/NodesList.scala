@@ -30,6 +30,7 @@ private def NodeRow(state: ViewerState)(node: ViewerNode) =
         cls := "truncate",
         node.displayName
       ),
-      onClick.preventDefault.stopPropagation --> state.toggleNode(node.id)
+      onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnNode(node.id),
+      onDblClick.preventDefault.stopPropagation --> state.toggleNode(node.id)
     )
   )

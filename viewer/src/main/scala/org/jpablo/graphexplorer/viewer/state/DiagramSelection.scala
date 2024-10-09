@@ -40,6 +40,12 @@ class DiagramSelectionOps(selectedNodes: Var[SelectedNodes] = Var(Set.empty)):
     val relatedIds = relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds
     add(relatedIds)
 
+  def handleClickOnNode(nodeId: NodeId)(metaKey: Boolean) =
+    if metaKey then
+      toggle(nodeId)
+    else
+      set(Set(nodeId))
+
   def handleClickOnArrow(arrow: Arrow)(metaKey: Boolean) =
     val selection = now()
     if metaKey then
@@ -49,8 +55,10 @@ class DiagramSelectionOps(selectedNodes: Var[SelectedNodes] = Var(Set.empty)):
           .filter(nodeId => nodeId.value != arrow.nodeId.value && nodeId.value.contains("->"))
           .map(_.value)
 
-        val nodeIds = selection.filter(!_.value.contains("->"))
-        val toRemove = nodeIds.filterNot(nodeId => edgesWithoutClicked.exists(_.contains(nodeId.value)))
+        val toRemove = selection
+          .filterNot(_.value.contains("->"))
+          .filterNot: nodeId =>
+            edgesWithoutClicked.exists(_.contains(nodeId.value))
 
         remove(toRemove + arrow.nodeId)
       else

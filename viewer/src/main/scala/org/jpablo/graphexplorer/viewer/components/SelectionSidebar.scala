@@ -20,21 +20,21 @@ def SelectionSidebar(state: ViewerState) =
       ul(
         cls := "menu menu-sm shadow bg-base-100 rounded-box m-2 p-0",
         li(cls := "menu-title", h1("selection"), hr()),
-        li(disableClassIfEmpty, a("Remove", disableAttrIfEmpty, onClick.hideSelectedNodes)),
-        li(disableClassIfEmpty, a("Remove others", disableAttrIfEmpty, onClick.hideNonSelectedNodes)),
+        li(disableClassIfEmpty, a("Hide", disableAttrIfEmpty, onClick.hideSelectedNodes)),
+        li(disableClassIfEmpty, a("Hide others", disableAttrIfEmpty, onClick.hideNonSelectedNodes)),
         // ----- copy as svg -----
         li(
           disableClassIfEmpty,
           a("Copy as SVG", disableAttrIfEmpty, onClick.copyAsSVG(window.navigator.clipboard.writeText))
         ),
         li(cls := "menu-title", "successors", hr()),
-        li(disableClassIfEmpty, a("Add all successors", disableAttrIfEmpty, onClick.showAllSuccessors)),
-        li(disableClassIfEmpty, a("Add direct successors", disableAttrIfEmpty, onClick.showDirectSuccessors)),
+        li(disableClassIfEmpty, a("Show all successors", disableAttrIfEmpty, onClick.showAllSuccessors)),
+        li(disableClassIfEmpty, a("Show direct successors", disableAttrIfEmpty, onClick.showDirectSuccessors)),
         li(disableClassIfEmpty, a("Select all successors", disableAttrIfEmpty, onClick.selectSuccessors)),
         li(disableClassIfEmpty, a("Select direct successors", disableAttrIfEmpty, onClick.selectDirectSuccessors)),
         li(cls := "menu-title", "predecessors", hr()),
-        li(disableClassIfEmpty, a("Add all predecessors", disableAttrIfEmpty, onClick.showAllPredecessors)),
-        li(disableClassIfEmpty, a("Add direct predecessors", disableAttrIfEmpty, onClick.showDirectPredecessors)),
+        li(disableClassIfEmpty, a("Show all predecessors", disableAttrIfEmpty, onClick.showAllPredecessors)),
+        li(disableClassIfEmpty, a("Show direct predecessors", disableAttrIfEmpty, onClick.showDirectPredecessors)),
         li(disableClassIfEmpty, a("Select all predecessors", onClick.selectPredecessors)),
         li(disableClassIfEmpty, a("Select direct predecessors", onClick.selectDirectPredecessors))
       )

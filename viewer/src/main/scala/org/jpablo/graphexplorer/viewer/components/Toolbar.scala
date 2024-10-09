@@ -35,8 +35,8 @@ def Toolbar(
     // -------- actions toolbar --------
     Join(
       Button("roots", onClick.keepRootsOnly).tiny,
-      Button("add all", onClick --> state.showAllNodes()).tiny,
-      Button("remove all", onClick.hideAllNodes).tiny,
+      Button("show all", onClick --> state.showAllNodes()).tiny,
+      Button("hide all", onClick.hideAllNodes).tiny,
       div(
         cls := "dropdown dropdown-hover",
         label(
@@ -47,9 +47,9 @@ def Toolbar(
         ul(
           tabIndex := 0,
           cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52",
-          li(a("svg", onClick.copyAsSVG(window.navigator.clipboard.writeText))),
-          li(a("dot", onClick.copyAsDOT(window.navigator.clipboard.writeText))),
-          li(a("json dot AST", onClick.copyAsJSON(window.navigator.clipboard.writeText)))
+          li(a("Svg", onClick.copyAsSVG(window.navigator.clipboard.writeText))),
+          li(a("Dot", onClick.copyAsDOT(window.navigator.clipboard.writeText))),
+          li(a("Json Dot AST", onClick.copyAsJSON(window.navigator.clipboard.writeText)))
         )
       )
     ),
