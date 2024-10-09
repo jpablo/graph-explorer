@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selectable.*
+import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
@@ -29,7 +30,7 @@ def CanvasContainer(
       // Sync svg style with internal state
       state.diagramSelection.signal --> { selectedNodes =>
         for elem <- SelectableElement.findAll(thisNode.ref) do
-          if selectedNodes contains elem.nodeId then
+          if elem.nodeId in selectedNodes then
             elem.select()
           else
             elem.unselect()

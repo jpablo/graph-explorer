@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.GraphElement.renderAttrList
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
 import org.jpablo.graphexplorer.viewer.models.Arrow
+import org.jpablo.graphexplorer.viewer.models.Arrow.idAttributeKey
 import upickle.default.*
 import upickle.implicits.key
 
@@ -34,8 +35,8 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
     def dedup(lst: List[GraphElement]): List[GraphElement] =
       lst
         .foldLeft((List.empty[GraphElement], Set.empty[GraphElement])):
-          case ((acc, visited), e: EdgeStmt) if visited.contains(e) => (acc, visited)
-          case ((acc, visited), n: NodeStmt) if visited.contains(n) => (acc, visited)
+          case ((acc, visited), e: EdgeStmt) if e in visited => (acc, visited)
+          case ((acc, visited), n: NodeStmt) if n in visited => (acc, visited)
           case ((acc, visited), e)                                  => (e :: acc, visited + e)
         ._1
         .reverse
@@ -278,15 +279,14 @@ end Attr
 case class NodeStmt(
     @key("node_id") nodeId:     DotNodeId,
     @key("attr_list") attrList: List[Attr]
-) extends GraphElement
-    derives ReadWriter
+) extends GraphElement derives ReadWriter
 
 @key("edge_stmt")
 case class EdgeStmt(
     @key("edge_list") edgeList: List[EdgeElement],
     @key("attr_list") attrList: List[Attr]
-) extends GraphElement
-    derives ReadWriter
+) extends GraphElement derives ReadWriter:
+  lazy val idAttr: String = attrList.find(_.id == idAttributeKey).map(_.attrEq.toString).getOrElse("")
 
 object EdgeStmt:
   private var idx = 0

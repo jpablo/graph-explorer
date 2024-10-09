@@ -7,9 +7,12 @@ extension [A](a: A)
   infix def in(sa: Set[A]): Boolean =
     sa.contains(a)
 
+  infix def notIn(sa: Set[A]): Boolean =
+    !sa.contains(a)
+
 extension [A](set: Set[A])
   def toggle(a: A) =
-    set.toggleWith(a, !set.contains(a))
+    set.toggleWith(a, a notIn set)
 
   def toggleWith(a: A, b: Boolean) =
     if b then set + a else set - a

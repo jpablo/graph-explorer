@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
+import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.tree.Tree
@@ -44,13 +45,9 @@ case class ViewerGraph(
   private lazy val nodeById: Map[NodeId, ViewerNode] =
     nodes.groupMapReduce(_.id)(identity)((_, b) => b)
 
-  private def arrowsForNodeIds(ids: Set[NodeId]): Set[Arrow] =
-    arrows
-      .filter(a => (ids contains a.source) && (ids contains a.target))
-
   private def arrowsWithoutNodeIds(ids: Set[NodeId]): Set[Arrow] =
     arrows
-      .filterNot(a => (ids contains a.source) || (ids contains a.target))
+      .filterNot(a => (a.source in ids) || (a.target in ids))
 
   /** allNodeIds that are not in the target of any arrow
     */
@@ -60,13 +57,13 @@ case class ViewerGraph(
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
   private def subgraph(ids: Set[NodeId]): ViewerGraph =
-    val foundNodes: Set[ViewerNode] = nodeById.collect { case (id, node) if ids.contains(id) => node }.toSet
+    val foundNodes: Set[ViewerNode] = nodeById.collect { case (id, node) if id in ids => node }.toSet
     val foundNodeIds = foundNodes.map(_.id)
-    val relevantArrows = arrows.filter(a => (foundNodeIds contains a.source) && (foundNodeIds contains a.target))
+    val relevantArrows = arrows.filter(a => (a.source in foundNodeIds) && (a.target in foundNodeIds))
     ViewerGraph(relevantArrows, foundNodes)
 
-  def remove(toRemove: Set[NodeId]): ViewerGraph =
-    val foundNodes = nodeById.collect { case (id, node) if !toRemove.contains(id) => node }
+  def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
+    val foundNodes = nodeById.collect { case (id, node) if (id notIn toRemove) => node }
     ViewerGraph(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
 
   /** Unfolds a set of ids using a function that returns the related ids.

@@ -34,7 +34,7 @@ class DiagramSelectionOps(selectedNodes: Var[SelectedNodes] = Var(Set.empty)):
   private def selectRelated(
       selector: (ViewerGraph, SelectedNodes) => ViewerGraph
   )(fullGraph: ViewerGraph, hiddenNodes: HiddenNodes): Unit =
-    val visibleSubGraph: ViewerGraph = fullGraph.remove(hiddenNodes)
+    val visibleSubGraph: ViewerGraph = fullGraph.removeNodes(hiddenNodes)
     val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selectedNodes.now())
     // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
     val relatedIds = relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds
@@ -49,7 +49,7 @@ class DiagramSelectionOps(selectedNodes: Var[SelectedNodes] = Var(Set.empty)):
   def handleClickOnArrow(arrow: Arrow)(metaKey: Boolean) =
     val selection = now()
     if metaKey then
-      if selection.contains(arrow.nodeId) then
+      if arrow.nodeId in selection then
         // for each arrow.source and arrow.target: remove it if it's not part of any edge
         val edgesWithoutClicked = selection
           .filter(nodeId => nodeId.value != arrow.nodeId.value && nodeId.value.contains("->"))

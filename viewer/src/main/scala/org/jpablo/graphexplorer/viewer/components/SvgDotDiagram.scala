@@ -4,6 +4,7 @@ import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selectable.SelectableElement
+import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.scalajs.dom
@@ -49,7 +50,7 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
     SelectableElement.findAll(ref)
 
   def select(ids: Set[models.NodeId]): Unit =
-    for elem <- selectableElements if ids.contains(elem.nodeId) do elem.select()
+    for elem <- selectableElements if elem.nodeId in ids do elem.select()
 
   def toSVGText: String =
     ref.outerHTML

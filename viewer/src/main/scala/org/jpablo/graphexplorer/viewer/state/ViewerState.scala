@@ -7,6 +7,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.{SvgDotDiagram, SvgUnit}
+import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
@@ -122,11 +123,11 @@ case class ViewerState(initialSource: String = ""):
   def showAllNodes() =
     hiddenNodes.clear()
 
-  def isNodeVisible(id: NodeId) = hiddenNodesS.map(!_.contains(id))
+  def isNodeVisible(id: NodeId) = hiddenNodesS.map(ids => id notIn ids)
 
-  def isEdgeVisible(id: NodeId) = visibleGraph.map(_.allArrowIds.contains(id))
+  def isEdgeVisible(id: NodeId) = visibleGraph.map(graph => id in graph.allArrowIds)
 
-  def isSelected(id: NodeId) = diagramSelection.signal.map(_.contains(id))
+  def isSelected(id: NodeId) = diagramSelection.signal.map(ids => id in ids)
 
   def toggleNode(id: NodeId) =
     hiddenNodes.toggle(id)

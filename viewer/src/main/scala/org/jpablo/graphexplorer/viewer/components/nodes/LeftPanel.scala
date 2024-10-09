@@ -101,7 +101,7 @@ def LeftPanel(state: ViewerState) =
               .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS)
               .map: (fullGraph, onlyActive, str, hiddenNodes) =>
                 fullGraph
-                  .orElse(!onlyActive, _.remove(hiddenNodes))
+                  .orElse(!onlyActive, _.removeNodes(hiddenNodes))
                   .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
                   .toList
                   .sorted
@@ -138,4 +138,4 @@ private def filteredDiagramEvent(
   .fullGraph
   .combineWith(onlyActive, filterByNodeId, state.hiddenNodesS)
   .map: (fullGraph, onlyActive, filter, hiddenNodes) =>
-    fullGraph.orElse(filter.isBlank, _.filterByNodeId(filter)).orElse(!onlyActive, _.remove(hiddenNodes))
+    fullGraph.orElse(filter.isBlank, _.filterByNodeId(filter)).orElse(!onlyActive, _.removeNodes(hiddenNodes))
