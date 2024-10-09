@@ -4,6 +4,9 @@ extension [A](a: A)
   def orElse(b: Boolean, f: A => A): A =
     if b then a else f(a)
 
+  infix def in(sa: Set[A]): Boolean =
+    sa.contains(a)
+
 extension [A](set: Set[A])
   def toggle(a: A) =
     set.toggleWith(a, !set.contains(a))

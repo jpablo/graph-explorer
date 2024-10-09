@@ -1,6 +1,8 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.extensions.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.GraphElement.renderAttrList
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
 import org.jpablo.graphexplorer.viewer.models.Arrow
 import upickle.default.*
@@ -21,42 +23,10 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
     this.modify(_.children).using(_.map(_.attachId))
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
-
-    // TODO: make this tail recursive
-
-    def removeFrom(element: GraphElement): List[GraphElement] =
-      element match
-        case NodeStmt(DotNodeId(id, _), _) if idsToRemove contains id => Nil
-
-        case Subgraph(children, id) =>
-          val remainingChildren = children.flatMap(removeFrom)
-          if remainingChildren.isEmpty then Nil else List(Subgraph(remainingChildren, id))
-
-        case EdgeStmt(edgeList, attrList) =>
-          def insertEdgeElem(acc: List[List[EdgeElement]], edgeElem: EdgeElement) =
-            acc match
-              case Nil    => (edgeElem :: Nil) :: Nil
-              case h :: t => (edgeElem :: h) :: t
-
-          val remainingEdges: List[List[EdgeElement]] =
-            edgeList.foldLeft(Nil):
-              case (acc, edgeElem: DotNodeId) =>
-                if idsToRemove contains edgeElem.id then Nil :: acc
-                else insertEdgeElem(acc, edgeElem)
-
-              case (acc, Subgraph(children, id)) =>
-                val visibleChildren = children.flatMap(removeFrom)
-                if visibleChildren.isEmpty then Nil :: acc
-                else insertEdgeElem(acc, edgeElem = Subgraph(visibleChildren, id))
-
-          remainingEdges.reverse.map(es => EdgeStmt(es.reverse, attrList))
-
-        case other => List(other)
-
     @tailrec
     def optimize(acc: List[GraphElement] = Nil, children: List[GraphElement]): List[GraphElement] =
       children match
-        case h :: EdgeStmt(Nil, _) :: t => optimize(acc, h :: t)
+        case h :: EdgeStmt(Nil, _) :: t => optimize(acc, h :: t) // why the focus on the 2nd element?
         case Pad() :: Newline() :: t    => optimize(acc, t)
         case h :: t                     => optimize(h :: acc, t)
         case Nil                        => acc.reverse
@@ -71,56 +41,13 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
         .reverse
 
     this
-      .modify(_.children)
-      .using(_.flatMap(removeFrom))
-      .modify(_.children)
-      .using(optimize(Nil, _))
-      .modify(_.children)
-      .using(dedup)
+      .modify(_.children).using(_.flatMap(_.removeNodes(idsToRemove)))
+      .modify(_.children).using(optimize(Nil, _))
+      .modify(_.children).using(dedup)
 
   def render: String =
-    def renderElement(element: GraphElement): String =
-      element match
-        case Newline() => "\n"
-
-        case Pad() => " "
-
-        case AttrStmt(target, attrList) =>
-          val attrs = renderAttrList(attrList)
-          if attrs.isEmpty then "" else s"$target $attrs"
-
-        case EdgeStmt(edgeList, attrList) =>
-          edgeList
-            .map:
-              case n: DotNodeId => s"\"${n.id}\""
-              case s: Subgraph  => renderElement(s)
-            .mkString(" -> ") + renderAttrList(attrList)
-
-        case StmtSep() => ""
-
-        case NodeStmt(nodeId, attrList) =>
-          "\"" + nodeId.id + "\"" + renderAttrList(attrList)
-
-        case Comment() => ""
-
-        case Subgraph(children, id) =>
-          children.map(renderElement).mkString(s"subgraph ${id.getOrElse("")}{", "", "}")
-
-    def renderAttrList(attrList: List[Attr]): String =
-      attrList match
-        case Nil => ""
-        case attrs =>
-          attrs
-            .map:
-              case Attr(id, AttrEq(value, html)) =>
-                if html then s"$id=<$value>"
-                else s"$id=\"$value\""
-              case Attr("style", "stroke-dasharray: 5,5") => s"style=\"dashed\""
-              case Attr(id, s: String)                    => s"$id=\"$s\""
-            .mkString(" [", ", ", "];")
-
     val body = this.children
-      .map(renderElement)
+      .map(_.render)
       .filter(_.nonEmpty)
       .mkString("")
     s"digraph ${id.map(id => s"\"$id\" ").getOrElse(" ")}{$body}"
@@ -221,9 +148,88 @@ sealed trait GraphElement derives ReadWriter:
 
     go(List(this))
 
+  // TODO: make this tail recursive
+  def removeNodes(idsToRemove: Set[String]): List[GraphElement] =
+    this match
+      case NodeStmt(DotNodeId(id, _), _) if id in idsToRemove => Nil
+
+      case Subgraph(children, id) =>
+        val remainingChildren = children.flatMap(_.removeNodes(idsToRemove))
+        if remainingChildren.isEmpty then Nil else List(Subgraph(remainingChildren, id))
+
+      case EdgeStmt(edgeList, attrList) =>
+        def prependToHead(e: EdgeElement, acc: List[List[EdgeElement]]) =
+          acc match
+            case Nil    => (e :: Nil) :: Nil
+            case h :: t => (e :: h) :: t
+
+        val remainingEdges =
+          edgeList.foldLeft(Nil: List[List[EdgeElement]]):
+            case (acc, e @ DotNodeId(id, _)) =>
+              if id in idsToRemove then
+                Nil :: acc // start a new edge: [[]] OR [[], e1, e2, ...]
+              else
+                prependToHead(e, acc) // [[e]] OR [e :: e1, e2, ...]
+
+            case (acc, Subgraph(children, id)) =>
+              val visibleChildren = children.flatMap(_.removeNodes(idsToRemove))
+              if visibleChildren.isEmpty then
+                Nil :: acc
+              else
+                prependToHead(Subgraph(visibleChildren, id), acc)
+
+        remainingEdges.filter(_.nonEmpty).reverse
+          .map:
+            case h :: Nil => h match
+                case n: DotNodeId => NodeStmt(n, List.empty)
+                case g: Subgraph  => g
+            case other => EdgeStmt(other.reverse, attrList)
+
+      case other => List(other)
+
+  def render: String =
+    this match
+      case Newline() => "\n"
+
+      case Pad() => " "
+
+      case AttrStmt(target, attrList) =>
+        val attrs = renderAttrList(attrList)
+        if attrs.isEmpty then "" else s"$target $attrs"
+
+      case EdgeStmt(edgeList, attrList) =>
+        edgeList
+          .map:
+            case n: DotNodeId => s"\"${n.id}\""
+            case s: Subgraph  => s.render
+          .mkString(" -> ") + renderAttrList(attrList)
+
+      case StmtSep() => ""
+
+      case NodeStmt(nodeId, attrList) =>
+        "\"" + nodeId.id + "\"" + renderAttrList(attrList)
+
+      case Comment() => ""
+
+      case Subgraph(children, id) =>
+        children.map(_.render).mkString(s"subgraph ${id.getOrElse("")}{", "", "}")
+
 end GraphElement
 
 object GraphElement:
+  def renderAttrList(attrList: List[Attr]): String =
+    attrList match
+      case Nil => ""
+      case attrs =>
+        attrs
+          .map:
+            case Attr(id, AttrEq(value, html)) =>
+              if html then s"$id=<$value>"
+              else s"$id=\"$value\""
+            case Attr("style", "stroke-dasharray: 5,5") => s"style=\"dashed\""
+            case Attr(id, s: String)                    => s"$id=\"$s\""
+          .mkString(" [", ", ", "];")
+
   given ReadWriter[EdgeElement] =
     readwriter[ujson.Value].bimap[EdgeElement](
       {

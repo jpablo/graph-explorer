@@ -7,7 +7,7 @@ import Arrow.{idAttributeKey, titleIdSeparator}
 
 // ---- Vertices ------
 
-case class NodeId(value: String):
+case class NodeId(value: String) extends AnyVal:
   override def toString: String = value
 
 object NodeId:
@@ -82,19 +82,14 @@ object Arrow:
 
   given scala.Ordering[Arrow] with
     def compare(x: Arrow, y: Arrow): Int =
-      val s = x.source.value.compareTo(y.source.value)
-      if s == 0 then
-        val t = x.target.value.compareTo(y.target.value)
-        if t == 0 then
-          x.idAttr.compareTo(y.idAttr)
-        else
-          t
+      val s = x.source.value `compareTo` y.source.value
+      if s != 0 then s
       else
-        s
+        val t = x.target.value `compareTo` y.target.value
+        if t != 0 then t else x.idAttr `compareTo` y.idAttr
 end Arrow
 
 case class Attributes(values: Map[String, String]) extends AnyVal
 
 object Attributes:
   val empty = Attributes(Map.empty)
-end Attributes

@@ -8,14 +8,19 @@ import org.jpablo.graphexplorer.viewer.components.selectable.*
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
+import org.scalajs.dom.KeyCode.Backspace
 
 def CanvasContainer(
     state:      ViewerState,
     fitDiagram: EventStream[Unit]
 ) =
   div(
-    idAttr := "canvas-container",
-    onClick.preventDefault --> handleSvgClick(state),
+    idAttr   := "canvas-container",
+    tabIndex := 0,
+    onKeyDown(_.filter(_.keyCode == Backspace).sample(state.diagramSelection.signal)) --> { selection =>
+      state.project.hiddenNodesV.update(_ ++ selection)
+    },
+    onClick --> handleSvgClick(state),
     onWheel(_.withCurrentValueOf(state.svgDiagramElement)) -->
       handleWheel(state.zoomValue, state.translateXY).tupled,
     fitDiagram --> state.resetView(),

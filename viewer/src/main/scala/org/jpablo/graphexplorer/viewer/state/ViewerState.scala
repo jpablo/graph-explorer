@@ -102,7 +102,7 @@ case class ViewerState(initialSource: String = ""):
 
   /** Modify `hiddenNodes` based on the given function `f`
     */
-  def updateHiddenNodes[E <: dom.Event](
+  private def updateHiddenNodes[E <: dom.Event](
       ep: EventProp[E]
   )(f: (HiddenNodes, Set[NodeId], ViewerGraph) => HiddenNodes) =
     ep(_.sample(fullGraph.combineWith(diagramSelectionV))) --> { (g: ViewerGraph, selection: Set[NodeId]) =>
