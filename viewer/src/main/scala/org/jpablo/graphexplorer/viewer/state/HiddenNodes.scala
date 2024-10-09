@@ -21,8 +21,11 @@ class HiddenNodesOps(val hiddenNodesV: Var[Set[NodeId]]):
   def extend(ss: collection.Seq[NodeId]): Unit =
     hiddenNodesV.update(_ ++ ss)
 
-  def extend(ss: Set[NodeId]): Unit =
+  def add(ss: Set[NodeId]): Unit =
     hiddenNodesV.update(_ ++ ss)
+
+  def remove(ss: Set[NodeId]): Unit =
+    hiddenNodesV.update(_ -- ss)
 
   def clear(): Unit =
     hiddenNodesV.set(Set.empty)

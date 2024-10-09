@@ -137,6 +137,12 @@ case class ViewerState(initialSource: String = ""):
       .combineWith(nodeIdFilter)
       .map(_.filterByNodeId(_))
 
+  def hideNodes(ids: Set[NodeId]) =
+    hiddenNodes.add(ids)
+
+  def showNodes(ids: Set[NodeId]) =
+    hiddenNodes.remove(ids)
+
   object eventHandlers:
     extension [E <: dom.Event](ev: EventProp[E])
       def hideSelectedNodes =
