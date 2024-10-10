@@ -1,6 +1,5 @@
 import './style.css'
 import './style.scss'
-import './dotParser.js'
 // @public is defined in UserConfig.resolve.alias.replacement: "@public -> replacementForPublic"
 // replacementForPublic is defined in build.sbt
 // It will be replaced by something like:
