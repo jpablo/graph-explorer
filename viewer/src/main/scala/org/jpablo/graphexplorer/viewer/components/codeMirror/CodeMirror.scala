@@ -16,6 +16,8 @@ case class CodeMirrorElement(source: Var[String]):
     div(
       mods,
       onMountCallback: ctx =>
+        import ctx.owner
+
         val editorView = new EditorView(
           obj(
             // -- EditorState --
@@ -32,17 +34,17 @@ case class CodeMirrorElement(source: Var[String]):
             parent = ctx.thisNode.ref
           )
         )
-        import ctx.owner
-        for src <- source.signal do
-          dom.console.log("source changed", src.length)
-          val docString = editorView.state.doc.toString
-          if src != docString then
+
+        for newSource <- source.signal do
+          dom.console.log("source changed", newSource.length)
+          val existingSource = editorView.state.doc.toString
+          if newSource != existingSource then
             editorView.dispatch:
               obj(
                 changes = obj(
                   from   = 0,
-                  to     = docString.length,
-                  insert = src
+                  to     = existingSource.length,
+                  insert = newSource
                 )
               )
     )
