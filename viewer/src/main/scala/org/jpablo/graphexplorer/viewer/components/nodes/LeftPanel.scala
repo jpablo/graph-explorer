@@ -5,7 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
-import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirrorElement
+import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -18,7 +18,7 @@ def LeftPanel(state: ViewerState) =
   def isVisible(i: Int) = visibleTab.signal.map(_ == i)
   val onlyActiveNodes = Var(false)
   val onlyActiveEdges = Var(false)
-  val codeMirror = CodeMirrorElement(state.source)
+  val codeMirror = CodeMirror(state.source)
 
   div(
     idAttr := "nodes-panel",
