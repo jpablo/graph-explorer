@@ -6,7 +6,7 @@ label[for ^= show-ns-kind-] {
   @apply bg-base-100 border-base-300 flex h-screen;
 
   #nodes-panel {
-    @apply bg-base-100 p-2 gap-2 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden;
+    @apply bg-base-100 p-2 gap-3 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden;
 
     #nodes-panel-tab-buttons {
       @apply flex gap-1;

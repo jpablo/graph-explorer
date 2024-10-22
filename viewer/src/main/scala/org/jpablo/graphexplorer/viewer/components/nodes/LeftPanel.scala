@@ -21,25 +21,10 @@ def LeftPanel(state: ViewerState) =
 
   div(
     idAttr := "nodes-panel",
-    div(
-      idAttr := "nodes-panel-tab-buttons",
-      Button("Source", cls("btn-active") <-- isVisible(0), onClick --> visibleTab.set(0)).tiny,
-      Button(
-        child <-- state.fullGraph.map(_.summary.nodes).map(n => s"Nodes ($n)"),
-        cls("btn-active") <-- isVisible(1),
-        onClick --> visibleTab.set(1)
-      ).tiny,
-      Button(
-        child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Edges ($n)"),
-        cls("btn-active") <-- isVisible(2),
-        onClick --> visibleTab.set(2)
-      ).tiny
-    ),
-    // ------ TAB 0: Source ------
-    // --- DOT sources ---
+    // --- Tab Headers ---
     div(
       cls := "flex gap-2",
-      cls("hidden") <-- !isVisible(0),
+//      cls("hidden") <-- !isVisible(0),
       select(
         cls := "select select-bordered select-xs max-w-xs",
         option("Select example", disabled := true, selected := true),
@@ -57,6 +42,25 @@ def LeftPanel(state: ViewerState) =
         "Graphviz"
       )
     ),
+    div(
+      idAttr := "nodes-panel-tab-buttons",
+      // Header 1: Source
+      Button("Source", cls("btn-active") <-- isVisible(0), onClick --> visibleTab.set(0)).tiny,
+      // Header 2: Nodes
+      Button(
+        child <-- state.fullGraph.map(_.summary.nodes).map(n => s"Nodes ($n)"),
+        cls("btn-active") <-- isVisible(1),
+        onClick --> visibleTab.set(1)
+      ).tiny,
+      // Header 3: Edges
+      Button(
+        child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Edges ($n)"),
+        cls("btn-active") <-- isVisible(2),
+        onClick --> visibleTab.set(2)
+      ).tiny
+    ),
+    // ------ TAB 0: Source ------
+    // --- DOT sources ---
     CodeMirror(
       state.source,
       idAttr := "nodes-source",
