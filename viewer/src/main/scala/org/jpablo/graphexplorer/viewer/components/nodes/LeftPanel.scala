@@ -18,7 +18,6 @@ def LeftPanel(state: ViewerState) =
   def isVisible(i: Int) = visibleTab.signal.map(_ == i)
   val onlyActiveNodes = Var(false)
   val onlyActiveEdges = Var(false)
-  val codeMirror = CodeMirror(state.source)
 
   div(
     idAttr := "nodes-panel",
@@ -55,20 +54,12 @@ def LeftPanel(state: ViewerState) =
         "Graphviz"
       )
     ),
-    codeMirror.element(
+    CodeMirror(
+      state.source,
       idAttr := "nodes-source",
-      cls    := "",
       cls("hidden") <-- !isVisible(0),
       placeholder := "DOT source"
     ),
-//    textArea(
-//      idAttr := "nodes-source",
-//      cls    := "textarea textarea-bordered",
-//      cls("hidden") <-- !isVisible(0),
-//      placeholder := "DOT source",
-//      value <-- state.source,
-//      onInput.mapToValue.compose(_.debounce(300)) --> state.source.set
-//    ),
 
     // ------ TAB 1: Nodes ------
     // --- controls ---
