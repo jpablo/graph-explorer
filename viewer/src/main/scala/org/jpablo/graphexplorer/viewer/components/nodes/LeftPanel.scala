@@ -44,7 +44,10 @@ def LeftPanel(state: ViewerState) =
         cls := "select select-bordered select-xs max-w-xs",
         option("Select example", disabled := true, selected := true),
         examples.keys.map(name => option(name, value := name)),
-        onChange.mapToValue.map(examples).flatMap(FetchStream.get(_)) --> state.source.set
+        onChange.mapToValue.map(examples).flatMap(FetchStream.get(_)) --> { source =>
+          state.showAllNodes()
+          state.source.set(source)
+        }
       ),
       a(
         cls    := "link",

@@ -1,0 +1,10 @@
+digraph G {
+    fullAST -> source
+    fullGraph -> fullAST
+    visibleAST -> fullAST
+    visibleDOT -> visibleAST
+    visibleGraph -> visibleAST
+
+    svgDiagramElement -> visibleDOT
+    svgDotDiagram -> svgDiagramElement
+}
