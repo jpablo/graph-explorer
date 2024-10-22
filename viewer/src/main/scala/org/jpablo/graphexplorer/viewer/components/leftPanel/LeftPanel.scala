@@ -1,13 +1,10 @@
-package org.jpablo.graphexplorer.viewer.components.nodes
+package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
-import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 
@@ -24,7 +21,6 @@ def LeftPanel(state: ViewerState) =
     // --- Tab Headers ---
     div(
       cls := "flex gap-2",
-//      cls("hidden") <-- !isVisible(0),
       select(
         cls := "select select-bordered select-xs max-w-xs",
         option("Select example", disabled := true, selected := true),
@@ -84,9 +80,9 @@ def LeftPanel(state: ViewerState) =
       idAttr := "nodes-menu",
       cls("hidden") <-- !isVisible(1),
       // List of nodes
-      NodesList(state, filteredDiagramEvent(state, onlyActiveNodes.signal, filterNodesByNodeId.signal))
+      NodesList(state, onlyActiveNodes.signal, filterNodesByNodeId.signal)
     ),
-    // ------ TAB: 2 ------
+    // ------ TAB 2: Edges ------
     div(
       cls("hidden") <-- !isVisible(2),
       Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),
@@ -98,51 +94,6 @@ def LeftPanel(state: ViewerState) =
     div(
       cls("hidden") <-- !isVisible(2),
       cls := "overflow-x-auto rounded-box bg-base-100",
-      table(
-        cls := "table table-xs table-pin-rows",
-        thead(tr(th("Source"), th(""), th("Target"), th("Label"))),
-        tbody(
-          children <--
-            state
-              .fullGraph
-              .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS)
-              .map: (fullGraph, onlyActive, str, hiddenNodes) =>
-                fullGraph
-                  .orElse(!onlyActive, _.removeNodes(hiddenNodes))
-                  .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
-                  .toList
-                  .sorted
-              .map:
-                _.map: arrow =>
-                  tr(
-                    cls := "whitespace-nowrap hover cursor-pointer",
-                    cls("font-bold") <-- state.isEdgeVisible(arrow.nodeId),
-                    cls("bg-base-200") <-- state.isSelected(arrow.nodeId),
-                    td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.source), arrow.source.toString),
-                    td("→"),
-                    td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.target.toString),
-                    td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.label),
-                    onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnArrow(arrow),
-                    onDblClick
-                      .preventDefault
-                      .stopPropagation(_.sample(state.isEdgeVisible(arrow.nodeId))) --> { visible =>
-                      if visible then
-                        state.hideNodes(arrow.nodeIds)
-                      else
-                        state.showNodes(arrow.nodeIds)
-                    }
-                  )
-        )
-      )
+      EdgesList(state, onlyActiveEdges, filterEdgesByNodeId.signal)
     )
   )
-
-private def filteredDiagramEvent(
-    state:          ViewerState,
-    onlyActive:     Signal[Boolean],
-    filterByNodeId: Signal[String]
-): Signal[ViewerGraph] = state
-  .fullGraph
-  .combineWith(onlyActive, filterByNodeId, state.hiddenNodesS)
-  .map: (fullGraph, onlyActive, filter, hiddenNodes) =>
-    fullGraph.orElse(filter.isBlank, _.filterByNodeId(filter)).orElse(!onlyActive, _.removeNodes(hiddenNodes))

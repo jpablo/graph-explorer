@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.jpablo.graphexplorer.viewer.components.nodes.LeftPanel
+import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
