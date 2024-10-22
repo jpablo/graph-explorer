@@ -83,7 +83,8 @@ def LeftPanel(state: ViewerState) =
       NodesList(state, onlyActiveNodes.signal, filterNodesByNodeId.signal)
     ),
     // ------ TAB 2: Edges ------
-    div(
+    form(
+      idAttr := "edges-panel-controls",
       cls("hidden") <-- !isVisible(2),
       Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),
       Search(
