@@ -15,10 +15,19 @@ object NodeId:
 
 type ViewerKind = Option[String]
 
-case class ViewerNode(id: NodeId, displayName: String, kind: ViewerKind = None)
+trait Attributable:
+  def attrs: Attributes
+
+  def label: String =
+    attrs.values.getOrElse("label", "")
+
+  def idAttr: String =
+    attrs.values.getOrElse(idAttributeKey, "")
+
+case class ViewerNode(id: NodeId, attrs: Attributes = Attributes.empty, kind: ViewerKind = None) extends Attributable
 
 object ViewerNode:
-  def node(name: String) = ViewerNode(NodeId(name), name)
+  def node(name: String) = ViewerNode(NodeId(name))
 
 // ---- Edges ------
 
@@ -32,18 +41,12 @@ case class Arrow(
     source: NodeId,
     target: NodeId,
     attrs:  Attributes = Attributes.empty
-):
+) extends Attributable:
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
   def nodeId: NodeId = NodeId(s"${source.value}$titleIdSeparator${target.value}:$idAttr")
 
   def nodeIds = Set(source, target, nodeId)
-
-  def label: String =
-    attrs.values.getOrElse("label", "")
-
-  def idAttr: String =
-    attrs.values.getOrElse(idAttributeKey, "")
 
   override def equals(obj: Any): Boolean =
     obj.asMatchable match

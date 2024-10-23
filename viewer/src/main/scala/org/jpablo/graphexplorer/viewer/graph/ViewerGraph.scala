@@ -91,7 +91,7 @@ case class ViewerGraph(
 
   lazy val toTrees: Tree[ViewerNode] =
     val paths =
-      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.displayName, ns)
+      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.label, ns)
     Tree.fromPaths(paths, ".")
 
   /** Combines the diagram on the left with the diagram on the right. No new arrows are introduced beyond those present

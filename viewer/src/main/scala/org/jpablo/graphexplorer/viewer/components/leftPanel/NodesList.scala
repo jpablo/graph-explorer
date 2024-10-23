@@ -19,7 +19,7 @@ def NodesList(
     tbody(
       children <--
         filteredDiagramEvent(state, onlyActive, filterByNodeId)
-          .map(_.nodes.toList.sortBy(_.displayName))
+          .map(_.nodes.toList.sortBy(_.label))
           .map:
             _.map: node =>
               tr(
@@ -27,7 +27,7 @@ def NodesList(
                 cls("font-bold") <-- state.isNodeVisible(node.id),
                 cls("selected") <-- state.isSelected(node.id),
                 td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.id.toString),
-                td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.displayName),
+                td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.label),
                 onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnNode(node.id),
                 onDblClick
                   .preventDefault
