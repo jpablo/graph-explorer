@@ -3,11 +3,12 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.viewer.components.SvgDotDiagram.{BBox, selfContainedSvg}
 import org.jpablo.graphexplorer.viewer.components.selectable.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.scalajs.dom
+import org.scalajs.dom.{SVGRect, SVGSVGElement}
 
 import scala.scalajs.js
 
@@ -55,20 +56,15 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
   def toSVGText: String =
     ref.outerHTML
 
-  private case class BBox(x: Double, y: Double, width: Double, height: Double)
-
-  // TODO: probably broken. Verify and fix.
-  private def buildSvgElement(id: models.NodeId) =
-    val el =
-      getElementById("elem_" + id.toString()).asInstanceOf[dom.SVGSVGElement]
-    val e = DomApi.unsafeParseSvgString(el.outerHTML)
-    val bbox = el.getBBox()
+  private def buildSvgElement(elem: SelectableElement): (dom.svg.Element, BBox) =
+    val e = DomApi.unsafeParseSvgString(elem.get.outerHTML)
+    val bbox = elem.get.getBBox()
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
-  def toSVGText(ids: Set[models.NodeId]): String =
+  def toSVGTextWithIds(ids: Set[models.NodeId]): String =
     if (ids.isEmpty) ""
     else
-      val (svgs, boxes) = ids.map(buildSvgElement).unzip
+      val (svgs, boxes) = SelectableElement.findAll(ref).filter(_.nodeId in ids).map(buildSvgElement).unzip
       val bbox = boxes.reduce((a, b) =>
         val x = math.min(a.x, b.x)
         val y = math.min(a.y, b.y)
@@ -76,17 +72,13 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
         val height = math.max(a.height, (b.y + b.height) - y)
         BBox(x, y, width, height)
       )
-      val s = svg.svg(
-        svg.viewBox := s"${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}",
-        svgs.map(foreignSvgElement).toList
-      )
+      val s = selfContainedSvg(bbox, svgs.map(foreignSvgElement).toSeq*)
       s.ref.outerHTML
-
-  def getElementById(id: String): dom.Element =
-    ref.querySelector(s"[id='$id']")
 
 object SvgDotDiagram:
   val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()))
+
+  case class BBox(x: Double, y: Double, width: Double, height: Double)
 
   def svgWithTransform(transform: Signal[String])(svgElement: dom.SVGSVGElement)
       : ReactiveSvgElement[dom.SVGSVGElement] =
@@ -97,13 +89,16 @@ object SvgDotDiagram:
     val g: dom.svg.G = firstGroup
     val elem = foreignSvgElement(g).amend(svg.transform <-- transform)
     val (gX, gY) = getTranslate(g)
-    val viewBox = svgElement.viewBox.baseVal
+    val viewBox: SVGRect = svgElement.viewBox.baseVal
+    selfContainedSvg(BBox(viewBox.x - gX.value, viewBox.y - gY.value, viewBox.width, viewBox.height), elem)
+
+  private def selfContainedSvg(viewBox: BBox, elems: ReactiveSvgElement[dom.svg.Element]*) =
     svg.svg(
       svg.xmlns      := "http://www.w3.org/2000/svg",
       svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
-      svg.viewBox    := s"${viewBox.x - gX.value} ${viewBox.y - gY.value} ${viewBox.width} ${viewBox.height}",
+      svg.viewBox    := s"${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}",
       svg.cls        := "graphviz",
-      elem
+      elems
     )
 
   private def getTranslate(g: dom.svg.G): Point2d[SvgUnit] =

@@ -13,6 +13,8 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
 
   def nodeId: NodeId
 
+  val get = ref
+
   def select(): Unit =
     ref.classList.add(selectedClass)
 

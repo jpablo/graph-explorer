@@ -180,6 +180,11 @@ case class ViewerState(initialSource: String = ""):
       def copyAsFullDiagramSVG(writeText: String => Any): Base =
         ev(_.sample(svgDotDiagram)) --> { svgDiagram => writeText(svgDiagram.toSVGText) }
 
+      def copySelectionAsSVG(writeText: String => Any) =
+        ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram: SvgDotDiagram, canvasSelection) =>
+          writeText(svgDiagram.toSVGTextWithIds(canvasSelection))
+        }        
+
       def copyAsDOT(writeText: String => Any) =
         ev(_.sample(visibleDOT)) --> { dot => writeText(dot.value) }
 
