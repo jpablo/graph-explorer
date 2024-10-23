@@ -47,7 +47,7 @@ def Toolbar(
         ul(
           tabIndex := 0,
           cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52",
-          li(a("Svg", onClick.copyAsSVG(window.navigator.clipboard.writeText))),
+          li(a("Svg", onClick.copyAsFullDiagramSVG(window.navigator.clipboard.writeText))),
           li(a("Dot", onClick.copyAsDOT(window.navigator.clipboard.writeText))),
           li(a("Json Dot AST", onClick.copyAsJSON(window.navigator.clipboard.writeText)))
         )

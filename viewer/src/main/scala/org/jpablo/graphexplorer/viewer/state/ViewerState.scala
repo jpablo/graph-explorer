@@ -4,6 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.modifiers.Binder.Base
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.{SvgDotDiagram, SvgUnit}
@@ -176,13 +177,11 @@ case class ViewerState(initialSource: String = ""):
       def selectDirectPredecessors =
         ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
 
-      def copyAsSVG(writeText: String => Any) =
-        ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram, canvasSelection) =>
-          writeText(svgDiagram.toSVGText(canvasSelection))
-        }
+      def copyAsFullDiagramSVG(writeText: String => Any): Base =
+        ev(_.sample(svgDotDiagram)) --> { svgDiagram => writeText(svgDiagram.toSVGText) }
 
       def copyAsDOT(writeText: String => Any) =
-        ev(_.sample(visibleDOT)) --> { diagram => writeText(diagram.value) }
+        ev(_.sample(visibleDOT)) --> { dot => writeText(dot.value) }
 
       def copyAsJSON(writeText: String => Any) =
         ev(_.sample(visibleAST)) --> { ast => writeText(writeJs(ast).toString) }

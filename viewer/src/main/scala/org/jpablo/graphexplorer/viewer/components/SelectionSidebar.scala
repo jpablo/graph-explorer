@@ -25,7 +25,7 @@ def SelectionSidebar(state: ViewerState) =
         // ----- copy as svg -----
         li(
           disableClassIfEmpty,
-          a("Copy as SVG", disableAttrIfEmpty, onClick.copyAsSVG(window.navigator.clipboard.writeText))
+          a("Copy as SVG", disableAttrIfEmpty, onClick.copyAsFullDiagramSVG(window.navigator.clipboard.writeText))
         ),
         li(cls := "menu-title", "successors", hr()),
         li(disableClassIfEmpty, a("Show all successors", disableAttrIfEmpty, onClick.showAllSuccessors)),
