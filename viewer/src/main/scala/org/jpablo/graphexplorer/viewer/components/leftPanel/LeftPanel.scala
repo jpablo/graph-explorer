@@ -77,7 +77,7 @@ def LeftPanel(state: ViewerState) =
     ),
     // Scrollable content
     div(
-      idAttr := "nodes-menu",
+      idAttr := "nodes-panel-contents",
       cls("hidden") <-- !isVisible(1),
       // List of nodes
       NodesList(state, onlyActiveNodes.signal, filterNodesByNodeId.signal)
@@ -93,8 +93,8 @@ def LeftPanel(state: ViewerState) =
       ).smallInput
     ),
     div(
+      idAttr := "edges-panel-contents",
       cls("hidden") <-- !isVisible(2),
-      cls := "overflow-x-auto rounded-box bg-base-100",
       EdgesList(state, onlyActiveEdges, filterEdgesByNodeId.signal)
     )
   )

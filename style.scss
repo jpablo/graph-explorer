@@ -7,6 +7,7 @@ label[for ^= show-ns-kind-] {
 
   #nodes-panel {
     @apply bg-base-100 p-2 gap-3 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden;
+    //background-color: lightgray;
 
     #nodes-panel-tab-buttons {
       @apply flex gap-1;
@@ -17,13 +18,13 @@ label[for ^= show-ns-kind-] {
       @apply whitespace-nowrap w-full;
     }
 
-    #nodes-panel-controls {
-      @apply bg-base-100 z-20 pb-2;
+    #nodes-panel-controls, #edges-panel-controls {
+      @apply bg-base-100 z-20 pb-2 rounded-box;
     }
 
-    #nodes-menu {
+    #nodes-panel-contents, #edges-panel-contents {
       flex-grow: 1;
-      @apply overflow-y-auto flex-grow;
+      @apply overflow-y-auto flex-grow overflow-x-auto rounded-box bg-base-100;
     }
   }
 
