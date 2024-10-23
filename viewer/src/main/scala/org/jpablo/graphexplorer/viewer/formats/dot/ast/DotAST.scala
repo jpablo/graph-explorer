@@ -25,11 +25,11 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
     @tailrec
-    def optimize(acc: List[GraphElement] = Nil, children: List[GraphElement]): List[GraphElement] =
+    def optimize(children: List[GraphElement], acc: List[GraphElement] = Nil): List[GraphElement] =
       children match
-        case h :: EdgeStmt(Nil, _) :: t => optimize(acc, h :: t) // why the focus on the 2nd element?
-        case Pad() :: Newline() :: t    => optimize(acc, t)
-        case h :: t                     => optimize(h :: acc, t)
+        case h :: EdgeStmt(Nil, _) :: t => optimize(h :: t, acc) // why the focus on the 2nd element?
+        case Pad() :: Newline() :: t    => optimize(t, acc)
+        case h :: t                     => optimize(t, h :: acc)
         case Nil                        => acc.reverse
 
     def dedup(lst: List[GraphElement]): List[GraphElement] =
@@ -37,7 +37,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
         .foldLeft((List.empty[GraphElement], Set.empty[GraphElement])):
           case ((acc, visited), e: EdgeStmt) if e in visited => (acc, visited)
           case ((acc, visited), n: NodeStmt) if n in visited => (acc, visited)
-          case ((acc, visited), e)                                  => (e :: acc, visited + e)
+          case ((acc, visited), e)                           => (e :: acc, visited + e)
         ._1
         .reverse
 
@@ -182,6 +182,8 @@ sealed trait GraphElement derives ReadWriter:
         remainingEdges.filter(_.nonEmpty).reverse
           .map:
             case h :: Nil => h match
+                // Drop the attributes on purpose.
+                // Otherwise, the attributes will be attached to remaining node.
                 case n: DotNodeId => NodeStmt(n, List.empty)
                 case g: Subgraph  => g
             case other => EdgeStmt(other.reverse, attrList)
