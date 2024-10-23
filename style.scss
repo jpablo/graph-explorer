@@ -25,6 +25,10 @@ label[for ^= show-ns-kind-] {
     #nodes-panel-contents, #edges-panel-contents {
       flex-grow: 1;
       @apply overflow-y-auto flex-grow overflow-x-auto rounded-box bg-base-100;
+
+      .selected {
+        background-color: rgba(251, 191, 36, .1);
+      }
     }
   }
 

@@ -31,11 +31,11 @@ def EdgesList(
               tr(
                 cls := "whitespace-nowrap hover cursor-pointer",
                 cls("font-bold") <-- state.isEdgeVisible(arrow.nodeId),
-                cls("bg-base-200") <-- state.isSelected(arrow.nodeId),
-                td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.source), arrow.source.toString),
+                cls("selected") <-- state.isSelected(arrow.nodeId),
+                td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.source), arrow.source.toString),
                 td("→"),
-                td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.target.toString),
-                td(cls := "truncate", cls("italic") <-- state.isSelected(arrow.target), arrow.label),
+                td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), arrow.target.toString),
+                td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), arrow.label),
                 onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnArrow(arrow),
                 onDblClick
                   .preventDefault
