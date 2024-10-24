@@ -4,8 +4,8 @@ import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.GraphElement.renderAttrList
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
-import org.jpablo.graphexplorer.viewer.models.Arrow
-import org.jpablo.graphexplorer.viewer.models.Arrow.idAttributeKey
+import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
+import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import upickle.default.*
 import upickle.implicits.key
 
@@ -17,7 +17,13 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   lazy val allNodesIds: Set[String] = findAllNodeIds(children)
 
+//  lazy val allViewerNodes: Set[ViewerNode] = ???
+
   lazy val allArrows: Set[Arrow] = findAllArrows(children)
+
+  def addEdge(source: NodeId, target: NodeId): DiGraphAST =
+    val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
+    this.modify(_.children).using(newEdge :: _)
 
   // add an attribute [id=nextId] to all edges
   def attachIds: DiGraphAST =
@@ -46,12 +52,13 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
       .modify(_.children).using(optimize(Nil, _))
       .modify(_.children).using(dedup)
 
-  def render: String =
+  def render(keepInternal: Boolean): String =
     val body = this.children
-      .map(_.render)
+      .map(_.render(keepInternal))
       .filter(_.nonEmpty)
       .mkString("")
-    s"digraph ${id.map(id => s"\"$id\" ").getOrElse(" ")}{$body}"
+    val idStr = id.map(id => s"\"$id\" ").getOrElse(" ")
+    s"digraph $idStr{\n  $body}"
   end render
 
 end DiGraphAST
@@ -190,14 +197,14 @@ sealed trait GraphElement derives ReadWriter:
 
       case other => List(other)
 
-  def render: String =
+  def render(keepInternal: Boolean): String =
     this match
       case Newline() => "\n"
 
-      case Pad() => " "
+      case Pad() => "  "
 
       case AttrStmt(target, attrList) =>
-        val attrs = renderAttrList(attrList)
+        val attrs = renderAttrList(keepInternal, attrList)
         if attrs.isEmpty then "" else s"$target $attrs"
 
       case EdgeStmt(edgeList, attrList) =>
@@ -205,33 +212,38 @@ sealed trait GraphElement derives ReadWriter:
           .map:
             case n: DotNodeId => s"\"${n.id}\""
             case s: Subgraph  => s.render
-          .mkString(" -> ") + renderAttrList(attrList)
+          .mkString(" -> ") + renderAttrList(keepInternal, attrList)
 
       case StmtSep() => ""
 
       case NodeStmt(nodeId, attrList) =>
-        "\"" + nodeId.id + "\"" + renderAttrList(attrList)
+        "\"" + nodeId.id + "\"" + renderAttrList(keepInternal, attrList)
 
       case Comment() => ""
 
       case Subgraph(children, id) =>
-        children.map(_.render).mkString(s"subgraph ${id.getOrElse("")}{", "", "}")
+        val idStr = id.getOrElse("")
+        children.map(_.render).mkString(s"subgraph $idStr{", "", "}")
 
 end GraphElement
 
 object GraphElement:
-  def renderAttrList(attrList: List[Attr]): String =
+  def renderAttrList(keepInternal: Boolean, attrList: List[Attr]): String =
     attrList match
       case Nil => ""
       case attrs =>
-        attrs
-          .map:
-            case Attr(id, AttrEq(value, html)) =>
-              if html then s"$id=<$value>"
-              else s"$id=\"$value\""
-            case Attr("style", "stroke-dasharray: 5,5") => s"style=\"dashed\""
-            case Attr(id, s: String)                    => s"$id=\"$s\""
-          .mkString(" [", ", ", "];")
+        val attrsStrings =
+          attrs
+            .filter(a => keepInternal || a.id != idAttributeKey)
+            .map:
+              case Attr(id, AttrEq(value, html)) =>
+                if html then s"$id=<$value>"
+                else s"$id=\"$value\""
+              case Attr("style", "stroke-dasharray: 5,5") => s"style=\"dashed\""
+              case Attr(id, s: String)                    => s"$id=\"$s\""
+        if attrsStrings.isEmpty then ""
+        else
+          attrsStrings.mkString(" [", ", ", "];")
 
   given ReadWriter[EdgeElement] =
     readwriter[ujson.Value].bimap[EdgeElement](

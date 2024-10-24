@@ -7,13 +7,14 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.components.{SvgDotDiagram, SvgUnit}
+import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 import upickle.default.*
@@ -47,7 +48,7 @@ case class ViewerState(initialSource: String = ""):
 
   // 1. parse source
   // String ~> Dot ~> DiGraphAST
-  private val fullAST: Signal[DiGraphAST] =
+  val fullAST: Signal[DiGraphAST] =
     source.signal.map: src =>
       Dot(src).buildAST.headOption
         .map(_.attachIds)
@@ -145,6 +146,15 @@ case class ViewerState(initialSource: String = ""):
   def showNodes(ids: Set[NodeId]) =
     hiddenNodes.remove(ids)
 
+  def addEdge(fullAST: DiGraphAST, from: NodeId, to: NodeId): Unit =
+    val ast2 = fullAST.addEdge(from, to)
+    source.set(ast2.render(false))
+
+  private def updateDOTSource(): Unit = {
+    // Update the DOT source based on the current graph
+    // This will trigger a re-render of the SVG
+  }
+
   object eventHandlers:
     extension [E <: dom.Event](ev: EventProp[E])
       def hideSelectedNodes =
@@ -183,7 +193,7 @@ case class ViewerState(initialSource: String = ""):
       def copySelectionAsSVG(writeText: String => Any) =
         ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram: SvgDotDiagram, canvasSelection) =>
           writeText(svgDiagram.toSVGTextWithIds(canvasSelection))
-        }        
+        }
 
       def copyAsDOT(writeText: String => Any) =
         ev(_.sample(visibleDOT)) --> { dot => writeText(dot.value) }
@@ -196,6 +206,9 @@ case class ViewerState(initialSource: String = ""):
 
       def hideAllNodes =
         ev(_.sample(allNodeIds).map(_.toSeq)) --> (hiddenNodes.extend(_))
+
+      def updateTranslate(using E <:< dom.WheelEvent): Base =
+        ev(_.withCurrentValueOf(svgDiagramElement)) --> (handleWheel(zoomValue, translateXY)(_, _))
 
   // -------- storage ------------
 
@@ -220,4 +233,23 @@ case class ViewerState(initialSource: String = ""):
 
   restoreState()
 
+end ViewerState
+
+object ViewerState:
+  def handleWheel(
+      zoomValue:   Var[Double],
+      translateXY: Var[Point2d[SvgUnit]]
+  )(wEv: dom.WheelEvent, svgDiagram: ReactiveSvgElement[dom.SVGSVGElement]) =
+    val clientHeight = dom.window.innerHeight.max(1)
+    val clientWidth = dom.window.innerWidth.max(1)
+
+    if wEv.metaKey && wEv.deltaY != 0 then
+      zoomValue.update: z =>
+        (z - wEv.deltaY / clientHeight).max(0.001)
+    else
+      val viewBox = svgDiagram.ref.viewBox.baseVal
+      val z = zoomValue.now()
+      val scale = (viewBox.width / clientWidth).max(viewBox.height / clientHeight)
+      val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))
+      translateXY.update(_ - svgDelta)
 end ViewerState

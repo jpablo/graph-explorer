@@ -33,7 +33,7 @@ object Dot:
 
   extension (diGraph: DiGraphAST)
     def toDot: Dot =
-      Dot(diGraph.render)
+      Dot(diGraph.render(true))
 
     def toViewerGraph: ViewerGraph =
       ViewerGraph(
