@@ -3,9 +3,9 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.airstream.core.EventStream
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selectable.*
 import org.jpablo.graphexplorer.viewer.extensions.in
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
@@ -15,17 +15,49 @@ def CanvasContainer(
     state:      ViewerState,
     fitDiagram: EventStream[Unit]
 ) =
+  import state.eventHandlers.updateTranslate
+
+  val startNode = Var[Option[NodeId]](None)
+  val endPos = Var[(Double, Double)]((0, 0))
+  val isDragging = Var(false)
+
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,
+    fitDiagram --> state.resetView(),
+    child <-- state.svgDiagramElement,
     onKeyDown(_.filter(_.keyCode == Backspace).sample(state.diagramSelection.signal)) --> { selection =>
       state.project.hiddenNodesV.update(_ ++ selection)
     },
     onClick --> handleSvgClick(state),
-    onWheel(_.withCurrentValueOf(state.svgDiagramElement)) -->
-      handleWheel(state.zoomValue, state.translateXY).tupled,
-    fitDiagram --> state.resetView(),
-    child <-- state.svgDiagramElement,
+    onWheel.updateTranslate,
+
+    //////////
+    onMouseDown --> { event =>
+      findSelectableElement(event).foreach:
+        case n: NodeElement =>
+          dom.console.log(n.toString)
+          startNode.set(Some(n.nodeId))
+          isDragging.set(true)
+        case _ => ()
+    },
+    onMouseMove --> { event =>
+      if isDragging.now() then
+        endPos.set((event.clientX, event.clientY))
+    },
+    onMouseUp(_.withCurrentValueOf(state.fullAST)) --> { (event, fullAST: DiGraphAST) =>
+      if isDragging.now() then
+        findSelectableElement(event).foreach:
+          case n: NodeElement =>
+            startNode.now().filter(_ != n.nodeId).foreach: start =>
+              state.addEdge(fullAST, start, n.nodeId)
+          case _ =>
+        startNode.set(None)
+        isDragging.set(false)
+    },
+
+    //////////
+
     inContext: thisNode =>
       // Sync svg style with internal state
       state.diagramSelection.signal --> { selectedNodes =>
@@ -37,38 +69,18 @@ def CanvasContainer(
       }
   )
 
-private def handleWheel(
-    zoomValue:   Var[Double],
-    translateXY: Var[Point2d[SvgUnit]]
-)(wEv: dom.WheelEvent, svgDiagram: ReactiveSvgElement[dom.SVGSVGElement]) =
-  val clientHeight = dom.window.innerHeight.max(1)
-  val clientWidth = dom.window.innerWidth.max(1)
-
-  if wEv.metaKey && wEv.deltaY != 0 then
-    zoomValue.update: z =>
-      (z - wEv.deltaY / clientHeight).max(0.001)
-  else
-    val viewBox = svgDiagram.ref.viewBox.baseVal
-    val z = zoomValue.now()
-    val scale = (viewBox.width / clientWidth).max(viewBox.height / clientHeight)
-    val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))
-    translateXY.update(_ - svgDelta)
+private def findSelectableElement(event: dom.MouseEvent): Option[SelectableElement] =
+  event.target
+    .asInstanceOf[dom.Element]
+    .parentNodes
+    .takeWhile(_.isInstanceOf[dom.SVGElement])
+    .map(SelectableElement.fromDomElement)
+    .collectFirst { case Some(g) => g }
 
 private def handleSvgClick(state: ViewerState)(event: dom.MouseEvent): Unit =
-  // 1. Identify and parse the element that was clicked
-  val selectedElement: Option[SelectableElement] =
-    event.target
-      .asInstanceOf[dom.Element]
-      .parentNodes
-      .takeWhile(_.isInstanceOf[dom.SVGElement])
-      .map(SelectableElement.fromDomElement)
-      .collectFirst { case Some(g) => g }
-
-  // 2. Update selection based on user action
-  selectedElement match
+  findSelectableElement(event) match
     case None => state.diagramSelection.clear()
-    case Some(element) =>
-      element match
+    case Some(element) => element match
         case n: NodeElement =>
           if event.metaKey then
             state.diagramSelection.toggle(n.nodeId)

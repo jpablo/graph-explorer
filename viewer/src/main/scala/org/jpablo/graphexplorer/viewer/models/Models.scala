@@ -2,8 +2,10 @@ package org.jpablo.graphexplorer.viewer.models
 
 import upickle.default.*
 import org.jpablo.graphexplorer.viewer.utils.Utils
+
 import compiletime.asMatchable
-import Arrow.{idAttributeKey, titleIdSeparator}
+import Arrow.titleIdSeparator
+import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 
 // ---- Vertices ------
 
@@ -23,6 +25,10 @@ trait Attributable:
 
   def idAttr: String =
     attrs.values.getOrElse(idAttributeKey, "")
+
+object Attributable:
+  val idAttributeKey = "id"
+  val internal = Set(idAttributeKey)
 
 case class ViewerNode(id: NodeId, attrs: Attributes = Attributes.empty, kind: ViewerKind = None) extends Attributable
 
@@ -63,7 +69,6 @@ end Arrow
 
 object Arrow:
 
-  val idAttributeKey = "id"
   val titleIdSeparator = "->"
 
   def apply(t: (String, String), attrs: Map[String, String]): Arrow =
