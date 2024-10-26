@@ -25,12 +25,12 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
     @tailrec
-    def optimize(children: List[GraphElement], acc: List[GraphElement] = Nil): List[GraphElement] =
+    def optimize(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
       children match
-        case h :: EdgeStmt(Nil, _) :: t => optimize(h :: t, acc) // why the focus on the 2nd element?
-        case Pad() :: Newline() :: t    => optimize(t, acc)
-        case h :: t                     => optimize(t, h :: acc)
-        case Nil                        => acc.reverse
+        case h :: EdgeStmt(Nil, _) :: t => optimize(h :: t, state) // why the focus on the 2nd element?
+        case Pad() :: Newline() :: t    => optimize(t, state)
+        case h :: t                     => optimize(t, h :: state)
+        case Nil                        => state.reverse
 
     def dedup(lst: List[GraphElement]): List[GraphElement] =
       lst
@@ -43,7 +43,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
     this
       .modify(_.children).using(_.flatMap(_.removeNodes(idsToRemove)))
-      .modify(_.children).using(optimize(Nil, _))
+      .modify(_.children).using(optimize(_))
       .modify(_.children).using(dedup)
 
   def render: String =
