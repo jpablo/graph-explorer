@@ -97,8 +97,8 @@ object SvgDotDiagram:
       svg.xmlns      := "http://www.w3.org/2000/svg",
       svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
       svg.viewBox    := s"${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}",
-      svg.cls        := "graphviz",
-      elems
+//      svg.cls        := "graphviz no-text-select", // what happens with this class? (it is ignored)
+      elems,
     )
 
   private def getTranslate(g: dom.svg.G): Point2d[SvgUnit] =

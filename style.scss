@@ -44,6 +44,11 @@ label[for ^= show-ns-kind-] {
 
       width: 100%;
 
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+
       #graph0 {
         transform-origin: 50% -50%;
 

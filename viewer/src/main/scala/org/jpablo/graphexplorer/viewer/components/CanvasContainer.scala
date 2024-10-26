@@ -25,7 +25,25 @@ def CanvasContainer(
     idAttr   := "canvas-container",
     tabIndex := 0,
     fitDiagram --> state.resetView(),
-    child <-- state.svgDiagramElement,
+    child <-- state.svgDiagramElement.map: svgDiagramElement =>
+      svgDiagramElement.amend(
+        // Temporary line for dragging
+//        svg.line(
+//          svg.x1 <-- startNode.signal.flatMap {
+//            case Some(nodeId) => state.getNodePosition(nodeId).map(_._1)
+//            case None => Signal.fromValue(0.0.toString)
+//          },
+//          svg.y1 <-- startNode.signal.flatMap {
+//            case Some(nodeId) => state.getNodePosition(nodeId).map(_._2)
+//            case None => Signal.fromValue(0.0.toString)
+//          },
+//          svg.x2 <-- endPos.signal.map(_._1.toString),
+//          svg.y2 <-- endPos.signal.map(_._2.toString),
+//          svg.strokeWidth := 2.toString,
+//          svg.stroke := "black",
+//          display <-- isDragging.signal.map(if _ then "inline" else "none")
+//        )
+      ),
     onKeyDown(_.filter(_.keyCode == Backspace).sample(state.diagramSelection.signal)) --> { selection =>
       state.project.hiddenNodesV.update(_ ++ selection)
     },
