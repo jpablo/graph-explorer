@@ -17,64 +17,41 @@ def CanvasContainer(
 ) =
   import state.eventHandlers.updateTranslate
 
-  val startNode = Var[Option[NodeId]](None)
-  val endPos = Var[(Double, Double)]((0, 0))
-  val isDragging = Var(false)
-
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,
     fitDiagram --> state.resetView(),
-    child <-- state.svgDiagramElement.map: svgDiagramElement =>
-      svgDiagramElement.amend(
-        // Temporary line for dragging
-//        svg.line(
-//          svg.x1 <-- startNode.signal.flatMap {
-//            case Some(nodeId) => state.getNodePosition(nodeId).map(_._1)
-//            case None => Signal.fromValue(0.0.toString)
-//          },
-//          svg.y1 <-- startNode.signal.flatMap {
-//            case Some(nodeId) => state.getNodePosition(nodeId).map(_._2)
-//            case None => Signal.fromValue(0.0.toString)
-//          },
-//          svg.x2 <-- endPos.signal.map(_._1.toString),
-//          svg.y2 <-- endPos.signal.map(_._2.toString),
-//          svg.strokeWidth := 2.toString,
-//          svg.stroke := "black",
-//          display <-- isDragging.signal.map(if _ then "inline" else "none")
-//        )
-      ),
+    child <-- state.svgDiagramElement,
     onKeyDown(_.filter(_.keyCode == Backspace).sample(state.diagramSelection.signal)) --> { selection =>
       state.project.hiddenNodesV.update(_ ++ selection)
     },
     onClick --> handleSvgClick(state),
     onWheel.updateTranslate,
 
-    //////////
+    // --------------------------------
     onMouseDown --> { event =>
       findSelectableElement(event).foreach:
         case n: NodeElement =>
           dom.console.log(n.toString)
-          startNode.set(Some(n.nodeId))
-          isDragging.set(true)
+          state.startNode.set(Some(n.nodeId, (event.clientX, event.clientY)))
+          state.isDragging.set(true)
         case _ => ()
     },
     onMouseMove --> { event =>
-      if isDragging.now() then
-        endPos.set((event.clientX, event.clientY))
+      if state.isDragging.now() then
+        state.endPos.set((event.clientX, event.clientY))
     },
     onMouseUp(_.withCurrentValueOf(state.fullAST)) --> { (event, fullAST: DiGraphAST) =>
-      if isDragging.now() then
+      if state.isDragging.now() then
         findSelectableElement(event).foreach:
           case n: NodeElement =>
-            startNode.now().filter(_ != n.nodeId).foreach: start =>
-              state.addEdge(fullAST, start, n.nodeId)
+            state.startNode.now().filter(_ != n.nodeId).foreach: start =>
+              state.addEdge(fullAST, start._1, n.nodeId)
           case _ =>
-        startNode.set(None)
-        isDragging.set(false)
+        state.startNode.set(None)
+        state.isDragging.set(false)
     },
-
-    //////////
+    // --------------------------------
 
     inContext: thisNode =>
       // Sync svg style with internal state

@@ -97,23 +97,23 @@ sealed trait GraphElement derives ReadWriter:
 
   lazy val allNodesIds: Set[String] =
     @tailrec
-    def go(remaining: List[GraphElement], acc: Set[String]): Set[String] =
+    def loop(remaining: List[GraphElement], acc: Set[String]): Set[String] =
       remaining match
         case Nil => acc
         case h :: t =>
           h match
-            case NodeStmt(nodeId, _) => go(t, acc + nodeId.id)
+            case NodeStmt(nodeId, _) => loop(t, acc + nodeId.id)
             case EdgeStmt(edgeList, _) =>
               val newElements =
                 edgeList
                   .flatMap:
                     case n: DotNodeId          => List(NodeStmt(n, Nil))
                     case Subgraph(children, _) => children
-              go(newElements ++ t, acc)
-            case Subgraph(children, _) => go(children ++ t, acc)
-            case _                     => go(t, acc)
+              loop(newElements ++ t, acc)
+            case Subgraph(children, _) => loop(children ++ t, acc)
+            case _                     => loop(t, acc)
 
-    go(List(this), Set.empty)
+    loop(List(this), Set.empty)
 
   lazy val allArrows: Set[Arrow] =
     @tailrec
@@ -211,7 +211,7 @@ sealed trait GraphElement derives ReadWriter:
         edgeList
           .map:
             case n: DotNodeId => s"\"${n.id}\""
-            case s: Subgraph  => s.render
+            case s: Subgraph  => s.render(keepInternal)
           .mkString(" -> ") + renderAttrList(keepInternal, attrList)
 
       case StmtSep() => ""
@@ -223,7 +223,7 @@ sealed trait GraphElement derives ReadWriter:
 
       case Subgraph(children, id) =>
         val idStr = id.getOrElse("")
-        children.map(_.render).mkString(s"subgraph $idStr{", "", "}")
+        children.map(_.render(keepInternal)).mkString(s"subgraph $idStr{", "", "}")
 
 end GraphElement
 

@@ -16,7 +16,7 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 import org.scalajs.dom
-import org.scalajs.dom.SVGSVGElement
+import org.scalajs.dom.{SVGPoint, SVGSVGElement}
 import upickle.default.*
 
 case class PersistedState(
@@ -76,13 +76,16 @@ case class ViewerState(initialSource: String = ""):
     visibleAST.map(_.toViewerGraph)
 
   // ---- SvgDotDiagram ----
+  val startNode = Var[Option[(NodeId, Point2d[Double])]](None)
+  val endPos = Var[Point2d[Double]]((0, 0))
+  val isDragging = Var(false)
 
   // 5. Render visible Dot to SVG
   // Dot ~> SVGSVGElement
   val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
     visibleDOT
       .flatMapSwitch(_.toSvg)
-      .map(SvgDotDiagram.svgWithTransform(transform))
+      .map(SvgDotDiagram.svgWithTransform(transform, startNode.signal, endPos.signal, isDragging.signal))
 
   private val svgDotDiagram: Signal[SvgDotDiagram] =
     svgDiagramElement.map(SvgDotDiagram.apply)
@@ -252,4 +255,16 @@ object ViewerState:
       val scale = (viewBox.width / clientWidth).max(viewBox.height / clientHeight)
       val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))
       translateXY.update(_ - svgDelta)
+
+  def toSVGCoords(
+      clientX:    Double, // px
+      clientY:    Double, // px
+      svgElement: SVGSVGElement
+  ): SVGPoint =
+    val point = svgElement.createSVGPoint()
+    point.x = clientX
+    point.y = clientY
+    val ctm = svgElement.getScreenCTM()
+    point.matrixTransform(ctm.inverse())
+
 end ViewerState

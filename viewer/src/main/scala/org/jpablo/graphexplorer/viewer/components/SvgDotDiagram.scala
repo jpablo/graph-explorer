@@ -7,8 +7,9 @@ import org.jpablo.graphexplorer.viewer.components.SvgDotDiagram.{BBox, selfConta
 import org.jpablo.graphexplorer.viewer.components.selectable.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
-import org.scalajs.dom.{SVGRect, SVGSVGElement}
+import org.scalajs.dom.{SVGPoint, SVGSVGElement}
 
 import scala.scalajs.js
 
@@ -80,25 +81,38 @@ object SvgDotDiagram:
 
   case class BBox(x: Double, y: Double, width: Double, height: Double)
 
-  def svgWithTransform(transform: Signal[String])(svgElement: dom.SVGSVGElement)
-      : ReactiveSvgElement[dom.SVGSVGElement] =
+  def svgWithTransform(
+      transform:  Signal[String],
+      startNode:  Signal[Option[(models.NodeId, Point2d[Double])]],
+      endPos:     Signal[Point2d[Double]],
+      isDragging: Signal[Boolean]
+  )(svgElement: dom.SVGSVGElement): ReactiveSvgElement[dom.SVGSVGElement] =
     val firstGroup: dom.svg.G =
       val g0 = svgElement.querySelector("g")
       (if g0 == null then dom.document.createElement("g") else g0).asInstanceOf[dom.svg.G]
 
-    val g: dom.svg.G = firstGroup
-    val elem = foreignSvgElement(g).amend(svg.transform <-- transform)
-    val (gX, gY) = getTranslate(g)
-    val viewBox: SVGRect = svgElement.viewBox.baseVal
-    selfContainedSvg(BBox(viewBox.x - gX.value, viewBox.y - gY.value, viewBox.width, viewBox.height), elem)
+    val (gX, gY) = getTranslate(firstGroup)
+    val translatedGroup = foreignSvgElement(firstGroup).amend(svg.transform <-- transform)
+    val viewBox = svgElement.viewBox.baseVal
+    val box = BBox(viewBox.x - gX.value, viewBox.y - gY.value, viewBox.width, viewBox.height)
+    selfContainedSvg(box, translatedGroup).amend(
+      inContext { thisNode =>
+        val endPosClient = endPos.map(p => ViewerState.toSVGCoords(p.x, p.y, thisNode.ref))
+        val startPosClient = startNode.map(_.map(p => (p._1, ViewerState.toSVGCoords(p._2.x, p._2.y, thisNode.ref))))
+        draggingArrow(startPosClient, endPosClient, isDragging)
+      }
+    )
 
-  private def selfContainedSvg(viewBox: BBox, elems: ReactiveSvgElement[dom.svg.Element]*) =
+  private def selfContainedSvg(
+      viewBox: BBox,
+      elems:   ReactiveSvgElement[dom.svg.Element]*
+  ): ReactiveSvgElement[SVGSVGElement] =
     svg.svg(
       svg.xmlns      := "http://www.w3.org/2000/svg",
       svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
       svg.viewBox    := s"${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}",
 //      svg.cls        := "graphviz no-text-select", // what happens with this class? (it is ignored)
-      elems,
+      elems
     )
 
   private def getTranslate(g: dom.svg.G): Point2d[SvgUnit] =
@@ -111,3 +125,25 @@ object SvgDotDiagram:
         if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
       } yield (SvgUnit(transform.matrix.e), SvgUnit(transform.matrix.f))).headOption
         .getOrElse(SvgUnit.origin)
+
+  private def draggingArrow(
+      startNode:  Signal[Option[(models.NodeId, SVGPoint)]],
+      endPos:     Signal[SVGPoint],
+      isDragging: Signal[Boolean]
+  ) =
+    // Temporary line for dragging
+    svg.line(
+      svg.x1 <-- startNode.map {
+        case Some((nodeId, start)) => start.x.toString
+        case None                  => 0.0.toString
+      },
+      svg.y1 <-- startNode.map {
+        case Some((nodeId, start)) => start.y.toString
+        case None                  => 0.0.toString
+      },
+      svg.x2 <-- endPos.tapEach(x => dom.console.log(x.toString)).map(_.x.toString),
+      svg.y2 <-- endPos.map(_.y.toString),
+      svg.strokeWidth := 1.toString,
+      svg.stroke      := "black",
+      svg.display <-- isDragging.signal.map(if _ then "inline" else "none")
+    )
