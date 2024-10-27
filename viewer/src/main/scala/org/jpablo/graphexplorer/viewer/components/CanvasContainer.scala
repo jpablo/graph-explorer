@@ -32,9 +32,12 @@ def CanvasContainer(
     onMouseDown --> { event =>
       findSelectableElement(event).foreach:
         case n: NodeElement =>
-          dom.console.log(n.toString)
-          state.startNode.set(Some(n.nodeId, (event.clientX, event.clientY)))
-          state.isDragging.set(true)
+          val clientCoords = (event.clientX, event.clientY)
+          Var.set(
+            state.startNode  -> Some(n.nodeId, clientCoords),
+            state.endPos     -> clientCoords,
+            state.isDragging -> true
+          )
         case _ => ()
     },
     onMouseMove --> { event =>
@@ -44,9 +47,11 @@ def CanvasContainer(
     onMouseUp(_.withCurrentValueOf(state.fullAST)) --> { (event, fullAST: DiGraphAST) =>
       if state.isDragging.now() then
         findSelectableElement(event).foreach:
-          case n: NodeElement =>
-            state.startNode.now().filter(_ != n.nodeId).foreach: start =>
-              state.addEdge(fullAST, start._1, n.nodeId)
+          case endNode: NodeElement =>
+            state.startNode.now().map(_._1)
+              .filter(_ != endNode.nodeId)
+              .foreach: startNodeId =>
+                state.addEdge(fullAST, startNodeId, endNode.nodeId)
           case _ =>
         state.startNode.set(None)
         state.isDragging.set(false)

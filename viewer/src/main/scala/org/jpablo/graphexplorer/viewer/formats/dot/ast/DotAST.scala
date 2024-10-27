@@ -23,7 +23,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   def addEdge(source: NodeId, target: NodeId): DiGraphAST =
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
-    this.modify(_.children).using(newEdge :: _)
+    this.modify(_.children).using(_ ++ List(Pad(), newEdge, Newline()))
 
   // add an attribute [id=nextId] to all edges
   def attachIds: DiGraphAST =
@@ -58,7 +58,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
       .filter(_.nonEmpty)
       .mkString("")
     val idStr = id.map(id => s"\"$id\" ").getOrElse(" ")
-    s"digraph $idStr{\n  $body}"
+    s"digraph $idStr{$body}"
   end render
 
 end DiGraphAST

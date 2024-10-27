@@ -97,8 +97,8 @@ object SvgDotDiagram:
     val box = BBox(viewBox.x - gX.value, viewBox.y - gY.value, viewBox.width, viewBox.height)
     selfContainedSvg(box, translatedGroup).amend(
       inContext { thisNode =>
-        val endPosClient = endPos.map(p => ViewerState.toSVGCoords(p.x, p.y, thisNode.ref))
         val startPosClient = startNode.map(_.map(p => (p._1, ViewerState.toSVGCoords(p._2.x, p._2.y, thisNode.ref))))
+        val endPosClient = endPos.map(p => ViewerState.toSVGCoords(p.x, p.y, thisNode.ref))
         draggingArrow(startPosClient, endPosClient, isDragging)
       }
     )
@@ -141,7 +141,7 @@ object SvgDotDiagram:
         case Some((nodeId, start)) => start.y.toString
         case None                  => 0.0.toString
       },
-      svg.x2 <-- endPos.tapEach(x => dom.console.log(x.toString)).map(_.x.toString),
+      svg.x2 <-- endPos.map(_.x.toString),
       svg.y2 <-- endPos.map(_.y.toString),
       svg.strokeWidth := 1.toString,
       svg.stroke      := "black",

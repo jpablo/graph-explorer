@@ -13,6 +13,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.Dot
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 import org.scalajs.dom
@@ -76,7 +77,7 @@ case class ViewerState(initialSource: String = ""):
     visibleAST.map(_.toViewerGraph)
 
   // ---- SvgDotDiagram ----
-  val startNode = Var[Option[(NodeId, Point2d[Double])]](None)
+  val startNode = Var[Option[(models.NodeId, Point2d[Double])]](None)
   val endPos = Var[Point2d[Double]]((0, 0))
   val isDragging = Var(false)
 
