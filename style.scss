@@ -49,9 +49,11 @@ label[for ^= show-ns-kind-] {
       -ms-user-select: none;
       user-select: none;
 
-      #dragging-arrow {
-        stroke: rgb(251 191 36);
+      #dragging-arrow-group {
+        stroke: rgb(245 158 11);
+        fill: rgb(245 158 11);
         stroke-width: 1.0;
+        stroke-dasharray: 2, 2;
         pointer-events: none;
       }
 

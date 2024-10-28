@@ -133,17 +133,39 @@ object SvgDotDiagram:
       startNode: Signal[Option[(models.NodeId, SVGPoint)]],
       endPos:    Signal[SVGPoint]
   ) =
-    // Temporary line for dragging
-    svg.line(
-      svg.idAttr := "dragging-arrow",
-      svg.x1 <-- startNode.map {
-        case Some((nodeId, start)) => start.x.toString
-        case None                  => 0.0.toString
-      },
-      svg.y1 <-- startNode.map {
-        case Some((nodeId, start)) => start.y.toString
-        case None                  => 0.0.toString
-      },
-      svg.x2 <-- endPos.map(_.x.toString),
-      svg.y2 <-- endPos.map(_.y.toString)
+    // Define start and end position signals
+    val startX = startNode.map {
+      case Some((_, start)) => start.x.toString
+      case None             => 0.0.toString
+    }
+    val startY = startNode.map {
+      case Some((_, start)) => start.y.toString
+      case None             => 0.0.toString
+    }
+    val endX = endPos.map(_.x.toString)
+    val endY = endPos.map(_.y.toString)
+    svg.g(
+      svg.idAttr := "dragging-arrow-group",
+      // Temporary line for dragging
+      svg.line(
+        svg.idAttr := "dragging-arrow-line",
+        svg.x1 <-- startX,
+        svg.y1 <-- startY,
+        svg.x2 <-- endX,
+        svg.y2 <-- endY
+      ),
+      // Circle at the start of the line
+      svg.circle(
+        svg.idAttr := "dragging-arrow-start-circle",
+        svg.r      := "1",
+        svg.cx <-- startX,
+        svg.cy <-- startY
+      ),
+      // Circle at the end of the line
+      svg.circle(
+        svg.idAttr := "dragging-arrow-end-circle",
+        svg.r      := "1",
+        svg.cx <-- endX,
+        svg.cy <-- endY
+      )
     )
