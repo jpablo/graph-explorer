@@ -52,9 +52,11 @@ def CanvasContainer(
               .filter(_ != endNode.nodeId)
               .foreach: startNodeId =>
                 state.addEdge(fullAST, startNodeId, endNode.nodeId)
-          case _ =>
-        state.startNode.set(None)
-        state.isDragging.set(false)
+          case _ => ()
+        Var.set(
+          state.startNode  -> None,
+          state.isDragging -> false
+        )
     },
     // --------------------------------
 

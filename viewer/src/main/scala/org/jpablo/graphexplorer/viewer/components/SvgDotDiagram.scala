@@ -98,10 +98,11 @@ object SvgDotDiagram:
     selfContainedSvg(
       box,
       translatedGroup,
-      inContext { thisNode =>
+      inContext { (thisNode: ReactiveSvgElement[SVGSVGElement]) =>
         val startPosClient = startNode.map(_.map(p => (p._1, ViewerState.toSVGCoords(p._2.x, p._2.y, thisNode.ref))))
         val endPosClient = endPos.map(p => ViewerState.toSVGCoords(p.x, p.y, thisNode.ref))
-        DraggingArrow(startPosClient, endPosClient, isDragging)
+
+        child(DraggingArrow(startPosClient, endPosClient)) <-- isDragging
       }
     )
 
@@ -129,9 +130,8 @@ object SvgDotDiagram:
         .getOrElse(SvgUnit.origin)
 
   private def DraggingArrow(
-      startNode:  Signal[Option[(models.NodeId, SVGPoint)]],
-      endPos:     Signal[SVGPoint],
-      isDragging: Signal[Boolean]
+      startNode: Signal[Option[(models.NodeId, SVGPoint)]],
+      endPos:    Signal[SVGPoint]
   ) =
     // Temporary line for dragging
     svg.line(
@@ -145,6 +145,5 @@ object SvgDotDiagram:
         case None                  => 0.0.toString
       },
       svg.x2 <-- endPos.map(_.x.toString),
-      svg.y2 <-- endPos.map(_.y.toString),
-      svg.display <-- isDragging.signal.map(if _ then "inline" else "none")
+      svg.y2 <-- endPos.map(_.y.toString)
     )
