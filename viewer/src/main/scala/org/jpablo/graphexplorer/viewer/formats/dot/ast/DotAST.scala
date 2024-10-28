@@ -25,11 +25,12 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
     this.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
+  def setDefaultTheme: DiGraphAST =
+    this.modify(_.children).using: children =>
+      AttrStmt("node", List(Attr("style", "filled"))) :: children
+
   def attachInternalAttributes: DiGraphAST =
-    this
-      .modify(_.children).using(_.map(_.attachId))
-      .modify(_.children).using: children =>
-        AttrStmt("node", List(Attr("style", "filled"))) :: children
+    this.modify(_.children).using(_.map(_.attachId))
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
     @tailrec

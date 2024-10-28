@@ -66,7 +66,10 @@ case class ViewerState(initialSource: String = ""):
     fullAST
       .combineWith(project.hiddenNodesV.signal)
       .tapEach(_ => resetView())
-      .map((fullAST, hiddenNodes) => fullAST.removeNodes(hiddenNodes.map(_.value)))
+      .map: (fullAST, hiddenNodes) =>
+        fullAST
+          .removeNodes(hiddenNodes.map(_.value))
+          .setDefaultTheme
 
   // 4. transform visible AST back to Visible Dot
   // DiGraphAST ~> Dot
