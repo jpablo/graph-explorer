@@ -98,7 +98,7 @@ object SvgDotDiagram:
     selfContainedSvg(
       box,
       translatedGroup,
-      inContext { (thisNode: ReactiveSvgElement[SVGSVGElement]) =>
+      inContext { thisNode =>
         val startPosClient = startNode.map(_.map(p => (p._1, ViewerState.toSVGCoords(p._2.x, p._2.y, thisNode.ref))))
         val endPosClient = endPos.map(p => ViewerState.toSVGCoords(p.x, p.y, thisNode.ref))
 

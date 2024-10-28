@@ -119,7 +119,7 @@ sealed trait GraphElement derives ReadWriter:
 
   lazy val allArrows: Set[Arrow] =
     @tailrec
-    def go(remaining: List[GraphElement], acc: Set[Arrow] = Set.empty): Set[Arrow] =
+    def loop(remaining: List[GraphElement], acc: Set[Arrow] = Set.empty): Set[Arrow] =
       remaining match
         case Nil => acc
         case h :: remaining1 =>
@@ -152,11 +152,11 @@ sealed trait GraphElement derives ReadWriter:
 
               val (remaining2, acc1) = args.toList.unzip
 
-              go(remaining2.flatten ++ remaining1, acc ++ acc1.toSet.flatten)
-            case Subgraph(children, _) => go(children ++ remaining1, acc)
-            case _                     => go(remaining1, acc)
+              loop(remaining2.flatten ++ remaining1, acc ++ acc1.toSet.flatten)
+            case Subgraph(children, _) => loop(children ++ remaining1, acc)
+            case _                     => loop(remaining1, acc)
 
-    go(List(this))
+    loop(List(this))
 
   // TODO: make this tail recursive
   def removeNodes(idsToRemove: Set[String]): List[GraphElement] =
