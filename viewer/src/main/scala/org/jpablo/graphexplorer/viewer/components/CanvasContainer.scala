@@ -6,7 +6,6 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.selectable.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
-import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.KeyCode.Backspace
@@ -83,11 +82,7 @@ private def handleSvgClick(state: ViewerState)(event: dom.MouseEvent): Unit =
   findSelectableElement(event) match
     case None => state.diagramSelection.clear()
     case Some(element) => element match
-        case n: NodeElement =>
-          if event.metaKey then
-            state.diagramSelection.toggle(n.nodeId)
-          else
-            state.diagramSelection.set(Set(n.nodeId))
+        case n: NodeElement => state.diagramSelection.handleClickOnNode(n.nodeId)(event.metaKey)
         case e: EdgeElement =>
           e.toArrow.foreach: arrow =>
             state.diagramSelection.handleClickOnArrow(arrow)(event.metaKey)

@@ -157,11 +157,6 @@ case class ViewerState(initialSource: String = ""):
     val ast2 = fullAST.addEdge(from, to)
     source.set(ast2.render(false))
 
-  private def updateDOTSource(): Unit = {
-    // Update the DOT source based on the current graph
-    // This will trigger a re-render of the SVG
-  }
-
   object eventHandlers:
     extension [E <: dom.Event](ev: EventProp[E])
       def hideSelectedNodes =

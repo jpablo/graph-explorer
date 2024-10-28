@@ -47,23 +47,11 @@ class DiagramSelectionOps(selectedNodes: Var[SelectedNodes] = Var(Set.empty)):
       set(Set(nodeId))
 
   def handleClickOnArrow(arrow: Arrow)(metaKey: Boolean) =
-    val selection = now()
+    val nodeId = arrow.nodeId
     if metaKey then
-      if arrow.nodeId in selection then
-        // for each arrow.source and arrow.target: remove it if it's not part of any edge
-        val edgesWithoutClicked = selection
-          .filter(nodeId => nodeId.value != arrow.nodeId.value && nodeId.value.contains("->"))
-          .map(_.value)
-
-        val toRemove = selection
-          .filterNot(_.value.contains("->"))
-          .filterNot: nodeId =>
-            edgesWithoutClicked.exists(_.contains(nodeId.value))
-
-        remove(toRemove + arrow.nodeId)
-      else
-        add(arrow.nodeIds)
+      toggle(nodeId)
     else
-      set(arrow.nodeIds)
+      set(Set(nodeId))
+
 
 end DiagramSelectionOps

@@ -53,8 +53,10 @@ label[for ^= show-ns-kind-] {
         stroke: rgb(245 158 11);
         fill: rgb(245 158 11);
         stroke-width: 1.0;
-        stroke-dasharray: 2, 2;
         pointer-events: none;
+        #dragging-arrow-line {
+          stroke-dasharray: 2, 2;
+        }
       }
 
       g#graph0 {

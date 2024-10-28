@@ -125,35 +125,10 @@ sealed trait GraphElement derives ReadWriter:
         case Nil => acc
         case h :: remaining1 =>
           h match
-            case EdgeStmt(edgeList, attrList) =>
-              // TODO: Handle AttrEq as well (for html labels)
-              val attrs = attrList.map(attr => attr.id -> attr.attrEq.toString).toMap
-              val args: Iterator[(List[GraphElement], Set[Arrow])] =
-                edgeList
-                  .sliding(2)
-                  .map:
-                    case List(Subgraph(children, _))                => (children, Set.empty)
-                    case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, attrs)))
-
-                    case List(DotNodeId(id, _), Subgraph(children, _)) =>
-                      (children, findAllNodeIds(children).map(a => Arrow(id -> a, attrs)))
-
-                    case List(Subgraph(children, _), DotNodeId(id, _)) =>
-                      (children, findAllNodeIds(children).map(a => Arrow(a -> id, attrs)))
-
-                    case List(Subgraph(children1, _), Subgraph(children2, _)) =>
-                      (
-                        children1 ++ children2,
-                        for
-                          a <- findAllNodeIds(children1)
-                          b <- findAllNodeIds(children2)
-                        yield Arrow(a -> b, attrs)
-                      )
-                    case _ => (Nil, Set.empty)
-
-              val (remaining2, acc1) = args.toList.unzip
-
+            case e: EdgeStmt =>
+              val (remaining2, acc1) = e.allArrows1.unzip
               loop(remaining2.flatten ++ remaining1, acc ++ acc1.toSet.flatten)
+
             case Subgraph(children, _) => loop(children ++ remaining1, acc)
             case _                     => loop(remaining1, acc)
 
@@ -164,39 +139,44 @@ sealed trait GraphElement derives ReadWriter:
     this match
       case NodeStmt(DotNodeId(id, _), _) if id in idsToRemove => Nil
 
-      case Subgraph(children, id) =>
-        val remainingChildren = children.flatMap(_.removeNodes(idsToRemove))
-        if remainingChildren.isEmpty then Nil else List(Subgraph(remainingChildren, id))
+      case e @ EdgeStmt(edgeList, attrList) =>
+        val eArrows: Set[String] = e.allArrows.map(_.nodeId.value)
 
-      case EdgeStmt(edgeList, attrList) =>
         def prependToHead(e: EdgeElement, acc: List[List[EdgeElement]]) =
           acc match
             case Nil    => (e :: Nil) :: Nil
             case h :: t => (e :: h) :: t
 
-        val remainingEdges =
-          edgeList.foldLeft(Nil: List[List[EdgeElement]]):
-            case (acc, e @ DotNodeId(id, _)) =>
-              if id in idsToRemove then
-                Nil :: acc // start a new edge: [[]] OR [[], e1, e2, ...]
-              else
-                prependToHead(e, acc) // [[e]] OR [e :: e1, e2, ...]
+        if eArrows.subsetOf(idsToRemove) then
+          Nil
+        else
+          val remainingEdges =
+            edgeList.foldLeft(Nil: List[List[EdgeElement]]):
+              case (acc, e @ DotNodeId(id, _)) =>
+                if id in idsToRemove then
+                  Nil :: acc // start a new edge: [[]] OR [[], e1, e2, ...]
+                else
+                  prependToHead(e, acc) // [[e]] OR [e :: e1, e2, ...]
 
-            case (acc, Subgraph(children, id)) =>
-              val visibleChildren = children.flatMap(_.removeNodes(idsToRemove))
-              if visibleChildren.isEmpty then
-                Nil :: acc
-              else
-                prependToHead(Subgraph(visibleChildren, id), acc)
+              case (acc, Subgraph(children, id)) =>
+                val visibleChildren = children.flatMap(_.removeNodes(idsToRemove))
+                if visibleChildren.isEmpty then
+                  Nil :: acc
+                else
+                  prependToHead(Subgraph(visibleChildren, id), acc)
 
-        remainingEdges.filter(_.nonEmpty).reverse
-          .map:
-            case h :: Nil => h match
-                // Drop the attributes on purpose.
-                // Otherwise, the attributes will be attached to remaining node.
-                case n: DotNodeId => NodeStmt(n, List.empty)
-                case g: Subgraph  => g
-            case other => EdgeStmt(other.reverse, attrList)
+          remainingEdges.filter(_.nonEmpty).reverse
+            .map:
+              case h :: Nil => h match
+                  // Drop the attributes on purpose.
+                  // Otherwise, the attributes will be attached to remaining node.
+                  case n: DotNodeId => NodeStmt(n, List.empty)
+                  case g: Subgraph  => g
+              case other => EdgeStmt(other.reverse, attrList)
+
+      case Subgraph(children, id) =>
+        val remainingChildren = children.flatMap(_.removeNodes(idsToRemove))
+        if remainingChildren.isEmpty then Nil else List(Subgraph(remainingChildren, id))
 
       case other => List(other)
 
@@ -304,6 +284,32 @@ case class EdgeStmt(
     @key("attr_list") attrList: List[Attr]
 ) extends GraphElement derives ReadWriter:
   lazy val idAttr: String = attrList.find(_.id == idAttributeKey).map(_.attrEq.toString).getOrElse("")
+
+  def allArrows1: List[(List[GraphElement], Set[Arrow])] =
+    // TODO: Handle AttrEq as well (for html labels)
+    val attrs = attrList.map(attr => attr.id -> attr.attrEq.toString).toMap
+    edgeList
+      .sliding(2)
+      .toList
+      .map:
+        case List(Subgraph(children, _))                => (children, Set.empty)
+        case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, attrs)))
+
+        case List(DotNodeId(id, _), Subgraph(children, _)) =>
+          (children, findAllNodeIds(children).map(a => Arrow(id -> a, attrs)))
+
+        case List(Subgraph(children, _), DotNodeId(id, _)) =>
+          (children, findAllNodeIds(children).map(a => Arrow(a -> id, attrs)))
+
+        case List(Subgraph(children1, _), Subgraph(children2, _)) =>
+          (
+            children1 ++ children2,
+            for
+              a <- findAllNodeIds(children1)
+              b <- findAllNodeIds(children2)
+            yield Arrow(a -> b, attrs)
+          )
+        case _ => (Nil, Set.empty)
 
 object EdgeStmt:
   private var idx = 0
