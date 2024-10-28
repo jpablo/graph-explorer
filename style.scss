@@ -49,15 +49,15 @@ label[for ^= show-ns-kind-] {
       -ms-user-select: none;
       user-select: none;
 
-      #graph0 {
-        transform-origin: 50% -50%;
-
-        polygon {
-          //stroke: green;
-        }
+      #dragging-arrow {
+        stroke: rgb(251 191 36);
+        stroke-width: 1.0;
+        pointer-events: none;
       }
 
-      g {
+      g#graph0 {
+        transform-origin: 50% -50%;
+
         .node {
           &:hover {
             cursor: pointer;
@@ -108,7 +108,11 @@ label[for ^= show-ns-kind-] {
         }
       }
 
+      // g
+
     }
+
+    // graphviz
   }
 
 }

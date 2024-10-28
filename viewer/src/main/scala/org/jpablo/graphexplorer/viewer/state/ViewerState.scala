@@ -52,7 +52,7 @@ case class ViewerState(initialSource: String = ""):
   val fullAST: Signal[DiGraphAST] =
     source.signal.map: src =>
       Dot(src).buildAST.headOption
-        .map(_.attachIds)
+        .map(_.attachInternalAttributes)
         .getOrElse(DiGraphAST.empty)
 
   // 2. DiGraphAST ~> ViewerGraph

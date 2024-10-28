@@ -23,11 +23,13 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   def addEdge(source: NodeId, target: NodeId): DiGraphAST =
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
-    this.modify(_.children).using(_ ++ List(Pad(), newEdge, Newline()))
+    this.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
-  // add an attribute [id=nextId] to all edges
-  def attachIds: DiGraphAST =
-    this.modify(_.children).using(_.map(_.attachId))
+  def attachInternalAttributes: DiGraphAST =
+    this
+      .modify(_.children).using(_.map(_.attachId))
+      .modify(_.children).using: children =>
+        AttrStmt("node", List(Attr("style", "filled"))) :: children
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
     @tailrec
@@ -223,7 +225,7 @@ sealed trait GraphElement derives ReadWriter:
 
       case Subgraph(children, id) =>
         val idStr = id.getOrElse("")
-        children.map(_.render(keepInternal)).mkString(s"subgraph $idStr{", "", "}")
+        children.map(_.render(keepInternal)).mkString(s"subgraph $idStr {", "", "}")
 
 end GraphElement
 

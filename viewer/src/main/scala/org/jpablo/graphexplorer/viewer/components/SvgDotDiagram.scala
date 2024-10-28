@@ -95,17 +95,19 @@ object SvgDotDiagram:
     val translatedGroup = foreignSvgElement(firstGroup).amend(svg.transform <-- transform)
     val viewBox = svgElement.viewBox.baseVal
     val box = BBox(viewBox.x - gX.value, viewBox.y - gY.value, viewBox.width, viewBox.height)
-    selfContainedSvg(box, translatedGroup).amend(
+    selfContainedSvg(
+      box,
+      translatedGroup,
       inContext { thisNode =>
         val startPosClient = startNode.map(_.map(p => (p._1, ViewerState.toSVGCoords(p._2.x, p._2.y, thisNode.ref))))
         val endPosClient = endPos.map(p => ViewerState.toSVGCoords(p.x, p.y, thisNode.ref))
-        draggingArrow(startPosClient, endPosClient, isDragging)
+        DraggingArrow(startPosClient, endPosClient, isDragging)
       }
     )
 
   private def selfContainedSvg(
       viewBox: BBox,
-      elems:   ReactiveSvgElement[dom.svg.Element]*
+      elems:   Modifier[ReactiveSvgElement[dom.SVGSVGElement]]*
   ): ReactiveSvgElement[SVGSVGElement] =
     svg.svg(
       svg.xmlns      := "http://www.w3.org/2000/svg",
@@ -126,13 +128,14 @@ object SvgDotDiagram:
       } yield (SvgUnit(transform.matrix.e), SvgUnit(transform.matrix.f))).headOption
         .getOrElse(SvgUnit.origin)
 
-  private def draggingArrow(
+  private def DraggingArrow(
       startNode:  Signal[Option[(models.NodeId, SVGPoint)]],
       endPos:     Signal[SVGPoint],
       isDragging: Signal[Boolean]
   ) =
     // Temporary line for dragging
     svg.line(
+      svg.idAttr := "dragging-arrow",
       svg.x1 <-- startNode.map {
         case Some((nodeId, start)) => start.x.toString
         case None                  => 0.0.toString
@@ -143,7 +146,5 @@ object SvgDotDiagram:
       },
       svg.x2 <-- endPos.map(_.x.toString),
       svg.y2 <-- endPos.map(_.y.toString),
-      svg.strokeWidth := 1.toString,
-      svg.stroke      := "black",
       svg.display <-- isDragging.signal.map(if _ then "inline" else "none")
     )
