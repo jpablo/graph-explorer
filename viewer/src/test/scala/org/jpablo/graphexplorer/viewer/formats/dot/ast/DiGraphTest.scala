@@ -1,7 +1,12 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.scalajs.dom
 import upickle.default.*
+
+import scala.scalajs.js
+import scala.scalajs.js.Dynamic.global as g
 
 class DiGraphTest extends ScalaCheckSuite:
 //
@@ -14,10 +19,17 @@ class DiGraphTest extends ScalaCheckSuite:
 //    val ast = Dot(json2).buildAST.headOption
 //    println(ast)
 
+  val fs = g.require("fs")
+  val styles: String = fs.readFileSync("viewer/src/test/resources/styles.dot", "utf8").asInstanceOf[String]
+  dom.console.log(styles)
+  val viewerState = ViewerState(styles)
+
   test("serialization test"):
     val g = read[List[DiGraphAST]](json1)
 
     assert(g.length == 1)
+
+end DiGraphTest
 
 val json2 =
   """

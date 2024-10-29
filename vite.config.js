@@ -15,7 +15,6 @@ function printSbtTask(task) {
             "inherit", // StdErr.
         ],
     };
-    console.log("sbt", args, options);
     const result = process.platform === 'win32'
         ? spawnSync("sbt.bat", args.map(x => `"${x}"`), {shell: true, ...options})
         : spawnSync("sbt", args, options);

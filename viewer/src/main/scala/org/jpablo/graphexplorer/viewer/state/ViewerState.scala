@@ -36,7 +36,7 @@ case class ViewerState(initialSource: String = ""):
   val project =
     ProjectOps(Var(Project(ProjectId("project-0"))))
 
-  val translateXY = Var(SvgUnit.origin)
+  private val translateXY = Var(SvgUnit.origin)
   val zoomValue = Var(1.0)
   val transform =
     zoomValue.signal

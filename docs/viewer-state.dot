@@ -1,10 +1,12 @@
 digraph G {
-    fullAST -> source
-    fullGraph -> fullAST
-    visibleAST -> fullAST
-    visibleDOT -> visibleAST
-    visibleGraph -> visibleAST
+    node [shape = rectangle]
 
-    svgDiagramElement -> visibleDOT
-    svgDotDiagram -> svgDiagramElement
+    source -> fullAST [label = "buildAST\nattachInternalAttributes"]
+    fullAST -> fullGraph [label = toViewerGraph]
+    fullAST -> visibleAST [label = removeHiddenNodes]
+    visibleAST -> visibleDOT [label = toDot]
+    visibleAST -> visibleGraph
+
+    visibleDOT -> svgDiagramElement [label = toSvg]
+    svgDiagramElement -> svgDotDiagram
 }
