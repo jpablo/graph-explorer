@@ -26,9 +26,6 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
     "-Xfatal-warnings"
   )
 
-val publicDev = taskKey[String]("output directory for `npm run dev`")
-val publicProd = taskKey[String]("output directory for `npm run build`")
-
 lazy val viewer =
   project
     .in(file("viewer"))
@@ -71,8 +68,6 @@ lazy val viewer =
       // https://www.scala-js.org/doc/project/js-environments.html
 //      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
 //      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chrome", headless    = true, showLogs    = true),
-      publicDev  := linkerOutputDirectory((Compile / fastLinkJS).value).getAbsolutePath,
-      publicProd := linkerOutputDirectory((Compile / fullLinkJS).value).getAbsolutePath,
       testFrameworks += new TestFramework("munit.Framework")
     )
 
