@@ -34,34 +34,42 @@ lazy val viewer =
     .in(file("viewer"))
     .enablePlugins(ScalaJSPlugin)
     .enablePlugins(BuildInfoPlugin)
-    .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
+//    .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
       scalacOptions ++= Seq("-explain", "-Ycheck-all-patmat"),
       Compile / mainClass := Some("org.jpablo.graphexplorer.viewer.Viewer"),
       scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule).withSourceMap(true) },
-      stTypescriptVersion := "4.9.5",
-      stIgnore += "node",
+//      stTypescriptVersion := "4.9.5",
+//      stIgnore += "node",
       externalNpm := {
         scala.sys.process.Process(List("npm", "install", "--silent", "--no-audit", "--no-fund"), baseDirectory.value).!
         baseDirectory.value / ".."
       },
       libraryDependencies ++= Seq(
-        "com.raquo"                  %%% "laminar"          % laminarVersion,
-        "com.raquo"                  %%% "waypoint"         % "8.0.0",
-        "com.softwaremill.quicklens" %%% "quicklens"        % "1.9.0",
-        "io.laminext"                %%% "fetch"            % "0.17.0",
-        "org.scala-js"               %%% "scalajs-dom"      % "2.8.0",
-        "com.lihaoyi"                %%% "upickle"          % "4.0.0",
+        "com.raquo"                  %%% "laminar"     % laminarVersion,
+        "com.raquo"                  %%% "waypoint"    % "8.0.0",
+        "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
+        "io.laminext"                %%% "fetch"       % "0.17.0",
+        "org.scala-js"               %%% "scalajs-dom" % "2.8.0",
+        "com.lihaoyi"                %%% "upickle"     % "4.0.0",
 //        "com.github.sbt"             %%% "dynver"           % "5.1.0",
-        "org.scalameta"              %%% "munit"            % "1.0.0" % Test,
-        "org.scalameta"              %%% "munit-scalacheck" % "1.0.0" % Test
+        "org.scalameta"     %%% "munit"                       % "1.0.0" % Test,
+        "org.scalameta"     %%% "munit-scalacheck"            % "1.0.0" % Test,
+        "org.scalablytyped" %%% "codemirror"                  % "6.0.1-87f1fe",
+        "org.scalablytyped" %%% "codemirror__commands"        % "6.7.1-57e404",
+        "org.scalablytyped" %%% "codemirror__lang-javascript" % "6.2.2-b8bf80",
+        "org.scalablytyped" %%% "codemirror__view"            % "6.34.1-7b155b",
+        "org.scalablytyped" %%% "jsdom"                       % "21.1.7-a2354f",
+        "org.scalablytyped" %%% "viz-js__lang-dot"            % "1.0.4-def35e",
+        "org.scalablytyped" %%% "viz-js__viz"                 % "3.3.0-d43b8d"
       ),
       excludeDependencies ++= Seq(
         "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
       ),
-      jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
+      // https://www.scala-js.org/doc/project/js-environments.html
+//      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
 //      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chrome", headless    = true, showLogs    = true),
       publicDev  := linkerOutputDirectory((Compile / fastLinkJS).value).getAbsolutePath,
       publicProd := linkerOutputDirectory((Compile / fullLinkJS).value).getAbsolutePath,
