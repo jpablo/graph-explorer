@@ -30,21 +30,7 @@ case class PersistedState(
 object PersistedState:
   val empty = PersistedState(Set.empty, "", false, 0)
 
-case class ViewerState(initialSource: String = ""):
-  given owner: Owner = OneTimeOwner(() => ())
-
-  val project =
-    ProjectOps(Var(Project(ProjectId("project-0"))))
-
-  private val translateXY = Var(SvgUnit.origin)
-  val zoomValue = Var(1.0)
-  val transform =
-    zoomValue.signal
-      .combineWith(translateXY.signal)
-      .map: (z, p) =>
-        s"scale($z) translate(${p.x} ${p.y})"
-
-  // 0: initial source
+class SourceFlow(initialSource: String, hiddenNodesV: Signal[Set[NodeId]]):
   val source: Var[String] = Var(initialSource)
 
   // 1. parse source
@@ -62,10 +48,9 @@ case class ViewerState(initialSource: String = ""):
 
   // 3. Remove hidden nodes from Dot AST
   // DiGraphAST ~[removeNodes]~> DiGraphAST
-  private val visibleAST: Signal[DiGraphAST] =
+  val visibleAST: Signal[DiGraphAST] =
     fullAST
-      .combineWith(project.hiddenNodesV.signal)
-      .tapEach(_ => resetView())
+      .combineWith(hiddenNodesV.signal)
       .map: (fullAST, hiddenNodes) =>
         fullAST
           .removeNodes(hiddenNodes.map(_.value))
@@ -73,11 +58,36 @@ case class ViewerState(initialSource: String = ""):
 
   // 4. transform visible AST back to Visible Dot
   // DiGraphAST ~> Dot
-  private val visibleDOT: Signal[Dot] =
+  val visibleDOT: Signal[Dot] =
     visibleAST.map(_.toDot)
 
-  private val visibleGraph: Signal[ViewerGraph] =
+  val visibleGraph: Signal[ViewerGraph] =
     visibleAST.map(_.toViewerGraph)
+
+end SourceFlow
+
+case class ViewerState(initialSource: String = ""):
+  given owner: Owner = OneTimeOwner(() => ())
+
+  val project =
+    ProjectOps(Var(Project(ProjectId("project-0"))))
+
+  private val translateXY = Var(SvgUnit.origin)
+  val zoomValue = Var(1.0)
+  val transform =
+    zoomValue.signal
+      .combineWith(translateXY.signal)
+      .map: (z, p) =>
+        s"scale($z) translate(${p.x} ${p.y})"
+
+  val sourceFlow = SourceFlow(initialSource, project.hiddenNodesV.signal)
+
+  val source = sourceFlow.source
+  val fullAST = sourceFlow.fullAST
+  val fullGraph = sourceFlow.fullGraph
+  private val visibleAST = sourceFlow.visibleAST.tapEach(_ => resetView())
+  private val visibleDOT = sourceFlow.visibleDOT
+  private val visibleGraph = sourceFlow.visibleGraph
 
   // ---- SvgDotDiagram ----
   val startNode = Var[Option[(models.NodeId, Point2d[Double])]](None)
@@ -101,12 +111,10 @@ case class ViewerState(initialSource: String = ""):
   // this should be a subset of visibleNodesV keys
   private val diagramSelectionV = Var(Set.empty[NodeId])
 
-  val diagramSelection =
-    DiagramSelectionOps(diagramSelectionV)
+  val diagramSelection = DiagramSelectionOps(diagramSelectionV)
   // -------------------------------
 
-  private val hiddenNodes =
-    HiddenNodesOps(project.hiddenNodesV)
+  private val hiddenNodes = HiddenNodesOps(project.hiddenNodesV)
 
   val hiddenNodesS = hiddenNodes.signal
 

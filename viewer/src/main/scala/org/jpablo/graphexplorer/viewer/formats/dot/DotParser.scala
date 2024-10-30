@@ -12,7 +12,7 @@ import scala.util.Try
 // https://github.com/magjac/graphviz-visual-editor
 
 @js.native
-@JSImport("/dotParser.js", JSImport.Namespace)
+@JSImport("dot-parser", JSImport.Namespace)
 object DotParser extends js.Object:
   def parse(dotString: String): js.Object = js.native
 

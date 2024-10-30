@@ -47,18 +47,3 @@ object Dot:
 
 end Dot
 
-case class Digraph(
-    declarations: Set[String],
-    arrows:       Seq[String],
-    rankdir:      "LR" | "TB"
-):
-  override def toString: String =
-    s"""
-       |digraph G {
-       | rankdir=$rankdir
-       | ${declarations.mkString("\n  ")}
-       |
-       | ${arrows.mkString("\n  ")}
-       |
-       |}
-       |""".stripMargin

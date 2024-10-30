@@ -30,6 +30,7 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
       AttrStmt("node", List(Attr("style", "filled"))) :: children
 
   def attachInternalAttributes: DiGraphAST =
+    EdgeStmt.resetId()
     this.modify(_.children).using(_.map(_.attachId))
 
   def removeNodes(idsToRemove: Set[String]): DiGraphAST =
@@ -313,6 +314,9 @@ case class EdgeStmt(
 
 object EdgeStmt:
   private var idx = 0
+
+  def resetId() =
+    idx = 0
 
   def nextId =
     idx += 1

@@ -38,8 +38,6 @@ lazy val viewer =
       scalacOptions ++= Seq("-explain", "-Ycheck-all-patmat"),
       Compile / mainClass := Some("org.jpablo.graphexplorer.viewer.Viewer"),
       scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule).withSourceMap(true) },
-//      stTypescriptVersion := "4.9.5",
-//      stIgnore += "node",
       externalNpm := {
         scala.sys.process.Process(List("npm", "install", "--silent", "--no-audit", "--no-fund"), baseDirectory.value).!
         baseDirectory.value / ".."
@@ -62,9 +60,7 @@ lazy val viewer =
         "org.scalablytyped" %%% "viz-js__lang-dot"            % "1.0.4-def35e",
         "org.scalablytyped" %%% "viz-js__viz"                 % "3.3.0-d43b8d"
       ),
-      excludeDependencies ++= Seq(
-        "org.scala-lang.modules" %% "scala-collection-compat_sjs1"
-      ),
+      excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat_sjs1"),
       // https://www.scala-js.org/doc/project/js-environments.html
 //      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
 //      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chrome", headless    = true, showLogs    = true),
