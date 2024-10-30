@@ -1,0 +1,6 @@
+{
+  "name": "dot-parser",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module"
+}
