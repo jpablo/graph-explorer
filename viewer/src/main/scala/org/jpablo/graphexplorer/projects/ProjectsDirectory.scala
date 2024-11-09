@@ -4,8 +4,8 @@ import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.storedString
 import org.jpablo.graphexplorer.viewer.state.{PersistedState, ProjectId}
-import org.scalajs.dom
 import upickle.default.*
+import com.softwaremill.quicklens.*
 
 case class ProjectInfo(
     id:           ProjectId,
@@ -31,7 +31,8 @@ object ProjectStorage:
     directoryStorage.update(current => write(f(read[ProjectsDirectory](current))))
 
   def projectPersistedState(id: ProjectId): Var[PersistedState] =
-    val storage = storedString(projectKey(id), write(PersistedState.empty))
+    val initial = write(PersistedState.empty)
+    val storage = storedString(projectKey(id), initial)
     val stateVar =
       try Var(read[PersistedState](storage.signal.observe.now()))
       catch
@@ -42,14 +43,12 @@ object ProjectStorage:
     stateVar.signal.foreach: state =>
       storage.set(write(state))
       updateLastModified(id)
-
     stateVar
 
   def createProject(name: String): ProjectId =
-    val id = ProjectId.random
-    val projectInfo = ProjectInfo(id, name, System.currentTimeMillis())
-    updateDirectory(dir => dir.copy(projects = projectInfo :: dir.projects))
-    id
+    val projectInfo = ProjectInfo(ProjectId.random, name, System.currentTimeMillis())
+    updateDirectory(_.modify(_.projects).using(projectInfo :: _))
+    projectInfo.id
 
   def deleteProject(id: ProjectId): Unit =
     storedString(projectKey(id), "").set("") // Clear the project data

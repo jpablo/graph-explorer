@@ -11,8 +11,11 @@ import scala.scalajs.js.JSON
 
 type SelectedNodes = Set[NodeId]
 
-class DiagramSelectionOps(selectedNodes: Var[SelectedNodes] = Var(Set.empty)):
-  val signal = selectedNodes.signal.tapEach(s => dom.console.debug("selectedNodes:", JSON.parse(writeJs(s).toString)))
+class DiagramSelectionOps:
+  private val selectedNodes: Var[SelectedNodes] = Var(Set.empty)
+
+  val signal = selectedNodes.signal
+    .tapEach(s => dom.console.debug("selectedNodes:", JSON.parse(writeJs(s).toString)))
 
   def now(): SelectedNodes = selectedNodes.now()
 
@@ -52,6 +55,5 @@ class DiagramSelectionOps(selectedNodes: Var[SelectedNodes] = Var(Set.empty)):
       toggle(nodeId)
     else
       set(Set(nodeId))
-
 
 end DiagramSelectionOps

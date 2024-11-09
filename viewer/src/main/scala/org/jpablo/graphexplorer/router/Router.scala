@@ -12,8 +12,7 @@ def projectIdFromLocation(): Option[ProjectId] =
         Some(ProjectId(uuid))
       else
         None
-    case _ =>
-      None
+    case _ => None
 
 def navigateToProject(projectId: ProjectId): Unit =
   window.location.hash = s"#/${projectId.value}"
@@ -21,5 +20,3 @@ def navigateToProject(projectId: ProjectId): Unit =
 
 def navigateToHome(): Unit =
   window.location.href = "/"
-
-

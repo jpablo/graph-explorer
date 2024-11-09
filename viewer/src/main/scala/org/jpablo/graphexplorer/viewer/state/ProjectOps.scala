@@ -20,14 +20,11 @@ case class ProjectOps(project: Var[Project]):
   val page: Var[Page] =
     project.zoomLazy(_.page)((p, page) => p.copy(page = page))
 
-  val hiddenNodesV: Var[Set[NodeId]] =
+  val hiddenNodes: Var[Set[NodeId]] =
     project.zoomLazy(_.page.hiddenNodes)((p, s) => p.modify(_.page.hiddenNodes).setTo(s))
 
   val basePaths: Signal[List[Path]] =
     project.signal.map(_.projectSettings.basePaths).distinct
-
-  val packagesOptions: Signal[PackagesOptions] =
-    project.signal.map(_.packagesOptions).distinct
 
   val projectSettings: Signal[ProjectSettings] =
     project.signal.map(_.projectSettings).distinct

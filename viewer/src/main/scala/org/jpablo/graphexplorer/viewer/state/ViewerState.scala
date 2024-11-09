@@ -17,7 +17,6 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
-import org.scalajs.dom
 import org.scalajs.dom.{SVGPoint, SVGSVGElement}
 import upickle.default.*
 
@@ -71,7 +70,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       .map: (z, p) =>
         s"scale($z) translate(${p.x} ${p.y})"
 
-  val sourceFlow = SourceFlow(initialSource, project.hiddenNodesV.signal)
+  private val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal)
 
   val source = sourceFlow.source
   val fullAST = sourceFlow.fullAST
@@ -100,12 +99,10 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // -------------------------------
   // this should be a subset of visibleNodesV keys
-  private val diagramSelectionV = Var(Set.empty[NodeId])
-
-  val diagramSelection = DiagramSelectionOps(diagramSelectionV)
+  val diagramSelection = DiagramSelectionOps()
   // -------------------------------
 
-  private val hiddenNodes = HiddenNodesOps(project.hiddenNodesV)
+  private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
 
   val hiddenNodesS = hiddenNodes.signal
 
@@ -114,8 +111,8 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   private def updateHiddenNodes[E <: dom.Event](
       ep: EventProp[E]
   )(f: (HiddenNodes, Set[NodeId], ViewerGraph) => HiddenNodes) =
-    ep(_.sample(fullGraph.combineWith(diagramSelectionV))) --> { (g: ViewerGraph, selection: Set[NodeId]) =>
-      project.hiddenNodesV.update(f(_, selection, g))
+    ep(_.sample(fullGraph.combineWith(diagramSelection.signal))) --> { (g: ViewerGraph, selection: Set[NodeId]) =>
+      project.hiddenNodes.update(f(_, selection, g))
     }
 
   // -------------- UI state -----------------
@@ -218,12 +215,18 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     val state0 = persistedStateVar.now()
     // Restore state from storage
     source.set(state0.source)
-    project.hiddenNodesV.set(state0.hiddenNodes)
+    project.name.set(state0.projectName)
+    project.hiddenNodes.set(state0.hiddenNodes)
     leftPanelVisible.set(state0.leftPanelVisible)
     leftPanelTabIndex.set(state0.sideBarTabIndex)
     // Set up persistence of state changes
-    project.hiddenNodesV.signal
-      .combineWith(source.signal, leftPanelVisible.signal, leftPanelTabIndex.signal)
+    project.hiddenNodes.signal
+      .combineWith(
+        project.name.signal,
+        source.signal,
+        leftPanelVisible.signal,
+        leftPanelTabIndex.signal
+      )
       .map(PersistedState.apply)
       .foreach(persistedStateVar.set)
   end restoreState
@@ -233,15 +236,23 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 end ViewerState
 
 case class PersistedState(
-    hiddenNodes:      Set[NodeId],
-    source:           String,
-    leftPanelVisible: Boolean,
+    hiddenNodes:      Set[NodeId] = Set.empty,
+    projectName:      String = "",
+    source:           String = "",
+    leftPanelVisible: Boolean = true,
     sideBarTabIndex:  Int = 0
 ) derives ReadWriter
 
 object PersistedState:
   private val minimalGraphText = "digraph G {\n}"
-  val empty = PersistedState(hiddenNodes = Set.empty, source = minimalGraphText, leftPanelVisible = true, sideBarTabIndex = 0)
+  val empty =
+    PersistedState(
+      hiddenNodes      = Set.empty,
+      projectName      = "Untitled",
+      source           = minimalGraphText,
+      leftPanelVisible = true,
+      sideBarTabIndex  = 0
+    )
 
 object ViewerState:
   def handleWheel(

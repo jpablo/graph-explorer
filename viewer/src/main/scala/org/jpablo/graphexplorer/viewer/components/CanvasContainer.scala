@@ -22,7 +22,7 @@ def CanvasContainer(
     fitDiagram --> state.resetView(),
     child <-- state.svgDiagramElement,
     onKeyDown(_.filter(_.keyCode == Backspace).sample(state.diagramSelection.signal)) --> { selection =>
-      state.project.hiddenNodesV.update(_ ++ selection)
+      state.project.hiddenNodes.update(_ ++ selection)
     },
     onClick --> handleSvgClick(state),
     onWheel.updateTranslate,

@@ -35,7 +35,7 @@ lazy val viewer =
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
-      scalacOptions ++= Seq("-explain", "-Ycheck-all-patmat"),
+      scalacOptions ++= Seq("-explain", "-Ycheck-all-patmat", "-Yimports:java.lang,scala,scala.Predef,org.scalajs"),
       Compile / mainClass := Some("org.jpablo.graphexplorer.viewer.Viewer"),
       scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule).withSourceMap(true) },
       externalNpm := {
