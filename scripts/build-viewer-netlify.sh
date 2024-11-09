@@ -14,7 +14,7 @@ chmod +x cs
 
 ./cs install stc
 export PATH="$PATH:/opt/buildhome/.local/share/coursier/bin"
-stc --ignoredLibs node
+stc --ignoredLibs node @codemirror/view @codemirror/lang-javascript @viz-js/viz @codemirror/commands jsdom @viz-js/lang-dot codemirror
 
 # -- build viewer
 
