@@ -2,6 +2,16 @@ label[for ^= show-ns-kind-] {
   padding: 0 0 2px;
 }
 
+#projects-view {
+  @apply bg-base-200 h-screen;
+
+  .navbar {
+  }
+  #projects-body {
+    @apply p-2;
+  }
+}
+
 #top-level {
   @apply bg-base-100 border-base-300 flex h-screen;
 

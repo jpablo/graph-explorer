@@ -3,10 +3,11 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
+import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import io.laminext.syntax.core.*
+import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot
@@ -19,16 +20,6 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 import org.scalajs.dom
 import org.scalajs.dom.{SVGPoint, SVGSVGElement}
 import upickle.default.*
-
-case class PersistedState(
-    hiddenNodes:      Set[NodeId],
-    source:           String,
-    leftPanelVisible: Boolean,
-    sideBarTabIndex:  Int = 0
-) derives ReadWriter
-
-object PersistedState:
-  val empty = PersistedState(Set.empty, "", false, 0)
 
 class SourceFlow(initialSource: String, hiddenNodesV: Signal[Set[NodeId]]):
   val source: Var[String] = Var(initialSource)
@@ -66,11 +57,11 @@ class SourceFlow(initialSource: String, hiddenNodesV: Signal[Set[NodeId]]):
 
 end SourceFlow
 
-case class ViewerState(initialSource: String = ""):
+case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
 
   val project =
-    ProjectOps(Var(Project(ProjectId("project-0"))))
+    ProjectOps(Var(Project(projectId)))
 
   private val translateXY = Var(SvgUnit.origin)
   val zoomValue = Var(1.0)
@@ -132,7 +123,6 @@ case class ViewerState(initialSource: String = ""):
   val leftPanelTabIndex = Var(0)
 
   // -------- Public API -----------
-
   def resetView() =
     zoomValue.set(1.0)
     translateXY.set(SvgUnit.origin)
@@ -222,28 +212,35 @@ case class ViewerState(initialSource: String = ""):
 
   // -------- storage ------------
 
-  private def persistableEvents: Signal[PersistedState] =
-    project.hiddenNodesV.signal
-      .combineWith(source.signal, leftPanelVisible.signal, leftPanelTabIndex.signal)
-      .map(PersistedState.apply)
+  private val persistedStateVar: Var[PersistedState] = ProjectStorage.projectPersistedState(projectId)
 
   private def restoreState() =
-    val ss = storedString("viewer.state", initial = "{\"hiddenNodes\":[],\"source\":\"\", \"leftPanelVisible\":true}")
-    val state0 =
-      try read[PersistedState](ss.signal.observe.now())
-      catch
-        case e: Throwable =>
-          dom.console.error(s"Error reading state: $e")
-          PersistedState.empty
+    val state0 = persistedStateVar.now()
+    // Restore state from storage
     source.set(state0.source)
     project.hiddenNodesV.set(state0.hiddenNodes)
     leftPanelVisible.set(state0.leftPanelVisible)
     leftPanelTabIndex.set(state0.sideBarTabIndex)
-    for a <- persistableEvents do ss.set(write(a))
+    // Set up persistence of state changes
+    project.hiddenNodesV.signal
+      .combineWith(source.signal, leftPanelVisible.signal, leftPanelTabIndex.signal)
+      .map(PersistedState.apply)
+      .foreach(persistedStateVar.set)
+  end restoreState
 
   restoreState()
 
 end ViewerState
+
+case class PersistedState(
+    hiddenNodes:      Set[NodeId],
+    source:           String,
+    leftPanelVisible: Boolean,
+    sideBarTabIndex:  Int = 0
+) derives ReadWriter
+
+object PersistedState:
+  val empty = PersistedState(Set.empty, "", false, 0)
 
 object ViewerState:
   def handleWheel(

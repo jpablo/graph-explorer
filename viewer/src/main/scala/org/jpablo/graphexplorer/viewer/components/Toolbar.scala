@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.laminext.syntax.core.*
+import org.jpablo.graphexplorer.router.navigateToHome
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -20,6 +21,7 @@ def Toolbar(
     cls := "shadow bg-base-100 rounded-box flex items-center gap-4 p-0.5 absolute top-1 left-2/4 -translate-x-2/4 z-10",
     idAttr := "toolbar",
     // -------- package selector --------
+    Button("Home", onClick --> navigateToHome()).amend(cls := "flex-none").tiny,
     Join(
       Tooltip(
         text = "Diagram source",

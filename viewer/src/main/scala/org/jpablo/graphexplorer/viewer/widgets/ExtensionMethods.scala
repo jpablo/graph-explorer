@@ -19,6 +19,7 @@ extension (elem: Input)
 
 extension (btn: Button)
   def outline: Button = btn.amend(cls := "btn-outline")
+  def neutral: Button = btn.amend(cls := "btn-neutral")
   def primary: Button = btn.amend(cls := "btn-primary")
   def secondary: Button = btn.amend(cls := "btn-secondary")
   def success: Button = btn.amend(cls := "btn-success")
