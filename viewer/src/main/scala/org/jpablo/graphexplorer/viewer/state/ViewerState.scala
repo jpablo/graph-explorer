@@ -240,7 +240,8 @@ case class PersistedState(
 ) derives ReadWriter
 
 object PersistedState:
-  val empty = PersistedState(Set.empty, "", false, 0)
+  private val minimalGraphText = "digraph G {\n}"
+  val empty = PersistedState(hiddenNodes = Set.empty, source = minimalGraphText, leftPanelVisible = true, sideBarTabIndex = 0)
 
 object ViewerState:
   def handleWheel(
