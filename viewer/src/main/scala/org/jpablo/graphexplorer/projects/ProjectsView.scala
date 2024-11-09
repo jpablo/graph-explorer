@@ -6,6 +6,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.router.navigateToProject
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.widgets.primary
+import com.raquo.laminar.api.features.unitArrows
 
 import scala.scalajs.js
 
@@ -75,10 +76,11 @@ private def projectCard(project: ProjectInfo) =
         h2(
           cls := "card-title",
           a(
-            href := s"/${project.id.value}",
+            href := s"#/${project.id.value}",
             cls  := "flex items-center gap-2 hover:text-primary transition-colors",
             span.folderIcon,
-            project.name
+            project.name,
+            onClick.preventDefault --> navigateToProject(project.id)
           )
         ),
         Button(
