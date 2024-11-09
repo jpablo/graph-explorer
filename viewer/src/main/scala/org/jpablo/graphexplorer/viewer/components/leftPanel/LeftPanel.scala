@@ -21,7 +21,6 @@ def LeftPanel(state: ViewerState) =
     // --- Tab Headers ---
     div(
       cls := "flex gap-2",
-      a(child <-- state.project.name.signal.map(n => span(n))),
 //      select(
 //        cls := "select select-bordered select-xs max-w-xs",
 //        option("Select example", disabled := true, selected := true),

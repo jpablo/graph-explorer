@@ -4,7 +4,6 @@ import org.jpablo.graphexplorer.viewer.widgets.Button
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.router.navigateToProject
-import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.widgets.primary
 import com.raquo.laminar.api.features.unitArrows
 

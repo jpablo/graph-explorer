@@ -209,10 +209,11 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // -------- storage ------------
 
-  private val persistedStateVar: Var[PersistedState] = ProjectStorage.projectPersistedState(projectId)
+  private val persistedState: Var[PersistedState] =
+    ProjectStorage.loadProjectPersistedState(projectId)
 
   private def restoreState() =
-    val state0 = persistedStateVar.now()
+    val state0 = persistedState.now()
     // Restore state from storage
     source.set(state0.source)
     project.name.set(state0.projectName)
@@ -228,7 +229,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
         leftPanelTabIndex.signal
       )
       .map(PersistedState.apply)
-      .foreach(persistedStateVar.set)
+      .foreach(persistedState.set)
   end restoreState
 
   restoreState()

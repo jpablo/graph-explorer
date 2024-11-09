@@ -28,22 +28,40 @@ object ProjectStorage:
     directoryStorage.signal.map(read[ProjectsDirectory](_))
 
   private def updateDirectory(f: ProjectsDirectory => ProjectsDirectory): Unit =
-    directoryStorage.update(current => write(f(read[ProjectsDirectory](current))))
+    val currentDir = read[ProjectsDirectory](directoryStorage.signal.observe.now())
+    // Execute transformation immediately and store the result
+    directoryStorage.set(write(f(currentDir)))
 
-  def projectPersistedState(id: ProjectId): Var[PersistedState] =
+  /** Retrieves the persisted state of a project identified by the given `ProjectId`.
+    *
+    * This function initializes the state from the local storage. It ensures that any changes to the state are persisted
+    * back to the local storage. Additionally, it updates the project's entry in the directory with the latest
+    * modification time and project name.
+    *
+    * @param id
+    *   The unique identifier of the project.
+    * @return
+    *   A `Var` containing the `PersistedState` of the project.
+    */
+  def loadProjectPersistedState(id: ProjectId): Var[PersistedState] =
     val initial = write(PersistedState.empty)
-    val storage = storedString(projectKey(id), initial)
-    val stateVar =
-      try Var(read[PersistedState](storage.signal.observe.now()))
+    val projectStorage = storedString(projectKey(id), initial)
+    // Initialize storage ~> state
+    val projectStateVar =
+      try Var(read[PersistedState](projectStorage.signal.observe.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
           Var(PersistedState.empty)
-    // Set up persistence of state changes
-    stateVar.signal.foreach: state =>
-      storage.set(write(state))
-      updateLastModified(id)
-    stateVar
+    // synchronize state ~> storage
+    projectStateVar.signal.foreach: state =>
+      // update project entry
+      projectStorage.set(write(state))
+      // update all directory fields
+      updateDirectory: dir =>
+        dir.modify(_.projects.eachWhere(_.id == id))
+          .using(_.copy(lastModified = System.currentTimeMillis(), name = state.projectName))
+    projectStateVar
 
   def createProject(name: String): ProjectId =
     val projectInfo = ProjectInfo(ProjectId.random, name, System.currentTimeMillis())
@@ -54,13 +72,6 @@ object ProjectStorage:
     storedString(projectKey(id), "").set("") // Clear the project data
     updateDirectory: dir =>
       dir.copy(projects = dir.projects.filterNot(_.id == id))
-
-  private def updateLastModified(id: ProjectId): Unit =
-    updateDirectory: dir =>
-      dir.copy(projects = dir.projects.map:
-        case p if p.id == id => p.copy(lastModified = System.currentTimeMillis())
-        case p               => p
-      )
 
   private def projectKey(id: ProjectId): String =
     s"graph-explorer.project.${id.value}"
