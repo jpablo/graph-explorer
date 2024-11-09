@@ -11,7 +11,7 @@ def TopLevel(state: ViewerState): ReactiveHtmlElement[HTMLDivElement] =
   val fitDiagram = EventBus[Unit]()
   div(
     idAttr := "top-level",
-    child(LeftPanel(state)) <-- state.leftPanelVisible,
+    LeftPanel(state).amend(cls("hidden") <-- state.leftPanelVisible.signal.not),
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram),
     SelectionSidebar(state),
