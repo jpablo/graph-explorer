@@ -13,7 +13,11 @@ import scala.annotation.tailrec
 
 type EdgeElement = DotNodeId | Subgraph
 
-case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) derives ReadWriter:
+case class DotAST(
+    @key("type") tpe: String,
+    children:         List[GraphElement],
+    id:               Option[String] = None
+) derives ReadWriter:
 
   lazy val allNodesIds: Set[String] = findAllNodeIds(children)
 
@@ -21,19 +25,19 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
 
   lazy val allArrows: Set[Arrow] = findAllArrows(children)
 
-  def addEdge(source: NodeId, target: NodeId): DiGraphAST =
+  def addEdge(source: NodeId, target: NodeId): DotAST =
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
     this.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
-  def setDefaultTheme: DiGraphAST =
+  def setDefaultTheme: DotAST =
     this.modify(_.children).using: children =>
       AttrStmt("node", List(Attr("style", "filled"))) :: children
 
-  def attachInternalAttributes: DiGraphAST =
+  def attachInternalAttributes: DotAST =
     EdgeStmt.resetId()
     this.modify(_.children).using(_.map(_.attachId))
 
-  def removeNodes(idsToRemove: Set[String]): DiGraphAST =
+  def removeNodes(idsToRemove: Set[String]): DotAST =
     @tailrec
     def optimize(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
       children match
@@ -65,11 +69,11 @@ case class DiGraphAST(children: List[GraphElement], id: Option[String] = None) d
     s"digraph $idStr{$body}"
   end render
 
-end DiGraphAST
+end DotAST
 
-object DiGraphAST:
-  val empty: DiGraphAST = DiGraphAST(Nil)
-end DiGraphAST
+object DotAST:
+  val empty: DotAST = DotAST("digraph", Nil)
+end DotAST
 
 def findAllNodeIds(children: List[GraphElement]): Set[String] =
   children.toSet.flatMap(_.allNodesIds)

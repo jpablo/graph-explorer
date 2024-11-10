@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.formats.dot
 
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 import org.scalajs.dom
 import upickle.default.*
 
@@ -17,14 +17,14 @@ object DotParser extends js.Object:
   def parse(dotString: String): js.Object = js.native
 
 object DotParserT:
-  def parse(dotString: String): Try[List[DiGraphAST]] =
+  def parse(dotString: String): Try[List[DotAST]] =
     for
       j <- Try(DotParser.parse(dotString))
-//      _ = dom.console.log(dotString)
-//      _ = dom.console.log(j)
+      _ = dom.console.log(dotString)
+      _ = dom.console.log(j)
       str = JSON.stringify(j)
       ast <-
-        Try(read[List[DiGraphAST]](str)) match
+        Try(read[List[DotAST]](str)) match
           case f @ scala.util.Failure(exception) =>
             dom.console.error("==> Error in DotParserT.parse !")
             dom.console.error(exception.toString)

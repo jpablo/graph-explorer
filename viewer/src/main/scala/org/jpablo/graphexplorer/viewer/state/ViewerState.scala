@@ -12,7 +12,7 @@ import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
@@ -25,11 +25,11 @@ class SourceFlow(initialSource: String, hiddenNodesV: Signal[Set[NodeId]]):
 
   // 1. parse source
   // String ~> Dot ~> DiGraphAST
-  val fullAST: Signal[DiGraphAST] =
+  val fullAST: Signal[DotAST] =
     source.signal.map: src =>
       Dot(src).buildAST.headOption
         .map(_.attachInternalAttributes)
-        .getOrElse(DiGraphAST.empty)
+        .getOrElse(DotAST.empty)
 
   // 2. DiGraphAST ~> ViewerGraph
   // Arrows are assigned consecutive ids starting from 1
@@ -38,7 +38,7 @@ class SourceFlow(initialSource: String, hiddenNodesV: Signal[Set[NodeId]]):
 
   // 3. Remove hidden nodes from Dot AST
   // DiGraphAST ~[removeNodes]~> DiGraphAST
-  val visibleAST: Signal[DiGraphAST] =
+  val visibleAST: Signal[DotAST] =
     fullAST
       .combineWith(hiddenNodesV.signal)
       .map: (fullAST, hiddenNodes) =>
@@ -148,7 +148,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def showNodes(ids: Set[NodeId]) =
     hiddenNodes.remove(ids)
 
-  def addEdge(fullAST: DiGraphAST, from: NodeId, to: NodeId): Unit =
+  def addEdge(fullAST: DotAST, from: NodeId, to: NodeId): Unit =
     val ast2 = fullAST.addEdge(from, to)
     source.set(ast2.render(false))
 

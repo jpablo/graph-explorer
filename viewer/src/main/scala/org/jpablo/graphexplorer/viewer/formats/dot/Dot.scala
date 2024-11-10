@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.ViewerNode
 import org.scalajs.dom
@@ -17,7 +17,7 @@ case class Dot(value: String):
     value
 
   // TODO: handle errors
-  val buildAST: List[DiGraphAST] =
+  val buildAST: List[DotAST] =
     if value.isEmpty then List.empty
     else
       DotParserT.parse(value) match
@@ -31,14 +31,14 @@ object Dot:
 
   lazy val empty = Dot("digraph G { } ")
 
-  extension (diGraph: DiGraphAST)
+  extension (dotAST: DotAST)
     def toDot: Dot =
-      Dot(diGraph.render(true))
+      Dot(dotAST.render(true))
 
     def toViewerGraph: ViewerGraph =
       ViewerGraph(
-        arrows = diGraph.allArrows,
-        nodes  = diGraph.allNodesIds.map(ViewerNode.node)
+        arrows = dotAST.allArrows,
+        nodes  = dotAST.allNodesIds.map(ViewerNode.node)
       )
 
   extension (dot: Dot)

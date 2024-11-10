@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.selectable.*
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.DiGraphAST
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.KeyCode.Backspace
@@ -43,7 +43,7 @@ def CanvasContainer(
       if state.isDragging.now() then
         state.endPos.set((event.clientX, event.clientY))
     },
-    onMouseUp(_.withCurrentValueOf(state.fullAST)) --> { (event, fullAST: DiGraphAST) =>
+    onMouseUp(_.withCurrentValueOf(state.fullAST)) --> { (event, fullAST: DotAST) =>
       if state.isDragging.now() then
         findSelectableElement(event).foreach:
           case endNode: NodeElement =>

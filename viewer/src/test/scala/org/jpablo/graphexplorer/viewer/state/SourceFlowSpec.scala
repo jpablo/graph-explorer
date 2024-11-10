@@ -27,38 +27,40 @@ class SourceFlowSpec extends ScalaCheckSuite:
     assert(edgeIds == List("1", "2", "3"))
 
   lazy val referenceAST =
-    DiGraphAST(
-      List(
-        Newline(),
-        Pad(),
-        NodeStmt(DotNodeId("A", None), List(Attr("shape", "diamond"))),
-        Newline(),
-        Pad(),
-        NodeStmt(DotNodeId("B", None), List(Attr("shape", "box"))),
-        Newline(),
-        Pad(),
-        NodeStmt(DotNodeId("C", None), List(Attr("shape", "circle"))),
-        Newline(),
-        Pad(),
-        EdgeStmt(
-          List(DotNodeId("A", None), DotNodeId("B", None)),
-          List(Attr("id", "1"), Attr("style", "dashed"), Attr("color", "grey"))
+    DotAST(
+      tpe = "digraph",
+      children =
+        List(
+          Newline(),
+          Pad(),
+          NodeStmt(DotNodeId("A", None), List(Attr("shape", "diamond"))),
+          Newline(),
+          Pad(),
+          NodeStmt(DotNodeId("B", None), List(Attr("shape", "box"))),
+          Newline(),
+          Pad(),
+          NodeStmt(DotNodeId("C", None), List(Attr("shape", "circle"))),
+          Newline(),
+          Pad(),
+          EdgeStmt(
+            List(DotNodeId("A", None), DotNodeId("B", None)),
+            List(Attr("id", "1"), Attr("style", "dashed"), Attr("color", "grey"))
+          ),
+          Newline(),
+          Pad(),
+          EdgeStmt(
+            List(DotNodeId("A", None), DotNodeId("C", None)),
+            List(Attr("id", "2"), Attr("color", "black:invis:black"))
+          ),
+          Newline(),
+          Pad(),
+          EdgeStmt(
+            List(DotNodeId("A", None), DotNodeId("D", None)),
+            List(Attr("id", "3"), Attr("penwidth", "5"), Attr("arrowhead", "none"))
+          ),
+          Newline()
         ),
-        Newline(),
-        Pad(),
-        EdgeStmt(
-          List(DotNodeId("A", None), DotNodeId("C", None)),
-          List(Attr("id", "2"), Attr("color", "black:invis:black"))
-        ),
-        Newline(),
-        Pad(),
-        EdgeStmt(
-          List(DotNodeId("A", None), DotNodeId("D", None)),
-          List(Attr("id", "3"), Attr("penwidth", "5"), Attr("arrowhead", "none"))
-        ),
-        Newline()
-      ),
-      Some("D")
+      id = Some("D")
     )
 
 end SourceFlowSpec
