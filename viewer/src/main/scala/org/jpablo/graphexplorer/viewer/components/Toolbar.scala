@@ -23,7 +23,7 @@ def Toolbar(
     div(
       cls := "breadcrumbs font-bold py-0",
       ul(
-        li(a("Home", onClick --> navigateToHome())),
+        li(a("Graph Explorer", onClick --> navigateToHome())),
         li(
           a(
             cls := "gap-2",
