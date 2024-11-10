@@ -25,6 +25,8 @@ case class DotAST(
 
   lazy val allArrows: Set[Arrow] = findAllArrows(children)
 
+  val edgeSeparator = if tpe == "digraph" then "->" else "--"
+
   def addEdge(source: NodeId, target: NodeId): DotAST =
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
     this.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
@@ -62,11 +64,11 @@ case class DotAST(
 
   def render(keepInternal: Boolean): String =
     val body = this.children
-      .map(_.render(keepInternal))
+      .map(_.render(keepInternal, edgeSeparator))
       .filter(_.nonEmpty)
       .mkString("")
     val idStr = id.map(id => s"\"$id\" ").getOrElse(" ")
-    s"digraph $idStr{$body}"
+    s"$tpe $idStr{$body}"
   end render
 
 end DotAST
@@ -185,7 +187,7 @@ sealed trait GraphElement derives ReadWriter:
 
       case other => List(other)
 
-  def render(keepInternal: Boolean): String =
+  def render(keepInternal: Boolean, edgeSeparator: String): String =
     this match
       case Newline() => "\n"
 
@@ -199,8 +201,8 @@ sealed trait GraphElement derives ReadWriter:
         edgeList
           .map:
             case n: DotNodeId => s"\"${n.id}\""
-            case s: Subgraph  => s.render(keepInternal)
-          .mkString(" -> ") + renderAttrList(keepInternal, attrList)
+            case s: Subgraph  => s.render(keepInternal, edgeSeparator)
+          .mkString(s" $edgeSeparator") + renderAttrList(keepInternal, attrList)
 
       case StmtSep() => ""
 
@@ -211,7 +213,7 @@ sealed trait GraphElement derives ReadWriter:
 
       case Subgraph(children, id) =>
         val idStr = id.getOrElse("")
-        children.map(_.render(keepInternal)).mkString(s"subgraph $idStr {", "", "}")
+        children.map(_.render(keepInternal, edgeSeparator)).mkString(s"subgraph $idStr {", "", "}")
 
 end GraphElement
 
