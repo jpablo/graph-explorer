@@ -18,19 +18,18 @@ def Toolbar(
 
   val drawerId = s"drawer-id"
   div(
-    cls := "shadow bg-base-100 rounded-box flex items-center gap-4 p-0.5 absolute top-1 left-2/4 -translate-x-2/4 z-10",
+    cls := "shadow-xl bg-base-100 rounded-box flex items-center gap-4 p-0.5 absolute top-1 left-2/4 -translate-x-2/4 z-10",
     idAttr := "toolbar",
     // -------- package selector --------
     Button("Home", onClick --> navigateToHome()).amend(cls := "flex-none").tiny,
-    h1(
-      a(
-        text <-- state.project.name.signal,
-        onClick --> { _ =>
-          val newName = window.prompt("Enter project Name", state.project.name.now())
-          if newName != null then
-            state.project.name.set(newName)
-        }
-      )
+    a(
+      cls    := "font-bold",
+      text <-- state.project.name.signal,
+      onClick --> { _ =>
+        val newName = window.prompt("Enter project Name", state.project.name.now())
+        if newName != null then
+          state.project.name.set(newName)
+      }
     ),
     Join(
       Tooltip(

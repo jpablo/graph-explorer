@@ -214,13 +214,13 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   private def restoreState() =
     val state0 = persistedState.now()
-    // Restore state from storage
+    // Restore ViewerState <~ PersistedStage (which comes from local storage)
     source.set(state0.source)
     project.name.set(state0.projectName)
     project.hiddenNodes.set(state0.hiddenNodes)
     leftPanelVisible.set(state0.leftPanelVisible)
     leftPanelTabIndex.set(state0.sideBarTabIndex)
-    // Set up persistence of state changes
+    // synchronize ViewerState ~> PersistedStage
     project.hiddenNodes.signal
       .combineWith(
         project.name.signal,

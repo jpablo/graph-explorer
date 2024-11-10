@@ -16,44 +16,36 @@ case class ProjectInfo(
 case class ProjectsDirectory(projects: List[ProjectInfo] = Nil) derives ReadWriter
 
 object ProjectStorage:
-  private val directoryStorage = storedString(
-    "graph-explorer.projects",
-    write(ProjectsDirectory())
-  )
-
   given owner: Owner = OneTimeOwner(() => ())
 
-  // Public signal for observing directory changes
+  private val directoryStorage =
+    storedString("graph-explorer.projects", write(ProjectsDirectory()))
+
   val directory: Signal[ProjectsDirectory] =
     directoryStorage.signal.map(read[ProjectsDirectory](_))
-
-  private def updateDirectory(f: ProjectsDirectory => ProjectsDirectory): Unit =
-    val currentDir = read[ProjectsDirectory](directoryStorage.signal.observe.now())
-    // Execute transformation immediately and store the result
-    directoryStorage.set(write(f(currentDir)))
 
   /** Retrieves the persisted state of a project identified by the given `ProjectId`.
     *
     * This function initializes the state from the local storage. It ensures that any changes to the state are persisted
-    * back to the local storage. Additionally, it updates the project's entry in the directory with the latest
-    * modification time and project name.
+    * back to the local storage. It also updates the project's entry in the directory with the latest modification time
+    * and project name.
     *
     * @param id
-    *   The unique identifier of the project.
+    *   The project's id.
     * @return
     *   A `Var` containing the `PersistedState` of the project.
     */
   def loadProjectPersistedState(id: ProjectId): Var[PersistedState] =
     val initial = write(PersistedState.empty)
     val projectStorage = storedString(projectKey(id), initial)
-    // Initialize storage ~> state
+    // Initialize storage ~> PersistedStage
     val projectStateVar =
       try Var(read[PersistedState](projectStorage.signal.observe.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
           Var(PersistedState.empty)
-    // synchronize state ~> storage
+    // synchronize PersistedStage ~> storage
     projectStateVar.signal.foreach: state =>
       // update project entry
       projectStorage.set(write(state))
@@ -63,7 +55,7 @@ object ProjectStorage:
           .using(_.copy(lastModified = System.currentTimeMillis(), name = state.projectName))
     projectStateVar
 
-  def createProject(name: String): ProjectId =
+  def createProjectDirectoryEntry(name: String): ProjectId =
     val projectInfo = ProjectInfo(ProjectId.random, name, System.currentTimeMillis())
     updateDirectory(_.modify(_.projects).using(projectInfo :: _))
     projectInfo.id
@@ -72,6 +64,13 @@ object ProjectStorage:
     storedString(projectKey(id), "").set("") // Clear the project data
     updateDirectory: dir =>
       dir.copy(projects = dir.projects.filterNot(_.id == id))
+
+  // ----------------- Private methods -----------------
+
+  private def updateDirectory(f: ProjectsDirectory => ProjectsDirectory): Unit =
+    val currentDir = read[ProjectsDirectory](directoryStorage.signal.observe.now())
+    // Execute transformation immediately and store the result
+    directoryStorage.set(write(f(currentDir)))
 
   private def projectKey(id: ProjectId): String =
     s"graph-explorer.project.${id.value}"

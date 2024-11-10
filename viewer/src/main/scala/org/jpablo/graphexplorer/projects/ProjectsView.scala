@@ -43,7 +43,9 @@ def ProjectsView() =
             span.plusCircleIcon,
             "Create Project",
             onClick --> { _ =>
-              val id = ProjectStorage.createProject("Untitled")
+              // Add a new entry to the project directory and navigate to it
+              // This will create a new project with a default name.
+              val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
               navigateToProject(id)
             }
           ).primary

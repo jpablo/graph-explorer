@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.leftPanel
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
-//import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
+import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -20,23 +20,23 @@ def LeftPanel(state: ViewerState) =
     idAttr := "nodes-panel",
     // --- Tab Headers ---
     div(
-      cls := "flex gap-2",
-//      select(
-//        cls := "select select-bordered select-xs max-w-xs",
-//        option("Select example", disabled := true, selected := true),
-//        examples.keys.map(name => option(name, value := name)),
-//        onChange.mapToValue.map(examples).flatMap(FetchStream.get(_)) --> { source =>
-//          state.showAllNodes()
-//          state.source.set(source)
-//        }
-//      ),
-//      a(
-//        cls    := "link",
-//        href   := "https://www.graphviz.org/documentation/",
-//        target := "_blank",
-//        title  := "Visit the Graphviz documentation for more information",
-//        "Graphviz"
-//      )
+      cls := "flex gap-2 justify-between",
+      select(
+        cls := "select select-bordered select-xs max-w-xs",
+        option("Select example", disabled := true, selected := true),
+        examples.keys.map(name => option(name, value := name)),
+        onChange.mapToValue.map(examples).flatMap(FetchStream.get(_)) --> { source =>
+          state.showAllNodes()
+          state.source.set(source)
+        }
+      ),
+      a(
+        cls    := "link",
+        href   := "https://www.graphviz.org/documentation/",
+        target := "_blank",
+        title  := "Visit the Graphviz documentation for more information",
+        "Graphviz"
+      )
     ),
     div(
       idAttr := "nodes-panel-tab-buttons",
