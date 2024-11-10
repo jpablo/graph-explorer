@@ -79,7 +79,7 @@ private def projectCard(project: ProjectInfo) =
           a(
             href := s"#/${project.id.value}",
             cls  := "flex items-center gap-2 hover:text-primary transition-colors",
-            span().folderIcon,
+            span().boxSeamIcon,
             project.name,
             onClick.preventDefault --> navigateToProject(project.id)
           )

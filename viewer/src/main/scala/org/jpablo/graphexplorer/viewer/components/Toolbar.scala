@@ -18,12 +18,30 @@ def Toolbar(
 
   val drawerId = s"drawer-id"
   div(
-    cls := "shadow-xl bg-base-100 rounded-box flex items-center gap-4 p-0.5 absolute top-1 left-2/4 -translate-x-2/4 z-10",
     idAttr := "toolbar",
-    // -------- package selector --------
+    // -------- Navigation --------
+    div(
+      cls := "breadcrumbs font-bold py-0",
+      ul(
+        li(a("Home", onClick --> navigateToHome())),
+        li(
+          a(
+            cls := "gap-2",
+            span().boxSeamIcon,
+            text <-- state.project.name.signal,
+            onClick --> { _ =>
+              val newName = window.prompt("Enter project Name", state.project.name.now())
+              if newName != null then
+                state.project.name.set(newName)
+            }
+          )
+        )
+      )
+    ),
+    // -------- Left panel toggle --------
     Join(
       Tooltip(
-        text = "Diagram source",
+        text = "Diagram elements",
         cls := "flex-none",
         input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
         label(
@@ -34,17 +52,6 @@ def Toolbar(
         ).tiny.layoutSidebarIcon
       )
     ),
-    Button(cls := "flex-none", "Home", onClick --> navigateToHome()).tiny,
-    Button(
-      span().folderIcon,
-      " ",
-      text <-- state.project.name.signal,
-      onClick --> { _ =>
-        val newName = window.prompt("Enter project Name", state.project.name.now())
-        if newName != null then
-          state.project.name.set(newName)
-      }
-    ).tiny,
     // -------- actions toolbar --------
     Join(
       Button("roots", onClick.keepRootsOnly).tiny,
