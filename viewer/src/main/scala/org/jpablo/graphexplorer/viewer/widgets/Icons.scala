@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.widgets
 import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import com.raquo.laminar.tags.HtmlTag
 import org.scalajs.dom
 
 object Icons:
@@ -17,17 +16,17 @@ object Icons:
       cls <-- $isOpen.map(o => if o then "bi-chevron-down" else "bi-chevron-right")
     ).amend(mods)
 
-  extension (tag: HtmlTag[dom.HTMLElement])
-    def barChartStepsIcon = tag(cls := "bi bi-bar-chart-steps")
-    def boxesIcon = tag(cls := "bi bi-boxes")
-    def closeIcon = tag(cls := "bi bi-x-circle")
-    def dashIcon = tag(cls := "bi bi-dash")
-    def fileBinaryIcon = tag(cls := "bi bi-file-binary")
-    def fileCodeIcon = tag(cls := "bi bi-file-code")
-    def folderIcon = tag(cls := "bi bi-folder")
-    def folderMinusIcon = tag(cls := "bi bi-folder-minus")
-    def folderPlusIcon = tag(cls := "bi bi-folder-plus")
-    def listIcon = tag(cls := "bi bi-list")
-    def layoutSidebarIcon = tag(cls := "bi bi-layout-sidebar")
-    def plusCircleIcon = tag(cls := "bi bi-plus-circle")
-    def plusIcon = tag(cls := "bi bi-plus")
+  extension (elem: ReactiveHtmlElement[dom.HTMLElement])
+    def layoutSidebarIcon = elem.amend(cls := "bi bi-layout-sidebar")
+    def barChartStepsIcon = elem.amend(cls := "bi bi-bar-chart-steps")
+    def folderIcon = elem.amend(cls := "bi bi-folder")
+    def closeIcon = elem.amend(cls := "bi bi-x-circle")
+    def boxesIcon = elem.amend(cls := "bi bi-boxes")
+    def dashIcon = elem.amend(cls := "bi bi-dash")
+    def fileBinaryIcon = elem.amend(cls := "bi bi-file-binary")
+    def fileCodeIcon = elem.amend(cls := "bi bi-file-code")
+    def folderMinusIcon = elem.amend(cls := "bi bi-folder-minus")
+    def folderPlusIcon = elem.amend(cls := "bi bi-folder-plus")
+    def listIcon = elem.amend(cls := "bi bi-list")
+    def plusCircleIcon = elem.amend(cls := "bi bi-plus-circle")
+    def plusIcon = elem.amend(cls := "bi bi-plus")

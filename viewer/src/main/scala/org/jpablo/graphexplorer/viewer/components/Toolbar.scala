@@ -21,28 +21,30 @@ def Toolbar(
     cls := "shadow-xl bg-base-100 rounded-box flex items-center gap-4 p-0.5 absolute top-1 left-2/4 -translate-x-2/4 z-10",
     idAttr := "toolbar",
     // -------- package selector --------
-    Button("Home", onClick --> navigateToHome()).amend(cls := "flex-none").tiny,
-    a(
-      cls    := "font-bold",
+    Join(
+      Tooltip(
+        text = "Diagram source",
+        cls := "flex-none",
+        input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
+        label(
+          forId := drawerId,
+          cls   := "btn btn-ghost",
+          cls("btn-active") <-- state.leftPanelVisible,
+          onClick --> state.leftPanelVisible.toggle()
+        ).tiny.layoutSidebarIcon
+      )
+    ),
+    Button(cls := "flex-none", "Home", onClick --> navigateToHome()).tiny,
+    Button(
+      span().folderIcon,
+      " ",
       text <-- state.project.name.signal,
       onClick --> { _ =>
         val newName = window.prompt("Enter project Name", state.project.name.now())
         if newName != null then
           state.project.name.set(newName)
       }
-    ),
-    Join(
-      Tooltip(
-        text = "Diagram source",
-        input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
-        label(
-          forId := drawerId,
-          cls   := "btn btn-ghost btn-sm bi bi-layout-sidebar",
-          cls("btn-active") <-- state.leftPanelVisible,
-          onClick --> state.leftPanelVisible.toggle()
-        )
-      ).amend(cls := "flex-none")
-    ),
+    ).tiny,
     // -------- actions toolbar --------
     Join(
       Button("roots", onClick.keepRootsOnly).tiny,
@@ -66,9 +68,9 @@ def Toolbar(
     ),
     // ----------
     Join(
-      Button(span.dashIcon, onClick --> state.zoomValue.update(_ * 0.9)).tiny,
+      Button(span().dashIcon, onClick --> state.zoomValue.update(_ * 0.9)).tiny,
       Button("fit", onClick --> fitDiagram.emit(())).tiny,
-      Button(span.plusIcon, onClick --> state.zoomValue.update(_ * 1.1)).tiny
+      Button(span().plusIcon, onClick --> state.zoomValue.update(_ * 1.1)).tiny
     ),
     Join(
       input(

@@ -40,7 +40,7 @@ def ProjectsView() =
         div(
           cls := "flex-none",
           Button(
-            span.plusCircleIcon,
+            span().plusCircleIcon,
             "Create Project",
             onClick --> { _ =>
               // Add a new entry to the project directory and navigate to it
@@ -79,13 +79,13 @@ private def projectCard(project: ProjectInfo) =
           a(
             href := s"#/${project.id.value}",
             cls  := "flex items-center gap-2 hover:text-primary transition-colors",
-            span.folderIcon,
+            span().folderIcon,
             project.name,
             onClick.preventDefault --> navigateToProject(project.id)
           )
         ),
         Button(
-          span.closeIcon,
+          span().closeIcon,
           onClick --> { _ =>
             if dom.window.confirm("Are you sure you want to delete this project?") then
               ProjectStorage.deleteProject(project.id)
@@ -96,7 +96,7 @@ private def projectCard(project: ProjectInfo) =
       // Last modified
       div(
         cls := "text-sm text-base-content/70 flex items-center gap-1",
-        span.listIcon,
+        span().listIcon,
         s"Last modified: ${formatDate(project.lastModified)}"
       )
     )

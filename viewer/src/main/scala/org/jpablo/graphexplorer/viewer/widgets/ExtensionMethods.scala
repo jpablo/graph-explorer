@@ -1,8 +1,8 @@
 package org.jpablo.graphexplorer.viewer.widgets
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveHtmlElement
 
-import scala.annotation.targetName
 
 /*
   Input and Button have the same type erasure:
@@ -14,17 +14,18 @@ import scala.annotation.targetName
  */
 
 extension (elem: Input)
-  @targetName("InputSmall")
   def smallInput: Input = elem.amend(cls := "form-control-sm")
 
-extension (btn: Button)
-  def outline: Button = btn.amend(cls := "btn-outline")
-  def neutral: Button = btn.amend(cls := "btn-neutral")
-  def primary: Button = btn.amend(cls := "btn-primary")
-  def secondary: Button = btn.amend(cls := "btn-secondary")
-  def success: Button = btn.amend(cls := "btn-success")
-  @targetName("ButtonSmall")
-  def small: Button = btn.amend(cls := "btn-sm")
-  def tiny: Button = btn.amend(cls := "btn-xs")
-  def circle: Button = btn.amend(cls := "btn-circle")
-  def ghost: Button = btn.amend(cls := "btn-ghost")
+
+//extension (btn: Button)
+extension (btn: ReactiveHtmlElement[dom.HTMLElement])
+  def asBtn = btn.amend(cls := "btn")
+  def outline = btn.amend(cls := "btn-outline")
+  def neutral = btn.amend(cls := "btn-neutral")
+  def primary = btn.amend(cls := "btn-primary")
+  def secondary = btn.amend(cls := "btn-secondary")
+  def success = btn.amend(cls := "btn-success")
+  def small = btn.amend(cls := "btn-sm")
+  def tiny = btn.amend(cls := "btn-xs")
+  def circle = btn.amend(cls := "btn-circle")
+  def ghost = btn.amend(cls := "btn-ghost")
