@@ -9,7 +9,7 @@ import com.raquo.laminar.api.features.unitArrows
 
 import scala.scalajs.js
 
-def ProjectsView(router: Router) =
+def ProjectsDirectoryView(router: Router) =
   div(
     idAttr := "projects-view",
     div(
@@ -33,7 +33,8 @@ def ProjectsView(router: Router) =
         div(
           cls := "flex-1",
           h1(
-            cls := "text-2xl font-bold",
+            cls := "text-2xl font-bold gap-2 flex",
+            span().folderIcon,
             "Projects"
           )
         ),

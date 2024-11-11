@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.projects.ProjectsView
+import org.jpablo.graphexplorer.projects.ProjectsDirectoryView
 import org.jpablo.graphexplorer.router
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.TopLevel
@@ -16,7 +16,7 @@ object Viewer:
     render(
       container = document.querySelector("#app"),
       rootNode = router.now() match
-        case Route.Home                     => ProjectsView(router)
+        case Route.Home                     => ProjectsDirectoryView(router)
         case Route.ProjectDetail(projectId) => TopLevel(ViewerState(ProjectId(projectId)), router)
     )
 
