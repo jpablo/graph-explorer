@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.router.navigateToHome
+import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -12,7 +12,8 @@ import org.scalajs.dom.window
 
 def Toolbar(
     state:      ViewerState,
-    fitDiagram: EventBus[Unit]
+    fitDiagram: EventBus[Unit],
+    router:     Router
 ) =
   import state.eventHandlers.*
 
@@ -28,7 +29,7 @@ def Toolbar(
             cls := "gap-2",
             span().folderIcon,
             "Graph Explorer",
-            onClick --> navigateToHome()
+            onClick --> router.navigateTo(Route.Home)
           )
         ),
         li(

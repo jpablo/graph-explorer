@@ -3,13 +3,13 @@ package org.jpablo.graphexplorer.projects
 import org.jpablo.graphexplorer.viewer.widgets.Button
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.router.navigateToProject
+import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.widgets.primary
 import com.raquo.laminar.api.features.unitArrows
 
 import scala.scalajs.js
 
-def ProjectsView() =
+def ProjectsView(router: Router) =
   div(
     idAttr := "projects-view",
     div(
@@ -46,7 +46,7 @@ def ProjectsView() =
               // Add a new entry to the project directory and navigate to it
               // This will create a new project with a default name.
               val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
-              navigateToProject(id)
+              router.navigateTo(Route.ProjectDetail(id.value))
             }
           ).primary
         )
@@ -57,15 +57,15 @@ def ProjectsView() =
         idAttr := "projects-grid",
         cls    := "flex flex-wrap gap-4 p-4", // Added padding
         children <-- ProjectStorage.directory.map { dir =>
-          dir.projects.sortBy(-_.lastModified).map { project =>
-            projectCard(project)
-          }
+          dir.projects
+            .sortBy(-_.lastModified)
+            .map(projectCard(router))
         }
       )
     )
   )
 
-private def projectCard(project: ProjectInfo) =
+private def projectCard(router: Router)(project: ProjectInfo) =
   div(
     cls := "card bg-base-100 w-96 shadow-xl",
     div(
@@ -81,7 +81,7 @@ private def projectCard(project: ProjectInfo) =
             cls  := "flex items-center gap-2 hover:text-primary transition-colors",
             span().boxSeamIcon,
             project.name,
-            onClick.preventDefault --> navigateToProject(project.id)
+            onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
           )
         ),
         Button(

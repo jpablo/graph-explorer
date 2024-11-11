@@ -44,7 +44,7 @@ lazy val viewer =
       },
       libraryDependencies ++= Seq(
         "com.raquo"                  %%% "laminar"     % laminarVersion,
-        "com.raquo"                  %%% "waypoint"    % "8.0.0",
+//        "com.raquo"                  %%% "waypoint"    % "8.0.0",
         "com.softwaremill.quicklens" %%% "quicklens"   % "1.9.0",
         "io.laminext"                %%% "fetch"       % "0.17.0",
         "org.scala-js"               %%% "scalajs-dom" % "2.8.0",

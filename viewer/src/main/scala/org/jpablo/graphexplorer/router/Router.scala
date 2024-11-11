@@ -1,22 +1,34 @@
 package org.jpablo.graphexplorer.router
 
-import org.jpablo.graphexplorer.viewer.state.ProjectId
-import org.scalajs.dom.window
+import com.raquo.airstream.ownership.OneTimeOwner
+import com.raquo.laminar.api.L.*
 
-def projectIdFromLocation(): Option[ProjectId] =
-  window.location.hash match
-    case hash if hash.startsWith("#/") =>
-      // Extract UUID after #/
-      val uuid = hash.substring(2).trim
-      if uuid.nonEmpty then
-        Some(ProjectId(uuid))
-      else
-        None
-    case _ => None
+enum Route:
+  case Home
+  case ProjectDetail(uuid: String)
 
-def navigateToProject(projectId: ProjectId): Unit =
-  window.location.hash = s"#/${projectId.value}"
-  window.location.reload()
+class Router:
+  given owner: Owner = OneTimeOwner(() => ())
 
-def navigateToHome(): Unit =
-  window.location.href = "/"
+  // Listen to hashchange events
+  windowEvents(_.onHashChange).foreach: event =>
+    dom.console.debug("Hash changed", event.newURL)
+    // TODO: Consider not doing a full reload everytime the hash changes
+    dom.window.location.reload()
+
+  def now(): Route =
+    parseHash(dom.window.location.hash)
+
+  def navigateTo(route: Route): Unit =
+    dom.window.location.hash = buildHash(route)
+
+  private def parseHash(hash: String): Route =
+    val path = hash.stripPrefix("#/").split("/").filter(_.nonEmpty)
+    path.toList match
+      case projectId :: Nil => Route.ProjectDetail(projectId)
+      case _                => Route.Home
+
+  private def buildHash(route: Route): String =
+    route match
+      case Route.Home              => "#/"
+      case Route.ProjectDetail(id) => s"#/$id"
