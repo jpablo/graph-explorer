@@ -58,8 +58,9 @@ def Toolbar(
           cls("btn-active") <-- state.leftPanelVisible,
           onClick --> state.leftPanelVisible.toggle()
         ).tiny.layoutSidebarIcon
-      )
+      ),
     ),
+    Button("Chat", onClick --> state.chatOpen.toggle()).tiny,
     // -------- actions toolbar --------
     Join(
       Button("roots", onClick.keepRootsOnly).tiny,

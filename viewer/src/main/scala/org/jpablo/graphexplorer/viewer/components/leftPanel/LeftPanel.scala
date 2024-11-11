@@ -12,7 +12,7 @@ def LeftPanel(state: ViewerState) =
   val visibleTab = state.leftPanelTabIndex
   val filterNodesByNodeId = Var("")
   val filterEdgesByNodeId = Var("")
-  def isVisible(i: Int) = visibleTab.signal.map(_ == i)
+  def isVisible(i: Int): Signal[Boolean] = visibleTab.signal.map(_ == i)
   val onlyActiveNodes = Var(false)
   val onlyActiveEdges = Var(false)
 
