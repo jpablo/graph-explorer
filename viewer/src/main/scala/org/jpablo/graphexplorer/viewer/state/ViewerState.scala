@@ -8,6 +8,8 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.projects.ProjectStorage
+import org.jpablo.graphexplorer.prompt.GraphvizPrompt.validateResponse
+import org.jpablo.graphexplorer.prompt.openai.{OpenAIChatConfig, openAIClient}
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.Dot
@@ -118,7 +120,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // -------------- UI state -----------------
   val leftPanelVisible = Var(true)
   val leftPanelTabIndex = Var(0)
-  val chatOpen = Var(true)
+  val chatOpen = Var(false)
+  val chatShowConfiguration = Var(false)
+  val oaiChatConfig = Var(OpenAIChatConfig.default)
 
   // -------- Public API -----------
   def resetView() =
@@ -152,6 +156,13 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def addEdge(fullAST: DotAST, from: NodeId, to: NodeId): Unit =
     val ast2 = fullAST.addEdge(from, to)
     source.set(ast2.render(false))
+
+  def submitChatRequest(requestText: String): Subscription =
+    openAIClient(oaiChatConfig.now(), source.now(), requestText)
+      .foreach: chatResponse =>
+        validateResponse(chatResponse.choices.head.message.content) match
+          case Left(value)  => dom.console.error(s"Invalid response: $value")
+          case Right(value) => source.set(value)
 
   object eventHandlers:
     extension [E <: dom.Event](ev: EventProp[E])
@@ -211,7 +222,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // -------- storage ------------
 
   private val persistedState: Var[PersistedState] =
-    ProjectStorage.loadProjectPersistedState(projectId)
+    ProjectStorage.loadProjectPersistedState(projectId, PersistedState.empty, _.projectName)
 
   private def restoreState() =
     val state0 = persistedState.now()
@@ -221,13 +232,15 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     project.hiddenNodes.set(state0.hiddenNodes)
     leftPanelVisible.set(state0.leftPanelVisible)
     leftPanelTabIndex.set(state0.sideBarTabIndex)
+    oaiChatConfig.set(state0.oaiChatConfig)
     // synchronize ViewerState ~> PersistedStage
     project.hiddenNodes.signal
       .combineWith(
         project.name.signal,
         source.signal,
         leftPanelVisible.signal,
-        leftPanelTabIndex.signal
+        leftPanelTabIndex.signal,
+        oaiChatConfig.signal
       )
       .map(PersistedState.apply)
       .foreach(persistedState.set)
@@ -242,7 +255,8 @@ case class PersistedState(
     projectName:      String = "",
     source:           String = "",
     leftPanelVisible: Boolean = true,
-    sideBarTabIndex:  Int = 0
+    sideBarTabIndex:  Int = 0,
+    oaiChatConfig:    OpenAIChatConfig = OpenAIChatConfig.default
 ) derives ReadWriter
 
 object PersistedState:

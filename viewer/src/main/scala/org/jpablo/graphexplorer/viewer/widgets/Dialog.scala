@@ -7,16 +7,16 @@ import org.jpablo.graphexplorer.viewer.domUtils.dialog
 import org.scalajs.dom.HTMLDialogElement
 
 def SimpleDialog(open: Var[Boolean], contents: Modifier[ReactiveHtmlElement.Base]*) =
-  Dialog(mods = cls("modal-open") <-- open.signal)(contents)(
+  Dialog(header = cls("modal-open") <-- open.signal)(contents)(
     action = button(cls := "btn", "close", onClick --> open.set(false))
   )
 
 def Dialog(
-    mods: Modifier[ReactiveHtmlElement.Base]*
+    header: Modifier[ReactiveHtmlElement.Base]*
 )(contents: Modifier[ReactiveHtmlElement.Base]*)(action: Modifier[ReactiveHtmlElement.Base]*) =
   dialog(
     cls := "modal",
-    mods,
+    header,
     div(
       cls := "modal-box",
       contents,

@@ -63,7 +63,7 @@ case class ViewerGraph(
     ViewerGraph(relevantArrows, foundNodes)
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
-    val foundNodes = nodeById.collect { case (id, node) if (id notIn toRemove) => node }
+    val foundNodes = nodeById.collect { case (id, node) if id notIn toRemove => node }
     ViewerGraph(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
 
   /** Unfolds a set of ids using a function that returns the related ids.
@@ -74,7 +74,8 @@ case class ViewerGraph(
       .unfold((ids0, Set.empty[NodeId])): (ids, visited) =>
         val newBatch = ids.flatMap(f) -- visited
         if newBatch.isEmpty then None
-        else Some((newBatch, (newBatch, visited ++ newBatch)))
+        else
+          Some((newBatch, (newBatch, visited ++ newBatch)))
       .flatten
 
   private def subgraphUnfoldWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =

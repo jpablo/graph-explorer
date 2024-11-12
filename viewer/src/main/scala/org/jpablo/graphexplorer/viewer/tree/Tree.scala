@@ -1,22 +1,23 @@
 package org.jpablo.graphexplorer.viewer.tree
 
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.tree.Tree.Label
 
 enum Tree[+A]:
-  case Branch(label: Tree.Label, path: List[Tree.Label], override val children: List[Tree[A]])
-  case Leaf(label: Tree.Label, data: A)
+  case Branch(label: Label, path: List[Label], children: List[Tree[A]])
+  case Leaf(label: Label, data: A)
 
-  def children: List[Tree[A]] = this match
-    case b: Branch[a] => b.children
-    case _: Leaf[l]   => Nil
-
-  def label: Tree.Label
+  def label: Label
 
 object Tree:
   type Label = String
   type LeafWithPath[A] = (List[Label], Label, A)
 
-  def fromPaths[A](paths: List[LeafWithPath[A]], sep: String = "/", prefix: List[Tree.Label] = List.empty): Tree[A] =
+  def getChildren[A]: Tree[A] => List[Tree[A]] =
+    case b: Branch[_] => b.children
+    case _            => List.empty
+
+  def fromPaths[A](paths: List[LeafWithPath[A]], sep: String = "/", prefix: List[Label] = List.empty): Tree[A] =
     val leaves = paths.collect { case (Nil, label, data) => Leaf(label, data) }
     val nonEmptyPaths = paths.collect { case (h :: t, label, data) => (h :: t, label, data) }
 
@@ -29,7 +30,7 @@ object Tree:
     val nodes =
       for (groupLabel, groupPaths) <- leafGroups yield
         val prefix1 = prefix :+ groupLabel
-        val subtrees = fromPaths(groupPaths, sep, prefix1).children
+        val subtrees = getChildren(fromPaths(groupPaths, sep, prefix1))
         node(groupLabel, subtrees, prefix1, sep)
 
     Tree.Branch(
@@ -41,7 +42,7 @@ object Tree:
   private def pathTail[B](path: (List[Label], Label, B)): LeafWithPath[B] =
     path.copy(_1 = path._1.tail)
 
-  private def node[A](label: Label, trees: List[Tree[A]], path: List[Tree.Label], sep: String): Tree[A] =
+  private def node[A](label: Label, trees: List[Tree[A]], path: List[Label], sep: String): Tree[A] =
     trees match
       case List(d: Branch[A]) => d.modify(_.label)(label + sep + _)
       case _                  => Branch(label, path, trees)

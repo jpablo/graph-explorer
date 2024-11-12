@@ -2,10 +2,10 @@ package org.jpablo.graphexplorer.projects
 
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.laminar.api.L.*
-import io.laminext.syntax.core.storedString
-import org.jpablo.graphexplorer.viewer.state.{PersistedState, ProjectId}
-import upickle.default.*
 import com.softwaremill.quicklens.*
+import io.laminext.syntax.core.storedString
+import org.jpablo.graphexplorer.viewer.state.ProjectId
+import upickle.default.*
 
 case class ProjectInfo(
     id:           ProjectId,
@@ -35,24 +35,24 @@ object ProjectStorage:
     * @return
     *   A `Var` containing the `PersistedState` of the project.
     */
-  def loadProjectPersistedState(id: ProjectId): Var[PersistedState] =
-    val initial = write(PersistedState.empty)
+  def loadProjectPersistedState[State: ReadWriter](id: ProjectId, empty: State, getName: State => String): Var[State] =
+    val initial = write(empty)
     val projectStorage = storedString(projectKey(id), initial)
-    // Initialize storage ~> PersistedStage
+    // Initialize storage ~> PersistedState
     val projectStateVar =
-      try Var(read[PersistedState](projectStorage.signal.observe.now()))
+      try Var(read[State](projectStorage.signal.observe.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
-          Var(PersistedState.empty)
-    // synchronize PersistedStage ~> storage
+          Var(empty)
+    // synchronize PersistedState ~> storage
     projectStateVar.signal.foreach: state =>
       // update project entry
       projectStorage.set(write(state))
       // update all directory fields
       updateDirectory: dir =>
         dir.modify(_.projects.eachWhere(_.id == id))
-          .using(_.copy(lastModified = System.currentTimeMillis(), name = state.projectName))
+          .using(_.copy(lastModified = System.currentTimeMillis(), name = getName(state)))
     projectStateVar
 
   def createProjectDirectoryEntry(name: String): ProjectId =
