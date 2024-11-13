@@ -16,7 +16,7 @@ class SourceFlowSpec extends ScalaCheckSuite:
   given owner: Owner = OneTimeOwner(() => ())
 
   val hiddenNodesV: Var[Set[NodeId]] = Var(Set.empty)
-  val viewerState = SourceFlow(styles, hiddenNodesV.signal)
+  val viewerState = SourceFlow(styles, hiddenNodesV.signal, () => ())
   val fullAST = viewerState.fullAST.observe().now()
 
   test("fullAST sanity check"):

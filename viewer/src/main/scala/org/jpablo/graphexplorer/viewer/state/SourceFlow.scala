@@ -9,7 +9,11 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
 
-class SourceFlow(initialSource: String, hiddenNodesV: Signal[Set[NodeId]]):
+class SourceFlow(
+    initialSource: String,
+    hiddenNodesV:  Signal[Set[NodeId]],
+    resetView:     () => Unit
+):
   val source: Var[String] = Var(initialSource)
 
   // 1. parse source
@@ -35,6 +39,7 @@ class SourceFlow(initialSource: String, hiddenNodesV: Signal[Set[NodeId]]):
           .removeUnsupportedFeatures
           .removeNodes(hiddenNodes.map(_.value))
           .setDefaultTheme
+      .tapEach(_ => resetView())
 
   // 4. transform visible AST back to Visible Dot
   // DiGraphAST ~> Dot

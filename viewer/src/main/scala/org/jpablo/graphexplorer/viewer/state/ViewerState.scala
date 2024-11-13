@@ -3,9 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
-import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.modifiers.Binder.Base
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
@@ -16,9 +14,9 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 import org.scalajs.dom.{SVGPoint, SVGSVGElement}
 import upickle.default.*
+import com.softwaremill.macwire.*
 
 case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
@@ -34,7 +32,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       .map: (z, p) =>
         s"scale($z) translate(${p.x} ${p.y})"
 
-  private val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal)
+  private val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal, resetView)
 
   val source = sourceFlow.source
   val fullAST = sourceFlow.fullAST
@@ -55,12 +53,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       .flatMapSwitch(_.toSvg)
       .map(SvgDotDiagram.svgWithTransform(transform, startNode.signal, endPos.signal, isDragging.signal))
 
-  private val svgDotDiagram: Signal[SvgDotDiagram] =
-    svgDiagramElement.map(SvgDotDiagram.apply)
-
-  val allNodeIds: Signal[Set[NodeId]] =
-    fullGraph.map(_.allNodeIds)
-
   // -------------------------------
   // this should be a subset of visibleNodesV keys
   val diagramSelection = DiagramSelectionOps()
@@ -70,21 +62,12 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   val hiddenNodesS = hiddenNodes.signal
 
-  /** Modify `hiddenNodes` based on the given function `f`
-    */
-  private def updateHiddenNodes[E <: dom.Event](
-      ep: EventProp[E]
-  )(f: (HiddenNodes, Set[NodeId], ViewerGraph) => HiddenNodes) =
-    ep(_.sample(fullGraph.combineWith(diagramSelection.signal))) --> { (g: ViewerGraph, selection: Set[NodeId]) =>
-      project.hiddenNodes.update(f(_, selection, g))
-    }
-
   // -------------- UI state -----------------
   val leftPanelVisible = Var(true)
   val leftPanelTabIndex = Var(0)
 
   // -------- Public API -----------
-  def resetView() =
+  def resetView(): Unit =
     zoomValue.set(1.0)
     translateXY.set(SvgUnit.origin)
 
@@ -116,60 +99,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     val ast2 = fullAST.addEdge(from, to)
     source.set(ast2.render(false))
 
-  object eventHandlers:
-    extension [E <: dom.Event](ev: EventProp[E])
-      def hideSelectedNodes =
-        updateHiddenNodes(ev)((hidden, sel, _) => hidden ++ sel)
-
-      def hideNonSelectedNodes =
-        updateHiddenNodes(ev)((hidden, sel, g) => hidden ++ (g.allNodeIds -- sel))
-
-      def showAllSuccessors =
-        updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.allSuccessorsGraph(sel).allNodeIds)
-
-      def showDirectSuccessors =
-        updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.directSuccessorsGraph(sel).allNodeIds)
-
-      def showAllPredecessors =
-        updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.allPredecessorsGraph(sel).allNodeIds)
-
-      def showDirectPredecessors =
-        updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.directPredecessorsGraph(sel).allNodeIds)
-
-      def selectSuccessors =
-        ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectSuccessors.tupled
-
-      def selectPredecessors =
-        ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectPredecessors.tupled
-
-      def selectDirectSuccessors =
-        ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectSuccessors.tupled
-
-      def selectDirectPredecessors =
-        ev(_.sample(fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
-
-      def copyAsFullDiagramSVG(writeText: String => Any): Base =
-        ev(_.sample(svgDotDiagram)) --> { svgDiagram => writeText(svgDiagram.toSVGText) }
-
-      def copySelectionAsSVG(writeText: String => Any) =
-        ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram: SvgDotDiagram, canvasSelection) =>
-          writeText(svgDiagram.toSVGTextWithIds(canvasSelection))
-        }
-
-      def copyAsDOT(writeText: String => Any) =
-        ev(_.sample(visibleDOT)) --> { dot => writeText(dot.value) }
-
-      def copyAsJSON(writeText: String => Any) =
-        ev(_.sample(visibleAST)) --> { ast => writeText(writeJs(ast).toString) }
-
-      def keepRootsOnly =
-        updateHiddenNodes(ev)((_, _, g) => g.allNodeIds -- g.roots)
-
-      def hideAllNodes =
-        ev(_.sample(allNodeIds).map(_.toSeq)) --> (hiddenNodes.extend(_))
-
-      def updateTranslate(using E <:< dom.WheelEvent): Base =
-        ev(_.withCurrentValueOf(svgDiagramElement)) --> (handleWheel(zoomValue, translateXY)(_, _))
+  val eventHandlers = wire[EventHandlers]
 
   // -------- storage ------------
 
