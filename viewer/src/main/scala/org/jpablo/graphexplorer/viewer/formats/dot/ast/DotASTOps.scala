@@ -23,6 +23,22 @@ extension (ast: DotAST)
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
     ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
+  def withGraphAttributes(attrs: GraphElementAttributes): DotAST =
+    var attrMap = attrs.toMap
+
+    val children2 =
+      ast.children.map:
+        case a @ AttrStmt("graph", List(Attr(name, _))) =>
+          if attrMap.contains(name) then
+            val attr2 = attrMap(name)
+            attrMap -= name
+            attr2
+          else
+            a
+        case other => other
+
+    ast.copy(children = attrMap.values.toList ++ children2)
+
   /** Unsupported features:
     *   - graph size (results in an incorrect layout)
     */

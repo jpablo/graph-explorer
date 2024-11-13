@@ -6,6 +6,8 @@ import org.jpablo.graphexplorer.viewer.models.Arrow
 import scala.annotation.tailrec
 
 extension (graphElement: GraphElement)
+
+
   // add an attribute [id=$nextId] to all edges
   def attachId: GraphElement =
     graphElement match

@@ -61,7 +61,7 @@ case class Pad() extends GraphElement derives ReadWriter
 case class Comment() extends GraphElement derives ReadWriter
 
 @key("attr_stmt")
-case class AttrStmt(target: String, @key("attr_list") attrList: List[Attr]) extends GraphElement derives ReadWriter
+case class AttrStmt(target: String, attr_list: List[Attr]) extends GraphElement derives ReadWriter
 
 @key("attr")
 case class Attr(id: String, @key("eq") attrEq: String | AttrEq) derives ReadWriter
@@ -83,10 +83,7 @@ object Attr:
 end Attr
 
 @key("node_stmt")
-case class NodeStmt(
-    node_id:   DotNodeId,
-    attr_list: List[Attr]
-) extends GraphElement derives ReadWriter
+case class NodeStmt(node_id: DotNodeId, attr_list: List[Attr]) extends GraphElement derives ReadWriter
 
 @key("edge_stmt")
 case class EdgeStmt(
