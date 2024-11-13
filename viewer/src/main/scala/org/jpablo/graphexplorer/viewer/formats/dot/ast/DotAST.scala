@@ -31,6 +31,15 @@ case class DotAST(
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
     this.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
+  /** Unsupported features:
+    *   - graph size (results in an incorrect layout)
+    */
+  def removeUnsupportedFeatures: DotAST =
+    this.modify(_.children).using:
+      _.filter:
+        case AttrStmt("graph", List(Attr("size", _))) => false
+        case _                                        => true
+
   def setDefaultTheme: DotAST =
     this.modify(_.children).using: children =>
       AttrStmt("node", List(Attr("style", "filled"))) :: children
