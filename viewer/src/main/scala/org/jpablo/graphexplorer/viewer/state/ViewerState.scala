@@ -37,7 +37,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val source = sourceFlow.source
   val fullAST = sourceFlow.fullAST
   val fullGraph = sourceFlow.fullGraph
-  private val visibleAST = sourceFlow.visibleAST.tapEach(_ => resetView())
   private val visibleDOT = sourceFlow.visibleDOT
   private val visibleGraph = sourceFlow.visibleGraph
 

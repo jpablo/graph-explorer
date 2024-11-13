@@ -18,6 +18,7 @@ def Toolbar(
   import state.eventHandlers.*
 
   val drawerId = s"drawer-id"
+  val writeTextToClipboard = window.navigator.clipboard.writeText
   div(
     idAttr := "toolbar",
     // -------- Navigation --------
@@ -61,24 +62,26 @@ def Toolbar(
       )
     ),
     // -------- actions toolbar --------
-    Join(
-      Button("roots", onClick.keepRootsOnly).tiny,
-      Button("show all", onClick --> state.showAllNodes()).tiny,
-      Button("hide all", onClick.hideAllNodes).tiny,
-      div(
-        cls := "dropdown dropdown-hover",
-        label(
-          tabIndex := 0,
-          cls      := "btn btn-xs join-item whitespace-nowrap",
-          "Copy as"
-        ),
-        ul(
-          tabIndex := 0,
-          cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52",
-          li(a("Svg", onClick.copyAsFullDiagramSVG(window.navigator.clipboard.writeText))),
-          li(a("Dot", onClick.copyAsDOT(window.navigator.clipboard.writeText))),
-          li(a("Json Dot AST", onClick.copyAsJSON(window.navigator.clipboard.writeText)))
-        )
+    div(
+      cls := "dropdown",
+      div(tabIndex := 0, role := "button", span().threeDotsVertical).asBtn.tiny,
+      ul(
+        tabIndex := 0,
+        cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow",
+        li(a("roots", onClick.keepRootsOnly)),
+        li(a("show all", onClick --> state.showAllNodes())),
+        li(a("hide all", onClick.hideAllNodes))
+      )
+    ),
+    div(
+      cls := "dropdown dropdown-hover",
+      label(tabIndex := 0, cls := "whitespace-nowrap", "Copy as").asBtn.tiny,
+      ul(
+        tabIndex := 0,
+        cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow",
+        li(a("Svg", onClick.copyAsFullDiagramSVG(writeTextToClipboard))),
+        li(a("Dot", onClick.copyAsDOT(writeTextToClipboard))),
+        li(a("Json Dot AST", onClick.copyAsJSON(writeTextToClipboard)))
       )
     ),
     // ----------

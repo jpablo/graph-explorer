@@ -31,3 +31,4 @@ object Icons:
     def listIcon = elem.amend(cls := "bi bi-list")
     def plusCircleIcon = elem.amend(cls := "bi bi-plus-circle")
     def plusIcon = elem.amend(cls := "bi bi-plus")
+    def threeDotsVertical = elem.amend(cls := "bi bi-three-dots-vertical")
