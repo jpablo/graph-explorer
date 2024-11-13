@@ -55,16 +55,15 @@ def Toolbar(
         input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
         label(
           forId := drawerId,
-          cls   := "btn btn-ghost",
           cls("btn-active") <-- state.leftPanelVisible,
           onClick --> state.leftPanelVisible.toggle()
-        ).tiny.layoutSidebarIcon
+        ).asBtn.tiny.ghost.layoutSidebarIcon
       )
     ),
     // -------- actions toolbar --------
     div(
       cls := "dropdown",
-      div(tabIndex := 0, role := "button", span().threeDotsVertical).asBtn.tiny,
+      div(tabIndex := 0, role := "button", span().threeDotsVertical).asBtn.tiny.ghost,
       ul(
         tabIndex := 0,
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow",
@@ -75,7 +74,7 @@ def Toolbar(
     ),
     div(
       cls := "dropdown dropdown-hover",
-      label(tabIndex := 0, cls := "whitespace-nowrap", "Copy as").asBtn.tiny,
+      div(tabIndex := 0, role := "button", cls := "whitespace-nowrap", "Copy as").asBtn.tiny,
       ul(
         tabIndex := 0,
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow",
