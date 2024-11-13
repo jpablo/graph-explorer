@@ -8,9 +8,9 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
-import org.jpablo.graphexplorer.viewer.formats.dot.Dot
-import org.jpablo.graphexplorer.viewer.formats.dot.Dot.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
+import org.jpablo.graphexplorer.viewer.formats.dot.DotText
+import org.jpablo.graphexplorer.viewer.formats.dot.DotText.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
@@ -94,11 +94,15 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def showNodes(ids: Set[NodeId]) =
     hiddenNodes.remove(ids)
 
+  // Note: This method changes the AST and then updates the source!!
   def addEdge(fullAST: DotAST, from: NodeId, to: NodeId): Unit =
     val ast2 = fullAST.addEdge(from, to)
-    source.set(ast2.render(false))
+    source.set(ast2.render(keepInternal = false))
 
   val eventHandlers = wire[EventHandlers]
+
+  // -------- Diagram actions -----------
+
 
   // -------- storage ------------
 

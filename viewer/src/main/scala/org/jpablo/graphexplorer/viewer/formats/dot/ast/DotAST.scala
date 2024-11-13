@@ -1,90 +1,24 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
-import com.softwaremill.quicklens.*
-import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.GraphElement.renderAttrList
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
+import org.jpablo.graphexplorer.viewer.models.Arrow
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import upickle.default.*
 import upickle.implicits.key
-
-import scala.annotation.tailrec
 
 type EdgeElement = DotNodeId | Subgraph
 
 case class DotAST(
-    @key("type") tpe: String,
-    children:         List[GraphElement],
-    id:               Option[String] = None
+    @key("type")
+    tpe:      String,
+    children: List[GraphElement],
+    id:       Option[String] = None
 ) derives ReadWriter:
-
   lazy val allNodesIds: Set[String] = findAllNodeIds(children)
-
-//  lazy val allViewerNodes: Set[ViewerNode] = ???
-
   lazy val allArrows: Set[Arrow] = findAllArrows(children)
-
-  val edgeSeparator = if tpe == "digraph" then "->" else "--"
-
-  def addEdge(source: NodeId, target: NodeId): DotAST =
-    val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
-    this.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
-
-  /** Unsupported features:
-    *   - graph size (results in an incorrect layout)
-    */
-  def removeUnsupportedFeatures: DotAST =
-    this.modify(_.children).using:
-      _.filter:
-        case AttrStmt("graph", List(Attr("size", _))) => false
-        case _                                        => true
-
-  def setDefaultTheme: DotAST =
-    this.modify(_.children).using: children =>
-      AttrStmt("node", List(Attr("style", "filled"))) :: children
-
-  def attachInternalAttributes: DotAST =
-    EdgeStmt.resetId()
-    this.modify(_.children).using(_.map(_.attachId))
-
-  def removeNodes(idsToRemove: Set[String]): DotAST =
-    @tailrec
-    def optimize(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
-      children match
-        case h :: EdgeStmt(Nil, _) :: t => optimize(h :: t, state) // why the focus on the 2nd element?
-        case Pad() :: Newline() :: t    => optimize(t, state)
-        case h :: t                     => optimize(t, h :: state)
-        case Nil                        => state.reverse
-
-    def dedup(lst: List[GraphElement]): List[GraphElement] =
-      lst
-        .foldLeft((List.empty[GraphElement], Set.empty[GraphElement])):
-          case ((acc, visited), e: EdgeStmt) if e in visited => (acc, visited)
-          case ((acc, visited), n: NodeStmt) if n in visited => (acc, visited)
-          case ((acc, visited), e)                           => (e :: acc, visited + e)
-        ._1
-        .reverse
-
-    this
-      .modify(_.children).using(_.flatMap(_.removeNodes(idsToRemove)))
-      .modify(_.children).using(optimize(_))
-      .modify(_.children).using(dedup)
-
-  def render(keepInternal: Boolean): String =
-    val body = this.children
-      .map(_.render(keepInternal, edgeSeparator))
-      .filter(_.nonEmpty)
-      .mkString("")
-    val idStr = id.map(id => s"\"$id\" ").getOrElse(" ")
-    s"$tpe $idStr{$body}"
-  end render
-
-end DotAST
 
 object DotAST:
   val empty: DotAST = DotAST("digraph", Nil)
-end DotAST
 
 def findAllNodeIds(children: List[GraphElement]): Set[String] =
   children.toSet.flatMap(_.allNodesIds)
@@ -99,150 +33,10 @@ object Location:
 
 @key("type")
 sealed trait GraphElement derives ReadWriter:
-
-  // add an attribute [id=$nextId] to all edges
-  def attachId: GraphElement =
-    this match
-
-      case EdgeStmt(edgeList, attrList) =>
-        val edgeListWithIds = edgeList.map:
-          case Subgraph(children, id) => Subgraph(children.map(_.attachId), id)
-          case other                  => other
-
-        EdgeStmt(edgeListWithIds, Attr("id", EdgeStmt.nextId.toString) :: attrList)
-
-      case Subgraph(children, id) => Subgraph(children.map(_.attachId), id)
-      case other                  => other
-
-  lazy val allNodesIds: Set[String] =
-    @tailrec
-    def loop(remaining: List[GraphElement], acc: Set[String]): Set[String] =
-      remaining match
-        case Nil => acc
-        case h :: t =>
-          h match
-            case NodeStmt(nodeId, _) => loop(t, acc + nodeId.id)
-            case EdgeStmt(edgeList, _) =>
-              val newElements =
-                edgeList
-                  .flatMap:
-                    case n: DotNodeId          => List(NodeStmt(n, Nil))
-                    case Subgraph(children, _) => children
-              loop(newElements ++ t, acc)
-            case Subgraph(children, _) => loop(children ++ t, acc)
-            case _                     => loop(t, acc)
-
-    loop(List(this), Set.empty)
-
-  lazy val allArrows: Set[Arrow] =
-    @tailrec
-    def loop(remaining: List[GraphElement], acc: Set[Arrow] = Set.empty): Set[Arrow] =
-      remaining match
-        case Nil => acc
-        case h :: remaining1 =>
-          h match
-            case e: EdgeStmt =>
-              val (remaining2, acc1) = e.allArrows1.unzip
-              loop(remaining2.flatten ++ remaining1, acc ++ acc1.toSet.flatten)
-
-            case Subgraph(children, _) => loop(children ++ remaining1, acc)
-            case _                     => loop(remaining1, acc)
-
-    loop(List(this))
-
-  // TODO: make this tail recursive
-  def removeNodes(idsToRemove: Set[String]): List[GraphElement] =
-    this match
-      case NodeStmt(DotNodeId(id, _), _) if id in idsToRemove => Nil
-
-      case e @ EdgeStmt(edgeList, attrList) =>
-        val eArrows: Set[String] = e.allArrows.map(_.nodeId.value)
-
-        def prependToHead(e: EdgeElement, acc: List[List[EdgeElement]]) =
-          acc match
-            case Nil    => (e :: Nil) :: Nil
-            case h :: t => (e :: h) :: t
-
-        if eArrows.subsetOf(idsToRemove) then
-          Nil
-        else
-          val remainingEdges =
-            edgeList.foldLeft(Nil: List[List[EdgeElement]]):
-              case (acc, e @ DotNodeId(id, _)) =>
-                if id in idsToRemove then
-                  Nil :: acc // start a new edge: [[]] OR [[], e1, e2, ...]
-                else
-                  prependToHead(e, acc) // [[e]] OR [e :: e1, e2, ...]
-
-              case (acc, Subgraph(children, id)) =>
-                val visibleChildren = children.flatMap(_.removeNodes(idsToRemove))
-                if visibleChildren.isEmpty then
-                  Nil :: acc
-                else
-                  prependToHead(Subgraph(visibleChildren, id), acc)
-
-          remainingEdges.filter(_.nonEmpty).reverse
-            .map:
-              case h :: Nil => h match
-                  // Drop the attributes on purpose.
-                  // Otherwise, the attributes will be attached to remaining node.
-                  case n: DotNodeId => NodeStmt(n, List.empty)
-                  case g: Subgraph  => g
-              case other => EdgeStmt(other.reverse, attrList)
-
-      case Subgraph(children, id) =>
-        val remainingChildren = children.flatMap(_.removeNodes(idsToRemove))
-        if remainingChildren.isEmpty then Nil else List(Subgraph(remainingChildren, id))
-
-      case other => List(other)
-
-  def render(keepInternal: Boolean, edgeSeparator: String): String =
-    this match
-      case Newline() => "\n"
-
-      case Pad() => "  "
-
-      case AttrStmt(target, attrList) =>
-        val attrs = renderAttrList(keepInternal, attrList)
-        if attrs.isEmpty then "" else s"$target $attrs"
-
-      case EdgeStmt(edgeList, attrList) =>
-        edgeList
-          .map:
-            case n: DotNodeId => s"\"${n.id}\""
-            case s: Subgraph  => s.render(keepInternal, edgeSeparator)
-          .mkString(s" $edgeSeparator") + renderAttrList(keepInternal, attrList)
-
-      case StmtSep() => ""
-
-      case NodeStmt(nodeId, attrList) =>
-        "\"" + nodeId.id + "\"" + renderAttrList(keepInternal, attrList)
-
-      case Comment() => ""
-
-      case Subgraph(children, id) =>
-        val idStr = id.getOrElse("")
-        children.map(_.render(keepInternal, edgeSeparator)).mkString(s"subgraph $idStr {", "", "}")
-
-end GraphElement
+  lazy val allNodesIds: Set[String] = this.findAllNodeIds1
+  lazy val allArrows: Set[Arrow] = this.findAllArrows1
 
 object GraphElement:
-  def renderAttrList(keepInternal: Boolean, attrList: List[Attr]): String =
-    attrList match
-      case Nil => ""
-      case attrs =>
-        val attrsStrings =
-          attrs
-            .filter(a => keepInternal || a.id != idAttributeKey)
-            .map:
-              case Attr(id, AttrEq(value, html)) =>
-                if html then s"$id=<$value>"
-                else s"$id=\"$value\""
-              case Attr("style", "stroke-dasharray: 5,5") => s"style=\"dashed\""
-              case Attr(id, s: String)                    => s"$id=\"$s\""
-        if attrsStrings.isEmpty then ""
-        else
-          attrsStrings.mkString(" [", ", ", "];")
 
   given ReadWriter[EdgeElement] =
     readwriter[ujson.Value].bimap[EdgeElement](
@@ -290,21 +84,21 @@ end Attr
 
 @key("node_stmt")
 case class NodeStmt(
-    @key("node_id") nodeId:     DotNodeId,
-    @key("attr_list") attrList: List[Attr]
+    node_id:   DotNodeId,
+    attr_list: List[Attr]
 ) extends GraphElement derives ReadWriter
 
 @key("edge_stmt")
 case class EdgeStmt(
-    @key("edge_list") edgeList: List[EdgeElement],
-    @key("attr_list") attrList: List[Attr]
+    edge_list: List[EdgeElement],
+    attr_list: List[Attr]
 ) extends GraphElement derives ReadWriter:
-  lazy val idAttr: String = attrList.find(_.id == idAttributeKey).map(_.attrEq.toString).getOrElse("")
+  lazy val idAttr: String = attr_list.find(_.id == idAttributeKey).map(_.attrEq.toString).getOrElse("")
 
   def allArrows1: List[(List[GraphElement], Set[Arrow])] =
     // TODO: Handle AttrEq as well (for html labels)
-    val attrs = attrList.map(attr => attr.id -> attr.attrEq.toString).toMap
-    edgeList
+    val attrs = attr_list.map(attr => attr.id -> attr.attrEq.toString).toMap
+    edge_list
       .sliding(2)
       .toList
       .map:

@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.SvgDotDiagram
-import org.jpablo.graphexplorer.viewer.formats.dot.Dot
+import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 
@@ -26,7 +26,7 @@ class Graphviz:
           scala.util.Failure(exception)
       }
 
-  def renderToSvg(dot: Dot): Signal[SVGSVGElement] =
+  def renderToSvg(dot: DotText): Signal[SVGSVGElement] =
     Signal
       .fromFuture(renderSVGElement(dot.value))
       .map(_.getOrElse(SvgDotDiagram.empty.ref))

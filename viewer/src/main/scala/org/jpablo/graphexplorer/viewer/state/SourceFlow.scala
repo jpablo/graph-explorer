@@ -2,9 +2,8 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.formats.dot.Dot
-import org.jpablo.graphexplorer.viewer.formats.dot.Dot.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
+import org.jpablo.graphexplorer.viewer.formats.dot.DotText
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
@@ -20,7 +19,7 @@ class SourceFlow(
   // String ~> Dot ~> DiGraphAST
   val fullAST: Signal[DotAST] =
     source.signal.map: src =>
-      Dot(src).buildAST.headOption
+      DotText(src).buildAST.headOption
         .map(_.attachInternalAttributes)
         .getOrElse(DotAST.empty)
 
@@ -43,7 +42,7 @@ class SourceFlow(
 
   // 4. transform visible AST back to Visible Dot
   // DiGraphAST ~> Dot
-  val visibleDOT: Signal[Dot] =
+  val visibleDOT: Signal[DotText] =
     visibleAST.map(_.toDot)
 
   val visibleGraph: Signal[ViewerGraph] =
