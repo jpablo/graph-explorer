@@ -4,22 +4,26 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 
+enum InputType:
+  case select, text, color, number, checkbox, radio, file, hidden, password, range, submit, reset, button, image,
+    datetime, datetimeLocal, date, month, time, week, url, email, search, tel
+
 def Checkbox(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
-  input(tpe := "checkbox", cls := "checkbox", mods)
+  input(tpe := InputType.checkbox.toString, cls := "checkbox", mods)
 
 def Search(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
   input(
-    tpe := "search",
+    tpe := InputType.search.toString,
     cls := "input input-bordered input-xs input-primary w-full",
     mods
   )
 
 def LabeledCheckbox(
-    id:           String,
-    labelStr:     String,
-    isChecked:    Var[Boolean],
-    isDisabled:   Signal[Boolean] = Signal.fromValue(false),
-    toggle:       Boolean = false
+    id:         String,
+    labelStr:   String,
+    isChecked:  Var[Boolean],
+    isDisabled: Signal[Boolean] = Signal.fromValue(false),
+    toggle:     Boolean = false
 ) =
   div(
     cls := "form-control",
@@ -30,7 +34,7 @@ def LabeledCheckbox(
       input(
         idAttr       := id,
         autocomplete := "off",
-        tpe          := "checkbox",
+        tpe          := InputType.checkbox.toString,
         disabled <-- isDisabled,
         cls := (if toggle then "toggle toggle-xs" else "checkbox checkbox-xs"),
         controlled(checked <-- isChecked, onClick.mapToChecked --> isChecked)

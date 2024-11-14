@@ -62,7 +62,7 @@ def Toolbar(
     ),
     // -------- actions toolbar --------
     div(
-      cls := "dropdown",
+      cls := "dropdown dropdown-hover",
       div(tabIndex := 0, role := "button", span().threeDotsVertical).asBtn.tiny.ghost,
       ul(
         tabIndex := 0,
@@ -71,7 +71,7 @@ def Toolbar(
         li(a("show all", onClick --> state.showAllNodes())),
         li(a("hide all", onClick.hideAllNodes)),
         li(cls := "menu-title", hr()),
-        li(a("Diagram attributes", onClick --> state.diagramAttributesVisible.toggle())),
+        li(a("Diagram attributes", onClick --> state.diagramAttributesVisible.toggle()))
       )
     ),
     div(

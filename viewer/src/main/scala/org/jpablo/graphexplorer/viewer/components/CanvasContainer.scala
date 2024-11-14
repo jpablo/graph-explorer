@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.airstream.core.EventStream
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.components.selectable.*
+import org.jpablo.graphexplorer.viewer.components.selection.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom

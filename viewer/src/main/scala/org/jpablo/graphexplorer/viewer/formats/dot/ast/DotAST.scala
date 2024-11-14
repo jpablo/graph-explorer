@@ -35,6 +35,7 @@ object Location:
 sealed trait GraphElement derives ReadWriter:
   lazy val allNodesIds: Set[String] = this.findAllNodeIds1
   lazy val allArrows: Set[Arrow] = this.findAllArrows1
+  def isAttrStmt: Boolean = false
 
 object GraphElement:
 
@@ -61,10 +62,14 @@ case class Pad() extends GraphElement derives ReadWriter
 case class Comment() extends GraphElement derives ReadWriter
 
 @key("attr_stmt")
-case class AttrStmt(target: String, attr_list: List[Attr]) extends GraphElement derives ReadWriter
+case class AttrStmt(target: String, attr_list: List[Attr]) extends GraphElement derives ReadWriter:
+  override def isAttrStmt: Boolean = true
 
 @key("attr")
-case class Attr(id: String, @key("eq") attrEq: String | AttrEq) derives ReadWriter
+case class Attr(id: String, @key("eq") attrEq: String | AttrEq) derives ReadWriter:
+  def value = attrEq match
+    case s: String => s
+    case a: AttrEq => a.value
 
 case class AttrEq(value: String, html: Boolean = false) derives ReadWriter
 

@@ -12,7 +12,7 @@ import typings.codemirror.mod as codemirror
 import typings.codemirrorView.mod.{EditorView, EditorViewConfig, ViewUpdate}
 import typings.vizJsLangDot.mod.dot
 
-def CodeMirror(source: Var[String], mods: Modifier[ReactiveHtmlElement.Base]*) =
+def CodeMirror(sourceText: Var[String], mods: Modifier[ReactiveHtmlElement.Base]*) =
 
   lazy val extensions =
     js.Array[Any](
@@ -23,7 +23,7 @@ def CodeMirror(source: Var[String], mods: Modifier[ReactiveHtmlElement.Base]*) =
 
   def updateSource(update: ViewUpdate): Unit =
     if update.docChanged then
-      source.set(update.state.doc.toString)
+      sourceText.set(update.state.doc.toString)
 
   div(
     mods,
@@ -32,12 +32,12 @@ def CodeMirror(source: Var[String], mods: Modifier[ReactiveHtmlElement.Base]*) =
       // Editor -> source
       val editorView = codemirror.EditorView(
         EditorViewConfig()
-          .setDoc(source.now())
+          .setDoc(sourceText.now())
           .setParent(ctx.thisNode.ref)
           .setExtensions(extensions)
       )
       // Source -> editor
-      for newSource <- source.signal do
+      for newSource <- sourceText.signal do
         val existingSource = editorView.state.doc.toString
         if newSource != existingSource then
           editorView.dispatch(

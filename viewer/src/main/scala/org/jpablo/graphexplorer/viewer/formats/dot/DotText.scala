@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.formats.dot
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
-import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 
 import scala.util.{Failure, Success}
@@ -20,9 +19,12 @@ case class DotText(value: String):
     else
       DotParserT.parse(value) match
         case Failure(exception) =>
+          dom.console.error(s"<== after DotParserT.parse")
           dom.console.error(exception.toString)
           List.empty
-        case Success(asts) => asts
+        case Success(asts) =>
+//          dom.console.debug(s"<== after DotParserT.parse: $asts")
+          asts
 
 object DotText:
   private val gvInstance = new Graphviz
@@ -34,4 +36,3 @@ object DotText:
       gvInstance.renderToSvg(dot)
 
 end DotText
-

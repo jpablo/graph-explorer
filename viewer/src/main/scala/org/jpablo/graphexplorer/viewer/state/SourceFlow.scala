@@ -16,7 +16,7 @@ class SourceFlow(
 )(using Owner):
 
   // source of truth
-  private val source: Var[(String, DotAST)] = Var((initialSource, DotAST.empty))
+  val source: Var[(String, DotAST)] = Var(("", DotAST.empty))
 
   /** parse source: String ~> DotAST
     */
@@ -28,6 +28,9 @@ class SourceFlow(
     */
   val sourceAST: Var[DotAST] =
     source.zoom(_._2)((_, newAST) => (newAST.render(false), newAST))
+
+  // initial setup
+  sourceText.set(initialSource)
 
   /** AST with internal annotations: DotAST ~> DotAST
     */

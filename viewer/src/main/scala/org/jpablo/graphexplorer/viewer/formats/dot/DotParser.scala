@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.formats.dot
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
-import org.scalajs.dom
 import upickle.default.*
 
 import scala.scalajs.js
@@ -20,18 +19,15 @@ object DotParserT:
   def parse(dotString: String): Try[List[DotAST]] =
     for
       j <- Try(DotParser.parse(dotString))
-//      _ = dom.console.log(dotString)
-//      _ = dom.console.log(j)
+      // parsing keeps \" but escapes \\ (i.e. duplicate the backslashes)
+      // "a \"title\\" becomes "a \"title\\\\"
+      // _ = dom.console.log(dotString)
       str = JSON.stringify(j)
-      ast <-
-        Try(read[List[DotAST]](str)) match
-          case f @ scala.util.Failure(exception) =>
-            dom.console.error("==> Error in DotParserT.parse !")
-            dom.console.error(exception.toString)
-            dom.console.error(str)
-            dom.console.error(dotString)
-            dom.console.error("<== Error in DotParserT.parse !")
-            f
-          case s @ scala.util.Success(_) =>
-            s
+      // read will unescape labels
+      // i.e. replace \" with " and \\ with \ in strings
+      // but will keep \\ in the string
+      // at this point the label is """a "title\\\\"""
+      normalizedStr = str.replaceAll("""\\\\""", """\\""")
+      // Is this carpet replacement Ok? or do we need to focus only on labels?
+      ast <- Try(read[List[DotAST]](normalizedStr)) // ❌
     yield ast

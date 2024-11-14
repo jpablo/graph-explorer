@@ -17,14 +17,12 @@ class Graphviz:
   private def renderSVGElement(g: String): Future[dom.SVGSVGElement] =
     instance
       .map(_.renderSVGElement(g).asInstanceOf[dom.SVGSVGElement])
-      .transform {
-        case scala.util.Success(value) =>
-          scala.util.Success(value)
-        case scala.util.Failure(exception) =>
+      .recoverWith:
+        case e: Throwable =>
           dom.console.log("==> renderSVGElement failed")
-          dom.console.log(exception.toString)
-          scala.util.Failure(exception)
-      }
+          dom.console.log(e.toString)
+          dom.console.log(g)
+          Future.failed(e)
 
   def renderToSvg(dot: DotText): Signal[SVGSVGElement] =
     Signal

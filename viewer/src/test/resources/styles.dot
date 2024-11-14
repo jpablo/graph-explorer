@@ -1,4 +1,5 @@
 digraph D {
+    label = "Title: \"quoted text\""
 
     A [shape=diamond]
     B [shape=box]

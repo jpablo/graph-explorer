@@ -1,12 +1,15 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{NodeId, ViewerNode}
-import org.jpablo.graphexplorer.viewer.extensions.*
 
 import scala.annotation.tailrec
+
+enum AttributeTarget:
+  case node, edge, graph
 
 extension (ast: DotAST)
 
@@ -23,38 +26,38 @@ extension (ast: DotAST)
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
     ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
-  def withGraphAttributes(attrs: GraphElementAttributes): DotAST =
-    var attrMap = attrs.toMap
-
-    val children2 =
+  def withAttributes(target: AttributeTarget)(attrs: Map[String, String]): DotAST =
+    val targetStr = target.toString
+    var attrMap = attrs
+    def updateAttrs(attrs: List[Attr]): List[Attr] =
+      for attr <- attrs
+      yield
+        if attrMap.contains(attr.id) then
+          val newAttrValue = attrMap(attr.id)
+          attrMap -= attr.id
+          Attr(attr.id, newAttrValue)
+        else
+          attr
+    // first update existing attributes
+    val updatedChildren =
       ast.children.map:
-        case a @ AttrStmt("graph", List(Attr(name, _))) =>
-          if attrMap.contains(name) then
-            val attr2 = attrMap(name)
-            attrMap -= name
-            attr2
-          else
-            a
-        case other => other
-
-    ast.copy(children = attrMap.values.toList ++ children2)
-
-  def getGraphAttributes: GraphElementAttributes =
-    val attrs: List[(String, String | AttrEq)] = ast.children.collect:
-      case AttrStmt("graph", List(Attr(name, value))) => name -> value
-
-    GraphElementAttributes(
-      rankdir = attrs.collectFirst { case ("rankdir", v) => v.toString },
-      label   = attrs.collectFirst { case ("label", v) => v.toString },
-//      size = attrs.collectFirst { case ("size", v) => v.toString.split(",").toList match { case List(w, h) => (w.toDouble, h.toDouble) } },
-      splines = attrs.collectFirst { case ("splines", v) => v.toString },
-      bgcolor = attrs.collectFirst { case ("bgcolor", v) => v.toString },
-//      margin = attrs.collectFirst { case ("margin", v) => v.toString.split(",").toList match { case List(x, y) => (x.toDouble, y.toDouble) } },
-      fontname  = attrs.collectFirst { case ("fontname", v) => v.toString },
-      fontsize  = attrs.collectFirst { case ("fontsize", v) => v.toString.toDouble },
-      fontcolor = attrs.collectFirst { case ("fontcolor", v) => v.toString },
-      overlap   = attrs.collectFirst { case ("overlap", v) => v.toString }
+        case AttrStmt(`targetStr`, attrs) => AttrStmt(targetStr, updateAttrs(attrs))
+        case other                        => other
+    // then add remaining attributes to a single AttrStmt
+    val newAttrs = AttrStmt(targetStr, attrMap.map((k, v) => Attr(k, v)).toList)
+    ast.copy(
+      children = updatedChildren match
+        case Newline() :: _ => newAttrs :: updatedChildren
+        case _              => Newline() :: Pad() :: newAttrs :: updatedChildren
     )
+
+  def getAttributes(target: AttributeTarget): Map[String, String] =
+    val targetStr = target.toString
+    ast.children
+      .collect:
+        case AttrStmt(`targetStr`, attrs) => attrs.map(attr => attr.id -> attr.value)
+      .flatten
+      .toMap
 
   /** Unsupported features:
     *   - graph size (results in an incorrect layout)

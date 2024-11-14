@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.components.selectable
+package org.jpablo.graphexplorer.viewer.components.selection
 
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}

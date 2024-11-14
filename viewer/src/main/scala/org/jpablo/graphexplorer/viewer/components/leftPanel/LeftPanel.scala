@@ -21,13 +21,12 @@ def LeftPanel(state: ViewerState) =
     // --- Tab Headers ---
     div(
       cls := "flex gap-2 justify-between",
-      select(
-        cls := "select select-bordered select-xs max-w-xs",
-        option("Select example", disabled := true, selected := true),
-        examples.keys.map(name => option(name, value := name)),
+      Select(
+        placeholderText = "Select example",
+        options         = examples.keys.map(name => name -> name),
         onChange.mapToValue.map(examples).flatMap(FetchStream.get(_)) --> { source =>
           state.showAllNodes()
-          state.source.set(source)
+          state.sourceText.set(source)
         }
       ),
       a(
@@ -58,7 +57,7 @@ def LeftPanel(state: ViewerState) =
     // ------ TAB 0: Source ------
     // --- DOT sources ---
     CodeMirror(
-      state.source,
+      state.sourceText,
       idAttr := "nodes-source",
       cls("hidden") <-- !isVisible(0),
       placeholder := "DOT source"

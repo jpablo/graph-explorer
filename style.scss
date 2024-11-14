@@ -18,7 +18,7 @@ label[for ^= show-ns-kind-] {
 
 
   #toolbar {
-    @apply shadow-xl bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10;
+    @apply shadow-xl bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10 print:hidden;
   }
 
   #nodes-panel {
@@ -136,8 +136,11 @@ label[for ^= show-ns-kind-] {
     // graphviz
   }
 
-  #graph-attributes {
+  #diagram-attributes {
     @apply modal-box absolute bottom-0 right-0 z-20;
+    table {
+      @apply table-xs;
+    }
   }
 
 }

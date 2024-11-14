@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.ownership.{OneTimeOwner, Owner}
 import com.raquo.airstream.state.Var
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget.graph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import upickle.default.*
@@ -18,6 +19,7 @@ class SourceFlowSpec extends ScalaCheckSuite:
   val hiddenNodesV: Var[Set[NodeId]] = Var(Set.empty)
   val viewerState = SourceFlow(styles, hiddenNodesV.signal, () => ())
   val fullAST = viewerState.fullAST.observe().now()
+  val title = "Title: \"quoted text\""
 
   test("fullAST sanity check"):
     assert(fullAST == referenceAST)
@@ -26,11 +28,20 @@ class SourceFlowSpec extends ScalaCheckSuite:
     val edgeIds = fullAST.children.collect { case e: EdgeStmt => e.idAttr }
     assert(edgeIds == List("1", "2", "3"))
 
+  test("labels should honor escaped quotes"):
+    assert(fullAST.getAttributes(graph)("label") == title)
+//    val visibleDOT = viewerState.visibleDOT.observe().now()
+//    println(visibleDOT.value.slice(60, 70).toList)
+
+
   lazy val referenceAST =
     DotAST(
       tpe = "digraph",
       children =
         List(
+          Newline(),
+          Pad(),
+          AttrStmt("graph", List(Attr("label", title))),
           Newline(),
           Pad(),
           NodeStmt(DotNodeId("A", None), List(Attr("shape", "diamond"))),

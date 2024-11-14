@@ -10,7 +10,7 @@ addSbtPlugin("com.github.sbt"              % "sbt-dynver"               % "5.1.0
 
 libraryDependencies += "com.thesamet.scalapb"  %% "compilerplugin"           % "0.11.17"
 libraryDependencies += "org.scala-js"          %% "scalajs-env-jsdom-nodejs" % "1.1.0"
-libraryDependencies += "io.github.gmkumar2005" %% "scala-js-env-playwright"  % "0.1.11"
+libraryDependencies += "io.github.gmkumar2005" %% "scala-js-env-playwright"  % "0.1.12"
 
 addDependencyTreePlugin
 

@@ -34,7 +34,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   private val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal, resetView)
 
-  val source = sourceFlow.sourceText
+  val sourceText = sourceFlow.sourceText
   val fullAST = sourceFlow.fullAST
   val fullGraph = sourceFlow.fullGraph
   private val visibleDOT = sourceFlow.visibleDOT
@@ -95,13 +95,18 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def showNodes(ids: Set[NodeId]) =
     hiddenNodes.remove(ids)
 
-  // Note: This method changes the AST and then updates the source!!
   // Note: explore just adding the edge to the source directly (a -> b)
   def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.sourceAST.update(_.addEdge(from, to))
 
-  val graphElementAttributes: Var[GraphElementAttributes] =
-    sourceFlow.sourceAST.zoom(_.getGraphAttributes)(_.withGraphAttributes(_))
+  val graphElementAttributes =
+    sourceFlow.sourceAST.zoom(_.getAttributes(AttributeTarget.graph))(_.withAttributes(AttributeTarget.graph)(_))
+
+  val nodeElementAttributes =
+    sourceFlow.sourceAST.zoom(_.getAttributes(AttributeTarget.node))(_.withAttributes(AttributeTarget.node)(_))
+
+  val edgeElementAttributes =
+    sourceFlow.sourceAST.zoom(_.getAttributes(AttributeTarget.edge))(_.withAttributes(AttributeTarget.edge)(_))
 
   val eventHandlers = wire[EventHandlers]
 
@@ -115,7 +120,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   private def restoreState() =
     val state0 = persistedState.now()
     // Restore ViewerState <~ PersistedStage (which comes from local storage)
-    source.set(state0.source)
+    sourceText.set(state0.source)
     project.name.set(state0.projectName)
     project.hiddenNodes.set(state0.hiddenNodes)
     leftPanelVisible.set(state0.leftPanelVisible)
@@ -124,7 +129,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     project.hiddenNodes.signal
       .combineWith(
         project.name.signal,
-        source.signal,
+        sourceText.signal,
         leftPanelVisible.signal,
         leftPanelTabIndex.signal
       )

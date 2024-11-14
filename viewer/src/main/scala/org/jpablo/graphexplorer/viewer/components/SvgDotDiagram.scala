@@ -4,7 +4,7 @@ import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.SvgDotDiagram.{BBox, selfContainedSvg}
-import org.jpablo.graphexplorer.viewer.components.selectable.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.state.ViewerState
