@@ -15,7 +15,7 @@ case class DotText(value: String):
     value
 
   // TODO: handle errors
-  val buildAST: List[DotAST] =
+  val parseAST: List[DotAST] =
     if value.isEmpty then List.empty
     else
       DotParserT.parse(value) match

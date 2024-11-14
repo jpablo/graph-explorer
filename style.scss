@@ -7,6 +7,7 @@ label[for ^= show-ns-kind-] {
 
   .navbar {
   }
+
   #projects-body {
     @apply p-2;
   }
@@ -17,8 +18,7 @@ label[for ^= show-ns-kind-] {
 
 
   #toolbar {
-    @apply shadow-xl bg-base-100 rounded-box flex items-center gap-2 p-1.5
-      absolute top-1 left-2/4 -translate-x-2/4 z-10;
+    @apply shadow-xl bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10;
   }
 
   #nodes-panel {
@@ -70,6 +70,7 @@ label[for ^= show-ns-kind-] {
         fill: rgb(245 158 11);
         stroke-width: 1.0;
         pointer-events: none;
+
         #dragging-arrow-line {
           stroke-dasharray: 2, 2;
         }
@@ -135,8 +136,11 @@ label[for ^= show-ns-kind-] {
     // graphviz
   }
 
-}
+  #graph-attributes {
+    @apply modal-box absolute bottom-0 right-0 z-20;
+  }
 
+}
 
 svg.plantuml {
   flex-shrink: 0;

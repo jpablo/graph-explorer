@@ -34,7 +34,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   private val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal, resetView)
 
-  val source = sourceFlow.source
+  val source = sourceFlow.sourceText
   val fullAST = sourceFlow.fullAST
   val fullGraph = sourceFlow.fullGraph
   private val visibleDOT = sourceFlow.visibleDOT
@@ -64,6 +64,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // -------------- UI state -----------------
   val leftPanelVisible = Var(true)
   val leftPanelTabIndex = Var(0)
+  val diagramAttributesVisible = Var(false)
 
   // -------- Public API -----------
   def resetView(): Unit =
@@ -95,14 +96,16 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     hiddenNodes.remove(ids)
 
   // Note: This method changes the AST and then updates the source!!
-  def addEdge(fullAST: DotAST, from: NodeId, to: NodeId): Unit =
-    val ast2 = fullAST.addEdge(from, to)
-    source.set(ast2.render(keepInternal = false))
+  // Note: explore just adding the edge to the source directly (a -> b)
+  def addEdge(from: NodeId, to: NodeId): Unit =
+    sourceFlow.sourceAST.update(_.addEdge(from, to))
+
+  val graphElementAttributes: Var[GraphElementAttributes] =
+    sourceFlow.sourceAST.zoom(_.getGraphAttributes)(_.withGraphAttributes(_))
 
   val eventHandlers = wire[EventHandlers]
 
   // -------- Diagram actions -----------
-
 
   // -------- storage ------------
 

@@ -2,7 +2,7 @@
 node_modules/
 
 # bloop and metals
-.bloop
+.bloop/
 .bsp/
 
 # metals
@@ -50,3 +50,5 @@ bin/
 #app
 .type-explorer/
 *.semanticdb
+
+out/

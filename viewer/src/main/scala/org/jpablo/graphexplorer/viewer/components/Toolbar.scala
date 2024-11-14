@@ -69,7 +69,9 @@ def Toolbar(
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow",
         li(a("roots", onClick.keepRootsOnly)),
         li(a("show all", onClick --> state.showAllNodes())),
-        li(a("hide all", onClick.hideAllNodes))
+        li(a("hide all", onClick.hideAllNodes)),
+        li(cls := "menu-title", hr()),
+        li(a("Diagram attributes", onClick --> state.diagramAttributesVisible.toggle())),
       )
     ),
     div(

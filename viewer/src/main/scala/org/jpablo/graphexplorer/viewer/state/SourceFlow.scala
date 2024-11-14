@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.laminar.api.L.*
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
@@ -10,29 +11,41 @@ import org.jpablo.graphexplorer.viewer.models.NodeId
 
 class SourceFlow(
     initialSource: String,
-    hiddenNodesV:  Signal[Set[NodeId]],
+    hiddenNodes:   Signal[Set[NodeId]],
     resetView:     () => Unit
-):
-  val source: Var[String] = Var(initialSource)
+)(using Owner):
 
-  // 1. parse source
-  // String ~> Dot ~> DiGraphAST
+  // source of truth
+  private val source: Var[(String, DotAST)] = Var((initialSource, DotAST.empty))
+
+  /** parse source: String ~> DotAST
+    */
+  val sourceText: Var[String] =
+    source.zoom(_._1): (_, newSource) =>
+      (newSource, DotText(newSource).parseAST.headOption.getOrElse(DotAST.empty))
+
+  /** render AST: DotAST ~> String
+    */
+  val sourceAST: Var[DotAST] =
+    source.zoom(_._2)((_, newAST) => (newAST.render(false), newAST))
+
+  /** AST with internal annotations: DotAST ~> DotAST
+    */
   val fullAST: Signal[DotAST] =
-    source.signal.map: src =>
-      DotText(src).buildAST.headOption
-        .map(_.attachInternalAttributes)
-        .getOrElse(DotAST.empty)
+    sourceAST.signal.map(_.attachInternalAttributes)
 
-  // 2. DiGraphAST ~> ViewerGraph
-  // Arrows are assigned consecutive ids starting from 1
+  /** DotAST ~> ViewerGraph
+    *
+    * Arrows are assigned consecutive ids starting from 1
+    */
   val fullGraph: Signal[ViewerGraph] =
     fullAST.map(_.toViewerGraph)
 
-  // 3. Remove hidden nodes from Dot AST
-  // DiGraphAST ~[removeNodes]~> DiGraphAST
+  /** AST with hidden nodes removed: DotAST ~> DotAST
+    */
   val visibleAST: Signal[DotAST] =
     fullAST
-      .combineWith(hiddenNodesV.signal)
+      .combineWith(hiddenNodes.signal)
       .map: (fullAST, hiddenNodes) =>
         fullAST
           .removeUnsupportedFeatures
@@ -40,10 +53,10 @@ class SourceFlow(
           .setDefaultTheme
       .tapEach(_ => resetView())
 
-  // 4. transform visible AST back to Visible Dot
-  // DiGraphAST ~> Dot
+  // transform visible AST back to Visible Dot
+  // DotAST ~> Dot
   val visibleDOT: Signal[DotText] =
-    visibleAST.map(_.toDot)
+    visibleAST.map(_.renderToDot)
 
   val visibleGraph: Signal[ViewerGraph] =
     visibleAST.map(_.toViewerGraph)

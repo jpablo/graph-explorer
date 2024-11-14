@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.window
@@ -16,7 +15,7 @@ def SelectionSidebar(state: ViewerState) =
   div(
     cls    := "absolute right-0 top-2 z-10",
     idAttr := "selection-sidebar",
-    selectionEmpty.childWhenFalse(
+    child(
       ul(
         cls := "menu menu-sm shadow bg-base-100 rounded-box m-2 p-0",
         li(cls := "menu-title", h1("selection"), hr()),
@@ -38,5 +37,5 @@ def SelectionSidebar(state: ViewerState) =
         li(disableClassIfEmpty, a("Select all predecessors", onClick.selectPredecessors)),
         li(disableClassIfEmpty, a("Select direct predecessors", onClick.selectDirectPredecessors))
       )
-    )
+    ) <-- selectionEmpty.not
   )

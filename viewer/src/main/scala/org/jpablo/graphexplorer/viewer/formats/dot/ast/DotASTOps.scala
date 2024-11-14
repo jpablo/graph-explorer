@@ -10,7 +10,7 @@ import scala.annotation.tailrec
 
 extension (ast: DotAST)
 
-  def toDot: DotText =
+  def renderToDot: DotText =
     DotText(ast.render(true))
 
   def toViewerGraph: ViewerGraph =
@@ -38,6 +38,23 @@ extension (ast: DotAST)
         case other => other
 
     ast.copy(children = attrMap.values.toList ++ children2)
+
+  def getGraphAttributes: GraphElementAttributes =
+    val attrs: List[(String, String | AttrEq)] = ast.children.collect:
+      case AttrStmt("graph", List(Attr(name, value))) => name -> value
+
+    GraphElementAttributes(
+      rankdir = attrs.collectFirst { case ("rankdir", v) => v.toString },
+      label   = attrs.collectFirst { case ("label", v) => v.toString },
+//      size = attrs.collectFirst { case ("size", v) => v.toString.split(",").toList match { case List(w, h) => (w.toDouble, h.toDouble) } },
+      splines = attrs.collectFirst { case ("splines", v) => v.toString },
+      bgcolor = attrs.collectFirst { case ("bgcolor", v) => v.toString },
+//      margin = attrs.collectFirst { case ("margin", v) => v.toString.split(",").toList match { case List(x, y) => (x.toDouble, y.toDouble) } },
+      fontname  = attrs.collectFirst { case ("fontname", v) => v.toString },
+      fontsize  = attrs.collectFirst { case ("fontsize", v) => v.toString.toDouble },
+      fontcolor = attrs.collectFirst { case ("fontcolor", v) => v.toString },
+      overlap   = attrs.collectFirst { case ("overlap", v) => v.toString }
+    )
 
   /** Unsupported features:
     *   - graph size (results in an incorrect layout)
