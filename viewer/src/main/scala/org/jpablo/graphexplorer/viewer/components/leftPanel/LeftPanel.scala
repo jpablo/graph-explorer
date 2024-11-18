@@ -31,6 +31,7 @@ class LeftPanel(state: ViewerState):
         tabHeaderSource(3)
       ),
       // --- Tab Body ---
+      hr(),
       tabStyle(0),
       tabNodes(1),
       tabEdges(2),
@@ -78,10 +79,7 @@ class LeftPanel(state: ViewerState):
     ).tiny
 
   private def tabStyle(idx: Int) =
-    div(
-      cls("hidden") <-- !isVisible(idx),
-      DiagramAttributesView(state)
-    )
+    DiagramAttributesView(state).amend(cls("hidden") <-- !isVisible(idx))
 
   private def tabSource(idx: Int) =
     CodeMirror(

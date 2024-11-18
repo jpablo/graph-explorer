@@ -145,6 +145,10 @@ label[for ^= show-ns-kind-] {
   }
 
   #diagram-attributes {
+    #diagram-attributes-content {
+      @apply p-2;
+    }
+
     table {
       @apply table-xs;
     }
