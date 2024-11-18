@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
+import org.jpablo.graphexplorer.viewer.components.attributes.DiagramAttributesView
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -12,13 +13,13 @@ def LeftPanel(state: ViewerState) =
   val visibleTab = state.leftPanelTabIndex
   val filterNodesByNodeId = Var("")
   val filterEdgesByNodeId = Var("")
-  def isVisible(i: Int) = visibleTab.signal.map(_ == i)
   val onlyActiveNodes = Var(false)
   val onlyActiveEdges = Var(false)
+  def isVisible(i: Int) = visibleTab.signal.map(_ == i)
 
   div(
     idAttr := "nodes-panel",
-    // --- First row ---
+    // --- First row (misc) ---
     div(
       cls := "flex gap-2 justify-between ml-10",
       Select(
@@ -53,7 +54,9 @@ def LeftPanel(state: ViewerState) =
         child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Edges ($n)"),
         cls("btn-active") <-- isVisible(2),
         onClick --> visibleTab.set(2)
-      ).tiny
+      ).tiny,
+      // Header 3: Attributes
+      Button("Style", cls("btn-active") <-- isVisible(3), onClick --> visibleTab.set(3)).tiny
     ),
     // ------ TAB 0: Source ------
     // --- DOT sources ---
@@ -96,5 +99,9 @@ def LeftPanel(state: ViewerState) =
       idAttr := "edges-panel-contents",
       cls("hidden") <-- !isVisible(2),
       EdgesList(state, onlyActiveEdges, filterEdgesByNodeId.signal)
+    ),
+    div(
+      cls("hidden") <-- !isVisible(3),
+      DiagramAttributesView(state)
     )
   )

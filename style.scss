@@ -22,7 +22,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #selection-sidebar {
-    @apply shadow-xl bg-base-100 rounded-box absolute right-2 top-20 z-10
+    @apply shadow-xl bg-base-100 rounded-box absolute right-2 top-2 z-10
   }
 
   #nodes-panel {
@@ -144,12 +144,7 @@ label[for ^= show-ns-kind-] {
     @apply absolute left-2 top-2 z-20;
   }
 
-  #diagram-attrs-button {
-    @apply absolute right-2 top-2 z-20;
-  }
-
   #diagram-attributes {
-    @apply modal-box absolute bottom-0 right-0 z-20;
     table {
       @apply table-xs;
     }

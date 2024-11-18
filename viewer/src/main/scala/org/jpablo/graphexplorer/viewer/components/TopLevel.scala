@@ -19,7 +19,6 @@ def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivEle
   div(
     idAttr := "top-level",
     DiagramElementsButton(state),
-    DiagramAttrsButton(state),
     child(DiagramAttributesView(state)) <-- state.diagramAttributesVisible,
     LeftPanel(state).amend(cls("hidden") <-- state.leftPanelVisible.signal.not),
     CanvasContainer(state, fitDiagram.events),
@@ -40,21 +39,5 @@ def DiagramElementsButton(state: ViewerState) =
         cls("btn-active") <-- state.leftPanelVisible,
         onClick --> state.leftPanelVisible.toggle()
       ).asBtn.tiny.outline.layoutSidebarIcon
-    )
-  )
-
-def DiagramAttrsButton(state: ViewerState) =
-  val labelId = s"toggle-diagram-attrs"
-  div(
-    idAttr := "diagram-attrs-button",
-    Tooltip(
-      text = "Diagram attributes",
-      cls := "flex-none tooltip-left",
-      input(idAttr := labelId, tpe := "checkbox", cls := "drawer-toggle"),
-      label(
-        forId := labelId,
-        cls("btn-active") <-- state.diagramAttributesVisible,
-        onClick --> state.diagramAttributesVisible.toggle()
-      ).asBtn.tiny.outline.pencilSquareIcon
     )
   )
