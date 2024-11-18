@@ -41,37 +41,43 @@ def LeftPanel(state: ViewerState) =
     // --- Tab Headers ---
     div(
       idAttr := "nodes-panel-tab-buttons",
+      // Header 0: Attributes
+      Button("Style", cls("btn-active") <-- isVisible(0), onClick --> visibleTab.set(0)).tiny,
+
       // Header 1: Source
-      Button("Source", cls("btn-active") <-- isVisible(0), onClick --> visibleTab.set(0)).tiny,
+      Button("Source", cls("btn-active") <-- isVisible(1), onClick --> visibleTab.set(1)).tiny,
       // Header 2: Nodes
       Button(
         child <-- state.fullGraph.map(_.summary.nodes).map(n => s"Nodes ($n)"),
-        cls("btn-active") <-- isVisible(1),
-        onClick --> visibleTab.set(1)
+        cls("btn-active") <-- isVisible(2),
+        onClick --> visibleTab.set(2)
       ).tiny,
       // Header 3: Edges
       Button(
         child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Edges ($n)"),
-        cls("btn-active") <-- isVisible(2),
-        onClick --> visibleTab.set(2)
-      ).tiny,
-      // Header 3: Attributes
-      Button("Style", cls("btn-active") <-- isVisible(3), onClick --> visibleTab.set(3)).tiny
+        cls("btn-active") <-- isVisible(3),
+        onClick --> visibleTab.set(3)
+      ).tiny
     ),
-    // ------ TAB 0: Source ------
+    // ------ TAB 0: Style ------
+    div(
+      cls("hidden") <-- !isVisible(0),
+      DiagramAttributesView(state)
+    ),
+    // ------ TAB 1: Source ------
     // --- DOT sources ---
     CodeMirror(
       state.sourceText,
       idAttr := "nodes-source",
-      cls("hidden") <-- !isVisible(0),
+      cls("hidden") <-- !isVisible(1),
       placeholder := "DOT source"
     ),
 
-    // ------ TAB 1: Nodes ------
+    // ------ TAB 2: Nodes ------
     // --- controls ---
     form(
       idAttr := "nodes-panel-controls",
-      cls("hidden") <-- !isVisible(1),
+      cls("hidden") <-- !isVisible(2),
       Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveNodes)),
       Search(
         placeholder := "filter",
@@ -81,14 +87,14 @@ def LeftPanel(state: ViewerState) =
     // Scrollable content
     div(
       idAttr := "nodes-panel-contents",
-      cls("hidden") <-- !isVisible(1),
+      cls("hidden") <-- !isVisible(2),
       // List of nodes
       NodesList(state, onlyActiveNodes.signal, filterNodesByNodeId.signal)
     ),
-    // ------ TAB 2: Edges ------
+    // ------ TAB 3: Edges ------
     form(
       idAttr := "edges-panel-controls",
-      cls("hidden") <-- !isVisible(2),
+      cls("hidden") <-- !isVisible(3),
       Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),
       Search(
         placeholder := "filter",
@@ -97,11 +103,7 @@ def LeftPanel(state: ViewerState) =
     ),
     div(
       idAttr := "edges-panel-contents",
-      cls("hidden") <-- !isVisible(2),
-      EdgesList(state, onlyActiveEdges, filterEdgesByNodeId.signal)
-    ),
-    div(
       cls("hidden") <-- !isVisible(3),
-      DiagramAttributesView(state)
+      EdgesList(state, onlyActiveEdges, filterEdgesByNodeId.signal)
     )
   )
