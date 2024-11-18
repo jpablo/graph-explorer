@@ -20,7 +20,7 @@ def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivEle
     idAttr := "top-level",
     DiagramElementsButton(state),
     child(DiagramAttributesView(state)) <-- state.diagramAttributesVisible,
-    LeftPanel(state).amend(cls("hidden") <-- state.leftPanelVisible.signal.not),
+    LeftPanel(state).render().amend(cls("hidden") <-- state.leftPanelVisible.signal.not),
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram, router),
     SelectionSidebar(state)
