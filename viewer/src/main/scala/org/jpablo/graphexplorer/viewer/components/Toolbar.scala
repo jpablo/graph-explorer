@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -47,19 +46,6 @@ def Toolbar(
         )
       )
     ),
-    // -------- Left panel toggle --------
-    Join(
-      Tooltip(
-        text = "Diagram elements",
-        cls := "flex-none",
-        input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
-        label(
-          forId := drawerId,
-          cls("btn-active") <-- state.leftPanelVisible,
-          onClick --> state.leftPanelVisible.toggle()
-        ).asBtn.tiny.ghost.layoutSidebarIcon
-      )
-    ),
     // -------- actions toolbar --------
     div(
       cls := "dropdown dropdown-hover",
@@ -70,8 +56,6 @@ def Toolbar(
         li(a("roots", onClick.keepRootsOnly)),
         li(a("show all", onClick --> state.showAllNodes())),
         li(a("hide all", onClick.hideAllNodes)),
-        li(cls := "menu-title", hr()),
-        li(a("Diagram attributes", onClick --> state.diagramAttributesVisible.toggle()))
       )
     ),
     div(

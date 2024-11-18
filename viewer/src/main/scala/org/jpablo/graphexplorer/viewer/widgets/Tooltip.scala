@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.dataTip
 
 def Tooltip(text: String, mods: Modifier[ReactiveHtmlElement.Base]*) =
   div(
-    cls := "flex-none tooltip tooltip-bottom",
+    cls := "flex-none tooltip",
     dataTip := text,
     mods
   )

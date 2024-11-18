@@ -18,9 +18,9 @@ def LeftPanel(state: ViewerState) =
 
   div(
     idAttr := "nodes-panel",
-    // --- Tab Headers ---
+    // --- First row ---
     div(
-      cls := "flex gap-2 justify-between",
+      cls := "flex gap-2 justify-between ml-10",
       Select(
         placeholderText = "Select example",
         options         = examples.keys.map(name => name -> name),
@@ -37,6 +37,7 @@ def LeftPanel(state: ViewerState) =
         "Graphviz"
       )
     ),
+    // --- Tab Headers ---
     div(
       idAttr := "nodes-panel-tab-buttons",
       // Header 1: Source

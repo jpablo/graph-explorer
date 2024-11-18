@@ -29,6 +29,7 @@ object Icons:
     def folderPlusIcon = elem.amend(cls := "bi bi-folder-plus")
     def layoutSidebarIcon = elem.amend(cls := "bi bi-layout-sidebar")
     def listIcon = elem.amend(cls := "bi bi-list")
+    def pencilSquareIcon = elem.amend(cls := "bi bi-pencil-square")
     def plusCircleIcon = elem.amend(cls := "bi bi-plus-circle")
     def plusIcon = elem.amend(cls := "bi bi-plus")
     def threeDotsVertical = elem.amend(cls := "bi bi-three-dots-vertical")
