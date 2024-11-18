@@ -31,7 +31,6 @@ class LeftPanel(state: ViewerState):
         tabHeaderSource(3)
       ),
       // --- Tab Body ---
-      hr(),
       tabStyle(0),
       tabNodes(1),
       tabEdges(2),
@@ -91,9 +90,9 @@ class LeftPanel(state: ViewerState):
 
   private def tabNodes(idx: Int) =
     div(
+      cls("hidden") <-- !isVisible(idx),
       form(
         idAttr := "nodes-panel-controls",
-        cls("hidden") <-- !isVisible(idx),
         Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveNodes)),
         Search(
           placeholder := "filter",
@@ -102,16 +101,15 @@ class LeftPanel(state: ViewerState):
       ),
       div(
         idAttr := "nodes-panel-contents",
-        cls("hidden") <-- !isVisible(idx),
         NodesList(state, onlyActiveNodes.signal, filterNodesByNodeId.signal)
       )
     )
 
   private def tabEdges(idx: Int) =
     div(
+      cls("hidden") <-- !isVisible(idx),
       form(
         idAttr := "edges-panel-controls",
-        cls("hidden") <-- !isVisible(idx),
         Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),
         Search(
           placeholder := "filter",
@@ -120,7 +118,6 @@ class LeftPanel(state: ViewerState):
       ),
       div(
         idAttr := "edges-panel-contents",
-        cls("hidden") <-- !isVisible(idx),
         EdgesList(state, onlyActiveEdges, filterEdgesByNodeId.signal)
       )
     )
