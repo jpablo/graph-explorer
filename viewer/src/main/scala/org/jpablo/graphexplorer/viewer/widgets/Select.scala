@@ -42,7 +42,7 @@ def SelectWithValue(
     mods:        Mods*
 ) =
   select(
-    cls := "select select-bordered select-sm w-full",
+    cls := "select select-bordered select-xs w-full",
     options.map((name, id) => option(name, value := id)),
     value <-- selectValue.signal.map(_.getOrElse(default)),
     onChange.mapToValue.map(Some(_)) --> selectValue,
@@ -68,7 +68,7 @@ def InputWithValue(
     default:         String = ""
 ) =
   input(
-    cls         := "input input-bordered input-sm w-full",
+    cls         := "input input-bordered input-xs w-full",
     tpe         := inputType.toString,
     placeholder := placeholderText,
     controlled(
@@ -83,7 +83,7 @@ def Checked(
     default:         Boolean = false
 ) =
   input(
-    cls         := "checkbox checkbox-sm",
+    cls         := "checkbox checkbox-xs",
     tpe         := InputType.checkbox.toString,
     placeholder := placeholderText,
     controlled(
