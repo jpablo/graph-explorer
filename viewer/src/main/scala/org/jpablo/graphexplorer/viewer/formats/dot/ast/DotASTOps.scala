@@ -26,7 +26,7 @@ extension (ast: DotAST)
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
     ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
-  def withAttributes(target: AttributeTarget)(attrs: Map[String, String]): DotAST =
+  def updateDiagramAttributes(target: AttributeTarget)(attrs: Map[String, String]): DotAST =
     val targetStr = target.toString
     var attrMap = attrs
     def updateAttrs(attrs: List[Attr]): List[Attr] =
@@ -51,7 +51,7 @@ extension (ast: DotAST)
         case _              => Newline() :: Pad() :: newAttrs :: updatedChildren
     )
 
-  def getAttributes(target: AttributeTarget): Map[String, String] =
+  def getDiagramAttributes(target: AttributeTarget): Map[String, String] =
     val targetStr = target.toString
     ast.children
       .collect:

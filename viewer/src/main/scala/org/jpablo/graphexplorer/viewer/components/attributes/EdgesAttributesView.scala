@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
-def EdgeAttributesView(state: ViewerState) =
+def EdgesAttributesView(state: ViewerState) =
   AttributesView(
     id    = "edge-attributes",
     title = "Edge Attributes",

@@ -1,12 +1,11 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.models.Arrow
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes}
 
 import scala.annotation.tailrec
 
 extension (graphElement: GraphElement)
-
 
   // add an attribute [id=$nextId] to all edges
   def attachId: GraphElement =
@@ -21,24 +20,37 @@ extension (graphElement: GraphElement)
       case Subgraph(children, id) => Subgraph(children.map(_.attachId), id)
       case other                  => other
 
-  def findAllNodeIds1: Set[String] =
+  def findAllNodeIds: Set[String] =
     @tailrec
     def loop(remaining: List[GraphElement], acc: Set[String]): Set[String] =
       remaining match
         case Nil => acc
-        case h :: t =>
-          h match
-            case NodeStmt(nodeId, _) => loop(t, acc + nodeId.id)
-            case EdgeStmt(edgeList, _) =>
-              val newElements =
-                edgeList
-                  .flatMap:
-                    case n: DotNodeId          => List(NodeStmt(n, Nil))
-                    case Subgraph(children, _) => children
-              loop(newElements ++ t, acc)
-            case Subgraph(children, _) => loop(children ++ t, acc)
-            case _                     => loop(t, acc)
+        case EdgeStmt(edgeList, _) :: tail =>
+          val children = edgeList.flatMap:
+            case n: DotNodeId          => List(NodeStmt(n, Nil))
+            case Subgraph(children, _) => children
+          loop(remaining = children ++ tail, acc = acc)
+        case NodeStmt(nodeId, _) :: tail   => loop(remaining = tail, acc = acc + nodeId.id)
+        case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
+        case _ :: tail                     => loop(remaining = tail, acc = acc)
+    loop(List(graphElement), Set.empty)
 
+  def toAttributes(attrList: List[Attr]): Attributes =
+    Attributes(attrList.map(attr => attr.id -> attr.value).toMap)
+
+  def findAllNodeAttributes(nodeIds: Set[String]): Set[Attributes] =
+    @tailrec
+    def loop(remaining: List[GraphElement], acc: Set[Attributes]): Set[Attributes] =
+      remaining match
+        case Nil => acc
+        case EdgeStmt(edgeList, _) :: tail =>
+          val children = edgeList.collect { case Subgraph(c, _) => c }.flatten
+          loop(remaining = children ++ tail, acc = acc)
+
+        case NodeStmt(DotNodeId(id, _), attr_list) :: tail if id in nodeIds =>
+          loop(remaining = tail, acc = acc + toAttributes(attr_list))
+        case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
+        case _ :: tail                     => loop(remaining = tail, acc = acc)
     loop(List(graphElement), Set.empty)
 
   def findAllArrows1: Set[Arrow] =

@@ -14,14 +14,13 @@ case class DotAST(
     children: List[GraphElement],
     id:       Option[String] = None
 ) derives ReadWriter:
-  lazy val allNodesIds: Set[String] = findAllNodeIds(children)
+  lazy val allNodesIds: Set[String] = this.asSubgraph.allNodesIds
   lazy val allArrows: Set[Arrow] = findAllArrows(children)
+
+  def asSubgraph: Subgraph = Subgraph(children, id)
 
 object DotAST:
   val empty: DotAST = DotAST("digraph", Nil)
-
-def findAllNodeIds(children: List[GraphElement]): Set[String] =
-  children.toSet.flatMap(_.allNodesIds)
 
 def findAllArrows(children: List[GraphElement]): Set[Arrow] =
   children.toSet.flatMap(_.allArrows)
@@ -33,7 +32,7 @@ object Location:
 
 @key("type")
 sealed trait GraphElement derives ReadWriter:
-  lazy val allNodesIds: Set[String] = this.findAllNodeIds1
+  lazy val allNodesIds: Set[String] = this.findAllNodeIds
   lazy val allArrows: Set[Arrow] = this.findAllArrows1
   def isAttrStmt: Boolean = false
 
@@ -107,18 +106,18 @@ case class EdgeStmt(
         case List(Subgraph(children, _))                => (children, Set.empty)
         case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, attrs)))
 
-        case List(DotNodeId(id, _), Subgraph(children, _)) =>
-          (children, findAllNodeIds(children).map(a => Arrow(id -> a, attrs)))
+        case List(DotNodeId(id, _), s @ Subgraph(children, _)) =>
+          (children, s.allNodesIds.map(a => Arrow(id -> a, attrs)))
 
-        case List(Subgraph(children, _), DotNodeId(id, _)) =>
-          (children, findAllNodeIds(children).map(a => Arrow(a -> id, attrs)))
+        case List(s @ Subgraph(children, _), DotNodeId(id, _)) =>
+          (children, s.allNodesIds.map(a => Arrow(a -> id, attrs)))
 
-        case List(Subgraph(children1, _), Subgraph(children2, _)) =>
+        case List(s1 @ Subgraph(children1, _), s2 @ Subgraph(children2, _)) =>
           (
             children1 ++ children2,
             for
-              a <- findAllNodeIds(children1)
-              b <- findAllNodeIds(children2)
+              a <- s1.allNodesIds
+              b <- s2.allNodesIds
             yield Arrow(a -> b, attrs)
           )
         case _ => (Nil, Set.empty)

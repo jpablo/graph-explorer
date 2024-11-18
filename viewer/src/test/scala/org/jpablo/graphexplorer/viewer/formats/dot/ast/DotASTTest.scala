@@ -10,7 +10,7 @@ class DotASTTest extends ScalaCheckSuite:
     val g = read[List[DotAST]](json1)
     assert(g.length == 1)
     println("-----------------")
-    val readLabel = g.head.getAttributes(AttributeTarget.graph)("label")
+    val readLabel = g.head.getDiagramAttributes(AttributeTarget.graph)("label")
     println(readLabel.toList)
     println(label.toList)
     assert(readLabel == label)

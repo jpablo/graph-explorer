@@ -99,13 +99,16 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     sourceFlow.sourceAST.update(_.addEdge(from, to))
 
   val graphElementAttributes =
-    sourceFlow.sourceAST.zoom(_.getAttributes(AttributeTarget.graph))(_.withAttributes(AttributeTarget.graph)(_))
+    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.graph))(_.updateDiagramAttributes(AttributeTarget.graph)(_))
 
   val nodeElementAttributes =
-    sourceFlow.sourceAST.zoom(_.getAttributes(AttributeTarget.node))(_.withAttributes(AttributeTarget.node)(_))
+    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.node))(_.updateDiagramAttributes(AttributeTarget.node)(_))
 
   val edgeElementAttributes =
-    sourceFlow.sourceAST.zoom(_.getAttributes(AttributeTarget.edge))(_.withAttributes(AttributeTarget.edge)(_))
+    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.edge))(_.updateDiagramAttributes(AttributeTarget.edge)(_))
+
+  // every time the selection changes:
+  // - create/update a Var[Map[String, String]] with the attributes of the selected nodes
 
   val eventHandlers = wire[EventHandlers]
 

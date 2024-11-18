@@ -21,6 +21,7 @@ class LeftPanel(state: ViewerState):
   def render() =
     div(
       idAttr := "nodes-panel",
+      cls("hidden") <-- state.leftPanelVisible.signal.not,
       firstRow,
       // --- Tab Headers ---
       div(

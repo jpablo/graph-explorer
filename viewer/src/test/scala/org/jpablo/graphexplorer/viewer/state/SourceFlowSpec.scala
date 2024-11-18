@@ -29,7 +29,7 @@ class SourceFlowSpec extends ScalaCheckSuite:
     assert(edgeIds == List("1", "2", "3"))
 
   test("labels should honor escaped quotes"):
-    assert(fullAST.getAttributes(graph)("label") == title)
+    assert(fullAST.getDiagramAttributes(graph)("label") == title)
 //    val visibleDOT = viewerState.visibleDOT.observe().now()
 //    println(visibleDOT.value.slice(60, 70).toList)
 

@@ -6,7 +6,7 @@ import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.router.Router
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
-import org.jpablo.graphexplorer.viewer.components.selection.SelectionSidebar
+import org.jpablo.graphexplorer.viewer.components.selection.SelectionAttributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -18,22 +18,23 @@ def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivEle
   div(
     idAttr := "top-level",
     DiagramElementsButton(state),
-    LeftPanel(state).render().amend(cls("hidden") <-- state.leftPanelVisible.signal.not),
+    LeftPanel(state).render(),
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram, router),
-    SelectionSidebar(state)
+//    SelectionSidebar(state),
+    SelectionAttributes(state)
   )
 
 def DiagramElementsButton(state: ViewerState) =
-  val drawerId = s"toggle-diagram-elements"
+  val inputId = s"toggle-diagram-elements"
   div(
     idAttr := "diagram-elements-button",
     Tooltip(
       text = "Diagram elements",
       cls := "flex-none tooltip-right",
-      input(idAttr := drawerId, tpe := "checkbox", cls := "drawer-toggle"),
+      input(idAttr := inputId, tpe := "checkbox", cls := "drawer-toggle"),
       label(
-        forId := drawerId,
+        forId := inputId,
         cls("btn-active") <-- state.leftPanelVisible,
         onClick --> state.leftPanelVisible.toggle()
       ).asBtn.tiny.outline.layoutSidebarIcon

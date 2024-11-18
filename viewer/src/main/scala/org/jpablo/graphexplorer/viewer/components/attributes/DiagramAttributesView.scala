@@ -20,7 +20,7 @@ def DiagramAttributesView(state: ViewerState) =
     div(
       idAttr := "diagram-attributes-content",
       GraphAttributesView(state).amend(cls("hidden") <-- tabVisible(0).not),
-      EdgeAttributesView(state).amend(cls("hidden") <-- tabVisible(1).not),
-      NodeAttributesView(state).amend(cls("hidden") <-- tabVisible(2).not)
+      EdgesAttributesView(state).amend(cls("hidden") <-- tabVisible(1).not),
+      NodesAttributesView(state).amend(cls("hidden") <-- tabVisible(2).not)
     )
   )

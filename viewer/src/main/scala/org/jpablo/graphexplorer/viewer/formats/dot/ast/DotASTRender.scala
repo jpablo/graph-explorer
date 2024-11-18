@@ -28,7 +28,7 @@ extension (node: GraphElement)
       case Pad() => "  "
 
       case AttrStmt(target, attrList) =>
-        val attrs = renderAttrList(keepInternal, attrList)
+        val attrs = renderAttrList(attrList, keepInternal)
         if attrs.isEmpty then "" else s"$target $attrs"
 
       case EdgeStmt(edgeList, attrList) =>
@@ -36,12 +36,12 @@ extension (node: GraphElement)
           .map:
             case n: DotNodeId => quoteText(n.id)
             case s: Subgraph  => s.render(keepInternal, edgeSeparator)
-          .mkString(s" $edgeSeparator") + renderAttrList(keepInternal, attrList)
+          .mkString(s" $edgeSeparator") + renderAttrList(attrList, keepInternal)
 
       case StmtSep() => ""
 
       case NodeStmt(nodeId, attrList) =>
-        quoteText(nodeId.id) + renderAttrList(keepInternal, attrList)
+        quoteText(nodeId.id) + renderAttrList(attrList, keepInternal)
 
       case Comment() => ""
 
@@ -49,7 +49,7 @@ extension (node: GraphElement)
         val idStr = id.getOrElse("")
         children.map(_.render(keepInternal, edgeSeparator)).mkString(s"subgraph $idStr {", "", "}")
 
-private def renderAttrList(keepInternal: Boolean, attrList: List[Attr]): String =
+private def renderAttrList(attrList: List[Attr], keepInternal: Boolean): String =
   attrList match
     case Nil => ""
     case attrs =>
@@ -57,19 +57,14 @@ private def renderAttrList(keepInternal: Boolean, attrList: List[Attr]): String 
         attrs
           .filter(a => keepInternal || a.id != idAttributeKey)
           .map:
-            case Attr("style", "stroke-dasharray: 5,5") =>
-              attribute("style", "dashed")
-
-            case Attr(id, AttrEq(value, html)) =>
-              if html then htmlAttribute(id, value) else attribute(id, value)
-
             case Attr("label", raw: String) =>
               // Escape the label string
               val jsonEscaped = write(raw)
               attribute("label", jsonEscaped.slice(1, jsonEscaped.length - 1))
 
-            case Attr(id, raw: String) =>
-              attribute(id, raw)
+            case Attr(id, AttrEq(value, true))          => htmlAttribute(id, value)
+            case Attr("style", "stroke-dasharray: 5,5") => attribute("style", "dashed")
+            case a @ Attr(id, _)                        => attribute(id, a.value)
 
       if attrsStrings.isEmpty then ""
       else

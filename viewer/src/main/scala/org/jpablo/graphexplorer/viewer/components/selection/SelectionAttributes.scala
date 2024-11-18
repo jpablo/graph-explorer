@@ -1,10 +1,25 @@
-package org.jpablo.graphexplorer.viewer.components.attributes
+package org.jpablo.graphexplorer.viewer.components.selection
 
+import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.buildRows
+import org.jpablo.graphexplorer.viewer.components.attributes.AttributesView
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
+
+def SelectionAttributes(state: ViewerState) =
+  val selectionEmpty =
+    state.diagramSelection.signal.map(_.isEmpty)
+
+  div(
+    idAttr := "selection-attributes",
+    state.diagramSelection.signal --> (ss => dom.console.log(ss.toString)),
+    child(
+      NodeAttributesView(state)
+    ) <-- selectionEmpty.not
+  )
+
 
 def NodeAttributesView(state: ViewerState) =
   AttributesView(
@@ -27,14 +42,3 @@ def NodeAttributesView(state: ViewerState) =
       Regular     -> checkbox
     )
   )
-
-def individualNodeAttributes = buildRows(
-  Shape,
-  Color -> color,
-  LabelLoc,
-  FontSize  -> number,
-  FontColor -> color,
-  FontName
-  // url
-  // label
-)
