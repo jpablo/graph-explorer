@@ -13,11 +13,10 @@ def SelectionSidebar(state: ViewerState) =
   val disableIfEmpty = cls("disabled") <-- selectionEmpty
   val disableAttrIfEmpty = disabled <-- selectionEmpty
   div(
-    cls    := "absolute right-0 top-2 z-10",
     idAttr := "selection-sidebar",
     child(
       ul(
-        cls := "menu menu-sm shadow bg-base-100 rounded-box m-2 p-0",
+        cls := "menu menu-sm bg-base-100 rounded-box",
         li(cls := "menu-title", h1("selection"), hr()),
         li(disableIfEmpty, a("Hide", disableAttrIfEmpty, onClick.hideSelectedNodes)),
         li(disableIfEmpty, a("Hide others", disableAttrIfEmpty, onClick.hideNonSelectedNodes)),
