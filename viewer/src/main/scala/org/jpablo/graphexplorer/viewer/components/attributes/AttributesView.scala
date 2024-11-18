@@ -16,8 +16,8 @@ def AttributesView(
 
   div(
     idAttr := id,
-    h3(cls := "font-bold text-lg", title),
-    hr(),
+//    h3(cls := "font-bold text-lg", title),
+//    hr(),
     table(
       cls := "table mt-3",
       tbody(
@@ -30,11 +30,11 @@ def AttributesView(
               row.inputType match
                 case InputType.select =>
                   SelectWithValue(row.options, inputVarStr, row.default)
-                
+
                 case InputType.checkbox =>
                   val inputVarBool = inputVarStr.zoomLazy(_.map(_.contains(true.toString)))((_, b) => b.map(_.toString))
                   Checked(row.placeholderText, inputVarBool, row.default == true.toString)
-                
+
                 case _ =>
                   InputWithValue(row.placeholderText, inputVarStr, row.inputType, row.default)
             ),
