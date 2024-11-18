@@ -15,6 +15,7 @@ def EdgeAttributesView(state: ViewerState) =
       ArrowHead,
       ArrowTail,
       Dir,
+      PenWidth  -> number,
       Color     -> color,
       Decorate  -> checkbox,
       FontSize  -> number,
