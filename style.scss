@@ -91,7 +91,7 @@ label[for ^= show-ns-kind-] {
           &:hover {
             cursor: pointer;
 
-            ellipse, polygon {
+            ellipse, polygon, path {
               stroke: rgb(251 191 36);
               stroke-width: 5.0;
               fill: rgba(251, 191, 36, 0.1);
@@ -99,7 +99,7 @@ label[for ^= show-ns-kind-] {
           }
 
           &.selected {
-            ellipse, polygon {
+            ellipse, polygon, path {
               stroke: rgb(245 158 11);
               stroke-width: 5.0;
               //fill: rgba(245, 158, 11, 0.1);
@@ -112,6 +112,7 @@ label[for ^= show-ns-kind-] {
         }
 
         .edge {
+          // update style of text
           &:hover {
             path, polygon {
               stroke: rgb(251 191 36);
@@ -125,7 +126,7 @@ label[for ^= show-ns-kind-] {
           }
 
           &.selected {
-            * {
+            path, polygon {
               stroke: rgb(245 158 11);
               stroke-width: 4.0;
             }
