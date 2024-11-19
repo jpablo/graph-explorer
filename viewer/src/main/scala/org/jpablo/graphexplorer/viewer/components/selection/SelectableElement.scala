@@ -8,8 +8,8 @@ import org.scalajs.dom.Element
 sealed trait SelectableElement(ref: dom.SVGGElement):
   def selectedClass: String
 
-  protected val title = ref.querySelector("title").textContent
-  protected val idAttr = ref.id
+  protected val refTitle = ref.querySelector("title").textContent
+  protected val refIdAttr = ref.id
 
   def nodeId: NodeId
 
@@ -42,17 +42,17 @@ end SelectableElement
 
 case class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
-  val nodeId: NodeId = models.NodeId(title)
+  val nodeId: NodeId = models.NodeId(refTitle)
 
 case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
 
   lazy val toArrow: Option[Arrow] =
-    Arrow.fromGraphvizTitle(title, idAttr)
+    Arrow.fromGraphvizTitle(refTitle, refIdAttr)
 
   // if parsing fails, use the title as the nodeId
   lazy val nodeId: NodeId =
-    toArrow.map(_.nodeId).getOrElse(models.NodeId(title))
+    toArrow.map(_.nodeId).getOrElse(models.NodeId(refTitle))
 end EdgeElement
 
 extension (e: dom.Element)
