@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
+import org.jpablo.graphexplorer.viewer.components.findSelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
@@ -15,7 +16,7 @@ class DiagramSelectionOps:
   private val selectedNodes: Var[SelectedNodes] = Var(Set.empty)
 
   val signal = selectedNodes.signal
-    .tapEach(s => dom.console.debug("selectedNodes:", JSON.parse(writeJs(s).toString)))
+    .tapEach(s => if s.nonEmpty then dom.console.log("Selection: " + JSON.parse(writeJs(s).toString)))
 
   def now(): SelectedNodes = selectedNodes.now()
 
@@ -42,6 +43,13 @@ class DiagramSelectionOps:
     // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
     val relatedIds = relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds
     add(relatedIds)
+
+  def handleSvgClick(event: dom.MouseEvent): Unit =
+    findSelectableElement(event) match
+      case None                            => clear()
+      case Some((nodeId: NodeId, metaKey)) => handleClickOnNode(nodeId)(metaKey)
+      case Some((Some(arrow), metaKey))    => handleClickOnArrow(arrow)(metaKey)
+      case _                               => ()
 
   def handleClickOnNode(nodeId: NodeId)(metaKey: Boolean) =
     if metaKey then

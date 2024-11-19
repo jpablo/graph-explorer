@@ -12,11 +12,16 @@ extension (self: Subgraph)
       remaining match
         case Nil => acc
         case EdgeStmt(edgeList, _) :: tail =>
+          edgeList.map:
+            case Subgraph(c, _) => c
+            case _              => Nil
+
           val children = edgeList.collect { case Subgraph(c, _) => c }.flatten
           loop(remaining = children ++ tail, acc = acc)
 
         case NodeStmt(DotNodeId(id, _), attr_list) :: tail if id in nodeIds =>
           loop(remaining = tail, acc = acc ++ toAttrsMap(attr_list))
+
         case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
         case _ :: tail                     => loop(remaining = tail, acc = acc)
 

@@ -95,3 +95,4 @@ class EventHandlers(
 
     def updateTranslate(using E <:< dom.WheelEvent): Base =
       ev(_.withCurrentValueOf(svgDiagramElement)) --> (handleWheel(zoomValue, translateXY)(_, _))
+      

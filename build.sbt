@@ -57,6 +57,7 @@ lazy val viewer =
         "org.scala-js"                 %%% "scalajs-dom" % "2.8.0",
         "com.lihaoyi"                  %%% "upickle"     % "4.0.0",
         "com.softwaremill.magnolia1_3" %%% "magnolia"    % "1.3.8",
+        "com.lihaoyi"                  %%% "pprint"      % "0.9.0",
 //        "com.github.sbt"             %%% "dynver"           % "5.1.0",
         "org.seleniumhq.selenium" % "selenium-java"    % "4.26.0" % Test,
         "org.scalameta"         %%% "munit"            % "1.0.0"  % Test,
