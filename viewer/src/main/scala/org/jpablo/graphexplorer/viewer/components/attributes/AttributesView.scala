@@ -16,7 +16,7 @@ def AttributesView(
 
   div(
     idAttr := id,
-    cls := "attributes-view",
+    cls    := "attributes-view",
 //    h3(cls := "font-bold text-lg", title),
 //    hr(),
     table(
@@ -24,7 +24,8 @@ def AttributesView(
       tbody(
         for row <- rows
         yield
-          val inputVarStr = attrs.zoomLazy(_.get(row.attrId))((a, value) => value.fold(a)(s => a + (row.attrId -> s)))
+          val inputVarStr = attrs
+            .zoomLazy(_.get(row.attrId))((a, value) => value.fold(a)(s => a + (row.attrId -> s)))
           tr(
             td(row.label),
             td(

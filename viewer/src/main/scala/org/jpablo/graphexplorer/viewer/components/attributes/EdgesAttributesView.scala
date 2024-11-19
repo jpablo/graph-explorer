@@ -9,7 +9,7 @@ def EdgesAttributesView(state: ViewerState) =
   AttributesView(
     id    = "edge-attributes",
     title = "Edge Attributes",
-    attrs = state.edgeElementAttributes,
+    attrs = state.edgeTargetAttributes,
     rows = buildRows(
       Style,
       ArrowHead,

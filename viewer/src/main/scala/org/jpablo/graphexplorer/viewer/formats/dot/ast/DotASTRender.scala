@@ -68,4 +68,4 @@ private def renderAttrList(attrList: List[Attr], keepInternal: Boolean): String 
 
       if attrsStrings.isEmpty then ""
       else
-        attrsStrings.mkString(" [", ", ", "];")
+        attrsStrings.mkString("[", ", ", "];")

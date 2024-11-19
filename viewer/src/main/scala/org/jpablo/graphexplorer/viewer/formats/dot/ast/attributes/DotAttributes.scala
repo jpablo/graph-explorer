@@ -53,11 +53,6 @@ object Ordering extends DotAttributeEnum[Ordering]:
   val label = "Ordering"
 
 enum Shape:
-//  case box, polygon, ellipse, circle, point, egg, triangle, plaintext, diamond,
-//    trapezium, parallelogram, house, pentagon, hexagon, septagon, octagon,
-//    doublecircle, doubleoctagon, tripleoctagon, invtriangle, invtrapezium,
-//    invhouse, Mdiamond, Msquare, Mcircle, Mrecord, rect, rectangle, none, note, tab,
-//    box3d, component
   case box, polygon, ellipse, oval, circle, point, egg, triangle, plaintext, plain, diamond, trapezium, parallelogram,
     house, pentagon, hexagon, septagon, octagon, doublecircle, doubleoctagon, tripleoctagon, invtriangle, invtrapezium,
     invhouse, Mdiamond, Msquare, Mcircle, Mrecord, rect, rectangle, square, star, underline, cylinder, note, tab,
@@ -155,6 +150,11 @@ object Color extends DotAttributeSimple[String]:
   val default = "#ffffff"
   override val placeholderText = "Enter color here"
 
+object FillColor extends DotAttributeSimple[String]:
+  val label = "Fill Color"
+  val default = "#D3D3D3" // lightgrey
+  override val placeholderText = "Enter fill color here"
+
 object FontSize extends DotAttributeSimple[Double]:
   val label = "Font Size"
   override val placeholderText = "Enter font size here"
@@ -170,7 +170,7 @@ object Weight extends DotAttributeSimple[Double]:
   override val placeholderText = "Enter weight here"
 
 // ----------------------------------
-//    
+//
 // ----------------------------------
 
 enum ImageScale:

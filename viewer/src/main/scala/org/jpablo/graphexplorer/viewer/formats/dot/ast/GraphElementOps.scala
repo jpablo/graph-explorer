@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes}
+import org.jpablo.graphexplorer.viewer.models.Arrow
 
 import scala.annotation.tailrec
 
@@ -31,24 +31,6 @@ extension (graphElement: GraphElement)
             case Subgraph(children, _) => children
           loop(remaining = children ++ tail, acc = acc)
         case NodeStmt(nodeId, _) :: tail   => loop(remaining = tail, acc = acc + nodeId.id)
-        case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
-        case _ :: tail                     => loop(remaining = tail, acc = acc)
-    loop(List(graphElement), Set.empty)
-
-  def toAttributes(attrList: List[Attr]): Attributes =
-    Attributes(attrList.map(attr => attr.id -> attr.value).toMap)
-
-  def findAllNodeAttributes(nodeIds: Set[String]): Set[Attributes] =
-    @tailrec
-    def loop(remaining: List[GraphElement], acc: Set[Attributes]): Set[Attributes] =
-      remaining match
-        case Nil => acc
-        case EdgeStmt(edgeList, _) :: tail =>
-          val children = edgeList.collect { case Subgraph(c, _) => c }.flatten
-          loop(remaining = children ++ tail, acc = acc)
-
-        case NodeStmt(DotNodeId(id, _), attr_list) :: tail if id in nodeIds =>
-          loop(remaining = tail, acc = acc + toAttributes(attr_list))
         case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
         case _ :: tail                     => loop(remaining = tail, acc = acc)
     loop(List(graphElement), Set.empty)

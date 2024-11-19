@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.DotText.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
 import org.scalajs.dom.{SVGPoint, SVGSVGElement}
 import upickle.default.*
 import com.softwaremill.macwire.*
@@ -98,17 +98,26 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.sourceAST.update(_.addEdge(from, to))
 
-  val graphElementAttributes =
-    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.graph))(_.updateDiagramAttributes(AttributeTarget.graph)(_))
+  val graphTargetAttributes =
+    sourceFlow.sourceAST
+      .zoom(_.getDiagramAttributes(AttributeTarget.graph))(
+        _.updateDiagramAttributes(AttributeTarget.graph)(_)
+      )
 
-  val nodeElementAttributes =
-    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.node))(_.updateDiagramAttributes(AttributeTarget.node)(_))
+  val nodeTargetAttributes =
+    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.node))(
+      _.updateDiagramAttributes(AttributeTarget.node)(_)
+    )
 
-  val edgeElementAttributes =
-    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.edge))(_.updateDiagramAttributes(AttributeTarget.edge)(_))
+  val edgeTargetAttributes =
+    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.edge))(
+      _.updateDiagramAttributes(AttributeTarget.edge)(_)
+    )
 
-  // every time the selection changes:
-  // - create/update a Var[Map[String, String]] with the attributes of the selected nodes
+  def nodesAttributes(nodeIds: Set[String]): Var[Map[Path, Path]] =
+    sourceFlow.sourceAST.zoom(_.asSubgraph.findAllNodeAttributes(nodeIds).values): (ast, attrs) =>
+      val sg = ast.asSubgraph.updateTopLevelNodeAttributes(nodeIds, Attributes(attrs))
+      DotAST(ast.tpe, sg.children, sg.id)
 
   val eventHandlers = wire[EventHandlers]
 

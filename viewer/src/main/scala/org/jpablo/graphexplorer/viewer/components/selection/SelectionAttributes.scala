@@ -9,27 +9,26 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
 
 def SelectionAttributes(state: ViewerState) =
-  val selectionEmpty =
-    state.diagramSelection.signal.map(_.isEmpty)
-
   div(
-    idAttr := "selection-attributes",
-    state.diagramSelection.signal --> (ss => dom.console.log(ss.toString)),
-    child(
-      NodeAttributesView(state)
-    ) <-- selectionEmpty.not
+    child <--
+      state.diagramSelection.signal.map: selectedNodes =>
+        if selectedNodes.isEmpty then
+          emptyNode
+        else
+          NodeAttributesView(state.nodesAttributes(selectedNodes.map(_.value)))
   )
 
-
-def NodeAttributesView(state: ViewerState) =
+def NodeAttributesView(attrs: Var[Map[String, String]]) =
   AttributesView(
-    id    = "node-attributes",
-    title = "Node Attributes",
-    attrs = state.nodeElementAttributes,
+    id    = "selection-attributes",
+    title = "Selection Attributes",
+    attrs = attrs,
     rows = buildRows(
       Shape,
-      Color -> color,
       Style,
+      Label,
+      Color     -> color,
+      FillColor -> color,
       LabelLoc,
       FontSize  -> number,
       FontColor -> color,
@@ -42,3 +41,4 @@ def NodeAttributesView(state: ViewerState) =
       Regular     -> checkbox
     )
   )
+// url

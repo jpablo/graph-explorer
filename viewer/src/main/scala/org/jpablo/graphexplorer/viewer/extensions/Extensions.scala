@@ -7,6 +7,9 @@ extension [A](a: A)
   infix def in(sa: Set[A]): Boolean =
     sa.contains(a)
 
+  infix def in(sa: Map[A, ?]): Boolean =
+    sa.contains(a)
+
   infix def notIn(sa: Set[A]): Boolean =
     !sa.contains(a)
 

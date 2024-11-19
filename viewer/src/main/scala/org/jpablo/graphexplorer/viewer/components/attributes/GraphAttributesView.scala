@@ -10,7 +10,7 @@ def GraphAttributesView(state: ViewerState) =
   AttributesView(
     id    = "graph-attributes",
     title = "Graph Attributes",
-    attrs = state.graphElementAttributes,
+    attrs = state.graphTargetAttributes,
     rows = buildRows(
       Layout,
       Rankdir,

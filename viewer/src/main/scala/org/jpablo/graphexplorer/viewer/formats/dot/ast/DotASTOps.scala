@@ -70,7 +70,7 @@ extension (ast: DotAST)
 
   def setDefaultTheme: DotAST =
     ast.modify(_.children).using: children =>
-      AttrStmt("node", List(Attr("style", "filled"))) :: children
+      Newline() :: Pad() :: AttrStmt("node", List(Attr("style", "filled"))) :: children
 
   def attachInternalAttributes: DotAST =
     EdgeStmt.resetId()

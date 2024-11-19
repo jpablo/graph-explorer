@@ -10,11 +10,12 @@ def NodesAttributesView(state: ViewerState) =
   AttributesView(
     id    = "node-attributes",
     title = "Node Attributes",
-    attrs = state.nodeElementAttributes,
+    attrs = state.nodeTargetAttributes,
     rows = buildRows(
       Shape,
-      Color -> color,
       Style,
+      Color     -> color,
+      FillColor -> color,
       LabelLoc,
       FontSize  -> number,
       FontColor -> color,
@@ -27,14 +28,3 @@ def NodesAttributesView(state: ViewerState) =
       Regular     -> checkbox
     )
   )
-
-def individualNodeAttributes = buildRows(
-  Shape,
-  Color -> color,
-  LabelLoc,
-  FontSize  -> number,
-  FontColor -> color,
-  FontName
-  // url
-  // label
-)
