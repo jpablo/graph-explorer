@@ -169,6 +169,12 @@ object Weight extends DotAttributeSimple[Double]:
   val default = 1.0
   override val placeholderText = "Enter weight here"
 
+object URL extends DotAttributeSimple[String]:
+  override val attrId = "URL"
+  val label = "URL"
+  val default = ""
+  override val placeholderText = "Enter URL here"
+
 // ----------------------------------
 //
 // ----------------------------------
@@ -183,7 +189,6 @@ object ImageScale extends DotAttributeEnum[ImageScale]:
 // Type aliases for numeric and string types
 type Points = Double
 
-type URI = String
 type LayerRange = String
 type StyleSpec = String
 type FilePath = String

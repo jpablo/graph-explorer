@@ -27,6 +27,7 @@ def NodeAttributesView(attrs: Var[Map[String, String]]) =
       Shape,
       Style,
       Label,
+      URL,
       Color     -> color,
       FillColor -> color,
       LabelLoc,

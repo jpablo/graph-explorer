@@ -23,7 +23,7 @@ def CanvasContainer(
     onKeyDown(_.filter(_.keyCode == Backspace).sample(state.diagramSelection.signal)) --> { selection =>
       state.project.hiddenNodes.update(_ ++ selection)
     },
-    onClick --> handleSvgClick(state),
+    onClick.preventDefault --> handleSvgClick(state),
     onWheel.updateTranslate,
 
     // --------------------------------
