@@ -26,23 +26,30 @@ extension (self: Subgraph)
     val attrMap = attributes.values
 
     @tailrec
-    def loop(remaining: List[GraphElement], acc: List[GraphElement]): List[GraphElement] =
+    def loop(
+        remaining: List[GraphElement],
+        acc:       List[GraphElement],
+        visited:   Set[String]
+    ): (List[GraphElement], Set[String]) =
       remaining match
-        case Nil => acc
+        case Nil => (acc, visited)
 
 //        case EdgeStmt(edgeList, _) :: tail =>
 //          val children = edgeList.collect { case Subgraph(c, _) => c }.flatten
 //          loop(remaining = children ++ tail, acc = acc)
 
         case NodeStmt(id, attr_list: List[Attr]) :: tail if id.id in nodeIds =>
-          loop(remaining = tail, acc = NodeStmt(id, merge(attr_list, attrMap)) :: acc)
+          loop(remaining = tail, acc = NodeStmt(id, merge(attr_list, attrMap)) :: acc, visited + id.id)
 
 //        case Subgraph(children, id) :: tail =>
 //          loop(remaining = children ++ tail, acc = acc)
 
-        case h :: tail => loop(remaining = tail, acc = h :: acc)
+        case h :: tail => loop(remaining = tail, acc = h :: acc, visited)
 
-    self.copy(children = loop(self.children, Nil).reverse)
+    val (children, visited) = loop(self.children, Nil, Set.empty)
+    val remainingIds = nodeIds -- visited
+    val newNodes = remainingIds.map(id => NodeStmt(DotNodeId(id), toAttrsList(attributes.values.toSeq)))
+    self.copy(children = children.reverse ++ Seq(Newline(), Pad()) ++ newNodes)
 
 //  def updateDiagramAttributes(nodeIds: Set[String])(attrs: Map[String, String]): DotAST =
 //    var attrMap = attrs
@@ -70,6 +77,9 @@ extension (self: Subgraph)
 
 def toAttrsMap(attrList: List[Attr]): Map[String, String] =
   attrList.map(attr => attr.id -> attr.value).toMap
+
+def toAttrsList(attrs: Seq[(String, String)]): List[Attr] =
+  attrs.map(Attr(_, _)).toList
 
 def merge(attr_list: List[Attr], attrs: Map[String, String]) =
   (toAttrsMap(attr_list) ++ attrs).map(Attr(_, _)).toList

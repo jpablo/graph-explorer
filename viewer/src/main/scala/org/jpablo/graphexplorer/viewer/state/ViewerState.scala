@@ -98,6 +98,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.sourceAST.update(_.addEdge(from, to))
 
+  // -------- Attribute management -----------
   val graphTargetAttributes =
     sourceFlow.sourceAST
       .zoom(_.getDiagramAttributes(AttributeTarget.graph))(
@@ -119,9 +120,8 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       val sg = ast.asSubgraph.updateTopLevelNodeAttributes(nodeIds, Attributes(attrs))
       DotAST(ast.tpe, sg.children, sg.id)
 
-  val eventHandlers = wire[EventHandlers]
-
   // -------- Diagram actions -----------
+  val eventHandlers = wire[EventHandlers]
 
   // -------- storage ------------
 
