@@ -123,6 +123,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // -------- Diagram actions -----------
   val eventHandlers = wire[EventHandlers]
 
+  def hideSelection() =
+    project.hiddenNodes.update(_ ++ diagramSelection.now())
+
   // -------- storage ------------
 
   private val persistedState: Var[PersistedState] =

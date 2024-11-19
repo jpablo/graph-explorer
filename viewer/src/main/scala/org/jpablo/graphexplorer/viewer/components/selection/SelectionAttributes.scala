@@ -15,10 +15,10 @@ def SelectionAttributes(state: ViewerState) =
         if selectedNodes.isEmpty then
           emptyNode
         else
-          NodeAttributesView(state.nodesAttributes(selectedNodes.map(_.value)))
+          CombinedAttributesView(state.nodesAttributes(selectedNodes.map(_.value)))
   )
 
-def NodeAttributesView(attrs: Var[Map[String, String]]) =
+def CombinedAttributesView(attrs: Var[Map[String, String]]) =
   AttributesView(
     id    = "selection-attributes",
     title = "Selection Attributes",
@@ -39,7 +39,12 @@ def NodeAttributesView(attrs: Var[Map[String, String]]) =
       PenWidth    -> number,
       Peripheries -> number,
       Sides       -> number,
-      Regular     -> checkbox
+      Regular     -> checkbox,
+      // --- nodes only ---
+      ArrowHead,
+      ArrowTail,
+      Dir,
+      Decorate -> checkbox
     )
   )
 // url

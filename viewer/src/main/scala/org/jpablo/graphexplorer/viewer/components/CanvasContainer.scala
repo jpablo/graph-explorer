@@ -21,9 +21,10 @@ def CanvasContainer(
     tabIndex := 0,
     fitDiagram --> state.resetView(),
     child <-- state.svgDiagramElement,
-    onKeyDown(_.filter(_.keyCode == Backspace).sample(state.diagramSelection.signal)) --> { selection =>
-      state.project.hiddenNodes.update(_ ++ selection)
-    },
+    onKeyDown(_.filter(_.keyCode == Backspace)) --> state.hideSelection(),
+//    onKeyDown(_.filter(_.keyCode == Backspace).sample(state.diagramSelection.signal)) --> { selection =>
+//      state.project.hiddenNodes.update(_ ++ selection)
+//    },
     onClick.preventDefault --> state.diagramSelection.handleSvgClick,
     onWheel.updateTranslate,
 
