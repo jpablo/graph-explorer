@@ -7,14 +7,14 @@ import scala.annotation.tailrec
 
 extension (self: Subgraph)
   def findAllNodeAttributes(nodeIds: Set[String]): Attributes =
+    // Use visibleGraph !!
     @tailrec
     def loop(remaining: List[GraphElement], acc: Map[String, String]): Map[String, String] =
       remaining match
         case Nil => acc
         case EdgeStmt(edgeList, _) :: tail =>
-          edgeList.map:
+          edgeList.collect:
             case Subgraph(c, _) => c
-            case _              => Nil
 
           val children = edgeList.collect { case Subgraph(c, _) => c }.flatten
           loop(remaining = children ++ tail, acc = acc)

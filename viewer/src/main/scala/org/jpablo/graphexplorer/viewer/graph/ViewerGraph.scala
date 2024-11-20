@@ -30,6 +30,11 @@ case class ViewerGraph(
 
   lazy val allArrowIds: Set[NodeId] = arrows.map(_.nodeId)
 
+  def attributesById(nodeIds: Set[String]) =
+    val nodeAttrs = nodes.filter(_.id.value in nodeIds).map(_.publicAttrs.values)
+    val edgeAttrs = arrows.filter(_.nodeId.value in nodeIds).map(_.publicAttrs.values)
+    Attributes((nodeAttrs ++ edgeAttrs).foldLeft(Map.empty)(_ ++ _))
+
   private lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
     arrows
       .groupBy(_.source)

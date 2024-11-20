@@ -26,6 +26,10 @@ trait Attributable:
   def idAttr: String =
     attrs.values.getOrElse(idAttributeKey, "")
 
+  def publicAttrs: Attributes =
+    Attributes(attrs.values -- Attributable.internal)
+
+
 object Attributable:
   val idAttributeKey = "id"
   val internal = Set(idAttributeKey)
