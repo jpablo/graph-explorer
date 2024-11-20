@@ -45,11 +45,7 @@ extension (ast: DotAST)
         case other                        => other
     // then add remaining attributes to a single AttrStmt
     val newAttrs = AttrStmt(targetStr, attrMap.map((k, v) => Attr(k, v)).toList)
-    ast.copy(
-      children = updatedChildren match
-        case Newline() :: _ => newAttrs :: updatedChildren
-        case _              => Newline() :: Pad() :: newAttrs :: updatedChildren
-    )
+    ast.copy(children = newAttrs :: updatedChildren)
 
   def getDiagramAttributes(target: AttributeTarget): Map[String, String] =
     val targetStr = target.toString
