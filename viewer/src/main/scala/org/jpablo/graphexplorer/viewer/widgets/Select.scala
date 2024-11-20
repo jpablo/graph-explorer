@@ -65,7 +65,8 @@ def InputWithValue(
     placeholderText: String,
     inputValue:      Var[Option[String]],
     inputType:       InputType = InputType.text,
-    default:         String = ""
+    default:         String = "",
+    setFocus:        Boolean = false
 ) =
   input(
     cls         := "input input-bordered input-xs w-full",
@@ -74,7 +75,8 @@ def InputWithValue(
     controlled(
       value <-- inputValue.signal.map(_.getOrElse(default)),
       onInput.mapToValue.map(Some(_)) --> inputValue.set
-    )
+    ),
+    if setFocus then onMountFocus else emptyMod
   )
 
 def Checked(
