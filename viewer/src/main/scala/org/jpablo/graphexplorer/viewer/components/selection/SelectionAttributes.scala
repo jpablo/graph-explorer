@@ -24,9 +24,9 @@ def CombinedAttributesView(attrs: Var[Map[String, String]]) =
     title = "Selection Attributes",
     attrs = attrs,
     rows = buildRows(
+      Label,
       Shape,
       Style,
-      Label,
       URL,
       Color     -> color,
       FillColor -> color,

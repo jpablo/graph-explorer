@@ -17,8 +17,8 @@ def AttributesView(
   div(
     idAttr := id,
     cls    := "attributes-view",
-//    h3(cls := "font-bold text-lg", title),
-//    hr(),
+    h3(cls := "font-bold text-lg", title),
+    hr(),
     table(
       cls := "table mt-3",
       tbody(
