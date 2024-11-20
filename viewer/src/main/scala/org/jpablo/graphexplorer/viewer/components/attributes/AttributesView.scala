@@ -38,7 +38,7 @@ def AttributesView(
                   Checked(row.placeholderText, inputVarBool, row.default == true.toString)
 
                 case _ =>
-                  InputWithValue(row.placeholderText, inputVarStr, row.inputType, row.default, setFocus = row.attrId == "label")
+                  InputWithValue(row.placeholderText, inputVarStr, row.inputType, row.default/*, setFocus = row.attrId == "label"*/)
             ),
             td()
           )
