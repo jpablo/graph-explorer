@@ -76,7 +76,8 @@ extension (ast: DotAST)
     EdgeStmt.resetId()
     ast.modify(_.children).using(_.map(_.attachId))
 
-  def removeNodes(idsToRemove: Set[String]): DotAST =
+  def removeNodes(idsToRemove: Set[NodeId]): DotAST =
+    val idsToRemoveStr = idsToRemove.map(_.value)
     @tailrec
     def optimize(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
       children match
@@ -95,6 +96,6 @@ extension (ast: DotAST)
         .reverse
 
     ast
-      .modify(_.children).using(_.flatMap(_.removeGraphNodes(idsToRemove)))
+      .modify(_.children).using(_.flatMap(_.removeGraphNodes(idsToRemoveStr)))
       .modify(_.children).using(optimize(_))
       .modify(_.children).using(dedup)

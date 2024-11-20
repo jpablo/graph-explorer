@@ -52,7 +52,7 @@ class SourceFlow(
       .map: (fullAST, hiddenNodes) =>
         fullAST
           .removeUnsupportedFeatures
-          .removeNodes(hiddenNodes.map(_.value))
+          .removeNodes(hiddenNodes)
           .setDefaultTheme
       .tapEach(_ => resetView())
 

@@ -102,7 +102,9 @@ case class EdgeStmt(
       .toList
       .map:
         case List(Subgraph(children, _))                => (children, Set.empty)
-        case List(DotNodeId(id1, _), DotNodeId(id2, _)) => (Nil, Set(Arrow(id1 -> id2, attrs)))
+        case List(DotNodeId(id1, _), DotNodeId(id2, _)) =>
+//          pprint.log((Nil, Set(Arrow(id1 -> id2, attrs))))
+          (Nil, Set(Arrow(id1 -> id2, attrs)))
 
         case List(DotNodeId(id, _), s @ Subgraph(children, _)) =>
           (children, s.allNodesIds.map(a => Arrow(id -> a, attrs)))

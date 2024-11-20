@@ -70,6 +70,9 @@ extension (graphElement: GraphElement)
             case Nil    => (e :: Nil) :: Nil
             case h :: t => (e :: h) :: t
 
+//        dom.console.log("-----> removeGraphNodes")
+//        pprint.log(eArrows)
+//        pprint.log(idsToRemove)
         if eArrows.subsetOf(idsToRemove) then
           Nil
         else

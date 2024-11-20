@@ -67,7 +67,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // -------- Public API -----------
   def resetView(): Unit =
-    zoomValue.set(1.0)
+    zoomValue.set(0.90)
     translateXY.set(SvgUnit.origin)
 
   def showAllNodes() =
@@ -125,6 +125,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   def hideSelection() =
     project.hiddenNodes.update(_ ++ diagramSelection.now())
+
+  def deleteSelection() =
+    sourceFlow.sourceAST.update(_.attachInternalAttributes.removeNodes(diagramSelection.now()))
 
   // -------- storage ------------
 
