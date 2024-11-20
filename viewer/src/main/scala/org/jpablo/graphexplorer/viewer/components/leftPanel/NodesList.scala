@@ -15,7 +15,7 @@ def NodesList(
 ): ReactiveHtmlElement[HTMLTableElement] =
   table(
     cls := "table table-xs table-pin-rows",
-    thead(tr(th("Node"), th("Label"))),
+    thead(tr(th("Label"), th("NodeId"))),
     tbody(
       children <--
         filteredDiagramEvent(state, onlyActive, filterByNodeId)
@@ -26,8 +26,8 @@ def NodesList(
                 cls := "whitespace-nowrap hover cursor-pointer",
                 cls("font-bold") <-- state.isNodeVisible(node.id),
                 cls("selected") <-- state.isSelected(node.id),
-                td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.id.toString),
                 td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.label),
+                td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.id.toString),
                 onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnNode(node.id),
                 onDblClick
                   .preventDefault

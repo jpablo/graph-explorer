@@ -14,7 +14,7 @@ def EdgesList(
 ): ReactiveHtmlElement[HTMLTableElement] =
   table(
     cls := "table table-xs table-pin-rows",
-    thead(tr(th("Source"), th(""), th("Target"), th("Label"))),
+    thead(tr(th("Label"), th("Source"), th(""), th("Target"))),
     tbody(
       children <--
         state
@@ -32,10 +32,10 @@ def EdgesList(
                 cls := "whitespace-nowrap hover cursor-pointer",
                 cls("font-bold") <-- state.isEdgeVisible(arrow.nodeId),
                 cls("selected") <-- state.isSelected(arrow.nodeId),
+                td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), arrow.label),
                 td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.source), arrow.source.toString),
                 td("→"),
                 td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), arrow.target.toString),
-                td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), arrow.label),
                 onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnArrow(arrow),
                 onDblClick
                   .preventDefault
