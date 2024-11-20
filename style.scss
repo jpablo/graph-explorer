@@ -22,15 +22,15 @@ label[for ^= show-ns-kind-] {
   }
 
   #selection-sidebar {
-    @apply shadow-xl bg-base-100 rounded-box absolute right-2 top-2 z-10
+    @apply shadow-xl bg-base-100 rounded-box absolute right-2 top-2 z-10 print:hidden
   }
 
   #selection-attributes {
-    @apply shadow-xl bg-base-100 rounded-box absolute right-2 top-2 z-10
+    @apply shadow-xl bg-base-100 rounded-box absolute right-2 top-2 z-10 print:hidden
   }
 
   #nodes-panel {
-    @apply bg-base-100 p-2 gap-3 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden;
+    @apply bg-base-100 p-2 gap-3 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden print:hidden;
     //background-color: lightgray;
 
     #nodes-panel-tab-buttons {
