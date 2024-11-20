@@ -18,16 +18,15 @@ extension (self: Subgraph)
       remaining match
         case Nil => (acc, visited)
 
-        case (e @ EdgeStmt(edgeList @ List(DotNodeId(e1, _), DotNodeId(e2, _)), attr_list)) :: tail =>
+        case (e @ EdgeStmt(edgeList @ List(DotNodeId(source, _), DotNodeId(target, _)), attr_list)) :: tail =>
           val edgeAttrsMap = toAttrsMap(attr_list)
-          val arrowId = Arrow((e1, e2), edgeAttrsMap).nodeId.value
-          pprint.log((arrowId, attr_list))
-          val found = arrowId in nodeIds
-          val e3 =
+          val edgeId = Arrow((source, target), edgeAttrsMap).nodeId.value
+          val found = edgeId in nodeIds
+          val e2 =
             if found then
               EdgeStmt(edgeList, toAttrsList((edgeAttrsMap ++ attrMap).toSeq))
             else e
-          loop(remaining = tail, acc = e3 :: acc, visited)
+          loop(remaining = tail, acc = e2 :: acc, visited = if found then visited + edgeId else visited)
 
         case NodeStmt(id, attr_list: List[Attr]) :: tail if id.id in nodeIds =>
           loop(remaining = tail, acc = NodeStmt(id, merge(attr_list, attrMap)) :: acc, visited + id.id)
@@ -38,30 +37,6 @@ extension (self: Subgraph)
     val remainingIds = nodeIds -- visited
     val newNodes = remainingIds.map(id => NodeStmt(DotNodeId(id), toAttrsList(attributes.values.toSeq)))
     self.copy(children = children.reverse ++ Seq(Newline(), Pad()) ++ newNodes)
-
-//  def updateDiagramAttributes(nodeIds: Set[String])(attrs: Map[String, String]): DotAST =
-//    var attrMap = attrs
-//    def updateAttrs(attrs: List[Attr]): List[Attr] =
-//      for attr <- attrs
-//        yield
-//          if attrMap.contains(attr.id) then
-//            val newAttrValue = attrMap(attr.id)
-//            attrMap -= attr.id
-//            Attr(attr.id, newAttrValue)
-//          else
-//            attr
-//    // first update existing attributes
-//    val updatedChildren =
-//      self.children.map:
-//        case AttrStmt(`targetStr`, attrs) => AttrStmt(targetStr, updateAttrs(attrs))
-//        case other                        => other
-//    // then add remaining attributes to a single AttrStmt
-//    val newAttrs = AttrStmt(targetStr, attrMap.map((k, v) => Attr(k, v)).toList)
-//    self.copy(
-//      children = updatedChildren match
-//        case Newline() :: _ => newAttrs :: updatedChildren
-//        case _              => Newline() :: Pad() :: newAttrs :: updatedChildren
-//    )
 
 def toAttrsMap(attrList: List[Attr]): Map[String, String] =
   attrList.map(attr => attr.id -> attr.value).toMap

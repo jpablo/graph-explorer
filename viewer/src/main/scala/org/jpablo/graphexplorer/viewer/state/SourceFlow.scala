@@ -22,12 +22,18 @@ class SourceFlow(
     */
   val sourceText: Var[String] =
     source.zoom(_._1): (_, newSource) =>
-      (newSource, DotText(newSource).parseAST.headOption.getOrElse(DotAST.empty))
+      (
+        newSource,
+        DotText(newSource)
+          .parseAST.headOption
+          .getOrElse(DotAST.empty)
+          .attachInternalAttributes
+      )
 
   /** render AST: DotAST ~> String
     */
   val sourceAST: Var[DotAST] =
-    source.zoom(_._2)((_, newAST) => (newAST.render(false), newAST))
+    source.zoom(_._2)((_, newAST) => (newAST.optimize.render(keepInternal = false), newAST))
 
   // initial setup
   sourceText.set(initialSource)
@@ -35,7 +41,7 @@ class SourceFlow(
   /** AST with internal annotations: DotAST ~> DotAST
     */
   val fullAST: Signal[DotAST] =
-    sourceAST.signal.map(_.attachInternalAttributes)
+    sourceAST.signal
 
   /** DotAST ~> ViewerGraph
     *

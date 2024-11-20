@@ -29,6 +29,7 @@ extension (ast: DotAST)
   def updateDiagramAttributes(target: AttributeTarget)(attrs: Map[String, String]): DotAST =
     val targetStr = target.toString
     var attrMap = attrs
+
     def updateAttrs(attrs: List[Attr]): List[Attr] =
       for attr <- attrs
       yield
@@ -74,13 +75,6 @@ extension (ast: DotAST)
 
   def removeNodes(idsToRemove: Set[NodeId]): DotAST =
     val idsToRemoveStr = idsToRemove.map(_.value)
-    @tailrec
-    def optimize(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
-      children match
-        case h :: EdgeStmt(Nil, _) :: t => optimize(h :: t, state) // why the focus on the 2nd element?
-        case Pad() :: Newline() :: t    => optimize(t, state)
-        case h :: t                     => optimize(t, h :: state)
-        case Nil                        => state.reverse
 
     def dedup(lst: List[GraphElement]): List[GraphElement] =
       lst
@@ -93,5 +87,15 @@ extension (ast: DotAST)
 
     ast
       .modify(_.children).using(_.flatMap(_.removeGraphNodes(idsToRemoveStr)))
-      .modify(_.children).using(optimize(_))
       .modify(_.children).using(dedup)
+
+  def optimize: DotAST =
+    @tailrec
+    def optimize(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
+      children match
+        case h :: EdgeStmt(Nil, _) :: t => optimize(h :: t, state) // why the focus on the 2nd element?
+        case Pad() :: Newline() :: t    => optimize(t, state)
+        case h :: t                     => optimize(t, h :: state)
+        case Nil                        => state.reverse
+
+    ast.modify(_.children).using(optimize(_))

@@ -116,7 +116,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     )
 
   def nodesAttributes(nodeIds: Set[String]): Var[Map[Path, Path]] =
-    sourceFlow.sourceAST.zoom(_ => visibleGraph.observe.now().attributesById(nodeIds).values): (ast, attrs) =>
+    def astToMap = visibleGraph.observe.now().attributesById(nodeIds).values
+    sourceFlow.sourceAST.zoom(_ => astToMap): (ast, attrs) =>
+      // mapToAst
       val sg = ast.asSubgraph.updateTopLevelAttributes(nodeIds, Attributes(attrs))
       DotAST(ast.tpe, sg.children, sg.id)
 
