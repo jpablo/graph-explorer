@@ -1,33 +1,12 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes}
 
 import scala.annotation.tailrec
 
 extension (self: Subgraph)
-  def findAllNodeAttributes(nodeIds: Set[String]): Attributes =
-    // Use visibleGraph !!
-    @tailrec
-    def loop(remaining: List[GraphElement], acc: Map[String, String]): Map[String, String] =
-      remaining match
-        case Nil => acc
-        case EdgeStmt(edgeList, _) :: tail =>
-          edgeList.collect:
-            case Subgraph(c, _) => c
-
-          val children = edgeList.collect { case Subgraph(c, _) => c }.flatten
-          loop(remaining = children ++ tail, acc = acc)
-
-        case NodeStmt(DotNodeId(id, _), attr_list) :: tail if id in nodeIds =>
-          loop(remaining = tail, acc = acc ++ toAttrsMap(attr_list))
-
-        case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
-        case _ :: tail                     => loop(remaining = tail, acc = acc)
-
-    Attributes(loop(self.children, Map.empty))
-
-  def updateTopLevelNodeAttributes(nodeIds: Set[String], attributes: Attributes): Subgraph =
+  def updateTopLevelAttributes(nodeIds: Set[String], attributes: Attributes): Subgraph =
     val attrMap = attributes.values
 
     @tailrec
@@ -39,15 +18,19 @@ extension (self: Subgraph)
       remaining match
         case Nil => (acc, visited)
 
-//        case EdgeStmt(edgeList, _) :: tail =>
-//          val children = edgeList.collect { case Subgraph(c, _) => c }.flatten
-//          loop(remaining = children ++ tail, acc = acc)
+        case (e @ EdgeStmt(edgeList @ List(DotNodeId(e1, _), DotNodeId(e2, _)), attr_list)) :: tail =>
+          val edgeAttrsMap = toAttrsMap(attr_list)
+          val arrowId = Arrow((e1, e2), edgeAttrsMap).nodeId.value
+          pprint.log((arrowId, attr_list))
+          val found = arrowId in nodeIds
+          val e3 =
+            if found then
+              EdgeStmt(edgeList, toAttrsList((edgeAttrsMap ++ attrMap).toSeq))
+            else e
+          loop(remaining = tail, acc = e3 :: acc, visited)
 
         case NodeStmt(id, attr_list: List[Attr]) :: tail if id.id in nodeIds =>
           loop(remaining = tail, acc = NodeStmt(id, merge(attr_list, attrMap)) :: acc, visited + id.id)
-
-//        case Subgraph(children, id) :: tail =>
-//          loop(remaining = children ++ tail, acc = acc)
 
         case h :: tail => loop(remaining = tail, acc = h :: acc, visited)
 

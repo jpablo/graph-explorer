@@ -115,14 +115,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       _.updateDiagramAttributes(AttributeTarget.edge)(_)
     )
 
-
   def nodesAttributes(nodeIds: Set[String]): Var[Map[Path, Path]] =
-    sourceFlow.sourceAST.zoom(_ =>
-      val v = visibleGraph.observe.now().attributesById(nodeIds).values
-      dom.console.log(v.toString)
-      v
-    ): (ast, attrs) =>
-      val sg = ast.asSubgraph.updateTopLevelNodeAttributes(nodeIds, Attributes(attrs))
+    sourceFlow.sourceAST.zoom(_ => visibleGraph.observe.now().attributesById(nodeIds).values): (ast, attrs) =>
+      val sg = ast.asSubgraph.updateTopLevelAttributes(nodeIds, Attributes(attrs))
       DotAST(ast.tpe, sg.children, sg.id)
 
   // -------- Diagram actions -----------
