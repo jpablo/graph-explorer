@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
-import org.jpablo.graphexplorer.viewer.models.Arrow
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerNode}
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import upickle.default.*
 import upickle.implicits.key
@@ -14,16 +14,13 @@ case class DotAST(
     children: List[GraphElement],
     id:       Option[String] = None
 ) derives ReadWriter:
-  lazy val allNodesIds: Set[String] = this.asSubgraph.allNodesIds
-  lazy val allArrows: Set[Arrow] = findAllArrows(children)
+  lazy val allViewerNodes: Set[ViewerNode] = this.asSubgraph.allViewerNodes
+  lazy val allArrows: Set[Arrow] = this.asSubgraph.allArrows
 
   def asSubgraph: Subgraph = Subgraph(children, id)
 
 object DotAST:
   val empty: DotAST = DotAST("digraph", Nil)
-
-def findAllArrows(children: List[GraphElement]): Set[Arrow] =
-  children.toSet.flatMap(_.allArrows)
 
 case class Location(start: Position, end: Position) derives ReadWriter
 
@@ -32,8 +29,9 @@ object Location:
 
 @key("type")
 sealed trait GraphElement derives ReadWriter:
-  lazy val allNodesIds: Set[String] = this.findAllNodeIds
-  lazy val allArrows: Set[Arrow] = this.findAllArrows1
+  lazy val allViewerNodes: Set[ViewerNode] = this.findAllViewerNodes
+  lazy val allArrows: Set[Arrow] = this.findAllArrows
+  lazy val allNodesIds: Set[String] = allViewerNodes.map(_.id.value)
   def isAttrStmt: Boolean = false
 
 object GraphElement:
@@ -98,7 +96,7 @@ case class EdgeStmt(
 
   def allArrows1: List[(List[GraphElement], Set[Arrow])] =
     // TODO: Handle AttrEq as well (for html labels)
-    val attrs = attr_list.map(attr => attr.id -> attr.attrEq.toString).toMap
+    val attrs = toAttrsMap(attr_list)
     edge_list
       .sliding(2)
       .toList

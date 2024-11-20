@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.models.Arrow
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerNode}
 
 import scala.annotation.tailrec
 
@@ -20,22 +20,28 @@ extension (graphElement: GraphElement)
       case Subgraph(children, id) => Subgraph(children.map(_.attachId), id)
       case other                  => other
 
-  def findAllNodeIds: Set[String] =
+  def findAllViewerNodes: Set[ViewerNode] =
     @tailrec
-    def loop(remaining: List[GraphElement], acc: Set[String]): Set[String] =
+    def loop(remaining: List[GraphElement], acc: Set[ViewerNode]): Set[ViewerNode] =
       remaining match
         case Nil => acc
+
         case EdgeStmt(edgeList, _) :: tail =>
           val children = edgeList.flatMap:
             case n: DotNodeId          => List(NodeStmt(n, Nil))
             case Subgraph(children, _) => children
           loop(remaining = children ++ tail, acc = acc)
-        case NodeStmt(nodeId, _) :: tail   => loop(remaining = tail, acc = acc + nodeId.id)
+
+        case NodeStmt(nodeId, attr_list) :: tail =>
+          loop(remaining = tail, acc = acc + ViewerNode.node(nodeId.id, attr_list))
+
         case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
-        case _ :: tail                     => loop(remaining = tail, acc = acc)
+
+        case _ :: tail => loop(remaining = tail, acc = acc)
+
     loop(List(graphElement), Set.empty)
 
-  def findAllArrows1: Set[Arrow] =
+  def findAllArrows: Set[Arrow] =
     @tailrec
     def loop(remaining: List[GraphElement], acc: Set[Arrow] = Set.empty): Set[Arrow] =
       remaining match
@@ -43,11 +49,11 @@ extension (graphElement: GraphElement)
         case h :: remaining1 =>
           h match
             case e: EdgeStmt =>
-              val (remaining2, acc1) = e.allArrows1.unzip
-              loop(remaining2.flatten ++ remaining1, acc ++ acc1.toSet.flatten)
+              val (remaining2, acc2) = e.allArrows1.unzip
+              loop(remaining = remaining2.flatten ++ remaining1, acc = acc ++ acc2.toSet.flatten)
 
-            case Subgraph(children, _) => loop(children ++ remaining1, acc)
-            case _                     => loop(remaining1, acc)
+            case Subgraph(children, _) => loop(remaining = children ++ remaining1, acc = acc)
+            case _                     => loop(remaining = remaining1, acc = acc)
 
     loop(List(graphElement))
 

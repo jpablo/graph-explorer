@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.utils.Utils
 
 import compiletime.asMatchable
 import Arrow.titleIdSeparator
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, toAttrsMap}
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 
 // ---- Vertices ------
@@ -29,7 +30,6 @@ trait Attributable:
   def publicAttrs: Attributes =
     Attributes(attrs.values -- Attributable.internal)
 
-
 object Attributable:
   val idAttributeKey = "id"
   val internal = Set(idAttributeKey)
@@ -37,7 +37,8 @@ object Attributable:
 case class ViewerNode(id: NodeId, attrs: Attributes = Attributes.empty, kind: ViewerKind = None) extends Attributable
 
 object ViewerNode:
-  def node(name: String) = ViewerNode(NodeId(name))
+  def node(name: String, attr_list: List[Attr] = Nil) =
+    ViewerNode(NodeId(name), Attributes(toAttrsMap(attr_list)))
 
 // ---- Edges ------
 

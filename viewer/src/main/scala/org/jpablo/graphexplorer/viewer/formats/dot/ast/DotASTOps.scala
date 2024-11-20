@@ -4,7 +4,7 @@ import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.NodeId
 
 import scala.annotation.tailrec
 
@@ -19,7 +19,7 @@ extension (ast: DotAST)
   def toViewerGraph: ViewerGraph =
     ViewerGraph(
       arrows = ast.allArrows,
-      nodes  = ast.allNodesIds.map(ViewerNode.node)
+      nodes  = ast.allViewerNodes
     )
 
   def addEdge(source: NodeId, target: NodeId): DotAST =
