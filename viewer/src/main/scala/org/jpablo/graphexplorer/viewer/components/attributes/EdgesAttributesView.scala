@@ -20,6 +20,7 @@ def EdgesAttributesView(state: ViewerState) =
       Decorate  -> checkbox,
       FontSize  -> number,
       FontColor -> color,
-      FontName
+      FontName,
+      Constraint -> checkbox,
     )
   )

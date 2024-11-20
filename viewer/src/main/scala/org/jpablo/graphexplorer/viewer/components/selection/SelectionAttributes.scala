@@ -44,7 +44,8 @@ def CombinedAttributesView(attrs: Var[Map[String, String]]) =
       ArrowHead,
       ArrowTail,
       Dir,
-      Decorate -> checkbox
+      Decorate   -> checkbox,
+      Constraint -> checkbox
     )
   )
 // url

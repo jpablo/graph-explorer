@@ -21,9 +21,10 @@ def GraphAttributesView(state: ViewerState) =
       FontName,
       FontColor -> color,
       FontSize  -> number,
-      Overlap,
-      RankSep -> number,
-      NodeSep -> number,
+      Pad       -> number,
+      RankSep   -> number,
+      NodeSep   -> number,
+      Overlap
 //      Rotate  -> number
 //      Orientation -> number
     )

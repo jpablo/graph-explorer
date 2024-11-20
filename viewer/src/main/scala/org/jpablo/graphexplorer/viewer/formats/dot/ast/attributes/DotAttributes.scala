@@ -169,11 +169,19 @@ object Weight extends DotAttributeSimple[Double]:
   val default = 1.0
   override val placeholderText = "Enter weight here"
 
+object Pad extends DotAttributeSimple[Double]:
+  val label = "Padding"
+  val default = 0.0555
+
 object URL extends DotAttributeSimple[String]:
   override val attrId = "URL"
   val label = "URL"
   val default = ""
   override val placeholderText = "Enter URL here"
+
+object Constraint extends DotAttributeSimple[Boolean]:
+  val label = "Constraint"
+  val default = true
 
 // ----------------------------------
 //
