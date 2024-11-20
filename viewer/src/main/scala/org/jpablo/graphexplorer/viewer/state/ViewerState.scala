@@ -5,6 +5,7 @@ import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import com.softwaremill.macwire.*
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
@@ -14,9 +15,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
-import org.scalajs.dom.{SVGPoint, SVGSVGElement}
+import org.scalajs.dom.{KeyboardEvent, SVGPoint, SVGSVGElement}
 import upickle.default.*
-import com.softwaremill.macwire.*
 
 case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
@@ -130,6 +130,19 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   def deleteSelection() =
     sourceFlow.sourceAST.update(_.attachInternalAttributes.removeNodes(diagramSelection.now()))
+
+  def addEdge() =
+    val selection = diagramSelection.now()
+    if selection.isEmpty then
+      sourceFlow.sourceAST.update(_.addRandomNode())
+    else
+      sourceFlow.sourceAST.update(_.addNodeAndEdge(selection.head))
+
+  def handleKeyDown(ke: KeyboardEvent): Unit =
+    ke.key match
+      case "Backspace" => deleteSelection()
+      case "a"         => addEdge()
+      case _           => ()
 
   // -------- storage ------------
 

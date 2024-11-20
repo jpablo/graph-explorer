@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUID
 
 import scala.annotation.tailrec
 
@@ -22,9 +23,21 @@ extension (ast: DotAST)
       nodes  = ast.allViewerNodes
     )
 
+  def addRandomNode(): DotAST =
+    val label = Attr("label", "")
+    val newNode = NodeStmt(DotNodeId(randomUUID()), List(label))
+    ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newNode, Newline()))
+
   def addEdge(source: NodeId, target: NodeId): DotAST =
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
     ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
+
+  def addNodeAndEdge(source: NodeId): DotAST =
+    val newNodeId = randomUUID()
+    val label = Attr("label", "")
+    val newNode = NodeStmt(DotNodeId(newNodeId), List(label))
+    val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(newNodeId)), Nil)
+    ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newNode, Newline(), newEdge, Newline()))
 
   def updateDiagramAttributes(target: AttributeTarget)(attrs: Map[String, String]): DotAST =
     val targetStr = target.toString

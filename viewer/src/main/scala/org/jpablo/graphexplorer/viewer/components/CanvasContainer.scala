@@ -8,7 +8,6 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
-import org.scalajs.dom.KeyCode.Backspace
 
 def CanvasContainer(
     state:      ViewerState,
@@ -21,7 +20,7 @@ def CanvasContainer(
     tabIndex := 0,
     fitDiagram --> state.resetView(),
     child <-- state.svgDiagramElement,
-    onKeyDown(_.filter(_.keyCode == Backspace)) --> state.deleteSelection(),
+    onKeyDown.mapToEvent --> state.handleKeyDown,
     onClick.preventDefault --> state.diagramSelection.handleSvgClick,
     onWheel.updateTranslate,
 
