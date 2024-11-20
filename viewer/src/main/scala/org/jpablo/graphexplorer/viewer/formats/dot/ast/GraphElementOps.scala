@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerNode}
 
 import scala.annotation.tailrec
 
@@ -22,7 +22,7 @@ extension (graphElement: GraphElement)
 
   def findAllViewerNodes: Set[ViewerNode] =
     @tailrec
-    def loop(remaining: List[GraphElement], acc: Set[ViewerNode]): Set[ViewerNode] =
+    def loop(remaining: List[GraphElement], acc: Map[String, Map[String, String]]): Map[String, Map[String, String]] =
       remaining match
         case Nil => acc
 
@@ -33,13 +33,16 @@ extension (graphElement: GraphElement)
           loop(remaining = children ++ tail, acc = acc)
 
         case NodeStmt(nodeId, attr_list) :: tail =>
-          loop(remaining = tail, acc = acc + ViewerNode.node(nodeId.id, attr_list))
+          val attrMap = toAttrsMap(attr_list)
+          loop(remaining = tail, acc = acc.updatedWith(nodeId.id)(_.fold(Some(attrMap))(a => Some(a ++ attrMap))))
 
         case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
 
         case _ :: tail => loop(remaining = tail, acc = acc)
 
-    loop(List(graphElement), Set.empty)
+    loop(List(graphElement), Map.empty)
+      .map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
+      .toSet
 
   def findAllArrows: Set[Arrow] =
     @tailrec

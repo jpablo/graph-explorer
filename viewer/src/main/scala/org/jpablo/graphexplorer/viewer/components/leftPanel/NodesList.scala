@@ -49,4 +49,6 @@ private def filteredDiagramEvent(
   .fullGraph
   .combineWith(onlyActive, filterByNodeId, state.hiddenNodesS)
   .map: (fullGraph, onlyActive, filter, hiddenNodes) =>
-    fullGraph.orElse(filter.isBlank, _.filterByNodeId(filter)).orElse(!onlyActive, _.removeNodes(hiddenNodes))
+    fullGraph
+      .orElse(filter.isBlank, _.filterByNodeId(filter))
+      .orElse(!onlyActive, _.removeNodes(hiddenNodes))
