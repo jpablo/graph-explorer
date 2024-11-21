@@ -126,3 +126,37 @@ extension (ast: DotAST)
         case Nil                        => state.reverse
 
     ast.modify(_.children).using(loop(_))
+
+  def format: DotAST =
+    @tailrec
+    def loop(children: List[GraphElement], acc: List[GraphElement] = Nil): List[GraphElement] =
+      children match
+        case Nil => acc.reverse
+        
+        // Remove redundant padding
+        case Pad() :: Pad() :: rest => loop(Pad() :: rest, acc)
+        case Newline() :: Newline() :: rest => loop(Newline() :: rest, acc)
+        case Newline() :: Pad() :: Newline() :: rest => loop(Newline() :: rest, acc)
+        
+        // Format subgraphs
+        case (s @ Subgraph(_, _)) :: rest =>
+          val formattedSubgraph = s.copy(children = loop(s.children))
+          loop(rest, Newline() :: Pad() :: formattedSubgraph :: acc)
+        
+        // Format node statements
+        case (n @ NodeStmt(_, _)) :: rest =>
+          loop(rest, Pad() :: n :: acc)
+        
+        // Format edge statements
+        case (e @ EdgeStmt(_, _)) :: rest =>
+          loop(rest, Pad() :: e :: acc)
+        
+        // Format attribute statements
+        case (a @ AttrStmt(_, _)) :: rest =>
+          loop(rest, Pad() :: a :: acc)
+        
+        // Skip comments and other elements
+        case Comment() :: rest => loop(rest, acc)
+        case h :: rest => loop(rest, h :: acc)
+    
+    ast.copy(children = loop(ast.children, List(Newline())))
