@@ -88,7 +88,6 @@ extension (ast: DotAST)
 
   def removeNodes(idsToRemove: Set[NodeId]): DotAST =
     val idsToRemoveStr = idsToRemove.map(_.value)
-
     def dedup(lst: List[GraphElement]): List[GraphElement] =
       lst
         .foldLeft((List.empty[GraphElement], Set.empty[GraphElement])):
@@ -97,24 +96,18 @@ extension (ast: DotAST)
           case ((acc, visited), e)                           => (e :: acc, visited + e)
         ._1
         .reverse
-
     ast
       .modify(_.children).using(_.flatMap(_.removeGraphNodes(idsToRemoveStr)))
       .modify(_.children).using(dedup)
 
   def groupNodes(ids: Set[NodeId]): DotAST =
     val idsStr = ids.map(_.value)
-    // Create a new subgraph with a cluster_ prefix to be interpreted as a cluster by Graphviz
     val clusterId = s"cluster_${randomUUID().replace("-", "")}"
-    // Filter nodes to move into the subgraph
-    val (nodesForCluster, remainingChildren) = ast.children.partition {
-      case NodeStmt(DotNodeId(id, _), _) => id in idsStr
-      case _                             => false
-    }
-    // Create the subgraph with the filtered nodes
-    val subgraph = Subgraph(nodesForCluster, Some(clusterId))
-    // Return a new AST with the subgraph replacing the original nodes
-    ast.copy(children = subgraph :: remainingChildren)
+    val cluster = Subgraph(
+      children = idsStr.toList.map(id => NodeStmt(DotNodeId(id), Nil)),
+      id       = Some(clusterId)
+    )
+    ast.removeNodes(ids).modify(_.children).using(_ :+ cluster)
 
   def optimize: DotAST =
     @tailrec
@@ -150,7 +143,7 @@ extension (ast: DotAST)
         // Format attribute statements
         case ((a: AttrStmt) :: rest, acc) :: t => loop((rest, Pad() :: a :: acc) :: t, finalAcc)
         // Skip comments and other elements
-        case (Comment() :: rest, acc) :: t => loop(stack = (rest,      acc) :: t, finalAcc = finalAcc)
+        case (Comment() :: rest, acc) :: t => loop(stack = (rest, acc) :: t, finalAcc = finalAcc)
         case (c :: rest, acc) :: t         => loop(stack = (rest, c :: acc) :: t, finalAcc = finalAcc)
 
     ast.copy(children = loop(List((ast.children, List(Newline()))), Nil))
