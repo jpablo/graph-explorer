@@ -105,19 +105,17 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     )
 
   def handleMouseMove(clientCoords: Point2d[Double], buttons: Int): Unit =
-    if buttons == 1 then // Check if the left mouse button is pressed
-      if startNode.now().isDefined then
-        if !isDragging.now() then
-          isDragging.set(true)
-        endPos.set(clientCoords)
+    // Check if the left mouse button is pressed
+    if buttons == 1 && startNode.now().isDefined then
+      isDragging.set(true)
+      endPos.set(clientCoords)
 
   def handleMouseUp(endNodeId: Option[NodeId]): Unit =
     if isDragging.now() then
-      endNodeId.foreach { nodeId =>
+      endNodeId.foreach: nodeId =>
         startNode.now().map(_._1)
           .filter(_ != nodeId)
           .foreach(startNodeId => addEdge(startNodeId, nodeId))
-      }
       Var.set(
         startNode  -> None,
         isDragging -> false

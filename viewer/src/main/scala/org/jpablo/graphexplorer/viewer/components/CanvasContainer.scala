@@ -26,18 +26,16 @@ def CanvasContainer(
 
     // --------------------------------
     onMouseDown --> { event =>
-      findSelectableElement(event).foreach:
-        case (endNodeId: NodeId, _) => state.handleMouseDown(endNodeId, (event.clientX, event.clientY))
-        case _                      => ()
+      findSelectableElement(event).collect:
+        case (id: NodeId, _) => state.handleMouseDown(id, (event.clientX, event.clientY))
     },
     onMouseMove --> { event =>
       state.handleMouseMove((event.clientX, event.clientY), event.buttons)
     },
     onMouseUp --> { event =>
-      state.handleMouseUp(
-        findSelectableElement(event).map(_._1)
-          .collect { case id: NodeId => id }
-      )
+      state.handleMouseUp {
+        findSelectableElement(event).collect { case (id: NodeId, _) => id }
+      }
     },
     // --------------------------------
 
