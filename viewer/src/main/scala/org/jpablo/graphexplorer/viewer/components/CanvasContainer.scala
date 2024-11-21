@@ -27,32 +27,17 @@ def CanvasContainer(
     // --------------------------------
     onMouseDown --> { event =>
       findSelectableElement(event).foreach:
-        case (endNodeId: NodeId, _) =>
-          val clientCoords = (event.clientX, event.clientY)
-          Var.set(
-            state.startNode  -> Some(endNodeId, clientCoords),
-            state.endPos     -> clientCoords,
-            state.isDragging -> true
-          )
-        case _ => ()
+        case (endNodeId: NodeId, _) => state.handleMouseDown(endNodeId, (event.clientX, event.clientY))
+        case _                      => ()
     },
     onMouseMove --> { event =>
-      if state.isDragging.now() then
-        state.endPos.set((event.clientX, event.clientY))
+      state.handleMouseMove((event.clientX, event.clientY), event.buttons)
     },
     onMouseUp --> { event =>
-      if state.isDragging.now() then
-        findSelectableElement(event).foreach:
-          case (endNodeId: NodeId, _) =>
-            state.startNode.now().map(_._1)
-              .filter(_ != endNodeId)
-              .foreach: startNodeId =>
-                state.addEdge(startNodeId, endNodeId)
-          case _ => ()
-        Var.set(
-          state.startNode  -> None,
-          state.isDragging -> false
-        )
+      state.handleMouseUp(
+        findSelectableElement(event).map(_._1)
+          .collect { case id: NodeId => id }
+      )
     },
     // --------------------------------
 

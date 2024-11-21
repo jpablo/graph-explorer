@@ -98,6 +98,31 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.sourceAST.update(_.addEdge(from, to))
 
+  def handleMouseDown(endNodeId: NodeId, clientCoords: Point2d[Double]): Unit =
+    Var.set(
+      startNode -> Some(endNodeId, clientCoords),
+      endPos    -> clientCoords
+    )
+
+  def handleMouseMove(clientCoords: Point2d[Double], buttons: Int): Unit =
+    if buttons == 1 then // Check if the left mouse button is pressed
+      if startNode.now().isDefined then
+        if !isDragging.now() then
+          isDragging.set(true)
+        endPos.set(clientCoords)
+
+  def handleMouseUp(endNodeId: Option[NodeId]): Unit =
+    if isDragging.now() then
+      endNodeId.foreach { nodeId =>
+        startNode.now().map(_._1)
+          .filter(_ != nodeId)
+          .foreach(startNodeId => addEdge(startNodeId, nodeId))
+      }
+      Var.set(
+        startNode  -> None,
+        isDragging -> false
+      )
+
   // -------- Attribute management -----------
   val graphTargetAttributes =
     sourceFlow.sourceAST
