@@ -12,7 +12,7 @@ extension (ast: DotAST)
   def edgeSeparator = if ast.tpe == "digraph" then "->" else "--"
 
   def render(keepInternal: Boolean): String =
-    val body = ast.children
+    val body = ast./*format.*/children
       .map(_.render(keepInternal, edgeSeparator))
       .filter(_.nonEmpty)
       .mkString("")
