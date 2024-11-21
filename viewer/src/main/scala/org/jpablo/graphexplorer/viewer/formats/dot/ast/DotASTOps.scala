@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
-import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.NodeId
@@ -88,17 +87,18 @@ extension (ast: DotAST)
 
   def removeNodes(idsToRemove: Set[NodeId]): DotAST =
     val idsToRemoveStr = idsToRemove.map(_.value)
-    def dedup(lst: List[GraphElement]): List[GraphElement] =
-      lst
-        .foldLeft((List.empty[GraphElement], Set.empty[GraphElement])):
-          case ((acc, visited), e: EdgeStmt) if e in visited => (acc, visited)
-          case ((acc, visited), n: NodeStmt) if n in visited => (acc, visited)
-          case ((acc, visited), e)                           => (e :: acc, visited + e)
-        ._1
-        .reverse
+//    def dedup(lst: List[GraphElement]): List[GraphElement] =
+//      lst
+//        .foldLeft((List.empty[GraphElement], Set.empty[GraphElement])):
+//          case ((acc, visited), e: EdgeStmt) if e in visited => (acc, visited)
+//          case ((acc, visited), n: NodeStmt) if n in visited => (acc, visited)
+//          case ((acc, visited), e)                           => (e :: acc, visited + e)
+//        ._1
+//        .reverse
+    DotAST(ast.tpe, ast.asSubgraph.removeGraphNodes(idsToRemoveStr), ast.id)
     ast
       .modify(_.children).using(_.flatMap(_.removeGraphNodes(idsToRemoveStr)))
-      .modify(_.children).using(dedup)
+//      .modify(_.children).using(dedup)
 
   def groupNodes(ids: Set[NodeId]): DotAST =
     val idsStr = ids.map(_.value)

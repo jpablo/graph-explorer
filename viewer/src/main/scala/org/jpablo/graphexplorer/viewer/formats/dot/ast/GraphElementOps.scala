@@ -27,14 +27,17 @@ extension (graphElement: GraphElement)
         case Nil => acc
 
         case EdgeStmt(edgeList, _) :: tail =>
-          val children = edgeList.flatMap:
-            case n: DotNodeId          => List(NodeStmt(n, Nil))
-            case Subgraph(children, _) => children
-          loop(remaining = children ++ tail, acc = acc)
+          val edgeChildren = edgeList.flatMap:
+            case n: DotNodeId => List(NodeStmt(n, Nil))
+            case s: Subgraph  => s.children
+          loop(remaining = edgeChildren ++ tail, acc = acc)
 
         case NodeStmt(nodeId, attr_list) :: tail =>
           val attrMap = toAttrsMap(attr_list)
-          loop(remaining = tail, acc = acc.updatedWith(nodeId.id)(_.fold(Some(attrMap))(a => Some(a ++ attrMap))))
+          loop(
+            remaining = tail,
+            acc       = acc.updatedWith(nodeId.id)(_.fold(Some(attrMap))(existing => Some(existing ++ attrMap)))
+          )
 
         case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
 
@@ -52,8 +55,9 @@ extension (graphElement: GraphElement)
         case h :: remaining1 =>
           h match
             case e: EdgeStmt =>
-              val (remaining2, acc2) = e.allArrows1.unzip
-              loop(remaining = remaining2.flatten ++ remaining1, acc = acc ++ acc2.toSet.flatten)
+              // TODO: Review if we actually need to process remaining2
+              val (edgeChildren, edgeArrows) = e.allArrows1.unzip
+              loop(remaining = edgeChildren.flatten ++ remaining1, acc = acc ++ edgeArrows.toSet.flatten)
 
             case Subgraph(children, _) => loop(remaining = children ++ remaining1, acc = acc)
             case _                     => loop(remaining = remaining1, acc = acc)
@@ -63,45 +67,25 @@ extension (graphElement: GraphElement)
   // TODO: make this tail recursive
   def removeGraphNodes(idsToRemove: Set[String]): List[GraphElement] =
     graphElement match
-      case NodeStmt(DotNodeId(id, _), _) if id in idsToRemove => Nil
+      case n: NodeStmt if n.node_id.id in idsToRemove => Nil
 
-      case e @ EdgeStmt(edgeList, attrList) =>
-        val eArrows: Set[String] = e.allArrows.map(_.nodeId.value)
+      case EdgeStmt(edgeList, attrList) =>
+        val remainingEdges: List[EdgeElement] = edgeList
+          .flatMap:
+            // embed DotNodeId in a NodeStmt to have a common type (GraphElement)
+            case n: DotNodeId => NodeStmt(n, Nil).removeGraphNodes(idsToRemove)
+            case s: Subgraph  => s.removeGraphNodes(idsToRemove)
+          .map:
+            // extract the NodeStmt to conform to EdgeElement = NodeStmt | Subgraph
+            case n: NodeStmt => n.node_id
+            case g: Subgraph => g
+            // if it happens it's a bug!
+            case other => throw Exception(s"Unexpected element in edge list: $other")
 
-        def prependToHead(e: EdgeElement, acc: List[List[EdgeElement]]) =
-          acc match
-            case Nil    => (e :: Nil) :: Nil
-            case h :: t => (e :: h) :: t
-
-//        dom.console.log("-----> removeGraphNodes")
-//        pprint.log(eArrows)
-//        pprint.log(idsToRemove)
-        if eArrows.subsetOf(idsToRemove) then
-          Nil
-        else
-          val remainingEdges =
-            edgeList.foldLeft(Nil: List[List[EdgeElement]]):
-              case (acc, e @ DotNodeId(id, _)) =>
-                if id in idsToRemove then
-                  Nil :: acc // start a new edge: [[]] OR [[], e1, e2, ...]
-                else
-                  prependToHead(e, acc) // [[e]] OR [e :: e1, e2, ...]
-
-              case (acc, Subgraph(children, id)) =>
-                val visibleChildren = children.flatMap(_.removeGraphNodes(idsToRemove))
-                if visibleChildren.isEmpty then
-                  Nil :: acc
-                else
-                  prependToHead(Subgraph(visibleChildren, id), acc)
-
-          remainingEdges.filter(_.nonEmpty).reverse
-            .map:
-              case h :: Nil => h match
-                  // Drop the attributes on purpose.
-                  // Otherwise, the attributes will be attached to remaining node.
-                  case n: DotNodeId => NodeStmt(n, List.empty)
-                  case g: Subgraph  => g
-              case other => EdgeStmt(other.reverse, attrList)
+        // Is this faster than `remainingEdges.length < 2` ?
+        remainingEdges match
+          case _ :: _ :: _ => List(EdgeStmt(remainingEdges, attrList))
+          case _           => Nil
 
       case Subgraph(children, id) =>
         val remainingChildren = children.flatMap(_.removeGraphNodes(idsToRemove))
