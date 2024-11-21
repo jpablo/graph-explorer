@@ -155,11 +155,12 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     sourceFlow.sourceAST.update(_.attachInternalAttributes.removeNodes(diagramSelection.now()))
 
   def addEdge() =
-    val selection = diagramSelection.now()
-    if selection.isEmpty then
-      sourceFlow.sourceAST.update(_.addRandomNode())
-    else
-      sourceFlow.sourceAST.update(_.addNodeAndEdge(selection.head))
+    sourceFlow.sourceAST.update: ast =>
+      val selection = diagramSelection.now()
+      if selection.isEmpty then
+        ast.addRandomNode()
+      else
+        ast.addNodeAndEdge(selection.head)
 
   def handleKeyDown(ke: KeyboardEvent): Unit =
     ke.key match
