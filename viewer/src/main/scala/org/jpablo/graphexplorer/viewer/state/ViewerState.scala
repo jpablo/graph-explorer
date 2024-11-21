@@ -154,6 +154,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def deleteSelection() =
     sourceFlow.sourceAST.update(_.attachInternalAttributes.removeNodes(diagramSelection.now()))
 
+  def groupSelection() =
+    sourceFlow.sourceAST.update(_.groupNodes(diagramSelection.now()))
+
   def addEdge() =
     sourceFlow.sourceAST.update: ast =>
       val selection = diagramSelection.now()
@@ -166,6 +169,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     ke.key match
       case "Backspace" => deleteSelection()
       case "a"         => addEdge()
+      case "g"         => groupSelection()
       case _           => ()
 
   // -------- storage ------------

@@ -102,13 +102,27 @@ extension (ast: DotAST)
       .modify(_.children).using(_.flatMap(_.removeGraphNodes(idsToRemoveStr)))
       .modify(_.children).using(dedup)
 
+  def groupNodes(ids: Set[NodeId]): DotAST =
+    val idsStr = ids.map(_.value)
+    // Create a new subgraph with a cluster_ prefix to be interpreted as a cluster by Graphviz
+    val clusterId = s"cluster_${randomUUID().replace("-", "")}"
+    // Filter nodes to move into the subgraph
+    val (nodesForCluster, remainingChildren) = ast.children.partition {
+      case NodeStmt(DotNodeId(id, _), _) => id in idsStr
+      case _                             => false
+    }
+    // Create the subgraph with the filtered nodes
+    val subgraph = Subgraph(nodesForCluster, Some(clusterId))
+    // Return a new AST with the subgraph replacing the original nodes
+    ast.copy(children = subgraph :: remainingChildren)
+
   def optimize: DotAST =
     @tailrec
-    def optimize(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
+    def loop(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
       children match
-        case h :: EdgeStmt(Nil, _) :: t => optimize(h :: t, state) // why the focus on the 2nd element?
-        case Pad() :: Newline() :: t    => optimize(t, state)
-        case h :: t                     => optimize(t, h :: state)
+        case h :: EdgeStmt(Nil, _) :: t => loop(h :: t, state) // why the focus on the 2nd element?
+        case Pad() :: Newline() :: t    => loop(t, state)
+        case h :: t                     => loop(t, h :: state)
         case Nil                        => state.reverse
 
-    ast.modify(_.children).using(optimize(_))
+    ast.modify(_.children).using(loop(_))
