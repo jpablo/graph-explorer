@@ -122,6 +122,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       )
 
   // -------- Attribute management -----------
+  // top level attributes
   val graphTargetAttributes =
     sourceFlow.sourceAST
       .zoom(_.getDiagramAttributes(AttributeTarget.graph))(
@@ -138,10 +139,12 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       _.updateDiagramAttributes(AttributeTarget.edge)(_)
     )
 
+  // individual node attributes
   def nodesAttributes(nodeIds: Set[String]): Var[Map[Path, Path]] =
     def astToMap = visibleGraph.observe.now().attributesById(nodeIds).values
     sourceFlow.sourceAST.zoom(_ => astToMap): (ast, attrs) =>
       // mapToAst
+      pprint.log(attrs)
       val sg = ast.asSubgraph.updateTopLevelAttributes(nodeIds, Attributes(attrs))
       DotAST(ast.tpe, sg.children, sg.id)
 

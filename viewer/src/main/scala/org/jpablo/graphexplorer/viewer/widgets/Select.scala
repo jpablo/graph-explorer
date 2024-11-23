@@ -73,6 +73,7 @@ def InputWithValue(
     tpe         := inputType.toString,
     placeholder := placeholderText,
     controlled(
+      // double slash (\\n)
       value <-- inputValue.signal.map(_.getOrElse(default)),
       onInput.mapToValue.map(Some(_)) --> inputValue.set
     ),

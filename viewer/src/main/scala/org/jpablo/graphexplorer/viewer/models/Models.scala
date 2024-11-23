@@ -46,7 +46,7 @@ case class ArrowId(value: String) extends AnyVal:
   override def toString: String = value
 
 object ArrowId:
-  def random(): ArrowId = ArrowId(Utils.randomUUID())
+  def random(): ArrowId = ArrowId(Utils.randomUUIDSafe())
 
 case class Arrow(
     source: NodeId,

@@ -19,15 +19,11 @@ object DotParserT:
   def parse(dotString: String): Try[List[DotAST]] =
     for
       j <- Try(DotParser.parse(dotString))
-      // parsing keeps \" but escapes \\ (i.e. duplicate the backslashes)
-      // "a \"title\\" becomes "a \"title\\\\"
-      // _ = dom.console.log(dotString)
-      str = JSON.stringify(j)
-      // read will unescape labels
-      // i.e. replace \" with " and \\ with \ in strings
-      // but will keep \\ in the string
-      // at this point the label is """a "title\\\\"""
-      normalizedStr = str.replaceAll("""\\\\""", """\\""")
-      // Is this carpet replacement Ok? or do we need to focus only on labels?
-      ast <- Try(read[List[DotAST]](normalizedStr)) // ❌
+      // _ = dom.console.log("DotParser.parse", j) // double slash (\\n)
+      // Stringify will escape double quotes and slashes
+      jsonStr = JSON.stringify(j)
+      // _ = dom.console.log("JSON.stringify", jsonStr) // double slash (\\n)
+      // _ = pprint.log(JSON.stringify(j)) // four slashes (\\\\n)
+      ast <- Try(read[List[DotAST]](jsonStr))
+      // _ = pprint.log(ast) // double slash (\\n)
     yield ast

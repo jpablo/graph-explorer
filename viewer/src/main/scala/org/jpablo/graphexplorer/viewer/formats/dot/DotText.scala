@@ -14,13 +14,14 @@ case class DotText(value: String):
     value
 
   // TODO: handle errors
-  val parseAST: List[DotAST] =
+  def parseAST: List[DotAST] =
     if value.isEmpty then List.empty
     else
       DotParserT.parse(value) match
         case Failure(exception) =>
           dom.console.error(s"<== after DotParserT.parse")
-          dom.console.error(exception.toString)
+          pprint.log(exception)
+          dom.console.error(value)
           List.empty
         case Success(asts) =>
 //          dom.console.debug(s"<== after DotParserT.parse: $asts")

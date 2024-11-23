@@ -31,9 +31,10 @@ case class ViewerGraph(
   lazy val allArrowIds: Set[NodeId] = arrows.map(_.nodeId)
 
   def attributesById(nodeIds: Set[String]): Attributes =
-    val nodeAttrs = nodes.filter(_.id.value in nodeIds).map(_.publicAttrs.values)
-    val edgeAttrs = arrows.filter(_.nodeId.value in nodeIds).map(_.publicAttrs.values)
-    Attributes((nodeAttrs ++ edgeAttrs).foldLeft(Map.empty)(_ ++ _))
+    val init = Map.empty[String, String]
+    val nodeAttrs = nodes.filter(_.id.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
+    val edgeAttrs = arrows.filter(_.nodeId.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
+    Attributes(nodeAttrs ++ edgeAttrs)
 
   private lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
     arrows

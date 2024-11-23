@@ -4,7 +4,7 @@ import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUID
+import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 
 import scala.annotation.tailrec
 
@@ -14,7 +14,7 @@ enum AttributeTarget:
 extension (ast: DotAST)
 
   def renderToDot: DotText =
-    DotText(ast.render(true))
+    DotText(ast.render(keepInternal = true))
 
   def toViewerGraph: ViewerGraph =
     ViewerGraph(
@@ -24,7 +24,7 @@ extension (ast: DotAST)
 
   def addRandomNode(): DotAST =
     val label = Attr("label", "")
-    val newNode = NodeStmt(DotNodeId(randomUUID()), List(label))
+    val newNode = NodeStmt(DotNodeId(randomUUIDSafe()), List(label))
     ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newNode, Newline()))
 
   def addEdge(source: NodeId, target: NodeId): DotAST =
@@ -32,7 +32,7 @@ extension (ast: DotAST)
     ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
   def addNodeAndEdge(source: NodeId): DotAST =
-    val newNodeId = randomUUID()
+    val newNodeId = randomUUIDSafe()
     val label = Attr("label", "")
     val newNode = NodeStmt(DotNodeId(newNodeId), List(label))
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(newNodeId)), Nil)
@@ -92,7 +92,7 @@ extension (ast: DotAST)
 
   def groupNodes(ids: Set[NodeId]): DotAST =
     val idsStr = ids.map(_.value)
-    val clusterId = s"cluster_${randomUUID().replace("-", "")}"
+    val clusterId = s"cluster_${randomUUIDSafe()}"
     // TODO: we need to get the attributes!
     val cluster = Subgraph(
       children = idsStr.toList.map(id => NodeStmt(DotNodeId(id), attr_list = Nil)),
