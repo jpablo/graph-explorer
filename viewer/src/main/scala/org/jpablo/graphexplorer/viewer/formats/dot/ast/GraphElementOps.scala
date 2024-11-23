@@ -121,34 +121,34 @@ extension (graphElement: GraphElement)
 def flattenPostOrder(
     root:    Option[GraphElement],
     pending: List[(Option[GraphElement], List[GraphElement])], // Stack of (Root, Child*)
-    acc:     List[GraphElement]                        // nodes without the idsToRemove
+    acc:     List[GraphElement]                                // nodes without the idsToRemove
 ): List[GraphElement] =
   pprint.log((root, pending, acc))
-//  dom.console.log(s"$root -- $pending -- $acc")
   (root, pending) match
-
-    case (e @ Some(EdgeStmt(edgeList, _)), _) =>
-      val left :: right = edgeList.flatMap {
-        case n: DotNodeId          => NodeStmt(n, Nil) :: Nil
-        case Subgraph(children, _) => children
-      }: @unchecked
-
-      flattenPostOrder(root = Some(left), pending = (e, right) :: pending, acc)
+    // -----------------------------------
+    // processing non-leaf nodes:
+    // - descend to the first child
+    // - add the rest of the children to the pending stack, alongside the current node
+    // -----------------------------------
+    case (e @ Some(edge @ EdgeStmt(_, _)), _) =>
+      val h :: t = edge.toGraphElements: @unchecked
+      flattenPostOrder(root = Some(h), pending = (e, t) :: pending, acc)
 
     case (s @ Some(Subgraph(h :: t, _)), _) =>
       flattenPostOrder(root = Some(h), pending = (s, t) :: pending, acc)
 
+    // for leaf nodes we add a single None children, to simulate the case of nullable children
+    case (l @ Some(_), _) =>
+      flattenPostOrder(root = None, pending = (l, Nil) :: pending, acc)
+
     // -----------------------------------
     // processing leaf nodes, backtracking
     // -----------------------------------
-    case (s @ Some(_), _) =>
-      flattenPostOrder(root = None, pending = (s, Nil) :: pending, acc)
-
-    case (None, (value, rights) :: t) =>
-      // are there any dependencies to be handled for root1?
-      rights match
-        case Nil                => flattenPostOrder(root = None, pending = t, acc = value.toList ++ acc)
-        case right :: rightRest => flattenPostOrder(root = Some(right), pending = (value, rightRest) :: t, acc)
+    case (None, (elem, deps) :: t) =>
+      // are there any dependencies to be handled for elem?
+      deps match
+        case Nil             => flattenPostOrder(root = None, pending = t, acc = elem.toList ++ acc)
+        case dep :: moreDeps => flattenPostOrder(root = Some(dep), pending = (elem, moreDeps) :: t, acc)
     // -----------------------------------
     // Done
     // -----------------------------------
