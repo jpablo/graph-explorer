@@ -120,7 +120,7 @@ extension (graphElement: GraphElement)
 @tailrec
 def flattenPostOrder(
     root:    Option[GraphElement],
-    pending: List[(Option[GraphElement], List[GraphElement])], // Stack of (Root, Child*)
+    pending: List[(GraphElement, List[GraphElement])], // Stack of (Root, Child*)
     acc:     List[GraphElement]                                // nodes without the idsToRemove
 ): List[GraphElement] =
   pprint.log((root, pending, acc))
@@ -132,13 +132,13 @@ def flattenPostOrder(
     // -----------------------------------
     case (e @ Some(edge @ EdgeStmt(_, _)), _) =>
       val h :: t = edge.toGraphElements: @unchecked
-      flattenPostOrder(root = Some(h), pending = (e, t) :: pending, acc)
+      flattenPostOrder(root = Some(h), pending = (edge, t) :: pending, acc)
 
-    case (s @ Some(Subgraph(h :: t, _)), _) =>
-      flattenPostOrder(root = Some(h), pending = (s, t) :: pending, acc)
+    case (s @ Some(sub @ Subgraph(h :: t, _)), _) =>
+      flattenPostOrder(root = Some(h), pending = (sub, t) :: pending, acc)
 
     // for leaf nodes we add a single None children, to simulate the case of nullable children
-    case (l @ Some(_), _) =>
+    case (Some(l), _) =>
       flattenPostOrder(root = None, pending = (l, Nil) :: pending, acc)
 
     // -----------------------------------
@@ -147,7 +147,7 @@ def flattenPostOrder(
     case (None, (elem, deps) :: t) =>
       // are there any dependencies to be handled for elem?
       deps match
-        case Nil             => flattenPostOrder(root = None, pending = t, acc = elem.toList ++ acc)
+        case Nil             => flattenPostOrder(root = None, pending = t, acc = elem :: acc)
         case dep :: moreDeps => flattenPostOrder(root = Some(dep), pending = (elem, moreDeps) :: t, acc)
     // -----------------------------------
     // Done
