@@ -65,16 +65,17 @@ extension (graphElement: GraphElement)
     loop(List(graphElement))
 
   // TODO: make this tail recursive
-  def removeGraphNodes(idsToRemove: Set[String]): List[GraphElement] =
+  def removeGraphNodes(idsToRemove: Set[String]): Option[GraphElement] =
     graphElement match
-      case n: NodeStmt if n.node_id.id in idsToRemove => Nil
+      case n: NodeStmt if n.node_id.id in idsToRemove => None
 
       case EdgeStmt(edgeList, attrList) =>
         val remainingEdges: List[EdgeElement] = edgeList
-          .flatMap:
+          .map:
             // embed DotNodeId in a NodeStmt to have a common type (GraphElement)
-            case n: DotNodeId => NodeStmt(n, Nil).removeGraphNodes(idsToRemove)
-            case s: Subgraph  => s.removeGraphNodes(idsToRemove)
+            case n: DotNodeId => NodeStmt(n, Nil)
+            case s: Subgraph  => s
+          .flatMap(_.removeGraphNodes(idsToRemove))
           .map:
             // extract the NodeStmt to conform to EdgeElement = NodeStmt | Subgraph
             case n: NodeStmt => n.node_id
@@ -84,11 +85,71 @@ extension (graphElement: GraphElement)
 
         // Is this faster than `remainingEdges.length < 2` ?
         remainingEdges match
-          case _ :: _ :: _ => List(EdgeStmt(remainingEdges, attrList))
-          case _           => Nil
+          case _ :: _ :: _ => Some(EdgeStmt(remainingEdges, attrList))
+          case _           => None
 
       case Subgraph(children, id) =>
         val remainingChildren = children.flatMap(_.removeGraphNodes(idsToRemove))
-        if remainingChildren.isEmpty then Nil else List(Subgraph(remainingChildren, id))
+        if remainingChildren.isEmpty then None else Some(Subgraph(remainingChildren, id))
 
-      case other => List(other)
+      case other => Some(other)
+
+  def removeGraphNodes1(idsToRemove: Set[String]): List[GraphElement] =
+    dom.console.log(s"\t-> removeGraphNodes1")
+    val flattened = flattenPostOrder(Some(graphElement), Nil, Nil)
+    dom.console.log(s"\t<-")
+    pprint.log(flattened)
+    // remove the nodes and edges that are not needed and reconstruct the graph
+    flattened.foldLeft(List.empty[GraphElement]) { (stack, elem: GraphElement) =>
+      elem match
+        case EdgeStmt(_, attr_list) =>
+          val remainingEdges: List[EdgeElement] =
+            stack.reverse.map:
+              // extract the NodeStmt to conform to EdgeElement = NodeStmt | Subgraph
+              case n: NodeStmt => n.node_id
+              case g: Subgraph => g
+              // if it happens it's a bug!
+              case other => throw Exception(s"Unexpected element in edge list: $other")
+          List(EdgeStmt(remainingEdges, attr_list))
+
+        case Subgraph(_, id)          => List(Subgraph(stack.reverse, id))
+        case n @ NodeStmt(node_id, _) => if node_id.id in idsToRemove then stack else n :: stack
+        case n                        => n :: stack
+    }
+
+@tailrec
+def flattenPostOrder(
+    root:    Option[GraphElement],
+    pending: List[(Option[GraphElement], List[GraphElement])], // Stack of (Root, Child*)
+    acc:     List[GraphElement]                        // nodes without the idsToRemove
+): List[GraphElement] =
+  pprint.log((root, pending, acc))
+//  dom.console.log(s"$root -- $pending -- $acc")
+  (root, pending) match
+
+    case (e @ Some(EdgeStmt(edgeList, _)), _) =>
+      val left :: right = edgeList.flatMap {
+        case n: DotNodeId          => NodeStmt(n, Nil) :: Nil
+        case Subgraph(children, _) => children
+      }: @unchecked
+
+      flattenPostOrder(root = Some(left), pending = (e, right) :: pending, acc)
+
+    case (s @ Some(Subgraph(h :: t, _)), _) =>
+      flattenPostOrder(root = Some(h), pending = (s, t) :: pending, acc)
+
+    // -----------------------------------
+    // processing leaf nodes, backtracking
+    // -----------------------------------
+    case (s @ Some(_), _) =>
+      flattenPostOrder(root = None, pending = (s, Nil) :: pending, acc)
+
+    case (None, (value, rights) :: t) =>
+      // are there any dependencies to be handled for root1?
+      rights match
+        case Nil                => flattenPostOrder(root = None, pending = t, acc = value.toList ++ acc)
+        case right :: rightRest => flattenPostOrder(root = Some(right), pending = (value, rightRest) :: t, acc)
+    // -----------------------------------
+    // Done
+    // -----------------------------------
+    case (n, Nil) => (n.toList ++ acc).reverse

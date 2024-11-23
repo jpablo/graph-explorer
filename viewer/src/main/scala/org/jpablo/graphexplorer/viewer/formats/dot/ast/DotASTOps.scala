@@ -86,25 +86,23 @@ extension (ast: DotAST)
     ast.modify(_.children).using(_.map(_.attachId))
 
   def removeNodes(idsToRemove: Set[NodeId]): DotAST =
-    val idsToRemoveStr = idsToRemove.map(_.value)
-//    def dedup(lst: List[GraphElement]): List[GraphElement] =
-//      lst
-//        .foldLeft((List.empty[GraphElement], Set.empty[GraphElement])):
-//          case ((acc, visited), e: EdgeStmt) if e in visited => (acc, visited)
-//          case ((acc, visited), n: NodeStmt) if n in visited => (acc, visited)
-//          case ((acc, visited), e)                           => (e :: acc, visited + e)
-//        ._1
-//        .reverse
-    DotAST(ast.tpe, ast.asSubgraph.removeGraphNodes(idsToRemoveStr), ast.id)
     ast
-      .modify(_.children).using(_.flatMap(_.removeGraphNodes(idsToRemoveStr)))
-//      .modify(_.children).using(dedup)
+      .modify(_.children)
+      .using(_.flatMap { element =>
+        dom.console.log(s"---> removeNodes")
+        pprint.log(element)
+        val removed = element.removeGraphNodes1(idsToRemove.map(_.value))
+//        dom.console.log(r.toString)
+        pprint.log(removed)
+        removed
+      })
 
   def groupNodes(ids: Set[NodeId]): DotAST =
     val idsStr = ids.map(_.value)
     val clusterId = s"cluster_${randomUUID().replace("-", "")}"
+    // TODO: we need to get the attributes!
     val cluster = Subgraph(
-      children = idsStr.toList.map(id => NodeStmt(DotNodeId(id), Nil)),
+      children = idsStr.toList.map(id => NodeStmt(DotNodeId(id), attr_list = Nil)),
       id       = Some(clusterId)
     )
     ast.removeNodes(ids).modify(_.children).using(_ :+ cluster)
