@@ -11,6 +11,8 @@ import scala.annotation.tailrec
 enum AttributeTarget:
   case node, edge, graph
 
+def randomId(): String = randomUUIDSafe()
+
 extension (ast: DotAST)
 
   def renderToDot: DotText =
@@ -24,7 +26,7 @@ extension (ast: DotAST)
 
   def addRandomNode(): DotAST =
     val label = Attr("label", "")
-    val newNode = NodeStmt(DotNodeId(randomUUIDSafe()), List(label))
+    val newNode = NodeStmt(DotNodeId(randomId()), List(label))
     ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newNode, Newline()))
 
   def addEdge(source: NodeId, target: NodeId): DotAST =
@@ -32,7 +34,7 @@ extension (ast: DotAST)
     ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
 
   def addNodeAndEdge(source: NodeId): DotAST =
-    val newNodeId = randomUUIDSafe()
+    val newNodeId = randomId()
     val label = Attr("label", "")
     val newNode = NodeStmt(DotNodeId(newNodeId), List(label))
     val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(newNodeId)), Nil)
@@ -92,7 +94,7 @@ extension (ast: DotAST)
 
   def groupNodes(ids: Set[NodeId]): DotAST =
     val idsStr = ids.map(_.value)
-    val clusterId = s"cluster_${randomUUIDSafe()}"
+    val clusterId = s"cluster_${randomId()}"
     // TODO: we need to get the attributes!
     val cluster = Subgraph(
       children = idsStr.toList.map(id => NodeStmt(DotNodeId(id), attr_list = Nil)),

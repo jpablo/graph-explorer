@@ -10,7 +10,7 @@ object DotFormatter:
     def formatValue(value: String): String = s""""$value""""
 
     def formatNodeId(id: String): String = s""""$id""""
-    
+
     def renderAttributes(attributes: List[Attr], level: Int): String =
       val filteredAttrs = attributes
         .filterNot(attr => !keepInternal && attr.id == idAttributeKey) // Skip rendering of id attributes
