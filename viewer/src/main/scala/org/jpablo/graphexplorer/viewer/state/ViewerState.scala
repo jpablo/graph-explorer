@@ -153,7 +153,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     project.hiddenNodes.update(_ ++ diagramSelection.now())
 
   def deleteSelection() =
-    sourceFlow.sourceAST.update(_.attachInternalAttributes.removeNodes(diagramSelection.now()))
+    sourceFlow.sourceAST.update(_./*attachInternalAttributes.*/removeNodes(diagramSelection.now()))
 
   def groupSelection() =
     sourceFlow.sourceAST.update(_.groupNodes(diagramSelection.now()))

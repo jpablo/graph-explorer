@@ -88,9 +88,14 @@ extension (ast: DotAST)
     ast.modify(_.children).using(_.map(_.attachId))
 
   def removeNodes(idsToRemove: Set[NodeId]): DotAST =
-    ast
-      .modify(_.children)
-      .using(_.flatMap(_.removeGraphNodes(idsToRemove.map(_.value))))
+    if idsToRemove.isEmpty then ast
+    else
+      pprint.log(idsToRemove, "removeNodes")
+      val removed = ast.asSubgraph.removeGraphNodes(idsToRemove.map(_.value), debug = true)
+      DotAST(ast.tpe, removed, ast.id)
+//      ast
+//        .modify(_.children)
+//        .using(_.flatMap(_.removeGraphNodes(idsToRemove.map(_.value))))
 
   def groupNodes(ids: Set[NodeId]): DotAST =
     val idsStr = ids.map(_.value)

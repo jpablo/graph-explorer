@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
-import org.jpablo.graphexplorer.viewer.extensions.*
+//import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerNode}
 
@@ -65,25 +65,41 @@ extension (graphElement: GraphElement)
 
     loop(List(graphElement))
 
-  def removeGraphNodes(idsToRemove: Set[String]): List[GraphElement] =
+  def removeGraphNodes(idsToRemove: Set[String], debug: Boolean = false): List[GraphElement] =
     // remove the nodes and edges that are not needed and reconstruct the graph
     val filtered =
       flattenPostOrder(
         Some(graphElement),
+        // this is a foldRight, basically
         {
-          case (NodeStmt(node_id, _), acc) if node_id.id in idsToRemove => acc
-          case (n, acc)                                                 => n :: acc
+          case (n @ NodeStmt(node_id, _), acc) =>
+            if debug then pprint.log(n, "removeGraphNodes", showFieldNames = false)
+//            if node_id.id in idsToRemove then Nil else n :: acc
+            n :: acc
+          case (e @ EdgeStmt(List(DotNodeId(v1, _), DotNodeId(v2, _)), attrs), acc) =>
+            if debug then pprint.log(e, "removeGraphNodes", showFieldNames = false)
+//            pprint.log(e.allArrows)
+//            val a = Arrow((v1, v2), toAttrsMap(attrs))
+//            if a.nodeId.value in idsToRemove then
+//              acc
+//            else
+            e :: acc
+          case (n, acc) =>
+            if debug then pprint.log(n, "removeGraphNodes", showFieldNames = false)
+            n :: acc
 
         }
       )
+    if debug then pprint.log(filtered, "[removeGraphNodes]", showFieldNames = false)
     reconstructGraph(filtered)
 
 def reconstructGraph(elements: List[GraphElement]): List[GraphElement] =
+  // stack contains the children of the next non-terminal node
   elements
     .foldLeft(Nil: List[GraphElement]):
       // all children removed, remove the parent as well
       case (Nil, _: Subgraph) => Nil
-      // remove edges with zero or one node
+      // remove edges with zero or one children left
       case (Nil, _: EdgeStmt)      => Nil
       case (_ :: Nil, _: EdgeStmt) => Nil
       // reconstruct non-terminal nodes with filtered children
