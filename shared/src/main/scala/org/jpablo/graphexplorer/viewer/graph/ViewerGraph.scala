@@ -22,7 +22,7 @@ case class ViewerGraph(
   val nodes = nodeById.values.toSet
   val arrows = arrowsById.values.toSet
 
-  val graphGroup = ViewerGroup(NodeId("G"), nodes.map(_.id))
+//  val graphGroup = ViewerGroup(NodeId("G"), nodes.map(_.id))
 
   lazy val summary =
     ViewerGraph.Summary(

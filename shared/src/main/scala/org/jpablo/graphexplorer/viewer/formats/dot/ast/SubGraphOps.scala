@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.extensions.in
+import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes}
 
 import scala.annotation.tailrec
@@ -20,7 +21,7 @@ extension (self: SubGraph)
 
         case (e @ EdgeStmt(edgeList @ List(DotNodeId(source, _), DotNodeId(target, _)), attr_list)) :: tail =>
           val edgeAttrsMap = toAttrsMap(attr_list)
-          val edgeId = Arrow((source, target), edgeAttrsMap).nodeId.value
+          val edgeId = arrow((source, target), edgeAttrsMap).nodeId.value
           val found = edgeId in nodeIds
           val e2 =
             if found then

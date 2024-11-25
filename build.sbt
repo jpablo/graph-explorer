@@ -34,10 +34,11 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "shared",
     libraryDependencies ++= Seq(
-      "com.lihaoyi"                %%% "upickle"   % "4.0.0",
-      "com.lihaoyi"                %%% "pprint"    % "0.9.0",
-      "com.softwaremill.quicklens" %%% "quicklens" % "1.9.0",
-      "org.scalameta"              %%% "munit"     % "1.0.0" % Test
+      "com.lihaoyi"                %%% "upickle"          % "4.0.0",
+      "com.lihaoyi"                %%% "pprint"           % "0.9.0",
+      "com.softwaremill.quicklens" %%% "quicklens"        % "1.9.0",
+      "org.scalameta"              %%% "munit"            % "1.0.0" % Test,
+      "org.scalameta"              %%% "munit-scalacheck" % "1.0.0" % Test
     )
   )
 
@@ -46,7 +47,7 @@ lazy val viewer =
     .in(file("viewer"))
     .enablePlugins(ScalaJSPlugin)
     .enablePlugins(BuildInfoPlugin)
-    .dependsOn(shared.jvm)
+    .dependsOn(shared.js)
 //    .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
     .settings(
       name                            := "viewer",

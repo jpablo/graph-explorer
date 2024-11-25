@@ -89,15 +89,9 @@ extension (graphElement: GraphElement)
 
   // Helper function to convert SubGraph to ViewerGroup
   private def convertSubGraphToViewerGroup(sub: SubGraph): ViewerGroup =
-    val nodesSet = sub.children.collect { case NodeStmt(nodeId, _) => nodeId }.toSet.map(_.id)
-    val nodesSe2 = sub.children.foldLeft(Set.empty[String]) {
-      case (acc, NodeStmt(nodeId, _)) => acc + nodeId.id
-      case (acc, _)                   => acc
-    }
     val attrs = sub.findAttributes
     ViewerGroup(
       id        = NodeId(sub.id.getOrElse("G")), // TODO: Generate a unique ID for the group if not provided
-      nodes     = nodesSet.map(NodeId.apply),
       attrs     = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
       edgeAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
       nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
@@ -162,6 +156,74 @@ extension (graphElement: GraphElement)
               )
 
     loop(List(graphElement))
+
+  def findAllDirectChildren
+      : (List[(Option[NodeId], Arrow)], List[(Option[NodeId], ViewerGroup)], List[(Option[NodeId], ViewerNode)]) =
+    @tailrec
+    def loop(
+        remaining: List[(Option[String], List[GraphElement])],
+        arrows:    List[(Option[String], Arrow)],
+        groups:    List[(Option[String], ViewerGroup)],
+        nodes:     List[((Option[String], String), Map[String, String])]
+    ): (List[(Option[NodeId], Arrow)], List[(Option[NodeId], ViewerGroup)], List[(Option[NodeId], ViewerNode)]) =
+//      pprint.log((remaining.length, arrows.length, groups.length, nodes.length), "loop")
+      remaining match
+        case Nil =>
+//          pprint.log("empty remaining")
+          // Convert accumulated node attributes to ViewerNodes at the end
+          val viewerNodes =
+            nodes.map((id, attrs) => id._1.map(NodeId(_)) -> ViewerNode(NodeId(id._2), Attributes(attrs)))
+          val arrowNodes = arrows.map((id, arrow) => id.map(NodeId(_)) -> arrow)
+          val groupNodes = groups.map((id, group) => id.map(NodeId(_)) -> group)
+          (arrowNodes.reverse, groupNodes.reverse, viewerNodes.reverse)
+
+        case (_, Nil) :: t =>
+//          pprint.log(parent, "empty children")
+          loop(remaining = t, arrows, groups, nodes)
+
+        // firstChild and parentOtherChildren belong to the same parent node
+        case (parent, firstChild :: parentOtherChildren) :: t => // remaining
+//          pprint.log(parent, "remaining children")
+          firstChild match
+            case sub @ SubGraph(subChildren, _) =>
+//              println("SubGraph")
+              val rem = (sub.id -> subChildren) :: ((parent -> parentOtherChildren) :: t)
+              val gps = (parent -> convertSubGraphToViewerGroup(sub)) :: groups
+//              pprint.log(rem.length, showFieldNames = true)
+              // 1. Add the current subgraph to the groups
+              // 2. Add the children to the remaining list
+              loop(
+                remaining = rem,
+                arrows    = arrows,
+                groups    = gps,
+                nodes     = nodes
+              )
+
+            case e: EdgeStmt =>
+//              println("EdgeStmt")
+              val (edgeChildren, edgeArrows) = e.expandArrows.unzip
+
+              loop(
+                remaining = (parent -> parentOtherChildren) :: t,
+                arrows    = edgeArrows.flatten.map(parent -> _) ++ arrows,
+                groups    = groups,
+                nodes     = nodes
+              )
+
+            case NodeStmt(nodeId, attr_list) =>
+//              println("NodeStmt")
+              val attrMap = toAttrsMap(attr_list)
+              loop(
+                remaining = (parent -> parentOtherChildren) :: t,
+                arrows    = arrows,
+                groups    = groups,
+                nodes     = (parent -> nodeId.id, attrMap) :: nodes
+              )
+
+            case _ =>
+              loop(remaining = (parent -> parentOtherChildren) :: t, arrows, groups, nodes)
+
+    loop(remaining = List(None -> List(graphElement)), Nil, Nil, Nil)
 
   def removeGraphNodes(idsToRemove: Set[String], debug: Boolean = false): List[GraphElement] =
     // remove the nodes and edges that are not needed and reconstruct the graph

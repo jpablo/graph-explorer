@@ -1,11 +1,9 @@
 package org.jpablo.graphexplorer.viewer.models
 
-import upickle.default.*
-import compiletime.asMatchable
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, toAttrsMap}
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.utils.Utils
+import upickle.default.*
 
 import scala.compiletime.asMatchable
 
@@ -42,8 +40,8 @@ case class ViewerNode(
 ) extends Attributable
 
 object ViewerNode:
-  def node(name: String, attr_list: List[Attr] = Nil) =
-    ViewerNode(NodeId(name), Attributes(toAttrsMap(attr_list)))
+  def node(name: String, attrs: Map[String, String] = Map.empty) =
+    ViewerNode(NodeId(name), Attributes(attrs))
 
 // ---- Edges ------
 
@@ -71,7 +69,7 @@ object Arrow:
 
   val titleIdSeparator = "->"
 
-  def apply(t: (String, String), attrs: Map[String, String]): Arrow =
+  def arrow(t: (String, String), attrs: Map[String, String] = Map.empty): Arrow =
     new Arrow(NodeId(t._1), NodeId(t._2), Attributes(attrs))
 
   // example:
@@ -104,9 +102,12 @@ object Attributes:
 
 case class ViewerGroup(
     id:        NodeId,
-    nodes:     Set[NodeId] = Set.empty,
-    edges:     Set[NodeId] = Set.empty,
-    groups:    Set[NodeId] = Set.empty,
+    // ----------------
+    // We probably don't need to store the nodes and edges in the group.
+//    nodes:     Set[NodeId] = Set.empty,
+//    edges:     Set[NodeId] = Set.empty,
+//    groups:    Set[NodeId] = Set.empty,
+    // ----------------
     attrs:     Attributes = Attributes.empty,
     edgeAttrs: Attributes = Attributes.empty,
     nodeAttrs: Attributes = Attributes.empty

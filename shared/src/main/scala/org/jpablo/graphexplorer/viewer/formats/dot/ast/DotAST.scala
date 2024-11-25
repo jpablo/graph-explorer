@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
+import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerGroup, ViewerNode}
 import upickle.default.*
@@ -112,15 +113,15 @@ case class EdgeStmt(
         case List(SubGraph(children, _)) => (children, Set.empty)
 
         // a -> b =>  a -> b
-        case List(DotNodeId(a, _), DotNodeId(b, _)) => (Nil, Set(Arrow(a -> b, attrs)))
+        case List(DotNodeId(a, _), DotNodeId(b, _)) => (Nil, Set(arrow(a -> b, attrs)))
 
         // a -> {x y ...}  =>  a -> x, a -> y, ...
         case List(DotNodeId(a, _), sub @ SubGraph(children, _)) =>
-          (children, sub.allNodesIds.map(x => Arrow(a -> x, attrs)))
+          (children, sub.allNodesIds.map(x => arrow(a -> x, attrs)))
 
         // {x y ...} -> a  =>  x -> a, y -> a, ...
         case List(sub @ SubGraph(children, _), DotNodeId(a, _)) =>
-          (children, sub.allNodesIds.map(x => Arrow(x -> a, attrs)))
+          (children, sub.allNodesIds.map(x => arrow(x -> a, attrs)))
 
         // {x y ...} -> {a b ...}  =>  x -> a, x -> b, y -> a, y -> b, ...
         case List(sub1 @ SubGraph(children1, _), sub2 @ SubGraph(children2, _)) =>
@@ -129,7 +130,7 @@ case class EdgeStmt(
             for
               x <- sub1.allNodesIds
               a <- sub2.allNodesIds
-            yield Arrow(x -> a, attrs)
+            yield arrow(x -> a, attrs)
           )
         case _ => (Nil, Set.empty)
 
