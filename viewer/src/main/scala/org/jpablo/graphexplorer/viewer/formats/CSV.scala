@@ -24,7 +24,7 @@ case class CSV(rows: Array[Array[String]]):
     val arrows =
       for row <- rows if row.length >= 2 yield
         NodeId(row(0)) -> NodeId(row(1))
-    ViewerGraph(arrows.toSet)
+    ViewerGraph.basic(arrows.toSet)
 
 object CSV:
   // https://www.bennadel.com/blog/1504-ask-ben-parsing-csv-strings-with-javascript-exec-regular-expression-command.htm

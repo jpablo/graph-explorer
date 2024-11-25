@@ -38,7 +38,7 @@ object Example1 {
    */
 
   val graph =
-    ViewerGraph(
+    ViewerGraph.basic(
       arrows = Set(
         base1.id  -> base0.id,
         base2.id  -> base0.id,

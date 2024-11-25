@@ -5,6 +5,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.viewerGraphDot
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
@@ -16,7 +17,7 @@ class SourceFlow(
 )(using Owner):
 
   // source of truth
-  val sourceTextAndAST: Var[(source: Path, ast: DotAST)] = Var(("", DotAST.empty))
+  private val sourceTextAndAST: Var[(source: Path, ast: DotAST)] = Var(("", DotAST.empty))
 
   /** parse source on write: String ~> DotAST
     */
@@ -49,9 +50,21 @@ class SourceFlow(
   val fullGraph: Signal[ViewerGraph] =
     fullAST.map(_.toViewerGraph)
 
+  val visibleGraph_2: Signal[ViewerGraph] =
+    fullGraph
+      .combineWith(hiddenNodes.signal)
+      .map: (fullGraph, hiddenNodes) =>
+        fullGraph
+          .removeUnsupportedFeatures
+          .removeNodes(hiddenNodes)
+          .setDefaultTheme
+      .tapEach(_ => resetView())
+
+  val visibleAST: Signal[DotAST] =
+    visibleGraph_2.map(viewerGraphDot)
   /** AST with hidden nodes removed: DotAST ~> DotAST
     */
-  val visibleAST: Signal[DotAST] =
+  val visibleAST_0: Signal[DotAST] =
     fullAST
       .combineWith(hiddenNodes.signal)
       .map: (fullAST, hiddenNodes) =>

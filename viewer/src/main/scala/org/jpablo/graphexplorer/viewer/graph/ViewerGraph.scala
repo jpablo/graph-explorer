@@ -15,8 +15,11 @@ import scala.annotation.targetName
   *   Either isolated nodes or full node definitions for arrow ends
   */
 case class ViewerGraph(
-    arrows: Set[Arrow],
-    nodes:  Set[ViewerNode]
+    arrows:          Set[Arrow],
+    nodes:           Set[ViewerNode],
+    nodeAttributes:  Attributes = Attributes.empty,
+    edgeAttributes:  Attributes = Attributes.empty,
+    graphAttributes: Attributes = Attributes.empty
 ):
 
   lazy val summary =
@@ -29,6 +32,20 @@ case class ViewerGraph(
     nodes.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
 
   lazy val allArrowIds: Set[NodeId] = arrows.map(_.nodeId)
+
+  def removeUnsupportedFeatures: ViewerGraph =
+//    val supportedAttrs = Set("label", "id")
+//    val supportedNodes = nodes.map(n => n.copy(attrs = n.attrs.filterKeys(supportedAttrs.contains)))
+//    val supportedArrows = arrows.map(a => a.copy(attrs = a.attrs.filterKeys(supportedAttrs.contains)))
+//    ViewerGraph(supportedArrows, supportedNodes)
+    this
+
+  def setDefaultTheme: ViewerGraph =
+//    val defaultAttrs = Attributes(Map("style" -> "filled", "fillcolor" -> "white"))
+//    val nodesWithDefaultAttrs = nodes.map(n => n.copy(attrs = n.attrs ++ defaultAttrs))
+//    val arrowsWithDefaultAttrs = arrows.map(a => a.copy(attrs = a.attrs ++ defaultAttrs))
+//    ViewerGraph(arrowsWithDefaultAttrs, nodesWithDefaultAttrs)
+    this
 
   def attributesById(nodeIds: Set[String]): Attributes =
     val init = Map.empty[String, String]
@@ -132,8 +149,7 @@ end ViewerGraph
 
 object ViewerGraph:
 
-  @targetName("extra")
-  def apply(
+  def basic(
       arrows: Set[(NodeId, NodeId)],
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
@@ -143,7 +159,7 @@ object ViewerGraph:
     )
 
   // In Scala 3.2 the type annotation is needed.
-  val empty = ViewerGraph(Set.empty, Set.empty)
+  val empty: ViewerGraph = basic(Set.empty, Set.empty)
 
   case class Summary(
       nodes:  Int,
