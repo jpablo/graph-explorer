@@ -50,7 +50,9 @@ class SourceFlow(
   val fullGraph: Signal[ViewerGraph] =
     fullAST.map(_.toViewerGraph)
 
-  val visibleGraph_2: Signal[ViewerGraph] =
+  /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
+    */
+  val visibleGraph: Signal[ViewerGraph] =
     fullGraph
       .combineWith(hiddenNodes.signal)
       .map: (fullGraph, hiddenNodes) =>
@@ -61,25 +63,11 @@ class SourceFlow(
       .tapEach(_ => resetView())
 
   val visibleAST: Signal[DotAST] =
-    visibleGraph_2.map(viewerGraphDot)
-  /** AST with hidden nodes removed: DotAST ~> DotAST
-    */
-  val visibleAST_0: Signal[DotAST] =
-    fullAST
-      .combineWith(hiddenNodes.signal)
-      .map: (fullAST, hiddenNodes) =>
-        fullAST
-          .removeUnsupportedFeatures
-          .removeNodes(hiddenNodes)
-          .setDefaultTheme
-      .tapEach(_ => resetView())
+    visibleGraph.map(viewerGraphDot)
 
   // transform visible AST back to Visible Dot
   // DotAST ~> Dot
   val visibleDOT: Signal[DotText] =
     visibleAST.map(_.renderToDot)
-
-  val visibleGraph: Signal[ViewerGraph] =
-    visibleAST.map(_.toViewerGraph)
 
 end SourceFlow

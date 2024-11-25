@@ -43,33 +43,6 @@ extension (graphElement: GraphElement)
       .map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
       .toSet
 
-  def findAllSubGraphs: Set[SubGraph] =
-    @tailrec
-    def loop(remaining: List[GraphElement], acc: Set[SubGraph] = Set.empty): Set[SubGraph] =
-      remaining match
-        case Nil => acc
-        case h :: remaining1 =>
-          h match
-            case sub @ SubGraph(children, _) =>
-              // Add current subgraph to accumulator and process its children
-              loop(
-                remaining = children ++ remaining1,
-                acc       = acc + sub
-              )
-            case EdgeStmt(edgeList, _) =>
-              // Process subgraphs in edge list
-              val subgraphChildren = edgeList.collect {
-                case s: SubGraph => s.children
-              }.flatten
-              loop(
-                remaining = subgraphChildren ++ remaining1,
-                acc       = acc
-              )
-            case _ =>
-              loop(remaining = remaining1, acc = acc)
-
-    loop(List(graphElement))
-
   def findAllArrows: Set[Arrow] =
     @tailrec
     def loop(remaining: List[GraphElement], acc: Set[Arrow] = Set.empty): Set[Arrow] =

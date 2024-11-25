@@ -15,8 +15,6 @@ case class DotAST(
     children: List[GraphElement],
     id:       Option[String] = None
 ) derives ReadWriter:
-  lazy val allViewerNodes: Set[ViewerNode] = this.asSubgraph.allViewerNodes
-  lazy val allArrows: Set[Arrow] = this.asSubgraph.allArrows
   lazy val allElements: (Set[Arrow], Set[ViewerGroup], Set[ViewerNode]) = this.asSubgraph.allElements
 
   def asSubgraph: SubGraph = SubGraph(children, id)
@@ -32,7 +30,6 @@ object Location:
 @key("type")
 sealed trait GraphElement derives ReadWriter:
   lazy val allViewerNodes: Set[ViewerNode] = this.findAllViewerNodes
-  lazy val allArrows: Set[Arrow] = this.findAllArrows
   lazy val allNodesIds: Set[String] = allViewerNodes.map(_.id.value)
   lazy val allElements = this.findAllElements
 
