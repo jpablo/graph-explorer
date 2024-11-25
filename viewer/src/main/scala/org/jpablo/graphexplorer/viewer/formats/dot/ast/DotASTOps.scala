@@ -19,7 +19,7 @@ extension (ast: DotAST)
     DotText(ast.render(keepInternal = true))
 
   def toViewerGraph: ViewerGraph =
-    ViewerGraph(
+    ViewerGraph.basic2(
       arrows = ast.allArrows,
       nodes  = ast.allViewerNodes
     )
@@ -117,31 +117,3 @@ extension (ast: DotAST)
         case Nil                        => state.reverse
 
     ast.modify(_.children).using(loop(_))
-
-  // TODO: Produces incorrect results, fix it
-  def format: DotAST =
-    @tailrec
-    def loop(stack: List[(List[GraphElement], List[GraphElement])], finalAcc: List[GraphElement]): List[GraphElement] =
-      stack match
-        case Nil => finalAcc
-
-        case (Nil, acc) :: t => loop(stack = t, finalAcc = acc.reverse ::: finalAcc)
-        // Remove redundant padding
-        case (Pad() :: Pad() :: rest, acc) :: t                  => loop((Pad() :: rest, acc) :: t, finalAcc)
-        case (Newline() :: Newline() :: rest, acc) :: t          => loop((Newline() :: rest, acc) :: t, finalAcc)
-        case (Newline() :: Pad() :: Newline() :: rest, acc) :: t => loop((Newline() :: rest, acc) :: t, finalAcc)
-        // Format sub graphs
-        case ((s @ Subgraph(children, _)) :: rest, acc) :: t =>
-          // Push the subgraph's children to be processed first, then continue with rest
-          loop((children, Nil) :: (rest, Newline() :: Pad() :: acc) :: t, finalAcc)
-        // Format node statements
-        case ((n: NodeStmt) :: rest, acc) :: t => loop((rest, Pad() :: n :: acc) :: t, finalAcc)
-        // Format edge statements
-        case ((e: EdgeStmt) :: rest, acc) :: t => loop((rest, Pad() :: e :: acc) :: t, finalAcc)
-        // Format attribute statements
-        case ((a: AttrStmt) :: rest, acc) :: t => loop((rest, Pad() :: a :: acc) :: t, finalAcc)
-        // Skip comments and other elements
-        case (Comment() :: rest, acc) :: t => loop(stack = (rest, acc) :: t, finalAcc = finalAcc)
-        case (c :: rest, acc) :: t         => loop(stack = (rest, c :: acc) :: t, finalAcc = finalAcc)
-
-    ast.copy(children = loop(List((ast.children, List(Newline()))), Nil))

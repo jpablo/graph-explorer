@@ -4,7 +4,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, DotAST, DotNodeId,
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
 def viewerGraphDot(graph: ViewerGraph): DotAST =
-  val nodeStmts = graph.nodes.map { node =>
+  val nodeStmts = graph.nodeById.values.map { node =>
     NodeStmt(
       DotNodeId(node.id.value),
       node.publicAttrs.values.map { case (key, value) =>

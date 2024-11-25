@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.CSV
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 import org.jpablo.graphexplorer.viewer.tree.Tree
 
 import scala.annotation.targetName
@@ -11,47 +11,31 @@ import scala.annotation.targetName
   *
   * @param arrows
   *   Only NodeIds are used for ends of arrows. For the full definition of a node use the nodes field.
-  * @param nodes
+  * @param nodeById
   *   Either isolated nodes or full node definitions for arrow ends
   */
+
 case class ViewerGraph(
     arrows:          Set[Arrow],
-    nodes:           Set[ViewerNode],
+    nodeById:        Map[NodeId, ViewerNode],
+    groups:          Set[ViewerGroup] = Set.empty,
     nodeAttributes:  Attributes = Attributes.empty,
     edgeAttributes:  Attributes = Attributes.empty,
     graphAttributes: Attributes = Attributes.empty
 ):
 
+  val nodes = nodeById.values.toSet
+
   lazy val summary =
     ViewerGraph.Summary(
-      nodes  = nodes.size,
+      nodes  = nodeById.size,
       arrows = arrows.size
     )
 
   lazy val allNodeIds: Set[NodeId] =
-    nodes.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
+    nodeById.values.toSet.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
 
   lazy val allArrowIds: Set[NodeId] = arrows.map(_.nodeId)
-
-  def removeUnsupportedFeatures: ViewerGraph =
-//    val supportedAttrs = Set("label", "id")
-//    val supportedNodes = nodes.map(n => n.copy(attrs = n.attrs.filterKeys(supportedAttrs.contains)))
-//    val supportedArrows = arrows.map(a => a.copy(attrs = a.attrs.filterKeys(supportedAttrs.contains)))
-//    ViewerGraph(supportedArrows, supportedNodes)
-    this
-
-  def setDefaultTheme: ViewerGraph =
-//    val defaultAttrs = Attributes(Map("style" -> "filled", "fillcolor" -> "white"))
-//    val nodesWithDefaultAttrs = nodes.map(n => n.copy(attrs = n.attrs ++ defaultAttrs))
-//    val arrowsWithDefaultAttrs = arrows.map(a => a.copy(attrs = a.attrs ++ defaultAttrs))
-//    ViewerGraph(arrowsWithDefaultAttrs, nodesWithDefaultAttrs)
-    this
-
-  def attributesById(nodeIds: Set[String]): Attributes =
-    val init = Map.empty[String, String]
-    val nodeAttrs = nodes.filter(_.id.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
-    val edgeAttrs = arrows.filter(_.nodeId.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
-    Attributes(nodeAttrs ++ edgeAttrs)
 
   private lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
     arrows
@@ -65,8 +49,25 @@ case class ViewerGraph(
       .transform((_, ss) => ss.map(_.source))
       .withDefaultValue(Set.empty)
 
-  private lazy val nodeById: Map[NodeId, ViewerNode] =
-    nodes.groupMapReduce(_.id)(identity)((_, b) => b)
+  def removeUnsupportedFeatures: ViewerGraph =
+    //    val supportedAttrs = Set("label", "id")
+    //    val supportedNodes = nodes.map(n => n.copy(attrs = n.attrs.filterKeys(supportedAttrs.contains)))
+    //    val supportedArrows = arrows.map(a => a.copy(attrs = a.attrs.filterKeys(supportedAttrs.contains)))
+    //    ViewerGraph(supportedArrows, supportedNodes)
+    this
+
+  def setDefaultTheme: ViewerGraph =
+    //    val defaultAttrs = Attributes(Map("style" -> "filled", "fillcolor" -> "white"))
+    //    val nodesWithDefaultAttrs = nodes.map(n => n.copy(attrs = n.attrs ++ defaultAttrs))
+    //    val arrowsWithDefaultAttrs = arrows.map(a => a.copy(attrs = a.attrs ++ defaultAttrs))
+    //    ViewerGraph(arrowsWithDefaultAttrs, nodesWithDefaultAttrs)
+    this
+
+  def attributesById(nodeIds: Set[String]): Attributes =
+    val init = Map.empty[String, String]
+    val nodeAttrs = nodes.filter(_.id.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
+    val edgeAttrs = arrows.filter(_.nodeId.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
+    Attributes(nodeAttrs ++ edgeAttrs)
 
   private def arrowsWithoutNodeIds(ids: Set[NodeId]): Set[Arrow] =
     arrows
@@ -83,11 +84,11 @@ case class ViewerGraph(
     val foundNodes: Set[ViewerNode] = nodeById.collect { case (id, node) if id in ids => node }.toSet
     val foundNodeIds = foundNodes.map(_.id)
     val relevantArrows = arrows.filter(a => (a.source in foundNodeIds) && (a.target in foundNodeIds))
-    ViewerGraph(relevantArrows, foundNodes)
+    ViewerGraph.basic2(relevantArrows, foundNodes)
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
     val foundNodes = nodeById.collect { case (id, node) if (id notIn toRemove) => node }
-    ViewerGraph(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
+    ViewerGraph.basic2(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
@@ -123,8 +124,8 @@ case class ViewerGraph(
   @targetName("combine")
   def ++(other: ViewerGraph): ViewerGraph =
     ViewerGraph(
-      arrows = arrows ++ other.arrows,
-      nodes  = nodes ++ other.nodes
+      arrows   = arrows ++ other.arrows,
+      nodeById = nodeById ++ other.nodeById
     )
 
   /** Creates a new subdiagram with all the symbols containing the given String.
@@ -154,8 +155,17 @@ object ViewerGraph:
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     new ViewerGraph(
-      arrows = arrows.map(t => Arrow(t._1, t._2, Attributes.empty)),
-      nodes  = nodes
+      arrows   = arrows.map(t => Arrow(t._1, t._2, Attributes.empty)),
+      nodeById = nodes.groupMapReduce(_.id)(identity)((_, b) => b)
+    )
+
+  def basic2(
+      arrows: Set[Arrow],
+      nodes:  Set[ViewerNode] = Set.empty
+  ): ViewerGraph =
+    new ViewerGraph(
+      arrows   = arrows.map(t => Arrow(t._1, t._2, Attributes.empty)),
+      nodeById = nodes.groupMapReduce(_.id)(identity)((_, b) => b)
     )
 
   // In Scala 3.2 the type annotation is needed.

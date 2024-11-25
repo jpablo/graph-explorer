@@ -104,3 +104,12 @@ case class Attributes(values: Map[String, String]) extends AnyVal
 
 object Attributes:
   val empty = Attributes(Map.empty)
+
+// ---- groups ------
+
+case class ViewerGroup(
+    id:    NodeId,
+    nodes: Set[NodeId],
+    edges: Set[NodeId],
+    attrs: Attributes = Attributes.empty
+) extends Attributable
