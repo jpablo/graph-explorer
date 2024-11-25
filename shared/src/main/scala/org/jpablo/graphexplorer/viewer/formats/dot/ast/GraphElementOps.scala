@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 //import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.*
 
 import scala.annotation.tailrec
 
@@ -13,12 +13,12 @@ extension (graphElement: GraphElement)
     graphElement match
       case EdgeStmt(edgeList, attrList) =>
         val edgeListWithIds = edgeList.map:
-          case Subgraph(children, id) => Subgraph(children.map(_.attachId), id)
+          case SubGraph(children, id) => SubGraph(children.map(_.attachId), id)
           case other                  => other
 
         EdgeStmt(edgeListWithIds, Attr(idAttributeKey, EdgeStmt.nextId.toString) :: attrList)
 
-      case Subgraph(children, id) => Subgraph(children.map(_.attachId), id)
+      case SubGraph(children, id) => SubGraph(children.map(_.attachId), id)
       case other                  => other
 
   def findAllViewerNodes: Set[ViewerNode] =
@@ -27,41 +27,139 @@ extension (graphElement: GraphElement)
       remaining match
         case Nil => acc
 
-        case EdgeStmt(edgeList, _) :: tail =>
-          val edgeChildren = edgeList.flatMap:
-            case n: DotNodeId => List(NodeStmt(n, Nil))
-            case s: Subgraph  => s.children
-          loop(remaining = edgeChildren ++ tail, acc = acc)
+        case (e: EdgeStmt) :: t         => loop(remaining = e.toGraphElements ++ t, acc)
+        case SubGraph(children, _) :: t => loop(remaining = children ++ t, acc)
 
-        case NodeStmt(nodeId, attr_list) :: tail =>
+        case NodeStmt(nodeId, attr_list) :: t =>
           val attrMap = toAttrsMap(attr_list)
           loop(
-            remaining = tail,
+            remaining = t,
             acc       = acc.updatedWith(nodeId.id)(_.fold(Some(attrMap))(existing => Some(existing ++ attrMap)))
           )
 
-        case Subgraph(children, _) :: tail => loop(remaining = children ++ tail, acc = acc)
-
-        case _ :: tail => loop(remaining = tail, acc = acc)
+        case _ :: t => loop(remaining = t, acc)
 
     loop(List(graphElement), Map.empty)
       .map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
       .toSet
+
+  def findAllSubGraphs: Set[SubGraph] =
+    @tailrec
+    def loop(remaining: List[GraphElement], acc: Set[SubGraph] = Set.empty): Set[SubGraph] =
+      remaining match
+        case Nil => acc
+        case h :: remaining1 =>
+          h match
+            case sub @ SubGraph(children, _) =>
+              // Add current subgraph to accumulator and process its children
+              loop(
+                remaining = children ++ remaining1,
+                acc       = acc + sub
+              )
+            case EdgeStmt(edgeList, _) =>
+              // Process subgraphs in edge list
+              val subgraphChildren = edgeList.collect {
+                case s: SubGraph => s.children
+              }.flatten
+              loop(
+                remaining = subgraphChildren ++ remaining1,
+                acc       = acc
+              )
+            case _ =>
+              loop(remaining = remaining1, acc = acc)
+
+    loop(List(graphElement))
 
   def findAllArrows: Set[Arrow] =
     @tailrec
     def loop(remaining: List[GraphElement], acc: Set[Arrow] = Set.empty): Set[Arrow] =
       remaining match
         case Nil => acc
-        case h :: remaining1 =>
+        case h :: t =>
           h match
             case e: EdgeStmt =>
               // TODO: Review if we actually need to process remaining2
               val (edgeChildren, edgeArrows) = e.expandArrows.unzip
-              loop(remaining = edgeChildren.flatten ++ remaining1, acc = acc ++ edgeArrows.toSet.flatten)
+              loop(remaining = edgeChildren.flatten ++ t, acc = acc ++ edgeArrows.toSet.flatten)
 
-            case Subgraph(children, _) => loop(remaining = children ++ remaining1, acc = acc)
-            case _                     => loop(remaining = remaining1, acc = acc)
+            case SubGraph(children, _) => loop(remaining = children ++ t, acc = acc)
+            case _                     => loop(remaining = t, acc = acc)
+
+    loop(List(graphElement))
+
+  // Helper function to convert SubGraph to ViewerGroup
+  private def convertSubGraphToViewerGroup(sub: SubGraph): ViewerGroup =
+    val nodesSet = sub.children.collect { case NodeStmt(nodeId, _) => nodeId }.toSet.map(_.id)
+    val nodesSe2 = sub.children.foldLeft(Set.empty[String]) {
+      case (acc, NodeStmt(nodeId, _)) => acc + nodeId.id
+      case (acc, _)                   => acc
+    }
+    val attrs = sub.findAttributes
+    ViewerGroup(
+      id        = NodeId(sub.id.getOrElse("G")), // TODO: Generate a unique ID for the group if not provided
+      nodes     = nodesSet.map(NodeId.apply),
+      attrs     = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
+      edgeAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
+      nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
+    )
+
+  def findAllElements: (Set[Arrow], Set[ViewerGroup], Set[ViewerNode]) =
+    @tailrec
+    def loop(
+        remaining: List[GraphElement],
+        arrows:    Set[Arrow] = Set.empty,
+        groups:    Set[ViewerGroup] = Set.empty,
+        nodes:     Map[String, Map[String, String]] = Map.empty
+    ): (Set[Arrow], Set[ViewerGroup], Set[ViewerNode]) =
+      remaining match
+        case Nil =>
+          // Convert accumulated node attributes to ViewerNodes at the end
+          val viewerNodes = nodes.map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs))).toSet
+          (arrows, groups, viewerNodes)
+
+        case h :: t =>
+          h match
+            case sub @ SubGraph(children, _) =>
+              loop(
+                remaining = children ++ t,
+                arrows    = arrows,
+                groups    = groups + convertSubGraphToViewerGroup(sub),
+                nodes     = nodes
+              )
+
+            case e: EdgeStmt =>
+              val (edgeChildren, edgeArrows) = e.expandArrows.unzip
+              val newArrows = arrows ++ edgeArrows.toSet.flatten
+
+              // Process edge nodes
+              val edgeNodes = e.edge_list.flatMap {
+                case n: DotNodeId => List(NodeStmt(n, Nil))
+                case s: SubGraph  => s.children
+              }
+
+              loop(
+                remaining = edgeChildren.flatten ++ edgeNodes ++ t,
+                arrows    = newArrows,
+                groups    = groups,
+                nodes     = nodes
+              )
+
+            case NodeStmt(nodeId, attr_list) =>
+              val attrMap = toAttrsMap(attr_list)
+              loop(
+                remaining = t,
+                arrows    = arrows,
+                groups    = groups,
+                nodes     = nodes.updatedWith(nodeId.id)(_.fold(Some(attrMap))(existing => Some(existing ++ attrMap)))
+              )
+
+            case _ =>
+              loop(
+                remaining = t,
+                arrows    = arrows,
+                groups    = groups,
+                nodes     = nodes
+              )
 
     loop(List(graphElement))
 
@@ -98,12 +196,12 @@ def reconstructGraph(elements: List[GraphElement]): List[GraphElement] =
   elements
     .foldLeft(Nil: List[GraphElement]):
       // all children removed, remove the parent as well
-      case (Nil, _: Subgraph) => Nil
+      case (Nil, _: SubGraph) => Nil
       // remove edges with zero or one children left
       case (Nil, _: EdgeStmt)      => Nil
       case (_ :: Nil, _: EdgeStmt) => Nil
       // reconstruct non-terminal nodes with filtered children
-      case (stack, Subgraph(_, id))        => List(Subgraph(stack.reverse, id))
+      case (stack, SubGraph(_, id))        => List(SubGraph(stack.reverse, id))
       case (stack, EdgeStmt(_, attr_list)) => List(EdgeStmt(toEdgeElements(stack.reverse), attr_list))
       // add all remaining leaf nodes
       case (stack, n) => n :: stack
@@ -113,7 +211,7 @@ def toEdgeElements(elems: List[GraphElement]): List[EdgeElement] =
   elems.map:
     // extract the NodeStmt to conform to EdgeElement = NodeStmt | Subgraph
     case n: NodeStmt => n.node_id
-    case g: Subgraph => g
+    case g: SubGraph => g
     // if it happens it's a bug!
     case other => throw Exception(s"Unexpected element in edge list: $other")
 
@@ -134,7 +232,7 @@ def flattenPostOrder(
       val h :: t = edge.toGraphElements: @unchecked
       flattenPostOrder(root = Some(h), fn, pending = (edge, t) :: pending, acc)
 
-    case (Some(sub @ Subgraph(h :: t, _)), _) =>
+    case (Some(sub @ SubGraph(h :: t, _)), _) =>
       flattenPostOrder(root = Some(h), fn, pending = (sub, t) :: pending, acc)
 
     // for leaf nodes we add a single None children, to simulate the case of nullable children

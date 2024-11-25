@@ -1,12 +1,13 @@
 package org.jpablo.graphexplorer.viewer.models
 
 import upickle.default.*
+import compiletime.asMatchable
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, toAttrsMap}
+import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
+import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.utils.Utils
 
-import compiletime.asMatchable
-import Arrow.titleIdSeparator
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, toAttrsMap}
-import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
+import scala.compiletime.asMatchable
 
 // ---- Vertices ------
 
@@ -34,7 +35,11 @@ object Attributable:
   val idAttributeKey = "id"
   val internal = Set(idAttributeKey)
 
-case class ViewerNode(id: NodeId, attrs: Attributes = Attributes.empty, kind: ViewerKind = None) extends Attributable
+case class ViewerNode(
+    id:    NodeId,
+    attrs: Attributes = Attributes.empty,
+    kind:  ViewerKind = None
+) extends Attributable
 
 object ViewerNode:
   def node(name: String, attr_list: List[Attr] = Nil) =
@@ -51,24 +56,14 @@ object ArrowId:
 case class Arrow(
     source: NodeId,
     target: NodeId,
-    attrs:  Attributes = Attributes.empty
+    attrs:  Attributes = Attributes.empty,
+    seq:    Int = 0
 ) extends Attributable:
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
-  def nodeId: NodeId = NodeId(s"${source.value}$titleIdSeparator${target.value}:$idAttr")
+  val nodeId = NodeId(s"${source.value}$titleIdSeparator${target.value}:$seq")
 
   def nodeIds = Set(source, target, nodeId)
-
-  override def equals(obj: Any): Boolean =
-    obj.asMatchable match
-      case that: Arrow =>
-        this.source == that.source && this.target == that.target && this.idAttr == that.idAttr
-      case _ =>
-        false
-
-  override def hashCode(): Int = (source, target, idAttr).##
-
-  override def toString: String = s"Arrow($idAttr)"
 
 end Arrow
 
@@ -108,8 +103,11 @@ object Attributes:
 // ---- groups ------
 
 case class ViewerGroup(
-    id:    NodeId,
-    nodes: Set[NodeId],
-    edges: Set[NodeId],
-    attrs: Attributes = Attributes.empty
+    id:        NodeId,
+    nodes:     Set[NodeId] = Set.empty,
+    edges:     Set[NodeId] = Set.empty,
+    groups:    Set[NodeId] = Set.empty,
+    attrs:     Attributes = Attributes.empty,
+    edgeAttrs: Attributes = Attributes.empty,
+    nodeAttrs: Attributes = Attributes.empty
 ) extends Attributable

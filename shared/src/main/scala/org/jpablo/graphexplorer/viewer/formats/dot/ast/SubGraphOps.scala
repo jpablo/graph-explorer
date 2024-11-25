@@ -5,8 +5,8 @@ import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes}
 
 import scala.annotation.tailrec
 
-extension (self: Subgraph)
-  def updateTopLevelAttributes(nodeIds: Set[String], attributes: Attributes): Subgraph =
+extension (self: SubGraph)
+  def updateTopLevelAttributes(nodeIds: Set[String], attributes: Attributes): SubGraph =
     val attrMap = attributes.values
 
     @tailrec
@@ -37,6 +37,17 @@ extension (self: Subgraph)
     val remainingIds = nodeIds -- visited
     val newNodes = remainingIds.map(id => NodeStmt(DotNodeId(id), toAttrsList(attributes.values.toSeq)))
     self.copy(children = children.reverse ++ Seq(Newline(), Pad()) ++ newNodes)
+
+  def findAttributes: Map[AttributeTarget, Map[String, String]] =
+    self.children
+      .collect:
+        case AttrStmt(target, attrs) =>
+          val targetEnum = AttributeTarget.valueOf(target.toLowerCase)
+          (targetEnum, attrs.map(attr => attr.id -> attr.value).toMap)
+      .groupBy(_._1)
+      .view
+      .mapValues(pairs => pairs.flatMap(_._2).toMap)
+      .toMap
 
 def toAttrsMap(attrList: List[Attr]): Map[String, String] =
   attrList.map(attr => attr.id -> attr.value).toMap

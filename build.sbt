@@ -28,11 +28,25 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
     "-Xfatal-warnings"
   )
 
+lazy val shared = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("shared"))
+  .settings(
+    name := "shared",
+    libraryDependencies ++= Seq(
+      "com.lihaoyi"                %%% "upickle"   % "4.0.0",
+      "com.lihaoyi"                %%% "pprint"    % "0.9.0",
+      "com.softwaremill.quicklens" %%% "quicklens" % "1.9.0",
+      "org.scalameta"              %%% "munit"     % "1.0.0" % Test
+    )
+  )
+
 lazy val viewer =
   project
     .in(file("viewer"))
     .enablePlugins(ScalaJSPlugin)
     .enablePlugins(BuildInfoPlugin)
+    .dependsOn(shared.jvm)
 //    .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
     .settings(
       name                            := "viewer",
@@ -56,8 +70,8 @@ lazy val viewer =
         "io.laminext"                  %%% "fetch"       % "0.17.0",
         "org.scala-js"                 %%% "scalajs-dom" % "2.8.0",
         "com.lihaoyi"                  %%% "upickle"     % "4.0.0",
-        "com.softwaremill.magnolia1_3" %%% "magnolia"    % "1.3.8",
         "com.lihaoyi"                  %%% "pprint"      % "0.9.0",
+        "com.softwaremill.magnolia1_3" %%% "magnolia"    % "1.3.8",
 //        "com.github.sbt"             %%% "dynver"           % "5.1.0",
         "org.seleniumhq.selenium" % "selenium-java"    % "4.26.0" % Test,
         "org.scalameta"         %%% "munit"            % "1.0.0"  % Test,
@@ -90,7 +104,7 @@ def linkerOutputDirectory(v: Attributed[org.scalajs.linker.interface.Report]): F
 lazy val root =
   project
     .in(file("."))
-    .aggregate(viewer)
+    .aggregate(viewer, shared.js, shared.jvm)
     .settings(
       name := "graph-explorer",
       welcomeMessage

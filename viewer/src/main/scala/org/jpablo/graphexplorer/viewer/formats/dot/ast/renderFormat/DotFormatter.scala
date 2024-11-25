@@ -48,15 +48,15 @@ object DotFormatter:
           val edgeOp = if ast.tpe == "digraph" then "->" else "--"
           val edges = edgeList.map {
             case n: DotNodeId => formatNodeId(n.id)
-            case s: Subgraph  => renderSubgraph(s, level)
+            case s: SubGraph  => renderSubgraph(s, level)
           }.mkString(s" $edgeOp ")
           s"$pad$edges${renderAttributes(attrs, level)};"
 
         case StmtSep() => ""
 
-        case s: Subgraph => renderSubgraph(s, level)
+        case s: SubGraph => renderSubgraph(s, level)
 
-    def renderSubgraph(subgraph: Subgraph, level: Int): String =
+    def renderSubgraph(subgraph: SubGraph, level: Int): String =
       val pad = padding(level)
       val subgraphId = subgraph.id.map(id => s" $id").getOrElse("")
       val body = subgraph.children.map(elem => renderGraphElement(elem, level + 1))

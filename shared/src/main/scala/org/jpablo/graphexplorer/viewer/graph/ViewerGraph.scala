@@ -1,11 +1,9 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
-import org.jpablo.graphexplorer.viewer.formats.CSV
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
-import org.jpablo.graphexplorer.viewer.tree.Tree
-
-import scala.annotation.targetName
+//import org.jpablo.graphexplorer.viewer.formats.CSV
+import org.jpablo.graphexplorer.viewer.models.*
+//import org.jpablo.graphexplorer.viewer.tree.Tree
 
 /** A simplified representation of entities and subtype relationships
   *
@@ -16,15 +14,15 @@ import scala.annotation.targetName
   */
 
 case class ViewerGraph(
-    arrows:          Set[Arrow],
-    nodeById:        Map[NodeId, ViewerNode],
-    groups:          Set[ViewerGroup] = Set.empty,
-    nodeAttributes:  Attributes = Attributes.empty,
-    edgeAttributes:  Attributes = Attributes.empty,
-    graphAttributes: Attributes = Attributes.empty
+    arrowsById: Map[NodeId, Arrow],
+    nodeById:   Map[NodeId, ViewerNode],
+    groupsById: Map[NodeId, ViewerGroup] = Map.empty
 ):
 
   val nodes = nodeById.values.toSet
+  val arrows = arrowsById.values.toSet
+
+  val graphGroup = ViewerGroup(NodeId("G"), nodes.map(_.id))
 
   lazy val summary =
     ViewerGraph.Summary(
@@ -33,7 +31,7 @@ case class ViewerGraph(
     )
 
   lazy val allNodeIds: Set[NodeId] =
-    nodeById.values.toSet.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
+    nodes.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
 
   lazy val allArrowIds: Set[NodeId] = arrows.map(_.nodeId)
 
@@ -113,20 +111,20 @@ case class ViewerGraph(
   val allSuccessorsGraph: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(directSuccessors)
   val allPredecessorsGraph: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(directPredecessors)
 
-  lazy val toTrees: Tree[ViewerNode] =
-    val paths =
-      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.label, ns)
-    Tree.fromPaths(paths, ".")
+//  lazy val toTrees: Tree[ViewerNode] =
+//    val paths =
+//      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.label, ns)
+//    Tree.fromPaths(paths, ".")
 
-  /** Combines the diagram on the left with the diagram on the right. No new arrows are introduced beyond those present
-    * in both diagrams.
-    */
-  @targetName("combine")
-  def ++(other: ViewerGraph): ViewerGraph =
-    ViewerGraph(
-      arrows   = arrows ++ other.arrows,
-      nodeById = nodeById ++ other.nodeById
-    )
+//  /** Combines the diagram on the left with the diagram on the right. No new arrows are introduced beyond those present
+//    * in both diagrams.
+//    */
+//  @targetName("combine")
+//  def ++(other: ViewerGraph): ViewerGraph =
+//    ViewerGraph(
+//      arrows   = arrows ++ other.arrows,
+//      nodeById = nodeById ++ other.nodeById
+//    )
 
   /** Creates a new subdiagram with all the symbols containing the given String.
     */
@@ -140,12 +138,12 @@ case class ViewerGraph(
   def filterArrowsBy(p: Arrow => Boolean) =
     arrows.filter(p)
 
-  def toCSV: CSV =
-    CSV(
-      arrows
-        .map(a => Array(a.source.toString, a.target.toString))
-        .toArray
-    )
+//  def toCSV: CSV =
+//    CSV(
+//      arrows
+//        .map(a => Array(a.source.toString, a.target.toString))
+//        .toArray
+//    )
 end ViewerGraph
 
 object ViewerGraph:
@@ -155,17 +153,19 @@ object ViewerGraph:
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     new ViewerGraph(
-      arrows   = arrows.map(t => Arrow(t._1, t._2, Attributes.empty)),
-      nodeById = nodes.groupMapReduce(_.id)(identity)((_, b) => b)
+      arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.nodeId -> a).toMap,
+      nodeById   = nodes.groupMapReduce(_.id)(identity)((_, b) => b)
     )
 
   def basic2(
       arrows: Set[Arrow],
-      nodes:  Set[ViewerNode] = Set.empty
+      nodes:  Set[ViewerNode] = Set.empty,
+      groups: Set[ViewerGroup] = Set.empty
   ): ViewerGraph =
     new ViewerGraph(
-      arrows   = arrows.map(t => Arrow(t._1, t._2, Attributes.empty)),
-      nodeById = nodes.groupMapReduce(_.id)(identity)((_, b) => b)
+      arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.nodeId -> a).toMap,
+      nodeById   = nodes.groupMapReduce(_.id)(identity)((_, b) => b),
+      groupsById = groups.groupMapReduce(_.id)(identity)((_, b) => b)
     )
 
   // In Scala 3.2 the type annotation is needed.

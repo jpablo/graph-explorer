@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
-import org.jpablo.graphexplorer.viewer.formats.dot.DotText
+//import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
@@ -15,13 +15,14 @@ def randomId(): String = randomUUIDSafe()
 
 extension (ast: DotAST)
 
-  def renderToDot: DotText =
-    DotText(ast.render(keepInternal = true))
-
   def toViewerGraph: ViewerGraph =
+    val (arrows, groups, nodes) = ast.allElements
+//    dom.console.count("toViewerGraph")
+    pprint.log(groups)
     ViewerGraph.basic2(
-      arrows = ast.allArrows,
-      nodes  = ast.allViewerNodes
+      arrows = arrows,
+      nodes  = nodes,
+      groups = groups
     )
 
   def addRandomNode(): DotAST =
@@ -101,7 +102,7 @@ extension (ast: DotAST)
     val idsStr = ids.map(_.value)
     val clusterId = s"cluster_${randomId()}"
     // TODO: we need to get the attributes!
-    val cluster = Subgraph(
+    val cluster = SubGraph(
       children = idsStr.toList.map(id => NodeStmt(DotNodeId(id), attr_list = Nil)),
       id       = Some(clusterId)
     )
