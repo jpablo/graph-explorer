@@ -47,9 +47,14 @@ class SourceFlow(
     *
     * Arrows are assigned consecutive ids starting from 1
     */
-  val fullGraph: Signal[ViewerGraph] =
-    fullAST.map(_.toViewerGraph)//.tapEach(graph => pprint.log(graph))
+  val fullGraphV: Var[ViewerGraph] =
+    sourceAST.zoom(_.toViewerGraph)((_, newGraph) => graphToDotAST(newGraph))
 
+  val fullGraph: Signal[ViewerGraph] = fullGraphV.signal
+
+//  val fullGraph: Signal[ViewerGraph] =
+//    fullAST.map(_.toViewerGraph)//.tapEach(graph => pprint.log(graph))
+//
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
     */
   val visibleGraph: Signal[ViewerGraph] =
@@ -63,7 +68,7 @@ class SourceFlow(
       .tapEach(_ => resetView())
 
   val visibleAST: Signal[DotAST] =
-    visibleGraph.map(graphToDotAST)//.tapEach(ast => pprint.log(ast))
+    visibleGraph.map(graphToDotAST) // .tapEach(ast => pprint.log(ast))
 
   // transform visible AST back to Visible Dot
   // DotAST ~> Dot
