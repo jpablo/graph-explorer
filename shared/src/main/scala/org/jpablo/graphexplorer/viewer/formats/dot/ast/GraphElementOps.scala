@@ -60,7 +60,7 @@ extension (graphElement: GraphElement)
         remaining:   List[(Option[String], List[GraphElement])],
         arrows:      List[Arrow],
         groups:      List[ViewerGroup],
-        nodes:       List[((Option[String], String), Map[String, String])],
+        nodes:       List[(String, Map[String, String])],
         memberships: List[(String, Option[String])] = Nil // List of (element, group) memberships
     ): ViewerGraphData =
 //      pprint.log(memberships, showFieldNames = false)
@@ -70,7 +70,7 @@ extension (graphElement: GraphElement)
 //          pprint.log("empty remaining")
           // Convert accumulated node attributes to ViewerNodes at the end
           val viewerNodes =
-            nodes.map((id, attrs) => id._1.map(NodeId(_)) -> ViewerNode(NodeId(id._2), Attributes(attrs)))
+            nodes.map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
           val membershipsNodes = memberships.map((id, parent) => NodeId(id) -> parent.map(NodeId(_)))
           ViewerGraphData(arrows.reverse, groups.reverse, viewerNodes.reverse, membershipsNodes.reverse)
 
@@ -120,7 +120,7 @@ extension (graphElement: GraphElement)
                 remaining   = (parent -> parentOtherChildren) :: t,
                 arrows      = arrows,
                 groups      = groups,
-                nodes       = (parent -> nodeId.id, attrMap) :: nodes,
+                nodes       = (nodeId.id -> attrMap) :: nodes,
                 memberships = (nodeId.id -> parent) :: memberships
               )
 

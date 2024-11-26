@@ -19,7 +19,7 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     data.arrows.map(a => a.nodeId -> a).toMap
 
   lazy val nodeById: Map[NodeId, ViewerNode] =
-    data.nodes.map(_._2).groupMapReduce(_.id)(identity)((_, b) => b)
+    data.nodes.groupMapReduce(_.id)(identity)((_, b) => b)
 
   lazy val groupsById: Map[NodeId, ViewerGroup] =
     data.groups.groupMapReduce(_.id)(identity)((_, b) => b)
@@ -185,7 +185,7 @@ object ViewerGraph:
       ViewerGraphData(
         arrows = arrowsById.map { case (k, v) => v }.toList,
         groups = groupsById.map { case (k, v) => v }.toList,
-        nodes  = nodeById.map { case (k, v) => (None, v) }.toList
+        nodes  = nodeById.map { case (k, v) => v }.toList
       )
     )
 

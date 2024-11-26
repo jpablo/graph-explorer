@@ -16,10 +16,10 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
     val expectedNodes =
       List(
-        Some(root)   -> node("a"),
-        Some(root)   -> node("b"),
-        Some(group0) -> node("z", Map("label" -> "ZZ")),
-        Some(grup1)  -> node("d")
+        node("a"),
+        node("b"),
+        node("z", Map("label" -> "ZZ")),
+        node("d")
       )
 //    pprint.log(data.memberships, showFieldNames = false)
     assertEquals(data.nodes, expectedNodes)

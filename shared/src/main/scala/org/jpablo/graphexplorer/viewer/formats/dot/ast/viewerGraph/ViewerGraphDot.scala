@@ -37,7 +37,6 @@ def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
 
     // Get direct children using memberships
     val directNodes = viewerGraphData.nodes
-      .map(_._2)
       .filter(node =>
         viewerGraphData.memberships
           .find(_._1 == node.id)
@@ -91,7 +90,6 @@ def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
     case Some(root) =>
       // Convert root group's direct children
       val directNodes = viewerGraphData.nodes
-        .map(_._2)
         .filter(node =>
           viewerGraphData.memberships
             .find(_._1 == node.id)
