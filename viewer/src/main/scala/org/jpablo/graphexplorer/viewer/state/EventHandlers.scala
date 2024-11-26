@@ -28,7 +28,7 @@ class EventHandlers(
 
   val allNodeIds: Signal[Set[NodeId]] =
     sourceFlow.fullGraph.map(_.allNodeIds)
-  
+
   /** Modify `hiddenNodes` based on the given function `f`
     */
   private def updateHiddenNodes[E <: dom.Event](
@@ -95,4 +95,4 @@ class EventHandlers(
 
     def updateTranslate(using E <:< dom.WheelEvent): Base =
       ev(_.withCurrentValueOf(svgDiagramElement)) --> (handleWheel(zoomValue, translateXY)(_, _))
-      
+

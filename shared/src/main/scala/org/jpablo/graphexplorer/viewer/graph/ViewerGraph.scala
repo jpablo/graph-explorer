@@ -24,12 +24,8 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
   lazy val groupsById: Map[NodeId, ViewerGroup] =
     data.groups.groupMapReduce(_.id)(identity)((_, b) => b)
 
-//  pprint.log(nodeById)
-
   val nodes = nodeById.values.toSet
   val arrows = arrowsById.values.toSet
-
-//  val graphGroup = ViewerGroup(NodeId("G"), nodes.map(_.id))
 
   lazy val summary =
     ViewerGraph.Summary(
@@ -92,9 +88,10 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     ViewerGraph.basic2(relevantArrows, foundNodes)
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
-
     val foundNodes = nodeById.collect { case (id, node) if (id notIn toRemove) => node }
-    ViewerGraph.basic2(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
+    val x = ViewerGraph.basic2(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
+//    pprint.log(x)
+    x
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */

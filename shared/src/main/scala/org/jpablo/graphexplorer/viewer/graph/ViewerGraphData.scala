@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId, ViewerGroup, ViewerNode}
 
+// rename to FlattenedGraphElement
 case class ViewerGraphData(
     arrows:      List[Arrow],
     groups:      List[ViewerGroup],
