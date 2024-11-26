@@ -8,17 +8,31 @@ case class ViewerGraphData(
     nodes:       Map[NodeId, ViewerNode],
     memberships: Map[NodeId, Option[NodeId]]
 ):
+  // fail fast if no root node is provided
+  val rootNodeId: NodeId =
+    memberships
+      .collectFirst:
+        case (id, None) => id
+      .getOrElse(throw IllegalStateException("No root node found"))
+
+  val root: ViewerGroup =
+    groups(rootNodeId)
+
   def removeNodes(ids: Set[NodeId]): ViewerGraphData =
     val newArrows = arrows.view
-      .filterKeys(id =>
+      .filterKeys: id =>
         val arrow = arrows(id)
         !ids.contains(arrow.source) && !ids.contains(arrow.target)
-      )
       .toMap
-
     copy(
       nodes       = nodes -- ids,
       arrows      = newArrows,
       groups      = groups -- ids,
       memberships = memberships -- ids
     )
+
+  def arrowSequences(source: NodeId, target: NodeId): List[Int] =
+    arrows.values
+      .filter(a => a.source == source && a.target == target)
+      .map(_.seq)
+      .toList

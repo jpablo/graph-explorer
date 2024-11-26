@@ -15,7 +15,7 @@ def SelectionAttributes(state: ViewerState) =
         if selectedNodes.isEmpty then
           emptyNode
         else
-          CombinedAttributesView(state.nodesAttributes(selectedNodes.map(_.value)))
+          CombinedAttributesView(state.nodesAttributes(selectedNodes))
   )
 
 def CombinedAttributesView(attrs: Var[Map[String, String]]) =

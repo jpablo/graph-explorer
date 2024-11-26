@@ -1,6 +1,10 @@
 package org.jpablo.graphexplorer.viewer.graph
 
+import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 //import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.*
 //import org.jpablo.graphexplorer.viewer.tree.Tree
@@ -61,12 +65,6 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     //    ViewerGraph(arrowsWithDefaultAttrs, nodesWithDefaultAttrs)
     this
 
-  def attributesById(nodeIds: Set[String]): Attributes =
-    val init = Map.empty[String, String]
-    val nodeAttrs = nodes.filter(_.id.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
-    val edgeAttrs = arrows.filter(_.id.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
-    Attributes(nodeAttrs ++ edgeAttrs)
-
   private def arrowsWithoutNodeIds(ids: Set[NodeId]): Set[Arrow] =
     arrows
       .filterNot(a => (a.source in ids) || (a.target in ids))
@@ -86,6 +84,52 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
     this.copy(data = data.removeNodes(toRemove))
+
+  def addEdge(source: NodeId, target: NodeId): ViewerGraph =
+    val seqs = data.arrowSequences(source, target)
+    val newSeq = seqs.max
+    val arrow = Arrow(source, target, seq = newSeq + 1)
+    this.modify(_.data.arrows).using(_ + (arrow.id -> arrow))
+
+  def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
+    val newNode = node(randomId())
+    val newArrow = Arrow(source, newNode.id)
+    this
+      .modifyAll(_.data.nodes).using(_ + (newNode.id -> newNode))
+      .modify(_.data.arrows).using(_ + (newArrow.id -> newArrow))
+
+  def addRandomNode(): ViewerGraph =
+    val newNode = node(randomId())
+    this.modify(_.data.nodes).using(_ + (newNode.id -> newNode))
+
+  val root: ViewerGroup = data.root
+
+  def getRootAttributes(target: AttributeTarget): Map[String, String] =
+    target match
+      case AttributeTarget.graph => root.attrs.values
+      case AttributeTarget.node  => root.nodeAttrs.values
+      case AttributeTarget.edge  => root.edgeAttrs.values
+
+  def updateRootAttributes(target: AttributeTarget)(attrs: Map[String, String]): ViewerGraph =
+    val modifyRoot =
+      target match
+        case AttributeTarget.graph => root.modify(_.attrs.values)
+        case AttributeTarget.node  => root.modify(_.nodeAttrs.values)
+        case AttributeTarget.edge  => root.modify(_.edgeAttrs.values)
+    this.modify(_.data.groups).using(_ + (root.id -> modifyRoot.using(_ ++ attrs)))
+
+  val init = Map.empty[String, String]
+
+  def getAttributesById(nodeIds: Set[NodeId]): Attributes =
+    def collectAttrs(attrs: Map[NodeId, Attributable]) =
+      attrs.collect { case (id, n) if id in nodeIds => n.publicAttrs.values }.foldLeft(init)(_ ++ _)
+
+    Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
+
+  def updateAttributes(nodeIds: Set[NodeId], attrs: Attributes): ViewerGraph =
+    this
+      .modify(_.data.nodes.eachWhere(_.id in nodeIds).attrs).using(_ ++ attrs)
+      .modify(_.data.arrows.eachWhere(_.id in nodeIds).attrs).using(_ ++ attrs)
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */

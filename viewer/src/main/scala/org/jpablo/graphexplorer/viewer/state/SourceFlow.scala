@@ -31,17 +31,12 @@ class SourceFlow(
 
   /** render AST on write: DotAST ~> String
     */
-  val sourceAST: Var[DotAST] =
+  private val sourceAST: Var[DotAST] =
     sourceTextAndAST.zoom(_.ast): (_, newAST: DotAST) =>
       (newAST.optimize.render(keepInternal = false), newAST)
 
   // initial setup
   sourceText.set(initialSource)
-
-  /** AST with internal annotations: DotAST ~> DotAST
-    */
-  val fullAST: Signal[DotAST] =
-    sourceAST.signal
 
   /** DotAST ~> ViewerGraph
     *
@@ -67,11 +62,12 @@ class SourceFlow(
           .setDefaultTheme
       .tapEach(_ => resetView())
 
+  // -------------------------------
+  // rendering
+  // -------------------------------
   val visibleAST: Signal[DotAST] =
-    visibleGraph.map(graphToDotAST) // .tapEach(ast => pprint.log(ast))
+    visibleGraph.map(graphToDotAST)
 
-  // transform visible AST back to Visible Dot
-  // DotAST ~> Dot
   val visibleDOT: Signal[DotText] =
     visibleAST.map(_.renderToDot)
 

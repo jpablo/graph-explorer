@@ -35,7 +35,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   private val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal, resetView)
 
   val sourceText = sourceFlow.sourceText
-  val fullAST = sourceFlow.fullAST
   val fullGraph = sourceFlow.fullGraph
   private val visibleDOT = sourceFlow.visibleDOT
   private val visibleGraph = sourceFlow.visibleGraph
@@ -96,7 +95,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // Note: explore just adding the edge to the source directly (a -> b)
   def addEdge(from: NodeId, to: NodeId): Unit =
-    sourceFlow.sourceAST.update(_.addEdge(from, to))
+    sourceFlow.fullGraphV.update(_.addEdge(from, to))
 
   def handleMouseDown(endNodeId: NodeId, clientCoords: Point2d[Double]): Unit =
     Var.set(
@@ -124,27 +123,25 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // -------- Attribute management -----------
   // top level attributes
   val graphTargetAttributes: Var[Map[String, String]] =
-    sourceFlow.sourceAST
-      .zoom(_.getDiagramAttributes(AttributeTarget.graph))(
-        _.updateDiagramAttributes(AttributeTarget.graph)(_)
+    sourceFlow.fullGraphV
+      .zoom(_.getRootAttributes(AttributeTarget.graph))(
+        _.updateRootAttributes(AttributeTarget.graph)(_)
       )
 
   val nodeTargetAttributes =
-    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.node))(
-      _.updateDiagramAttributes(AttributeTarget.node)(_)
+    sourceFlow.fullGraphV.zoom(_.getRootAttributes(AttributeTarget.node))(
+      _.updateRootAttributes(AttributeTarget.node)(_)
     )
 
   val edgeTargetAttributes =
-    sourceFlow.sourceAST.zoom(_.getDiagramAttributes(AttributeTarget.edge))(
-      _.updateDiagramAttributes(AttributeTarget.edge)(_)
+    sourceFlow.fullGraphV.zoom(_.getRootAttributes(AttributeTarget.edge))(
+      _.updateRootAttributes(AttributeTarget.edge)(_)
     )
 
   // individual node attributes
-  def nodesAttributes(nodeIds: Set[String]): Var[Map[Path, Path]] =
-    def astToMap = visibleGraph.observe.now().attributesById(nodeIds).values
-    sourceFlow.sourceAST.zoom(_ => astToMap): (ast, attrs) =>
-      val sg = ast.asSubgraph.updateTopLevelAttributes(nodeIds, Attributes(attrs))
-      DotAST(ast.tpe, sg.children, sg.id)
+  def nodesAttributes(nodeIds: Set[NodeId]): Var[Map[Path, Path]] =
+    sourceFlow.fullGraphV.zoom(_.getAttributesById(nodeIds).values): (graph, attrs) =>
+      graph.updateAttributes(nodeIds, Attributes(attrs))
 
   // -------- Diagram actions -----------
   val eventHandlers = wire[EventHandlers]
@@ -159,12 +156,12 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     ()
 
   def addEdge() =
-    sourceFlow.sourceAST.update: ast =>
+    sourceFlow.fullGraphV.update: fullGraph =>
       val selection = diagramSelection.now()
       if selection.isEmpty then
-        ast.addRandomNode()
+        fullGraph.addRandomNode()
       else
-        ast.addNodeAndEdge(selection.head)
+        fullGraph.addNodeAndEdgeFrom(selection.head)
 
   def handleKeyDown(ke: KeyboardEvent): Unit =
     ke.key match

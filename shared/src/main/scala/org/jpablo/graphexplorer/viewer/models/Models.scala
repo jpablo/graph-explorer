@@ -93,7 +93,8 @@ object Arrow:
         if t != 0 then t else x.idAttr `compareTo` y.idAttr
 end Arrow
 
-case class Attributes(values: Map[String, String]) extends AnyVal
+case class Attributes(values: Map[String, String]) extends AnyVal:
+  def ++(other: Attributes): Attributes = Attributes(values ++ other.values)
 
 object Attributes:
   val empty = Attributes(Map.empty)
