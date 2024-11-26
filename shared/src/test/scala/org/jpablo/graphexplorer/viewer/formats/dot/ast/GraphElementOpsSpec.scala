@@ -7,14 +7,19 @@ import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 
 class GraphElementOpsSpec extends ScalaCheckSuite:
+
+  val root = NodeId("G")
+  val group0 = NodeId("cluster_0")
+  val grup1 = NodeId("cluster_1")
+
   test("findAllElements should return all nodes") {
     val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
     val expectedNodes =
       List(
-        Some(NodeId("G"))         -> node("a"),
-        Some(NodeId("G"))         -> node("b"),
-        Some(NodeId("cluster_0")) -> node("z", Map("label" -> "ZZ")),
-        Some(NodeId("cluster_1")) -> node("d")
+        Some(root)   -> node("a"),
+        Some(root)   -> node("b"),
+        Some(group0) -> node("z", Map("label" -> "ZZ")),
+        Some(grup1)  -> node("d")
       )
 //    pprint.log(nodes)
     assertEquals(data.nodes, expectedNodes)
@@ -25,10 +30,10 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 //    pprint.log(arrows)
     val expectedArrows =
       List(
-        Some(NodeId("G"))         -> arrow("x" -> "y"),
-        Some(NodeId("cluster_0")) -> arrow("a" -> "b"),
-        Some(NodeId("G"))         -> arrow("x" -> "a"),
-        Some(NodeId("G"))         -> arrow("b" -> "c")
+        Some(root)   -> arrow("x" -> "y"),
+        Some(group0) -> arrow("a" -> "b"),
+        Some(root)   -> arrow("x" -> "a"),
+        Some(root)   -> arrow("b" -> "c")
       )
     assertEquals(data.arrows, expectedArrows)
   }
@@ -38,9 +43,9 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 //    pprint.log(groups)
     val expectedGroups =
       List(
-        None                      -> ViewerGroup(NodeId("G")),
-        Some(NodeId("G"))         -> ViewerGroup(NodeId("cluster_0"), nodeAttrs = Attributes(Map("shape" -> "egg"))),
-        Some(NodeId("cluster_0")) -> ViewerGroup(NodeId("cluster_1"))
+        None         -> ViewerGroup(root),
+        Some(root)   -> ViewerGroup(group0, nodeAttrs = Attributes(Map("shape" -> "egg"))),
+        Some(group0) -> ViewerGroup(grup1)
       )
     assertEquals(data.groups, expectedGroups)
   }

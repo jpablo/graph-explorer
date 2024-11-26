@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 //import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.ViewerGraphData
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -44,23 +44,6 @@ extension (graphElement: GraphElement)
       .map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
       .toSet
 
-  def findAllArrows: Set[Arrow] =
-    @tailrec
-    def loop(remaining: List[GraphElement], acc: Set[Arrow] = Set.empty): Set[Arrow] =
-      remaining match
-        case Nil => acc
-        case h :: t =>
-          h match
-            case e: EdgeStmt =>
-              // TODO: Review if we actually need to process remaining2
-              val (edgeChildren, edgeArrows) = e.expandArrows.unzip
-              loop(remaining = edgeChildren.flatten ++ t, acc = acc ++ edgeArrows.toSet.flatten)
-
-            case SubGraph(children, _) => loop(remaining = children ++ t, acc = acc)
-            case _                     => loop(remaining = t, acc = acc)
-
-    loop(List(graphElement))
-
   // Helper function to convert SubGraph to ViewerGroup
   private def convertSubGraphToViewerGroup(sub: SubGraph): ViewerGroup =
     val attrs = sub.findAttributes
@@ -70,66 +53,6 @@ extension (graphElement: GraphElement)
       edgeAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
       nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
-
-  def findAllElements: (Set[Arrow], Set[ViewerGroup], Set[ViewerNode]) =
-    @tailrec
-    def loop(
-        remaining: List[GraphElement],
-        arrows:    Set[Arrow] = Set.empty,
-        groups:    Set[ViewerGroup] = Set.empty,
-        nodes:     Map[String, Map[String, String]] = Map.empty
-    ): (Set[Arrow], Set[ViewerGroup], Set[ViewerNode]) =
-      remaining match
-        case Nil =>
-          // Convert accumulated node attributes to ViewerNodes at the end
-          val viewerNodes = nodes.map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs))).toSet
-          (arrows, groups, viewerNodes)
-
-        case h :: t =>
-          h match
-            case sub @ SubGraph(children, _) =>
-              loop(
-                remaining = children ++ t,
-                arrows    = arrows,
-                groups    = groups + convertSubGraphToViewerGroup(sub),
-                nodes     = nodes
-              )
-
-            case e: EdgeStmt =>
-              val (edgeChildren, edgeArrows) = e.expandArrows.unzip
-              val newArrows = arrows ++ edgeArrows.toSet.flatten
-
-              // Process edge nodes
-              val edgeNodes = e.edge_list.flatMap {
-                case n: DotNodeId => List(NodeStmt(n, Nil))
-                case s: SubGraph  => s.children
-              }
-
-              loop(
-                remaining = edgeChildren.flatten ++ edgeNodes ++ t,
-                arrows    = newArrows,
-                groups    = groups,
-                nodes     = nodes
-              )
-
-            case NodeStmt(nodeId, attr_list) =>
-              val attrMap = toAttrsMap(attr_list)
-              loop(
-                remaining = t,
-                arrows    = arrows,
-                groups    = groups,
-                nodes     = nodes.updatedWith(nodeId.id)(_.fold(Some(attrMap))(existing => Some(existing ++ attrMap)))
-              )
-
-            case _ =>
-              loop(
-                remaining = t,
-                arrows    = arrows,
-                groups    = groups,
-                nodes     = nodes
-              )
-
-    loop(List(graphElement))
 
   def findAllDirectChildren: ViewerGraphData =
     @tailrec
@@ -198,59 +121,7 @@ extension (graphElement: GraphElement)
 
     loop(remaining = List(None -> List(graphElement)), Nil, Nil, Nil)
 
-  def removeGraphNodes(idsToRemove: Set[String], debug: Boolean = false): List[GraphElement] =
-    // remove the nodes and edges that are not needed and reconstruct the graph
-    val filtered =
-      flattenPostOrder(
-        Some(graphElement),
-        // this is a foldRight, basically
-        {
-          case (n @ NodeStmt(node_id, _), acc) =>
-            if debug then pprint.log(n, "removeGraphNodes", showFieldNames = false)
-//            if node_id.id in idsToRemove then Nil else n :: acc
-            n :: acc
-          case (e @ EdgeStmt(List(DotNodeId(v1, _), DotNodeId(v2, _)), attrs), acc) =>
-            if debug then pprint.log(e, "removeGraphNodes", showFieldNames = false)
-//            pprint.log(e.allArrows)
-//            val a = Arrow((v1, v2), toAttrsMap(attrs))
-//            if a.nodeId.value in idsToRemove then
-//              acc
-//            else
-            e :: acc
-          case (n, acc) =>
-            if debug then pprint.log(n, "removeGraphNodes", showFieldNames = false)
-            n :: acc
-
-        }
-      )
-    if debug then pprint.log(filtered, "[removeGraphNodes]", showFieldNames = false)
-    reconstructGraph(filtered)
-
 end extension
-
-def reconstructGraph(elements: List[GraphElement]): List[GraphElement] =
-  // stack contains the children of the next non-terminal node
-  elements
-    .foldLeft(Nil: List[GraphElement]):
-      // all children removed, remove the parent as well
-      case (Nil, _: SubGraph) => Nil
-      // remove edges with zero or one children left
-      case (Nil, _: EdgeStmt)      => Nil
-      case (_ :: Nil, _: EdgeStmt) => Nil
-      // reconstruct non-terminal nodes with filtered children
-      case (stack, SubGraph(_, id))        => List(SubGraph(stack.reverse, id))
-      case (stack, EdgeStmt(_, attr_list)) => List(EdgeStmt(toEdgeElements(stack.reverse), attr_list))
-      // add all remaining leaf nodes
-      case (stack, n) => n :: stack
-    .reverse
-
-def toEdgeElements(elems: List[GraphElement]): List[EdgeElement] =
-  elems.map:
-    // extract the NodeStmt to conform to EdgeElement = NodeStmt | Subgraph
-    case n: NodeStmt => n.node_id
-    case g: SubGraph => g
-    // if it happens it's a bug!
-    case other => throw Exception(s"Unexpected element in edge list: $other")
 
 @tailrec
 def flattenPostOrder(

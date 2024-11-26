@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.ViewerGraphData
 //import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.*
 //import org.jpablo.graphexplorer.viewer.tree.Tree
@@ -14,11 +13,18 @@ import org.jpablo.graphexplorer.viewer.models.*
   *   Either isolated nodes or full node definitions for arrow ends
   */
 
-case class ViewerGraph(
-    arrowsById: Map[NodeId, Arrow],
-    nodeById:   Map[NodeId, ViewerNode],
-    groupsById: Map[NodeId, ViewerGroup] = Map.empty
-):
+case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: String = "digraph"):
+  // Efficient access to elements
+  lazy val arrowsById: Map[NodeId, Arrow] =
+    data.arrows.map(_._2).map(a => a.nodeId -> a).toMap
+
+  lazy val nodeById: Map[NodeId, ViewerNode] =
+    data.nodes.map(_._2).groupMapReduce(_.id)(identity)((_, b) => b)
+
+  lazy val groupsById: Map[NodeId, ViewerGroup] =
+    data.groups.map(_._2).groupMapReduce(_.id)(identity)((_, b) => b)
+
+//  pprint.log(nodeById)
 
   val nodes = nodeById.values.toSet
   val arrows = arrowsById.values.toSet
@@ -86,6 +92,7 @@ case class ViewerGraph(
     ViewerGraph.basic2(relevantArrows, foundNodes)
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
+    
     val foundNodes = nodeById.collect { case (id, node) if (id notIn toRemove) => node }
     ViewerGraph.basic2(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
 
@@ -153,7 +160,7 @@ object ViewerGraph:
       arrows: Set[(NodeId, NodeId)],
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
-    new ViewerGraph(
+    fromKeyValues(
       arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.nodeId -> a).toMap,
       nodeById   = nodes.groupMapReduce(_.id)(identity)((_, b) => b)
     )
@@ -163,17 +170,23 @@ object ViewerGraph:
       nodes:  Set[ViewerNode] = Set.empty,
       groups: Set[ViewerGroup] = Set.empty
   ): ViewerGraph =
-    new ViewerGraph(
+    fromKeyValues(
       arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.nodeId -> a).toMap,
       nodeById   = nodes.groupMapReduce(_.id)(identity)((_, b) => b),
       groupsById = groups.groupMapReduce(_.id)(identity)((_, b) => b)
     )
 
-  def fromViewerGraphData(data: ViewerGraphData): ViewerGraph =
+  def fromKeyValues(
+      arrowsById: Map[NodeId, Arrow],
+      nodeById:   Map[NodeId, ViewerNode],
+      groupsById: Map[NodeId, ViewerGroup] = Map.empty
+  ): ViewerGraph =
     new ViewerGraph(
-      arrowsById = data.arrows.map(_._2).map(a => a.nodeId -> a).toMap,
-      nodeById   = data.nodes.map(_._2).groupMapReduce(_.id)(identity)((_, b) => b),
-      groupsById = data.groups.map(_._2).groupMapReduce(_.id)(identity)((_, b) => b)
+      ViewerGraphData(
+        arrows = arrowsById.map { case (k, v) => (None, v) }.toList,
+        groups = groupsById.map { case (k, v) => (None, v) }.toList,
+        nodes  = nodeById.map { case (k, v) => (None, v) }.toList
+      )
     )
 
   // In Scala 3.2 the type annotation is needed.

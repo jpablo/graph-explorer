@@ -16,7 +16,7 @@ extension (ast: DotAST)
 
   def toViewerGraph: ViewerGraph =
     val data = findAllDirectChildren(ast.asSubgraph)
-    ViewerGraph.fromViewerGraphData(data)
+    ViewerGraph(data, ast.id, ast.tpe)
 
   def addRandomNode(): DotAST =
     val label = Attr("label", "")
@@ -64,15 +64,6 @@ extension (ast: DotAST)
       .flatten
       .toMap
 
-  /** Unsupported features:
-    *   - graph size (results in an incorrect layout)
-    */
-  def removeUnsupportedFeatures: DotAST =
-    ast.modify(_.children).using:
-      _.filter:
-        case AttrStmt("graph", List(Attr("size", _))) => false
-        case _                                        => true
-
   def setDefaultTheme: DotAST =
     ast.modify(_.children).using: children =>
       Newline() :: Pad() :: AttrStmt("node", List(Attr("style", "filled"))) :: children
@@ -80,26 +71,6 @@ extension (ast: DotAST)
   def attachInternalAttributes: DotAST =
     EdgeStmt.resetId()
     ast.modify(_.children).using(_.map(_.attachId))
-
-  def removeNodes(idsToRemove: Set[NodeId]): DotAST =
-    if idsToRemove.isEmpty then ast
-    else
-      pprint.log(idsToRemove, "removeNodes")
-      val removed = ast.asSubgraph.removeGraphNodes(idsToRemove.map(_.value), debug = true)
-      DotAST(ast.tpe, removed, ast.id)
-//      ast
-//        .modify(_.children)
-//        .using(_.flatMap(_.removeGraphNodes(idsToRemove.map(_.value))))
-
-  def groupNodes(ids: Set[NodeId]): DotAST =
-    val idsStr = ids.map(_.value)
-    val clusterId = s"cluster_${randomId()}"
-    // TODO: we need to get the attributes!
-    val cluster = SubGraph(
-      children = idsStr.toList.map(id => NodeStmt(DotNodeId(id), attr_list = Nil)),
-      id       = Some(clusterId)
-    )
-    ast.removeNodes(ids).modify(_.children).using(_ :+ cluster)
 
   def optimize: DotAST =
     @tailrec

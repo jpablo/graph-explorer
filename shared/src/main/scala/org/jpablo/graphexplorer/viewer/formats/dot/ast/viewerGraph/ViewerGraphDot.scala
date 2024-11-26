@@ -1,43 +1,17 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
-  val nodeStmts = graph.nodeById.values.map { node =>
-    NodeStmt(
-      DotNodeId(node.id.value),
-      node.publicAttrs.values.map { case (key, value) =>
-        Attr(key, value)
-      }.toList
-    )
-  }
-
-  val edgeStmts = graph.arrows.map { arrow =>
-    EdgeStmt(
-      List(
-        DotNodeId(arrow.source.value),
-        DotNodeId(arrow.target.value)
-      ),
-      arrow.publicAttrs.values.map { case (key, value) =>
-        Attr(key, value)
-      }.toList
-    )
-  }
-
+//  pprint.log(graph)
   // Combine all elements into a DotAST
   DotAST(
-    tpe      = "digraph",
-    children = (nodeStmts ++ edgeStmts).toList,
-    id       = None
+    tpe      = graph.tpe,
+    children = directChildrenToAST(graph.data),
+    id       = graph.id
   )
-
-case class ViewerGraphData(
-    arrows: List[(Option[NodeId], Arrow)],
-    groups: List[(Option[NodeId], ViewerGroup)],
-    nodes:  List[(Option[NodeId], ViewerNode)]
-)
 
 def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
   // Helper function to create NodeStmt from ViewerNode

@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerGroup, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerNode}
 import upickle.default.*
 import upickle.implicits.key
 
@@ -15,8 +15,6 @@ case class DotAST(
     children: List[GraphElement],
     id:       Option[String] = None
 ) derives ReadWriter:
-  lazy val allElements: (Set[Arrow], Set[ViewerGroup], Set[ViewerNode]) = this.asSubgraph.allElements
-
   def asSubgraph: SubGraph = SubGraph(children, id)
 
 object DotAST:
@@ -31,7 +29,6 @@ object Location:
 sealed trait GraphElement derives ReadWriter:
   lazy val allViewerNodes: Set[ViewerNode] = this.findAllViewerNodes
   lazy val allNodesIds: Set[String] = allViewerNodes.map(_.id.value)
-  lazy val allElements = this.findAllElements
 
 object GraphElement:
 
