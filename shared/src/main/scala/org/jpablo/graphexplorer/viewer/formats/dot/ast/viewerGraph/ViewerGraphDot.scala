@@ -33,22 +33,33 @@ def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
 
   // Helper function to create SubGraph from ViewerGroup
   def groupToSubGraph(groupId: NodeId): SubGraph =
-    val groupData = viewerGraphData.groups.find(_._2.id == groupId).get._2
+    val groupData = viewerGraphData.groups.find(_.id == groupId).get
 
-    // Get direct children of this group
+    // Get direct children using memberships
     val directNodes = viewerGraphData.nodes
-      .filter(_._1.contains(groupId))
       .map(_._2)
+      .filter(node =>
+        viewerGraphData.memberships
+          .find(_._1 == node.id)
+          .exists(_._2.contains(groupId))
+      )
       .map(nodeToStmt)
 
     val directArrows = viewerGraphData.arrows
-      .filter(_._1.contains(groupId))
       .map(_._2)
+      .filter(arrow =>
+        viewerGraphData.memberships
+          .find(_._1 == arrow.nodeId)
+          .exists(_._2.contains(groupId))
+      )
       .map(arrowToStmt)
 
     val directGroups = viewerGraphData.groups
-      .filter(_._1.contains(groupId))
-      .map(_._2)
+      .filter(group =>
+        viewerGraphData.memberships
+          .find(_._1 == group.id)
+          .exists(_._2.contains(groupId))
+      )
       .map(g => groupToSubGraph(g.id))
 
     def attrs(attrs: Attributes) =
@@ -67,28 +78,47 @@ def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
     val children = groupAttrs ++ edgeAttrs ++ nodeAttrs ++ directNodes ++ directArrows ++ directGroups
 
     SubGraph(children, Some(groupId.value))
+  end groupToSubGraph
 
-  // Find the root group (the one with None as parent)
-  val rootGroup = viewerGraphData.groups.find(_._1.isEmpty).map(_._2)
+  // Find the root group (the one with no parent in memberships)
+  val rootGroup = viewerGraphData.groups
+    .find(group =>
+      viewerGraphData.memberships
+        .find(_._1 == group.id)
+        .forall(_._2.isEmpty)
+    )
 
   rootGroup match
     case Some(root) =>
       // Convert root group's direct children
       val directNodes = viewerGraphData.nodes
-        .filter(_._1.contains(root.id))
         .map(_._2)
+        .filter(node =>
+          viewerGraphData.memberships
+            .find(_._1 == node.id)
+            .exists(_._2.contains(root.id))
+        )
         .map(nodeToStmt)
 
       val directArrows = viewerGraphData.arrows
-        .filter(_._1.contains(root.id))
         .map(_._2)
+        .filter(arrow =>
+          viewerGraphData.memberships
+            .find(_._1 == arrow.nodeId)
+            .exists(_._2.contains(root.id))
+        )
         .map(arrowToStmt)
 
       val directGroups = viewerGraphData.groups
-        .filter(_._1.contains(root.id))
-        .map(_._2)
+        .filter(group =>
+          viewerGraphData.memberships
+            .find(_._1 == group.id)
+            .exists(_._2.contains(root.id))
+        )
         .map(g => groupToSubGraph(g.id))
 
-      directNodes.toList ++ directArrows ++ directGroups
+      directNodes ++ directArrows ++ directGroups
 
     case None => Nil
+
+

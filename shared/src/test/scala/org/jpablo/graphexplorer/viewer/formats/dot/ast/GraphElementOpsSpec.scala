@@ -21,7 +21,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
         Some(group0) -> node("z", Map("label" -> "ZZ")),
         Some(grup1)  -> node("d")
       )
-//    pprint.log(nodes)
+//    pprint.log(data.memberships, showFieldNames = false)
     assertEquals(data.nodes, expectedNodes)
   }
 
@@ -43,11 +43,31 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 //    pprint.log(groups)
     val expectedGroups =
       List(
-        None         -> ViewerGroup(root),
-        Some(root)   -> ViewerGroup(group0, nodeAttrs = Attributes(Map("shape" -> "egg"))),
-        Some(group0) -> ViewerGroup(grup1)
+        ViewerGroup(root),
+        ViewerGroup(group0, nodeAttrs = Attributes(Map("shape" -> "egg"))),
+        ViewerGroup(grup1)
       )
     assertEquals(data.groups, expectedGroups)
+  }
+
+  test("findAllElements should return all memberships") {
+    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val expectedMemberships =
+      List(
+        NodeId("G")         -> None,
+        NodeId("a")         -> Some(NodeId("G")),
+        NodeId("b")         -> Some(NodeId("G")),
+        NodeId("x->y:0")    -> Some(NodeId("G")),
+        NodeId("cluster_0") -> Some(NodeId("G")),
+        NodeId("z")         -> Some(NodeId("cluster_0")),
+        NodeId("a->b:0")    -> Some(NodeId("cluster_0")),
+        NodeId("cluster_1") -> Some(NodeId("cluster_0")),
+        NodeId("d")         -> Some(NodeId("cluster_1")),
+        NodeId("x->a:0")    -> Some(NodeId("G")),
+        NodeId("b->c:0")    -> Some(NodeId("G"))
+      )
+
+    assertEquals(data.memberships, expectedMemberships)
   }
 
   test("directChildrenToAST") {

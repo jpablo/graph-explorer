@@ -4,6 +4,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerNode}
+import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*
 import upickle.implicits.key
 
@@ -87,7 +88,7 @@ case class EdgeStmt(
     edge_list: List[EdgeElement],
     attr_list: List[Attr]
 ) extends GraphElement derives ReadWriter:
-  lazy val idAttr: String = attr_list.find(_.id == idAttributeKey).map(_.attrEq.toString).getOrElse("")
+  lazy val idAttr: Option[String] = attr_list.find(_.id == idAttributeKey).map(_.attrEq.toString)
 
   def toGraphElements: List[GraphElement] =
     edge_list.flatMap:
@@ -151,3 +152,7 @@ case class StmtSep() extends GraphElement derives ReadWriter
 
 @key("subgraph")
 case class SubGraph(children: List[GraphElement], id: Option[String] = None) extends GraphElement derives ReadWriter
+
+object SubGraph:
+  def randomId(): String = randomUUIDSafe().take(8)
+end SubGraph

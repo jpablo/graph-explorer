@@ -57,11 +57,13 @@ extension (graphElement: GraphElement)
   def findAllDirectChildren: ViewerGraphData =
     @tailrec
     def loop(
-        remaining: List[(Option[String], List[GraphElement])],
-        arrows:    List[(Option[String], Arrow)],
-        groups:    List[(Option[String], ViewerGroup)],
-        nodes:     List[((Option[String], String), Map[String, String])]
+        remaining:   List[(Option[String], List[GraphElement])],
+        arrows:      List[(Option[String], Arrow)],
+        groups:      List[ViewerGroup],
+        nodes:       List[((Option[String], String), Map[String, String])],
+        memberships: List[(String, Option[String])] = Nil // List of (element, group) memberships
     ): ViewerGraphData =
+//      pprint.log(memberships, showFieldNames = false)
 //      pprint.log((remaining.length, arrows.length, groups.length, nodes.length), "loop")
       remaining match
         case Nil =>
@@ -70,12 +72,12 @@ extension (graphElement: GraphElement)
           val viewerNodes =
             nodes.map((id, attrs) => id._1.map(NodeId(_)) -> ViewerNode(NodeId(id._2), Attributes(attrs)))
           val arrowNodes = arrows.map((id, arrow) => id.map(NodeId(_)) -> arrow)
-          val groupNodes = groups.map((id, group) => id.map(NodeId(_)) -> group)
-          ViewerGraphData(arrowNodes.reverse, groupNodes.reverse, viewerNodes.reverse)
+          val membershipsNodes = memberships.map((id, parent) => NodeId(id) -> parent.map(NodeId(_)))
+          ViewerGraphData(arrowNodes.reverse, groups.reverse, viewerNodes.reverse, membershipsNodes.reverse)
 
         case (_, Nil) :: t =>
 //          pprint.log(parent, "empty children")
-          loop(remaining = t, arrows, groups, nodes)
+          loop(remaining = t, arrows, groups, nodes, memberships)
 
         // firstChild and parentOtherChildren belong to the same parent node
         case (parent, firstChild :: parentOtherChildren) :: t => // remaining
@@ -83,41 +85,48 @@ extension (graphElement: GraphElement)
           firstChild match
             case sub @ SubGraph(subChildren, _) =>
 //              println("SubGraph")
-              val rem = (sub.id -> subChildren) :: ((parent -> parentOtherChildren) :: t)
-              val gps = (parent -> convertSubGraphToViewerGroup(sub)) :: groups
+              val subId = sub.id.getOrElse(SubGraph.randomId())
+              val rem = (Some(subId) -> subChildren) :: ((parent -> parentOtherChildren) :: t)
+              val group = convertSubGraphToViewerGroup(sub)
+              val mms = (subId -> parent) :: memberships
 //              pprint.log(rem.length, showFieldNames = true)
               // 1. Add the current subgraph to the groups
               // 2. Add the children to the remaining list
               loop(
-                remaining = rem,
-                arrows    = arrows,
-                groups    = gps,
-                nodes     = nodes
+                remaining   = rem,
+                arrows      = arrows,
+                groups      = group :: groups,
+                nodes       = nodes,
+                memberships = mms
               )
 
             case e: EdgeStmt =>
 //              println("EdgeStmt")
               val (edgeChildren, edgeArrows) = e.expandArrows.unzip
 
+              // missing e.idAttr!!
+              val mbs = edgeArrows.flatten.map(_.nodeId.value -> parent) ++ memberships
               loop(
-                remaining = (parent -> parentOtherChildren) :: t,
-                arrows    = edgeArrows.flatten.map(parent -> _) ++ arrows,
-                groups    = groups,
-                nodes     = nodes
+                remaining   = (parent -> parentOtherChildren) :: t,
+                arrows      = edgeArrows.flatten.map(parent -> _) ++ arrows,
+                groups      = groups,
+                nodes       = nodes,
+                memberships = mbs
               )
 
             case NodeStmt(nodeId, attr_list) =>
 //              println("NodeStmt")
               val attrMap = toAttrsMap(attr_list)
               loop(
-                remaining = (parent -> parentOtherChildren) :: t,
-                arrows    = arrows,
-                groups    = groups,
-                nodes     = (parent -> nodeId.id, attrMap) :: nodes
+                remaining   = (parent -> parentOtherChildren) :: t,
+                arrows      = arrows,
+                groups      = groups,
+                nodes       = (parent -> nodeId.id, attrMap) :: nodes,
+                memberships = (nodeId.id -> parent) :: memberships
               )
 
             case _ =>
-              loop(remaining = (parent -> parentOtherChildren) :: t, arrows, groups, nodes)
+              loop(remaining = (parent -> parentOtherChildren) :: t, arrows, groups, nodes, memberships)
 
     loop(remaining = List(None -> List(graphElement)), Nil, Nil, Nil)
 
