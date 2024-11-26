@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
+import org.jpablo.graphexplorer.viewer.extensions.in
 //import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.*
 //import org.jpablo.graphexplorer.viewer.tree.Tree
@@ -85,10 +85,7 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     ViewerGraph.basic2(relevantArrows, foundNodes)
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
-    val foundNodes = nodeById.collect { case (id, node) if (id notIn toRemove) => node }
-    val x = ViewerGraph.basic2(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
-//    pprint.log(x)
-    x
+    this.copy(data = data.removeNodes(toRemove))
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */

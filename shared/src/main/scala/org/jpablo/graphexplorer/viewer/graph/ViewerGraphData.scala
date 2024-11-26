@@ -7,4 +7,18 @@ case class ViewerGraphData(
     groups:      Map[NodeId, ViewerGroup],
     nodes:       Map[NodeId, ViewerNode],
     memberships: Map[NodeId, Option[NodeId]]
-)
+):
+  def removeNodes(ids: Set[NodeId]): ViewerGraphData =
+    val newArrows = arrows.view
+      .filterKeys(id =>
+        val arrow = arrows(id)
+        !ids.contains(arrow.source) && !ids.contains(arrow.target)
+      )
+      .toMap
+
+    copy(
+      nodes       = nodes -- ids,
+      arrows      = newArrows,
+      groups      = groups -- ids,
+      memberships = memberships -- ids
+    )
