@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, FlattenedGraphElement}
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
@@ -13,7 +13,7 @@ def graphToDotAST(graph: ViewerGraph): DotAST =
     id       = graph.id
   )
 
-def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
+def directChildrenToAST(viewerGraphData: FlattenedGraphElement): List[GraphElement] =
   // Helper function to create NodeStmt from ViewerNode
   def nodeToStmt(node: ViewerNode): NodeStmt =
     NodeStmt(

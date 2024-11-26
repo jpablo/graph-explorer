@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 //import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData
+import org.jpablo.graphexplorer.viewer.graph.FlattenedGraphElement
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -54,7 +54,7 @@ extension (graphElement: GraphElement)
       nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
 
-  def findAllDirectChildren: ViewerGraphData =
+  def findAllDirectChildren: FlattenedGraphElement =
     @tailrec
     def loop(
         remaining:   List[(Option[String], List[GraphElement])],
@@ -62,7 +62,7 @@ extension (graphElement: GraphElement)
         groups:      List[ViewerGroup],
         nodes:       List[(String, Map[String, String])],
         memberships: List[(String, Option[String])] = Nil // List of (element, group) memberships
-    ): ViewerGraphData =
+    ): FlattenedGraphElement =
 //      pprint.log(memberships, showFieldNames = false)
 //      pprint.log((remaining.length, arrows.length, groups.length, nodes.length), "loop")
       remaining match
@@ -72,7 +72,7 @@ extension (graphElement: GraphElement)
           val viewerNodes =
             nodes.map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
           val membershipsNodes = memberships.map((id, parent) => NodeId(id) -> parent.map(NodeId(_)))
-          ViewerGraphData(arrows.reverse, groups.reverse, viewerNodes.reverse, membershipsNodes.reverse)
+          FlattenedGraphElement(arrows.reverse, groups.reverse, viewerNodes.reverse, membershipsNodes.reverse)
 
         case (_, Nil) :: t =>
 //          pprint.log(parent, "empty children")

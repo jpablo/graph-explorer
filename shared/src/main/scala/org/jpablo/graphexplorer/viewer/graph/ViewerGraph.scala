@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.models.*
   *   Either isolated nodes or full node definitions for arrow ends
   */
 
-case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: String = "digraph"):
+case class ViewerGraph(data: FlattenedGraphElement, id: Option[String] = None, tpe: String = "digraph"):
   // Efficient access to elements
   lazy val arrowsById: Map[NodeId, Arrow] =
     data.arrows.map(a => a.nodeId -> a).toMap
@@ -179,7 +179,7 @@ object ViewerGraph:
       groupsById: Map[NodeId, ViewerGroup] = Map.empty
   ): ViewerGraph =
     new ViewerGraph(
-      ViewerGraphData(
+      FlattenedGraphElement(
         arrows = arrowsById.map { case (k, v) => v }.toList,
         groups = groupsById.map { case (k, v) => v }.toList,
         nodes  = nodeById.map { case (k, v) => v }.toList
