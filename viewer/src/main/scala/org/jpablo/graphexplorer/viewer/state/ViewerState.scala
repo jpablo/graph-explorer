@@ -123,7 +123,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // -------- Attribute management -----------
   // top level attributes
-  val graphTargetAttributes =
+  val graphTargetAttributes: Var[Map[String, String]] =
     sourceFlow.sourceAST
       .zoom(_.getDiagramAttributes(AttributeTarget.graph))(
         _.updateDiagramAttributes(AttributeTarget.graph)(_)

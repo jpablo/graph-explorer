@@ -17,9 +17,9 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
   // Efficient access to elements
   val arrowsById = data.arrows
 
-  lazy val nodeById = data.nodes
+  val nodeById = data.nodes
 
-  lazy val groupsById = data.groups
+  val groupsById = data.groups
 
   val nodes = nodeById.values.toSet
   val arrows = arrowsById.values.toSet
