@@ -58,7 +58,7 @@ class DiagramSelectionOps:
       set(Set(nodeId))
 
   def handleClickOnArrow(arrow: Arrow)(metaKey: Boolean) =
-    val nodeId = arrow.nodeId
+    val nodeId = arrow.id
     if metaKey then
       toggle(nodeId)
     else

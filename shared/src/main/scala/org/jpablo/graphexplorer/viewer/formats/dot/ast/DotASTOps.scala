@@ -16,7 +16,7 @@ extension (ast: DotAST)
 
   def toViewerGraph: ViewerGraph =
     val data = findAllDirectChildren(ast.asSubgraph)
-    ViewerGraph(data, ast.id, ast.tpe)
+    ViewerGraph(data.toViewerGraphData, ast.id, ast.tpe)
 
   def addRandomNode(): DotAST =
     val label = Attr("label", "")

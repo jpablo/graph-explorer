@@ -72,7 +72,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 
   test("directChildrenToAST") {
     val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
-    val reconstructed = directChildrenToAST(data)
+    val reconstructed = directChildrenToAST(data.toViewerGraphData)
     val expected =
       List(
         NodeStmt(DotNodeId("a", None), List()),

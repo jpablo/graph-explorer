@@ -52,7 +52,7 @@ case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
 
   // if parsing fails, use the title as the nodeId
   lazy val nodeId: NodeId =
-    toArrow.map(_.nodeId).getOrElse(models.NodeId(refTitle))
+    toArrow.map(_.id).getOrElse(models.NodeId(refTitle))
 end EdgeElement
 
 extension (e: dom.Element)

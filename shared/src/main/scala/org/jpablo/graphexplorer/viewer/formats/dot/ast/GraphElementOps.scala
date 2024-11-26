@@ -103,7 +103,7 @@ extension (graphElement: GraphElement)
               val (edgeChildren, edgeArrows) = e.expandArrows.unzip
 
               // missing e.idAttr!!
-              val mbs = edgeArrows.flatten.map(_.nodeId.value -> parent) ++ memberships
+              val mbs = edgeArrows.flatten.map(_.id.value -> parent) ++ memberships
               loop(
                 remaining   = (parent -> parentOtherChildren) :: t,
                 arrows      = edgeArrows.flatten ++ arrows,

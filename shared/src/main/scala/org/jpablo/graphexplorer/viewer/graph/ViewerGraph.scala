@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.FlattenedGraphElement
 //import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.*
 //import org.jpablo.graphexplorer.viewer.tree.Tree
@@ -14,16 +13,13 @@ import org.jpablo.graphexplorer.viewer.models.*
   *   Either isolated nodes or full node definitions for arrow ends
   */
 
-case class ViewerGraph(data: FlattenedGraphElement, id: Option[String] = None, tpe: String = "digraph"):
+case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: String = "digraph"):
   // Efficient access to elements
-  lazy val arrowsById: Map[NodeId, Arrow] =
-    data.arrows.map(a => a.nodeId -> a).toMap
+  val arrowsById = data.arrows
 
-  lazy val nodeById: Map[NodeId, ViewerNode] =
-    data.nodes.groupMapReduce(_.id)(identity)((_, b) => b)
+  lazy val nodeById = data.nodes
 
-  lazy val groupsById: Map[NodeId, ViewerGroup] =
-    data.groups.groupMapReduce(_.id)(identity)((_, b) => b)
+  lazy val groupsById = data.groups
 
   val nodes = nodeById.values.toSet
   val arrows = arrowsById.values.toSet
@@ -37,7 +33,7 @@ case class ViewerGraph(data: FlattenedGraphElement, id: Option[String] = None, t
   lazy val allNodeIds: Set[NodeId] =
     nodes.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
 
-  lazy val allArrowIds: Set[NodeId] = arrows.map(_.nodeId)
+  lazy val allArrowIds: Set[NodeId] = arrows.map(_.id)
 
   private lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
     arrows
@@ -68,7 +64,7 @@ case class ViewerGraph(data: FlattenedGraphElement, id: Option[String] = None, t
   def attributesById(nodeIds: Set[String]): Attributes =
     val init = Map.empty[String, String]
     val nodeAttrs = nodes.filter(_.id.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
-    val edgeAttrs = arrows.filter(_.nodeId.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
+    val edgeAttrs = arrows.filter(_.id.value in nodeIds).map(_.publicAttrs.values).foldLeft(init)(_ ++ _)
     Attributes(nodeAttrs ++ edgeAttrs)
 
   private def arrowsWithoutNodeIds(ids: Set[NodeId]): Set[Arrow] =
@@ -159,7 +155,7 @@ object ViewerGraph:
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     fromKeyValues(
-      arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.nodeId -> a).toMap,
+      arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.id -> a).toMap,
       nodeById   = nodes.groupMapReduce(_.id)(identity)((_, b) => b)
     )
 
@@ -169,7 +165,7 @@ object ViewerGraph:
       groups: Set[ViewerGroup] = Set.empty
   ): ViewerGraph =
     fromKeyValues(
-      arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.nodeId -> a).toMap,
+      arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.id -> a).toMap,
       nodeById   = nodes.groupMapReduce(_.id)(identity)((_, b) => b),
       groupsById = groups.groupMapReduce(_.id)(identity)((_, b) => b)
     )
@@ -179,13 +175,7 @@ object ViewerGraph:
       nodeById:   Map[NodeId, ViewerNode],
       groupsById: Map[NodeId, ViewerGroup] = Map.empty
   ): ViewerGraph =
-    new ViewerGraph(
-      FlattenedGraphElement(
-        arrows = arrowsById.map { case (k, v) => v }.toList,
-        groups = groupsById.map { case (k, v) => v }.toList,
-        nodes  = nodeById.map { case (k, v) => v }.toList
-      )
-    )
+    new ViewerGraph(ViewerGraphData(arrowsById, groupsById, nodeById, Map.empty))
 
   // In Scala 3.2 the type annotation is needed.
   val empty: ViewerGraph = basic(Set.empty, Set.empty)

@@ -30,8 +30,8 @@ def EdgesList(
             _.map: arrow =>
               tr(
                 cls := "whitespace-nowrap hover cursor-pointer",
-                cls("font-bold") <-- state.isEdgeVisible(arrow.nodeId),
-                cls("selected") <-- state.isSelected(arrow.nodeId),
+                cls("font-bold") <-- state.isEdgeVisible(arrow.id),
+                cls("selected") <-- state.isSelected(arrow.id),
                 td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), arrow.label),
                 td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.source), arrow.source.toString),
                 td("→"),
@@ -39,7 +39,7 @@ def EdgesList(
                 onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnArrow(arrow),
                 onDblClick
                   .preventDefault
-                  .stopPropagation(_.sample(state.isEdgeVisible(arrow.nodeId))) --> { visible =>
+                  .stopPropagation(_.sample(state.isEdgeVisible(arrow.id))) --> { visible =>
                   if visible then
                     state.hideNodes(arrow.nodeIds)
                   else

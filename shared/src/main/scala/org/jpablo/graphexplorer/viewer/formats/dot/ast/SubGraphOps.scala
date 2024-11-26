@@ -21,7 +21,7 @@ extension (self: SubGraph)
 
         case (e @ EdgeStmt(edgeList @ List(DotNodeId(source, _), DotNodeId(target, _)), attr_list)) :: tail =>
           val edgeAttrsMap = toAttrsMap(attr_list)
-          val edgeId = arrow((source, target), edgeAttrsMap).nodeId.value
+          val edgeId = arrow((source, target), edgeAttrsMap).id.value
           val found = edgeId in nodeIds
           val e2 =
             if found then

@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
@@ -13,7 +13,7 @@ def graphToDotAST(graph: ViewerGraph): DotAST =
     id       = graph.id
   )
 
-def directChildrenToAST(viewerGraphData: FlattenedGraphElement): List[GraphElement] =
+def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
   // Helper function to create NodeStmt from ViewerNode
   def nodeToStmt(node: ViewerNode): NodeStmt =
     NodeStmt(
@@ -33,30 +33,27 @@ def directChildrenToAST(viewerGraphData: FlattenedGraphElement): List[GraphEleme
 
   // Helper function to create SubGraph from ViewerGroup
   def groupToSubGraph(groupId: NodeId): SubGraph =
-    val groupData = viewerGraphData.groups.find(_.id == groupId).get
+    val groupData = viewerGraphData.groups(groupId)
 
     // Get direct children using memberships
     val directNodes = viewerGraphData.nodes
+      .values
       .filter(node =>
-        viewerGraphData.memberships
-          .find(_._1 == node.id)
-          .exists(_._2.contains(groupId))
+        viewerGraphData.memberships.get(node.id).contains(Some(groupId))
       )
       .map(nodeToStmt)
 
     val directArrows = viewerGraphData.arrows
+      .values
       .filter(arrow =>
-        viewerGraphData.memberships
-          .find(_._1 == arrow.nodeId)
-          .exists(_._2.contains(groupId))
+        viewerGraphData.memberships.get(arrow.id).contains(Some(groupId))
       )
       .map(arrowToStmt)
 
     val directGroups = viewerGraphData.groups
+      .values
       .filter(group =>
-        viewerGraphData.memberships
-          .find(_._1 == group.id)
-          .exists(_._2.contains(groupId))
+        viewerGraphData.memberships.get(group.id).contains(Some(groupId))
       )
       .map(g => groupToSubGraph(g.id))
 
@@ -80,41 +77,36 @@ def directChildrenToAST(viewerGraphData: FlattenedGraphElement): List[GraphEleme
 
   // Find the root group (the one with no parent in memberships)
   val rootGroup = viewerGraphData.groups
+    .values
     .find(group =>
-      viewerGraphData.memberships
-        .find(_._1 == group.id)
-        .forall(_._2.isEmpty)
+      viewerGraphData.memberships.get(group.id).contains(None)
     )
 
   rootGroup match
     case Some(root) =>
       // Convert root group's direct children
       val directNodes = viewerGraphData.nodes
+        .values
         .filter(node =>
-          viewerGraphData.memberships
-            .find(_._1 == node.id)
-            .exists(_._2.contains(root.id))
+          viewerGraphData.memberships.get(node.id).contains(Some(root.id))
         )
         .map(nodeToStmt)
 
       val directArrows = viewerGraphData.arrows
+        .values
         .filter(arrow =>
-          viewerGraphData.memberships
-            .find(_._1 == arrow.nodeId)
-            .exists(_._2.contains(root.id))
+          viewerGraphData.memberships.get(arrow.id).contains(Some(root.id))
         )
         .map(arrowToStmt)
 
       val directGroups = viewerGraphData.groups
+        .values
         .filter(group =>
-          viewerGraphData.memberships
-            .find(_._1 == group.id)
-            .exists(_._2.contains(root.id))
+          viewerGraphData.memberships.get(group.id).contains(Some(root.id))
         )
         .map(g => groupToSubGraph(g.id))
 
-      directNodes ++ directArrows ++ directGroups
+      directNodes.toList ++ directArrows ++ directGroups
 
     case None => Nil
-
 

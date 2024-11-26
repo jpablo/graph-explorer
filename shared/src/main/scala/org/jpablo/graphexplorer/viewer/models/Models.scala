@@ -59,9 +59,9 @@ case class Arrow(
 ) extends Attributable:
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
-  val nodeId = NodeId(s"${source.value}$titleIdSeparator${target.value}:$seq")
+  val id = NodeId(s"${source.value}$titleIdSeparator${target.value}:$seq")
 
-  def nodeIds = Set(source, target, nodeId)
+  def nodeIds = Set(source, target, id)
 
 end Arrow
 
@@ -101,7 +101,7 @@ object Attributes:
 // ---- groups ------
 
 case class ViewerGroup(
-    id:        NodeId,
+    id: NodeId,
     // ----------------
     // We probably don't need to store the nodes and edges in the group.
 //    nodes:     Set[NodeId] = Set.empty,
