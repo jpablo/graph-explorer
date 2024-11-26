@@ -2,17 +2,18 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.directChildrenToAST
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 
 class GraphElementOpsSpec extends ScalaCheckSuite:
 
-  val root = NodeId("G")
+  val root = ViewerGraph.defaultRootId
   val group0 = NodeId("cluster_0")
-  val grup1 = NodeId("cluster_1")
+  val group1 = NodeId("cluster_1")
 
-  test("findAllElements should return all nodes") {
+  test("findAllDirectChildren should return all nodes") {
     val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
     val expectedNodes =
       List(
@@ -25,9 +26,8 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     assertEquals(data.nodes, expectedNodes)
   }
 
-  test("findAllElements should return all arrows") {
+  test("findAllDirectChildren should return all arrows") {
     val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
-//    pprint.log(arrows)
     val expectedArrows =
       List(
         arrow("x" -> "y"),
@@ -38,33 +38,47 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     assertEquals(data.arrows, expectedArrows)
   }
 
-  test("findAllElements should return all groups") {
+  test("findAllDirectChildren should return all groups") {
     val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
 //    pprint.log(groups)
     val expectedGroups =
       List(
         ViewerGroup(root),
         ViewerGroup(group0, nodeAttrs = Attributes(Map("shape" -> "egg"))),
-        ViewerGroup(grup1)
+        ViewerGroup(group1)
       )
     assertEquals(data.groups, expectedGroups)
   }
 
-  test("findAllElements should return all memberships") {
+  test("findAllDirectChildren in empty graphs should return all memberships") {
+    val emptyAST = DotAST(tpe = "digraph", children = List(), id = Some(root.value))
+    val data = findAllDirectChildren(emptyAST.asSubgraph)
+    val expected =
+      FlattenedGraphElement(
+        arrows      = List(),
+        groups      = List(ViewerGroup(root)),
+        nodes       = List(),
+        memberships = List((root, None))
+      )
+
+    assertEquals(data, expected)
+  }
+
+  test("findAllDirectChildren should return all memberships") {
     val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
     val expectedMemberships =
       List(
-        NodeId("G")         -> None,
-        NodeId("a")         -> Some(NodeId("G")),
-        NodeId("b")         -> Some(NodeId("G")),
-        NodeId("x->y:0")    -> Some(NodeId("G")),
-        NodeId("cluster_0") -> Some(NodeId("G")),
-        NodeId("z")         -> Some(NodeId("cluster_0")),
-        NodeId("a->b:0")    -> Some(NodeId("cluster_0")),
-        NodeId("cluster_1") -> Some(NodeId("cluster_0")),
-        NodeId("d")         -> Some(NodeId("cluster_1")),
-        NodeId("x->a:0")    -> Some(NodeId("G")),
-        NodeId("b->c:0")    -> Some(NodeId("G"))
+        root             -> None,
+        NodeId("a")      -> Some(root),
+        NodeId("b")      -> Some(root),
+        NodeId("x->y:0") -> Some(root),
+        group0           -> Some(root),
+        NodeId("z")      -> Some(group0),
+        NodeId("a->b:0") -> Some(group0),
+        group1           -> Some(group0),
+        NodeId("d")      -> Some(group1),
+        NodeId("x->a:0") -> Some(root),
+        NodeId("b->c:0") -> Some(root)
       )
 
     assertEquals(data.memberships, expectedMemberships)

@@ -191,6 +191,9 @@ end ViewerGraph
 
 object ViewerGraph:
 
+  val defaultRootId = NodeId("G")
+  val emptyTopLevel = ViewerGroup.empty(defaultRootId)
+  
   def basic(
       arrows: Set[(NodeId, NodeId)],
       nodes:  Set[ViewerNode] = Set.empty
@@ -216,9 +219,9 @@ object ViewerGraph:
       nodeById:   Map[NodeId, ViewerNode],
       groupsById: Map[NodeId, ViewerGroup] = Map.empty
   ): ViewerGraph =
-    new ViewerGraph(ViewerGraphData(arrowsById, groupsById, nodeById, Map.empty))
+    val groups = groupsById.updatedWith(defaultRootId)(_.orElse(Some(emptyTopLevel)))
+    new ViewerGraph(ViewerGraphData(arrowsById, groups, nodeById, Map(defaultRootId -> None)))
 
-  // In Scala 3.2 the type annotation is needed.
   val empty: ViewerGraph = basic(Set.empty, Set.empty)
 
   case class Summary(

@@ -113,3 +113,7 @@ case class ViewerGroup(
     edgeAttrs: Attributes = Attributes.empty,
     nodeAttrs: Attributes = Attributes.empty
 ) extends Attributable
+
+object ViewerGroup:
+  def empty(nodeId: NodeId) = ViewerGroup(nodeId)
+end ViewerGroup

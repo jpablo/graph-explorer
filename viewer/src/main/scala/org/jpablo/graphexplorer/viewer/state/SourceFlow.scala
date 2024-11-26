@@ -17,14 +17,15 @@ class SourceFlow(
 )(using Owner):
 
   // source of truth
-  private val sourceTextAndAST: Var[(source: Path, ast: DotAST)] = Var(("", DotAST.empty))
+  private val sourceTextAndAST: Var[(source: String, ast: DotAST)] = Var(("", DotAST.empty))
 
   /** parse source on write: String ~> DotAST
     */
-  val sourceText: Var[Path] =
+  val sourceText: Var[String] =
     sourceTextAndAST.zoom(_.source): (_, newSource) =>
       val newAST =
-        DotText(newSource).parseAST.headOption
+        DotText(newSource).parseAST
+          .headOption
           .getOrElse(DotAST.empty)
           .attachInternalAttributes
       (newSource, newAST)
