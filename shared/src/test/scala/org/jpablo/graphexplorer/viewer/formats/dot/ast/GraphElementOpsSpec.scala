@@ -30,10 +30,10 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 //    pprint.log(arrows)
     val expectedArrows =
       List(
-        Some(root)   -> arrow("x" -> "y"),
-        Some(group0) -> arrow("a" -> "b"),
-        Some(root)   -> arrow("x" -> "a"),
-        Some(root)   -> arrow("b" -> "c")
+        arrow("x" -> "y"),
+        arrow("a" -> "b"),
+        arrow("x" -> "a"),
+        arrow("b" -> "c")
       )
     assertEquals(data.arrows, expectedArrows)
   }

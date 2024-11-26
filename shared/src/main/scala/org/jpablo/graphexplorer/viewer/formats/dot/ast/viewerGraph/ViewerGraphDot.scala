@@ -46,7 +46,6 @@ def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
       .map(nodeToStmt)
 
     val directArrows = viewerGraphData.arrows
-      .map(_._2)
       .filter(arrow =>
         viewerGraphData.memberships
           .find(_._1 == arrow.nodeId)
@@ -101,7 +100,6 @@ def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
         .map(nodeToStmt)
 
       val directArrows = viewerGraphData.arrows
-        .map(_._2)
         .filter(arrow =>
           viewerGraphData.memberships
             .find(_._1 == arrow.nodeId)

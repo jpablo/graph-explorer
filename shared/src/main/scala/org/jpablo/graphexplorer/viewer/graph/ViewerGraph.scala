@@ -16,7 +16,7 @@ import org.jpablo.graphexplorer.viewer.models.*
 case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: String = "digraph"):
   // Efficient access to elements
   lazy val arrowsById: Map[NodeId, Arrow] =
-    data.arrows.map(_._2).map(a => a.nodeId -> a).toMap
+    data.arrows.map(a => a.nodeId -> a).toMap
 
   lazy val nodeById: Map[NodeId, ViewerNode] =
     data.nodes.map(_._2).groupMapReduce(_.id)(identity)((_, b) => b)
@@ -92,7 +92,7 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     ViewerGraph.basic2(relevantArrows, foundNodes)
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
-    
+
     val foundNodes = nodeById.collect { case (id, node) if (id notIn toRemove) => node }
     ViewerGraph.basic2(arrowsWithoutNodeIds(toRemove), foundNodes.toSet)
 
@@ -183,7 +183,7 @@ object ViewerGraph:
   ): ViewerGraph =
     new ViewerGraph(
       ViewerGraphData(
-        arrows = arrowsById.map { case (k, v) => (None, v) }.toList,
+        arrows = arrowsById.map { case (k, v) => v }.toList,
         groups = groupsById.map { case (k, v) => v }.toList,
         nodes  = nodeById.map { case (k, v) => (None, v) }.toList
       )

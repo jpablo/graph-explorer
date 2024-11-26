@@ -58,7 +58,7 @@ extension (graphElement: GraphElement)
     @tailrec
     def loop(
         remaining:   List[(Option[String], List[GraphElement])],
-        arrows:      List[(Option[String], Arrow)],
+        arrows:      List[Arrow],
         groups:      List[ViewerGroup],
         nodes:       List[((Option[String], String), Map[String, String])],
         memberships: List[(String, Option[String])] = Nil // List of (element, group) memberships
@@ -71,9 +71,8 @@ extension (graphElement: GraphElement)
           // Convert accumulated node attributes to ViewerNodes at the end
           val viewerNodes =
             nodes.map((id, attrs) => id._1.map(NodeId(_)) -> ViewerNode(NodeId(id._2), Attributes(attrs)))
-          val arrowNodes = arrows.map((id, arrow) => id.map(NodeId(_)) -> arrow)
           val membershipsNodes = memberships.map((id, parent) => NodeId(id) -> parent.map(NodeId(_)))
-          ViewerGraphData(arrowNodes.reverse, groups.reverse, viewerNodes.reverse, membershipsNodes.reverse)
+          ViewerGraphData(arrows.reverse, groups.reverse, viewerNodes.reverse, membershipsNodes.reverse)
 
         case (_, Nil) :: t =>
 //          pprint.log(parent, "empty children")
@@ -108,7 +107,7 @@ extension (graphElement: GraphElement)
               val mbs = edgeArrows.flatten.map(_.nodeId.value -> parent) ++ memberships
               loop(
                 remaining   = (parent -> parentOtherChildren) :: t,
-                arrows      = edgeArrows.flatten.map(parent -> _) ++ arrows,
+                arrows      = edgeArrows.flatten ++ arrows,
                 groups      = groups,
                 nodes       = nodes,
                 memberships = mbs
