@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.ViewerGraphData
 //import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.*
 //import org.jpablo.graphexplorer.viewer.tree.Tree
@@ -166,6 +167,13 @@ object ViewerGraph:
       arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.nodeId -> a).toMap,
       nodeById   = nodes.groupMapReduce(_.id)(identity)((_, b) => b),
       groupsById = groups.groupMapReduce(_.id)(identity)((_, b) => b)
+    )
+
+  def fromViewerGraphData(data: ViewerGraphData): ViewerGraph =
+    new ViewerGraph(
+      arrowsById = data.arrows.map(_._2).map(a => a.nodeId -> a).toMap,
+      nodeById   = data.nodes.map(_._2).groupMapReduce(_.id)(identity)((_, b) => b),
+      groupsById = data.groups.map(_._2).groupMapReduce(_.id)(identity)((_, b) => b)
     )
 
   // In Scala 3.2 the type annotation is needed.

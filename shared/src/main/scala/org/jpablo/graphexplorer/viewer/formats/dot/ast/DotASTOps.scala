@@ -15,14 +15,8 @@ def randomId(): String = randomUUIDSafe()
 extension (ast: DotAST)
 
   def toViewerGraph: ViewerGraph =
-    val (arrows, groups, nodes) = ast.allElements
-//    dom.console.count("toViewerGraph")
-    pprint.log(groups)
-    ViewerGraph.basic2(
-      arrows = arrows,
-      nodes  = nodes,
-      groups = groups
-    )
+    val data = findAllDirectChildren(ast.asSubgraph)
+    ViewerGraph.fromViewerGraphData(data)
 
   def addRandomNode(): DotAST =
     val label = Attr("label", "")

@@ -5,7 +5,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.viewerGraphDot
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphToDotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
@@ -48,7 +48,7 @@ class SourceFlow(
     * Arrows are assigned consecutive ids starting from 1
     */
   val fullGraph: Signal[ViewerGraph] =
-    fullAST.map(_.toViewerGraph)
+    fullAST.map(_.toViewerGraph).tapEach(graph => pprint.log(graph))
 
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
     */
@@ -63,7 +63,7 @@ class SourceFlow(
       .tapEach(_ => resetView())
 
   val visibleAST: Signal[DotAST] =
-    visibleGraph.map(viewerGraphDot)
+    visibleGraph.map(graphToDotAST)
 
   // transform visible AST back to Visible Dot
   // DotAST ~> Dot

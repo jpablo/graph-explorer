@@ -1,13 +1,14 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.directChildrenToAST
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 
 class GraphElementOpsSpec extends ScalaCheckSuite:
   test("findAllElements should return all nodes") {
-    val (_, _, nodes) = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
     val expectedNodes =
       List(
         Some(NodeId("G"))         -> node("a"),
@@ -16,11 +17,11 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
         Some(NodeId("cluster_1")) -> node("d")
       )
 //    pprint.log(nodes)
-    assertEquals(nodes, expectedNodes)
+    assertEquals(data.nodes, expectedNodes)
   }
 
   test("findAllElements should return all arrows") {
-    val (arrows, _, _) = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
 //    pprint.log(arrows)
     val expectedArrows =
       List(
@@ -29,11 +30,11 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
         Some(NodeId("G"))         -> arrow("x" -> "a"),
         Some(NodeId("G"))         -> arrow("b" -> "c")
       )
-    assertEquals(arrows, expectedArrows)
+    assertEquals(data.arrows, expectedArrows)
   }
 
   test("findAllElements should return all groups") {
-    val (_, groups, _) = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
 //    pprint.log(groups)
     val expectedGroups =
       List(
@@ -41,7 +42,30 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
         Some(NodeId("G"))         -> ViewerGroup(NodeId("cluster_0"), nodeAttrs = Attributes(Map("shape" -> "egg"))),
         Some(NodeId("cluster_0")) -> ViewerGroup(NodeId("cluster_1"))
       )
-    assertEquals(groups, expectedGroups)
+    assertEquals(data.groups, expectedGroups)
+  }
+
+  test("directChildrenToAST") {
+    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val reconstructed = directChildrenToAST(data)
+    val expected =
+      List(
+        NodeStmt(DotNodeId("a", None), List()),
+        NodeStmt(DotNodeId("b", None), List()),
+        EdgeStmt(List(DotNodeId("x", None), DotNodeId("y", None)), List()),
+        EdgeStmt(List(DotNodeId("x", None), DotNodeId("a", None)), List()),
+        EdgeStmt(List(DotNodeId("b", None), DotNodeId("c", None)), List()),
+        SubGraph(
+          List(
+            AttrStmt("node", List(Attr("shape", "egg"))),
+            NodeStmt(DotNodeId("z", None), List(Attr("label", "ZZ"))),
+            EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List()),
+            SubGraph(List(NodeStmt(DotNodeId("d", None), List())), Some("cluster_1"))
+          ),
+          Some("cluster_0")
+        )
+      )
+    assertEquals(reconstructed, expected)
   }
 
 // viewer/testOnly org.jpablo.graphexplorer.viewer.formats.dot.ast.DotASTParsingTest

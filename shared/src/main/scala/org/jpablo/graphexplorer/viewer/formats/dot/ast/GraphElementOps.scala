@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 //import org.jpablo.graphexplorer.viewer.extensions.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.ViewerGraphData
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -130,15 +131,14 @@ extension (graphElement: GraphElement)
 
     loop(List(graphElement))
 
-  def findAllDirectChildren
-      : (List[(Option[NodeId], Arrow)], List[(Option[NodeId], ViewerGroup)], List[(Option[NodeId], ViewerNode)]) =
+  def findAllDirectChildren: ViewerGraphData =
     @tailrec
     def loop(
         remaining: List[(Option[String], List[GraphElement])],
         arrows:    List[(Option[String], Arrow)],
         groups:    List[(Option[String], ViewerGroup)],
         nodes:     List[((Option[String], String), Map[String, String])]
-    ): (List[(Option[NodeId], Arrow)], List[(Option[NodeId], ViewerGroup)], List[(Option[NodeId], ViewerNode)]) =
+    ): ViewerGraphData =
 //      pprint.log((remaining.length, arrows.length, groups.length, nodes.length), "loop")
       remaining match
         case Nil =>
@@ -148,7 +148,7 @@ extension (graphElement: GraphElement)
             nodes.map((id, attrs) => id._1.map(NodeId(_)) -> ViewerNode(NodeId(id._2), Attributes(attrs)))
           val arrowNodes = arrows.map((id, arrow) => id.map(NodeId(_)) -> arrow)
           val groupNodes = groups.map((id, group) => id.map(NodeId(_)) -> group)
-          (arrowNodes.reverse, groupNodes.reverse, viewerNodes.reverse)
+          ViewerGraphData(arrowNodes.reverse, groupNodes.reverse, viewerNodes.reverse)
 
         case (_, Nil) :: t =>
 //          pprint.log(parent, "empty children")
@@ -225,6 +225,8 @@ extension (graphElement: GraphElement)
       )
     if debug then pprint.log(filtered, "[removeGraphNodes]", showFieldNames = false)
     reconstructGraph(filtered)
+
+end extension
 
 def reconstructGraph(elements: List[GraphElement]): List[GraphElement] =
   // stack contains the children of the next non-terminal node
