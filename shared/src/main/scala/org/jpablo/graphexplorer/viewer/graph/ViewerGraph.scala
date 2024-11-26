@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.FlattenedGraphElement
 //import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.*
 //import org.jpablo.graphexplorer.viewer.tree.Tree

@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.graph
+package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId, ViewerGroup, ViewerNode}
 

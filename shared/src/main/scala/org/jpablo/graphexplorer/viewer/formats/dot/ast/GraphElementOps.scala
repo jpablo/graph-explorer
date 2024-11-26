@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 //import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.graph.FlattenedGraphElement
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.*
 

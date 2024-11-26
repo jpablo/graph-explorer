@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, FlattenedGraphElement}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
