@@ -49,7 +49,9 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
       .withDefaultValue(Set.empty)
 
   def removeUnsupportedFeatures: ViewerGraph =
-    this.modify(_.data.groups).using(g => g + (root.id -> root.modify(_.attrs.values).using(_ - "size")))
+    this
+      .modify(_.data.groups)
+      .using(_ + (root.id -> root.modify(_.attrs.values).using(_ - "size")))
 
   def setDefaultTheme: ViewerGraph =
     //    val defaultAttrs = Attributes(Map("style" -> "filled", "fillcolor" -> "white"))

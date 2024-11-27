@@ -47,7 +47,7 @@ class SourceFlow(
     sourceAST.zoom(_.toViewerGraph) { (_, newGraph) => graphToDotAST(newGraph) }
 
   val fullGraph: Signal[ViewerGraph] =
-    fullGraphV.signal//.tapEach(graph => pprint.log(graph, showFieldNames = false))
+    fullGraphV.signal // .tapEach(graph => pprint.log(graph, showFieldNames = false))
 
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
     */
@@ -71,5 +71,6 @@ class SourceFlow(
 
   val visibleDOT: Signal[DotText] =
     visibleAST.map(_.renderToDot)
+      .tapEach(dotText => pprint.log(dotText.value))
 
 end SourceFlow
