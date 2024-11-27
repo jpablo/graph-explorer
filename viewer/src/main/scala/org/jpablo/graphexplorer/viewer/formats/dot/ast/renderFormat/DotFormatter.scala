@@ -11,29 +11,31 @@ object DotFormatter:
 
     def formatNodeId(id: String): String = s""""$id""""
 
+    def formatKeyValue(key: String, value: String): String = s"$key=${formatValue(value)}"
+
     def renderAttributes(attributes: List[Attr], level: Int): String =
       val filteredAttrs = attributes
         .filterNot(attr => !keepInternal && attr.id == idAttributeKey) // Skip rendering of id attributes
       if filteredAttrs.isEmpty then
         ""
-      else if filteredAttrs.length <= 2 then
+      else if filteredAttrs.length <= 1 then
         val attrString = filteredAttrs
-          .map(attr => s"${attr.id} = ${formatValue(attr.value)}")
+          .map(attr => formatKeyValue(attr.id, attr.value))
           .mkString(", ")
         s" [$attrString]"
       else
         val pad = padding(level + 1)
         val attrStrings = filteredAttrs
-          .map(attr => s"$pad${attr.id} = ${formatValue(attr.value)}")
+          .map(attr => formatKeyValue(s"$pad${attr.id}", attr.value))
           .mkString(",\n")
         s" [\n$attrStrings\n${padding(level)}]"
 
     def renderGraphElement(element: GraphElement, level: Int): String =
       val pad = padding(level)
       element match
-        case Newline()             => ""
-        case Pad()                 => ""
-        case Comment()             => ""
+        case Newline()        => ""
+        case Pad()            => ""
+        case Comment()        => ""
         case AttrStmt(_, Nil) => ""
         case AttrStmt(target, attrs) =>
           s"$pad$target${renderAttributes(attrs, level)};"
