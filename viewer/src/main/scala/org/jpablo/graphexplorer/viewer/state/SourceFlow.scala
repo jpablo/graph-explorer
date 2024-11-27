@@ -48,6 +48,7 @@ class SourceFlow(
 
   val fullGraph: Signal[ViewerGraph] =
     fullGraphV.signal
+//      .tapEach(graph => pprint.pprintln(graph.data.arrows.keys.map(_.value).mkString(", ")/*, "visibleGraph", showFieldNames = false*/))
 //      .tapEach(graph => pprint.log(graph.data.arrows, "fullGraph", showFieldNames = false))
 
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
@@ -58,7 +59,7 @@ class SourceFlow(
       .map: (fullGraph, hiddenNodes) =>
         fullGraph.removeUnsupportedFeatures.removeNodes(hiddenNodes).setDefaultTheme
       .tapEach(_ => resetView())
-//      .tapEach(graph => pprint.log(graph.data.arrows, "visibleGraph", showFieldNames = false))
+//      .tapEach(graph => pprint.pprintln(graph.data.arrows.keys.map(_.value).mkString(", ")/*, "visibleGraph", showFieldNames = false*/))
 
   // -------------------------------
   // rendering

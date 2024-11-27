@@ -106,7 +106,7 @@ extension (graphElement: GraphElement)
               val mbs = edgeArrows.flatten.map(_.id.value -> parent) ++ memberships
               loop(
                 remaining   = (parent -> parentOtherChildren) :: t,
-                arrows      = edgeArrows.flatten ++ arrows,
+                arrows      = arrows ++ edgeArrows.flatten,
                 groups      = groups,
                 nodes       = nodes,
                 memberships = mbs

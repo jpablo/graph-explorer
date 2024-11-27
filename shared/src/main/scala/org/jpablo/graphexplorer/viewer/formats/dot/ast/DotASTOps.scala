@@ -14,10 +14,8 @@ def randomId(): String = randomUUIDSafe()
 extension (ast: DotAST)
 
   def toViewerGraph: ViewerGraph =
-    val data = findAllDirectChildren(ast.asSubgraph)
-//    pprint.log(data.arrows, showFieldNames = false)
-    ViewerGraph(data.toViewerGraphData, ast.id, ast.tpe)
-//    pprint.log(x.data.arrows, showFieldNames = false)
+    val flattened = findAllDirectChildren(ast.asSubgraph)
+    ViewerGraph(flattened.toViewerGraphData, ast.id, ast.tpe)
 
 //  def setDefaultTheme: DotAST =
 //    ast.modify(_.children).using: children =>
