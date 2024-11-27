@@ -25,7 +25,6 @@ case class ViewerGraphData(
   def nodesSet = nodes.values.toSet
   def arrowsSet = arrows.values.toSet
 
-
   def removeNodes(ids: Set[NodeId]): ViewerGraphData =
     val newArrows = arrows.view
       .filterKeys: id =>
@@ -44,3 +43,8 @@ case class ViewerGraphData(
       .filter(a => a.source == source && a.target == target)
       .map(_.seq)
       .toList
+
+  def maxArrowSequence(source: NodeId, target: NodeId): Int = {
+    val seqs = arrowSequences(source, target)
+    if seqs.isEmpty then 0 else seqs.max
+  }

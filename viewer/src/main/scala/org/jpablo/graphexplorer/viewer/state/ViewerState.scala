@@ -99,11 +99,12 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   def handleMouseDown(endNodeId: NodeId, clientCoords: Point2d[Double]): Unit =
     Var.set(
-      startNode -> Some(endNodeId, clientCoords),
-      endPos    -> clientCoords
+      startNode  -> Some(endNodeId, clientCoords),
+      endPos     -> clientCoords,
+      isDragging -> true
     )
 
-  def handleMouseMove(clientCoords: Point2d[Double], buttons: Int): Unit =
+  def handleMouseMove(buttons: Int, clientCoords: Point2d[Double]): Unit =
     // Check if the left mouse button is pressed
     if buttons == 1 && startNode.now().isDefined then
       isDragging.set(true)

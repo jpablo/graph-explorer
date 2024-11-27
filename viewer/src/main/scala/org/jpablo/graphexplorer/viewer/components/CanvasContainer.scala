@@ -30,7 +30,7 @@ def CanvasContainer(
         case (id: NodeId, _) => state.handleMouseDown(id, (event.clientX, event.clientY))
     },
     onMouseMove --> { event =>
-      state.handleMouseMove((event.clientX, event.clientY), event.buttons)
+      state.handleMouseMove(event.buttons, (event.clientX, event.clientY))
     },
     onMouseUp --> { event =>
       state.handleMouseUp {

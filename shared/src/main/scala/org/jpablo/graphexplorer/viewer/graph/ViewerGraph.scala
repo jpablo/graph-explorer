@@ -83,10 +83,11 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     this.copy(data = data.removeNodes(toRemove))
 
   def addEdge(source: NodeId, target: NodeId): ViewerGraph =
-    val seqs = data.arrowSequences(source, target)
-    val newSeq = seqs.max
+    val newSeq = data.maxArrowSequence(source, target)
     val arrow = Arrow(source, target, seq = newSeq + 1)
-    this.modify(_.data.arrows).using(_ + (arrow.id -> arrow))
+    this
+      .modify(_.data.arrows).using(_ + (arrow.id -> arrow))
+      .modify(_.data.memberships).using(_ + (arrow.id -> Some(data.rootNodeId)))
 
   def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
     val newNode = node(randomId())
