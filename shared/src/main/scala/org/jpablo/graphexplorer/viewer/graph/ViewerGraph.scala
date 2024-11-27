@@ -5,6 +5,8 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
+
+import scala.collection.mutable
 //import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.*
 //import org.jpablo.graphexplorer.viewer.tree.Tree
@@ -84,15 +86,15 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     val newSeq = data.maxArrowSequence(source, target)
     val arrow = Arrow(source, target, seq = newSeq + 1)
     this
-      .modify(_.data.arrows).using(_ + (arrow.id -> arrow))
-      .modify(_.data.memberships).using(_ + (arrow.id -> Some(data.rootNodeId)))
+      .modify(_.data.arrows).using(_.addOne(arrow.id -> arrow))
+      .modify(_.data.memberships).using(_.addOne(arrow.id -> Some(data.rootNodeId)))
 
   def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
     val newNode = node(randomId())
     val newArrow = Arrow(source, newNode.id)
     this
       .modifyAll(_.data.nodes).using(_ + (newNode.id -> newNode))
-      .modify(_.data.arrows).using(_ + (newArrow.id -> newArrow))
+      .modify(_.data.arrows).using(_.addOne(newArrow.id -> newArrow))
 
   def addRandomNode(): ViewerGraph =
     val newNode = node(randomId())
@@ -120,13 +122,13 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     def collectAttrs(attrs: Map[NodeId, Attributable]) =
       attrs.collect { case (id, n) if id in nodeIds => n.publicAttrs.values }.foldLeft(init)(_ ++ _)
 
-    Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
+    Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows.toMap))
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
     val (arrowIdsToUpdate, nodeIdsToUpdate) = idsToUpdate.partition(Arrow.isArrowId)
 
     val arrowsToUpdate = data.arrows.filter((id, _) => id in arrowIdsToUpdate)
-    val updatedArrows = arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
+    val updatedArrows = arrowsToUpdate.mapValuesInPlace((_, a) => a.mergeAttrs(attrs))
 
     val endpointsToUpdate = arrowsToUpdate.values.flatMap(_.endpoints).toSet & idsToUpdate
     // only update these if they are in ids
@@ -237,7 +239,12 @@ object ViewerGraph:
       groupsById: Map[NodeId, ViewerGroup] = Map.empty
   ): ViewerGraph =
     val groups = groupsById.updatedWith(defaultRootId)(_.orElse(Some(emptyTopLevel)))
-    new ViewerGraph(ViewerGraphData(arrowsById, groups, nodeById, Map(defaultRootId -> None)))
+    new ViewerGraph(ViewerGraphData(
+      arrows = mutable.LinkedHashMap.from(arrowsById),
+      groups = groups,
+      nodes = nodeById,
+      memberships = mutable.LinkedHashMap(defaultRootId -> None)
+    ))
 
   val empty: ViewerGraph = basic(Set.empty, Set.empty)
 

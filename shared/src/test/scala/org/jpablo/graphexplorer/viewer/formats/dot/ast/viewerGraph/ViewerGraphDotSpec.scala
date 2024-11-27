@@ -5,12 +5,14 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.*
 
+import scala.collection.mutable
+
 class ViewerGraphDotSpec extends ScalaCheckSuite:
   test("graphToDotAST should convert a ViewerGraph to a DotAST") {
     val graph =
       ViewerGraph(
         ViewerGraphData(
-          arrows = Map(NodeId("a->b:0") -> Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> "1")), 0)),
+          arrows = mutable.LinkedHashMap(NodeId("a->b:0") -> Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> "1")), 0)),
           groups = Map(
             NodeId("G") -> ViewerGroup(
               NodeId("G"),
@@ -20,7 +22,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
             )
           ),
           nodes       = Map(),
-          memberships = Map(NodeId("G") -> None, NodeId("a->b:0") -> Some(NodeId("G")))
+          memberships = mutable.LinkedHashMap(NodeId("G") -> None, NodeId("a->b:0") -> Some(NodeId("G")))
         ),
         Some("G"),
         "digraph"

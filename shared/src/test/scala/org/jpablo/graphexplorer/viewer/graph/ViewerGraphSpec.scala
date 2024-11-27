@@ -3,6 +3,8 @@ package org.jpablo.graphexplorer.viewer.graph
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.models.*
 
+import scala.collection.mutable
+
 class ViewerGraphSpec extends ScalaCheckSuite:
 
   val rootId = NodeId("G")
@@ -14,10 +16,10 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val graph =
       ViewerGraph(
         ViewerGraphData(
-          arrows      = Map(),
+          arrows      = mutable.LinkedHashMap.empty,
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
-          memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), c -> Some(rootId))
+          memberships = mutable.LinkedHashMap(rootId -> None, a -> Some(rootId), b -> Some(rootId), c -> Some(rootId))
         ),
         Some("G"),
         "digraph"
@@ -27,10 +29,10 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val expected =
       ViewerGraph(
         ViewerGraphData(
-          arrows      = Map(edgeId -> Arrow(a, b, seq = 1)),
+          arrows      = mutable.LinkedHashMap(edgeId -> Arrow(a, b, seq = 1)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
-          memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), c -> Some(rootId), edgeId -> Some(rootId))
+          memberships = mutable.LinkedHashMap(rootId -> None, a -> Some(rootId), b -> Some(rootId), c -> Some(rootId), edgeId -> Some(rootId))
         ),
         Some("G"),
         "digraph"
@@ -46,10 +48,10 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val graph =
       ViewerGraph(
         ViewerGraphData(
-          arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> "1")), 0)),
+          arrows      = mutable.LinkedHashMap(edgeId -> Arrow(a, b, Attributes(Map("id" -> "1")), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
-          memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
+          memberships = mutable.LinkedHashMap(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
         ),
         Some("G"),
         "digraph"
@@ -57,10 +59,10 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val expected =
       ViewerGraph(
         ViewerGraphData(
-          arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> "1", "style" -> "dashed")), 0)),
+          arrows      = mutable.LinkedHashMap(edgeId -> Arrow(a, b, Attributes(Map("id" -> "1", "style" -> "dashed")), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
-          memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
+          memberships = mutable.LinkedHashMap(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
         ),
         Some("G"),
         "digraph"

@@ -3,11 +3,13 @@ package org.jpablo.graphexplorer.viewer.graph
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId, ViewerGroup, ViewerNode}
 
+import scala.collection.mutable
+
 case class ViewerGraphData(
-    arrows:      Map[NodeId, Arrow],
+    arrows:      mutable.LinkedHashMap[NodeId, Arrow],
     groups:      Map[NodeId, ViewerGroup],
     nodes:       Map[NodeId, ViewerNode],
-    memberships: Map[NodeId, Option[NodeId]]
+    memberships: mutable.LinkedHashMap[NodeId, Option[NodeId]]
 ):
   assert(memberships.nonEmpty, "At least one membership is required (the root node)")
   // fail fast if no root node is provided
@@ -26,16 +28,16 @@ case class ViewerGraphData(
   def arrowsSet = arrows.values.toSet
 
   def removeNodes(ids: Set[NodeId]): ViewerGraphData =
-    val newArrows = arrows.view
-      .filterKeys: id =>
-        val arrow = arrows(id)
-        !ids.contains(arrow.source) && !ids.contains(arrow.target)
-      .toMap
+    val a2 = arrows --= arrows.keys.filter(id => ids.contains(arrows(id).source) || ids.contains(arrows(id).target))
+//    val newArrows = arrows
+//      .filterKeys: id =>
+//        val arrow = arrows(id)
+//        !ids.contains(arrow.source) && !ids.contains(arrow.target)
     copy(
       nodes       = nodes -- ids,
-      arrows      = newArrows,
+      arrows      = a2,
       groups      = groups -- ids,
-      memberships = memberships -- ids
+      memberships = memberships.subtractAll(ids)
     )
 
   def arrowSequences(source: NodeId, target: NodeId): List[Int] =
