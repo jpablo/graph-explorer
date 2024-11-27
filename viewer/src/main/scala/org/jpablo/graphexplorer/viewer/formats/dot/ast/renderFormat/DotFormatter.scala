@@ -7,27 +7,28 @@ object DotFormatter:
   def renderFormat(ast: DotAST, keepInternal: Boolean = false, paddingSize: Int = 4): String =
     def padding(level: Int): String = " " * (level * paddingSize)
 
-    def formatValue(value: String): String = s""""$value""""
+    def formatValue(value: String | AttrEq): String =
+      value match
+        case AttrEq(value, true)  => s"""<$value>"""
+        case AttrEq(value, false) => s""""$value""""
+        case value                => s""""$value""""
 
     def formatNodeId(id: String): String = s""""$id""""
 
-    def formatKeyValue(key: String, value: String): String = s"$key=${formatValue(value)}"
+    def formatKeyValue(key: String, value: String | AttrEq): String =
+      s"$key=${formatValue(value)}"
 
     def renderAttributes(attributes: List[Attr], level: Int): String =
-      val filteredAttrs = attributes
-        .filterNot(attr => !keepInternal && attr.id == idAttributeKey) // Skip rendering of id attributes
+      val filteredAttrs =
+        attributes.filterNot(attr => !keepInternal && attr.id == idAttributeKey) // Skip rendering of id attributes
       if filteredAttrs.isEmpty then
         ""
       else if filteredAttrs.length <= 1 then
-        val attrString = filteredAttrs
-          .map(attr => formatKeyValue(attr.id, attr.value))
-          .mkString(", ")
+        val attrString = filteredAttrs.map(attr => formatKeyValue(attr.id, attr.attrEq)).mkString(", ")
         s" [$attrString]"
       else
         val pad = padding(level + 1)
-        val attrStrings = filteredAttrs
-          .map(attr => formatKeyValue(s"$pad${attr.id}", attr.value))
-          .mkString(",\n")
+        val attrStrings = filteredAttrs.map(attr => formatKeyValue(s"$pad${attr.id}", attr.attrEq)).mkString(",\n")
         s" [\n$attrStrings\n${padding(level)}]"
 
     def renderGraphElement(element: GraphElement, level: Int): String =
@@ -74,14 +75,14 @@ object DotFormatter:
         .filter(_.nonEmpty)
         .mkString("\n")
 
-    val graphId = ast.id.map(id => s" $id").getOrElse("")
+    val graphId = ast.id.map(id => s" ${formatNodeId(id)}").getOrElse(" G")
     val body = ast.children
       .map(elem => renderGraphElement(elem, 1))
       .filter(_.nonEmpty)
       .mkString("\n")
 
     cleanOutput(
-      s"""${ast.tpe}${formatNodeId(graphId)} {
+      s"""${ast.tpe}$graphId {
          |$body
          |}""".stripMargin
     )
