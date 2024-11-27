@@ -7,15 +7,15 @@ object DotFormatter:
   def renderFormat(ast: DotAST, keepInternal: Boolean = false, paddingSize: Int = 4): String =
     def padding(level: Int): String = " " * (level * paddingSize)
 
-    def formatValue(value: String | AttrEq): String =
-      value match
+    def formatValue(value: AttrValue): String =
+      value.value match
         case AttrEq(value, true)  => s"""<$value>"""
         case AttrEq(value, false) => s""""$value""""
         case value                => s""""$value""""
 
     def formatNodeId(id: String): String = s""""$id""""
 
-    def formatKeyValue(key: String, value: String | AttrEq): String =
+    def formatKeyValue(key: String, value: AttrValue): String =
       s"$key=${formatValue(value)}"
 
     def renderAttributes(attributes: List[Attr], level: Int): String =

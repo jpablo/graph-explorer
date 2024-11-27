@@ -22,10 +22,10 @@ trait Attributable:
   def attrs: Attributes
 
   def label: AttrValue =
-    attrs.values.getOrElse("label", "")
+    attrs.values.getOrElse("label", AttrValue.empty)
 
   def idAttr: AttrValue =
-    attrs.values.getOrElse(idAttributeKey, "")
+    attrs.values.getOrElse(idAttributeKey, AttrValue.empty)
 
   def publicAttrs: Attributes =
     Attributes(attrs.values -- Attributable.internal)
@@ -89,7 +89,7 @@ object Arrow:
   def fromGraphvizTitle(title: String, idAttr: String): Option[Arrow] =
     title match
       case edgeTitlePattern(l, r) if l.trim.nonEmpty && r.trim.nonEmpty =>
-        Some(Arrow(NodeId(l.trim), NodeId(r.trim), Attributes(Map(idAttributeKey -> idAttr))))
+        Some(Arrow(NodeId(l.trim), NodeId(r.trim), Attributes(Map(idAttributeKey -> AttrValue(idAttr)))))
       case _ => None
 
   given scala.Ordering[Arrow] with

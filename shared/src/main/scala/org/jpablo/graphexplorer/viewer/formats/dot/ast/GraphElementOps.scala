@@ -16,7 +16,7 @@ extension (graphElement: GraphElement)
           case SubGraph(children, id) => SubGraph(children.map(_.attachId), id)
           case other                  => other
 
-        EdgeStmt(edgeListWithIds, Attr(idAttributeKey, EdgeStmt.nextId.toString) :: attrList)
+        EdgeStmt(edgeListWithIds, Attr(idAttributeKey, AttrValue(EdgeStmt.nextId.toString)) :: attrList)
 
       case SubGraph(children, id) => SubGraph(children.map(_.attachId), id)
       case other                  => other

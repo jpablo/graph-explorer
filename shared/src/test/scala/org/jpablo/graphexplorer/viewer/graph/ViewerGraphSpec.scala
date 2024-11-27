@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.*
 
 import scala.collection.mutable
@@ -48,7 +49,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val graph =
       ViewerGraph(
         ViewerGraphData(
-          arrows      = mutable.LinkedHashMap(edgeId -> Arrow(a, b, Attributes(Map("id" -> "1")), 0)),
+          arrows      = mutable.LinkedHashMap(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
           memberships = mutable.LinkedHashMap(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
@@ -59,7 +60,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val expected =
       ViewerGraph(
         ViewerGraphData(
-          arrows      = mutable.LinkedHashMap(edgeId -> Arrow(a, b, Attributes(Map("id" -> "1", "style" -> "dashed")), 0)),
+          arrows      = mutable.LinkedHashMap(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"), "style" -> AttrValue("dashed"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
           memberships = mutable.LinkedHashMap(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
@@ -68,7 +69,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val updated = graph.updateAttributes(Set(edgeId), Attributes(Map("style" -> "dashed")))
+    val updated = graph.updateAttributes(Set(edgeId), Attributes(Map("style" -> AttrValue("dashed"))))
     pprint.log(updated)
     assertEquals(updated, expected)
   }

@@ -59,18 +59,14 @@ case class Comment() extends GraphElement derives ReadWriter
 @key("attr_stmt")
 case class AttrStmt(target: String, attr_list: List[Attr]) extends GraphElement derives ReadWriter
 
-type AttrValue = String | AttrEq
+case class AttrValue(value: String | AttrEq) extends AnyVal:
+  override def toString: String = value match
+    case s: String => s
+    case a: AttrEq => a.value
 
-@key("attr")
-case class Attr(id: String, @key("eq") attrEq: AttrValue) derives ReadWriter
-//  def value = attrEq match
-//    case s: String => s
-//    case AttrEq(value, true) => s"<$value>"
-//    case AttrEq(value, false) => value
+object AttrValue:
+  val empty = AttrValue("")
 
-case class AttrEq(value: String, html: Boolean = false) derives ReadWriter
-
-object Attr:
   given ReadWriter[String | AttrEq] =
     readwriter[ujson.Value].bimap[String | AttrEq](
       {
@@ -82,7 +78,20 @@ object Attr:
         case jsValue      => read[AttrEq](jsValue)
       }
     )
+
+  given ReadWriter[AttrValue] =
+    readwriter[String | AttrEq].bimap[AttrValue](_.value, AttrValue.apply)
+
+end AttrValue
+
+@key("attr")
+case class Attr(id: String, @key("eq") attrEq: AttrValue) derives ReadWriter
+
+object Attr:
+  def apply(id: String, value: String): Attr = Attr(id, AttrValue(value))
 end Attr
+
+case class AttrEq(value: String, html: Boolean = false) derives ReadWriter
 
 @key("node_stmt")
 case class NodeStmt(node_id: DotNodeId, attr_list: List[Attr]) extends GraphElement derives ReadWriter

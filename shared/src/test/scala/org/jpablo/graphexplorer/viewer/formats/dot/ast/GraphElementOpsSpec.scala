@@ -19,7 +19,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
       List(
         node("a"),
         node("b"),
-        node("z", Map("label" -> "ZZ")),
+        node("z", Map("label" -> AttrValue("ZZ"))),
         node("d")
       )
 //    pprint.log(data.memberships, showFieldNames = false)
@@ -44,7 +44,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     val expectedGroups =
       List(
         ViewerGroup(root),
-        ViewerGroup(group0, nodeAttrs = Attributes(Map("shape" -> "egg"))),
+        ViewerGroup(group0, nodeAttrs = Attributes(Map("shape" -> AttrValue("egg")))),
         ViewerGroup(group1)
       )
     assertEquals(data.groups, expectedGroups)
@@ -132,11 +132,11 @@ val astWithNestedSubGraphs =
         List(
           Newline(),
           Pad(),
-          AttrStmt("node", List(Attr("shape", "egg"))),
+          AttrStmt("node", List(Attr("shape", AttrValue("egg")))),
           StmtSep(),
           Newline(),
           Pad(),
-          NodeStmt(DotNodeId("z", None), List(Attr("label", "ZZ"))),
+          NodeStmt(DotNodeId("z", None), List(Attr("label", AttrValue("ZZ")))),
           Newline(),
           Pad(),
           EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List()),

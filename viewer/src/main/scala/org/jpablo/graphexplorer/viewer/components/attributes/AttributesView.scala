@@ -35,7 +35,7 @@ def AttributesView(
                   SelectWithValue(row.options, inputVarStr, row.default)
 
                 case InputType.checkbox =>
-                  val inputVarBool = inputVarStr.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(_.toString))
+                  val inputVarBool = inputVarStr.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
                   Checked(row.placeholderText, inputVarBool, row.default == true.toString)
 
                 case _ =>

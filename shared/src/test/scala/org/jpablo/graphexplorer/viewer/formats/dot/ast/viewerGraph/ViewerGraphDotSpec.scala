@@ -12,11 +12,11 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
     val graph =
       ViewerGraph(
         ViewerGraphData(
-          arrows = mutable.LinkedHashMap(NodeId("a->b:0") -> Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> "1")), 0)),
+          arrows = mutable.LinkedHashMap(NodeId("a->b:0") -> Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> AttrValue("1"))), 0)),
           groups = Map(
             NodeId("G") -> ViewerGroup(
               NodeId("G"),
-              Attributes(Map("label" -> "Title")),
+              Attributes(Map("label" -> AttrValue("Title"))),
               Attributes(Map()),
               Attributes(Map())
             )
@@ -34,7 +34,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
       DotAST(
         "digraph",
         List(
-          AttrStmt("graph", List(Attr("label", "Title"))),
+          AttrStmt("graph", List(Attr("label", AttrValue("Title")))),
           EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List())
         ),
         Some("G")

@@ -46,7 +46,7 @@ def SelectWithValue(
     cls := "select select-bordered select-xs w-full",
     options.map((name, id) => option(name, value := id.toString)),
     value <-- selectValue.signal.map(_.getOrElse(default).toString),
-    onChange.mapToValue.map(Some(_)) --> selectValue,
+    onChange.mapToValue.map(v => Some(AttrValue(v))) --> selectValue,
     mods
   )
 
@@ -76,7 +76,7 @@ def InputWithValue(
     controlled(
       // double slash (\\n)
       value <-- inputValue.signal.map(_.getOrElse(default).toString),
-      onInput.mapToValue.map(Some(_)) --> inputValue.set
+      onInput.mapToValue.map(v => Some(AttrValue(v))) --> inputValue.set
     ),
     if setFocus then onMountFocus else emptyMod
   )
