@@ -152,8 +152,21 @@ case class Port(id: String) derives ReadWriter
 case class StmtSep() extends GraphElement derives ReadWriter
 
 @key("subgraph")
-case class SubGraph(children: List[GraphElement], id: Option[String] = None) extends GraphElement derives ReadWriter
+case class SubGraph(children: List[GraphElement], id: Option[String] = None)
+    extends GraphElement derives ReadWriter:
+  def findAttributes: Map[AttributeTarget, Map[String, String]] =
+    children
+      .collect:
+        case AttrStmt(target, attrs) =>
+          val targetEnum = AttributeTarget.valueOf(target.toLowerCase)
+          (targetEnum, attrs.map(attr => attr.id -> attr.value).toMap)
+      .groupBy(_._1)
+      .view
+      .mapValues(pairs => pairs.flatMap(_._2).toMap)
+      .toMap
 
 object SubGraph:
   def randomId(): String = randomUUIDSafe().take(8)
-end SubGraph
+
+def toAttrsMap(attrList: List[Attr]): Map[String, String] =
+  attrList.map(attr => attr.id -> attr.value).toMap
