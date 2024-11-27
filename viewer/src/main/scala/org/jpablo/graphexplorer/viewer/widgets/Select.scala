@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.widgets
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.Mods
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 
 def SelectWithLabel(
     labelText:       String,
@@ -69,14 +69,19 @@ def InputWithValue(
     default:         String = "",
     setFocus:        Boolean = false
 ) =
+  // hack
+  val htmlRegex = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
+  def isHtml(s: String) = htmlRegex.matches(s)
+
   input(
     cls         := "input input-bordered input-xs w-full",
     tpe         := inputType.toString,
     placeholder := placeholderText,
     controlled(
-      // double slash (\\n)
       value <-- inputValue.signal.map(_.getOrElse(default).toString),
-      onInput.mapToValue.map(v => Some(AttrValue(v))) --> inputValue.set
+      onInput.mapToValue.map { v =>
+        Some(AttrValue(if isHtml(v) then AttrEq(v, true) else v))
+      } --> inputValue.set
     ),
     if setFocus then onMountFocus else emptyMod
   )
