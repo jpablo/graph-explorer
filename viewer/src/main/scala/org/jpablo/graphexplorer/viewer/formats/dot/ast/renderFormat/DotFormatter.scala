@@ -81,7 +81,7 @@ object DotFormatter:
       .mkString("\n")
 
     cleanOutput(
-      s"""${ast.tpe}$graphId {
+      s"""${ast.tpe}${formatNodeId(graphId)} {
          |$body
          |}""".stripMargin
     )
