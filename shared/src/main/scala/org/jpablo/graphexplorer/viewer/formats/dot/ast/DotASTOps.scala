@@ -15,9 +15,9 @@ extension (ast: DotAST)
 
   def toViewerGraph: ViewerGraph =
     val data = findAllDirectChildren(ast.asSubgraph)
-    val x = ViewerGraph(data.toViewerGraphData, ast.id, ast.tpe)
-    pprint.log(x.data.memberships, showFieldNames = false)
-    x
+//    pprint.log(data.arrows, showFieldNames = false)
+    ViewerGraph(data.toViewerGraphData, ast.id, ast.tpe)
+//    pprint.log(x.data.arrows, showFieldNames = false)
 
 //  def setDefaultTheme: DotAST =
 //    ast.modify(_.children).using: children =>

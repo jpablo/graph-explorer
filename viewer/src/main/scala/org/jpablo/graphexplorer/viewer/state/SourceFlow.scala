@@ -48,7 +48,7 @@ class SourceFlow(
 
   val fullGraph: Signal[ViewerGraph] =
     fullGraphV.signal
-      .tapEach(graph => pprint.log(graph.data.memberships, "fullGraph", showFieldNames = false))
+//      .tapEach(graph => pprint.log(graph.data.arrows, "fullGraph", showFieldNames = false))
 
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
     */
@@ -58,7 +58,7 @@ class SourceFlow(
       .map: (fullGraph, hiddenNodes) =>
         fullGraph.removeUnsupportedFeatures.removeNodes(hiddenNodes).setDefaultTheme
       .tapEach(_ => resetView())
-      .tapEach(graph => pprint.log(graph.data.memberships, "visibleGraph", showFieldNames = false))
+//      .tapEach(graph => pprint.log(graph.data.arrows, "visibleGraph", showFieldNames = false))
 
   // -------------------------------
   // rendering
@@ -69,6 +69,6 @@ class SourceFlow(
 
   val visibleDOT: Signal[DotText] =
     visibleAST.map(_.renderToDot)
-      .tapEach(dotText => pprint.log(dotText.value, "visibleDOT"))
+//      .tapEach(dotText => pprint.log(dotText.value, "visibleDOT"))
 
 end SourceFlow

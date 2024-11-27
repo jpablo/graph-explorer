@@ -12,14 +12,13 @@ case class FlattenedGraphElement(
     nodes:       List[ViewerNode],
     memberships: List[(NodeId, Option[NodeId])] = Nil
 ):
+//  pprint.log(arrows, showFieldNames = false)
   def toViewerGraphData =
 //    pprint.log(memberships)
     ViewerGraphData(
       arrows      = mutable.LinkedHashMap.from(arrows.map(a => a.id -> a)),
       groups      = groups.map(g => g.id -> g).toMap,
       nodes       = nodes.map(n => n.id -> n).toMap,
-      // TODO: Fix this
-//      memberships = Map.from(memberships) // This messes up with the order of elements
       memberships = mutable.LinkedHashMap.from(memberships) // This messes up with the order of elements
     )
 

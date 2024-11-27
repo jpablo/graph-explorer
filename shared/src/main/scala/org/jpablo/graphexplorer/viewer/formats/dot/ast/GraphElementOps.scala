@@ -62,7 +62,7 @@ extension (graphElement: GraphElement)
         nodes:       List[(String, Map[String, String])],
         memberships: List[(String, Option[String])] = Nil // List of (element, group) memberships
     ): FlattenedGraphElement =
-//      pprint.log(memberships, showFieldNames = false)
+//      pprint.log(arrows, showFieldNames = false)
 //      pprint.log((remaining.length, arrows.length, groups.length, nodes.length), "loop")
       remaining match
         case Nil =>
@@ -71,7 +71,7 @@ extension (graphElement: GraphElement)
           val viewerNodes =
             nodes.map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
           val membershipsNodes = memberships.map((id, parent) => NodeId(id) -> parent.map(NodeId(_)))
-          FlattenedGraphElement(arrows.reverse, groups.reverse, viewerNodes.reverse, membershipsNodes.reverse)
+          FlattenedGraphElement(arrows, groups.reverse, viewerNodes.reverse, membershipsNodes)
 
         case (_, Nil) :: t =>
 //          pprint.log(parent, "empty children")
