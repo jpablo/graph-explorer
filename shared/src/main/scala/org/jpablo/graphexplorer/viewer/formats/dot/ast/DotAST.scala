@@ -59,11 +59,14 @@ case class Comment() extends GraphElement derives ReadWriter
 @key("attr_stmt")
 case class AttrStmt(target: String, attr_list: List[Attr]) extends GraphElement derives ReadWriter
 
+type AttrValue = String | AttrEq
+
 @key("attr")
-case class Attr(id: String, @key("eq") attrEq: String | AttrEq) derives ReadWriter:
-  def value = attrEq match
-    case s: String => s
-    case a: AttrEq => a.value
+case class Attr(id: String, @key("eq") attrEq: AttrValue) derives ReadWriter
+//  def value = attrEq match
+//    case s: String => s
+//    case AttrEq(value, true) => s"<$value>"
+//    case AttrEq(value, false) => value
 
 case class AttrEq(value: String, html: Boolean = false) derives ReadWriter
 
@@ -154,12 +157,12 @@ case class StmtSep() extends GraphElement derives ReadWriter
 @key("subgraph")
 case class SubGraph(children: List[GraphElement], id: Option[String] = None)
     extends GraphElement derives ReadWriter:
-  def findAttributes: Map[AttributeTarget, Map[String, String]] =
+  def findAttributes: Map[AttributeTarget, Map[String, AttrValue]] =
     children
       .collect:
         case AttrStmt(target, attrs) =>
           val targetEnum = AttributeTarget.valueOf(target.toLowerCase)
-          (targetEnum, attrs.map(attr => attr.id -> attr.value).toMap)
+          (targetEnum, attrs.map(attr => attr.id -> attr.attrEq).toMap)
       .groupBy(_._1)
       .view
       .mapValues(pairs => pairs.flatMap(_._2).toMap)
@@ -168,5 +171,5 @@ case class SubGraph(children: List[GraphElement], id: Option[String] = None)
 object SubGraph:
   def randomId(): String = randomUUIDSafe().take(8)
 
-def toAttrsMap(attrList: List[Attr]): Map[String, String] =
-  attrList.map(attr => attr.id -> attr.value).toMap
+def toAttrsMap(attrList: List[Attr]): Map[String, AttrValue] =
+  attrList.map(attr => attr.id -> attr.attrEq).toMap

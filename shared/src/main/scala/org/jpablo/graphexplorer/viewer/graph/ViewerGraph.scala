@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
@@ -102,13 +102,13 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
 
   def root: ViewerGroup = data.root
 
-  def getRootAttributes(target: AttributeTarget): Map[String, String] =
+  def getRootAttributes(target: AttributeTarget): Map[String, AttrValue] =
     target match
       case AttributeTarget.graph => root.attrs.values
       case AttributeTarget.node  => root.nodeAttrs.values
       case AttributeTarget.edge  => root.edgeAttrs.values
 
-  def updateRootAttributes(target: AttributeTarget)(attrs: Map[String, String]): ViewerGraph =
+  def updateRootAttributes(target: AttributeTarget)(attrs: Map[String, AttrValue]): ViewerGraph =
     val modifyRoot =
       target match
         case AttributeTarget.graph => root.modify(_.attrs.values)
@@ -116,7 +116,7 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
         case AttributeTarget.edge  => root.modify(_.edgeAttrs.values)
     this.modify(_.data.groups).using(_ + (root.id -> modifyRoot.using(_ ++ attrs)))
 
-  val init = Map.empty[String, String]
+  val init = Map.empty[String, AttrValue]
 
   def getAttributesById(nodeIds: Set[NodeId]): Attributes =
     def collectAttrs(attrs: Map[NodeId, Attributable]) =

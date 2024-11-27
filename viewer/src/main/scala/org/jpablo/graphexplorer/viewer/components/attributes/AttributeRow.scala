@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
@@ -10,7 +11,7 @@ case class AttributeRow(
     placeholderText: String,
     inputType:       InputType,
     inputValue:      Var[Option[String]] = Var(None),
-    options:         Seq[(String, String)] = Seq.empty,
+    options:         Seq[(String, AttrValue)] = Seq.empty,
     default:         String = ""
 )
 

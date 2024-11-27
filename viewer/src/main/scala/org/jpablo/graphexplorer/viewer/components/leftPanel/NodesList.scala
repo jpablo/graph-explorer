@@ -26,7 +26,7 @@ def NodesList(
                 cls := "whitespace-nowrap hover cursor-pointer",
                 cls("font-bold") <-- state.isNodeVisible(node.id),
                 cls("selected") <-- state.isSelected(node.id),
-                td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.label),
+                td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.label.toString),
                 td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.id.toString),
                 onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnNode(node.id),
                 onDblClick

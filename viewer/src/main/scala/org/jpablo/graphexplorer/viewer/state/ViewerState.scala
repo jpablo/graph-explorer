@@ -123,7 +123,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // -------- Attribute management -----------
   // top level attributes
-  val graphTargetAttributes: Var[Map[String, String]] =
+  val graphTargetAttributes: Var[Map[String, AttrValue]] =
     sourceFlow.fullGraphV
       .zoom(_.getRootAttributes(AttributeTarget.graph))(
         _.updateRootAttributes(AttributeTarget.graph)(_)
@@ -140,7 +140,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     )
 
   // individual node attributes
-  def nodesAttributes(nodeIds: Set[NodeId]): Var[Map[Path, Path]] =
+  def nodesAttributes(nodeIds: Set[NodeId]): Var[Map[String, AttrValue]] =
     sourceFlow.fullGraphV.zoom(_.getAttributesById(nodeIds).values): (graph, attrs) =>
       graph.updateAttributes(nodeIds, Attributes(attrs))
 

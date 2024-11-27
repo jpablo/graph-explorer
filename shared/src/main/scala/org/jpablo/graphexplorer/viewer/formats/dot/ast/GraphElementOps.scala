@@ -23,7 +23,7 @@ extension (graphElement: GraphElement)
 
   def findAllViewerNodes: Set[ViewerNode] =
     @tailrec
-    def loop(remaining: List[GraphElement], acc: Map[String, Map[String, String]]): Map[String, Map[String, String]] =
+    def loop(remaining: List[GraphElement], acc: Map[String, Map[String, AttrValue]]): Map[String, Map[String, AttrValue]] =
       remaining match
         case Nil => acc
 
@@ -59,7 +59,7 @@ extension (graphElement: GraphElement)
         remaining:   List[(Option[String], List[GraphElement])],
         arrows:      List[Arrow],
         groups:      List[ViewerGroup],
-        nodes:       List[(String, Map[String, String])],
+        nodes:       List[(String, Map[String, AttrValue])],
         memberships: List[(String, Option[String])] = Nil // List of (element, group) memberships
     ): FlattenedGraphElement =
 //      pprint.log(arrows, showFieldNames = false)

@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.widgets
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.Mods
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 
 def SelectWithLabel(
     labelText:       String,
@@ -36,15 +37,15 @@ def Select(
   )
 
 def SelectWithValue(
-    options:     Seq[(String, String)],
-    selectValue: Var[Option[String]],
+    options:     Seq[(String, AttrValue)],
+    selectValue: Var[Option[AttrValue]],
     default:     String,
     mods:        Mods*
 ) =
   select(
     cls := "select select-bordered select-xs w-full",
-    options.map((name, id) => option(name, value := id)),
-    value <-- selectValue.signal.map(_.getOrElse(default)),
+    options.map((name, id) => option(name, value := id.toString)),
+    value <-- selectValue.signal.map(_.getOrElse(default).toString),
     onChange.mapToValue.map(Some(_)) --> selectValue,
     mods
   )
@@ -63,7 +64,7 @@ def BasicInput(
 
 def InputWithValue(
     placeholderText: String,
-    inputValue:      Var[Option[String]],
+    inputValue:      Var[Option[AttrValue]],
     inputType:       InputType = InputType.text,
     default:         String = "",
     setFocus:        Boolean = false
@@ -74,7 +75,7 @@ def InputWithValue(
     placeholder := placeholderText,
     controlled(
       // double slash (\\n)
-      value <-- inputValue.signal.map(_.getOrElse(default)),
+      value <-- inputValue.signal.map(_.getOrElse(default).toString),
       onInput.mapToValue.map(Some(_)) --> inputValue.set
     ),
     if setFocus then onMountFocus else emptyMod

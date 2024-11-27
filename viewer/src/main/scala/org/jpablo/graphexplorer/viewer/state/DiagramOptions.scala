@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.models.{NodeId, ViewerKind}
 import upickle.default.*
 
 
-type Path = String
+private type Path = String
 
 // packages tree configuration
 case class PackagesOptions(

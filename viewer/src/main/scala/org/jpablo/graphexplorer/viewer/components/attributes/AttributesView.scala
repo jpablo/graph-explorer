@@ -2,12 +2,13 @@ package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.Mods
-import org.jpablo.graphexplorer.viewer.widgets.{InputWithValue, InputType, SelectWithValue, Checked}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.widgets.{Checked, InputType, InputWithValue, SelectWithValue}
 
 def AttributesView(
     id:    String,
     title: String,
-    attrs: Var[Map[String, String]],
+    attrs: Var[Map[String, AttrValue]],
     rows:  Seq[AttributeRow]
 ) =
   // TODO: Finish implementing this
@@ -24,7 +25,7 @@ def AttributesView(
       tbody(
         for row <- rows
         yield
-          val inputVarStr = attrs
+          val inputVarStr: Var[Option[AttrValue]] = attrs
             .zoomLazy(_.get(row.attrId))((a, value) => value.fold(a)(s => a + (row.attrId -> s)))
           tr(
             td(row.label),
@@ -34,7 +35,7 @@ def AttributesView(
                   SelectWithValue(row.options, inputVarStr, row.default)
 
                 case InputType.checkbox =>
-                  val inputVarBool = inputVarStr.zoomLazy(_.map(_.contains(true.toString)))((_, b) => b.map(_.toString))
+                  val inputVarBool = inputVarStr.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(_.toString))
                   Checked(row.placeholderText, inputVarBool, row.default == true.toString)
 
                 case _ =>

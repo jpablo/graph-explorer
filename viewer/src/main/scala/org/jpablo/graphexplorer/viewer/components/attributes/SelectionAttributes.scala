@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.buildRows
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributesView
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
@@ -18,7 +19,7 @@ def SelectionAttributes(state: ViewerState) =
           CombinedAttributesView(state.nodesAttributes(selectedNodes))
   )
 
-def CombinedAttributesView(attrs: Var[Map[String, String]]) =
+def CombinedAttributesView(attrs: Var[Map[String, AttrValue]]) =
   AttributesView(
     id    = "selection-attributes",
     title = "Selection Attributes",

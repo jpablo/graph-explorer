@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.models
 
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.utils.Utils
@@ -20,10 +21,10 @@ type ViewerKind = Option[String]
 trait Attributable:
   def attrs: Attributes
 
-  def label: String =
+  def label: AttrValue =
     attrs.values.getOrElse("label", "")
 
-  def idAttr: String =
+  def idAttr: AttrValue =
     attrs.values.getOrElse(idAttributeKey, "")
 
   def publicAttrs: Attributes =
@@ -41,7 +42,7 @@ case class ViewerNode(
   def mergeAttrs(other: Attributes): ViewerNode = copy(attrs = attrs ++ other)
 
 object ViewerNode:
-  def node(name: String, attrs: Map[String, String] = Map.empty) =
+  def node(name: String, attrs: Map[String, AttrValue] = Map.empty) =
     ViewerNode(NodeId(name), Attributes(attrs))
 
 // ---- Edges ------
@@ -73,7 +74,7 @@ object Arrow:
 
   val titleIdSeparator = "->"
 
-  def arrow(t: (String, String), attrs: Map[String, String] = Map.empty): Arrow =
+  def arrow(t: (String, String), attrs: Map[String, AttrValue] = Map.empty): Arrow =
     new Arrow(NodeId(t._1), NodeId(t._2), Attributes(attrs))
 
   // example:
@@ -97,10 +98,10 @@ object Arrow:
       if s != 0 then s
       else
         val t = x.target.value `compareTo` y.target.value
-        if t != 0 then t else x.idAttr `compareTo` y.idAttr
+        if t != 0 then t else x.idAttr.toString `compareTo` y.idAttr.toString
 end Arrow
 
-case class Attributes(values: Map[String, String]) extends AnyVal:
+case class Attributes(values: Map[String, AttrValue]) extends AnyVal:
   def ++(other: Attributes): Attributes = Attributes(values ++ other.values)
 
 object Attributes:
