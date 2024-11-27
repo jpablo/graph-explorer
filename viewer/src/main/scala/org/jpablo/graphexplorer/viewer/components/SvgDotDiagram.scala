@@ -42,8 +42,8 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
 
   ref.setAttribute("class", "graphviz")
   // graphviz adds a polygon as diagram background
-  val n = ref.querySelector("g > polygon[fill='white']")
-  if n != null then n.parentNode.removeChild(n)
+//  val n = ref.querySelector("g > polygon[fill='white']")
+//  if n != null then n.parentNode.removeChild(n)
   ref.removeAttribute("style")
 
   // ------------------

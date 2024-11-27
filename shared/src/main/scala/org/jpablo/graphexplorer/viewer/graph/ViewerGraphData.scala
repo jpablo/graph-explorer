@@ -11,7 +11,7 @@ case class ViewerGraphData(
 ):
   assert(memberships.nonEmpty, "At least one membership is required (the root node)")
   // fail fast if no root node is provided
-  val rootNodeId: NodeId =
+  def rootNodeId: NodeId =
     memberships
       .collectFirst:
         case (id, None) => id
@@ -19,8 +19,12 @@ case class ViewerGraphData(
 
   assert(rootNodeId in groups, s"Root node $rootNodeId not found in groups: $groups")
 
-  val root: ViewerGroup =
+  def root: ViewerGroup =
     groups(rootNodeId)
+
+  def nodesSet = nodes.values.toSet
+  def arrowsSet = arrows.values.toSet
+
 
   def removeNodes(ids: Set[NodeId]): ViewerGraphData =
     val newArrows = arrows.view

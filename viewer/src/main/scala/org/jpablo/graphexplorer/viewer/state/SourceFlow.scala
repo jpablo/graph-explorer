@@ -44,10 +44,9 @@ class SourceFlow(
     * Arrows are assigned consecutive ids starting from 1
     */
   val fullGraphV: Var[ViewerGraph] =
-    sourceAST.zoom(_.toViewerGraph)((_, newGraph) => graphToDotAST(newGraph))
+    sourceAST.zoom(_.toViewerGraph) { (_, newGraph) => graphToDotAST(newGraph) }
 
   val fullGraph: Signal[ViewerGraph] = fullGraphV.signal
-    .tapEach(graph => pprint.log(graph.data.nodes, showFieldNames = false))
 
 //  val fullGraph: Signal[ViewerGraph] =
 //    fullAST.map(_.toViewerGraph)//.tapEach(graph => pprint.log(graph))

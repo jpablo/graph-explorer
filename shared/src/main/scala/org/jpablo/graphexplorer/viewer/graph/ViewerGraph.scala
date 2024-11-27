@@ -22,9 +22,8 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
   def arrowsById = data.arrows
   def nodeById = data.nodes
   def groupsById = data.groups
-
-  def nodesSet = nodeById.values.toSet
-  def arrowsSet = arrowsById.values.toSet
+  def nodesSet = data.nodesSet
+  def arrowsSet = data.arrowsSet
 
   def summary =
     ViewerGraph.Summary(
@@ -124,26 +123,29 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
 
     Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
 
-  def updateAttributes(ids: Set[NodeId], attrs: Attributes): ViewerGraph =
-    val (arrowIdsToUpdate, nodeIdsToUpdate) = ids.partition(Arrow.isArrowId)
+  def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
+    val (arrowIdsToUpdate, nodeIdsToUpdate) = idsToUpdate.partition(Arrow.isArrowId)
 
-    val arrowsToUpdate =
-      data.arrows.filter((id, _) => id in arrowIdsToUpdate)
+    val arrowsToUpdate = data.arrows.filter((id, _) => id in arrowIdsToUpdate)
+    val updatedArrows = arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
 
-    val updatedArrows =
-      arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
-
-    val nodesToUpdate = nodeIdsToUpdate ++ arrowsToUpdate.values.flatMap(_.endpoints).toSet
+    val endpointsToUpdate = arrowsToUpdate.values.flatMap(_.endpoints).toSet & idsToUpdate
+    // only update these if they are in ids
+    val nodesToUpdate = nodeIdsToUpdate ++ endpointsToUpdate
 
     val updatedNodes =
       nodesToUpdate.foldLeft(data.nodes): (nodesMap, nodeId) =>
         nodesMap
           .updatedWith(nodeId)(_.fold(Some(node(nodeId.value, attrs.values)))(n => Some(n.mergeAttrs(attrs))))
 
+    val updatedMembership =
+      updatedNodes.keys.map(id => id -> data.memberships.getOrElse(id, Some(root.id))).toMap
+
     copy(
       data = data.copy(
-        arrows = data.arrows ++ updatedArrows,
-        nodes  = updatedNodes
+        arrows      = data.arrows ++ updatedArrows,
+        nodes       = updatedNodes,
+        memberships = data.memberships ++ updatedMembership
       )
     )
 
