@@ -19,34 +19,32 @@ import org.jpablo.graphexplorer.viewer.models.*
 
 case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: String = "digraph"):
   // Efficient access to elements
-  val arrowsById = data.arrows
+  def arrowsById = data.arrows
+  def nodeById = data.nodes
+  def groupsById = data.groups
 
-  val nodeById = data.nodes
+  def nodesSet = nodeById.values.toSet
+  def arrowsSet = arrowsById.values.toSet
 
-  val groupsById = data.groups
-
-  val nodes = nodeById.values.toSet
-  val arrows = arrowsById.values.toSet
-
-  lazy val summary =
+  def summary =
     ViewerGraph.Summary(
       nodes  = nodeById.size,
-      arrows = arrows.size
+      arrows = arrowsSet.size
     )
 
-  lazy val allNodeIds: Set[NodeId] =
-    nodes.map(_.id) ++ arrows.flatMap(a => Set(a.source, a.target))
+  def allNodeIds: Set[NodeId] =
+    nodesSet.map(_.id) ++ arrowsSet.flatMap(a => Set(a.source, a.target))
 
-  lazy val allArrowIds: Set[NodeId] = arrows.map(_.id)
+  def allArrowIds: Set[NodeId] = arrowsSet.map(_.id)
 
-  private lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
-    arrows
+  def directSuccessors: Map[NodeId, Set[NodeId]] =
+    arrowsSet
       .groupBy(_.source)
       .transform((_, ss) => ss.map(_.target))
       .withDefaultValue(Set.empty)
 
-  private lazy val directPredecessors: Map[NodeId, Set[NodeId]] =
-    arrows
+  def directPredecessors: Map[NodeId, Set[NodeId]] =
+    arrowsSet
       .groupBy(_.target)
       .transform((_, ss) => ss.map(_.source))
       .withDefaultValue(Set.empty)
@@ -66,20 +64,20 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     this
 
   private def arrowsWithoutNodeIds(ids: Set[NodeId]): Set[Arrow] =
-    arrows
+    arrowsSet
       .filterNot(a => (a.source in ids) || (a.target in ids))
 
   /** allNodeIds that are not in the target of any arrow
     */
-  lazy val roots: Set[NodeId] =
-    allNodeIds -- arrows.map(_.target)
+  def roots: Set[NodeId] =
+    allNodeIds -- arrowsSet.map(_.target)
 
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
   private def subgraph(ids: Set[NodeId]): ViewerGraph =
     val foundNodes: Set[ViewerNode] = nodeById.collect { case (id, node) if id in ids => node }.toSet
     val foundNodeIds = foundNodes.map(_.id)
-    val relevantArrows = arrows.filter(a => (a.source in foundNodeIds) && (a.target in foundNodeIds))
+    val relevantArrows = arrowsSet.filter(a => (a.source in foundNodeIds) && (a.target in foundNodeIds))
     ViewerGraph.basic2(relevantArrows, foundNodes)
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
@@ -102,7 +100,7 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     val newNode = node(randomId())
     this.modify(_.data.nodes).using(_ + (newNode.id -> newNode))
 
-  val root: ViewerGroup = data.root
+  def root: ViewerGroup = data.root
 
   def getRootAttributes(target: AttributeTarget): Map[String, String] =
     target match
@@ -126,10 +124,28 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
 
     Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
 
-  def updateAttributes(nodeIds: Set[NodeId], attrs: Attributes): ViewerGraph =
-    this
-      .modify(_.data.nodes.eachWhere(_.id in nodeIds).attrs).using(_ ++ attrs)
-      .modify(_.data.arrows.eachWhere(_.id in nodeIds).attrs).using(_ ++ attrs)
+  def updateAttributes(ids: Set[NodeId], attrs: Attributes): ViewerGraph =
+    val (arrowIdsToUpdate, nodeIdsToUpdate) = ids.partition(Arrow.isArrowId)
+
+    val arrowsToUpdate =
+      data.arrows.filter((id, _) => id in arrowIdsToUpdate)
+
+    val updatedArrows =
+      arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
+
+    val nodesToUpdate = nodeIdsToUpdate ++ arrowsToUpdate.values.flatMap(_.endpoints).toSet
+
+    val updatedNodes =
+      nodesToUpdate.foldLeft(data.nodes): (nodesMap, nodeId) =>
+        nodesMap
+          .updatedWith(nodeId)(_.fold(Some(node(nodeId.value, attrs.values)))(n => Some(n.mergeAttrs(attrs))))
+
+    copy(
+      data = data.copy(
+        arrows = data.arrows ++ updatedArrows,
+        nodes  = updatedNodes
+      )
+    )
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
@@ -179,7 +195,7 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
     allNodeIds.filter(p)
 
   def filterArrowsBy(p: Arrow => Boolean) =
-    arrows.filter(p)
+    arrowsSet.filter(p)
 
 //  def toCSV: CSV =
 //    CSV(
@@ -193,7 +209,7 @@ object ViewerGraph:
 
   val defaultRootId = NodeId("G")
   val emptyTopLevel = ViewerGroup.empty(defaultRootId)
-  
+
   def basic(
       arrows: Set[(NodeId, NodeId)],
       nodes:  Set[ViewerNode] = Set.empty

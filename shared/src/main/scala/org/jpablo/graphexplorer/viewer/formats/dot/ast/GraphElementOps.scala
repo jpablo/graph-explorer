@@ -130,38 +130,38 @@ extension (graphElement: GraphElement)
 
 end extension
 
-@tailrec
-def flattenPostOrder(
-    root:    Option[GraphElement],
-    fn:      (GraphElement, List[GraphElement]) => List[GraphElement],
-    pending: List[(GraphElement, List[GraphElement])] = Nil, // Stack of (Root, List[Child])
-    acc:     List[GraphElement] = Nil                        // result flattened tree in post-order
-): List[GraphElement] =
-  (root, pending) match
-    // -----------------------------------
-    // processing non-leaf nodes:
-    // - descend to the first child
-    // - add the rest of the children to the pending stack, alongside the current node
-    // -----------------------------------
-    case (Some(edge @ EdgeStmt(_, _)), _) =>
-      val h :: t = edge.toGraphElements: @unchecked
-      flattenPostOrder(root = Some(h), fn, pending = (edge, t) :: pending, acc)
-
-    case (Some(sub @ SubGraph(h :: t, _)), _) =>
-      flattenPostOrder(root = Some(h), fn, pending = (sub, t) :: pending, acc)
-
-    // for leaf nodes we add a single None children, to simulate the case of nullable children
-    case (Some(leaf), _) =>
-      flattenPostOrder(root = None, fn, pending = (leaf, Nil) :: pending, acc)
-    // -----------------------------------
-    // processing leaf nodes, backtracking
-    // -----------------------------------
-    case (None, (elem, deps) :: t) =>
-      // are there any dependencies to be handled for elem?
-      deps match
-        case Nil             => flattenPostOrder(root = None, fn, pending = t, acc = fn(elem, acc))
-        case dep :: moreDeps => flattenPostOrder(root = Some(dep), fn, pending = (elem, moreDeps) :: t, acc)
-    // -----------------------------------
-    // Done
-    // -----------------------------------
-    case (n, Nil) => (n.toList ++ acc).reverse
+//@tailrec
+//def flattenPostOrder(
+//    root:    Option[GraphElement],
+//    fn:      (GraphElement, List[GraphElement]) => List[GraphElement],
+//    pending: List[(GraphElement, List[GraphElement])] = Nil, // Stack of (Root, List[Child])
+//    acc:     List[GraphElement] = Nil                        // result flattened tree in post-order
+//): List[GraphElement] =
+//  (root, pending) match
+//    // -----------------------------------
+//    // processing non-leaf nodes:
+//    // - descend to the first child
+//    // - add the rest of the children to the pending stack, alongside the current node
+//    // -----------------------------------
+//    case (Some(edge @ EdgeStmt(_, _)), _) =>
+//      val h :: t = edge.toGraphElements: @unchecked
+//      flattenPostOrder(root = Some(h), fn, pending = (edge, t) :: pending, acc)
+//
+//    case (Some(sub @ SubGraph(h :: t, _)), _) =>
+//      flattenPostOrder(root = Some(h), fn, pending = (sub, t) :: pending, acc)
+//
+//    // for leaf nodes we add a single None children, to simulate the case of nullable children
+//    case (Some(leaf), _) =>
+//      flattenPostOrder(root = None, fn, pending = (leaf, Nil) :: pending, acc)
+//    // -----------------------------------
+//    // processing leaf nodes, backtracking
+//    // -----------------------------------
+//    case (None, (elem, deps) :: t) =>
+//      // are there any dependencies to be handled for elem?
+//      deps match
+//        case Nil             => flattenPostOrder(root = None, fn, pending = t, acc = fn(elem, acc))
+//        case dep :: moreDeps => flattenPostOrder(root = Some(dep), fn, pending = (elem, moreDeps) :: t, acc)
+//    // -----------------------------------
+//    // Done
+//    // -----------------------------------
+//    case (n, Nil) => (n.toList ++ acc).reverse

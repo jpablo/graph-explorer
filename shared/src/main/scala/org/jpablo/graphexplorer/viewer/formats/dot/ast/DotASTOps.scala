@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 
 import scala.annotation.tailrec
@@ -18,55 +17,9 @@ extension (ast: DotAST)
     val data = findAllDirectChildren(ast.asSubgraph)
     ViewerGraph(data.toViewerGraphData, ast.id, ast.tpe)
 
-  def addRandomNode(): DotAST =
-    val label = Attr("label", "")
-    val newNode = NodeStmt(DotNodeId(randomId()), List(label))
-    ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newNode, Newline()))
-
-  def addEdge(source: NodeId, target: NodeId): DotAST =
-    val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(target.value)), Nil)
-    ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newEdge, Newline()))
-
-  def addNodeAndEdge(source: NodeId): DotAST =
-    val newNodeId = randomId()
-    val label = Attr("label", "")
-    val newNode = NodeStmt(DotNodeId(newNodeId), List(label))
-    val newEdge = EdgeStmt(List(DotNodeId(source.value), DotNodeId(newNodeId)), Nil)
-    ast.modify(_.children).using(_ ++ List(Newline(), Pad(), newNode, Newline(), newEdge, Newline()))
-
-  def updateDiagramAttributes(target: AttributeTarget)(attrs: Map[String, String]): DotAST =
-    val targetStr = target.toString
-    var attrMap = attrs
-
-    def updateAttrs(attrs: List[Attr]): List[Attr] =
-      for attr <- attrs
-      yield
-        if attrMap.contains(attr.id) then
-          val newAttrValue = attrMap(attr.id)
-          attrMap -= attr.id
-          Attr(attr.id, newAttrValue)
-        else
-          attr
-    // first update existing attributes
-    val updatedChildren =
-      ast.children.map:
-        case AttrStmt(`targetStr`, attrs) => AttrStmt(targetStr, updateAttrs(attrs))
-        case other                        => other
-    // then add remaining attributes to a single AttrStmt
-    val newAttrs = AttrStmt(targetStr, attrMap.map((k, v) => Attr(k, v)).toList)
-    ast.copy(children = newAttrs :: updatedChildren)
-
-  def getDiagramAttributes(target: AttributeTarget): Map[String, String] =
-    val targetStr = target.toString
-    ast.children
-      .collect:
-        case AttrStmt(`targetStr`, attrs) => attrs.map(attr => attr.id -> attr.value)
-      .flatten
-      .toMap
-
-  def setDefaultTheme: DotAST =
-    ast.modify(_.children).using: children =>
-      Newline() :: Pad() :: AttrStmt("node", List(Attr("style", "filled"))) :: children
+//  def setDefaultTheme: DotAST =
+//    ast.modify(_.children).using: children =>
+//      Newline() :: Pad() :: AttrStmt("node", List(Attr("style", "filled"))) :: children
 
   def attachInternalAttributes: DotAST =
     EdgeStmt.resetId()

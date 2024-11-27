@@ -19,7 +19,7 @@ def NodesList(
     tbody(
       children <--
         filteredDiagramEvent(state, onlyActive, filterByNodeId)
-          .map(_.nodes.toList.sortBy(_.id.value))
+          .map(_.nodesSet.toList.sortBy(_.id.value))
           .map:
             _.map: node =>
               tr(
