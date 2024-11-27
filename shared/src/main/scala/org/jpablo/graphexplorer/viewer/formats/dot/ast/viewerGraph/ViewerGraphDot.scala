@@ -7,14 +7,14 @@ import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, Viewer
 def graphToDotAST(graph: ViewerGraph): DotAST =
   DotAST(
     tpe      = graph.tpe,
-    children = directChildrenToAST(graph.data),
+    children = graphDataToAST(graph.data),
     id       = graph.id
   )
 
-def nodeToStmt(node: ViewerNode): NodeStmt =
+private def nodeToStmt(node: ViewerNode): NodeStmt =
   NodeStmt(DotNodeId(node.id.value), node.publicAttrs.values.map(Attr(_, _)).toList)
 
-def arrowToStmt(arrow: Arrow): EdgeStmt =
+private def arrowToStmt(arrow: Arrow): EdgeStmt =
   EdgeStmt(
     List(
       DotNodeId(arrow.source.value),
@@ -23,39 +23,38 @@ def arrowToStmt(arrow: Arrow): EdgeStmt =
     arrow.publicAttrs.values.map(Attr(_, _)).toList
   )
 
-def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
+private def buildNodeStmt(viewerGraphData: ViewerGraphData, groupId: NodeId): Iterable[NodeStmt] =
+  viewerGraphData.nodes.values
+    .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(groupId)))
+    .map(nodeToStmt)
 
-  // Helper function to create SubGraph from ViewerGroup
+private def buildEdgeStmt(viewerGraphData: ViewerGraphData, groupId: NodeId): Iterable[EdgeStmt] =
+  viewerGraphData.arrows.values
+    .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(groupId)))
+    .map(arrowToStmt)
+
+private def attrs(attrs: Attributes, target: AttributeTarget) =
+  if attrs.values.nonEmpty then
+    List(AttrStmt(target.toString, attrs.values.map(Attr(_, _)).toList))
+  else Nil
+
+def graphDataToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
+
   def groupToSubGraph(groupId: NodeId): SubGraph =
     val groupData = viewerGraphData.groups(groupId)
 
-    // Get direct children using memberships
-    val directNodes = viewerGraphData.nodes.values
-      .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(groupId)))
-      .map(nodeToStmt)
-
-    val directArrows = viewerGraphData.arrows.values
-      .filter(arrow => viewerGraphData.memberships.get(arrow.id).contains(Some(groupId)))
-      .map(arrowToStmt)
-
-    val directGroups = viewerGraphData.groups.values
+    val nodeStmts = buildNodeStmt(viewerGraphData, groupId)
+    val edgeStmts = buildEdgeStmt(viewerGraphData, groupId)
+    val subGraphs = viewerGraphData.groups.values
       .filter(group => viewerGraphData.memberships.get(group.id).contains(Some(groupId)))
       .map(g => groupToSubGraph(g.id))
 
-    def attrs(attrs: Attributes) =
-      if attrs.values.nonEmpty then
-        List(AttrStmt(
-          AttributeTarget.node.toString,
-          attrs.values.map { case (key, value) => Attr(key, value) }.toList
-        ))
-      else Nil
-
-    val nodeAttrs = attrs(groupData.nodeAttrs)
-    val edgeAttrs = attrs(groupData.edgeAttrs)
-    val groupAttrs = attrs(groupData.attrs)
+    val nodeAttrs = attrs(groupData.nodeAttrs, AttributeTarget.node)
+    val edgeAttrs = attrs(groupData.edgeAttrs, AttributeTarget.edge)
+    val groupAttrs = attrs(groupData.attrs, AttributeTarget.graph)
 
     // Combine all elements
-    val children = groupAttrs ++ edgeAttrs ++ nodeAttrs ++ directNodes ++ directArrows ++ directGroups
+    val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++ subGraphs ++ nodeStmts ++ edgeStmts
 
     SubGraph(children, Some(groupId.value))
   end groupToSubGraph
@@ -63,17 +62,4 @@ def directChildrenToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
   // Find the root group (the one with no parent in memberships)
   val root = viewerGraphData.root
 
-  // Convert root group's direct children
-  val directNodes = viewerGraphData.nodes.values
-    .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(root.id)))
-    .map(nodeToStmt)
-
-  val directArrows = viewerGraphData.arrows.values
-    .filter(arrow => viewerGraphData.memberships.get(arrow.id).contains(Some(root.id)))
-    .map(arrowToStmt)
-
-  val directGroups = viewerGraphData.groups.values
-    .filter(group => viewerGraphData.memberships.get(group.id).contains(Some(root.id)))
-    .map(g => groupToSubGraph(g.id))
-
-  directNodes.toList ++ directArrows ++ directGroups
+  groupToSubGraph(root.id).children

@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.models.*
 
 class ViewerGraphSpec extends ScalaCheckSuite:
 
-  val rootId: NodeId = NodeId("G")
+  val rootId = NodeId("G")
   val a = NodeId("a")
   val b = NodeId("b")
   val c = NodeId("c")
@@ -43,9 +43,6 @@ class ViewerGraphSpec extends ScalaCheckSuite:
 
   test("updateAttributes should update the attributes of an edge") {
     val edgeId = NodeId("a->b:0")
-    val rootId = NodeId("G")
-    val a = NodeId("a")
-    val b = NodeId("b")
     val graph =
       ViewerGraph(
         ViewerGraphData(

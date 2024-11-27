@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.directChildrenToAST
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
@@ -86,7 +86,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 
   test("directChildrenToAST") {
     val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
-    val reconstructed = directChildrenToAST(data.toViewerGraphData)
+    val reconstructed = graphDataToAST(data.toViewerGraphData)
     val expected =
       List(
         NodeStmt(DotNodeId("a", None), List()),
