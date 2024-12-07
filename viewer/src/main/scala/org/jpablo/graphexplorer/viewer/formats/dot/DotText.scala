@@ -27,13 +27,13 @@ case class DotText(value: String):
 //          dom.console.debug(s"<== after DotParserT.parse: $asts")
           asts
 
+  def toSvg: Signal[SVGSVGElement] =
+    DotText.gvInstance.renderToSvg(this)
+
 object DotText:
   private val gvInstance = new Graphviz
 
   lazy val empty = DotText("digraph G { } ")
 
-  extension (dot: DotText)
-    def toSvg: Signal[SVGSVGElement] =
-      gvInstance.renderToSvg(dot)
 
 end DotText

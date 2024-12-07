@@ -9,8 +9,6 @@ import com.softwaremill.macwire.*
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
-import org.jpablo.graphexplorer.viewer.formats.dot.DotText
-import org.jpablo.graphexplorer.viewer.formats.dot.DotText.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
@@ -48,8 +46,23 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // Dot ~> SVGSVGElement
   val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
     visibleDOT
-      .flatMapSwitch(_.toSvg)
-      .map(SvgDotDiagram.svgWithTransform(transform, startNode.signal, endPos.signal, isDragging.signal))
+      .tapEach { _ =>
+        dom.console.group("svgDiagramElement")
+      }
+      .flatMapSwitch { dotText =>
+        log("[svgDiagramElement]:step 1 (text.toSvg)")(dotText.toSvg)
+      }
+      .map { svg =>
+        log("[svgDiagramElement]:step 2 (svgWithTransform)", ignore = false)(SvgDotDiagram.svgWithTransform(
+          transform,
+          startNode.signal,
+          endPos.signal,
+          isDragging.signal
+        )(svg))
+      }
+      .tapEach { _ =>
+        dom.console.groupEnd()
+      }
 
   // -------------------------------
   // this should be a subset of visibleNodesV keys
@@ -74,9 +87,13 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   def isNodeVisible(id: NodeId) = hiddenNodesS.map(ids => id notIn ids)
 
-  def isEdgeVisible(id: NodeId) = visibleGraph.map(graph => id in graph.allArrowIds)
+  def isEdgeVisible(id: NodeId) =
+//    dom.console.log(s"[isEdgeVisible]: $id")
+    visibleGraph.map(graph => id in graph.allArrowIds)
 
-  def isSelected(id: NodeId) = diagramSelection.signal.map(ids => id in ids)
+  def isSelected(id: NodeId) =
+//    dom.console.log(s"[isSelected]: $id")
+    diagramSelection.signal.map(ids => id in ids)
 
   def toggleNode(id: NodeId) =
     hiddenNodes.toggle(id)
@@ -179,6 +196,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   private def restoreState() =
     val state0 = persistedState.now()
     // Restore ViewerState <~ PersistedStage (which comes from local storage)
+    dom.console.log("restoreState()")
     sourceText.set(state0.source)
     project.name.set(state0.projectName)
     project.hiddenNodes.set(state0.hiddenNodes)

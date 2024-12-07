@@ -25,8 +25,8 @@ def AttributesView(
       tbody(
         for row <- rows
         yield
-          val inputVarStr: Var[Option[AttrValue]] = attrs
-            .zoomLazy(_.get(row.attrId))((a, value) => value.fold(a)(s => a + (row.attrId -> s)))
+          val inputVarStr: Var[Option[AttrValue]] =
+            attrs.zoomLazy(_.get(row.attrId))((a, value) => value.fold(a)(s => a + (row.attrId -> s)))
           tr(
             td(row.label),
             td(

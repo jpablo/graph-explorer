@@ -77,7 +77,7 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
       s.ref.outerHTML
 
 object SvgDotDiagram:
-  val empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()))
+  def empty = SvgDotDiagram(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()))
 
   case class BBox(x: Double, y: Double, width: Double, height: Double)
 

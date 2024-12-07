@@ -29,7 +29,7 @@ private def buildNodeStmt(viewerGraphData: ViewerGraphData, groupId: NodeId): It
     .map(nodeToStmt)
 
 private def buildEdgeStmt(viewerGraphData: ViewerGraphData, groupId: NodeId): Iterable[EdgeStmt] =
-  viewerGraphData.arrows.values
+  viewerGraphData.arrowValues
     .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(groupId)))
     .map(arrowToStmt)
 
