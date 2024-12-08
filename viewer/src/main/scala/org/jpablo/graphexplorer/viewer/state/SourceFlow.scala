@@ -71,10 +71,10 @@ class SourceFlow(
         if newSource == value.source then
           value
         else
-          dom.console.debug(s"newSource != value.source, parsing doc of length ${newSource.length}")
+//          dom.console.debug(s"newSource != value.source, parsing doc of length ${newSource.length}")
           // at this point we have a new source, so we increment the version.
           val nextVersion = value.version + 1
-          dom.console.debug(s"sourceText: ${value.version} -> ${nextVersion}")
+//          dom.console.debug(s"sourceText: ${value.version} -> ${nextVersion}")
           val newAST =
             DotText(newSource, nextVersion).parseAST
               .headOption
@@ -96,14 +96,15 @@ class SourceFlow(
       }
 
   sourceAST.signal.foreach { (sourceAST: DotAST) =>
-    dom.console.debug(
-      "[sourceAST -> fullGraphV] sourceAST => ViewerGraph",
-      s"sourceAST.version: ${sourceAST.version}",
-      s"fullGraphV.version: ${fullGraphV.now().version}"
-    )
+//    dom.console.debug(
+//      "[sourceAST -> fullGraphV] sourceAST => ViewerGraph",
+//      s"sourceAST.version: ${sourceAST.version}",
+//      s"fullGraphV.version: ${fullGraphV.now().version}"
+//    )
     val graph = sourceAST.toViewerGraph
     if fullGraphV.now() == graph || sourceAST.version <= fullGraphV.now().version then
-      dom.console.debug(s"fullGraphV.now() == graph, not updating")
+//      dom.console.debug(s"fullGraphV.now() == graph, not updating")
+      ()
     else
       log("[fullGraphV] sourceAST => ViewerGraph"):
         fullGraphV.set(graph)
@@ -119,13 +120,10 @@ class SourceFlow(
         // async update
         dom.window.setTimeout(
           { () =>
-            dom.console.debug(
-              s"[fullGraphV -> sourceAST:2] handler (sourceAST.set, v: ${graph.version}) ${timeDelta()}"
-            )
             log("[fullGraphV -> sourceAST:2] graphToDotAST: ViewerGraph => DotAST"):
               sourceAST.set(ast)
           },
-          1000
+          250
         )
   }
 

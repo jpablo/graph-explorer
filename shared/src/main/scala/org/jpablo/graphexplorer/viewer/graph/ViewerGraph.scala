@@ -34,7 +34,7 @@ case class ViewerGraph(
   val arrowsSet = data.arrowsSet
 
   def nextVersion(): ViewerGraph =
-    println(s"ViewerGraph # nextVersion(): $version -> ${version + 1}")
+//    println(s"ViewerGraph # nextVersion(): $version -> ${version + 1}")
     copy(version = version + 1)
 
   def summary =
@@ -122,7 +122,7 @@ case class ViewerGraph(
       case AttributeTarget.edge  => root.edgeAttrs.values
 
   def updateRootAttributes(target: AttributeTarget)(attrs: Map[String, AttrValue]): ViewerGraph =
-    println("ViewerGraph # updateRootAttributes")
+//    println("ViewerGraph # updateRootAttributes")
     val modifyRoot =
       target match
         case AttributeTarget.graph => root.modify(_.attrs.values)

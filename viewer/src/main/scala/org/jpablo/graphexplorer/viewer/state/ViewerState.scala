@@ -140,7 +140,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     sourceFlow.fullGraphV
       .zoom(_.getRootAttributes(AttributeTarget.graph))(
         { (graph, attrs) =>
-          pprint.log(graph.version)
+//          pprint.log(graph.version)
           graph.updateRootAttributes(AttributeTarget.graph)(attrs)
         }
       )
