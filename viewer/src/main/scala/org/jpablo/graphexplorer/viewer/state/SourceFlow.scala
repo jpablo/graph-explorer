@@ -27,15 +27,17 @@ def timeDelta() =
 
 inline def log[A](label: String, ignore: Boolean = false, resetStep: Boolean = false)(body: => A): A =
   step = if resetStep then 1 else step + 1
-  if !ignore then
+  val numberedLabel = s"($step) $label"
+//  if !ignore then
 //    dom.console.group(s"($step) $label")
-    dom.console.debug(s"$label [-->]: ${timeDelta()}")
+//    dom.console.debug(s"$numberedLabel [-->]: ${timeDelta()}")
 //  dom.console.count(label)
 //  dom.console.time(label)
+  timeDelta()
   val a = body
 //  dom.console.timeEnd(label)
   if !ignore then
-    dom.console.debug(s"$label [<--]: ${timeDelta()}")
+    dom.console.debug(s"$numberedLabel [<--]: ${timeDelta()}")
 //    dom.console.groupEnd()
   a
 
@@ -127,19 +129,20 @@ class SourceFlow(
     visibleAST.map(ast => log("[visibleDOT] renderToDot: DotAST => DotText", ignore = false)(ast.renderToDot))
 
   sourceAST.signal.foreach { ast =>
-    log("[fullGraphV] sourceAST => ViewerGraph", ignore = false):
       val graph = ast.toViewerGraph
       if fullGraphV.now() != graph then
-        fullGraphV.set(graph)
+        log("[fullGraphV] sourceAST => ViewerGraph", ignore = false):
+          fullGraphV.set(graph)
   }
 
-  fullGraphV.signal.foreach { graph =>
-    log("[fullGraphV:1] graphToDotAST: ViewerGraph => DotAST", ignore = false, resetStep = true):
+  fullGraph.foreach { graph =>
+    log("[fullGraphV:1] ... ", ignore = false, resetStep = true):
       val ast = graphToDotAST(graph)
       if sourceAST.now() != ast then
         // async update
         dom.window.setTimeout(
           { () =>
+            dom.console.error(s"[fullGraphV:2] handler ${timeDelta()}")
             log("[fullGraphV:2] graphToDotAST: ViewerGraph => DotAST", ignore = false):
               sourceAST.set(ast)
           },
