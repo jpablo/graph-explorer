@@ -15,7 +15,8 @@ case class DotAST(
     @key("type")
     tpe:      String,
     children: List[GraphElement],
-    id:       Option[String] = None
+    id:       Option[String] = None,
+    version:  Long = 0
 ) derives ReadWriter:
   def asSubgraph: SubGraph = SubGraph(children, id)
 

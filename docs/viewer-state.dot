@@ -1,12 +1,47 @@
-digraph G {
-    node [shape = rectangle]
-
-    source -> fullAST [label = "buildAST\nattachInternalAttributes"]
-    fullAST -> fullGraph [label = toViewerGraph]
-    fullAST -> visibleAST [label = removeHiddenNodes]
-    visibleAST -> visibleDOT [label = toDot]
-    visibleAST -> visibleGraph
-
-    visibleDOT -> svgDiagramElement [label = toSvg]
-    svgDiagramElement -> svgDotDiagram
+digraph "G" {
+    graph [
+        nodesep="0.5",
+        rankdir="TB",
+        label="Data Flow",
+        pad=".1",
+        labelloc="t",
+        ranksep=".5",
+        layout="dot",
+        bgcolor="#f2baba",
+        splines="spline"
+    ];
+    node [
+        shape="polygon",
+        style="filled",
+        fillcolor="#f6eeee",
+        peripheries="1"
+    ];
+    edge [
+        decorate="false",
+        constraint="true"
+    ];
+    "fullGraphV" [
+        label="fullGraphV *",
+        fillcolor="#cfee96"
+    ];
+    "sourceTextAndAST" [fillcolor="#fdefaa"];
+    "visibleDOT"
+    "visibleAST"
+    "fullGraph"
+    "sourceText"
+    "svgDiagramElement"
+    "sourceAST"
+    "visibleGraph"
+    "fullGraph" -> "visibleGraph";
+    "sourceTextAndAST" -> "sourceText" [dir="both"];
+    "sourceAST" -> "fullGraphV" [
+        dir="both",
+        style="dashed",
+        arrowtail="halfopen"
+    ];
+    "visibleAST" -> "visibleDOT";
+    "fullGraphV" -> "fullGraph";
+    "visibleGraph" -> "visibleAST";
+    "visibleDOT" -> "svgDiagramElement";
+    "sourceTextAndAST" -> "sourceAST" [dir="both"];
 }

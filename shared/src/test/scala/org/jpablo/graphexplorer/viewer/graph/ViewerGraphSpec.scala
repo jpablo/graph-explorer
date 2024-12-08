@@ -14,26 +14,26 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   test("addEdge should add an edge between two nodes") {
     val graph =
       ViewerGraph(
+        "G",
         ViewerGraphData(
           arrows      = Map.empty,
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
           memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), c -> Some(rootId))
         ),
-        Some("G"),
         "digraph"
       )
 
     val edgeId = NodeId("a->b:1")
     val expected =
       ViewerGraph(
+        "G",
         ViewerGraphData(
           arrows      = Map(edgeId -> Arrow(a, b, seq = 1)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
           memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), c -> Some(rootId), edgeId -> Some(rootId))
         ),
-        Some("G"),
         "digraph"
       )
 
@@ -46,24 +46,24 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val edgeId = NodeId("a->b:0")
     val graph =
       ViewerGraph(
+        "G",
         ViewerGraphData(
           arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
           memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
         ),
-        Some("G"),
         "digraph"
       )
     val expected =
       ViewerGraph(
+        "G",
         ViewerGraphData(
           arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"), "style" -> AttrValue("dashed"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
           memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
         ),
-        Some("G"),
         "digraph"
       )
 

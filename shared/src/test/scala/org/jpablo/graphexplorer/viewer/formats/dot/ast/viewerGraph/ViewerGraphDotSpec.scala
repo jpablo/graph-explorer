@@ -9,7 +9,8 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
   test("graphToDotAST should convert a ViewerGraph to a DotAST") {
     val graph =
       ViewerGraph(
-        ViewerGraphData(
+        id = "G",
+        data = ViewerGraphData(
           arrows = Map(NodeId("a->b:0") -> Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> AttrValue("1"))), 0)),
           groups = Map(
             NodeId("G") -> ViewerGroup(
@@ -22,8 +23,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
           nodes       = Map(),
           memberships = Map(NodeId("G") -> None, NodeId("a->b:0") -> Some(NodeId("G")))
         ),
-        Some("G"),
-        "digraph"
+        tpe = "digraph"
       )
 
     val ast = graphToDotAST(graph)

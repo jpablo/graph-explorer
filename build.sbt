@@ -40,6 +40,11 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
       "org.scalameta"              %%% "munit"            % "1.0.0" % Test,
       "org.scalameta"              %%% "munit-scalacheck" % "1.0.0" % Test
     )
+  ).jsSettings(
+    // JS-specific settings
+    libraryDependencies ++= Seq(
+      "org.scala-js" %%% "scalajs-dom" % "2.8.0"
+    )
   )
 
 lazy val viewer =

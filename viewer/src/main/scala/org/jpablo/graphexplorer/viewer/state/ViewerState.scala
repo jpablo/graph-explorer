@@ -143,7 +143,10 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val graphTargetAttributes: Var[Map[String, AttrValue]] =
     sourceFlow.fullGraphV
       .zoom(_.getRootAttributes(AttributeTarget.graph))(
-        _.updateRootAttributes(AttributeTarget.graph)(_)
+        { (graph, attrs) =>
+          pprint.log(graph.version)
+          graph.updateRootAttributes(AttributeTarget.graph)(attrs)
+        }
       )
 
   val nodeTargetAttributes =

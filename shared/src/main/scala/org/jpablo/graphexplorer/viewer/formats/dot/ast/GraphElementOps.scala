@@ -23,7 +23,10 @@ extension (graphElement: GraphElement)
 
   def findAllViewerNodes: Set[ViewerNode] =
     @tailrec
-    def loop(remaining: List[GraphElement], acc: Map[String, Map[String, AttrValue]]): Map[String, Map[String, AttrValue]] =
+    def loop(
+        remaining: List[GraphElement],
+        acc:       Map[String, Map[String, AttrValue]]
+    ): Map[String, Map[String, AttrValue]] =
       remaining match
         case Nil => acc
 
@@ -54,6 +57,7 @@ extension (graphElement: GraphElement)
     )
 
   def findAllDirectChildren: FlattenedGraphElement =
+//    pprint.log(graphElement)
     @tailrec
     def loop(
         remaining:   List[(Option[String], List[GraphElement])],
@@ -62,11 +66,9 @@ extension (graphElement: GraphElement)
         nodes:       List[(String, Map[String, AttrValue])],
         memberships: List[(String, Option[String])] = Nil // List of (element, group) memberships
     ): FlattenedGraphElement =
-//      pprint.log(arrows, showFieldNames = false)
-//      pprint.log((remaining.length, arrows.length, groups.length, nodes.length), "loop")
+//      pprint.log(remaining)
       remaining match
         case Nil =>
-//          pprint.log("empty remaining")
           // Convert accumulated node attributes to ViewerNodes at the end
           val viewerNodes =
             nodes.map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
@@ -74,20 +76,16 @@ extension (graphElement: GraphElement)
           FlattenedGraphElement(arrows, groups.reverse, viewerNodes.reverse, membershipsNodes)
 
         case (_, Nil) :: t =>
-//          pprint.log(parent, "empty children")
           loop(remaining = t, arrows, groups, nodes, memberships)
 
         // firstChild and parentOtherChildren belong to the same parent node
         case (parent, firstChild :: parentOtherChildren) :: t => // remaining
-//          pprint.log(parent, "remaining children")
           firstChild match
             case sub @ SubGraph(subChildren, _) =>
-//              println("SubGraph")
               val subId = sub.id.getOrElse(SubGraph.randomId())
               val rem = (Some(subId) -> subChildren) :: ((parent -> parentOtherChildren) :: t)
               val group = convertSubGraphToViewerGroup(sub)
               val mms = (subId -> parent) :: memberships
-//              pprint.log(rem.length, showFieldNames = true)
               // 1. Add the current subgraph to the groups
               // 2. Add the children to the remaining list
               loop(
@@ -99,7 +97,6 @@ extension (graphElement: GraphElement)
               )
 
             case e: EdgeStmt =>
-//              println("EdgeStmt")
               val (edgeChildren, edgeArrows) = e.expandArrows.unzip
 
               // missing e.idAttr!!
@@ -113,7 +110,6 @@ extension (graphElement: GraphElement)
               )
 
             case NodeStmt(nodeId, attr_list) =>
-//              println("NodeStmt")
               val attrMap = toAttrsMap(attr_list)
               loop(
                 remaining   = (parent -> parentOtherChildren) :: t,
@@ -129,39 +125,3 @@ extension (graphElement: GraphElement)
     loop(remaining = List(None -> List(graphElement)), Nil, Nil, Nil)
 
 end extension
-
-//@tailrec
-//def flattenPostOrder(
-//    root:    Option[GraphElement],
-//    fn:      (GraphElement, List[GraphElement]) => List[GraphElement],
-//    pending: List[(GraphElement, List[GraphElement])] = Nil, // Stack of (Root, List[Child])
-//    acc:     List[GraphElement] = Nil                        // result flattened tree in post-order
-//): List[GraphElement] =
-//  (root, pending) match
-//    // -----------------------------------
-//    // processing non-leaf nodes:
-//    // - descend to the first child
-//    // - add the rest of the children to the pending stack, alongside the current node
-//    // -----------------------------------
-//    case (Some(edge @ EdgeStmt(_, _)), _) =>
-//      val h :: t = edge.toGraphElements: @unchecked
-//      flattenPostOrder(root = Some(h), fn, pending = (edge, t) :: pending, acc)
-//
-//    case (Some(sub @ SubGraph(h :: t, _)), _) =>
-//      flattenPostOrder(root = Some(h), fn, pending = (sub, t) :: pending, acc)
-//
-//    // for leaf nodes we add a single None children, to simulate the case of nullable children
-//    case (Some(leaf), _) =>
-//      flattenPostOrder(root = None, fn, pending = (leaf, Nil) :: pending, acc)
-//    // -----------------------------------
-//    // processing leaf nodes, backtracking
-//    // -----------------------------------
-//    case (None, (elem, deps) :: t) =>
-//      // are there any dependencies to be handled for elem?
-//      deps match
-//        case Nil             => flattenPostOrder(root = None, fn, pending = t, acc = fn(elem, acc))
-//        case dep :: moreDeps => flattenPostOrder(root = Some(dep), fn, pending = (elem, moreDeps) :: t, acc)
-//    // -----------------------------------
-//    // Done
-//    // -----------------------------------
-//    case (n, Nil) => (n.toList ++ acc).reverse

@@ -19,7 +19,9 @@ def CanvasContainer(
     idAttr   := "canvas-container",
     tabIndex := 0,
     fitDiagram --> state.resetView(),
-    child <-- state.svgDiagramElement.tapEach(_ => log("[CanvasContainer]: svgDiagramElement")(())),
+    child <-- state.svgDiagramElement.tapEach { e =>
+      log("[CanvasContainer]: svgDiagramElement")(())
+    },
     onKeyDown.mapToEvent --> state.handleKeyDown,
     onClick.preventDefault --> state.diagramSelection.handleSvgClick,
     onWheel.updateTranslate,

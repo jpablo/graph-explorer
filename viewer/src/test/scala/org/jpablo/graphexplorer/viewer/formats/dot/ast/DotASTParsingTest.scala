@@ -11,5 +11,5 @@ class DotASTParsingTest extends ScalaCheckSuite:
 
   test("parse subgroup"):
     val sample: String = fs.readFileSync("viewer/src/test/resources/subgroup.dot", "utf8").asInstanceOf[String]
-    val ast = DotText(sample).parseAST
+    val ast = DotText(sample, 0).parseAST
     pprint.pprintln(ast, showFieldNames = false)

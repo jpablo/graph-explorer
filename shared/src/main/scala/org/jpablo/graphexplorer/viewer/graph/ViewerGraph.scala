@@ -2,9 +2,10 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
+import org.jpablo.graphexplorer.viewer.utils.Version
 
 // import scala.collection.mutable
 //import org.jpablo.graphexplorer.viewer.formats.CSV
@@ -19,13 +20,22 @@ import org.jpablo.graphexplorer.viewer.models.*
   *   Either isolated nodes or full node definitions for arrow ends
   */
 
-case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: String = "digraph"):
+case class ViewerGraph(
+    id:      String,
+    data:    ViewerGraphData,
+    tpe:     String = "digraph",
+    version: Version = 0
+):
   // Efficient access to elements
 //  def arrowsById = data.arrows
   val nodeById = data.nodes
 //  def groupsById = data.groups
   val nodesSet = data.nodesSet
   val arrowsSet = data.arrowsSet
+
+  def nextVersion(): ViewerGraph =
+    println(s"ViewerGraph # nextVersion(): $version -> ${version + 1}")
+    copy(version = version + 1)
 
   def summary =
     ViewerGraph.Summary(
@@ -112,12 +122,16 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
       case AttributeTarget.edge  => root.edgeAttrs.values
 
   def updateRootAttributes(target: AttributeTarget)(attrs: Map[String, AttrValue]): ViewerGraph =
+    println("ViewerGraph # updateRootAttributes")
     val modifyRoot =
       target match
         case AttributeTarget.graph => root.modify(_.attrs.values)
         case AttributeTarget.node  => root.modify(_.nodeAttrs.values)
         case AttributeTarget.edge  => root.modify(_.edgeAttrs.values)
-    this.modify(_.data.groups).using(_ + (root.id -> modifyRoot.using(_ ++ attrs)))
+    this
+      .modify(_.data.groups)
+      .using(_ + (root.id -> modifyRoot.using(_ ++ attrs)))
+      .nextVersion()
 
   val init = Map.empty[String, AttrValue]
 
@@ -132,7 +146,7 @@ case class ViewerGraph(data: ViewerGraphData, id: Option[String] = None, tpe: St
 
     val arrowsToUpdate: Arrows = data.filterArrows((id, _) => id in arrowIdsToUpdate)
     val updatedArrows = arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
-  //  val updatedArrows = arrowsToUpdate.mapValuesInPlace((_, a) => a.mergeAttrs(attrs))
+    //  val updatedArrows = arrowsToUpdate.mapValuesInPlace((_, a) => a.mergeAttrs(attrs))
 
     // val updatedArrows =
     //   arrowIdsToUpdate.foldLeft(data.arrows): (arrowsMap, arrowId) =>
@@ -256,14 +270,17 @@ object ViewerGraph:
       groupsById: Map[NodeId, ViewerGroup] = Map.empty
   ): ViewerGraph =
     val groups = groupsById.updatedWith(defaultRootId)(_.orElse(Some(emptyTopLevel)))
-    new ViewerGraph(ViewerGraphData(
-      // arrows = mutable.LinkedHashMap.from(arrowsById),
-      arrows = arrowsById,
-      groups = groups,
-      nodes  = nodeById,
+    new ViewerGraph(
+      id = "G",
+      ViewerGraphData(
+        // arrows = mutable.LinkedHashMap.from(arrowsById),
+        arrows = arrowsById,
+        groups = groups,
+        nodes  = nodeById,
 //      memberships = mutable.LinkedHashMap(defaultRootId -> None)
-      memberships = Map(defaultRootId -> None)
-    ))
+        memberships = Map(defaultRootId -> None)
+      )
+    )
 
   val empty: ViewerGraph = basic(Set.empty, Set.empty)
 
