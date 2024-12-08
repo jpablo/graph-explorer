@@ -24,10 +24,10 @@ def CodeMirror(sourceText: Var[String], mods: Modifier[ReactiveHtmlElement.Base]
 
   def updateSource(update: ViewUpdate): Unit =
     if update.docChanged && sourceText.now() != update.state.doc.toString then
-      dom.console.log(s"[CodeMirror] updateSource: docChanged, updating sourceText Var, ${timeDelta()}")
+      dom.console.debug(s"[CodeMirror] updateSource: docChanged, updating sourceText Var, ${timeDelta()}")
       sourceText.set(update.state.doc.toString)
     else
-      dom.console.error(s"[CodeMirror] updateSource: no changes found, don't update sourceText, ${timeDelta()}")
+      dom.console.debug(s"[CodeMirror] updateSource: no changes found, don't update sourceText, ${timeDelta()}")
 
   div(
     mods,
@@ -42,11 +42,11 @@ def CodeMirror(sourceText: Var[String], mods: Modifier[ReactiveHtmlElement.Base]
       )
       // Source -> editor
       for newSource <- sourceText.signal do
-        pprint.log(newSource.length)
+        dom.console.debug(s"[CodeMirror] newSource.length: ${newSource.length}")
         val existingSource = editorView.state.doc.toString
         if newSource != existingSource then
-          pprint.log(newSource != existingSource)
-          dom.console.error(s"[CodeMirror] sourceText Var changed, updating document: ${timeDelta()}")
+          dom.console.debug(s"[CodeMirror] newSource != existingSource")
+          dom.console.debug(s"[CodeMirror] sourceText Var changed, updating document: ${timeDelta()}")
           editorView.dispatch(
             TransactionSpec().setChanges(
               js.Array(obj(from = 0, to = existingSource.length, insert = newSource))

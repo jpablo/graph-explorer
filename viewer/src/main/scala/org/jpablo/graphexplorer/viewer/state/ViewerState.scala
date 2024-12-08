@@ -46,23 +46,19 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // Dot ~> SVGSVGElement
   val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
     visibleDOT
-      .tapEach { _ =>
-        dom.console.group("svgDiagramElement")
-      }
+//      .tapEach { _ => dom.console.group("svgDiagramElement") }
       .flatMapSwitch { dotText =>
         log("[svgDiagramElement]:step 1 (text.toSvg)")(dotText.toSvg)
       }
       .map { svg =>
-        log("[svgDiagramElement]:step 2 (svgWithTransform)", ignore = false)(SvgDotDiagram.svgWithTransform(
+        log("[svgDiagramElement]:step 2 (svgWithTransform)")(SvgDotDiagram.svgWithTransform(
           transform,
           startNode.signal,
           endPos.signal,
           isDragging.signal
         )(svg))
       }
-      .tapEach { _ =>
-        dom.console.groupEnd()
-      }
+//      .tapEach { _ => dom.console.groupEnd() }
 
   // -------------------------------
   // this should be a subset of visibleNodesV keys
@@ -199,7 +195,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   private def restoreState() =
     val state0 = persistedState.now()
     // Restore ViewerState <~ PersistedStage (which comes from local storage)
-    dom.console.log("restoreState()")
+    dom.console.debug("restoreState()")
     sourceText.set(state0.source)
     project.name.set(state0.projectName)
     project.hiddenNodes.set(state0.hiddenNodes)

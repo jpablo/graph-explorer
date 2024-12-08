@@ -31,9 +31,8 @@ def timeDelta() =
 
 inline def log[A](
     label:     String,
-    ignore:    Boolean = false,
     resetStep: Boolean = false,
-    level:     Level = Debug
+    level:     Level = None
 )(body: => A): A =
   step = if resetStep then 1 else step + 1
   val numberedLabel = s"($step) $label"
@@ -43,17 +42,10 @@ inline def log[A](
     case Warn  => dom.console.warn(_)
     case Error => dom.console.error(_)
     case None  => (_: Any) => ()
-  if !ignore then
-//    dom.console.group(s"($step) $label")
-    fn(s"$numberedLabel [-->]: ${timeDelta()}")
-//  dom.console.count(label)
-//  dom.console.time(label)
+  fn(s"$numberedLabel [-->]: ${timeDelta()}")
   timeDelta()
   val a = body
-//  dom.console.timeEnd(label)
-//  if !ignore then
-//    dom.console.debug(s"$numberedLabel [<--]: ${timeDelta()}")
-//    dom.console.groupEnd()
+  fn(s"$numberedLabel [<--]: ${timeDelta()}")
   a
 
 class SourceFlow(
@@ -73,18 +65,16 @@ class SourceFlow(
     */
   val sourceText: Var[String] =
     sourceTextAndAST.zoom({ (a1: SourceTextAndAST) =>
-//      pprint.log(a1)
       log("[sourceTextAndAST -> sourceText] SourceTextAndAST => String")(a1.source)
     }) { (value, newSource) =>
-//      pprint.log(value)
-      log("[sourceText -> sourceTextAndAST] (SourceTextAndAST, String) => SourceTextAndAST", ignore = false) {
+      log("[sourceText -> sourceTextAndAST] (SourceTextAndAST, String) => SourceTextAndAST") {
         if newSource == value.source then
           value
         else
-          dom.console.log(s"newSource != value.source, parsing doc of length ${newSource.length}")
+          dom.console.debug(s"newSource != value.source, parsing doc of length ${newSource.length}")
           // at this point we have a new source, so we increment the version.
           val nextVersion = value.version + 1
-          dom.console.log(s"sourceText: ${value.version} -> ${nextVersion}")
+          dom.console.debug(s"sourceText: ${value.version} -> ${nextVersion}")
           val newAST =
             DotText(newSource, nextVersion).parseAST
               .headOption
@@ -99,56 +89,47 @@ class SourceFlow(
   private val sourceAST: Var[DotAST] =
     sourceTextAndAST.zoom({ (newSourceAndTextAST: SourceTextAndAST) =>
       // TODO: it would be better not to trigger an event if the AST is the same
-//      pprint.log(newSourceAndTextAST)
       log("[sourceTextAndAST -> sourceAST] SourceTextAndAST => DotAST")(newSourceAndTextAST.ast)
     }): (textAndAST, newAST: DotAST) =>
-//      pprint.log(newAST)
-      log("[sourceAST -> sourceTextAndAST] (SourceTextAndAST, DotAST) => SourceTextAndAST", ignore = false) {
-        // sourceAST is updated by fullGraphV, so we don't need to increment the version here
+      log("[sourceAST -> sourceTextAndAST] (SourceTextAndAST, DotAST) => SourceTextAndAST") {
         SourceTextAndAST(newAST.optimize.render(keepInternal = false), newAST, textAndAST.version)
       }
 
   sourceAST.signal.foreach { (sourceAST: DotAST) =>
-    dom.console.warn(
+    dom.console.debug(
       "[sourceAST -> fullGraphV] sourceAST => ViewerGraph",
       s"sourceAST.version: ${sourceAST.version}",
       s"fullGraphV.version: ${fullGraphV.now().version}"
     )
-//    pprint.log(sourceAST)
     val graph = sourceAST.toViewerGraph
-//    pprint.log(fullGraphV.now())
-//    pprint.log(graph)
     if fullGraphV.now() == graph || sourceAST.version <= fullGraphV.now().version then
-      dom.console.warn(s"fullGraphV.now() == graph, not updating")
+      dom.console.debug(s"fullGraphV.now() == graph, not updating")
     else
-      log("[fullGraphV] sourceAST => ViewerGraph", ignore = false):
+      log("[fullGraphV] sourceAST => ViewerGraph"):
         fullGraphV.set(graph)
   }
 
   fullGraphV.signal.foreach { graph =>
-    log(s"[fullGraphV -> sourceAST:1] scheduling... (v: ${graph.version})", ignore = false, resetStep = true, level = Warn):
+    log(s"[fullGraphV -> sourceAST:1] scheduling... (v: ${graph.version})", resetStep = true):
       // whoever modified the graph should increment the version, so we don't need to do it here
       val ast = graphToDotAST(graph)
 
-//      pprint.log(graph)
-//      pprint.log(ast)
       dom.console.assert(ast.id.isDefined, "AST id is not defined")
       if sourceAST.now() != ast then
         // async update
         dom.window.setTimeout(
           { () =>
-            dom.console.error(
+            dom.console.debug(
               s"[fullGraphV -> sourceAST:2] handler (sourceAST.set, v: ${graph.version}) ${timeDelta()}"
             )
-            log("[fullGraphV -> sourceAST:2] graphToDotAST: ViewerGraph => DotAST", ignore = false):
+            log("[fullGraphV -> sourceAST:2] graphToDotAST: ViewerGraph => DotAST"):
               sourceAST.set(ast)
           },
           1000
         )
   }
 
-  // initial setup
-  dom.console.log(s"setting initialSource")
+  dom.console.debug(s"setting initialSource: $initialSource")
   sourceText.set(initialSource)
 
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
@@ -157,7 +138,7 @@ class SourceFlow(
     fullGraphV.signal
       .combineWith(hiddenNodes.signal)
       .map: (fullGraph, hiddenNodes) =>
-        log("[fullGraphV -> visibleGraph] (.removeUnsupportedFeatures.removeNodes)", ignore = false) {
+        log("[fullGraphV -> visibleGraph] (.removeUnsupportedFeatures.removeNodes)") {
           // no need to increment version as this is the visible graph, not the full one
           fullGraph
             .removeUnsupportedFeatures
@@ -165,19 +146,18 @@ class SourceFlow(
             .setDefaultTheme
         }
       .tapEach(_ => resetView())
-      .tapEach(g => dom.console.log(s"[visibleGraph] version: ${g.version}"))
 
   // -------------------------------
   // rendering
   // -------------------------------
   val visibleAST: Signal[DotAST] =
     visibleGraph.map(graph =>
-      log("[visibleGraph -> visibleAST] graphToDotAST: ViewerGraph => DotAST", ignore = false)(graphToDotAST(graph))
-    ).tapEach(ast => dom.console.log(s"[visibleAST] version: ${ast.version}"))
+      log("[visibleGraph -> visibleAST] graphToDotAST: ViewerGraph => DotAST")(graphToDotAST(graph))
+    )
 
   val visibleDOT: Signal[DotText] =
     visibleAST.map(ast =>
-      log("[visibleAST -> visibleDOT] renderToDot: DotAST => DotText", ignore = false)(ast.renderToDot)
+      log("[visibleAST -> visibleDOT] renderToDot: DotAST => DotText")(ast.renderToDot)
     )
 
 end SourceFlow

@@ -10,14 +10,13 @@ import org.scalajs.dom.SVGSVGElement
 class Graphviz:
   private val instance =
     val vizInst = VizJS.instance()
-    dom.console.log(vizInst)
     Signal.fromJsPromise(vizInst)
 
   private def renderSVGElement(g: String) =
     instance
       .map { vizOpt =>
         vizOpt.map: viz =>
-          log("[renderSVGElement][1]", ignore = true)(viz.renderSVGElement(g).asInstanceOf[SVGSVGElement])
+          log("[renderSVGElement][1]")(viz.renderSVGElement(g).asInstanceOf[SVGSVGElement])
       }
 //      .recoverWith:
 //        case e: Throwable =>
