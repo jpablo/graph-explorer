@@ -57,43 +57,48 @@ class SourceFlow(
   val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.empty)
   val fullGraph = fullGraphV.signal
 
-  case class SourceTextAndAST(source: String, ast: DotAST, version: Version)
+  case class SourceText(source: String, version: Version)
 
-  private val sourceTextAndAST = Var(SourceTextAndAST("", DotAST.empty, 0))
+  private val sourceTextVersioned = Var(SourceText("", 0))
 
   /** parse source on write: String ~> DotAST
     */
   val sourceText: Var[String] =
-    sourceTextAndAST.zoom({ (a1: SourceTextAndAST) =>
-      log("[sourceTextAndAST -> sourceText] SourceTextAndAST => String")(a1.source)
-    }) { (value, newSource) =>
-      log("[sourceText -> sourceTextAndAST] (SourceTextAndAST, String) => SourceTextAndAST") {
-        if newSource == value.source then
-          value
+    sourceTextVersioned.zoom({ (a1: SourceText) =>
+      log("[sourceTextAndAST -> sourceText] SourceTextAndAST => String", level = Level.Info)(a1.source)
+    }) { (sourceText, newSource) =>
+      val noSourceChange = newSource == sourceText.source
+      log(
+        s"[sourceText -> sourceTextAndAST] (SourceTextAndAST, String) => SourceTextAndAST (change: ${!noSourceChange})",
+        level = Level.Info
+      ) {
+        if noSourceChange then
+          sourceText
         else
 //          dom.console.debug(s"newSource != value.source, parsing doc of length ${newSource.length}")
           // at this point we have a new source, so we increment the version.
-          val nextVersion = value.version + 1
+          val nextVersion = sourceText.version + 1
 //          dom.console.debug(s"sourceText: ${value.version} -> ${nextVersion}")
-          val newAST =
-            DotText(newSource, nextVersion).parseAST
-              .headOption
-              .getOrElse(DotAST.empty)
-              .attachInternalAttributes
-          SourceTextAndAST(newSource, newAST, nextVersion)
+          SourceText(newSource, nextVersion)
       }
     }
 
   /** render AST on write: DotAST ~> String
     */
   private val sourceAST: Var[DotAST] =
-    sourceTextAndAST.zoom({ (newSourceAndTextAST: SourceTextAndAST) =>
+    sourceTextVersioned.zoom({ (sourceText: SourceText) =>
       // TODO: it would be better not to trigger an event if the AST is the same
-      log("[sourceTextAndAST -> sourceAST] SourceTextAndAST => DotAST")(newSourceAndTextAST.ast)
+      val newAST =
+        DotText(sourceText.source, sourceText.version)
+          .parseAST
+          .headOption
+          .getOrElse(DotAST.empty)
+          .attachInternalAttributes
+
+      log("[sourceTextAndAST -> sourceAST] SourceTextAndAST => DotAST", level = Level.Info)(newAST)
     }): (textAndAST, newAST: DotAST) =>
-      log("[sourceAST -> sourceTextAndAST] (SourceTextAndAST, DotAST) => SourceTextAndAST") {
-        SourceTextAndAST(newAST.optimize.render(keepInternal = false), newAST, textAndAST.version)
-      }
+      log("[sourceAST -> sourceTextAndAST] (SourceTextAndAST, DotAST) => SourceTextAndAST", level = Level.Info):
+        SourceText(newAST.optimize.render(keepInternal = false), textAndAST.version)
 
   sourceAST.signal.foreach { (sourceAST: DotAST) =>
 //    dom.console.debug(
