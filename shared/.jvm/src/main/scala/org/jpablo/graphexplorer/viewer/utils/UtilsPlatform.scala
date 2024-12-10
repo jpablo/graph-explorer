@@ -8,10 +8,3 @@ private[utils] trait UtilsPlatform extends Utils:
 
   def randomUUIDSafe(): String =
     randomUUID().replace("-", "")
-
-  private var currentVersion: Version = 0
-
-  def nextVersion(): Version =
-    currentVersion += 1
-    pprint.log(currentVersion)
-    currentVersion

@@ -6,8 +6,6 @@ trait Utils:
   def randomUUID(): String
   def randomUUIDSafe(): String
 
-  def nextVersion(): Version
-
 object Utils extends UtilsPlatform
 
 enum ChangeOrigin:

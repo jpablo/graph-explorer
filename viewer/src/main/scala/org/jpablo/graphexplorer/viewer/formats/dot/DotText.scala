@@ -8,7 +8,6 @@ import org.scalajs.dom.SVGSVGElement
 import scala.util.{Failure, Success}
 
 case class DotText(value: String):
-//  org.scalajs.dom.console.log(value)
 
   override def toString: String =
     value
@@ -25,7 +24,7 @@ case class DotText(value: String):
           List.empty
         case Success(asts) =>
 //          dom.console.debug(s"<== after DotParserT.parse: $asts")
-          asts //.map(_.copy(version = version))
+          asts
 
   def toSvg: Signal[SVGSVGElement] =
     DotText.gvInstance.renderToSvg(this)
@@ -34,6 +33,5 @@ object DotText:
   private val gvInstance = new Graphviz
 
   lazy val empty = DotText("digraph G { } ")
-
 
 end DotText

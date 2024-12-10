@@ -1,7 +1,5 @@
 package org.jpablo.graphexplorer.viewer.utils
 
-import org.scalajs.dom
-
 import scala.scalajs.js
 
 private[utils] trait UtilsPlatform extends Utils:
@@ -10,10 +8,3 @@ private[utils] trait UtilsPlatform extends Utils:
 
   def randomUUIDSafe(): String =
     randomUUID().replace("-", "")
-
-  private var currentVersion: Version = 0
-
-  def nextVersion(): Version =
-    dom.console.error(s"nextVersion(): $currentVersion -> ${currentVersion + 1}")
-    currentVersion += 1
-    currentVersion

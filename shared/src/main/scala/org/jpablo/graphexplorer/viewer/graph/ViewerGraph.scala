@@ -20,11 +20,9 @@ import org.jpablo.graphexplorer.viewer.models.*
   */
 
 case class ViewerGraph(
-    id:      String,
-    data:    ViewerGraphData,
-    tpe:     String = "digraph",
-//    version: Version = 0,
-//    origin:  ChangeOrigin = ChangeOrigin.CodeMirror
+    id:   String,
+    data: ViewerGraphData,
+    tpe:  String = "digraph"
 ):
   // Efficient access to elements
 //  def arrowsById = data.arrows
@@ -32,10 +30,6 @@ case class ViewerGraph(
 //  def groupsById = data.groups
   val nodesSet = data.nodesSet
   val arrowsSet = data.arrowsSet
-
-//  def nextVersion(): ViewerGraph =
-//    println(s"ViewerGraph # nextVersion(): $version -> ${version + 1}")
-//    copy(version = version + 1/*, origin = ChangeOrigin.Graph*/)
 
   def summary =
     ViewerGraph.Summary(
@@ -179,7 +173,7 @@ case class ViewerGraph(
         nodes       = updatedNodes,
         memberships = data.memberships ++ updatedMembership
       )
-    )//.nextVersion()
+    ) // .nextVersion()
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
