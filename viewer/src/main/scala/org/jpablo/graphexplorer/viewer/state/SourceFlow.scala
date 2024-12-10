@@ -9,7 +9,6 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphToDotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin.CodeMirror
 import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
 
 import scala.scalajs.js.Date
@@ -56,6 +55,30 @@ def simpleLog(label: String, level: Level = None): Unit =
 
 case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
 
+def syncVars[S, T](
+    source:  Var[S],
+    target:  Var[T],
+    labelT:  String = "",
+    toT:     (S, T) => T,
+    updateT: (S, T, T) => Boolean,
+    labelS:  String = "",
+    toS:     (S, T) => S,
+    updateS: (S, T, S) => Boolean
+)(using Owner): Unit =
+  // source -> target
+  for s <- source.signal do
+    val t = target.now()
+    val t1 = toT(s, t)
+    if updateT(s, t, t1) then
+      withLog(labelT, level = Debug)(target.set(t1))
+  // target -> source
+  for t <- target.signal do
+    val s = source.now()
+    val s1 = toS(s, t)
+    if updateS(s, t, s1) then
+      withLog(labelS, level = Debug)(source.set(s1))
+end syncVars
+
 class SourceFlow(
     initialSource: String,
     hiddenNodes:   Signal[Set[NodeId]],
@@ -69,117 +92,82 @@ class SourceFlow(
 
   private val versionedFullGraphV = Var(Versioned(ViewerGraph.empty, 0, ChangeOrigin.CodeMirror))
 
-  // updated by Graph
+  // updated by the UI
   val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.empty)
 
   val fullGraph = fullGraphV.signal
 
-  // sourceAST depends on versionedText (CodeMirror) and fullGraphV (Graph)
   private val sourceAST: Var[Versioned[DotAST]] = Var(Versioned(DotAST.empty, 0, ChangeOrigin.CodeMirror))
 
   // -------------------------------
   // sourceText <-> versionedText
   // -------------------------------
-
-  // origin: CodeMirror
-  for (newSource, Versioned(source, version, origin)) <- sourceText.signal.withCurrentValueOf(versionedText.signal)
-  do
-    val sourceChange = newSource != source
-    withLog(
-      s"[sourceText -> versionedText] (change: $sourceChange, v: $version, o: $origin)",
-      resetStep = true
-    ) {
-      if sourceChange then
-        versionedText.set(Versioned(newSource, version + 1, ChangeOrigin.CodeMirror))
-      else
-        simpleLog(s"[sourceText -> versionedText] skip")
-    }
-
-  // origin: Both
-  for Versioned(newSource, v, o) <- versionedText.signal do
-    withLog(s"[versionedText -> sourceText] (v: $v, o: $o)"):
-      if sourceText.now() != newSource then
-        sourceText.set(newSource)
-      else
-        simpleLog(s"[versionedText -> sourceText] skip")
+  syncVars(
+    source = sourceText,
+    target = versionedText,
+    // -------------------------------
+    labelT  = "[sourceText -> versionedText]", // a -> b
+    toT     = (st, vt) => Versioned[String](st, vt.version + 1, ChangeOrigin.CodeMirror),
+    updateT = (st, vt, vt1) => st != vt.value,
+    // -------------------------------
+    labelS  = "[versionedText -> sourceText]", // b -> a
+    toS     = (st, vt) => vt.value,
+    updateS = (st, vt, st1) => st != vt.value
+  )
 
   // -------------------------------
   // versionedText <-> sourceAST
   // -------------------------------
-
-  // origin: CodeMirror
-  for Versioned(newSource, newVersion, newOrigin) <- versionedText.signal do
-    withLog(s"[versionedText -> sourceAST] (v: $newVersion, o: $newOrigin)"):
-      val newAST = DotText(newSource)
-        .parseAST
-        .headOption
-        .getOrElse(DotAST.empty)
-        .attachInternalAttributes
-      val Versioned(ast, astVersion, astOrigin) = sourceAST.now()
-      if ast == newAST || newVersion <= astVersion then
-        simpleLog(s"[sourceText -> sourceAST] skip")
-      else
-        sourceAST.set(Versioned(newAST, newVersion, newOrigin))
-
-  // origin: Both
-  for (Versioned(newAST, newVersion, newOrigin), Versioned(source, version, origin)) <-
-      sourceAST.signal.withCurrentValueOf(versionedText.signal)
-  do
-    withLog(s"[sourceAST -> versionedText] (v: $newVersion, o: $newOrigin)"):
-      // this will remove extra spaces and newlines
-      val newSource = newAST.optimize.render(keepInternal = false)
-      if newSource != source && newOrigin != ChangeOrigin.CodeMirror then
-        versionedText.set(Versioned(newSource, newVersion, newOrigin))
-      else
-        simpleLog(s"[sourceAST -> versionedText] skip")
+  syncVars(
+    source = versionedText,
+    target = sourceAST,
+    // -------------------------------
+    labelT = "[versionedText -> sourceAST]", // b -> c
+    toT = { (vt, ast) =>
+      val newAST = DotText(vt.value).parseAST.headOption.getOrElse(DotAST.empty).attachInternalAttributes
+      Versioned[DotAST](newAST, vt.version, vt.origin)
+    },
+    updateT = (vt, ast, ast1) => ast.value != ast1.value && ast1.origin == ChangeOrigin.CodeMirror,
+    // -------------------------------
+    labelS = "[sourceAST -> versionedText]", // c -> b
+    toS = { (vt, ast) =>
+      val newSource = ast.value.optimize.render(keepInternal = false)
+      Versioned[String](newSource, ast.version, ast.origin)
+    },
+    updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph
+  )
 
   // -------------------------------
   // sourceAST <-> versionedFullGraphV
   // -------------------------------
-  sourceAST.signal.foreach { case Versioned(ast: DotAST, astVersion, astOrigin) =>
-    withLog(s"[sourceAST -> versionedFullGraphV] (v: $astVersion, o: $astOrigin)"):
-      val newGraph = ast.toViewerGraph
-      val versionedGraph = versionedFullGraphV.now()
-      if versionedGraph.value == newGraph || astVersion <= versionedGraph.version then
-        simpleLog(s"[sourceAST -> versionedFullGraphV] skip")
-      else
-        versionedFullGraphV.set(Versioned(newGraph, astVersion, astOrigin))
-  }
-
-  // origin: Both
-  versionedFullGraphV.signal.foreach { case Versioned(newGraph, newVersion, newOrigin) =>
-    withLog(s"[versionedFullGraphV -> sourceAST] (v: $newVersion, o: $newOrigin)"):
-      // whoever modified the graph should increment the version, so we don't need to do it here
-      val newAST = graphToDotAST(newGraph)
-      val Versioned(ast, astVersion, origin) = sourceAST.now()
-
-      if ast != newAST && newOrigin != CodeMirror then
-        sourceAST.set(Versioned(newAST, newVersion, newOrigin))
-      else
-        simpleLog(s"[versionedFullGraphV -> sourceAST] skip")
-  }
+  syncVars(
+    source = sourceAST,
+    target = versionedFullGraphV,
+    // -------------------------------
+    labelT  = "[sourceAST -> versionedFullGraphV]", // c -> b
+    toT     = (ast, vg) => Versioned[ViewerGraph](ast.value.toViewerGraph, ast.version, ast.origin),
+    updateT = (ast, vg, vg1) => vg.value != vg1.value && ast.origin == ChangeOrigin.CodeMirror,
+    // -------------------------------
+    labelS  = "[versionedFullGraphV -> sourceAST]", // b -> c
+    toS     = (ast, vg) => Versioned[DotAST](graphToDotAST(vg.value), vg.version, vg.origin),
+    updateS = (ast, vg, ast1) => ast.value != ast1.value && vg.origin == ChangeOrigin.Graph
+  )
 
   // -------------------------------
   // versionedFullGraphV <-> fullGraphV
   // -------------------------------
-
-  // origin: Both
-  for Versioned(newGraph, newVersion, newOrigin) <- versionedFullGraphV.signal do
-    withLog(s"[versionedFullGraphV -> fullGraphV] (v: $newVersion, o: $newOrigin)"):
-      val graph = fullGraphV.now()
-      if graph == newGraph then
-        simpleLog(s"[versionedFullGraphV -> fullGraphV] skip")
-      else
-        fullGraphV.set(newGraph)
-
-  // origin: Graph
-  for newGraph <- fullGraphV.signal do
-    withLog(s"[fullGraphV -> versionedFullGraphV]", resetStep = true):
-      val versionedGraph = versionedFullGraphV.now()
-      if versionedGraph.value != newGraph then
-        versionedFullGraphV.set(Versioned(newGraph, versionedGraph.version + 1, ChangeOrigin.Graph))
-      else
-        simpleLog(s"[fullGraphV -> versionedFullGraphV] skip")
+  syncVars(
+    source = versionedFullGraphV,
+    target = fullGraphV,
+    // -------------------------------
+    labelT  = "[versionedFullGraphV -> fullGraphV]", // b -> a
+    toT     = (vg, g) => vg.value,
+    updateT = (vg, g, g1) => g != g1,
+    // -------------------------------
+    labelS  = "[fullGraphV -> versionedFullGraphV]", // a -> b
+    toS     = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
+    updateS = (vg, g, vg1) => vg.value != g
+  )
 
   dom.console.debug(s"setting initialSource: $initialSource")
   sourceText.set(initialSource)
@@ -191,7 +179,6 @@ class SourceFlow(
       .combineWith(hiddenNodes.signal)
       .map: (fullGraph, hiddenNodes) =>
         withLog("[fullGraphV -> visibleGraph]") {
-          // no need to increment version as this is the visible graph, not the full one
           fullGraph
             .removeUnsupportedFeatures
             .removeNodes(hiddenNodes)
