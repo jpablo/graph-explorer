@@ -164,24 +164,22 @@ class SourceFlow(
   // -------------------------------
 
   // origin: Both
-  versionedFullGraphV.signal.foreach { case Versioned(newGraph, newVersion, newOrigin) =>
+  for Versioned(newGraph, newVersion, newOrigin) <- versionedFullGraphV.signal do
     withLog(s"[versionedFullGraphV -> fullGraphV] (v: $newVersion, o: $newOrigin)"):
       val graph = fullGraphV.now()
       if graph == newGraph then
         simpleLog(s"[versionedFullGraphV -> fullGraphV] skip")
       else
         fullGraphV.set(newGraph)
-  }
 
   // origin: Graph
-  fullGraphV.signal.foreach { newGraph =>
+  for newGraph <- fullGraphV.signal do
     withLog(s"[fullGraphV -> versionedFullGraphV]", resetStep = true):
       val versionedGraph = versionedFullGraphV.now()
       if versionedGraph.value != newGraph then
         versionedFullGraphV.set(Versioned(newGraph, versionedGraph.version + 1, ChangeOrigin.Graph))
       else
         simpleLog(s"[fullGraphV -> versionedFullGraphV] skip")
-  }
 
   dom.console.debug(s"setting initialSource: $initialSource")
   sourceText.set(initialSource)
