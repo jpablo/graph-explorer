@@ -20,6 +20,13 @@ var step = 0
 enum Level:
   case Debug, Info, Warn, Error, None
 
+  def toConsole = this match
+    case Debug => dom.console.debug(_)
+    case Info  => dom.console.info(_)
+    case Warn  => dom.console.warn(_)
+    case Error => dom.console.error(_)
+    case None  => (_: Any) => ()
+
 import org.jpablo.graphexplorer.viewer.state.Level.*
 
 def timeDelta() =
@@ -37,17 +44,15 @@ inline def withLog[A](
 )(body: => A): A =
   step = if resetStep then 1 else step + 1
   val numberedLabel = s"($step) $label"
-  val fn = level match
-    case Debug => dom.console.debug(_)
-    case Info  => dom.console.info(_)
-    case Warn  => dom.console.warn(_)
-    case Error => dom.console.error(_)
-    case None  => (_: Any) => ()
+  val fn = level.toConsole
   fn(s"$numberedLabel [-->]: ${timeDelta()}")
   timeDelta()
   val a = body
 //  fn(s"$numberedLabel [<--]: ${timeDelta()}")
   a
+
+def simpleLog(label: String, level: Level = None): Unit =
+  level.toConsole(label)
 
 case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
 
@@ -56,9 +61,6 @@ class SourceFlow(
     hiddenNodes:   Signal[Set[NodeId]],
     resetView:     () => Unit
 )(using Owner):
-
-//  case class VersionedText(source: String, version: Version, origin: ChangeOrigin)
-//  case class VersionedGraph(graph: ViewerGraph, version: Version, origin: ChangeOrigin)
 
   private val versionedText = Var(Versioned("", 0, ChangeOrigin.CodeMirror))
 
@@ -85,22 +87,21 @@ class SourceFlow(
     val sourceChange = newSource != source
     withLog(
       s"[sourceText -> versionedText] (change: $sourceChange, v: $version, o: $origin)",
-      resetStep = true,
-      level     = Level.Info
+      resetStep = true
     ) {
       if sourceChange then
         versionedText.set(Versioned(newSource, version + 1, ChangeOrigin.CodeMirror))
       else
-        dom.console.warn(s"[sourceText -> versionedText] skip")
+        simpleLog(s"[sourceText -> versionedText] skip")
     }
 
   // origin: Both
   for Versioned(newSource, v, o) <- versionedText.signal do
-    withLog(s"[versionedText -> sourceText] (v: $v, o: $o)", level = Level.Info):
+    withLog(s"[versionedText -> sourceText] (v: $v, o: $o)"):
       if sourceText.now() != newSource then
         sourceText.set(newSource)
       else
-        dom.console.warn(s"[versionedText -> sourceText] skip")
+        simpleLog(s"[versionedText -> sourceText] skip")
 
   // -------------------------------
   // versionedText <-> sourceAST
@@ -108,17 +109,15 @@ class SourceFlow(
 
   // origin: CodeMirror
   for Versioned(newSource, newVersion, newOrigin) <- versionedText.signal do
-    withLog(s"[versionedText -> sourceAST] (v: $newVersion, o: $newOrigin)", level = Level.Info):
+    withLog(s"[versionedText -> sourceAST] (v: $newVersion, o: $newOrigin)"):
       val newAST = DotText(newSource)
         .parseAST
         .headOption
         .getOrElse(DotAST.empty)
         .attachInternalAttributes
       val Versioned(ast, astVersion, astOrigin) = sourceAST.now()
-      pprint.log(newVersion)
-      pprint.log(astVersion)
       if ast == newAST || newVersion <= astVersion then
-        dom.console.warn(s"[sourceText -> sourceAST] skip")
+        simpleLog(s"[sourceText -> sourceAST] skip")
       else
         sourceAST.set(Versioned(newAST, newVersion, newOrigin))
 
@@ -126,40 +125,38 @@ class SourceFlow(
   for (Versioned(newAST, newVersion, newOrigin), Versioned(source, version, origin)) <-
       sourceAST.signal.withCurrentValueOf(versionedText.signal)
   do
-    withLog(s"[sourceAST -> versionedText] (v: $newVersion, o: $newOrigin)", level = Level.Info):
+    withLog(s"[sourceAST -> versionedText] (v: $newVersion, o: $newOrigin)"):
       // this will remove extra spaces and newlines
       val newSource = newAST.optimize.render(keepInternal = false)
       if newSource != source && newOrigin != ChangeOrigin.CodeMirror then
         versionedText.set(Versioned(newSource, newVersion, newOrigin))
       else
-        dom.console.warn(s"[sourceAST -> versionedText] skip")
+        simpleLog(s"[sourceAST -> versionedText] skip")
 
   // -------------------------------
   // sourceAST <-> versionedFullGraphV
   // -------------------------------
   sourceAST.signal.foreach { case Versioned(ast: DotAST, astVersion, astOrigin) =>
-    withLog(s"[sourceAST -> versionedFullGraphV] (v: $astVersion, o: $astOrigin)", level = Level.Info):
+    withLog(s"[sourceAST -> versionedFullGraphV] (v: $astVersion, o: $astOrigin)"):
       val newGraph = ast.toViewerGraph
       val versionedGraph = versionedFullGraphV.now()
       if versionedGraph.value == newGraph || astVersion <= versionedGraph.version then
-        dom.console.warn(s"[sourceAST -> versionedFullGraphV] skip")
+        simpleLog(s"[sourceAST -> versionedFullGraphV] skip")
       else
         versionedFullGraphV.set(Versioned(newGraph, astVersion, astOrigin))
   }
 
   // origin: Both
   versionedFullGraphV.signal.foreach { case Versioned(newGraph, newVersion, newOrigin) =>
-    withLog(s"[versionedFullGraphV -> sourceAST] (v: $newVersion, o: $newOrigin)", level = Level.Info):
+    withLog(s"[versionedFullGraphV -> sourceAST] (v: $newVersion, o: $newOrigin)"):
       // whoever modified the graph should increment the version, so we don't need to do it here
       val newAST = graphToDotAST(newGraph)
       val Versioned(ast, astVersion, origin) = sourceAST.now()
 
-      pprint.log(newOrigin)
-
       if ast != newAST && newOrigin != CodeMirror then
         sourceAST.set(Versioned(newAST, newVersion, newOrigin))
       else
-        dom.console.warn(s"[versionedFullGraphV -> sourceAST] skip")
+        simpleLog(s"[versionedFullGraphV -> sourceAST] skip")
   }
 
   // -------------------------------
@@ -168,22 +165,22 @@ class SourceFlow(
 
   // origin: Both
   versionedFullGraphV.signal.foreach { case Versioned(newGraph, newVersion, newOrigin) =>
-    withLog(s"[versionedFullGraphV -> fullGraphV] (v: $newVersion, o: $newOrigin)", level = Level.Info):
+    withLog(s"[versionedFullGraphV -> fullGraphV] (v: $newVersion, o: $newOrigin)"):
       val graph = fullGraphV.now()
       if graph == newGraph then
-        dom.console.warn(s"[versionedFullGraphV -> fullGraphV] skip")
+        simpleLog(s"[versionedFullGraphV -> fullGraphV] skip")
       else
         fullGraphV.set(newGraph)
   }
 
   // origin: Graph
   fullGraphV.signal.foreach { newGraph =>
-    withLog(s"[fullGraphV -> versionedFullGraphV]", level = Level.Info, resetStep = true):
+    withLog(s"[fullGraphV -> versionedFullGraphV]", resetStep = true):
       val versionedGraph = versionedFullGraphV.now()
       if versionedGraph.value != newGraph then
         versionedFullGraphV.set(Versioned(newGraph, versionedGraph.version + 1, ChangeOrigin.Graph))
       else
-        dom.console.warn(s"[fullGraphV -> versionedFullGraphV] skip")
+        simpleLog(s"[fullGraphV -> versionedFullGraphV] skip")
   }
 
   dom.console.debug(s"setting initialSource: $initialSource")
