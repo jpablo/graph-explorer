@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.widgets.{Checked, InputType, InputWithValue, SelectWithValue}
 

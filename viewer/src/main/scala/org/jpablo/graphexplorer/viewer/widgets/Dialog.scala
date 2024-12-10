@@ -4,7 +4,6 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.domUtils.dialog
-import org.scalajs.dom.HTMLDialogElement
 
 def SimpleDialog(open: Var[Boolean], contents: Modifier[ReactiveHtmlElement.Base]*) =
   Dialog(mods = cls("modal-open") <-- open.signal)(contents)(

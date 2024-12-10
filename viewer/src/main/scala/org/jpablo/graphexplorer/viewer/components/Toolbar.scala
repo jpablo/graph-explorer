@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*

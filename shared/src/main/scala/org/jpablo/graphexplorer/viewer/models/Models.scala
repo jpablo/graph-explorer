@@ -92,7 +92,7 @@ object Arrow:
         Some(Arrow(NodeId(l.trim), NodeId(r.trim), Attributes(Map(idAttributeKey -> AttrValue(idAttr)))))
       case _ => None
 
-  given scala.Ordering[Arrow] with
+  given scala.Ordering[Arrow]:
     def compare(x: Arrow, y: Arrow): Int =
       val s = x.source.value `compareTo` y.source.value
       if s != 0 then s

@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.codeMirror
 
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.scalajs.dom.HTMLDivElement
 import typings.codemirrorState.mod.TransactionSpec
 
 import scala.scalajs.js

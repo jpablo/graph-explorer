@@ -6,8 +6,8 @@ import io.laminext.syntax.core.*
 def Drawer(
     id:        String,
     drawerEnd: Boolean = false,
-    content:   Div => Div = identity,
-    sidebar:   Div => Div = identity
+    content:   Div -> Div = identity[Div],
+    sidebar:   Div -> Div = identity[Div]
 ) =
   val drawerOpen = Var(true)
   div(

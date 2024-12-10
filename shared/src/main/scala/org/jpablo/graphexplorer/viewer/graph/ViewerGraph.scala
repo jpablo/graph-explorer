@@ -6,28 +6,16 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
-// import scala.collection.mutable
-//import org.jpablo.graphexplorer.viewer.formats.CSV
 import org.jpablo.graphexplorer.viewer.models.*
-//import org.jpablo.graphexplorer.viewer.tree.Tree
 
 /** A simplified representation of entities and subtype relationships
-  *
-  * @param arrows
-  *   Only NodeIds are used for ends of arrows. For the full definition of a node use the nodes field.
-  * @param nodeById
-  *   Either isolated nodes or full node definitions for arrow ends
   */
-
 case class ViewerGraph(
     id:   String,
     data: ViewerGraphData,
     tpe:  String = "digraph"
 ):
-  // Efficient access to elements
-//  def arrowsById = data.arrows
   val nodeById = data.nodes
-//  def groupsById = data.groups
   val nodesSet = data.nodesSet
   val arrowsSet = data.arrowsSet
 
@@ -90,17 +78,14 @@ case class ViewerGraph(
     val newSeq = data.maxArrowSequence(source, target)
     val arrow = Arrow(source, target, seq = newSeq + 1)
     this
-//      .modify(_.data).using(_.modifyArrows(_.addOne(arrow.id -> arrow)))
       .modify(_.data).using(_.addArrow(arrow))
       .modify(_.data).using(_.addMembership(arrow.id, Some(data.rootNodeId)))
-//      .modify(_.data.memberships).using(_.addOne(arrow.id -> Some(data.rootNodeId)))
 
   def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
     val newNode = node(randomId())
     val newArrow = Arrow(source, newNode.id)
     this
       .modifyAll(_.data.nodes).using(_ + (newNode.id -> newNode))
-//      .modify(_.data).using(_.modifyArrows(_.addOne(newArrow.id -> newArrow)))
       .modify(_.data).using(_.addArrow(newArrow))
 
   def addRandomNode(): ViewerGraph =
@@ -116,7 +101,6 @@ case class ViewerGraph(
       case AttributeTarget.edge  => root.edgeAttrs.values
 
   def updateRootAttributes(target: AttributeTarget)(attrs: Map[String, AttrValue]): ViewerGraph =
-//    println("ViewerGraph # updateRootAttributes")
     val modifyRoot =
       target match
         case AttributeTarget.graph => root.modify(_.attrs.values)
@@ -125,7 +109,6 @@ case class ViewerGraph(
     this
       .modify(_.data.groups)
       .using(_ + (root.id -> modifyRoot.using(_ ++ attrs)))
-//      .nextVersion()
 
   val init = Map.empty[String, AttrValue]
 
@@ -140,16 +123,6 @@ case class ViewerGraph(
 
     val arrowsToUpdate: Arrows = data.filterArrows((id, _) => id in arrowIdsToUpdate)
     val updatedArrows = arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
-    //  val updatedArrows = arrowsToUpdate.mapValuesInPlace((_, a) => a.mergeAttrs(attrs))
-
-    // val updatedArrows =
-    //   arrowIdsToUpdate.foldLeft(data.arrows): (arrowsMap, arrowId) =>
-    //     arrowsMap
-    //       .updatedWith(arrowId) {
-    //         _.fold(
-    //           Some(Arrow(arrowId.source, arrowId.target, attrs.values))
-    //         )(a => Some(a.mergeAttrs(attrs)))
-    //       }
 
     val endpointsToUpdate = arrowsToUpdate.values.flatMap(_.endpoints).toSet & idsToUpdate
     // only update these if they are in ids
@@ -173,7 +146,7 @@ case class ViewerGraph(
         nodes       = updatedNodes,
         memberships = data.memberships ++ updatedMembership
       )
-    ) // .nextVersion()
+    )
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */

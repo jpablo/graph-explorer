@@ -4,7 +4,7 @@ import org.scalajs.linker.interface.{ModuleSplitStyle, OutputPatterns}
 
 val graphExplorerVersion = "0.3.0"
 
-val scala3Version = "3.5.0"
+val scala3Version = "3.6.2"
 val scalametaVersion = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
 val zioVersion = "2.1.1"
@@ -22,6 +22,9 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
     "-Wsafe-init",
     "-language:implicitConversions",
     "-language:experimental.namedTuples",
+    "-language:experimental.betterFors",
+    "-language:experimental.pureFunctions",
+    "-language:experimental.captureChecking",
     "-source:future",
     "-deprecation",
     "-Wunused:imports",

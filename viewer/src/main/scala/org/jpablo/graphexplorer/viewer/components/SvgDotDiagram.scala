@@ -30,7 +30,7 @@ case class SvgUnit(value: Double) extends AnyVal:
 object SvgUnit:
   val origin: Point2d[SvgUnit] = (SvgUnit(0.0), SvgUnit(0.0))
 
-  given MathOps[SvgUnit] with
+  given MathOps[SvgUnit]:
     extension (a: SvgUnit)
       def -(b: SvgUnit): SvgUnit = SvgUnit(a.value - b.value)
       def *(z: SvgUnit): SvgUnit = SvgUnit(a.value * z.value)

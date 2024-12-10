@@ -46,19 +46,18 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // Dot ~> SVGSVGElement
   val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
     visibleDOT
-//      .tapEach { _ => dom.console.group("svgDiagramElement") }
       .flatMapSwitch { dotText =>
         withLog("[svgDiagramElement]:step 1 (text.toSvg)")(dotText.toSvg)
       }
       .map { svg =>
-        withLog("[svgDiagramElement]:step 2 (svgWithTransform)")(SvgDotDiagram.svgWithTransform(
-          transform,
-          startNode.signal,
-          endPos.signal,
-          isDragging.signal
-        )(svg))
+        withLog("[svgDiagramElement]:step 2 (svgWithTransform)"):
+          SvgDotDiagram.svgWithTransform(
+            transform,
+            startNode.signal,
+            endPos.signal,
+            isDragging.signal
+          )(svg)
       }
-//      .tapEach { _ => dom.console.groupEnd() }
 
   // -------------------------------
   // this should be a subset of visibleNodesV keys
@@ -140,7 +139,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     sourceFlow.fullGraphV
       .zoom(_.getRootAttributes(AttributeTarget.graph))(
         { (graph, attrs) =>
-//          pprint.log(graph.version)
           graph.updateRootAttributes(AttributeTarget.graph)(attrs)
         }
       )
@@ -172,7 +170,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def groupSelection() =
     ()
 
-  def addEdge() =
+  def addNode() =
     sourceFlow.fullGraphV.update: fullGraph =>
       val selection = diagramSelection.now()
       if selection.isEmpty then
@@ -183,7 +181,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def handleKeyDown(ke: KeyboardEvent): Unit =
     ke.key match
       case "Backspace" => deleteSelection()
-      case "a"         => addEdge()
+      case "a"         => addNode()
       case "g"         => groupSelection()
       case _           => ()
 

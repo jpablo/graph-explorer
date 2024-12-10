@@ -63,20 +63,21 @@ def syncVars[S, T](
     updateT: (S, T, T) => Boolean,
     labelS:  String = "",
     toS:     (S, T) => S,
-    updateS: (S, T, S) => Boolean
+    updateS: (S, T, S) => Boolean,
+    level:   Level = None
 )(using Owner): Unit =
   // source -> target
   for s <- source.signal do
     val t = target.now()
     val t1 = toT(s, t)
     if updateT(s, t, t1) then
-      withLog(labelT, level = Debug)(target.set(t1))
+      withLog(labelT, level = level)(target.set(t1))
   // target -> source
   for t <- target.signal do
     val s = source.now()
     val s1 = toS(s, t)
     if updateS(s, t, s1) then
-      withLog(labelS, level = Debug)(source.set(s1))
+      withLog(labelS, level = level)(source.set(s1))
 end syncVars
 
 class SourceFlow(
@@ -166,9 +167,13 @@ class SourceFlow(
     toT     = (vg, g) => vg.value,
     updateT = (vg, g, g1) => g != g1,
     // -------------------------------
-    labelS  = "[fullGraphV -> versionedFullGraphV]", // a -> b
-    toS     = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
-    updateS = (vg, g, vg1) => vg.value != g
+    labelS = "[fullGraphV -> versionedFullGraphV]", // a -> b
+    toS    = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
+    updateS = { (vg, g, vg1) =>
+      pprint.log(g)
+      vg.value != g
+    },
+    level = Info
   )
 
   dom.console.debug(s"setting initialSource: $initialSource")

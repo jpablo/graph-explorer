@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.widgets
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 
 def FormInput(
     labelText:       String,
