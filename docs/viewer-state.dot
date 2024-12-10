@@ -24,24 +24,23 @@ digraph "G" {
         label="fullGraphV *",
         fillcolor="#cfee96"
     ];
-    "sourceTextAndAST" [fillcolor="#fdefaa"];
+    "versionedText" [fillcolor="#fdefaa"];
+    "versionedFullGraphV" [fillcolor="#fdefaa"];
     "visibleDOT"
     "visibleAST"
-    "fullGraph"
     "sourceText"
     "svgDiagramElement"
     "sourceAST"
     "visibleGraph"
-    "fullGraph" -> "visibleGraph";
-    "sourceTextAndAST" -> "sourceText" [dir="both"];
-    "sourceAST" -> "fullGraphV" [
-        dir="both",
-        style="dashed",
-        arrowtail="halfopen"
-    ];
-    "visibleAST" -> "visibleDOT";
-    "fullGraphV" -> "fullGraph";
+
+    "sourceText" -> "versionedText" [dir="both"];
+    "versionedText" -> "sourceAST" [dir="both"];
+    "sourceAST" -> "versionedFullGraphV" [dir="both"];
+    "versionedFullGraphV" -> "fullGraphV" [dir="both"];
+
+    "fullGraphV" -> "visibleGraph";
     "visibleGraph" -> "visibleAST";
+    "visibleAST" -> "visibleDOT";
+
     "visibleDOT" -> "svgDiagramElement";
-    "sourceTextAndAST" -> "sourceAST" [dir="both"];
 }
