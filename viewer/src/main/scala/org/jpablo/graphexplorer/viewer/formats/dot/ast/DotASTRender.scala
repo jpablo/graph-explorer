@@ -11,5 +11,5 @@ extension (ast: DotAST)
     DotFormatter.renderFormat(ast, keepInternal)
 
   def renderToDot: DotText =
-    DotText(ast.render(keepInternal = true), ast.version)
+    DotText(ast.render(keepInternal = true))
 

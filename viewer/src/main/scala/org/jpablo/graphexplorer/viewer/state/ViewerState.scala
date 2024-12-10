@@ -48,10 +48,10 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     visibleDOT
 //      .tapEach { _ => dom.console.group("svgDiagramElement") }
       .flatMapSwitch { dotText =>
-        log("[svgDiagramElement]:step 1 (text.toSvg)")(dotText.toSvg)
+        withLog("[svgDiagramElement]:step 1 (text.toSvg)")(dotText.toSvg)
       }
       .map { svg =>
-        log("[svgDiagramElement]:step 2 (svgWithTransform)")(SvgDotDiagram.svgWithTransform(
+        withLog("[svgDiagramElement]:step 2 (svgWithTransform)")(SvgDotDiagram.svgWithTransform(
           transform,
           startNode.signal,
           endPos.signal,

@@ -6,7 +6,7 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.selection.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
-import org.jpablo.graphexplorer.viewer.state.{ViewerState, log}
+import org.jpablo.graphexplorer.viewer.state.{ViewerState, withLog}
 import org.scalajs.dom
 
 def CanvasContainer(
@@ -20,7 +20,7 @@ def CanvasContainer(
     tabIndex := 0,
     fitDiagram --> state.resetView(),
     child <-- state.svgDiagramElement.tapEach { e =>
-      log("[CanvasContainer]: svgDiagramElement")(())
+      withLog("[CanvasContainer]: svgDiagramElement")(())
     },
     onKeyDown.mapToEvent --> state.handleKeyDown,
     onClick.preventDefault --> state.diagramSelection.handleSvgClick,

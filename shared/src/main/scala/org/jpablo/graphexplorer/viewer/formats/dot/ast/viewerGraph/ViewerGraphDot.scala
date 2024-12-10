@@ -9,7 +9,7 @@ def graphToDotAST(graph: ViewerGraph): DotAST =
     tpe      = graph.tpe,
     children = graphDataToAST(graph.data),
     id       = Some(graph.id),
-    version  = graph.version
+//    version  = graph.version
   )
 
 private def nodeToStmt(node: ViewerNode): NodeStmt =

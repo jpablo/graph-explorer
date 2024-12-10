@@ -3,12 +3,11 @@ package org.jpablo.graphexplorer.viewer.formats.dot
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
-import org.jpablo.graphexplorer.viewer.utils.Version
 import org.scalajs.dom.SVGSVGElement
 
 import scala.util.{Failure, Success}
 
-case class DotText(value: String, version: Version):
+case class DotText(value: String):
 //  org.scalajs.dom.console.log(value)
 
   override def toString: String =
@@ -26,7 +25,7 @@ case class DotText(value: String, version: Version):
           List.empty
         case Success(asts) =>
 //          dom.console.debug(s"<== after DotParserT.parse: $asts")
-          asts.map(_.copy(version = version))
+          asts //.map(_.copy(version = version))
 
   def toSvg: Signal[SVGSVGElement] =
     DotText.gvInstance.renderToSvg(this)
@@ -34,7 +33,7 @@ case class DotText(value: String, version: Version):
 object DotText:
   private val gvInstance = new Graphviz
 
-  lazy val empty = DotText("digraph G { } ", 0)
+  lazy val empty = DotText("digraph G { } ")
 
 
 end DotText

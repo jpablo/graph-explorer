@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
-import org.jpablo.graphexplorer.viewer.state.log
+import org.jpablo.graphexplorer.viewer.state.withLog
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 
@@ -16,7 +16,7 @@ class Graphviz:
     instance
       .map { vizOpt =>
         vizOpt.map: viz =>
-          log("[renderSVGElement][1]")(viz.renderSVGElement(g).asInstanceOf[SVGSVGElement])
+          withLog("[renderSVGElement][1]")(viz.renderSVGElement(g).asInstanceOf[SVGSVGElement])
       }
 //      .recoverWith:
 //        case e: Throwable =>

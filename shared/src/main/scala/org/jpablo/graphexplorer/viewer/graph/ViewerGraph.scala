@@ -5,7 +5,6 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
-import org.jpablo.graphexplorer.viewer.utils.Version
 
 // import scala.collection.mutable
 //import org.jpablo.graphexplorer.viewer.formats.CSV
@@ -24,7 +23,8 @@ case class ViewerGraph(
     id:      String,
     data:    ViewerGraphData,
     tpe:     String = "digraph",
-    version: Version = 0
+//    version: Version = 0,
+//    origin:  ChangeOrigin = ChangeOrigin.CodeMirror
 ):
   // Efficient access to elements
 //  def arrowsById = data.arrows
@@ -33,9 +33,9 @@ case class ViewerGraph(
   val nodesSet = data.nodesSet
   val arrowsSet = data.arrowsSet
 
-  def nextVersion(): ViewerGraph =
+//  def nextVersion(): ViewerGraph =
 //    println(s"ViewerGraph # nextVersion(): $version -> ${version + 1}")
-    copy(version = version + 1)
+//    copy(version = version + 1/*, origin = ChangeOrigin.Graph*/)
 
   def summary =
     ViewerGraph.Summary(
@@ -131,7 +131,7 @@ case class ViewerGraph(
     this
       .modify(_.data.groups)
       .using(_ + (root.id -> modifyRoot.using(_ ++ attrs)))
-      .nextVersion()
+//      .nextVersion()
 
   val init = Map.empty[String, AttrValue]
 
@@ -179,7 +179,7 @@ case class ViewerGraph(
         nodes       = updatedNodes,
         memberships = data.memberships ++ updatedMembership
       )
-    )
+    )//.nextVersion()
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */

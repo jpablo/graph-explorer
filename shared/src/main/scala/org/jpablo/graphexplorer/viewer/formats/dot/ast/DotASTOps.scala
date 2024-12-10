@@ -17,7 +17,7 @@ extension (ast: DotAST)
     ast.id match
       case Some(id) =>
         val flattened = findAllDirectChildren(ast.asSubgraph)
-        ViewerGraph(id, flattened.toViewerGraphData, ast.tpe, ast.version)
+        ViewerGraph(id, flattened.toViewerGraphData, ast.tpe)
       case None =>
         pprint.log(ast)
         assert(ast.id.nonEmpty, "DotAST must have an id")

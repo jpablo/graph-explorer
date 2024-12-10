@@ -9,3 +9,6 @@ trait Utils:
   def nextVersion(): Version
 
 object Utils extends UtilsPlatform
+
+enum ChangeOrigin:
+  case CodeMirror, Graph
