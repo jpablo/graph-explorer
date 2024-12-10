@@ -85,19 +85,21 @@ class SourceFlow(
     resetView:     () => Unit
 )(using Owner):
 
+  // updated by CodeMirror (a)
+  val sourceText: Var[String] = Var("")
+  // (b)
   private val versionedText = Var(Versioned("", 0, ChangeOrigin.CodeMirror))
 
-  // updated by CodeMirror
-  val sourceText: Var[String] = Var("")
+  // (c)
+  private val sourceAST: Var[Versioned[DotAST]] = Var(Versioned(DotAST.empty, 0, ChangeOrigin.CodeMirror))
 
+  // (b)
   private val versionedFullGraphV = Var(Versioned(ViewerGraph.empty, 0, ChangeOrigin.CodeMirror))
 
-  // updated by the UI
+  // updated by the UI (a)
   val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.empty)
 
   val fullGraph = fullGraphV.signal
-
-  private val sourceAST: Var[Versioned[DotAST]] = Var(Versioned(DotAST.empty, 0, ChangeOrigin.CodeMirror))
 
   // -------------------------------
   // sourceText <-> versionedText
