@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats
 
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.ElementId
 
 import scala.collection.mutable.ArrayBuffer
 import scala.compiletime.asMatchable
@@ -23,7 +23,7 @@ case class CSV(rows: Array[Array[String]]):
   def toViewerGraph: ViewerGraph =
     val arrows =
       for row <- rows if row.length >= 2 yield
-        NodeId(row(0)) -> NodeId(row(1))
+        ElementId(row(0)) -> ElementId(row(1))
     ViewerGraph.basic(arrows.toSet)
 
 object CSV:

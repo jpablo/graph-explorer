@@ -6,10 +6,10 @@ import org.jpablo.graphexplorer.viewer.models.*
 
 class ViewerGraphSpec extends ScalaCheckSuite:
 
-  val rootId = NodeId("G")
-  val a = NodeId("a")
-  val b = NodeId("b")
-  val c = NodeId("c")
+  val rootId = ElementId("G")
+  val a = ElementId("a")
+  val b = ElementId("b")
+  val c = ElementId("c")
 
   test("addEdge should add an edge between two nodes") {
     val graph =
@@ -24,7 +24,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val edgeId = NodeId("a->b:1")
+    val edgeId = ElementId("a->b:1")
     val expected =
       ViewerGraph(
         "G",
@@ -43,7 +43,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   }
 
   test("updateAttributes should update the attributes of an edge") {
-    val edgeId = NodeId("a->b:0")
+    val edgeId = ElementId("a->b:0")
     val graph =
       ViewerGraph(
         "G",

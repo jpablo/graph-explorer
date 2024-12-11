@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.ElementId
 import org.jpablo.graphexplorer.viewer.utils.Utils
 
 case class Project(
@@ -13,6 +13,6 @@ case class Project(
 
 case class Page(
     id:             String = Utils.randomUUID(),
-    hiddenNodes:    Set[NodeId] = Set.empty,
+    hiddenNodes:    Set[ElementId] = Set.empty,
     diagramOptions: DiagramOptions = DiagramOptions()
 )

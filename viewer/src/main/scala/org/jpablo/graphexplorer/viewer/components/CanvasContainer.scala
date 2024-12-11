@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.selection.*
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.logging.withLog
 
@@ -30,7 +30,7 @@ def CanvasContainer(
     // --------------------------------
     onMouseDown --> { event =>
       findSelectableElement(event).foreach:
-        case (endNodeId: NodeId, _) =>
+        case (endNodeId: ElementId, _) =>
           state.handleMouseDown(endNodeId, (event.clientX, event.clientY))
         case _ => ()
     },
@@ -39,7 +39,7 @@ def CanvasContainer(
     },
     onMouseUp --> { event =>
       findSelectableElement(event).map(_._1) match
-        case Some(id: NodeId) => state.handleMouseUp(Some(id))
+        case Some(id: ElementId) => state.handleMouseUp(Some(id))
         case _                => state.handleMouseUp(None)
     },
     // --------------------------------
@@ -55,7 +55,7 @@ def CanvasContainer(
       }
   )
 
-def findSelectableElement(event: dom.MouseEvent): Option[(NodeId | Option[Arrow], Boolean)] =
+def findSelectableElement(event: dom.MouseEvent): Option[(ElementId | Option[Arrow], Boolean)] =
   event.target
     .asInstanceOf[dom.Element]
     .parentNodes

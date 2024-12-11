@@ -4,13 +4,13 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.findSelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId}
 import org.scalajs.dom
 import upickle.default.writeJs
 
 import scala.scalajs.js.JSON
 
-type SelectedNodes = Set[NodeId]
+type SelectedNodes = Set[ElementId]
 
 class DiagramSelectionOps:
   private val selectedNodes: Var[SelectedNodes] = Var(Set.empty)
@@ -20,13 +20,13 @@ class DiagramSelectionOps:
 
   def now(): SelectedNodes = selectedNodes.now()
 
-  def toggle(ss: NodeId*): Unit = selectedNodes.update(ss.foldLeft(_)(_.toggle(_)))
+  def toggle(ss: ElementId*): Unit = selectedNodes.update(ss.foldLeft(_)(_.toggle(_)))
 
   def set(ss:    SelectedNodes): Unit = selectedNodes.set(ss)
   def add(ss:    SelectedNodes): Unit = selectedNodes.update(_ ++ ss)
   def remove(ss: SelectedNodes): Unit = selectedNodes.update(_ -- ss)
 
-  def contains(s: NodeId): Boolean = selectedNodes.now().contains(s)
+  def contains(s: ElementId): Boolean = selectedNodes.now().contains(s)
 
   def clear(): Unit = selectedNodes.set(Set.empty)
 
@@ -47,11 +47,11 @@ class DiagramSelectionOps:
   def handleSvgClick(event: dom.MouseEvent): Unit =
     findSelectableElement(event) match
       case None                            => clear()
-      case Some((nodeId: NodeId, metaKey)) => handleClickOnNode(nodeId)(metaKey)
+      case Some((nodeId: ElementId, metaKey)) => handleClickOnNode(nodeId)(metaKey)
       case Some((Some(arrow), metaKey))    => handleClickOnArrow(arrow)(metaKey)
       case _                               => ()
 
-  def handleClickOnNode(nodeId: NodeId)(metaKey: Boolean) =
+  def handleClickOnNode(nodeId: ElementId)(metaKey: Boolean) =
     if metaKey then
       toggle(nodeId)
     else

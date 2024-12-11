@@ -14,9 +14,9 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expanded = edgeStmt.expandArrows
     val expected =
       List(
-        List(Arrow(NodeId("a"), NodeId("b"), Attributes(Map()), 1)),
-        List(Arrow(NodeId("b"), NodeId("c"), Attributes(Map()), 2)),
-        List(Arrow(NodeId("c"), NodeId("d"), Attributes(Map()), 3))
+        List(Arrow(ElementId("a"), ElementId("b"), Attributes(Map()), 1)),
+        List(Arrow(ElementId("b"), ElementId("c"), Attributes(Map()), 2)),
+        List(Arrow(ElementId("c"), ElementId("d"), Attributes(Map()), 3))
       )
     assertEquals(expanded, expected)
   }
@@ -35,8 +35,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> AttrValue("1"))), 1),
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 2)
+          Arrow(ElementId("a"), ElementId("b"), Attributes(Map("id" -> AttrValue("1"))), 1),
+          Arrow(ElementId("a"), ElementId("c"), Attributes(Map("id" -> AttrValue("1"))), 2)
         )
       )
     assertEquals(expanded, expected)
@@ -56,8 +56,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 1),
-          Arrow(NodeId("b"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 2)
+          Arrow(ElementId("a"), ElementId("c"), Attributes(Map("id" -> AttrValue("1"))), 1),
+          Arrow(ElementId("b"), ElementId("c"), Attributes(Map("id" -> AttrValue("1"))), 2)
         )
       )
     assertEquals(expanded, expected)
@@ -77,10 +77,10 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 1),
-          Arrow(NodeId("a"), NodeId("d"), Attributes(Map("id" -> AttrValue("1"))), 2),
-          Arrow(NodeId("b"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 3),
-          Arrow(NodeId("b"), NodeId("d"), Attributes(Map("id" -> AttrValue("1"))), 4)
+          Arrow(ElementId("a"), ElementId("c"), Attributes(Map("id" -> AttrValue("1"))), 1),
+          Arrow(ElementId("a"), ElementId("d"), Attributes(Map("id" -> AttrValue("1"))), 2),
+          Arrow(ElementId("b"), ElementId("c"), Attributes(Map("id" -> AttrValue("1"))), 3),
+          Arrow(ElementId("b"), ElementId("d"), Attributes(Map("id" -> AttrValue("1"))), 4)
         )
       )
     assertEquals(expanded, expected)

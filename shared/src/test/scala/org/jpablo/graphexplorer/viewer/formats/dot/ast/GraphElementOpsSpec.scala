@@ -6,16 +6,16 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToAS
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, ElementId, ViewerGroup, ViewerNode}
 
 class GraphElementOpsSpec extends ScalaCheckSuite:
 
   val root = ViewerGraph.defaultRootId
-  val group0 = NodeId("cluster_0")
-  val group1 = NodeId("cluster_1")
+  val group0 = ElementId("cluster_0")
+  val group1 = ElementId("cluster_1")
 
   test("findAllDirectChildren should return all nodes") {
-    val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
+    val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
     val expectedNodes =
       List(
         node("a"),
@@ -40,7 +40,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
   }
 
   test("findAllDirectChildren should return all groups") {
-    val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
+    val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
     val expectedGroups =
       List(
         ViewerGroup(root),
@@ -52,7 +52,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 
   test("findAllDirectChildren in empty graphs should return all memberships") {
     val emptyAST = DotAST(tpe = "digraph", children = List(), id = Some(root.value))
-    val data = toFlattenedElements(emptyAST.asSubgraph)
+    val data = emptyAST.asSubgraph.toFlattenedElements
     val expected =
       FlattenedGraphElement(
         arrows      = List(),
@@ -69,16 +69,16 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
     val expectedMemberships =
       List(
-        NodeId("b->c:4") -> Some(root),
-        NodeId("x->a:3") -> Some(root),
-        NodeId("d")      -> Some(group1),
+        ElementId("b->c:4") -> Some(root),
+        ElementId("x->a:3") -> Some(root),
+        ElementId("d")      -> Some(group1),
         group1           -> Some(group0),
-        NodeId("a->b:2") -> Some(group0),
-        NodeId("z")      -> Some(group0),
+        ElementId("a->b:2") -> Some(group0),
+        ElementId("z")      -> Some(group0),
         group0           -> Some(root),
-        NodeId("x->y:1") -> Some(root),
-        NodeId("b")      -> Some(root),
-        NodeId("a")      -> Some(root),
+        ElementId("x->y:1") -> Some(root),
+        ElementId("b")      -> Some(root),
+        ElementId("a")      -> Some(root),
         root             -> None
       )
 

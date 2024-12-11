@@ -2,20 +2,20 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, SubGraph}
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, ElementId, ViewerGroup, ViewerNode}
 
-type Arrows = Map[NodeId, Arrow]
-type Memberships = Map[NodeId, Option[NodeId]]
+type Arrows = Map[ElementId, Arrow]
+type Memberships = Map[ElementId, Option[ElementId]]
 
 case class ViewerGraphData(
     arrows:      Arrows,
-    groups:      Map[NodeId, ViewerGroup],
-    nodes:       Map[NodeId, ViewerNode],
+    groups:      Map[ElementId, ViewerGroup],
+    nodes:       Map[ElementId, ViewerNode],
     memberships: Memberships
 ):
   assert(memberships.nonEmpty, "At least one membership is required (the root node)")
   // fail fast if no root node is provided
-  val rootNodeId: NodeId =
+  val rootNodeId: ElementId =
     memberships
       .collectFirst:
         case (id, None) => id
@@ -26,10 +26,10 @@ case class ViewerGraphData(
   val arrowValues: Iterable[Arrow] = arrows.values
   val arrowsSet: Set[Arrow] = arrowValues.toSet
 
-  def filterArrows(f: ((NodeId, Arrow)) => Boolean) =
+  def filterArrows(f: ((ElementId, Arrow)) => Boolean) =
     arrows.filter(f)
 
-  def addArrow(source: NodeId, target: NodeId): ViewerGraphData =
+  def addArrow(source: ElementId, target: ElementId): ViewerGraphData =
     val newSeq = maxArrowSequence(source, target)
     val arrow = Arrow(source, target, seq = newSeq + 1)
     copy(
@@ -40,7 +40,7 @@ case class ViewerGraphData(
   def concatArrows(other: Arrows) =
     arrows ++ other
 
-  def addToGroup(nodeId: NodeId, groupId: NodeId): ViewerGraphData =
+  def addToGroup(nodeId: ElementId, groupId: ElementId): ViewerGraphData =
     copy(memberships = memberships + (nodeId -> Some(groupId)))
 
   def removeEmptyGroups: ViewerGraphData =
@@ -48,8 +48,8 @@ case class ViewerGraphData(
     val emptyGroups = groups.keySet -- nonEmptyGroups
     copy(groups = groups -- emptyGroups)
 
-  def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraphData =
-    val groupId = NodeId(s"cluster_${SubGraph.randomId()}")
+  def addToNewGroup(ids: Set[ElementId], label: String = ""): ViewerGraphData =
+    val groupId = ElementId(s"cluster_${SubGraph.randomId()}")
     val group = ViewerGroup(groupId, Attributes(Map("label" -> AttrValue(label))))
     val groupMem = groupId -> Some(rootNodeId)
     val idsMem = ids.map(_ -> Some(groupId))
@@ -59,7 +59,7 @@ case class ViewerGraphData(
       memberships = (memberships ++ idsMem) + groupMem
     ).removeEmptyGroups
 
-  def addNode(nodeId: NodeId, label: String = "", groupId: Option[NodeId] = None): ViewerGraphData =
+  def addNode(nodeId: ElementId, label: String = "", groupId: Option[ElementId] = None): ViewerGraphData =
     copy(
       nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map("label" -> AttrValue(label))))),
       memberships = memberships + (nodeId -> groupId.orElse(Some(rootNodeId)))
@@ -70,7 +70,7 @@ case class ViewerGraphData(
 
   val nodesSet = nodes.values.toSet
 
-  def removeNodes(ids: Set[NodeId]): ViewerGraphData =
+  def removeNodes(ids: Set[ElementId]): ViewerGraphData =
     val remainingArrows =
       arrows -- arrows.keys.filter(id => ids.contains(arrows(id).source) || ids.contains(arrows(id).target))
     copy(
@@ -80,17 +80,17 @@ case class ViewerGraphData(
       memberships = memberships.removedAll(ids)
     )
 
-  def arrowSequences(source: NodeId, target: NodeId): List[Int] =
+  def arrowSequences(source: ElementId, target: ElementId): List[Int] =
     arrowValues
       .filter(a => a.source == source && a.target == target)
       .map(_.seq)
       .toList
 
-  def maxArrowSequence(source: NodeId, target: NodeId): Int =
+  def maxArrowSequence(source: ElementId, target: ElementId): Int =
     val seqs = arrowSequences(source, target)
     if seqs.isEmpty then 0 else seqs.max
 
-  def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraphData =
+  def updateAttributes(idsToUpdate: Set[ElementId], attrs: Attributes): ViewerGraphData =
     val (arrowIdsToUpdate, nodeIdsToUpdate) = idsToUpdate.partition(Arrow.isArrowId)
 
     val arrowsToUpdate: Arrows = filterArrows((id, _) => id in arrowIdsToUpdate)

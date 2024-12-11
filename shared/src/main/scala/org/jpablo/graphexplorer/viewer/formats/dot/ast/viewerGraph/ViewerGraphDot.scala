@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, ElementId, ViewerNode}
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
   DotAST(
@@ -27,12 +27,12 @@ private def arrowToStmt(arrow: Arrow): EdgeStmt = {
   )
 }
 
-private def buildNodeStmt(viewerGraphData: ViewerGraphData, groupId: NodeId): Iterable[NodeStmt] =
+private def buildNodeStmt(viewerGraphData: ViewerGraphData, groupId: ElementId): Iterable[NodeStmt] =
   viewerGraphData.nodes.values
     .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(groupId)))
     .map(nodeToStmt)
 
-private def buildEdgeStmt(viewerGraphData: ViewerGraphData, groupId: NodeId): Iterable[EdgeStmt] =
+private def buildEdgeStmt(viewerGraphData: ViewerGraphData, groupId: ElementId): Iterable[EdgeStmt] =
   viewerGraphData.arrowValues
     .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(groupId)))
     .map(arrowToStmt)
@@ -44,7 +44,7 @@ private def attrs(attrs: Attributes, target: AttributeTarget) =
 
 def graphDataToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
 
-  def groupToSubGraph(groupId: NodeId): SubGraph =
+  def groupToSubGraph(groupId: ElementId): SubGraph =
     val groupData = viewerGraphData.groups(groupId)
 
     val nodeStmts = buildNodeStmt(viewerGraphData, groupId)

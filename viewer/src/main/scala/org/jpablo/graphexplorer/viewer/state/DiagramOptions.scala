@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{NodeId, ViewerKind}
+import org.jpablo.graphexplorer.viewer.models.{ElementId, ViewerKind}
 import upickle.default.*
 
 
@@ -17,7 +17,7 @@ case class PackagesOptions(
 case class ProjectSettings(
     basePaths:     List[Path] = List.empty,
     hiddenFields:  List[String] = List.empty,
-    hiddenNodeIds: List[NodeId] = List.empty
+    hiddenNodeIds: List[ElementId] = List.empty
 )
 
 // diagram configuration (tab specific)

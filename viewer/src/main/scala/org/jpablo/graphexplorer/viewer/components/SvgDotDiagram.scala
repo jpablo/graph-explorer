@@ -51,7 +51,7 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
   private def selectableElements =
     SelectableElement.findAll(ref)
 
-  def select(ids: Set[models.NodeId]): Unit =
+  def select(ids: Set[models.ElementId]): Unit =
     for elem <- selectableElements if elem.nodeId in ids do elem.select()
 
   def toSVGText: String =
@@ -62,7 +62,7 @@ class SvgDotDiagram(svgElement: ReactiveSvgElement[dom.SVGSVGElement]):
     val bbox = elem.get.getBBox()
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
-  def toSVGTextWithIds(ids: Set[models.NodeId]): String =
+  def toSVGTextWithIds(ids: Set[models.ElementId]): String =
     if (ids.isEmpty) ""
     else
       val (svgs, boxes) = SelectableElement.findAll(ref).filter(_.nodeId in ids).map(buildSvgElement).unzip
@@ -83,7 +83,7 @@ object SvgDotDiagram:
 
   def svgWithTransform(
       transform:  Signal[String],
-      startNode:  Signal[Option[(models.NodeId, Point2d[Double])]],
+      startNode:  Signal[Option[(models.ElementId, Point2d[Double])]],
       endPos:     Signal[Point2d[Double]],
       isDragging: Signal[Boolean]
   )(svgElement: dom.SVGSVGElement): ReactiveSvgElement[dom.SVGSVGElement] =
@@ -130,7 +130,7 @@ object SvgDotDiagram:
         .getOrElse(SvgUnit.origin)
 
   private def DraggingArrow(
-      startNode: Signal[Option[(models.NodeId, SVGPoint)]],
+      startNode: Signal[Option[(models.ElementId, SVGPoint)]],
       endPos:    Signal[SVGPoint]
   ) =
     // Define start and end position signals

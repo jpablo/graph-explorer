@@ -28,14 +28,14 @@ extension (graphElement: GraphElement)
         case _ :: t => loop(remaining = t, acc)
 
     loop(List(graphElement), Map.empty)
-      .map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
+      .map((id, attrs) => ViewerNode(ElementId(id), Attributes(attrs)))
       .toSet
 
   // Helper function to convert SubGraph to ViewerGroup
   private def convertSubGraphToViewerGroup(sub: SubGraph): ViewerGroup =
     val attrs = sub.findAttributes
     ViewerGroup(
-      id        = NodeId(sub.id.getOrElse("G")), // TODO: Generate a unique ID for the group if not provided
+      id        = ElementId(sub.id.getOrElse("G")), // TODO: Generate a unique ID for the group if not provided
       attrs     = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
       edgeAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
       nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
@@ -54,8 +54,8 @@ extension (graphElement: GraphElement)
         case Nil =>
           // Convert accumulated node attributes to ViewerNodes at the end
           val viewerNodes =
-            nodes.map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
-          val membershipsNodes = memberships.map((id, parent) => NodeId(id) -> parent.map(NodeId(_)))
+            nodes.map((id, attrs) => ViewerNode(ElementId(id), Attributes(attrs)))
+          val membershipsNodes = memberships.map((id, parent) => ElementId(id) -> parent.map(ElementId(_)))
           FlattenedGraphElement(arrows, groups.reverse, viewerNodes.reverse, membershipsNodes)
 
         case (_, Nil) :: t =>

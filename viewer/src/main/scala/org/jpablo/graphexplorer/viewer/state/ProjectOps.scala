@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.softwaremill.quicklens.*
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.ElementId
 
 /** Convenience wrapper around a Var[Project]
   */
@@ -20,7 +20,7 @@ case class ProjectOps(project: Var[Project]):
   val page: Var[Page] =
     project.zoomLazy(_.page)((p, page) => p.copy(page = page))
 
-  val hiddenNodes: Var[Set[NodeId]] =
+  val hiddenNodes: Var[Set[ElementId]] =
     project.zoomLazy(_.page.hiddenNodes)((p, s) => p.modify(_.page.hiddenNodes).setTo(s))
 
   val basePaths: Signal[List[Path]] =

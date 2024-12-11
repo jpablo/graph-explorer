@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId}
 import org.scalajs.dom
 import org.scalajs.dom.Element
 
@@ -11,7 +11,7 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
   protected val refTitle = ref.querySelector("title").textContent
   protected val refIdAttr = ref.id
 
-  def nodeId: NodeId
+  def nodeId: ElementId
 
   val get = ref
 
@@ -42,7 +42,7 @@ end SelectableElement
 
 case class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
-  val nodeId: NodeId = models.NodeId(refTitle)
+  val nodeId: ElementId = models.ElementId(refTitle)
 
 case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
@@ -51,8 +51,8 @@ case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
     Arrow.fromGraphvizTitle(refTitle, refIdAttr)
 
   // if parsing fails, use the title as the nodeId
-  lazy val nodeId: NodeId =
-    toArrow.map(_.id).getOrElse(models.NodeId(refTitle))
+  lazy val nodeId: ElementId =
+    toArrow.map(_.id).getOrElse(models.ElementId(refTitle))
 end EdgeElement
 
 extension (e: dom.Element)

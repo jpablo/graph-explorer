@@ -11,17 +11,17 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
       ViewerGraph(
         id = "G",
         data = ViewerGraphData(
-          arrows = Map(NodeId("a->b:0") -> Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> AttrValue("1"))), 0)),
+          arrows = Map(ElementId("a->b:0") -> Arrow(ElementId("a"), ElementId("b"), Attributes(Map("id" -> AttrValue("1"))), 0)),
           groups = Map(
-            NodeId("G") -> ViewerGroup(
-              NodeId("G"),
+            ElementId("G") -> ViewerGroup(
+              ElementId("G"),
               Attributes(Map("label" -> AttrValue("Title"))),
               Attributes(Map()),
               Attributes(Map())
             )
           ),
           nodes       = Map(),
-          memberships = Map(NodeId("G") -> None, NodeId("a->b:0") -> Some(NodeId("G")))
+          memberships = Map(ElementId("G") -> None, ElementId("a->b:0") -> Some(ElementId("G")))
         ),
         tpe = "digraph"
       )
