@@ -4,6 +4,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.utils.Utils
+import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*
 
 import scala.compiletime.asMatchable
@@ -15,6 +16,8 @@ case class NodeId(value: String) extends AnyVal:
 
 object NodeId:
   given rw: ReadWriter[NodeId] = stringKeyRW(readwriter[String].bimap[NodeId](_.value, NodeId(_)))
+
+  def random(): NodeId = NodeId(randomUUIDSafe().take(8))
 
 type ViewerKind = Option[String]
 

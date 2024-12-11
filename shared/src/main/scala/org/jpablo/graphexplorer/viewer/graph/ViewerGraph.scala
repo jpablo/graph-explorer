@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 
 import org.jpablo.graphexplorer.viewer.models.*
@@ -77,14 +76,17 @@ case class ViewerGraph(
     modifyData.using(_.addArrow(source, target))
 
   def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
-    val nodeId = NodeId(randomId())
+    val nodeId = NodeId.random()
     addNode(nodeId).addEdge(source, nodeId)
 
   def addNode(nodeId: NodeId): ViewerGraph =
     modifyData.using(_.addNode(nodeId))
 
   def addRandomNode(): ViewerGraph =
-    addNode(NodeId(randomId()))
+    addNode(NodeId.random())
+
+  def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraph =
+    modifyData.using(_.addToNewGroup(ids, label))
 
   def root: ViewerGroup = data.root
 
@@ -107,7 +109,7 @@ case class ViewerGraph(
     def collectAttrs(attrs: Map[NodeId, Attributable]) =
       attrs.collect { case (id, n) if id in nodeIds => n.publicAttrs.values }.foldLeft(init)(_ ++ _)
 
-    Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrowsMap))
+    Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, attrs))

@@ -168,7 +168,8 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       fullGraph.removeNodes(diagramSelection.now())
 
   def groupSelection() =
-    ()
+    sourceFlow.fullGraphV.update: fullGraph =>
+      fullGraph.addToNewGroup(diagramSelection.now())
 
   def addNode() =
     sourceFlow.fullGraphV.update: fullGraph =>

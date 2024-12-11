@@ -86,6 +86,11 @@ class SourceFlow(
     resetView:     () => Unit
 )(using Owner):
 
+  // three types of Vars:
+  // (a) updated outside of SourceFlow (either by CodeMirror or the UI)
+  // (b) updates linked to a var of type (a)
+  // (c) updates coming from both directions
+
   // updated by CodeMirror (a)
   val sourceText: Var[String] = Var("")
   // (b)
@@ -100,7 +105,9 @@ class SourceFlow(
   // updated by the UI (a)
   val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.empty)
 
-  val fullGraph = fullGraphV.signal
+  val fullGraph = fullGraphV.signal.tapEach { g =>
+    pprint.log(g)
+  }
 
   // -------------------------------
   // sourceText <-> versionedText
