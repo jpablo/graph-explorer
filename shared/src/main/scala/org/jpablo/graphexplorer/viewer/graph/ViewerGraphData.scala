@@ -1,11 +1,10 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId, ViewerGroup, ViewerNode}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerGroup, ViewerNode}
 
-//type Arrows = mutable.LinkedHashMap[NodeId, Arrow]
 type Arrows = Map[NodeId, Arrow]
-//type Memberships = mutable.LinkedHashMap[NodeId, Option[NodeId]]
 type Memberships = Map[NodeId, Option[NodeId]]
 
 case class ViewerGraphData(
@@ -14,11 +13,9 @@ case class ViewerGraphData(
     nodes:       Map[NodeId, ViewerNode],
     memberships: Memberships
 ):
-//  println("ViewerGraphData")
   assert(memberships.nonEmpty, "At least one membership is required (the root node)")
   // fail fast if no root node is provided
   def rootNodeId: NodeId =
-//    println("ViewerGraphData")
     memberships
       .collectFirst:
         case (id, None) => id
@@ -26,66 +23,43 @@ case class ViewerGraphData(
 
   assert(rootNodeId in groups, s"Root node $rootNodeId not found in groups: $groups")
 
-  // ---- Arrow ops ----
   var arrowValues: Iterable[Arrow] = arrows.values
   var arrowsSet: Set[Arrow] = arrowValues.toSet
   var arrowsMap: Map[NodeId, Arrow] = arrows
 
-//  var arrowValues: Iterable[Arrow] = mutable.Iterable.empty
-//  var arrowsSet: Set[Arrow] = Set.empty
-//  var arrowsMap: Map[NodeId, Arrow] = Map.empty
-//
-//  def syncArrows() =
-////    println(s"Syncing arrows")
-//    arrowValues = arrows.values
-//    arrowsSet   = arrowValues.toSet
-//    arrowsMap   = arrows.toMap
-
-//  syncArrows()
-
   def filterArrows(f: ((NodeId, Arrow)) => Boolean) =
-//    println(s"Filtering arrows")
     arrows.filter(f)
 
-//  def modifyArrows(f: Arrows => Arrows): ViewerGraphData =
-////    println(s"Modifying arrows")
-//    f(arrows)
-//    syncArrows()
-//    this
-
   def addArrow(a: Arrow): ViewerGraphData =
-    copy(arrows = arrows.updated(a.id, a))
+    copy(
+      arrows      = arrows + (a.id -> a),
+      memberships = memberships + (a.id -> Some(rootNodeId))
+    )
 
   def concatArrows(other: Arrows) =
     arrows ++ other
-//  def concatArrows(other: Arrows) =
-//    arrows ++= other
-//    syncArrows()
-//    this
-  // -----------------
-
-  // ---- Membership ops ----
 
   def addMembership(nodeId: NodeId, groupId: Option[NodeId]): ViewerGraphData =
-    copy(memberships = memberships.updated(nodeId, groupId))
-  // ------------------------
+    copy(memberships = memberships + (nodeId -> groupId))
+
+  def addNode(nodeId: NodeId, label: String = "", groupId: Option[NodeId] = None): ViewerGraphData =
+    copy(
+      nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map("label" -> AttrValue(label))))),
+      memberships = memberships + (nodeId -> groupId.orElse(Some(rootNodeId)))
+    )
 
   val root: ViewerGroup =
-//    println("ViewerGraphData")
     groups(rootNodeId)
 
   val nodesSet = nodes.values.toSet
 
   def removeNodes(ids: Set[NodeId]): ViewerGraphData =
-    val a2 =
+    val remainingArrows =
       arrows -- arrows.keys.filter(id => ids.contains(arrows(id).source) || ids.contains(arrows(id).target))
-    // val a2 =
-    //   arrows --= arrows.keys.filter(id => ids.contains(arrows(id).source) || ids.contains(arrows(id).target))
     copy(
-      nodes  = nodes -- ids,
-      arrows = a2,
-      groups = groups -- ids,
-//      memberships = memberships.subtractAll(ids)
+      nodes       = nodes -- ids,
+      arrows      = remainingArrows,
+      groups      = groups -- ids,
       memberships = memberships.removedAll(ids)
     )
 

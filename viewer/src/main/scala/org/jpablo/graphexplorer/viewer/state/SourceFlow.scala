@@ -167,13 +167,9 @@ class SourceFlow(
     toT     = (vg, g) => vg.value,
     updateT = (vg, g, g1) => g != g1,
     // -------------------------------
-    labelS = "[fullGraphV -> versionedFullGraphV]", // a -> b
-    toS    = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
-    updateS = { (vg, g, vg1) =>
-      pprint.log(g)
-      vg.value != g
-    },
-    level = Info
+    labelS  = "[fullGraphV -> versionedFullGraphV]", // a -> b
+    toS     = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
+    updateS = (vg, g, vg1) => vg.value != g
   )
 
   dom.console.debug(s"setting initialSource: $initialSource")

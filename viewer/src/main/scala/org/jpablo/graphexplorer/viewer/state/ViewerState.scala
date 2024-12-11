@@ -105,7 +105,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def showNodes(ids: Set[NodeId]) =
     hiddenNodes.remove(ids)
 
-  // Note: explore just adding the edge to the source directly (a -> b)
   def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.fullGraphV.update(_.addEdge(from, to))
 
@@ -165,7 +164,8 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     project.hiddenNodes.update(_ ++ diagramSelection.now())
 
   def deleteSelection() =
-    ()
+    sourceFlow.fullGraphV.update: fullGraph =>
+      fullGraph.removeNodes(diagramSelection.now())
 
   def groupSelection() =
     ()

@@ -71,26 +71,24 @@ case class ViewerGraph(
     val relevantArrows = arrowsSet.filter(a => (a.source in foundNodeIds) && (a.target in foundNodeIds))
     ViewerGraph.basic2(relevantArrows, foundNodes)
 
+  private val modifyData = this.modify(_.data)
+
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
-    this.copy(data = data.removeNodes(toRemove))
+    modifyData.using(_.removeNodes(toRemove))
 
   def addEdge(source: NodeId, target: NodeId): ViewerGraph =
     val newSeq = data.maxArrowSequence(source, target)
-    val arrow = Arrow(source, target, seq = newSeq + 1)
-    this
-      .modify(_.data).using(_.addArrow(arrow))
-      .modify(_.data).using(_.addMembership(arrow.id, Some(data.rootNodeId)))
+    modifyData.using(_.addArrow(Arrow(source, target, seq = newSeq + 1)))
 
   def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
-    val newNode = node(randomId())
-    val newArrow = Arrow(source, newNode.id)
-    this
-      .modifyAll(_.data.nodes).using(_ + (newNode.id -> newNode))
-      .modify(_.data).using(_.addArrow(newArrow))
+    val nodeId = NodeId(randomId())
+    addNode(nodeId).addEdge(source, nodeId)
+
+  def addNode(nodeId: NodeId): ViewerGraph =
+    modifyData.using(_.addNode(nodeId))
 
   def addRandomNode(): ViewerGraph =
-    val newNode = node(randomId())
-    this.modify(_.data.nodes).using(_ + (newNode.id -> newNode))
+    addNode(NodeId(randomId()))
 
   def root: ViewerGroup = data.root
 

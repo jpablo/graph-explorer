@@ -15,8 +15,7 @@ case class DotAST(
     @key("type")
     tpe:      String,
     children: List[GraphElement],
-    id:       Option[String] = None,
-//    version:  Long = 0
+    id:       Option[String] = None
 ) derives ReadWriter:
   def asSubgraph: SubGraph = SubGraph(children, id)
 
@@ -179,6 +178,7 @@ case class SubGraph(children: List[GraphElement], id: Option[String] = None)
       .toMap
 
 object SubGraph:
+  // TODO: find a better way to generate unique ids
   def randomId(): String = randomUUIDSafe().take(8)
 
 def toAttrsMap(attrList: List[Attr]): Map[String, AttrValue] =
