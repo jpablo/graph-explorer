@@ -6,8 +6,9 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.selection.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
-import org.jpablo.graphexplorer.viewer.state.{ViewerState, withLog}
-import org.scalajs.dom
+import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.logging.withLog
+
 
 def CanvasContainer(
     state:      ViewerState,

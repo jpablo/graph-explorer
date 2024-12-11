@@ -2,27 +2,30 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
+import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ViewerNode}
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
   DotAST(
     tpe      = graph.tpe,
     children = graphDataToAST(graph.data),
-    id       = Some(graph.id),
-//    version  = graph.version
+    id       = Some(graph.id)
   )
 
 private def nodeToStmt(node: ViewerNode): NodeStmt =
-  NodeStmt(DotNodeId(node.id.value), node.publicAttrs.values.map(Attr(_, _)).toList)
+  NodeStmt(DotNodeId(node.id.value), node.attrs.values.map(Attr(_, _)).toList)
 
-private def arrowToStmt(arrow: Arrow): EdgeStmt =
+private def arrowToStmt(arrow: Arrow): EdgeStmt = {
+  // we'll use the arrow sequence as the id to distinguish between arrows with the same source and target
+  val seqAsId = idAttributeKey -> AttrValue(arrow.seq.toString)
   EdgeStmt(
-    List(
+    edge_list = List(
       DotNodeId(arrow.source.value),
       DotNodeId(arrow.target.value)
     ),
-    arrow.publicAttrs.values.map(Attr(_, _)).toList
+    attr_list = (arrow.attrs.values + seqAsId).map(Attr(_, _)).toList
   )
+}
 
 private def buildNodeStmt(viewerGraphData: ViewerGraphData, groupId: NodeId): Iterable[NodeStmt] =
   viewerGraphData.nodes.values

@@ -30,12 +30,12 @@ trait Attributable:
   def idAttr: AttrValue =
     attrs.values.getOrElse(idAttributeKey, AttrValue.empty)
 
-  def publicAttrs: Attributes =
-    Attributes(attrs.values -- Attributable.internal)
+//  def publicAttrs: Attributes =
+//    Attributes(attrs.values -- Attributable.internal)
 
 object Attributable:
   val idAttributeKey = "id"
-  val internal = Set(idAttributeKey)
+//  val internal = Set(idAttributeKey)
 
 case class ViewerNode(
     id:    NodeId,
@@ -77,8 +77,8 @@ object Arrow:
 
   val titleIdSeparator = "->"
 
-  def arrow(t: (String, String), attrs: Map[String, AttrValue] = Map.empty): Arrow =
-    new Arrow(NodeId(t._1), NodeId(t._2), Attributes(attrs))
+  def arrow(t: (String, String), attrs: Map[String, AttrValue] = Map.empty, seq: Int = 0): Arrow =
+    new Arrow(NodeId(t._1), NodeId(t._2), Attributes(attrs), seq)
 
   // example:
   // <title>A->B</title>
@@ -92,7 +92,8 @@ object Arrow:
   def fromGraphvizTitle(title: String, idAttr: String): Option[Arrow] =
     title match
       case edgeTitlePattern(l, r) if l.trim.nonEmpty && r.trim.nonEmpty =>
-        Some(Arrow(NodeId(l.trim), NodeId(r.trim), Attributes(Map(idAttributeKey -> AttrValue(idAttr)))))
+        Some(arrow(l.trim -> r.trim, seq = idAttr.toInt))
+
       case _ => None
 
   given scala.Ordering[Arrow]:

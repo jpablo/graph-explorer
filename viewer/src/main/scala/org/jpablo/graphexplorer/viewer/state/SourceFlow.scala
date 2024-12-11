@@ -10,48 +10,7 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
-
-import scala.scalajs.js.Date
-
-var lastDate: Date = null
-var step = 0
-
-enum Level:
-  case Debug, Info, Warn, Error, None
-
-  def toConsole = this match
-    case Debug => dom.console.debug(_)
-    case Info  => dom.console.info(_)
-    case Warn  => dom.console.warn(_)
-    case Error => dom.console.error(_)
-    case None  => (_: Any) => ()
-
-import org.jpablo.graphexplorer.viewer.state.Level.*
-
-def timeDelta() =
-  if lastDate == null then
-    lastDate = new Date()
-  val currentDate = new Date()
-  val delta = currentDate.getTime() - lastDate.getTime()
-  lastDate = currentDate
-  s"${delta / 1000.0} s,  at: ${currentDate.toISOString().split('T')(1)}"
-
-inline def withLog[A](
-    label:     String,
-    resetStep: Boolean = false,
-    level:     Level = None
-)(body: => A): A =
-  step = if resetStep then 1 else step + 1
-  val numberedLabel = s"($step) $label"
-  val fn = level.toConsole
-  fn(s"$numberedLabel [-->]: ${timeDelta()}")
-  timeDelta()
-  val a = body
-//  fn(s"$numberedLabel [<--]: ${timeDelta()}")
-  a
-
-def simpleLog(label: String, level: Level = None): Unit =
-  level.toConsole(label)
+import org.jpablo.graphexplorer.viewer.logging.*
 
 case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
 
@@ -64,7 +23,7 @@ def syncVars[S, T](
     labelS:  String = "",
     toS:     (S, T) => S,
     updateS: (S, T, S) => Boolean,
-    level:   Level = None
+    level:   Level = Level.None
 )(using Owner): Unit =
   // source -> target
   for s <- source.signal do
@@ -105,9 +64,7 @@ class SourceFlow(
   // updated by the UI (a)
   val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.empty)
 
-  val fullGraph = fullGraphV.signal.tapEach { g =>
-    pprint.log(g)
-  }
+  val fullGraph = fullGraphV.signal
 
   // -------------------------------
   // sourceText <-> versionedText
@@ -144,7 +101,8 @@ class SourceFlow(
       val newSource = ast.value.optimize.render(keepInternal = false)
       Versioned[String](newSource, ast.version, ast.origin)
     },
-    updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph
+    updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
+    level = Level.None
   )
 
   // -------------------------------
@@ -155,7 +113,7 @@ class SourceFlow(
     target = versionedFullGraphV,
     // -------------------------------
     labelT  = "[sourceAST -> versionedFullGraphV]", // c -> b
-    toT     = (ast, vg) => Versioned[ViewerGraph](ast.value.toViewerGraph, ast.version, ast.origin),
+    toT     = (ast: Versioned[DotAST], vg) => Versioned[ViewerGraph](ast.value.toViewerGraph, ast.version, ast.origin),
     updateT = (ast, vg, vg1) => vg.value != vg1.value && ast.origin == ChangeOrigin.CodeMirror,
     // -------------------------------
     labelS  = "[versionedFullGraphV -> sourceAST]", // b -> c

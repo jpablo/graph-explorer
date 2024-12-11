@@ -107,7 +107,7 @@ case class ViewerGraph(
 
   def getAttributesById(nodeIds: Set[NodeId]): Attributes =
     def collectAttrs(attrs: Map[NodeId, Attributable]) =
-      attrs.collect { case (id, n) if id in nodeIds => n.publicAttrs.values }.foldLeft(init)(_ ++ _)
+      attrs.collect { case (id, n) if id in nodeIds => n.attrs.values }.foldLeft(init)(_ ++ _)
 
     Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
 

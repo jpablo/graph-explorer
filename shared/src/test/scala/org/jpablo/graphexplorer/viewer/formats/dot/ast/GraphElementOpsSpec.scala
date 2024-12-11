@@ -14,7 +14,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
   val group1 = NodeId("cluster_1")
 
   test("findAllDirectChildren should return all nodes") {
-    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
     val expectedNodes =
       List(
         node("a"),
@@ -27,7 +27,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
   }
 
   test("findAllDirectChildren should return all arrows") {
-    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
     val expectedArrows =
       List(
         arrow("x" -> "y"),
@@ -39,7 +39,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
   }
 
   test("findAllDirectChildren should return all groups") {
-    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
 //    pprint.log(groups)
     val expectedGroups =
       List(
@@ -52,7 +52,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 
   test("findAllDirectChildren in empty graphs should return all memberships") {
     val emptyAST = DotAST(tpe = "digraph", children = List(), id = Some(root.value))
-    val data = findAllDirectChildren(emptyAST.asSubgraph)
+    val data = toFlattenedElements(emptyAST.asSubgraph)
     val expected =
       FlattenedGraphElement(
         arrows      = List(),
@@ -65,7 +65,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
   }
 
   test("findAllDirectChildren should return all memberships") {
-    val data = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
     val expectedMemberships =
       List(
         root             -> None,
@@ -86,7 +86,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 
   test("directChildrenToAST") {
     pprint.log(astWithNestedSubGraphs, showFieldNames = false)
-    val flattened = findAllDirectChildren(astWithNestedSubGraphs.asSubgraph)
+    val flattened = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
     pprint.log(flattened.memberships)
     val data = flattened.toViewerGraphData
     pprint.log(data.memberships)

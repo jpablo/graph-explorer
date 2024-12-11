@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.SvgDotDiagram
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
-import org.jpablo.graphexplorer.viewer.state.withLog
+import org.jpablo.graphexplorer.viewer.logging.withLog
 import org.scalajs.dom
 import org.scalajs.dom.SVGSVGElement
 

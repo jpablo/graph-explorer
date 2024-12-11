@@ -11,6 +11,7 @@ import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.logging.withLog
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
 import org.scalajs.dom.{KeyboardEvent, SVGPoint, SVGSVGElement}

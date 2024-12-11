@@ -16,8 +16,10 @@ extension (ast: DotAST)
   def toViewerGraph: ViewerGraph =
     ast.id match
       case Some(id) =>
-        val flattened = findAllDirectChildren(ast.asSubgraph)
-        ViewerGraph(id, flattened.toViewerGraphData, ast.tpe)
+        EdgeStmt.resetId()
+        val flattened = ast.asSubgraph.toFlattenedElements
+        val viewerGraphData = flattened.toViewerGraphData
+        ViewerGraph(id, viewerGraphData, ast.tpe)
       case None =>
         pprint.log(ast)
         assert(ast.id.nonEmpty, "DotAST must have an id")
@@ -27,6 +29,7 @@ extension (ast: DotAST)
 //    ast.modify(_.children).using: children =>
 //      Newline() :: Pad() :: AttrStmt("node", List(Attr("style", "filled"))) :: children
 
+  // TODO: Move to ViewerGraphData (but fix ordering issue first)
   def attachInternalAttributes: DotAST =
     EdgeStmt.resetId()
     ast.modify(_.children).using(_.map(_.attachId))

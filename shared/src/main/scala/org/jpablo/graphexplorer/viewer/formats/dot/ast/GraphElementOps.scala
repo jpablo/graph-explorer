@@ -16,7 +16,7 @@ extension (graphElement: GraphElement)
           case SubGraph(children, id) => SubGraph(children.map(_.attachId), id)
           case other                  => other
 
-        EdgeStmt(edgeListWithIds, Attr(idAttributeKey, AttrValue(EdgeStmt.nextId.toString)) :: attrList)
+        EdgeStmt(edgeListWithIds, Attr(idAttributeKey, AttrValue(EdgeStmt.nextId().toString)) :: attrList)
 
       case SubGraph(children, id) => SubGraph(children.map(_.attachId), id)
       case other                  => other
@@ -56,8 +56,7 @@ extension (graphElement: GraphElement)
       nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
 
-  def findAllDirectChildren: FlattenedGraphElement =
-//    pprint.log(graphElement)
+  def toFlattenedElements: FlattenedGraphElement =
     @tailrec
     def loop(
         remaining:   List[(Option[String], List[GraphElement])],
@@ -97,9 +96,7 @@ extension (graphElement: GraphElement)
               )
 
             case e: EdgeStmt =>
-              val (edgeChildren, edgeArrows) = e.expandArrows.unzip
-
-              // missing e.idAttr!!
+              val edgeArrows = e.expandArrows
               val mbs = edgeArrows.flatten.map(_.id.value -> parent) ++ memberships
               loop(
                 remaining   = (parent -> parentOtherChildren) :: t,
