@@ -9,17 +9,22 @@ case class FlattenedGraphElement(
     nodes:       List[ViewerNode],
     memberships: List[(NodeId, Option[NodeId])] = Nil
 ):
+
+  val rootNodeId: NodeId =
+    memberships
+      .collectFirst:
+        case (id, None) => id
+      .getOrElse(throw IllegalStateException("No root node found"))
+
   def toViewerGraphData =
+    val arrowEndpoints = arrows.flatMap(_.endpoints).toSet
+    val nodesMap = nodes.map(n => n.id -> n).toMap
+    val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
+    val membershipsMap = memberships.toMap
+    val extraMemberships = implicitNodeIds.map(n => n -> Some(rootNodeId)).toMap
     ViewerGraphData(
       arrows      = arrows.map(a => a.id -> a).toMap,
       groups      = groups.map(g => g.id -> g).toMap,
-      nodes       = nodes.map(n => n.id -> n).toMap,
-      memberships = memberships.toMap // This messes up with the order of elements
-    )
-
-  def removeNodes(ids: Set[NodeId]): FlattenedGraphElement =
-    copy(
-      nodes  = nodes.filterNot(n => ids.contains(n.id)),
-      arrows = arrows.filterNot(a => ids.contains(a.source) || ids.contains(a.target)),
-      groups = groups.filterNot(g => ids.contains(g.id))
+      nodes       = nodesMap ++ implicitNodeIds.map(n => n -> ViewerNode(n)),
+      memberships = membershipsMap ++ extraMemberships // This messes up with the order of elements
     )

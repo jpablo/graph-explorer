@@ -50,7 +50,6 @@ extension (graphElement: GraphElement)
         nodes:       List[(String, Map[String, AttrValue])],
         memberships: List[(String, Option[String])] = Nil // List of (element, group) memberships
     ): FlattenedGraphElement =
-//      pprint.log(remaining)
       remaining match
         case Nil =>
           // Convert accumulated node attributes to ViewerNodes at the end
