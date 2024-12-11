@@ -1,4 +1,4 @@
-# http://www.graphviz.org/content/cluster
+//# http://www.graphviz.org/content/cluster
 digraph G {
     label="title"
     a

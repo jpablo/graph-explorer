@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.EdgeStmt.resetId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
@@ -22,25 +23,24 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
         node("z", Map("label" -> AttrValue("ZZ"))),
         node("d")
       )
-//    pprint.log(data.memberships, showFieldNames = false)
     assertEquals(data.nodes, expectedNodes)
   }
 
   test("findAllDirectChildren should return all arrows") {
-    val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
+    resetId()
+    val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
     val expectedArrows =
       List(
-        arrow("x" -> "y"),
-        arrow("a" -> "b"),
-        arrow("x" -> "a"),
-        arrow("b" -> "c")
+        arrow("x" -> "y", seq = 1),
+        arrow("a" -> "b", seq = 2),
+        arrow("x" -> "a", seq = 3),
+        arrow("b" -> "c", seq = 4)
       )
     assertEquals(data.arrows, expectedArrows)
   }
 
   test("findAllDirectChildren should return all groups") {
     val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
-//    pprint.log(groups)
     val expectedGroups =
       List(
         ViewerGroup(root),
@@ -65,49 +65,47 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
   }
 
   test("findAllDirectChildren should return all memberships") {
-    val data = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
+    resetId()
+    val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
     val expectedMemberships =
       List(
-        root             -> None,
-        NodeId("a")      -> Some(root),
-        NodeId("b")      -> Some(root),
-        NodeId("x->y:0") -> Some(root),
-        group0           -> Some(root),
-        NodeId("z")      -> Some(group0),
-        NodeId("a->b:0") -> Some(group0),
-        group1           -> Some(group0),
+        NodeId("b->c:4") -> Some(root),
+        NodeId("x->a:3") -> Some(root),
         NodeId("d")      -> Some(group1),
-        NodeId("x->a:0") -> Some(root),
-        NodeId("b->c:0") -> Some(root)
+        group1           -> Some(group0),
+        NodeId("a->b:2") -> Some(group0),
+        NodeId("z")      -> Some(group0),
+        group0           -> Some(root),
+        NodeId("x->y:1") -> Some(root),
+        NodeId("b")      -> Some(root),
+        NodeId("a")      -> Some(root),
+        root             -> None
       )
 
     assertEquals(data.memberships, expectedMemberships)
   }
 
   test("directChildrenToAST") {
-    pprint.log(astWithNestedSubGraphs, showFieldNames = false)
-    val flattened = toFlattenedElements(astWithNestedSubGraphs.asSubgraph)
-    pprint.log(flattened.memberships)
+    resetId()
+    val flattened = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
     val data = flattened.toViewerGraphData
-    pprint.log(data.memberships)
     val reconstructed = graphDataToAST(data)
-    pprint.log(reconstructed, showFieldNames = false)
     val expected =
       List(
-        NodeStmt(DotNodeId("a", None), List()),
-        NodeStmt(DotNodeId("b", None), List()),
-        EdgeStmt(List(DotNodeId("x", None), DotNodeId("y", None)), List()),
-        EdgeStmt(List(DotNodeId("x", None), DotNodeId("a", None)), List()),
-        EdgeStmt(List(DotNodeId("b", None), DotNodeId("c", None)), List()),
         SubGraph(
           List(
-            AttrStmt("node", List(Attr("shape", "egg"))),
-            NodeStmt(DotNodeId("z", None), List(Attr("label", "ZZ"))),
-            EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List()),
-            SubGraph(List(NodeStmt(DotNodeId("d", None), List())), Some("cluster_1"))
+            AttrStmt("node", List(Attr("shape", AttrValue("egg")))),
+            SubGraph(List(NodeStmt(DotNodeId("d", None), List())), Some("cluster_1")),
+            NodeStmt(DotNodeId("z", None), List(Attr("label", AttrValue("ZZ")))),
+            EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List(Attr("id", AttrValue("2"))))
           ),
           Some("cluster_0")
-        )
+        ),
+        NodeStmt(DotNodeId("a", None), List()),
+        NodeStmt(DotNodeId("b", None), List()),
+        EdgeStmt(List(DotNodeId("x", None), DotNodeId("y", None)), List(Attr("id", AttrValue("1")))),
+        EdgeStmt(List(DotNodeId("x", None), DotNodeId("a", None)), List(Attr("id", AttrValue("3")))),
+        EdgeStmt(List(DotNodeId("b", None), DotNodeId("c", None)), List(Attr("id", AttrValue("4"))))
       )
     assertEquals(reconstructed, expected)
   }
