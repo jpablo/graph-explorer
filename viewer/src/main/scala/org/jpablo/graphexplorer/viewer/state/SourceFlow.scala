@@ -91,7 +91,7 @@ class SourceFlow(
     // -------------------------------
     labelT = "[versionedText -> sourceAST]", // b -> c
     toT = { (vt, ast) =>
-      val newAST = DotText(vt.value).parseAST.headOption.getOrElse(DotAST.empty).attachInternalAttributes
+      val newAST = DotText(vt.value).parseAST.headOption.getOrElse(DotAST.empty)
       Versioned[DotAST](newAST, vt.version, vt.origin)
     },
     updateT = (vt, ast, ast1) => ast.value != ast1.value && ast1.origin == ChangeOrigin.CodeMirror,

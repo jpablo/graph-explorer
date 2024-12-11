@@ -1,25 +1,10 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
-//import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.*
 
 import scala.annotation.tailrec
 
 extension (graphElement: GraphElement)
-
-  // add an attribute [id=$nextId] to all edges
-  def attachId: GraphElement =
-    graphElement match
-      case EdgeStmt(edgeList, attrList) =>
-        val edgeListWithIds = edgeList.map:
-          case SubGraph(children, id) => SubGraph(children.map(_.attachId), id)
-          case other                  => other
-
-        EdgeStmt(edgeListWithIds, Attr(idAttributeKey, AttrValue(EdgeStmt.nextId().toString)) :: attrList)
-
-      case SubGraph(children, id) => SubGraph(children.map(_.attachId), id)
-      case other                  => other
 
   def findAllViewerNodes: Set[ViewerNode] =
     @tailrec

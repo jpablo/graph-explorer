@@ -29,11 +29,6 @@ extension (ast: DotAST)
 //    ast.modify(_.children).using: children =>
 //      Newline() :: Pad() :: AttrStmt("node", List(Attr("style", "filled"))) :: children
 
-  // TODO: Move to ViewerGraphData (but fix ordering issue first)
-  def attachInternalAttributes: DotAST =
-    EdgeStmt.resetId()
-    ast.modify(_.children).using(_.map(_.attachId))
-
   def optimize: DotAST =
     @tailrec
     def loop(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
