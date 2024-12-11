@@ -30,10 +30,12 @@ case class ViewerGraphData(
   def filterArrows(f: ((NodeId, Arrow)) => Boolean) =
     arrows.filter(f)
 
-  def addArrow(a: Arrow): ViewerGraphData =
+  def addArrow(source: NodeId, target: NodeId): ViewerGraphData =
+    val newSeq = maxArrowSequence(source, target)
+    val arrow = Arrow(source, target, seq = newSeq + 1)
     copy(
-      arrows      = arrows + (a.id -> a),
-      memberships = memberships + (a.id -> Some(rootNodeId))
+      arrows      = arrows + (arrow.id -> arrow),
+      memberships = memberships + (arrow.id -> Some(rootNodeId))
     )
 
   def concatArrows(other: Arrows) =
@@ -69,7 +71,36 @@ case class ViewerGraphData(
       .map(_.seq)
       .toList
 
-  def maxArrowSequence(source: NodeId, target: NodeId): Int = {
+  def maxArrowSequence(source: NodeId, target: NodeId): Int =
     val seqs = arrowSequences(source, target)
     if seqs.isEmpty then 0 else seqs.max
-  }
+
+  def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraphData =
+    val (arrowIdsToUpdate, nodeIdsToUpdate) = idsToUpdate.partition(Arrow.isArrowId)
+
+    val arrowsToUpdate: Arrows = filterArrows((id, _) => id in arrowIdsToUpdate)
+    val updatedArrows = arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
+
+    val endpointsToUpdate = arrowsToUpdate.values.flatMap(_.endpoints).toSet & idsToUpdate
+    // only update these if they are in ids
+    val allNodeIdsToUpdate = nodeIdsToUpdate ++ endpointsToUpdate
+
+    val updatedNodes =
+      allNodeIdsToUpdate.foldLeft(nodes): (nodesMap, nodeId) =>
+        nodesMap
+          .updatedWith(nodeId) {
+            _.fold(
+              Some(ViewerNode(nodeId, attrs))
+            )(n => Some(n.mergeAttrs(attrs)))
+          }
+
+    val updatedMembership =
+      updatedNodes.keys.map(id => id -> memberships.getOrElse(id, Some(root.id))).toMap
+
+    copy(
+      arrows      = concatArrows(updatedArrows),
+      nodes       = updatedNodes,
+      memberships = memberships ++ updatedMembership
+    )
+
+end ViewerGraphData

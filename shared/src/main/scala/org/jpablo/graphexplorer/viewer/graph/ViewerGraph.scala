@@ -4,7 +4,6 @@ import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -42,22 +41,6 @@ case class ViewerGraph(
       .transform((_, ss) => ss.map(_.source))
       .withDefaultValue(Set.empty)
 
-  lazy val removeUnsupportedFeatures: ViewerGraph =
-    this
-      .modify(_.data.groups)
-      .using(_ + (root.id -> root.modify(_.attrs.values).using(_ - "size")))
-
-  def setDefaultTheme: ViewerGraph =
-    //    val defaultAttrs = Attributes(Map("style" -> "filled", "fillcolor" -> "white"))
-    //    val nodesWithDefaultAttrs = nodes.map(n => n.copy(attrs = n.attrs ++ defaultAttrs))
-    //    val arrowsWithDefaultAttrs = arrows.map(a => a.copy(attrs = a.attrs ++ defaultAttrs))
-    //    ViewerGraph(arrowsWithDefaultAttrs, nodesWithDefaultAttrs)
-    this
-
-  private def arrowsWithoutNodeIds(ids: Set[NodeId]): Set[Arrow] =
-    arrowsSet
-      .filterNot(a => (a.source in ids) || (a.target in ids))
-
   /** allNodeIds that are not in the target of any arrow
     */
   def roots: Set[NodeId] =
@@ -73,12 +56,25 @@ case class ViewerGraph(
 
   private val modifyData = this.modify(_.data)
 
+  val modifyRootGraphAttrs = this.modify(_.data.groups.at(root.id).attrs.values)
+  val modifyRootNodeAttrs = this.modify(_.data.groups.at(root.id).nodeAttrs.values)
+  val modifyRootEdgeAttrs = this.modify(_.data.groups.at(root.id).edgeAttrs.values)
+
+  lazy val removeUnsupportedFeatures: ViewerGraph =
+    modifyRootGraphAttrs.using(_ - "size")
+
+  def setDefaultTheme: ViewerGraph =
+    //    val defaultAttrs = Attributes(Map("style" -> "filled", "fillcolor" -> "white"))
+    //    val nodesWithDefaultAttrs = nodes.map(n => n.copy(attrs = n.attrs ++ defaultAttrs))
+    //    val arrowsWithDefaultAttrs = arrows.map(a => a.copy(attrs = a.attrs ++ defaultAttrs))
+    //    ViewerGraph(arrowsWithDefaultAttrs, nodesWithDefaultAttrs)
+    this
+
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
     modifyData.using(_.removeNodes(toRemove))
 
   def addEdge(source: NodeId, target: NodeId): ViewerGraph =
-    val newSeq = data.maxArrowSequence(source, target)
-    modifyData.using(_.addArrow(Arrow(source, target, seq = newSeq + 1)))
+    modifyData.using(_.addArrow(source, target))
 
   def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
     val nodeId = NodeId(randomId())
@@ -99,14 +95,11 @@ case class ViewerGraph(
       case AttributeTarget.edge  => root.edgeAttrs.values
 
   def updateRootAttributes(target: AttributeTarget)(attrs: Map[String, AttrValue]): ViewerGraph =
-    val modifyRoot =
-      target match
-        case AttributeTarget.graph => root.modify(_.attrs.values)
-        case AttributeTarget.node  => root.modify(_.nodeAttrs.values)
-        case AttributeTarget.edge  => root.modify(_.edgeAttrs.values)
-    this
-      .modify(_.data.groups)
-      .using(_ + (root.id -> modifyRoot.using(_ ++ attrs)))
+    val modifyAttrs = target match
+      case AttributeTarget.graph => modifyRootGraphAttrs
+      case AttributeTarget.node  => modifyRootNodeAttrs
+      case AttributeTarget.edge  => modifyRootEdgeAttrs
+    modifyAttrs.using(_ ++ attrs)
 
   val init = Map.empty[String, AttrValue]
 
@@ -117,34 +110,7 @@ case class ViewerGraph(
     Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrowsMap))
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
-    val (arrowIdsToUpdate, nodeIdsToUpdate) = idsToUpdate.partition(Arrow.isArrowId)
-
-    val arrowsToUpdate: Arrows = data.filterArrows((id, _) => id in arrowIdsToUpdate)
-    val updatedArrows = arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
-
-    val endpointsToUpdate = arrowsToUpdate.values.flatMap(_.endpoints).toSet & idsToUpdate
-    // only update these if they are in ids
-    val allNodeIdsToUpdate = nodeIdsToUpdate ++ endpointsToUpdate
-
-    val updatedNodes =
-      allNodeIdsToUpdate.foldLeft(data.nodes): (nodesMap, nodeId) =>
-        nodesMap
-          .updatedWith(nodeId) {
-            _.fold(
-              Some(node(nodeId.value, attrs.values))
-            )(n => Some(n.mergeAttrs(attrs)))
-          }
-
-    val updatedMembership =
-      updatedNodes.keys.map(id => id -> data.memberships.getOrElse(id, Some(root.id))).toMap
-
-    copy(
-      data = data.copy(
-        arrows      = data.concatArrows(updatedArrows),
-        nodes       = updatedNodes,
-        memberships = data.memberships ++ updatedMembership
-      )
-    )
+    modifyData.using(_.updateAttributes(idsToUpdate, attrs))
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
@@ -173,16 +139,6 @@ case class ViewerGraph(
 //    val paths =
 //      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.label, ns)
 //    Tree.fromPaths(paths, ".")
-
-//  /** Combines the diagram on the left with the diagram on the right. No new arrows are introduced beyond those present
-//    * in both diagrams.
-//    */
-//  @targetName("combine")
-//  def ++(other: ViewerGraph): ViewerGraph =
-//    ViewerGraph(
-//      arrows   = arrows ++ other.arrows,
-//      nodeById = nodeById ++ other.nodeById
-//    )
 
   /** Creates a new subdiagram with all the symbols containing the given String.
     */
@@ -238,11 +194,9 @@ object ViewerGraph:
     new ViewerGraph(
       id = "G",
       ViewerGraphData(
-        // arrows = mutable.LinkedHashMap.from(arrowsById),
-        arrows = arrowsById,
-        groups = groups,
-        nodes  = nodeById,
-//      memberships = mutable.LinkedHashMap(defaultRootId -> None)
+        arrows      = arrowsById,
+        groups      = groups,
+        nodes       = nodeById,
         memberships = Map(defaultRootId -> None)
       )
     )
