@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphToDotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.ElementId
+import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
 import org.jpablo.graphexplorer.viewer.logging.*
 
@@ -41,7 +41,7 @@ end syncVars
 
 class SourceFlow(
     initialSource: String,
-    hiddenNodes:   Signal[Set[ElementId]],
+    hiddenNodes:   Signal[Set[NodeId]],
     resetView:     () => Unit
 )(using Owner):
 

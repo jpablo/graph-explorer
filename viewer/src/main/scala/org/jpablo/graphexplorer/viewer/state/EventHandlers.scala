@@ -10,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.ElementId
+import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 import org.scalajs.dom.SVGSVGElement
 import upickle.default.*
@@ -18,7 +18,7 @@ import upickle.default.*
 class EventHandlers(
     diagramSelection:  DiagramSelectionOps,
     project:           ProjectOps,
-    hiddenNodesS:      Signal[Set[ElementId]],
+    hiddenNodesS:      Signal[Set[NodeId]],
     svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]],
     sourceFlow:        SourceFlow,
     hiddenNodes:       HiddenNodesOps,
@@ -26,16 +26,16 @@ class EventHandlers(
     translateXY:       Var[Point2d[SvgUnit]]
 ):
 
-  val allNodeIds: Signal[Set[ElementId]] =
+  val allNodeIds: Signal[Set[NodeId]] =
     sourceFlow.fullGraph.map(_.allNodeIds)
 
   /** Modify `hiddenNodes` based on the given function `f`
     */
   private def updateHiddenNodes[E <: dom.Event](
       ep: EventProp[E]
-  )(f: (HiddenNodes, Set[ElementId], ViewerGraph) => HiddenNodes) =
+  )(f: (HiddenNodes, Set[NodeId], ViewerGraph) => HiddenNodes) =
     ep(_.sample(sourceFlow.fullGraph.combineWith(diagramSelection.signal))) --> {
-      (g: ViewerGraph, selection: Set[ElementId]) =>
+      (g: ViewerGraph, selection: Set[NodeId]) =>
         project.hiddenNodes.update(f(_, selection, g))
     }
 

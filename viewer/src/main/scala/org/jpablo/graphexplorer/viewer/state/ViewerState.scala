@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.logging.withLog
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{Attributes, ElementId}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
 import org.scalajs.dom.{KeyboardEvent, SVGPoint, SVGSVGElement}
 import upickle.default.*
 
@@ -39,7 +39,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   private val visibleGraph = sourceFlow.visibleGraph
 
   // ---- SvgDotDiagram ----
-  val startNode = Var[Option[(models.ElementId, Point2d[Double])]](None)
+  val startNode = Var[Option[(models.NodeId, Point2d[Double])]](None)
   val endPos = Var[Point2d[Double]]((0, 0))
   val isDragging = Var(false)
 
@@ -81,17 +81,17 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def showAllNodes() =
     hiddenNodes.clear()
 
-  def isNodeVisible(id: ElementId) = hiddenNodesS.map(ids => id notIn ids)
+  def isNodeVisible(id: NodeId) = hiddenNodesS.map(ids => id notIn ids)
 
-  def isEdgeVisible(id: ElementId) =
+  def isEdgeVisible(id: NodeId) =
 //    dom.console.log(s"[isEdgeVisible]: $id")
     visibleGraph.map(graph => id in graph.allArrowIds)
 
-  def isSelected(id: ElementId) =
+  def isSelected(id: NodeId) =
 //    dom.console.log(s"[isSelected]: $id")
     diagramSelection.signal.map(ids => id in ids)
 
-  def toggleNode(id: ElementId) =
+  def toggleNode(id: NodeId) =
     hiddenNodes.toggle(id)
     diagramSelection.toggle(id)
 
@@ -100,16 +100,16 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       .combineWith(nodeIdFilter)
       .map(_.filterByNodeId(_))
 
-  def hideNodes(ids: Set[ElementId]) =
+  def hideNodes(ids: Set[NodeId]) =
     hiddenNodes.add(ids)
 
-  def showNodes(ids: Set[ElementId]) =
+  def showNodes(ids: Set[NodeId]) =
     hiddenNodes.remove(ids)
 
-  def addEdge(from: ElementId, to: ElementId): Unit =
+  def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.fullGraphV.update(_.addEdge(from, to))
 
-  def handleMouseDown(endNodeId: ElementId, clientCoords: Point2d[Double]): Unit =
+  def handleMouseDown(endNodeId: NodeId, clientCoords: Point2d[Double]): Unit =
     Var.set(
       startNode  -> Some(endNodeId, clientCoords),
       endPos     -> clientCoords,
@@ -122,7 +122,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       isDragging.set(true)
       endPos.set(clientCoords)
 
-  def handleMouseUp(endNodeId: Option[ElementId]): Unit =
+  def handleMouseUp(endNodeId: Option[NodeId]): Unit =
     if isDragging.now() then
       endNodeId.foreach: nodeId =>
         startNode.now().map(_._1)
@@ -154,7 +154,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     )
 
   // individual node attributes
-  def nodesAttributes(nodeIds: Set[ElementId]): Var[Map[String, AttrValue]] =
+  def nodesAttributes(nodeIds: Set[NodeId]): Var[Map[String, AttrValue]] =
     sourceFlow.fullGraphV.zoom(_.getAttributesById(nodeIds).values): (graph, attrs) =>
       graph.updateAttributes(nodeIds, Attributes(attrs))
 
@@ -218,7 +218,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 end ViewerState
 
 case class PersistedState(
-    hiddenNodes:      Set[ElementId] = Set.empty,
+    hiddenNodes:      Set[NodeId] = Set.empty,
     projectName:      String = "",
     source:           String = "",
     leftPanelVisible: Boolean = true,

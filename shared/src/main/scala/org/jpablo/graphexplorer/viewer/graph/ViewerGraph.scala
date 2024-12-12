@@ -23,18 +23,18 @@ case class ViewerGraph(
       arrows = arrowsSet.size
     )
 
-  val allNodeIds: Set[ElementId] =
+  val allNodeIds: Set[NodeId] =
     nodesSet.map(_.id) ++ arrowsSet.flatMap(a => Set(a.source, a.target))
 
-  val allArrowIds: Set[ElementId] = arrowsSet.map(_.id)
+  val allArrowIds: Set[NodeId] = arrowsSet.map(_.id)
 
-  lazy val directSuccessors: Map[ElementId, Set[ElementId]] =
+  lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
     arrowsSet
       .groupBy(_.source)
       .transform((_, ss) => ss.map(_.target))
       .withDefaultValue(Set.empty)
 
-  lazy val directPredecessors: Map[ElementId, Set[ElementId]] =
+  lazy val directPredecessors: Map[NodeId, Set[NodeId]] =
     arrowsSet
       .groupBy(_.target)
       .transform((_, ss) => ss.map(_.source))
@@ -42,12 +42,12 @@ case class ViewerGraph(
 
   /** allNodeIds that are not in the target of any arrow
     */
-  def roots: Set[ElementId] =
+  def roots: Set[NodeId] =
     allNodeIds -- arrowsSet.map(_.target)
 
   /** Creates a diagram containing the given symbols and the arrows between them.
     */
-  private def subgraph(ids: Set[ElementId]): ViewerGraph =
+  private def subgraph(ids: Set[NodeId]): ViewerGraph =
     val foundNodes: Set[ViewerNode] = nodeById.collect { case (id, node) if id in ids => node }.toSet
     val foundNodeIds = foundNodes.map(_.id)
     val relevantArrows = arrowsSet.filter(a => (a.source in foundNodeIds) && (a.target in foundNodeIds))
@@ -69,23 +69,23 @@ case class ViewerGraph(
     //    ViewerGraph(arrowsWithDefaultAttrs, nodesWithDefaultAttrs)
     this
 
-  def removeNodes(toRemove: Set[ElementId]): ViewerGraph =
+  def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
     modifyData.using(_.removeNodes(toRemove))
 
-  def addEdge(source: ElementId, target: ElementId): ViewerGraph =
+  def addEdge(source: NodeId, target: NodeId): ViewerGraph =
     modifyData.using(_.addArrow(source, target))
 
-  def addNodeAndEdgeFrom(source: ElementId): ViewerGraph =
-    val nodeId = ElementId.random()
+  def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
+    val nodeId = NodeId.random()
     addNode(nodeId).addEdge(source, nodeId)
 
-  def addNode(nodeId: ElementId): ViewerGraph =
+  def addNode(nodeId: NodeId): ViewerGraph =
     modifyData.using(_.addNode(nodeId))
 
   def addRandomNode(): ViewerGraph =
-    addNode(ElementId.random())
+    addNode(NodeId.random())
 
-  def addToNewGroup(ids: Set[ElementId], label: String = ""): ViewerGraph =
+  def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraph =
     modifyData.using(_.addToNewGroup(ids, label))
 
   def root: ViewerGroup = data.root
@@ -105,37 +105,37 @@ case class ViewerGraph(
 
   val init = Map.empty[String, AttrValue]
 
-  def getAttributesById(nodeIds: Set[ElementId]): Attributes =
-    def collectAttrs(attrs: Map[ElementId, Attributable]) =
+  def getAttributesById(nodeIds: Set[NodeId]): Attributes =
+    def collectAttrs(attrs: Map[NodeId, Attributable]) =
       attrs.collect { case (id, n) if id in nodeIds => n.attrs.values }.foldLeft(init)(_ ++ _)
 
     Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
 
-  def updateAttributes(idsToUpdate: Set[ElementId], attrs: Attributes): ViewerGraph =
+  def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, attrs))
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */
-  def unfold(f: ElementId => Set[ElementId], ids0: Set[ElementId]): Set[ElementId] =
+  def unfold(f: NodeId => Set[NodeId], ids0: Set[NodeId]): Set[NodeId] =
     // How efficient is this compared to a tail rec version?
     Set
-      .unfold((ids0, Set.empty[ElementId])): (ids, visited) =>
+      .unfold((ids0, Set.empty[NodeId])): (ids, visited) =>
         val newBatch = ids.flatMap(f) -- visited
         if newBatch.isEmpty then None
         else Some((newBatch, (newBatch, visited ++ newBatch)))
       .flatten
 
-  private def subgraphUnfoldWith(f: ElementId => Set[ElementId])(ids: Set[ElementId]): ViewerGraph =
+  private def subgraphUnfoldWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
     subgraph(ids ++ unfold(f, ids))
 
-  private def subgraphWith(f: ElementId => Set[ElementId])(ids: Set[ElementId]): ViewerGraph =
+  private def subgraphWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
     subgraph(ids ++ ids.flatMap(f))
 
-  val directSuccessorsGraph: Set[ElementId] => ViewerGraph = subgraphWith(directSuccessors)
-  val directPredecessorsGraph: Set[ElementId] => ViewerGraph = subgraphWith(directPredecessors)
+  val directSuccessorsGraph: Set[NodeId] => ViewerGraph = subgraphWith(directSuccessors)
+  val directPredecessorsGraph: Set[NodeId] => ViewerGraph = subgraphWith(directPredecessors)
 
-  val allSuccessorsGraph: Set[ElementId] => ViewerGraph = subgraphUnfoldWith(directSuccessors)
-  val allPredecessorsGraph: Set[ElementId] => ViewerGraph = subgraphUnfoldWith(directPredecessors)
+  val allSuccessorsGraph: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(directSuccessors)
+  val allPredecessorsGraph: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(directPredecessors)
 
 //  lazy val toTrees: Tree[ViewerNode] =
 //    val paths =
@@ -148,7 +148,7 @@ case class ViewerGraph(
     val ids = allNodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase))
     subgraph(ids)
 
-  def filterNodesBy(p: ElementId => Boolean): Set[ElementId] =
+  def filterNodesBy(p: NodeId => Boolean): Set[NodeId] =
     allNodeIds.filter(p)
 
   def filterArrowsBy(p: Arrow => Boolean) =
@@ -164,11 +164,11 @@ end ViewerGraph
 
 object ViewerGraph:
 
-  val defaultRootId = ElementId("G")
+  val defaultRootId = GroupId("G")
   val emptyTopLevel = ViewerGroup.empty(defaultRootId)
 
   def basic(
-      arrows: Set[(ElementId, ElementId)],
+      arrows: Set[(NodeId, NodeId)],
       nodes:  Set[ViewerNode] = Set.empty
   ): ViewerGraph =
     fromKeyValues(
@@ -188,18 +188,19 @@ object ViewerGraph:
     )
 
   def fromKeyValues(
-      arrowsById: Map[ElementId, Arrow],
-      nodeById:   Map[ElementId, ViewerNode],
-      groupsById: Map[ElementId, ViewerGroup] = Map.empty
+      arrowsById: Map[NodeId, Arrow],
+      nodeById:   Map[NodeId, ViewerNode],
+      groupsById: Map[GroupId, ViewerGroup] = Map.empty
   ): ViewerGraph =
     val groups = groupsById.updatedWith(defaultRootId)(_.orElse(Some(emptyTopLevel)))
     new ViewerGraph(
       id = "G",
       ViewerGraphData(
+        rootId      = defaultRootId,
         arrows      = arrowsById,
         groups      = groups,
         nodes       = nodeById,
-        memberships = Map(defaultRootId -> None)
+        memberships = Map.empty
       )
     )
 

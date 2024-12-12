@@ -6,33 +6,36 @@ import org.jpablo.graphexplorer.viewer.models.*
 
 class ViewerGraphSpec extends ScalaCheckSuite:
 
-  val rootId = ElementId("G")
-  val a = ElementId("a")
-  val b = ElementId("b")
-  val c = ElementId("c")
+  val rootId = ViewerGraph.defaultRootId
+  val a = NodeId("a")
+  val b = NodeId("b")
+  val c = NodeId("c")
 
   test("addEdge should add an edge between two nodes") {
     val graph =
       ViewerGraph(
         "G",
         ViewerGraphData(
+          rootId      = rootId,
           arrows      = Map.empty,
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
-          memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), c -> Some(rootId))
+          memberships = Map(a -> (rootId), b -> (rootId), c -> (rootId))
         ),
         "digraph"
       )
 
-    val edgeId = ElementId("a->b:1")
+    val edgeId = NodeId("a->b:1")
     val expected =
       ViewerGraph(
         "G",
         ViewerGraphData(
-          arrows      = Map(edgeId -> Arrow(a, b, seq = 1)),
-          groups      = Map(rootId -> ViewerGroup(rootId)),
-          nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
-          memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), c -> Some(rootId), edgeId -> Some(rootId))
+          rootId = rootId,
+          arrows = Map(edgeId -> Arrow(a, b, seq = 1)),
+          groups = Map(rootId -> ViewerGroup(rootId)),
+          nodes  = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
+          memberships =
+            Map(a -> (rootId), b -> (rootId), c -> (rootId), edgeId -> (rootId))
         ),
         "digraph"
       )
@@ -43,15 +46,16 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   }
 
   test("updateAttributes should update the attributes of an edge") {
-    val edgeId = ElementId("a->b:0")
+    val edgeId = NodeId("a->b:0")
     val graph =
       ViewerGraph(
         "G",
         ViewerGraphData(
+          rootId      = rootId,
           arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
-          memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
+          memberships = Map(a -> (rootId), b -> (rootId), edgeId -> (rootId))
         ),
         "digraph"
       )
@@ -59,10 +63,12 @@ class ViewerGraphSpec extends ScalaCheckSuite:
       ViewerGraph(
         "G",
         ViewerGraphData(
-          arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"), "style" -> AttrValue("dashed"))), 0)),
+          rootId = rootId,
+          arrows =
+            Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"), "style" -> AttrValue("dashed"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
-          memberships = Map(rootId -> None, a -> Some(rootId), b -> Some(rootId), edgeId -> Some(rootId))
+          memberships = Map(a -> (rootId), b -> (rootId), edgeId -> (rootId))
         ),
         "digraph"
       )
