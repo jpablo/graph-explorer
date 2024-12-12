@@ -14,13 +14,13 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   test("addEdge should add an edge between two nodes") {
     val graph =
       ViewerGraph(
-        "G",
+        rootId.value,
         ViewerGraphData(
           rootId      = rootId,
           arrows      = Map.empty,
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
-          memberships = Map(a -> (rootId), b -> (rootId), c -> (rootId))
+          memberships = Map.empty
         ),
         "digraph"
       )
@@ -30,12 +30,11 @@ class ViewerGraphSpec extends ScalaCheckSuite:
       ViewerGraph(
         "G",
         ViewerGraphData(
-          rootId = rootId,
-          arrows = Map(edgeId -> Arrow(a, b, seq = 1)),
-          groups = Map(rootId -> ViewerGroup(rootId)),
-          nodes  = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
-          memberships =
-            Map(a -> (rootId), b -> (rootId), c -> (rootId), edgeId -> (rootId))
+          rootId      = rootId,
+          arrows      = Map(edgeId -> Arrow(a, b, seq = 1)),
+          groups      = Map(rootId -> ViewerGroup(rootId)),
+          nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)),
+          memberships = Map.empty
         ),
         "digraph"
       )
@@ -55,7 +54,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
           arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
-          memberships = Map(a -> (rootId), b -> (rootId), edgeId -> (rootId))
+          memberships = Map.empty
         ),
         "digraph"
       )
@@ -68,7 +67,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
             Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"), "style" -> AttrValue("dashed"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
-          memberships = Map(a -> (rootId), b -> (rootId), edgeId -> (rootId))
+          memberships = Map.empty
         ),
         "digraph"
       )

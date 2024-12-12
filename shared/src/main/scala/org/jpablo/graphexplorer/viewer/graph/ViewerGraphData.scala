@@ -23,6 +23,9 @@ case class ViewerGraphData(
   val arrowValues: Iterable[Arrow] = arrows.values
   val arrowsSet: Set[Arrow] = arrowValues.toSet
 
+  def getMembership(id: ElementId): GroupId =
+    memberships.getOrElse(id, rootId)
+
   def addArrow(source: NodeId, target: NodeId): ViewerGraphData =
     val newSeq = maxArrowSequence(source, target)
     val arrow = Arrow(source, target, seq = newSeq + 1)

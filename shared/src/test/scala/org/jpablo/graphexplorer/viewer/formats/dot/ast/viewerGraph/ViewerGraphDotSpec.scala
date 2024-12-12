@@ -9,22 +9,16 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
   val rootId = ViewerGraph.defaultRootId
 
   test("graphToDotAST should convert a ViewerGraph to a DotAST") {
+    val arrow = Arrow(NodeId("a"), NodeId("b"), seq = 1)
     val graph =
       ViewerGraph(
         id = rootId.value,
         data = ViewerGraphData(
-          rootId = rootId,
-          arrows = Map(NodeId("a->b:0") -> Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> AttrValue("1"))), 0)),
-          groups = Map(
-            rootId -> ViewerGroup(
-              rootId,
-              Attributes(Map("label" -> AttrValue("Title"))),
-              Attributes(Map()),
-              Attributes(Map())
-            )
-          ),
+          rootId      = rootId,
+          arrows      = Map(arrow.id -> arrow),
+          groups      = Map(rootId -> ViewerGroup(rootId, Attributes(Map("label" -> AttrValue("Title"))))),
           nodes       = Map(),
-          memberships = Map(NodeId("a->b:0") -> rootId)
+          memberships = Map()
         ),
         tpe = "digraph"
       )
@@ -36,7 +30,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
         "digraph",
         List(
           AttrStmt("graph", List(Attr("label", AttrValue("Title")))),
-          EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List())
+          EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List(Attr("id", AttrValue("1"))))
         ),
         Some("G")
       )

@@ -24,10 +24,10 @@ extension (ast: DotAST)
       case None =>
         throw new IllegalArgumentException("DotAST must have an id")
 
-  private def subGraphToViewerGroup(subId: String, sub: SubGraph): ViewerGroup =
+  private def subGraphToViewerGroup(subId: GroupId, sub: SubGraph): ViewerGroup =
     val attrs = sub.findAttributes
     ViewerGroup(
-      id        = GroupId(subId),
+      id        = subId,
       attrs     = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
       edgeAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
       nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
@@ -36,21 +36,22 @@ extension (ast: DotAST)
   def toFlattenedElements: FlattenedGraphElement =
     @tailrec
     def loop(
-        remaining:   List[(Option[String], List[GraphElement])],
+        remaining:   List[(Option[GroupId], List[GraphElement])],
         arrows:      List[Arrow],
         groups:      List[ViewerGroup],
         nodes:       List[ViewerNode],
-        memberships: List[(String, String)] = Nil // List of (element, group) memberships
+        memberships: List[(ElementId, GroupId)] // List of (element, group) memberships
     ): FlattenedGraphElement =
       remaining match
         case Nil =>
-          // Convert accumulated node attributes to ViewerNodes at the end
+          val rootId = GroupId(ast.id.getOrElse("G"))
+          val graphGroup = subGraphToViewerGroup(rootId, ast.asSubgraph)
           FlattenedGraphElement(
-            rootId      = GroupId(ast.id.getOrElse("G")),
+            rootId      = rootId,
             arrows      = arrows,
-            groups      = groups.reverse,
+            groups      = (graphGroup :: groups).reverse,
             nodes       = nodes.reverse,
-            memberships = memberships.map((id, parent) => NodeId(id) -> GroupId(parent))
+            memberships = memberships.reverse
           )
 
         case (_, Nil) :: t =>
@@ -61,7 +62,7 @@ extension (ast: DotAST)
           firstChild match
 
             case sub @ SubGraph(subChildren, id) =>
-              val subId = id.getOrElse(SubGraph.randomId())
+              val subId = GroupId(id.getOrElse(SubGraph.randomId()))
               loop(
                 remaining   = (Some(subId) -> subChildren) :: ((parent -> children) :: t),
                 arrows      = arrows,
@@ -77,22 +78,30 @@ extension (ast: DotAST)
                 arrows      = arrows ++ edgeArrows.flatten,
                 groups      = groups,
                 nodes       = nodes,
-                memberships = parent.fold(memberships)(p => edgeArrows.flatten.map(_.id.value -> p) ++ memberships)
+                memberships = parent.fold(memberships)(p => edgeArrows.flatten.map(_.id -> p) ++ memberships)
               )
 
-            case NodeStmt(nodeId, attr_list) =>
+            case NodeStmt(dotNodeId, attr_list) =>
+              val nodeId = NodeId(dotNodeId.id)
               loop(
                 remaining   = (parent -> children) :: t,
                 arrows      = arrows,
                 groups      = groups,
-                nodes       = ViewerNode(NodeId(nodeId.id), Attributes(toAttrsMap(attr_list))) :: nodes,
-                memberships = parent.fold(memberships)(p => (nodeId.id -> p) :: memberships)
+                nodes       = ViewerNode(nodeId, Attributes(toAttrsMap(attr_list))) :: nodes,
+                memberships = parent.fold(memberships)(p => (nodeId -> p) :: memberships)
               )
 
             case _ =>
               loop(remaining = (parent -> children) :: t, arrows, groups, nodes, memberships)
 
-    loop(remaining = List(None -> ast.children), Nil, Nil, Nil)
+    // TODO: add a group for the graph itself
+    loop(
+      remaining   = List(None -> ast.children),
+      arrows      = Nil,
+      groups      = Nil,
+      nodes       = Nil,
+      memberships = Nil
+    )
 
 //  def setDefaultTheme: DotAST =
 //    ast.modify(_.children).using: children =>

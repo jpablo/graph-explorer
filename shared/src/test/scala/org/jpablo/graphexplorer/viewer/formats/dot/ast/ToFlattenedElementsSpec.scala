@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, GroupId, NodeId, ViewerGroup, ViewerNode}
 
-class GraphElementOpsSpec extends ScalaCheckSuite:
+class ToFlattenedElementsSpec extends ScalaCheckSuite:
 
   val rootId = ViewerGraph.defaultRootId
   val group0 = GroupId("cluster_0")
@@ -43,9 +43,9 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedGroups =
       List(
-        ViewerGroup(rootId),
         ViewerGroup(group0, nodeAttrs = Attributes(Map("shape" -> AttrValue("egg")))),
-        ViewerGroup(group1)
+        ViewerGroup(group1),
+        ViewerGroup(rootId)
       )
     assertEquals(data.groups, expectedGroups)
   }
@@ -68,19 +68,18 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
   test("toFlattenedElements should return all memberships") {
     resetId()
     val data = astWithNestedSubGraphs.toFlattenedElements
-    pprint.log(data.memberships)
     val expectedMemberships =
       List(
-        NodeId("d")      -> group1,
-        group1           -> group0,
+        NodeId("z")      -> group0,
         NodeId("a->b:2") -> group0,
-        NodeId("z")      -> group0
+        group1           -> group0,
+        NodeId("d")      -> group1
       )
 
     assertEquals(data.memberships, expectedMemberships)
   }
 
-  test("directChildrenToAST") {
+  test("roundtrip") {
     resetId()
     val flattened = astWithNestedSubGraphs.toFlattenedElements
     val data = flattened.toViewerGraphData
@@ -96,8 +95,11 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
           ),
           Some("cluster_0")
         ),
+        NodeStmt(DotNodeId("x", None), Nil),
         NodeStmt(DotNodeId("a", None), Nil),
+        NodeStmt(DotNodeId("y", None), Nil),
         NodeStmt(DotNodeId("b", None), Nil),
+        NodeStmt(DotNodeId("c", None), Nil),
         EdgeStmt(List(DotNodeId("x", None), DotNodeId("y", None)), List(Attr("id", AttrValue("1")))),
         EdgeStmt(List(DotNodeId("x", None), DotNodeId("a", None)), List(Attr("id", AttrValue("3")))),
         EdgeStmt(List(DotNodeId("b", None), DotNodeId("c", None)), List(Attr("id", AttrValue("4"))))

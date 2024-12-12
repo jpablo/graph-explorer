@@ -27,43 +27,37 @@ private def arrowToStmt(arrow: Arrow): EdgeStmt = {
   )
 }
 
-private def buildNodeStmt(viewerGraphData: ViewerGraphData, groupId: GroupId): Iterable[NodeStmt] =
-  viewerGraphData.nodes.values
-    .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(groupId)))
-    .map(nodeToStmt)
-
-private def buildEdgeStmt(viewerGraphData: ViewerGraphData, groupId: GroupId): Iterable[EdgeStmt] =
-  viewerGraphData.arrowValues
-    .filter(node => viewerGraphData.memberships.get(node.id).contains(Some(groupId)))
-    .map(arrowToStmt)
-
 private def attrs(attrs: Attributes, target: AttributeTarget) =
   if attrs.values.nonEmpty then
     List(AttrStmt(target.toString, attrs.values.map(Attr(_, _)).toList))
   else Nil
 
-def graphDataToAST(viewerGraphData: ViewerGraphData): List[GraphElement] =
+def graphDataToAST(graphData: ViewerGraphData): List[GraphElement] =
+  def groupToSubGraph(groupId: GroupId, visited: Set[GroupId] = Set()): Option[SubGraph] =
+    if visited contains groupId then
+      None
+    else
+      val nodeStmts = graphData.nodes.values
+        .filter(node => graphData.getMembership(node.id) == groupId)
+        .map(nodeToStmt)
 
-  def groupToSubGraph(groupId: GroupId): SubGraph =
-    val groupData = viewerGraphData.groups(groupId)
+      val edgeStmts = graphData.arrows.values
+        .filter(arrow => graphData.getMembership(arrow.id) == groupId)
+        .map(arrowToStmt)
 
-    val nodeStmts = buildNodeStmt(viewerGraphData, groupId)
-    val edgeStmts = buildEdgeStmt(viewerGraphData, groupId)
-    val subGraphs = viewerGraphData.groups.values
-      .filter(group => viewerGraphData.memberships.get(group.id).contains(Some(groupId)))
-      .map(g => groupToSubGraph(g.id))
+      val subGraphs = graphData.groups.values
+        .filter(group => graphData.getMembership(group.id) == groupId)
+        .flatMap(g => groupToSubGraph(g.id, visited + groupId))
 
-    val nodeAttrs = attrs(groupData.nodeAttrs, AttributeTarget.node)
-    val edgeAttrs = attrs(groupData.edgeAttrs, AttributeTarget.edge)
-    val groupAttrs = attrs(groupData.attrs, AttributeTarget.graph)
+      val viewerGroup = graphData.groups(groupId)
+      val nodeAttrs = attrs(viewerGroup.nodeAttrs, AttributeTarget.node)
+      val edgeAttrs = attrs(viewerGroup.edgeAttrs, AttributeTarget.edge)
+      val groupAttrs = attrs(viewerGroup.attrs, AttributeTarget.graph)
 
-    // Combine all elements
-    val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++ subGraphs ++ nodeStmts ++ edgeStmts
+      // Combine all elements
+      val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++ subGraphs ++ nodeStmts ++ edgeStmts
 
-    SubGraph(children, Some(groupId.value))
+      Some(SubGraph(children, Some(groupId.value)))
   end groupToSubGraph
 
-  // Find the root group (the one with no parent in memberships)
-  val root = viewerGraphData.root
-
-  groupToSubGraph(root.id).children
+  groupToSubGraph(graphData.root.id).toList.flatMap(_.children)

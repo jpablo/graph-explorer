@@ -15,12 +15,10 @@ case class FlattenedGraphElement(
     val arrowEndpoints = arrows.flatMap(_.endpoints).toSet
     val nodesMap = nodes.map(n => n.id -> n).toMap
     val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
-    val membershipsMap = memberships.toMap
-    val extraMemberships = implicitNodeIds.map(_ -> rootId).toMap
     ViewerGraphData(
       rootId      = rootId,
       arrows      = arrows.map(a => a.id -> a).toMap,
       groups      = groups.map(g => g.id -> g).toMap,
       nodes       = nodesMap ++ implicitNodeIds.map(n => n -> ViewerNode(n)),
-      memberships = membershipsMap ++ extraMemberships // This messes up with the order of elements
+      memberships = memberships.toMap // This messes up with the order of elements
     )
