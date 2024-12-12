@@ -11,7 +11,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
   test("graphToDotAST should convert a ViewerGraph to a DotAST") {
     val graph =
       ViewerGraph(
-        id = "G",
+        id = rootId.value,
         data = ViewerGraphData(
           rootId = rootId,
           arrows = Map(NodeId("a->b:0") -> Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> AttrValue("1"))), 0)),

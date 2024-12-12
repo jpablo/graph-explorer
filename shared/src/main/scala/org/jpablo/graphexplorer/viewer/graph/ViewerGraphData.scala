@@ -8,13 +8,14 @@ type Arrows = Map[NodeId, Arrow]
 type Memberships = Map[ElementId, GroupId]
 
 case class ViewerGraphData(
+    // the graph itself is a group
     rootId: GroupId,
+    // arrow endpoints should already be in nodes
     arrows: Arrows,
-    // groups here can be empty or not
+    // Group elements are tracked in memberships
     groups: Map[GroupId, ViewerGroup],
-    // endpoints in arrows should already be in nodes
     nodes: Map[NodeId, ViewerNode],
-    // ids not in memberships are implicitly in the root group (the graph itself)
+    // ids not in memberships are assumed to be in the root group (the graph itself)
     memberships: Memberships
 ):
   assert(rootId in groups, s"Root node $rootId not found in groups: $groups")

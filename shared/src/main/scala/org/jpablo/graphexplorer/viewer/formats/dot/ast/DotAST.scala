@@ -173,7 +173,7 @@ case class SubGraph(children: List[GraphElement], id: Option[String] = None)
           (targetEnum, attrs.map(attr => attr.id -> attr.attrEq).toMap)
       .groupBy(_._1)
       .view
-      .mapValues(pairs => pairs.flatMap(_._2).toMap)
+      .mapValues(_.flatMap(_._2).toMap)
       .toMap
 
 object SubGraph:

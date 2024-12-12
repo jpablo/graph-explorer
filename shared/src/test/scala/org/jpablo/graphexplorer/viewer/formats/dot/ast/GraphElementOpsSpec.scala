@@ -14,8 +14,8 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
   val group0 = GroupId("cluster_0")
   val group1 = GroupId("cluster_1")
 
-  test("findAllDirectChildren should return all nodes") {
-    val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
+  test("toFlattenedElements should return all nodes") {
+    val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedNodes =
       List(
         node("a"),
@@ -26,9 +26,9 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     assertEquals(data.nodes, expectedNodes)
   }
 
-  test("findAllDirectChildren should return all arrows") {
+  test("toFlattenedElements should return all arrows") {
     resetId()
-    val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
+    val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedArrows =
       List(
         arrow("x" -> "y", seq = 1),
@@ -39,8 +39,8 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     assertEquals(data.arrows, expectedArrows)
   }
 
-  test("findAllDirectChildren should return all groups") {
-    val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
+  test("toFlattenedElements should return all groups") {
+    val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedGroups =
       List(
         ViewerGroup(rootId),
@@ -50,9 +50,9 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     assertEquals(data.groups, expectedGroups)
   }
 
-  test("findAllDirectChildren in empty graphs should return all memberships") {
+  test("toFlattenedElements in empty graphs should find a single group (the root group)") {
     val emptyAST = DotAST(tpe = "digraph", children = Nil, id = Some(rootId.value))
-    val data = emptyAST.asSubgraph.toFlattenedElements
+    val data = emptyAST.toFlattenedElements
     val expected =
       FlattenedGraphElement(
         rootId      = rootId,
@@ -65,21 +65,16 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
     assertEquals(data, expected)
   }
 
-  test("findAllDirectChildren should return all memberships") {
+  test("toFlattenedElements should return all memberships") {
     resetId()
-    val data = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
+    val data = astWithNestedSubGraphs.toFlattenedElements
+    pprint.log(data.memberships)
     val expectedMemberships =
       List(
-        NodeId("b->c:4") -> rootId,
-        NodeId("x->a:3") -> rootId,
         NodeId("d")      -> group1,
         group1           -> group0,
         NodeId("a->b:2") -> group0,
-        NodeId("z")      -> group0,
-        group0           -> rootId,
-        NodeId("x->y:1") -> rootId,
-        NodeId("b")      -> rootId,
-        NodeId("a")      -> rootId,
+        NodeId("z")      -> group0
       )
 
     assertEquals(data.memberships, expectedMemberships)
@@ -87,7 +82,7 @@ class GraphElementOpsSpec extends ScalaCheckSuite:
 
   test("directChildrenToAST") {
     resetId()
-    val flattened = astWithNestedSubGraphs.asSubgraph.toFlattenedElements
+    val flattened = astWithNestedSubGraphs.toFlattenedElements
     val data = flattened.toViewerGraphData
     val reconstructed = graphDataToAST(data)
     val expected =
