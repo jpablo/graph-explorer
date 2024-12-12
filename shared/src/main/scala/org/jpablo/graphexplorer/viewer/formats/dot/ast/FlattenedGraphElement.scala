@@ -15,6 +15,7 @@ case class FlattenedGraphElement(
     val arrowEndpoints = arrows.flatMap(_.endpoints).toSet
     val nodesMap = nodes.map(n => n.id -> n).toMap
     val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
+
     ViewerGraphData(
       rootId      = rootId,
       arrows      = arrows.map(a => a.id -> a).toMap,

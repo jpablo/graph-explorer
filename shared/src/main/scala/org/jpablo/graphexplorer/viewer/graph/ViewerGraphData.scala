@@ -14,7 +14,7 @@ case class ViewerGraphData(
     arrows: Arrows,
     // Group elements are tracked in memberships
     groups: Map[GroupId, ViewerGroup],
-    nodes: Map[NodeId, ViewerNode],
+    nodes:  Map[NodeId, ViewerNode],
     // ids not in memberships are assumed to be in the root group (the graph itself)
     memberships: Memberships
 ):
@@ -35,7 +35,8 @@ case class ViewerGraphData(
     copy(memberships = memberships + (nodeId -> groupId))
 
   def removeEmptyGroups: ViewerGraphData =
-    val nonEmptyGroupIds = memberships.values.toSet
+    // the root group is not added to memberships, so it will appear empty
+    val nonEmptyGroupIds = memberships.values.toSet + rootId
     val nonEmptyGroups = groups.view.filterKeys(nonEmptyGroupIds).toMap
     copy(groups = nonEmptyGroups)
 
