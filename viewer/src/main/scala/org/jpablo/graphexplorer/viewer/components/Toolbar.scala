@@ -75,10 +75,12 @@ def Toolbar(
     ),
     Button(
       i(cls := "bi bi-arrow-counterclockwise"),
+      title := "Undo",
       onClick --> state.undoEvent.emit(())
     ).tiny,
     Button(
       i(cls := "bi bi-arrow-clockwise"),
+      title := "Redo",
       onClick --> state.redoEvent.emit(())
     ).tiny,
     Join(
