@@ -73,16 +73,19 @@ def Toolbar(
       Button("fit", onClick --> fitDiagram.emit(())).tiny,
       Button(span().plusIcon, onClick --> state.zoomValue.update(_ * 1.1)).tiny
     ),
-    Button(
-      i(cls := "bi bi-arrow-counterclockwise"),
-      title := "Undo",
-      onClick --> state.undoEvent.emit(())
-    ).tiny,
-    Button(
-      i(cls := "bi bi-arrow-clockwise"),
-      title := "Redo",
-      onClick --> state.redoEvent.emit(())
-    ).tiny,
+    // ---------- Undo/Redo ----------
+    Join(
+      Button(
+        i(cls := "bi bi-arrow-counterclockwise"),
+        title := "Undo",
+        onClick --> state.undoEvent.emit(())
+      ).tiny,
+      Button(
+        i(cls := "bi bi-arrow-clockwise"),
+        title := "Redo",
+        onClick --> state.redoEvent.emit(())
+      ).tiny
+    ),
     Join(
       a(
         cls    := "btn btn-xs",
