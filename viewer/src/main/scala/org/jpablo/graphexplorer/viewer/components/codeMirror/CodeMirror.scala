@@ -1,32 +1,31 @@
 package org.jpablo.graphexplorer.viewer.components.codeMirror
 
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import typings.codemirrorState.mod.TransactionSpec
+import org.jpablo.graphexplorer.viewer.state.ViewerState
+import typings.codemirrorState.anon.{Dispatch, From}
+import typings.codemirrorState.mod.{Transaction, TransactionSpec}
 
 import scala.scalajs.js
-import js.DynamicImplicits.given
-import scala.scalajs.js.Dynamic.literal as obj
 import com.raquo.laminar.api.L.*
 import typings.codemirror.mod as codemirror
-import typings.codemirrorView.mod.{EditorView, EditorViewConfig, ViewUpdate}
+import typings.codemirrorView.mod.{EditorView, EditorViewConfig, ViewUpdate, keymap}
 import typings.vizJsLangDot.mod.dot
+import typings.codemirrorCommands.mod.indentWithTab
+import typings.codemirrorCommands.mod.{undo, redo}
 
-def CodeMirror(sourceText: Var[String], mods: Modifier[ReactiveHtmlElement.Base]*) =
+def CodeMirror(state: ViewerState, mods: Modifier[ReactiveHtmlElement.Base]*) =
 
   lazy val extensions =
     js.Array[Any](
       codemirror.basicSetup,
+      keymap.of(js.Array(indentWithTab)),
       dot(),
       EditorView.updateListener.of(updateSource(_))
     )
 
   def updateSource(update: ViewUpdate): Unit =
-    if update.docChanged && sourceText.now() != update.state.doc.toString then
-//      dom.console.debug(s"[CodeMirror] updateSource: docChanged, updating sourceText Var, ${timeDelta()}")
-      sourceText.set(update.state.doc.toString)
-    else
-      ()
-//      dom.console.debug(s"[CodeMirror] updateSource: no changes found, don't update sourceText, ${timeDelta()}")
+    if update.docChanged && state.sourceText.now() != update.state.doc.toString then
+      state.sourceText.set(update.state.doc.toString)
 
   div(
     mods,
@@ -35,20 +34,24 @@ def CodeMirror(sourceText: Var[String], mods: Modifier[ReactiveHtmlElement.Base]
       // Editor -> source
       val editorView = codemirror.EditorView(
         EditorViewConfig()
-          .setDoc(sourceText.now())
+          .setDoc(state.sourceText.now())
           .setParent(ctx.thisNode.ref)
           .setExtensions(extensions)
       )
+
+      for _ <- state.undoEvent.events do
+        undo(Dispatch(editorView.dispatch, editorView.state))
+
+      for _ <- state.redoEvent.events do
+        redo(Dispatch(editorView.dispatch, editorView.state))
+
       // Source -> editor
-      for newSource <- sourceText.signal do
-//        dom.console.debug(s"[CodeMirror] newSource.length: ${newSource.length}")
+      for newSource <- state.sourceText.signal do
         val existingSource = editorView.state.doc.toString
         if newSource != existingSource then
-//          dom.console.debug(s"[CodeMirror] newSource != existingSource")
-//          dom.console.debug(s"[CodeMirror] sourceText Var changed, updating document: ${timeDelta()}")
           editorView.dispatch(
             TransactionSpec().setChanges(
-              js.Array(obj(from = 0, to = existingSource.length, insert = newSource))
+              From(0).setTo(existingSource.length).setInsert(newSource)
             )
           )
   )

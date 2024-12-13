@@ -83,7 +83,7 @@ class LeftPanel(state: ViewerState):
 
   private def tabSource(idx: Int) =
     CodeMirror(
-      state.sourceText,
+      state,
       idAttr := "nodes-source",
       cls("hidden") <-- !isVisible(idx),
       placeholder := "DOT source"

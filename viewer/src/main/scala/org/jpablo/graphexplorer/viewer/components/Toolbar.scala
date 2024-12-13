@@ -15,7 +15,6 @@ def Toolbar(
 ) =
   import state.eventHandlers.*
 
-  val drawerId = s"drawer-id"
   val writeTextToClipboard = window.navigator.clipboard.writeText
   div(
     idAttr := "toolbar",
@@ -54,7 +53,7 @@ def Toolbar(
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow",
         li(a("roots", onClick.keepRootsOnly)),
         li(a("show all", onClick --> state.showAllNodes())),
-        li(a("hide all", onClick.hideAllNodes)),
+        li(a("hide all", onClick.hideAllNodes))
       )
     ),
     div(
@@ -74,19 +73,14 @@ def Toolbar(
       Button("fit", onClick --> fitDiagram.emit(())).tiny,
       Button(span().plusIcon, onClick --> state.zoomValue.update(_ * 1.1)).tiny
     ),
-    Join(
-      input(
-        tpe      := "range",
-        cls      := "range range-xs pr-3",
-        minAttr  := 0.25.toString,
-        maxAttr  := 5.0.toString,
-        stepAttr := "0.05",
-        controlled(
-          value <-- state.zoomValue.signal.map(_.toString),
-          onInput.mapToValue.map(_.toDouble) --> state.zoomValue
-        )
-      )
-    ),
+    Button(
+      i(cls := "bi bi-arrow-counterclockwise"),
+      onClick --> state.undoEvent.emit(())
+    ).tiny,
+    Button(
+      i(cls := "bi bi-arrow-clockwise"),
+      onClick --> state.redoEvent.emit(())
+    ).tiny,
     Join(
       a(
         cls    := "btn btn-xs",

@@ -33,6 +33,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   private val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal, resetView)
 
+  val undoEvent: EventBus[Unit] = EventBus()
+  val redoEvent: EventBus[Unit] = EventBus()
+
   val sourceText = sourceFlow.sourceText
   val fullGraph = sourceFlow.fullGraph
   private val visibleDOT = sourceFlow.visibleDOT
@@ -185,6 +188,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       case "Backspace" => deleteSelection()
       case "a"         => addNode()
       case "g"         => groupSelection()
+      case "z"         => undoEvent.emit(())
       case _           => ()
 
   // -------- storage ------------
