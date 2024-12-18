@@ -1,8 +1,8 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, SubGraph}
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, NodeId, ElementId, ViewerGroup, ViewerNode, GroupId}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, FlattenedGraphElement, SubGraph}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, ElementId, GroupId, NodeId, ViewerGroup, ViewerNode}
 
 type Arrows = Map[NodeId, Arrow]
 type Memberships = Map[ElementId, GroupId]
@@ -97,6 +97,22 @@ case class ViewerGraphData(
     copy(
       arrows = arrows ++ updatedArrows,
       nodes  = updatedNodes
+    )
+
+end ViewerGraphData
+
+object ViewerGraphData:
+  def from(data: FlattenedGraphElement) =
+    val arrowEndpoints = data.arrows.flatMap(_.endpoints).toSet
+    val nodesMap = data.nodes.map(n => n.id -> n).toMap
+    val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
+
+    ViewerGraphData(
+      rootId = data.rootId,
+      arrows = data.arrows.map(a => a.id -> a).toMap,
+      groups = data.groups.map(g => g.id -> g).toMap,
+      nodes = nodesMap ++ implicitNodeIds.map(n => n -> ViewerNode(n)),
+      memberships = data.memberships.toMap // This messes up with the order of elements
     )
 
 end ViewerGraphData

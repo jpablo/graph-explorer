@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, GroupId, Viewe
 def graphToDotAST(graph: ViewerGraph): DotAST =
   DotAST(
     tpe      = graph.tpe,
-    children = graphDataToAST(graph.data),
+    children = graphDataToDotGraphElements(graph.data),
     id       = Some(graph.id)
   )
 
@@ -32,7 +32,7 @@ private def attrs(attrs: Attributes, target: AttributeTarget) =
     List(AttrStmt(target.toString, attrs.values.map(Attr(_, _)).toList))
   else Nil
 
-def graphDataToAST(graphData: ViewerGraphData): List[GraphElement] =
+def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] =
   def groupToSubGraph(groupId: GroupId, visited: Set[GroupId] = Set()): Option[SubGraph] =
     if visited contains groupId then
       None

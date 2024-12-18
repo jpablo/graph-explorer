@@ -2,8 +2,8 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.EdgeStmt.resetId
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToAST
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToDotGraphElements
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, GroupId, NodeId, ViewerGroup, ViewerNode}
@@ -82,8 +82,8 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
   test("roundtrip") {
     resetId()
     val flattened = astWithNestedSubGraphs.toFlattenedElements
-    val data = flattened.toViewerGraphData
-    val reconstructed = graphDataToAST(data)
+    val data = ViewerGraphData.from(flattened)
+    val reconstructed = graphDataToDotGraphElements(data)
     val expected =
       List(
         SubGraph(

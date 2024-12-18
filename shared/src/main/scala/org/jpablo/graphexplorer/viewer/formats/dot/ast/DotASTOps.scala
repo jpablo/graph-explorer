@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 
@@ -19,7 +19,7 @@ extension (ast: DotAST)
       case Some(id) =>
         EdgeStmt.resetId()
         val flattened = ast.toFlattenedElements
-        val viewerGraphData = flattened.toViewerGraphData
+        val viewerGraphData = ViewerGraphData.from(flattened)
         ViewerGraph(id, viewerGraphData, ast.tpe)
       case None =>
         throw new IllegalArgumentException("DotAST must have an id")

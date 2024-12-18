@@ -157,7 +157,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     )
 
   // individual node attributes
-  def nodesAttributes(nodeIds: Set[NodeId]): Var[Map[String, AttrValue]] =
+  def nodesAttributes(nodeIds: Set[NodeId]) =
     sourceFlow.fullGraphV.zoom(_.getAttributesById(nodeIds).values): (graph, attrs) =>
       graph.updateAttributes(nodeIds, Attributes(attrs))
 
