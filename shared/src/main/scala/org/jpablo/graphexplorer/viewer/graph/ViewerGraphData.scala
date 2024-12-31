@@ -63,8 +63,12 @@ case class ViewerGraphData(
 
   def removeNodes(ids: Set[NodeId]): ViewerGraphData =
     copy(
-      nodes  = nodes -- ids,
-      arrows = arrows -- arrows.keys.filter(id => ids.contains(arrows(id).source) || ids.contains(arrows(id).target)),
+      nodes = nodes -- ids,
+      arrows = arrows.filterNot { case (arrowId, arrow) =>
+        ids.contains(arrowId) ||
+        ids.contains(arrow.source) ||
+        ids.contains(arrow.target)
+      },
       memberships = memberships -- ids
     ).removeEmptyGroups
 
@@ -108,10 +112,10 @@ object ViewerGraphData:
     val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
 
     ViewerGraphData(
-      rootId = data.rootId,
-      arrows = data.arrows.map(a => a.id -> a).toMap,
-      groups = data.groups.map(g => g.id -> g).toMap,
-      nodes = nodesMap ++ implicitNodeIds.map(n => n -> ViewerNode(n)),
+      rootId      = data.rootId,
+      arrows      = data.arrows.map(a => a.id -> a).toMap,
+      groups      = data.groups.map(g => g.id -> g).toMap,
+      nodes       = nodesMap ++ implicitNodeIds.map(n => n -> ViewerNode(n)),
       memberships = data.memberships.toMap // This messes up with the order of elements
     )
 

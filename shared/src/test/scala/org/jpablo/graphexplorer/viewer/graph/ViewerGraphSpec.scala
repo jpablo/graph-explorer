@@ -77,4 +77,92 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     assertEquals(updated, expected)
   }
 
+  test("removeNodes should remove the nodes and their edges") {
+    val edgeId1 = NodeId("a->b:0")
+    val edgeId2 = NodeId("b->c:0")
+    val graph =
+      ViewerGraph(
+        "G",
+        ViewerGraphData(
+          rootId = rootId,
+          arrows = Map(
+            edgeId1 -> Arrow(a, b, seq = 0),
+            edgeId2 -> Arrow(b, c, seq = 0)
+          ),
+          groups = Map(rootId -> ViewerGroup(rootId)),
+          nodes = Map(
+            a -> ViewerNode(a),
+            b -> ViewerNode(b),
+            c -> ViewerNode(c)
+          ),
+          memberships = Map.empty
+        ),
+        "digraph"
+      )
+
+    val expected =
+      ViewerGraph(
+        "G",
+        ViewerGraphData(
+          rootId = rootId,
+          arrows = Map.empty,
+          groups = Map(rootId -> ViewerGroup(rootId)),
+          nodes = Map(
+            a -> ViewerNode(a),
+            c -> ViewerNode(c)
+          ),
+          memberships = Map.empty
+        ),
+        "digraph"
+      )
+
+    val updated = graph.removeNodes(Set(b))
+    assertEquals(updated, expected)
+  }
+
+  test("removeNodes a single arrow") {
+    val edgeId1 = NodeId("a->b:0")
+    val edgeId2 = NodeId("a->b:1")
+    val graph =
+      ViewerGraph(
+        "G",
+        ViewerGraphData(
+          rootId = rootId,
+          arrows = Map(
+            edgeId1 -> Arrow(a, b, seq = 0),
+            edgeId2 -> Arrow(a, b, seq = 1)
+          ),
+          groups = Map(rootId -> ViewerGroup(rootId)),
+          nodes = Map(
+            a -> ViewerNode(a),
+            b -> ViewerNode(b)
+          ),
+          memberships = Map.empty
+        ),
+        "digraph"
+      )
+
+    val expected =
+      ViewerGraph(
+        "G",
+        ViewerGraphData(
+          rootId = rootId,
+          arrows = Map(
+            edgeId2 -> Arrow(a, b, seq = 1)
+          ),
+          groups = Map(rootId -> ViewerGroup(rootId)),
+          nodes = Map(
+            a -> ViewerNode(a),
+            b -> ViewerNode(b)
+          ),
+          memberships = Map.empty
+        ),
+        "digraph"
+      )
+
+    val updated = graph.removeNodes(Set(edgeId1))
+
+    assertEquals(updated, expected)
+  }
+
 end ViewerGraphSpec
