@@ -161,6 +161,7 @@ class SourceFlow(
     visibleGraph.map(graph => withLog("[visibleGraph -> visibleAST]")(graphToDotAST(graph)))
 
   val visibleDOT: Signal[DotText] =
-    visibleAST.map(ast => withLog("[visibleAST -> visibleDOT]")(ast.renderToDot))
+    visibleAST
+      .map(ast => withLog("[visibleAST -> visibleDOT]")(ast.renderToDot))
 
 end SourceFlow

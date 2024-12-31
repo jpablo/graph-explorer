@@ -48,6 +48,9 @@ def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] 
       val subGraphs = graphData.groups.values
         .filter(group => graphData.getMembership(group.id) == groupId)
         .flatMap(g => groupToSubGraph(g.id, visited + groupId))
+        .toList
+        .sortBy(_.id) // TODO: Is this really necessary?
+
 
       val viewerGroup = graphData.groups(groupId)
       val nodeAttrs = attrs(viewerGroup.nodeAttrs, AttributeTarget.node)

@@ -1,11 +1,10 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import upickle.default.*
-
-import scala.scalajs.js
+import org.jpablo.graphexplorer.viewer.utils.UuidV4
 
 case class ProjectId(value: String) derives ReadWriter
 
 object ProjectId:
   def random =
-    ProjectId(js.Dynamic.global.crypto.randomUUID().toString)
+    ProjectId(UuidV4())
