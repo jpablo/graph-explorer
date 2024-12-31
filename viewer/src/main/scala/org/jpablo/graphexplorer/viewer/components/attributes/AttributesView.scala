@@ -39,8 +39,8 @@ def AttributesView(
 
                 case InputType.`multiText` =>
                   TextAreaWithValue(row.placeholderText, inputVarStr, row.default/*, setFocus = row.attrId == "label"*/)
-                case _ =>
 
+                case _ =>
                   InputWithValue(row.placeholderText, inputVarStr, row.inputType, row.default/*, setFocus = row.attrId == "label"*/)
             ),
             td()

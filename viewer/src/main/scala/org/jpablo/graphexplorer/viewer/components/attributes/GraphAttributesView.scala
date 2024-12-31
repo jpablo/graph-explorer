@@ -14,7 +14,7 @@ def GraphAttributesView(state: ViewerState) =
     rows = buildRows(
       Layout,
       Rankdir,
-      Label,
+      Label -> multiText,
       LabelLoc,
       Splines,
       BgColor -> color,
