@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.widgets.{Checked, InputType, InputWithValue, SelectWithValue}
+import org.jpablo.graphexplorer.viewer.widgets.{Checked, InputType, InputWithValue, SelectWithValue, TextAreaWithValue}
 
 def AttributesView(
     id:    String,
@@ -37,7 +37,10 @@ def AttributesView(
                   val inputVarBool = inputVarStr.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
                   Checked(row.placeholderText, inputVarBool, row.default == true.toString)
 
+                case InputType.`multiText` =>
+                  TextAreaWithValue(row.placeholderText, inputVarStr, row.default/*, setFocus = row.attrId == "label"*/)
                 case _ =>
+
                   InputWithValue(row.placeholderText, inputVarStr, row.inputType, row.default/*, setFocus = row.attrId == "label"*/)
             ),
             td()

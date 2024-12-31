@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number, multiText}
 
 def SelectionAttributes(state: ViewerState) =
   div(
@@ -25,7 +25,7 @@ def CombinedAttributesView(attrs: Var[Map[String, AttrValue]]) =
     title = "Selection Attributes",
     attrs = attrs,
     rows = buildRows(
-      Label,
+      Label -> multiText,
       Shape,
       Style,
       URL,

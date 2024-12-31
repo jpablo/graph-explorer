@@ -8,7 +8,7 @@ val scala3Version = "3.6.2"
 val scalametaVersion = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
 val zioVersion = "2.1.1"
-val laminarVersion = "17.1.0"
+val laminarVersion = "17.2.0"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"

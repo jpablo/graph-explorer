@@ -1,8 +1,11 @@
 package org.jpablo.graphexplorer.viewer.widgets
 
-import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
+import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
+
 
 def SelectWithLabel(
     labelText:       String,
@@ -86,6 +89,32 @@ def InputWithValue(
     if setFocus then onMountFocus else emptyMod
   )
 
+def TextAreaWithValue(
+    placeholderText: String,
+    inputValue:      Var[Option[AttrValue]],
+    default:         String = "",
+    setFocus:        Boolean = false
+) =
+  // hack
+  val htmlRegex = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
+  def isHtml(s: String) = htmlRegex.matches(s)
+  val rawText = inputValue
+    .bimap(getThis = v =>
+      v.getOrElse(default).toString.replaceAll("\\\\n", "\n")
+    )(
+      getParent = v =>
+        val escaped = v.replaceAll("\n", "\\\\n")
+        Some(AttrValue(if isHtml(v) then AttrEq(escaped, true) else escaped))
+    )
+
+  textArea(
+    cls         := "input input-bordered input-xs w-full",
+    placeholder := placeholderText,
+    value <-- rawText.signal,
+    onInput.mapToValue --> rawText.set,
+    if setFocus then onMountFocus else emptyMod
+  )
+
 def Checked(
     placeholderText: String,
     inputValue:      Var[Option[Boolean]],
@@ -98,5 +127,39 @@ def Checked(
     controlled(
       checked <-- inputValue.signal.map(_.getOrElse(default)),
       onInput.mapToChecked.map(Some(_)) --> inputValue.set
+    )
+  )
+
+def Checkbox(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
+  input(tpe := InputType.checkbox.toString, cls := "checkbox", mods)
+
+def Search(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
+  input(
+    tpe := InputType.search.toString,
+    cls := "input input-bordered input-xs input-primary w-full",
+    mods
+  )
+
+def LabeledCheckbox(
+  id:         String,
+  labelStr:   String,
+  isChecked:  Var[Boolean],
+  isDisabled: Signal[Boolean] = Signal.fromValue(false),
+  toggle:     Boolean = false
+) =
+  div(
+    cls := "form-control",
+    label(
+      forId := id,
+      cls   := "label cursor-pointer",
+      span(cls := "label-text pr-1", labelStr),
+      input(
+        idAttr       := id,
+        autocomplete := "off",
+        tpe          := InputType.checkbox.toString,
+        disabled <-- isDisabled,
+        cls := (if toggle then "toggle toggle-xs" else "checkbox checkbox-xs"),
+        controlled(checked <-- isChecked, onClick.mapToChecked --> isChecked)
+      )
     )
   )
