@@ -6,7 +6,6 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 
-
 def SelectWithLabel(
     labelText:       String,
     placeholderText: String,
@@ -95,16 +94,30 @@ def TextAreaWithValue(
     default:         String = "",
     setFocus:        Boolean = false
 ) =
-  // hack
   val htmlRegex = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
   def isHtml(s: String) = htmlRegex.matches(s)
+
+  // Note .replaceAll operates on regexes, so we need to escape the backslashes
   val rawText = inputValue
-    .bimap(getThis = v =>
-      v.getOrElse(default).toString.replaceAll("\\\\n", "\n")
+    .bimap(
+      // DOT -> UI
+      getThis = dotText =>
+        val uiText = dotText.getOrElse(default).toString
+          .replaceAll(
+            """\\\\""", // regex matching two backslashes
+            """\\""" // replaced by a single backslash
+          )
+          .replaceAll("""\\n""", "\n")
+        uiText
     )(
-      getParent = v =>
-        val escaped = v.replaceAll("\n", "\\\\n")
-        Some(AttrValue(if isHtml(v) then AttrEq(escaped, true) else escaped))
+      // UI -> DOT
+      getParent = uiText =>
+        val dotText = uiText
+          // escape single slashes first; this will ignore newlines
+          .replaceAll("""\\""", """\\\\""")
+          // replace '\n' (single character) with two characters: ['\\', 'n']
+          .replaceAll("\n", """\\n""")
+        Some(AttrValue(if isHtml(uiText) then AttrEq(dotText, true) else dotText))
     )
 
   textArea(
@@ -141,11 +154,11 @@ def Search(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
   )
 
 def LabeledCheckbox(
-  id:         String,
-  labelStr:   String,
-  isChecked:  Var[Boolean],
-  isDisabled: Signal[Boolean] = Signal.fromValue(false),
-  toggle:     Boolean = false
+    id:         String,
+    labelStr:   String,
+    isChecked:  Var[Boolean],
+    isDisabled: Signal[Boolean] = Signal.fromValue(false),
+    toggle:     Boolean = false
 ) =
   div(
     cls := "form-control",
