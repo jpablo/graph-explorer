@@ -22,7 +22,8 @@ def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivEle
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram, router),
 //    SelectionSidebar(state),
-    SelectionAttributes(state)
+    SelectionAttributes(state),
+    HelpDialog(state.shortcutsModalOpen)
   )
 
 def DiagramElementsButton(state: ViewerState) =

@@ -75,6 +75,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // -------------- UI state -----------------
   val leftPanelVisible = Var(true)
   val leftPanelTabIndex = Var(0)
+  val shortcutsModalOpen = Var(false)
 
   // -------- Public API -----------
   def resetView(): Unit =

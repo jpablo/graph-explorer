@@ -87,6 +87,11 @@ def Toolbar(
       ).tiny
     ),
     Join(
+      Button(
+        i(cls := "bi bi-question-circle"),
+        title := "Help - Keyboard Shortcuts",
+        onClick --> state.shortcutsModalOpen.set(true)
+      ).tiny,
       a(
         cls    := "btn btn-xs",
         href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
