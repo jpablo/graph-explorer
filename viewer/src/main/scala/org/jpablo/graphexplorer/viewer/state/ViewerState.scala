@@ -39,34 +39,38 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val sourceText = sourceFlow.sourceText
   val fullGraph = sourceFlow.fullGraph
   private val visibleDOT = sourceFlow.visibleDOT
-  private val visibleGraph = sourceFlow.visibleGraph
+  val visibleGraph = sourceFlow.visibleGraph
 
   // ---- SvgDotDiagram ----
-  val startNode = Var[Option[(models.NodeId, Point2d[Double])]](None)
+  val startNode = Var[Option[(models.NodeId | models.Arrow, Point2d[Double])]](None)
   val endPos = Var[Point2d[Double]]((0, 0))
   val isDragging = Var(false)
 
-  // 5. Render visible Dot to SVG
-  // Dot ~> SVGSVGElement
-  val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
-    visibleDOT
-      .flatMapSwitch { dotText =>
-        withLog("[svgDiagramElement]:step 1 (text.toSvg)")(dotText.toSvg)
-      }
-      .map { svg =>
-        withLog("[svgDiagramElement]:step 2 (svgWithTransform)"):
-          SvgDotDiagram.svgWithTransform(
-            transform,
-            startNode.signal,
-            endPos.signal,
-            isDragging.signal
-          )(svg)
-      }
+  val mouse = MouseInteraction
 
   // -------------------------------
   // this should be a subset of visibleNodesV keys
   val diagramSelection = DiagramSelectionOps()
   // -------------------------------
+
+
+
+  // 5. Render visible Dot to SVG
+  // Dot ~> SVGSVGElement
+  val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
+    visibleDOT
+      .flatMapSwitch(_.toSvg)
+      .map { svg =>
+        withLog("[svgDiagramElement]:step 2 (svgWithTransform)"):
+          SvgDotDiagram.svgWithTransform(
+            transform,
+            startNode.signal.map(_.collect { case (id: models.NodeId, pos) => (id, pos) }),
+            endPos.signal,
+            isDragging.signal,
+            mouse.selectionRect.signal,
+            diagramSelection
+          )(svg)
+      }
 
   private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
 
@@ -113,29 +117,70 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.fullGraphV.update(_.addEdge(from, to))
 
-  def handleMouseDown(endNodeId: NodeId, clientCoords: Point2d[Double]): Unit =
-    Var.set(
-      startNode  -> Some(endNodeId, clientCoords),
-      endPos     -> clientCoords,
-      isDragging -> true
-    )
+  // def handleSvgClick(event: dom.MouseEvent): Unit =
+  //   dom.console.log("-------- handleSvgClick --------", event.target)
+  //   findSelectableElement(event) match
+  //     case None                            => clear()
+  //     case Some((nodeId: NodeId, metaKey)) => handleClickOnNode(nodeId)(metaKey)
+  //     case Some((Some(arrow), metaKey))    => handleClickOnArrow(arrow)(metaKey)
+  //     case _                               => ()
 
-  def handleMouseMove(buttons: Int, clientCoords: Point2d[Double]): Unit =
-    // Check if the left mouse button is pressed
-    if buttons == 1 && startNode.now().isDefined then
-      isDragging.set(true)
-      endPos.set(clientCoords)
 
-  def handleMouseUp(endNodeId: Option[NodeId]): Unit =
-    if isDragging.now() then
-      endNodeId.foreach: nodeId =>
-        startNode.now().map(_._1)
-          .filter(_ != nodeId)
-          .foreach(startNodeId => addEdge(startNodeId, nodeId))
-      Var.set(
-        startNode  -> None,
-        isDragging -> false
-      )
+
+  // def handleMouseDown(event: dom.MouseEvent): Unit =
+  //   val clientCoords = (event.clientX, event.clientY)
+  //   Var.set(
+  //     selectionRect -> Some(SelectionRect(event.clientX, event.clientY, event.clientX, event.clientY)),
+  //     isDragging -> false,
+  //     endPos     -> clientCoords
+  //   )
+  //   findSelectableElement(event).foreach:
+  //     case (nodeId: NodeId, _) =>
+  //       // 1. show node bbox
+  //       startNode.set(Some(nodeId, clientCoords))
+  //     case (arrow: models.Arrow, _) =>
+  //       // 1. show node bbox
+  //       startNode.set(Some(arrow, clientCoords))
+  //     case _ =>
+  //       diagramSelection.clear()
+
+  // def handleMouseMove(event: dom.MouseEvent): Unit =
+  //   val clientCoords = (event.clientX, event.clientY)
+  //   val buttons = event.buttons
+  //   if buttons == 1 then
+  //     // only update endX, endY if selectionRect is defined
+  //     selectionRect.update(_.map(_.copy(endX = event.clientX, endY = event.clientY)))
+  //   else
+  //     selectionRect.set(None)
+
+  //   // Check if the left mouse button is pressed
+  //   if buttons == 1 && startNode.now().isDefined then
+  //     Var.set(
+  //       isDragging -> true,
+  //       endPos     -> clientCoords
+  //     )
+
+  // def handleMouseUp(event: dom.MouseEvent): Unit =
+  //   selectionRect.set(None)
+  //   val startNodeId = startNode.now().map(_._1)
+  //   val endNodeId =
+  //     findSelectableElement(event).map(_._1) match
+  //       case Some(id: NodeId) => Some(id)
+  //       case _                => None
+
+  //   (startNodeId, endNodeId) match
+  //     case (None, _)                 => ()
+  //     case (Some(startNodeId: NodeId), Some(endNodeId)) if startNodeId != endNodeId =>
+  //       addEdge(startNodeId, endNodeId)
+  //     case _ =>
+  //       // 1. select node
+  //       // 2. show node attributes
+  //       // 3. keep node bbox
+
+  //   Var.set(
+  //     startNode  -> None,
+  //     isDragging -> false
+  //   )
 
   // -------- Attribute management -----------
   // top level attributes
@@ -187,7 +232,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def handleKeyDown(ke: KeyboardEvent): Unit =
     ke.key match
       case "Backspace" => deleteSelection()
-      case "a"         => addNode()
+      case "n"         => addNode()
       case "g"         => groupSelection()
       case "z"         => undoEvent.emit(())
       case _           => ()
