@@ -45,6 +45,7 @@ class DiagramSelectionOps:
     add(relatedIds)
 
   def handleSvgClick(event: dom.MouseEvent): Unit =
+    dom.console.log("-------- handleSvgClick --------")
     findSelectableElement(event) match
       case None                            => clear()
       case Some((nodeId: NodeId, metaKey)) => handleClickOnNode(nodeId)(metaKey)
