@@ -73,6 +73,13 @@ label[for ^= show-ns-kind-] {
       -ms-user-select: none;
       user-select: none;
 
+      #selection-rectangle {
+        stroke-width: 0.5px;
+        stroke: #999797;
+        fill: #000000;
+        fill-opacity: 0.3;
+      }
+
       #dragging-arrow-group {
         stroke: rgb(245 158 11);
         fill: rgb(245 158 11);
@@ -88,21 +95,11 @@ label[for ^= show-ns-kind-] {
         transform-origin: 50% -50%;
 
         .node {
-          &:hover {
-           cursor: pointer;
-          
-           ellipse, polygon, path {
-             stroke: rgb(251 191 36);
-             stroke-width: 5.0;
-             fill: rgba(251, 191, 36, 0.1);
-           }
-          }
 
           &.selected {
             ellipse, polygon, path {
               stroke: rgb(245 158 11);
               stroke-width: 5.0;
-              //fill: rgba(245, 158, 11, 0.1);
             }
           }
 
@@ -113,37 +110,21 @@ label[for ^= show-ns-kind-] {
         }
 
         .edge {
-          // update style of text
-          &:hover {
-           path, polygon {
-             stroke: rgb(251 191 36);
-             stroke-width: 5.0;
-             cursor: pointer;
-           }
-          
-           polygon {
-             fill: rgb(251 191 36);
-           }
-          }
-
           &.selected {
-            path, polygon {
+            path, polygon, ellipse {
               stroke: rgb(245 158 11);
               stroke-width: 4.0;
             }
 
-            polygon {
+            polygon, ellipse {
               fill: rgb(245 158 11);
             }
           }
         }
       }
 
-      // g
-
     }
 
-    // graphviz
   }
 
   #diagram-elements-button {

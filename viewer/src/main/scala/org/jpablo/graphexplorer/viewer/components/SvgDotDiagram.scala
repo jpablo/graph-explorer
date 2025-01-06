@@ -8,10 +8,12 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.ViewerState.toSVGCoords
 import org.scalajs.dom
-import org.scalajs.dom.{SVGPoint, SVGSVGElement}
+import org.scalajs.dom.{SVGGElement, SVGPoint, SVGRectElement, SVGSVGElement}
 
 import scala.scalajs.js
+import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
 
 trait MathOps[A]:
   extension (a: A)
@@ -19,6 +21,18 @@ trait MathOps[A]:
     def *(z: A): A
 
 type Point2d[A] = (x: A, y: A)
+
+case class SelectionRect(
+  startX: Double,
+  startY: Double,
+    endX: Double,
+    endY: Double,
+    shift: Boolean,
+):
+  def asSVGPair(svgElement: SVGSVGElement): (SVGPoint, SVGPoint) =
+    val p0 = toSVGCoords(startX, startY, svgElement)
+    val p1 = toSVGCoords(endX, endY, svgElement)
+    (p0, p1)
 
 extension [A](a: Point2d[A])(using MathOps[A])
   def -(b: Point2d[A]): Point2d[A] = (x = a.x - b.x, y = a.y - b.y)
@@ -85,7 +99,9 @@ object SvgDotDiagram:
       transform:  Signal[String],
       startNode:  Signal[Option[(models.NodeId, Point2d[Double])]],
       endPos:     Signal[Point2d[Double]],
-      isDragging: Signal[Boolean]
+      isDragging: Signal[Boolean],
+      selectionRect: Signal[Option[SelectionRect]],
+      diagramSelection: DiagramSelectionOps,
   )(svgElement: dom.SVGSVGElement): ReactiveSvgElement[dom.SVGSVGElement] =
     val firstGroup: dom.svg.G =
       val g0 = svgElement.querySelector("g")
@@ -98,13 +114,57 @@ object SvgDotDiagram:
     selfContainedSvg(
       box,
       translatedGroup,
+      onMountCallback { ctx =>
+        import ctx.owner
+        // change style of elements intersecting selectionRec
+        selectionRect.foreach: (maybeRect: Option[SelectionRect]) =>
+          maybeRect.foreach: rect =>
+            val nodesInRect = SelectableElement.findAll(ctx.thisNode.ref)
+              .filter(elem => isNodeInRect(elem, rect))
+              .map(_.nodeId)
+              .toSet
+            
+            if nodesInRect.nonEmpty then
+              if rect.shift then
+                diagramSelection.add(nodesInRect)
+              else
+                diagramSelection.set(nodesInRect)
+            else if !rect.shift then
+              diagramSelection.clear()
+      },
       inContext { thisNode =>
-        val startPosClient = startNode.map(_.map(p => (p._1, ViewerState.toSVGCoords(p._2.x, p._2.y, thisNode.ref))))
-        val endPosClient = endPos.map(p => ViewerState.toSVGCoords(p.x, p.y, thisNode.ref))
+        val ref = thisNode.ref
+        val startPosClient = startNode.map(_.map((nodeId, p) => (nodeId, toSVGCoords(p.x, p.y, ref))))
+        val endPosClient = endPos.map(p => toSVGCoords(p.x, p.y, ref))
 
-        child(DraggingArrow(startPosClient, endPosClient)) <-- isDragging
+        // child(DraggingArrow(startPosClient, endPosClient)) <-- isDragging,
+        child.maybe <-- DrawSelectionRect(selectionRect, ref)
+      },
+
+    inContext: thisNode =>
+      // change the style of selected elements
+      diagramSelection.signal --> { selectedNodes =>
+        for elem <- SelectableElement.findAll(thisNode.ref) do
+          if elem.nodeId in selectedNodes then
+            elem.select()
+          else
+            elem.unselect()
       }
+
     )
+
+  private def isNodeInRect(elem: SelectableElement, rect: SelectionRect): Boolean =
+    val bbox = elem.get.getBoundingClientRect()
+    val normalizedRect = (
+      x = rect.startX.min(rect.endX),
+      y = rect.startY.min(rect.endY),
+      width = math.abs(rect.endX - rect.startX),
+      height = math.abs(rect.endY - rect.startY)
+    )
+    !(bbox.right < normalizedRect.x ||
+      bbox.left > normalizedRect.x + normalizedRect.width ||
+      bbox.bottom < normalizedRect.y ||
+      bbox.top > normalizedRect.y + normalizedRect.height)
 
   private def selfContainedSvg(
       viewBox: BBox,
@@ -129,10 +189,24 @@ object SvgDotDiagram:
       } yield (SvgUnit(transform.matrix.e), SvgUnit(transform.matrix.f))).headOption
         .getOrElse(SvgUnit.origin)
 
+  private def DrawSelectionRect(rect: Signal[Option[SelectionRect]], svgElement: SVGSVGElement): Signal[Option[ReactiveSvgElement[SVGRectElement]]] =
+    rect.map:
+      _.map:
+        selectionRect =>
+          val (p0, p1) = selectionRect.asSVGPair(svgElement)
+          svg.rect(
+            svg.idAttr := "selection-rectangle",
+            svg.x := p0.x.min(p1.x).toString,
+            svg.y := p0.y.min(p1.y).toString,
+            svg.width := math.abs(p1.x - p0.x).toString,
+            svg.height := math.abs(p1.y - p0.y).toString,
+          )
+
+
   private def DraggingArrow(
       startNode: Signal[Option[(models.NodeId, SVGPoint)]],
       endPos:    Signal[SVGPoint]
-  ) =
+  ): ReactiveSvgElement[SVGGElement] =
     // Define start and end position signals
     val startX = startNode.map {
       case Some((_, start)) => start.x.toString

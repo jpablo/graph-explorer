@@ -27,7 +27,7 @@ def HelpDialog(open: Var[Boolean]) =
               td(cls := "p-2 border", "Delete selected nodes")
             ),
             tr(
-              td(cls := "p-2 border", "a"),
+              td(cls := "p-2 border", "n"),
               td(cls := "p-2 border", "Add new node")
             ),
             tr(
@@ -37,6 +37,18 @@ def HelpDialog(open: Var[Boolean]) =
             tr(
               td(cls := "p-2 border", "z"),
               td(cls := "p-2 border", "Undo")
+            ),
+            tr(
+              td(cls := "p-2 border", "Shift + Z"),
+              td(cls := "p-2 border", "Redo")
+            ),
+            tr(
+              td(cls := "p-2 border", "Escape"),
+              td(cls := "p-2 border", "Clear selection")
+            ),
+            tr(
+              td(cls := "p-2 border", "h"),
+              td(cls := "p-2 border", "Hide selected nodes")
             )
           )
         )
@@ -72,7 +84,19 @@ def HelpDialog(open: Var[Boolean]) =
             ),
             tr(
               td(cls := "p-2 border", "Click node"),
-              td(cls := "p-2 border", "Select/deselect node")
+              td(cls := "p-2 border", "Select node")
+            ),
+            tr(
+              td(cls := "p-2 border", "Shift + Click node"),
+              td(cls := "p-2 border", "Toggle node selection")
+            ),
+            tr(
+              td(cls := "p-2 border", "Click arrow"),
+              td(cls := "p-2 border", "Select arrow")
+            ),
+            tr(
+              td(cls := "p-2 border", "Shift + Click arrow"),
+              td(cls := "p-2 border", "Toggle arrow selection")
             )
           )
         )

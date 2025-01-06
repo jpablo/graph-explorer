@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.components.findSelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
@@ -16,15 +15,24 @@ class DiagramSelectionOps:
   private val selectedNodes: Var[SelectedNodes] = Var(Set.empty)
 
   val signal = selectedNodes.signal
+    .distinct
     .tapEach(s => if s.nonEmpty then dom.console.log("Selection: " + JSON.parse(writeJs(s).toString)))
 
   def now(): SelectedNodes = selectedNodes.now()
 
   def toggle(ss: NodeId*): Unit = selectedNodes.update(ss.foldLeft(_)(_.toggle(_)))
 
-  def set(ss:    SelectedNodes): Unit = selectedNodes.set(ss)
-  def add(ss:    SelectedNodes): Unit = selectedNodes.update(_ ++ ss)
-  def remove(ss: SelectedNodes): Unit = selectedNodes.update(_ -- ss)
+  def set(ss: SelectedNodes): Unit = selectedNodes.set(ss)
+
+  def add(ss: SelectedNodes): Unit = 
+    val current = selectedNodes.now()
+    val newNodes = ss -- current
+    if newNodes.nonEmpty then selectedNodes.set(current ++ newNodes)
+
+  def remove(ss: SelectedNodes): Unit = 
+    val current = selectedNodes.now()
+    val nodesToRemove = ss intersect current
+    if nodesToRemove.nonEmpty then selectedNodes.set(current -- nodesToRemove)
 
   def contains(s: NodeId): Boolean = selectedNodes.now().contains(s)
 
@@ -43,14 +51,6 @@ class DiagramSelectionOps:
     // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
     val relatedIds = relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds
     add(relatedIds)
-
-  def handleSvgClick(event: dom.MouseEvent): Unit =
-    dom.console.log("-------- handleSvgClick --------")
-    findSelectableElement(event) match
-      case None                            => clear()
-      case Some((nodeId: NodeId, metaKey)) => handleClickOnNode(nodeId)(metaKey)
-      case Some((Some(arrow), metaKey))    => handleClickOnArrow(arrow)(metaKey)
-      case _                               => ()
 
   def handleClickOnNode(nodeId: NodeId)(metaKey: Boolean) =
     if metaKey then
