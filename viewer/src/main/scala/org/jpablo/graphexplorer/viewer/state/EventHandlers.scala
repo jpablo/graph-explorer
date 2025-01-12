@@ -5,7 +5,6 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
-import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
@@ -19,7 +18,7 @@ class EventHandlers(
     diagramSelection:  DiagramSelectionOps,
     project:           ProjectOps,
     hiddenNodesS:      Signal[Set[NodeId]],
-    svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]],
+    svgDiagramElement: Signal[SVGSVGElement],
     sourceFlow:        SourceFlow,
     hiddenNodes:       HiddenNodesOps,
     zoomValue:         Var[Double],
@@ -39,8 +38,8 @@ class EventHandlers(
         project.hiddenNodes.update(f(_, selection, g))
     }
 
-  private val svgDotDiagram: Signal[SvgDotDiagram] =
-    svgDiagramElement.map(SvgDotDiagram.apply)
+  private val svgDotDiagram: Signal[SvgElementOps] =
+    svgDiagramElement.map(SvgElementOps.apply)
 
   extension [E <: dom.Event](ev: EventProp[E])
     def hideSelectedNodes =
@@ -77,7 +76,7 @@ class EventHandlers(
       ev(_.sample(svgDotDiagram)) --> { svgDiagram => writeText(svgDiagram.toSVGText) }
 
     def copySelectionAsSVG(writeText: String => Any) =
-      ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram: SvgDotDiagram, canvasSelection) =>
+      ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram: SvgElementOps, canvasSelection) =>
         writeText(svgDiagram.toSVGTextWithIds(canvasSelection))
       }
 

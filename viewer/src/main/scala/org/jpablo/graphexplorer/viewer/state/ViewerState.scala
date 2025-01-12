@@ -4,14 +4,12 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveSvgElement
 import com.softwaremill.macwire.*
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.logging.withLog
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
 import org.scalajs.dom.{KeyboardEvent, SVGPoint, SVGSVGElement}
@@ -54,23 +52,25 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // -------------------------------
 
 
-
   // 5. Render visible Dot to SVG
   // Dot ~> SVGSVGElement
-  val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
-    visibleDOT
-      .flatMapSwitch(_.toSvg)
-      .map { svg =>
-        withLog("[svgDiagramElement]:step 2 (svgWithTransform)"):
-          SvgDotDiagram.svgWithTransform(
-            transform,
-            startNode.signal.map(_.collect { case (id: models.NodeId, pos) => (id, pos) }),
-            endPos.signal,
-            isDragging.signal,
-            mouse.selectionRect.signal,
-            diagramSelection
-          )(svg)
-      }
+  val rawSVG: Signal[SVGSVGElement] = 
+    visibleDOT.flatMapSwitch(_.toSvg)
+
+  // val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
+  //   visibleDOT
+  //     .flatMapSwitch(_.toSvg)
+  //     .map { svg =>
+  //       withLog("[svgDiagramElement]:step 2 (svgWithTransform)"):
+  //         SvgDotDiagram.svgWithTransform(
+  //           transform,
+  //           startNode.signal.map(_.collect { case (id: models.NodeId, pos) => (id, pos) }),
+  //           endPos.signal,
+  //           isDragging.signal,
+  //           mouse.selectionRect.signal,
+  //           diagramSelection
+  //         )(svg)
+  //     }
 
   private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
 
@@ -229,12 +229,23 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       else
         fullGraph.addNodeAndEdgeFrom(selection.head)
 
+  // def addEdgeFromSelection() =
+  //   val selection = diagramSelection.now()
+  //   if selection.nonEmpty then
+  //     sourceFlow.fullGraphV.update: fullGraph =>
+  //       val source = selection.head
+  //       val targets = selection - source
+  //       targets.foldLeft(fullGraph)((g, target) => g.addEdge(source, target))
+
   def handleKeyDown(ke: KeyboardEvent): Unit =
     ke.key match
       case "Backspace" => deleteSelection()
       case "n"         => addNode()
       case "g"         => groupSelection()
       case "z"         => undoEvent.emit(())
+      case "Escape"    => diagramSelection.clear()
+      case "h"         => hideSelection()
+      // case "e"         => addEdgeFromSelection()
       case _           => ()
 
   // -------- storage ------------
@@ -290,7 +301,7 @@ object ViewerState:
   def handleWheel(
       zoomValue:   Var[Double],
       translateXY: Var[Point2d[SvgUnit]]
-  )(wEv: dom.WheelEvent, svgDiagram: ReactiveSvgElement[dom.SVGSVGElement]) =
+  )(wEv: dom.WheelEvent, svgDiagram: dom.SVGSVGElement) =
     val clientHeight = dom.window.innerHeight.max(1)
     val clientWidth = dom.window.innerWidth.max(1)
 
@@ -298,7 +309,7 @@ object ViewerState:
       zoomValue.update: z =>
         (z - wEv.deltaY / clientHeight).max(0.001)
     else
-      val viewBox = svgDiagram.ref.viewBox.baseVal
+      val viewBox = svgDiagram.viewBox.baseVal
       val z = zoomValue.now()
       val scale = (viewBox.width / clientWidth).max(viewBox.height / clientHeight)
       val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))

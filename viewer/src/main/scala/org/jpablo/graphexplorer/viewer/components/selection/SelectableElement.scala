@@ -32,8 +32,8 @@ object SelectableElement:
     else if isDiagramElement(e, "edge") then Some(EdgeElement(e.asInstanceOf[dom.SVGGElement]))
     else None
 
-  def findAll(e: dom.Element): collection.Seq[SelectableElement] =
-    e.querySelectorAll("g").flatMap(fromDomElement)
+  def findAll(e: dom.Element): Seq[SelectableElement] =
+    e.querySelectorAll("g").flatMap(fromDomElement).toSeq
 
   private def isDiagramElement(e: dom.Element, cls: String) =
     e.tagName == "g" && e.classList.contains(cls)

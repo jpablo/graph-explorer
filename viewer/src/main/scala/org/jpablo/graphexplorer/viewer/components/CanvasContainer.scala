@@ -19,7 +19,7 @@ def CanvasContainer(
     idAttr   := "canvas-container",
     tabIndex := 0,
     fitDiagram --> state.resetView(),
-    child <-- state.svgDiagramElement,
+    child <-- state.rawSVG.map(SvgCanvas(state)),
     onKeyDown --> state.handleKeyDown,
     onWheel.updateTranslate,
     // --------------------------------

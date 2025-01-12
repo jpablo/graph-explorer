@@ -97,10 +97,11 @@ label[for ^= show-ns-kind-] {
         .node {
 
           &.selected {
-            ellipse, polygon, path {
+            ellipse, polygon, path:not(#add-button) {
               stroke: rgb(245 158 11);
               stroke-width: 5.0;
             }
+
           }
 
           ellipse, polygon, path {

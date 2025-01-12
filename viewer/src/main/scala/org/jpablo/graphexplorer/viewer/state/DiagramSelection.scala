@@ -34,7 +34,7 @@ class DiagramSelectionOps:
     val nodesToRemove = ss intersect current
     if nodesToRemove.nonEmpty then selectedNodes.set(current -- nodesToRemove)
 
-  def contains(s: NodeId): Boolean = selectedNodes.now().contains(s)
+  // def contains(s: NodeId): Boolean = selectedNodes.now().contains(s)
 
   def clear(): Unit = selectedNodes.set(Set.empty)
 
