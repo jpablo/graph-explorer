@@ -39,7 +39,10 @@ object SvgCanvas:
               state.diagramSelection.signal.map: selectedNodes =>
                 newEdgeButtonElement(selectedNodes, selectableElements, thisNode)
                   .map: 
-                    _.amend(onMouseDown.stopPropagation --> { _ => state.addNode() })
+                    _.amend(
+                      onMouseDown.stopPropagation --> { _ => () },
+                      onClick.stopPropagation --> { _ => state.addNode() }
+                    )
           )
         ),
 
