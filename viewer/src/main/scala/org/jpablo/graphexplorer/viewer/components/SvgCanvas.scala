@@ -102,9 +102,9 @@ object SvgCanvas:
     if selectedNodes.size == 1 then
       // Show the + icon
       val nodeId = selectedNodes.head
-      val elem = selectableElements.find(_.nodeId == nodeId).get
+      val elem = selectableElements.find(_.nodeId == nodeId)
       // only show the arrow button if the selected node is a node
-      elem match
+      selectableElements.find(_.nodeId == nodeId).collect:
         case NodeElement(ref) => 
           val bbox = ref.getBBox()
           val scale = 0.4
@@ -113,21 +113,15 @@ object SvgCanvas:
           val h = 16 // Original height of the icon
           val trX = bbox.x + bbox.width/2 - (w * scale)/2
           val trY = bbox.y + bbox.height + (h * scale)/4 + 1
-          Some(
-            svg.g(
-              svg.transform := s"translate($trX, $trY) scale($scale)",
-              svg.pointerEvents := "all",
-              // onMouseDown.stopPropagation --> { _ =>
-              //   println("clicked")
-              // },
-              svg.circle(svg.r := "8", svg.cx := "8", svg.cy := "8", svg.fill := "white"),
-              svg.path(
-                svg.fillRule := "evenodd",
-                svg.d := "M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z",
-              )
+          svg.g(
+            svg.transform := s"translate($trX, $trY) scale($scale)",
+            svg.pointerEvents := "all",
+            svg.circle(svg.r := "8", svg.cx := "8", svg.cy := "8", svg.fill := "white"),
+            svg.path(
+              svg.fillRule := "evenodd",
+              svg.d := "M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z",
             )
           )
-        case _ => None
     else
       None
 

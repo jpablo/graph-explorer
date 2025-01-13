@@ -75,15 +75,16 @@ case class ViewerGraph(
   def addEdge(source: NodeId, target: NodeId): ViewerGraph =
     modifyData.using(_.addArrow(source, target))
 
-  def addNodeAndEdgeFrom(source: NodeId): ViewerGraph =
+  def addNodeAndEdgeFrom(source: NodeId): (ViewerGraph, NodeId) =
     val nodeId = NodeId.random()
-    addNode(nodeId).addEdge(source, nodeId)
+    (addNode(nodeId).addEdge(source, nodeId), nodeId)
 
   def addNode(nodeId: NodeId): ViewerGraph =
     modifyData.using(_.addNode(nodeId))
 
-  def addRandomNode(): ViewerGraph =
-    addNode(NodeId.random())
+  def addRandomNode(): (ViewerGraph, NodeId) =
+    val nodeId = NodeId.random()
+    (addNode(nodeId), nodeId)
 
   def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraph =
     modifyData.using(_.addToNewGroup(ids, label))

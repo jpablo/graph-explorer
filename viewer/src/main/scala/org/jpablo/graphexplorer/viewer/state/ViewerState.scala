@@ -224,10 +224,12 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def addNode() =
     sourceFlow.fullGraphV.update: fullGraph =>
       val selection = diagramSelection.now()
-      if selection.isEmpty then
+      val (newGraph, newNodeId) = if selection.isEmpty then
         fullGraph.addRandomNode()
       else
         fullGraph.addNodeAndEdgeFrom(selection.head)
+      diagramSelection.set(Set(newNodeId))
+      newGraph
 
   // def addEdgeFromSelection() =
   //   val selection = diagramSelection.now()
