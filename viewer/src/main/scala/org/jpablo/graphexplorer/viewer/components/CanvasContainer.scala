@@ -22,28 +22,7 @@ def CanvasContainer(
     child <-- state.rawSVG.map(SvgCanvas(state)),
     onKeyDown --> state.handleKeyDown,
     onWheel.updateTranslate,
-    // --------------------------------
-    onMouseDown.map(clientCoords).map((pos, shift) => MouseDown(pos, shift)) --> state.mouse.emitEvent,
-    onMouseMove.map(clientCoords).map((pos, shift) => MouseMove(pos, shift)) --> state.mouse.emitEvent,
-    onMouseUp.map(clientCoords).map((pos, shift) => MouseUp(pos, shift)) --> state.mouse.emitEvent,
-    // --------------------------------
-
+    onMouseDown.map(clientCoords) --> {(pos, shift) => state.mouse.emitEvent(MouseDown(pos, shift, Action.Selection)) },
+    onMouseMove.map(clientCoords) --> {(pos, shift) => state.mouse.emitEvent(MouseMove(pos, shift)) },
+    onMouseUp --> state.handleMouseUp,
   )
-
-// def findSelectableElement(event: dom.MouseEvent): Option[(NodeId | Arrow, Boolean)] =
-//   dom.console.log("-------- findSelectableElement --------")
-//   val elements = dom.document.elementsFromPoint(event.clientX, event.clientY)
-
-//   // Filter SVG elements and include their ancestor nodes
-//   val svgElements = elements.toArray
-//     .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-//     .flatMap(element => Option(element.closest("g.node, g.edge")))
-//     .distinct // Remove duplicates
-
-//   svgElements
-//     .map(SelectableElement.fromDomElement)
-//     .collectFirst { case Some(g) => g }
-//     .flatMap:
-//       case n: NodeElement => Some(n.nodeId)
-//       case e: EdgeElement => e.toArrow
-//     .map((_, event.metaKey))

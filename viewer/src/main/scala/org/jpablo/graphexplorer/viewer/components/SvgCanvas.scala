@@ -9,9 +9,15 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.components.selection.NodeElement
 import org.jpablo.graphexplorer.viewer.models
 import org.scalajs.dom.SVGGElement
+import org.jpablo.graphexplorer.viewer.state.MouseInteraction.CanvasMouseEvent.*
+import com.raquo.airstream.core.Signal
+import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
+import org.jpablo.graphexplorer.viewer.models.NodeId
 
 // A SvgCanvas is a SVG element with interactive elements handled by Laminar.
 object SvgCanvas:
+
+  def clientCoords(e: dom.MouseEvent): (Point2d[Double], Boolean) = ((e.clientX, e.clientY), e.shiftKey)
 
   // rawSvg is the SVG element as it comes from DOT
   def apply(state: ViewerState)(rawSvg: dom.SVGSVGElement): ReactiveSvgElement[dom.SVGSVGElement] =
@@ -37,12 +43,17 @@ object SvgCanvas:
             // --------------------------------------------------------
             child.maybe <--
               state.diagramSelection.signal.map: selectedNodes =>
-                newEdgeButtonElement(selectedNodes, selectableElements, thisNode)
-                  .map: 
-                    _.amend(
-                      onMouseDown.stopPropagation --> { _ => () },
-                      onClick.stopPropagation --> { _ => state.addNode() }
-                    )
+                if selectedNodes.size == 1 then
+                  val nodeId = selectedNodes.head
+                  newEdgeButtonElement(nodeId, selectableElements)
+                    .map: 
+                      _.amend(
+                        onMouseDown.stopPropagation --> { ev => state.mouse.emitEvent(MouseDown((ev.clientX, ev.clientY), shift = false, Action.Edge(nodeId))) },
+                        onMouseMove.stopPropagation --> { ev => state.mouse.emitEvent(MouseMove((ev.clientX, ev.clientY), shift = false)) },
+                        onClick.stopPropagation --> { _ => state.addNode() }
+                      )
+                else
+                  None
           )
         ),
 
@@ -54,22 +65,30 @@ object SvgCanvas:
           // --------------------------------------------------------
           child.maybe <-- DrawSelectionRect(state.mouse.selectionRect.signal, thisNode.ref),
           // --------------------------------------------------------
+          //   draw dragging arrow
+          // --------------------------------------------------------
+          child.maybe <-- DraggingArrow(state.mouse.selectionRect.signal, thisNode.ref),
+          // --------------------------------------------------------
           //   select elements intersecting selectionRec
           // --------------------------------------------------------
           state.mouse.selectionRect.signal --> { maybeRect =>
             for rect <- maybeRect do
-              val nodesInRect = 
-                selectableElements
-                .filter(isNodeInRect(_, rect))
-                .map(_.nodeId).toSet
-              
-              if nodesInRect.nonEmpty then
-                if rect.shift then
-                  state.diagramSelection.add(nodesInRect)
-                else
-                  state.diagramSelection.set(nodesInRect)
-              else if !rect.shift then
-                  state.diagramSelection.clear()
+              rect.action match
+                case Action.Selection =>
+                  val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
+                  if nodesInRect.nonEmpty then
+                    if rect.shift then
+                      state.diagramSelection.add(nodesInRect)
+                    else
+                      state.diagramSelection.set(nodesInRect)
+                  else if !rect.shift then
+                      state.diagramSelection.clear()
+                
+                case Action.Edge(start) =>
+                  findNode(rect) match
+                    case Some(end) => state.diagramSelection.set(Set(start, end))
+                    case None      => state.diagramSelection.set(Set(start))
+                      
           },
           // --------------------------------------------------------
           //   synchronize svg elements with diagramSelection
@@ -84,30 +103,19 @@ object SvgCanvas:
         )
       },
 
-      // inContext { thisNode =>
-      //   val ref = thisNode.ref
-      //   val startPosClient = startNode.map(_.map((nodeId, p) => (nodeId, toSVGCoords(p.x, p.y, ref))))
-      //   val endPosClient = endPos.map(p => toSVGCoords(p.x, p.y, ref))
-
-      //   child(DraggingArrow(startPosClient, endPosClient)) <-- isDragging,
-      // }
-
     )
   end apply
 
 
   private def newEdgeButtonElement(
-    selectedNodes: Set[models.NodeId], 
+    nodeId: NodeId,
     selectableElements: Seq[SelectableElement], 
-    thisNode: ReactiveSvgElement[dom.SVGElement]
-  ): Option[ReactiveSvgElement[SVGGElement]] =
+    // thisNode: ReactiveSvgElement[dom.SVGElement]
+   ): Option[ReactiveSvgElement[SVGGElement]] =
     // only show the arrow button if there is a single selected node
-    if selectedNodes.size == 1 then
-      // Show the + icon
-      val nodeId = selectedNodes.head
-      val elem = selectableElements.find(_.nodeId == nodeId)
-      // only show the arrow button if the selected node is a node
-      selectableElements.find(_.nodeId == nodeId).collect:
+    // val elem = selectableElements.find(_.nodeId == nodeId)
+    // only show the arrow button if the selected node is a node
+    selectableElements.find(_.nodeId == nodeId).collect:
         case NodeElement(ref) => 
           val bbox = ref.getBBox()
           val scale = 0.4
@@ -125,8 +133,6 @@ object SvgCanvas:
               svg.d := "M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z",
             )
           )
-    else
-      None
 
 
   private def isNodeInRect(elem: SelectableElement, rect: SelectionRect): Boolean =
@@ -167,55 +173,43 @@ object SvgCanvas:
 
   private def DrawSelectionRect(rect: Signal[Option[SelectionRect]], svgElement: dom.SVGSVGElement): Signal[Option[ReactiveSvgElement[dom.SVGRectElement]]] =
     rect.map:
-      _.map:
-        selectionRect =>
+      _.flatMap:
+        case selectionRect if selectionRect.action == Action.Selection =>
           val (p0, p1) = selectionRect.asSVGPair(svgElement)
-          svg.rect(
-            svg.idAttr := "selection-rectangle",
-            svg.x := p0.x.min(p1.x).toString,
-            svg.y := p0.y.min(p1.y).toString,
-            svg.width := math.abs(p1.x - p0.x).toString,
-            svg.height := math.abs(p1.y - p0.y).toString,
+          Some(
+            svg.rect(
+              svg.idAttr := "selection-rectangle",
+              svg.x := p0.x.min(p1.x).toString,
+              svg.y := p0.y.min(p1.y).toString,
+              svg.width := math.abs(p1.x - p0.x).toString,
+              svg.height := math.abs(p1.y - p0.y).toString,
+            )
           )
+        case _ => None
 
 
-  private def DraggingArrow(
-      startNode: Signal[Option[(models.NodeId, dom.SVGPoint)]],
-      endPos:    Signal[dom.SVGPoint]
-  ): ReactiveSvgElement[dom.SVGGElement] =
-    // Define start and end position signals
-    val startX = startNode.map {
-      case Some((_, start)) => start.x.toString
-      case None             => 0.0.toString
-    }
-    val startY = startNode.map {
-      case Some((_, start)) => start.y.toString
-      case None             => 0.0.toString
-    }
-    val endX = endPos.map(_.x.toString)
-    val endY = endPos.map(_.y.toString)
-    svg.g(
-      svg.idAttr := "dragging-arrow-group",
-      // Temporary line for dragging
-      svg.line(
-        svg.idAttr := "dragging-arrow-line",
-        svg.x1 <-- startX,
-        svg.y1 <-- startY,
-        svg.x2 <-- endX,
-        svg.y2 <-- endY
-      ),
-      // Circle at the start of the line
-      svg.circle(
-        svg.idAttr := "dragging-arrow-start-circle",
-        svg.r      := "1",
-        svg.cx <-- startX,
-        svg.cy <-- startY
-      ),
-      // Circle at the end of the line
-      svg.circle(
-        svg.idAttr := "dragging-arrow-end-circle",
-        svg.r      := "1",
-        svg.cx <-- endX,
-        svg.cy <-- endY
-      )
-    )
+  private def DraggingArrow(rect: Signal[Option[SelectionRect]], svgElement: dom.SVGSVGElement ): Signal[Option[ReactiveSvgElement[SVGGElement]]] =
+    rect.map:
+      _.flatMap: selectionRect =>
+        selectionRect.action match
+          case Action.Edge(start) =>
+            val (p0, p1) = selectionRect.asSVGPair(svgElement)
+            Some(
+              svg.g(
+                svg.idAttr := "dragging-arrow-group",
+                svg.line(svg.idAttr := "dragging-arrow-line", svg.x1 := p0.x.toString, svg.y1 := p0.y.toString, svg.x2 := p1.x.toString, svg.y2 := p1.y.toString),
+                // svg.circle(svg.idAttr := "dragging-arrow-start-circle", svg.r := "1", svg.cx := p0.x.toString, svg.cy := p0.y.toString),
+                svg.circle(svg.idAttr := "dragging-arrow-end-circle", svg.r := "1", svg.cx := p1.x.toString, svg.cy := p1.y.toString)
+              )
+            )
+          case _ => None
+
+  private def findNode(rect: SelectionRect) =
+    val elements = dom.document.elementsFromPoint(rect.endX, rect.endY)
+    elements
+      .toArray
+      .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
+      .flatMap(element => Option(element.closest("g.node, g.edge")))
+      .distinct // Remove duplicates
+      .map(SelectableElement.fromDomElement)
+      .collectFirst { case Some(n @ NodeElement(_)) => n.nodeId }

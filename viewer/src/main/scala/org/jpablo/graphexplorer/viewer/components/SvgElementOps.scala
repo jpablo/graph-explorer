@@ -18,12 +18,17 @@ trait MathOps[A]:
 
 type Point2d[A] = (x: A, y: A)
 
+enum Action:
+  case Selection
+  case Edge(start: models.NodeId)
+
 case class SelectionRect(
   startX: Double,
   startY: Double,
     endX: Double,
     endY: Double,
     shift: Boolean,
+    action: Action
 ):
   def asSVGPair(svgElement: dom.SVGSVGElement): (dom.SVGPoint, dom.SVGPoint) =
     val p0 = toSVGCoords(startX, startY, svgElement)

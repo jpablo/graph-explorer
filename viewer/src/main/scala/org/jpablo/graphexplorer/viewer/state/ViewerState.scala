@@ -57,21 +57,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val rawSVG: Signal[SVGSVGElement] = 
     visibleDOT.flatMapSwitch(_.toSvg)
 
-  // val svgDiagramElement: Signal[ReactiveSvgElement[SVGSVGElement]] =
-  //   visibleDOT
-  //     .flatMapSwitch(_.toSvg)
-  //     .map { svg =>
-  //       withLog("[svgDiagramElement]:step 2 (svgWithTransform)"):
-  //         SvgDotDiagram.svgWithTransform(
-  //           transform,
-  //           startNode.signal.map(_.collect { case (id: models.NodeId, pos) => (id, pos) }),
-  //           endPos.signal,
-  //           isDragging.signal,
-  //           mouse.selectionRect.signal,
-  //           diagramSelection
-  //         )(svg)
-  //     }
-
   private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
 
   val hiddenNodesS = hiddenNodes.signal
@@ -116,71 +101,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.fullGraphV.update(_.addEdge(from, to))
-
-  // def handleSvgClick(event: dom.MouseEvent): Unit =
-  //   dom.console.log("-------- handleSvgClick --------", event.target)
-  //   findSelectableElement(event) match
-  //     case None                            => clear()
-  //     case Some((nodeId: NodeId, metaKey)) => handleClickOnNode(nodeId)(metaKey)
-  //     case Some((Some(arrow), metaKey))    => handleClickOnArrow(arrow)(metaKey)
-  //     case _                               => ()
-
-
-
-  // def handleMouseDown(event: dom.MouseEvent): Unit =
-  //   val clientCoords = (event.clientX, event.clientY)
-  //   Var.set(
-  //     selectionRect -> Some(SelectionRect(event.clientX, event.clientY, event.clientX, event.clientY)),
-  //     isDragging -> false,
-  //     endPos     -> clientCoords
-  //   )
-  //   findSelectableElement(event).foreach:
-  //     case (nodeId: NodeId, _) =>
-  //       // 1. show node bbox
-  //       startNode.set(Some(nodeId, clientCoords))
-  //     case (arrow: models.Arrow, _) =>
-  //       // 1. show node bbox
-  //       startNode.set(Some(arrow, clientCoords))
-  //     case _ =>
-  //       diagramSelection.clear()
-
-  // def handleMouseMove(event: dom.MouseEvent): Unit =
-  //   val clientCoords = (event.clientX, event.clientY)
-  //   val buttons = event.buttons
-  //   if buttons == 1 then
-  //     // only update endX, endY if selectionRect is defined
-  //     selectionRect.update(_.map(_.copy(endX = event.clientX, endY = event.clientY)))
-  //   else
-  //     selectionRect.set(None)
-
-  //   // Check if the left mouse button is pressed
-  //   if buttons == 1 && startNode.now().isDefined then
-  //     Var.set(
-  //       isDragging -> true,
-  //       endPos     -> clientCoords
-  //     )
-
-  // def handleMouseUp(event: dom.MouseEvent): Unit =
-  //   selectionRect.set(None)
-  //   val startNodeId = startNode.now().map(_._1)
-  //   val endNodeId =
-  //     findSelectableElement(event).map(_._1) match
-  //       case Some(id: NodeId) => Some(id)
-  //       case _                => None
-
-  //   (startNodeId, endNodeId) match
-  //     case (None, _)                 => ()
-  //     case (Some(startNodeId: NodeId), Some(endNodeId)) if startNodeId != endNodeId =>
-  //       addEdge(startNodeId, endNodeId)
-  //     case _ =>
-  //       // 1. select node
-  //       // 2. show node attributes
-  //       // 3. keep node bbox
-
-  //   Var.set(
-  //     startNode  -> None,
-  //     isDragging -> false
-  //   )
 
   // -------- Attribute management -----------
   // top level attributes
@@ -249,6 +169,17 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       case "h"         => hideSelection()
       // case "e"         => addEdgeFromSelection()
       case _           => ()
+
+  def handleMouseUp(ev: dom.MouseEvent): Unit =
+    mouse.selectionRect.now().foreach: rect =>
+      rect.action match
+        case Action.Edge(start) =>
+          val sel = diagramSelection.now()
+          if sel.size == 2 then
+            addEdge(start, (sel - start).head)
+            // TODO: select the new edge
+        case _ => ()
+      mouse.selectionRect.set(None)
 
   // -------- storage ------------
 
