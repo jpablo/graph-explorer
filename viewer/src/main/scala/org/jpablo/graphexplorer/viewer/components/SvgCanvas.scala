@@ -58,8 +58,8 @@ object SvgCanvas:
                         state.mouse.startSelection((ev.clientX, ev.clientY), shift = false, Action.Edge(elem))
                       },
                       onMouseUp.stopPropagation --> { ev =>
-                        state.addNode()
                         state.mouse.endSelection()
+                        state.addNode()
                       }
                     )
                 else
@@ -100,6 +100,8 @@ object SvgCanvas:
                       state.diagramSelection.clear()
 
                 case Action.Edge(start) =>
+                  // Make sure only start or (start,end) nodes are selected when creating a new edge
+                  dom.console.log("new edge: updating selection")
                   findNode(rect) match
                     case Some(end) => state.diagramSelection.set(Set(start.nodeId, end))
                     case None      => state.diagramSelection.set(Set(start.nodeId))
@@ -147,13 +149,13 @@ object SvgCanvas:
         )
       case _ => None
 
-  
+
   /** Checks if a selectable element intersects with a selection rectangle
-   * 
+   *
    * @param elem The selectable element to check
    * @param rect The selection rectangle in client coordinates
    * @return true if the element's bounding box intersects with the selection rectangle
-   * 
+   *
    * The method:
    * 1. Gets the element's bounding box in client coordinates
    * 2. Normalizes the selection rect coordinates to handle any direction of dragging
@@ -163,7 +165,7 @@ object SvgCanvas:
     val bbox = elem.get.getBoundingClientRect()
     val normalizedRect = (
       x = rect.startX.min(rect.endX),
-      y = rect.startY.min(rect.endY), 
+      y = rect.startY.min(rect.endY),
       width = math.abs(rect.endX - rect.startX),
       height = math.abs(rect.endY - rect.startY)
     )
@@ -172,9 +174,9 @@ object SvgCanvas:
       bbox.bottom < normalizedRect.y ||
       bbox.top > normalizedRect.y + normalizedRect.height)
 
-  
-  /** 
-   * Creates a standalone SVG element with the given viewBox 
+
+  /**
+   * Creates a standalone SVG element with the given viewBox
    */
   def selfContainedSvg(viewBox: BBox): ReactiveSvgElement[dom.svg.SVG] =
     svg.svg(
@@ -183,9 +185,9 @@ object SvgCanvas:
       svg.viewBox    := s"${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}",
       svg.cls        := "graphviz no-text-select",
     )
-  
-  /** 
-   * Gets the x,y translation values from an SVG group element's transform, or (0,0) if none exists 
+
+  /**
+   * Gets the x,y translation values from an SVG group element's transform, or (0,0) if none exists
    */
   private def getTranslate(g: dom.svg.G): Point2d[SvgUnit] =
     if js.isUndefined(g.transform) then SvgUnit.origin
@@ -200,8 +202,8 @@ object SvgCanvas:
           (SvgUnit(transform.matrix.e), SvgUnit(transform.matrix.f))
 
       tranformPoints.headOption.getOrElse(SvgUnit.origin)
-  
-  /** 
+
+  /**
    * Creates a reactive SVG rectangle element representing the selection box when dragging.
    *
    * @param rect Signal containing the current selection rectangle state
@@ -227,7 +229,7 @@ object SvgCanvas:
         case _ => None
 
 
-  /** 
+  /**
    * Creates a reactive SVG arrow element when dragging to create a new edge.
    *
    * @param rect Signal containing the current selection rectangle state
@@ -257,9 +259,9 @@ object SvgCanvas:
                 )
               )
           case _ => None
-          
-  /** 
-   * Finds the node ID at the given selection rectangle's end point 
+
+  /**
+   * Finds the node ID at the given selection rectangle's end point
    */
   private def findNode(rect: SelectionRect): Option[NodeId] =
     val elements = dom.document.elementsFromPoint(rect.endX, rect.endY)

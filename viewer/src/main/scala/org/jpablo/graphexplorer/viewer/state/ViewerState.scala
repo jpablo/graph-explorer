@@ -177,7 +177,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       case _           => ()
 
   def handleMouseUp(ev: dom.MouseEvent): Unit =
-    mouse.selectionRect.now().foreach: rect =>
+    val rectOpt = mouse.selectionRect.now()
+    mouse.selectionRect.set(None)
+    rectOpt.foreach: rect =>
       rect.action match
         case Action.Edge(start) =>
           val sel = diagramSelection.now()
@@ -186,7 +188,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
             addEdge(start.nodeId, (sel - start.nodeId).head)
             // TODO: select the new edge
         case _ => ()
-      mouse.selectionRect.set(None)
+      
 
   // -------- storage ------------
 
