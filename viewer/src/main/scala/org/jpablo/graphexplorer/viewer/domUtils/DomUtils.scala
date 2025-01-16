@@ -35,3 +35,7 @@ extension (doc: dom.HTMLDocument)
 class DOMPoint(val x: Double = 0, val y: Double = 0, val z: Double = 0, val w: Double = 0) extends js.Object {
   def matrixTransform(matrix: dom.SVGMatrix): DOMPoint = js.native
 }
+
+object DOMPoint:
+  extension (p: DOMPoint)
+    def === (other: DOMPoint): Boolean = p.x == other.x && p.y == other.y

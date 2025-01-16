@@ -73,6 +73,29 @@ label[for ^= show-ns-kind-] {
       -ms-user-select: none;
       user-select: none;
 
+      .new-edge-button {
+        circle {
+          stroke: white;
+          fill: #d7effa;
+          filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.5));
+        }
+        path {
+          fill: #33ade6;
+        }
+
+        &.selected {
+          circle {
+            stroke: white;
+            fill: #33ade6;
+            filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.5));
+          }  
+          path {
+            fill: white;
+          }
+        }
+
+      }
+
       #selection-rectangle {
         stroke-width: 0.5px;
         stroke: #999797;
