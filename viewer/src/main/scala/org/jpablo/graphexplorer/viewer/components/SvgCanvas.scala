@@ -41,7 +41,7 @@ object SvgCanvas:
             //   "New edge" button
             // --------------------------------------------------------
             child.maybe <--
-              state.diagramSelection.signal.combineWith(state.mouse.selectionRect.signal).map: (selectedNodes, selectionRect) =>
+              state.diagramSelection.signal.combineWith(state.selectionRect.signal).map: (selectedNodes, selectionRect) =>
                 if selectedNodes.size == 1 then
                   val nodeId = selectedNodes.head
                   val active = selectionRect.collect { case SelectionRect(_, _, _, _, _, Action.Edge(_)) => true }.getOrElse(false)
@@ -55,10 +55,10 @@ object SvgCanvas:
                     btn.amend(
                       svg.cls := ("selected" -> active),
                       onMouseDown.stopPropagation --> { ev =>
-                        state.mouse.startSelection((ev.clientX, ev.clientY), shift = false, Action.Edge(elem))
+                        state.startSelection((ev.clientX, ev.clientY), shift = false, Action.Edge(elem))
                       },
                       onMouseUp.stopPropagation --> { ev =>
-                        state.mouse.endSelection()
+                        state.endSelection()
                         state.addNode()
                       }
                     )
@@ -67,7 +67,7 @@ object SvgCanvas:
             // --------------------------------------------------------
             //   draw dragging arrow
             // --------------------------------------------------------
-            child.maybe <-- DraggingArrow(state.mouse.selectionRect.signal, group.ref),
+            child.maybe <-- DraggingArrow(state.selectionRect.signal, group.ref),
           )
 
     // --------------------------------------------------------
@@ -82,11 +82,11 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   draw selection rect
           // --------------------------------------------------------
-          child.maybe <-- DrawSelectionRect(state.mouse.selectionRect.signal, topLevelSvg.ref),
+          child.maybe <-- DrawSelectionRect(state.selectionRect.signal, topLevelSvg.ref),
           // --------------------------------------------------------
           //   select elements intersecting selectionRec
           // --------------------------------------------------------
-          state.mouse.selectionRect.signal --> { maybeRect =>
+          state.selectionRect.signal --> { maybeRect =>
             for rect <- maybeRect do
               rect.action match
                 case Action.Selection =>
@@ -101,7 +101,6 @@ object SvgCanvas:
 
                 case Action.Edge(start) =>
                   // Make sure only start or (start,end) nodes are selected when creating a new edge
-                  dom.console.log("new edge: updating selection")
                   findNode(rect) match
                     case Some(end) => state.diagramSelection.set(Set(start.nodeId, end))
                     case None      => state.diagramSelection.set(Set(start.nodeId))

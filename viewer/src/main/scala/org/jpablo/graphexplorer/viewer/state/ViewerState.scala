@@ -46,8 +46,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val endPos = Var[Point2d[Double]]((0, 0))
   val isDragging = Var(false)
 
-  val mouse = MouseInteraction
-
   // -------------------------------
   // this should be a subset of visibleNodesV keys
   val diagramSelection = DiagramSelectionOps()
@@ -176,17 +174,32 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       // case "e"         => addEdgeFromSelection()
       case _           => ()
 
+
+  val selectionRect: Var[Option[SelectionRect]] = Var(None)
+
+  def startSelection(pos: Point2d[Double], shift: Boolean, action: Action): Unit =
+    selectionRect.set(Some(SelectionRect(pos.x, pos.y, pos.x, pos.y, shift, action)))
+
+  def updateSelection(pos: Point2d[Double], shift: Boolean): Unit =
+    selectionRect.update(_.map(_.copy(endX = pos.x, endY = pos.y, shift = shift)))
+
+  def endSelection(): Unit =
+    selectionRect.set(None)
+
   def handleMouseUp(ev: dom.MouseEvent): Unit =
-    val rectOpt = mouse.selectionRect.now()
-    mouse.selectionRect.set(None)
+    val rectOpt = selectionRect.now()
+    selectionRect.set(None)
     rectOpt.foreach: rect =>
       rect.action match
         case Action.Edge(start) =>
           val sel = diagramSelection.now()
-          if sel.size == 2 then
-            diagramSelection.clear()
+          diagramSelection.clear()
+          // TODO: finish this using findNode
+          val mouseOverInitialNode = false
+          if sel.size == 1 && mouseOverInitialNode then
+            addEdge(start.nodeId, start.nodeId)
+          else if sel.size == 2 then
             addEdge(start.nodeId, (sel - start.nodeId).head)
-            // TODO: select the new edge
         case _ => ()
       
 

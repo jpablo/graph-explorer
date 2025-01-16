@@ -28,9 +28,9 @@ def CanvasContainer(
     onKeyDown --> state.handleKeyDown,
     onWheel.updateTranslate,
     onMouseDown.map(clientCoords) --> {(pos, shift) =>
-      state.mouse.startSelection(pos, shift, Action.Selection)
+      state.startSelection(pos, shift, Action.Selection)
     },
     // No Action is set when moving the mouse, to preserve the action set on mouse down
-    onMouseMove.map(clientCoords) --> {(pos, shift) => state.mouse.updateSelection(pos, shift) },
+    onMouseMove.map(clientCoords) --> {(pos, shift) => state.updateSelection(pos, shift) },
     onMouseUp --> state.handleMouseUp,
   )
