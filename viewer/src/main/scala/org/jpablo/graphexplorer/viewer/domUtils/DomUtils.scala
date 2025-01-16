@@ -5,6 +5,7 @@ import com.raquo.laminar.codecs.{BooleanAsAttrPresenceCodec, StringAsIsCodec}
 import org.scalajs.dom.HTMLDialogElement
 
 import scala.scalajs.js
+import scala.scalajs.js.annotation.JSGlobal
 
 
 val details = htmlTag("details")
@@ -27,3 +28,10 @@ extension (doc: dom.HTMLDocument)
     doc.asInstanceOf[js.Dynamic]
       .elementsFromPoint(x, y)
       .asInstanceOf[js.Array[dom.Element]]
+
+
+@js.native
+@JSGlobal
+class DOMPoint(val x: Double = 0, val y: Double = 0, val z: Double = 0, val w: Double = 0) extends js.Object {
+  def matrixTransform(matrix: dom.SVGMatrix): DOMPoint = js.native
+}

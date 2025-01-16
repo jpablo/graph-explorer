@@ -12,7 +12,7 @@ def CanvasContainer(
     fitDiagram: EventStream[Unit]
 ) =
   import state.eventHandlers.updateTranslate
-  
+
   def clientCoords(e: dom.MouseEvent): (Point2d[Double], Boolean) = ((e.clientX, e.clientY), e.shiftKey)
 
   div(

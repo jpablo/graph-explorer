@@ -26,10 +26,10 @@ case class ViewerGraphData(
   def getMembership(id: ElementId): GroupId =
     memberships.getOrElse(id, rootId)
 
-  def addArrow(source: NodeId, target: NodeId): ViewerGraphData =
+  def addArrow(source: NodeId, target: NodeId): (ViewerGraphData, Arrow) =
     val newSeq = maxArrowSequence(source, target)
     val arrow = Arrow(source, target, seq = newSeq + 1)
-    copy(arrows = arrows + (arrow.id -> arrow))
+    (copy(arrows = arrows + (arrow.id -> arrow)), arrow)
 
   def addToGroup(nodeId: NodeId, groupId: GroupId): ViewerGraphData =
     copy(memberships = memberships + (nodeId -> groupId))

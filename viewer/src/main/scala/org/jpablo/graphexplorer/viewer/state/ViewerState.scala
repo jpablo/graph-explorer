@@ -12,8 +12,10 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
-import org.scalajs.dom.{KeyboardEvent, SVGPoint, SVGSVGElement}
+import org.scalajs.dom.{KeyboardEvent, SVGSVGElement}
 import upickle.default.*
+import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
+import org.scalajs.dom.SVGMatrix
 
 case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
@@ -54,7 +56,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // 5. Render visible Dot to SVG
   // Dot ~> SVGSVGElement
-  val rawSVG: Signal[SVGSVGElement] = 
+  val rawSVG: Signal[SVGSVGElement] =
     visibleDOT.flatMapSwitch(_.toSvg)
 
   private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
@@ -100,7 +102,11 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     hiddenNodes.remove(ids)
 
   def addEdge(from: NodeId, to: NodeId): Unit =
-    sourceFlow.fullGraphV.update(_.addEdge(from, to))
+    sourceFlow.fullGraphV.update{ g =>
+      val (g2, a) = g.addEdge(from, to)
+      diagramSelection.set(Set(a.id))
+      g2
+    }
 
   // -------- Attribute management -----------
   // top level attributes
@@ -176,7 +182,8 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
         case Action.Edge(start) =>
           val sel = diagramSelection.now()
           if sel.size == 2 then
-            addEdge(start, (sel - start).head)
+            diagramSelection.clear()
+            addEdge(start.nodeId, (sel - start.nodeId).head)
             // TODO: select the new edge
         case _ => ()
       mouse.selectionRect.set(None)
@@ -248,15 +255,31 @@ object ViewerState:
       val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))
       translateXY.update(_ - svgDelta)
 
+  /** Converts client (screen) coordinates to SVG coordinates by applying the inverse of the SVG element's transformation matrix.
+   * @param clientX The x-coordinate in client (screen) space
+   * @param clientY The y-coordinate in client (screen) space 
+   * @param svgElement The SVG element to transform coordinates relative to
+   * @return An SVGPoint containing the transformed coordinates in SVG space
+   */
   def toSVGCoords(
       clientX:    Double, // px
       clientY:    Double, // px
-      svgElement: SVGSVGElement
-  ): SVGPoint =
-    val point = svgElement.createSVGPoint()
-    point.x = clientX
-    point.y = clientY
-    val ctm = svgElement.getScreenCTM()
-    point.matrixTransform(ctm.inverse())
+      screenCtm: SVGMatrix
+  ): DOMPoint =
+    val point = new DOMPoint(clientX, clientY)
+    point.matrixTransform(screenCtm.inverse())
+
+  // def toSVGCoords(
+  //     rect:    dom.SVGRect, // px
+  //     svgElement: SVGSVGElement
+  // ): dom.SVGRect =
+  //   val rect = svgElement.createSVGRect()
+  //   val p0 = toSVGCoords(rect.x, rect.y, svgElement)
+  //   val p1 = toSVGCoords(rect.width, rect.height, svgElement)
+  //   rect.x = p0.x
+  //   rect.y = p0.y
+  //   rect.width = p1.x
+  //   rect.height = p1.y
+  //   rect
 
 end ViewerState

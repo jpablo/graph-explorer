@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.ViewerState.toSVGCoords
 import org.scalajs.dom
+import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 
 
 trait MathOps[A]:
@@ -20,19 +21,19 @@ type Point2d[A] = (x: A, y: A)
 
 enum Action:
   case Selection
-  case Edge(start: models.NodeId)
+  case Edge(start: SelectableElement)
 
 case class SelectionRect(
-  startX: Double,
-  startY: Double,
-    endX: Double,
-    endY: Double,
+  startX: Double, // in client space
+  startY: Double, // in client space  
+    endX: Double, // in client space
+    endY: Double, // in client space
     shift: Boolean,
     action: Action
 ):
-  def asSVGPair(svgElement: dom.SVGSVGElement): (dom.SVGPoint, dom.SVGPoint) =
-    val p0 = toSVGCoords(startX, startY, svgElement)
-    val p1 = toSVGCoords(endX, endY, svgElement)
+  def asSVGPair(screenCtm: dom.SVGMatrix): (DOMPoint, DOMPoint) =
+    val p0 = toSVGCoords(startX, startY, screenCtm)
+    val p1 = toSVGCoords(endX, endY, screenCtm)
     (p0, p1)
 
 extension [A](a: Point2d[A])(using MathOps[A])
@@ -87,7 +88,7 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
         val height = math.max(a.height, (b.y + b.height) - y)
         BBox(x, y, width, height)
       )
-      val s = SvgCanvas.selfContainedSvg(bbox, svgs.map(foreignSvgElement).toSeq*)
+      val s = SvgCanvas.selfContainedSvg(bbox).amend(svgs.map(foreignSvgElement).toSeq*)
       s.ref.outerHTML
 
 object SvgElementOps:

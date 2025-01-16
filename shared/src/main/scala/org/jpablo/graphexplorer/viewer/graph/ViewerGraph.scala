@@ -72,12 +72,14 @@ case class ViewerGraph(
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
     modifyData.using(_.removeNodes(toRemove))
 
-  def addEdge(source: NodeId, target: NodeId): ViewerGraph =
-    modifyData.using(_.addArrow(source, target))
+  def addEdge(source: NodeId, target: NodeId): (ViewerGraph, Arrow) =
+    val (newData, arrow) = data.addArrow(source, target)
+    (modifyData.setTo(newData), arrow)
 
   def addNodeAndEdgeFrom(source: NodeId): (ViewerGraph, NodeId) =
     val nodeId = NodeId.random()
-    (addNode(nodeId).addEdge(source, nodeId), nodeId)
+    val (newGraph, arrow) = addNode(nodeId).addEdge(source, nodeId)
+    (newGraph, nodeId)
 
   def addNode(nodeId: NodeId): ViewerGraph =
     modifyData.using(_.addNode(nodeId))
