@@ -22,7 +22,7 @@ object AttributeRow:
       label           = attr.label,
       placeholderText = attr.placeholderText,
       inputType       = inputType,
-      options         = attr.values.map(v => (v.toString, AttrValue(v.toString))).toSeq,
+      options         = attr.valuesWithLabel.map((l, v) => (l, AttrValue(v.toString))).toSeq,
       default         = attr.default.toString
     )
 

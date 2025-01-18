@@ -8,6 +8,7 @@ sealed trait DotAttribute[A]:
   def default: A
   def placeholderText = ""
   def values: Array[A]
+  def valuesWithLabel: Array[(String,  A)] = values.map(v => (v.toString, v))
 
 
 trait DotAttributeEnum[A] extends DotAttribute[A]

@@ -87,9 +87,17 @@ object PenWidth extends DotAttributeSimple[Double]:
 enum LabelLoc:
   case t, c, b
 
+
 object LabelLoc extends DotAttributeEnum[LabelLoc]:
   val default = c
   val label = "Label Location"
+  override val valuesWithLabel: Array[(String, LabelLoc)] = Array(
+    ("Top", t),
+    ("Center", c),
+    ("Bottom", b)
+  )
+
+
 
 object Peripheries extends DotAttributeSimple[Int]:
   val label = "Peripheries"
@@ -146,7 +154,7 @@ object Dir extends DotAttributeEnum[DirType]:
   val values: Array[DirType] = DirType.values
 
 object Color extends DotAttributeSimple[String]:
-  val label = "Color"
+  val label = "Border Color"
   val default = "#ffffff"
   override val placeholderText = "Enter color here"
 
