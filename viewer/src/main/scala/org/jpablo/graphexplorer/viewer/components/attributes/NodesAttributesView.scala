@@ -1,16 +1,17 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
+import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.buildRows
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
-import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
 
-def NodesAttributesView(state: ViewerState) =
+def NodesAttributesView(attrs: Var[Map[String, AttrValue]]) =
   AttributesView(
     id    = "node-attributes",
     title = "Node Attributes",
-    attrs = state.nodeTargetAttributes,
+    attrs = attrs,
     rows = buildRows(
       Shape,
       Style,

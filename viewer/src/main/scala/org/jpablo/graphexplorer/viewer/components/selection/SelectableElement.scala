@@ -55,6 +55,11 @@ case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
     toArrow.map(_.id).getOrElse(models.NodeId(refTitle))
 end EdgeElement
 
+
+// ------------------------------
+// dom.Element extensions
+// ------------------------------
+
 extension (e: dom.Element)
   def parentNodes: LazyList[Element] =
     e +: LazyList.unfold(e)(e => Option(e.parentNode.asInstanceOf[dom.Element]).map(e => (e, e)))

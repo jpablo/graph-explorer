@@ -1,15 +1,16 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
+import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.buildRows
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
-import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
-def EdgesAttributesView(state: ViewerState) =
+def EdgesAttributesView(attrs: Var[Map[String, AttrValue]]) =
   AttributesView(
     id    = "edge-attributes",
     title = "Edge Attributes",
-    attrs = state.edgeTargetAttributes,
+    attrs = attrs,
     rows = buildRows(
       Style,
       ArrowHead,

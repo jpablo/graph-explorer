@@ -118,6 +118,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
         }
       )
 
+  // Optimization idea:
+  // For changes that don't impact the layout we can update the SVG directly
+  // instead of re-rendering the whole diagram
   val nodeTargetAttributes =
     sourceFlow.fullGraphV.zoom(_.getRootAttributes(AttributeTarget.node))(
       _.updateRootAttributes(AttributeTarget.node)(_)
