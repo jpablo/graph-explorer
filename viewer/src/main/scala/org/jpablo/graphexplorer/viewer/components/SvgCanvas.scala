@@ -7,10 +7,8 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.components.selection.NodeElement
-import org.jpablo.graphexplorer.viewer.models
 import com.raquo.airstream.core.Signal
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
-import org.jpablo.graphexplorer.viewer.models.NodeId
 
 // A SvgCanvas is a SVG element with interactive elements handled by Laminar.
 object SvgCanvas:
@@ -86,25 +84,9 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   select elements intersecting selectionRec
           // --------------------------------------------------------
-          state.selectionRect.signal --> { maybeRect =>
-            for rect <- maybeRect do
-              rect.action match
-                case Action.Selection =>
-                  val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
-                  if nodesInRect.nonEmpty then
-                    if rect.shift then
-                      state.diagramSelection.add(nodesInRect)
-                    else
-                      state.diagramSelection.set(nodesInRect)
-                  else if !rect.shift then
-                      state.diagramSelection.clear()
-
-                case Action.Edge(start) =>
-                  // Make sure only start or (start,end) nodes are selected when creating a new edge
-                  findNode(rect) match
-                    case Some(end) => state.diagramSelection.set(Set(start.nodeId, end))
-                    case None      => state.diagramSelection.set(Set(start.nodeId))
-
+          state.selectionRect.signal --> { rectOp =>
+            for rect <- rectOp do
+              state.handleSelectionRectangleUpdate(rect, selectableElements, dom.document.elementsFromPoint(rect.endX, rect.endY))
           },
           // --------------------------------------------------------
           //   synchronize svg elements with diagramSelection
@@ -147,31 +129,6 @@ object SvgCanvas:
           g0.amend(svg.transform := s"translate($trX, $trY) scale($scale)")
         )
       case _ => None
-
-
-  /** Checks if a selectable element intersects with a selection rectangle
-   *
-   * @param elem The selectable element to check
-   * @param rect The selection rectangle in client coordinates
-   * @return true if the element's bounding box intersects with the selection rectangle
-   *
-   * The method:
-   * 1. Gets the element's bounding box in client coordinates
-   * 2. Normalizes the selection rect coordinates to handle any direction of dragging
-   * 3. Uses a standard rectangle intersection test
-   */
-  private def isNodeInRect(elem: SelectableElement, rect: SelectionRect): Boolean =
-    val bbox = elem.get.getBoundingClientRect()
-    val normalizedRect = (
-      x = rect.startX.min(rect.endX),
-      y = rect.startY.min(rect.endY),
-      width = math.abs(rect.endX - rect.startX),
-      height = math.abs(rect.endY - rect.startY)
-    )
-    !(bbox.right < normalizedRect.x ||
-      bbox.left > normalizedRect.x + normalizedRect.width ||
-      bbox.bottom < normalizedRect.y ||
-      bbox.top > normalizedRect.y + normalizedRect.height)
 
 
   /**
@@ -258,15 +215,3 @@ object SvgCanvas:
                 )
               )
           case _ => None
-
-  /**
-   * Finds the node ID at the given selection rectangle's end point
-   */
-  private def findNode(rect: SelectionRect): Option[NodeId] =
-    val elements = dom.document.elementsFromPoint(rect.endX, rect.endY)
-    elements
-      .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-      .flatMap(element => Option(element.closest("g.node, g.edge")))
-      .distinct
-      .map(SelectableElement.fromDomElement)
-      .collectFirst { case Some(n @ NodeElement(_)) => n.nodeId }

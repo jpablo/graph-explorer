@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
+import org.jpablo.graphexplorer.viewer.components.selection.NodeElement
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
@@ -16,7 +17,8 @@ import org.scalajs.dom.{KeyboardEvent, SVGSVGElement}
 import upickle.default.*
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.scalajs.dom.SVGMatrix
-
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import scala.scalajs.js
 case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
 
@@ -185,17 +187,73 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   def endSelection(): Unit =
     selectionRect.set(None)
+  
+  def handleSelectionRectangleUpdate(rect: SelectionRect, selectableElements: Seq[SelectableElement], elements: js.Array[dom.Element]) =
+    rect.action match
+      case Action.Selection =>
+        val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
+        if nodesInRect.nonEmpty then
+          if rect.shift then
+            diagramSelection.add(nodesInRect)
+          else
+            diagramSelection.set(nodesInRect)
+        else if !rect.shift then
+            diagramSelection.clear()
+
+      case Action.Edge(start) =>
+        // Make sure only start or (start,end) nodes are selected when creating a new edge
+        findNode(rect, elements) match
+          case Some(end) => diagramSelection.set(Set(start.nodeId, end))
+          case None      => diagramSelection.set(Set(start.nodeId))
+
+  /**
+   * Finds the node ID at the given selection rectangle's end point
+   */
+  private def findNode(rect: SelectionRect, elements: js.Array[dom.Element]): Option[NodeId] =
+    elements
+      .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
+      .flatMap(element => Option(element.closest("g.node, g.edge")))
+      .distinct
+      .map(SelectableElement.fromDomElement)
+      .collectFirst { case Some(n @ NodeElement(_)) => n.nodeId }
+
+
+  /** Checks if a selectable element intersects with a selection rectangle
+   *
+   * @param elem The selectable element to check
+   * @param rect The selection rectangle in client coordinates
+   * @return true if the element's bounding box intersects with the selection rectangle
+   *
+   * The method:
+   * 1. Gets the element's bounding box in client coordinates
+   * 2. Normalizes the selection rect coordinates to handle any direction of dragging
+   * 3. Uses a standard rectangle intersection test
+   */
+  private def isNodeInRect(elem: SelectableElement, rect: SelectionRect): Boolean =
+    val bbox = elem.get.getBoundingClientRect()
+    val normalizedRect = (
+      x = rect.startX.min(rect.endX),
+      y = rect.startY.min(rect.endY),
+      width = math.abs(rect.endX - rect.startX),
+      height = math.abs(rect.endY - rect.startY)
+    )
+    !(bbox.right < normalizedRect.x ||
+      bbox.left > normalizedRect.x + normalizedRect.width ||
+      bbox.bottom < normalizedRect.y ||
+      bbox.top > normalizedRect.y + normalizedRect.height)
+
+
 
   def handleMouseUp(ev: dom.MouseEvent): Unit =
     val rectOpt = selectionRect.now()
     selectionRect.set(None)
-    rectOpt.foreach: rect =>
+    for rect <- rectOpt do
       rect.action match
         case Action.Edge(start) =>
           val sel = diagramSelection.now()
           diagramSelection.clear()
           // TODO: finish this using findNode
-          val mouseOverInitialNode = false
+          val mouseOverInitialNode = isNodeInRect(start, rect)
           if sel.size == 1 && mouseOverInitialNode then
             addEdge(start.nodeId, start.nodeId)
           else if sel.size == 2 then
