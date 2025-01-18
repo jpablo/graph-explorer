@@ -6,22 +6,27 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
-def EdgesAttributesView(attrs: Var[Map[String, AttrValue]]) =
+def EdgesAttributesView(attrs: Var[Map[String, AttrValue]], selection: Boolean) =
   AttributesView(
     id    = "edge-attributes",
     title = "Edge Attributes",
     attrs = attrs,
     rows = buildRows(
+      Label -> multiText,
       Style,
       ArrowHead,
       ArrowTail,
-      Dir,
-      PenWidth  -> number,
       Color     -> color,
+      Constraint -> checkbox,
       Decorate  -> checkbox,
-      FontSize  -> number,
+      Dir,
       FontColor -> color,
       FontName,
-      Constraint -> checkbox,
+      FontSize  -> number,
+      PenWidth  -> number,
+      URL,
+      // FillColor -> color, // Not supported for now
+      // Ordering,
+
     )
   )

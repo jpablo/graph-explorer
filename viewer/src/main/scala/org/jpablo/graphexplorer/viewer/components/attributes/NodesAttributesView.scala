@@ -7,25 +7,33 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
 
-def NodesAttributesView(attrs: Var[Map[String, AttrValue]]) =
-  AttributesView(
-    id    = "node-attributes",
-    title = "Node Attributes",
-    attrs = attrs,
-    rows = buildRows(
-      Shape,
-      Style,
+def NodesAttributesView(attrs: Var[Map[String, AttrValue]], selection: Boolean) =
+  val common = 
+    buildRows(
       Color     -> color,
       FillColor -> color,
-      LabelLoc,
-      FontSize  -> number,
       FontColor -> color,
       FontName,
+      FontSize  -> number,
+      LabelLoc,
       Ordering,
       Orientation -> number,
       PenWidth    -> number,
       Peripheries -> number,
+      Regular     -> checkbox,
+      Shape,
       Sides       -> number,
-      Regular     -> checkbox
+      Style,
     )
+  val selectionRows = 
+    buildRows(
+      Label -> InputType.multiText,
+      URL,
+    )
+  AttributesView(
+    id    = "node-attributes",
+    title = "Node Attributes",
+    attrs = attrs,
+    rows = if selection then selectionRows ++ common else common
   )
+
