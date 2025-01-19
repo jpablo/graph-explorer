@@ -10,6 +10,9 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, numbe
 def NodesAttributesView(attrs: Var[Map[String, AttrValue]], selection: Boolean) =
   val common = 
     buildRows(
+      Shape,
+      Sides       -> number,
+      Style,
       Color     -> color,
       FillColor -> color,
       FontColor -> color,
@@ -21,9 +24,6 @@ def NodesAttributesView(attrs: Var[Map[String, AttrValue]], selection: Boolean) 
       PenWidth    -> number,
       Peripheries -> number,
       Regular     -> checkbox,
-      Shape,
-      Sides       -> number,
-      Style,
     )
   val selectionRows = 
     buildRows(

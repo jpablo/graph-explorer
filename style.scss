@@ -104,9 +104,8 @@ label[for ^= show-ns-kind-] {
       }
 
       #dragging-arrow-group {
-        stroke: rgb(245 158 11);
-        fill: rgb(245 158 11);
-        stroke-width: 1.0;
+        stroke: black;
+        stroke-width: .75;
         pointer-events: none;
 
         #dragging-arrow-line {
@@ -117,34 +116,20 @@ label[for ^= show-ns-kind-] {
       g#graph0 {
         transform-origin: 50% -50%;
 
-        .node {
-
-          &.selected {
-            ellipse, polygon, path:not(#add-button) {
-              stroke: rgb(245 158 11);
-              stroke-width: 5.0;
-            }
-
+        g {
+          .selected-border {
+            fill: none;
+            stroke: #2c70ff;
+            stroke-width: .5;
           }
+        }
 
+        .node {          
           ellipse, polygon, path {
             pointer-events: all;
-
           }
         }
 
-        .edge {
-          &.selected {
-            path, polygon, ellipse {
-              stroke: rgb(245 158 11);
-              stroke-width: 4.0;
-            }
-
-            polygon, ellipse {
-              fill: rgb(245 158 11);
-            }
-          }
-        }
       }
 
     }

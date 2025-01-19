@@ -14,12 +14,29 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
   def nodeId: NodeId
 
   val get = ref
+  val selectionRectClass = "selected-border"
+
+  def selectedRect() =
+    val bbox = ref.getBBox()
+    val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
+    rect.setAttribute("x", bbox.x.toString)
+    rect.setAttribute("y", bbox.y.toString)
+    rect.setAttribute("width", bbox.width.toString)
+    rect.setAttribute("height", bbox.height.toString)
+    rect.classList.add(selectionRectClass)
+    rect
 
   def select(): Unit =
     ref.classList.add(selectedClass)
+    val rect = ref.querySelector(s"rect.$selectionRectClass")
+    if rect == null then
+      ref.appendChild(selectedRect())
 
   def unselect(): Unit =
     ref.classList.remove(selectedClass)
+    val rect = ref.querySelector(s"rect.$selectionRectClass")
+    if rect != null then
+      rect.remove()
 
   def toggle(): Unit =
     if ref.classList.contains(selectedClass) then unselect()

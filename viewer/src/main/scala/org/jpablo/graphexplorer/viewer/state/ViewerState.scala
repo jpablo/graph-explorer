@@ -190,7 +190,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   def endSelection(): Unit =
     selectionRect.set(None)
-  
+
   def handleSelectionRectangleUpdate(rect: SelectionRect, selectableElements: Seq[SelectableElement], elements: js.Array[dom.Element]) =
     rect.action match
       case Action.Selection =>
@@ -262,7 +262,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
           else if sel.size == 2 then
             addEdge(start.nodeId, (sel - start.nodeId).head)
         case _ => ()
-      
+
 
   // -------- storage ------------
 
@@ -333,7 +333,7 @@ object ViewerState:
 
   /** Converts client (screen) coordinates to SVG coordinates by applying the inverse of the SVG element's transformation matrix.
    * @param clientX The x-coordinate in client (screen) space
-   * @param clientY The y-coordinate in client (screen) space 
+   * @param clientY The y-coordinate in client (screen) space
    * @param svgElement The SVG element to transform coordinates relative to
    * @return An SVGPoint containing the transformed coordinates in SVG space
    */

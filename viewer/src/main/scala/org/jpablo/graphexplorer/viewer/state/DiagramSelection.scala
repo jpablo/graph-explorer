@@ -5,9 +5,6 @@ import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import org.scalajs.dom
-import upickle.default.writeJs
-
-import scala.scalajs.js.JSON
 
 type SelectedNodes = Set[NodeId]
 
@@ -16,7 +13,7 @@ class DiagramSelectionOps:
 
   val signal = selectedNodes.signal
     .distinct
-    .tapEach(s => if s.nonEmpty then dom.console.log("Selection: " + JSON.parse(writeJs(s).toString)))
+    .tapEach(s => if s.nonEmpty then dom.console.log(s"Selection: $s"))
 
   def now(): SelectedNodes = selectedNodes.now()
 
