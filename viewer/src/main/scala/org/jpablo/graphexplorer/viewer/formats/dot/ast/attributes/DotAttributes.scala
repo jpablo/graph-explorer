@@ -8,13 +8,29 @@ enum Rankdir:
 object Rankdir extends DotAttributeEnum[Rankdir]:
   val default = TB
   val label = "Direction"
+  override val valuesWithLabel = Array(
+    ("Top to Bottom", TB),
+    ("Left to Right", LR),
+    ("Bottom to Top", BT),
+    ("Right to Left", RL)
+  )
 
 enum Splines:
   case line, spline, polyline, ortho, curved, `true`, `false`, none
 
 object Splines extends DotAttributeEnum[Splines]:
   val default = spline
-  val label = "Splines"
+  val label = "Curve style"
+  override val valuesWithLabel = Array(
+    ("Spline", spline),
+    ("Line", line),
+    ("Polyline", polyline),
+    ("Orthogonal", ortho),
+    ("Curved", curved),
+    // ("True", `true`),
+    // ("False", `false`),
+    ("None", none)
+  )
 
 enum Overlap:
   case `false`, scale, compress
@@ -91,7 +107,7 @@ enum LabelLoc:
 object LabelLoc extends DotAttributeEnum[LabelLoc]:
   val default = c
   val label = "Label Location"
-  override val valuesWithLabel: Array[(String, LabelLoc)] = Array(
+  override val valuesWithLabel = Array(
     ("Top", t),
     ("Center", c),
     ("Bottom", b)
@@ -113,18 +129,28 @@ object Sides extends DotAttributeSimple[Int]:
   val label = "Sides"
 
 enum Style:
-  case dashed, dotted, solid, bold, invis, filled, diagonals, rounded, striped, wedged, tapered
+  case dashed, dotted, solid, bold, invis, diagonals, rounded, striped, wedged, tapered
 
 object Style extends DotAttributeEnum[Style]:
   val default = solid
   val label = "Style"
 
 enum Layout:
-  case dot, neato, fdp, sfdp, twopi, circo, osage
+  case dot, neato, fdp, sfdp, twopi, circo, osage, patchwork
 
 object Layout extends DotAttributeEnum[Layout]:
   val default = dot
   val label = "Layout"
+  override val valuesWithLabel = Array(
+    ("Hierarchical", dot),
+    ("Spring model", neato), 
+    ("Force-directed placement", fdp),
+    ("Multilevel force-directed placement", sfdp),
+    ("Radial", twopi),
+    ("Circular", circo),
+    ("Clustered", osage),
+    ("Squarified treemap", patchwork)
+  )
 
 //object Rotate extends DotAttributeSimple[Double]:
 //  val label = "Rotate"
@@ -152,6 +178,12 @@ object Dir extends DotAttributeEnum[DirType]:
   val default = DirType.forward
   val label = "Direction"
   val values: Array[DirType] = DirType.values
+  override def valuesWithLabel = Array(
+    ("Forward", DirType.forward),
+    ("Back", DirType.back), 
+    ("Both", DirType.both),
+    ("None", DirType.none)
+  )
 
 object Color extends DotAttributeSimple[String]:
   val label = "Border Color"

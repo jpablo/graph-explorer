@@ -19,10 +19,11 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
   def selectedRect() =
     val bbox = ref.getBBox()
     val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
-    rect.setAttribute("x", bbox.x.toString)
-    rect.setAttribute("y", bbox.y.toString)
-    rect.setAttribute("width", bbox.width.toString)
-    rect.setAttribute("height", bbox.height.toString)
+    val extra = 2
+    rect.setAttribute("x", (bbox.x - extra).toString)
+    rect.setAttribute("y", (bbox.y - extra).toString)
+    rect.setAttribute("width", (bbox.width + extra * 2).toString)
+    rect.setAttribute("height", (bbox.height + extra * 2).toString)
     rect.classList.add(selectionRectClass)
     rect
 

@@ -67,7 +67,7 @@ def BasicInput(
 def InputWithValue(
     placeholderText: String,
     inputValue:      Var[Option[AttrValue]],
-    inputType:       InputType = InputType.text,
+    inputType:       String = "text",
     default:         String = "",
     setFocus:        Boolean = false
 ) =
@@ -77,7 +77,7 @@ def InputWithValue(
 
   input(
     cls         := "input input-bordered input-xs w-full",
-    tpe         := inputType.toString,
+    tpe         := inputType,
     placeholder := placeholderText,
     controlled(
       value <-- inputValue.signal.map(_.getOrElse(default).toString),
