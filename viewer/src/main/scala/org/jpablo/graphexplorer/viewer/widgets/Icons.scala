@@ -20,6 +20,7 @@ object Icons:
     def barChartStepsIcon = elem.amend(cls := "bi bi-bar-chart-steps")
     def boxesIcon = elem.amend(cls := "bi bi-boxes")
     def boxSeamIcon = elem.amend(cls := "bi bi-box-seam")
+    def biSquareIcon = elem.amend(cls := "bi bi-square")
     def closeIcon = elem.amend(cls := "bi bi-x-circle")
     def dashIcon = elem.amend(cls := "bi bi-dash")
     def fileBinaryIcon = elem.amend(cls := "bi bi-file-binary")

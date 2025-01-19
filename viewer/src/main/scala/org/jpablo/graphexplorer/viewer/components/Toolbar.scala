@@ -56,6 +56,12 @@ def Toolbar(
         li(a("hide all", onClick.hideAllNodes))
       )
     ),
+    // -------- new node button --------
+    Button(
+      span().biSquareIcon,
+      title := "New Node (n)",
+      onClick --> state.addNode()
+    ).tiny,
     div(
       cls := "dropdown dropdown-hover",
       div(tabIndex := 0, role := "button", cls := "whitespace-nowrap", "Copy as").asBtn.tiny,

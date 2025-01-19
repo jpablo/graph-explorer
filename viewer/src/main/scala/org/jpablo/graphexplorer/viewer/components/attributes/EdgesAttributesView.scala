@@ -5,14 +5,11 @@ import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.buildR
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
+import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 def EdgesAttributesView(attrs: Var[Map[String, AttrValue]], selection: Boolean) =
-  AttributesView(
-    id    = "edge-attributes",
-    title = "Edge Attributes",
-    attrs = attrs,
-    rows = buildRows(
-      Label -> multiText,
+  val common =
+    buildRows(
       Style,
       ArrowHead,
       ArrowTail,
@@ -24,9 +21,19 @@ def EdgesAttributesView(attrs: Var[Map[String, AttrValue]], selection: Boolean) 
       FontName,
       FontSize  -> number,
       PenWidth  -> number,
-      URL,
       // FillColor -> color, // Not supported for now
       // Ordering,
 
     )
+  val selectionRows = 
+    buildRows(
+      Label -> InputType.multiText,
+      URL,
+    )
+
+  AttributesView(
+    id    = "edge-attributes",
+    title = "Edge Attributes",
+    attrs = attrs,
+    rows = if selection then selectionRows ++ common else common
   )
