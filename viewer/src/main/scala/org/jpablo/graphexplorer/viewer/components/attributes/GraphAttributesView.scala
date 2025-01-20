@@ -11,7 +11,7 @@ def GraphAttributesView(state: ViewerState) =
     id    = "graph-attributes",
     title = "Graph Attributes",
     attrs = state.graphTargetAttributes,
-    rows = buildRows(
+    buildRows(
       "Layout",
       Layout,
       Rankdir,

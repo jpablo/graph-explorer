@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 enum AttributeType:
   case AttributeHeader(title:  String)
+  
   case AttributeRow(
       attrId:          String,
       label:           String,
@@ -47,5 +48,13 @@ object AttributeType:
       case attr: DotAttributeEnum[?]              => Seq(attributeRow(attr, InputType.select, inputValue))
       case attr: DotAttributeSimple[?]            => Seq(attributeRow(attr, InputType.text, inputValue))
 
+  /** Builds a sequence of AttributeType by mapping each input attribute through buildRow.
+    * 
+    * @param attrs A varargs sequence of either:
+    *   - DotAttribute[?] - Will be converted to an AttributeRow with default input type
+    *   - (DotAttribute[?], InputType) - Will be converted to an AttributeRow with specified input type  
+    *   - String - Will be converted to an AttributeHeader
+    * @return A sequence of AttributeType containing the processed attributes
+    */
   def buildRows(attrs: DotAttribute[?] | (DotAttribute[?], InputType) | String*): Seq[AttributeType] =
     attrs.flatMap(buildRow(_))

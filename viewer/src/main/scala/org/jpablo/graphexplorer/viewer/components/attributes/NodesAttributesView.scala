@@ -46,66 +46,50 @@ def NodesAttributesView(attrsVar: Var[Map[String, AttrValue]], selection: Boolea
   )
 
 private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
-  val filledStyle = "filled"
-  attrsVar
-  .zoomLazy(attrs => 
-    attrs
-    .get(Style.attrId)
-    .map(_.toString.contains(filledStyle))
-    .map: filled =>
-      if filled then
-        AttrValue(FillStyle.ColorFill.toString)
-      else
-        AttrValue(FillStyle.NoFill.toString)
-
-  ): (attrs, value) => 
-    value.fold(attrs): v =>
-      val currentStyle = attrs.get(Style.attrId).map(_.toString).getOrElse("")
-      val newStyle = 
-        if v.toString.contains(FillStyle.ColorFill.toString) then
-          if currentStyle.isEmpty then filledStyle
-          else if !currentStyle.contains(filledStyle) then s"$currentStyle,$filledStyle"
-          else currentStyle
-        else
-          if currentStyle.isEmpty then ""
-          else
-            currentStyle
-              .split(",")
-              .filterNot(_.trim == filledStyle)
-              .mkString(",")
-      
-      if newStyle.isEmpty then attrs - Style.attrId
-      else attrs + (Style.attrId -> AttrValue(newStyle))
-
+  styleVar(attrsVar, "filled", _.contains(FillStyle.ColorFill.toString))
 
 private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
-  attrsVar
-  .zoomLazy(attrs => 
-    attrs
-    .get(Style.attrId)
-    .map(_.toString)
-    .map: style =>
-      // Remove "filled" and clean up any empty/extra commas
-      val borderStyle = style
-        .split(",")
-        .map(_.trim)
-        .filterNot(_ == "filled")
-        .mkString
-      
-      AttrValue(borderStyle)
-  ): (attrs, value) => 
-    value.fold(attrs): newBorderStyle =>
-      val currentStyle = attrs.get(Style.attrId).map(_.toString).getOrElse("")
-      val hasFilled = currentStyle.split(",").map(_.trim).contains("filled")
-      
-      val newStyle = 
-        if newBorderStyle.toString.isEmpty then
-          if hasFilled then "filled"
-          else ""
-        else if hasFilled then
-          s"${newBorderStyle.toString},filled"
+  styleVar(attrsVar, "filled", _.nonEmpty, keepStyle = true)
+
+private def styleVar(
+    attrsVar: Var[Map[String, AttrValue]], 
+    styleValue: String,
+    shouldIncludeStyle: String => Boolean,
+    keepStyle: Boolean = false
+): Var[Option[AttrValue]] =
+  
+  def getCurrentValue(attrs: Map[String, AttrValue]): Option[AttrValue] =
+    attrs.get(Style.attrId)
+      .map(_.toString)
+      .map: style =>
+        val styles = parseStyles(style)
+        if !keepStyle then
+          AttrValue(if styles.contains(styleValue) then FillStyle.ColorFill.toString else FillStyle.NoFill.toString)
         else
-          newBorderStyle.toString
+          AttrValue(styles.filterNot(_ == styleValue).mkString(","))
+    
+
+  def updateStyles(attrs: Map[String, AttrValue], value: Option[AttrValue]): Map[String, AttrValue] =
+    value.fold(attrs) { v =>
+      val currentStyles = attrs.get(Style.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
       
-      if newStyle.isEmpty then attrs - Style.attrId
-      else attrs + (Style.attrId -> AttrValue(newStyle))
+      val newStyles = 
+        if keepStyle then
+          if v.toString.isEmpty then
+            currentStyles.filter(_ == styleValue)
+          else
+            parseStyles(v.toString) ++ currentStyles.filter(_ == styleValue)
+        else
+          if shouldIncludeStyle(v.toString) then
+            currentStyles + styleValue 
+          else 
+            currentStyles - styleValue
+          
+      if newStyles.isEmpty then attrs - Style.attrId
+      else attrs + (Style.attrId -> AttrValue(newStyles.mkString(",")))
+    }
+
+  attrsVar.zoomLazy(getCurrentValue)(updateStyles)
+
+private def parseStyles(style: String): Set[String] =
+  style.split(",").map(_.trim).filterNot(_.isEmpty).toSet
