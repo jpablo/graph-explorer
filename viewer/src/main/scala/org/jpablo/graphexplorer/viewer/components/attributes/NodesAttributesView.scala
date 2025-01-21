@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.FillStyle
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeType.buildRow
+import org.jpablo.graphexplorer.viewer.extensions.in
 
 def NodesAttributesView(attrsVar: Var[Map[String, AttrValue]], selection: Boolean) =
 
@@ -46,17 +47,18 @@ def NodesAttributesView(attrsVar: Var[Map[String, AttrValue]], selection: Boolea
   )
 
 private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
-  styleVar(attrsVar, "filled", _.contains(FillStyle.ColorFill.toString))
+  styleVar(attrsVar, _.contains(FillStyle.ColorFill.toString), defaultValue = Some("solid"))
 
 private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
-  styleVar(attrsVar, "filled", _.nonEmpty, keepStyle = true)
+  styleVar(attrsVar, _.nonEmpty, keepStyle = true, defaultValue = Some("solid"))
 
 private def styleVar(
     attrsVar: Var[Map[String, AttrValue]], 
-    styleValue: String,
     shouldIncludeStyle: String => Boolean,
-    keepStyle: Boolean = false
+    keepStyle: Boolean = false,
+    defaultValue: Option[String] = None
 ): Var[Option[AttrValue]] =
+  val filled = "filled"
   
   def getCurrentValue(attrs: Map[String, AttrValue]): Option[AttrValue] =
     attrs.get(Style.attrId)
@@ -64,28 +66,29 @@ private def styleVar(
       .map: style =>
         val styles = parseStyles(style)
         if !keepStyle then
-          AttrValue(if styles.contains(styleValue) then FillStyle.ColorFill.toString else FillStyle.NoFill.toString)
+          AttrValue(if filled in styles then FillStyle.ColorFill.toString else FillStyle.NoFill.toString)
+        else if filled in styles then
+          val value = (styles - filled).mkString(",")
+          AttrValue(if value.isEmpty then defaultValue.getOrElse("") else value)
         else
-          AttrValue(styles.filterNot(_ == styleValue).mkString(","))
-    
+          AttrValue(defaultValue.getOrElse(""))
 
   def updateStyles(attrs: Map[String, AttrValue], value: Option[AttrValue]): Map[String, AttrValue] =
     value.fold(attrs) { v =>
       val currentStyles = attrs.get(Style.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
-      
+      pprint.log((currentStyles, v, keepStyle, defaultValue))
       val newStyles = 
         if keepStyle then
           if v.toString.isEmpty then
-            currentStyles.filter(_ == styleValue)
+            currentStyles.filter(_ == filled)
           else
-            parseStyles(v.toString) ++ currentStyles.filter(_ == styleValue)
+            parseStyles(v.toString) ++ currentStyles.filter(_ == filled)
         else
           if shouldIncludeStyle(v.toString) then
-            currentStyles + styleValue 
+            currentStyles + filled
           else 
-            currentStyles - styleValue
-          
-      if newStyles.isEmpty then attrs - Style.attrId
+            currentStyles - filled
+      if newStyles.isEmpty && defaultValue.isEmpty then attrs - Style.attrId
       else attrs + (Style.attrId -> AttrValue(newStyles.mkString(",")))
     }
 
