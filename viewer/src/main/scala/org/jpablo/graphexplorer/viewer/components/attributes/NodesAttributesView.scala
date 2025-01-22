@@ -61,10 +61,18 @@ private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[Attr
       val newStyles = 
         if v.toString.contains(FillStyle.ColorFill.toString) then
           currentStyles + filled
+          else 
+            currentStyles - filled
+      pprint.log((currentStyles, v, newStyles))
+      val attrs2 = 
+        if newStyles.isEmpty then 
+          pprint.log("empty, removing style from attrs")
+          attrs - Style.attrId
         else 
-          currentStyles - filled
-      if newStyles.isEmpty then attrs - Style.attrId
-      else attrs + (Style.attrId -> AttrValue(newStyles.mkString(",")))
+          pprint.log("not empty, adding style to attrs")
+          attrs + (Style.attrId -> AttrValue(newStyles.mkString(",")))
+      pprint.log(attrs2)
+      attrs2
     }
 
   attrsVar.zoomLazy(getCurrentValue)(updateStyles)
