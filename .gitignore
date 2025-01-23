@@ -52,3 +52,4 @@ bin/
 *.semanticdb
 
 out/
+.aider*

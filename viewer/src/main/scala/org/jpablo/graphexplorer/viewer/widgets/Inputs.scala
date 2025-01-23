@@ -39,6 +39,8 @@ def Select(
   )
 
 def SelectWithValue(
+    parent:      String,
+    attrId:      String,
     options:     Seq[(String, AttrValue)],
     selectValue: Var[Option[AttrValue]],
     default:     String,
@@ -47,8 +49,10 @@ def SelectWithValue(
   select(
     cls := "select select-bordered select-xs w-full",
     options.map((name, id) => option(name, value := id.toString)),
-    value <-- selectValue.signal.map(_.getOrElse(default).toString),
-    onChange.mapToValue.map(v => Some(AttrValue(v))) --> selectValue,
+    controlled(
+      value <-- selectValue.signal.map(_.getOrElse(default).toString),
+      onChange.mapToValue.map(v => Some(AttrValue(v))) --> selectValue
+    ),
     mods
   )
 
@@ -105,7 +109,7 @@ def TextAreaWithValue(
         val uiText = dotText.getOrElse(default).toString
           .replaceAll(
             """\\\\""", // regex matching two backslashes
-            """\\""" // replaced by a single backslash
+            """\\"""    // replaced by a single backslash
           )
           .replaceAll("""\\n""", "\n")
         uiText

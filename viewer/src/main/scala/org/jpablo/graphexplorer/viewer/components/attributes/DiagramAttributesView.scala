@@ -11,7 +11,7 @@ def DiagramAttributesView(state: ViewerState) =
   val tabsData =
     List(
       "Graph" -> GraphAttributesView(state),
-      "Nodes" -> NodesAttributesView(state.nodeTargetAttributes, selection = false),
+      "Nodes" -> NodesAttributesView("DiagramAttributesView", state.nodeTargetAttributes, selection = false),
       "Edges" -> EdgesAttributesView(state.edgeTargetAttributes, selection = false)
     )
   div(

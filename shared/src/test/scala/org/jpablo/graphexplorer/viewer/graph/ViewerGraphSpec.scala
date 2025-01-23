@@ -39,7 +39,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val updated = graph.addEdge(a, b)
+    val updated = graph.addEdge(a, b)._1
 
     assertEquals(updated, expected)
   }

@@ -19,15 +19,15 @@ def AttributesView(
     table(
       cls := "table mt-3",
       buildGroups(rows.flatten).map:
-        case Left(headers) => 
+        case Left(headers) =>
           thead(for h <- headers yield tr(th(colSpan := 2, h.title)))
-        
+
         case Right(attrRows) =>
           tbody(
             for row <- attrRows yield
               tr(
                 td(row.label),
-                td(buildInputCell(row, attrs)),
+                td(buildInputCell(title, row, attrs)),
               )
           )
     )
@@ -42,8 +42,8 @@ private def buildGroups(rows:  Seq[AttributeType]) =
     (rr, rowType) match
       case (Nil, h: AttributeHeader)            => rr = List(Left(List(h)))
       case (Left(hs) :: t, h: AttributeHeader)  => rr = Left(h :: hs) :: t
-      case (Right(rs) :: t, h: AttributeHeader) => rr = Left(List(h)) :: Right(rs) :: t  
-      
+      case (Right(rs) :: t, h: AttributeHeader) => rr = Left(List(h)) :: Right(rs) :: t
+
       case (Nil, r: AttributeRow)               => rr = List(Right(List(r)))
       case (Left(hs) :: t, r: AttributeRow)     => rr = Right(List(r)) :: Left(hs) :: t
       case (Right(rs) :: t, r: AttributeRow)    => rr = Right(r :: rs) :: t
@@ -55,14 +55,14 @@ private def buildGroups(rows:  Seq[AttributeType]) =
 
 
 
-private def buildInputCell(row: AttributeRow, attrsVar: Var[Map[String, AttrValue]]) =
+private def buildInputCell(parent: String, row: AttributeRow, attrsVar: Var[Map[String, AttrValue]]) =
   // zoom into the attribute with name row.attrId
   lazy val inputVarStr: Var[Option[AttrValue]] =
-    attrsVar.zoomLazy(_.get(row.attrId))((attrs, value) => value.fold(attrs)(v => attrs + (row.attrId -> v)))
+    attrsVar.zoomLazy(_.get(row.attrId) )((attrs, value) => value.fold(attrs)(v => attrs + (row.attrId -> v)) )
 
   row.inputType match
     case InputType.select =>
-      SelectWithValue(row.options, row.inputValue.getOrElse(inputVarStr), row.default)
+      SelectWithValue(parent, row.attrId, row.options, row.inputValue.getOrElse(inputVarStr), row.default)
 
     case InputType.checkbox =>
       val inputVarBool = inputVarStr.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))

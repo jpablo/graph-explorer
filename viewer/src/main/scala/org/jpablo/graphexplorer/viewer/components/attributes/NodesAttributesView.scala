@@ -9,11 +9,10 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, numbe
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.FillStyle
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeType.buildRow
 
-def NodesAttributesView(attrsVar: Var[Map[String, AttrValue]], selection: Boolean) =
-
+def NodesAttributesView(parent: String, attrsVar: Var[Map[String, AttrValue]], selection: Boolean) =
   AttributesView(
     id    = "node-attributes",
-    title = "Node Attributes",
+    title = s"Node Attributes ($parent)",
     attrs = attrsVar,
     buildRows(
       "Label",
@@ -22,13 +21,13 @@ def NodesAttributesView(attrsVar: Var[Map[String, AttrValue]], selection: Boolea
       "Text Format",
       FontColor -> color,
       FontName,
-      FontSize  -> number(),
+      FontSize -> number(),
       "Shape",
       Shape,
       Sides       -> number(),
       Regular     -> checkbox,
       Orientation -> number(),
-      "Fill",
+      "Fill"
     ),
     buildRow(FillStyle, Some(fillStyleVar(attrsVar))),
     buildRows(
@@ -37,7 +36,7 @@ def NodesAttributesView(attrsVar: Var[Map[String, AttrValue]], selection: Boolea
     ),
     buildRow(Style, Some(borderStyleVar(attrsVar))),
     buildRows(
-      Color     -> color,
+      Color       -> color,
       PenWidth    -> number(),
       Peripheries -> number(),
       "Other",
@@ -47,30 +46,32 @@ def NodesAttributesView(attrsVar: Var[Map[String, AttrValue]], selection: Boolea
 
 private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
   val filled = "filled"
+  val baseAttribute = Style
 
   def getCurrentValue(attrs: Map[String, AttrValue]): Option[AttrValue] =
-    attrs.get(Style.attrId)
-      .map: style =>
-        AttrValue(
-          (if style.toString.contains(filled) then FillStyle.ColorFill else FillStyle.NoFill).toString
-        )
+    Some(
+      AttrValue(
+        attrs.get(baseAttribute.attrId)
+          .map(_.toString)
+          .filter(_.contains(filled))
+          .map(_ => FillStyle.ColorFill.toString)
+          .getOrElse(FillStyle.NoFill.toString)
+      )
+    )
 
   def updateStyles(attrs: Map[String, AttrValue], value: Option[AttrValue]): Map[String, AttrValue] =
     value.fold(attrs) { v =>
-      val currentStyles = attrs.get(Style.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
-      val newStyles = 
+      val currentStyles = attrs.get(baseAttribute.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
+      val newStyles =
         if v.toString.contains(FillStyle.ColorFill.toString) then
           currentStyles + filled
-          else 
-            currentStyles - filled
-      pprint.log((currentStyles, v, newStyles))
-      val attrs2 = 
-        if newStyles.isEmpty then 
-          pprint.log("empty, removing style from attrs")
-          attrs - Style.attrId
-        else 
-          pprint.log("not empty, adding style to attrs")
-          attrs + (Style.attrId -> AttrValue(newStyles.mkString(",")))
+        else
+          currentStyles - filled
+      val attrs2 =
+        if newStyles.isEmpty then
+          attrs - baseAttribute.attrId
+        else
+          attrs + (baseAttribute.attrId -> AttrValue(newStyles.mkString(",")))
       pprint.log(attrs2)
       attrs2
     }
@@ -92,7 +93,7 @@ private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[At
   def updateStyles(attrs: Map[String, AttrValue], value: Option[AttrValue]): Map[String, AttrValue] =
     value.fold(attrs) { v =>
       val currentStyles = attrs.get(Style.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
-      val newStyles = 
+      val newStyles =
         if v.toString.isEmpty then
           currentStyles.filter(_ == filled)
         else

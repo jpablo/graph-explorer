@@ -86,7 +86,7 @@ case class ViewerGraphData(
     val (arrowIdsToUpdate, nodeIdsToUpdate) = idsToUpdate.partition(Arrow.isArrowId)
 
     val arrowsToUpdate: Arrows = arrows.filter((id, _) => id in arrowIdsToUpdate)
-    val updatedArrows: Arrows = arrowsToUpdate.transform((_, a) => a.mergeAttrs(attrs))
+    val updatedArrows: Arrows = arrowsToUpdate.transform((_, a) => a.copy(attrs = attrs)) // overwrite existing attributes!
 
     val endpointIdsToUpdate: Set[NodeId] = arrowsToUpdate.values.flatMap(_.endpoints).toSet & idsToUpdate
 
@@ -96,7 +96,7 @@ case class ViewerGraphData(
       allNodeIdsToUpdate.foldLeft(nodes): (nodesMap, nodeId) =>
         nodesMap
           .updatedWith(nodeId):
-            _.fold(Some(ViewerNode(nodeId, attrs)))(n => Some(n.mergeAttrs(attrs)))
+            _.fold(Some(ViewerNode(nodeId, attrs)))(n => Some(n.copy(attrs = attrs))) // overwrite existing attributes!
 
     copy(
       arrows = arrows ++ updatedArrows,

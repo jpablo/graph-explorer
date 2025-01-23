@@ -112,7 +112,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // top level attributes
   val graphTargetAttributes: Var[Map[String, AttrValue]] =
     sourceFlow.fullGraphV
-      .zoom(_.getRootAttributes(AttributeTarget.graph))(
+      .zoomLazy(_.getRootAttributes(AttributeTarget.graph))(
         { (graph, attrs) =>
           graph.updateRootAttributes(AttributeTarget.graph)(attrs)
         }
@@ -122,18 +122,20 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // For changes that don't impact the layout we can update the SVG directly
   // instead of re-rendering the whole diagram
   val nodeTargetAttributes =
-    sourceFlow.fullGraphV.zoom(_.getRootAttributes(AttributeTarget.node))(
+    sourceFlow.fullGraphV.zoomLazy(_.getRootAttributes(AttributeTarget.node))(
       _.updateRootAttributes(AttributeTarget.node)(_)
     )
 
   val edgeTargetAttributes =
-    sourceFlow.fullGraphV.zoom(_.getRootAttributes(AttributeTarget.edge))(
+    sourceFlow.fullGraphV.zoomLazy(_.getRootAttributes(AttributeTarget.edge))(
       _.updateRootAttributes(AttributeTarget.edge)(_)
     )
 
   // individual node attributes
-  def nodesAttributes(nodeIds: Set[NodeId]) =
-    sourceFlow.fullGraphV.zoom(_.getAttributesById(nodeIds).values): (graph, attrs) =>
+  def nodesAttributes(nodeIds: Set[NodeId]): Var[Map[String, AttrValue]] =
+    sourceFlow.fullGraphV.zoomLazy( graph =>
+      graph.getAttributesById(nodeIds).values
+    ): (graph, attrs) =>
       graph.updateAttributes(nodeIds, Attributes(attrs))
 
   // -------- Diagram actions -----------
