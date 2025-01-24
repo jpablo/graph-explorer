@@ -135,6 +135,8 @@ object Style extends DotAttributeEnum[Style]:
   val default = solid
   val label = "Style"
 
+  val filled = "filled"
+
 enum Layout:
   case dot, neato, fdp, sfdp, twopi, circo, osage, patchwork
 

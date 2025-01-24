@@ -53,33 +53,34 @@ def NodesAttributesView(parent: String, attrsVar: Var[Map[String, AttrValue]], s
   * @return A Var that represents the current fill style and handles updates
   */
 private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
-  val filled = "filled"
-  val baseAttribute = Style
+  val styleAttrId = Style.attrId
 
+  // Style => FillStyle
   def getCurrentValue(attrs: Map[String, AttrValue]): Option[AttrValue] =
     Some(
       AttrValue(
-        attrs.get(baseAttribute.attrId)
+        attrs.get(styleAttrId)
           .map(_.toString)
-          .filter(_.contains(filled))
+          .filter(_.contains(Style.filled))
           .map(_ => FillStyle.ColorFill.toString)
           .getOrElse(FillStyle.NoFill.toString)
       )
     )
 
-  def updateStyles(attrs: Map[String, AttrValue], value: Option[AttrValue]): Map[String, AttrValue] =
-    value.fold(attrs): v =>
-      val currentStyles = attrs.get(baseAttribute.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
+  // FillStyle => Style
+  def updateStyles(attrs: Map[String, AttrValue], attrValue: Option[AttrValue]): Map[String, AttrValue] =
+    attrValue.fold(attrs): value =>
+      val currentStyles = attrs.get(styleAttrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
       val newStyles =
-        if v.toString.contains(FillStyle.ColorFill.toString) then
-          currentStyles + filled
+        if value.toString.contains(FillStyle.ColorFill.toString) then
+          currentStyles + Style.filled
         else
-          currentStyles - filled
+          currentStyles - Style.filled
 
       if newStyles.isEmpty then
-        attrs - baseAttribute.attrId
+        attrs - styleAttrId
       else
-        attrs + (baseAttribute.attrId -> AttrValue(newStyles.mkString(",")))
+        attrs + (styleAttrId -> AttrValue(newStyles.mkString(",")))
 
   attrsVar.zoomLazy(getCurrentValue)(updateStyles)
 end fillStyleVar
@@ -95,14 +96,13 @@ end fillStyleVar
   * @return A Var that represents the current border style and handles updates
   */
 private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
-  val filled = "filled"
 
   def getCurrentValue(attrs: Map[String, AttrValue]): Option[AttrValue] =
     attrs.get(Style.attrId)
       .map(_.toString)
       .map: style =>
         val styles = parseStyles(style)
-        val value = (styles - filled).mkString(",")
+        val value = (styles - Style.filled).mkString(",")
         AttrValue(if value.isEmpty then Style.default.toString else value)
 
   def updateStyles(attrs: Map[String, AttrValue], value: Option[AttrValue]): Map[String, AttrValue] =
@@ -110,9 +110,9 @@ private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[At
       val currentStyles = attrs.get(Style.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
       val newStyles =
         if v.toString.isEmpty then
-          currentStyles.filter(_ == filled)
+          currentStyles.filter(_ == Style.filled)
         else
-          parseStyles(v.toString) ++ currentStyles.filter(_ == filled)
+          parseStyles(v.toString) ++ currentStyles.filter(_ == Style.filled)
       if newStyles.isEmpty then attrs - Style.attrId
       else attrs + (Style.attrId -> AttrValue(newStyles.mkString(",")))
     }
