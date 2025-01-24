@@ -44,6 +44,14 @@ def NodesAttributesView(parent: String, attrsVar: Var[Map[String, AttrValue]], s
     )
   )
 
+/** Creates a Var that handles the fill style attribute for nodes.
+  * 
+  * This manages the "filled" value within the "style" attribute to control node fill styling.
+  * It maps between the UI's FillStyle enum (NoFill/ColorFill) and the DOT "filled" style value.
+  *
+  * @param attrsVar The Var containing the node's attributes map
+  * @return A Var that represents the current fill style and handles updates
+  */
 private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
   val filled = "filled"
   val baseAttribute = Style
@@ -60,25 +68,32 @@ private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[Attr
     )
 
   def updateStyles(attrs: Map[String, AttrValue], value: Option[AttrValue]): Map[String, AttrValue] =
-    value.fold(attrs) { v =>
+    value.fold(attrs): v =>
       val currentStyles = attrs.get(baseAttribute.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
       val newStyles =
         if v.toString.contains(FillStyle.ColorFill.toString) then
           currentStyles + filled
         else
           currentStyles - filled
-      val attrs2 =
-        if newStyles.isEmpty then
-          attrs - baseAttribute.attrId
-        else
-          attrs + (baseAttribute.attrId -> AttrValue(newStyles.mkString(",")))
-      pprint.log(attrs2)
-      attrs2
-    }
+
+      if newStyles.isEmpty then
+        attrs - baseAttribute.attrId
+      else
+        attrs + (baseAttribute.attrId -> AttrValue(newStyles.mkString(",")))
 
   attrsVar.zoomLazy(getCurrentValue)(updateStyles)
+end fillStyleVar
 
-// handle "style" attribute by ignoring any "filled" value present
+
+/** Creates a Var that handles the border style attribute for nodes.
+  * 
+  * This manages the non-"filled" values within the "style" attribute to control node border styling.
+  * It preserves any "filled" style value while allowing other styles like "dashed", "dotted", etc.
+  * to be modified independently.
+  *
+  * @param attrsVar The Var containing the node's attributes map
+  * @return A Var that represents the current border style and handles updates
+  */
 private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
   val filled = "filled"
 
@@ -103,6 +118,7 @@ private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[At
     }
 
   attrsVar.zoomLazy(getCurrentValue)(updateStyles)
+end borderStyleVar
 
 private def parseStyles(style: String): Set[String] =
   style.split(",").map(_.trim).filterNot(_.isEmpty).toSet

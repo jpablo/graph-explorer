@@ -112,7 +112,14 @@ case class ViewerGraph(
     def collectAttrs(attrs: Map[NodeId, Attributable]) =
       attrs.collect { case (id, n) if id in nodeIds => n.attrs.values }.foldLeft(init)(_ ++ _)
 
-    Attributes(collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
+    // Get the root/common attributes based on the type of the first element
+    val rootAttrs = nodeIds.headOption.flatMap { id =>
+      if (Arrow.isArrowId(id)) Some(root.edgeAttrs.values)
+      else if (data.nodes.contains(id)) Some(root.nodeAttrs.values)
+      else None
+    }.getOrElse(Map.empty[String, AttrValue])
+    
+    Attributes(rootAttrs ++ collectAttrs(data.nodes) ++ collectAttrs(data.arrows))
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, attrs))

@@ -56,9 +56,16 @@ private def buildGroups(rows:  Seq[AttributeType]) =
 
 
 private def buildInputCell(parent: String, row: AttributeRow, attrsVar: Var[Map[String, AttrValue]]) =
-  // zoom into the attribute with name row.attrId
+  // zoom into the attribute with name row.attrId, but preserve the root value if specific value is removed
   lazy val inputVarStr: Var[Option[AttrValue]] =
-    attrsVar.zoomLazy(_.get(row.attrId) )((attrs, value) => value.fold(attrs)(v => attrs + (row.attrId -> v)) )
+    attrsVar.zoomLazy(
+      _.get(row.attrId)
+    )((attrs, value) => 
+      value match {
+        case None => attrs - row.attrId  // Remove override, will fall back to root value
+        case Some(v) => attrs + (row.attrId -> v)  // Set override
+      }
+    )
 
   row.inputType match
     case InputType.select =>
