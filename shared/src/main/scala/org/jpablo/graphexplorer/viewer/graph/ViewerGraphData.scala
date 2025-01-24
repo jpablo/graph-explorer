@@ -83,25 +83,23 @@ case class ViewerGraphData(
     if seqs.isEmpty then 0 else seqs.max
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraphData =
-    val (arrowIdsToUpdate, nodeIdsToUpdate) = idsToUpdate.partition(Arrow.isArrowId)
+    val (arrowIds, nodeIds) = idsToUpdate.partition(Arrow.isArrowId)
+    
+    val updatedArrows = arrows.view
+      .filterKeys(_ in arrowIds)
+      .mapValues(_.copy(attrs = attrs))
+      .toMap
 
-    val arrowsToUpdate: Arrows = arrows.filter((id, _) => id in arrowIdsToUpdate)
-    val updatedArrows: Arrows = arrowsToUpdate.transform((_, a) => a.copy(attrs = attrs))
+    val nodeIdsToUpdate = nodeIds ++ 
+      (updatedArrows.values.flatMap(_.endpoints).toSet & idsToUpdate)
 
-    val endpointIdsToUpdate: Set[NodeId] = arrowsToUpdate.values.flatMap(_.endpoints).toSet & idsToUpdate
-
-    val allNodeIdsToUpdate: Set[NodeId] = nodeIdsToUpdate ++ endpointIdsToUpdate
-
-    val updatedNodes =
-      allNodeIdsToUpdate.foldLeft(nodes): (nodesMap, nodeId) =>
-        nodesMap
-          .updatedWith(nodeId):
-            // If node exists, update its attributes, otherwise create new node
-            _.fold(Some(ViewerNode(nodeId, attrs)))(n => Some(n.copy(attrs = attrs)))
+    val updatedNodes = nodeIdsToUpdate.foldLeft(nodes) { (nodes, id) =>
+      nodes.updated(id, nodes.getOrElse(id, ViewerNode(id)).copy(attrs = attrs))
+    }
 
     copy(
       arrows = arrows ++ updatedArrows,
-      nodes  = updatedNodes
+      nodes = updatedNodes
     )
 
 end ViewerGraphData

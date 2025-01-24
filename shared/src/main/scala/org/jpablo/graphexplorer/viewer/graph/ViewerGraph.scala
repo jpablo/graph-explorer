@@ -144,8 +144,9 @@ case class ViewerGraph(
         else if (data.nodes.contains(id)) Some(root.nodeAttrs.values)
         else None
       .getOrElse(Map.empty[String, AttrValue])
-    
+      
     Attributes(rootAttrs ++ collectAttrs(nodeIds, data.nodes) ++ collectAttrs(nodeIds, data.arrows))
+
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, attrs))
 
