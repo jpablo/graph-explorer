@@ -148,7 +148,6 @@ case class ViewerGraph(
       if (Arrow.isArrowId(id)) collectAttrs(nodeIds, data.arrows)
       else collectAttrs(nodeIds, data.nodes)
     }.getOrElse(Map.empty)
-    // combine rootAttrs and specificAttrs code AI!
 
     Attributes(rootAttrs ++ specificAttrs)
 
