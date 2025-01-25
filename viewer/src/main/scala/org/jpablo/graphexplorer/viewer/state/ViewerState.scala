@@ -193,7 +193,22 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def endSelection(): Unit =
     selectionRect.set(None)
 
-  // Add a docstring AI!
+  /** Updates the diagram selection based on a selection rectangle and the current selection mode
+   * 
+   * @param rect The selection rectangle defining the area of selection
+   * @param selectableElements The sequence of selectable elements that can be selected
+   * @param elements The array of DOM elements that can be targets for edge creation
+   * 
+   * For Selection mode:
+   * - Selects all nodes that intersect with the selection rectangle
+   * - If shift is held, adds to existing selection
+   * - If shift is not held, replaces existing selection
+   * - Clears selection if no nodes are in rectangle and shift is not held
+   * 
+   * For Edge creation mode:
+   * - Maintains selection of start node
+   * - Adds end node to selection if mouse is over a valid target node
+   */
   def handleSelectionRectangleUpdate(rect: SelectionRect, selectableElements: Seq[SelectableElement], elements: js.Array[dom.Element]) =
     rect.action match
       case Action.Selection =>
