@@ -193,6 +193,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def endSelection(): Unit =
     selectionRect.set(None)
 
+  // Add a docstring AI!
   def handleSelectionRectangleUpdate(rect: SelectionRect, selectableElements: Seq[SelectableElement], elements: js.Array[dom.Element]) =
     rect.action match
       case Action.Selection =>
