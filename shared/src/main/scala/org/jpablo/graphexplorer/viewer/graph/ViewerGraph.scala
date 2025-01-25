@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarg
 import org.jpablo.graphexplorer.viewer.models.*
 
 /** Represents a graph that can be visualized in the viewer.
-  * 
+  *
   * @param id The unique identifier for this graph
   * @param data The underlying graph data containing nodes, arrows, groups and memberships
   * @param tpe The type of graph, defaults to "digraph" for directed graphs
@@ -93,7 +93,7 @@ case class ViewerGraph(
     (addNode(nodeId), nodeId)
 
   /** Creates a new group containing the specified nodes.
-    * 
+    *
     * Creates a new group with the given label and moves the specified nodes into it.
     * Any nodes that were previously in other groups will be moved to this new group.
     * Empty groups that result from moving nodes will be removed.
@@ -126,7 +126,7 @@ case class ViewerGraph(
     attrs.collect:
       case (id, n) if id in nodeIds => n.attrs.values
     .foldLeft(init)(_ ++ _)
-  
+
   /** Gets the combined attributes for a set of node IDs.
     *
     * For each node ID in the set:
@@ -144,7 +144,8 @@ case class ViewerGraph(
         else if (data.nodes.contains(id)) Some(root.nodeAttrs.values)
         else None
       .getOrElse(Map.empty[String, AttrValue])
-      
+    // make this function return rootAttrs + only one of dada.nodes or data.arrows attibutes AI!
+
     Attributes(rootAttrs ++ collectAttrs(nodeIds, data.nodes) ++ collectAttrs(nodeIds, data.arrows))
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
