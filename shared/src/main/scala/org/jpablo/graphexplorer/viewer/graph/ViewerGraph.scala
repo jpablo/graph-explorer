@@ -144,9 +144,12 @@ case class ViewerGraph(
         else if (data.nodes.contains(id)) Some(root.nodeAttrs.values)
         else None
       .getOrElse(Map.empty[String, AttrValue])
-    // make this function return rootAttrs + only one of dada.nodes or data.arrows attibutes AI!
+    val specificAttrs = nodeIds.headOption.map { id =>
+      if (Arrow.isArrowId(id)) collectAttrs(nodeIds, data.arrows)
+      else collectAttrs(nodeIds, data.nodes)
+    }.getOrElse(Map.empty)
 
-    Attributes(rootAttrs ++ collectAttrs(nodeIds, data.nodes) ++ collectAttrs(nodeIds, data.arrows))
+    Attributes(rootAttrs ++ specificAttrs)
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, attrs))
