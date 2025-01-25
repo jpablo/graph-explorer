@@ -8,9 +8,12 @@ import org.jpablo.graphexplorer.viewer.models.*
 
 /** Represents a graph that can be visualized in the viewer.
   *
-  * @param id The unique identifier for this graph
-  * @param data The underlying graph data containing nodes, arrows, groups and memberships
-  * @param tpe The type of graph, defaults to "digraph" for directed graphs
+  * @param id
+  *   The unique identifier for this graph
+  * @param data
+  *   The underlying graph data containing nodes, arrows, groups and memberships
+  * @param tpe
+  *   The type of graph, defaults to "digraph" for directed graphs
   */
 case class ViewerGraph(
     id:   String,
@@ -59,9 +62,9 @@ case class ViewerGraph(
 
   private val modifyData = this.modify(_.data)
 
-  val modifyRootGraphAttrs = this.modify(_.data.groups.at(root.id).attrs.values)
-  val modifyRootNodeAttrs = this.modify(_.data.groups.at(root.id).nodeAttrs.values)
-  val modifyRootEdgeAttrs = this.modify(_.data.groups.at(root.id).edgeAttrs.values)
+  val modifyRootGraphAttrs = this.modify(_.data.groups.at(root.id).attrs)
+  val modifyRootNodeAttrs = this.modify(_.data.groups.at(root.id).nodeAttrs)
+  val modifyRootEdgeAttrs = this.modify(_.data.groups.at(root.id).edgeAttrs)
 
   lazy val removeUnsupportedFeatures: ViewerGraph =
     modifyRootGraphAttrs.using(_ - "size")
@@ -94,26 +97,28 @@ case class ViewerGraph(
 
   /** Creates a new group containing the specified nodes.
     *
-    * Creates a new group with the given label and moves the specified nodes into it.
-    * Any nodes that were previously in other groups will be moved to this new group.
-    * Empty groups that result from moving nodes will be removed.
+    * Creates a new group with the given label and moves the specified nodes into it. Any nodes that were previously in
+    * other groups will be moved to this new group. Empty groups that result from moving nodes will be removed.
     *
-    * @param ids Set of node IDs to add to the new group
-    * @param label Optional label for the new group, defaults to empty string
-    * @return Updated ViewerGraph with the new group containing the specified nodes
+    * @param ids
+    *   Set of node IDs to add to the new group
+    * @param label
+    *   Optional label for the new group, defaults to empty string
+    * @return
+    *   Updated ViewerGraph with the new group containing the specified nodes
     */
   def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraph =
     modifyData.using(_.addToNewGroup(ids, label))
 
   def root: ViewerGroup = data.root
 
-  def getRootAttributes(target: AttributeTarget): Map[String, AttrValue] =
+  def getRootAttributes(target: AttributeTarget): Attributes =
     target match
-      case AttributeTarget.graph => root.attrs.values
-      case AttributeTarget.node  => root.nodeAttrs.values
-      case AttributeTarget.edge  => root.edgeAttrs.values
+      case AttributeTarget.graph => root.attrs
+      case AttributeTarget.node  => root.nodeAttrs
+      case AttributeTarget.edge  => root.edgeAttrs
 
-  def updateRootAttributes(target: AttributeTarget)(attrs: Map[String, AttrValue]): ViewerGraph =
+  def updateRootAttributes(target: AttributeTarget)(attrs: Attributes): ViewerGraph =
     val modifyAttrs = target match
       case AttributeTarget.graph => modifyRootGraphAttrs
       case AttributeTarget.node  => modifyRootNodeAttrs
@@ -130,26 +135,26 @@ case class ViewerGraph(
   /** Gets the combined attributes for a set of node IDs.
     *
     * For each node ID in the set:
-    * 1. Gets the root attributes based on whether it's an arrow or node
-    * 2. Collects any specific attributes defined on the node/arrow itself
-    * 3. Combines them with root attributes taking precedence
+    *   1. Gets the root attributes based on whether it's an arrow or node 2. Collects any specific attributes defined
+    *      on the node/arrow itself 3. Combines them with root attributes taking precedence
     *
-    * @param nodeIds Set of node IDs to get attributes for
-    * @return Combined Attributes object containing all applicable attributes
+    * @param nodeIds
+    *   Set of node IDs to get attributes for
+    * @return
+    *   Combined Attributes object containing all applicable attributes
     */
   def getAttributesById(nodeIds: Set[NodeId]): Attributes =
-    val rootAttrs = nodeIds.headOption
-      .flatMap: id =>
-        if (Arrow.isArrowId(id)) Some(root.edgeAttrs.values)
-        else if (data.nodes.contains(id)) Some(root.nodeAttrs.values)
-        else None
-      .getOrElse(Map.empty[String, AttrValue])
-    val specificAttrs = nodeIds.headOption.map { id =>
-      if (Arrow.isArrowId(id)) collectAttrs(nodeIds, data.arrows)
-      else collectAttrs(nodeIds, data.nodes)
-    }.getOrElse(Map.empty)
+    Attributes(
+      nodeIds.headOption
+        .flatMap: id =>
+          if Arrow.isArrowId(id) then
+            Some(root.edgeAttrs.values ++ collectAttrs(nodeIds, data.arrows))
+          else if id in data.nodes then 
+            Some(root.nodeAttrs.values ++ collectAttrs(nodeIds, data.nodes))
+          else None
+        .getOrElse(Map.empty)
+    )
 
-    Attributes(rootAttrs ++ specificAttrs)
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, attrs))

@@ -111,6 +111,9 @@ end Arrow
 
 case class Attributes(values: Map[String, AttrValue]) extends AnyVal:
   def ++(other: Attributes): Attributes = Attributes(values ++ other.values)
+  def -(key: String): Attributes = Attributes(values - key)
+  def +(kv: (String, AttrValue)): Attributes = Attributes(values + kv)
+  def get(key: String): Option[AttrValue] = values.get(key)
 
 object Attributes:
   val empty = Attributes(Map.empty)

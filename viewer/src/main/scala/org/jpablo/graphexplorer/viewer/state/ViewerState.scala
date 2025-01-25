@@ -110,7 +110,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // -------- Attribute management -----------
   // top level attributes
-  val graphTargetAttributes: Var[Map[String, AttrValue]] =
+  val graphTargetAttributes: Var[Attributes] =
     sourceFlow.fullGraphV
       .zoomLazy(_.getRootAttributes(AttributeTarget.graph))(
         { (graph, attrs) =>
@@ -132,11 +132,12 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     )
 
   // individual node attributes
-  def nodesAttributes(nodeIds: Set[NodeId]): Var[Map[String, AttrValue]] =
+  // Explain how this work: how fullGraphV attributes are propagated to the UI and back. AI?
+  def nodesAttributes(nodeIds: Set[NodeId]): Var[Attributes] =
     sourceFlow.fullGraphV.zoomLazy( graph =>
-      graph.getAttributesById(nodeIds).values
+      graph.getAttributesById(nodeIds)
     ): (graph, attrs) =>
-      graph.updateAttributes(nodeIds, Attributes(attrs))
+      graph.updateAttributes(nodeIds, attrs)
 
   // -------- Diagram actions -----------
   val eventHandlers = wire[EventHandlers]
@@ -194,17 +195,17 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     selectionRect.set(None)
 
   /** Updates the diagram selection based on a selection rectangle and the current selection mode
-   * 
+   *
    * @param rect The selection rectangle defining the area of selection
    * @param selectableElements The sequence of selectable elements that can be selected
    * @param elements The array of DOM elements that can be targets for edge creation
-   * 
+   *
    * For Selection mode:
    * - Selects all nodes that intersect with the selection rectangle
    * - If shift is held, adds to existing selection
    * - If shift is not held, replaces existing selection
    * - Clears selection if no nodes are in rectangle and shift is not held
-   * 
+   *
    * For Edge creation mode:
    * - Maintains selection of start node
    * - Adds end node to selection if mouse is over a valid target node

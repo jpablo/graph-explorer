@@ -4,11 +4,12 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.widgets.{Checked, InputType, InputWithValue, SelectWithValue, TextAreaWithValue}
 import AttributeType.*
+import org.jpablo.graphexplorer.viewer.models.Attributes
 
 def AttributesView(
     id:    String,
     title: String,
-    attrs: Var[Map[String, AttrValue]],
+    attrs: Var[Attributes],
     rows:  Seq[AttributeType]*
 ) =
   // TODO: Finish implementing this
@@ -55,11 +56,11 @@ private def buildGroups(rows:  Seq[AttributeType]) =
 
 
 
-private def buildInputCell(parent: String, row: AttributeRow, attrsVar: Var[Map[String, AttrValue]]) =
+private def buildInputCell(parent: String, row: AttributeRow, attrsVar: Var[Attributes]) =
   // zoom into the attribute with name row.attrId, but preserve the root value if specific value is removed
   lazy val inputVarStr: Var[Option[AttrValue]] =
     attrsVar.zoomLazy(
-      _.get(row.attrId)
+      _.values.get(row.attrId)
     )((attrs, value) => 
       value match {
         case None => attrs - row.attrId  // Remove override, will fall back to root value

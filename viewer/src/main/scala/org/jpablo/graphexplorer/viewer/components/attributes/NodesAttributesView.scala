@@ -8,8 +8,9 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.FillStyle
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeType.buildRow
+import org.jpablo.graphexplorer.viewer.models.Attributes
 
-def NodesAttributesView(parent: String, attrsVar: Var[Map[String, AttrValue]], selection: Boolean) =
+def NodesAttributesView(parent: String, attrsVar: Var[Attributes], selection: Boolean) =
   AttributesView(
     id    = "node-attributes",
     title = s"Node Attributes ($parent)",
@@ -52,11 +53,11 @@ def NodesAttributesView(parent: String, attrsVar: Var[Map[String, AttrValue]], s
   * @param attrsVar The Var containing the node's attributes map
   * @return A Var that represents the current fill style and handles updates
   */
-private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
+private def fillStyleVar(attrsVar: Var[Attributes]): Var[Option[AttrValue]] =
   val styleAttrId = Style.attrId
 
   // Style => FillStyle
-  def getCurrentValue(attrs: Map[String, AttrValue]): Option[AttrValue] =
+  def getCurrentValue(attrs: Attributes): Option[AttrValue] =
     Some(
       AttrValue(
         attrs.get(styleAttrId)
@@ -68,7 +69,7 @@ private def fillStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[Attr
     )
 
   // FillStyle => Style
-  def updateStyles(attrs: Map[String, AttrValue], attrValue: Option[AttrValue]): Map[String, AttrValue] =
+  def updateStyles(attrs: Attributes, attrValue: Option[AttrValue]): Attributes =
     attrValue.fold(attrs): value =>
       val currentStyles = attrs.get(styleAttrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
       val newStyles =
@@ -95,9 +96,9 @@ end fillStyleVar
   * @param attrsVar The Var containing the node's attributes map
   * @return A Var that represents the current border style and handles updates
   */
-private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[AttrValue]] =
+private def borderStyleVar(attrsVar: Var[Attributes]): Var[Option[AttrValue]] =
 
-  def getCurrentValue(attrs: Map[String, AttrValue]): Option[AttrValue] =
+  def getCurrentValue(attrs: Attributes): Option[AttrValue] =
     attrs.get(Style.attrId)
       .map(_.toString)
       .map: style =>
@@ -105,7 +106,7 @@ private def borderStyleVar(attrsVar: Var[Map[String, AttrValue]]): Var[Option[At
         val value = (styles - Style.filled).mkString(",")
         AttrValue(if value.isEmpty then Style.default.toString else value)
 
-  def updateStyles(attrs: Map[String, AttrValue], value: Option[AttrValue]): Map[String, AttrValue] =
+  def updateStyles(attrs: Attributes, value: Option[AttrValue]): Attributes =
     value.fold(attrs) { v =>
       val currentStyles = attrs.get(Style.attrId).map(_.toString).map(parseStyles).getOrElse(Set.empty)
       val newStyles =
