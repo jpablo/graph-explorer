@@ -6,12 +6,14 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 
-def EdgesAttributesView(attrs: Var[Attributes], selection: Boolean) =
+def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], selection: Boolean) =
   AttributesView(
     id    = "edge-attributes",
     title = "Edge Attributes",
     attrs = attrs,
+    defaults = Some(state.visibleGraph.map(_.root.edgeAttrs)),
     buildRows(
       "Label",
       if selection then Label -> InputType.multiText else "",

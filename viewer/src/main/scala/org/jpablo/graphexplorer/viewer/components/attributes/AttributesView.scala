@@ -10,6 +10,7 @@ def AttributesView(
     id:    String,
     title: String,
     attrs: Var[Attributes],
+    defaults: Option[Signal[Attributes]],
     rows:  Seq[AttributeType]*
 ) =
   // TODO: Finish implementing this
@@ -21,22 +22,31 @@ def AttributesView(
       cls := "table mt-3",
       buildGroups(rows.flatten).map:
         case Left(headers) =>
-          thead(for h <- headers yield tr(th(colSpan := 2, h.title)))
+          thead(for h <- headers yield tr(th(colSpan := 3, h.title)))
 
         case Right(attrRows) =>
           tbody(
             for row <- attrRows yield
+              val attrVar = makeInputVar(row.attrId, attrs)
+              val default = getDefaultValue(defaults, row)
+              val isChanged = attrVar.signal.combineWith(default).map((attr, d) => attr.exists{_.toString != d})
               tr(
                 td(row.label),
-                td(buildInputCell(title, row, attrs)),
+                td(buildInputCell(title, row, attrVar, default)),
+                // only show * if the value is not the default
+                td(child <-- isChanged.map(c => if c then "*" else ""))
               )
           )
     )
   )
 
+private def getDefaultValue(defaults: Option[Signal[Attributes]], row: AttributeRow): Signal[String] =
+  defaults
+    .map(_.map(_.get(row.attrId).map(_.toString).getOrElse(row.default)))
+    .getOrElse(Signal.fromValue(row.default))
 
 
-private def buildGroups(rows:  Seq[AttributeType]) =
+private def buildGroups(rows: Seq[AttributeType]) =
   var rr: List[Either[List[AttributeHeader], List[AttributeRow]]] = List.empty
 
   for rowType <- rows do
@@ -45,47 +55,49 @@ private def buildGroups(rows:  Seq[AttributeType]) =
       case (Left(hs) :: t, h: AttributeHeader)  => rr = Left(h :: hs) :: t
       case (Right(rs) :: t, h: AttributeHeader) => rr = Left(List(h)) :: Right(rs) :: t
 
-      case (Nil, r: AttributeRow)               => rr = List(Right(List(r)))
-      case (Left(hs) :: t, r: AttributeRow)     => rr = Right(List(r)) :: Left(hs) :: t
-      case (Right(rs) :: t, r: AttributeRow)    => rr = Right(r :: rs) :: t
+      case (Nil, r: AttributeRow)            => rr = List(Right(List(r)))
+      case (Left(hs) :: t, r: AttributeRow)  => rr = Right(List(r)) :: Left(hs) :: t
+      case (Right(rs) :: t, r: AttributeRow) => rr = Right(r :: rs) :: t
 
   rr.map:
-    case Left(hs) => Left(hs.reverse)
+    case Left(hs)  => Left(hs.reverse)
     case Right(rs) => Right(rs.reverse)
   .reverse
 
+private def makeInputVar(attrId: String, attrsVar: Var[Attributes]): Var[Option[AttrValue]] =
+  attrsVar.zoomLazy(
+    _.values.get(attrId)
+  )((attrs, value) =>
+    value match
+      case None    => attrs - attrId // Remove override, will fall back to root value
+      case Some(v) => attrs + (attrId -> v) // Set override
+  )
 
-
-private def buildInputCell(parent: String, row: AttributeRow, attrsVar: Var[Attributes]) =
-  // zoom into the attribute with name row.attrId, but preserve the root value if specific value is removed
-  lazy val inputVarStr: Var[Option[AttrValue]] =
-    attrsVar.zoomLazy(
-      _.values.get(row.attrId)
-    )((attrs, value) => 
-      value match {
-        case None => attrs - row.attrId  // Remove override, will fall back to root value
-        case Some(v) => attrs + (row.attrId -> v)  // Set override
-      }
-    )
-
+private def buildInputCell(parent: String, row: AttributeRow, attrVar: Var[Option[AttrValue]], default: Signal[String]) =
   row.inputType match
     case InputType.select =>
-      SelectWithValue(parent, row.attrId, row.options, row.inputValue.getOrElse(inputVarStr), row.default)
+      SelectWithValue(parent, row.attrId, row.options, row.inputValue.getOrElse(attrVar), default)
 
     case InputType.checkbox =>
-      val inputVarBool = inputVarStr.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
+      val inputVarBool =
+        attrVar.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
       Checked(row.placeholderText, inputVarBool, row.default == true.toString)
 
     case InputType.`multiText` =>
-      TextAreaWithValue(row.placeholderText, inputVarStr, row.default/*, setFocus = row.attrId == "label"*/)
+      TextAreaWithValue(row.placeholderText, attrVar, row.default /*, setFocus = row.attrId == "label"*/ )
 
     case InputType.number(start, end, step) =>
-      InputWithValue(row.placeholderText, inputVarStr, "number", row.default/*, setFocus = row.attrId == "label"*/)
+      InputWithValue(row.placeholderText, attrVar, "number", row.default /*, setFocus = row.attrId == "label"*/ )
         .amend(
-          minAttr := start.map(_.toString).getOrElse(""),
-          maxAttr := end.map(_.toString).getOrElse(""),
+          minAttr  := start.map(_.toString).getOrElse(""),
+          maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")
         )
 
     case _ =>
-      InputWithValue(row.placeholderText, inputVarStr, row.inputType.toString, row.default/*, setFocus = row.attrId == "label"*/)
+      InputWithValue(
+        row.placeholderText,
+        attrVar,
+        row.inputType.toString,
+        row.default /*, setFocus = row.attrId == "label"*/
+      )

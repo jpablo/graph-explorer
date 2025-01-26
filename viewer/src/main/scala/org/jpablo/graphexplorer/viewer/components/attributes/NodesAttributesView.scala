@@ -9,12 +9,14 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, numbe
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.FillStyle
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeType.buildRow
 import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 
-def NodesAttributesView(parent: String, attrsVar: Var[Attributes], selection: Boolean) =
+def NodesAttributesView(parent: String, state: ViewerState, attrsVar: Var[Attributes], selection: Boolean) =
   AttributesView(
     id    = "node-attributes",
     title = s"Node Attributes ($parent)",
     attrs = attrsVar,
+    defaults = Some(state.visibleGraph.map(_.root.nodeAttrs)),
     buildRows(
       "Label",
       if selection then Label -> InputType.multiText else "",

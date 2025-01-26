@@ -100,7 +100,7 @@ object Arrow:
 
       case _ => None
 
-  given scala.Ordering[Arrow]:
+  given arrowOrd: scala.Ordering[Arrow]:
     def compare(x: Arrow, y: Arrow): Int =
       val s = x.source.value `compareTo` y.source.value
       if s != 0 then s

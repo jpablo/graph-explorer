@@ -43,14 +43,14 @@ def SelectWithValue(
     attrId:      String,
     options:     Seq[(String, AttrValue)],
     selectValue: Var[Option[AttrValue]],
-    default:     String,
+    default:     Signal[String],
     mods:        Mods*
 ) =
   select(
     cls := "select select-bordered select-xs w-full",
     options.map((name, id) => option(name, value := id.toString)),
     controlled(
-      value <-- selectValue.signal.map(_.getOrElse(default).toString),
+      value <-- selectValue.signal.combineWith(default).map((sv, d) => sv.getOrElse(d).toString),
       onChange.mapToValue.map(v => Some(AttrValue(v))) --> selectValue
     ),
     mods

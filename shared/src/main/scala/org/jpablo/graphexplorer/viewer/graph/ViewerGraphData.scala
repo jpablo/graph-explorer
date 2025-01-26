@@ -82,6 +82,18 @@ case class ViewerGraphData(
     val seqs = arrowSequences(source, target)
     if seqs.isEmpty then 0 else seqs.max
 
+  /** Updates attributes for a set of nodes and arrows.
+    *
+    * This method updates the attributes of the specified nodes and arrows:
+    * 1. Separates the input IDs into arrow IDs and node IDs
+    * 2. Updates attributes for matching arrows
+    * 3. Updates attributes for matching nodes, including any endpoints of updated arrows
+    * that were in the original selection
+    *
+    * @param idsToUpdate Set of node and arrow IDs to update attributes for
+    * @param attrs The new attributes to apply
+    * @return Updated ViewerGraphData with the new attributes applied
+    */
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraphData =
     val (arrowIds, nodeIds) = idsToUpdate.partition(Arrow.isArrowId)
     
@@ -101,7 +113,6 @@ case class ViewerGraphData(
       arrows = arrows ++ updatedArrows,
       nodes = updatedNodes
     )
-
 end ViewerGraphData
 
 object ViewerGraphData:

@@ -132,29 +132,17 @@ case class ViewerGraph(
       case (id, n) if id in nodeIds => n.attrs.values
     .foldLeft(init)(_ ++ _)
 
-  /** Gets the combined attributes for a set of node IDs.
-    *
-    * For each node ID in the set:
-    *   1. Gets the root attributes based on whether it's an arrow or node 2. Collects any specific attributes defined
-    *      on the node/arrow itself 3. Combines them with root attributes taking precedence
-    *
-    * @param nodeIds
-    *   Set of node IDs to get attributes for
-    * @return
-    *   Combined Attributes object containing all applicable attributes
-    */
   def getAttributesById(nodeIds: Set[NodeId]): Attributes =
     Attributes(
       nodeIds.headOption
-        .flatMap: id =>
+        .map: id =>
           if Arrow.isArrowId(id) then
-            Some(root.edgeAttrs.values ++ collectAttrs(nodeIds, data.arrows))
+            collectAttrs(nodeIds, data.arrows)
           else if id in data.nodes then 
-            Some(root.nodeAttrs.values ++ collectAttrs(nodeIds, data.nodes))
-          else None
+            collectAttrs(nodeIds, data.nodes)
+          else Map.empty
         .getOrElse(Map.empty)
     )
-
 
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, attrs))

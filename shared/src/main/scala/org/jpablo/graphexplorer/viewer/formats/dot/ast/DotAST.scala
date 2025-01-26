@@ -64,7 +64,7 @@ case class Comment() extends GraphElement derives ReadWriter
 @key("attr_stmt")
 case class AttrStmt(target: String, attr_list: List[Attr]) extends GraphElement derives ReadWriter
 
-case class AttrValue(value: String | AttrEq) extends AnyVal:
+case class AttrValue(value: String | AttrEq, overriden: Boolean = false):
   override def toString: String = value match
     case s: String => s
     case a: AttrEq => a.value
@@ -85,7 +85,7 @@ object AttrValue:
     )
 
   given ReadWriter[AttrValue] =
-    readwriter[String | AttrEq].bimap[AttrValue](_.value, AttrValue.apply)
+    readwriter[String | AttrEq].bimap[AttrValue](_.value, AttrValue(_))
 
 end AttrValue
 
