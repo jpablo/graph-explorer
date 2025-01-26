@@ -11,7 +11,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], selection: Boolean) =
   AttributesView(
     id    = "edge-attributes",
-    title = "Edge Attributes",
+    titleStr = "Edge Attributes",
     attrs = attrs,
     defaults = Some(state.visibleGraph.map(_.root.edgeAttrs)),
     buildRows(

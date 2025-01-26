@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.models.Attributes
 
 def AttributesView(
     id:    String,
-    title: String,
+    titleStr: String,
     attrs: Var[Attributes],
     defaults: Option[Signal[Attributes]],
     rows:  Seq[AttributeType]*
@@ -27,19 +27,35 @@ def AttributesView(
         case Right(attrRows) =>
           tbody(
             for row <- attrRows yield
-              val attrVar = makeInputVar(row.attrId, attrs)
+              val attrVar = row.inputValue.getOrElse(makeInputVar(row.attrId, attrs))
               val default = getDefaultValue(defaults, row)
-              val isChanged = attrVar.signal.combineWith(default).map((attr, d) => attr.exists{_.toString != d})
+              val isChanged = attrVar.signal.combineWith(default).map((attr, d) => attr.exists(_.toString != d))
               tr(
-                td(row.label),
-                td(buildInputCell(title, row, attrVar, default)),
+                td(
+                  cls("font-bold") <-- isChanged,
+                  row.label
+                ),
+                td(buildInputCell(titleStr, row, attrVar, default)),
                 // only show * if the value is not the default
-                td(child <-- isChanged.map(c => if c then "*" else ""))
+                td(
+                  child <-- isChanged.map(c =>
+                    if c then
+                      button(
+                        cls := "btn btn-xs btn-ghost",
+                        title := s"reset ${row.label}",
+                        "*",
+                        onClick --> (_ => attrVar.set(None))
+                      )
+                    else
+                      ""
+                  )
+                )
               )
           )
     )
   )
 
+// uses the global default if present, otherwise uses the (hardcoded) default value.
 private def getDefaultValue(defaults: Option[Signal[Attributes]], row: AttributeRow): Signal[String] =
   defaults
     .map(_.map(_.get(row.attrId).map(_.toString).getOrElse(row.default)))
@@ -76,7 +92,7 @@ private def makeInputVar(attrId: String, attrsVar: Var[Attributes]): Var[Option[
 private def buildInputCell(parent: String, row: AttributeRow, attrVar: Var[Option[AttrValue]], default: Signal[String]) =
   row.inputType match
     case InputType.select =>
-      SelectWithValue(parent, row.attrId, row.options, row.inputValue.getOrElse(attrVar), default)
+      SelectWithValue(parent, row.attrId, row.options, attrVar, default)
 
     case InputType.checkbox =>
       val inputVarBool =

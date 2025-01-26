@@ -135,6 +135,7 @@ object Style extends DotAttributeEnum[Style]:
   val default = solid
   val label = "Style"
 
+  // part of the DOT style attribute but explicitly excluded from the enum
   val filled = "filled"
 
 enum Layout:
@@ -189,12 +190,12 @@ object Dir extends DotAttributeEnum[DirType]:
 
 object Color extends DotAttributeSimple[String]:
   val label = "Border Color"
-  val default = "#ffffff"
+  val default = "#000000"
   override val placeholderText = "Enter color here"
 
 object FillColor extends DotAttributeSimple[String]:
   val label = "Fill Color"
-  val default = "#D3D3D3" // lightgrey
+  val default = "#ffffff" // default for nodes
   override val placeholderText = "Enter fill color here"
 
 object FontSize extends DotAttributeSimple[Double]:

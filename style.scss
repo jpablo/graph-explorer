@@ -157,7 +157,7 @@ label[for ^= show-ns-kind-] {
   }
 
   .attributes-view {
-    @apply p-2;
+    @apply p-2 border border-gray-200;
     table {
       @apply table-xs;
     }

@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 def GraphAttributesView(state: ViewerState) =
   AttributesView(
     id    = "graph-attributes",
-    title = "Graph Attributes",
+    titleStr = "Graph Attributes",
     attrs = state.graphTargetAttributes,
     defaults = None,
     buildRows(
