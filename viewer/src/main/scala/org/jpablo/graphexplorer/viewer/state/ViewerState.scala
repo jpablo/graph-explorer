@@ -134,10 +134,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // individual node attributes
   // Explain how this work: how fullGraphV attributes are propagated to the UI and back. AI?
   def nodesAttributes(nodeIds: Set[NodeId]): Var[Attributes] =
-    sourceFlow.fullGraphV.zoomLazy( graph =>
-      graph.getAttributesById(nodeIds)
-    ): (graph, attrs) =>
-      graph.updateAttributes(nodeIds, attrs)
+    sourceFlow.fullGraphV.zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) => graph.updateAttributes(nodeIds, attrs))
 
   // -------- Diagram actions -----------
   val eventHandlers = wire[EventHandlers]
@@ -234,7 +231,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   private def findNode(rect: SelectionRect, elements: js.Array[dom.Element]): Option[NodeId] =
     elements
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-      .flatMap(element => Option(element.closest("g.node, g.edge")))
+      .flatMap(element => Option(element.closest("g.node, g.edge, g.cluster")))
       .distinct
       .map(SelectableElement.fromDomElement)
       .collectFirst { case Some(n @ NodeElement(_)) => n.nodeId }

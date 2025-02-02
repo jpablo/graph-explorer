@@ -10,7 +10,7 @@ def DiagramAttributesView(state: ViewerState) =
   def tabVisible(i: Int) = tabIndex.signal.map(_ == i)
   val tabsData =
     List(
-      "Graph" -> GraphAttributesView(state),
+      "Graph" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false),
       "Nodes" -> NodesAttributesView("DiagramAttributesView", state, state.nodeTargetAttributes, selection = false),
       "Edges" -> EdgesAttributesView(state, state.edgeTargetAttributes, selection = false)
     )

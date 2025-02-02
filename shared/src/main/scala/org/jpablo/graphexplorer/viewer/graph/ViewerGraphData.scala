@@ -95,10 +95,17 @@ case class ViewerGraphData(
     * @return Updated ViewerGraphData with the new attributes applied
     */
   def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraphData =
-    val (arrowIds, nodeIds) = idsToUpdate.partition(Arrow.isArrowId)
+    val (arrowIds, notArrows) = idsToUpdate.partition(NodeId.isArrowId)
+    val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
+    val groupIds = clusterIds.map(id => GroupId(id.value))
     
     val updatedArrows = arrows.view
       .filterKeys(_ in arrowIds)
+      .mapValues(_.copy(attrs = attrs))
+      .toMap
+
+    val updatedClusters = groups.view
+      .filterKeys(_ in groupIds)
       .mapValues(_.copy(attrs = attrs))
       .toMap
 
@@ -111,7 +118,8 @@ case class ViewerGraphData(
 
     copy(
       arrows = arrows ++ updatedArrows,
-      nodes = updatedNodes
+      nodes = updatedNodes,
+      groups = groups ++ updatedClusters
     )
 end ViewerGraphData
 

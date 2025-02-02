@@ -48,6 +48,7 @@ object SelectableElement:
   def fromDomElement(e: dom.Element): Option[SelectableElement] =
     if isDiagramElement(e, "node") then Some(NodeElement(e.asInstanceOf[dom.SVGGElement]))
     else if isDiagramElement(e, "edge") then Some(EdgeElement(e.asInstanceOf[dom.SVGGElement]))
+    else if isDiagramElement(e, "cluster") then Some(ClusterElement(e.asInstanceOf[dom.SVGGElement]))
     else None
 
   def findAll(e: dom.Element): Seq[SelectableElement] =
@@ -73,6 +74,9 @@ case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
     toArrow.map(_.id).getOrElse(models.NodeId(refTitle))
 end EdgeElement
 
+case class ClusterElement(ref: dom.SVGGElement) extends SelectableElement(ref):
+  val selectedClass = "selected"
+  val nodeId: NodeId = models.NodeId(refTitle)
 
 // ------------------------------
 // dom.Element extensions

@@ -136,8 +136,10 @@ case class ViewerGraph(
     Attributes(
       nodeIds.headOption
         .map: id =>
-          if Arrow.isArrowId(id) then
+          if NodeId.isArrowId(id) then
             collectAttrs(nodeIds, data.arrows)
+          else if NodeId.isClusterId(id) then
+            collectAttrs(nodeIds, data.groups.map((g, v) => (NodeId(g.value), v)))
           else if id in data.nodes then 
             collectAttrs(nodeIds, data.nodes)
           else Map.empty

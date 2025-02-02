@@ -97,7 +97,7 @@ label[for ^= show-ns-kind-] {
             stroke: white;
             fill: #33ade6;
             filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.5));
-          }  
+          }
           path {
             fill: white;
           }
@@ -133,7 +133,7 @@ label[for ^= show-ns-kind-] {
           }
         }
 
-        .node {          
+        .node {
           ellipse, polygon, path {
             pointer-events: all;
           }

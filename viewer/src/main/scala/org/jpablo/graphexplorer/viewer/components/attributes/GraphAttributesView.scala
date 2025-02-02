@@ -1,23 +1,29 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
+import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeType.buildRows
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
+import org.jpablo.graphexplorer.viewer.models.Attributes
 
-def GraphAttributesView(state: ViewerState) =
+def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection: Boolean) =
   AttributesView(
     id    = "graph-attributes",
-    titleStr = "Graph Attributes",
-    attrs = state.graphTargetAttributes,
+    titleStr = "Cluster Attributes",
+    attrs = attrsVar,
     defaults = None,
-    buildRows(
-      "Layout",
-      Layout,
-      Rankdir,
-      Splines,
+    if selection then Seq.empty 
+    else
+      buildRows(
+        "Layout",
+        Layout,
+        Rankdir,
+        Splines,
+      ),
       
+    buildRows(
       "Labels",
       Label -> multiText,
       LabelLoc,
