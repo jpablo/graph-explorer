@@ -72,7 +72,7 @@ def InputWithValue(
     placeholderText: String,
     inputValue:      Var[Option[AttrValue]],
     inputType:       String = "text",
-    default:         String = "",
+    default:         Signal[String],
     setFocus:        Boolean = false
 ) =
   // hack
@@ -84,7 +84,8 @@ def InputWithValue(
     tpe         := inputType,
     placeholder := placeholderText,
     controlled(
-      value <-- inputValue.signal.map(_.getOrElse(default).toString),
+      // value <-- inputValue.signal.map(_.getOrElse(default).toString),
+      value <-- inputValue.signal.combineWith(default).map((sv, d) => sv.getOrElse(d).toString),
       onInput.mapToValue.map { v =>
         Some(AttrValue(if isHtml(v) then AttrEq(v, true) else v))
       } --> inputValue.set

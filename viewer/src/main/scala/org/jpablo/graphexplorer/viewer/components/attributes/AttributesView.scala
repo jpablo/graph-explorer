@@ -32,7 +32,7 @@ def AttributesView(
               val default = getDefaultValue(defaults, row)
               val isChanged = attrVar.signal.combineWith(default).map((attr, d) => attr.exists(_.toString != d))
               tr(
-                td(
+                td(cls := "w-32",
                   cls("font-bold") <-- isChanged,
                   span(cls := "me-1", row.label),
                   child <-- isChanged.map(c =>
@@ -101,7 +101,7 @@ private def buildInputCell(parent: String, row: AttributeRow, attrVar: Var[Optio
       TextAreaWithValue(row.placeholderText, attrVar, row.default /*, setFocus = row.attrId == "label"*/ )
 
     case InputType.number(start, end, step) =>
-      InputWithValue(row.placeholderText, attrVar, "number", row.default /*, setFocus = row.attrId == "label"*/ )
+      InputWithValue(row.placeholderText, attrVar, "number", default /*, setFocus = row.attrId == "label"*/ )
         .amend(
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
@@ -113,5 +113,5 @@ private def buildInputCell(parent: String, row: AttributeRow, attrVar: Var[Optio
         row.placeholderText,
         attrVar,
         row.inputType.toString,
-        row.default /*, setFocus = row.attrId == "label"*/
+        default /*, setFocus = row.attrId == "label"*/
       )
