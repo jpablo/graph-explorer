@@ -195,7 +195,7 @@ object Color extends DotAttributeSimple[String]:
 
 object FillColor extends DotAttributeSimple[String]:
   val label = "Fill Color"
-  val default = "#ffffff" // default for nodes
+  val default = "#d3d3d3" // default for nodes
   override val placeholderText = "Enter fill color here"
 
 object FontSize extends DotAttributeSimple[Double]:
