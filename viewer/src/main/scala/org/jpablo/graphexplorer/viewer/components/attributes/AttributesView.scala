@@ -2,9 +2,10 @@ package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.widgets.{Checked, InputType, InputWithValue, SelectWithValue, TextAreaWithValue}
 import AttributeType.*
 import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.widgets.*
+import com.raquo.laminar.api.features.unitArrows
 
 def AttributesView(
     id:    String,
@@ -33,23 +34,20 @@ def AttributesView(
               tr(
                 td(
                   cls("font-bold") <-- isChanged,
-                  row.label
-                ),
-                td(buildInputCell(titleStr, row, attrVar, default)),
-                // only show * if the value is not the default
-                td(
+                  span(cls := "me-1", row.label),
                   child <-- isChanged.map(c =>
                     if c then
-                      button(
-                        cls := "btn btn-xs btn-ghost",
+                      Button(
                         title := s"reset ${row.label}",
-                        "*",
-                        onClick --> (_ => attrVar.set(None))
-                      )
+                        onClick --> attrVar.set(None),
+                        i(cls := "bi bi-x")
+                      ).tiny.ghost.circle
                     else
                       ""
                   )
-                )
+
+                ),
+                td(buildInputCell(titleStr, row, attrVar, default))
               )
           )
     )

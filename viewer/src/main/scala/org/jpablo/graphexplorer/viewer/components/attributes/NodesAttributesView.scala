@@ -15,6 +15,7 @@ import com.raquo.airstream.ownership.OneTimeOwner
 
 def NodesAttributesView(parent: String, state: ViewerState, attrsVar: Var[Attributes], selection: Boolean) =
   val defaults = state.visibleGraph.map(_.root.nodeAttrs)
+
   AttributesView(
     id    = "node-attributes",
     titleStr = s"Node Attributes ($parent)",
@@ -36,7 +37,10 @@ def NodesAttributesView(parent: String, state: ViewerState, attrsVar: Var[Attrib
       "Fill"
     ),
     buildRow(FillStyle, Some(fillStyleVar(attrsVar, defaults))),
-    buildRows(FillColor -> color, "Border"),
+    buildRows(
+      FillColor -> color, 
+      "Border"
+    ),
     buildRow(Style, Some(borderStyleVar(attrsVar, defaults))),
     buildRows(
       Color       -> color,
@@ -62,7 +66,7 @@ private def fillStyleVar(attrsVar: Var[Attributes], defaults: Signal[Attributes]
   def getCurrentValue(attrs: Attributes): Option[AttrValue] =
     attrs.get(styleAttrId)
       .map(FillAndBorderStyle.from)
-      .map(_.fill.getOrElse(FillStyle.NoFill).toString)
+      .map(_.fill.getOrElse(FillStyle.default).toString)
       .map(AttrValue(_))
 
   // FillStyle => Style
@@ -70,11 +74,9 @@ private def fillStyleVar(attrsVar: Var[Attributes], defaults: Signal[Attributes]
     val currentDefaults = defaults.observe(using OneTimeOwner(() => ())).now()
     val existingStyle = attrs.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty)
     val currentDefaultStyle = currentDefaults.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty)
-    val newFillStyle = 
-      valueOpt.fold(currentDefaultStyle.fill)(attrValue => Some(FillStyle.valueOf(attrValue.toString)))
-
-    val newStyle = existingStyle.copy(fill = newFillStyle)
-    attrs + (styleAttrId -> AttrValue(newStyle.toDotString))
+    // -- fill style --
+    val newFillStyle = valueOpt.fold(currentDefaultStyle.fill)(attrValue => Some(FillStyle.valueOf(attrValue.toString)))
+    attrs + (styleAttrId -> AttrValue(existingStyle.copy(fill = newFillStyle).toDotString))
 
 
   attrsVar.zoomLazy(getCurrentValue)(updateStyles)
@@ -105,11 +107,9 @@ private def borderStyleVar(attrsVar: Var[Attributes], defaults: Signal[Attribute
     val currentDefaults = defaults.observe(using OneTimeOwner(() => ())).now()
     val existingStyle = attrs.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty)
     val currentDefaultStyle = currentDefaults.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty)
-    val newBorder = 
-      valueOpt.fold(currentDefaultStyle.border)(attrValue => Some(Style.valueOf(attrValue.toString)))
-
-    val newStyle = existingStyle.copy(border = newBorder)
-    attrs + (styleAttrId -> AttrValue(newStyle.toDotString))
+    // -- border style --
+    val newBorderStyle = valueOpt.fold(currentDefaultStyle.border)(attrValue => Some(Style.valueOf(attrValue.toString)))
+    attrs + (styleAttrId -> AttrValue(existingStyle.copy(border = newBorderStyle).toDotString))
 
 
   attrsVar.zoomLazy(getCurrentValue)(updateStyles)
