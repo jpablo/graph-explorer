@@ -9,7 +9,6 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.components.selection.NodeElement
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
@@ -207,21 +206,27 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
    * - Maintains selection of start node
    * - Adds end node to selection if mouse is over a valid target node
    */
-  def handleSelectionRectangleUpdate(rect: SelectionRect, selectableElements: Seq[SelectableElement], elements: js.Array[dom.Element]) =
+  def handleSelectionRectangleUpdate(rect: SelectionRect, selectableElements: Seq[SelectableElement], elementsFromRectEnd: js.Array[dom.Element]) =
     rect.action match
       case Action.Selection =>
-        val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
-        if nodesInRect.nonEmpty then
-          if rect.shift then
-            diagramSelection.add(nodesInRect)
-          else
-            diagramSelection.set(nodesInRect)
-        else if !rect.shift then
-            diagramSelection.clear()
+        // This is is meant to capture a single click.
+        if rect.isEmpty then
+          findNode(rect, elementsFromRectEnd) match
+            case Some(end) => diagramSelection.set(Set(end))
+            case None      => diagramSelection.clear()
+        else
+          val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
+          if nodesInRect.nonEmpty then
+            if rect.shift then
+              diagramSelection.add(nodesInRect)
+            else
+              diagramSelection.set(nodesInRect)
+          else if !rect.shift then
+              diagramSelection.clear()
 
       case Action.Edge(start) =>
         // Make sure only start or (start,end) nodes are selected when creating a new edge
-        findNode(rect, elements) match
+        findNode(rect, elementsFromRectEnd) match
           case Some(end) => diagramSelection.set(Set(start.nodeId, end))
           case None      => diagramSelection.set(Set(start.nodeId))
 
@@ -234,7 +239,8 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       .flatMap(element => Option(element.closest("g.node, g.edge, g.cluster")))
       .distinct
       .map(SelectableElement.fromDomElement)
-      .collectFirst { case Some(n @ NodeElement(_)) => n.nodeId }
+      .collectFirst:
+        case Some(elem) => elem.nodeId 
 
 
   /** Checks if a selectable element intersects with a selection rectangle

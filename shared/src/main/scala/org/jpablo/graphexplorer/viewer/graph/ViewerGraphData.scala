@@ -48,7 +48,7 @@ case class ViewerGraphData(
       groups = groups + (groupId -> group),
       // This will overwrite any existing memberships, effectively moving the nodes to the new group
       memberships = memberships ++ groupElements
-    ).removeEmptyGroups
+    ) //.removeEmptyGroups
 
   def addNode(nodeId: NodeId, label: String = "", groupId: Option[GroupId] = None): ViewerGraphData =
     copy(
@@ -61,16 +61,26 @@ case class ViewerGraphData(
 
   val nodesSet = nodes.values.toSet
 
-  def removeNodes(ids: Set[NodeId]): ViewerGraphData =
+  def removeElements(ids: Set[NodeId]): ViewerGraphData =
+    val groupIdsToRemove = ids.filter(NodeId.isClusterId).map(id => GroupId(id.value))
+
+    val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
+      if GroupId(elementId.value) in groupIdsToRemove then
+        None  // Remove if element is deleted
+      else if groupId in groupIdsToRemove then
+        Some(elementId -> rootId)  // Move to root if group deleted
+      else
+        Some(elementId -> groupId)  // Keep unchanged
+
+    val updatedArrows = arrows.filterNot: (arrowId, arrow) =>
+      (arrowId in ids) || (arrow.source in ids) || (arrow.target in ids)
+
     copy(
+      arrows = updatedArrows,
+      groups = groups -- groupIdsToRemove,
       nodes = nodes -- ids,
-      arrows = arrows.filterNot { case (arrowId, arrow) =>
-        ids.contains(arrowId) ||
-        ids.contains(arrow.source) ||
-        ids.contains(arrow.target)
-      },
-      memberships = memberships -- ids
-    ).removeEmptyGroups
+      memberships = updatedMemberships
+    ) //.removeEmptyGroups
 
   def arrowSequences(source: NodeId, target: NodeId): List[Int] =
     arrowValues
@@ -98,7 +108,7 @@ case class ViewerGraphData(
     val (arrowIds, notArrows) = idsToUpdate.partition(NodeId.isArrowId)
     val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
     val groupIds = clusterIds.map(id => GroupId(id.value))
-    
+
     val updatedArrows = arrows.view
       .filterKeys(_ in arrowIds)
       .mapValues(_.copy(attrs = attrs))
@@ -109,7 +119,7 @@ case class ViewerGraphData(
       .mapValues(_.copy(attrs = attrs))
       .toMap
 
-    val nodeIdsToUpdate = nodeIds ++ 
+    val nodeIdsToUpdate = nodeIds ++
       (updatedArrows.values.flatMap(_.endpoints).toSet & idsToUpdate)
 
     val updatedNodes = nodeIdsToUpdate.foldLeft(nodes) { (nodes, id) =>

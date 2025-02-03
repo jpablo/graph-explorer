@@ -36,6 +36,8 @@ case class SelectionRect(
     val p1 = toSVGCoords(endX, endY, screenCtm)
     (p0, p1)
 
+  def isEmpty: Boolean = startX == endX && startY == endY
+
 extension [A](a: Point2d[A])(using MathOps[A])
   def -(b: Point2d[A]): Point2d[A] = (x = a.x - b.x, y = a.y - b.y)
   def *(b: A): Point2d[A] = (a.x * b, a.y * b)

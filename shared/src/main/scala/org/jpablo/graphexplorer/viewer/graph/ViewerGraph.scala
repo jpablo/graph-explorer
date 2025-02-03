@@ -77,7 +77,7 @@ case class ViewerGraph(
     this
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
-    modifyData.using(_.removeNodes(toRemove))
+    modifyData.using(_.removeElements(toRemove))
 
   def addEdge(source: NodeId, target: NodeId): (ViewerGraph, Arrow) =
     val (newData, arrow) = data.addArrow(source, target)
