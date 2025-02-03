@@ -113,6 +113,18 @@ object LabelLoc extends DotAttributeEnum[LabelLoc]:
     ("Bottom", b)
   )
 
+enum LabelJust:
+  case l, c, r
+
+object LabelJust extends DotAttributeEnum[LabelJust]:
+  val default = c
+  val label = "Label Justification"
+  override val valuesWithLabel = Array(
+    ("Left", l),
+    ("Center", c),
+    ("Right", r)
+  )
+
 
 
 object Peripheries extends DotAttributeSimple[Int]:
@@ -197,6 +209,11 @@ object FillColor extends DotAttributeSimple[String]:
   val label = "Fill Color"
   val default = "#d3d3d3" // default for nodes
   override val placeholderText = "Enter fill color here"
+
+object PenColor extends DotAttributeSimple[String]:
+  val label = "Border Color"
+  val default = "#000000" // default for nodes
+  override val placeholderText = "Enter border color here"
 
 object FontSize extends DotAttributeSimple[Double]:
   val label = "Font Size"

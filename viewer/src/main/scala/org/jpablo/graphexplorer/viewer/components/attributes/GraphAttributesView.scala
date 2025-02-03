@@ -14,7 +14,8 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
     titleStr = "Cluster Attributes",
     attrs = attrsVar,
     defaults = None,
-    if selection then Seq.empty 
+    if selection then 
+      Seq.empty 
     else
       buildRows(
         "Layout",
@@ -27,23 +28,25 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
       "Labels",
       Label -> multiText,
       LabelLoc,
-      
+      LabelJust,
       "Fonts",
       FontName,
       FontColor -> color,
       FontSize -> number(),
       
-      "Colors",
+      "Background",
       BgColor -> color,
-      
-      "Spacing",
-      Pad -> number(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
-      RankSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
-      NodeSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
-      
-      // "Other",
-      // Overlap
-//      Rotate  -> number
-//      Orientation -> number
-    )
+      "Border",
+      if selection then PenColor -> color else "",
+      PenWidth -> number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+    ),
+    if selection then 
+      Seq.empty 
+    else
+      buildRows(
+        "Spacing",
+        Pad -> number(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
+        RankSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
+        NodeSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
+      )
   )
