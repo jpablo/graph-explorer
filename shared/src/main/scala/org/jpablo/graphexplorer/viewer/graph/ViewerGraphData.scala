@@ -50,7 +50,7 @@ case class ViewerGraphData(
       memberships = memberships ++ groupElements
     ) //.removeEmptyGroups
 
-  def addNode(nodeId: NodeId, label: String = "", groupId: Option[GroupId] = None): ViewerGraphData =
+  def addNode(nodeId: NodeId, groupId: Option[GroupId] = None, label: String = ""): ViewerGraphData =
     copy(
       nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map("label" -> AttrValue(label))))),
       memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))

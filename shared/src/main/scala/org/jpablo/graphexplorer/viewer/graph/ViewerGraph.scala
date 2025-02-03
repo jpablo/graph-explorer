@@ -83,13 +83,14 @@ case class ViewerGraph(
     val (newData, arrow) = data.addArrow(source, target)
     (modifyData.setTo(newData), arrow)
 
+  def addNode(nodeId: NodeId, groupId: Option[GroupId] = None): ViewerGraph =
+    modifyData.using(_.addNode(nodeId, groupId))
+
   def addNodeAndEdgeFrom(source: NodeId): (ViewerGraph, NodeId) =
     val nodeId = NodeId.random()
-    val (newGraph, arrow) = addNode(nodeId).addEdge(source, nodeId)
+    val sourceGroup = data.getMembership(source)
+    val (newGraph, arrow) = addNode(nodeId, Some(sourceGroup)).addEdge(source, nodeId)
     (newGraph, nodeId)
-
-  def addNode(nodeId: NodeId): ViewerGraph =
-    modifyData.using(_.addNode(nodeId))
 
   def addRandomNode(): (ViewerGraph, NodeId) =
     val nodeId = NodeId.random()
