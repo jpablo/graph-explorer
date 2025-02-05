@@ -44,22 +44,27 @@ case class ViewerGraphData(
     copy(groups = nonEmptyGroups)
 
   def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraphData =
-    val groupId = GroupId(s"cluster_${SubGraph.randomId()}")
-    val group = ViewerGroup(groupId, Attributes(Map("label" -> AttrValue(label))))
+    // Filter out any edge IDs, keep nodes and groups (clusters)
+    val validIds = ids.filter(id => nodes.contains(id) || NodeId.isClusterId(id))
     
-    // Find the common parent group if one exists
-    val parentGroupId = ids
-      .map(getMembership)
-      .reduceOption((g1, g2) => if g1 == g2 then g1 else rootId)
-      .getOrElse(rootId)
-    
-    val groupElements = ids.map(_ -> groupId)
-    copy(
-      groups = groups + (groupId -> group),
-      // Add the new group to the common parent
-      memberships = memberships ++ groupElements + (groupId -> parentGroupId)
-    )
-
+    if validIds.isEmpty then this
+    else
+      val groupId = GroupId(s"cluster_${SubGraph.randomId()}")
+      val group = ViewerGroup(groupId, Attributes(Map("label" -> AttrValue(label))))
+      
+      // Find the common parent group if one exists
+      val parentGroupId = validIds
+        .map(getMembership)
+        .reduceOption((g1, g2) => if g1 == g2 then g1 else rootId)
+        .getOrElse(rootId)
+      
+      val groupElements = validIds.map(_ -> groupId)
+      copy(
+        groups = groups + (groupId -> group),
+        // Add the new group to the common parent
+        memberships = memberships ++ groupElements + (groupId -> parentGroupId)
+      )
+      
   def addNode(nodeId: NodeId, groupId: Option[GroupId] = None, label: String = ""): ViewerGraphData =
     copy(
       nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map("label" -> AttrValue(label))))),
