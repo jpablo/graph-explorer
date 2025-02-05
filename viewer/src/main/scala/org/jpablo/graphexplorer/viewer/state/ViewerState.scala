@@ -18,6 +18,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.scalajs.dom.SVGMatrix
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import scala.scalajs.js
+import org.jpablo.graphexplorer.viewer.models.GroupId
 case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
 
@@ -149,23 +150,24 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     sourceFlow.fullGraphV.update: fullGraph =>
       fullGraph.addToNewGroup(diagramSelection.now())
 
+  /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected 
+   * to it with an edge. If the selected element is a group/cluster, the new node will be added to that group.
+   * The new node will become the only selected element after creation.
+   */
   def addNode() =
     sourceFlow.fullGraphV.update: fullGraph =>
       val selection = diagramSelection.now()
       val (newGraph, newNodeId) = if selection.isEmpty then
         fullGraph.addRandomNode()
       else
-        fullGraph.addNodeAndEdgeFrom(selection.head)
+        val source = selection.head
+        // Only proceed if selected ID is a valid node in the graph
+        if source in fullGraph.data.nodes then
+          fullGraph.addNodeAndEdgeFrom(source)
+        else
+          fullGraph.addRandomNode(Some(GroupId(source.value)))
       diagramSelection.set(Set(newNodeId))
       newGraph
-
-  // def addEdgeFromSelection() =
-  //   val selection = diagramSelection.now()
-  //   if selection.nonEmpty then
-  //     sourceFlow.fullGraphV.update: fullGraph =>
-  //       val source = selection.head
-  //       val targets = selection - source
-  //       targets.foldLeft(fullGraph)((g, target) => g.addEdge(source, target))
 
   def handleKeyDown(ke: KeyboardEvent): Unit =
     ke.key match
@@ -175,7 +177,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       case "z"         => undoEvent.emit(())
       case "Escape"    => diagramSelection.clear()
       case "h"         => hideSelection()
-      // case "e"         => addEdgeFromSelection()
       case _           => ()
 
 

@@ -92,9 +92,9 @@ case class ViewerGraph(
     val (newGraph, arrow) = addNode(nodeId, Some(sourceGroup)).addEdge(source, nodeId)
     (newGraph, nodeId)
 
-  def addRandomNode(): (ViewerGraph, NodeId) =
+  def addRandomNode(groupId: Option[GroupId] = None): (ViewerGraph, NodeId) =
     val nodeId = NodeId.random()
-    (addNode(nodeId), nodeId)
+    (addNode(nodeId, groupId), nodeId)
 
   /** Creates a new group containing the specified nodes.
     *

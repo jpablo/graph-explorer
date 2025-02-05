@@ -152,9 +152,6 @@ class SourceFlow(
             .removeNodes(hiddenNodes)
             .setDefaultTheme
         }
-      .tapEach: g => 
-        pprint.log(g.data)
-        resetView()
 
   // -------------------------------
   // rendering
