@@ -4,6 +4,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, GroupId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.extensions.in
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
   DotAST(
@@ -15,7 +16,7 @@ def graphToDotAST(graph: ViewerGraph): DotAST =
 private def nodeToStmt(node: ViewerNode): NodeStmt =
   NodeStmt(DotNodeId(node.id.value), node.attrs.values.map(Attr(_, _)).toList)
 
-private def arrowToStmt(arrow: Arrow): EdgeStmt = {
+private def arrowToStmt(arrow: Arrow): EdgeStmt =
   // we'll use the arrow sequence as the id to distinguish between arrows with the same source and target
   val seqAsId = idAttributeKey -> AttrValue(arrow.seq.toString)
   EdgeStmt(
@@ -25,16 +26,16 @@ private def arrowToStmt(arrow: Arrow): EdgeStmt = {
     ),
     attr_list = (arrow.attrs.values + seqAsId).map(Attr(_, _)).toList
   )
-}
 
 private def attrs(attrs: Attributes, target: AttributeTarget) =
   if attrs.values.nonEmpty then
     List(AttrStmt(target.toString, attrs.values.map(Attr(_, _)).toList))
-  else Nil
+  else 
+    Nil
 
 def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] =
   def groupToSubGraph(groupId: GroupId, visited: Set[GroupId] = Set()): Option[SubGraph] =
-    if visited contains groupId then
+    if groupId in visited then
       None
     else
       val nodeStmts = graphData.nodes.values
@@ -63,4 +64,4 @@ def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] 
       Some(SubGraph(children, Some(groupId.value)))
   end groupToSubGraph
 
-  groupToSubGraph(graphData.root.id).toList.flatMap(_.children)
+  groupToSubGraph(graphData.rootId).toList.flatMap(_.children)

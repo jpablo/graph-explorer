@@ -212,7 +212,11 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
         // This is is meant to capture a single click.
         if rect.isEmpty then
           findNode(rect, elementsFromRectEnd) match
-            case Some(end) => diagramSelection.set(Set(end))
+            case Some(end) => 
+              if rect.shift then
+                diagramSelection.add(Set(end))
+              else
+                diagramSelection.set(Set(end))
             case None      => diagramSelection.clear()
         else
           val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet

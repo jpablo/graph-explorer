@@ -23,6 +23,9 @@ case class ViewerGraphData(
   val arrowValues: Iterable[Arrow] = arrows.values
   val arrowsSet: Set[Arrow] = arrowValues.toSet
 
+  /** Gets the group ID that an element belongs to.
+    * Returns the root group ID if the element is not explicitly assigned to a group.
+    */
   def getMembership(id: ElementId): GroupId =
     memberships.getOrElse(id, rootId)
 
@@ -72,10 +75,13 @@ case class ViewerGraphData(
     val groupIdsToRemove = ids.filter(NodeId.isClusterId).map(id => GroupId(id.value))
 
     val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
+      // case 1: remove a nested group
       if GroupId(elementId.value) in groupIdsToRemove then
-        None  // Remove if element is deleted
+        None
+      // case 2: remove a node from a group
       else if groupId in groupIdsToRemove then
-        Some(elementId -> rootId)  // Move to root if group deleted
+        // If group is deleted, add element to group's container if it exists
+        memberships.get(groupId).map(containerId => elementId -> containerId)
       else
         Some(elementId -> groupId)  // Keep unchanged
 
