@@ -5,7 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.router.Router
-import org.jpablo.graphexplorer.viewer.components.attributes.SelectionAttributes
+// import org.jpablo.graphexplorer.viewer.components.attributes.AttributesView
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -22,7 +22,7 @@ def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivEle
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram, router),
 //    SelectionSidebar(state),
-    SelectionAttributes(state),
+    // AttributesView(state),
     HelpDialog(state.shortcutsModalOpen)
   )
 
