@@ -5,13 +5,13 @@ import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.router.Router
-// import org.jpablo.graphexplorer.viewer.components.attributes.AttributesView
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
+import org.jpablo.graphexplorer.viewer.components.selection.SelectionSidebar
 
 def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivElement] =
   val fitDiagram = EventBus[Unit]()
@@ -21,8 +21,7 @@ def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivEle
     LeftPanel(state).render(),
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram, router),
-//    SelectionSidebar(state),
-    // AttributesView(state),
+    SelectionSidebar(state),
     HelpDialog(state.shortcutsModalOpen)
   )
 
@@ -31,7 +30,7 @@ def DiagramElementsButton(state: ViewerState) =
   div(
     idAttr := "diagram-elements-button",
     Tooltip(
-      text = "Diagram elements",
+      text = "Style",
       cls := "flex-none tooltip-right",
       input(idAttr := inputId, tpe := "checkbox", cls := "drawer-toggle"),
       label(
