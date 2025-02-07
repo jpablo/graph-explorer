@@ -4,7 +4,6 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
-import org.scalajs.dom
 
 type SelectedNodes = Set[NodeId]
 
@@ -13,20 +12,21 @@ class DiagramSelectionOps:
 
   val signal = selectedNodes.signal
     .distinct
-    .tapEach(s => if s.nonEmpty then dom.console.log(s"Selection: $s"))
+//    .tapEach(s => if s.nonEmpty then dom.console.log(s"Selection: $s"))
 
   def now(): SelectedNodes = selectedNodes.now()
 
   def toggle(ss: NodeId*): Unit = selectedNodes.update(ss.foldLeft(_)(_.toggle(_)))
 
-  def set(ss: SelectedNodes): Unit = selectedNodes.set(ss)
+  def set(ss: SelectedNodes): Unit =
+    selectedNodes.set(ss)
 
-  def add(ss: SelectedNodes): Unit = 
+  def add(ss: SelectedNodes): Unit =
     val current = selectedNodes.now()
     val newNodes = ss -- current
     if newNodes.nonEmpty then selectedNodes.set(current ++ newNodes)
 
-  def remove(ss: SelectedNodes): Unit = 
+  def remove(ss: SelectedNodes): Unit =
     val current = selectedNodes.now()
     val nodesToRemove = ss intersect current
     if nodesToRemove.nonEmpty then selectedNodes.set(current -- nodesToRemove)

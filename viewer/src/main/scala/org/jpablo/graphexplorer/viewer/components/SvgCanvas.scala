@@ -39,10 +39,9 @@ object SvgCanvas:
             //   "New edge" button
             // --------------------------------------------------------
             child.maybe <--
-              state.diagramSelection.signal.combineWith(state.selectionRect.signal).map: (selectedNodes, selectionRect) =>
+              state.diagramSelection.signal.combineWith(state.selectionRectLine.signal).map: (selectedNodes, selectionRectLine) =>
                 if selectedNodes.size == 1 then
                   val nodeId = selectedNodes.head
-                  val active = selectionRect.collect { case SelectionRect(_, _, _, _, _, Action.Edge(_)) => true }.getOrElse(false)
                   for
                     elem <- selectableElements.find(_.nodeId == nodeId)
                     btn <- NewEdgeButtonElement(elem)
@@ -51,12 +50,10 @@ object SvgCanvas:
                     // Mouse interaction
                     // --------------------------------------------------------
                     btn.amend(
-                      svg.cls := ("selected" -> active),
-                      onMouseDown.stopPropagation --> { ev =>
-                        state.startSelection((ev.clientX, ev.clientY), shift = false, Action.Edge(elem))
-                      },
-                      onMouseUp.stopPropagation --> { ev =>
-                        state.endSelection()
+                      svg.cls := ("selected" -> selectionRectLine.nonEmpty),
+                      onMouseDown.stopPropagation --> { ev => state.startSelectionLine((ev.clientX, ev.clientY), shift = false, elem) },
+                      onMouseUp.stopPropagation --> { _ =>
+                        state.endSelectionLine()
                         state.addNode()
                       }
                     )
@@ -65,7 +62,7 @@ object SvgCanvas:
             // --------------------------------------------------------
             //   draw dragging arrow
             // --------------------------------------------------------
-            child.maybe <-- DraggingArrow(state.selectionRect.signal, group.ref),
+            child.maybe <-- DraggingArrow(state.selectionRectLine.signal, group.ref),
           )
 
     // --------------------------------------------------------
@@ -80,13 +77,21 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   draw selection rect
           // --------------------------------------------------------
-          child.maybe <-- DrawSelectionRect(state.selectionRect.signal, topLevelSvg.ref),
+          child.maybe <-- DrawSelectionRect(state.selectionRectArea.signal, topLevelSvg.ref),
           // --------------------------------------------------------
           //   select elements intersecting selectionRec
           // --------------------------------------------------------
-          state.selectionRect.signal --> { rectOp =>
-            for rect <- rectOp do
-              state.handleSelectionRectangleUpdate(rect, selectableElements, dom.document.elementsFromPoint(rect.endX, rect.endY))
+          // TODO: do we need to liste to state.selectionRectLine.signal here?
+          state.selectionRectArea.signal --> { actionO =>
+            for action <- actionO do
+              val rect = action.rect
+              state.handleSelectionAreaUpdate(rect, selectableElements, dom.document.elementsFromPoint(rect.endX, rect.endY))
+          },
+
+          state.selectionRectLine.signal --> { (actionO: Option[Action.Line]) =>
+            for action <- actionO do
+              val rect = action.rect
+              state.handleSelectionLineUpdate(rect, action.start, dom.document.elementsFromPoint(rect.endX, rect.endY))
           },
           // --------------------------------------------------------
           //   synchronize svg elements with diagramSelection
@@ -162,27 +167,24 @@ object SvgCanvas:
   /**
    * Creates a reactive SVG rectangle element representing the selection box when dragging.
    *
-   * @param rect Signal containing the current selection rectangle state
+   * @param action Signal containing the current selection rectangle state
    * @param svgElement The SVG element that contains the selection
    * @return Signal containing an optional SVG rect element. The rect is only present
    *         when there is an active selection action.
    */
-  private def DrawSelectionRect(rect: Signal[Option[SelectionRect]], svgElement: dom.svg.SVG): Signal[Option[ReactiveSvgElement[dom.svg.RectElement]]] =
-    rect.map:
-      _.flatMap:
-        case selectionRect if selectionRect.action == Action.Selection =>
-          svgElement.getScreenCTM()
-          val (p0, p1) = selectionRect.asSVGPair(svgElement.getScreenCTM())
-          Some(
-            svg.rect(
-              svg.idAttr := "selection-rectangle",
-              svg.x := p0.x.min(p1.x).toString,
-              svg.y := p0.y.min(p1.y).toString,
-              svg.width := math.abs(p1.x - p0.x).toString,
-              svg.height := math.abs(p1.y - p0.y).toString,
-            )
+  private def DrawSelectionRect(action: Signal[Option[Action.Area]], svgElement: dom.svg.SVG): Signal[Option[ReactiveSvgElement[dom.svg.RectElement]]] =
+    action.map:
+      _.flatMap: action =>
+        val (p0, p1) = action.rect.asSVGPair(svgElement.getScreenCTM())
+        Some(
+          svg.rect(
+            svg.idAttr := "selection-rectangle",
+            svg.x := p0.x.min(p1.x).toString,
+            svg.y := p0.y.min(p1.y).toString,
+            svg.width := math.abs(p1.x - p0.x).toString,
+            svg.height := math.abs(p1.y - p0.y).toString,
           )
-        case _ => None
+        )
 
 
   /**
@@ -194,24 +196,21 @@ object SvgCanvas:
    *         from the start node's center to the current mouse position, and a circle
    *         at the end point. Only present during an Edge action.
    */
-  private def DraggingArrow(rect: Signal[Option[SelectionRect]], svgElement: dom.svg.G): Signal[Option[ReactiveSvgElement[dom.svg.G]]] =
+  private def DraggingArrow(rect: Signal[Option[Action.Line]], svgElement: dom.svg.G): Signal[Option[ReactiveSvgElement[dom.svg.G]]] =
     rect.map:
-      _.flatMap: selectionRect =>
-        selectionRect.action match
-          case Action.Edge(start) =>
-            val (p0, p1) = selectionRect.asSVGPair(svgElement.getScreenCTM())
-            if p0 === p1 then
-              None
-            else
-              val bbox = start.get.getBBox()
-              val x1 = bbox.x + bbox.width/2
-              val y1 = bbox.y + bbox.height/2
-              Some(
-                svg.g(
-                  svg.idAttr := "dragging-arrow-group",
-                  svg.line(svg.idAttr := "dragging-arrow-line", svg.x1 := x1.toString, svg.y1 := y1.toString, svg.x2 := p1.x.toString, svg.y2 := p1.y.toString),
-                  // svg.circle(svg.idAttr := "dragging-arrow-start-circle", svg.r := "1", svg.cx := p0.x.toString, svg.cy := p0.y.toString),
-                  svg.circle(svg.idAttr := "dragging-arrow-end-circle", svg.r := ".5", svg.cx := p1.x.toString, svg.cy := p1.y.toString)
-                )
+      _.flatMap: action =>
+          val (p0, p1) = action.rect.asSVGPair(svgElement.getScreenCTM())
+          if p0 === p1 then
+            None
+          else
+            val bbox = action.start.get.getBBox()
+            val x1 = bbox.x + bbox.width/2
+            val y1 = bbox.y + bbox.height/2
+            Some(
+              svg.g(
+                svg.idAttr := "dragging-arrow-group",
+                svg.line(svg.idAttr := "dragging-arrow-line", svg.x1 := x1.toString, svg.y1 := y1.toString, svg.x2 := p1.x.toString, svg.y2 := p1.y.toString),
+                // svg.circle(svg.idAttr := "dragging-arrow-start-circle", svg.r := "1", svg.cx := p0.x.toString, svg.cy := p0.y.toString),
+                svg.circle(svg.idAttr := "dragging-arrow-end-circle", svg.r := ".5", svg.cx := p1.x.toString, svg.cy := p1.y.toString)
               )
-          case _ => None
+            )

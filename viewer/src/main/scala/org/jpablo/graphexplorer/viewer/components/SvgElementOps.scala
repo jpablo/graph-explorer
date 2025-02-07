@@ -20,16 +20,15 @@ trait MathOps[A]:
 type Point2d[A] = (x: A, y: A)
 
 enum Action:
-  case Selection
-  case Edge(start: SelectableElement)
+  case Area(rect: SelectionRect)
+  case Line(rect: SelectionRect, start: SelectableElement)
 
 case class SelectionRect(
   startX: Double, // in client space
-  startY: Double, // in client space  
+  startY: Double, // in client space
     endX: Double, // in client space
     endY: Double, // in client space
-    shift: Boolean,
-    action: Action
+    shift: Boolean
 ):
   def asSVGPair(screenCtm: dom.SVGMatrix): (DOMPoint, DOMPoint) =
     val p0 = toSVGCoords(startX, startY, screenCtm)

@@ -19,6 +19,8 @@ import org.scalajs.dom.SVGMatrix
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import scala.scalajs.js
 import org.jpablo.graphexplorer.viewer.models.GroupId
+import com.softwaremill.quicklens.*
+
 case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
 
@@ -43,16 +45,10 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   private val visibleDOT = sourceFlow.visibleDOT
   val visibleGraph = sourceFlow.visibleGraph
 
-  // ---- SvgDotDiagram ----
-  val startNode = Var[Option[(models.NodeId | models.Arrow, Point2d[Double])]](None)
-  val endPos = Var[Point2d[Double]]((0, 0))
-  val isDragging = Var(false)
-
   // -------------------------------
   // this should be a subset of visibleNodesV keys
   val diagramSelection = DiagramSelectionOps()
   // -------------------------------
-
 
   // 5. Render visible Dot to SVG
   // Dot ~> SVGSVGElement
@@ -102,7 +98,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     hiddenNodes.remove(ids)
 
   def addEdge(from: NodeId, to: NodeId): Unit =
-    sourceFlow.fullGraphV.update{ g =>
+    sourceFlow.fullGraphV.update { g =>
       val (g2, a) = g.addEdge(from, to)
       diagramSelection.set(Set(a.id))
       g2
@@ -134,7 +130,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // individual node attributes
   // Explain how this work: how fullGraphV attributes are propagated to the UI and back. AI?
   def nodesAttributes(nodeIds: Set[NodeId]): Var[Attributes] =
-    sourceFlow.fullGraphV.zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) => graph.updateAttributes(nodeIds, attrs))
+    sourceFlow.fullGraphV.zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) =>
+      graph.updateAttributes(nodeIds, attrs)
+    )
 
   // -------- Diagram actions -----------
   val eventHandlers = wire[EventHandlers]
@@ -150,10 +148,10 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     sourceFlow.fullGraphV.update: fullGraph =>
       fullGraph.addToNewGroup(diagramSelection.now())
 
-  /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected 
-   * to it with an edge. If the selected element is a group/cluster, the new node will be added to that group.
-   * The new node will become the only selected element after creation.
-   */
+  /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an
+    * edge. If the selected element is a group/cluster, the new node will be added to that group. The new node will
+    * become the only selected element after creation.
+    */
   def addNode() =
     sourceFlow.fullGraphV.update: fullGraph =>
       val selection = diagramSelection.now()
@@ -179,92 +177,90 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       case "h"         => hideSelection()
       case _           => ()
 
+  val selectionRectArea: Var[Option[Action.Area]] = Var(None)
+  val selectionRectLine: Var[Option[Action.Line]] = Var(None)
 
-  val selectionRect: Var[Option[SelectionRect]] = Var(None)
+  def startSelectionArea(pos: Point2d[Double], shift: Boolean): Unit =
+    selectionRectArea.set(Some(Action.Area(SelectionRect(pos.x, pos.y, pos.x, pos.y, shift))))
 
-  def startSelection(pos: Point2d[Double], shift: Boolean, action: Action): Unit =
-    selectionRect.set(Some(SelectionRect(pos.x, pos.y, pos.x, pos.y, shift, action)))
+  def startSelectionLine(pos: Point2d[Double], shift: Boolean, start: SelectableElement): Unit =
+    selectionRectLine.set(Some(Action.Line(SelectionRect(pos.x, pos.y, pos.x, pos.y, shift), start)))
 
   def updateSelection(pos: Point2d[Double], shift: Boolean): Unit =
-    selectionRect.update(_.map(_.copy(endX = pos.x, endY = pos.y, shift = shift)))
+    selectionRectArea.update(_.map(_.modify(_.rect).using(_.copy(endX = pos.x, endY = pos.y, shift = shift))))
+    selectionRectLine.update(_.map(_.modify(_.rect).using(_.copy(endX = pos.x, endY = pos.y, shift = shift))))
 
-  def endSelection(): Unit =
-    selectionRect.set(None)
+  def endSelectionArea(): Unit =
+    selectionRectArea.set(None)
 
-  /** Updates the diagram selection based on a selection rectangle and the current selection mode
-   *
-   * @param rect The selection rectangle defining the area of selection
-   * @param selectableElements The sequence of selectable elements that can be selected
-   * @param elements The array of DOM elements that can be targets for edge creation
-   *
-   * For Selection mode:
-   * - Selects all nodes that intersect with the selection rectangle
-   * - If shift is held, adds to existing selection
-   * - If shift is not held, replaces existing selection
-   * - Clears selection if no nodes are in rectangle and shift is not held
-   *
-   * For Edge creation mode:
-   * - Maintains selection of start node
-   * - Adds end node to selection if mouse is over a valid target node
-   */
-  def handleSelectionRectangleUpdate(rect: SelectionRect, selectableElements: Seq[SelectableElement], elementsFromRectEnd: js.Array[dom.Element]) =
-    rect.action match
-      case Action.Selection =>
-        // This is is meant to capture a single click.
-        if rect.isEmpty then
-          findNode(rect, elementsFromRectEnd) match
-            case Some(end) => 
-              if rect.shift then
-                diagramSelection.add(Set(end))
-              else
-                diagramSelection.set(Set(end))
-            case None      => diagramSelection.clear()
+  def endSelectionLine(): Unit =
+    selectionRectLine.set(None)
+
+  def handleSelectionLineUpdate(
+      rect:                SelectionRect,
+      start:               SelectableElement,
+      elementsFromRectEnd: js.Array[dom.Element]
+  ) =
+    // Make sure only start or (start,end) nodes are selected when creating a new edge
+    // For now only allow a line selection into nodes
+    findNode(rect, elementsFromRectEnd, "g.node") match
+      case Some(end) => diagramSelection.set(Set(start.nodeId, end))
+      case None      => diagramSelection.set(Set(start.nodeId))
+
+  def handleSelectionAreaUpdate(
+      rect:                SelectionRect,
+      selectableElements:  Seq[SelectableElement],
+      elementsFromRectEnd: js.Array[dom.Element]
+  ) =
+    // This is is meant to capture a single click.
+    if rect.isEmpty then
+      findNode(rect, elementsFromRectEnd) match
+        case Some(end) =>
+          if rect.shift then
+            diagramSelection.add(Set(end))
+          else
+            diagramSelection.set(Set(end))
+        case None => diagramSelection.clear()
+    else
+      val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
+      if nodesInRect.nonEmpty then
+        if rect.shift then
+          diagramSelection.add(nodesInRect)
         else
-          val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
-          if nodesInRect.nonEmpty then
-            if rect.shift then
-              diagramSelection.add(nodesInRect)
-            else
-              diagramSelection.set(nodesInRect)
-          else if !rect.shift then
-              diagramSelection.clear()
+          diagramSelection.set(nodesInRect)
+      else if !rect.shift then
+        diagramSelection.clear()
 
-      case Action.Edge(start) =>
-        // Make sure only start or (start,end) nodes are selected when creating a new edge
-        findNode(rect, elementsFromRectEnd) match
-          case Some(end) => diagramSelection.set(Set(start.nodeId, end))
-          case None      => diagramSelection.set(Set(start.nodeId))
-
-  /**
-   * Finds the node ID at the given selection rectangle's end point
-   */
-  private def findNode(rect: SelectionRect, elements: js.Array[dom.Element]): Option[NodeId] =
+  /** Finds the node ID at the given selection rectangle's end point
+    */
+  private def findNode(rect: SelectionRect, elements: js.Array[dom.Element], selector: String = "g.node, g.edge, g.cluster"): Option[NodeId] =
     elements
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-      .flatMap(element => Option(element.closest("g.node, g.edge, g.cluster")))
+      .flatMap(element => Option(element.closest(selector)))
       .distinct
       .map(SelectableElement.fromDomElement)
       .collectFirst:
-        case Some(elem) => elem.nodeId 
-
+        case Some(elem) => elem.nodeId
 
   /** Checks if a selectable element intersects with a selection rectangle
-   *
-   * @param elem The selectable element to check
-   * @param rect The selection rectangle in client coordinates
-   * @return true if the element's bounding box intersects with the selection rectangle
-   *
-   * The method:
-   * 1. Gets the element's bounding box in client coordinates
-   * 2. Normalizes the selection rect coordinates to handle any direction of dragging
-   * 3. Uses a standard rectangle intersection test
-   */
+    *
+    * @param elem
+    *   The selectable element to check
+    * @param rect
+    *   The selection rectangle in client coordinates
+    * @return
+    *   true if the element's bounding box intersects with the selection rectangle
+    *
+    * The method:
+    *   1. Gets the element's bounding box in client coordinates 2. Normalizes the selection rect coordinates to handle
+    *      any direction of dragging 3. Uses a standard rectangle intersection test
+    */
   private def isNodeInRect(elem: SelectableElement, rect: SelectionRect): Boolean =
     val bbox = elem.get.getBoundingClientRect()
     val normalizedRect = (
-      x = rect.startX.min(rect.endX),
-      y = rect.startY.min(rect.endY),
-      width = math.abs(rect.endX - rect.startX),
+      x      = rect.startX.min(rect.endX),
+      y      = rect.startY.min(rect.endY),
+      width  = math.abs(rect.endX - rect.startX),
       height = math.abs(rect.endY - rect.startY)
     )
     !(bbox.right < normalizedRect.x ||
@@ -272,24 +268,20 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       bbox.bottom < normalizedRect.y ||
       bbox.top > normalizedRect.y + normalizedRect.height)
 
-
-
   def handleMouseUp(ev: dom.MouseEvent): Unit =
-    val rectOpt = selectionRect.now()
-    selectionRect.set(None)
-    for rect <- rectOpt do
-      rect.action match
-        case Action.Edge(start) =>
-          val sel = diagramSelection.now()
-          diagramSelection.clear()
-          // TODO: finish this using findNode
-          val mouseOverInitialNode = isNodeInRect(start, rect)
-          if sel.size == 1 && mouseOverInitialNode then
-            addEdge(start.nodeId, start.nodeId)
-          else if sel.size == 2 then
-            addEdge(start.nodeId, (sel - start.nodeId).head)
-        case _ => ()
-
+    val lineAction = selectionRectLine.now()
+    endSelectionArea()
+    endSelectionLine()
+    for action <- lineAction do
+      val start = action.start
+      val sel = diagramSelection.now()
+      diagramSelection.clear()
+      // TODO: finish this using findNode
+      val mouseOverInitialNode = isNodeInRect(start, action.rect)
+      if sel.size == 1 && mouseOverInitialNode then
+        addEdge(start.nodeId, start.nodeId)
+      else if sel.size == 2 then
+        addEdge(start.nodeId, (sel - start.nodeId).head)
 
   // -------- storage ------------
 
@@ -358,15 +350,20 @@ object ViewerState:
       val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))
       translateXY.update(_ - svgDelta)
 
-  /** Converts client (screen) coordinates to SVG coordinates by applying the inverse of the SVG element's transformation matrix.
-   * @param clientX The x-coordinate in client (screen) space
-   * @param clientY The y-coordinate in client (screen) space
-   * @param svgElement The SVG element to transform coordinates relative to
-   * @return An SVGPoint containing the transformed coordinates in SVG space
-   */
+  /** Converts client (screen) coordinates to SVG coordinates by applying the inverse of the SVG element's
+    * transformation matrix.
+    * @param clientX
+    *   The x-coordinate in client (screen) space
+    * @param clientY
+    *   The y-coordinate in client (screen) space
+    * @param svgElement
+    *   The SVG element to transform coordinates relative to
+    * @return
+    *   An SVGPoint containing the transformed coordinates in SVG space
+    */
   def toSVGCoords(
-      clientX:    Double, // px
-      clientY:    Double, // px
+      clientX:   Double, // px
+      clientY:   Double, // px
       screenCtm: SVGMatrix
   ): DOMPoint =
     val point = new DOMPoint(clientX, clientY)

@@ -5,13 +5,15 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
-
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
- * 
- * @param state The viewer state containing diagram data and event handlers
- * @param fitDiagram Event stream that triggers fitting the diagram to the viewport
- * @return A div element containing the SVG canvas with interaction handlers
- */
+  *
+  * @param state
+  *   The viewer state containing diagram data and event handlers
+  * @param fitDiagram
+  *   Event stream that triggers fitting the diagram to the viewport
+  * @return
+  *   A div element containing the SVG canvas with interaction handlers
+  */
 def CanvasContainer(
     state:      ViewerState,
     fitDiagram: EventStream[Unit]
@@ -27,10 +29,8 @@ def CanvasContainer(
     child <-- state.rawSVG.map(SvgCanvas(state)),
     onKeyDown --> state.handleKeyDown,
     onWheel.updateTranslate,
-    onMouseDown.map(clientCoords) --> {(pos, shift) =>
-      state.startSelection(pos, shift, Action.Selection)
-    },
+    onMouseDown.map(clientCoords) --> { (pos, shift) => state.startSelectionArea(pos, shift) },
     // No Action is set when moving the mouse, to preserve the action set on mouse down
-    onMouseMove.map(clientCoords) --> {(pos, shift) => state.updateSelection(pos, shift) },
-    onMouseUp --> state.handleMouseUp,
+    onMouseMove.map(clientCoords) --> { (pos, shift) => state.updateSelection(pos, shift) },
+    onMouseUp --> state.handleMouseUp
   )
