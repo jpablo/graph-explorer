@@ -45,26 +45,29 @@ case class ViewerGraphData(
 
   def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraphData =
     // Filter out any edge IDs, keep nodes and groups (clusters)
-    val validIds = ids.filter(id => nodes.contains(id) || NodeId.isClusterId(id))
-    
+    val validIds = ids.collect:
+      case id if id in nodes => id
+      case id if GroupId(id.value) in groups => GroupId(id.value)
+
     if validIds.isEmpty then this
     else
       val groupId = GroupId(s"cluster_${SubGraph.randomId()}")
       val group = ViewerGroup(groupId, Attributes(Map("label" -> AttrValue(label))))
-      
+
       // Find the common parent group if one exists
+      val idsMemberships = validIds.map(getMembership)
       val parentGroupId = validIds
         .map(getMembership)
         .reduceOption((g1, g2) => if g1 == g2 then g1 else rootId)
         .getOrElse(rootId)
-      
+
       val groupElements = validIds.map(_ -> groupId)
       copy(
         groups = groups + (groupId -> group),
         // Add the new group to the common parent
         memberships = memberships ++ groupElements + (groupId -> parentGroupId)
       )
-      
+
   def addNode(nodeId: NodeId, groupId: Option[GroupId] = None, label: String = ""): ViewerGraphData =
     copy(
       nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map("label" -> AttrValue(label))))),
