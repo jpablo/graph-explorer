@@ -19,13 +19,24 @@ def StyleView(state: ViewerState) =
           case (true, false, false) => 
             div(
               div(cls := "text-center pb-2", "Selected Edges"),
-              EdgesAttributesView(state, state.nodesAttributes(arrowIds), selection = true).amend(cls("selection-attributes"))
+              EdgesAttributesView(
+                state, 
+                attrs = state.nodesAttributes(arrowIds), 
+                defaults = Some(state.visibleGraph.map(_.root.edgeAttrs)),
+                selection = true
+              ).amend(cls("selection-attributes"))
             )
           
           case (false, true, false) => 
             div(
               div(cls := "text-center pb-2", "Selected Nodes"),
-              NodesAttributesView("SelectionAttributes", state, state.nodesAttributes(nodeIds), selection = true ).amend(cls("selection-attributes"))
+              NodesAttributesView(
+                "SelectionAttributes", 
+                state, 
+                attrsVar = state.nodesAttributes(nodeIds), 
+                defaults = Some(state.visibleGraph.map(_.root.nodeAttrs)), 
+                selection = true
+              ).amend(cls("selection-attributes"))
             )
             
           case (false, false, true) => 

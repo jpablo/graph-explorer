@@ -120,7 +120,6 @@ case class ViewerGraph(
       case AttributeTarget.edge  => root.edgeAttrs
 
   def updateRootAttributes(target: AttributeTarget)(attrs: Attributes): ViewerGraph =
-    println(s"updateRootAttributes: $target, $attrs")
     val modifyAttrs = target match
       case AttributeTarget.graph => modifyRootGraphAttrs
       case AttributeTarget.node  => modifyRootNodeAttrs

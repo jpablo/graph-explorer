@@ -13,14 +13,18 @@ import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.airstream.ownership.OneTimeOwner
 
-def NodesAttributesView(parent: String, state: ViewerState, attrsVar: Var[Attributes], selection: Boolean) =
-  val globalNodeAttrs = state.visibleGraph.map(_.root.nodeAttrs)
-
+def NodesAttributesView(
+  parent: String, 
+  state: ViewerState, 
+  attrsVar: Var[Attributes], 
+  defaults: Option[Signal[Attributes]] = None,
+  selection: Boolean
+) =
   AttributesView(
     id    = "node-attributes",
     titleStr = s"Node Attributes ($parent)",
     attrs = attrsVar,
-    defaults = Some(globalNodeAttrs),
+    defaults = defaults,
     buildRows(
       "Label",
       if selection then Label -> InputType.multiText else "",
@@ -36,12 +40,12 @@ def NodesAttributesView(parent: String, state: ViewerState, attrsVar: Var[Attrib
       Orientation -> number(),
       "Fill"
     ),
-    buildRow(FillStyle, Some(fillStyleVar(attrsVar, globalNodeAttrs))),
+    buildRow(FillStyle, Some(fillStyleVar(attrsVar, defaults))),
     buildRows(
       FillColor -> color, 
       "Border"
     ),
-    buildRow(Style, Some(borderStyleVar(attrsVar, globalNodeAttrs))),
+    buildRow(Style, Some(borderStyleVar(attrsVar, defaults))),
     buildRows(
       Color       -> color,
       PenWidth    -> number(),
@@ -59,7 +63,7 @@ def NodesAttributesView(parent: String, state: ViewerState, attrsVar: Var[Attrib
   * @param attrsVar The Var containing the node's attributes map
   * @return A Var that represents the current fill style and handles updates
   */
-private def fillStyleVar(attrsVar: Var[Attributes], globalNodeAttrs: Signal[Attributes]): Var[Option[AttrValue]] =
+private def fillStyleVar(attrsVar: Var[Attributes], globalNodeAttrs: Option[Signal[Attributes]]): Var[Option[AttrValue]] =
   val styleAttrId = Style.attrId
 
   // Style => FillStyle
@@ -71,8 +75,8 @@ private def fillStyleVar(attrsVar: Var[Attributes], globalNodeAttrs: Signal[Attr
 
   // FillStyle => Style
   def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
-    val globalAttrs = globalNodeAttrs.observe(using OneTimeOwner(() => ())).now()
-    val globalAttr = globalAttrs.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty)
+    val globalAttrs = globalNodeAttrs.map(_.observe(using OneTimeOwner(() => ())).now())
+    val globalAttr = globalAttrs.fold(FillAndBorderStyle.empty)(_.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty))
     val nodeAttr = attrs.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty)
     // -- fill style --
     val newFillStyle = valueOpt.fold(globalAttr.fill)(attrValue => Some(FillStyle.valueOf(attrValue.toString)))
@@ -92,7 +96,7 @@ end fillStyleVar
   * @param attrsVar The Var containing the node's attributes map
   * @return A Var that represents the current border style and handles updates
   */
-private def borderStyleVar(attrsVar: Var[Attributes], globalNodeAttrs: Signal[Attributes]): Var[Option[AttrValue]] =
+private def borderStyleVar(attrsVar: Var[Attributes], globalNodeAttrs: Option[Signal[Attributes]]): Var[Option[AttrValue]] =
   val styleAttrId = Style.attrId
 
   // Style => BorderStyle
@@ -104,9 +108,9 @@ private def borderStyleVar(attrsVar: Var[Attributes], globalNodeAttrs: Signal[At
 
   // BorderStyle => Style
   def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
-    val currentDefaults = globalNodeAttrs.observe(using OneTimeOwner(() => ())).now()
+    val currentDefaults = globalNodeAttrs.map(_.observe(using OneTimeOwner(() => ())).now())
     val existingStyle = attrs.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty)
-    val currentDefaultStyle = currentDefaults.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty)
+    val currentDefaultStyle = currentDefaults.fold(FillAndBorderStyle.empty)(_.get(styleAttrId).map(FillAndBorderStyle.from).getOrElse(FillAndBorderStyle.empty))
     // -- border style --
     val newBorderStyle = valueOpt.fold(currentDefaultStyle.border)(attrValue => Some(Style.valueOf(attrValue.toString)))
     attrs + (styleAttrId -> AttrValue(existingStyle.copy(border = newBorderStyle).toDotString))

@@ -7,13 +7,14 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import com.raquo.airstream.core.Signal
 
-def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], selection: Boolean) =
+def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], defaults: Option[Signal[Attributes]] = None, selection: Boolean) =
   AttributesView(
     id    = "edge-attributes",
     titleStr = "Edge Attributes",
     attrs = attrs,
-    defaults = Some(state.visibleGraph.map(_.root.edgeAttrs)),
+    defaults = defaults,
     buildRows(
       "Label",
       if selection then Label -> InputType.multiText else "",

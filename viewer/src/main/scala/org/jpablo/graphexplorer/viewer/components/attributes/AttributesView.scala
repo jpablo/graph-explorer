@@ -82,7 +82,6 @@ private def makeInputVar(attrId: String, attrsVar: Var[Attributes]): Var[Option[
   attrsVar.zoomLazy(
     _.values.get(attrId)
   )((attrs, value) =>
-    println(s"makeInputVar: $attrId, $attrs, $value")
     value match
       case None    => attrs - attrId // Remove override, will fall back to root value
       case Some(v) => attrs + (attrId -> v) // Set override
