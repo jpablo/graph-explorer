@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.models.NodeId.isArrowId
 import org.jpablo.graphexplorer.viewer.models.NodeId.isClusterId
 
 
-def DiagramAttributesView(state: ViewerState) =
+def StyleView(state: ViewerState) =
   div(
     idAttr := "diagram-attributes",
     child <--

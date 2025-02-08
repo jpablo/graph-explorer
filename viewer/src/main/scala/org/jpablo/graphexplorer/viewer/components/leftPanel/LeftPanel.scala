@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
-import org.jpablo.graphexplorer.viewer.components.attributes.DiagramAttributesView
+import org.jpablo.graphexplorer.viewer.components.attributes.StyleView
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -79,7 +79,7 @@ class LeftPanel(state: ViewerState):
     ).tiny
 
   private def tabStyle(idx: Int) =
-    DiagramAttributesView(state).amend(cls("hidden") <-- !isVisible(idx))
+    StyleView(state).amend(cls("hidden") <-- !isVisible(idx))
 
   private def tabSource(idx: Int) =
     CodeMirror(

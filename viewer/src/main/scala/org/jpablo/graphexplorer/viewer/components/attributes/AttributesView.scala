@@ -54,8 +54,8 @@ def AttributesView(
   )
 
 // uses the global default if present, otherwise uses the (hardcoded) default value.
-private def getDefaultValue(defaults: Option[Signal[Attributes]], row: AttributeRow): Signal[String] =
-  defaults
+private def getDefaultValue(globalDefaults: Option[Signal[Attributes]], row: AttributeRow): Signal[String] =
+  globalDefaults
     .map(_.map(_.get(row.attrId).map(_.toString).getOrElse(row.default)))
     .getOrElse(Signal.fromValue(row.default))
 
@@ -82,6 +82,7 @@ private def makeInputVar(attrId: String, attrsVar: Var[Attributes]): Var[Option[
   attrsVar.zoomLazy(
     _.values.get(attrId)
   )((attrs, value) =>
+    println(s"makeInputVar: $attrId, $attrs, $value")
     value match
       case None    => attrs - attrId // Remove override, will fall back to root value
       case Some(v) => attrs + (attrId -> v) // Set override
