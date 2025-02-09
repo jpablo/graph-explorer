@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import AttributeType.*
+import AttributeRow.*
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.widgets.*
 import com.raquo.laminar.api.features.unitArrows
@@ -12,7 +12,7 @@ def AttributesView(
     titleStr: String,
     attrs:    Var[Attributes],
     defaults: Option[Signal[Attributes]],
-    rows:     Seq[AttributeType]*
+    rows:     Seq[AttributeRow]*
 ) =
   // TODO: Finish implementing this
   //  def getFonts(): js.Dynamic = js.Dynamic.global.window.queryLocalFonts().`then`(x => dom.console.log(x))
@@ -59,7 +59,7 @@ def AttributesView(
   )
 
 // uses the global default if present, otherwise uses the (hardcoded) default value.
-private def getDefaultValue(globalDefaults: Option[Signal[Attributes]], row: AttributeRow): Signal[String] =
+private def getDefaultValue(globalDefaults: Option[Signal[Attributes]], row: InputAttribute): Signal[String] =
   globalDefaults
     .map(_.map { globalAttributes =>
       pprint.log(row.attrId)
@@ -72,8 +72,8 @@ private def getDefaultValue(globalDefaults: Option[Signal[Attributes]], row: Att
     })
     .getOrElse(Signal.fromValue(row.default))
 
-private def buildGroups(rows: Seq[AttributeType]) =
-  var rr: List[Either[List[AttributeHeader], List[AttributeRow]]] = List.empty
+private def buildGroups(rows: Seq[AttributeRow]) =
+  var rr: List[Either[List[AttributeHeader], List[InputAttribute]]] = List.empty
 
   for rowType <- rows do
     (rr, rowType) match
@@ -81,9 +81,9 @@ private def buildGroups(rows: Seq[AttributeType]) =
       case (Left(hs) :: t, h: AttributeHeader)  => rr = Left(h :: hs) :: t
       case (Right(rs) :: t, h: AttributeHeader) => rr = Left(List(h)) :: Right(rs) :: t
 
-      case (Nil, r: AttributeRow)            => rr = List(Right(List(r)))
-      case (Left(hs) :: t, r: AttributeRow)  => rr = Right(List(r)) :: Left(hs) :: t
-      case (Right(rs) :: t, r: AttributeRow) => rr = Right(r :: rs) :: t
+      case (Nil, r: InputAttribute)            => rr = List(Right(List(r)))
+      case (Left(hs) :: t, r: InputAttribute)  => rr = Right(List(r)) :: Left(hs) :: t
+      case (Right(rs) :: t, r: InputAttribute) => rr = Right(r :: rs) :: t
 
   rr.map:
     case Left(hs)  => Left(hs.reverse)
@@ -92,7 +92,7 @@ private def buildGroups(rows: Seq[AttributeType]) =
 
 private def buildInputCell(
     parent:  String,
-    row:     AttributeRow,
+    row:     InputAttribute,
     attrVar: Var[Option[AttrValue]],
     default: Signal[String]
 ) =
@@ -103,13 +103,13 @@ private def buildInputCell(
     case InputType.checkbox =>
       val inputVarBool =
         attrVar.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
-      Checked(row.placeholderText, inputVarBool, row.default == true.toString)
+      Checked(row.placeholder, inputVarBool, row.default == true.toString)
 
     case InputType.`multiText` =>
-      TextAreaWithValue(row.placeholderText, attrVar, row.default /*, setFocus = row.attrId == "label"*/ )
+      TextAreaWithValue(row.placeholder, attrVar, row.default /*, setFocus = row.attrId == "label"*/ )
 
     case InputType.number(start, end, step) =>
-      InputWithValue(row.placeholderText, attrVar, "number", default /*, setFocus = row.attrId == "label"*/ )
+      InputWithValue(row.placeholder, attrVar, "number", default /*, setFocus = row.attrId == "label"*/ )
         .amend(
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
@@ -118,7 +118,7 @@ private def buildInputCell(
 
     case _ =>
       InputWithValue(
-        row.placeholderText,
+        row.placeholder,
         attrVar,
         row.inputType.toString,
         default /*, setFocus = row.attrId == "label"*/

@@ -41,8 +41,8 @@ def NodesAttributesView(
       //   Regular     -> checkbox,
       //   Orientation -> number(),
       //   "Fill"
+      builder.inputRow(FillStyle -> InputType.select, fillStyleVar(attrsVar, defaults))
     ),
-    Seq(builder.buildRow(FillStyle -> InputType.select, fillStyleVar(attrsVar, defaults)))
     // buildRows(
     //   FillColor -> color,
     //   "Border"

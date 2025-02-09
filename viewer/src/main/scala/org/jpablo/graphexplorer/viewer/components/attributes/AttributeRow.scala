@@ -6,43 +6,32 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{DotAttribute,
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
-enum AttributeType:
+enum AttributeRow:
   case AttributeHeader(title: String)
 
-  case AttributeRow(
-      attrId:          String,
-      label:           String,
-      placeholderText: String,
-      inputType:       InputType,
-      inputValue:      Var[Option[AttrValue]],
-      options:         Seq[(String, AttrValue)] = Seq.empty,
-      default:         String = ""
+  case InputAttribute(
+      attrId:      String,
+      label:       String,
+      placeholder: String,
+      inputType:   InputType,
+      inputValue:  Var[Option[AttrValue]],
+      options:     Seq[(String, AttrValue)] = Seq.empty,
+      default:     String = ""
   )
 
-import AttributeType.*
+import AttributeRow.*
 
 class RowBuilder(attrsVar: Var[Attributes]):
-
-  def attributeRow(attr: DotAttribute[?], inputType: InputType, inputValue: Var[Option[AttrValue]]) =
-    AttributeRow(
-      attrId          = attr.attrId,
-      label           = attr.label,
-      placeholderText = attr.placeholderText,
-      inputType       = inputType,
-      inputValue      = inputValue,
-      options         = attr.valuesWithLabel.map((l, v) => (l, AttrValue(v.toString))).toSeq,
-      default         = attr.default.toString
-    )
 
   def buildRows(
       dotAttributes: DotAttribute[?]
         | String
-        | AttributeType
+        | AttributeRow
         | (DotAttribute[?], InputType)*
-  ): Seq[AttributeType] =
+  ): Seq[AttributeRow] =
     dotAttributes.map:
       case s: String         => AttributeHeader(s)
-      case at: AttributeType => at
+      case row: AttributeRow => row
 
       case dotAttr: (DotAttribute[?] | (DotAttribute[?], InputType)) =>
         val (attr, inputType) =
@@ -50,15 +39,24 @@ class RowBuilder(attrsVar: Var[Attributes]):
             case attr: DotAttributeEnum[?]              => (attr, InputType.select)
             case attr: DotAttributeSimple[?]            => (attr, InputType.text)
             case (attr: DotAttribute[?], it: InputType) => (attr, it)
-            
-        buildRow(attr -> inputType, simpleInputVar(attr.attrId, attrsVar))
 
-  def buildRow(
+        inputRow(attr -> inputType, simpleInputVar(attr.attrId, attrsVar))
+
+  def inputRow(
       attr:       (DotAttribute[?], InputType),
       inputValue: Var[Option[AttrValue]]
-  ): AttributeType =
+  ): AttributeRow =
     attr match
-      case (attr: DotAttribute[?], it: InputType) => attributeRow(attr, it, inputValue)
+      case (attr: DotAttribute[?], it: InputType) =>
+        InputAttribute(
+          attrId      = attr.attrId,
+          label       = attr.label,
+          placeholder = attr.placeholderText,
+          inputType   = it,
+          inputValue  = inputValue,
+          options     = attr.valuesWithLabel.map((l, v) => (l, AttrValue(v.toString))).toSeq,
+          default     = attr.default.toString
+        )
 
   private def simpleInputVar(attrId: String, attrsVar: Var[Attributes]): Var[Option[AttrValue]] =
     attrsVar.zoomLazy(_.values.get(attrId))((attrs, value) =>
