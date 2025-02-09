@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.components.attributes.AttributeType.buildRows
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType
@@ -10,12 +9,13 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.airstream.core.Signal
 
 def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], defaults: Option[Signal[Attributes]] = None, selection: Boolean) =
+  val builder = RowBuilder(attrs)
   AttributesView(
     id    = "edge-attributes",
     titleStr = "Edge Attributes",
     attrs = attrs,
     defaults = defaults,
-    buildRows(
+    builder.buildRows(
       "Label",
       if selection then Label -> InputType.multiText else "",
       Decorate  -> checkbox,

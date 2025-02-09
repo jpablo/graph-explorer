@@ -16,16 +16,16 @@ def StyleView(state: ViewerState) =
         val (clusterIds, nodeIds) = notArrows.partition(isClusterId)
         
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
-          case (true, false, false) => 
-            div(
-              div(cls := "text-center pb-2", "Selected Edges"),
-              EdgesAttributesView(
-                state, 
-                attrs = state.nodesAttributes(arrowIds), 
-                defaults = Some(state.visibleGraph.map(_.root.edgeAttrs)),
-                selection = true
-              ).amend(cls("selection-attributes"))
-            )
+          // case (true, false, false) => 
+          //   div(
+          //     div(cls := "text-center pb-2", "Selected Edges"),
+          //     EdgesAttributesView(
+          //       state, 
+          //       attrs = state.nodesAttributes(arrowIds), 
+          //       defaults = Some(state.visibleGraph.map(_.root.edgeAttrs)),
+          //       selection = true
+          //     ).amend(cls("selection-attributes"))
+          //   )
           
           case (false, true, false) => 
             div(
@@ -39,14 +39,14 @@ def StyleView(state: ViewerState) =
               ).amend(cls("selection-attributes"))
             )
             
-          case (false, false, true) => 
-            div(
-              div(cls := "text-center pb-2", "Selected Clusters"),
-              GraphAttributesView(state, state.nodesAttributes(clusterIds), selection = true).amend(cls("selection-attributes"))
-            )
+          // case (false, false, true) => 
+          //   div(
+          //     div(cls := "text-center pb-2", "Selected Clusters"),
+          //     GraphAttributesView(state, state.nodesAttributes(clusterIds), selection = true).amend(cls("selection-attributes"))
+          //   )
           
-          case (false, false, false) => 
-            DefaultAttributesView(state)
+          // case (false, false, false) => 
+          //   DefaultAttributesView(state)
           
           case _ => emptyNode
   )

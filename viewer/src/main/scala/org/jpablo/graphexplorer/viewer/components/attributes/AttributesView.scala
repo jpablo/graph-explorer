@@ -8,11 +8,11 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 import com.raquo.laminar.api.features.unitArrows
 
 def AttributesView(
-    id:    String,
+    id:       String,
     titleStr: String,
-    attrs: Var[Attributes],
+    attrs:    Var[Attributes],
     defaults: Option[Signal[Attributes]],
-    rows:  Seq[AttributeType]*
+    rows:     Seq[AttributeType]*
 ) =
   // TODO: Finish implementing this
   //  def getFonts(): js.Dynamic = js.Dynamic.global.window.queryLocalFonts().`then`(x => dom.console.log(x))
@@ -28,26 +28,31 @@ def AttributesView(
         case Right(attrRows) =>
           tbody(
             for row <- attrRows yield
-              val attrVar = row.inputValue.getOrElse(makeInputVar(row.attrId, attrs))
               val default = getDefaultValue(defaults, row)
-              val isChanged = attrVar.signal.combineWith(default).map((attr, d) => attr.exists(_.toString != d))
+              val isChanged =
+                row.inputValue.signal
+                  .combineWith(default)
+                  .map: (attr, d) =>
+                    // if row.attrId.contains("style") then
+                    println(s"id: ${row.attrId}, attr: $attr, default: $d")
+                    attr.exists(_.toString != d)
               tr(
-                td(cls := "w-32",
+                td(
+                  cls := "w-32",
                   cls("font-bold") <-- isChanged,
                   span(cls := "me-1", row.label),
                   child <-- isChanged.map(c =>
                     if c then
                       Button(
                         title := s"reset ${row.label}",
-                        onClick --> attrVar.set(None),
+                        onClick --> row.inputValue.set(None),
                         i(cls := "bi bi-x")
                       ).tiny.ghost.circle
                     else
                       ""
                   )
-
                 ),
-                td(buildInputCell(titleStr, row, attrVar, default))
+                td(buildInputCell(titleStr, row, row.inputValue, default))
               )
           )
     )
@@ -56,9 +61,16 @@ def AttributesView(
 // uses the global default if present, otherwise uses the (hardcoded) default value.
 private def getDefaultValue(globalDefaults: Option[Signal[Attributes]], row: AttributeRow): Signal[String] =
   globalDefaults
-    .map(_.map(_.get(row.attrId).map(_.toString).getOrElse(row.default)))
+    .map(_.map { globalAttributes =>
+      pprint.log(row.attrId)
+      pprint.log(row.default)
+      pprint.log(globalAttributes)
+      pprint.log(globalAttributes.get(row.attrId))
+      val r = globalAttributes.get(row.attrId).map(_.toString).getOrElse(row.default)
+      pprint.log(r)
+      r
+    })
     .getOrElse(Signal.fromValue(row.default))
-
 
 private def buildGroups(rows: Seq[AttributeType]) =
   var rr: List[Either[List[AttributeHeader], List[AttributeRow]]] = List.empty
@@ -78,16 +90,12 @@ private def buildGroups(rows: Seq[AttributeType]) =
     case Right(rs) => Right(rs.reverse)
   .reverse
 
-private def makeInputVar(attrId: String, attrsVar: Var[Attributes]): Var[Option[AttrValue]] =
-  attrsVar.zoomLazy(
-    _.values.get(attrId)
-  )((attrs, value) =>
-    value match
-      case None    => attrs - attrId // Remove override, will fall back to root value
-      case Some(v) => attrs + (attrId -> v) // Set override
-  )
-
-private def buildInputCell(parent: String, row: AttributeRow, attrVar: Var[Option[AttrValue]], default: Signal[String]) =
+private def buildInputCell(
+    parent:  String,
+    row:     AttributeRow,
+    attrVar: Var[Option[AttrValue]],
+    default: Signal[String]
+) =
   row.inputType match
     case InputType.select =>
       SelectWithValue(parent, row.attrId, row.options, attrVar, default)
