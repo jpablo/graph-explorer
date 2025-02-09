@@ -12,8 +12,6 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
   AttributesView(
     id    = "graph-attributes",
     titleStr = "Cluster Attributes",
-    attrs = attrsVar,
-    defaults = None,
     if selection then
       Seq.empty
     else

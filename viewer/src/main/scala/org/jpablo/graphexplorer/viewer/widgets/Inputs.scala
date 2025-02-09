@@ -136,14 +136,14 @@ def TextAreaWithValue(
 def Checked(
     placeholderText: String,
     inputValue:      Var[Option[Boolean]],
-    default:         Boolean = false
+    default:         Signal[Boolean]
 ) =
   input(
     cls         := "checkbox checkbox-xs",
     tpe         := InputType.checkbox.toString,
     placeholder := placeholderText,
     controlled(
-      checked <-- inputValue.signal.map(_.getOrElse(default)),
+      checked <-- inputValue.signal.combineWith(default).map((sv, d) => sv.getOrElse(d)),
       onInput.mapToChecked.map(Some(_)) --> inputValue.set
     )
   )

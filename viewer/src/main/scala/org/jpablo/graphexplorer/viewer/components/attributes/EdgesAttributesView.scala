@@ -13,8 +13,6 @@ def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], defaults: Op
   AttributesView(
     id    = "edge-attributes",
     titleStr = "Edge Attributes",
-    attrs = attrs,
-    defaults = defaults,
     builder.buildRows(
       "Label",
       if selection then Label -> InputType.multiText else "",

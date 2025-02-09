@@ -25,8 +25,6 @@ def NodesAttributesView(
   AttributesView(
     id       = "node-attributes",
     titleStr = s"Node Attributes ($parent)",
-    attrs    = attrsVar,
-    defaults = defaults,
     builder.buildRows(
       //   "Label",
       //   if selection then Label -> InputType.multiText else "",
@@ -42,7 +40,7 @@ def NodesAttributesView(
       //   Orientation -> number(),
       //   "Fill"
       builder.inputRow(FillStyle -> InputType.select, fillStyleVar(attrsVar, defaults))
-    ),
+    )
     // buildRows(
     //   FillColor -> color,
     //   "Border"
@@ -82,15 +80,7 @@ private def fillStyleVar(
 
   // Style => FillStyle
   def getCurrentValue(attrs: Attributes): Option[AttrValue] =
-    Some(
-      AttrValue(
-        getFillAndBorderStyle(attrs)
-          .fill
-          .orElse(getGlobalAttr().fill)
-          .getOrElse(FillStyle.default)
-          .toString
-      )
-    )
+    getFillAndBorderStyle(attrs).fill.map(f => AttrValue(f.toString))
 
   // FillStyle => Style
   def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
@@ -129,15 +119,7 @@ private def borderStyleVar(
 
   // Style => BorderStyle
   def getCurrentValue(attrs: Attributes): Option[AttrValue] =
-    Some(
-      AttrValue(
-        getFillAndBorderStyle(attrs)
-          .border
-          .orElse(getGlobalAttr().border)
-          .getOrElse(FillStyle.default)
-          .toString
-      )
-    )
+    getFillAndBorderStyle(attrs).border.map(f => AttrValue(f.toString))
 
   // BorderStyle => Style
   def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
