@@ -44,9 +44,9 @@ class RowBuilder(
             case (attr: DotAttribute[?], it: InputType) => (attr, it)
 
         inputRow(
-          attr = attr -> inputType,
+          attr     = attr -> inputType,
           inputVar = simpleInputVar(attr.attrId, elementAttributes),
-          default = defaultValue(attr.attrId, attr.default.toString)
+          default  = defaultValue(attr.attrId, attr.default.toString)
         )
 
   def inputRow(
@@ -66,15 +66,22 @@ class RowBuilder(
           default     = default
         )
 
-  private def simpleInputVar(attrId: String, attributes: Var[Attributes]): Var[Option[AttrValue]] =
+  def simpleInputVar(
+      attrId:     String,
+      attributes: Var[Attributes],
+      onReset:   Option[String] = None
+  ): Var[Option[AttrValue]] =
     attributes.zoomLazy(_.values.get(attrId))((attrs, value) =>
       value match
-        case None    => attrs - attrId // Remove override, will fall back to root value
-        case Some(v) => attrs + (attrId -> v) // Set override
+        case None =>
+          onReset match
+            case Some(v) => attrs + (attrId -> AttrValue(v))
+            case None    => attrs - attrId // Remove override, will fall back to root value
+        case Some(attrValue) => attrs + (attrId -> attrValue)
     )
 
   // uses the global default if present, otherwise uses the (hardcoded) default value.
-  private def defaultValue(attrId: String, default: String): Signal[String] =
+  def defaultValue(attrId: String, default: String): Signal[String] =
     defaults
       .map(_.map(_.get(attrId).map(_.toString).getOrElse(default)))
       .getOrElse(Signal.fromValue(default))

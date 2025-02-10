@@ -22,16 +22,21 @@ def NodesAttributesView(
 
   val fillStyleVar = FillStyleVar(attrsVar, defaults)
   val borderStyleVar = BorderStyleVar(attrsVar, defaults)
+  val labelRow =
+    builder.inputRow(
+      attr = Label -> InputType.multiText,
+      inputVar = builder.simpleInputVar(Label.attrId, attrsVar, onReset = Some("")),
+      default = builder.defaultValue(Label.attrId, Label.default)
+    )
 
   AttributesView(
     id       = "node-attributes",
     titleStr = s"Node Attributes ($parent)",
     builder.buildRows(
       "Label",
-      if selection then Label -> InputType.multiText else "",
+      if selection then labelRow else "",
       LabelLoc,
       if selection then XLabel else "",
-//      Xlp -> number(),
       "Text Format",
       FontColor -> color,
       FontName,
