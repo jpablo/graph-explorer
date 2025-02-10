@@ -10,13 +10,13 @@ enum AttributeRow:
   case AttributeHeader(title: String)
 
   case InputAttribute(
-      attrId:       String,
-      label:        String,
-      placeholder:  String,
-      inputType:    InputType,
-      inputValue:   Var[Option[AttrValue]],
-      options:      Seq[(String, AttrValue)] = Seq.empty,
-      defaultValue: Signal[String]
+      attrId:      String,
+      label:       String,
+      placeholder: String,
+      inputType:   InputType,
+      inputVar:    Var[Option[AttrValue]],
+      options:     Seq[(String, AttrValue)] = Seq.empty,
+      default:     Signal[String]
   )
 
 import AttributeRow.*
@@ -43,22 +43,27 @@ class RowBuilder(
             case attr: DotAttributeSimple[?]            => (attr, InputType.text)
             case (attr: DotAttribute[?], it: InputType) => (attr, it)
 
-        inputRow(attr -> inputType, simpleInputVar(attr.attrId, elementAttributes))
+        inputRow(
+          attr = attr -> inputType,
+          inputVar = simpleInputVar(attr.attrId, elementAttributes),
+          default = defaultValue(attr.attrId, attr.default.toString)
+        )
 
   def inputRow(
-      attr:       (DotAttribute[?], InputType),
-      inputValue: Var[Option[AttrValue]]
+      attr:     (DotAttribute[?], InputType),
+      inputVar: Var[Option[AttrValue]],
+      default:  Signal[String]
   ): AttributeRow =
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
         InputAttribute(
-          attrId       = attr.attrId,
-          label        = attr.label,
-          placeholder  = attr.placeholderText,
-          inputType    = it,
-          inputValue   = inputValue,
-          options      = attr.valuesWithLabel.map((l, v) => (l, AttrValue(v.toString))).toSeq,
-          defaultValue = defaultValue(attr.attrId, attr.default.toString)
+          attrId      = attr.attrId,
+          label       = attr.label,
+          placeholder = attr.placeholderText,
+          inputType   = it,
+          inputVar    = inputVar,
+          options     = attr.valuesWithLabel.map((l, v) => (l, AttrValue(v.toString))).toSeq,
+          default     = default
         )
 
   private def simpleInputVar(attrId: String, attributes: Var[Attributes]): Var[Option[AttrValue]] =

@@ -26,11 +26,11 @@ def AttributesView(
           tbody(
             for row <- attrRows yield
               val isChanged =
-                row.inputValue.signal
-                  .combineWith(row.defaultValue)
+                row.inputVar.signal
+                  .combineWith(row.default)
                   .map: (attr, d) =>
                     // if row.attrId.contains("style") then
-                    println(s"id: ${row.attrId}, attr: $attr, default: $d")
+                    dom.console.log(s"id: ${row.attrId}, attr: $attr, default: $d")
                     attr.exists(_.toString != d)
               tr(
                 td(
@@ -41,14 +41,14 @@ def AttributesView(
                     if c then
                       Button(
                         title := s"reset ${row.label}",
-                        onClick --> row.inputValue.set(None),
+                        onClick --> row.inputVar.set(None),
                         i(cls := "bi bi-x")
                       ).tiny.ghost.circle
                     else
                       ""
                   )
                 ),
-                td(buildInputCell(titleStr, row, row.inputValue, row.defaultValue))
+                td(buildInputCell(row))
               )
           )
     )
@@ -72,26 +72,21 @@ private def buildGroups(rows: Seq[AttributeRow]) =
     case Right(rs) => Right(rs.reverse)
   .reverse
 
-private def buildInputCell(
-    parent:     String,
-    row:        InputAttribute,
-    inputValue: Var[Option[AttrValue]],
-    default:    Signal[String]
-) =
+private def buildInputCell(row: InputAttribute) =
   row.inputType match
     case InputType.select =>
-      SelectWithValue(parent, row.attrId, row.options, inputValue, default)
+      SelectWithValue(row.options, row.inputVar, row.default)
 
     case InputType.checkbox =>
       val inputVarBool =
-        inputValue.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
-      Checked(row.placeholder, inputVarBool, row.defaultValue.map(_ == true.toString))
+        row.inputVar.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
+      Checked(row.placeholder, inputVarBool, row.default.map(_ == true.toString))
 
     case InputType.`multiText` =>
-      TextAreaWithValue(row.placeholder, inputValue)
+      TextAreaWithValue(row.placeholder, row.inputVar)
 
     case InputType.number(start, end, step) =>
-      InputWithValue(row.placeholder, inputValue, "number", default)
+      InputWithValue(row.placeholder, row.inputVar, "number", row.default)
         .amend(
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
@@ -101,7 +96,7 @@ private def buildInputCell(
     case _ =>
       InputWithValue(
         row.placeholder,
-        inputValue,
+        row.inputVar,
         row.inputType.toString,
-        default /*, setFocus = row.attrId == "label"*/
+        row.default
       )

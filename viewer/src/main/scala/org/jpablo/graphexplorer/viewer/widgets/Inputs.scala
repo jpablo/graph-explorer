@@ -39,8 +39,6 @@ def Select(
   )
 
 def SelectWithValue(
-    parent:      String,
-    attrId:      String,
     options:     Seq[(String, AttrValue)],
     selectValue: Var[Option[AttrValue]],
     default:     Signal[String],
