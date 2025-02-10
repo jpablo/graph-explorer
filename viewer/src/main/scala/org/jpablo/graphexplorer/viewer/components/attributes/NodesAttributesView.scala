@@ -122,7 +122,19 @@ class FillStyleVar(
     pprint.log(dotStyle)
     // FillStyle.ColorFill is represented as style="filled" in the style attribute
     // FillStyle.NoFill is represented as style="" in the style attribute
-    // When the default is style="filled" we need to be careful:
+    
+    // Rules:
+    // - global no style, local no style => default local: NoFill
+    // - global no style, local no style, user selects ColorFill => local style="filled"
+    // - global no style, local style="filled", user selects NoFill => local no style (removed)
+    // - global no style, local style="filled", user clicks reset => local no style (removed)
+
+    // - global style="filled", local no style => default local: ColorFill
+    // - global style="filled", local no style, user selects NoFill => local style=""
+    // - global style="filled", local style="" => default local: NoFill
+    // - global style="filled", local style="", user selects ColorFill  => local no style (removed)
+    // - global style="filled", local style="", user clicks reset  => local no style (removed)
+
     if dotStyle.isBlank && !defaultFillStyle.contains(FillStyle.ColorFill) then
       attrs - styleAttrId
     else if defaultFillStyle == fillStyleO then
