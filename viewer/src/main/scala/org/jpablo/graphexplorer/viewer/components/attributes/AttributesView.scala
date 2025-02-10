@@ -29,8 +29,6 @@ def AttributesView(
                 row.inputVar.signal
                   .combineWith(row.default)
                   .map: (attr, d) =>
-                    // if row.attrId.contains("style") then
-//                    dom.console.log(s"id: ${row.attrId}, attr: $attr, default: $d")
                     attr.exists(_.toString != d)
               tr(
                 td(

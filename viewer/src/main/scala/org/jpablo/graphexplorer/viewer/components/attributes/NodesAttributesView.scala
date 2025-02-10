@@ -5,9 +5,7 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-// import org.jpablo.graphexplorer.viewer.widgets.InputType
-// import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
-// import org.jpablo.graphexplorer.viewer.widgets.InputType.color
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.FillStyle
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -29,33 +27,29 @@ def NodesAttributesView(
     id       = "node-attributes",
     titleStr = s"Node Attributes ($parent)",
     builder.buildRows(
-      //   "Label",
-      //   if selection then Label -> InputType.multiText else "",
-      //   LabelLoc,
-      //   "Text Format",
-      //   FontColor -> color,
-      //   FontName,
-      //   FontSize -> number(),
-      //   "Shape",
-      //   Shape,
-      //   Sides       -> number(),
-      //   Regular     -> checkbox,
-      //   Orientation -> number(),
-      //   "Fill"
-      builder.inputRow(FillStyle -> InputType.select, fillStyleVar.getVar, fillStyleVar.getDefault)
-    ),
-    builder.buildRows(
-      //   FillColor -> color,
-      //   "Border"
-      builder.inputRow(Style -> InputType.select, borderStyleVar.getVar, borderStyleVar.getDefault)
+      "Label",
+      if selection then Label -> InputType.multiText else "",
+      LabelLoc,
+      "Text Format",
+      FontColor -> color,
+      FontName,
+      FontSize -> number(),
+      "Shape",
+      Shape,
+      Sides       -> number(),
+      Regular     -> checkbox,
+      Orientation -> number(),
+      "Fill",
+      builder.inputRow(FillStyle -> InputType.select, fillStyleVar.getVar, fillStyleVar.getDefault),
+      FillColor -> color,
+      "Border",
+      builder.inputRow(Style -> InputType.select, borderStyleVar.getVar, borderStyleVar.getDefault),
+      Color       -> color,
+      PenWidth    -> number(),
+      Peripheries -> number(),
+      "Other",
+      if selection then URL else ""
     )
-    // buildRows(
-    //   Color       -> color,
-    // PenWidth    -> number(),
-    // Peripheries -> number(),
-    // "Other",
-    // if selection then URL else ""
-    // )
   )
 
 private def getFillAndBorderStyle(attrs: Attributes) =
