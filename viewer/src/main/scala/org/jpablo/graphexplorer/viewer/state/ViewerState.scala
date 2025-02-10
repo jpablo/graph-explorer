@@ -11,14 +11,14 @@ import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, GroupId, NodeId, ViewerNode}
 import org.scalajs.dom.{KeyboardEvent, SVGSVGElement}
 import upickle.default.*
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.scalajs.dom.SVGMatrix
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+
 import scala.scalajs.js
-import org.jpablo.graphexplorer.viewer.models.GroupId
 import com.softwaremill.quicklens.*
 
 case class ViewerState(projectId: ProjectId, initialSource: String = ""):
@@ -65,6 +65,11 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val shortcutsModalOpen = Var(false)
 
   // -------- Public API -----------
+
+  def getNodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
+    val nodes = fullGraph.observe().now().nodeById
+    ids.flatMap(id => nodes.get(id))
+
   def resetView(): Unit =
     zoomValue.set(0.90)
     translateXY.set(SvgUnit.origin)
@@ -118,21 +123,17 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // For changes that don't impact the layout we can update the SVG directly
   // instead of re-rendering the whole diagram
   val nodeTargetAttributes =
-    sourceFlow.fullGraphV.zoomLazy(_.getRootAttributes(AttributeTarget.node))(
-      _.updateRootAttributes(AttributeTarget.node)(_)
-    )
+    sourceFlow.fullGraphV
+      .zoomLazy(_.getRootAttributes(AttributeTarget.node))(_.updateRootAttributes(AttributeTarget.node)(_))
 
   val edgeTargetAttributes =
-    sourceFlow.fullGraphV.zoomLazy(_.getRootAttributes(AttributeTarget.edge))(
-      _.updateRootAttributes(AttributeTarget.edge)(_)
-    )
+    sourceFlow.fullGraphV
+      .zoomLazy(_.getRootAttributes(AttributeTarget.edge))(_.updateRootAttributes(AttributeTarget.edge)(_))
 
   // individual node attributes
-  // Explain how this work: how fullGraphV attributes are propagated to the UI and back. AI?
   def nodesAttributes(nodeIds: Set[NodeId]): Var[Attributes] =
-    sourceFlow.fullGraphV.zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) =>
-      graph.updateAttributes(nodeIds, attrs)
-    )
+    sourceFlow.fullGraphV
+      .zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) => graph.updateAttributes(nodeIds, attrs))
 
   // -------- Diagram actions -----------
   val eventHandlers = wire[EventHandlers]
@@ -233,7 +234,11 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   /** Finds the node ID at the given selection rectangle's end point
     */
-  private def findNode(rect: SelectionRect, elements: js.Array[dom.Element], selector: String = "g.node, g.edge, g.cluster"): Option[NodeId] =
+  private def findNode(
+      rect:     SelectionRect,
+      elements: js.Array[dom.Element],
+      selector: String = "g.node, g.edge, g.cluster"
+  ): Option[NodeId] =
     elements
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
       .flatMap(element => Option(element.closest(selector)))

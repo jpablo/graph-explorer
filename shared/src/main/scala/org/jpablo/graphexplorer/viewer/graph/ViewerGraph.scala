@@ -133,6 +133,12 @@ case class ViewerGraph(
       case (id, n) if id in nodeIds => n.attrs.values
     .foldLeft(init)(_ ++ _)
 
+  private def filterAttrs(nodeIds: Set[NodeId], attrs: Map[NodeId, Attributable]): Map[NodeId, Attributes] =
+    attrs.view
+      .filterKeys(nodeIds)
+      .toMap
+      .transform((_, n) => n.attrs)
+
   def getAttributesById(nodeIds: Set[NodeId]): Attributes =
     Attributes(
       nodeIds.headOption
@@ -141,7 +147,7 @@ case class ViewerGraph(
             collectAttrs(nodeIds, data.arrows)
           else if NodeId.isClusterId(id) then
             collectAttrs(nodeIds, data.groups.map((g, v) => (NodeId(g.value), v)))
-          else if id in data.nodes then 
+          else if id in data.nodes then
             collectAttrs(nodeIds, data.nodes)
           else Map.empty
         .getOrElse(Map.empty)
