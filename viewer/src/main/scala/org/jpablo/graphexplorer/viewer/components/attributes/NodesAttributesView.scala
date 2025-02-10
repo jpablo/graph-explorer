@@ -77,9 +77,10 @@ class FillStyleVar(
 
   // FillStyle => Style
   private def updateStyles(attrs: Attributes, valueO: Option[AttrValue]): Attributes =
-    val defaultFillStyle = getFillStyleDefaults.fillStyle
-    val fillStyleO = valueO.fold(defaultFillStyle)(fill => Some(FillStyle.valueOf(fill.toString)))
+    val defaultFillStyle = getFillStyleDefaults
+    val fillStyleO = valueO.fold(defaultFillStyle.fillStyle)(fill => Some(FillStyle.valueOf(fill.toString)))
     val dotStyle = getFillAndBorderStyle(attrs).copy(fillStyle = fillStyleO).toDotString
+
     // FillStyle.ColorFill is represented as style="filled" in the style attribute
     // FillStyle.NoFill is represented as style="" in the style attribute
 
@@ -95,9 +96,9 @@ class FillStyleVar(
     // - global style="filled", local style="", user selects ColorFill  => local no style (removed)
     // - global style="filled", local style="", user clicks reset  => local no style (removed)
 
-    if dotStyle.isBlank && !defaultFillStyle.contains(FillStyle.ColorFill) then
+    if dotStyle.isBlank && !defaultFillStyle.fillStyle.contains(FillStyle.ColorFill) then
       attrs - styleAttrId
-    else if defaultFillStyle == fillStyleO then
+    else if dotStyle == defaultFillStyle.toDotString then
       attrs - styleAttrId
     else
       attrs + (styleAttrId -> AttrValue(dotStyle))
@@ -130,12 +131,16 @@ class BorderStyleVar(
 
   // BorderStyle => Style
   private def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
-    val defaultBorderStyle = getFillStyleDefaults.borderStyle
-    val borderStyleO = valueOpt.fold(defaultBorderStyle)(attrValue => Some(Style.valueOf(attrValue.toString)))
+    pprint.log((attrs, valueOpt))
+    val defaultBorderStyle = getFillStyleDefaults
+    pprint.log(defaultBorderStyle.toDotString)
+    val borderStyleO = valueOpt.fold(defaultBorderStyle.borderStyle)(attrValue => Some(Style.valueOf(attrValue.toString)))
+    pprint.log(borderStyleO)
     val dotStyle = getFillAndBorderStyle(attrs).copy(borderStyle = borderStyleO).toDotString
+    pprint.log(dotStyle)
     if dotStyle.isBlank then
       attrs - styleAttrId
-    else if defaultBorderStyle == borderStyleO then
+    else if dotStyle == defaultBorderStyle.toDotString then
       attrs - styleAttrId
     else
       attrs + (styleAttrId -> AttrValue(dotStyle))
@@ -151,35 +156,6 @@ class BorderStyleVar(
     attrsVar.zoomLazy(getCurrentValue)(updateStyles)
 end BorderStyleVar
 
-//private def borderStyleVar(
-//    attrsVar: Var[Attributes],
-//    defaults: Option[Signal[Attributes]]
-//): Var[Option[AttrValue]] =
-//  val styleAttrId = Style.attrId
-//
-//  def getGlobalAttr(): FillAndBorderStyle =
-//    val globalAttrs = defaults.map(_.observe(using OneTimeOwner(() => ())).now()).getOrElse(Attributes.empty)
-//    getFillAndBorderStyle(globalAttrs)
-//
-//  // Style => BorderStyle
-//  def getCurrentValue(attrs: Attributes): Option[AttrValue] =
-//    getFillAndBorderStyle(attrs).borderStyle.map(f => AttrValue(f.toString))
-//
-//  // BorderStyle => Style
-//  def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
-//    val globalAttr = getGlobalAttr()
-//    val nodeAttr = getFillAndBorderStyle(attrs)
-//    // -- fill style --
-//    val newBorderStyle = valueOpt.fold(globalAttr.borderStyle)(attrValue => Some(Style.valueOf(attrValue.toString)))
-//    val attrValue = nodeAttr.copy(borderStyle = newBorderStyle).toDotString
-//    if attrValue.isBlank then
-//      attrs - styleAttrId
-//    else
-//      attrs + (styleAttrId -> AttrValue(attrValue))
-//
-//  attrsVar.zoomLazy(getCurrentValue)(updateStyles)
-//end borderStyleVar
-//
 case class FillAndBorderStyle(
     fillStyle:   Option[FillStyle],
     borderStyle: Option[Style]
