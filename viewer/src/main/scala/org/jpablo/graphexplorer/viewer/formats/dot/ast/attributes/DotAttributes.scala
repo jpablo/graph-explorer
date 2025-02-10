@@ -44,6 +44,17 @@ object Label extends DotAttributeSimple[String]:
   val default = ""
   override val placeholderText = "Enter label here"
 
+object XLabel extends DotAttributeSimple[String]:
+  val label = "External label"
+  val default = ""
+  override val placeholderText = "Enter label here"
+
+
+object Xlp extends DotAttributeSimple[Double]:
+  val label = "External pos"
+  val default = 1
+  override val placeholderText = "External label position"
+
 object BgColor extends DotAttributeSimple[String]:
   val label = "Background Color"
   val default = "#ffffff"
@@ -158,7 +169,7 @@ object Layout extends DotAttributeEnum[Layout]:
   val label = "Layout"
   override val valuesWithLabel = Array(
     ("Hierarchical", dot),
-    ("Spring model", neato), 
+    ("Spring model", neato),
     ("Force-directed placement", fdp),
     ("Multilevel force-directed placement", sfdp),
     ("Radial", twopi),
@@ -195,7 +206,7 @@ object Dir extends DotAttributeEnum[DirType]:
   val values: Array[DirType] = DirType.values
   override def valuesWithLabel = Array(
     ("Forward", DirType.forward),
-    ("Back", DirType.back), 
+    ("Back", DirType.back),
     ("Both", DirType.both),
     ("None", DirType.none)
   )

@@ -30,6 +30,8 @@ def NodesAttributesView(
       "Label",
       if selection then Label -> InputType.multiText else "",
       LabelLoc,
+      if selection then XLabel else "",
+//      Xlp -> number(),
       "Text Format",
       FontColor -> color,
       FontName,

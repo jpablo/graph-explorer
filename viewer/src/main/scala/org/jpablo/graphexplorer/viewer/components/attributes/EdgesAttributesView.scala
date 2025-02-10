@@ -16,6 +16,7 @@ def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], defaults: Op
     builder.buildRows(
       "Label",
       if selection then Label -> InputType.multiText else "",
+      if selection then XLabel else "",
       Decorate  -> checkbox,
       "Text Format",
       FontColor -> color,
