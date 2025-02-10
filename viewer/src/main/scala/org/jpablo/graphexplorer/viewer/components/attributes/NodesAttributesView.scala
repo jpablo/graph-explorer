@@ -44,11 +44,11 @@ def NodesAttributesView(
       //   "Fill"
       builder.inputRow(FillStyle -> InputType.select, fillStyleVar.getVar, fillStyleVar.getDefault)
     ),
-     builder.buildRows(
-    //   FillColor -> color,
-    //   "Border"
+    builder.buildRows(
+      //   FillColor -> color,
+      //   "Border"
       builder.inputRow(Style -> InputType.select, borderStyleVar.getVar, borderStyleVar.getDefault)
-     ),
+    )
     // buildRows(
     //   Color       -> color,
     // PenWidth    -> number(),
@@ -78,8 +78,8 @@ class FillStyleVar(
   // FillStyle => Style
   private def updateStyles(attrs: Attributes, valueO: Option[AttrValue]): Attributes =
     val defaultFillStyle = getFillStyleDefaults
-    val fillStyleO = valueO.fold(defaultFillStyle.fillStyle)(fill => Some(FillStyle.valueOf(fill.toString)))
-    val dotStyle = getFillAndBorderStyle(attrs).copy(fillStyle = fillStyleO).toDotString
+    val fillStyle = valueO.map(fill => FillStyle.valueOf(fill.toString))
+    val dotStyle = (defaultFillStyle ++ getFillAndBorderStyle(attrs).copy(fillStyle = fillStyle)).toDotString
 
     // FillStyle.ColorFill is represented as style="filled" in the style attribute
     // FillStyle.NoFill is represented as style="" in the style attribute
@@ -131,13 +131,20 @@ class BorderStyleVar(
 
   // BorderStyle => Style
   private def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
-    pprint.log((attrs, valueOpt))
     val defaultBorderStyle = getFillStyleDefaults
-    pprint.log(defaultBorderStyle.toDotString)
-    val borderStyleO = valueOpt.fold(defaultBorderStyle.borderStyle)(attrValue => Some(Style.valueOf(attrValue.toString)))
-    pprint.log(borderStyleO)
-    val dotStyle = getFillAndBorderStyle(attrs).copy(borderStyle = borderStyleO).toDotString
-    pprint.log(dotStyle)
+    val borderStyleO = valueOpt.map(attrValue => Style.valueOf(attrValue.toString))
+    val dotStyle = (defaultBorderStyle ++ getFillAndBorderStyle(attrs).copy(borderStyle = borderStyleO)).toDotString
+    // Rules:
+    // - global no style, local no style => default local: solid
+    // - global no style, local no style, user selects dashed => local style="dashed"
+    // - global no style, local style="dashed", user selects solid => local no style (removed)  FIXME
+    // - global no style, local style="dashed", user clicks reset => local no style (removed)
+
+    // - global style="dashed", local no style => default local: dashed
+    // - global style="dashed", local no style, user selects solid => local style="solid"
+    // - global style="dashed", local style="solid" => default local: solid
+    // - global style="dashed", local style="solid", user selects dashed  => local no style (removed)
+    // - global style="dashed", local style="solid", user clicks reset  => local no style (removed)
     if dotStyle.isBlank then
       attrs - styleAttrId
     else if dotStyle == defaultBorderStyle.toDotString then
@@ -163,6 +170,12 @@ case class FillAndBorderStyle(
   def toDotString: String =
     val fillPart = if fillStyle.contains(FillStyle.ColorFill) then Some(Style.filled) else None
     (fillPart.toSeq ++ borderStyle.toSeq).mkString(",")
+
+  def ++(other: FillAndBorderStyle): FillAndBorderStyle =
+    FillAndBorderStyle(
+      fillStyle   = other.fillStyle.orElse(fillStyle),
+      borderStyle = other.borderStyle.orElse(borderStyle)
+    )
 
 object FillAndBorderStyle:
   val empty = FillAndBorderStyle(None, None)
