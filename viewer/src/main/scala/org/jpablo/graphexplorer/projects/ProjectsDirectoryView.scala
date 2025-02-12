@@ -101,25 +101,19 @@ private def projectCard(router: Router)(project: ProjectInfo) =
         child <-- ProjectStorage
           .getProjectContent(project.id)
           .map(content => DotText(content).toSvg)
-          .map(svgSignal => 
+          .map: svgSignal => 
             div(
               cls := "w-full h-full p-4 flex items-center justify-center",
-              child <-- svgSignal.map(svgElement => 
+              child <-- svgSignal.map: svgElement => 
+                svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet")
                 div(
                   cls := "w-full h-full relative",
-                  inContext[Div] { thisNode =>
-                    svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet")
-                    div(
-                      cls := "absolute inset-0 w-full h-full",
-                      onMountCallback(ctx => {
-                        ctx.thisNode.ref.innerHTML = svgElement.outerHTML
-                      })
-                    )
-                  }
+                  div(
+                    cls := "absolute inset-0 w-full h-full",
+                    foreignSvgElement(svg.svg, svgElement)
+                  )
                 )
-              )
             )
-          )
       ),
 
       // Last modified
