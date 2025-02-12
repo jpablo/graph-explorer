@@ -3,7 +3,7 @@ label[for ^= show-ns-kind-] {
 }
 
 #projects-view {
-  @apply bg-base-200 h-screen;
+  @apply bg-base-200 min-h-screen;
 
   .navbar {
   }
