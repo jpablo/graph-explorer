@@ -10,7 +10,8 @@ import com.softwaremill.quicklens.*
 case class ProjectInfo(
     id:           ProjectId,
     name:         String,
-    lastModified: Long
+    lastModified: Long,
+    createdAt:    Long = System.currentTimeMillis()
 ) derives ReadWriter
 
 case class ProjectsDirectory(projects: List[ProjectInfo] = Nil) derives ReadWriter
@@ -56,7 +57,8 @@ object ProjectStorage:
     projectStateVar
 
   def createProjectDirectoryEntry(name: String): ProjectId =
-    val projectInfo = ProjectInfo(ProjectId.random, name, System.currentTimeMillis())
+    val now = System.currentTimeMillis()
+    val projectInfo = ProjectInfo(ProjectId.random, name, lastModified = now, createdAt = now)
     updateDirectory(_.modify(_.projects).using(projectInfo :: _))
     projectInfo.id
 

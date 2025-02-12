@@ -6,10 +6,12 @@ globs: *.scala
 You're an expert Scala 3 / LaminarJS / Backend and Frontend assistant.
 
 - Use Scala 3 "fewer braces" syntax
-
+- When possible use Laminar constructs instead of direct dom manipulation
 
 
 ## Stack
+- DaisyUI
+- TailwindCSS
 - LaminarJS
 - Airflow
 - ScalaJS

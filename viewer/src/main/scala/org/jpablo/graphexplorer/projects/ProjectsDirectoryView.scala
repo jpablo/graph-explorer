@@ -7,10 +7,22 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.widgets.primary
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import com.raquo.laminar.api.features.unitArrows
+import scala.compiletime.asMatchable
 
 import scala.scalajs.js
 
+enum SortOption:
+  case LastModified, Title, CreationDate
+
+  def label: String = this match
+    case LastModified => "Last Modified"
+    case Title        => "Title"
+    case CreationDate => "Creation Date"
+
 def ProjectsDirectoryView(router: Router) =
+  val sortOptionVar = Var[SortOption](SortOption.LastModified)
+  val searchTermVar = Var("")
+
   div(
     idAttr := "projects-view",
     div(
@@ -30,7 +42,7 @@ def ProjectsDirectoryView(router: Router) =
       idAttr := "projects-body",
       // Projects navbar with background
       div(
-        cls := "navbar", // Changed to bg-base-200 for subtle contrast
+        cls := "navbar",
         div(
           cls := "flex-1",
           h1(
@@ -40,7 +52,35 @@ def ProjectsDirectoryView(router: Router) =
           )
         ),
         div(
-          cls := "flex-none",
+          cls := "flex-none gap-2",
+          // Search input
+          div(
+            cls := "form-control",
+            div(
+              cls := "input-group input-group-sm",
+              span(i(cls := "bi bi-search")),
+              input(
+                cls         := "input input-sm input-bordered w-48",
+                placeholder := "Search projects...",
+                controlled(
+                  value <-- searchTermVar,
+                  onInput.mapToValue --> searchTermVar
+                )
+              )
+            )
+          ),
+          // Sort dropdown
+          select(
+            cls := "select select-sm select-bordered",
+            SortOption.values.toSeq.map { opt =>
+              option(
+                value := opt.toString,
+                opt.label
+              )
+            },
+            value <-- sortOptionVar.signal.map(_.toString),
+            onChange.mapToValue.map(SortOption.valueOf) --> sortOptionVar
+          ),
           Button(
             span().plusCircleIcon,
             "Create Project",
@@ -54,14 +94,25 @@ def ProjectsDirectoryView(router: Router) =
         )
       ),
 
-      // Projects grid (rest remains the same)
+      // Projects grid with search filter
       div(
         idAttr := "projects-grid",
-        cls    := "flex flex-wrap gap-4 p-4", // Added padding
-        children <-- ProjectStorage.directory.map { dir =>
-          dir.projects
-            .sortBy(-_.lastModified)
-            .map(projectCard(router))
+        cls    := "flex flex-wrap gap-4 p-4",
+        children <-- {
+          val debouncedSearch = searchTermVar.signal.changes
+            .debounce(300)
+            .startWith("")
+
+          ProjectStorage.directory
+            .combineWith(debouncedSearch, sortOptionVar.signal)
+            .map: (directory, searchTerm, sortOption) =>
+              val filteredProjects = directory.projects.filter(_.name.toLowerCase.contains(searchTerm.toLowerCase))
+              val sorted = 
+                sortOption match
+                  case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
+                  case SortOption.Title        => filteredProjects.sortBy(_.name.toLowerCase)
+                  case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
+              sorted.map(projectCard(router))
         }
       )
     )
@@ -101,10 +152,10 @@ private def projectCard(router: Router)(project: ProjectInfo) =
         child <-- ProjectStorage
           .getProjectContent(project.id)
           .map(content => DotText(content).toSvg)
-          .map: svgSignal => 
+          .map: svgSignal =>
             div(
               cls := "w-full h-full p-4 flex items-center justify-center",
-              child <-- svgSignal.map: svgElement => 
+              child <-- svgSignal.map: svgElement =>
                 svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet")
                 div(
                   cls := "w-full h-full relative",
@@ -116,11 +167,19 @@ private def projectCard(router: Router)(project: ProjectInfo) =
             )
       ),
 
-      // Last modified
+      // Last modified and created at dates
       div(
-        cls := "text-sm text-base-content/70 flex items-center gap-1",
-        span().listIcon,
-        s"Last modified: ${formatDate(project.lastModified)}"
+        cls := "text-sm text-base-content/70 flex flex-col gap-1",
+        div(
+          cls := "flex items-center gap-1",
+          span().listIcon,
+          s"Last modified: ${formatDate(project.lastModified)}"
+        ),
+        div(
+          cls := "flex items-center gap-1",
+          span().fileCodeIcon,
+          s"Created: ${formatDate(project.createdAt)}"
+        )
       )
     )
   )
