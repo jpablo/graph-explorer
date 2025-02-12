@@ -122,7 +122,7 @@ private def projectCard(router: Router)(project: ProjectInfo) =
   div(
     cls := "card bg-base-100 w-96 shadow-xl",
     div(
-      cls := "card-body",
+      cls := "card-body p-4",
 
       // Header with title and delete button
       div(
@@ -138,12 +138,13 @@ private def projectCard(router: Router)(project: ProjectInfo) =
           )
         ),
         Button(
-          span().closeIcon,
+          cls := "btn btn-xs hover:bg-warning/20 hover:text-warning transition-colors",
+          i(cls := "bi bi-trash"),
           onClick --> { _ =>
             if dom.window.confirm("Are you sure you want to delete this project?") then
               ProjectStorage.deleteProject(project.id)
           }
-        ) // .ghost.tiny
+        )
       ),
 
       // Preview SVG
