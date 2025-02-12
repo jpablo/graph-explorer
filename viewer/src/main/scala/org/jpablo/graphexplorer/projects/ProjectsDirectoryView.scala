@@ -10,6 +10,7 @@ import com.raquo.laminar.api.features.unitArrows
 import scala.compiletime.asMatchable
 
 import scala.scalajs.js
+import org.jpablo.graphexplorer.viewer.widgets.small
 
 enum SortOption:
   case LastModified, Title, CreationDate
@@ -42,7 +43,7 @@ def ProjectsDirectoryView(router: Router) =
       idAttr := "projects-body",
       // Projects navbar with background
       div(
-        cls := "navbar",
+        cls := "navbar px-6",
         div(
           cls := "flex-1",
           h1(
@@ -58,7 +59,7 @@ def ProjectsDirectoryView(router: Router) =
             cls := "form-control",
             div(
               cls := "input-group input-group-sm",
-              span(i(cls := "bi bi-search")),
+              span(cls := "px-3", i(cls := "bi bi-search")),
               input(
                 cls         := "input input-sm input-bordered w-48",
                 placeholder := "Search projects...",
@@ -71,7 +72,7 @@ def ProjectsDirectoryView(router: Router) =
           ),
           // Sort dropdown
           select(
-            cls := "select select-sm select-bordered",
+            cls := "select select-sm select-bordered h-8",
             SortOption.values.toSeq.map { opt =>
               option(
                 value := opt.toString,
@@ -82,6 +83,7 @@ def ProjectsDirectoryView(router: Router) =
             onChange.mapToValue.map(SortOption.valueOf) --> sortOptionVar
           ),
           Button(
+            cls := "h-8",
             span().plusCircleIcon,
             "Create Project",
             onClick --> { _ =>
@@ -90,14 +92,14 @@ def ProjectsDirectoryView(router: Router) =
               val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
               router.navigateTo(Route.ProjectDetail(id.value))
             }
-          ).primary
+          ).primary.small
         )
       ),
 
       // Projects grid with search filter
       div(
         idAttr := "projects-grid",
-        cls    := "flex flex-wrap gap-4 p-4",
+        cls    := "w-full grid grid-cols-[repeat(auto-fit,minmax(24rem,1fr))] gap-6 px-6",
         children <-- {
           val debouncedSearch = searchTermVar.signal.changes
             .debounce(300)
@@ -120,7 +122,7 @@ def ProjectsDirectoryView(router: Router) =
 
 private def projectCard(router: Router)(project: ProjectInfo) =
   div(
-    cls := "card bg-base-100 w-96 shadow-xl",
+    cls := "card bg-base-100 shadow-xl w-full",
     div(
       cls := "card-body p-4",
 
