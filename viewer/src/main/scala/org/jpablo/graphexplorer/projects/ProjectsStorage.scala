@@ -65,6 +65,21 @@ object ProjectStorage:
     updateDirectory: dir =>
       dir.copy(projects = dir.projects.filterNot(_.id == id))
 
+  /** Retrieves the content of a project identified by the given `ProjectId`.
+    *
+    * @param id The project's id.
+    * @return A Signal containing the project's content as a String.
+    */
+  def getProjectContent(id: ProjectId): Signal[String] =
+    val projectStorage = storedString(projectKey(id), write(PersistedState.empty))
+    projectStorage.signal.map: stateStr =>
+      try
+        read[PersistedState](stateStr).source
+      catch
+        case e: Throwable =>
+          dom.console.error(s"Error reading state: $e")
+          "digraph G { }"
+
   // ----------------- Private methods -----------------
 
   private def updateDirectory(f: ProjectsDirectory => ProjectsDirectory): Unit =

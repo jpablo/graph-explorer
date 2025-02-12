@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.widgets.primary
+import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import com.raquo.laminar.api.features.unitArrows
 
 import scala.scalajs.js
@@ -92,6 +93,33 @@ private def projectCard(router: Router)(project: ProjectInfo) =
               ProjectStorage.deleteProject(project.id)
           }
         ) // .ghost.tiny
+      ),
+
+      // Preview SVG
+      div(
+        cls := "w-full h-48 overflow-hidden bg-base-200 rounded-lg mb-4 flex items-center justify-center",
+        child <-- ProjectStorage
+          .getProjectContent(project.id)
+          .map(content => DotText(content).toSvg)
+          .map(svgSignal => 
+            div(
+              cls := "w-full h-full p-4 flex items-center justify-center",
+              child <-- svgSignal.map(svgElement => 
+                div(
+                  cls := "w-full h-full relative",
+                  inContext[Div] { thisNode =>
+                    svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet")
+                    div(
+                      cls := "absolute inset-0 w-full h-full",
+                      onMountCallback(ctx => {
+                        ctx.thisNode.ref.innerHTML = svgElement.outerHTML
+                      })
+                    )
+                  }
+                )
+              )
+            )
+          )
       ),
 
       // Last modified
