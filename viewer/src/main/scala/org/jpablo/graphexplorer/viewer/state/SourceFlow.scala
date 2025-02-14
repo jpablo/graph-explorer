@@ -152,6 +152,7 @@ class SourceFlow(
             .removeNodes(hiddenNodes)
             .setDefaultTheme
         }
+      .tapEach(_ => resetView())
 
   // -------------------------------
   // rendering
