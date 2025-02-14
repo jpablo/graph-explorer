@@ -9,6 +9,27 @@ import org.jpablo.graphexplorer.viewer.models.Attributes
 
 def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection: Boolean) =
   val builder = RowBuilder(attrsVar)
+  val isSingleClusterSelected = state.diagramSelection.signal.map(_.size == 1)
+
+  val labelRow =
+    if selection then
+      isSingleClusterSelected.map(single =>
+        if single then
+          builder.inputRow(
+            attr = Label -> InputType.multiText,
+            inputVar = builder.simpleInputVar(Label.attrId, attrsVar, onReset = Some("")),
+            default = builder.defaultValue(Label.attrId, Label.default)
+          )
+        else
+          ""
+      ).observe(using state.owner).now()
+    else
+      builder.inputRow(
+        attr = Label -> InputType.multiText,
+        inputVar = builder.simpleInputVar(Label.attrId, attrsVar, onReset = Some("")),
+        default = builder.defaultValue(Label.attrId, Label.default)
+      )
+
   AttributesView(
     id    = "graph-attributes",
     titleStr = "Cluster Attributes",
@@ -24,7 +45,7 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
 
     builder.buildRows(
       "Labels",
-      Label -> multiText,
+      labelRow,
       LabelLoc,
       LabelJust,
       "Fonts",
