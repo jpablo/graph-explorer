@@ -220,11 +220,16 @@ object ViewerGraph:
 
   private def numberToLetterId(n: Int): String =
     if n <= 0 then throw IllegalArgumentException("Node ID number must be positive")
-    else if n <= 26 then (96 + n).toChar.toString // 'a' to 'z'
     else
-      val quotient = (n - 1) / 26
-      val remainder = (n - 1) % 26
-      numberToLetterId(quotient) + (97 + remainder).toChar.toString
+      def toBase26(n: Int): List[Int] =
+        if n == 0 then Nil
+        else
+          val adjusted = n - 1
+          val quotient = adjusted / 26
+          val remainder = adjusted % 26
+          remainder :: (if quotient > 0 then toBase26(quotient) else Nil)
+      
+      toBase26(n).reverse.map(i => (i + 97).toChar).mkString
 
   val defaultRootId = GroupId("G")
   val emptyTopLevel = ViewerGroup.empty(defaultRootId)
