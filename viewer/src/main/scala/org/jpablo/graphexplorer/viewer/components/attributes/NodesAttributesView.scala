@@ -19,22 +19,31 @@ def NodesAttributesView(
     selection: Boolean
 ) =
   val builder = RowBuilder(attrsVar)
+  val isSingleNodeSelected = state.diagramSelection.signal.map(_.size == 1)
 
   val fillStyleVar = FillStyleVar(attrsVar, defaults)
   val borderStyleVar = BorderStyleVar(attrsVar, defaults)
   val labelRow =
-    builder.inputRow(
-      attr = Label -> InputType.multiText,
-      inputVar = builder.simpleInputVar(Label.attrId, attrsVar, onReset = Some("")),
-      default = builder.defaultValue(Label.attrId, Label.default)
-    )
+    if selection then
+      isSingleNodeSelected.map(single =>
+        if single then
+          builder.inputRow(
+            attr = Label -> InputType.multiText,
+            inputVar = builder.simpleInputVar(Label.attrId, attrsVar, onReset = Some("")),
+            default = builder.defaultValue(Label.attrId, Label.default)
+          )
+        else
+          ""
+      ).observe(using state.owner).now()
+    else
+      ""
 
   AttributesView(
     id       = "node-attributes",
     titleStr = s"Node Attributes ($parent)",
     builder.buildRows(
       "Label",
-      if selection then labelRow else "",
+      labelRow,
       LabelLoc,
       if selection then XLabel else "",
       "Text Format",
