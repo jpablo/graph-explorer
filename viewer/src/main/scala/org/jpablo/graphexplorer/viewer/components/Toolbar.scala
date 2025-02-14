@@ -47,30 +47,36 @@ def Toolbar(
         )
       )
     ),
+    // -------- new node button --------
+    Tooltip(
+      text = "New Node (n)",
+      cls := "tooltip-bottom",
+      Button(span().biSquareIcon, onClick --> state.addNode()).tiny,
+    ),
     // -------- actions toolbar --------
     div(
       cls := "dropdown dropdown-hover",
-      div(tabIndex := 0, role := "button", span().threeDotsVertical).asBtn.tiny.ghost,
+      div(tabIndex := 0, role := "button", 
+        span("view"),
+        i(cls := "bi bi-chevron-down")
+      ).asBtn.tiny,
       ul(
         tabIndex := 0,
-        cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow",
+        cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
         li(a("roots", onClick.keepRootsOnly)),
         li(a("show all", onClick --> state.showAllNodes())),
         li(a("hide all", onClick.hideAllNodes))
       )
     ),
-    // -------- new node button --------
-    Button(
-      span().biSquareIcon,
-      title := "New Node (n)",
-      onClick --> state.addNode()
-    ).tiny,
     div(
       cls := "dropdown dropdown-hover",
-      div(tabIndex := 0, role := "button", cls := "whitespace-nowrap", "Copy as").asBtn.tiny,
+      div(tabIndex := 0, role := "button", cls := "whitespace-nowrap",
+        span("Copy as"),
+        i(cls := "bi bi-chevron-down")
+      ).asBtn.tiny,
       ul(
         tabIndex := 0,
-        cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow",
+        cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
         li(a("Svg", onClick.copyAsFullDiagramSVG(writeTextToClipboard))),
         li(a("Dot", onClick.copyAsDOT(writeTextToClipboard))),
         li(a("Json Dot AST", onClick.copyAsJSON(writeTextToClipboard)))
