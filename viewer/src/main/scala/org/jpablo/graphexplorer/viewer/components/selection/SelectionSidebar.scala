@@ -16,12 +16,12 @@ def SelectionSidebar(state: ViewerState) =
       ul(
         cls := "menu menu-sm bg-base-100 rounded-box",
         li(cls := "menu-title", h1("selection"), hr()),
-        li(a(cls := "flex justify-between", span("Hide"), span(cls := "text-base-content/50", "(h)"), onClick.hideSelectedNodes)),
-        li(a(cls := "flex justify-between", span("Hide others"), span(cls := "text-base-content/50", "(Shift+h)"), onClick.hideNonSelectedNodes)),
-        li(a(cls := "flex justify-between", span("Add node"), span(cls := "text-base-content/50", "(n)"), onClick --> { _ => state.addNode() })),
-        li(a(cls := "flex justify-between", span("Delete"), span(cls := "text-base-content/50", "(Del)"), onClick.deleteSelectedNodes)),
-        li(a(cls := "flex justify-between", span("Group"), span(cls := "text-base-content/50", "(g)"), onClick.groupSelectedNodes)),
-        li(a(cls := "flex justify-between", span("Clear selection"), span(cls := "text-base-content/50", "(Esc)"), onClick.clearSelection)),
+        li(a(cls := "flex justify-between", span("Hide"), kbd(cls := "kbd kbd-sm opacity-60", "h"), onClick.hideSelectedNodes)),
+        li(a(cls := "flex justify-between", span("Hide others"), kbd(cls := "kbd kbd-sm opacity-60", "Shift+h"), onClick.hideNonSelectedNodes)),
+        li(a(cls := "flex justify-between", span("Add node"), kbd(cls := "kbd kbd-sm opacity-60", "n"), onClick --> { _ => state.addNode() })),
+        li(a(cls := "flex justify-between", span("Delete"), kbd(cls := "kbd kbd-sm opacity-60", "Del"), onClick.deleteSelectedNodes)),
+        li(a(cls := "flex justify-between", span("Group"), kbd(cls := "kbd kbd-sm opacity-60", "g"), onClick.groupSelectedNodes)),
+        li(a(cls := "flex justify-between", span("Clear selection"), kbd(cls := "kbd kbd-sm opacity-60", "Esc"), onClick.clearSelection)),
         // ----- copy as svg -----
         li(
           a("Copy as SVG", onClick.copySelectionAsSVG(window.navigator.clipboard.writeText))
