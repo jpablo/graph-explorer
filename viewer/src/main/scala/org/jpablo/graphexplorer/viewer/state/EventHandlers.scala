@@ -95,9 +95,6 @@ class EventHandlers(
     def updateTranslate(using E <:< dom.WheelEvent): Base =
       ev(_.withCurrentValueOf(svgDiagramElement)) --> (handleWheel(zoomValue, translateXY)(_, _))
 
-    def addNode =
-      ev --> { _ => sourceFlow.fullGraphV.update(_.addRandomNode()._1) }
-
     def deleteSelectedNodes =
       ev --> { _ => sourceFlow.fullGraphV.update(_.removeNodes(diagramSelection.now())) }
 

@@ -18,7 +18,7 @@ def SelectionSidebar(state: ViewerState) =
         li(cls := "menu-title", h1("selection"), hr()),
         li(a(cls := "flex justify-between", span("Hide"), span(cls := "text-base-content/50", "(h)"), onClick.hideSelectedNodes)),
         li(a(cls := "flex justify-between", span("Hide others"), span(cls := "text-base-content/50", "(Shift+h)"), onClick.hideNonSelectedNodes)),
-        li(a(cls := "flex justify-between", span("Add node"), span(cls := "text-base-content/50", "(n)"), onClick.addNode)),
+        li(a(cls := "flex justify-between", span("Add node"), span(cls := "text-base-content/50", "(n)"), onClick --> { _ => state.addNode() })),
         li(a(cls := "flex justify-between", span("Delete"), span(cls := "text-base-content/50", "(Del)"), onClick.deleteSelectedNodes)),
         li(a(cls := "flex justify-between", span("Group"), span(cls := "text-base-content/50", "(g)"), onClick.groupSelectedNodes)),
         li(a(cls := "flex justify-between", span("Clear selection"), span(cls := "text-base-content/50", "(Esc)"), onClick.clearSelection)),
