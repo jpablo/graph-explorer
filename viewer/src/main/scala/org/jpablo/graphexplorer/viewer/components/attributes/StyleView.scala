@@ -5,6 +5,8 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.models.NodeId.isArrowId
 import org.jpablo.graphexplorer.viewer.models.NodeId.isClusterId
+import org.jpablo.graphexplorer.viewer.widgets.{Select as SelectInput}
+import org.jpablo.graphexplorer.viewer.models.NodeId
 
 def StyleView(state: ViewerState) =
   div(
@@ -13,6 +15,12 @@ def StyleView(state: ViewerState) =
       state.diagramSelection.signal.map: selectedNodes =>
         val (arrowIds, notArrows) = selectedNodes.partition(isArrowId)
         val (clusterIds, nodeIds) = notArrows.partition(isClusterId)
+
+        val elementTypes = Map(
+          "edges" -> (arrowIds, "Edges"),
+          "nodes" -> (nodeIds, "Nodes"),
+          "clusters" -> (clusterIds, "Clusters")
+        )
 
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>
@@ -48,7 +56,22 @@ def StyleView(state: ViewerState) =
           case (false, false, false) =>
             DefaultAttributesView(state)
 
-          case _ => emptyNode
+          case _ => 
+            div(
+              div(cls := "text-center pb-2", "Filter"),
+              SelectInput(
+                placeholderText = s"${selectedNodes.size} objects",
+                options = elementTypes.collect {
+                  case (key, (ids, description)) if ids.nonEmpty => 
+                    s"$description (${ids.size})" -> key
+                }.toList,
+                onChange.mapToValue --> { value => 
+                  for (ids, _) <- elementTypes.get(value) do
+                    state.diagramSelection.set(ids)
+                },
+                cls := "w-full mb-4"
+              )
+            )
   )
 
 def DefaultAttributesView(state: ViewerState) =
