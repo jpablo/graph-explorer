@@ -60,8 +60,8 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val hiddenNodesS = hiddenNodes.signal
 
   // -------------- UI state -----------------
-  val leftPanelVisible = Var(true)
-  val leftPanelTabIndex = Var(0)
+  val rightPanelVisible = Var(true)
+  val rightPanelTabIndex = Var(0)
   val shortcutsModalOpen = Var(false)
 
   // -------- Public API -----------
@@ -300,15 +300,15 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     sourceText.set(state0.source)
     project.name.set(state0.projectName)
     project.hiddenNodes.set(state0.hiddenNodes)
-    leftPanelVisible.set(state0.leftPanelVisible)
-    leftPanelTabIndex.set(state0.sideBarTabIndex)
+    rightPanelVisible.set(state0.rightPanelVisible)
+    rightPanelTabIndex.set(state0.sideBarTabIndex)
     // synchronize ViewerState ~> PersistedStage
     project.hiddenNodes.signal
       .combineWith(
         project.name.signal,
         sourceText.signal,
-        leftPanelVisible.signal,
-        leftPanelTabIndex.signal
+        rightPanelVisible.signal,
+        rightPanelTabIndex.signal
       )
       .map(PersistedState.apply)
       .foreach(persistedState.set)
@@ -322,7 +322,7 @@ case class PersistedState(
     hiddenNodes:      Set[NodeId] = Set.empty,
     projectName:      String = "",
     source:           String = "",
-    leftPanelVisible: Boolean = true,
+    rightPanelVisible: Boolean = true,
     sideBarTabIndex:  Int = 0
 ) derives ReadWriter
 
@@ -333,7 +333,7 @@ object PersistedState:
       hiddenNodes      = Set.empty,
       projectName      = "Untitled",
       source           = minimalGraphText,
-      leftPanelVisible = true,
+      rightPanelVisible = true,
       sideBarTabIndex  = 0
     )
 

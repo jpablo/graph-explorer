@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.components.leftPanel
+package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement

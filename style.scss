@@ -50,6 +50,7 @@ label[for ^= show-ns-kind-] {
   #nodes-panel {
     @apply bg-base-100 p-2 gap-3 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden print:hidden;
     //background-color: lightgray;
+    order: 2;
 
     #nodes-panel-tab-buttons {
       @apply flex gap-1;

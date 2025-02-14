@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.components.leftPanel
+package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
@@ -8,9 +8,10 @@ import org.jpablo.graphexplorer.viewer.components.attributes.StyleView
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
+import org.jpablo.graphexplorer.viewer.components.rightPanel.{NodesList, EdgesList}
 
-class LeftPanel(state: ViewerState):
-  private val visibleTab = state.leftPanelTabIndex
+class RightPanel(state: ViewerState):
+  private val visibleTab = state.rightPanelTabIndex
   private val filterNodesByNodeId = Var("")
   private val filterEdgesByNodeId = Var("")
   private val onlyActiveNodes = Var(false)
@@ -21,7 +22,7 @@ class LeftPanel(state: ViewerState):
   def render() =
     div(
       idAttr := "nodes-panel",
-      cls("hidden") <-- state.leftPanelVisible.signal.not,
+      cls("hidden") <-- state.rightPanelVisible.signal.not,
       firstRow,
       // --- Tab Headers ---
       div(

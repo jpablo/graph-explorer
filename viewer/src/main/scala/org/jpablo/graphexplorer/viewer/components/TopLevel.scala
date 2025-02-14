@@ -5,7 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.router.Router
-import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
+import org.jpablo.graphexplorer.viewer.components.rightPanel.RightPanel
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -18,10 +18,10 @@ def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivEle
   div(
     idAttr := "top-level",
     DiagramElementsButton(state),
-    LeftPanel(state).render(),
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram, router),
     SelectionSidebar(state),
+    RightPanel(state).render(),
     HelpDialog(state.shortcutsModalOpen)
   )
 
@@ -35,8 +35,8 @@ def DiagramElementsButton(state: ViewerState) =
       input(idAttr := inputId, tpe := "checkbox", cls := "drawer-toggle"),
       label(
         forId := inputId,
-        cls("btn-active") <-- state.leftPanelVisible,
-        onClick --> state.leftPanelVisible.toggle()
+        cls("btn-active") <-- state.rightPanelVisible,
+        onClick --> state.rightPanelVisible.toggle()
       ).asBtn.tiny.outline.layoutSidebarIcon
     )
   )
