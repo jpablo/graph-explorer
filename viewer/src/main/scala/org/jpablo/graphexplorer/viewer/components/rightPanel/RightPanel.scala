@@ -41,7 +41,7 @@ class RightPanel(state: ViewerState):
 
   private def firstRow =
     div(
-      cls := "flex gap-2 justify-between ml-10",
+      cls := "flex gap-2 justify-between",
       Select(
         placeholderText = "Select example",
         options         = examples.keys.map(name => name -> name),
