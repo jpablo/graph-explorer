@@ -21,7 +21,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #selection-sidebar {
-    @apply shadow-xl bg-base-100 rounded-box absolute right-2 top-2 z-10 print:hidden border border-base-300
+    @apply shadow-xl bg-base-100 rounded-box absolute left-2 top-2 z-10 print:hidden border border-base-300
   }
 
   #diagram-attributes {
@@ -155,15 +155,10 @@ label[for ^= show-ns-kind-] {
 
   }
 
-  #diagram-elements-button {
-    @apply absolute left-2 top-2 z-20;
-  }
-
   #diagram-attributes {
     #diagram-attributes-content {
       @apply p-2;
     }
-
   }
 
   .attributes-view {
