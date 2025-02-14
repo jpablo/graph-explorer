@@ -3,14 +3,11 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
-
 import scala.annotation.tailrec
 
 enum AttributeTarget:
   case node, edge, graph
 
-def randomId(): String = randomUUIDSafe()
 
 extension (ast: DotAST)
 

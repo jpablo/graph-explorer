@@ -87,13 +87,13 @@ case class ViewerGraph(
     modifyData.using(_.addNode(nodeId, groupId))
 
   def addNodeAndEdgeFrom(source: NodeId): (ViewerGraph, NodeId) =
-    val nodeId = NodeId.random()
+    val nodeId = ViewerGraph.nextNodeId(this)
     val sourceGroup = data.getMembership(source)
     val (newGraph, arrow) = addNode(nodeId, Some(sourceGroup)).addEdge(source, nodeId)
     (newGraph, nodeId)
 
   def addRandomNode(groupId: Option[GroupId] = None): (ViewerGraph, NodeId) =
-    val nodeId = NodeId.random()
+    val nodeId = ViewerGraph.nextNodeId(this)
     (addNode(nodeId, groupId), nodeId)
 
   /** Creates a new group containing the specified nodes.
@@ -206,6 +206,26 @@ end ViewerGraph
 
 object ViewerGraph:
 
+  private var nodeCounter = 0
+
+  private def resetCounter(): Unit = nodeCounter = 0
+
+  private def nextNodeId(graph: ViewerGraph): NodeId =
+    def findNextAvailableId(): NodeId =
+      nodeCounter += 1
+      val id = NodeId(numberToLetterId(nodeCounter))
+      if id in graph.nodeById then findNextAvailableId()
+      else id
+    findNextAvailableId()
+
+  private def numberToLetterId(n: Int): String =
+    if n <= 0 then throw IllegalArgumentException("Node ID number must be positive")
+    else if n <= 26 then (96 + n).toChar.toString // 'a' to 'z'
+    else
+      val quotient = (n - 1) / 26
+      val remainder = (n - 1) % 26
+      numberToLetterId(quotient) + (97 + remainder).toChar.toString
+
   val defaultRootId = GroupId("G")
   val emptyTopLevel = ViewerGroup.empty(defaultRootId)
 
@@ -234,6 +254,7 @@ object ViewerGraph:
       nodeById:   Map[NodeId, ViewerNode],
       groupsById: Map[GroupId, ViewerGroup] = Map.empty
   ): ViewerGraph =
+    resetCounter()
     val groups = groupsById.updatedWith(defaultRootId)(_.orElse(Some(emptyTopLevel)))
     new ViewerGraph(
       id = "G",
