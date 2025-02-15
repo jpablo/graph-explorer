@@ -41,7 +41,7 @@ def EdgesList(
                 cls := "whitespace-nowrap hover cursor-pointer",
                 cls("font-bold") <-- state.isEdgeVisible(arrow.id),
                 cls("selected") <-- state.isSelected(arrow.id),
-                td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), arrow.label.toString),
+                td(cls := "truncate", arrow.label.toString),
                 td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.source), sourceLabel),
                 td("→"),
                 td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), targetLabel),

@@ -123,6 +123,6 @@ def Toolbar(
         forId := inputId,
         cls("btn-active") <-- state.rightPanelVisible,
         onClick --> state.rightPanelVisible.toggle()
-      ).asBtn.tiny.layoutSidebarIcon
+      ).asBtn.tiny.layoutSidebarReverseIcon
     )
   )
