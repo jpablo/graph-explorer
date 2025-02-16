@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple}
 import org.jpablo.graphexplorer.viewer.models.Attributes
@@ -15,8 +16,15 @@ enum AttributeRow:
       placeholder: String,
       inputType:   InputType,
       inputVar:    Var[Option[AttrValue]],
-      options:     Seq[(String, AttrValue)] = Seq.empty,
+      options:     Seq[AttributeRow.RowOption] = Seq.empty,
       default:     Signal[String]
+  )
+
+object AttributeRow:
+  case class RowOption(
+      name:    String,
+      value:   AttrValue,
+      preview: Option[() => ReactiveSvgElement[dom.SVGSVGElement]] = None
   )
 
 import AttributeRow.*
@@ -42,18 +50,20 @@ class RowBuilder(
             case attr: DotAttributeEnum[?]              => (attr, InputType.select)
             case attr: DotAttributeSimple[?]            => (attr, InputType.text)
             case (attr: DotAttribute[?], it: InputType) => (attr, it)
+        simpleRow(attr, inputType)
 
-        inputRow(
-          attr     = attr -> inputType,
-          inputVar = simpleInputVar(attr.attrId, elementAttributes),
-          default  = defaultValue(attr.attrId, attr.default.toString)
-        )
+  def simpleRow(attr: DotAttribute[?], inputType: InputType, onReset: Option[String] = None) =
+    inputRow(
+      attr     = attr -> inputType,
+      inputVar = simpleInputVar(attr.attrId, elementAttributes, onReset),
+      default  = defaultValue(attr.attrId, attr.default.toString)
+    )
 
   def inputRow(
       attr:     (DotAttribute[?], InputType),
       inputVar: Var[Option[AttrValue]],
       default:  Signal[String]
-  ): AttributeRow =
+  ): InputAttribute =
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
         InputAttribute(
@@ -62,14 +72,14 @@ class RowBuilder(
           placeholder = attr.placeholderText,
           inputType   = it,
           inputVar    = inputVar,
-          options     = attr.valuesWithLabel.map((l, v) => (l, AttrValue(v.toString))).toSeq,
+          options     = attr.valuesWithLabel.map((l, v) => RowOption(l, AttrValue(v.toString), None)).toSeq,
           default     = default
         )
 
   def simpleInputVar(
       attrId:     String,
       attributes: Var[Attributes],
-      onReset:   Option[String] = None
+      onReset:    Option[String] = None
   ): Var[Option[AttrValue]] =
     attributes.zoomLazy(_.values.get(attrId))((attrs, value) =>
       value match

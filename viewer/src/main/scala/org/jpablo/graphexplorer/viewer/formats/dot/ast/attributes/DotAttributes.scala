@@ -157,9 +157,53 @@ enum Style:
 object Style extends DotAttributeEnum[Style]:
   val default = solid
   val label = "Style"
-
   // part of the DOT style attribute but explicitly excluded from the enum
   val filled = "filled"
+
+enum NodeStyle:
+  case dashed, dotted, solid, bold, invis, striped, wedged, diagonals, rounded
+
+object NodeStyle extends DotAttributeEnum[NodeStyle]:
+  override def attrId = "style"
+  val default = solid
+  val label = "Node Style"
+  // part of the DOT style attribute but explicitly excluded from the enum
+  val filled = "filled"
+  override def valuesWithLabel = Array(
+    ("Dashed", dashed),
+    ("Dotted", dotted),
+    ("Solid", solid),
+    ("Bold", bold),
+    ("Invisible", invis),
+    ("Striped", striped),
+    ("Wedged", wedged),
+    ("Diagonals", diagonals),
+    ("Rounded", rounded)
+  )
+
+enum EdgeStyle:
+  case dashed, dotted, solid, bold, invis, tapered
+
+object EdgeStyle extends DotAttributeEnum[EdgeStyle]:
+  override def attrId = "style"
+  val default = solid
+  val label = "Edge Style"
+  override def valuesWithLabel = Array(
+    ("Dashed", dashed),
+    ("Dotted", dotted),
+    ("Solid", solid),
+    ("Bold", bold),
+    ("Invisible", invis),
+    ("Tapered", tapered)
+  )
+
+enum ClusterStyle:
+  case filled, striped, rounded
+
+object ClusterStyle extends DotAttributeEnum[ClusterStyle]:
+  override def attrId = "style"
+  val default = filled // This seems incorrect as the default is empty
+  val label = "Cluster Style"
 
 enum Layout:
   case dot, neato, fdp, sfdp, twopi, circo, osage, patchwork

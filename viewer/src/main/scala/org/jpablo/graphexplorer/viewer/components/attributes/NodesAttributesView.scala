@@ -10,6 +10,7 @@ import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.FillStyle
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.airstream.ownership.OneTimeOwner
+import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
 
 def NodesAttributesView(
     parent:    String,
@@ -27,17 +28,22 @@ def NodesAttributesView(
     if selection then
       isSingleNodeSelected.map(single =>
         if single then
-          builder.inputRow(
-            attr = Label -> InputType.multiText,
-            inputVar = builder.simpleInputVar(Label.attrId, attrsVar, onReset = Some("")),
-            default = builder.defaultValue(Label.attrId, Label.default)
-          )
+          builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
         else
           ""
       ).observe(using state.owner).now()
     else
       ""
 
+  val nodeStyleRow: AttributeRow =
+    builder
+      .inputRow(NodeStyle -> InputType.selectWithPreview, borderStyleVar.getVar, borderStyleVar.getDefault)
+      .copy(
+        options =
+          NodeStyle.valuesWithLabel.toSeq.map: (label, style) =>
+            RowOption(label, AttrValue(style.toString), NodeStylePreview(style))
+      )
+  
   AttributesView(
     id       = "node-attributes",
     titleStr = s"Node Attributes ($parent)",
@@ -59,7 +65,7 @@ def NodesAttributesView(
       builder.inputRow(FillStyle -> InputType.select, fillStyleVar.getVar, fillStyleVar.getDefault),
       FillColor -> color,
       "Border",
-      builder.inputRow(Style -> InputType.select, borderStyleVar.getVar, borderStyleVar.getDefault),
+      nodeStyleRow,
       Color       -> color,
       PenWidth    -> number(),
       Peripheries -> number(),
@@ -69,13 +75,13 @@ def NodesAttributesView(
   )
 
 private def getFillAndBorderStyle(attrs: Attributes) =
-  FillAndBorderStyle.from(attrs.get(Style.attrId))
+  FillAndBorderStyle.from(attrs.get(NodeStyle.attrId))
 
 class FillStyleVar(
     attrsVar:  Var[Attributes],
     defaultsO: Option[Signal[Attributes]]
 ):
-  private val styleAttrId = Style.attrId
+  private val styleAttrId = NodeStyle.attrId
 
   private def getFillStyleDefaults: FillAndBorderStyle =
     val defaults = defaultsO.map(_.observe(using OneTimeOwner(() => ())).now()).getOrElse(Attributes.empty)
@@ -129,7 +135,7 @@ class BorderStyleVar(
     attrsVar: Var[Attributes],
     defaults: Option[Signal[Attributes]]
 ):
-  val styleAttrId = Style.attrId
+  val styleAttrId = NodeStyle.attrId
 
   private def getFillStyleDefaults: FillAndBorderStyle =
     val globalAttrs = defaults.map(_.observe(using OneTimeOwner(() => ())).now()).getOrElse(Attributes.empty)
@@ -142,7 +148,7 @@ class BorderStyleVar(
   // BorderStyle => Style
   private def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
     val defaultBorderStyle = getFillStyleDefaults
-    val borderStyleO = valueOpt.map(attrValue => Style.valueOf(attrValue.toString))
+    val borderStyleO = valueOpt.map(attrValue => NodeStyle.valueOf(attrValue.toString))
     val dotStyle = (defaultBorderStyle ++ getFillAndBorderStyle(attrs).copy(borderStyle = borderStyleO)).toDotString
     // Rules:
     // - global no style, local no style => default local: solid
@@ -165,8 +171,8 @@ class BorderStyleVar(
   // uses the global default if present, otherwise uses the (hardcoded) default value.
   val getDefault: Signal[String] =
     defaults
-      .map(_.map(getFillAndBorderStyle).map(_.borderStyle.getOrElse(Style.default)))
-      .getOrElse(Signal.fromValue(Style.default))
+      .map(_.map(getFillAndBorderStyle).map(_.borderStyle.getOrElse(NodeStyle.default)))
+      .getOrElse(Signal.fromValue(NodeStyle.default))
       .map(_.toString)
 
   val getVar =
@@ -175,10 +181,10 @@ end BorderStyleVar
 
 case class FillAndBorderStyle(
     fillStyle:   Option[FillStyle],
-    borderStyle: Option[Style]
+    borderStyle: Option[NodeStyle]
 ):
   def toDotString: String =
-    val fillPart = if fillStyle.contains(FillStyle.ColorFill) then Some(Style.filled) else None
+    val fillPart = if fillStyle.contains(FillStyle.ColorFill) then Some(NodeStyle.filled) else None
     (fillPart.toSeq ++ borderStyle.toSeq).mkString(",")
 
   def ++(other: FillAndBorderStyle): FillAndBorderStyle =
@@ -195,7 +201,7 @@ object FillAndBorderStyle:
       case None => FillAndBorderStyle.empty
       case Some(attrValue) =>
         val parts = attrValue.toString.split(",").map(_.trim).filterNot(_.isEmpty).toSet
-        val (fillPart, borderPart) = parts.partition(_ == Style.filled.toString)
+        val (fillPart, borderPart) = parts.partition(_ == NodeStyle.filled.toString)
         val fillStyle =
           if fillPart.isEmpty then
             Some(FillStyle.NoFill)
@@ -203,5 +209,5 @@ object FillAndBorderStyle:
             fillPart.headOption.map(_ => FillStyle.ColorFill)
         FillAndBorderStyle(
           fillStyle   = fillStyle,
-          borderStyle = borderPart.headOption.map(Style.valueOf)
+          borderStyle = borderPart.headOption.map(NodeStyle.valueOf)
         )

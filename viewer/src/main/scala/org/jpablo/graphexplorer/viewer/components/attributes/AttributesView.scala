@@ -1,10 +1,10 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import AttributeRow.*
-import org.jpablo.graphexplorer.viewer.widgets.*
 import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.widgets.*
 
 def AttributesView(
     id:       String,
@@ -72,6 +72,10 @@ private def buildGroups(rows: Seq[AttributeRow]) =
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
+
+    case InputType.selectWithPreview =>
+      SelectWithPreview(row.options, row.inputVar, row.default)
+
     case InputType.select =>
       SelectWithValue(row.options, row.inputVar, row.default)
 

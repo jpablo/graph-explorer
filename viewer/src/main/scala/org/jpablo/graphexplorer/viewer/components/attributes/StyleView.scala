@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.models.NodeId.isArrowId
 import org.jpablo.graphexplorer.viewer.models.NodeId.isClusterId
-import org.jpablo.graphexplorer.viewer.widgets.{Select as SelectInput}
+import org.jpablo.graphexplorer.viewer.widgets.Select as SelectInput
 import org.jpablo.graphexplorer.viewer.models.NodeId
 
 def StyleView(state: ViewerState) =
@@ -56,16 +56,16 @@ def StyleView(state: ViewerState) =
           case (false, false, false) =>
             DefaultAttributesView(state)
 
-          case _ => 
+          case _ =>
             div(
               div(cls := "text-center pb-2", "Filter"),
               SelectInput(
                 placeholderText = s"${selectedNodes.size} objects",
                 options = elementTypes.collect {
-                  case (key, (ids, description)) if ids.nonEmpty => 
+                  case (key, (ids, description)) if ids.nonEmpty =>
                     s"$description (${ids.size})" -> key
                 }.toList,
-                onChange.mapToValue --> { value => 
+                onChange.mapToValue --> { value =>
                   for (ids, _) <- elementTypes.get(value) do
                     state.diagramSelection.set(ids)
                 },

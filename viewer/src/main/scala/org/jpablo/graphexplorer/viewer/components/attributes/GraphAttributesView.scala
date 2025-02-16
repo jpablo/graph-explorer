@@ -15,23 +15,15 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
     if selection then
       isSingleClusterSelected.map(single =>
         if single then
-          builder.inputRow(
-            attr = Label -> InputType.multiText,
-            inputVar = builder.simpleInputVar(Label.attrId, attrsVar, onReset = Some("")),
-            default = builder.defaultValue(Label.attrId, Label.default)
-          )
+          builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
         else
           ""
       ).observe(using state.owner).now()
     else
-      builder.inputRow(
-        attr = Label -> InputType.multiText,
-        inputVar = builder.simpleInputVar(Label.attrId, attrsVar, onReset = Some("")),
-        default = builder.defaultValue(Label.attrId, Label.default)
-      )
+      builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
 
   AttributesView(
-    id    = "graph-attributes",
+    id       = "graph-attributes",
     titleStr = "Cluster Attributes",
     if selection then
       Seq.empty
@@ -40,9 +32,9 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
         "Layout",
         Layout,
         Rankdir,
-        Splines,
-      ),
-
+        Splines
+      )
+    ,
     builder.buildRows(
       "Labels",
       labelRow,
@@ -51,21 +43,20 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
       "Fonts",
       FontName,
       FontColor -> color,
-      FontSize -> number(),
-
+      FontSize  -> number(),
       "Background",
       BgColor -> color,
       "Border",
       if selection then PenColor -> color else "",
-      PenWidth -> number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      PenWidth -> number(start = Some(0.0), end = Some(10.0), step = Some(0.1))
     ),
     if selection then
       Seq.empty
     else
       builder.buildRows(
         "Spacing",
-        Pad -> number(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
+        Pad     -> number(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
         RankSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
-        NodeSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
+        NodeSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05))
       )
   )

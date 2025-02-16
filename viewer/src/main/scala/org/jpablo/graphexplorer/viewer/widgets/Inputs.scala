@@ -4,6 +4,7 @@ import org.jpablo.graphexplorer.viewer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 
 def SelectWithLabel(
@@ -39,19 +40,68 @@ def Select(
   )
 
 def SelectWithValue(
-    options:     Seq[(String, AttrValue)],
+    options:     Seq[RowOption],
     selectValue: Var[Option[AttrValue]],
     default:     Signal[String],
     mods:        Mods*
 ) =
   select(
     cls := "select select-bordered select-xs w-full",
-    options.map((name, id) => option(name, value := id.toString)),
+    options.map(o => option(o.name, value := o.value.toString)),
     controlled(
       value <-- selectValue.signal.combineWith(default).map((sv, d) => sv.getOrElse(d).toString),
       onChange.mapToValue.map(v => Some(AttrValue(v))) --> selectValue
     ),
     mods
+  )
+
+def SelectWithPreview(
+    options:     Seq[RowOption],
+    selectValue: Var[Option[AttrValue]],
+    default:     Signal[String]
+) =
+  div(
+    cls      := "dropdown dropdown-hover w-full",
+    tabIndex := 0,
+    button(
+      cls      := "btn btn-xs w-full flex justify-between items-center",
+      tabIndex := 0,
+      div(
+        cls := "flex items-center gap-2",
+        div(
+          cls := "w-4 flex justify-center items-center"  // Fixed width container matching the dropdown options
+        ),
+        child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
+          val currentValue = sv.getOrElse(d).toString
+          options
+            .collectFirst:
+              case row if row.value.toString == currentValue =>
+                row.preview.fold(span(row.name))(p => span(p()))
+      ),
+      i(cls := "bi bi-chevron-down")
+    ),
+    // ---- Dropdown menu ----
+    ul(
+      cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full",
+      tabIndex := 0,
+      options.map { row =>
+        li(
+          a(
+            cls := "flex items-center gap-2",
+            div(
+              cls := "w-4 flex justify-center items-center",  // Fixed width container for the checkmark
+              child.maybe <-- selectValue.signal.combineWith(default).map((sv, d) => 
+                if sv.getOrElse(d).toString == row.value.toString then
+                  Some(i(cls := "bi bi-check2"))
+                else None
+              )
+            ),
+            row.preview.fold(span(row.name))(p => span(p())),
+            onClick.mapTo(Some(row.value)) --> selectValue
+          )
+        )
+      }
+    )
   )
 
 def BasicInput(

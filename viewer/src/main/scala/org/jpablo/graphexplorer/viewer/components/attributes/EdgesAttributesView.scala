@@ -7,8 +7,15 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.airstream.core.Signal
+import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 
-def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], defaults: Option[Signal[Attributes]] = None, selection: Boolean) =
+def EdgesAttributesView(
+    state:     ViewerState,
+    attrs:     Var[Attributes],
+    defaults:  Option[Signal[Attributes]] = None,
+    selection: Boolean
+) =
   val builder = RowBuilder(attrs)
   val isSingleEdgeSelected = state.diagramSelection.signal.map(_.size == 1)
 
@@ -16,33 +23,38 @@ def EdgesAttributesView(state: ViewerState, attrs: Var[Attributes], defaults: Op
     if selection then
       isSingleEdgeSelected.map(single =>
         if single then
-          builder.inputRow(
-            attr = Label -> InputType.multiText,
-            inputVar = builder.simpleInputVar(Label.attrId, attrs, onReset = Some("")),
-            default = builder.defaultValue(Label.attrId, Label.default)
-          )
+          builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
         else
           ""
       ).observe(using state.owner).now()
     else
       ""
 
+  val edgeStyleRow: AttributeRow =
+    builder
+      .simpleRow(EdgeStyle, InputType.selectWithPreview)
+      .copy(
+        options =
+          EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
+            RowOption(label, AttrValue(style.toString), EdgeStylePreview(style))
+      )
+
   AttributesView(
-    id    = "edge-attributes",
+    id       = "edge-attributes",
     titleStr = "Edge Attributes",
     builder.buildRows(
       "Label",
       labelRow,
       if selection then XLabel else "",
-      Decorate  -> checkbox,
+      Decorate -> checkbox,
       "Text Format",
       FontColor -> color,
       FontName,
-      FontSize  -> number(),
+      FontSize -> number(),
       "Style",
-      Style,
-      Color     -> color,
-      PenWidth  -> number(),
+      edgeStyleRow,
+      Color    -> color,
+      PenWidth -> number(),
       Dir,
       ArrowHead,
       ArrowTail,
