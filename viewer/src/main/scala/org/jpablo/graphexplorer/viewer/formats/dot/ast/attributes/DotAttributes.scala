@@ -83,13 +83,27 @@ enum Shape:
   case box, polygon, ellipse, oval, circle, point, egg, triangle, plaintext, plain, diamond, trapezium, parallelogram,
     house, pentagon, hexagon, septagon, octagon, doublecircle, doubleoctagon, tripleoctagon, invtriangle, invtrapezium,
     invhouse, Mdiamond, Msquare, Mcircle, Mrecord, rect, rectangle, square, star, underline, cylinder, note, tab,
-    folder, box3d,
+    folder, box3d, none,
     component, promoter, cds, terminator, utr, primersite, restrictionsite, fivepoverhang, threepoverhang, noverhang,
     assembly, signature, insulator, ribosite, rnastab, proteasesite, proteinstab, rarrow, larrow, lpromoter, rpromoter
 
 object Shape extends DotAttributeEnum[Shape]:
   val default = ellipse
   val label = "Shape"
+
+  val synonyms = Map(
+    rectangle -> box,
+    rect -> box,
+    none -> plaintext,
+    oval -> ellipse,
+    pentagon -> polygon,
+    hexagon -> polygon,
+    septagon -> polygon,
+    octagon -> polygon,
+    doublecircle -> circle,
+    doubleoctagon -> polygon,
+    tripleoctagon -> polygon,
+  )
 
 object Orientation extends DotAttributeSimple[Double]:
   val label = "Orientation"

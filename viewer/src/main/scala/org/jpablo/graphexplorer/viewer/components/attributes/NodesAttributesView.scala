@@ -43,7 +43,16 @@ def NodesAttributesView(
           NodeStyle.valuesWithLabel.toSeq.map: (label, style) =>
             RowOption(label, AttrValue(style.toString), NodeStylePreview(style))
       )
-  
+
+  val shapeRow: AttributeRow =
+    builder
+      .simpleRow(Shape, InputType.selectWithPreview)
+      .copy(
+        options =
+          Shape.valuesWithLabel.filterNot((l, s) => Shape.synonyms.contains(s)).toSeq.map: (label, style) =>
+            RowOption(label, AttrValue(style.toString), ShapePreview(style, 40, 20))
+      )
+
   AttributesView(
     id       = "node-attributes",
     titleStr = s"Node Attributes ($parent)",
@@ -57,7 +66,7 @@ def NodesAttributesView(
       FontName,
       FontSize -> number(),
       "Shape",
-      Shape,
+      shapeRow,
       Sides       -> number(),
       Regular     -> checkbox,
       Orientation -> number(),
