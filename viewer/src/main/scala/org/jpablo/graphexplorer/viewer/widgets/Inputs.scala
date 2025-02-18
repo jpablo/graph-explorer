@@ -116,7 +116,7 @@ def SelectWithPreviewGrid(
       cls      := "btn btn-xs w-full flex justify-between items-center",
       tabIndex := 0,
       div(
-        cls := "flex items-center gap-2",
+        cls := "flex items-center justify-center w-full pr-6",
         child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
           val currentValue = sv.getOrElse(d).toString
           options
@@ -124,7 +124,7 @@ def SelectWithPreviewGrid(
               case row if row.value.toString == currentValue =>
                 row.preview.fold(span(row.name))(preview => span(preview()))
       ),
-      i(cls := "bi bi-chevron-down")
+      i(cls := "bi bi-chevron-down absolute right-2")
     ),
     // ---- Dropdown menu ----
     div(
@@ -132,9 +132,9 @@ def SelectWithPreviewGrid(
       tabIndex := 0,
       div(
         cls := "card-body grid grid-cols-3 gap-2 overflow-y-auto max-h-64",
-        options.map { row =>
+        options.zipWithIndex.map { (row, index) =>
           div(
-            cls := "tooltip tooltip-bottom",
+            cls := s"tooltip ${if index < 3 then "tooltip-bottom" else "tooltip-top"}",
             dataAttr("tip") := row.name,
             button(
               cls := "btn btn-ghost btn-sm flex flex-col items-center justify-center p-1",
