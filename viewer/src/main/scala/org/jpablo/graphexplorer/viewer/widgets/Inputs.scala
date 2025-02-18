@@ -119,6 +119,7 @@ def SelectWithPreviewGrid(
         cls := "flex items-center justify-center w-full pr-6",
         child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
           val currentValue = sv.getOrElse(d).toString
+          pprint.log((sv, d))
           options
             .collectFirst:
               case row if row.value.toString == currentValue =>

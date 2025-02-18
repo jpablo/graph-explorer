@@ -16,7 +16,7 @@ def EdgesAttributesView(
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
-  val builder = RowBuilder(attrs)
+  val builder = RowBuilder(attrs, defaults)
   val isSingleEdgeSelected = state.diagramSelection.signal.map(_.size == 1)
 
   val labelRow =

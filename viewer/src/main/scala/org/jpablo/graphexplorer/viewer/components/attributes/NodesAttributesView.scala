@@ -19,7 +19,7 @@ def NodesAttributesView(
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
-  val builder = RowBuilder(attrsVar)
+  val builder = RowBuilder(attrsVar, defaults)
   val isSingleNodeSelected = state.diagramSelection.signal.map(_.size == 1)
 
   val fillStyleVar = FillStyleVar(attrsVar, defaults)
