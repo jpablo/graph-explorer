@@ -91,6 +91,17 @@ object Shape extends DotAttributeEnum[Shape]:
   val default = ellipse
   val label = "Shape"
 
+  val basicShapes = List(box, ellipse, circle, diamond)
+  val polygonShapes = List(polygon, pentagon, hexagon, septagon, octagon)
+  val invShapes = List(invtriangle, invtrapezium, invhouse)
+  val mShapes = List(Mdiamond, Msquare, Mcircle, Mrecord)
+  val recordShapes = List(Mrecord, tab, note, tab, folder, box3d)
+  val invRecordShapes = List(invhouse, invtriangle, invtrapezium)
+  val invRecordMShapes = List(invhouse, invtriangle, invtrapezium)
+  val otherShapes = List(component, promoter, cds, terminator, utr, primersite, restrictionsite, fivepoverhang, threepoverhang, noverhang,
+    assembly, signature, insulator, ribosite, rnastab, proteasesite, proteinstab, rarrow, larrow, lpromoter, rpromoter)
+  val allShapes = basicShapes ++ polygonShapes ++ invShapes ++ mShapes ++ recordShapes ++ invRecordShapes ++ invRecordMShapes ++ otherShapes
+
   val synonyms = Map(
     rectangle -> box,
     rect -> box,

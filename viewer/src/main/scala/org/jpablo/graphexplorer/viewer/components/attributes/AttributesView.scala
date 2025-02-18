@@ -73,6 +73,9 @@ private def buildGroups(rows: Seq[AttributeRow]) =
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
 
+    case InputType.selectWithPreviewGrid =>
+      SelectWithPreviewGrid(row.options, row.inputVar, row.default)
+
     case InputType.selectWithPreview =>
       SelectWithPreview(row.options, row.inputVar, row.default)
 

@@ -104,6 +104,49 @@ def SelectWithPreview(
     )
   )
 
+def SelectWithPreviewGrid(
+    options:     Seq[RowOption],
+    selectValue: Var[Option[AttrValue]],
+    default:     Signal[String]
+) =
+  div(
+    cls      := "dropdown dropdown-hover dropdown-bottom dropdown-end w-full",
+    tabIndex := 0,
+    button(
+      cls      := "btn btn-xs w-full flex justify-between items-center",
+      tabIndex := 0,
+      div(
+        cls := "flex items-center gap-2",
+        child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
+          val currentValue = sv.getOrElse(d).toString
+          options
+            .collectFirst:
+              case row if row.value.toString == currentValue =>
+                row.preview.fold(span(row.name))(preview => span(preview()))
+      ),
+      i(cls := "bi bi-chevron-down")
+    ),
+    // ---- Dropdown menu ----
+    div(
+      cls := "dropdown-content card card-compact z-[1] w-64 p-2 shadow bg-base-100",
+      tabIndex := 0,
+      div(
+        cls := "card-body grid grid-cols-3 gap-2 overflow-y-auto max-h-64",
+        options.map { row =>
+          div(
+            cls := "tooltip tooltip-bottom",
+            dataAttr("tip") := row.name,
+            button(
+              cls := "btn btn-ghost btn-sm flex flex-col items-center justify-center p-1",
+              row.preview.fold(span(row.name))(p => span(p())),
+              onClick.mapTo(Some(row.value)) --> selectValue
+            )
+          )
+        }
+      )
+    )
+  )
+
 def BasicInput(
     placeholderText: String,
     inputValue:      Var[String],

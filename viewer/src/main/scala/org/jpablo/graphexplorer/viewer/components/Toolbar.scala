@@ -118,7 +118,7 @@ def Toolbar(
     Tooltip(
       text = "Style",
       cls := "flex-none tooltip-bottom",
-      input(idAttr := inputId, tpe := "checkbox", cls := "drawer-toggle"),
+      input(idAttr := inputId, tpe := "checkbox"),
       label(
         forId := inputId,
         cls("btn-active") <-- state.rightPanelVisible,

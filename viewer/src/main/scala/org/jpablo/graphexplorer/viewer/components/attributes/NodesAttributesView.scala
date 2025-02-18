@@ -41,16 +41,16 @@ def NodesAttributesView(
       .copy(
         options =
           NodeStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), NodeStylePreview(style))
+            RowOption(label, AttrValue(style.toString), NodeStylePreview(style, 30, 20))
       )
 
   val shapeRow: AttributeRow =
     builder
-      .simpleRow(Shape, InputType.selectWithPreview)
+      .simpleRow(Shape, InputType.selectWithPreviewGrid)
       .copy(
         options =
           Shape.valuesWithLabel.filterNot((l, s) => Shape.synonyms.contains(s)).toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), ShapePreview(style, 40, 20))
+            RowOption(label, AttrValue(style.toString), ShapePreview(style, 30, 20))
       )
 
   AttributesView(
