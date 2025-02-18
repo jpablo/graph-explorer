@@ -105,9 +105,10 @@ private def buildInputCell(row: InputAttribute) =
         )
 
     case InputType.range(start, end, step) =>
-      InputWithValue(row.placeholder, row.inputVar, "number", row.default)
+      InputWithValue(row.placeholder, row.inputVar, "number", row.default, border = false)
         .amend(
           tpe := "range",
+          cls := "range range-sm input-ghost",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")

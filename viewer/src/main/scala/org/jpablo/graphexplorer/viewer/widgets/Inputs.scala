@@ -167,14 +167,16 @@ def InputWithValue(
     inputValue:      Var[Option[AttrValue]],
     inputType:       String = "text",
     default:         Signal[String],
-    setFocus:        Boolean = false
+    setFocus:        Boolean = false,
+    border:          Boolean = true
 ) =
   // hack
   val htmlRegex = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
   def isHtml(s: String) = htmlRegex.matches(s)
 
   input(
-    cls         := "input input-bordered input-xs w-full",
+    cls         := "input input-xs w-full",
+    cls("input-bordered") := border,
     tpe         := inputType,
     placeholder := placeholderText,
     controlled(
