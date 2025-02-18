@@ -13,17 +13,12 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "0 0 54 36",
           svg.polygon(
-            svg.points := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              s"${x + w},$y $x,$y $x,${y + h} ${x + w},${y + h} ${x + w},$y"
-            },
+            svg.points := "0,0 54,0 54,36 0,36 0,0",
             svg.stroke := "currentColor",
             svg.fill := "none",
-            svg.strokeWidth := "2"
+            svg.strokeWidth := "3"
           )
         )
       )
@@ -33,11 +28,12 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "328 -42 55 37",
           svg.ellipse(
-            svg.cx := (width / 2).toString,
-            svg.cy := (height / 2).toString,
-            svg.rx := ((width - 4) / 2).toString,
-            svg.ry := ((height - 4) / 2).toString,
+            svg.cx := "355.52",
+            svg.cy := "-23.65",
+            svg.rx := "27",
+            svg.ry := "18",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -50,10 +46,12 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.circle(
-            svg.cx := (width / 2).toString,
-            svg.cy := (height / 2).toString,
-            svg.r := (Math.min(width, height) / 2 - 2).toString,
+          svg.viewBox := "619 -48 49 49",
+          svg.ellipse(
+            svg.cx := "643.52",
+            svg.cy := "-23.65",
+            svg.rx := "23.65",
+            svg.ry := "23.65",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -66,14 +64,9 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "597 -150 93 37",
           svg.polygon(
-            svg.points := {
-              val centerX = width / 2
-              val centerY = height / 2
-              val halfWidth = width / 2 - 2
-              val halfHeight = height / 2 - 2
-              s"$centerX,${centerY - halfHeight} ${centerX + halfWidth},$centerY $centerX,${centerY + halfHeight} ${centerX - halfWidth},$centerY"
-            },
+            svg.points := "643.52,-149.65 597.3,-131.65 643.52,-113.65 689.75,-131.65 643.52,-149.65",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -95,7 +88,7 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
             },
             svg.stroke := "currentColor",
             svg.fill := "none",
-            svg.strokeWidth := "2"
+            svg.strokeWidth := "1"
           )
         )
       )
@@ -105,12 +98,9 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "425 -358 149 31",
           svg.polygon(
-            svg.points := {
-              val centerX = width / 2
-              val topY = 2
-              s"2,$topY ${width - 2},$topY $centerX,${height - 2}"
-            },
+            svg.points := "499.52,-327.65 573.59,-357.65 425.46,-357.65 499.52,-327.65",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -119,33 +109,16 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
       )
 
     case Shape.polygon | Shape.pentagon | Shape.hexagon | Shape.septagon | Shape.octagon =>
-      val sides = shape match
-        case Shape.pentagon => 5
-        case Shape.hexagon => 6
-        case Shape.septagon => 7
-        case Shape.octagon => 8
-        case _ => 5 // default pentagon for polygon
-
       Some(() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "177 -88 89 80",
           svg.polygon(
-            svg.points := {
-              val centerX = width / 2
-              val centerY = height / 2
-              val radius = Math.min(width, height) / 2 - 2
-              val points = (0 until sides).map { i =>
-                val angle = i * 2 * Math.PI / sides - Math.PI / 2
-                val x = centerX + radius * Math.cos(angle)
-                val y = centerY + radius * Math.sin(angle)
-                s"${x.round},${y.round}"
-              }
-              points.mkString(" ")
-            },
+            svg.points := "265.07,-57.18 221.38,-87.37 177.7,-57.18 194.38,-8.34 248.38,-8.34 265.07,-57.18",
             svg.stroke := "currentColor",
             svg.fill := "none",
-            svg.strokeWidth := "2"
+            svg.strokeWidth := "3"
           )
         )
       )
@@ -242,11 +215,9 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "736 -150 103 37",
           svg.polygon(
-            svg.points := {
-              val margin = width * 0.2
-              s"$margin,${height - 2} ${width - margin},${height - 2} ${width - 2},2 2,2"
-            },
+            svg.points := "817.28,-149.65 757.77,-149.65 736.58,-113.65 838.47,-113.65 817.28,-149.65",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -259,11 +230,9 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "581 -366 124 37",
           svg.polygon(
-            svg.points := {
-              val margin = width * 0.2
-              s"2,${height - 2} ${width - 2},${height - 2} ${width - margin},2 $margin,2"
-            },
+            svg.points := "607.42,-329.65 679.63,-329.65 705.34,-365.65 581.71,-365.65 607.42,-329.65",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -276,11 +245,9 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "0 -258 136 37",
           svg.polygon(
-            svg.points := {
-              val skew = width * 0.2
-              s"${skew},${height - 2} ${width - 2},${height - 2} ${width - skew},2 2,2"
-            },
+            svg.points := "135.05,-257.65 27.63,-257.65 0,-221.65 107.42,-221.65 135.05,-257.65",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -293,14 +260,9 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "179 -258 65 33",
           svg.polygon(
-            svg.points := {
-              val centerX = width / 2
-              val topY = 2
-              val midY = height * 0.4
-              val bottomY = height - 2
-              s"$centerX,$topY ${width - 2},$midY ${width - 2},$bottomY 2,$bottomY 2,$midY"
-            },
+            svg.points := "243.67,-245.22 211.52,-257.65 179.38,-245.22 179.41,-225.09 243.64,-225.09 243.67,-245.22",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -313,14 +275,9 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
+          svg.viewBox := "745 -363 85 34",
           svg.polygon(
-            svg.points := {
-              val centerX = width / 2
-              val topY = 2
-              val midY = height * 0.6
-              val bottomY = height - 2
-              s"2,$topY ${width - 2},$topY ${width - 2},$midY $centerX,$bottomY 2,$midY"
-            },
+            svg.points := "745.88,-342.09 787.52,-329.65 829.17,-342.09 829.13,-362.22 745.92,-362.22 745.88,-342.09",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -482,25 +439,77 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         )
       )
 
-    case Shape.promoter | Shape.lpromoter | Shape.rpromoter =>
+    case Shape.rarrow =>
       Some(() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.viewBox := "615 -693 57 22",
-          svg.g(
-            svg.polygon(
-              svg.points := "650.53,-689.65 629.52,-689.65 629.52,-671.65 635.52,-671.65 635.52,-683.65 650.53,-683.65 650.53,-680.65 662.53,-686.65 650.53,-692.65 650.53,-689.65",
-              svg.stroke := "currentColor",
-              svg.fill := "none",
-              svg.strokeWidth := "2"
-            ),
-            svg.polyline(
-              svg.points := "615.52,-671.65 671.53,-671.65",
-              svg.stroke := "currentColor",
-              svg.fill := "none",
-              svg.strokeWidth := "2"
-            )
+          svg.viewBox := "328 -1014 55 37",
+          svg.polygon(
+            svg.points := "364.52,-1007.65 328.52,-1007.65 328.52,-983.65 364.52,-983.65 364.52,-977.65 382.52,-995.65 364.52,-1013.65 364.52,-1007.65",
+            svg.stroke := "currentColor",
+            svg.fill := "none",
+            svg.strokeWidth := "2"
+          )
+        )
+      )
+
+    case Shape.larrow =>
+      Some(() =>
+        svg.svg(
+          svg.width := width.toString,
+          svg.height := height.toString,
+          svg.viewBox := "472 -1014 55 37",
+          svg.polygon(
+            svg.points := "526.52,-1007.65 490.52,-1007.65 490.52,-1013.65 472.52,-995.65 490.52,-977.65 490.52,-983.65 526.52,-983.65 526.52,-1007.65",
+            svg.stroke := "currentColor",
+            svg.fill := "none",
+            svg.strokeWidth := "2"
+          )
+        )
+      )
+
+    case Shape.lpromoter =>
+      Some(() =>
+        svg.svg(
+          svg.width := width.toString,
+          svg.height := height.toString,
+          svg.viewBox := "614 -1014 59 37",
+          svg.polygon(
+            svg.points := "672.64,-1007.65 632.41,-1007.65 632.41,-1013.65 614.41,-995.65 632.41,-977.65 632.41,-983.65 654.64,-983.65 654.64,-977.65 672.64,-977.65 672.64,-1007.65",
+            svg.stroke := "currentColor",
+            svg.fill := "none",
+            svg.strokeWidth := "2"
+          )
+        )
+      )
+
+    case Shape.rpromoter =>
+      Some(() =>
+        svg.svg(
+          svg.width := width.toString,
+          svg.height := height.toString,
+          svg.viewBox := "757 -1014 61 37",
+          svg.polygon(
+            svg.points := "799.2,-1007.65 757.85,-1007.65 757.85,-977.65 775.85,-977.65 775.85,-983.65 799.2,-983.65 799.2,-977.65 817.2,-995.65 799.2,-1013.65 799.2,-1007.65",
+            svg.stroke := "currentColor",
+            svg.fill := "none",
+            svg.strokeWidth := "2"
+          )
+        )
+      )
+
+    case Shape.promoter =>
+      Some(() =>
+        svg.svg(
+          svg.width := width.toString,
+          svg.height := height.toString,
+          svg.viewBox := "757 -1014 61 37",
+          svg.polygon(
+            svg.points := "799.2,-1007.65 757.85,-1007.65 757.85,-977.65 775.85,-977.65 775.85,-983.65 799.2,-983.65 799.2,-977.65 817.2,-995.65 799.2,-1013.65 799.2,-1007.65",
+            svg.stroke := "currentColor",
+            svg.fill := "none",
+            svg.strokeWidth := "2"
           )
         )
       )
@@ -510,19 +519,9 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val arrow = Math.min(w, h) * 0.2
-              s"M$x,${y + h/2} " +
-                s"L${x + w - arrow},${y + h/2} " +
-                s"L${x + w},${y} " +
-                s"L${x + w},${y + h} " +
-                s"L${x + w - arrow},${y + h/2}"
-            },
+          svg.viewBox := "760 -684 55 25",
+          svg.polygon(
+            svg.points := "802.52,-683.65 760.52,-683.65 760.52,-659.65 802.52,-659.65 814.52,-671.65 802.52,-683.65",
             svg.stroke := "currentColor",
             svg.fill := "none",
             svg.strokeWidth := "2"
@@ -535,23 +534,20 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val stemWidth = Math.min(w, h) * 0.1
-              s"M${x + w/2 - stemWidth/2},${y + h} " +
-                s"L${x + w/2 + stemWidth/2},${y + h} " +
-                s"L${x + w/2 + stemWidth/2},${y + h/2} " +
-                s"L${x + w},${y + h/2} " +
-                s"M${x + w/2 - stemWidth/2},${y + h/2} " +
-                s"L$x,${y + h/2}"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "37 -792 62 13",
+          svg.g(
+            svg.polygon(
+              svg.points := "70.52,-779.65 70.52,-785.65 76.52,-785.65 76.52,-791.65 58.52,-791.65 58.52,-785.65 64.52,-785.65 64.52,-779.65 70.52,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "37.02,-779.65 98.03,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -561,21 +557,49 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val boxSize = Math.min(w, h) * 0.2
-              s"M${x + boxSize},${y + h} " +
-                s"L${x + boxSize},${y + h - boxSize} " +
-                s"L${x + boxSize * 2},${y + h - boxSize} " +
-                s"L${x + boxSize * 2},${y + h}"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "184 -789 55 10",
+          svg.g(
+            svg.polygon(
+              svg.points := "220.52,-779.65 220.52,-782.65 214.52,-788.65 208.52,-788.65 202.52,-782.65 202.52,-779.65 220.52,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "184.52,-779.65 238.52,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
+          )
+        )
+      )
+
+    case Shape.fivepoverhang =>
+      Some(() =>
+        svg.svg(
+          svg.width := width.toString,
+          svg.height := height.toString,
+          svg.viewBox := "604 -788 79 16",
+          svg.g(
+            svg.polygon(
+              svg.points := "604.11,-781.15 628.11,-781.15 628.11,-787.15 604.11,-787.15 604.11,-781.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polygon(
+              svg.points := "616.11,-772.15 628.11,-772.15 628.11,-778.15 616.11,-778.15 616.11,-772.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "628.11,-779.65 682.94,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -585,20 +609,20 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val arrowSize = Math.min(w, h) * 0.3
-              s"M${x + w/2},${y + h} " +
-                s"L${x + w/2 - arrowSize},${y} " +
-                s"L${x + w/2 + arrowSize},${y} Z"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "325 -795 61 16",
+          svg.g(
+            svg.polygon(
+              svg.points := "367.52,-782.65 355.52,-794.65 355.52,-788.65 340.55,-788.65 340.55,-782.65 367.52,-782.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "325.58,-779.65 385.47,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -608,55 +632,55 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val cutSize = Math.min(w, h) * 0.2
-              s"M${x + w/2 - cutSize},${y + h} " +
-                s"L${x + w/2 + cutSize},${y + h} " +
-                s"M${x + w/2},${y + h} " +
-                s"L${x + w/2},${y + h/2} " +
-                s"L${x + w},${y + h/2} " +
-                s"M$x,${y + h/2} " +
-                s"L${x + w/2},${y + h/2}"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "462 -789 75 19",
+          svg.g(
+            svg.polygon(
+              svg.points := "514.89,-782.65 490.16,-782.65 490.16,-788.65 484.16,-788.65 484.16,-776.65 508.89,-776.65 508.89,-770.65 514.89,-770.65 514.89,-782.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "462.07,-779.65 484.16,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "514.89,-779.65 536.98,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
 
-    case Shape.fivepoverhang | Shape.threepoverhang =>
+    case Shape.threepoverhang =>
       Some(() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val boxWidth = w * 0.2
-              val boxHeight = h * 0.3
-              if shape == Shape.fivepoverhang then
-                s"M${x + boxWidth},${y + h - boxHeight} " +
-                  s"L${x + boxWidth * 2},${y + h - boxHeight} " +
-                  s"L${x + boxWidth * 2},${y + h} " +
-                  s"L${x + boxWidth},${y + h} Z"
-              else
-                s"M${x + w - boxWidth * 2},${y + h - boxHeight} " +
-                  s"L${x + w - boxWidth},${y + h - boxHeight} " +
-                  s"L${x + w - boxWidth},${y + h} " +
-                  s"L${x + w - boxWidth * 2},${y + h} Z"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "744 -788 87 16",
+          svg.g(
+            svg.polygon(
+              svg.points := "830.55,-781.15 830.55,-787.15 806.55,-787.15 806.55,-781.15 830.55,-781.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polygon(
+              svg.points := "818.55,-772.15 818.55,-778.15 806.55,-778.15 806.55,-772.15 818.55,-772.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "744.5,-779.65 806.55,-779.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -666,25 +690,44 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val boxSize = Math.min(w, h) * 0.2
-              s"M${x + boxSize},${y + h - boxSize} " +
-                s"L${x + boxSize * 2},${y + h - boxSize} " +
-                s"L${x + boxSize * 2},${y + h} " +
-                s"L${x + boxSize},${y + h} Z " +
-                s"M${x + boxSize * 3},${y + h - boxSize} " +
-                s"L${x + boxSize * 4},${y + h - boxSize} " +
-                s"L${x + boxSize * 4},${y + h} " +
-                s"L${x + boxSize * 3},${y + h} Z"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "35 -896 65 17",
+          svg.g(
+            svg.polygon(
+              svg.points := "54.02,-889.15 66.02,-889.15 66.02,-895.15 54.02,-895.15 54.02,-889.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polygon(
+              svg.points := "54.02,-880.15 66.02,-880.15 66.02,-886.15 54.02,-886.15 54.02,-880.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polygon(
+              svg.points := "69.02,-880.15 81.02,-880.15 81.02,-886.15 69.02,-886.15 69.02,-880.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polygon(
+              svg.points := "69.02,-889.15 81.02,-889.15 81.02,-895.15 69.02,-895.15 69.02,-889.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "81.02,-887.65 99.15,-887.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "54.02,-887.65 35.89,-887.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -694,23 +737,32 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val boxSize = Math.min(w, h) * 0.2
-              s"M${x + boxSize},${y + h - boxSize} " +
-                s"L${x + boxSize * 2},${y + h - boxSize} " +
-                s"L${x + boxSize * 2},${y + h} " +
-                s"L${x + boxSize},${y + h} Z " +
-                s"M${x + w/2},${y + h - boxSize} " +
-                s"L${x + w/2},${y + h}"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "182 -896 59 17",
+          svg.g(
+            svg.polygon(
+              svg.points := "199.52,-889.15 223.52,-889.15 223.52,-895.15 199.52,-895.15 199.52,-889.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polygon(
+              svg.points := "199.52,-880.15 223.52,-880.15 223.52,-886.15 199.52,-886.15 199.52,-880.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "223.52,-887.65 240.64,-887.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "182.41,-887.65 199.52,-887.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -720,25 +772,32 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val boxSize = Math.min(w, h) * 0.2
-              s"M${x + w/2 - boxSize},${y + h - boxSize} " +
-                s"L${x + w/2 + boxSize},${y + h - boxSize} " +
-                s"L${x + w/2 + boxSize},${y + h} " +
-                s"L${x + w/2 - boxSize},${y + h} Z " +
-                s"M${x + w/2 - boxSize/2},${y + h - boxSize} " +
-                s"L${x + w/2 + boxSize/2},${y + h} " +
-                s"M${x + w/2 - boxSize/2},${y + h} " +
-                s"L${x + w/2 + boxSize/2},${y + h - boxSize}"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "326 -900 59 25",
+          svg.g(
+            svg.polygon(
+              svg.points := "384.09,-899.65 326.96,-899.65 326.96,-875.65 384.09,-875.65 384.09,-899.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "329.96,-889.15 332.96,-886.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "329.96,-886.15 332.96,-889.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "329.96,-878.65 381.09,-878.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -748,23 +807,32 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val boxSize = Math.min(w, h) * 0.2
-              s"M${x + w/2},${y + h - boxSize} " +
-                s"L${x + w/2},${y + h} " +
-                s"M${x + w/2 - boxSize},${y + h - boxSize} " +
-                s"L${x + w/2 + boxSize},${y + h - boxSize} " +
-                s"L${x + w/2 + boxSize},${y + h} " +
-                s"L${x + w/2 - boxSize},${y + h} Z"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "472 -897 55 19",
+          svg.g(
+            svg.polygon(
+              svg.points := "505.52,-893.65 505.52,-881.65 493.52,-881.65 493.52,-893.65 505.52,-893.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "508.52,-896.65 508.52,-878.65 490.52,-878.65 490.52,-896.65 508.52,-896.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "508.52,-887.65 526.52,-887.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "472.52,-887.65 490.52,-887.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -774,23 +842,32 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val crossSize = Math.min(w, h) * 0.1
-              s"M${x + w/2 - crossSize},${y + h - crossSize * 2} " +
-                s"L${x + w/2 + crossSize},${y + h} " +
-                s"M${x + w/2 - crossSize},${y + h} " +
-                s"L${x + w/2 + crossSize},${y + h - crossSize * 2} " +
-                s"M${x + w/2},${y + h} " +
-                s"L${x + w/2},${y + h - crossSize * 2}"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "616 -900 55 13",
+          svg.g(
+            svg.polygon(
+              svg.points := "646.52,-893.65 646.52,-895.15 645.02,-896.65 646.52,-898.15 646.52,-899.65 645.02,-899.65 643.52,-898.15 642.02,-899.65 640.52,-899.65 640.52,-898.15 642.02,-896.65 640.52,-895.15 640.52,-893.65 642.02,-893.65 643.52,-895.15 645.02,-893.65 646.52,-893.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "643.52,-887.65 643.52,-889.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "643.52,-890.65 643.52,-892.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "616.52,-887.65 670.52,-887.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -800,96 +877,90 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val crossSize = Math.min(w, h) * 0.1
-              s"M${x + w/2 - crossSize},${y + h - crossSize * 2} " +
-                s"L${x + w/2 + crossSize},${y + h} " +
-                s"M${x + w/2 - crossSize},${y + h} " +
-                s"L${x + w/2 + crossSize},${y + h - crossSize * 2} " +
-                s"M${x + w/2},${y + h} " +
-                s"L${x + w/2},${y + h - crossSize * 2} " +
-                s"M${x + w/2 - crossSize},${y + h - crossSize} " +
-                s"L${x + w/2 + crossSize},${y + h - crossSize}"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "760 -900 55 13",
+          svg.g(
+            svg.polygon(
+              svg.points := "789.02,-893.65 790.52,-895.15 790.52,-898.15 789.02,-899.65 786.02,-899.65 784.52,-898.15 784.52,-895.15 786.02,-893.65 789.02,-893.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "787.52,-887.65 787.52,-889.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "787.52,-890.65 787.52,-892.15",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "760.52,-887.65 814.52,-887.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
 
-    case Shape.proteasesite | Shape.proteinstab =>
+    case Shape.proteasesite =>
       Some(() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val crossSize = Math.min(w, h) * 0.1
-              val d = if shape == Shape.proteasesite then
-                s"M${x + w/2 - crossSize},${y + h - crossSize * 2} " +
-                  s"L${x + w/2 + crossSize},${y + h} " +
-                  s"M${x + w/2 - crossSize},${y + h} " +
-                  s"L${x + w/2 + crossSize},${y + h - crossSize * 2} " +
-                  s"M${x + w/2},${y + h} " +
-                  s"L${x + w/2},${y + h - crossSize * 3}"
-              else
-                s"M${x + w/2 - crossSize},${y + h - crossSize * 2} " +
-                  s"L${x + w/2 + crossSize},${y + h} " +
-                  s"M${x + w/2 - crossSize},${y + h} " +
-                  s"L${x + w/2 + crossSize},${y + h - crossSize * 2} " +
-                  s"M${x + w/2},${y + h} " +
-                  s"L${x + w/2},${y + h - crossSize * 3} " +
-                  s"M${x + w/2 - crossSize},${y + h - crossSize} " +
-                  s"L${x + w/2 + crossSize},${y + h - crossSize}"
-              d
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "32 -1008 71 13",
+          svg.g(
+            svg.polygon(
+              svg.points := "70.52,-1001.65 70.52,-1003.15 69.02,-1004.65 70.52,-1006.15 70.52,-1007.65 69.02,-1007.65 67.52,-1006.15 66.02,-1007.65 64.52,-1007.65 64.52,-1006.15 66.02,-1004.65 64.52,-1003.15 64.52,-1001.65 66.02,-1001.65 67.52,-1003.15 69.02,-1001.65 70.52,-1001.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "67.52,-1003.15 67.52,-995.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "32.29,-995.65 102.76,-995.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
 
-    case Shape.rarrow | Shape.larrow =>
+    case Shape.proteinstab =>
       Some(() =>
         svg.svg(
           svg.width := width.toString,
           svg.height := height.toString,
-          svg.path(
-            svg.d := {
-              val x = 2
-              val y = 2
-              val w = width - 4
-              val h = height - 4
-              val arrowSize = Math.min(w, h) * 0.3
-              if shape == Shape.rarrow then
-                s"M$x,${y + h/2} " +
-                  s"L${x + w - arrowSize},${y + h/2} " +
-                  s"L${x + w - arrowSize},${y} " +
-                  s"L${x + w},${y + h/2} " +
-                  s"L${x + w - arrowSize},${y + h} " +
-                  s"L${x + w - arrowSize},${y + h/2}"
-              else
-                s"M${x + w},${y + h/2} " +
-                  s"L${x + arrowSize},${y + h/2} " +
-                  s"L${x + arrowSize},${y} " +
-                  s"L$x,${y + h/2} " +
-                  s"L${x + arrowSize},${y + h} " +
-                  s"L${x + arrowSize},${y + h/2}"
-            },
-            svg.stroke := "currentColor",
-            svg.fill := "none",
-            svg.strokeWidth := "2"
+          svg.viewBox := "178 -1008 67 13",
+          svg.g(
+            svg.polygon(
+              svg.points := "213.02,-1001.65 214.52,-1003.15 214.52,-1006.15 213.02,-1007.65 210.02,-1007.65 208.52,-1006.15 208.52,-1003.15 210.02,-1001.65 213.02,-1001.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "211.52,-1001.65 211.52,-995.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.polyline(
+              svg.points := "178.79,-995.65 244.26,-995.65",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            )
           )
         )
       )
@@ -1053,7 +1124,86 @@ def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() =>
         )
       )
 
-    case Shape.plaintext | Shape.plain | Shape.none =>
+    case Shape.none =>
       None
 
-    case _ => None 
+    case Shape.plain =>
+      Some(() =>
+        svg.svg(
+          svg.width := width.toString,
+          svg.height := height.toString,
+          svg.viewBox := "497 -142 24 14",
+          svg.g(
+            svg.polygon(
+              svg.points := "521.38,-142.44 497.38,-142.44 497.38,-128.04 521.38,-128.04 521.38,-142.44",
+              svg.stroke := "none",
+              svg.fill := "lightgrey"
+            ),
+            svg.text(
+              svg.x := "509.38",
+              svg.y := "-132.64",
+              svg.fontFamily := "Times,serif",
+              svg.fontSize := "10.00",
+              svg.textAnchor := "middle",
+              svg.fill := "currentColor",
+              "plain"
+            )
+          )
+        )
+      )
+
+    case Shape.plaintext =>
+      Some(() =>
+        svg.svg(
+          svg.width := width.toString,
+          svg.height := height.toString,
+          svg.viewBox := "336 -153 58 36",
+          svg.g(
+            svg.polygon(
+              svg.points := "394.38,-153.24 336.39,-153.24 336.39,-117.24 394.38,-117.24 394.38,-153.24",
+              svg.stroke := "none",
+              svg.fill := "lightgrey"
+            ),
+            svg.text(
+              svg.x := "365.38",
+              svg.y := "-132.64",
+              svg.fontFamily := "Times,serif",
+              svg.fontSize := "10.00",
+              svg.textAnchor := "middle",
+              svg.fill := "currentColor",
+              "plaintext"
+            )
+          )
+        )
+      )
+
+    case Shape.underline =>
+      Some(() =>
+        svg.svg(
+          svg.width := width.toString,
+          svg.height := height.toString,
+          svg.viewBox := "338 -586 55 37",
+          svg.g(
+            svg.polygon(
+              svg.points := "392.38,-585.24 338.38,-585.24 338.38,-549.24 392.38,-549.24 392.38,-585.24",
+              svg.stroke := "none",
+              svg.fill := "none"
+            ),
+            svg.polyline(
+              svg.points := "338.38,-549.24 392.38,-549.24",
+              svg.stroke := "currentColor",
+              svg.fill := "none",
+              svg.strokeWidth := "2"
+            ),
+            svg.text(
+              svg.x := "365.38",
+              svg.y := "-563.64",
+              svg.fontFamily := "Times,serif",
+              svg.fontSize := "18.00",
+              svg.textAnchor := "middle",
+              svg.fill := "currentColor",
+              "u"
+            )
+          )
+        )
+      )
