@@ -77,6 +77,7 @@ def StyleView(state: ViewerState) =
 def DefaultAttributesView(state: ViewerState) =
   val tabIndex = Var(0)
   def tabVisible(i: Int) = tabIndex.signal.map(_ == i)
+
   val tabsData =
     List(
       "Graph" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false),
@@ -86,15 +87,18 @@ def DefaultAttributesView(state: ViewerState) =
   div(
     div(cls := "text-center pb-2", "Defaults"),
     div(
-      role := "tablist",
-      cls  := "tabs tabs-boxed tabs-xs",
-      for (tabName, i) <- tabsData.map(_._1).zipWithIndex
-      yield a(
-        role := "tab",
-        cls  := "tab",
-        tabName,
-        cls("tab-active") <-- tabVisible(i),
-        onClick --> tabIndex.set(i)
+      cls := "flex justify-center",
+      div(
+        role := "tablist",
+        cls  := "tabs tabs-boxed tabs-xs w-[300px]",
+        for (tabName, i) <- tabsData.map(_._1).zipWithIndex
+        yield a(
+          role := "tab",
+          cls  := "tab flex-1",
+          tabName,
+          cls("tab-active") <-- tabVisible(i),
+          onClick --> tabIndex.set(i)
+        )
       )
     ),
     div(
