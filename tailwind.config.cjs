@@ -10,7 +10,7 @@ module.exports = {
     },
 
     daisyui: {
-        themes: ["light", "dark", "cupcake"],
+        themes: ["light", "dark", "cupcake", "pastel", "nord", "lemonade", "autumn"],
     },
 
     plugins: [
