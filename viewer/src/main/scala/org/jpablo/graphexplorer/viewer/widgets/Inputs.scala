@@ -137,7 +137,10 @@ def SelectWithPreviewGrid(
             cls := s"tooltip ${if index < 3 then "tooltip-bottom" else "tooltip-top"}",
             dataAttr("tip") := row.name,
             button(
-              cls := "btn btn-ghost btn-sm flex flex-col items-center justify-center p-1",
+              cls <-- selectValue.signal.combineWith(default).map((sv, d) =>
+                val currentValue = sv.getOrElse(d).toString
+                s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 ${if currentValue == row.value.toString then "btn-active" else ""}"
+              ),
               row.preview.fold(span(row.name))(p => span(p())),
               onClick.mapTo(Some(row.value)) --> selectValue
             )
