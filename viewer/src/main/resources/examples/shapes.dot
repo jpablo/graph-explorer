@@ -1,0 +1,76 @@
+digraph shapes {
+    layout=neato;
+    node [fontname="Arial", fontsize=10];
+    graph [splines=false];
+    
+    // Position nodes in a grid with more spacing (2.0 units horizontal, 1.5 units vertical)
+    node1  [shape=box, label="box", pos="0,0!"];
+    node2  [shape=polygon, label="polygon", pos="2,0!"];
+    node3  [shape=ellipse, label="ellipse", pos="4,0!"];
+    node4  [shape=oval, label="oval", pos="6,0!"];
+    node5  [shape=circle, label="circle", pos="8,0!"];
+    node6  [shape=point, label="point", pos="10,0!"];
+    
+    node7  [shape=egg, label="egg", pos="0,1.5!"];
+    node8  [shape=triangle, label="triangle", pos="2,1.5!"];
+    node9  [shape=plaintext, label="plaintext", pos="4,1.5!"];
+    node10 [shape=plain, label="plain", pos="6,1.5!"];
+    node11 [shape=diamond, label="diamond", pos="8,1.5!"];
+    node12 [shape=trapezium, label="trapezium", pos="10,1.5!"];
+    
+    node13 [shape=parallelogram, label="parallelogram", pos="0,3!"];
+    node14 [shape=house, label="house", pos="2,3!"];
+    node15 [shape=pentagon, label="pentagon", pos="4,3!"];
+    node16 [shape=hexagon, label="hexagon", pos="6,3!"];
+    node17 [shape=septagon, label="septagon", pos="8,3!"];
+    node18 [shape=octagon, label="octagon", pos="10,3!"];
+    
+    node19 [shape=doublecircle, label="doublecircle", pos="0,4.5!"];
+    node20 [shape=doubleoctagon, label="doubleoctagon", pos="2,4.5!"];
+    node21 [shape=tripleoctagon, label="tripleoctagon", pos="4,4.5!"];
+    node22 [shape=invtriangle, label="invtriangle", pos="6,4.5!"];
+    node23 [shape=invtrapezium, label="invtrapezium", pos="8,4.5!"];
+    node24 [shape=invhouse, label="invhouse", pos="10,4.5!"];
+    
+    node25 [shape=Mdiamond, label="Mdiamond", pos="0,6!"];
+    node26 [shape=Msquare, label="Msquare", pos="2,6!"];
+    node27 [shape=Mcircle, label="Mcircle", pos="4,6!"];
+    node28 [shape=Mrecord, label="Mrecord", pos="6,6!"];
+    node29 [shape=rect, label="rect", pos="8,6!"];
+    node30 [shape=rectangle, label="rectangle", pos="10,6!"];
+    
+    node31 [shape=square, label="square", pos="0,7.5!"];
+    node32 [shape=star, label="star", pos="2,7.5!"];
+    node33 [shape=underline, label="underline", pos="4,7.5!"];
+    node34 [shape=cylinder, label="cylinder", pos="6,7.5!"];
+    node35 [shape=note, label="note", pos="8,7.5!"];
+    node36 [shape=tab, label="tab", pos="10,7.5!"];
+    
+    node37 [shape=folder, label="folder", pos="0,9!"];
+    node38 [shape=box3d, label="box3d", pos="2,9!"];
+    node39 [shape=none, label="none", pos="4,9!"];
+    node40 [shape=component, label="component", pos="6,9!"];
+    node41 [shape=promoter, label="promoter", pos="8,9!"];
+    node42 [shape=cds, label="cds", pos="10,9!"];
+    
+    node43 [shape=terminator, label="terminator", pos="0,10.5!"];
+    node44 [shape=utr, label="utr", pos="2,10.5!"];
+    node45 [shape=primersite, label="primersite", pos="4,10.5!"];
+    node46 [shape=restrictionsite, label="restrictionsite", pos="6,10.5!"];
+    node47 [shape=fivepoverhang, label="fivepoverhang", pos="8,10.5!"];
+    node48 [shape=threepoverhang, label="threepoverhang", pos="10,10.5!"];
+    
+    node49 [shape=noverhang, label="noverhang", pos="0,12!"];
+    node50 [shape=assembly, label="assembly", pos="2,12!"];
+    node51 [shape=signature, label="signature", pos="4,12!"];
+    node52 [shape=insulator, label="insulator", pos="6,12!"];
+    node53 [shape=ribosite, label="ribosite", pos="8,12!"];
+    node54 [shape=rnastab, label="rnastab", pos="10,12!"];
+    
+    node55 [shape=proteasesite, label="proteasesite", pos="0,13.5!"];
+    node56 [shape=proteinstab, label="proteinstab", pos="2,13.5!"];
+    node57 [shape=rarrow, label="rarrow", pos="4,13.5!"];
+    node58 [shape=larrow, label="larrow", pos="6,13.5!"];
+    node59 [shape=lpromoter, label="lpromoter", pos="8,13.5!"];
+    node60 [shape=rpromoter, label="rpromoter", pos="10,13.5!"];
+}
