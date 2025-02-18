@@ -32,21 +32,27 @@ def AttributesView(
                     attr.exists(_.toString != d)
               tr(
                 td(
-                  cls := "w-32",
-                  cls("font-bold") <-- isChanged,
-                  span(cls := "me-1", row.label),
-                  child <-- isChanged.map(c =>
-                    if c then
-                      Button(
-                        title := s"reset ${row.label}",
-                        onClick --> row.inputVar.set(None),
-                        i(cls := "bi bi-x")
-                      ).tiny.ghost.circle
-                    else
-                      ""
+                  cls := "w-32 align-middle whitespace-nowrap",
+                  div(
+                    cls := "flex items-center gap-1",
+                    cls("font-bold") <-- isChanged,
+                    span(row.label),
+                    div(
+                      cls := "w-6",  // Fixed width space for the reset button
+                      child <-- isChanged.map(c =>
+                        if c then
+                          Button(
+                            title := s"reset ${row.label}",
+                            onClick --> row.inputVar.set(None),
+                            i(cls := "bi bi-x")
+                          ).tiny.ghost.circle
+                        else
+                          ""
+                      )
+                    )
                   )
                 ),
-                td(buildInputCell(row))
+                td(cls := "align-middle", buildInputCell(row))
               )
           )
     )
@@ -93,6 +99,15 @@ private def buildInputCell(row: InputAttribute) =
     case InputType.number(start, end, step) =>
       InputWithValue(row.placeholder, row.inputVar, "number", row.default)
         .amend(
+          minAttr  := start.map(_.toString).getOrElse(""),
+          maxAttr  := end.map(_.toString).getOrElse(""),
+          stepAttr := step.map(_.toString).getOrElse("")
+        )
+
+    case InputType.range(start, end, step) =>
+      InputWithValue(row.placeholder, row.inputVar, "number", row.default)
+        .amend(
+          tpe := "range",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")

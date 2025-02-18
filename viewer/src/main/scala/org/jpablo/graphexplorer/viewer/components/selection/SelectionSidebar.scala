@@ -13,9 +13,10 @@ def SelectionSidebar(state: ViewerState) =
     state.diagramSelection.signal.map(_.isEmpty)
   div(
     idAttr := "selection-sidebar",
+    cls := "bg-base-100/90",
     child(
       ul(
-        cls := "menu menu-sm bg-base-100 rounded-box",
+        cls := "menu menu-sm rounded-box bg-transparent",
         li(cls := "menu-title", h1("selection"), hr()),
         li(a(cls := "flex justify-between", span("Hide"), kbd(cls := "kbd kbd-sm opacity-60", "h"), onClick.hideSelectedNodes)),
         li(a(cls := "flex justify-between", span("Hide others"), kbd(cls := "kbd kbd-sm opacity-60", "Shift+h"), onClick.hideNonSelectedNodes)),

@@ -43,20 +43,20 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
       "Fonts",
       FontName,
       FontColor -> color,
-      FontSize  -> number(),
+      FontSize  -> range(start = Some(1), end = Some(100), step = Some(1)),
       "Background",
       BgColor -> color,
       "Border",
       if selection then PenColor -> color else "",
-      PenWidth -> number(start = Some(0.0), end = Some(10.0), step = Some(0.1))
+      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1))
     ),
     if selection then
       Seq.empty
     else
       builder.buildRows(
         "Spacing",
-        Pad     -> number(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
-        RankSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
-        NodeSep -> number(start = Some(0.02), end = Some(2.0), step = Some(0.05))
+        Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
+        RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
+        NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
       )
   )

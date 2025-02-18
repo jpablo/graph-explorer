@@ -21,6 +21,7 @@ def Toolbar(
   
   div(
     idAttr := "toolbar",
+    cls := "bg-base-100/90",
     // -------- Navigation --------
     div(
       cls := "breadcrumbs font-bold py-0",

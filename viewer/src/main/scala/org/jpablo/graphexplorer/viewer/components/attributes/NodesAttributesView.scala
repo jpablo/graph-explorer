@@ -67,7 +67,7 @@ def NodesAttributesView(
       FontSize -> number(),
       "Shape",
       shapeRow,
-      Sides       -> number(),
+      Sides       -> number(start = Some(3), end = Some(10), step = Some(1)),
       Regular     -> checkbox,
       Orientation -> number(),
       "Fill",
@@ -76,8 +76,8 @@ def NodesAttributesView(
       "Border",
       nodeStyleRow,
       Color       -> color,
-      PenWidth    -> number(),
-      Peripheries -> number(),
+      PenWidth    -> number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
       "Other",
       if selection then URL else ""
     )
@@ -187,6 +187,12 @@ class BorderStyleVar(
   val getVar =
     attrsVar.zoomLazy(getCurrentValue)(updateStyles)
 end BorderStyleVar
+
+class BooleanSubAttributeVar(
+    attrsVar:     Var[Attributes],
+    defaults:     Option[Signal[Attributes]],
+    subAttribute: DotAttributeSimple[Boolean]
+)
 
 case class FillAndBorderStyle(
     fillStyle:   Option[FillStyle],

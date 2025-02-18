@@ -178,7 +178,6 @@ def InputWithValue(
     tpe         := inputType,
     placeholder := placeholderText,
     controlled(
-      // value <-- inputValue.signal.map(_.getOrElse(default).toString),
       value <-- inputValue.signal.combineWith(default).map((sv, d) => sv.getOrElse(d).toString),
       onInput.mapToValue.map { v =>
         Some(AttrValue(if isHtml(v) then AttrEq(v, true) else v))
