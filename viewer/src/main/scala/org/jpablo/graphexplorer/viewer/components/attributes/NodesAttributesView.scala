@@ -5,7 +5,7 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number}
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, range}
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.FillStyle
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -64,20 +64,20 @@ def NodesAttributesView(
       "Text Format",
       FontColor -> color,
       FontName,
-      FontSize -> number(),
+      FontSize  -> range(start = Some(1), end = Some(100), step = Some(1)),
       "Shape",
       shapeRow,
-      Sides       -> number(start = Some(3), end = Some(10), step = Some(1)),
+      Sides       -> range(start = Some(3), end = Some(10), step = Some(1)),
       Regular     -> checkbox,
-      Orientation -> number(),
+      Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
       "Fill",
       builder.inputRow(FillStyle -> InputType.select, fillStyleVar.getVar, fillStyleVar.getDefault),
       FillColor -> color,
       "Border",
       nodeStyleRow,
       Color       -> color,
-      PenWidth    -> number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
+      PenWidth    -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      Peripheries -> range(start = Some(1), end = Some(10), step = Some(1)),
       "Other",
       if selection then URL else ""
     )
