@@ -37,7 +37,7 @@ def NodesAttributesView(
 
   val nodeStyleRow: AttributeRow =
     builder
-      .inputRow(NodeStyle -> InputType.selectWithPreview, borderStyleVar.getVar, borderStyleVar.getDefault)
+      .inputRow(NodeStyle -> InputType.selectWithPreviewGrid, borderStyleVar.getVar, borderStyleVar.getDefault)
       .copy(
         options =
           NodeStyle.valuesWithLabel.toSeq.map: (label, style) =>
