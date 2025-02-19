@@ -1,16 +1,16 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
-import com.raquo.laminar.api.L.*
 import com.raquo.airstream.state.Var
+import com.raquo.laminar.api.L.*
+import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{BoldStyle, BorderStyle, FillStyle, ShapeModStyle}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
-import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, range, number}
-import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.FillStyle
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import com.raquo.airstream.ownership.OneTimeOwner
-import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.widgets.InputType
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number, range}
 
 def NodesAttributesView(
     parent:    String,
@@ -20,29 +20,63 @@ def NodesAttributesView(
     selection: Boolean
 ) =
   val builder = RowBuilder(attrsVar, defaults)
-  val isSingleNodeSelected = state.diagramSelection.signal.map(_.size == 1)
 
-  val fillStyleVar = FillStyleVar(attrsVar, defaults)
-  val borderStyleVar = BorderStyleVar(attrsVar, defaults)
+  val isSingleNodeSelected = state.diagramSelection.signal.map(_.size == 1)
   val labelRow =
     if selection then
       isSingleNodeSelected.map(single =>
-        if single then
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
-        else
-          ""
+        if single then builder.simpleRow(Label, InputType.multiText, onReset = Some("")) else ""
       ).observe(using state.owner).now()
     else
       ""
 
-  val nodeStyleRow: AttributeRow =
+  val subAttributeVar: Var[StyleSubAttributes] =
+    attrsVar
+      .zoomLazy(getFillAndBorderStyle)((attrs, subAttrs) =>
+        val dotStyle = subAttrs.toDotString
+        if dotStyle.isBlank then
+          attrs - NodeStyle.attrId
+        else
+          attrs + (NodeStyle.attrId -> AttrValue(dotStyle))
+      )
+
+  val defaultSubAttrs: Signal[StyleSubAttributes] =
+    defaults.map(_.map(getFillAndBorderStyle)).getOrElse(Signal.fromValue(StyleSubAttributes.empty))
+
+  // -------------------
+  val boldStyle = BooleanSubAttr(_.bold, modify(_)(_.bold), subAttributeVar, defaultSubAttrs)
+  val fillStyle = BooleanSubAttr(_.fill, modify(_)(_.fill), subAttributeVar, defaultSubAttrs)
+  val borderStyle =
+    EnumSubAttr(
+      _.border,
+      modify(_)(_.border),
+      BorderStyle.valueOf,
+      BorderStyle.default,
+      subAttributeVar,
+      defaultSubAttrs
+    )
+  val shapeModeStyle =
+    EnumSubAttr(
+      _.shapeMod,
+      modify(_)(_.shapeMod),
+      ShapeModStyle.valueOf,
+      ShapeModStyle.default,
+      subAttributeVar,
+      defaultSubAttrs
+    )
+
+  val borderStyleRow =
     builder
-      .inputRow(NodeStyle -> InputType.selectWithPreviewGrid, borderStyleVar.getVar, borderStyleVar.getDefault)
+      .inputRow(BorderStyle -> InputType.selectWithPreviewGrid, borderStyle.getVar, borderStyle.getDefault)
       .copy(
         options =
-          NodeStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), NodeStylePreview(style, 30, 20))
+          BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
+            RowOption(label, AttrValue(style.toString), BorderStylePreview(style, 30, 20))
       )
+
+  val shapeModeStyleRow =
+    builder
+      .inputRow(ShapeModStyle -> InputType.select, shapeModeStyle.getVar, shapeModeStyle.getDefault)
 
   val shapeRow: AttributeRow =
     builder
@@ -64,17 +98,19 @@ def NodesAttributesView(
       "Text Format",
       FontColor -> color,
       FontName,
-      FontSize  -> range(start = Some(1), end = Some(100), step = Some(1)),
+      FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
       "Shape",
       shapeRow,
       Sides       -> number(start = Some(3), end = Some(10), step = Some(1)),
       Regular     -> checkbox,
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
       "Fill",
-      builder.inputRow(FillStyle -> InputType.select, fillStyleVar.getVar, fillStyleVar.getDefault),
+      builder.inputRow(FillStyle -> InputType.checkbox, fillStyle.getVar, fillStyle.getDefault),
       FillColor -> color,
       "Border",
-      nodeStyleRow,
+      borderStyleRow,
+      shapeModeStyleRow,
+      builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
       Color       -> color,
       PenWidth    -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
@@ -84,145 +120,142 @@ def NodesAttributesView(
   )
 
 private def getFillAndBorderStyle(attrs: Attributes) =
-  FillAndBorderStyle.from(attrs.get(NodeStyle.attrId))
+  StyleSubAttributes.from(attrs.get(NodeStyle.attrId))
 
-class FillStyleVar(
-    attrsVar:  Var[Attributes],
-    defaultsO: Option[Signal[Attributes]]
+class BooleanSubAttr(
+    getSubAttr:      StyleSubAttributes => Boolean,
+    pathModify:      StyleSubAttributes => PathModify[StyleSubAttributes, Boolean],
+    subAttributeVar: Var[StyleSubAttributes],
+    defaultSubAttrs: Signal[StyleSubAttributes]
 ):
-  private val styleAttrId = NodeStyle.attrId
-
-  private def getFillStyleDefaults: FillAndBorderStyle =
-    val defaults = defaultsO.map(_.observe(using OneTimeOwner(() => ())).now()).getOrElse(Attributes.empty)
-    getFillAndBorderStyle(defaults)
-
-  // Style => FillStyle
-  private def getCurrentValue(attrs: Attributes): Option[AttrValue] =
-    getFillAndBorderStyle(attrs).fillStyle.map(f => AttrValue(f.toString))
-
-  // FillStyle => Style
-  private def updateStyles(attrs: Attributes, valueO: Option[AttrValue]): Attributes =
-    val defaultFillStyle = getFillStyleDefaults
-    val fillStyle = valueO.map(fill => FillStyle.valueOf(fill.toString))
-    val dotStyle = (defaultFillStyle ++ getFillAndBorderStyle(attrs).copy(fillStyle = fillStyle)).toDotString
-
-    // FillStyle.ColorFill is represented as style="filled" in the style attribute
-    // FillStyle.NoFill is represented as style="" in the style attribute
-
-    // Rules:
-    // - global no style, local no style => default local: NoFill
-    // - global no style, local no style, user selects ColorFill => local style="filled"
-    // - global no style, local style="filled", user selects NoFill => local no style (removed)
-    // - global no style, local style="filled", user clicks reset => local no style (removed)
-
-    // - global style="filled", local no style => default local: ColorFill
-    // - global style="filled", local no style, user selects NoFill => local style=""
-    // - global style="filled", local style="" => default local: NoFill
-    // - global style="filled", local style="", user selects ColorFill  => local no style (removed)
-    // - global style="filled", local style="", user clicks reset  => local no style (removed)
-
-    if dotStyle.isBlank && !defaultFillStyle.fillStyle.contains(FillStyle.ColorFill) then
-      attrs - styleAttrId
-    else if dotStyle == defaultFillStyle.toDotString then
-      attrs - styleAttrId
-    else
-      attrs + (styleAttrId -> AttrValue(dotStyle))
-
-  // uses the global default if present, otherwise uses the (hardcoded) default value.
-  val getDefault: Signal[String] =
-    defaultsO
-      .map(_.map(getFillAndBorderStyle).map(_.fillStyle.getOrElse(FillStyle.default)))
-      .getOrElse(Signal.fromValue(FillStyle.default))
-      .map(_.toString)
-
-  val getVar =
-    attrsVar.zoomLazy(getCurrentValue)(updateStyles)
-
-end FillStyleVar
-
-class BorderStyleVar(
-    attrsVar: Var[Attributes],
-    defaults: Option[Signal[Attributes]]
-):
-  val styleAttrId = NodeStyle.attrId
-
-  private def getFillStyleDefaults: FillAndBorderStyle =
-    val globalAttrs = defaults.map(_.observe(using OneTimeOwner(() => ())).now()).getOrElse(Attributes.empty)
-    getFillAndBorderStyle(globalAttrs)
-
-  // Style => BorderStyle
-  private def getCurrentValue(attrs: Attributes): Option[AttrValue] =
-    getFillAndBorderStyle(attrs).borderStyle.map(f => AttrValue(f.toString))
-
-  // BorderStyle => Style
-  private def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
-    val defaultBorderStyle = getFillStyleDefaults
-    val borderStyleO = valueOpt.map(attrValue => NodeStyle.valueOf(attrValue.toString))
-    val dotStyle = (defaultBorderStyle ++ getFillAndBorderStyle(attrs).copy(borderStyle = borderStyleO)).toDotString
-    // Rules:
-    // - global no style, local no style => default local: solid
-    // - global no style, local no style, user selects dashed => local style="dashed"
-    // - global no style, local style="dashed", user selects solid => local no style (removed)  FIXME
-    // - global no style, local style="dashed", user clicks reset => local no style (removed)
-
-    // - global style="dashed", local no style => default local: dashed
-    // - global style="dashed", local no style, user selects solid => local style="solid"
-    // - global style="dashed", local style="solid" => default local: solid
-    // - global style="dashed", local style="solid", user selects dashed  => local no style (removed)
-    // - global style="dashed", local style="solid", user clicks reset  => local no style (removed)
-    if dotStyle.isBlank then
-      attrs - styleAttrId
-    else if dotStyle == defaultBorderStyle.toDotString then
-      attrs - styleAttrId
-    else
-      attrs + (styleAttrId -> AttrValue(dotStyle))
-
-  // uses the global default if present, otherwise uses the (hardcoded) default value.
-  val getDefault: Signal[String] =
-    defaults
-      .map(_.map(getFillAndBorderStyle).map(_.borderStyle.getOrElse(NodeStyle.default)))
-      .getOrElse(Signal.fromValue(NodeStyle.default))
-      .map(_.toString)
-
-  val getVar =
-    attrsVar.zoomLazy(getCurrentValue)(updateStyles)
-end BorderStyleVar
-
-class BooleanSubAttributeVar(
-    attrsVar:     Var[Attributes],
-    defaults:     Option[Signal[Attributes]],
-    subAttribute: DotAttributeSimple[Boolean]
-)
-
-case class FillAndBorderStyle(
-    fillStyle:   Option[FillStyle],
-    borderStyle: Option[NodeStyle]
-):
-  def toDotString: String =
-    val fillPart = if fillStyle.contains(FillStyle.ColorFill) then Some(NodeStyle.filled) else None
-    (fillPart.toSeq ++ borderStyle.toSeq).mkString(",")
-
-  def ++(other: FillAndBorderStyle): FillAndBorderStyle =
-    FillAndBorderStyle(
-      fillStyle   = other.fillStyle.orElse(fillStyle),
-      borderStyle = other.borderStyle.orElse(borderStyle)
+  val getVar: Var[Option[AttrValue]] =
+    subAttributeVar.zoomLazy(subAttrs =>
+      if getSubAttr(subAttrs) then Some(AttrValue(true.toString)) else None
+    )((subAttrs, attrValueO) =>
+      pathModify(subAttrs).setTo(attrValueO.contains(AttrValue(true.toString)))
     )
 
-object FillAndBorderStyle:
-  val empty = FillAndBorderStyle(None, None)
+  val getDefault: Signal[String] =
+    defaultSubAttrs.map(getSubAttr).map(_.toString)
+end BooleanSubAttr
 
-  def from(attrValue: Option[AttrValue]): FillAndBorderStyle =
-    attrValue match
-      case None => FillAndBorderStyle.empty
-      case Some(attrValue) =>
-        val parts = attrValue.toString.split(",").map(_.trim).filterNot(_.isEmpty).toSet
-        val (fillPart, borderPart) = parts.partition(_ == NodeStyle.filled.toString)
-        val fillStyle =
-          if fillPart.isEmpty then
-            Some(FillStyle.NoFill)
-          else
-            fillPart.headOption.map(_ => FillStyle.ColorFill)
-        FillAndBorderStyle(
-          fillStyle   = fillStyle,
-          borderStyle = borderPart.headOption.map(NodeStyle.valueOf)
-        )
+class EnumSubAttr[A](
+    getSubAttr:      StyleSubAttributes => Option[A],
+    pathModify:      StyleSubAttributes => PathModify[StyleSubAttributes, Option[A]],
+    valueOf:         String => A,
+    hardDefault:     A,
+    subAttributeVar: Var[StyleSubAttributes],
+    defaultSubAttrs: Signal[StyleSubAttributes]
+):
+  val getVar: Var[Option[AttrValue]] =
+    subAttributeVar.zoomLazy(subAttrs =>
+      getSubAttr(subAttrs).map(f => AttrValue(f.toString))
+    )((subAttrs, attrValueO) =>
+      pathModify(subAttrs).setTo(attrValueO.map(attrValue => valueOf(attrValue.toString)))
+    )
+
+  val getDefault: Signal[String] =
+    defaultSubAttrs.map(getSubAttr).map(_.getOrElse(hardDefault)).map(_.toString)
+end EnumSubAttr
+
+//class FillStyleVar(
+//    attrsVar:  Var[Attributes],
+//    defaultsO: Option[Signal[Attributes]]
+//):
+//  private val styleAttrId = NodeStyle.attrId
+//
+//  private def getFillStyleDefaults: StyleSubAttributes =
+//    val defaults = defaultsO.map(_.observe(using OneTimeOwner(() => ())).now()).getOrElse(Attributes.empty)
+//    getFillAndBorderStyle(defaults)
+//
+//  // Style => FillStyle
+//  private def getCurrentValue(attrs: Attributes): Option[AttrValue] =
+//    getFillAndBorderStyle(attrs).fill.map(f => AttrValue(f.toString))
+//
+//  // FillStyle => Style
+//  private def updateStyles(attrs: Attributes, valueO: Option[AttrValue]): Attributes =
+//    val defaultFillStyle = getFillStyleDefaults
+//    val fillStyle = valueO.map(fill => FillStyle.valueOf(fill.toString))
+//    val dotStyle = (defaultFillStyle ++ getFillAndBorderStyle(attrs).copy(fill = fillStyle)).toDotString
+//
+//    // FillStyle.ColorFill is represented as style="filled" in the style attribute
+//    // FillStyle.NoFill is represented as style="" in the style attribute
+//
+//    // Rules:
+//    // - global no style, local no style => default local: NoFill
+//    // - global no style, local no style, user selects ColorFill => local style="filled"
+//    // - global no style, local style="filled", user selects NoFill => local no style (removed)
+//    // - global no style, local style="filled", user clicks reset => local no style (removed)
+//
+//    // - global style="filled", local no style => default local: ColorFill
+//    // - global style="filled", local no style, user selects NoFill => local style=""
+//    // - global style="filled", local style="" => default local: NoFill
+//    // - global style="filled", local style="", user selects ColorFill  => local no style (removed)
+//    // - global style="filled", local style="", user clicks reset  => local no style (removed)
+//
+//    if dotStyle.isBlank && !defaultFillStyle.fill.contains(FillStyle.ColorFill) then
+//      attrs - styleAttrId
+//    else if dotStyle == defaultFillStyle.toDotString then
+//      attrs - styleAttrId
+//    else
+//      attrs + (styleAttrId -> AttrValue(dotStyle))
+//
+//  // uses the global default if present, otherwise uses the (hardcoded) default value.
+//  val getDefault: Signal[String] =
+//    defaultsO
+//      .map(_.map(getFillAndBorderStyle).map(_.fill.getOrElse(FillStyle.default)))
+//      .getOrElse(Signal.fromValue(FillStyle.default))
+//      .map(_.toString)
+//
+//  val getVar: Var[Option[AttrValue]] =
+//    attrsVar.zoomLazy(getCurrentValue)(updateStyles)
+//
+//end FillStyleVar
+
+//class BorderStyleVar(
+//    attrsVar: Var[Attributes],
+//    defaults: Option[Signal[Attributes]]
+//):
+//  val styleAttrId = NodeStyle.attrId
+//
+//  private def getFillStyleDefaults: StyleSubAttributes =
+//    val globalAttrs = defaults.map(_.observe(using OneTimeOwner(() => ())).now()).getOrElse(Attributes.empty)
+//    getFillAndBorderStyle(globalAttrs)
+//
+//  // Style => BorderStyle
+//  private def getCurrentValue(attrs: Attributes): Option[AttrValue] =
+//    getFillAndBorderStyle(attrs).border.map(f => AttrValue(f.toString))
+//
+//  // BorderStyle => Style
+//  private def updateStyles(attrs: Attributes, valueOpt: Option[AttrValue]): Attributes =
+//    val defaultBorderStyle = getFillStyleDefaults
+//    val borderStyleO = valueOpt.map(attrValue => NodeStyle.valueOf(attrValue.toString))
+//    val dotStyle = (defaultBorderStyle ++ getFillAndBorderStyle(attrs).copy(border = borderStyleO)).toDotString
+//    // Rules:
+//    // - global no style, local no style => default local: solid
+//    // - global no style, local no style, user selects dashed => local style="dashed"
+//    // - global no style, local style="dashed", user selects solid => local no style (removed)  FIXME
+//    // - global no style, local style="dashed", user clicks reset => local no style (removed)
+//
+//    // - global style="dashed", local no style => default local: dashed
+//    // - global style="dashed", local no style, user selects solid => local style="solid"
+//    // - global style="dashed", local style="solid" => default local: solid
+//    // - global style="dashed", local style="solid", user selects dashed  => local no style (removed)
+//    // - global style="dashed", local style="solid", user clicks reset  => local no style (removed)
+//    if dotStyle.isBlank then
+//      attrs - styleAttrId
+//    else if dotStyle == defaultBorderStyle.toDotString then
+//      attrs - styleAttrId
+//    else
+//      attrs + (styleAttrId -> AttrValue(dotStyle))
+//
+//  // uses the global default if present, otherwise uses the (hardcoded) default value.
+//  val getDefault: Signal[String] =
+//    defaults
+//      .map(_.map(getFillAndBorderStyle).map(_.border.getOrElse(NodeStyle.default)))
+//      .getOrElse(Signal.fromValue(NodeStyle.default))
+//      .map(_.toString)
+//
+//  val getVar =
+//    attrsVar.zoomLazy(getCurrentValue)(updateStyles)
+//end BorderStyleVar
