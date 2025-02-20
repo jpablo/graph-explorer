@@ -4,7 +4,13 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
-import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{BoldStyle, BorderStyle, FillStyle, CornerStyle}
+import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{
+  BoldStyle,
+  BorderStyle,
+  CornerStyle,
+  FillStyle,
+  InvisibleStyle
+}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.Attributes
@@ -46,6 +52,7 @@ def NodesAttributesView(
   // -------------------
   val boldStyle = BooleanSubAttr(_.bold, modify(_)(_.bold), subAttributeVar, defaultSubAttrs)
   val fillStyle = BooleanSubAttr(_.fill, modify(_)(_.fill), subAttributeVar, defaultSubAttrs)
+  val invisibleStyle = BooleanSubAttr(_.invisible, modify(_)(_.invisible), subAttributeVar, defaultSubAttrs)
   val borderStyle =
     EnumSubAttr(
       _.border,
@@ -104,15 +111,16 @@ def NodesAttributesView(
       Sides       -> number(start = Some(3), end = Some(10), step = Some(1)),
       Regular     -> checkbox,
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
+      Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
       "Style",
       builder.inputRow(FillStyle -> InputType.checkbox, fillStyle.getVar, fillStyle.getDefault),
       FillColor -> color,
       borderStyleRow,
+      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
-      PenWidth    -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      Color     -> color,
+      Color -> color,
       shapeModeStyleRow,
-      Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
+      builder.inputRow(InvisibleStyle -> InputType.checkbox, invisibleStyle.getVar, invisibleStyle.getDefault),
       "Other",
       if selection then URL else ""
     )

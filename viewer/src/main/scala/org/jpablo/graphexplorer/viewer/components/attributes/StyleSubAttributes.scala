@@ -6,27 +6,30 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 
 case class StyleSubAttributes(
-    fill:     Boolean = false,
-    bold:     Boolean = false,
-    border:   Option[BorderStyle] = None,
-    shapeMod: Option[CornerStyle] = None
+    fill:      Boolean = false,
+    bold:      Boolean = false,
+    invisible: Boolean = false,
+    border:    Option[BorderStyle] = None,
+    shapeMod:  Option[CornerStyle] = None
 ):
   def toDotString: String =
     val fillPart = if fill then List(NodeStyle.filled) else Nil
     val boldPart = if bold then List(NodeStyle.bold.toString) else Nil
+    val invisPart = if invisible then List(NodeStyle.invis.toString) else Nil
     val shapeModPart =
       shapeMod.flatMap:
         case CornerStyle.normal => None
         case s                  => Some(s.toString)
     val borderPart = border.map(_.toString).toList
-    (fillPart ++ boldPart ++ shapeModPart.toSeq ++ borderPart).mkString(",")
+    (fillPart ++ boldPart ++ invisPart ++ shapeModPart.toSeq ++ borderPart).mkString(",")
 
   def ++(other: StyleSubAttributes): StyleSubAttributes =
     StyleSubAttributes(
-      fill     = other.fill || fill,
-      bold     = other.bold || bold,
-      border   = other.border.orElse(border),
-      shapeMod = other.shapeMod.orElse(shapeMod)
+      fill      = other.fill || fill,
+      bold      = other.bold || bold,
+      invisible = other.invisible || invisible,
+      border    = other.border.orElse(border),
+      shapeMod  = other.shapeMod.orElse(shapeMod)
     )
 
 object StyleSubAttributes:
@@ -38,8 +41,9 @@ object StyleSubAttributes:
       case Some(attrValue) =>
         val parts = attrValue.toString.split(",").map(_.trim).filterNot(_.isEmpty).toSet
         StyleSubAttributes(
-          fill     = NodeStyle.filled in parts,
-          bold     = NodeStyle.bold.toString in parts,
-          border   = BorderStyle.values.find(_.toString in parts),
-          shapeMod = CornerStyle.values.find(_.toString in parts)
+          fill      = NodeStyle.filled in parts,
+          bold      = NodeStyle.bold.toString in parts,
+          invisible = NodeStyle.invis.toString in parts,
+          border    = BorderStyle.values.find(_.toString in parts),
+          shapeMod  = CornerStyle.values.find(_.toString in parts)
         )

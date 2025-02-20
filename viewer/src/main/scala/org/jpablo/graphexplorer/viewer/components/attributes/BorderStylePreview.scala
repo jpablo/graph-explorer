@@ -60,5 +60,3 @@ def BorderStylePreview(
           )
         )
       )
-
-    case BorderStyle.invis => None

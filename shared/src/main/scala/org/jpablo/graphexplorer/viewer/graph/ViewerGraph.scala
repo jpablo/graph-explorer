@@ -70,11 +70,7 @@ case class ViewerGraph(
     modifyRootGraphAttrs.using(_ - "size")
 
   def setDefaultTheme: ViewerGraph =
-    //    val defaultAttrs = Attributes(Map("style" -> "filled", "fillcolor" -> "white"))
-    //    val nodesWithDefaultAttrs = nodes.map(n => n.copy(attrs = n.attrs ++ defaultAttrs))
-    //    val arrowsWithDefaultAttrs = arrows.map(a => a.copy(attrs = a.attrs ++ defaultAttrs))
-    //    ViewerGraph(arrowsWithDefaultAttrs, nodesWithDefaultAttrs)
-    this
+    updateRootAttributes(AttributeTarget.node)(Attributes(Map("sides" -> AttrValue("5"))))
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
     modifyData.using(_.removeElements(toRemove))
@@ -228,7 +224,7 @@ object ViewerGraph:
           val quotient = adjusted / 26
           val remainder = adjusted % 26
           remainder :: (if quotient > 0 then toBase26(quotient) else Nil)
-      
+
       toBase26(n).reverse.map(i => (i + 97).toChar).mkString
 
   val defaultRootId = GroupId("G")
