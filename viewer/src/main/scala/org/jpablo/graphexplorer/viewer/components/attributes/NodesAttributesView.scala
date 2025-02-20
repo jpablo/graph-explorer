@@ -117,11 +117,11 @@ def NodesAttributesView(
       FillColor -> color,
       borderStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
       Color -> color,
+      builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
       shapeModeStyleRow,
       builder.inputRow(InvisibleStyle -> InputType.checkbox, invisibleStyle.getVar, invisibleStyle.getDefault),
-      "Other",
+      if selection then "Other" else "",
       if selection then URL else ""
     )
   )

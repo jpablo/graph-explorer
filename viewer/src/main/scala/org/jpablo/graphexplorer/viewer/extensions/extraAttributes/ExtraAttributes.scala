@@ -22,7 +22,7 @@ enum BorderStyle:
 
 object BorderStyle extends DotAttributeEnum[BorderStyle]:
   val default = solid
-  val label = "Pen Style"
+  val label = "Border Style"
 
   override def valuesWithLabel = Array(
     ("Solid", solid),

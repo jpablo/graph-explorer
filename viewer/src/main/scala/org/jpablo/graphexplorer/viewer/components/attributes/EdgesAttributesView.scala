@@ -53,8 +53,8 @@ def EdgesAttributesView(
       FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Style",
       edgeStyleRow,
-      Color    -> color,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      Color    -> color,
       Dir,
       ArrowHead,
       ArrowTail,
@@ -62,7 +62,7 @@ def EdgesAttributesView(
       Constraint -> checkbox,
       // FillColor -> color, // Not supported for now
       // Ordering,
-      "Other",
+      if selection then "Other" else "",
       if selection then URL else ""
     )
   )
