@@ -92,7 +92,8 @@ def NodesAttributesView(
       BorderStyle.valueOf,
       BorderStyle.default,
       subAttributeVar,
-      defaultSubAttrs
+      defaultSubAttrs,
+      getSubAttrsNow
     )
   val shapeModeStyle =
     EnumSubAttr(
@@ -101,7 +102,8 @@ def NodesAttributesView(
       CornerStyle.valueOf,
       CornerStyle.default,
       subAttributeVar,
-      defaultSubAttrs
+      defaultSubAttrs,
+      getSubAttrsNow
     )
 
   val borderStyleRow =
@@ -197,44 +199,36 @@ class BooleanSubAttr(
 end BooleanSubAttr
 
 class EnumSubAttr[A](
-    getSubAttr:      StyleSubAttributes => A,
-    pathModify:      StyleSubAttributes => PathModify[StyleSubAttributes, A],
-    valueOf:         String => A,
-    hardDefault:     A,
-    subAttributeVar: Var[Option[StyleSubAttributes]],
-    defaultSubAttrs: Signal[StyleSubAttributes]
+    getSubAttr:       StyleSubAttributes => A,
+    pathModify:       StyleSubAttributes => PathModify[StyleSubAttributes, A],
+    valueOf:          String => A,
+    hardDefault:      A,
+    subAttributeVar:  Var[Option[StyleSubAttributes]],
+    defaultSubAttrsS: Signal[StyleSubAttributes],
+    getSubAttrsNow:   Signal[StyleSubAttributes] => StyleSubAttributes
 ):
   val getVar: Var[Option[AttrValue]] =
     subAttributeVar.zoomLazy(subAttrs =>
       subAttrs.map(getSubAttr).map(b => AttrValue(b.toString))
     )((subAttrs, attrValueO) =>
-      pprint.log((subAttrs, attrValueO))
 
       (subAttrs, attrValueO) match
         case (None, None) => None
 
         case (None, Some(attrValue)) =>
-          val value = valueOf(attrValue.toString)
-          Some(pathModify(StyleSubAttributes.empty).setTo(value))
-//          if value == hardDefault then
-//            // missing style but the attribute value is the default so no need to add it
-//            None
-//          else
-//            // we need to go from a missing style to a style with the sub-attribute set to the new value
-//            Some(pathModify(StyleSubAttributes.empty).setTo(value))
+          val defaultSubAttrs = getSubAttrsNow(defaultSubAttrsS)
+          Some(pathModify(defaultSubAttrs).setTo(valueOf(attrValue.toString)))
 
         case (Some(subAttrs), None) =>
-          // Not sure if this is correct: the user intention is to remove the modification
-          // but if we return None, the whole style will be removed, not just the sub-attribute
-          // It seems like the correct behavior is to set the sub-attribute to the same value as the default?
-          Some(pathModify(subAttrs).setTo(hardDefault))
+          val defaultSubAttrs = getSubAttrsNow(defaultSubAttrsS)
+          Some(pathModify(subAttrs).setTo(getSubAttr(defaultSubAttrs)))
 
         case (Some(subAttrs), Some(attrValue)) =>
           Some(pathModify(subAttrs).setTo(valueOf(attrValue.toString)))
     )
 
   val getDefault: Signal[String] =
-    defaultSubAttrs.map(getSubAttr).map(_.toString)
+    defaultSubAttrsS.map(getSubAttr).map(_.toString)
 end EnumSubAttr
 
 //class FillStyleVar(
