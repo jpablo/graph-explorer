@@ -13,7 +13,6 @@ def SelectionSidebar(state: ViewerState) =
     state.diagramSelection.signal.map(_.isEmpty)
   div(
     idAttr := "selection-sidebar",
-    cls := "bg-base-100/90",
     child(
       ul(
         cls := "menu menu-sm rounded-box bg-transparent",

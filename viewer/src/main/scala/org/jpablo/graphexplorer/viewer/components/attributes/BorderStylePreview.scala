@@ -16,13 +16,12 @@ def BorderStylePreview(
         svg.svg(
           svg.width  := width.toString,
           svg.height := height.toString,
-          svg.rect(
-            svg.x           := "2",
-            svg.y           := "2",
-            svg.width       := (width - 4).toString,
-            svg.height      := (height - 4).toString,
+          svg.line(
+            svg.x1          := "0",
+            svg.y1          := (height / 2).toString,
+            svg.x2          := width.toString,
+            svg.y2          := (height / 2).toString,
             svg.stroke      := "currentColor",
-            svg.fill        := "none",
             svg.strokeWidth := "2"
           )
         )
@@ -33,13 +32,12 @@ def BorderStylePreview(
         svg.svg(
           svg.width  := width.toString,
           svg.height := height.toString,
-          svg.rect(
-            svg.x               := "2",
-            svg.y               := "2",
-            svg.width           := (width - 4).toString,
-            svg.height          := (height - 4).toString,
+          svg.line(
+            svg.x1              := "0",
+            svg.y1              := (height / 2).toString,
+            svg.x2              := width.toString,
+            svg.y2              := (height / 2).toString,
             svg.stroke          := "currentColor",
-            svg.fill            := "none",
             svg.strokeWidth     := "2",
             svg.strokeDashArray := "5,2"
           )
@@ -51,13 +49,12 @@ def BorderStylePreview(
         svg.svg(
           svg.width  := width.toString,
           svg.height := height.toString,
-          svg.rect(
-            svg.x               := "2",
-            svg.y               := "2",
-            svg.width           := (width - 4).toString,
-            svg.height          := (height - 4).toString,
+          svg.line(
+            svg.x1              := "0",
+            svg.y1              := (height / 2).toString,
+            svg.x2              := width.toString,
+            svg.y2              := (height / 2).toString,
             svg.stroke          := "currentColor",
-            svg.fill            := "none",
             svg.strokeWidth     := "2",
             svg.strokeDashArray := "1,5"
           )

@@ -50,7 +50,7 @@ def EdgesAttributesView(
       "Text Format",
       FontColor -> color,
       FontName,
-      FontSize  -> range(start = Some(1), end = Some(100), step = Some(1)),
+      FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Style",
       edgeStyleRow,
       Color    -> color,

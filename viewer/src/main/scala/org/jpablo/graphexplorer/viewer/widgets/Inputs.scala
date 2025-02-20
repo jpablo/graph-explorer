@@ -61,7 +61,7 @@ def SelectWithPreview(
     default:     Signal[String]
 ) =
   div(
-    cls      := "dropdown dropdown-hover w-full",
+    cls      := "dropdown w-full",
     tabIndex := 0,
     button(
       cls      := "btn btn-xs w-full flex justify-between items-center",
@@ -90,7 +90,7 @@ def SelectWithPreview(
             cls := "flex items-center gap-2",
             div(
               cls := "w-4 flex justify-center items-center",  // Fixed width container for the checkmark
-              child.maybe <-- selectValue.signal.combineWith(default).map((sv, d) => 
+              child.maybe <-- selectValue.signal.combineWith(default).map((sv, d) =>
                 if sv.getOrElse(d).toString == row.value.toString then
                   Some(i(cls := "bi bi-check2"))
                 else None
@@ -110,7 +110,7 @@ def SelectWithPreviewGrid(
     default:     Signal[String]
 ) =
   div(
-    cls      := "dropdown dropdown-hover dropdown-bottom dropdown-end w-full",
+    cls      := "dropdown dropdown-bottom dropdown-end w-full",
     tabIndex := 0,
     button(
       cls      := "btn btn-xs w-full flex justify-between items-center",
@@ -128,7 +128,7 @@ def SelectWithPreviewGrid(
     ),
     // ---- Dropdown menu ----
     div(
-      cls := "dropdown-content card card-compact z-[1] w-64 p-2 shadow bg-base-100",
+      cls := "dropdown-content card card-compact z-[1] w-64 p-2 shadow bg-base-100 border border-base-300",
       tabIndex := 0,
       div(
         cls := "card-body grid grid-cols-3 gap-2 overflow-y-auto max-h-64",

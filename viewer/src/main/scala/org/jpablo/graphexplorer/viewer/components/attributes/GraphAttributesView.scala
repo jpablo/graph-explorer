@@ -43,7 +43,7 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
       "Fonts",
       FontName,
       FontColor -> color,
-      FontSize  -> range(start = Some(1), end = Some(100), step = Some(1)),
+      FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Background",
       BgColor -> color,
       "Border",

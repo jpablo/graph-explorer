@@ -41,7 +41,7 @@ object BorderStyle extends DotAttributeEnum[BorderStyle]:
   )
 
 enum ShapeModStyle:
-  case rounded, diagonals, none // Is none really needed?
+  case rounded, diagonals, none
 
 object ShapeModStyle extends DotAttributeEnum[ShapeModStyle]:
   val default = none

@@ -9,7 +9,7 @@ case class StyleSubAttributes(
     fill:     Boolean = false,
     bold:     Boolean = false,
     border:   Option[BorderStyle] = None,
-    shapeMod: Option[ShapeModStyle] = None,
+    shapeMod: Option[ShapeModStyle] = None
 ):
   def toDotString: String =
     val fillPart = if fill then List(NodeStyle.filled) else Nil

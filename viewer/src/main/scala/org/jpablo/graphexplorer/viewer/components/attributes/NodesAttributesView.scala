@@ -34,7 +34,7 @@ def NodesAttributesView(
     attrsVar
       .zoomLazy(getFillAndBorderStyle)((attrs, subAttrs) =>
         val dotStyle = subAttrs.toDotString
-        if dotStyle.isBlank then
+        if dotStyle.isBlank /*|| dotStyle == default*/ then
           attrs - NodeStyle.attrId
         else
           attrs + (NodeStyle.attrId -> AttrValue(dotStyle))
@@ -67,11 +67,11 @@ def NodesAttributesView(
 
   val borderStyleRow =
     builder
-      .inputRow(BorderStyle -> InputType.selectWithPreviewGrid, borderStyle.getVar, borderStyle.getDefault)
+      .inputRow(BorderStyle -> InputType.selectWithPreview, borderStyle.getVar, borderStyle.getDefault)
       .copy(
         options =
           BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), BorderStylePreview(style, 30, 20))
+            RowOption(label, AttrValue(style.toString), BorderStylePreview(style))
       )
 
   val shapeModeStyleRow =
@@ -98,7 +98,7 @@ def NodesAttributesView(
       "Text Format",
       FontColor -> color,
       FontName,
-      FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
+      FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Shape",
       shapeRow,
       Sides       -> number(start = Some(3), end = Some(10), step = Some(1)),
