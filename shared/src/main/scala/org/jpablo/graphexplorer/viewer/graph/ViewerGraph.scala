@@ -70,7 +70,7 @@ case class ViewerGraph(
     modifyRootGraphAttrs.using(_ - "size")
 
   def setDefaultTheme: ViewerGraph =
-    updateRootAttributes(AttributeTarget.node)(Attributes(Map("sides" -> AttrValue("5"))))
+    modifyRootAttributes(AttributeTarget.node).using(_ ++ Attributes(Map("sides" -> AttrValue("5"))))
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
     modifyData.using(_.removeElements(toRemove))
@@ -115,12 +115,14 @@ case class ViewerGraph(
       case AttributeTarget.node  => root.nodeAttrs
       case AttributeTarget.edge  => root.edgeAttrs
 
-  def updateRootAttributes(target: AttributeTarget)(attrs: Attributes): ViewerGraph =
-    val modifyAttrs = target match
+  def modifyRootAttributes(target: AttributeTarget) =
+    target match
       case AttributeTarget.graph => modifyRootGraphAttrs
       case AttributeTarget.node  => modifyRootNodeAttrs
       case AttributeTarget.edge  => modifyRootEdgeAttrs
-    modifyAttrs.setTo(attrs)
+
+  def setRootAttributes(target: AttributeTarget)(attrs: Attributes): ViewerGraph =
+    modifyRootAttributes(target).setTo(attrs)
 
   val init = Map.empty[String, AttrValue]
 

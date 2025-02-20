@@ -115,7 +115,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     sourceFlow.fullGraphV
       .zoomLazy(_.getRootAttributes(AttributeTarget.graph))(
         { (graph, attrs) =>
-          graph.updateRootAttributes(AttributeTarget.graph)(attrs)
+          graph.setRootAttributes(AttributeTarget.graph)(attrs)
         }
       )
 
@@ -124,11 +124,11 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // instead of re-rendering the whole diagram
   val nodeTargetAttributes =
     sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.node))(_.updateRootAttributes(AttributeTarget.node)(_))
+      .zoomLazy(_.getRootAttributes(AttributeTarget.node))(_.setRootAttributes(AttributeTarget.node)(_))
 
   val edgeTargetAttributes =
     sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.edge))(_.updateRootAttributes(AttributeTarget.edge)(_))
+      .zoomLazy(_.getRootAttributes(AttributeTarget.edge))(_.setRootAttributes(AttributeTarget.edge)(_))
 
   // individual node attributes
   def nodesAttributes(nodeIds: Set[NodeId]): Var[Attributes] =
