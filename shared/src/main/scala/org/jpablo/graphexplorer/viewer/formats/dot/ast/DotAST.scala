@@ -69,6 +69,10 @@ case class AttrValue(value: String | AttrEq):
     case s: String => s
     case a: AttrEq => a.value
 
+  // hack
+  def isTrue: Boolean =
+    this.toString == true.toString
+
 object AttrValue:
   val empty = AttrValue("")
 

@@ -9,41 +9,46 @@ case class StyleSubAttributes(
     fill:      Boolean = false,
     bold:      Boolean = false,
     invisible: Boolean = false,
-    border:    Option[BorderStyle] = None,
-    shapeMod:  Option[CornerStyle] = None
+    border:    BorderStyle = BorderStyle.default,
+    shapeMod:  CornerStyle = CornerStyle.default
 ):
   def toDotString: String =
     val fillPart = if fill then List(NodeStyle.filled) else Nil
     val boldPart = if bold then List(NodeStyle.bold.toString) else Nil
     val invisPart = if invisible then List(NodeStyle.invis.toString) else Nil
+    val borderPart =
+      border match
+        case BorderStyle.default => Nil
+        case s                   => List(s.toString)
     val shapeModPart =
-      shapeMod.flatMap:
-        case CornerStyle.normal => None
-        case s                  => Some(s.toString)
-    val borderPart = border.map(_.toString).toList
-    (fillPart ++ boldPart ++ invisPart ++ shapeModPart.toSeq ++ borderPart).mkString(",")
+      shapeMod match
+        case CornerStyle.default => Nil
+        case s                   => List(s.toString)
+    (fillPart ++ boldPart ++ invisPart ++ shapeModPart ++ borderPart).mkString(",")
 
-  def ++(other: StyleSubAttributes): StyleSubAttributes =
+  // this: defaults
+  // other: local
+  def ++(local: StyleSubAttributes): StyleSubAttributes =
     StyleSubAttributes(
-      fill      = other.fill || fill,
-      bold      = other.bold || bold,
-      invisible = other.invisible || invisible,
-      border    = other.border.orElse(border),
-      shapeMod  = other.shapeMod.orElse(shapeMod)
+      fill      = local.fill,
+      bold      = local.bold,
+      invisible = local.invisible,
+      border    = local.border,
+      shapeMod  = local.shapeMod
     )
+
+  def isEmpty: Boolean =
+    this == StyleSubAttributes.empty
 
 object StyleSubAttributes:
   val empty = StyleSubAttributes()
 
-  def from(attrValue: Option[AttrValue]): StyleSubAttributes =
-    attrValue match
-      case None => empty
-      case Some(attrValue) =>
-        val parts = attrValue.toString.split(",").map(_.trim).filterNot(_.isEmpty).toSet
-        StyleSubAttributes(
-          fill      = NodeStyle.filled in parts,
-          bold      = NodeStyle.bold.toString in parts,
-          invisible = NodeStyle.invis.toString in parts,
-          border    = BorderStyle.values.find(_.toString in parts),
-          shapeMod  = CornerStyle.values.find(_.toString in parts)
-        )
+  def from(attrValue: AttrValue): StyleSubAttributes =
+    val parts = attrValue.toString.split(",").map(_.trim).filterNot(_.isEmpty).toSet
+    StyleSubAttributes(
+      fill      = NodeStyle.filled in parts,
+      bold      = NodeStyle.bold.toString in parts,
+      invisible = NodeStyle.invis.toString in parts,
+      border    = BorderStyle.values.find(_.toString in parts).getOrElse(BorderStyle.default),
+      shapeMod  = CornerStyle.values.find(_.toString in parts).getOrElse(CornerStyle.default)
+    )

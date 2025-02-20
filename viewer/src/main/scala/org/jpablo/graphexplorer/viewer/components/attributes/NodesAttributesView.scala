@@ -36,23 +36,55 @@ def NodesAttributesView(
     else
       ""
 
-  val subAttributeVar: Var[StyleSubAttributes] =
+  val defaultSubAttrs: Signal[StyleSubAttributes] =
+    defaults
+      .map(_.map(attrs => getFillAndBorderStyle(attrs).getOrElse(StyleSubAttributes.empty)))
+      .getOrElse(Signal.fromValue(StyleSubAttributes.empty))
+
+  def getSubAttrsNow(s: Signal[StyleSubAttributes]): StyleSubAttributes =
+    s.observe(using state.owner).now()
+
+  val subAttributeVar: Var[Option[StyleSubAttributes]] =
     attrsVar
-      .zoomLazy(getFillAndBorderStyle)((attrs, subAttrs) =>
-        val dotStyle = subAttrs.toDotString
-        if dotStyle.isBlank /*|| dotStyle == default*/ then
-          attrs - NodeStyle.attrId
-        else
-          attrs + (NodeStyle.attrId -> AttrValue(dotStyle))
+      .zoomLazy(getFillAndBorderStyle)((attrs, subAttrsO) =>
+        subAttrsO match
+          case None => attrs - NodeStyle.attrId
+          case Some(subAttrs) =>
+            val default = getSubAttrsNow(defaultSubAttrs)
+
+//            val combined = default ++ subAttrs
+//            pprint.log((default, subAttrs, combined))
+
+            val dotStyle = subAttrs.toDotString
+            if default.toDotString == dotStyle then
+              // otherwise changes to the default style will be ignored
+              attrs - NodeStyle.attrId
+            else
+              attrs + (NodeStyle.attrId -> AttrValue(dotStyle))
       )
 
-  val defaultSubAttrs: Signal[StyleSubAttributes] =
-    defaults.map(_.map(getFillAndBorderStyle)).getOrElse(Signal.fromValue(StyleSubAttributes.empty))
+//  val subAttributeFilledVar: Var[StyleSubAttributes] =
+//    attrsVar
+//      .zoomLazy(attrs => getFillAndBorderStyle(attrs))((attrs, subAttrs) =>
+//        val default = defaultSubAttrsNow()
+//        val combined = default ++ subAttrs
+//        val dotStyle = combined.toDotString
+//        pprint.log(attrs)
+//        pprint.log(subAttrs)
+//        pprint.log(default)
+//        pprint.log(combined)
+//        pprint.log(dotStyle)
+//        if default.toDotString == dotStyle then
+//          attrs - NodeStyle.attrId
+//        else
+//          attrs + (NodeStyle.attrId -> AttrValue(dotStyle))
+//      )
 
   // -------------------
-  val boldStyle = BooleanSubAttr(_.bold, modify(_)(_.bold), subAttributeVar, defaultSubAttrs)
-  val fillStyle = BooleanSubAttr(_.fill, modify(_)(_.fill), subAttributeVar, defaultSubAttrs)
-  val invisibleStyle = BooleanSubAttr(_.invisible, modify(_)(_.invisible), subAttributeVar, defaultSubAttrs)
+  val boldStyle = BooleanSubAttr(_.bold, modify(_)(_.bold), subAttributeVar, defaultSubAttrs, getSubAttrsNow)
+  val fillStyle = BooleanSubAttr(_.fill, modify(_)(_.fill), subAttributeVar, defaultSubAttrs, getSubAttrsNow)
+  val invisibleStyle =
+    BooleanSubAttr(_.invisible, modify(_)(_.invisible), subAttributeVar, defaultSubAttrs, getSubAttrsNow)
   val borderStyle =
     EnumSubAttr(
       _.border,
@@ -119,54 +151,90 @@ def NodesAttributesView(
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       Color    -> color,
       builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
-      shapeModeStyleRow,
+      shapeModeStyleRow
     ),
-    if selection then 
+    if selection then
       builder.buildRows(
         builder.inputRow(InvisibleStyle -> InputType.checkbox, invisibleStyle.getVar, invisibleStyle.getDefault),
-        "Other", 
+        "Other",
         URL
-      ) 
+      )
     else Seq.empty
   )
 
 private def getFillAndBorderStyle(attrs: Attributes) =
-  StyleSubAttributes.from(attrs.get(NodeStyle.attrId))
+  attrs.get(NodeStyle.attrId).map(StyleSubAttributes.from)
 
 class BooleanSubAttr(
-    getSubAttr:      StyleSubAttributes => Boolean,
-    pathModify:      StyleSubAttributes => PathModify[StyleSubAttributes, Boolean],
-    subAttributeVar: Var[StyleSubAttributes],
+    getSubAttr:       StyleSubAttributes => Boolean,
+    pathModify:       StyleSubAttributes => PathModify[StyleSubAttributes, Boolean],
+    subAttributeVar:  Var[Option[StyleSubAttributes]],
+    defaultSubAttrsS: Signal[StyleSubAttributes],
+    getSubAttrsNow:   Signal[StyleSubAttributes] => StyleSubAttributes
+):
+  val getVar: Var[Option[AttrValue]] =
+    subAttributeVar.zoomLazy(subAttrs =>
+      subAttrs.map(getSubAttr).map(b => AttrValue(b.toString))
+    )((subAttrs, attrValueO) =>
+      (subAttrs, attrValueO) match
+
+        case (None, None) => None
+
+        case (None, Some(attrValue)) =>
+          val defaultSubAttrs = getSubAttrsNow(defaultSubAttrsS)
+          Some(pathModify(defaultSubAttrs).setTo(attrValue.isTrue))
+
+        case (Some(subAttrs), None) =>
+          val defaultSubAttrs = getSubAttrsNow(defaultSubAttrsS)
+          Some(pathModify(subAttrs).setTo(getSubAttr(defaultSubAttrs)))
+
+        case (Some(subAttrs), Some(attrValue)) =>
+          Some(pathModify(subAttrs).setTo(attrValue.isTrue))
+    )
+
+  val getDefault: Signal[String] =
+    defaultSubAttrsS.map(getSubAttr).map(_.toString)
+end BooleanSubAttr
+
+class EnumSubAttr[A](
+    getSubAttr:      StyleSubAttributes => A,
+    pathModify:      StyleSubAttributes => PathModify[StyleSubAttributes, A],
+    valueOf:         String => A,
+    hardDefault:     A,
+    subAttributeVar: Var[Option[StyleSubAttributes]],
     defaultSubAttrs: Signal[StyleSubAttributes]
 ):
   val getVar: Var[Option[AttrValue]] =
     subAttributeVar.zoomLazy(subAttrs =>
-      if getSubAttr(subAttrs) then Some(AttrValue(true.toString)) else None
+      subAttrs.map(getSubAttr).map(b => AttrValue(b.toString))
     )((subAttrs, attrValueO) =>
-      pathModify(subAttrs).setTo(attrValueO.contains(AttrValue(true.toString)))
+      pprint.log((subAttrs, attrValueO))
+
+      (subAttrs, attrValueO) match
+        case (None, None) => None
+
+        case (None, Some(attrValue)) =>
+          val value = valueOf(attrValue.toString)
+          Some(pathModify(StyleSubAttributes.empty).setTo(value))
+//          if value == hardDefault then
+//            // missing style but the attribute value is the default so no need to add it
+//            None
+//          else
+//            // we need to go from a missing style to a style with the sub-attribute set to the new value
+//            Some(pathModify(StyleSubAttributes.empty).setTo(value))
+
+        case (Some(subAttrs), None) =>
+          // Not sure if this is correct: the user intention is to remove the modification
+          // but if we return None, the whole style will be removed, not just the sub-attribute
+          // It seems like the correct behavior is to set the sub-attribute to the same value as the default?
+          Some(pathModify(subAttrs).setTo(hardDefault))
+
+        case (Some(subAttrs), Some(attrValue)) =>
+          Some(pathModify(subAttrs).setTo(valueOf(attrValue.toString)))
     )
 
   val getDefault: Signal[String] =
     defaultSubAttrs.map(getSubAttr).map(_.toString)
-end BooleanSubAttr
-
-class EnumSubAttr[A](
-    getSubAttr:      StyleSubAttributes => Option[A],
-    pathModify:      StyleSubAttributes => PathModify[StyleSubAttributes, Option[A]],
-    valueOf:         String => A,
-    hardDefault:     A,
-    subAttributeVar: Var[StyleSubAttributes],
-    defaultSubAttrs: Signal[StyleSubAttributes]
-):
-  val getVar: Var[Option[AttrValue]] =
-    subAttributeVar.zoomLazy(subAttrs =>
-      getSubAttr(subAttrs).map(f => AttrValue(f.toString))
-    )((subAttrs, attrValueO) =>
-      pathModify(subAttrs).setTo(attrValueO.map(attrValue => valueOf(attrValue.toString)))
-    )
-
-  val getDefault: Signal[String] =
-    defaultSubAttrs.map(getSubAttr).map(_.getOrElse(hardDefault)).map(_.toString)
 end EnumSubAttr
 
 //class FillStyleVar(
