@@ -40,17 +40,21 @@ class RowBuilder(
         | AttributeRow
         | (DotAttribute[?], InputType)*
   ): Seq[AttributeRow] =
-    dotAttributes.map:
-      case s: String         => AttributeHeader(s)
-      case row: AttributeRow => row
+    dotAttributes
+      .filter:
+        case "" => false
+        case _  => true
+      .map:
+        case s: String         => AttributeHeader(s)
+        case row: AttributeRow => row
 
-      case dotAttr: (DotAttribute[?] | (DotAttribute[?], InputType)) =>
-        val (attr, inputType) =
-          dotAttr match
-            case attr: DotAttributeEnum[?]              => (attr, InputType.select)
-            case attr: DotAttributeSimple[?]            => (attr, InputType.text)
-            case (attr: DotAttribute[?], it: InputType) => (attr, it)
-        simpleRow(attr, inputType)
+        case dotAttr: (DotAttribute[?] | (DotAttribute[?], InputType)) =>
+          val (attr, inputType) =
+            dotAttr match
+              case attr: DotAttributeEnum[?]              => (attr, InputType.select)
+              case attr: DotAttributeSimple[?]            => (attr, InputType.text)
+              case (attr: DotAttribute[?], it: InputType) => (attr, it)
+          simpleRow(attr, inputType)
 
   def simpleRow(attr: DotAttribute[?], inputType: InputType, onReset: Option[String] = None) =
     inputRow(

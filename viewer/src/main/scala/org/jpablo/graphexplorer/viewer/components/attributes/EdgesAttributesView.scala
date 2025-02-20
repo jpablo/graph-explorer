@@ -50,7 +50,7 @@ def EdgesAttributesView(
       "Text Format",
       FontColor -> color,
       FontName,
-      FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
+      FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Style",
       edgeStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
@@ -59,10 +59,7 @@ def EdgesAttributesView(
       ArrowHead,
       ArrowTail,
       "Layout",
-      Constraint -> checkbox,
-      // FillColor -> color, // Not supported for now
-      // Ordering,
-      if selection then "Other" else "",
-      if selection then URL else ""
-    )
+      Constraint -> checkbox
+    ),
+    if selection then builder.buildRows("Other", URL) else Seq.empty
   )

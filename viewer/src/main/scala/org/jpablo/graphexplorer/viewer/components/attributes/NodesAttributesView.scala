@@ -117,13 +117,12 @@ def NodesAttributesView(
       FillColor -> color,
       borderStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      Color -> color,
+      Color    -> color,
       builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
       shapeModeStyleRow,
-      builder.inputRow(InvisibleStyle -> InputType.checkbox, invisibleStyle.getVar, invisibleStyle.getDefault),
-      if selection then "Other" else "",
-      if selection then URL else ""
-    )
+      builder.inputRow(InvisibleStyle -> InputType.checkbox, invisibleStyle.getVar, invisibleStyle.getDefault)
+    ),
+    if selection then builder.buildRows("Other", URL) else Seq.empty
   )
 
 private def getFillAndBorderStyle(attrs: Attributes) =
