@@ -31,7 +31,7 @@ enum BorderStyle:
 
 object BorderStyle extends DotAttributeEnum[BorderStyle]:
   val default = solid
-  val label = "Border Style"
+  val label = "Pen Style"
 
   override def valuesWithLabel = Array(
     ("Solid", solid),
@@ -40,15 +40,15 @@ object BorderStyle extends DotAttributeEnum[BorderStyle]:
     ("Invisible", invis)
   )
 
-enum ShapeModStyle:
-  case rounded, diagonals, none
+enum CornerStyle:
+  case rounded, diagonals, normal
 
-object ShapeModStyle extends DotAttributeEnum[ShapeModStyle]:
-  val default = none
-  val label = "Shape Option"
+object CornerStyle extends DotAttributeEnum[CornerStyle]:
+  val default = normal
+  val label = "Corner Style"
 
   override def valuesWithLabel = Array(
     ("Rounded", rounded),
     ("Diagonals", diagonals),
-    ("None", none)
+    ("Normal", normal)
   )

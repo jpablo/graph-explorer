@@ -4,7 +4,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
-import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{BoldStyle, BorderStyle, FillStyle, ShapeModStyle}
+import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{BoldStyle, BorderStyle, FillStyle, CornerStyle}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.Attributes
@@ -59,8 +59,8 @@ def NodesAttributesView(
     EnumSubAttr(
       _.shapeMod,
       modify(_)(_.shapeMod),
-      ShapeModStyle.valueOf,
-      ShapeModStyle.default,
+      CornerStyle.valueOf,
+      CornerStyle.default,
       subAttributeVar,
       defaultSubAttrs
     )
@@ -76,7 +76,7 @@ def NodesAttributesView(
 
   val shapeModeStyleRow =
     builder
-      .inputRow(ShapeModStyle -> InputType.select, shapeModeStyle.getVar, shapeModeStyle.getDefault)
+      .inputRow(CornerStyle -> InputType.select, shapeModeStyle.getVar, shapeModeStyle.getDefault)
 
   val shapeRow: AttributeRow =
     builder
@@ -104,15 +104,14 @@ def NodesAttributesView(
       Sides       -> number(start = Some(3), end = Some(10), step = Some(1)),
       Regular     -> checkbox,
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
-      "Fill",
+      "Style",
       builder.inputRow(FillStyle -> InputType.checkbox, fillStyle.getVar, fillStyle.getDefault),
       FillColor -> color,
-      "Border",
       borderStyleRow,
-      shapeModeStyleRow,
       builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
-      Color       -> color,
       PenWidth    -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      Color     -> color,
+      shapeModeStyleRow,
       Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
       "Other",
       if selection then URL else ""

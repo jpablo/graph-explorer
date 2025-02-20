@@ -9,14 +9,14 @@ case class StyleSubAttributes(
     fill:     Boolean = false,
     bold:     Boolean = false,
     border:   Option[BorderStyle] = None,
-    shapeMod: Option[ShapeModStyle] = None
+    shapeMod: Option[CornerStyle] = None
 ):
   def toDotString: String =
     val fillPart = if fill then List(NodeStyle.filled) else Nil
     val boldPart = if bold then List(NodeStyle.bold.toString) else Nil
     val shapeModPart =
       shapeMod.flatMap:
-        case ShapeModStyle.none => None
+        case CornerStyle.normal => None
         case s                  => Some(s.toString)
     val borderPart = border.map(_.toString).toList
     (fillPart ++ boldPart ++ shapeModPart.toSeq ++ borderPart).mkString(",")
@@ -41,5 +41,5 @@ object StyleSubAttributes:
           fill     = NodeStyle.filled in parts,
           bold     = NodeStyle.bold.toString in parts,
           border   = BorderStyle.values.find(_.toString in parts),
-          shapeMod = ShapeModStyle.values.find(_.toString in parts)
+          shapeMod = CornerStyle.values.find(_.toString in parts)
         )

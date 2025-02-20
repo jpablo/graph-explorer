@@ -281,7 +281,8 @@ object Dir extends DotAttributeEnum[DirType]:
   )
 
 object Color extends DotAttributeSimple[String]:
-  val label = "Border Color"
+//  val label = "Border Color"
+  val label = "Color"
   val default = "#000000"
   override val placeholderText = "Enter color here"
 
