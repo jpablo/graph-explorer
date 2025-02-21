@@ -44,11 +44,10 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
       FontName,
       FontColor -> color,
       FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
-      "Background",
+      "Style",
       BgColor -> color,
-      "Border",
-      if selection then PenColor -> color else "",
-      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1))
+      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      if selection then PenColor -> color else ""
     ),
     if selection then
       Seq.empty

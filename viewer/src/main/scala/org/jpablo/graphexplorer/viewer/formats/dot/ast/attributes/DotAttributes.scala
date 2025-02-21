@@ -56,7 +56,7 @@ object Xlp extends DotAttributeSimple[Double]:
   override val placeholderText = "External label position"
 
 object BgColor extends DotAttributeSimple[String]:
-  val label = "Background Color"
+  val label = "Fill color"
   val default = "#ffffff"
   override val placeholderText = "Enter background color here"
 
@@ -315,7 +315,7 @@ object FillColor extends DotAttributeSimple[String]:
   override val placeholderText = "Enter fill color here"
 
 object PenColor extends DotAttributeSimple[String]:
-  val label = "Border Color"
+  val label = "Pen Color"
   val default = "#000000" // default for nodes
   override val placeholderText = "Enter border color here"
 
