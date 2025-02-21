@@ -25,7 +25,7 @@ def StyleView(state: ViewerState) =
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>
             div(
-              div(cls := "text-center pb-2", "Selected Arrows"),
+              div(cls := "text-center pb-2", s"Selected Arrows (${arrowIds.size})"),
               EdgesAttributesView(
                 state,
                 attrs     = state.nodesAttributes(arrowIds),
@@ -36,7 +36,7 @@ def StyleView(state: ViewerState) =
 
           case (false, true, false) =>
             div(
-              div(cls := "text-center pb-2", "Selected Nodes"),
+              div(cls := "text-center pb-2", s"Selected Nodes (${nodeIds.size})"),
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
@@ -48,7 +48,7 @@ def StyleView(state: ViewerState) =
 
           case (false, false, true) =>
             div(
-              div(cls := "text-center pb-2", "Selected Clusters"),
+              div(cls := "text-center pb-2", s"Selected Clusters (${clusterIds.size})"),
               GraphAttributesView(
                 state = state,
                 attrsVar = state.nodesAttributes(clusterIds),
