@@ -62,7 +62,7 @@ case class ViewerGraph(
 
   private val modifyData = this.modify(_.data)
 
-  val modifyRootGraphAttrs = this.modify(_.data.groups.at(root.id).attrs)
+  val modifyRootGraphAttrs = this.modify(_.data.groups.at(root.id).clusterAttrs)
   val modifyRootNodeAttrs = this.modify(_.data.groups.at(root.id).nodeAttrs)
   val modifyRootEdgeAttrs = this.modify(_.data.groups.at(root.id).edgeAttrs)
 
@@ -127,7 +127,7 @@ case class ViewerGraph(
 
   def getRootAttributes(target: AttributeTarget): Attributes =
     target match
-      case AttributeTarget.graph => root.attrs
+      case AttributeTarget.graph => root.clusterAttrs
       case AttributeTarget.node  => root.nodeAttrs
       case AttributeTarget.edge  => root.edgeAttrs
 
@@ -144,14 +144,14 @@ case class ViewerGraph(
 
   private def collectAttrs(nodeIds: Set[NodeId], attrs: Map[NodeId, Attributable]): Map[String, AttrValue] =
     attrs.collect:
-      case (id, n) if id in nodeIds => n.attrs.values
+      case (id, n) if id in nodeIds => n.clusterAttrs.values
     .foldLeft(init)(_ ++ _)
 
   private def filterAttrs(nodeIds: Set[NodeId], attrs: Map[NodeId, Attributable]): Map[NodeId, Attributes] =
     attrs.view
       .filterKeys(nodeIds)
       .toMap
-      .transform((_, n) => n.attrs)
+      .transform((_, n) => n.clusterAttrs)
 
   def getAttributesById(nodeIds: Set[NodeId]): Attributes =
     Attributes(

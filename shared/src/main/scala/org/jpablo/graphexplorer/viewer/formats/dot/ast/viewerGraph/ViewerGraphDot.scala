@@ -14,7 +14,7 @@ def graphToDotAST(graph: ViewerGraph): DotAST =
   )
 
 private def nodeToStmt(node: ViewerNode): NodeStmt =
-  NodeStmt(DotNodeId(node.id.value), node.attrs.values.map(Attr(_, _)).toList)
+  NodeStmt(DotNodeId(node.id.value), node.clusterAttrs.values.map(Attr(_, _)).toList)
 
 private def arrowToStmt(arrow: Arrow): EdgeStmt =
   // we'll use the arrow sequence as the id to distinguish between arrows with the same source and target
@@ -24,7 +24,7 @@ private def arrowToStmt(arrow: Arrow): EdgeStmt =
       DotNodeId(arrow.source.value),
       DotNodeId(arrow.target.value)
     ),
-    attr_list = (arrow.attrs.values + seqAsId).map(Attr(_, _)).toList
+    attr_list = (arrow.clusterAttrs.values + seqAsId).map(Attr(_, _)).toList
   )
 
 private def attrs(attrs: Attributes, target: AttributeTarget) =
@@ -56,7 +56,7 @@ def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] 
       val viewerGroup = graphData.groups(groupId)
       val nodeAttrs = attrs(viewerGroup.nodeAttrs, AttributeTarget.node)
       val edgeAttrs = attrs(viewerGroup.edgeAttrs, AttributeTarget.edge)
-      val groupAttrs = attrs(viewerGroup.attrs, AttributeTarget.graph)
+      val groupAttrs = attrs(viewerGroup.clusterAttrs, AttributeTarget.graph)
 
       // Combine all elements
       val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++ subGraphs ++ nodeStmts ++ edgeStmts

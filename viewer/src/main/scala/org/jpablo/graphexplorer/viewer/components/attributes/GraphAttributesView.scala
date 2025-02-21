@@ -1,15 +1,34 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.airstream.state.Var
+import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.components.attributes.style.CommonSubAttributes
+import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.CornerStyle.diagonals
+import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{
+  BoldStyle,
+  BorderStyle,
+  CornerStyle,
+  FillStyle,
+  InvisibleStyle
+}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
+import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.*
-import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, number, range}
 
-def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection: Boolean) =
-  val builder = RowBuilder(attrsVar)
+def GraphAttributesView(
+    state:     ViewerState,
+    attrsVar:  Var[Attributes],
+    defaults:  Option[Signal[Attributes]] = None,
+    selection: Boolean
+) =
+  val builder = RowBuilder(attrsVar, defaults)
   val isSingleClusterSelected = state.diagramSelection.signal.map(_.size == 1)
+
+  given owner: Owner = state.owner
 
   val labelRow =
     if selection then
@@ -21,6 +40,33 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
       ).observe(using state.owner).now()
     else
       builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
+
+  val defaultSubAttrs: Signal[StyleSubAttributes] =
+    defaults
+      .map(_.map(attrs => getFillAndBorderStyle(attrs).getOrElse(StyleSubAttributes.empty)))
+      .getOrElse(Signal.fromValue(StyleSubAttributes.empty))
+
+
+  val commonSubAttrs = CommonSubAttributes(attrsVar, defaultSubAttrs)
+  import commonSubAttrs.*
+
+  val borderStyleRow =
+    builder
+      .inputRow(BorderStyle -> InputType.selectWithPreview, borderStyle.getVar, borderStyle.getDefault)
+      .copy(
+        options =
+          BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
+            RowOption(label, AttrValue(style.toString), BorderStylePreview(style))
+      )
+
+  val shapeModeStyleRow =
+    builder
+      .inputRow(CornerStyle -> InputType.select, shapeModeStyle.getVar, shapeModeStyle.getDefault)
+      .copy(
+        options =
+          CornerStyle.valuesWithLabel.filterNot(_._2 == diagonals).toSeq.map: (label, style) =>
+            RowOption(label, AttrValue(style.toString), None)
+      )
 
   AttributesView(
     id       = "graph-attributes",
@@ -45,12 +91,20 @@ def GraphAttributesView(state: ViewerState, attrsVar: Var[Attributes], selection
       FontColor -> color,
       FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Style",
-      BgColor -> color,
+      builder.inputRow(FillStyle -> InputType.checkbox, fillStyle.getVar, fillStyle.getDefault),
+      FillColor -> color,
+      borderStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      if selection then PenColor -> color else ""
+      PenColor -> color,
+      builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
+      shapeModeStyleRow
     ),
     if selection then
-      Seq.empty
+      builder.buildRows(
+        builder.inputRow(InvisibleStyle -> InputType.checkbox, invisibleStyle.getVar, invisibleStyle.getDefault),
+        "Other",
+        URL
+      )
     else
       builder.buildRows(
         "Spacing",

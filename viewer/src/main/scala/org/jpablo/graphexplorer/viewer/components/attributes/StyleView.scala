@@ -17,8 +17,8 @@ def StyleView(state: ViewerState) =
         val (clusterIds, nodeIds) = notArrows.partition(isClusterId)
 
         val elementTypes = Map(
-          "edges" -> (arrowIds, "Arrows"),
-          "nodes" -> (nodeIds, "Nodes"),
+          "edges"    -> (arrowIds, "Arrows"),
+          "nodes"    -> (nodeIds, "Nodes"),
           "clusters" -> (clusterIds, "Clusters")
         )
 
@@ -49,8 +49,12 @@ def StyleView(state: ViewerState) =
           case (false, false, true) =>
             div(
               div(cls := "text-center pb-2", "Selected Clusters"),
-              GraphAttributesView(state, state.nodesAttributes(clusterIds), selection = true)
-                .amend(cls("selection-attributes"))
+              GraphAttributesView(
+                state = state,
+                attrsVar = state.nodesAttributes(clusterIds),
+                defaults  = Some(state.visibleGraph.map(_.root.clusterAttrs)),
+                selection = true
+              ).amend(cls("selection-attributes"))
             )
 
           case (false, false, false) =>
@@ -80,9 +84,9 @@ def DefaultAttributesView(state: ViewerState) =
 
   val tabsData =
     List(
-      "Graph" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false),
-      "Nodes" -> NodesAttributesView("DiagramAttributesView", state, state.nodeTargetAttributes, selection = false),
-      "Arrows" -> EdgesAttributesView(state, state.edgeTargetAttributes, selection = false)
+      "Nodes"  -> NodesAttributesView("DiagramAttributesView", state, state.nodeTargetAttributes, selection = false),
+      "Arrows" -> EdgesAttributesView(state, state.edgeTargetAttributes, selection = false),
+      "Groups" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false)
     )
   div(
     div(cls := "text-center pb-2", "Defaults"),
