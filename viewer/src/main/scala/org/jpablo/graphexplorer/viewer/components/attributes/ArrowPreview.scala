@@ -217,7 +217,7 @@ def ArrowPreview(
         )
       )
 
-    case ArrowType.empty =>
+    case ArrowType.empty | ArrowType.onormal =>
       Some(() =>
         svg.svg(
           svg.width   := width.toString,
@@ -447,7 +447,7 @@ def ArrowPreview(
         )
       )
 
-    case ArrowType.halfopen =>
+    case ArrowType.halfopen | ArrowType.halfvee =>
       Some(() =>
         svg.svg(
           svg.width   := width.toString,

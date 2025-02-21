@@ -69,8 +69,24 @@ case class ViewerGraph(
   lazy val removeUnsupportedFeatures: ViewerGraph =
     modifyRootGraphAttrs.using(_ - "size")
 
+  val defaultNodeTheme =
+    Attributes(
+      Map(
+        "sides" -> AttrValue("5"),
+      )
+    )
+
+  val defaultEdgeTheme =
+    Attributes(
+      Map(
+        "dir" -> AttrValue("both"),
+        "arrowtail" -> AttrValue("none"),
+      )
+    )
+
   def setDefaultTheme: ViewerGraph =
-    modifyRootAttributes(AttributeTarget.node).using(_ ++ Attributes(Map("sides" -> AttrValue("5"))))
+    modifyRootAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
+      .modifyRootAttributes(AttributeTarget.edge).using(_ ++ defaultEdgeTheme)
 
   def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
     modifyData.using(_.removeElements(toRemove))

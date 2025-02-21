@@ -253,22 +253,25 @@ object Layout extends DotAttributeEnum[Layout]:
 //  override val placeholderText = "Enter rotation here"
 
 enum ArrowType:
-  case normal, inv, dot, invdot, odot, invodot, none, tee, empty, invempty, diamond, odiamond, ediamond, crow, box,
-    obox, open, halfopen, vee
+  case normal, onormal, inv, dot, invdot, odot, invodot, none, tee, empty, invempty, diamond, odiamond, ediamond, crow, box,
+    obox, open, halfopen, vee, halfvee
 
 object ArrowType:
   val synonyms = Map(
     ediamond -> odiamond,
+    empty -> onormal,
+    open -> vee,
+    halfopen -> halfvee,
   )
 
 
 object ArrowHead extends DotAttributeEnum[ArrowType]:
-  val default = ArrowType.normal
+  val default = ArrowType.normal // default for dir=forward
   val label = "Arrow head"
   def values: Array[ArrowType] = ArrowType.values
 
 object ArrowTail extends DotAttributeEnum[ArrowType]:
-  val default = ArrowType.none
+  val default = ArrowType.none // default for dir=forward
   val label = "Arrow tail"
   def values: Array[ArrowType] = ArrowType.values
 

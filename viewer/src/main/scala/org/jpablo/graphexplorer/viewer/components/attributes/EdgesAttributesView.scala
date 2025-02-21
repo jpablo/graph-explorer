@@ -55,7 +55,7 @@ def EdgesAttributesView(
       .copy(
         options =
           ArrowType.values.filterNot(_ in ArrowType.synonyms).toSeq.map: arrowType =>
-            RowOption(arrowType.toString, AttrValue(arrowType.toString), ArrowPreview(arrowType))
+            RowOption(arrowType.toString, AttrValue(arrowType.toString), ArrowPreview(arrowType, 50))
       )
 
   AttributesView(
@@ -74,7 +74,6 @@ def EdgesAttributesView(
       edgeStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       Color    -> color,
-      Dir,
       arrowHeadRow,
       arrowTailRow,
       "Layout",
