@@ -26,17 +26,6 @@ case class StyleSubAttributes(
         case s                   => List(s.toString)
     (fillPart ++ boldPart ++ invisPart ++ shapeModPart ++ borderPart).mkString(",")
 
-  // this: defaults
-  // other: local
-  def ++(local: StyleSubAttributes): StyleSubAttributes =
-    StyleSubAttributes(
-      fill      = local.fill,
-      bold      = local.bold,
-      invisible = local.invisible,
-      border    = local.border,
-      shapeMod  = local.shapeMod
-    )
-
   def isEmpty: Boolean =
     this == StyleSubAttributes.empty
 

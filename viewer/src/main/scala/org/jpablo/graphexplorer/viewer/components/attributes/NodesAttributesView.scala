@@ -187,6 +187,7 @@ class BooleanSubAttr(
           Some(pathModify(defaultSubAttrs).setTo(attrValue.isTrue))
 
         case (Some(subAttrs), None) =>
+          // Copy the default sub attributes to the current one, otherwise they will be overridden by "false" (implicit meaning of a missing value)
           val defaultSubAttrs = getSubAttrsNow(defaultSubAttrsS)
           Some(pathModify(subAttrs).setTo(getSubAttr(defaultSubAttrs)))
 

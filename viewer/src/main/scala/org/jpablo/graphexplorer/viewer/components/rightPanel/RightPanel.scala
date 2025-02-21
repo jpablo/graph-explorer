@@ -74,7 +74,7 @@ class RightPanel(state: ViewerState):
 
   private def tabHeaderEdges(idx: Int) =
     Button(
-      child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Edges ($n)"),
+      child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Arrows ($n)"),
       cls("btn-active") <-- isVisible(idx),
       onClick --> visibleTab.set(idx)
     ).tiny
