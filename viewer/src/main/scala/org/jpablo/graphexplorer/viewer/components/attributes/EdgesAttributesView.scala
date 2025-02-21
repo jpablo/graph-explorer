@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.airstream.core.Signal
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 
 def EdgesAttributesView(
@@ -39,6 +40,24 @@ def EdgesAttributesView(
             RowOption(label, AttrValue(style.toString), EdgeStylePreview(style))
       )
 
+  val arrowHeadRow: AttributeRow =
+    builder
+      .simpleRow(ArrowHead, InputType.selectWithPreviewGrid)
+      .copy(
+        options =
+          ArrowType.values.filterNot(_ in ArrowType.synonyms).toSeq.map: arrowType =>
+            RowOption(arrowType.toString, AttrValue(arrowType.toString), ArrowPreview(arrowType, 50))
+      )
+
+  val arrowTailRow: AttributeRow =
+    builder
+      .simpleRow(ArrowTail, InputType.selectWithPreviewGrid)
+      .copy(
+        options =
+          ArrowType.values.filterNot(_ in ArrowType.synonyms).toSeq.map: arrowType =>
+            RowOption(arrowType.toString, AttrValue(arrowType.toString), ArrowPreview(arrowType))
+      )
+
   AttributesView(
     id       = "edge-attributes",
     titleStr = "Edge Attributes",
@@ -56,8 +75,8 @@ def EdgesAttributesView(
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       Color    -> color,
       Dir,
-      ArrowHead,
-      ArrowTail,
+      arrowHeadRow,
+      arrowTailRow,
       "Layout",
       Constraint -> checkbox
     ),

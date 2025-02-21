@@ -256,13 +256,19 @@ enum ArrowType:
   case normal, inv, dot, invdot, odot, invodot, none, tee, empty, invempty, diamond, odiamond, ediamond, crow, box,
     obox, open, halfopen, vee
 
+object ArrowType:
+  val synonyms = Map(
+    ediamond -> odiamond,
+  )
+
+
 object ArrowHead extends DotAttributeEnum[ArrowType]:
   val default = ArrowType.normal
   val label = "Arrow head"
   def values: Array[ArrowType] = ArrowType.values
 
 object ArrowTail extends DotAttributeEnum[ArrowType]:
-  val default = ArrowType.normal
+  val default = ArrowType.none
   val label = "Arrow tail"
   def values: Array[ArrowType] = ArrowType.values
 

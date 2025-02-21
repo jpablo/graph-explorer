@@ -4,13 +4,8 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
-import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{
-  BoldStyle,
-  BorderStyle,
-  CornerStyle,
-  FillStyle,
-  InvisibleStyle
-}
+import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{BoldStyle, BorderStyle, CornerStyle, FillStyle, InvisibleStyle}
+import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.Attributes
@@ -124,7 +119,7 @@ def NodesAttributesView(
       .simpleRow(Shape, InputType.selectWithPreviewGrid)
       .copy(
         options =
-          Shape.valuesWithLabel.filterNot((l, s) => Shape.synonyms.contains(s)).toSeq.map: (label, style) =>
+          Shape.valuesWithLabel.filterNot((l, s) => s in Shape.synonyms).toSeq.map: (label, style) =>
             RowOption(label, AttrValue(style.toString), ShapePreview(style, 30, 20))
       )
 
