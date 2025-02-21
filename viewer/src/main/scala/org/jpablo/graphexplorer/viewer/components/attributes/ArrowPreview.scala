@@ -85,37 +85,6 @@ def ArrowPreview(
         )
       )
 
-    case ArrowType.invdot =>
-      Some(() =>
-        svg.svg(
-          svg.width   := width.toString,
-          svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
-          svg.g(
-            svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
-            ),
-            svg.polygon(
-              svg.points := "50,5 40,10 50,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
-            ),
-            svg.circle(
-              svg.cx     := "35",
-              svg.cy     := "10",
-              svg.r      := "4",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
-            )
-          )
-        )
-      )
-
     case ArrowType.odot =>
       Some(() =>
         svg.svg(
@@ -137,37 +106,6 @@ def ArrowPreview(
               svg.r      := "4",
               svg.stroke := "currentColor",
               svg.fill   := "none"
-            )
-          )
-        )
-      )
-
-    case ArrowType.invodot =>
-      Some(() =>
-        svg.svg(
-          svg.width   := width.toString,
-          svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
-          svg.g(
-            svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "30",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
-            ),
-            svg.circle(
-              svg.cx     := "35",
-              svg.cy     := "10",
-              svg.r      := "4",
-              svg.stroke := "currentColor",
-              svg.fill   := "none"
-            ),
-            svg.polygon(
-              svg.points := "45,5 40,10 45,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
             )
           )
         )
@@ -217,7 +155,7 @@ def ArrowPreview(
         )
       )
 
-    case ArrowType.empty | ArrowType.onormal =>
+    case ArrowType.onormal =>
       Some(() =>
         svg.svg(
           svg.width   := width.toString,
@@ -234,30 +172,6 @@ def ArrowPreview(
             ),
             svg.polygon(
               svg.points := "40,5 50,10 40,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "none"
-            )
-          )
-        )
-      )
-
-    case ArrowType.invempty =>
-      Some(() =>
-        svg.svg(
-          svg.width   := width.toString,
-          svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
-          svg.g(
-            svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
-            ),
-            svg.polygon(
-              svg.points := "50,5 40,10 50,15",
               svg.stroke := "currentColor",
               svg.fill   := "none"
             )
@@ -308,38 +222,6 @@ def ArrowPreview(
               svg.points := "35,10 42,5 49,10 42,15",
               svg.stroke := "currentColor",
               svg.fill   := "none"
-            )
-          )
-        )
-      )
-
-    case ArrowType.ediamond =>
-      Some(() =>
-        svg.svg(
-          svg.width   := width.toString,
-          svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
-          svg.g(
-            svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "35",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
-            ),
-            svg.polygon(
-              svg.points := "35,10 42,5 49,10 42,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "none"
-            ),
-            svg.line(
-              svg.x1          := "42",
-              svg.y1          := "5",
-              svg.x2          := "42",
-              svg.y2          := "15",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
             )
           )
         )
@@ -423,31 +305,7 @@ def ArrowPreview(
         )
       )
 
-    case ArrowType.open =>
-      Some(() =>
-        svg.svg(
-          svg.width   := width.toString,
-          svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
-          svg.g(
-            svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
-            ),
-            svg.polygon(
-              svg.points := "40,5 50,10 40,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "none"
-            )
-          )
-        )
-      )
-
-    case ArrowType.halfopen | ArrowType.halfvee =>
+    case ArrowType.halfvee =>
       Some(() =>
         svg.svg(
           svg.width   := width.toString,
@@ -494,3 +352,5 @@ def ArrowPreview(
           )
         )
       )
+
+    case _ => None
