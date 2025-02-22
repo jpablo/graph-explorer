@@ -142,7 +142,7 @@ enum LabelLoc:
 
 object LabelLoc extends DotAttributeEnum[LabelLoc]:
   val default = c
-  val label = "Label Location"
+  val label = "Vertical pos"
   override val valuesWithLabel = Array(
     ("Top", t),
     ("Center", c),
@@ -154,7 +154,7 @@ enum LabelJust:
 
 object LabelJust extends DotAttributeEnum[LabelJust]:
   val default = c
-  val label = "Label Justification"
+  val label = "Horizontal pos"
   override val valuesWithLabel = Array(
     ("Left", l),
     ("Center", c),

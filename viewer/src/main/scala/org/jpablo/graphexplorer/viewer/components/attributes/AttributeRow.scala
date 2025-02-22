@@ -57,15 +57,17 @@ class RowBuilder(
           simpleRow(attr, inputType)
 
   def simpleRow(
-      attr:        DotAttribute[?], 
-      inputType:   InputType, 
+      attr:        DotAttribute[?],
+      inputType:   InputType,
       onReset:     Option[String] = None,
+      label:       Option[String] = None,
       placeholder: Option[String] = None
   ) =
     inputRow(
       attr        = attr -> inputType,
       inputVar    = simpleInputVar(attr.attrId, elementAttributes, onReset),
       default     = defaultValue(attr.attrId, attr.default.toString),
+      label       = label,
       placeholder = placeholder
     )
 
@@ -73,13 +75,14 @@ class RowBuilder(
       attr:        (DotAttribute[?], InputType),
       inputVar:    Var[Option[AttrValue]],
       default:     Signal[String],
+      label:       Option[String] = None,
       placeholder: Option[String] = None
   ): InputAttribute =
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
         InputAttribute(
           attrId      = attr.attrId,
-          label       = attr.label,
+          label       = label.getOrElse(attr.label),
           placeholder = placeholder.getOrElse(attr.placeholderText),
           inputType   = it,
           inputVar    = inputVar,

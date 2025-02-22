@@ -121,8 +121,8 @@ def RootGraphOptions(state: ViewerState) =
     id       = "root-graph-attributes",
     titleStr = "Root Graph Options",
     builder.buildRows(
-      "Labels",
-      builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter diagram title")),
+      "Diagram options",
+      builder.simpleRow(Label, InputType.multiText, onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title")),
       LabelLoc,
       LabelJust
     )
