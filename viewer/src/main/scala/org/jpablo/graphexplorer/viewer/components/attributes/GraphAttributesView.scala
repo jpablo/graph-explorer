@@ -106,10 +106,5 @@ def GraphAttributesView(
         URL
       )
     else
-      builder.buildRows(
-        "Spacing",
-        Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
-        RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
-        NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
-      )
+      Seq.empty
   )

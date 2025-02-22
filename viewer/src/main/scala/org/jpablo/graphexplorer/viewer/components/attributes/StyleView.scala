@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.models.NodeId.isArrowId
 import org.jpablo.graphexplorer.viewer.models.NodeId.isClusterId
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, Select as SelectInput}
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.widgets.InputType.color
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, range}
 
 def StyleView(state: ViewerState) =
   div(
@@ -28,7 +28,7 @@ def StyleView(state: ViewerState) =
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>
             div(
-              div(cls := "divider", div(cls := "divider-content", h2(s"Selected Arrows (${arrowIds.size})"))),
+              div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Arrows (${arrowIds.size})"))),
               EdgesAttributesView(
                 state,
                 attrs     = state.nodesAttributes(arrowIds),
@@ -39,7 +39,7 @@ def StyleView(state: ViewerState) =
 
           case (false, true, false) =>
             div(
-              div(cls := "divider", div(cls := "divider-content", h2(s"Selected Nodes (${nodeIds.size})"))),
+              div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Nodes (${nodeIds.size})"))),
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
@@ -51,7 +51,7 @@ def StyleView(state: ViewerState) =
 
           case (false, false, true) =>
             div(
-              div(cls := "divider", div(cls := "divider-content", h2(s"Selected Clusters (${clusterIds.size})"))),
+              div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Clusters (${clusterIds.size})"))),
               GraphAttributesView(
                 state     = state,
                 attrsVar  = state.nodesAttributes(clusterIds),
@@ -65,7 +65,7 @@ def StyleView(state: ViewerState) =
 
           case _ =>
             div(
-              div(cls := "divider", div(cls := "divider-content", h2(s"Filter"))),
+              div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Filter"))),
               SelectInput(
                 placeholderText = s"${selectedNodes.size} objects",
                 options = elementTypes.collect {
@@ -92,9 +92,9 @@ def GeneralAttributesView(state: ViewerState) =
       "Groups" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false)
     )
   div(
-    div(cls := "divider", div(cls := "divider-content", h2("Diagram Options"))),
+    div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Diagram Options"))),
     RootGraphOptions(state),
-    div(cls := "divider", div(cls := "divider-content", h2("Defaults"))),
+    div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Defaults"))),
     div(
       cls := "flex justify-center",
       div(
@@ -131,6 +131,10 @@ def RootGraphOptions(state: ViewerState) =
       ),
       LabelLoc,
       LabelJust,
-      BgColor -> color
+      BgColor -> color,
+      "Spacing",
+      Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
+      RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
+      NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
     )
-  )
+  ).amend(cls := "mb-8")
