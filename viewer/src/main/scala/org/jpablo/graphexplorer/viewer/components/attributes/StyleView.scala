@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.models.NodeId.isArrowId
 import org.jpablo.graphexplorer.viewer.models.NodeId.isClusterId
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, Select as SelectInput}
 import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.widgets.InputType.color
 
 def StyleView(state: ViewerState) =
   div(
@@ -124,7 +125,8 @@ def RootGraphOptions(state: ViewerState) =
       "Diagram options",
       builder.simpleRow(Label, InputType.multiText, onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title")),
       LabelLoc,
-      LabelJust
+      LabelJust,
+      BgColor -> color
     )
   )
 
