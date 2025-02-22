@@ -28,7 +28,7 @@ def StyleView(state: ViewerState) =
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>
             div(
-              div(cls := "text-center pb-2", s"Selected Arrows (${arrowIds.size})"),
+              div(cls := "divider", div(cls := "divider-content", h2(s"Selected Arrows (${arrowIds.size})"))),
               EdgesAttributesView(
                 state,
                 attrs     = state.nodesAttributes(arrowIds),
@@ -39,7 +39,7 @@ def StyleView(state: ViewerState) =
 
           case (false, true, false) =>
             div(
-              div(cls := "text-center pb-2", s"Selected Nodes (${nodeIds.size})"),
+              div(cls := "divider", div(cls := "divider-content", h2(s"Selected Nodes (${nodeIds.size})"))),
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
@@ -51,10 +51,10 @@ def StyleView(state: ViewerState) =
 
           case (false, false, true) =>
             div(
-              div(cls := "text-center pb-2", s"Selected Clusters (${clusterIds.size})"),
+              div(cls := "divider", div(cls := "divider-content", h2(s"Selected Clusters (${clusterIds.size})"))),
               GraphAttributesView(
-                state = state,
-                attrsVar = state.nodesAttributes(clusterIds),
+                state     = state,
+                attrsVar  = state.nodesAttributes(clusterIds),
                 defaults  = Some(state.visibleGraph.map(_.root.clusterAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
@@ -65,7 +65,7 @@ def StyleView(state: ViewerState) =
 
           case _ =>
             div(
-              div(cls := "text-center pb-2", "Filter"),
+              div(cls := "divider", div(cls := "divider-content", h2(s"Filter"))),
               SelectInput(
                 placeholderText = s"${selectedNodes.size} objects",
                 options = elementTypes.collect {
@@ -92,8 +92,9 @@ def GeneralAttributesView(state: ViewerState) =
       "Groups" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false)
     )
   div(
+    div(cls := "divider", div(cls := "divider-content", h2("Diagram Options"))),
     RootGraphOptions(state),
-    div(cls := "text-center pb-2", "Defaults"),
+    div(cls := "divider", div(cls := "divider-content", h2("Defaults"))),
     div(
       cls := "flex justify-center",
       div(
@@ -117,16 +118,19 @@ def GeneralAttributesView(state: ViewerState) =
 
 def RootGraphOptions(state: ViewerState) =
   val builder = RowBuilder(state.graphTargetAttributes, None)
-
   AttributesView(
     id       = "root-graph-attributes",
     titleStr = "Root Graph Options",
     builder.buildRows(
-      "Diagram options",
-      builder.simpleRow(Label, InputType.multiText, onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title")),
+      builder.simpleRow(
+        Label,
+        InputType.multiText,
+        onReset     = Some(""),
+        label       = Some("Title"),
+        placeholder = Some("Enter diagram title")
+      ),
       LabelLoc,
       LabelJust,
       BgColor -> color
     )
   )
-
