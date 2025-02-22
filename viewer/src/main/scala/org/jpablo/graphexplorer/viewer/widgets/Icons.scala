@@ -21,6 +21,7 @@ object Icons:
     def boxesIcon = elem.amend(cls := "bi bi-boxes")
     def boxSeamIcon = elem.amend(cls := "bi bi-box-seam")
     def biSquareIcon = elem.amend(cls := "bi bi-square")
+    def chevronLeftIcon = elem.amend(cls := "bi bi-chevron-left")
     def closeIcon = elem.amend(cls := "bi bi-x-circle")
     def dashIcon = elem.amend(cls := "bi bi-dash")
     def fileBinaryIcon = elem.amend(cls := "bi bi-file-binary")

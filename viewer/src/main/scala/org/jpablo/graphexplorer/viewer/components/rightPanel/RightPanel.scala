@@ -22,7 +22,8 @@ class RightPanel(state: ViewerState):
   def render() =
     div(
       idAttr := "nodes-panel",
-      cls("hidden") <-- state.rightPanelVisible.signal.not,
+      cls <-- 
+        state.rightPanelVisible.signal.map(if _ then "w-64 p-2 gap-3 opacity-100 visible" else "w-0 p-0 gap-0 opacity-0 invisible"),
       firstRow,
       // --- Tab Headers ---
       div(

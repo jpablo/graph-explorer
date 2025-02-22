@@ -18,49 +18,38 @@ def Toolbar(
 
   val writeTextToClipboard = window.navigator.clipboard.writeText
   val inputId = s"toggle-diagram-elements"
-  
+
   div(
     idAttr := "toolbar",
-    cls := "bg-base-100/90",
+    cls    := "bg-base-100/90",
     // -------- Navigation --------
     div(
       cls := "breadcrumbs font-bold py-0",
-      ul(
-        li(
-          a(
-            cls := "gap-2",
-            span().folderIcon,
-            "Graph Explorer",
-            onClick --> router.navigateTo(Route.Home)
-          )
-        ),
-        li(
-          a(
-            cls := "gap-2",
-            span().boxSeamIcon,
-            text <-- state.project.name.signal,
-            onClick --> { _ =>
-              val newName = window.prompt("Enter project Name", state.project.name.now())
-              if newName != null then
-                state.project.name.set(newName)
-            }
-          )
-        )
+      a(
+        cls := "mr-2 link",
+        span().chevronLeftIcon,
+        onClick --> router.navigateTo(Route.Home)
+      ),
+      a(
+        cls := "link",
+        text <-- state.project.name.signal,
+        onClick --> { _ =>
+          val newName = window.prompt("Enter project Name", state.project.name.now())
+          if newName != null then
+            state.project.name.set(newName)
+        }
       )
     ),
     // -------- new node button --------
     Tooltip(
       text = "New Node (n)",
       cls := "tooltip-bottom",
-      Button(span().biSquareIcon, onClick --> state.addNode()).tiny,
+      Button(span().biSquareIcon, onClick --> state.addNode()).tiny
     ),
     // -------- actions toolbar --------
     div(
       cls := "dropdown dropdown-hover",
-      div(tabIndex := 0, role := "button", 
-        span("view"),
-        i(cls := "bi bi-chevron-down")
-      ).asBtn.tiny,
+      div(tabIndex := 0, role := "button", span("view"), i(cls := "bi bi-chevron-down")).asBtn.tiny,
       ul(
         tabIndex := 0,
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
@@ -71,10 +60,8 @@ def Toolbar(
     ),
     div(
       cls := "dropdown dropdown-hover",
-      div(tabIndex := 0, role := "button", cls := "whitespace-nowrap",
-        span("Copy as"),
-        i(cls := "bi bi-chevron-down")
-      ).asBtn.tiny,
+      div(tabIndex := 0, role := "button", cls := "whitespace-nowrap", span("Copy as"), i(cls := "bi bi-chevron-down"))
+        .asBtn.tiny,
       ul(
         tabIndex := 0,
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
