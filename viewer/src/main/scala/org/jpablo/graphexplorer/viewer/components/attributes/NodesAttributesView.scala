@@ -28,7 +28,11 @@ def NodesAttributesView(
   val labelRow =
     if selection then
       isSingleNodeSelected.map(single =>
-        if single then builder.simpleRow(Label, InputType.multiText, onReset = Some("")) else ""
+        if single then
+          val selectedNodeId = state.diagramSelection.signal.map(_.head.value).observe().now()
+          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(selectedNodeId))
+        else
+          ""
       ).observe().now()
     else
       ""

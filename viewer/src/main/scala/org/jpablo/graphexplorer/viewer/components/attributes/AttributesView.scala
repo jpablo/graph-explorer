@@ -93,7 +93,7 @@ private def buildInputCell(row: InputAttribute) =
         row.inputVar.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
       Checked(row.placeholder, inputVarBool, row.default.map(_ == true.toString))
 
-    case InputType.`multiText` =>
+    case InputType.multiText =>
       TextAreaWithValue(row.placeholder, row.inputVar)
 
     case InputType.number(start, end, step) =>

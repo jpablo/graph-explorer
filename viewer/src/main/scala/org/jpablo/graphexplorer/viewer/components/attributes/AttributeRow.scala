@@ -56,24 +56,31 @@ class RowBuilder(
               case (attr: DotAttribute[?], it: InputType) => (attr, it)
           simpleRow(attr, inputType)
 
-  def simpleRow(attr: DotAttribute[?], inputType: InputType, onReset: Option[String] = None) =
+  def simpleRow(
+      attr:        DotAttribute[?], 
+      inputType:   InputType, 
+      onReset:     Option[String] = None,
+      placeholder: Option[String] = None
+  ) =
     inputRow(
-      attr     = attr -> inputType,
-      inputVar = simpleInputVar(attr.attrId, elementAttributes, onReset),
-      default  = defaultValue(attr.attrId, attr.default.toString)
+      attr        = attr -> inputType,
+      inputVar    = simpleInputVar(attr.attrId, elementAttributes, onReset),
+      default     = defaultValue(attr.attrId, attr.default.toString),
+      placeholder = placeholder
     )
 
   def inputRow(
-      attr:     (DotAttribute[?], InputType),
-      inputVar: Var[Option[AttrValue]],
-      default:  Signal[String]
+      attr:        (DotAttribute[?], InputType),
+      inputVar:    Var[Option[AttrValue]],
+      default:     Signal[String],
+      placeholder: Option[String] = None
   ): InputAttribute =
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
         InputAttribute(
           attrId      = attr.attrId,
           label       = attr.label,
-          placeholder = attr.placeholderText,
+          placeholder = placeholder.getOrElse(attr.placeholderText),
           inputType   = it,
           inputVar    = inputVar,
           options     = attr.valuesWithLabel.map((l, v) => RowOption(l, AttrValue(v.toString), None)).toSeq,
