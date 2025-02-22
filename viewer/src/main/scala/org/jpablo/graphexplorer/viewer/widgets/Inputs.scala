@@ -82,7 +82,7 @@ def SelectWithPreview(
     ),
     // ---- Dropdown menu ----
     ul(
-      cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full",
+      cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full border border-base-300",
       tabIndex := 0,
       options.map { row =>
         li(

@@ -17,14 +17,12 @@ def EdgesAttributesView(
     selection: Boolean
 ) =
   val builder = RowBuilder(attrs, defaults)
-  val isSingleEdgeSelected = state.diagramSelection.signal.map(_.size == 1)
 
   val labelRow =
     if selection then
-      isSingleEdgeSelected.map(single =>
-        if single then
-          val selectedEdgeId = state.diagramSelection.signal.map(_.head.value).observe(using state.owner).now()
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(selectedEdgeId))
+      state.diagramSelection.signal.map(sel =>
+        if sel.size == 1 then
+          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
         else
           ""
       ).observe(using state.owner).now()

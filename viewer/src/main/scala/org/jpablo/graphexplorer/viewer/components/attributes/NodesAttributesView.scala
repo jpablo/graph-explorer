@@ -21,16 +21,14 @@ def NodesAttributesView(
     selection: Boolean
 ) =
   val builder = RowBuilder(attrsVar, defaults)
-  val isSingleNodeSelected = state.diagramSelection.signal.map(_.size == 1)
 
   given owner: Owner = state.owner
 
   val labelRow =
     if selection then
-      isSingleNodeSelected.map(single =>
-        if single then
-          val selectedNodeId = state.diagramSelection.signal.map(_.head.value).observe().now()
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(selectedNodeId))
+      state.diagramSelection.signal.map(sel =>
+        if sel.size == 1 then
+          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
         else
           ""
       ).observe().now()
