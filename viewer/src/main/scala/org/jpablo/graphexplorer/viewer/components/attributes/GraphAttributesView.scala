@@ -34,12 +34,12 @@ def GraphAttributesView(
     if selection then
       isSingleClusterSelected.map(single =>
         if single then
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
+          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter group label"))
         else
           ""
       ).observe(using state.owner).now()
     else
-      builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
+      builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter group label"))
 
   val defaultSubAttrs: Signal[StyleSubAttributes] =
     defaults

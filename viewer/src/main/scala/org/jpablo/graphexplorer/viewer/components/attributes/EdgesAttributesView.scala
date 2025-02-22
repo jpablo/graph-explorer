@@ -23,7 +23,8 @@ def EdgesAttributesView(
     if selection then
       isSingleEdgeSelected.map(single =>
         if single then
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""))
+          val selectedEdgeId = state.diagramSelection.signal.map(_.head.value).observe(using state.owner).now()
+          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(selectedEdgeId))
         else
           ""
       ).observe(using state.owner).now()
