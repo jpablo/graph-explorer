@@ -1,11 +1,13 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
+import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.models.NodeId.isArrowId
 import org.jpablo.graphexplorer.viewer.models.NodeId.isClusterId
-import org.jpablo.graphexplorer.viewer.widgets.Select as SelectInput
+import org.jpablo.graphexplorer.viewer.widgets.{InputType, Select as SelectInput}
 import org.jpablo.graphexplorer.viewer.models.NodeId
 
 def StyleView(state: ViewerState) =
@@ -58,7 +60,7 @@ def StyleView(state: ViewerState) =
             )
 
           case (false, false, false) =>
-            DefaultAttributesView(state)
+            GeneralAttributesView(state)
 
           case _ =>
             div(
@@ -78,7 +80,7 @@ def StyleView(state: ViewerState) =
             )
   )
 
-def DefaultAttributesView(state: ViewerState) =
+def GeneralAttributesView(state: ViewerState) =
   val tabIndex = Var(0)
   def tabVisible(i: Int) = tabIndex.signal.map(_ == i)
 
@@ -89,6 +91,7 @@ def DefaultAttributesView(state: ViewerState) =
       "Groups" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false)
     )
   div(
+    RootGraphOptions(state),
     div(cls := "text-center pb-2", "Defaults"),
     div(
       cls := "flex justify-center",
@@ -110,3 +113,18 @@ def DefaultAttributesView(state: ViewerState) =
       for (view, i) <- tabsData.map(_._2).zipWithIndex yield view.amend(cls("hidden") <-- tabVisible(i).not)
     )
   )
+
+def RootGraphOptions(state: ViewerState) =
+  val builder = RowBuilder(state.graphTargetAttributes, None)
+
+  AttributesView(
+    id       = "root-graph-attributes",
+    titleStr = "Root Graph Options",
+    builder.buildRows(
+      "Labels",
+      builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter diagram title")),
+      LabelLoc,
+      LabelJust
+    )
+  )
+

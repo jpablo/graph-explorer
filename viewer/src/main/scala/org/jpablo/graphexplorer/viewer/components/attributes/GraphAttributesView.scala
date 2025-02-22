@@ -83,9 +83,9 @@ def GraphAttributesView(
     ,
     builder.buildRows(
       "Labels",
-      labelRow,
-      LabelLoc,
-      LabelJust,
+      if selection then labelRow else "",
+      if selection then LabelLoc else "",
+      if selection then LabelJust else "",
       "Fonts",
       FontName,
       FontColor -> color,
