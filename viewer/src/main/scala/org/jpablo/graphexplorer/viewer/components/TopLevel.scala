@@ -8,11 +8,13 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectionSidebar
+import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 
 def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivElement] =
   val fitDiagram = EventBus[Unit]()
   div(
     idAttr := "top-level",
+    LeftPanel(state, router),
     CanvasContainer(state, fitDiagram.events),
     Toolbar(state, fitDiagram, router),
     SelectionSidebar(state),
