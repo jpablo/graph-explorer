@@ -14,7 +14,7 @@ def LeftPanel(state: ViewerState, router: Router) =
 
     // Toggle button (always visible)
     button(
-      cls := "btn btn-ghost absolute top-4 left-2 z-20",
+      cls   := "btn btn-ghost absolute top-4 left-2 z-20",
       title := "Toggle Library",
       cls("btn-active") <-- isExpanded,
       i(cls := "bi bi-layout-sidebar"),
@@ -25,7 +25,8 @@ def LeftPanel(state: ViewerState, router: Router) =
     div(
       idAttr := "left-panel",
       cls := "bg-base-100 z-10 flex-shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200",
-      cls <-- isExpanded.signal.map(if _ then "w-64 p-2 gap-3 opacity-100 visible" else "w-0 p-0 gap-0 opacity-0 invisible"),
+      cls <-- isExpanded.signal.map(if _ then "w-64 p-2 gap-3 opacity-100 visible"
+      else "w-0 p-0 gap-0 opacity-0 invisible"),
 
       // Header
       div(
@@ -39,19 +40,6 @@ def LeftPanel(state: ViewerState, router: Router) =
         )
       ),
 
-      // Search box
-      div(
-        cls := "form-control",
-        div(
-          cls := "input-group input-group-sm",
-          span(cls := "px-3", i(cls := "bi bi-search")),
-          input(
-            cls := "input input-sm input-bordered w-full",
-            placeholder := "Search projects..."
-          )
-        )
-      ),
-
       // Projects list
       div(
         cls := "flex-grow overflow-y-auto",
@@ -60,20 +48,11 @@ def LeftPanel(state: ViewerState, router: Router) =
             div(
               cls := "flex items-center gap-2 p-2 hover:bg-base-200 cursor-pointer rounded-lg transition-colors",
               cls("bg-primary/10") <-- state.project.signal.map(_.id == project.id),
-
-              // Project icon and name
               div(
                 cls := "flex items-center gap-2 flex-grow overflow-hidden",
-                div(
-                  cls := "truncate",
-                  project.name
-                )
+                div(cls := "truncate", project.name)
               ),
-
-              // Click handler
-              onClick --> { _ =>
-                router.navigateTo(Route.ProjectDetail(project.id.value))
-              }
+              onClick --> { _ => router.navigateTo(Route.ProjectDetail(project.id.value)) }
             )
           }
         }
