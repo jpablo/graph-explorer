@@ -89,7 +89,9 @@ label[for ^= show-ns-kind-] {
     justify-content: center; /* Center horizontally */
 
     #selection-sidebar {
-      @apply shadow-xl bg-base-100/90 rounded-box absolute top-2 left-2 z-10 print:hidden border border-base-300;
+      @apply shadow-xl bg-base-100/90 rounded-box absolute top-2 z-10 print:hidden border border-base-300;
+      transition: left 0.2s ease-in-out;
+      left: var(--selection-sidebar-left, 2.75rem); /* Default to 2.5rem if variable not set */
     }
 
     svg.graphviz {
