@@ -7,8 +7,6 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.tiny
 
 def LeftPanel(state: ViewerState, router: Router) =
-  val isExpanded = Var(true)
-
   div(
     cls := "relative", // Container for absolute positioning
 
@@ -16,16 +14,16 @@ def LeftPanel(state: ViewerState, router: Router) =
     button(
       cls   := "btn btn-ghost absolute top-4 left-2 z-20",
       title := "Toggle Library",
-      cls("btn-active") <-- isExpanded,
+      cls("btn-active") <-- state.leftPanelVisible,
       i(cls := "bi bi-layout-sidebar"),
-      onClick --> { _ => isExpanded.update(!_) }
+      onClick --> { _ => state.leftPanelVisible.update(!_) }
     ).tiny,
 
     // Panel content
     div(
       idAttr := "left-panel",
       cls := "bg-base-100 z-10 flex-shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200",
-      cls <-- isExpanded.signal.map(if _ then "w-64 p-2 gap-3 opacity-100 visible"
+      cls <-- state.leftPanelVisible.signal.map(if _ then "w-64 p-2 gap-3 opacity-100 visible"
       else "w-0 p-0 gap-0 opacity-0 invisible"),
 
       // Header
