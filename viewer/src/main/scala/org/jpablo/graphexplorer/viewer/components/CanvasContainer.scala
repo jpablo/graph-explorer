@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.airstream.core.EventStream
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
+import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
@@ -11,12 +12,15 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
   *   The viewer state containing diagram data and event handlers
   * @param fitDiagram
   *   Event stream that triggers fitting the diagram to the viewport
+  * @param selectionSidebar
+  *   The selection sidebar component to be rendered inside the canvas container
   * @return
   *   A div element containing the SVG canvas with interaction handlers
   */
 def CanvasContainer(
-    state:      ViewerState,
-    fitDiagram: EventStream[Unit]
+    state:           ViewerState,
+    fitDiagram:      EventStream[Unit],
+    selectionSidebar: ReactiveHtmlElement[dom.HTMLDivElement]
 ) =
   import state.eventHandlers.updateTranslate
 
@@ -27,6 +31,7 @@ def CanvasContainer(
     tabIndex := 0,
     fitDiagram --> state.resetView(),
     child <-- state.rawSVG.map(SvgCanvas(state)),
+    selectionSidebar,
     onKeyDown --> state.handleKeyDown,
     onWheel.updateTranslate,
     onMouseDown.map(clientCoords) --> { (pos, shift) => state.startSelectionArea(pos, shift) },

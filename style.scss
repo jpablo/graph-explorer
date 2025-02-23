@@ -24,10 +24,6 @@ label[for ^= show-ns-kind-] {
     @apply shadow-xl bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10 print:hidden;
   }
 
-  #selection-sidebar {
-    @apply shadow-xl bg-base-100/90 rounded-box absolute left-2 top-2 z-10 print:hidden border border-base-300
-  }
-
   #left-panel {
     @apply bg-base-100 p-2 gap-3 z-10 w-64 flex-shrink-0 h-full flex flex-col overflow-x-hidden print:hidden border-r border-base-300;
     order: -1;
@@ -92,8 +88,11 @@ label[for ^= show-ns-kind-] {
 
     justify-content: center; /* Center horizontally */
 
-    svg.graphviz {
+    #selection-sidebar {
+      @apply shadow-xl bg-base-100/90 rounded-box absolute top-2 left-2 z-10 print:hidden border border-base-300;
+    }
 
+    svg.graphviz {
       width: 100%;
 
       -webkit-user-select: none;
@@ -121,7 +120,6 @@ label[for ^= show-ns-kind-] {
             fill: white;
           }
         }
-
       }
 
       #selection-rectangle {
@@ -157,11 +155,8 @@ label[for ^= show-ns-kind-] {
             pointer-events: all;
           }
         }
-
       }
-
     }
-
   }
 
   #diagram-attributes {

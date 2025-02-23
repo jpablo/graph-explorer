@@ -15,9 +15,8 @@ def TopLevel(state: ViewerState, router: Router): ReactiveHtmlElement[HTMLDivEle
   div(
     idAttr := "top-level",
     LeftPanel(state, router),
-    CanvasContainer(state, fitDiagram.events),
+    CanvasContainer(state, fitDiagram.events, SelectionSidebar(state)),
     Toolbar(state, fitDiagram, router),
-    SelectionSidebar(state),
     RightPanel(state).render(),
     HelpDialog(state.shortcutsModalOpen)
   )
