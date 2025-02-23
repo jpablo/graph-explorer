@@ -43,19 +43,24 @@ def LeftPanel(state: ViewerState, router: Router) =
       // Projects list
       div(
         cls := "flex-grow overflow-y-auto",
-        children <-- ProjectStorage.directory.map { directory =>
-          directory.projects.sortBy(-_.createdAt).map { project =>
-            div(
-              cls := "flex items-center gap-2 p-2 hover:bg-base-200 cursor-pointer rounded-lg transition-colors",
-              cls("bg-primary/10") <-- state.project.signal.map(_.id == project.id),
-              div(
-                cls := "flex items-center gap-2 flex-grow overflow-hidden",
-                div(cls := "truncate", project.name)
-              ),
-              onClick --> { _ => router.navigateTo(Route.ProjectDetail(project.id.value)) }
-            )
-          }
-        }
+        table(
+          cls := "table table-xs",
+          tbody(
+            children <-- ProjectStorage.directory.map { directory =>
+              directory.projects.sortBy(-_.createdAt).map { project =>
+                tr(
+                  cls := "flex items-center hover:bg-base-200 cursor-pointer rounded-lg transition-colors",
+                  cls("bg-primary/10") <-- state.project.signal.map(_.id == project.id),
+                  td(
+                    cls := "flex items-center flex-grow overflow-hidden",
+                    div(cls := "truncate", project.name)
+                  ),
+                  onClick --> { _ => router.navigateTo(Route.ProjectDetail(project.id.value)) }
+                )
+              }
+            }
+          )
+        )
       )
     )
   )
