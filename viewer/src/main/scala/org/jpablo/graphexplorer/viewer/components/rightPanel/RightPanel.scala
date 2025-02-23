@@ -96,6 +96,7 @@ class RightPanel(state: ViewerState):
   private def tabSource(idx: Int) =
     div(
       cls := "flex flex-col h-full",
+      cls("hidden") <-- !isVisible(idx),
       div(
         cls := "mb-4",
         a(
@@ -109,7 +110,6 @@ class RightPanel(state: ViewerState):
       CodeMirror(
         state,
         idAttr := "nodes-source",
-        cls("hidden") <-- !isVisible(idx),
         placeholder := "DOT source"
       )
     )
