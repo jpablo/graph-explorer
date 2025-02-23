@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.widgets.tiny
 
 def LeftPanel(state: ViewerState, router: Router) =
   val isExpanded = Var(true)
@@ -13,10 +14,12 @@ def LeftPanel(state: ViewerState, router: Router) =
 
     // Toggle button (always visible)
     button(
-      cls := "btn btn-sm btn-ghost absolute top-3 left-2 z-20",
+      cls := "btn btn-ghost absolute top-4 left-2 z-20",
+      title := "Toggle Library",
+      cls("btn-active") <-- isExpanded,
       i(cls := "bi bi-layout-sidebar"),
       onClick --> { _ => isExpanded.update(!_) }
-    ),
+    ).tiny,
 
     // Panel content
     div(

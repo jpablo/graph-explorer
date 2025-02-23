@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -101,16 +100,5 @@ def Toolbar(
         target := "_blank",
         i(cls := "bi bi-github")
       )
-    ),
-    // -------- Style Panel Toggle --------
-    Tooltip(
-      text = "Style",
-      cls := "flex-none tooltip-bottom",
-      input(idAttr := inputId, tpe := "checkbox", cls := "drawer-toggle"),
-      label(
-        forId := inputId,
-        cls("btn-active") <-- state.rightPanelVisible,
-        onClick --> state.rightPanelVisible.toggle()
-      ).asBtn.tiny.layoutSidebarReverseIcon
     )
   )

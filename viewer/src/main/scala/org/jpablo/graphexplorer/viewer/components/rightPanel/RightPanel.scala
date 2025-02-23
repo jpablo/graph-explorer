@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.components.rightPanel.{NodesList, EdgesList}
+import org.jpablo.graphexplorer.viewer.widgets.Icons.layoutSidebarReverseIcon
 
 class RightPanel(state: ViewerState):
   private val visibleTab = state.rightPanelTabIndex
@@ -17,27 +18,43 @@ class RightPanel(state: ViewerState):
   private val onlyActiveNodes = Var(false)
   private val onlyActiveEdges = Var(false)
 
+  private val inputId = s"toggle-diagram-elements"
+
   private def isVisible(i: Int) = visibleTab.signal.map(_ == i)
 
   def render() =
     div(
-      idAttr := "nodes-panel",
-      cls <--
-        state.rightPanelVisible.signal.map(if _ then "p-2 gap-3 opacity-100 visible" else "w-0 p-0 gap-0 opacity-0 invisible"),
-      firstRow,
-      // --- Tab Headers ---
-      div(
-        idAttr := "nodes-panel-tab-buttons",
-        tabHeaderStyle(0),
-        tabHeaderNodes(1),
-        tabHeaderEdges(2),
-        tabHeaderSource(3)
+      // -------- Style Panel Toggle --------
+      Tooltip(
+        text = "Style",
+        cls := "flex-none tooltip-bottom absolute right-2 top-2 z-20",
+        input(idAttr := inputId, tpe := "checkbox", cls := "drawer-toggle"),
+        label(
+          forId := inputId,
+          cls("btn-active") <-- state.rightPanelVisible,
+          onClick --> state.rightPanelVisible.toggle()
+        ).asBtn.tiny.layoutSidebarReverseIcon
       ),
-      // --- Tab Body ---
-      tabStyle(0),
-      tabNodes(1),
-      tabEdges(2),
-      tabSource(3)
+
+      div(
+        idAttr := "nodes-panel",
+        cls <--
+          state.rightPanelVisible.signal.map(if _ then "p-2 gap-3 opacity-100 visible" else "w-0 p-0 gap-0 opacity-0 invisible"),
+        firstRow,
+        // --- Tab Headers ---
+        div(
+          idAttr := "nodes-panel-tab-buttons",
+          tabHeaderStyle(0),
+          tabHeaderNodes(1),
+          tabHeaderEdges(2),
+          tabHeaderSource(3)
+        ),
+        // --- Tab Body ---
+        tabStyle(0),
+        tabNodes(1),
+        tabEdges(2),
+        tabSource(3)
+      )
     )
 
   private def firstRow =
@@ -52,7 +69,7 @@ class RightPanel(state: ViewerState):
         }
       ),
       a(
-        cls    := "link",
+        cls    := "link mr-10",
         href   := "https://www.graphviz.org/documentation/",
         target := "_blank",
         title  := "Visit the Graphviz documentation for more information",
