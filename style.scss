@@ -21,7 +21,7 @@ label[for ^= show-ns-kind-] {
   @apply bg-base-100 border-base-300 flex h-screen;
 
   #toolbar {
-    @apply shadow-xl bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10 print:hidden;
+    @apply shadow-md bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10 print:hidden border border-base-300;
   }
 
   #left-panel {
@@ -89,7 +89,7 @@ label[for ^= show-ns-kind-] {
     justify-content: center; /* Center horizontally */
 
     #selection-sidebar {
-      @apply shadow-xl bg-base-100/90 rounded-box absolute top-2 z-10 print:hidden border border-base-300;
+      @apply shadow-md bg-base-100/90 rounded-box absolute top-2 z-10 print:hidden border border-base-300;
       transition: left 0.2s ease-in-out;
       left: var(--selection-sidebar-left, 2.75rem); /* Default to 2.5rem if variable not set */
     }
