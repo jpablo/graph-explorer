@@ -35,11 +35,11 @@ class RightPanel(state: ViewerState):
           onClick --> state.rightPanelVisible.toggle()
         ).asBtn.tiny.layoutSidebarReverseIcon
       ),
-
       div(
         idAttr := "nodes-panel",
         cls <--
-          state.rightPanelVisible.signal.map(if _ then "p-2 gap-3 opacity-100 visible" else "w-0 p-0 gap-0 opacity-0 invisible"),
+          state.rightPanelVisible.signal.map(if _ then "p-2 gap-3 opacity-100 visible"
+          else "w-0 p-0 gap-0 opacity-0 invisible"),
         firstRow,
         // --- Tab Headers ---
         div(
@@ -67,13 +67,6 @@ class RightPanel(state: ViewerState):
           state.showAllNodes()
           state.sourceText.set(source)
         }
-      ),
-      a(
-        cls    := "link mr-10",
-        href   := "https://www.graphviz.org/documentation/",
-        target := "_blank",
-        title  := "Visit the Graphviz documentation for more information",
-        "Graphviz"
       )
     )
 
@@ -101,11 +94,24 @@ class RightPanel(state: ViewerState):
     StyleView(state).amend(cls("hidden") <-- !isVisible(idx))
 
   private def tabSource(idx: Int) =
-    CodeMirror(
-      state,
-      idAttr := "nodes-source",
-      cls("hidden") <-- !isVisible(idx),
-      placeholder := "DOT source"
+    div(
+      cls := "flex flex-col h-full",
+      div(
+        cls := "mb-4",
+        a(
+          cls    := "link",
+          href   := "https://www.graphviz.org/documentation/",
+          target := "_blank",
+          title  := "Visit the Graphviz documentation for more information",
+          "Documentation"
+        )
+      ),
+      CodeMirror(
+        state,
+        idAttr := "nodes-source",
+        cls("hidden") <-- !isVisible(idx),
+        placeholder := "DOT source"
+      )
     )
 
   private def tabNodes(idx: Int) =
