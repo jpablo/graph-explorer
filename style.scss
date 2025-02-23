@@ -10,6 +10,10 @@ label[for ^= show-ns-kind-] {
 
   #projects-body {
     @apply p-2;
+
+    .project-card {
+      @apply bg-base-100 shadow w-full border border-base-300;
+    }
   }
 }
 

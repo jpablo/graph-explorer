@@ -21,7 +21,7 @@ enum SortOption:
     case CreationDate => "Creation Date"
 
 def ProjectsDirectoryView(router: Router) =
-  val sortOptionVar = Var[SortOption](SortOption.LastModified)
+  val sortOptionVar = Var[SortOption](SortOption.CreationDate)
   val searchTermVar = Var("")
 
   div(
@@ -49,7 +49,7 @@ def ProjectsDirectoryView(router: Router) =
           h1(
             cls := "text-2xl font-bold gap-2 flex",
             span().folderIcon,
-            "Projects"
+            "Library"
           )
         ),
         div(
@@ -62,7 +62,7 @@ def ProjectsDirectoryView(router: Router) =
               span(cls := "px-3", i(cls := "bi bi-search")),
               input(
                 cls         := "input input-sm input-bordered w-48",
-                placeholder := "Search projects...",
+                placeholder := "Search library...",
                 controlled(
                   value <-- searchTermVar,
                   onInput.mapToValue --> searchTermVar
@@ -109,7 +109,7 @@ def ProjectsDirectoryView(router: Router) =
             .combineWith(debouncedSearch, sortOptionVar.signal)
             .map: (directory, searchTerm, sortOption) =>
               val filteredProjects = directory.projects.filter(_.name.toLowerCase.contains(searchTerm.toLowerCase))
-              val sorted = 
+              val sorted =
                 sortOption match
                   case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
                   case SortOption.Title        => filteredProjects.sortBy(_.name.toLowerCase)
@@ -122,36 +122,11 @@ def ProjectsDirectoryView(router: Router) =
 
 private def projectCard(router: Router)(project: ProjectInfo) =
   div(
-    cls := "card bg-base-100 shadow-xl w-full",
-    div(
-      cls := "card-body p-4",
-
-      // Header with title and delete button
-      div(
-        cls := "flex items-center justify-between",
-        h2(
-          cls := "card-title",
-          a(
-            href := s"#/${project.id.value}",
-            cls  := "flex items-center gap-2 hover:text-primary transition-colors",
-            span().boxSeamIcon,
-            project.name,
-            onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
-          )
-        ),
-        Button(
-          cls := "btn btn-xs hover:bg-warning/20 hover:text-warning transition-colors",
-          i(cls := "bi bi-trash"),
-          onClick --> { _ =>
-            if dom.window.confirm("Are you sure you want to delete this project?") then
-              ProjectStorage.deleteProject(project.id)
-          }
-        )
-      ),
-
+    cls := "project-card card",
+    figure(
       // Preview SVG
       div(
-        cls := "w-full h-48 overflow-hidden bg-base-200 rounded-lg mb-4 flex items-center justify-center",
+        cls := "w-full h-48 overflow-hidden bg-base-200 mb-4 flex items-center justify-center cursor-pointer",
         child <-- ProjectStorage
           .getProjectContent(project.id)
           .map(content => DotText(content).toSvg)
@@ -166,8 +141,34 @@ private def projectCard(router: Router)(project: ProjectInfo) =
                     cls := "absolute inset-0 w-full h-full",
                     foreignSvgElement(svg.svg, svgElement)
                   )
-                )
+                ),
+              onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
             )
+      )
+    ),
+    div(
+      cls := "card-body p-4",
+
+      // Header with title and delete button
+      div(
+        cls := "flex items-center justify-between",
+        h2(
+          cls := "card-title",
+          a(
+            href := s"#/${project.id.value}",
+            cls  := "flex items-center gap-2 hover:text-primary transition-colors",
+            project.name,
+            onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
+          )
+        ),
+        Button(
+          cls := "btn btn-xs hover:bg-warning/20 hover:text-warning transition-colors",
+          i(cls := "bi bi-trash"),
+          onClick --> { _ =>
+            if dom.window.confirm("Are you sure you want to delete this project?") then
+              ProjectStorage.deleteProject(project.id)
+          }
+        )
       ),
 
       // Last modified and created at dates
