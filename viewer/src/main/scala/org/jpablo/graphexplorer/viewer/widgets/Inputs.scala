@@ -221,9 +221,8 @@ def TextAreaWithValue(
     )
 
   textArea(
-    cls         := "textarea textarea-bordered",
+    cls         := "textarea textarea-bordered textarea-xs p-2 w-full max-w-xs",
     placeholder := placeholderText,
-    rows        := 2,
     value <-- rawText.signal,
     onInput.mapToValue --> rawText.set,
     if setFocus then onMountFocus else emptyMod
