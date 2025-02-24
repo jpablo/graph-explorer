@@ -255,19 +255,34 @@ object SvgCanvas:
           Some(
             svg.g(
               svg.idAttr := "dragging-arrow-group",
-              svg.line(
-                svg.idAttr := "dragging-arrow-line",
-                svg.x1     := x1.toString,
-                svg.y1     := y1.toString,
-                svg.x2     := p1.x.toString,
-                svg.y2     := p1.y.toString
+              // Define the arrowhead marker
+              svg.defs(
+                svg.marker(
+                  svg.idAttr      := "arrowhead",
+                  svg.viewBox     := "0 0 10 10",
+                  svg.refX        := "9",
+                  svg.refY        := "5",
+                  svg.markerWidth := "4",  // Smaller size
+                  svg.markerHeight:= "4",  // Smaller size
+                  svg.orient      := "auto-start-reverse",
+                  svg.path(
+                    // Vee style path with concave base
+                    svg.d := "M 0 0 L 10 5 L 0 10 L 2 5 z",
+                    svg.fill := "#2c70ff",  // Selected border blue
+                    svg.stroke := "#2c70ff"  // Match the fill color
+                  )
+                )
               ),
-              // svg.circle(svg.idAttr := "dragging-arrow-start-circle", svg.r := "1", svg.cx := p0.x.toString, svg.cy := p0.y.toString),
-              svg.circle(
-                svg.idAttr := "dragging-arrow-end-circle",
-                svg.r      := ".5",
-                svg.cx     := p1.x.toString,
-                svg.cy     := p1.y.toString
+              // Draw the line with the arrowhead
+              svg.line(
+                svg.idAttr        := "dragging-arrow-line",
+                svg.x1            := x1.toString,
+                svg.y1            := y1.toString,
+                svg.x2            := p1.x.toString,
+                svg.y2            := p1.y.toString,
+                svg.markerEnd     := "url(#arrowhead)",
+                svg.stroke        := "#2c70ff",  // Selected border blue
+                svg.strokeWidth   := "1"  // Thinner line to match smaller arrowhead
               )
             )
           )
