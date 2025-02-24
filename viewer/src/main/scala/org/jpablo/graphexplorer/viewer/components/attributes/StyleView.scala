@@ -28,7 +28,10 @@ def StyleView(state: ViewerState) =
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>
             div(
-              div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Arrows (${arrowIds.size})"))),
+              div(
+                cls := "divider",
+                div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Arrows (${arrowIds.size})"))
+              ),
               EdgesAttributesView(
                 state,
                 attrs     = state.nodesAttributes(arrowIds),
@@ -39,7 +42,10 @@ def StyleView(state: ViewerState) =
 
           case (false, true, false) =>
             div(
-              div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Nodes (${nodeIds.size})"))),
+              div(
+                cls := "divider",
+                div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Nodes (${nodeIds.size})"))
+              ),
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
@@ -51,7 +57,13 @@ def StyleView(state: ViewerState) =
 
           case (false, false, true) =>
             div(
-              div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Clusters (${clusterIds.size})"))),
+              div(
+                cls := "divider",
+                div(
+                  cls := "divider-content",
+                  h2(cls := "text-lg font-semibold", s"Selected Clusters (${clusterIds.size})")
+                )
+              ),
               GraphAttributesView(
                 state     = state,
                 attrsVar  = state.nodesAttributes(clusterIds),
@@ -122,6 +134,7 @@ def RootGraphOptions(state: ViewerState) =
     id       = "root-graph-attributes",
     titleStr = "Root Graph Options",
     builder.buildRows(
+      "Title",
       builder.simpleRow(
         Label,
         InputType.multiText,
@@ -131,6 +144,11 @@ def RootGraphOptions(state: ViewerState) =
       ),
       LabelLoc,
       LabelJust,
+      "Layout",
+      Layout,
+      Rankdir,
+      "Other",
+      Splines,
       BgColor -> color,
       Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
       RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),

@@ -71,18 +71,8 @@ def GraphAttributesView(
   AttributesView(
     id       = "graph-attributes",
     titleStr = "Cluster Attributes",
-    if selection then
-      Seq.empty
-    else
-      builder.buildRows(
-        "Layout",
-        Layout,
-        Rankdir,
-        Splines
-      )
-    ,
     builder.buildRows(
-      "Labels",
+      if selection then "Labels" else "", 
       if selection then labelRow else "",
       if selection then LabelLoc else "",
       if selection then LabelJust else "",
