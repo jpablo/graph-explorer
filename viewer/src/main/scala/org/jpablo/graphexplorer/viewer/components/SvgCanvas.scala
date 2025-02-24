@@ -262,19 +262,40 @@ object SvgCanvas:
           val (x1, y1) = if isInside then
             (centerX, centerY)
           else
-            // Calculate intersection point with bbox
-            val angle = math.atan2(p1.y - centerY, p1.x - centerX)
+            // Define the four edges of the bounding box
+            val left = bbox.x
+            val right = bbox.x + bbox.width
+            val top = bbox.y
+            val bottom = bbox.y + bbox.height
             
-            if math.abs(math.cos(angle)) > math.abs(math.sin(angle)) then
-              // Intersect with vertical edges
-              val x = if math.cos(angle) > 0 then bbox.x + bbox.width else bbox.x
-              val y = centerY + math.tan(angle) * (x - centerX)
-              (x, y)
-            else
-              // Intersect with horizontal edges
-              val y = if math.sin(angle) > 0 then bbox.y + bbox.height else bbox.y
-              val x = centerX + (y - centerY) / math.tan(angle)
-              (x, y)
+            // Direction vector from center to target point
+            val dx = p1.x - centerX
+            val dy = p1.y - centerY
+            
+            // Calculate t values for intersections with each edge
+            // We need to find which edge the ray from center to target intersects first
+            val tLeft = if dx != 0 then (left - centerX) / dx else Double.PositiveInfinity
+            val tRight = if dx != 0 then (right - centerX) / dx else Double.PositiveInfinity
+            val tTop = if dy != 0 then (top - centerY) / dy else Double.PositiveInfinity
+            val tBottom = if dy != 0 then (bottom - centerY) / dy else Double.PositiveInfinity
+            
+            // Filter to only consider intersections in the direction of the ray
+            // and find the smallest positive t value (first intersection)
+            val candidates = Seq(
+              if dx > 0 then (tRight, right, centerY + dy * tRight) else null,
+              if dx < 0 then (tLeft, left, centerY + dy * tLeft) else null,
+              if dy > 0 then (tBottom, centerX + dx * tBottom, bottom) else null,
+              if dy < 0 then (tTop, centerX + dx * tTop, top) else null
+            ).filter(_ != null)
+            
+            // Find the intersection with the smallest positive t value
+            val (_, ix, iy) = candidates.minBy(_._1)
+            
+            // Handle numerical precision issues by clamping to the bbox edges
+            val clampedX = math.max(left, math.min(right, ix))
+            val clampedY = math.max(top, math.min(bottom, iy))
+            
+            (clampedX, clampedY)
 
           Some(
             svg.g(
