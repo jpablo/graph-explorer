@@ -125,15 +125,18 @@ object SvgCanvas:
   end apply
 
   private def NewEdgeButtonElement(elem: SelectableElement, graphTargetAttributes: Var[Attributes]): Option[ReactiveSvgElement[dom.svg.G]] =
-    // only show the arrow button if the selected node is a node
+    val arrowGroup = svg.g(
+      svg.path(
+        svg.d := "M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z"
+      )
+    )
+
     val g0 =
       svg.g(
         svg.cls           := s"new-edge-button",
         svg.pointerEvents := "all",
         svg.circle(svg.r := "8", svg.cx := "8", svg.cy := "8"),
-        svg.path(
-          svg.d := "M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z"
-        )
+        arrowGroup
       )
 
     elem match
@@ -147,21 +150,26 @@ object SvgCanvas:
         // Get the rankdir value from graph attributes
         val rankdir = graphTargetAttributes.now().values.get("rankdir").map(_.value.toString).getOrElse("TB")
 
-        // Calculate position based on rankdir
-        val (trX, trY) = rankdir match
-          case "TB" => // Top to Bottom - show below
-            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y + bbox.height + (h * scale) / 4 + 1)
-          case "LR" => // Left to Right - show to the right
-            (bbox.x + bbox.width + (w * scale) / 4 + 1, bbox.y + bbox.height / 2 - (h * scale) / 2)
-          case "BT" => // Bottom to Top - show above
-            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y - (h * scale) - (h * scale) / 4 - 1)
-          case "RL" => // Right to Left - show to the left
-            (bbox.x - (w * scale) - (w * scale) / 4 - 1, bbox.y + bbox.height / 2 - (h * scale) / 2)
+        // Calculate position and rotation based on rankdir
+        val (trX, trY, rotation) = rankdir match
+          case "TB" => // Top to Bottom - show below, no rotation needed (default)
+            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y + bbox.height + (h * scale) / 4 + 1, 0)
+          case "LR" => // Left to Right - show to the right, rotate 270 degrees
+            (bbox.x + bbox.width + (w * scale) / 4 + 1, bbox.y + bbox.height / 2 - (h * scale) / 2, 270)
+          case "BT" => // Bottom to Top - show above, rotate 180 degrees
+            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y - (h * scale) - (h * scale) / 4 - 1, 180)
+          case "RL" => // Right to Left - show to the left, rotate 90 degrees
+            (bbox.x - (w * scale) - (w * scale) / 4 - 1, bbox.y + bbox.height / 2 - (h * scale) / 2, 90)
           case _ => // Default to TB
-            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y + bbox.height + (h * scale) / 4 + 1)
+            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y + bbox.height + (h * scale) / 4 + 1, 0)
 
         Some(
-          g0.amend(svg.transform := s"translate($trX, $trY) scale($scale)")
+          g0.amend(
+            svg.transform := s"translate($trX, $trY) scale($scale)",
+            arrowGroup.amend(
+              svg.transform := s"rotate($rotation, 8, 8)"
+            )
+          )
         )
       case _ => None
 
