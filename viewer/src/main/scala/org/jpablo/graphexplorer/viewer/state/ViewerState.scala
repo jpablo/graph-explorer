@@ -55,8 +55,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     rawSVG.map: svg =>
       SvgCanvas(svg, transform, diagramSelection, addNode)
 
-  val rawSVGText = Var("")
-
   private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
 
   val hiddenNodesS = hiddenNodes.signal
@@ -143,8 +141,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     diagramSelection = diagramSelection,
     project          = project,
     hiddenNodesS     = hiddenNodesS,
-    rawSVGText       = rawSVGText.signal,
-    viewBox          = rawSVG.map(_.viewBox.baseVal),
+    finalSVG         = finalSVG,
     sourceFlow       = sourceFlow,
     hiddenNodes      = hiddenNodes,
     zoomValue        = zoomValue,

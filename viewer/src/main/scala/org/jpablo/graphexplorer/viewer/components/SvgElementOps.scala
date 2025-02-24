@@ -71,10 +71,13 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
     for elem <- selectableElements if elem.nodeId in ids do elem.select()
 
   private def buildSvgElement(elem: SelectableElement): (dom.svg.Element, BBox) =
+    // Clone the element to avoid modifying the original
     val e = DomApi.unsafeParseSvgString(elem.get.outerHTML)
+    // Remove the selected border from the cloned element
+    val selectedBorders = e.querySelectorAll(".selected-border")
+    for (node <- selectedBorders) do
+      node.parentNode.removeChild(node)
     val bbox = elem.get.getBBox()
-    dom.console.log(elem.get)
-    dom.console.log(e)
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
   def toSVGTextWithIds(ids: Set[models.NodeId]): String =
@@ -82,13 +85,12 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
     else
       val (svgs, boxes) = SelectableElement.findAll(ref).filter(_.nodeId in ids).map(buildSvgElement).unzip
       val bbox = boxes.reduce((a, b) =>
-        val x = math.min(a.x, b.x)
-        val y = math.min(a.y, b.y)
-        val width = math.max(a.width, (b.x + b.width) - x)
-        val height = math.max(a.height, (b.y + b.height) - y)
+        val x = a.x min b.x
+        val y = a.y min b.y
+        val width = a.width max (b.x + b.width - x)
+        val height = ((a.y + a.height) max (b.y + b.height)) - y
         BBox(x, y, width, height)
       )
-      pprint.log(bbox)
       val s = SvgCanvas.selfContainedSvg(bbox).amend(svgs.map(foreignSvgElement)*)
       s.ref.outerHTML
 

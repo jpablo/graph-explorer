@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
-import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
@@ -14,13 +13,13 @@ import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 import upickle.default.*
 import com.raquo.laminar.api.features.unitArrows
+import com.raquo.laminar.nodes.ReactiveSvgElement
 
 class EventHandlers(
     diagramSelection: DiagramSelectionOps,
     project:          ProjectOps,
     hiddenNodesS:     Signal[Set[NodeId]],
-    rawSVGText:       Signal[String],
-    viewBox:          Signal[dom.SVGRect],
+    finalSVG:         Signal[ReactiveSvgElement[dom.SVGSVGElement]],
     sourceFlow:       SourceFlow,
     hiddenNodes:      HiddenNodesOps,
     zoomValue:        Var[Double],
@@ -72,12 +71,11 @@ class EventHandlers(
       ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
 
     def copyAsFullDiagramSVG(writeText: String => Any): Base =
-      ev.stopPropagation(_.sample(rawSVGText)) --> { svgText => writeText(svgText) }
+      ev.stopPropagation(_.sample(finalSVG)) --> { svgElem => writeText(svgElem.ref.outerHTML) }
 
     def copySelectionAsSVG(writeText: String => Any) =
-      ev.stopPropagation(_.sample(rawSVGText, diagramSelection.signal)) --> { (svgDiagram: String, canvasSelection) =>
-        val svgElement = DomApi.unsafeParseSvgString(svgDiagram).asInstanceOf[dom.SVGSVGElement]
-        writeText(SvgElementOps(svgElement).toSVGTextWithIds(canvasSelection))
+      ev.stopPropagation(_.sample(finalSVG, diagramSelection.signal)) --> { (svgElem, canvasSelection) =>
+        writeText(SvgElementOps(svgElem.ref).toSVGTextWithIds(canvasSelection))
       }
 
     def copyAsDOT(writeText: String => Any) =
@@ -93,7 +91,9 @@ class EventHandlers(
       ev(_.sample(allNodeIds).map(_.toSeq)) --> (hiddenNodes.extend(_))
 
     def updateTranslate(using E <:< dom.WheelEvent): Base =
-      ev(_.withCurrentValueOf(viewBox)) --> (handleWheel(zoomValue, translateXY)(_, _))
+      ev(_.withCurrentValueOf(finalSVG)) --> { (e, svgElem: ReactiveSvgElement[dom.SVGSVGElement]) =>
+        handleWheel(zoomValue, translateXY)(e, svgElem.ref.viewBox.baseVal)
+      }
 
     def deleteSelectedNodes =
       ev --> sourceFlow.fullGraphV.update(_.removeNodes(diagramSelection.now()))
