@@ -4,7 +4,6 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import com.softwaremill.macwire.*
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
@@ -12,10 +11,9 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, GroupId, NodeId, ViewerNode}
-import org.scalajs.dom.{KeyboardEvent, SVGSVGElement}
+import org.scalajs.dom.{KeyboardEvent, SVGMatrix, SVGRect, SVGSVGElement}
 import upickle.default.*
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
-import org.scalajs.dom.SVGMatrix
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 
 import scala.scalajs.js
@@ -54,6 +52,8 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   // Dot ~> SVGSVGElement
   val rawSVG: Signal[SVGSVGElement] =
     visibleDOT.flatMapSwitch(_.toSvg)
+
+  val rawSVGText = Var("")
 
   private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
 
@@ -137,7 +137,17 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       .zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) => graph.updateAttributes(nodeIds, attrs))
 
   // -------- Diagram actions -----------
-  val eventHandlers = wire[EventHandlers]
+  val eventHandlers = EventHandlers(
+    diagramSelection  = diagramSelection,
+    project           = project,
+    hiddenNodesS      = hiddenNodesS,
+    rawSVGText        = rawSVGText.signal,
+    viewBox           = rawSVG.map(_.viewBox.baseVal),
+    sourceFlow        = sourceFlow,
+    hiddenNodes       = hiddenNodes,
+    zoomValue         = zoomValue,
+    translateXY       = translateXY
+  )
 
   def hideSelection() =
     project.hiddenNodes.update(_ ++ diagramSelection.now())
@@ -322,31 +332,31 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 end ViewerState
 
 case class PersistedState(
-    hiddenNodes:      Set[NodeId] = Set.empty,
-    projectName:      String = "",
-    source:           String = "",
+    hiddenNodes:       Set[NodeId] = Set.empty,
+    projectName:       String = "",
+    source:            String = "",
     rightPanelVisible: Boolean = true,
-    sideBarTabIndex:  Int = 0,
-    leftPanelVisible: Boolean = true
+    sideBarTabIndex:   Int = 0,
+    leftPanelVisible:  Boolean = true
 ) derives ReadWriter
 
 object PersistedState:
   private val minimalGraphText = "digraph G {\n}"
   val empty =
     PersistedState(
-      hiddenNodes      = Set.empty,
-      projectName      = "Untitled",
-      source           = minimalGraphText,
+      hiddenNodes       = Set.empty,
+      projectName       = "Untitled",
+      source            = minimalGraphText,
       rightPanelVisible = true,
-      sideBarTabIndex  = 0,
-      leftPanelVisible = true
+      sideBarTabIndex   = 0,
+      leftPanelVisible  = true
     )
 
 object ViewerState:
   def handleWheel(
       zoomValue:   Var[Double],
       translateXY: Var[Point2d[SvgUnit]]
-  )(wEv: dom.WheelEvent, svgDiagram: dom.SVGSVGElement) =
+  )(wEv: dom.WheelEvent, viewBox: SVGRect) =
     val clientHeight = dom.window.innerHeight.max(1)
     val clientWidth = dom.window.innerWidth.max(1)
 
@@ -354,7 +364,6 @@ object ViewerState:
       zoomValue.update: z =>
         (z - wEv.deltaY / clientHeight).max(0.001)
     else
-      val viewBox = svgDiagram.viewBox.baseVal
       val z = zoomValue.now()
       val scale = (viewBox.width / clientWidth).max(viewBox.height / clientHeight)
       val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))

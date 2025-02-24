@@ -1,10 +1,8 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.scalajs.dom
-import org.scalajs.dom.window
 import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 def SelectionSidebar(state: ViewerState) =
   import state.eventHandlers.*
@@ -24,9 +22,7 @@ def SelectionSidebar(state: ViewerState) =
         li(a(cls := "flex justify-between", span("Group"), kbd(cls := "kbd kbd-sm opacity-60", "g"), onClick.groupSelectedNodes)),
         li(a(cls := "flex justify-between", span("Clear selection"), kbd(cls := "kbd kbd-sm opacity-60", "Esc"), onClick.clearSelection)),
         // ----- copy as svg -----
-        li(
-          a("Copy as SVG", onClick.copySelectionAsSVG(window.navigator.clipboard.writeText))
-        ),
+//        li(a("Copy as SVG", onClick.copySelectionAsSVG(window.navigator.clipboard.writeText))),
         li(cls := "menu-title", "successors", hr()),
         li(a("Show all successors", onClick.showAllSuccessors)),
         li(a("Show direct successors", onClick.showDirectSuccessors)),

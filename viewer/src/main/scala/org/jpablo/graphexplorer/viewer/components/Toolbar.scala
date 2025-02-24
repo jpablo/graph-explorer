@@ -16,7 +16,6 @@ def Toolbar(
   import state.eventHandlers.*
 
   val writeTextToClipboard = window.navigator.clipboard.writeText
-  val inputId = s"toggle-diagram-elements"
 
   div(
     idAttr := "toolbar",

@@ -29,12 +29,16 @@ def CanvasContainer(
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,
-    styleAttr <-- state.leftPanelVisible.signal.map(visible => 
+    styleAttr <-- state.leftPanelVisible.signal.map(visible =>
       if visible then "--selection-sidebar-left: .5rem;"
       else "--selection-sidebar-left: 2.75rem;"
     ),
     fitDiagram --> state.resetView(),
-    child <-- state.rawSVG.map(SvgCanvas(state)),
+    child <-- state.rawSVG
+      .map: r =>
+        state.rawSVGText.set(r.outerHTML)
+        SvgCanvas(state)(r)
+    ,
     selectionSidebar,
     onKeyDown --> state.handleKeyDown,
     onWheel.updateTranslate,

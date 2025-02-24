@@ -11,14 +11,14 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
-import org.scalajs.dom.SVGSVGElement
 import upickle.default.*
 
 class EventHandlers(
     diagramSelection:  DiagramSelectionOps,
     project:           ProjectOps,
     hiddenNodesS:      Signal[Set[NodeId]],
-    svgDiagramElement: Signal[SVGSVGElement],
+    rawSVGText:        Signal[String],
+    viewBox:           Signal[dom.SVGRect],
     sourceFlow:        SourceFlow,
     hiddenNodes:       HiddenNodesOps,
     zoomValue:         Var[Double],
@@ -37,9 +37,6 @@ class EventHandlers(
       (g: ViewerGraph, selection: Set[NodeId]) =>
         project.hiddenNodes.update(f(_, selection, g))
     }
-
-  private val svgDotDiagram: Signal[SvgElementOps] =
-    svgDiagramElement.map(SvgElementOps.apply)
 
   extension [E <: dom.Event](ev: EventProp[E])
     def hideSelectedNodes =
@@ -73,12 +70,16 @@ class EventHandlers(
       ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
 
     def copyAsFullDiagramSVG(writeText: String => Any): Base =
-      ev(_.sample(svgDotDiagram)) --> { svgDiagram => writeText(svgDiagram.toSVGText) }
+      ev(_.sample(rawSVGText)) --> { svgText => writeText(svgText) }
 
-    def copySelectionAsSVG(writeText: String => Any) =
-      ev(_.sample(svgDotDiagram, diagramSelection.signal)) --> { (svgDiagram: SvgElementOps, canvasSelection) =>
-        writeText(svgDiagram.toSVGTextWithIds(canvasSelection))
-      }
+    // TODO: Figure out why this is not working
+//    def copySelectionAsSVG(writeText: String => Any) =
+//      ev(_.sample(rawSVGText, diagramSelection.signal)) --> { (svgDiagram: String, canvasSelection) =>
+//        println(("copySelectionAsSVG:", writeText))
+//        val svgElement = DomApi.unsafeParseSvgString(svgDiagram).asInstanceOf[dom.SVGSVGElement]
+//        dom.console.log(svgElement)
+//        writeText(SvgElementOps(svgElement).toSVGTextWithIds(canvasSelection))
+//      }
 
     def copyAsDOT(writeText: String => Any) =
       ev(_.sample(sourceFlow.visibleDOT)) --> { dot => writeText(dot.value) }
@@ -93,7 +94,7 @@ class EventHandlers(
       ev(_.sample(allNodeIds).map(_.toSeq)) --> (hiddenNodes.extend(_))
 
     def updateTranslate(using E <:< dom.WheelEvent): Base =
-      ev(_.withCurrentValueOf(svgDiagramElement)) --> (handleWheel(zoomValue, translateXY)(_, _))
+      ev(_.withCurrentValueOf(viewBox)) --> (handleWheel(zoomValue, translateXY)(_, _))
 
     def deleteSelectedNodes =
       ev --> { _ => sourceFlow.fullGraphV.update(_.removeNodes(diagramSelection.now())) }
@@ -103,4 +104,3 @@ class EventHandlers(
 
     def clearSelection =
       ev --> { _ => diagramSelection.clear() }
-

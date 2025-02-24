@@ -70,9 +70,6 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
   def select(ids: Set[models.NodeId]): Unit =
     for elem <- selectableElements if elem.nodeId in ids do elem.select()
 
-  def toSVGText: String =
-    ref.outerHTML
-
   private def buildSvgElement(elem: SelectableElement): (dom.svg.Element, BBox) =
     val e = DomApi.unsafeParseSvgString(elem.get.outerHTML)
     val bbox = elem.get.getBBox()
