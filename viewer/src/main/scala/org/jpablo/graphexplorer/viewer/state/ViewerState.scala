@@ -196,9 +196,17 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       val start = action.start
       val sel = diagramSelection.now()
       diagramSelection.clear()
-      // TODO: finish this using findNode
-      val mouseOverInitialNode = diagramSelection.isNodeInRect(start, action.rect)
-      if sel.size == 1 && mouseOverInitialNode then
+      
+      // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
+      val bbox = start.get.getBoundingClientRect()
+      val mouseReleasePoint = (ev.clientX, ev.clientY)
+      val isMouseInsideSourceNode = 
+        mouseReleasePoint._1 >= bbox.left && 
+        mouseReleasePoint._1 <= bbox.right && 
+        mouseReleasePoint._2 >= bbox.top && 
+        mouseReleasePoint._2 <= bbox.bottom
+      
+      if sel.size == 1 && isMouseInsideSourceNode then
         addEdge(start.nodeId, start.nodeId)
       else if sel.size == 2 then
         addEdge(start.nodeId, (sel - start.nodeId).head)
