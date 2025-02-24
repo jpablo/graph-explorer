@@ -9,8 +9,11 @@ import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
 import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir.*
 
 import scala.scalajs.js
+import scala.util.Try
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 object SvgCanvas:
@@ -148,20 +151,21 @@ object SvgCanvas:
         val h = 16 // Original height of the icon
 
         // Get the rankdir value from graph attributes
-        val rankdir = graphTargetAttributes.now().values.get("rankdir").map(_.value.toString).getOrElse("TB")
+        val rankdir = graphTargetAttributes.now().values.get("rankdir")
+          .map(_.value.toString)
+          .flatMap(str => Try(Rankdir.valueOf(str)).toOption)
+          .getOrElse(TB)
 
         // Calculate position and rotation based on rankdir
         val (trX, trY, rotation) = rankdir match
-          case "TB" => // Top to Bottom - show below, no rotation needed (default)
+          case TB => // Top to Bottom - show below, no rotation needed (default)
             (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y + bbox.height + (h * scale) / 4 + 1, 0)
-          case "LR" => // Left to Right - show to the right, rotate 270 degrees
+          case LR => // Left to Right - show to the right, rotate 270 degrees
             (bbox.x + bbox.width + (w * scale) / 4 + 1, bbox.y + bbox.height / 2 - (h * scale) / 2, 270)
-          case "BT" => // Bottom to Top - show above, rotate 180 degrees
+          case BT => // Bottom to Top - show above, rotate 180 degrees
             (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y - (h * scale) - (h * scale) / 4 - 1, 180)
-          case "RL" => // Right to Left - show to the left, rotate 90 degrees
+          case RL => // Right to Left - show to the left, rotate 90 degrees
             (bbox.x - (w * scale) - (w * scale) / 4 - 1, bbox.y + bbox.height / 2 - (h * scale) / 2, 90)
-          case _ => // Default to TB
-            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y + bbox.height + (h * scale) / 4 + 1, 0)
 
         Some(
           g0.amend(
