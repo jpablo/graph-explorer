@@ -50,11 +50,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val rawSVG: Signal[dom.SVGSVGElement] =
     visibleDOT.flatMapSwitch(_.toSvg)
 
-  // 6. SVG with extra elements: selection rect, etc.
-  val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
-    rawSVG.map: svg =>
-      SvgCanvas(svg, transform, diagramSelection, addNode)
-
   private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
 
   val hiddenNodesS = hiddenNodes.signal
@@ -64,6 +59,37 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val rightPanelTabIndex = Var(0)
   val shortcutsModalOpen = Var(false)
   val leftPanelVisible = Var(true)
+
+  // -------- Attribute management -----------
+  // top level attributes
+  val graphTargetAttributes: Var[Attributes] =
+    sourceFlow.fullGraphV
+      .zoomLazy(_.getRootAttributes(AttributeTarget.graph))(
+        { (graph, attrs) =>
+          graph.setRootAttributes(AttributeTarget.graph)(attrs)
+        }
+      )
+
+  // Optimization idea:
+  // For changes that don't impact the layout we can update the SVG directly
+  // instead of re-rendering the whole diagram
+  val nodeTargetAttributes =
+    sourceFlow.fullGraphV
+      .zoomLazy(_.getRootAttributes(AttributeTarget.node))(_.setRootAttributes(AttributeTarget.node)(_))
+
+  val edgeTargetAttributes =
+    sourceFlow.fullGraphV
+      .zoomLazy(_.getRootAttributes(AttributeTarget.edge))(_.setRootAttributes(AttributeTarget.edge)(_))
+
+  // individual node attributes
+  def nodesAttributes(nodeIds: Set[NodeId]): Var[Attributes] =
+    sourceFlow.fullGraphV
+      .zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) => graph.updateAttributes(nodeIds, attrs))
+
+  // 6. SVG with extra elements: selection rect, etc.
+  val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
+    rawSVG.map: svg =>
+      SvgCanvas(svg, transform, diagramSelection, addNode, graphTargetAttributes)
 
   // -------- Public API -----------
 
@@ -109,32 +135,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       diagramSelection.set(Set(a.id))
       g2
     }
-
-  // -------- Attribute management -----------
-  // top level attributes
-  val graphTargetAttributes: Var[Attributes] =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.graph))(
-        { (graph, attrs) =>
-          graph.setRootAttributes(AttributeTarget.graph)(attrs)
-        }
-      )
-
-  // Optimization idea:
-  // For changes that don't impact the layout we can update the SVG directly
-  // instead of re-rendering the whole diagram
-  val nodeTargetAttributes =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.node))(_.setRootAttributes(AttributeTarget.node)(_))
-
-  val edgeTargetAttributes =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.edge))(_.setRootAttributes(AttributeTarget.edge)(_))
-
-  // individual node attributes
-  def nodesAttributes(nodeIds: Set[NodeId]): Var[Attributes] =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) => graph.updateAttributes(nodeIds, attrs))
 
   // -------- Diagram actions -----------
   val eventHandlers = EventHandlers(

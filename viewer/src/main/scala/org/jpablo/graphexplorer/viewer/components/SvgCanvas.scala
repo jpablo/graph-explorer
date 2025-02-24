@@ -1,12 +1,14 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.airstream.core.Signal
+import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
+import org.jpablo.graphexplorer.viewer.models.Attributes
 
 import scala.scalajs.js
 
@@ -20,7 +22,8 @@ object SvgCanvas:
       rawSvg:           dom.SVGSVGElement,
       transform:        Signal[String],
       diagramSelection: DiagramSelectionOps,
-      addNode:          () => Unit
+      addNode:          () => Unit,
+      graphTargetAttributes: Var[Attributes]
   ): ReactiveSvgElement[dom.SVGSVGElement] =
 
     val viewBox = rawSvg.viewBox.baseVal
@@ -43,29 +46,27 @@ object SvgCanvas:
             //   "New edge" button
             // --------------------------------------------------------
             child.maybe <--
-              diagramSelection.signal.combineWith(diagramSelection.selectionRectLine.signal).map:
-                (selectedNodes, selectionRectLine) =>
-                  if selectedNodes.size == 1 then
-                    val nodeId = selectedNodes.head
-                    for
-                      elem <- selectableElements.find(_.nodeId == nodeId)
-                      btn  <- NewEdgeButtonElement(elem)
-                    yield
-                    // --------------------------------------------------------
-                    // Mouse interaction
-                    // --------------------------------------------------------
-                    btn.amend(
-                      svg.cls := ("selected" -> selectionRectLine.nonEmpty),
-                      onMouseDown.stopPropagation --> { ev =>
-                        diagramSelection.startSelectionLine((ev.clientX, ev.clientY), shift = false, elem)
-                      },
-                      onMouseUp.stopPropagation --> { _ =>
-                        diagramSelection.endSelectionLine()
-                        addNode()
-                      }
-                    )
-                  else
-                    None
+              diagramSelection.signal.map: selectedNodes =>
+                if selectedNodes.size == 1 then
+                  val nodeId = selectedNodes.head
+                  for
+                    elem <- selectableElements.find(_.nodeId == nodeId)
+                    btn  <- NewEdgeButtonElement(elem, graphTargetAttributes)
+                  yield
+                  // --------------------------------------------------------
+                  // Mouse interaction
+                  // --------------------------------------------------------
+                  btn.amend(
+                    onMouseDown.stopPropagation --> { ev =>
+                      diagramSelection.startSelectionLine((ev.clientX, ev.clientY), shift = false, elem)
+                    },
+                    onMouseUp.stopPropagation --> { _ =>
+                      diagramSelection.endSelectionLine()
+                      addNode()
+                    }
+                  )
+                else
+                  None
             ,
             // --------------------------------------------------------
             //   draw dragging arrow
@@ -123,9 +124,7 @@ object SvgCanvas:
 
   end apply
 
-  private def NewEdgeButtonElement(elem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
-    // only show the arrow button if there is a single selected node
-    // val elem = selectableElements.find(_.nodeId == nodeId)
+  private def NewEdgeButtonElement(elem: SelectableElement, graphTargetAttributes: Var[Attributes]): Option[ReactiveSvgElement[dom.svg.G]] =
     // only show the arrow button if the selected node is a node
     val g0 =
       svg.g(
@@ -144,8 +143,23 @@ object SvgCanvas:
         // https://icons.getbootstrap.com/icons/arrow-down-circle/
         val w = 16 // Original width of the icon
         val h = 16 // Original height of the icon
-        val trX = bbox.x + bbox.width / 2 - (w * scale) / 2
-        val trY = bbox.y + bbox.height + (h * scale) / 4 + 1
+
+        // Get the rankdir value from graph attributes
+        val rankdir = graphTargetAttributes.now().values.get("rankdir").map(_.value.toString).getOrElse("TB")
+
+        // Calculate position based on rankdir
+        val (trX, trY) = rankdir match
+          case "TB" => // Top to Bottom - show below
+            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y + bbox.height + (h * scale) / 4 + 1)
+          case "LR" => // Left to Right - show to the right
+            (bbox.x + bbox.width + (w * scale) / 4 + 1, bbox.y + bbox.height / 2 - (h * scale) / 2)
+          case "BT" => // Bottom to Top - show above
+            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y - (h * scale) - (h * scale) / 4 - 1)
+          case "RL" => // Right to Left - show to the left
+            (bbox.x - (w * scale) - (w * scale) / 4 - 1, bbox.y + bbox.height / 2 - (h * scale) / 2)
+          case _ => // Default to TB
+            (bbox.x + bbox.width / 2 - (w * scale) / 2, bbox.y + bbox.height + (h * scale) / 4 + 1)
+
         Some(
           g0.amend(svg.transform := s"translate($trX, $trY) scale($scale)")
         )
