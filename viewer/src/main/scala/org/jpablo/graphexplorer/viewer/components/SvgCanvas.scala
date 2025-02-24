@@ -250,8 +250,32 @@ object SvgCanvas:
           None
         else
           val bbox = action.start.get.getBBox()
-          val x1 = bbox.x + bbox.width / 2
-          val y1 = bbox.y + bbox.height / 2
+          // Calculate center point
+          val centerX = bbox.x + bbox.width / 2
+          val centerY = bbox.y + bbox.height / 2
+          
+          // Check if target point is inside bounding box
+          val isInside = p1.x >= bbox.x && p1.x <= bbox.x + bbox.width &&
+                        p1.y >= bbox.y && p1.y <= bbox.y + bbox.height
+          
+          // Calculate start point - use center if inside bbox, intersection if outside
+          val (x1, y1) = if isInside then
+            (centerX, centerY)
+          else
+            // Calculate intersection point with bbox
+            val angle = math.atan2(p1.y - centerY, p1.x - centerX)
+            
+            if math.abs(math.cos(angle)) > math.abs(math.sin(angle)) then
+              // Intersect with vertical edges
+              val x = if math.cos(angle) > 0 then bbox.x + bbox.width else bbox.x
+              val y = centerY + math.tan(angle) * (x - centerX)
+              (x, y)
+            else
+              // Intersect with horizontal edges
+              val y = if math.sin(angle) > 0 then bbox.y + bbox.height else bbox.y
+              val x = centerX + (y - centerY) / math.tan(angle)
+              (x, y)
+
           Some(
             svg.g(
               svg.idAttr := "dragging-arrow-group",
