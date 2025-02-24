@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
+import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.modifiers.Binder.Base
@@ -12,17 +13,18 @@ import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 import upickle.default.*
+import com.raquo.laminar.api.features.unitArrows
 
 class EventHandlers(
-    diagramSelection:  DiagramSelectionOps,
-    project:           ProjectOps,
-    hiddenNodesS:      Signal[Set[NodeId]],
-    rawSVGText:        Signal[String],
-    viewBox:           Signal[dom.SVGRect],
-    sourceFlow:        SourceFlow,
-    hiddenNodes:       HiddenNodesOps,
-    zoomValue:         Var[Double],
-    translateXY:       Var[Point2d[SvgUnit]]
+    diagramSelection: DiagramSelectionOps,
+    project:          ProjectOps,
+    hiddenNodesS:     Signal[Set[NodeId]],
+    rawSVGText:       Signal[String],
+    viewBox:          Signal[dom.SVGRect],
+    sourceFlow:       SourceFlow,
+    hiddenNodes:      HiddenNodesOps,
+    zoomValue:        Var[Double],
+    translateXY:      Var[Point2d[SvgUnit]]
 ):
 
   val allNodeIds: Signal[Set[NodeId]] =
@@ -33,7 +35,7 @@ class EventHandlers(
   private def updateHiddenNodes[E <: dom.Event](
       ep: EventProp[E]
   )(f: (HiddenNodes, Set[NodeId], ViewerGraph) => HiddenNodes) =
-    ep(_.sample(sourceFlow.fullGraph.combineWith(diagramSelection.signal))) --> {
+    ep.stopPropagation(_.sample(sourceFlow.fullGraph.combineWith(diagramSelection.signal))) --> {
       (g: ViewerGraph, selection: Set[NodeId]) =>
         project.hiddenNodes.update(f(_, selection, g))
     }
@@ -58,28 +60,25 @@ class EventHandlers(
       updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.directPredecessorsGraph(sel).allNodeIds)
 
     def selectSuccessors =
-      ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectSuccessors.tupled
+      ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectSuccessors.tupled
 
     def selectPredecessors =
-      ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectPredecessors.tupled
+      ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectPredecessors.tupled
 
     def selectDirectSuccessors =
-      ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectSuccessors.tupled
+      ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectSuccessors.tupled
 
     def selectDirectPredecessors =
-      ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
+      ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
 
     def copyAsFullDiagramSVG(writeText: String => Any): Base =
-      ev(_.sample(rawSVGText)) --> { svgText => writeText(svgText) }
+      ev.stopPropagation(_.sample(rawSVGText)) --> { svgText => writeText(svgText) }
 
-    // TODO: Figure out why this is not working
-//    def copySelectionAsSVG(writeText: String => Any) =
-//      ev(_.sample(rawSVGText, diagramSelection.signal)) --> { (svgDiagram: String, canvasSelection) =>
-//        println(("copySelectionAsSVG:", writeText))
-//        val svgElement = DomApi.unsafeParseSvgString(svgDiagram).asInstanceOf[dom.SVGSVGElement]
-//        dom.console.log(svgElement)
-//        writeText(SvgElementOps(svgElement).toSVGTextWithIds(canvasSelection))
-//      }
+    def copySelectionAsSVG(writeText: String => Any) =
+      ev.stopPropagation(_.sample(rawSVGText, diagramSelection.signal)) --> { (svgDiagram: String, canvasSelection) =>
+        val svgElement = DomApi.unsafeParseSvgString(svgDiagram).asInstanceOf[dom.SVGSVGElement]
+        writeText(SvgElementOps(svgElement).toSVGTextWithIds(canvasSelection))
+      }
 
     def copyAsDOT(writeText: String => Any) =
       ev(_.sample(sourceFlow.visibleDOT)) --> { dot => writeText(dot.value) }
@@ -97,10 +96,10 @@ class EventHandlers(
       ev(_.withCurrentValueOf(viewBox)) --> (handleWheel(zoomValue, translateXY)(_, _))
 
     def deleteSelectedNodes =
-      ev --> { _ => sourceFlow.fullGraphV.update(_.removeNodes(diagramSelection.now())) }
+      ev --> sourceFlow.fullGraphV.update(_.removeNodes(diagramSelection.now()))
 
     def groupSelectedNodes =
-      ev --> { _ => sourceFlow.fullGraphV.update(_.addToNewGroup(diagramSelection.now())) }
+      ev --> sourceFlow.fullGraphV.update(_.addToNewGroup(diagramSelection.now()))
 
     def clearSelection =
-      ev --> { _ => diagramSelection.clear() }
+      ev --> diagramSelection.clear()

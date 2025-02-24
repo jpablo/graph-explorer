@@ -73,6 +73,8 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
   private def buildSvgElement(elem: SelectableElement): (dom.svg.Element, BBox) =
     val e = DomApi.unsafeParseSvgString(elem.get.outerHTML)
     val bbox = elem.get.getBBox()
+    dom.console.log(elem.get)
+    dom.console.log(e)
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
   def toSVGTextWithIds(ids: Set[models.NodeId]): String =
@@ -86,7 +88,8 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
         val height = math.max(a.height, (b.y + b.height) - y)
         BBox(x, y, width, height)
       )
-      val s = SvgCanvas.selfContainedSvg(bbox).amend(svgs.map(foreignSvgElement).toSeq*)
+      pprint.log(bbox)
+      val s = SvgCanvas.selfContainedSvg(bbox).amend(svgs.map(foreignSvgElement)*)
       s.ref.outerHTML
 
 object SvgElementOps:

@@ -4,20 +4,17 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
+import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, GroupId, NodeId, ViewerNode}
-import org.scalajs.dom.{KeyboardEvent, SVGMatrix, SVGRect, SVGSVGElement}
+import org.scalajs.dom.{KeyboardEvent, SVGMatrix, SVGRect}
 import upickle.default.*
-import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-
-import scala.scalajs.js
-import com.softwaremill.quicklens.*
 
 case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   given owner: Owner = OneTimeOwner(() => ())
@@ -50,8 +47,13 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // 5. Render visible Dot to SVG
   // Dot ~> SVGSVGElement
-  val rawSVG: Signal[SVGSVGElement] =
+  val rawSVG: Signal[dom.SVGSVGElement] =
     visibleDOT.flatMapSwitch(_.toSvg)
+
+  // 6. SVG with extra elements: selection rect, etc.
+  val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
+    rawSVG.map: svg =>
+      SvgCanvas(svg, transform, diagramSelection, addNode)
 
   val rawSVGText = Var("")
 
@@ -138,15 +140,15 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
 
   // -------- Diagram actions -----------
   val eventHandlers = EventHandlers(
-    diagramSelection  = diagramSelection,
-    project           = project,
-    hiddenNodesS      = hiddenNodesS,
-    rawSVGText        = rawSVGText.signal,
-    viewBox           = rawSVG.map(_.viewBox.baseVal),
-    sourceFlow        = sourceFlow,
-    hiddenNodes       = hiddenNodes,
-    zoomValue         = zoomValue,
-    translateXY       = translateXY
+    diagramSelection = diagramSelection,
+    project          = project,
+    hiddenNodesS     = hiddenNodesS,
+    rawSVGText       = rawSVGText.signal,
+    viewBox          = rawSVG.map(_.viewBox.baseVal),
+    sourceFlow       = sourceFlow,
+    hiddenNodes      = hiddenNodes,
+    zoomValue        = zoomValue,
+    translateXY      = translateXY
   )
 
   def hideSelection() =
@@ -189,111 +191,16 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       case "h"         => hideSelection()
       case _           => ()
 
-  val selectionRectArea: Var[Option[Action.Area]] = Var(None)
-  val selectionRectLine: Var[Option[Action.Line]] = Var(None)
-
-  def startSelectionArea(pos: Point2d[Double], shift: Boolean): Unit =
-    selectionRectArea.set(Some(Action.Area(SelectionRect(pos.x, pos.y, pos.x, pos.y, shift))))
-
-  def startSelectionLine(pos: Point2d[Double], shift: Boolean, start: SelectableElement): Unit =
-    selectionRectLine.set(Some(Action.Line(SelectionRect(pos.x, pos.y, pos.x, pos.y, shift), start)))
-
-  def updateSelection(pos: Point2d[Double], shift: Boolean): Unit =
-    selectionRectArea.update(_.map(_.modify(_.rect).using(_.copy(endX = pos.x, endY = pos.y, shift = shift))))
-    selectionRectLine.update(_.map(_.modify(_.rect).using(_.copy(endX = pos.x, endY = pos.y, shift = shift))))
-
-  def endSelectionArea(): Unit =
-    selectionRectArea.set(None)
-
-  def endSelectionLine(): Unit =
-    selectionRectLine.set(None)
-
-  def handleSelectionLineUpdate(
-      rect:                SelectionRect,
-      start:               SelectableElement,
-      elementsFromRectEnd: js.Array[dom.Element]
-  ) =
-    // Make sure only start or (start,end) nodes are selected when creating a new edge
-    // For now only allow a line selection into nodes
-    findNode(rect, elementsFromRectEnd, "g.node") match
-      case Some(end) => diagramSelection.set(Set(start.nodeId, end))
-      case None      => diagramSelection.set(Set(start.nodeId))
-
-  def handleSelectionAreaUpdate(
-      rect:                SelectionRect,
-      selectableElements:  Seq[SelectableElement],
-      elementsFromRectEnd: js.Array[dom.Element]
-  ) =
-    // This is is meant to capture a single click.
-    if rect.isEmpty then
-      findNode(rect, elementsFromRectEnd) match
-        case Some(end) =>
-          if rect.shift then
-            diagramSelection.add(Set(end))
-          else
-            diagramSelection.set(Set(end))
-        case None => diagramSelection.clear()
-    else
-      val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
-      if nodesInRect.nonEmpty then
-        if rect.shift then
-          diagramSelection.add(nodesInRect)
-        else
-          diagramSelection.set(nodesInRect)
-      else if !rect.shift then
-        diagramSelection.clear()
-
-  /** Finds the node ID at the given selection rectangle's end point
-    */
-  private def findNode(
-      rect:     SelectionRect,
-      elements: js.Array[dom.Element],
-      selector: String = "g.node, g.edge, g.cluster"
-  ): Option[NodeId] =
-    elements
-      .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-      .flatMap(element => Option(element.closest(selector)))
-      .distinct
-      .map(SelectableElement.fromDomElement)
-      .collectFirst:
-        case Some(elem) => elem.nodeId
-
-  /** Checks if a selectable element intersects with a selection rectangle
-    *
-    * @param elem
-    *   The selectable element to check
-    * @param rect
-    *   The selection rectangle in client coordinates
-    * @return
-    *   true if the element's bounding box intersects with the selection rectangle
-    *
-    * The method:
-    *   1. Gets the element's bounding box in client coordinates 2. Normalizes the selection rect coordinates to handle
-    *      any direction of dragging 3. Uses a standard rectangle intersection test
-    */
-  private def isNodeInRect(elem: SelectableElement, rect: SelectionRect): Boolean =
-    val bbox = elem.get.getBoundingClientRect()
-    val normalizedRect = (
-      x      = rect.startX.min(rect.endX),
-      y      = rect.startY.min(rect.endY),
-      width  = math.abs(rect.endX - rect.startX),
-      height = math.abs(rect.endY - rect.startY)
-    )
-    !(bbox.right < normalizedRect.x ||
-      bbox.left > normalizedRect.x + normalizedRect.width ||
-      bbox.bottom < normalizedRect.y ||
-      bbox.top > normalizedRect.y + normalizedRect.height)
-
   def handleMouseUp(ev: dom.MouseEvent): Unit =
-    val lineAction = selectionRectLine.now()
-    endSelectionArea()
-    endSelectionLine()
+    val lineAction = diagramSelection.selectionRectLine.now()
+    diagramSelection.endSelectionArea()
+    diagramSelection.endSelectionLine()
     for action <- lineAction do
       val start = action.start
       val sel = diagramSelection.now()
       diagramSelection.clear()
       // TODO: finish this using findNode
-      val mouseOverInitialNode = isNodeInRect(start, action.rect)
+      val mouseOverInitialNode = diagramSelection.isNodeInRect(start, action.rect)
       if sel.size == 1 && mouseOverInitialNode then
         addEdge(start.nodeId, start.nodeId)
       else if sel.size == 2 then

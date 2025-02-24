@@ -34,16 +34,12 @@ def CanvasContainer(
       else "--selection-sidebar-left: 2.75rem;"
     ),
     fitDiagram --> state.resetView(),
-    child <-- state.rawSVG
-      .map: r =>
-        state.rawSVGText.set(r.outerHTML)
-        SvgCanvas(state)(r)
-    ,
+    child <-- state.finalSVG,
     selectionSidebar,
     onKeyDown --> state.handleKeyDown,
     onWheel.updateTranslate,
-    onMouseDown.map(clientCoords) --> { (pos, shift) => state.startSelectionArea(pos, shift) },
+    onMouseDown.map(clientCoords) --> { (pos, shift) => state.diagramSelection.startSelectionArea(pos, shift) },
     // No Action is set when moving the mouse, to preserve the action set on mouse down
-    onMouseMove.map(clientCoords) --> { (pos, shift) => state.updateSelection(pos, shift) },
+    onMouseMove.map(clientCoords) --> { (pos, shift) => state.diagramSelection.updateSelection(pos, shift) },
     onMouseUp --> state.handleMouseUp
   )
