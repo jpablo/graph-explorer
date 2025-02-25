@@ -45,15 +45,15 @@ class RightPanel(state: ViewerState):
         div(
           idAttr := "nodes-panel-tab-buttons",
           tabHeaderStyle(0),
-          tabHeaderNodes(1),
-          tabHeaderEdges(2),
-          tabHeaderSource(3)
+          tabHeaderSource(1),
+          tabHeaderNodes(2),
+          tabHeaderEdges(3)
         ),
         // --- Tab Body ---
         tabStyle(0),
-        tabNodes(1),
-        tabEdges(2),
-        tabSource(3)
+        tabSource(1),
+        tabNodes(2),
+        tabEdges(3)
       )
     )
 
