@@ -183,6 +183,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       case "Backspace" => deleteSelection()
       case "n"         => addNode()
       case "g"         => groupSelection()
+      case "Z" if ke.shiftKey => redoEvent.emit(())
       case "z"         => undoEvent.emit(())
       case "Escape"    => diagramSelection.clear()
       case "h"         => hideSelection()

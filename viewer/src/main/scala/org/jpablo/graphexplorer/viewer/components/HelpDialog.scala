@@ -83,20 +83,12 @@ def HelpDialog(open: Var[Boolean]) =
               td(cls := "p-2 border", "Pan horizontally")
             ),
             tr(
-              td(cls := "p-2 border", "Click node"),
-              td(cls := "p-2 border", "Select node")
+              td(cls := "p-2 border", "Click element"),
+              td(cls := "p-2 border", "Select element")
             ),
             tr(
-              td(cls := "p-2 border", "Shift + Click node"),
-              td(cls := "p-2 border", "Toggle node selection")
-            ),
-            tr(
-              td(cls := "p-2 border", "Click arrow"),
-              td(cls := "p-2 border", "Select arrow")
-            ),
-            tr(
-              td(cls := "p-2 border", "Shift + Click arrow"),
-              td(cls := "p-2 border", "Toggle arrow selection")
+              td(cls := "p-2 border", "Shift + Click element"),
+              td(cls := "p-2 border", "Toggle element selection")
             )
           )
         )

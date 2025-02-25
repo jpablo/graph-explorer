@@ -27,18 +27,18 @@ class DiagramSelectionOps:
     selectedNodes.set(ss)
 
   def add(ss: SelectedNodes): Unit =
-    val current = selectedNodes.now()
+    val current = now()
     val newNodes = ss -- current
-    if newNodes.nonEmpty then selectedNodes.set(current ++ newNodes)
+    if newNodes.nonEmpty then set(current ++ newNodes)
 
   def remove(ss: SelectedNodes): Unit =
-    val current = selectedNodes.now()
+    val current = now()
     val nodesToRemove = ss intersect current
-    if nodesToRemove.nonEmpty then selectedNodes.set(current -- nodesToRemove)
+    if nodesToRemove.nonEmpty then set(current -- nodesToRemove)
 
   // def contains(s: NodeId): Boolean = selectedNodes.now().contains(s)
 
-  def clear(): Unit = selectedNodes.set(Set.empty)
+  def clear(): Unit = set(Set.empty)
 
   val selectSuccessors = selectRelated(_.allSuccessorsGraph(_))
   val selectPredecessors = selectRelated(_.allPredecessorsGraph(_))
@@ -109,7 +109,7 @@ class DiagramSelectionOps:
       findNode(rect, elementsFromRectEnd) match
         case Some(end) =>
           if rect.shift then
-            add(Set(end))
+            toggle(end)
           else
             set(Set(end))
         case None => clear()

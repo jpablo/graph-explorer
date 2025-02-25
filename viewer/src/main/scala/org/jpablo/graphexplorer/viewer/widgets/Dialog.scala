@@ -6,7 +6,12 @@ import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.domUtils.dialog
 
 def SimpleDialog(open: Var[Boolean], contents: Modifier[ReactiveHtmlElement.Base]*) =
-  Dialog(mods = cls("modal-open") <-- open.signal)(contents)(
+  Dialog(mods =
+    cls("modal-open") <-- open.signal,
+    onKeyDown.filter(_.key == "Escape") --> (_ => open.set(false)),
+    tabIndex := 0,
+    focus <-- open.signal.changes
+  )(contents)(
     action = button(cls := "btn", "close", onClick --> open.set(false))
   )
 
