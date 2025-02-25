@@ -315,7 +315,7 @@ def ArrowPreview(
             svg.line(
               svg.x1          := "0",
               svg.y1          := "10",
-              svg.x2          := "45",
+              svg.x2          := "46",
               svg.y2          := "10",
               svg.stroke      := "currentColor",
               svg.strokeWidth := "2"
@@ -339,7 +339,7 @@ def ArrowPreview(
             svg.line(
               svg.x1          := "0",
               svg.y1          := "10",
-              svg.x2          := "40",
+              svg.x2          := "46",
               svg.y2          := "10",
               svg.stroke      := "currentColor",
               svg.strokeWidth := "2"
