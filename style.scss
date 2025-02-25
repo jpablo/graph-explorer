@@ -26,10 +26,8 @@ label[for ^= show-ns-kind-] {
   }
 
   #selection-sidebar {
-    @apply flex flex-col w-64 max-h-64;
-    @apply shadow-md bg-base-100/90 rounded-box absolute top-2 z-20 print:hidden border border-base-300;
-    transition: left 0.2s ease-in-out;
-    left: var(--selection-sidebar-left, 2.75rem);
+    @apply flex flex-col w-[15rem] max-h-64;
+    @apply absolute top-12 left-2 z-20 print:hidden;
     pointer-events: auto;
     
     label {
@@ -44,6 +42,10 @@ label[for ^= show-ns-kind-] {
   #left-panel {
     @apply bg-base-100 p-2 gap-3 z-10 w-64 flex-shrink-0 h-full flex flex-col overflow-x-hidden print:hidden border-r border-base-300;
     order: -1;
+
+    .header-section {
+      @apply mt-[19rem];
+    }
   }
 
   #diagram-attributes {
