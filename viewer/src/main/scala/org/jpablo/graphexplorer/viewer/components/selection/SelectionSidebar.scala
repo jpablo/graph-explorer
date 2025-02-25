@@ -10,9 +10,32 @@ def SelectionSidebar(state: ViewerState) =
 
   val selectionEmpty =
     state.diagramSelection.signal.map(_.isEmpty)
+
+  val searchTerm = Var("")
+  val searchHasFocus = Var(false)
+
   div(
     idAttr := "selection-sidebar",
-    child(
+    // display <-- selectionEmpty.map(if _ then "none" else "box"),
+    // Search box at the top with consistent styling
+    label(
+      cls := "flex items-center gap-1",
+      input(
+        typ := "text",
+        cls := "input input-bordered input-xs w-full px-2",
+        placeholder := "Enter command...",
+        onFocus.mapTo(true) --> searchHasFocus,
+        onBlur.mapTo(false) --> searchHasFocus,
+        onInput.mapToValue --> searchTerm,
+        onMouseDown.stopPropagation --> println("onMouseDown"),
+      ),
+      kbd(cls := "kbd kbd-sm opacity-60", "⌘"),
+      kbd(cls := "kbd kbd-sm opacity-60", "K"),
+    ),
+    // menu container with scrolling if menu is tall
+    div(
+      idAttr := "selection-sidebar-menu-container",
+      display <-- selectionEmpty.not.signal.combineWith(searchHasFocus.signal).map(_ || _).map(if _ then "block" else "none"),
       ul(
         cls := "menu menu-sm rounded-box bg-transparent",
         li(cls := "menu-title", h1("selection"), hr()),
@@ -65,5 +88,5 @@ def SelectionSidebar(state: ViewerState) =
         li(a("Select all predecessors", onMouseDown.selectPredecessors)),
         li(a("Select direct predecessors", onMouseDown.selectDirectPredecessors))
       )
-    ) <-- selectionEmpty.not
+    )
   )

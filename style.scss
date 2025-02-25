@@ -19,9 +19,26 @@ label[for ^= show-ns-kind-] {
 
 #top-level {
   @apply bg-base-100 border-base-300 flex h-screen;
+  position: relative;
 
   #toolbar {
     @apply shadow-md bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10 print:hidden border border-base-300;
+  }
+
+  #selection-sidebar {
+    @apply flex flex-col w-64 max-h-64;
+    @apply shadow-md bg-base-100/90 rounded-box absolute top-2 z-20 print:hidden border border-base-300;
+    transition: left 0.2s ease-in-out;
+    left: var(--selection-sidebar-left, 2.75rem);
+    pointer-events: auto;
+    
+    label {
+      @apply p-2;
+    }
+
+    #selection-sidebar-menu-container {
+      @apply grow overflow-y-auto mb-2;
+    }
   }
 
   #left-panel {
@@ -54,7 +71,6 @@ label[for ^= show-ns-kind-] {
 
   #nodes-panel {
     @apply bg-base-100 p-2 gap-3 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
-    //background-color: lightgray;
     order: 2;
 
     #nodes-panel-tab-buttons {
@@ -86,13 +102,7 @@ label[for ^= show-ns-kind-] {
     background-size: 5px 5px;
     position: relative;
 
-    justify-content: center; /* Center horizontally */
-
-    #selection-sidebar {
-      @apply shadow-md bg-base-100/90 rounded-box absolute top-2 z-10 print:hidden border border-base-300;
-      transition: left 0.2s ease-in-out;
-      left: var(--selection-sidebar-left, 2.75rem); /* Default to 2.5rem if variable not set */
-    }
+    justify-content: center;
 
     svg.graphviz {
       width: 100%;
@@ -168,7 +178,6 @@ label[for ^= show-ns-kind-] {
   }
 
   .attributes-view {
-    //@apply p-2;
     table {
       @apply table-xs;
     }
@@ -178,7 +187,6 @@ label[for ^= show-ns-kind-] {
 svg.plantuml {
   flex-shrink: 0;
 
-  // clusters are packages
   g[id ^= cluster_] {
     &:hover {
       outline: 3px solid rgb(251 191 36);
@@ -191,10 +199,8 @@ svg.plantuml {
     }
   }
 
-  // `elem_` are namespaces (aka classes, objects, traits, etc)
   g[id ^= elem_] {
     text {
-      //font-family: 'JetBrains Mono', Monaco, monospace;
     }
 
     &:hover {

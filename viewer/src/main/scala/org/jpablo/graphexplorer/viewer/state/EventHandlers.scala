@@ -34,7 +34,7 @@ class EventHandlers(
   private def updateHiddenNodes[E <: dom.Event](
       ep: EventProp[E]
   )(f: (HiddenNodes, Set[NodeId], ViewerGraph) => HiddenNodes) =
-    ep.stopPropagation(_.sample(sourceFlow.fullGraph.combineWith(diagramSelection.signal))) --> {
+    ep(_.sample(sourceFlow.fullGraph.combineWith(diagramSelection.signal))) --> {
       (g: ViewerGraph, selection: Set[NodeId]) =>
         project.hiddenNodes.update(f(_, selection, g))
     }
@@ -59,22 +59,22 @@ class EventHandlers(
       updateHiddenNodes(ev)((hidden, sel, g) => hidden -- g.directPredecessorsGraph(sel).allNodeIds)
 
     def selectSuccessors =
-      ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectSuccessors.tupled
+      ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectSuccessors.tupled
 
     def selectPredecessors =
-      ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectPredecessors.tupled
+      ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectPredecessors.tupled
 
     def selectDirectSuccessors =
-      ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectSuccessors.tupled
+      ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectSuccessors.tupled
 
     def selectDirectPredecessors =
-      ev.stopPropagation(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
+      ev(_.sample(sourceFlow.fullGraph, hiddenNodesS)) --> diagramSelection.selectDirectPredecessors.tupled
 
     def copyAsFullDiagramSVG(writeText: String => Any): Base =
-      ev.stopPropagation(_.sample(finalSVG)) --> { svgElem => writeText(svgElem.ref.outerHTML) }
+      ev(_.sample(finalSVG)) --> { svgElem => writeText(svgElem.ref.outerHTML) }
 
     def copySelectionAsSVG(writeText: String => Any) =
-      ev.stopPropagation(_.sample(finalSVG, diagramSelection.signal)) --> { (svgElem, canvasSelection) =>
+      ev(_.sample(finalSVG, diagramSelection.signal)) --> { (svgElem, canvasSelection) =>
         writeText(SvgElementOps(svgElem.ref).toSVGTextWithIds(canvasSelection))
       }
 
