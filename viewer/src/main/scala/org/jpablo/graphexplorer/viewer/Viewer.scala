@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.{Commands, TopLevel}
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
 import org.scalajs.dom
-import org.scalajs.dom.document
+import org.scalajs.dom.{document, window}
 
 object Viewer:
 
@@ -18,7 +18,10 @@ object Viewer:
       rootNode = router.now() match
         case Route.Home                     => ProjectsDirectoryView(router)
         case Route.ProjectDetail(projectId) =>
-          val state = ViewerState(ProjectId(projectId))
+          val state = ViewerState(
+            projectId = ProjectId(projectId),
+            writeText = window.navigator.clipboard.writeText
+          )
           val commands = Commands(state, router)
           TopLevel(state, router, commands)
     )

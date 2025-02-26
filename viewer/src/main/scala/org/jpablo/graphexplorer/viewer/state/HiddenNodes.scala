@@ -14,6 +14,8 @@ type HiddenNodes = Set[NodeId]
 
 class HiddenNodesOps(val hiddenNodesV: Var[Set[NodeId]]):
 
+  def now(): HiddenNodes = hiddenNodesV.now()
+
   val signal = hiddenNodesV.signal.tapEach(s => dom.console.debug("hiddenNodesV:", JSON.parse(writeJs(s).toString)))
 
   def toggle(s: NodeId): Unit =

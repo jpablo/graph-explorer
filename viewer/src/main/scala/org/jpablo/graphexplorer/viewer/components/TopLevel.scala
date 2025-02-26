@@ -10,7 +10,11 @@ import org.scalajs.dom.HTMLDivElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectionSidebar
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 
-def TopLevel(state: ViewerState, router: Router, commands: Commands): ReactiveHtmlElement[HTMLDivElement] =
+def TopLevel(
+    state:         ViewerState,
+    router:        Router,
+    commands:      Commands,
+): ReactiveHtmlElement[HTMLDivElement] =
   div(
     idAttr := "top-level",
     styleAttr <-- state.leftPanelVisible.signal.map(visible =>
@@ -18,7 +22,7 @@ def TopLevel(state: ViewerState, router: Router, commands: Commands): ReactiveHt
       else "--selection-sidebar-left: 2.75rem;"
     ),
     LeftPanel(state, router),
-    CanvasContainer(state, state.fitDiagram.events),
+    CanvasContainer(state, commands),
     SelectionSidebar(state, commands),
     Toolbar(state.project.name.signal, commands),
     RightPanel(state).render(),

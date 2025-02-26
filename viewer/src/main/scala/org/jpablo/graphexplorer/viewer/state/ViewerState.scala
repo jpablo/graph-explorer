@@ -13,16 +13,20 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, GroupId, NodeId, ViewerNode}
-import org.scalajs.dom.{KeyboardEvent, SVGMatrix, SVGRect}
+import org.scalajs.dom.{SVGMatrix, SVGRect}
 import upickle.default.*
 
-case class ViewerState(projectId: ProjectId, initialSource: String = ""):
+case class ViewerState(
+    projectId:     ProjectId,
+    writeText:     String => Any = _ => (),
+    initialSource: String = ""
+):
   given owner: Owner = OneTimeOwner(() => ())
 
   val project =
     ProjectOps(Var(Project(projectId)))
 
-  private val translateXY = Var(SvgUnit.origin)
+  val translateXY = Var(SvgUnit.origin)
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
   val transform =
@@ -31,7 +35,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       .map: (z, p) =>
         s"scale($z) translate(${p.x} ${p.y})"
 
-  private val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal, resetView)
+  val sourceFlow = SourceFlow(initialSource, project.hiddenNodes.signal, resetView)
 
   val undoEvent: EventBus[Unit] = EventBus()
   val redoEvent: EventBus[Unit] = EventBus()
@@ -51,7 +55,7 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   val rawSVG: Signal[dom.SVGSVGElement] =
     visibleDOT.flatMapSwitch(_.toSvg)
 
-  private val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
+  val hiddenNodes = HiddenNodesOps(project.hiddenNodes)
 
   val hiddenNodesS = hiddenNodes.signal
 
@@ -108,11 +112,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
   def isNodeVisible(id: NodeId) = hiddenNodesS.map(ids => id notIn ids)
 
   def isEdgeVisible(id: NodeId) =
-//    dom.console.log(s"[isEdgeVisible]: $id")
     visibleGraph.map(graph => id in graph.allArrowIds)
 
   def isSelected(id: NodeId) =
-//    dom.console.log(s"[isSelected]: $id")
     diagramSelection.signal.map(ids => id in ids)
 
   def toggleNode(id: NodeId) =
@@ -131,26 +133,83 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
     hiddenNodes.remove(ids)
 
   def addEdge(from: NodeId, to: NodeId): Unit =
-    sourceFlow.fullGraphV.update { g =>
+    sourceFlow.fullGraphV.update: g =>
       val (g2, a) = g.addEdge(from, to)
       diagramSelection.set(Set(a.id))
       g2
-    }
 
   // -------- Diagram actions -----------
-  val eventHandlers = EventHandlers(
-    diagramSelection = diagramSelection,
-    project          = project,
-    hiddenNodesS     = hiddenNodesS,
-    finalSVG         = finalSVG,
-    sourceFlow       = sourceFlow,
-    hiddenNodes      = hiddenNodes,
-    zoomValue        = zoomValue,
-    translateXY      = translateXY
-  )
+//  val eventHandlers = EventHandlers(
+//    diagramSelection = diagramSelection,
+//    project          = project,
+//    hiddenNodesS     = hiddenNodesS,
+//    finalSVG         = finalSVG,
+//    sourceFlow       = sourceFlow,
+//    hiddenNodes      = hiddenNodes,
+//    zoomValue        = zoomValue,
+//    translateXY      = translateXY
+//  )
+
+  def updateHiddenFromSelection(f: (HiddenNodes, Set[NodeId], ViewerGraph) => HiddenNodes) =
+    project.hiddenNodes.update(f(_, diagramSelection.now(), sourceFlow.fullGraph.now()))
 
   def hideSelection() =
     project.hiddenNodes.update(_ ++ diagramSelection.now())
+
+  def hideNonSelectedNodes() =
+    updateHiddenFromSelection((h, sel, g) => h ++ (g.allNodeIds -- sel))
+
+  def showAllSuccessors() =
+    updateHiddenFromSelection((h, sel, g) => h -- g.allSuccessorsGraph(sel).allNodeIds)
+
+  def showDirectSuccessors() =
+    updateHiddenFromSelection((h, sel, g) => h -- g.directSuccessorsGraph(sel).allNodeIds)
+
+  def showAllPredecessors() =
+    updateHiddenFromSelection((h, sel, g) => h -- g.allPredecessorsGraph(sel).allNodeIds)
+
+  def showDirectPredecessors() =
+    updateHiddenFromSelection((h, sel, g) => h -- g.directPredecessorsGraph(sel).allNodeIds)
+
+  def selectSuccessors() =
+    diagramSelection.selectSuccessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
+
+  def selectPredecessors() =
+    diagramSelection.selectPredecessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
+
+  def selectDirectSuccessors() =
+    diagramSelection.selectDirectSuccessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
+
+  def selectDirectPredecessors() =
+    diagramSelection.selectDirectPredecessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
+
+  def groupSelectedNodes() =
+    sourceFlow.fullGraphV.update(_.addToNewGroup(diagramSelection.now()))
+
+  def clearSelection() =
+    diagramSelection.clear()
+
+  def keepRootsOnly() =
+    project.hiddenNodes.update(_ ++ (sourceFlow.fullGraph.now().allNodeIds -- sourceFlow.fullGraph.now().roots))
+
+  def hideAllNodes() =
+    project.hiddenNodes.update(_ ++ sourceFlow.fullGraph.now().allNodeIds)
+
+  def copyAsFullDiagramSVG(): Unit =
+    for html <- finalSVG.map(_.ref.outerHTML) do
+      writeText(html)
+
+  def copySelectionAsSVG(): Unit =
+    for svgElem <- finalSVG do
+      writeText(SvgElementOps(svgElem.ref).toSVGTextWithIds(diagramSelection.now()))
+
+  def copyAsDOT(): Unit =
+    for dot <- visibleDOT do
+      writeText(dot.value)
+
+  def copyAsJSON(): Unit =
+    for ast <- sourceFlow.visibleAST do
+      writeText(writeJs(ast).toString)
 
   def deleteSelection() =
     sourceFlow.fullGraphV.update: fullGraph =>
@@ -179,17 +238,6 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       diagramSelection.set(Set(newNodeId))
       newGraph
 
-  def handleKeyDown(ke: KeyboardEvent): Unit =
-    ke.key match
-      case "Backspace" => deleteSelection()
-      case "n"         => addNode()
-      case "g"         => groupSelection()
-      case "Z" if ke.shiftKey => redoEvent.emit(())
-      case "z"         => undoEvent.emit(())
-      case "Escape"    => diagramSelection.clear()
-      case "h"         => hideSelection()
-      case _           => ()
-
   def handleMouseUp(ev: dom.MouseEvent): Unit =
     val lineAction = diagramSelection.selectionRectLine.now()
     diagramSelection.endSelectionArea()
@@ -204,9 +252,9 @@ case class ViewerState(projectId: ProjectId, initialSource: String = ""):
       val mouseReleasePoint = (ev.clientX, ev.clientY)
       val isMouseInsideSourceNode =
         mouseReleasePoint._1 >= bbox.left &&
-        mouseReleasePoint._1 <= bbox.right &&
-        mouseReleasePoint._2 >= bbox.top &&
-        mouseReleasePoint._2 <= bbox.bottom
+          mouseReleasePoint._1 <= bbox.right &&
+          mouseReleasePoint._2 >= bbox.top &&
+          mouseReleasePoint._2 <= bbox.bottom
 
       if sel.size == 1 && isMouseInsideSourceNode then
         addEdge(start.nodeId, start.nodeId)
@@ -267,6 +315,7 @@ object PersistedState:
     )
 
 object ViewerState:
+
   def handleWheel(
       zoomValue:   Var[Double],
       translateXY: Var[Point2d[SvgUnit]]

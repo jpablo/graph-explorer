@@ -4,9 +4,9 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.models.NodeId
+import com.raquo.laminar.api.features.unitArrows
 
 def SelectionSidebar(state: ViewerState, commands: Commands) =
-  import state.eventHandlers.*
   import state.owner
 
   val searchTerm = Var("")
@@ -70,7 +70,7 @@ def SelectionSidebar(state: ViewerState, commands: Commands) =
                   cls := "flex justify-between",
                   span(cmd.title),
                   cmd.shortcut.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)),
-                  cmd.action(onClick)
+                  onClick --> cmd.action()
                 )
               )
             row <- if rows.nonEmpty then titleElement +: rows else Nil

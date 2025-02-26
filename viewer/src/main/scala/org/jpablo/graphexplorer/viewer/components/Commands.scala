@@ -1,19 +1,16 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.keys.EventProp
-import com.raquo.laminar.api.features.unitArrows
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.router.{Route, Router}
+import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.window
-import org.jpablo.graphexplorer.viewer.models.NodeId
 
 import scala.collection.immutable.VectorMap
 
 case class Command(
     title:     String,
-    action:    EventProp[dom.MouseEvent] => Modifier[ReactiveHtmlElement.Base],
+    action:    () => Unit,
     isVisible: Set[NodeId] => Boolean = _.nonEmpty,
     shortcut:  Option[String] = None
 ):
@@ -21,11 +18,8 @@ case class Command(
     shortcut.fold(title)(sh => s"$title ($sh)")
 
 class Commands(state: ViewerState, router: Router):
-  import state.eventHandlers.*
 
   private val always = (_: Any) => true
-
-  private val copyToClipboard = window.navigator.clipboard.writeText
 
   private def changeProjectNameAction(): Unit =
     val newName = window.prompt("Enter project Name", state.project.name.now())
@@ -34,52 +28,52 @@ class Commands(state: ViewerState, router: Router):
 
   val menuSections: VectorMap[String, List[Command]] = VectorMap(
     "Common" -> List(
-      Command("Add node", _ --> state.addNode(), always, shortcut = Some("n"))
+      Command("Add node", state.addNode, always, shortcut = Some("n"))
     ),
     "Selection" -> List(
-      Command("Hide", hideSelectedNodes, shortcut           = Some("h")),
-      Command("Hide others", hideNonSelectedNodes, shortcut = Some("Shift+h")),
-      Command("Delete", deleteSelectedNodes, shortcut       = Some("Del")),
-      Command("Group", groupSelectedNodes, shortcut         = Some("g")),
-      Command("Clear selection", clearSelection, shortcut   = Some("Esc")),
+      Command("Hide", state.hideSelection, shortcut               = Some("h")),
+      Command("Hide others", state.hideNonSelectedNodes, shortcut = Some("Shift+h")),
+      Command("Delete", state.deleteSelection, shortcut           = Some("Backspace")),
+      Command("Group", state.groupSelectedNodes, shortcut         = Some("g")),
+      Command("Clear selection", state.clearSelection, shortcut   = Some("Esc")),
       //
-      Command("Copy as SVG", _.copySelectionAsSVG(copyToClipboard), shortcut = Some("c"))
+      Command("Copy as SVG", state.copySelectionAsSVG, shortcut = Some("c"))
     ),
     "Successors" -> List(
-      Command("Show all successors", showAllSuccessors),
-      Command("Show direct successors", showDirectSuccessors),
-      Command("Select all successors", selectSuccessors),
-      Command("Select direct successors", selectDirectSuccessors)
+      Command("Show all successors", state.showAllSuccessors),
+      Command("Show direct successors", state.showDirectSuccessors),
+      Command("Select all successors", state.selectSuccessors),
+      Command("Select direct successors", state.selectDirectSuccessors)
     ),
     "Predecessors" -> List(
-      Command("Show all predecessors", showAllPredecessors),
-      Command("Show direct predecessors", showDirectPredecessors),
-      Command("Select all predecessors", selectPredecessors),
-      Command("Select direct predecessors", selectDirectPredecessors)
+      Command("Show all predecessors", state.showAllPredecessors),
+      Command("Show direct predecessors", state.showDirectPredecessors),
+      Command("Select all predecessors", state.selectPredecessors),
+      Command("Select direct predecessors", state.selectDirectPredecessors)
     ),
     "View" -> List(
-      Command("Roots only", keepRootsOnly, always),
-      Command("Show all", _ --> state.showAllNodes(), always),
-      Command("Hide all", hideAllNodes, always)
+      Command("Roots only", state.keepRootsOnly, always),
+      Command("Show all", state.showAllNodes, always),
+      Command("Hide all", state.hideAllNodes, always)
     ),
     "Export" -> List(
-      Command("as SVG", _.copyAsFullDiagramSVG(copyToClipboard), always),
-      Command("as DOT", _.copyAsDOT(copyToClipboard), always),
-      Command("as JSON DOT AST", _.copyAsJSON(copyToClipboard), always)
+      Command("as SVG", state.copyAsFullDiagramSVG, always),
+      Command("as DOT", state.copyAsDOT, always),
+      Command("as JSON DOT AST", state.copyAsJSON, always)
     ),
     "Zoom" -> List(
-      Command("Zoom out", _ --> state.zoomValue.update(_ * 0.9), always),
-      Command("Fit", _ --> state.fitDiagram.emit(()), always),
-      Command("Zoom in", _ --> state.zoomValue.update(_ * 1.1), always)
+      Command("Zoom out", () => state.zoomValue.update(_ * 0.9), always),
+      Command("Fit", () => state.fitDiagram.emit(()), always),
+      Command("Zoom in", () => state.zoomValue.update(_ * 1.1), always)
     ),
     "Undo/Redo" -> List(
-      Command("Undo", _ --> state.undoEvent.emit(()), always),
-      Command("Redo", _ --> state.redoEvent.emit(()), always)
+      Command("Undo", () => state.undoEvent.emit(()), always),
+      Command("Redo", () => state.redoEvent.emit(()), always)
     ),
     "Application" -> List(
-      Command("Navigate home", _ --> router.navigateTo(Route.Home), always),
-      Command("Change project name", _ --> changeProjectNameAction(), always),
-      Command("Help - Keyboard Shortcuts", _ --> state.shortcutsModalOpen.set(true), always),
+      Command("Navigate home", () => router.navigateTo(Route.Home), always),
+      Command("Change project name", changeProjectNameAction, always),
+      Command("Help - Keyboard Shortcuts", () => state.shortcutsModalOpen.set(true), always)
     )
   )
 
@@ -99,3 +93,18 @@ class Commands(state: ViewerState, router: Router):
   val List(zoomOut, fit, zoomIn) = sections.zoom
   val List(undo, redo) = sections.undoRedo
   val List(navigateHome, changeProjectName, keyboardShortcuts) = sections.application
+
+  val commandsByShortcut: Map[String, Command] =
+    menuSections.values.flatten
+      .collect { case c @ Command(_, _, _, Some(shortcut)) => shortcut -> c }
+      .toMap
+
+  def handleKeyDown(ev: dom.KeyboardEvent): Unit =
+    val prefix = if ev.shiftKey then "Shift+" else ""
+    commandsByShortcut.get(prefix + ev.key) match
+      case Some(cmd) =>
+        ev.preventDefault()
+        cmd.action()
+      case None =>
+        ()
+

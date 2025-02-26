@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
+import com.raquo.laminar.api.features.unitArrows
 
 def Toolbar(projectName: Signal[String], commands: Commands) =
   div(
@@ -11,18 +12,18 @@ def Toolbar(projectName: Signal[String], commands: Commands) =
     // -------- Navigation --------
     div(
       cls := "breadcrumbs font-bold py-0",
-      a(cls := "mr-2 link", span().chevronLeftIcon, commands.navigateHome.action(onClick)),
+      a(cls := "mr-2 link", span().chevronLeftIcon, onClick --> commands.navigateHome.action()),
       a(
         cls := "link",
         text <-- projectName,
-        commands.changeProjectName.action(onClick)
+        onClick --> commands.changeProjectName.action()
       )
     ),
     // -------- new node button --------
     Tooltip(
       text = commands.addNode.titleWithShortcut,
       cls := "tooltip-bottom",
-      Button(span().biSquareIcon, commands.addNode.action(onClick)).tiny
+      Button(span().biSquareIcon, onClick --> commands.addNode.action()).tiny
     ),
     // -------- actions toolbar --------
     div(
@@ -31,7 +32,7 @@ def Toolbar(projectName: Signal[String], commands: Commands) =
       ul(
         tabIndex := 0,
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
-        for cmd <- commands.sections.view yield li(a(cmd.title, cmd.action(onClick)))
+        for cmd <- commands.sections.view yield li(a(cmd.title, onClick --> cmd.action()))
       )
     ),
     div(
@@ -41,33 +42,33 @@ def Toolbar(projectName: Signal[String], commands: Commands) =
       ul(
         tabIndex := 0,
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
-        for cmd <- commands.sections.exportAs yield li(a(cmd.title, cmd.action(onClick)))
+        for cmd <- commands.sections.exportAs yield li(a(cmd.title, onClick --> cmd.action()))
       )
     ),
     // ----------
     Join(
-      Button(span().dashIcon, commands.zoomOut.action(onClick)).tiny,
-      Button(commands.fit.title, commands.fit.action(onClick)).tiny,
-      Button(span().plusIcon, commands.zoomIn.action(onClick)).tiny
+      Button(span().dashIcon, onClick --> commands.zoomOut.action()).tiny,
+      Button(commands.fit.title, onClick --> commands.fit.action()).tiny,
+      Button(span().plusIcon, onClick --> commands.zoomIn.action()).tiny
     ),
     // ---------- Undo/Redo ----------
     Join(
       Button(
         i(cls := "bi bi-arrow-counterclockwise"),
         title := commands.undo.title,
-        commands.undo.action(onClick)
+        onClick --> commands.undo.action()
       ).tiny,
       Button(
         i(cls := "bi bi-arrow-clockwise"),
         title := commands.redo.title,
-        commands.redo.action(onClick)
+        onClick --> commands.redo.action()
       ).tiny
     ),
     Join(
       Button(
         i(cls := "bi bi-question-circle"),
         title := commands.keyboardShortcuts.title,
-        commands.keyboardShortcuts.action(onClick)
+        onClick --> commands.keyboardShortcuts.action()
       ).tiny,
       a(
         cls    := "btn btn-xs",
