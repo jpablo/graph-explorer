@@ -20,7 +20,7 @@ def TopLevel(state: ViewerState, router: Router, commands: Commands): ReactiveHt
     LeftPanel(state, router),
     CanvasContainer(state, state.fitDiagram.events),
     SelectionSidebar(state, commands),
-    Toolbar(state, state.fitDiagram, router),
+    Toolbar(state.project.name.signal, commands),
     RightPanel(state).render(),
     HelpDialog(state.shortcutsModalOpen)
   )

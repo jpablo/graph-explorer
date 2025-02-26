@@ -17,9 +17,9 @@ object Viewer:
       container = document.querySelector("#app"),
       rootNode = router.now() match
         case Route.Home                     => ProjectsDirectoryView(router)
-        case Route.ProjectDetail(projectId) => 
+        case Route.ProjectDetail(projectId) =>
           val state = ViewerState(ProjectId(projectId))
-          val commands = Commands(state)
+          val commands = Commands(state, router)
           TopLevel(state, router, commands)
     )
 

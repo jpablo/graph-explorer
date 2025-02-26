@@ -1,59 +1,37 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
-import org.scalajs.dom.window
 
-def Toolbar(
-    state:      ViewerState,
-    fitDiagram: EventBus[Unit],
-    router:     Router
-) =
-  import state.eventHandlers.*
-
-  val writeTextToClipboard = window.navigator.clipboard.writeText
-
+def Toolbar(projectName: Signal[String], commands: Commands) =
   div(
     idAttr := "toolbar",
     cls    := "bg-base-100/90",
     // -------- Navigation --------
     div(
       cls := "breadcrumbs font-bold py-0",
-      a(
-        cls := "mr-2 link",
-        span().chevronLeftIcon,
-        onClick --> router.navigateTo(Route.Home)
-      ),
+      a(cls := "mr-2 link", span().chevronLeftIcon, commands.navigateHome.action(onClick)),
       a(
         cls := "link",
-        text <-- state.project.name.signal,
-        onClick --> { _ =>
-          val newName = window.prompt("Enter project Name", state.project.name.now())
-          if newName != null then
-            state.project.name.set(newName)
-        }
+        text <-- projectName,
+        commands.changeProjectName.action(onClick)
       )
     ),
     // -------- new node button --------
     Tooltip(
-      text = "New Node (n)",
+      text = commands.addNode.titleWithShortcut,
       cls := "tooltip-bottom",
-      Button(span().biSquareIcon, onClick --> state.addNode()).tiny
+      Button(span().biSquareIcon, commands.addNode.action(onClick)).tiny
     ),
     // -------- actions toolbar --------
     div(
       cls := "dropdown dropdown-hover",
-      div(tabIndex := 0, role := "button", span("view"), i(cls := "bi bi-chevron-down")).asBtn.tiny,
+      div(tabIndex := 0, role := "button", span("View"), i(cls := "bi bi-chevron-down")).asBtn.tiny,
       ul(
         tabIndex := 0,
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
-        li(a("roots", onClick.keepRootsOnly)),
-        li(a("show all", onClick --> state.showAllNodes())),
-        li(a("hide all", onClick.hideAllNodes))
+        for cmd <- commands.sections.view yield li(a(cmd.title, cmd.action(onClick)))
       )
     ),
     div(
@@ -63,35 +41,33 @@ def Toolbar(
       ul(
         tabIndex := 0,
         cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
-        li(a("Svg", onClick.copyAsFullDiagramSVG(writeTextToClipboard))),
-        li(a("Dot", onClick.copyAsDOT(writeTextToClipboard))),
-        li(a("Json Dot AST", onClick.copyAsJSON(writeTextToClipboard)))
+        for cmd <- commands.sections.exportAs yield li(a(cmd.title, cmd.action(onClick)))
       )
     ),
     // ----------
     Join(
-      Button(span().dashIcon, onClick --> state.zoomValue.update(_ * 0.9)).tiny,
-      Button("fit", onClick --> fitDiagram.emit(())).tiny,
-      Button(span().plusIcon, onClick --> state.zoomValue.update(_ * 1.1)).tiny
+      Button(span().dashIcon, commands.zoomOut.action(onClick)).tiny,
+      Button(commands.fit.title, commands.fit.action(onClick)).tiny,
+      Button(span().plusIcon, commands.zoomIn.action(onClick)).tiny
     ),
     // ---------- Undo/Redo ----------
     Join(
       Button(
         i(cls := "bi bi-arrow-counterclockwise"),
-        title := "Undo",
-        onClick --> state.undoEvent.emit(())
+        title := commands.undo.title,
+        commands.undo.action(onClick)
       ).tiny,
       Button(
         i(cls := "bi bi-arrow-clockwise"),
-        title := "Redo",
-        onClick --> state.redoEvent.emit(())
+        title := commands.redo.title,
+        commands.redo.action(onClick)
       ).tiny
     ),
     Join(
       Button(
         i(cls := "bi bi-question-circle"),
-        title := "Help - Keyboard Shortcuts",
-        onClick --> state.shortcutsModalOpen.set(true)
+        title := commands.keyboardShortcuts.title,
+        commands.keyboardShortcuts.action(onClick)
       ).tiny,
       a(
         cls    := "btn btn-xs",

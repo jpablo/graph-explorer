@@ -59,22 +59,22 @@ def SelectionSidebar(state: ViewerState, commands: Commands) =
         cls := "menu menu-sm rounded-box bg-transparent",
         children <-- searchTerm.signal.combineWith(state.diagramSelection.signal).map: (term, selection: Set[NodeId]) =>
           for
-            section <- commands.menuSections
-            titleElement = li(cls := "menu-title", h1(section.title), hr())
-            entries =
+            (title, commands) <- commands.menuSections.toSeq
+            titleElement = li(cls := "menu-title", h1(title), hr())
+            rows =
               for
-                entry <- section.entries
-                if entry.title.toLowerCase.contains(term.toLowerCase) && entry.fromSelection(selection)
+                cmd <- commands
+                if cmd.title.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
               yield li(
                 a(
                   cls := "flex justify-between",
-                  span(entry.title),
-                  entry.shortcut.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)),
-                  entry.action(onClick)
+                  span(cmd.title),
+                  cmd.shortcut.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)),
+                  cmd.action(onClick)
                 )
               )
-            entry <- if entries.nonEmpty then titleElement +: entries else Nil
-          yield entry
+            row <- if rows.nonEmpty then titleElement +: rows else Nil
+          yield row
       )
     )
   )
