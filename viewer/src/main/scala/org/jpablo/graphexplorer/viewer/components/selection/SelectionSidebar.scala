@@ -1,64 +1,18 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.scalajs.dom.{HTMLAnchorElement, window}
-import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.scalajs.dom
+import org.jpablo.graphexplorer.viewer.models.NodeId
 
-case class MenuEntry(
-    title:    String,
-    shortcut: Option[String],
-    action:   Modifier[ReactiveHtmlElement[HTMLAnchorElement]]
-)
-
-case class MenuSection(
-    title:   String,
-    entries: List[MenuEntry]
-)
-
-def SelectionSidebar(state: ViewerState) =
+def SelectionSidebar(state: ViewerState, commands: Commands) =
   import state.eventHandlers.*
-  import state.owner // Import the implicit owner
-
-  val menuSections = List(
-    MenuSection(
-      "selection",
-      List(
-        MenuEntry("Hide", Some("h"), onMouseDown.hideSelectedNodes),
-        MenuEntry("Hide others", Some("Shift+h"), onMouseDown.hideNonSelectedNodes),
-        MenuEntry("Add node", Some("n"), onMouseDown --> state.addNode()),
-        MenuEntry("Delete", Some("Del"), onMouseDown.deleteSelectedNodes),
-        MenuEntry("Group", Some("g"), onMouseDown.groupSelectedNodes),
-        MenuEntry("Clear selection", Some("Esc"), onMouseDown.clearSelection),
-        MenuEntry("Copy as SVG", None, onMouseDown.copySelectionAsSVG(window.navigator.clipboard.writeText))
-      )
-    ),
-    MenuSection(
-      "successors",
-      List(
-        MenuEntry("Show all successors", None, onMouseDown.showAllSuccessors),
-        MenuEntry("Show direct successors", None, onMouseDown.showDirectSuccessors),
-        MenuEntry("Select all successors", None, onMouseDown.selectSuccessors),
-        MenuEntry("Select direct successors", None, onMouseDown.selectDirectSuccessors)
-      )
-    ),
-    MenuSection(
-      "predecessors",
-      List(
-        MenuEntry("Show all predecessors", None, onMouseDown.showAllPredecessors),
-        MenuEntry("Show direct predecessors", None, onMouseDown.showDirectPredecessors),
-        MenuEntry("Select all predecessors", None, onMouseDown.selectPredecessors),
-        MenuEntry("Select direct predecessors", None, onMouseDown.selectDirectPredecessors)
-      )
-    )
-  )
+  import state.owner
 
   val searchTerm = Var("")
   val searchHasFocus = Var(false)
   val searchInputElement = Var[Option[dom.HTMLInputElement]](None)
-  
+
   // Global key handler for Cmd+K
   documentEvents(_.onKeyDown)
     .filter(e => e.key.toLowerCase == "k" && e.metaKey)
@@ -103,20 +57,23 @@ def SelectionSidebar(state: ViewerState) =
       display <-- menuShouldBeVisible.map(if _ then "block" else "none"),
       ul(
         cls := "menu menu-sm rounded-box bg-transparent",
-        children <-- searchTerm.signal.map: term =>
+        children <-- searchTerm.signal.combineWith(state.diagramSelection.signal).map: (term, selection: Set[NodeId]) =>
           for
-            section <- menuSections
+            section <- commands.menuSections
             titleElement = li(cls := "menu-title", h1(section.title), hr())
-            entries = section.entries
-              .filter(e => e.title.toLowerCase.contains(term.toLowerCase))
-              .map: entry =>
-                li(a(
+            entries =
+              for
+                entry <- section.entries
+                if entry.title.toLowerCase.contains(term.toLowerCase) && entry.fromSelection(selection)
+              yield li(
+                a(
                   cls := "flex justify-between",
                   span(entry.title),
                   entry.shortcut.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)),
-                  entry.action
-                ))
-            entry <- if term.isEmpty || entries.nonEmpty then titleElement +: entries else Nil
+                  entry.action(onClick)
+                )
+              )
+            entry <- if entries.nonEmpty then titleElement +: entries else Nil
           yield entry
       )
     )
