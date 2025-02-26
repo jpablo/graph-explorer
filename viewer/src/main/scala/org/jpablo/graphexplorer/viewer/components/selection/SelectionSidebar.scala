@@ -5,6 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.{HTMLAnchorElement, window}
 import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.scalajs.dom
 
 case class MenuEntry(
     title:    String,
@@ -19,6 +20,7 @@ case class MenuSection(
 
 def SelectionSidebar(state: ViewerState) =
   import state.eventHandlers.*
+  import state.owner // Import the implicit owner
 
   val menuSections = List(
     MenuSection(
@@ -55,6 +57,16 @@ def SelectionSidebar(state: ViewerState) =
 
   val searchTerm = Var("")
   val searchHasFocus = Var(false)
+  val searchInputElement = Var[Option[dom.HTMLInputElement]](None)
+  
+  // Global key handler for Cmd+K
+  documentEvents(_.onKeyDown)
+    .filter(e => e.key.toLowerCase == "k" && e.metaKey)
+    .foreach { e =>
+      e.preventDefault()
+      searchInputElement.now().foreach(_.focus())
+    }
+
   val menuShouldBeVisible =
     Signal.combine(
       state.diagramSelection.signal.map(_.nonEmpty),
@@ -73,6 +85,8 @@ def SelectionSidebar(state: ViewerState) =
     label(
       cls := "flex items-center gap-1",
       input(
+        onMountCallback(ctx => searchInputElement.set(Some(ctx.thisNode.ref))),
+        onUnmountCallback(_ => searchInputElement.set(None)),
         typ         := "search",
         cls         := "input input-bordered input-xs w-full px-2",
         placeholder := "Enter command...",
@@ -80,9 +94,8 @@ def SelectionSidebar(state: ViewerState) =
         onBlur.mapTo(false) --> searchHasFocus,
         onInput.mapToValue --> searchTerm
       ),
-      // Restore when the functionality is implemented
-//      kbd(cls := "kbd kbd-sm opacity-60", "⌘"),
-//      kbd(cls := "kbd kbd-sm opacity-60", "K")
+      kbd(cls := "kbd kbd-sm opacity-60", "⌘"),
+      kbd(cls := "kbd kbd-sm opacity-60", "K")
     ),
     // menu container
     div(
