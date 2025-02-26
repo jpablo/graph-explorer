@@ -22,7 +22,7 @@ def LeftPanel(state: ViewerState, router: Router) =
     // Panel content
     div(
       idAttr := "left-panel",
-      cls := "bg-base-100 z-10 flex-shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200",
+      // cls := "bg-base-100 z-10 flex-shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200",
       cls <-- state.leftPanelVisible.signal.map(if _ then "w-[16rem] p-2 gap-3 opacity-100 visible"
       else "w-0 p-0 gap-0 opacity-0 invisible"),
       styleAttr <-- state.leftPanelVisible.signal.map(visible => 

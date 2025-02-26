@@ -26,12 +26,13 @@ label[for ^= show-ns-kind-] {
   }
 
   #selection-sidebar {
-    @apply flex flex-col w-[15rem] max-h-64;
-    @apply absolute top-12 left-2 z-20 print:hidden;
+    background-color: red;
+    @apply flex flex-col w-[15rem] max-h-64 z-10;
+    @apply absolute top-2 left-1 print:hidden;
     pointer-events: auto;
     
     label {
-      @apply p-2;
+      @apply p-2 pl-10;
     }
 
     #selection-sidebar-menu-container {
@@ -40,11 +41,11 @@ label[for ^= show-ns-kind-] {
   }
 
   #left-panel {
-    @apply bg-base-100 p-2 gap-3 z-10 w-64 flex-shrink-0 h-full flex flex-col overflow-x-hidden print:hidden border-r border-base-300;
+    @apply bg-base-100 p-2 gap-3 z-10 w-64 flex-shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200;
     order: -1;
 
     .header-section {
-      @apply mt-[19rem];
+      @apply mt-[16.5rem];
     }
   }
 
