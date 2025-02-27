@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.rightPanel.RightPanel
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
-import org.jpablo.graphexplorer.viewer.components.selection.CommandsPanel
+import org.jpablo.graphexplorer.viewer.components.leftPanel.CommandsPanel
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 
 def TopLevel(

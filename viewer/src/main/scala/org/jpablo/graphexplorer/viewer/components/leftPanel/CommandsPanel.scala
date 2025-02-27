@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.components.selection
+package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.Commands
