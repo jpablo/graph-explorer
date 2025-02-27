@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import com.raquo.laminar.api.features.unitArrows
 
-def SelectionSidebar(state: ViewerState, commands: Commands) =
+def CommandsPanel(state: ViewerState, commands: Commands) =
   import state.owner
 
   val searchTerm = Var("")
