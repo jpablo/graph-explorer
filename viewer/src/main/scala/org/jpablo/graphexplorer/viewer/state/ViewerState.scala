@@ -138,18 +138,6 @@ case class ViewerState(
       diagramSelection.set(Set(a.id))
       g2
 
-  // -------- Diagram actions -----------
-//  val eventHandlers = EventHandlers(
-//    diagramSelection = diagramSelection,
-//    project          = project,
-//    hiddenNodesS     = hiddenNodesS,
-//    finalSVG         = finalSVG,
-//    sourceFlow       = sourceFlow,
-//    hiddenNodes      = hiddenNodes,
-//    zoomValue        = zoomValue,
-//    translateXY      = translateXY
-//  )
-
   def updateHiddenFromSelection(f: (HiddenNodes, Set[NodeId], ViewerGraph) => HiddenNodes) =
     project.hiddenNodes.update(f(_, diagramSelection.now(), sourceFlow.fullGraph.now()))
 
@@ -235,27 +223,21 @@ case class ViewerState(
           fullGraph
         else
           // Create a new graph with the duplicated nodes
-          val newNodeIds = scala.collection.mutable.Set[NodeId]()
-          
-          val newGraph = nodesToDuplicate.foldLeft(fullGraph) { (graph, originalId) =>
-            // Get the original node's attributes and group
-            val originalNode = graph.data.nodes(originalId)
-            val groupId = Some(graph.data.getMembership(originalId))
-            
-            // Create a new node with a random ID
-            val (updatedGraph, newNodeId) = graph.addRandomNode(groupId)
-            
-            // Update the new node with the original node's attributes
-            val finalGraph = updatedGraph.updateAttributes(Set(newNodeId), originalNode.clusterAttrs)
-            
-            // Add the new node ID to our collection
-            newNodeIds.add(newNodeId)
-            
-            finalGraph
+          val (newGraph, newNodeIds) = nodesToDuplicate.foldLeft((fullGraph, Set.empty[NodeId])) { 
+            case ((graph, newIds), originalId) =>
+              // Get the original node's attributes and group
+              val originalNode = graph.data.nodes(originalId)
+              val groupId = Some(graph.data.getMembership(originalId))
+              // Create a new node with a random ID
+              val (updatedGraph, newNodeId) = graph.addRandomNode(groupId)
+              // Update the new node with the original node's attributes
+              val finalGraph = updatedGraph.updateAttributes(Set(newNodeId), originalNode.attributes)
+              // Add the new node ID to our collection
+              (finalGraph, newIds + newNodeId)
           }
           
           // Select the newly created nodes
-          diagramSelection.set(newNodeIds.toSet)
+          diagramSelection.set(newNodeIds)
           newGraph
 
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an

@@ -34,13 +34,13 @@ object NodeId:
 type ViewerKind = Option[String]
 
 trait Attributable:
-  def clusterAttrs: Attributes
+  def attributes: Attributes
 
   def label: AttrValue =
-    clusterAttrs.values.getOrElse("label", AttrValue.empty)
+    attributes.values.getOrElse("label", AttrValue.empty)
 
   def idAttr: AttrValue =
-    clusterAttrs.values.getOrElse(idAttributeKey, AttrValue.empty)
+    attributes.values.getOrElse(idAttributeKey, AttrValue.empty)
 
 //  def publicAttrs: Attributes =
 //    Attributes(attrs.values -- Attributable.internal)
@@ -50,11 +50,10 @@ object Attributable:
 //  val internal = Set(idAttributeKey)
 
 case class ViewerNode(
-    id          :    NodeId,
-    clusterAttrs: Attributes = Attributes.empty,
-    kind        :  ViewerKind = None
-) extends Attributable:
-  def mergeAttrs(other: Attributes): ViewerNode = copy(clusterAttrs = clusterAttrs ++ other)
+    id        :    NodeId,
+    attributes: Attributes = Attributes.empty,
+    kind      :  ViewerKind = None
+) extends Attributable
 
 object ViewerNode:
   def node(name: String, attrs: Map[String, AttrValue] = Map.empty) =
@@ -69,10 +68,10 @@ object ArrowId:
   def random(): ArrowId = ArrowId(Utils.randomUUIDSafe())
 
 case class Arrow(
-    source      : NodeId,
-    target      : NodeId,
-    clusterAttrs:  Attributes = Attributes.empty,
-    seq         :    Int = 0
+    source    : NodeId,
+    target    : NodeId,
+    attributes:  Attributes = Attributes.empty,
+    seq       :    Int = 0
 ) extends Attributable:
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
@@ -81,7 +80,7 @@ case class Arrow(
   def nodeIds = Set(source, target, id)
   def endpoints = Set(source, target)
 
-  def mergeAttrs(other: Attributes): Arrow = copy(clusterAttrs = clusterAttrs ++ other)
+  def mergeAttrs(other: Attributes): Arrow = copy(attributes = attributes ++ other)
 
 end Arrow
 
@@ -126,10 +125,10 @@ object Attributes:
 // ---- groups ------
 
 case class ViewerGroup(
-    id          : GroupId,
-    clusterAttrs: Attributes = Attributes.empty,
-    edgeAttrs   : Attributes = Attributes.empty,
-    nodeAttrs   : Attributes = Attributes.empty
+    id        : GroupId,
+    attributes: Attributes = Attributes.empty,
+    edgeAttrs : Attributes = Attributes.empty,
+    nodeAttrs : Attributes = Attributes.empty
 ) extends Attributable
 
 object ViewerGroup:

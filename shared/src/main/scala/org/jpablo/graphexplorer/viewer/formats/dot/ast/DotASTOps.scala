@@ -8,7 +8,6 @@ import scala.annotation.tailrec
 enum AttributeTarget:
   case node, edge, graph
 
-
 extension (ast: DotAST)
 
   def toViewerGraph: ViewerGraph =
@@ -24,10 +23,10 @@ extension (ast: DotAST)
   private def subGraphToViewerGroup(subId: GroupId, sub: SubGraph): ViewerGroup =
     val attrs = sub.findAttributes
     ViewerGroup(
-      id        = subId,
-      clusterAttrs     = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
-      edgeAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
-      nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
+      id           = subId,
+      attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
+      edgeAttrs    = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
+      nodeAttrs    = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
 
   def toFlattenedElements: FlattenedGraphElement =

@@ -67,7 +67,7 @@ def StyleView(state: ViewerState) =
               GraphAttributesView(
                 state     = state,
                 attrsVar  = state.nodesAttributes(clusterIds),
-                defaults  = Some(state.visibleGraph.map(_.root.clusterAttrs)),
+                defaults  = Some(state.visibleGraph.map(_.root.attributes)),
                 selection = true
               ).amend(cls("selection-attributes"))
             )

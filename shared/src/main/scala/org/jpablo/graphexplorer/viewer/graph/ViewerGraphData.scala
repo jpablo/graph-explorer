@@ -132,19 +132,19 @@ case class ViewerGraphData(
 
     val updatedArrows = arrows.view
       .filterKeys(_ in arrowIds)
-      .mapValues(_.copy(clusterAttrs = attrs))
+      .mapValues(_.copy(attributes = attrs))
       .toMap
 
     val updatedClusters = groups.view
       .filterKeys(_ in groupIds)
-      .mapValues(_.copy(clusterAttrs = attrs))
+      .mapValues(_.copy(attributes = attrs))
       .toMap
 
     val nodeIdsToUpdate = nodeIds ++
       (updatedArrows.values.flatMap(_.endpoints).toSet & idsToUpdate)
 
     val updatedNodes = nodeIdsToUpdate.foldLeft(nodes) { (nodes, id) =>
-      nodes.updated(id, nodes.getOrElse(id, ViewerNode(id)).copy(clusterAttrs = attrs))
+      nodes.updated(id, nodes.getOrElse(id, ViewerNode(id)).copy(attributes = attrs))
     }
 
     copy(
