@@ -49,6 +49,10 @@ def HelpDialog(open: Var[Boolean]) =
             tr(
               td(cls := "p-2 border", "h"),
               td(cls := "p-2 border", "Hide selected nodes")
+            ),
+            tr(
+              td(cls := "p-2 border", "d"),
+              td(cls := "p-2 border", "Duplicate selected nodes")
             )
           )
         )

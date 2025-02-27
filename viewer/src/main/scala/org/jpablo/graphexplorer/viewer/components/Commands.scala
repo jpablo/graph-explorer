@@ -34,6 +34,7 @@ class Commands(state: ViewerState, router: Router):
       Command("Hide", state.hideSelection, shortcut               = Some("h")),
       Command("Hide others", state.hideNonSelectedNodes, shortcut = Some("Shift+h")),
       Command("Delete", state.deleteSelection, shortcut           = Some("Backspace")),
+      Command("Duplicate", state.duplicateSelection, shortcut     = Some("d")),
       Command("Group", state.groupSelectedNodes, shortcut         = Some("g")),
       Command("Clear selection", state.clearSelection, shortcut   = Some("Esc")),
       //

@@ -219,6 +219,45 @@ case class ViewerState(
     sourceFlow.fullGraphV.update: fullGraph =>
       fullGraph.addToNewGroup(diagramSelection.now())
 
+  /** Duplicates the currently selected nodes.
+    * Creates new nodes with the same attributes as the selected nodes and places them in the same groups.
+    * The newly created nodes become the selected elements after duplication.
+    */
+  def duplicateSelection() =
+    sourceFlow.fullGraphV.update: fullGraph =>
+      val selection = diagramSelection.now()
+      if selection.isEmpty then
+        fullGraph
+      else
+        // Filter out any non-node elements (like edges)
+        val nodesToDuplicate = selection.filter(id => id in fullGraph.data.nodes)
+        if nodesToDuplicate.isEmpty then
+          fullGraph
+        else
+          // Create a new graph with the duplicated nodes
+          val newNodeIds = scala.collection.mutable.Set[NodeId]()
+          
+          val newGraph = nodesToDuplicate.foldLeft(fullGraph) { (graph, originalId) =>
+            // Get the original node's attributes and group
+            val originalNode = graph.data.nodes(originalId)
+            val groupId = Some(graph.data.getMembership(originalId))
+            
+            // Create a new node with a random ID
+            val (updatedGraph, newNodeId) = graph.addRandomNode(groupId)
+            
+            // Update the new node with the original node's attributes
+            val finalGraph = updatedGraph.updateAttributes(Set(newNodeId), originalNode.clusterAttrs)
+            
+            // Add the new node ID to our collection
+            newNodeIds.add(newNodeId)
+            
+            finalGraph
+          }
+          
+          // Select the newly created nodes
+          diagramSelection.set(newNodeIds.toSet)
+          newGraph
+
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an
     * edge. If the selected element is a group/cluster, the new node will be added to that group. The new node will
     * become the only selected element after creation.
