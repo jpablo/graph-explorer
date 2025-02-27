@@ -25,12 +25,11 @@ label[for ^= show-ns-kind-] {
     @apply shadow-md bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10 print:hidden border border-base-300;
   }
 
-  #selection-sidebar {
-    background-color: red;
-    @apply flex flex-col w-[15rem] max-h-64 z-10;
+  #commands-panel {
+    @apply flex flex-col w-[15rem] max-h-[26rem] z-10;
     @apply absolute top-2 left-1 print:hidden;
     pointer-events: auto;
-    
+
     label {
       @apply p-2 pl-10;
     }
@@ -45,7 +44,7 @@ label[for ^= show-ns-kind-] {
     order: -1;
 
     .header-section {
-      @apply mt-[16.5rem];
+      @apply mt-[25rem];
     }
   }
 
