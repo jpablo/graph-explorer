@@ -30,6 +30,7 @@ extension (doc: dom.HTMLDocument)
       .asInstanceOf[js.Array[dom.Element]]
 
 
+
 @js.native
 @JSGlobal
 class DOMPoint(val x: Double = 0, val y: Double = 0, val z: Double = 0, val w: Double = 0) extends js.Object {

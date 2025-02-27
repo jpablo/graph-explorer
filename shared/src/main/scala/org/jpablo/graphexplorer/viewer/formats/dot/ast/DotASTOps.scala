@@ -23,10 +23,10 @@ extension (ast: DotAST)
   private def subGraphToViewerGroup(subId: GroupId, sub: SubGraph): ViewerGroup =
     val attrs = sub.findAttributes
     ViewerGroup(
-      id           = subId,
+      id         = subId,
       attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
-      edgeAttrs    = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
-      nodeAttrs    = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
+      edgeAttrs  = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
+      nodeAttrs  = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
 
   def toFlattenedElements: FlattenedGraphElement =

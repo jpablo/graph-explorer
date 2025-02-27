@@ -27,15 +27,16 @@ label[for ^= show-ns-kind-] {
 
   #commands-panel {
     @apply flex flex-col w-[15rem] max-h-[26rem] z-10;
-    @apply absolute top-2 left-1 print:hidden;
+    @apply absolute top-2 left-1 print:hidden bg-base-100/90 rounded-box;
     pointer-events: auto;
 
     label {
       @apply p-2 pl-10;
     }
 
-    #selection-sidebar-menu-container {
+    #commands-panel-menu-container {
       @apply grow overflow-y-auto mb-2;
+      scroll-behavior: smooth;
     }
   }
 
