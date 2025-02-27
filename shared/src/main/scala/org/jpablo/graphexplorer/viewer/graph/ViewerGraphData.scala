@@ -34,8 +34,8 @@ case class ViewerGraphData(
     val arrow = Arrow(source, target, seq = newSeq + 1)
     (copy(arrows = arrows + (arrow.id -> arrow)), arrow)
 
-  def addToGroup(nodeId: NodeId, groupId: GroupId): ViewerGraphData =
-    copy(memberships = memberships + (nodeId -> groupId))
+  def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraphData =
+    copy(memberships = memberships ++ nodeIds.map(_ -> groupId))
 
   def removeEmptyGroups: ViewerGraphData =
     // the root group is not added to memberships, so it will appear empty
@@ -55,7 +55,6 @@ case class ViewerGraphData(
       val group = ViewerGroup(groupId, Attributes(Map("label" -> AttrValue(label))))
 
       // Find the common parent group if one exists
-      val idsMemberships = validIds.map(getMembership)
       val parentGroupId = validIds
         .map(getMembership)
         .reduceOption((g1, g2) => if g1 == g2 then g1 else rootId)

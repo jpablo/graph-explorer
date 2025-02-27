@@ -26,6 +26,10 @@ class Commands(state: ViewerState, router: Router):
     if newName != null then
       state.project.name.set(newName)
 
+  private def moveToGroupActionVisible(selection: Set[NodeId]): Boolean =
+    val classified = state.classifyNodes(selection.toSeq)
+    classified.clusters.size == 1 && classified.nodes.nonEmpty
+
   val menuSections: VectorMap[String, List[Command]] = VectorMap(
     "Common" -> List(
       Command("Add node", state.addNode, always, shortcut = Some("n"))
@@ -36,7 +40,8 @@ class Commands(state: ViewerState, router: Router):
       Command("Delete", state.deleteSelection, shortcut           = Some("Backspace")),
       Command("Duplicate", state.duplicateSelection, shortcut     = Some("d")),
       Command("Group", state.groupSelectedNodes, shortcut         = Some("g")),
-      Command("Clear selection", state.clearSelection, shortcut   = Some("Esc")),
+      Command("Move to group", state.addSelectionToGroup, moveToGroupActionVisible),
+      Command("Clear selection", state.clearSelection, shortcut = Some("Esc")),
       //
       Command("Copy as SVG", state.copySelectionAsSVG, shortcut = Some("c"))
     ),
@@ -108,4 +113,3 @@ class Commands(state: ViewerState, router: Router):
         cmd.action()
       case None =>
         ()
-

@@ -175,6 +175,26 @@ case class ViewerState(
   def groupSelectedNodes() =
     sourceFlow.fullGraphV.update(_.addToNewGroup(diagramSelection.now()))
 
+  case class IdsByKind(
+      clusters: Seq[NodeId] = Seq.empty,
+      nodes:    Seq[NodeId] = Seq.empty,
+      arrows:   Seq[NodeId] = Seq.empty
+  )
+
+  def classifyNodes(mixed: Seq[NodeId]): IdsByKind =
+    val (arrows, notArrows) = mixed.partition(NodeId.isArrowId)
+    val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
+    IdsByKind(
+      clusters = clusterIds,
+      nodes    = nodeIds,
+      arrows   = arrows
+    )
+
+  def addSelectionToGroup() =
+    val classified = classifyNodes(diagramSelection.now().toSeq)
+    for groupNodeId <- classified.clusters.headOption do
+      sourceFlow.fullGraphV.update(_.addToGroup(GroupId(groupNodeId.value), classified.nodes))
+
   def clearSelection() =
     diagramSelection.clear()
 
@@ -204,13 +224,8 @@ case class ViewerState(
     sourceFlow.fullGraphV.update: fullGraph =>
       fullGraph.removeNodes(diagramSelection.now())
 
-  def groupSelection() =
-    sourceFlow.fullGraphV.update: fullGraph =>
-      fullGraph.addToNewGroup(diagramSelection.now())
-
-  /** Duplicates the currently selected nodes.
-    * Creates new nodes with the same attributes as the selected nodes and places them in the same groups.
-    * The newly created nodes become the selected elements after duplication.
+  /** Duplicates the currently selected nodes. Creates new nodes with the same attributes as the selected nodes and
+    * places them in the same groups. The newly created nodes become the selected elements after duplication.
     */
   def duplicateSelection() =
     sourceFlow.fullGraphV.update: fullGraph =>
@@ -224,7 +239,7 @@ case class ViewerState(
           fullGraph
         else
           // Create a new graph with the duplicated nodes
-          val (newGraph, newNodeIds) = nodesToDuplicate.foldLeft((fullGraph, Set.empty[NodeId])) { 
+          val (newGraph, newNodeIds) = nodesToDuplicate.foldLeft((fullGraph, Set.empty[NodeId])) {
             case ((graph, newIds), originalId) =>
               // Get the original node's attributes and group
               val originalNode = graph.data.nodes(originalId)
@@ -236,7 +251,7 @@ case class ViewerState(
               // Add the new node ID to our collection
               (finalGraph, newIds + newNodeId)
           }
-          
+
           // Select the newly created nodes
           diagramSelection.set(newNodeIds)
           newGraph

@@ -122,6 +122,9 @@ case class ViewerGraph(
     */
   def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraph =
     modifyData.using(_.addToNewGroup(ids, label))
+    
+  def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraph =
+    modifyData.using(_.addToGroup(groupId, nodeIds))
 
   def root: ViewerGroup = data.root
 
