@@ -41,7 +41,7 @@ def NodesList(
       idAttr := "nodes-panel-contents",
       table(
         cls := "table table-xs table-pin-rows",
-        thead(tr(th("NodeId"), th("Label"))),
+        thead(tr(th("Id"), th("Label"))),
         tbody(
           children <--
             filteredGraph

@@ -32,6 +32,10 @@ object Splines extends DotAttributeEnum[Splines]:
     ("None", none)
   )
 
+object Concentrate extends DotAttributeSimple[Boolean]:
+  val label = "Concentrate"
+  val default = false
+
 enum Overlap:
   case `false`, scale, compress
 
