@@ -107,9 +107,6 @@ class Commands(state: ViewerState, router: Router):
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
     val prefix = if ev.shiftKey then "Shift+" else ""
-    commandsByShortcut.get(prefix + ev.key) match
-      case Some(cmd) =>
-        ev.preventDefault()
-        cmd.action()
-      case None =>
-        ()
+    for cmd <- commandsByShortcut.get(prefix + ev.key) do
+      ev.preventDefault()
+      cmd.action()

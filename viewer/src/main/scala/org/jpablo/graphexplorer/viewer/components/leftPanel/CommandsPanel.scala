@@ -40,7 +40,6 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
       state.leftPanelVisible.signal
     ).map(_ || _ || _)
 
-  // Create a simple flat list of all visible commands
   def getVisibleCommands(term: String, selection: Set[NodeId]): Map[String, List[Command]] =
     commands.menuSections.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
 
@@ -131,9 +130,9 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                     },
                     span(cmd.title),
                     cmd.shortcut.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)),
-                    onClick --> { _ =>
+                    onMouseDown.stopPropagation.preventDefault --> { e =>
                       cmd.action()
-                      focusSearch.emit(false)
+                      focusSearch.emit(true)
                     }
                   )
                 )
