@@ -62,6 +62,10 @@ label[for ^= show-ns-kind-] {
         @apply bg-base-200 rounded;
       }
     }
+    
+    #diagram-attributes-content {
+      @apply p-2;
+    }
   }
 
   .selection-attributes {
@@ -76,25 +80,51 @@ label[for ^= show-ns-kind-] {
     @apply bg-base-100 p-2 gap-3 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
     order: 2;
 
+    #nodes-panel-header {
+      @apply sticky top-0 z-10 bg-base-100 pb-2;
+    }
+
     #nodes-panel-tab-buttons {
-      @apply flex gap-1;
+      @apply flex gap-1 mt-2;
+    }
+
+    #nodes-panel-content {
+      @apply flex flex-col h-full overflow-hidden;
     }
 
     #nodes-source {
-      flex-grow: 1;
-      @apply whitespace-nowrap w-full;
+      @apply whitespace-nowrap w-full h-full;
     }
 
     #nodes-panel-controls, #edges-panel-controls {
-      @apply bg-base-100 z-20 pb-2 rounded-box;
+      @apply bg-base-100 z-20 pb-2 rounded-box sticky top-0;
     }
 
     #nodes-panel-contents, #edges-panel-contents {
-      flex-grow: 1;
-      @apply overflow-y-auto flex-grow overflow-x-auto rounded-box bg-base-100;
+      @apply overflow-y-auto overflow-x-auto rounded-box bg-base-100 h-full;
 
       .selected {
         background-color: rgba(251, 191, 36, .1);
+      }
+    }
+    
+    #diagram-attributes {
+      @apply h-full overflow-hidden flex flex-col;
+      
+      > div {
+        @apply h-full flex flex-col overflow-hidden;
+      }
+      
+      .divider {
+        @apply flex-none;
+      }
+      
+      #diagram-attributes-content {
+        @apply overflow-y-auto p-2 flex-grow;
+      }
+      
+      .selection-attributes {
+        @apply overflow-y-auto h-full;
       }
     }
   }
@@ -171,12 +201,6 @@ label[for ^= show-ns-kind-] {
           }
         }
       }
-    }
-  }
-
-  #diagram-attributes {
-    #diagram-attributes-content {
-      @apply p-2;
     }
   }
 

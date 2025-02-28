@@ -36,22 +36,32 @@ class RightPanel(state: ViewerState):
       div(
         idAttr := "nodes-panel",
         cls <--
-          state.rightPanelVisible.signal.map(if _ then "p-2 gap-3 opacity-100 visible"
+          state.rightPanelVisible.signal.map(if _ then "p-2 gap-3 opacity-100 visible flex flex-col h-full"
           else "w-0 p-0 gap-0 opacity-0 invisible"),
-        firstRow,
-        // --- Tab Headers ---
+        // Fixed header section
         div(
-          idAttr := "nodes-panel-tab-buttons",
-          tabHeaderStyle(0),
-          tabHeaderSource(1),
-          tabHeaderNodes(2),
-          tabHeaderEdges(3)
+          idAttr := "nodes-panel-header",
+          cls := "flex-none",
+          firstRow,
+          // --- Tab Headers ---
+          div(
+            idAttr := "nodes-panel-tab-buttons",
+            tabHeaderStyle(0),
+            tabHeaderSource(1),
+            tabHeaderNodes(2),
+            tabHeaderEdges(3)
+          )
         ),
-        // --- Tab Body ---
-        tabStyle(0),
-        tabSource(1),
-        tabNodes(2),
-        tabEdges(3)
+        // Scrollable content section
+        div(
+          idAttr := "nodes-panel-content",
+          cls := "flex-grow overflow-hidden",
+          // --- Tab Body ---
+          tabStyle(0),
+          tabSource(1),
+          tabNodes(2),
+          tabEdges(3)
+        )
       )
     )
 
@@ -89,14 +99,17 @@ class RightPanel(state: ViewerState):
     ).tiny
 
   private def tabStyle(idx: Int) =
-    StyleView(state).amend(cls("hidden") <-- !isVisible(idx))
+    StyleView(state).amend(
+      cls := "h-full overflow-y-auto",
+      cls("hidden") <-- !isVisible(idx)
+    )
 
   private def tabSource(idx: Int) =
     div(
       cls := "flex flex-col h-full",
       cls("hidden") <-- !isVisible(idx),
       div(
-        cls := "mb-4",
+        cls := "mb-4 flex-none",
         a(
           cls    := "link",
           href   := "https://www.graphviz.org/documentation/",
@@ -105,17 +118,26 @@ class RightPanel(state: ViewerState):
           "Documentation"
         )
       ),
-      CodeMirror(
-        state,
-        idAttr := "nodes-source",
-        placeholder := "DOT source"
+      div(
+        cls := "flex-grow overflow-y-auto",
+        CodeMirror(
+          state,
+          idAttr := "nodes-source",
+          placeholder := "DOT source"
+        )
       )
     )
 
   private def tabNodes(idx: Int) =
     NodesList(state, onlyActiveNodes)
-      .amend(cls("hidden") <-- !isVisible(idx))
+      .amend(
+        cls := "h-full overflow-y-auto",
+        cls("hidden") <-- !isVisible(idx)
+      )
 
   private def tabEdges(idx: Int) =
     EdgesList(state, onlyActiveEdges)
-      .amend(cls("hidden") <-- !isVisible(idx))
+      .amend(
+        cls := "h-full overflow-y-auto",
+        cls("hidden") <-- !isVisible(idx)
+      )
