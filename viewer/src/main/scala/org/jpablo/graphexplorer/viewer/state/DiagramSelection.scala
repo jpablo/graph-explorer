@@ -54,8 +54,8 @@ class DiagramSelectionOps:
     val relatedIds = relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds
     add(relatedIds)
 
-  def handleClickOnNode(nodeId: NodeId)(metaKey: Boolean) =
-    if metaKey then
+  def handleClickOnNode(nodeId: NodeId)(shiftKey: Boolean) =
+    if shiftKey then
       toggle(nodeId)
     else
       set(Set(nodeId))
@@ -89,30 +89,26 @@ class DiagramSelectionOps:
     selectionRectLine.set(None)
 
   def handleSelectionLineUpdate(
-    rect               : SelectionRect,
-    start              : SelectableElement,
-    elementsFromRectEnd: js.Array[dom.Element]
+      rect:                SelectionRect,
+      start:               SelectableElement,
+      elementsFromRectEnd: js.Array[dom.Element]
   ) =
     // Make sure only start or (start,end) nodes are selected when creating a new edge
     // For now only allow a line selection into nodes
     findNode(rect, elementsFromRectEnd, "g.node") match
       case Some(end) => set(Set(start.nodeId, end))
-      case None => set(Set(start.nodeId))
+      case None      => set(Set(start.nodeId))
 
   def handleSelectionAreaUpdate(
-    rect               : SelectionRect,
-    selectableElements : Seq[SelectableElement],
-    elementsFromRectEnd: js.Array[dom.Element]
+      rect:                SelectionRect,
+      selectableElements:  Seq[SelectableElement],
+      elementsFromRectEnd: js.Array[dom.Element]
   ) =
     // This is meant to capture a single click.
     if rect.isEmpty then
       findNode(rect, elementsFromRectEnd) match
-        case Some(end) =>
-          if rect.shift then
-            toggle(end)
-          else
-            set(Set(end))
-        case None => clear()
+        case Some(end) => handleClickOnNode(end)(rect.shift)
+        case None      => clear()
     else
       val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
       if nodesInRect.nonEmpty then
@@ -124,11 +120,11 @@ class DiagramSelectionOps:
         clear()
 
   /** Finds the node ID at the given selection rectangle's end point
-   */
+    */
   private def findNode(
-    rect:     SelectionRect,
-    elements: js.Array[dom.Element],
-    selector: String = "g.node, g.edge, g.cluster"
+      rect:     SelectionRect,
+      elements: js.Array[dom.Element],
+      selector: String = "g.node, g.edge, g.cluster"
   ): Option[NodeId] =
     elements
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
@@ -139,24 +135,24 @@ class DiagramSelectionOps:
         case Some(elem) => elem.nodeId
 
   /** Checks if a selectable element intersects with a selection rectangle
-   *
-   * @param elem
-   * The selectable element to check
-   * @param rect
-   * The selection rectangle in client coordinates
-   * @return
-   * true if the element's bounding box intersects with the selection rectangle
-   *
-   * The method:
-   *   1. Gets the element's bounding box in client coordinates 2. Normalizes the selection rect coordinates to handle
-   *      any direction of dragging 3. Uses a standard rectangle intersection test
-   */
+    *
+    * @param elem
+    *   The selectable element to check
+    * @param rect
+    *   The selection rectangle in client coordinates
+    * @return
+    *   true if the element's bounding box intersects with the selection rectangle
+    *
+    * The method:
+    *   1. Gets the element's bounding box in client coordinates 2. Normalizes the selection rect coordinates to handle
+    *      any direction of dragging 3. Uses a standard rectangle intersection test
+    */
   def isNodeInRect(elem: SelectableElement, rect: SelectionRect): Boolean =
     val bbox = elem.get.getBoundingClientRect()
     val normalizedRect = (
-      x = rect.startX.min(rect.endX),
-      y = rect.startY.min(rect.endY),
-      width = math.abs(rect.endX - rect.startX),
+      x      = rect.startX.min(rect.endX),
+      y      = rect.startY.min(rect.endY),
+      width  = math.abs(rect.endX - rect.startX),
       height = math.abs(rect.endY - rect.startY)
     )
     !(bbox.right < normalizedRect.x ||

@@ -28,7 +28,8 @@ def NodesList(
                 cls("selected") <-- state.isSelected(node.id),
                 td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.label.toString),
                 td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.id.toString),
-                onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnNode(node.id),
+                onMouseDown.preventDefault --> Observer.empty,
+                onClick.preventDefault.map(_.shiftKey) --> state.diagramSelection.handleClickOnNode(node.id),
                 onDblClick
                   .preventDefault
                   .stopPropagation(_.sample(state.isNodeVisible(node.id))) --> { visible =>

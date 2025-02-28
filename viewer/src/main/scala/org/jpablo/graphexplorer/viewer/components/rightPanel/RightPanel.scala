@@ -120,10 +120,22 @@ class RightPanel(state: ViewerState):
       form(
         idAttr := "nodes-panel-controls",
         Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveNodes)),
-        Search(
-          placeholder := "filter",
-          controlled(value <-- filterNodesByNodeId, onInput.mapToValue --> filterNodesByNodeId)
-        ).smallInput
+        div(
+          cls := "flex gap-2",
+          Search(
+            placeholder := "filter",
+            controlled(value <-- filterNodesByNodeId, onInput.mapToValue --> filterNodesByNodeId)
+          ).smallInput,
+          button(
+            cls := "btn btn-xs",
+            "Select All",
+            onClick.preventDefault --> { _ =>
+              given Owner = state.owner
+              val filteredGraph = filteredDiagramEvent(state, onlyActiveNodes.signal, filterNodesByNodeId.signal).observe().now()
+              state.diagramSelection.set(filteredGraph.nodesSet.map(_.id))
+            }
+          )
+        )
       ),
       div(
         idAttr := "nodes-panel-contents",
