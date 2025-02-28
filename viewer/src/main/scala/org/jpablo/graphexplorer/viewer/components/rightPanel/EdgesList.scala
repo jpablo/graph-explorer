@@ -10,11 +10,35 @@ import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckbox, Search}
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
 import com.raquo.airstream.state.Var
 
+// Enum for sort columns
+enum EdgeSortColumn:
+  case Label, Source, Target
+
+// Enum for sort direction
+enum EdgeSortDirection:
+  case Ascending, Descending
+
 def EdgesList(
     state: ViewerState,
     onlyActiveEdges: Var[Boolean],
 ): ReactiveHtmlElement[dom.HTMLDivElement] =
   val filterEdgesByNodeId = Var("")
+  val sortColumnVar = Var(EdgeSortColumn.Label)
+  val sortDirectionVar = Var(EdgeSortDirection.Ascending)
+
+  // Helper function to toggle sort direction or set a new sort column
+  def handleSortClick(column: EdgeSortColumn) = Observer[dom.MouseEvent] { _ =>
+    if sortColumnVar.now() == column then
+      // Toggle direction if same column
+      sortDirectionVar.update {
+        case EdgeSortDirection.Ascending => EdgeSortDirection.Descending
+        case EdgeSortDirection.Descending => EdgeSortDirection.Ascending
+      }
+    else
+      // Set new column and default to ascending
+      sortColumnVar.set(column)
+      sortDirectionVar.set(EdgeSortDirection.Ascending)
+  }
 
   def arrowEndpoints(arrow: Arrow): (String, String) =
     val Seq(sourceNode, targetNode) = state.getNodeById(Seq(arrow.source, arrow.target))
@@ -52,25 +76,90 @@ def EdgesList(
       idAttr := "edges-panel-contents",
       table(
         cls := "table table-xs table-pin-rows",
-        thead(tr(th("Label"), th("Source"), th(""), th("Target"))),
+        thead(
+          tr(
+            th(
+              cls := "cursor-pointer select-none",
+              cls("text-primary") <-- sortColumnVar.signal.map(_ == EdgeSortColumn.Label),
+              "Label ",
+              span(
+                cls := "inline-block",
+                cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
+                  if column == EdgeSortColumn.Label then
+                    direction match
+                      case EdgeSortDirection.Ascending => "after:content-['↑']"
+                      case EdgeSortDirection.Descending => "after:content-['↓']"
+                  else ""
+                }
+              ),
+              onClick --> handleSortClick(EdgeSortColumn.Label)
+            ),
+            th(
+              cls := "cursor-pointer select-none",
+              cls("text-primary") <-- sortColumnVar.signal.map(_ == EdgeSortColumn.Source),
+              "Source ",
+              span(
+                cls := "inline-block",
+                cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
+                  if column == EdgeSortColumn.Source then
+                    direction match
+                      case EdgeSortDirection.Ascending => "after:content-['↑']"
+                      case EdgeSortDirection.Descending => "after:content-['↓']"
+                  else ""
+                }
+              ),
+              onClick --> handleSortClick(EdgeSortColumn.Source)
+            ),
+            th(""),
+            th(
+              cls := "cursor-pointer select-none",
+              cls("text-primary") <-- sortColumnVar.signal.map(_ == EdgeSortColumn.Target),
+              "Target ",
+              span(
+                cls := "inline-block",
+                cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
+                  if column == EdgeSortColumn.Target then
+                    direction match
+                      case EdgeSortDirection.Ascending => "after:content-['↑']"
+                      case EdgeSortDirection.Descending => "after:content-['↓']"
+                  else ""
+                }
+              ),
+              onClick --> handleSortClick(EdgeSortColumn.Target)
+            )
+          )
+        ),
         tbody(
           children <--
             state
               .fullGraph
-              .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS)
-              .map: (fullGraph, onlyActive, str, hiddenNodes) =>
-                fullGraph
+              .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS, sortColumnVar.signal, sortDirectionVar.signal)
+              .map: (fullGraph, onlyActive, str, hiddenNodes, sortColumn, sortDirection) =>
+                val filteredEdges = fullGraph
                   .orElse(!onlyActive, _.removeNodes(hiddenNodes))
                   .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
                   .toList
-                  .sorted
-              .map:
-                _.map: arrow =>
-                  val (sourceLabel, targetLabel) = arrowEndpoints(arrow)
+                
+                // Pre-calculate endpoints for sorting
+                val edgesWithEndpoints = filteredEdges.map(arrow => (arrow, arrowEndpoints(arrow)))
+                
+                val sortedEdges = sortColumn match
+                  case EdgeSortColumn.Label =>
+                    val sorted = edgesWithEndpoints.sortBy(_._1.label.toString.toLowerCase)
+                    if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
+                  case EdgeSortColumn.Source =>
+                    val sorted = edgesWithEndpoints.sortBy(_._2._1.toLowerCase)
+                    if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
+                  case EdgeSortColumn.Target =>
+                    val sorted = edgesWithEndpoints.sortBy(_._2._2.toLowerCase)
+                    if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
+                
+                sortedEdges.map: (arrow, labels) =>
+                  val (sourceLabel, targetLabel) = labels
                   tr(
                     cls := "whitespace-nowrap hover cursor-pointer",
                     cls("font-bold") <-- state.isEdgeVisible(arrow.id),
-                    cls("selected") <-- state.isSelected(arrow.id),
+                    cls("bg-base-200") <-- state.isSelected(arrow.id),
                     td(cls := "truncate", arrow.label.toString),
                     td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.source), sourceLabel),
                     td("→"),
