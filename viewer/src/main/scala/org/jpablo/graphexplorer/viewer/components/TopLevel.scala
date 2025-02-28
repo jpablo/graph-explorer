@@ -26,5 +26,5 @@ def TopLevel(
     CommandsPanel(state, commands),
     Toolbar(state.project.name.signal, commands),
     RightPanel(state).render(),
-    HelpDialog(state.shortcutsModalOpen)
+    HelpDialog(state.shortcutsModalOpen, commands)
   )

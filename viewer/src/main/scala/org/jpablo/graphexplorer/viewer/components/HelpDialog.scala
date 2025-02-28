@@ -3,8 +3,9 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.widgets.SimpleDialog
+import org.jpablo.graphexplorer.viewer.utils.intersperse
 
-def HelpDialog(open: Var[Boolean]) =
+def HelpDialog(open: Var[Boolean], commands: Commands) =
   SimpleDialog(
     open = open,
     contents = div(
@@ -22,37 +23,14 @@ def HelpDialog(open: Var[Boolean]) =
             )
           ),
           tbody(
-            tr(
-              td(cls := "p-2 border", "Backspace"),
-              td(cls := "p-2 border", "Delete selected nodes")
-            ),
-            tr(
-              td(cls := "p-2 border", "n"),
-              td(cls := "p-2 border", "Add new node")
-            ),
-            tr(
-              td(cls := "p-2 border", "g"),
-              td(cls := "p-2 border", "Group selected nodes")
-            ),
-            tr(
-              td(cls := "p-2 border", "z"),
-              td(cls := "p-2 border", "Undo")
-            ),
-            tr(
-              td(cls := "p-2 border", "Shift + Z"),
-              td(cls := "p-2 border", "Redo")
-            ),
-            tr(
-              td(cls := "p-2 border", "Escape"),
-              td(cls := "p-2 border", "Clear selection")
-            ),
-            tr(
-              td(cls := "p-2 border", "h"),
-              td(cls := "p-2 border", "Hide selected nodes")
-            ),
-            tr(
-              td(cls := "p-2 border", "d"),
-              td(cls := "p-2 border", "Duplicate selected nodes")
+            for
+              (shortcut, command) <- commands.commandsByShortcut.toSeq.sortBy(_._1.mkString(""))
+            yield tr(
+              td(
+                cls := "p-2 border",
+                shortcut.map(kbd(cls := "kbd kbd-sm", _)).intersperse(span(" + "))
+              ),
+              td(cls := "p-2 border", command.description.getOrElse(command.title))
             )
           )
         )
@@ -71,27 +49,56 @@ def HelpDialog(open: Var[Boolean]) =
           ),
           tbody(
             tr(
-              td(cls := "p-2 border", "Click + Drag between nodes"),
+              td(
+                cls := "p-2 border", 
+                kbd(cls := "kbd kbd-sm", "Click"), 
+                span(" + "), 
+                kbd(cls := "kbd kbd-sm", "Drag"), 
+                span(" between nodes")
+              ),
               td(cls := "p-2 border", "Create a new edge between nodes")
             ),
             tr(
-              td(cls := "p-2 border", "⌘ + Mouse wheel"),
+              td(
+                cls := "p-2 border",
+                kbd(cls := "kbd kbd-sm", "⌘"),
+                span(" + "),
+                kbd(cls := "kbd kbd-sm", "Mouse wheel")
+              ),
               td(cls := "p-2 border", "Zoom in/out")
             ),
             tr(
-              td(cls := "p-2 border", "Mouse wheel"),
+              td(
+                cls := "p-2 border",
+                kbd(cls := "kbd kbd-sm", "Mouse wheel")
+              ),
               td(cls := "p-2 border", "Pan vertically")
             ),
             tr(
-              td(cls := "p-2 border", "Shift + Mouse wheel"),
+              td(
+                cls := "p-2 border",
+                kbd(cls := "kbd kbd-sm", "Shift"),
+                span(" + "),
+                kbd(cls := "kbd kbd-sm", "Mouse wheel")
+              ),
               td(cls := "p-2 border", "Pan horizontally")
             ),
             tr(
-              td(cls := "p-2 border", "Click element"),
+              td(
+                cls := "p-2 border",
+                kbd(cls := "kbd kbd-sm", "Click"),
+                span(" element")
+              ),
               td(cls := "p-2 border", "Select element")
             ),
             tr(
-              td(cls := "p-2 border", "Shift + Click element"),
+              td(
+                cls := "p-2 border",
+                kbd(cls := "kbd kbd-sm", "Shift"),
+                span(" + "),
+                kbd(cls := "kbd kbd-sm", "Click"),
+                span(" element")
+              ),
               td(cls := "p-2 border", "Toggle element selection")
             )
           )

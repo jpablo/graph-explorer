@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.components.{Command, Commands}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import scala.scalajs.js
+import org.jpablo.graphexplorer.viewer.utils.intersperse
 
 def CommandsPanel(state: ViewerState, commands: Commands) =
   import state.owner
@@ -129,7 +130,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                       }
                     },
                     span(cmd.title),
-                    cmd.shortcut.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)),
+                    div(cmd.shortcut.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + "))),
                     onMouseDown.stopPropagation.preventDefault --> { e =>
                       cmd.action()
                       focusSearch.emit(true)

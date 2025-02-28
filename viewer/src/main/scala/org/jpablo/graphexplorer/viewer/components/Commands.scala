@@ -9,13 +9,15 @@ import org.scalajs.dom.window
 import scala.collection.immutable.VectorMap
 
 case class Command(
-    title:     String,
-    action:    () => Unit,
-    isVisible: Set[NodeId] => Boolean = _.nonEmpty,
-    shortcut:  Option[String] = None
+    title:       String,
+    action:      () => Unit,
+    isVisible:   Set[NodeId] => Boolean = _.nonEmpty,
+    shortcut:    List[String] = Nil,
+    description: Option[String] = None
 ):
   def titleWithShortcut =
-    shortcut.fold(title)(sh => s"$title ($sh)")
+    val sh = shortcut.mkString(" (", " + ", ")")
+    title + sh
 
 class Commands(state: ViewerState, router: Router):
 
@@ -32,18 +34,18 @@ class Commands(state: ViewerState, router: Router):
 
   val menuSections: VectorMap[String, List[Command]] = VectorMap(
     "Common" -> List(
-      Command("Add node", state.addNode, always, shortcut = Some("n"))
+      Command("Add node", state.addNode, always, shortcut = List("n"), description = Some("Add a new node"))
     ),
     "Selection" -> List(
-      Command("Hide", state.hideSelection, shortcut               = Some("h")),
-      Command("Hide others", state.hideNonSelectedNodes, shortcut = Some("Shift+h")),
-      Command("Delete", state.deleteSelection, shortcut           = Some("Backspace")),
-      Command("Duplicate", state.duplicateSelection, shortcut     = Some("d")),
-      Command("Group", state.groupSelectedNodes, shortcut         = Some("g")),
-      Command("Move to group", state.addSelectionToGroup, moveToGroupActionVisible),
-      Command("Clear selection", state.clearSelection, shortcut = Some("Esc")),
+      Command("Hide", state.hideSelection, shortcut               = List("h"), description = Some("Hide selected nodes")),
+      Command("Hide others", state.hideNonSelectedNodes, shortcut = List("Shift", "h"), description = Some("Hide all nodes except selected")),
+      Command("Delete", state.deleteSelection, shortcut           = List("Backspace"), description = Some("Delete selected nodes")),
+      Command("Duplicate", state.duplicateSelection, shortcut     = List("d"), description = Some("Duplicate selected nodes")),
+      Command("Group", state.groupSelectedNodes, shortcut         = List("g"), description = Some("Group selected nodes into a new group")),
+      Command("Move to group", state.addSelectionToGroup, moveToGroupActionVisible, description = Some("Add selected nodes to the selected group")),
+      Command("Clear selection", state.clearSelection, shortcut = List("Esc")),
       //
-      Command("Copy as SVG", state.copySelectionAsSVG, shortcut = Some("c"))
+      Command("Copy as SVG", state.copySelectionAsSVG, shortcut = List("c"))
     ),
     "Successors" -> List(
       Command("Show all successors", state.showAllSuccessors),
@@ -100,13 +102,13 @@ class Commands(state: ViewerState, router: Router):
   val List(undo, redo) = sections.undoRedo
   val List(navigateHome, changeProjectName, keyboardShortcuts) = sections.application
 
-  val commandsByShortcut: Map[String, Command] =
+  val commandsByShortcut: Map[List[String], Command] =
     menuSections.values.flatten
-      .collect { case c @ Command(_, _, _, Some(shortcut)) => shortcut -> c }
+      .collect { case c @ Command(_, _, _, sh @ _ :: _, _) => sh -> c }
       .toMap
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
-    val prefix = if ev.shiftKey then "Shift+" else ""
-    for cmd <- commandsByShortcut.get(prefix + ev.key) do
+    val sh = if ev.shiftKey then List("Shift", ev.key) else List(ev.key)
+    for cmd <- commandsByShortcut.get(sh) do
       ev.preventDefault()
       cmd.action()
