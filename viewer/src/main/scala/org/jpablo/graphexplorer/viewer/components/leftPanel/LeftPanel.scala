@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.tiny
+import com.raquo.laminar.api.features.unitArrows
 
 def LeftPanel(state: ViewerState, router: Router) =
   div(
@@ -16,7 +17,7 @@ def LeftPanel(state: ViewerState, router: Router) =
       title := "Toggle Library",
       cls("btn-active") <-- state.leftPanelVisible,
       i(cls := "bi bi-layout-sidebar"),
-      onClick --> { _ => state.leftPanelVisible.update(!_) }
+      onMouseDown --> state.leftPanelVisible.update(!_)
     ).tiny,
 
     // Panel content
