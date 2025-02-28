@@ -14,23 +14,19 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
       div(
         h3(cls := "text-lg font-bold mb-4", "Keyboard Shortcuts"),
         table(
-          cls := "min-w-full border-collapse",
+          cls := "table table-xs min-w-full border-collapse",
           thead(
             tr(
-              cls := "bg-gray-100",
-              th(cls := "p-2 text-left border", "Key"),
-              th(cls := "p-2 text-left border", "Action")
+              th("Key"),
+              th("Action")
             )
           ),
           tbody(
             for
               (shortcut, command) <- commands.commandsByShortcut.toSeq.sortBy(_._1.mkString(""))
             yield tr(
-              td(
-                cls := "p-2 border",
-                shortcut.map(kbd(cls := "kbd kbd-sm", _)).intersperse(span(" + "))
-              ),
-              td(cls := "p-2 border", command.description.getOrElse(command.title))
+              td(cls := "whitespace-nowrap", shortcut.map(kbd(cls := "kbd kbd-sm", _)).intersperse(span(" + "))),
+              td(command.description.getOrElse(command.title))
             )
           )
         )
@@ -39,61 +35,54 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
       div(
         h3(cls := "text-lg font-bold mb-4", "Mouse Controls"),
         table(
-          cls := "min-w-full border-collapse",
+          cls := "table table-xs min-w-full border-collapse",
           thead(
             tr(
-              cls := "bg-gray-100",
-              th(cls := "p-2 text-left border", "Action"),
-              th(cls := "p-2 text-left border", "Description")
+              th("Action"),
+              th("Description")
             )
           ),
           tbody(
             tr(
               td(
-                cls := "p-2 border", 
                 kbd(cls := "kbd kbd-sm", "Click"), 
                 span(" + "), 
                 kbd(cls := "kbd kbd-sm", "Drag"), 
                 span(" between nodes")
               ),
-              td(cls := "p-2 border", "Create a new edge between nodes")
+              td("Create a new edge between nodes")
             ),
             tr(
               td(
-                cls := "p-2 border",
                 kbd(cls := "kbd kbd-sm", "⌘"),
                 span(" + "),
                 kbd(cls := "kbd kbd-sm", "Mouse wheel")
               ),
-              td(cls := "p-2 border", "Zoom in/out")
+              td("Zoom in/out")
             ),
             tr(
               td(
-                cls := "p-2 border",
                 kbd(cls := "kbd kbd-sm", "Mouse wheel")
               ),
-              td(cls := "p-2 border", "Pan vertically")
+              td("Pan vertically")
             ),
             tr(
               td(
-                cls := "p-2 border",
                 kbd(cls := "kbd kbd-sm", "Shift"),
                 span(" + "),
                 kbd(cls := "kbd kbd-sm", "Mouse wheel")
               ),
-              td(cls := "p-2 border", "Pan horizontally")
+              td("Pan horizontally")
             ),
             tr(
               td(
-                cls := "p-2 border",
                 kbd(cls := "kbd kbd-sm", "Click"),
                 span(" element")
               ),
-              td(cls := "p-2 border", "Select element")
+              td("Select element")
             ),
             tr(
               td(
-                cls := "p-2 border",
                 kbd(cls := "kbd kbd-sm", "Shift"),
                 span(" + "),
                 kbd(cls := "kbd kbd-sm", "Click"),

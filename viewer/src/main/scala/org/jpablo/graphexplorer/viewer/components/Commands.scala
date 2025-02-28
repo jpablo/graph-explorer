@@ -45,7 +45,7 @@ class Commands(state: ViewerState, router: Router):
       Command("Move to group", state.addSelectionToGroup, moveToGroupActionVisible, description = Some("Add selected nodes to the selected group")),
       Command("Clear selection", state.clearSelection, shortcut = List("Esc")),
       //
-      Command("Copy as SVG", state.copySelectionAsSVG, shortcut = List("c"))
+      Command("Copy as SVG", state.copySelectionAsSVG, shortcut = List("c"), description = Some("Copy the selected nodes as SVG to the clipboard"))
     ),
     "Successors" -> List(
       Command("Show all successors", state.showAllSuccessors),
