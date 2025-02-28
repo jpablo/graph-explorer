@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.tiny
+import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import com.raquo.laminar.api.features.unitArrows
 
 def LeftPanel(state: ViewerState, router: Router) =
@@ -39,8 +40,18 @@ def LeftPanel(state: ViewerState, router: Router) =
         div(
           cls := "flex items-center gap-2 border-b border-base-300",
           div(
-            cls := "flex items-center gap-2 flex-grow overflow-hidden", // Add padding to account for the button
-            h2(cls := "text-lg font-bold", "Library")
+            cls := "flex items-center justify-between w-full",
+            h2(cls := "text-lg font-bold", "Library"),
+            button(
+              cls := "btn btn-ghost btn-xs",
+              title := "Create Project",
+              span().plusCircleIcon,
+              onClick --> { _ =>
+                // Add a new entry to the project directory and navigate to it
+                val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
+                router.navigateTo(Route.ProjectDetail(id.value))
+              }
+            )
           )
         ),
 
