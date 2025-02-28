@@ -104,7 +104,7 @@ class Commands(state: ViewerState, router: Router):
 
   val commandsByShortcut: Map[List[String], Command] =
     menuSections.values.flatten
-      .collect { case c @ Command(_, _, _, sh @ _ :: _, _) => sh -> c }
+      .collect { case c: Command if c.shortcut.nonEmpty => c.shortcut -> c }
       .toMap
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
