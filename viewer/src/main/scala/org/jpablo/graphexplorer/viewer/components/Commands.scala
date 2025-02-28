@@ -41,47 +41,47 @@ class Commands(state: ViewerState, router: Router):
       Command("Hide others", state.hideNonSelectedNodes, shortcut = List("Shift", "h"), description = Some("Hide all nodes except selected")),
       Command("Delete", state.deleteSelection, shortcut           = List("Backspace"), description = Some("Delete selected nodes")),
       Command("Duplicate", state.duplicateSelection, shortcut     = List("d"), description = Some("Duplicate selected nodes")),
-      Command("Group", state.groupSelectedNodes, shortcut         = List("g"), description = Some("Group selected nodes into a new group")),
+      Command("Group", state.groupSelectedNodes, shortcut         = List("g"), description = Some("Add selected nodes into a new group")),
       Command("Move to group", state.addSelectionToGroup, moveToGroupActionVisible, description = Some("Add selected nodes to the selected group")),
       Command("Clear selection", state.clearSelection, shortcut = List("Esc")),
       //
       Command("Copy as SVG", state.copySelectionAsSVG, shortcut = List("c"), description = Some("Copy the selected nodes as SVG to the clipboard"))
     ),
     "Successors" -> List(
-      Command("Show all successors", state.showAllSuccessors),
-      Command("Show direct successors", state.showDirectSuccessors),
-      Command("Select all successors", state.selectSuccessors),
-      Command("Select direct successors", state.selectDirectSuccessors)
+      Command("Show all successors", state.showAllSuccessors, description = Some("Show all successors of the selected nodes")),
+      Command("Show direct successors", state.showDirectSuccessors, description = Some("Show direct successors of the selected nodes")),
+      Command("Select all successors", state.selectSuccessors, description = Some("Select all successors of the selected nodes")),
+      Command("Select direct successors", state.selectDirectSuccessors, description = Some("Select direct successors of the selected nodes"))
     ),
     "Predecessors" -> List(
-      Command("Show all predecessors", state.showAllPredecessors),
-      Command("Show direct predecessors", state.showDirectPredecessors),
-      Command("Select all predecessors", state.selectPredecessors),
-      Command("Select direct predecessors", state.selectDirectPredecessors)
+      Command("Show all predecessors", state.showAllPredecessors, description = Some("Show all predecessors of the selected nodes")),
+      Command("Show direct predecessors", state.showDirectPredecessors, description = Some("Show direct predecessors of the selected nodes")),
+      Command("Select all predecessors", state.selectPredecessors, description = Some("Select all predecessors of the selected nodes")),
+      Command("Select direct predecessors", state.selectDirectPredecessors, description = Some("Select direct predecessors of the selected nodes"))
     ),
     "View" -> List(
-      Command("Roots only", state.keepRootsOnly, always),
-      Command("Show all", state.showAllNodes, always),
-      Command("Hide all", state.hideAllNodes, always)
+      Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors")),
+      Command("Show all", state.showAllNodes, always, description = Some("Show all nodes")),
+      Command("Hide all", state.hideAllNodes, always, description = Some("Hide all nodes"))
     ),
     "Export" -> List(
-      Command("as SVG", state.copyAsFullDiagramSVG, always),
-      Command("as DOT", state.copyAsDOT, always),
-      Command("as JSON DOT AST", state.copyAsJSON, always)
+      Command("as SVG", state.copyAsFullDiagramSVG, always, description = Some("Copy the full diagram as SVG to the clipboard")),
+      Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard")),
+      Command("as JSON DOT AST", state.copyAsJSON, always, description = Some("Copy the full diagram as JSON DOT AST to the clipboard"))
     ),
     "Zoom" -> List(
-      Command("Zoom out", () => state.zoomValue.update(_ * 0.9), always),
-      Command("Fit", () => state.fitDiagram.emit(()), always),
-      Command("Zoom in", () => state.zoomValue.update(_ * 1.1), always)
+      Command("Zoom out", () => state.zoomValue.update(_ * 0.9), always, description = Some("Zoom out the diagram")),
+      Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen")),
+      Command("Zoom in", () => state.zoomValue.update(_ * 1.1), always, description = Some("Zoom in the diagram"))
     ),
     "Undo/Redo" -> List(
-      Command("Undo", () => state.undoEvent.emit(()), always),
-      Command("Redo", () => state.redoEvent.emit(()), always)
+      Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action")),
+      Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
     ),
     "Application" -> List(
-      Command("Navigate home", () => router.navigateTo(Route.Home), always),
-      Command("Change project name", changeProjectNameAction, always),
-      Command("Help - Keyboard Shortcuts", () => state.shortcutsModalOpen.set(true), always)
+      Command("Navigate home", () => router.navigateTo(Route.Home), always, description = Some("Navigate to the home page")),
+      Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
+      Command("Help - Keyboard Shortcuts", () => state.shortcutsModalOpen.set(true), always, description = Some("Open the keyboard shortcuts help dialog"))
     )
   )
 

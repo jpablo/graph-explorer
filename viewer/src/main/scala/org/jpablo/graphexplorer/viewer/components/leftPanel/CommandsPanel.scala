@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import scala.scalajs.js
 import org.jpablo.graphexplorer.viewer.utils.intersperse
+import com.raquo.laminar.api.L.title
 
 def CommandsPanel(state: ViewerState, commands: Commands) =
   import state.owner
@@ -108,11 +109,11 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
             val flattenedCmds = allVisibleCmds.values.flatten.toList
             // Build the UI elements with sections
             for
-              (title, visibleCmds) <- allVisibleCmds.toSeq
+              (cmdTitle, visibleCmds) <- allVisibleCmds.toSeq
               // Only include section if it has visible commands
               if visibleCmds.nonEmpty
               // Create section title
-              titleElement = li(cls := "menu-title", h1(title), hr())
+              titleElement = li(cls := "menu-title", h1(cmdTitle), hr())
               // Create command rows
               commandRows = visibleCmds.map { cmd =>
                 // Find the index of this command in the flat list
@@ -122,6 +123,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                   a(
                     idAttr := s"cmd-${cmd.title.replace(" ", "-").toLowerCase}",
                     cls    := "flex justify-between",
+                    title := cmd.description.getOrElse(cmd.title),
                     cls("active") <-- isActive,
                     inContext { thisNode =>
                       isActive --> { isActive =>
