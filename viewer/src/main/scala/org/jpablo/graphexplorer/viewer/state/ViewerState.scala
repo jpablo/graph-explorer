@@ -195,6 +195,9 @@ case class ViewerState(
     for groupNodeId <- classified.clusters.headOption do
       sourceFlow.fullGraphV.update(_.addToGroup(GroupId(groupNodeId.value), classified.nodes))
 
+  def ungroupSelection() =
+    sourceFlow.fullGraphV.update(_.ungroupSelection(diagramSelection.now()))
+
   def clearSelection() =
     diagramSelection.clear()
 

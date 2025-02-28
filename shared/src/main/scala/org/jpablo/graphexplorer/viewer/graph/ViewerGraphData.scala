@@ -37,6 +37,20 @@ case class ViewerGraphData(
   def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraphData =
     copy(memberships = memberships ++ nodeIds.map(_ -> groupId))
 
+  def ungroup(ids: Set[ElementId]): ViewerGraphData =
+    // For each id, find its current group (parent) and that group's parent (grandparent)
+    val newMemberships = ids.foldLeft(memberships) { (mems, id) =>
+      val currentGroup = getMembership(id)
+      // Only process if not already in root group
+      if currentGroup == rootId then mems
+      else
+        // Find the grandparent (parent's parent), defaulting to root if none
+        val grandparent = getMembership(currentGroup)
+        // Remove current membership and add to grandparent if not root
+        mems - id + (id -> grandparent)
+    }
+    copy(memberships = newMemberships)
+
   def removeEmptyGroups: ViewerGraphData =
     // the root group is not added to memberships, so it will appear empty
     val nonEmptyGroupIds = memberships.values.toSet + rootId

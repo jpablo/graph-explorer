@@ -126,6 +126,12 @@ case class ViewerGraph(
   def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraph =
     modifyData.using(_.addToGroup(groupId, nodeIds))
 
+  def ungroupSelection(ids: Set[NodeId]): ViewerGraph =
+    val validIds: Set[ElementId] = ids.collect:
+      case id if id in nodeById => id: ElementId
+      case id if GroupId(id.value) in data.groups => id: ElementId
+    modifyData.using(_.ungroup(validIds))
+
   def root: ViewerGroup = data.root
 
   def getRootAttributes(target: AttributeTarget): Attributes =

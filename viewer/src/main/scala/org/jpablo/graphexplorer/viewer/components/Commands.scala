@@ -43,6 +43,7 @@ class Commands(state: ViewerState, router: Router):
       Command("Duplicate", state.duplicateSelection, shortcut     = List("d"), description = Some("Duplicate selected nodes")),
       Command("Group", state.groupSelectedNodes, shortcut         = List("g"), description = Some("Add selected nodes into a new group")),
       Command("Move to group", state.addSelectionToGroup, moveToGroupActionVisible, description = Some("Add selected nodes to the selected group")),
+      Command("Ungroup", state.ungroupSelection, shortcut = List("u"), description = Some("Remove selected nodes from their current group")),
       Command("Clear selection", state.clearSelection, shortcut = List("Esc")),
       //
       Command("Copy as SVG", state.copySelectionAsSVG, shortcut = List("c"), description = Some("Copy the selected nodes as SVG to the clipboard"))
