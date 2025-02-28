@@ -119,18 +119,5 @@ class RightPanel(state: ViewerState):
       .amend(cls("hidden") <-- !isVisible(idx))
 
   private def tabEdges(idx: Int) =
-    div(
-      cls("hidden") <-- !isVisible(idx),
-      form(
-        idAttr := "edges-panel-controls",
-        Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),
-        Search(
-          placeholder := "filter",
-          controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
-        ).smallInput
-      ),
-      div(
-        idAttr := "edges-panel-contents",
-        EdgesList(state, onlyActiveEdges, filterEdgesByNodeId.signal)
-      )
-    )
+    EdgesList(state, onlyActiveEdges, filterEdgesByNodeId)
+      .amend(cls("hidden") <-- !isVisible(idx))

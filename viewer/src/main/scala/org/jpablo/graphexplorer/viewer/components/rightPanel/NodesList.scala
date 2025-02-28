@@ -29,6 +29,7 @@ def NodesList(
         ).smallInput,
         button(
           cls := "btn btn-xs",
+          title := "Select filtered nodes",
           "Select",
           onClick.preventDefault(_.sample(filteredGraph)) --> { graph =>
             state.diagramSelection.set(graph.nodesSet.map(_.id))
