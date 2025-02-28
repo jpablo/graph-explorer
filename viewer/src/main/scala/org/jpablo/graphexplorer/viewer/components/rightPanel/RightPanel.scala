@@ -13,8 +13,6 @@ import org.jpablo.graphexplorer.viewer.widgets.Icons.layoutSidebarReverseIcon
 
 class RightPanel(state: ViewerState):
   private val visibleTab = state.rightPanelTabIndex
-  private val filterNodesByNodeId = Var("")
-  private val filterEdgesByNodeId = Var("")
   private val onlyActiveNodes = Var(false)
   private val onlyActiveEdges = Var(false)
 
@@ -115,9 +113,9 @@ class RightPanel(state: ViewerState):
     )
 
   private def tabNodes(idx: Int) =
-    NodesList(state, onlyActiveNodes, filterNodesByNodeId)
+    NodesList(state, onlyActiveNodes)
       .amend(cls("hidden") <-- !isVisible(idx))
 
   private def tabEdges(idx: Int) =
-    EdgesList(state, onlyActiveEdges, filterEdgesByNodeId)
+    EdgesList(state, onlyActiveEdges)
       .amend(cls("hidden") <-- !isVisible(idx))

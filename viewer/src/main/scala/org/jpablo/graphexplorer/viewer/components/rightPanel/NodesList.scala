@@ -12,9 +12,9 @@ import org.jpablo.graphexplorer.viewer.widgets.smallInput
 
 def NodesList(
     state:          ViewerState,
-    onlyActiveVar:  Var[Boolean],
-    filterVar:      Var[String]
+    onlyActiveVar:  Var[Boolean]
 ): ReactiveHtmlElement[dom.HTMLDivElement] =
+  val filterVar = Var("")
   val filteredGraph = filteredDiagramEvent(state, onlyActiveVar.signal, filterVar.signal)
 
   div(

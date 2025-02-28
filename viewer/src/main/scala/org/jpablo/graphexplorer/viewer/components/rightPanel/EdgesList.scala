@@ -13,8 +13,8 @@ import com.raquo.airstream.state.Var
 def EdgesList(
     state: ViewerState,
     onlyActiveEdges: Var[Boolean],
-    filterEdgesByNodeId: Var[String]
 ): ReactiveHtmlElement[dom.HTMLDivElement] =
+  val filterEdgesByNodeId = Var("")
 
   def arrowEndpoints(arrow: Arrow): (String, String) =
     val Seq(sourceNode, targetNode) = state.getNodeById(Seq(arrow.source, arrow.target))
@@ -26,10 +26,27 @@ def EdgesList(
     form(
       idAttr := "edges-panel-controls",
       Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),
-      Search(
-        placeholder := "filter",
-        controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
-      ).smallInput
+      div(
+        cls := "flex gap-2",
+        Search(
+          placeholder := "filter",
+          controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
+        ).smallInput,
+        button(
+          cls := "btn btn-xs",
+          title := "Select filtered edges",
+          "Select",
+          onClick.preventDefault(_.sample(state.fullGraph.combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS))) --> { case (fullGraph, onlyActive, str, hiddenNodes) =>
+            val filteredEdges = fullGraph
+              .orElse(!onlyActive, _.removeNodes(hiddenNodes))
+              .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
+              .toList
+              .map(_.id)
+              .toSet
+            state.diagramSelection.set(filteredEdges)
+          }
+        )
+      )
     ),
     div(
       idAttr := "edges-panel-contents",
@@ -58,7 +75,8 @@ def EdgesList(
                     td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.source), sourceLabel),
                     td("→"),
                     td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), targetLabel),
-                    onClick.map(_.metaKey) --> state.diagramSelection.handleClickOnArrow(arrow),
+                    onMouseDown.preventDefault --> Observer.empty,
+                    onClick.map(_.shiftKey) --> state.diagramSelection.handleClickOnArrow(arrow),
                     onDblClick
                       .preventDefault
                       .stopPropagation(_.sample(state.isEdgeVisible(arrow.id))) --> { visible =>

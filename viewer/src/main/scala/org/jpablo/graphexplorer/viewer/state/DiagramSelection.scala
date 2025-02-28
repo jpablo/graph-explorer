@@ -60,9 +60,9 @@ class DiagramSelectionOps:
     else
       set(Set(nodeId))
 
-  def handleClickOnArrow(arrow: Arrow)(metaKey: Boolean) =
+  def handleClickOnArrow(arrow: Arrow)(shiftKey: Boolean) =
     val nodeId = arrow.id
-    if metaKey then
+    if shiftKey then
       toggle(nodeId)
     else
       set(Set(nodeId))
