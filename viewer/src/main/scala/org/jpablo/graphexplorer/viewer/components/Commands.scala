@@ -46,6 +46,7 @@ class Commands(state: ViewerState, router: Router):
       Command("Ungroup", state.ungroupSelection, shortcut = List("u"), description = Some("Remove selected nodes from their current group")),
       Command("Clear selection", state.clearSelection, shortcut = List("Esc")),
       //
+      Command("Select group members", state.selectGroupMembers, shortcut = List("m"), description = Some("Select all nodes that are members of the selected group")),
       Command("Copy as SVG", state.copySelectionAsSVG, shortcut = List("c"), description = Some("Copy the selected nodes as SVG to the clipboard"))
     ),
     "Successors" -> List(

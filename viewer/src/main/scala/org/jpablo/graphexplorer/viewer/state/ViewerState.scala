@@ -198,6 +198,25 @@ case class ViewerState(
   def ungroupSelection() =
     sourceFlow.fullGraphV.update(_.ungroupSelection(diagramSelection.now()))
 
+  def selectGroupMembers() =
+    val selection = diagramSelection.now()
+    val classified = classifyNodes(selection.toSeq)
+    
+    // If we have clusters/groups in the selection, find their members
+    if classified.clusters.nonEmpty then
+      val groupIds = classified.clusters.map(id => GroupId(id.value)).toSet
+      val fullGraphSnapshot = sourceFlow.fullGraph.now()
+      
+      // Get all node ids that are members of the selected groups
+      val memberNodeIds = fullGraphSnapshot.data.memberships
+        .collect { 
+          case (nodeId: NodeId, groupId) if groupIds.contains(groupId) => nodeId 
+        }
+        .toSet
+      
+      // Keep the original groups/clusters in the selection and add all members
+      diagramSelection.set(selection ++ memberNodeIds)
+
   def clearSelection() =
     diagramSelection.clear()
 
