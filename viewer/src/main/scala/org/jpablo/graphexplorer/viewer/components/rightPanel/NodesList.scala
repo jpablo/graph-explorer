@@ -15,6 +15,8 @@ def NodesList(
     onlyActiveVar:  Var[Boolean],
     filterVar:      Var[String]
 ): ReactiveHtmlElement[dom.HTMLDivElement] =
+  val filteredGraph = filteredDiagramEvent(state, onlyActiveVar.signal, filterVar.signal)
+
   div(
     form(
       idAttr := "nodes-panel-controls",
@@ -27,11 +29,9 @@ def NodesList(
         ).smallInput,
         button(
           cls := "btn btn-xs",
-          "Select All",
-          onClick.preventDefault --> { _ =>
-            given Owner = state.owner
-            val filteredGraph = filteredDiagramEvent(state, onlyActiveVar.signal, filterVar.signal).observe().now()
-            state.diagramSelection.set(filteredGraph.nodesSet.map(_.id))
+          "Select",
+          onClick.preventDefault(_.sample(filteredGraph)) --> { graph =>
+            state.diagramSelection.set(graph.nodesSet.map(_.id))
           }
         )
       )
@@ -40,19 +40,19 @@ def NodesList(
       idAttr := "nodes-panel-contents",
       table(
         cls := "table table-xs table-pin-rows",
-        thead(tr(th("Label"), th("NodeId"))),
+        thead(tr(th("NodeId"), th("Label"))),
         tbody(
           children <--
-            filteredDiagramEvent(state, onlyActiveVar.signal, filterVar.signal)
+            filteredGraph
               .map(_.nodesSet.toList.sortBy(_.id.value))
               .map:
                 _.map: node =>
                   tr(
                     cls := "whitespace-nowrap hover cursor-pointer",
                     cls("font-bold") <-- state.isNodeVisible(node.id),
-                    cls("selected") <-- state.isSelected(node.id),
-                    td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.label.toString),
-                    td(cls := "truncate", cls("italic") <-- state.isSelected(node.id), node.id.toString),
+                    cls("bg-base-200") <-- state.isSelected(node.id),
+                    td(cls := "truncate", node.id.toString),
+                    td(cls := "truncate", node.label.toString),
                     onMouseDown.preventDefault --> Observer.empty,
                     onClick.preventDefault.map(_.shiftKey) --> state.diagramSelection.handleClickOnNode(node.id),
                     onDblClick
