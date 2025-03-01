@@ -2,9 +2,10 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.components.{Commands, Point2d}
+import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
+import org.jpablo.graphexplorer.viewer.utils.Point2d
 
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
   *

@@ -2,11 +2,12 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-import org.jpablo.graphexplorer.viewer.components.{Action, Point2d, SelectionRect}
+import org.jpablo.graphexplorer.viewer.components.{Action, UserActionRect}
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.utils.Point2d
 
 import scala.scalajs.js
 
@@ -73,10 +74,10 @@ class DiagramSelectionOps:
   val selectionRectLine: Var[Option[Action.Line]] = Var(None)
 
   def startSelectionArea(pos: Point2d[Double], shift: Boolean): Unit =
-    selectionRectArea.set(Some(Action.Area(SelectionRect(pos.x, pos.y, pos.x, pos.y, shift))))
+    selectionRectArea.set(Some(Action.Area(UserActionRect(pos.x, pos.y, pos.x, pos.y, shift))))
 
   def startSelectionLine(pos: Point2d[Double], shift: Boolean, start: SelectableElement): Unit =
-    selectionRectLine.set(Some(Action.Line(SelectionRect(pos.x, pos.y, pos.x, pos.y, shift), start)))
+    selectionRectLine.set(Some(Action.Line(UserActionRect(pos.x, pos.y, pos.x, pos.y, shift), start)))
 
   def updateSelection(pos: Point2d[Double], shift: Boolean): Unit =
     selectionRectArea.update(_.map(_.modify(_.rect).using(_.copy(endX = pos.x, endY = pos.y, shift = shift))))
@@ -89,7 +90,7 @@ class DiagramSelectionOps:
     selectionRectLine.set(None)
 
   def handleSelectionLineUpdate(
-      rect:                SelectionRect,
+      rect:                UserActionRect,
       start:               SelectableElement,
       elementsFromRectEnd: js.Array[dom.Element]
   ) =
@@ -100,7 +101,7 @@ class DiagramSelectionOps:
       case None      => set(Set(start.nodeId))
 
   def handleSelectionAreaUpdate(
-      rect:                SelectionRect,
+      rect:                UserActionRect,
       selectableElements:  Seq[SelectableElement],
       elementsFromRectEnd: js.Array[dom.Element]
   ) =
@@ -122,7 +123,7 @@ class DiagramSelectionOps:
   /** Finds the node ID at the given selection rectangle's end point
     */
   private def findNode(
-      rect:     SelectionRect,
+      rect:     UserActionRect,
       elements: js.Array[dom.Element],
       selector: String = "g.node, g.edge, g.cluster"
   ): Option[NodeId] =
@@ -147,7 +148,7 @@ class DiagramSelectionOps:
     *   1. Gets the element's bounding box in client coordinates 2. Normalizes the selection rect coordinates to handle
     *      any direction of dragging 3. Uses a standard rectangle intersection test
     */
-  def isNodeInRect(elem: SelectableElement, rect: SelectionRect): Boolean =
+  def isNodeInRect(elem: SelectableElement, rect: UserActionRect): Boolean =
     val bbox = elem.get.getBoundingClientRect()
     val normalizedRect = (
       x      = rect.startX.min(rect.endX),

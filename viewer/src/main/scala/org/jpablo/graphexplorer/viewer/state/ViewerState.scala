@@ -16,6 +16,7 @@ import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, GroupId, NodeId, ViewerNode}
 import org.scalajs.dom.{SVGMatrix, SVGRect}
 import upickle.default.*
+import org.jpablo.graphexplorer.viewer.utils.*
 
 case class ViewerState(
     projectId:     ProjectId,
@@ -201,16 +202,16 @@ case class ViewerState(
   def selectGroupMembers() =
     val selection = diagramSelection.now()
     val classified = classifyNodes(selection.toSeq)
-    
+
     // If we have clusters/groups in the selection, find their members
     if classified.clusters.nonEmpty then
       val groupIds = classified.clusters.map(id => GroupId(id.value)).toSet
       val fullGraphSnapshot = sourceFlow.fullGraph.now()
-      
+
       // Get all node ids that are members of the selected groups
       val memberNodeIds = fullGraphSnapshot.data.getAllChildren(groupIds)
         .toSet.map(id => NodeId(id.value))
-      
+
       // Keep the original groups/clusters in the selection and add all members
       diagramSelection.set(selection ++ memberNodeIds)
 

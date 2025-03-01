@@ -11,20 +11,15 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.ViewerState.toSVGCoords
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
+import org.jpablo.graphexplorer.viewer.utils.{MathOps, Point2d}
 
 
-trait MathOps[A]:
-  extension (a: A)
-    def -(b: A): A
-    def *(z: A): A
-
-type Point2d[A] = (x: A, y: A)
 
 enum Action:
-  case Area(rect: SelectionRect)
-  case Line(rect: SelectionRect, start: SelectableElement)
+  case Area(rect: UserActionRect)
+  case Line(rect: UserActionRect, start: SelectableElement)
 
-case class SelectionRect(
+case class UserActionRect(
   startX: Double, // in client space
   startY: Double, // in client space
     endX: Double, // in client space
@@ -37,10 +32,6 @@ case class SelectionRect(
     (p0, p1)
 
   def isEmpty: Boolean = startX == endX && startY == endY
-
-extension [A](a: Point2d[A])(using MathOps[A])
-  def -(b: Point2d[A]): Point2d[A] = (x = a.x - b.x, y = a.y - b.y)
-  def *(b: A): Point2d[A] = (a.x * b, a.y * b)
 
 case class SvgUnit(value: Double) extends AnyVal:
   override def toString: String = value.toString
