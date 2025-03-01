@@ -47,6 +47,27 @@ case class ViewerGraphData(
     else
       explicitChildren
 
+  /** Returns all children elements within the specified groups, including nested elements.
+    * This includes direct children as well as children of any subgroups recursively.
+    *
+    * @param groupIds The set of group IDs to retrieve children for
+    * @return A set of all element IDs that are direct or indirect children of the specified groups
+    */
+  def getAllChildren(groupIds: Set[GroupId]): Set[ElementId] =
+    // Get the direct children first
+    val directChildren = getDirectChildren(groupIds)
+    
+    // Find which of the direct children are groups themselves
+    val childGroups = directChildren.collect {
+      case elementId if GroupId(elementId.value) in groups => GroupId(elementId.value)
+    }
+    
+    // Base case: no child groups, return just the direct children
+    if childGroups.isEmpty then directChildren
+    else
+      // Recursive case: combine direct children with all children of child groups
+      directChildren ++ getAllChildren(childGroups)
+
   def addArrow(source: NodeId, target: NodeId): (ViewerGraphData, Arrow) =
     val newSeq = maxArrowSequence(source, target)
     val arrow = Arrow(source, target, seq = newSeq + 1)
