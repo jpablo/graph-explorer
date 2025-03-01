@@ -62,7 +62,7 @@ label[for ^= show-ns-kind-] {
         @apply bg-base-200 rounded;
       }
     }
-    
+
     #diagram-attributes-content {
       @apply p-2;
     }
@@ -107,22 +107,22 @@ label[for ^= show-ns-kind-] {
         background-color: rgba(251, 191, 36, .1);
       }
     }
-    
+
     #diagram-attributes {
       @apply h-full overflow-hidden flex flex-col;
-      
+
       > div {
         @apply h-full flex flex-col overflow-hidden;
       }
-      
+
       .divider {
         @apply flex-none;
       }
-      
+
       #diagram-attributes-content {
         @apply overflow-y-auto p-2 flex-grow;
       }
-      
+
       .selection-attributes {
         @apply overflow-y-auto h-full;
       }
@@ -189,9 +189,9 @@ label[for ^= show-ns-kind-] {
 
         g {
           .selected-border {
-            fill: none;
+            fill: rgba(255, 165, 0, 0.15);
             stroke: #2c70ff;
-            stroke-width: .5;
+            // stroke-width: .5;
           }
         }
 

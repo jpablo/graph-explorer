@@ -18,12 +18,36 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
 
   def selectedRect() =
     val bbox = ref.getBBox()
-    val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
+    // Get SVG element and its viewBox
+    val svgElement = ref.closest("svg").asInstanceOf[dom.SVGSVGElement]
     val extra = 2
+    // Calculate a stroke width that remains visually consistent at different zoom levels
+    // by accounting for the SVGs transformation to screen coordinates
+    val svgScreenCTM = svgElement.getScreenCTM()
+    // Get the scaling factor from the transformation matrix
+    val (scaleX, scaleY) = if svgScreenCTM != null then (svgScreenCTM.a, svgScreenCTM.d) else (1.0, 1.0)
+    // Calculate average scale and use inverse to get a width that appears constant
+    val avgScale = (scaleX + scaleY) / 2
+    val desiredScreenWidth = 1.5 // Desired width in screen pixels
+    // For very large graphs (small scale), ensure we meet the minimum screen pixel width
+    val minRequiredSvgWidth = desiredScreenWidth / avgScale
+    // Apply reasonable bounds for the SVG stroke width
+    val maxSvgWidth = 10.0 // Increased max for very large graphs with small scale factors
+    val finalStrokeWidth = math.min(math.max(minRequiredSvgWidth, 0.5), maxSvgWidth)
+    // Calculate and log the actual pixel width on screen
+    // val actualPixelWidth = finalStrokeWidth * avgScale
+    // println(s"SVG stroke width: $finalStrokeWidth units")
+    // println(s"Screen pixel width: $actualPixelWidth pixels")
+    // println(s"Scale factor: $avgScale")
+
+    val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
     rect.setAttribute("x", (bbox.x - extra).toString)
     rect.setAttribute("y", (bbox.y - extra).toString)
     rect.setAttribute("width", (bbox.width + extra * 2).toString)
     rect.setAttribute("height", (bbox.height + extra * 2).toString)
+    rect.setAttribute("stroke-width", finalStrokeWidth.toString)
+    rect.setAttribute("rx", "3")
+    rect.setAttribute("ry", "3")
     rect.classList.add(selectionRectClass)
     rect
 
