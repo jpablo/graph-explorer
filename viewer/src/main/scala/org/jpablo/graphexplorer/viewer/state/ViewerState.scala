@@ -8,15 +8,14 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
-import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, GroupId, NodeId, ViewerNode}
-import org.scalajs.dom.{SVGMatrix, SVGRect}
+import org.jpablo.graphexplorer.viewer.utils.SvgPoint
+import org.scalajs.dom.SVGRect
 import upickle.default.*
-import org.jpablo.graphexplorer.viewer.utils.*
 
 case class ViewerState(
     projectId:     ProjectId,
@@ -28,7 +27,7 @@ case class ViewerState(
   val project =
     ProjectOps(Var(Project(projectId)))
 
-  val translateXY = Var(SvgUnit.origin)
+  val translateXY = Var(SvgPoint.origin)
   val zoomValue = Var(1.0)
   val fitDiagram = EventBus[Unit]()
   val transform =
@@ -105,8 +104,10 @@ case class ViewerState(
     ids.flatMap(id => nodes.get(id))
 
   def resetView(): Unit =
-    zoomValue.set(0.90)
-    translateXY.set(SvgUnit.origin)
+    Var.set(
+      zoomValue   -> 0.90,
+      translateXY -> SvgPoint.origin
+    )
 
   def showAllNodes() =
     hiddenNodes.clear()
@@ -380,50 +381,18 @@ object ViewerState:
 
   def handleWheel(
       zoomValue:   Var[Double],
-      translateXY: Var[Point2d[SvgUnit]]
+      translateXY: Var[SvgPoint]
   )(wEv: dom.WheelEvent, viewBox: SVGRect) =
-    val clientHeight = dom.window.innerHeight.max(1)
-    val clientWidth = dom.window.innerWidth.max(1)
+    val clientHeight = dom.window.innerHeight max 1
+    val clientWidth = dom.window.innerWidth max 1
 
     if wEv.metaKey && wEv.deltaY != 0 then
       zoomValue.update: z =>
-        (z - wEv.deltaY / clientHeight).max(0.001)
+        z - wEv.deltaY / clientHeight max 0.001
     else
       val z = zoomValue.now()
-      val scale = (viewBox.width / clientWidth).max(viewBox.height / clientHeight)
-      val svgDelta = (SvgUnit(wEv.deltaX * scale / z), SvgUnit(wEv.deltaY * scale / z))
-      translateXY.update(_ - svgDelta)
-
-  /** Converts client (screen) coordinates to SVG coordinates by applying the inverse of the SVG element's
-    * transformation matrix.
-    * @param clientX
-    *   The x-coordinate in client (screen) space
-    * @param clientY
-    *   The y-coordinate in client (screen) space
-    * @param svgElement
-    *   The SVG element to transform coordinates relative to
-    * @return
-    *   An SVGPoint containing the transformed coordinates in SVG space
-    */
-  def toSVGCoords(
-      clientX:   Double, // px
-      clientY:   Double, // px
-      screenCtm: SVGMatrix
-  ): DOMPoint =
-    val point = new DOMPoint(clientX, clientY)
-    point.matrixTransform(screenCtm.inverse())
-
-  // def toSVGCoords(
-  //     rect:    dom.SVGRect, // px
-  //     svgElement: SVGSVGElement
-  // ): dom.SVGRect =
-  //   val rect = svgElement.createSVGRect()
-  //   val p0 = toSVGCoords(rect.x, rect.y, svgElement)
-  //   val p1 = toSVGCoords(rect.width, rect.height, svgElement)
-  //   rect.x = p0.x
-  //   rect.y = p0.y
-  //   rect.width = p1.x
-  //   rect.height = p1.y
-  //   rect
+      val scale = viewBox.width / clientWidth max viewBox.height / clientHeight
+      val delta = SvgPoint(wEv.deltaX * scale / z, wEv.deltaY * scale / z)
+      translateXY.update(_ - delta)
 
 end ViewerState

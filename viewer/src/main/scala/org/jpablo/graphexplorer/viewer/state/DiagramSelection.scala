@@ -2,12 +2,12 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-import org.jpablo.graphexplorer.viewer.components.{Action, UserActionRect}
+import org.jpablo.graphexplorer.viewer.components.Action
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import com.softwaremill.quicklens.*
-import org.jpablo.graphexplorer.viewer.utils.Point2d
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
 import scala.scalajs.js
 
@@ -73,15 +73,15 @@ class DiagramSelectionOps:
   val selectionRectArea: Var[Option[Action.Area]] = Var(None)
   val selectionRectLine: Var[Option[Action.Line]] = Var(None)
 
-  def startSelectionArea(pos: Point2d[Double], shift: Boolean): Unit =
-    selectionRectArea.set(Some(Action.Area(UserActionRect(pos.x, pos.y, pos.x, pos.y, shift))))
+  def startSelectionArea(pos: ClientPoint, shift: Boolean): Unit =
+    selectionRectArea.set(Some(Action.Area(UserActionRect(pos, pos, shift))))
 
-  def startSelectionLine(pos: Point2d[Double], shift: Boolean, start: SelectableElement): Unit =
-    selectionRectLine.set(Some(Action.Line(UserActionRect(pos.x, pos.y, pos.x, pos.y, shift), start)))
+  def startSelectionLine(pos: ClientPoint, shift: Boolean, start: SelectableElement): Unit =
+    selectionRectLine.set(Some(Action.Line(UserActionRect(pos, pos, shift), start)))
 
-  def updateSelection(pos: Point2d[Double], shift: Boolean): Unit =
-    selectionRectArea.update(_.map(_.modify(_.rect).using(_.copy(endX = pos.x, endY = pos.y, shift = shift))))
-    selectionRectLine.update(_.map(_.modify(_.rect).using(_.copy(endX = pos.x, endY = pos.y, shift = shift))))
+  def updateSelection(pos: ClientPoint, shift: Boolean): Unit =
+    selectionRectArea.update(_.map(_.modify(_.rect).using(_.copy(end = pos, shift = shift))))
+    selectionRectLine.update(_.map(_.modify(_.rect).using(_.copy(end = pos, shift = shift))))
 
   def endSelectionArea(): Unit =
     selectionRectArea.set(None)
@@ -90,13 +90,12 @@ class DiagramSelectionOps:
     selectionRectLine.set(None)
 
   def handleSelectionLineUpdate(
-      rect:                UserActionRect,
       start:               SelectableElement,
       elementsFromRectEnd: js.Array[dom.Element]
   ) =
     // Make sure only start or (start,end) nodes are selected when creating a new edge
     // For now only allow a line selection into nodes
-    findNode(rect, elementsFromRectEnd, "g.node") match
+    findNode(elementsFromRectEnd, "g.node") match
       case Some(end) => set(Set(start.nodeId, end))
       case None      => set(Set(start.nodeId))
 
@@ -107,7 +106,7 @@ class DiagramSelectionOps:
   ) =
     // This is meant to capture a single click.
     if rect.isEmpty then
-      findNode(rect, elementsFromRectEnd) match
+      findNode(elementsFromRectEnd) match
         case Some(end) => handleClickOnNode(end)(rect.shift)
         case None      => clear()
     else
@@ -123,7 +122,6 @@ class DiagramSelectionOps:
   /** Finds the node ID at the given selection rectangle's end point
     */
   private def findNode(
-      rect:     UserActionRect,
       elements: js.Array[dom.Element],
       selector: String = "g.node, g.edge, g.cluster"
   ): Option[NodeId] =
@@ -150,15 +148,13 @@ class DiagramSelectionOps:
     */
   def isNodeInRect(elem: SelectableElement, rect: UserActionRect): Boolean =
     val bbox = elem.get.getBoundingClientRect()
-    val normalizedRect = (
-      x      = rect.startX.min(rect.endX),
-      y      = rect.startY.min(rect.endY),
-      width  = math.abs(rect.endX - rect.startX),
-      height = math.abs(rect.endY - rect.startY)
-    )
-    !(bbox.right < normalizedRect.x ||
-      bbox.left > normalizedRect.x + normalizedRect.width ||
-      bbox.bottom < normalizedRect.y ||
-      bbox.top > normalizedRect.y + normalizedRect.height)
+    val x      = rect.start.x min rect.end.x
+    val y      = rect.start.y min rect.end.y
+    val width  = math.abs(rect.end.x - rect.start.x)
+    val height = math.abs(rect.end.y - rect.start.y)
+    !(bbox.right < x ||
+      bbox.left > x + width ||
+      bbox.bottom < y ||
+      bbox.top > y + height)
 
 end DiagramSelectionOps

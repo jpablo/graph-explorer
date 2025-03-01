@@ -5,19 +5,20 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-import org.jpablo.graphexplorer.viewer.components.{Action, BBox, SvgUnit}
+import org.jpablo.graphexplorer.viewer.components.Action
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
-import org.jpablo.graphexplorer.viewer.utils.Point2d
+import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
+import org.jpablo.graphexplorer.viewer.components.toSvgPair
 
 import scala.scalajs.js
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 object SvgCanvas:
 
-  def clientCoords(e: dom.MouseEvent): (Point2d[Double], Boolean) = ((e.clientX, e.clientY), e.shiftKey)
+  def clientCoords(e: dom.MouseEvent) = (ClientPoint(e.clientX, e.clientY), e.shiftKey)
 
   // rawSvg is the SVG element as it comes from DOT
   def apply(
@@ -33,7 +34,6 @@ object SvgCanvas:
       val g0 = rawSvg.querySelector("g")
       (if g0 == null then dom.document.createElement("g") else g0).asInstanceOf[dom.svg.G]
 
-    val (gX, gY) = getTranslate(firstGroup)
 
     // --------------------------------------------------------
     // The top level <g> element
@@ -60,7 +60,7 @@ object SvgCanvas:
                   // --------------------------------------------------------
                   btn.amend(
                     onMouseDown.stopPropagation --> { ev =>
-                      diagramSelection.startSelectionLine((ev.clientX, ev.clientY), shift = false, elem)
+                      diagramSelection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
                     },
                     onMouseUp.stopPropagation --> { _ =>
                       diagramSelection.endSelectionLine()
@@ -79,7 +79,8 @@ object SvgCanvas:
     // --------------------------------------------------------
     // The top level <svg> element
     // --------------------------------------------------------
-    val bbox = BBox(viewBox.x - gX.value, viewBox.y - gY.value, viewBox.width, viewBox.height)
+    val tr = getTranslate(firstGroup)
+    val bbox = BBox(viewBox.x - tr.x, viewBox.y - tr.y, viewBox.width, viewBox.height)
     selfContainedSvg(bbox)
       .amend(topLevelGroup)
       .amendThis { topLevelSvg =>
@@ -99,16 +100,15 @@ object SvgCanvas:
               diagramSelection.handleSelectionAreaUpdate(
                 rect,
                 selectableElements,
-                dom.document.elementsFromPoint(rect.endX, rect.endY)
+                dom.document.elementsFromPoint(rect.end.x, rect.end.y)
               )
           },
           diagramSelection.selectionRectLine.signal --> { (actionO: Option[Action.Line]) =>
             for action <- actionO do
               val rect = action.rect
               diagramSelection.handleSelectionLineUpdate(
-                rect,
                 action.start,
-                dom.document.elementsFromPoint(rect.endX, rect.endY)
+                dom.document.elementsFromPoint(rect.end.x, rect.end.y)
               )
           },
           // --------------------------------------------------------
@@ -139,8 +139,8 @@ object SvgCanvas:
 
   /** Gets the x,y translation values from an SVG group element's transform, or (0,0) if none exists
     */
-  private def getTranslate(g: dom.svg.G): Point2d[SvgUnit] =
-    if js.isUndefined(g.transform) then SvgUnit.origin
+  private def getTranslate(g: dom.svg.G): SvgPoint =
+    if js.isUndefined(g.transform) then SvgPoint.origin
     else
       val transformList = g.transform.baseVal
       val transformPoints =
@@ -148,9 +148,9 @@ object SvgCanvas:
           i <- 0 until transformList.numberOfItems
           transform = transformList.getItem(i)
           if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
-        yield (SvgUnit(transform.matrix.e), SvgUnit(transform.matrix.f))
+        yield SvgPoint(transform.matrix.e, transform.matrix.f)
 
-      transformPoints.headOption.getOrElse(SvgUnit.origin)
+      transformPoints.headOption.getOrElse(SvgPoint.origin)
 
   /** Creates a reactive SVG rectangle element representing the selection box when dragging.
     *
@@ -168,12 +168,12 @@ object SvgCanvas:
   ): Signal[Option[ReactiveSvgElement[dom.svg.RectElement]]] =
     action.map:
       _.flatMap: action =>
-        val (p0, p1) = action.rect.asSVGPair(svgElement.getScreenCTM())
+        val (p0, p1) = action.rect.toSvgPair(svgElement.getScreenCTM())
         Some(
           svg.rect(
             svg.idAttr := "selection-rectangle",
-            svg.x      := p0.x.min(p1.x).toString,
-            svg.y      := p0.y.min(p1.y).toString,
+            svg.x      := (p0.x min p1.x).toString,
+            svg.y      := (p0.y min p1.y).toString,
             svg.width  := math.abs(p1.x - p0.x).toString,
             svg.height := math.abs(p1.y - p0.y).toString
           )

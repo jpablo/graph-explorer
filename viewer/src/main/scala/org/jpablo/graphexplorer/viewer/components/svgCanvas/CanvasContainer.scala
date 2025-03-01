@@ -3,9 +3,9 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.Commands
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas.clientCoords
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
-import org.jpablo.graphexplorer.viewer.utils.Point2d
 
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
   *
@@ -20,8 +20,6 @@ def CanvasContainer(
     state:    ViewerState,
     commands: Commands
 ) =
-  def clientCoords(e: dom.MouseEvent): (Point2d[Double], Boolean) = ((e.clientX, e.clientY), e.shiftKey)
-
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,

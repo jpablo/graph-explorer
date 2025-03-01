@@ -4,6 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.Action
+import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 
 /** Creates a reactive SVG arrow element when dragging to create a new edge.
   *
@@ -21,10 +22,10 @@ def DraggingArrow(
 ): Signal[Option[ReactiveSvgElement[dom.svg.G]]] =
   rect.map:
     _.flatMap: action =>
-      val (p0, p1) = action.rect.asSVGPair(svgElement.getScreenCTM())
-      if p0 === p1 then
+      if action.rect.isEmpty then
         None
       else
+        val p1 = action.rect.end.toSvgPoint(svgElement.getScreenCTM())
         val bbox = action.start.get.getBBox()
         // Calculate center point
         val centerX = bbox.x + bbox.width / 2

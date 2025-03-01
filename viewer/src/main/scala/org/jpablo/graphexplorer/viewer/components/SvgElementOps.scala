@@ -5,47 +5,24 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
+import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.state.ViewerState.toSVGCoords
 import org.scalajs.dom
-import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
-import org.jpablo.graphexplorer.viewer.utils.{MathOps, Point2d}
-
-
+import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint, UserActionRect}
 
 enum Action:
   case Area(rect: UserActionRect)
   case Line(rect: UserActionRect, start: SelectableElement)
 
-case class UserActionRect(
-  startX: Double, // in client space
-  startY: Double, // in client space
-    endX: Double, // in client space
-    endY: Double, // in client space
-    shift: Boolean
-):
-  def asSVGPair(screenCtm: dom.SVGMatrix): (DOMPoint, DOMPoint) =
-    val p0 = toSVGCoords(startX, startY, screenCtm)
-    val p1 = toSVGCoords(endX, endY, screenCtm)
-    (p0, p1)
+extension (point: ClientPoint)
+  def toSvgPoint(screenCtm: dom.SVGMatrix): SvgPoint =
+    val DOMPoint = new DOMPoint(point.x, point.y).matrixTransform(screenCtm.inverse())
+    SvgPoint(DOMPoint.x, DOMPoint.y)
 
-  def isEmpty: Boolean = startX == endX && startY == endY
-
-case class SvgUnit(value: Double) extends AnyVal:
-  override def toString: String = value.toString
-
-object SvgUnit:
-  val origin: Point2d[SvgUnit] = (SvgUnit(0.0), SvgUnit(0.0))
-
-  given MathOps[SvgUnit]:
-    extension (a: SvgUnit)
-      def -(b: SvgUnit): SvgUnit = SvgUnit(a.value - b.value)
-      def *(z: SvgUnit): SvgUnit = SvgUnit(a.value * z.value)
-
-
-case class BBox(x: Double, y: Double, width: Double, height: Double)
+extension (rect: UserActionRect)
+  def toSvgPair(screenCtm: dom.SVGMatrix): (SvgPoint, SvgPoint) =
+    (rect.start.toSvgPoint(screenCtm), rect.end.toSvgPoint(screenCtm))
 
 class SvgElementOps(val ref: dom.SVGSVGElement):
 
@@ -88,4 +65,3 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
 
 object SvgElementOps:
   def empty = SvgElementOps(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()).ref)
-
