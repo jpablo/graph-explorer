@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, Select
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir.*
 import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 
 import scala.util.Try
 
@@ -28,10 +29,24 @@ def NewArrowButton(elem: SelectableElement, graphTargetAttributes: Var[Attribute
   elem match
     case NodeElement(ref) =>
       val bbox = ref.getBBox()
-      val scale = 0.4
-      // https://icons.getbootstrap.com/icons/arrow-down-circle/
-      val w = 16 // Original width of the icon
-      val h = 16 // Original height of the icon
+      // Original width and height of the icon
+      val w = 16 
+      val h = 16 
+      
+      // Find the SVG element to calculate proper scaling
+      val svgElement = ref.closest("svg").asInstanceOf[dom.SVGSVGElement]
+      
+      // Calculate scale to maintain consistent visual size (target 10x10 pixels)
+      val targetScreenSize = 12.0 // Increased target size for better visibility
+      val calculatedSize = SvgUtils.calculateSvgSizeForConstantScreenSize(
+        svgElement, 
+        targetScreenSize,
+        minSvgSize = 12.0,  // Significantly increased minimum size
+        maxSvgSize = 80.0   // Much higher maximum for very large viewBoxes
+      )
+      
+      // Calculate scale relative to the original icon size (16x16)
+      val scale = calculatedSize / w
 
       // Get the rankdir value from graph attributes
       val rankdir = graphTargetAttributes.now().values.get("rankdir")
