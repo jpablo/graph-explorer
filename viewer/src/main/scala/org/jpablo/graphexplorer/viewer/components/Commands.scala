@@ -16,8 +16,7 @@ case class Command(
     description: Option[String] = None
 ):
   def titleWithShortcut =
-    val sh = shortcut.mkString(" (", " + ", ")")
-    title + sh
+    title + (if shortcut.nonEmpty then s" (${shortcut.mkString(" + ")})" else "")
 
 class Commands(state: ViewerState, router: Router):
 
@@ -107,6 +106,7 @@ class Commands(state: ViewerState, router: Router):
   // some special cases for the menu
   val addNode = sections.common.find(_.title == "Add node").get
   val List(zoomOut, fit, zoomIn) = sections.zoom
+  val List(rootsOnly, showAll, hideAll) = sections.view
   val List(undo, redo) = sections.undoRedo
   val List(navigateHome, changeProjectName, keyboardShortcuts) = sections.application
 

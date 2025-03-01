@@ -4,8 +4,12 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 
-def Toolbar(projectName: Signal[String], commands: Commands) =
+def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
+  val allNodesHidden = 
+    state.visibleGraph.map(_.allNodeIds.isEmpty)
+    
   div(
     idAttr := "toolbar",
     cls    := "bg-base-100/90",
@@ -25,16 +29,17 @@ def Toolbar(projectName: Signal[String], commands: Commands) =
       cls := "tooltip-bottom",
       Button(span().biSquareIcon, onClick --> commands.addNode.action()).tiny
     ),
-    // -------- actions toolbar --------
-    div(
-      cls := "dropdown dropdown-hover",
-      div(tabIndex := 0, role := "button", span("View"), i(cls := "bi bi-chevron-down")).asBtn.tiny,
-      ul(
-        tabIndex := 0,
-        cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
-        for cmd <- commands.sections.view yield li(a(cmd.title, onClick --> cmd.action()))
-      )
+    // -------- show all --------
+    Tooltip(
+      text = commands.showAll.titleWithShortcut,
+      cls := "tooltip-bottom",
+      Button(
+        commands.showAll.title, 
+        cls("btn-primary") <-- allNodesHidden,
+        onClick --> commands.showAll.action()
+      ).tiny
     ),
+    // -------- actions toolbar --------
     div(
       cls := "dropdown dropdown-hover",
       div(tabIndex := 0, role := "button", cls := "whitespace-nowrap", span("Copy as"), i(cls := "bi bi-chevron-down"))

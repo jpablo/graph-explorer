@@ -24,7 +24,7 @@ def TopLevel(
     LeftPanel(state, router),
     CanvasContainer(state, commands),
     CommandsPanel(state, commands),
-    Toolbar(state.project.name.signal, commands),
+    Toolbar(state.project.name.signal, commands, state),
     RightPanel(state).render(),
     HelpDialog(state.shortcutsModalOpen, commands)
   )
