@@ -22,6 +22,7 @@ case class Command(
 class Commands(state: ViewerState, router: Router):
 
   private val always = (_: Any) => true
+  private def not(pred: Set[NodeId] => Boolean)(selection: Set[NodeId]): Boolean = !pred(selection)
 
   private def changeProjectNameAction(): Unit =
     val newName = window.prompt("Enter project Name", state.project.name.now())
@@ -32,21 +33,26 @@ class Commands(state: ViewerState, router: Router):
     val classified = state.classifyNodes(selection.toSeq)
     classified.clusters.size == 1 && classified.nodes.nonEmpty
 
+  private def isSingleGroupSelected(selection: Set[NodeId]): Boolean =
+    val classified = state.classifyNodes(selection.toSeq)
+    classified.clusters.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
+
   val menuSections: VectorMap[String, List[Command]] = VectorMap(
     "Common" -> List(
       Command("Add node", state.addNode, always, shortcut = List("n"), description = Some("Add a new node"))
     ),
     "Selection" -> List(
       Command("Hide", state.hideSelection, shortcut               = List("h"), description = Some("Hide selected nodes")),
-      Command("Hide others", state.hideNonSelectedNodes, shortcut = List("Shift", "h"), description = Some("Hide all nodes except selected")),
+      Command("Keep", state.hideNonSelectedNodes, not(isSingleGroupSelected), shortcut = List("k"), description = Some("Hide all nodes except selected")),
       Command("Delete", state.deleteSelection, shortcut           = List("Backspace"), description = Some("Delete selected nodes")),
-      Command("Duplicate", state.duplicateSelection, shortcut     = List("d"), description = Some("Duplicate selected nodes")),
+      Command("Duplicate", state.duplicateSelection, not(isSingleGroupSelected), shortcut     = List("d"), description = Some("Duplicate selected nodes")),
       Command("Group", state.groupSelectedNodes, shortcut         = List("g"), description = Some("Add selected nodes into a new group")),
       Command("Move to group", state.addSelectionToGroup, moveToGroupActionVisible, description = Some("Add selected nodes to the selected group")),
       Command("Ungroup", state.ungroupSelection, shortcut = List("u"), description = Some("Remove selected nodes from their current group")),
       Command("Clear selection", state.clearSelection, shortcut = List("Esc")),
       //
       Command("Select group members", state.selectGroupMembers, shortcut = List("m"), description = Some("Select all nodes that are members of the selected group")),
+      Command("Zoom into group", state.showOnlyGroup, isSingleGroupSelected, description = Some("Show only this group and its members")),
       Command("Copy as SVG", state.copySelectionAsSVG, shortcut = List("c"), description = Some("Copy the selected nodes as SVG to the clipboard"))
     ),
     "Successors" -> List(

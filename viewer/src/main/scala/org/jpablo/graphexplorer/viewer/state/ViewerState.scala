@@ -223,6 +223,11 @@ case class ViewerState(
   def hideAllNodes() =
     project.hiddenNodes.update(_ ++ sourceFlow.fullGraph.now().allNodeIds)
 
+  def showOnlyGroup() =
+    selectGroupMembers()
+    hideNonSelectedNodes()
+    clearSelection()
+
   def copyAsFullDiagramSVG(): Unit =
     for html <- finalSVG.map(_.ref.outerHTML) do
       writeText(html)
