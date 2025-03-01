@@ -208,11 +208,8 @@ case class ViewerState(
       val fullGraphSnapshot = sourceFlow.fullGraph.now()
       
       // Get all node ids that are members of the selected groups
-      val memberNodeIds = fullGraphSnapshot.data.memberships
-        .collect { 
-          case (nodeId: NodeId, groupId) if groupIds.contains(groupId) => nodeId 
-        }
-        .toSet
+      val memberNodeIds = fullGraphSnapshot.data.getDirectChildren(groupIds)
+        .toSet.map(id => NodeId(id.value))
       
       // Keep the original groups/clusters in the selection and add all members
       diagramSelection.set(selection ++ memberNodeIds)

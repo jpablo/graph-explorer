@@ -29,6 +29,24 @@ case class ViewerGraphData(
   def getMembership(id: ElementId): GroupId =
     memberships.getOrElse(id, rootId)
 
+  def getDirectChildren(groupIds: Set[GroupId]): Set[ElementId] =
+    // For elements with explicit membership
+    val explicitChildren = memberships.collect {
+      case (elementId, parentId) if parentId in groupIds => elementId
+    }.toSet
+    
+    // If this is the root group, also include elements that don't have explicit membership
+    // (as they default to the root group)
+    if groupIds.contains(rootId) then
+      val allNodeIds = nodes.keySet 
+      val allGroupIds = groups.keySet - rootId // Exclude the root group itself
+      val allElementIds = allNodeIds ++ allGroupIds
+      val elementsWithExplicitMembership = memberships.keySet
+      
+      explicitChildren ++ (allElementIds -- elementsWithExplicitMembership)
+    else
+      explicitChildren
+
   def addArrow(source: NodeId, target: NodeId): (ViewerGraphData, Arrow) =
     val newSeq = maxArrowSequence(source, target)
     val arrow = Arrow(source, target, seq = newSeq + 1)
