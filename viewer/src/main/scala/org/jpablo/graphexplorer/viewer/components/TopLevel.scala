@@ -9,6 +9,7 @@ import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 import org.jpablo.graphexplorer.viewer.components.leftPanel.CommandsPanel
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.CanvasContainer
 
 def TopLevel(
     state:         ViewerState,
