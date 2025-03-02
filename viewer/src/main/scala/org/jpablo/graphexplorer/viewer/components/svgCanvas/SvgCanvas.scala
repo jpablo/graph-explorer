@@ -22,18 +22,16 @@ object SvgCanvas:
 
   // rawSvg is the SVG element as it comes from DOT
   def apply(
-      rawSvg:           dom.SVGSVGElement,
-      transform:        Signal[String],
-      diagramSelection: DiagramSelectionOps,
-      addNode:          () => Unit,
+      rawSvg:                dom.svg.SVG,
+      transform:             Signal[String],
+      diagramSelection:      DiagramSelectionOps,
+      addNode:               () => Unit,
       graphTargetAttributes: Var[Attributes]
-  ): ReactiveSvgElement[dom.SVGSVGElement] =
+  ): ReactiveSvgElement[dom.svg.SVG] =
 
-    val viewBox = rawSvg.viewBox.baseVal
     val firstGroup: dom.svg.G =
       val g0 = rawSvg.querySelector("g")
       (if g0 == null then dom.document.createElement("g") else g0).asInstanceOf[dom.svg.G]
-
 
     // --------------------------------------------------------
     // The top level <g> element
@@ -79,6 +77,7 @@ object SvgCanvas:
     // --------------------------------------------------------
     // The top level <svg> element
     // --------------------------------------------------------
+    val viewBox = rawSvg.viewBox.baseVal
     val tr = getTranslate(firstGroup)
     val bbox = BBox(viewBox.x - tr.x, viewBox.y - tr.y, viewBox.width, viewBox.height)
     selfContainedSvg(bbox)
@@ -126,7 +125,6 @@ object SvgCanvas:
 
   end apply
 
-
   /** Creates a standalone SVG element with the given viewBox
     */
   def selfContainedSvg(viewBox: BBox): ReactiveSvgElement[dom.svg.SVG] =
@@ -147,6 +145,7 @@ object SvgCanvas:
         for
           i <- 0 until transformList.numberOfItems
           transform = transformList.getItem(i)
+          // https://developer.mozilla.org/en-US/docs/Web/API/SVGTransform/matrix
           if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
         yield SvgPoint(transform.matrix.e, transform.matrix.f)
 
@@ -156,26 +155,25 @@ object SvgCanvas:
     *
     * @param action
     *   Signal containing the current selection rectangle state
-    * @param svgElement
+    * @param topLevelSVG
     *   The SVG element that contains the selection
     * @return
     *   Signal containing an optional SVG rect element. The rect is only present when there is an active selection
     *   action.
     */
   private def DrawSelectionRect(
-      action:     Signal[Option[Action.Area]],
-      svgElement: dom.svg.SVG
+      action:      Signal[Option[Action.Area]],
+      topLevelSVG: dom.svg.SVG
   ): Signal[Option[ReactiveSvgElement[dom.svg.RectElement]]] =
     action.map:
       _.flatMap: action =>
-        val (p0, p1) = action.rect.toSvgPair(svgElement.getScreenCTM())
+        val (start, end) = action.rect.toSvgPair(topLevelSVG.getScreenCTM())
         Some(
           svg.rect(
             svg.idAttr := "selection-rectangle",
-            svg.x      := (p0.x min p1.x).toString,
-            svg.y      := (p0.y min p1.y).toString,
-            svg.width  := math.abs(p1.x - p0.x).toString,
-            svg.height := math.abs(p1.y - p0.y).toString
+            svg.x      := (start.x min end.x).toString,
+            svg.y      := (start.y min end.y).toString,
+            svg.width  := math.abs(end.x - start.x).toString,
+            svg.height := math.abs(end.y - start.y).toString
           )
         )
-

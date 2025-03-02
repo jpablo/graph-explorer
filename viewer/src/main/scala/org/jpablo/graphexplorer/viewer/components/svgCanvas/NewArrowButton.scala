@@ -30,21 +30,21 @@ def NewArrowButton(elem: SelectableElement, graphTargetAttributes: Var[Attribute
     case NodeElement(ref) =>
       val bbox = ref.getBBox()
       // Original width and height of the icon
-      val w = 16 
-      val h = 16 
-      
+      val w = 16
+      val h = 16
+
       // Find the SVG element to calculate proper scaling
       val svgElement = ref.closest("svg").asInstanceOf[dom.SVGSVGElement]
-      
+
       // Calculate scale to maintain consistent visual size (target 10x10 pixels)
       val targetScreenSize = 12.0 // Increased target size for better visibility
       val calculatedSize = SvgUtils.calculateSvgSizeForConstantScreenSize(
-        svgElement, 
+        svgElement,
         targetScreenSize,
         minSvgSize = 12.0,  // Significantly increased minimum size
         maxSvgSize = 80.0   // Much higher maximum for very large viewBoxes
       )
-      
+
       // Calculate scale relative to the original icon size (16x16)
       val scale = calculatedSize / w
 

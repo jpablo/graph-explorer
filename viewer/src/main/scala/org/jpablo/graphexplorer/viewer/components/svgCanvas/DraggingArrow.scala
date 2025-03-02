@@ -10,44 +10,44 @@ import org.jpablo.graphexplorer.viewer.components.toSvgPoint
   *
   * @param rect
   *   Signal containing the current selection rectangle state
-  * @param svgElement
+  * @param rootGroup
   *   The SVG group element that contains the arrow
   * @return
   *   Signal containing an optional SVG group element. The group contains a line from the start node's center to the
   *   current mouse position, and a circle at the end point. Only present during an Edge action.
   */
 def DraggingArrow(
-    rect:       Signal[Option[Action.Line]],
-    svgElement: dom.svg.G
+    rect:      Signal[Option[Action.Line]],
+    rootGroup: dom.svg.G
 ): Signal[Option[ReactiveSvgElement[dom.svg.G]]] =
   rect.map:
     _.flatMap: action =>
       if action.rect.isEmpty then
         None
       else
-        val p1 = action.rect.end.toSvgPoint(svgElement.getScreenCTM())
-        val bbox = action.start.get.getBBox()
+        val point = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
+        val startBBox = action.start.get.getBBox()
         // Calculate center point
-        val centerX = bbox.x + bbox.width / 2
-        val centerY = bbox.y + bbox.height / 2
+        val centerX = startBBox.x + startBBox.width / 2
+        val centerY = startBBox.y + startBBox.height / 2
 
         // Check if target point is inside bounding box
-        val isInside = p1.x >= bbox.x && p1.x <= bbox.x + bbox.width &&
-          p1.y >= bbox.y && p1.y <= bbox.y + bbox.height
+        val isInside = point.x >= startBBox.x && point.x <= startBBox.x + startBBox.width &&
+          point.y >= startBBox.y && point.y <= startBBox.y + startBBox.height
 
         // Calculate start point - use center if inside bbox, intersection if outside
         val (x1, y1) = if isInside then
           (centerX, centerY)
         else
           // Define the four edges of the bounding box
-          val left = bbox.x
-          val right = bbox.x + bbox.width
-          val top = bbox.y
-          val bottom = bbox.y + bbox.height
+          val left = startBBox.x
+          val right = startBBox.x + startBBox.width
+          val top = startBBox.y
+          val bottom = startBBox.y + startBBox.height
 
           // Direction vector from center to target point
-          val dx = p1.x - centerX
-          val dy = p1.y - centerY
+          val dx = point.x - centerX
+          val dy = point.y - centerY
 
           // Calculate t values for intersections with each edge
           // We need to find which edge the ray from center to target intersects first
@@ -100,8 +100,8 @@ def DraggingArrow(
               svg.idAttr      := "dragging-arrow-line",
               svg.x1          := x1.toString,
               svg.y1          := y1.toString,
-              svg.x2          := p1.x.toString,
-              svg.y2          := p1.y.toString,
+              svg.x2          := point.x.toString,
+              svg.y2          := point.y.toString,
               svg.markerEnd   := "url(#arrowhead)",
               svg.stroke      := "#2c70ff", // Selected border blue
               svg.strokeWidth := "1"        // Thinner line to match smaller arrowhead

@@ -15,9 +15,9 @@ enum Action:
   case Area(rect: UserActionRect)
   case Line(rect: UserActionRect, start: SelectableElement)
 
-extension (point: ClientPoint)
+extension (clientPoint: ClientPoint)
   def toSvgPoint(screenCtm: dom.SVGMatrix): SvgPoint =
-    val DOMPoint = new DOMPoint(point.x, point.y).matrixTransform(screenCtm.inverse())
+    val DOMPoint = new DOMPoint(clientPoint.x, clientPoint.y).matrixTransform(screenCtm.inverse())
     SvgPoint(DOMPoint.x, DOMPoint.y)
 
 extension (rect: UserActionRect)
