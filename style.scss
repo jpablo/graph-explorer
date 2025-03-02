@@ -11,8 +11,12 @@ label[for ^= show-ns-kind-] {
   #projects-body {
     @apply p-2;
 
-    .project-card {
-      @apply bg-base-100 shadow w-full border border-base-300;
+    #projects-grid {
+      @apply w-full grid grid-cols-[repeat(auto-fit,minmax(24rem,1fr))] gap-6 px-6;
+
+      .project-card {
+        @apply bg-base-100 shadow w-full border border-base-300 max-w-xl;
+      }
     }
   }
 }

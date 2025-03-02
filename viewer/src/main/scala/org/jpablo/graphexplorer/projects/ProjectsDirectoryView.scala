@@ -99,7 +99,6 @@ def ProjectsDirectoryView(router: Router) =
       // Projects grid with search filter
       div(
         idAttr := "projects-grid",
-        cls    := "w-full grid grid-cols-[repeat(auto-fit,minmax(24rem,1fr))] gap-6 px-6",
         children <-- {
           val debouncedSearch = searchTermVar.signal.changes
             .debounce(300)
