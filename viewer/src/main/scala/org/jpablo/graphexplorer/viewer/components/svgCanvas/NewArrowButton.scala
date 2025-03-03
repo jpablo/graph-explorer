@@ -11,16 +11,20 @@ import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 
 import scala.util.Try
 
-def NewArrowButton(elem: SelectableElement, graphTargetAttributes: Var[Attributes]): Option[ReactiveSvgElement[dom.svg.G]] =
-  val arrowGroup = svg.g(
-    svg.path(
-      svg.d := "M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z"
+def NewArrowButton(
+    elem:                  SelectableElement,
+    graphTargetAttributes: Var[Attributes]
+): Option[ReactiveSvgElement[dom.svg.G]] =
+  val arrowGroup =
+    svg.g(
+      svg.path(
+        svg.d := "M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z"
+      )
     )
-  )
 
   val g0 =
     svg.g(
-      svg.cls := s"new-edge-button",
+      svg.cls           := s"new-edge-button",
       svg.pointerEvents := "all",
       svg.circle(svg.r := "8", svg.cx := "8", svg.cy := "8"),
       arrowGroup
@@ -29,27 +33,15 @@ def NewArrowButton(elem: SelectableElement, graphTargetAttributes: Var[Attribute
   elem match
     case NodeElement(ref) =>
       val bbox = ref.getBBox()
+      val refScaleFactor = SvgUtils.getCtmScale(ref)
       // Original width and height of the icon
       val w = 16
       val h = 16
 
-      // Find the SVG element to calculate proper scaling
-      val svgElement = ref.closest("svg").asInstanceOf[dom.SVGSVGElement]
-
-      // Calculate scale to maintain consistent visual size (target 10x10 pixels)
-      val targetScreenSize = 12.0 // Increased target size for better visibility
-      val calculatedSize = SvgUtils.calculateSvgSizeForConstantScreenSize(
-        svgElement,
-        targetScreenSize,
-        minSvgSize = 12.0,  // Significantly increased minimum size
-        maxSvgSize = 80.0   // Much higher maximum for very large viewBoxes
-      )
-
-      // Calculate scale relative to the original icon size (16x16)
-      val scale = calculatedSize / w
+      val scale = SvgUtils.calculateSimpleScale(ref, w.toDouble, targetScreenSize = 20)
 
       // Get the rankdir value from graph attributes
-      val rankdir = graphTargetAttributes.now().values.get("rankdir")
+      val rankdir = graphTargetAttributes.now().values.get(Rankdir.attrId)
         .map(_.value.toString)
         .flatMap(str => Try(Rankdir.valueOf(str)).toOption)
         .getOrElse(TB)

@@ -5,15 +5,13 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-import org.jpablo.graphexplorer.viewer.components.Action
+import org.jpablo.graphexplorer.viewer.components.{Action, toSvgPair}
+import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
-import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
-import org.jpablo.graphexplorer.viewer.components.toSvgPair
-
-import scala.scalajs.js
+import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 object SvgCanvas:
@@ -134,22 +132,6 @@ object SvgCanvas:
       svg.viewBox    := s"${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}",
       svg.cls        := "graphviz no-text-select"
     )
-
-  /** Gets the x,y translation values from an SVG group element's transform, or (0,0) if none exists
-    */
-  private def getTranslate(g: dom.svg.G): SvgPoint =
-    if js.isUndefined(g.transform) then SvgPoint.origin
-    else
-      val transformList = g.transform.baseVal
-      val transformPoints =
-        for
-          i <- 0 until transformList.numberOfItems
-          transform = transformList.getItem(i)
-          // https://developer.mozilla.org/en-US/docs/Web/API/SVGTransform/matrix
-          if transform.`type` == dom.svg.Transform.SVG_TRANSFORM_TRANSLATE
-        yield SvgPoint(transform.matrix.e, transform.matrix.f)
-
-      transformPoints.headOption.getOrElse(SvgPoint.origin)
 
   /** Creates a reactive SVG rectangle element representing the selection box when dragging.
     *
