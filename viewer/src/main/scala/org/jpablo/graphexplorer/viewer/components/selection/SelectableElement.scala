@@ -24,6 +24,7 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
     // Calculate stroke width that remains visually consistent at different zoom levels
     val scale = SvgUtils.calculateSimpleScale(ref, 1, targetScreenSize = 1.5)
     val extraScale = SvgUtils.calculateSimpleScale(ref, extra, targetScreenSize = 4)
+    val rScale = SvgUtils.calculateSimpleScale(ref, 1, targetScreenSize = 5)
 
     val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
     rect.setAttribute("x", (bbox.x - extra * extraScale).toString)
@@ -31,8 +32,8 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
     rect.setAttribute("width", (bbox.width + extra * 2 * extraScale).toString)
     rect.setAttribute("height", (bbox.height + extra * 2 * extraScale).toString)
     rect.setAttribute("stroke-width", scale.toString)
-    rect.setAttribute("rx", "3")
-    rect.setAttribute("ry", "3")
+    rect.setAttribute("rx", rScale.toString)
+    rect.setAttribute("ry", rScale.toString)
     rect.classList.add(selectionRectClass)
     rect
 
