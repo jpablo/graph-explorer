@@ -4,11 +4,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.style.CommonSubAttributes
-import org.jpablo.graphexplorer.viewer.components.attributes.{
-  BorderStylePreview,
-  RowBuilder,
-  StyleSubAttributes
-}
+import org.jpablo.graphexplorer.viewer.components.attributes.{BorderStylePreview, RowBuilder, StyleSubAttributes}
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.*
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.CornerStyle.diagonals
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
@@ -43,7 +39,7 @@ def GraphAttributesView(
 
   val defaultSubAttrs: Signal[StyleSubAttributes] =
     defaults
-      .map(_.map(attrs => getFillAndBorderStyle(attrs).getOrElse(StyleSubAttributes.empty)))
+      .map(_.map(attrs => StyleSubAttributes.from(attrs).getOrElse(StyleSubAttributes.empty)))
       .getOrElse(Signal.fromValue(StyleSubAttributes.empty))
 
 

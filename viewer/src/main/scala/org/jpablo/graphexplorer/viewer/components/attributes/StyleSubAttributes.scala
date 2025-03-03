@@ -4,6 +4,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.models.Attributes
 
 case class StyleSubAttributes(
     fill:      Boolean = false,
@@ -31,6 +32,10 @@ case class StyleSubAttributes(
 
 object StyleSubAttributes:
   val empty = StyleSubAttributes()
+
+  def from(attrs: Attributes): Option[StyleSubAttributes] =
+    attrs.get(NodeStyle.attrId).map(StyleSubAttributes.from)
+
 
   def from(attrValue: AttrValue): StyleSubAttributes =
     val parts = attrValue.toString.split(",").map(_.trim).filterNot(_.isEmpty).toSet

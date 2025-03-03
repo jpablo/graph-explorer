@@ -4,18 +4,18 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.StyleSubAttributes
-import org.jpablo.graphexplorer.viewer.components.attributes.views.getFillAndBorderStyle
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{BorderStyle, CornerStyle}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.Attributes
 
+// parse the style attribute into a StyleSubAttributes
 def buildSubAttributeVar(
     attrsVar:        Var[Attributes],
     defaultSubAttrs: Signal[StyleSubAttributes]
 )(using owner: Owner): Var[Option[StyleSubAttributes]] =
   attrsVar
-    .zoomLazy(getFillAndBorderStyle)((attrs, subAttrsO) =>
+    .zoomLazy(StyleSubAttributes.from)((attrs, subAttrsO) =>
       subAttrsO match
         case None => attrs - NodeStyle.attrId
         case Some(subAttrs) =>
@@ -27,6 +27,7 @@ def buildSubAttributeVar(
           else
             attrs + (NodeStyle.attrId -> AttrValue(dotStyle))
     )
+
 
 def getSubAttrsNow(s: Signal[StyleSubAttributes])(using owner: Owner): StyleSubAttributes =
   s.observe.now()

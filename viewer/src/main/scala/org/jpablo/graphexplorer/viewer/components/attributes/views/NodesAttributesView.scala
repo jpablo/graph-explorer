@@ -38,7 +38,7 @@ def NodesAttributesView(
 
   val defaultSubAttrs: Signal[StyleSubAttributes] =
     defaults
-      .map(_.map(attrs => getFillAndBorderStyle(attrs).getOrElse(StyleSubAttributes.empty)))
+      .map(_.map(attrs => StyleSubAttributes.from(attrs).getOrElse(StyleSubAttributes.empty)))
       .getOrElse(Signal.fromValue(StyleSubAttributes.empty))
 
   val commonSubAttrs = CommonSubAttributes(attrsVar, defaultSubAttrs)
@@ -101,6 +101,3 @@ def NodesAttributesView(
       )
     else Seq.empty
   )
-
-def getFillAndBorderStyle(attrs: Attributes) =
-  attrs.get(NodeStyle.attrId).map(StyleSubAttributes.from)
