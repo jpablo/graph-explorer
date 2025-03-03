@@ -4,11 +4,11 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
-import org.jpablo.graphexplorer.viewer.components.attributes.StyleView
+import org.jpablo.graphexplorer.viewer.components.attributes.views.StyleView
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
-import org.jpablo.graphexplorer.viewer.components.rightPanel.{NodesList, EdgesList}
+import org.jpablo.graphexplorer.viewer.components.rightPanel.{EdgesList, NodesList}
 import org.jpablo.graphexplorer.viewer.widgets.Icons.layoutSidebarReverseIcon
 
 class RightPanel(state: ViewerState):

@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.airstream.core.Signal
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.components.attributes.views.AttributesView
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 
 def EdgesAttributesView(

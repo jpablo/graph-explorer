@@ -1,23 +1,23 @@
-package org.jpablo.graphexplorer.viewer.components.attributes
+package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.style.CommonSubAttributes
-import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.CornerStyle.diagonals
-import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.{
-  BoldStyle,
-  BorderStyle,
-  CornerStyle,
-  FillStyle,
-  InvisibleStyle
+import org.jpablo.graphexplorer.viewer.components.attributes.{
+  BorderStylePreview,
+  RowBuilder,
+  StyleSubAttributes
 }
+import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.*
+import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.CornerStyle.diagonals
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, number, range}
+
 
 def GraphAttributesView(
     state:     ViewerState,
@@ -72,7 +72,7 @@ def GraphAttributesView(
     id       = "graph-attributes",
     titleStr = "Cluster Attributes",
     builder.buildRows(
-      if selection then "Labels" else "", 
+      if selection then "Labels" else "",
       if selection then labelRow else "",
       if selection then LabelLoc else "",
       if selection then LabelJust else "",

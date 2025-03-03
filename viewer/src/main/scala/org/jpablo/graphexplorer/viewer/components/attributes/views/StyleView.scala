@@ -1,12 +1,12 @@
-package org.jpablo.graphexplorer.viewer.components.attributes
+package org.jpablo.graphexplorer.viewer.components.attributes.views
 
-import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.state.ViewerState
-import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.widgets.Select
+import org.jpablo.graphexplorer.viewer.components.attributes.EdgesAttributesView
+import org.jpablo.graphexplorer.viewer.components.attributes.views.{GraphAttributesView, NodesAttributesView}
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.state.ViewerState.{classifyNodes, IdsByKind}
+import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.ViewerState.{IdsByKind, classifyNodes}
+import org.jpablo.graphexplorer.viewer.widgets.Select
 
 def StyleView(state: ViewerState) =
   div(
@@ -87,39 +87,4 @@ def StyleView(state: ViewerState) =
                 cls := "w-full mb-4"
               )
             )
-  )
-
-def GeneralAttributesView(state: ViewerState) =
-  val tabIndex = Var(0)
-  def tabVisible(i: Int) = tabIndex.signal.map(_ == i)
-
-  val tabsData =
-    List(
-      "Nodes"  -> NodesAttributesView("DiagramAttributesView", state, state.nodeTargetAttributes, selection = false),
-      "Arrows" -> EdgesAttributesView(state, state.edgeTargetAttributes, selection = false),
-      "Groups" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false)
-    )
-  div(
-    div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Diagram Options"))),
-    RootGraphAttributesView(state),
-    div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Defaults"))),
-    div(
-      cls := "flex justify-center",
-      div(
-        role := "tablist",
-        cls  := "tabs tabs-boxed tabs-xs w-[300px]",
-        for (tabName, i) <- tabsData.map(_._1).zipWithIndex
-        yield a(
-          role := "tab",
-          cls  := "tab flex-1",
-          tabName,
-          cls("tab-active") <-- tabVisible(i),
-          onClick --> tabIndex.set(i)
-        )
-      )
-    ),
-    div(
-      idAttr := "diagram-attributes-content",
-      for (view, i) <- tabsData.map(_._2).zipWithIndex yield view.amend(cls("hidden") <-- tabVisible(i).not)
-    )
   )

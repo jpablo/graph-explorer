@@ -1,9 +1,10 @@
-package org.jpablo.graphexplorer.viewer.components.attributes
+package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.style.CommonSubAttributes
+import org.jpablo.graphexplorer.viewer.components.attributes.*
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
@@ -101,5 +102,5 @@ def NodesAttributesView(
     else Seq.empty
   )
 
-private def getFillAndBorderStyle(attrs: Attributes) =
+def getFillAndBorderStyle(attrs: Attributes) =
   attrs.get(NodeStyle.attrId).map(StyleSubAttributes.from)
