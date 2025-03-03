@@ -53,7 +53,6 @@ object XLabel extends DotAttributeSimple[String]:
   val default = ""
   override val placeholderText = "Enter label here"
 
-
 object Xlp extends DotAttributeSimple[Double]:
   val label = "External pos"
   val default = 1
@@ -102,22 +101,44 @@ object Shape extends DotAttributeEnum[Shape]:
   val recordShapes = List(Mrecord, tab, note, tab, folder, box3d)
   val invRecordShapes = List(invhouse, invtriangle, invtrapezium)
   val invRecordMShapes = List(invhouse, invtriangle, invtrapezium)
-  val otherShapes = List(component, promoter, cds, terminator, utr, primersite, restrictionsite, fivepoverhang, threepoverhang, noverhang,
-    assembly, signature, insulator, ribosite, rnastab, proteasesite, proteinstab, rarrow, larrow, lpromoter, rpromoter)
-  val allShapes = basicShapes ++ polygonShapes ++ invShapes ++ mShapes ++ recordShapes ++ invRecordShapes ++ invRecordMShapes ++ otherShapes
+  val otherShapes = List(
+    component,
+    promoter,
+    cds,
+    terminator,
+    utr,
+    primersite,
+    restrictionsite,
+    fivepoverhang,
+    threepoverhang,
+    noverhang,
+    assembly,
+    signature,
+    insulator,
+    ribosite,
+    rnastab,
+    proteasesite,
+    proteinstab,
+    rarrow,
+    larrow,
+    lpromoter,
+    rpromoter
+  )
+  val allShapes =
+    basicShapes ++ polygonShapes ++ invShapes ++ mShapes ++ recordShapes ++ invRecordShapes ++ invRecordMShapes ++ otherShapes
 
   val synonyms = Map(
-    rectangle -> box,
-    rect -> box,
-    none -> plaintext,
-    oval -> ellipse,
-    pentagon -> polygon,
-    hexagon -> polygon,
-    septagon -> polygon,
-    octagon -> polygon,
-    doublecircle -> circle,
+    rectangle     -> box,
+    rect          -> box,
+    none          -> plaintext,
+    oval          -> ellipse,
+    pentagon      -> polygon,
+    hexagon       -> polygon,
+    septagon      -> polygon,
+    octagon       -> polygon,
+    doublecircle  -> circle,
     doubleoctagon -> polygon,
-    tripleoctagon -> polygon,
+    tripleoctagon -> polygon
   )
 
 object Orientation extends DotAttributeSimple[Double]:
@@ -140,18 +161,39 @@ object PenWidth extends DotAttributeSimple[Double]:
   val default = 1.0
   override val placeholderText = "Enter pen width here"
 
-enum LabelLoc:
+enum NodeLabelLoc:
   case t, c, b
 
-
-object LabelLoc extends DotAttributeEnum[LabelLoc]:
-  val default = c
+object NodeLabelLoc extends DotAttributeEnum[NodeLabelLoc]:
+  override val attrId = "labelloc"
+  def default = c
   val label = "Vertical pos"
   override val valuesWithLabel = Array(
     ("Top", t),
     ("Center", c),
     ("Bottom", b)
   )
+
+enum GroupLabelLoc:
+  case t, b
+
+trait GroupLabelLocT extends DotAttributeEnum[GroupLabelLoc]:
+  import GroupLabelLoc.*
+  override val attrId = "labelloc"
+  val label = "Vertical pos"
+  def values = Array(t, b)
+  override val valuesWithLabel = Array(
+    ("Top", t),
+    ("Bottom", b)
+  )
+
+object ClusterLabelLoc extends GroupLabelLocT:
+  import GroupLabelLoc.*
+  def default = t
+
+object RootGraphLabelLoc extends GroupLabelLocT:
+  import GroupLabelLoc.*
+  def default = b
 
 enum LabelJust:
   case l, c, r
@@ -164,8 +206,6 @@ object LabelJust extends DotAttributeEnum[LabelJust]:
     ("Center", c),
     ("Right", r)
   )
-
-
 
 object Peripheries extends DotAttributeSimple[Int]:
   val label = "Peripheries"
@@ -257,8 +297,7 @@ object Layout extends DotAttributeEnum[Layout]:
 //  override val placeholderText = "Enter rotation here"
 
 enum ArrowType:
-  case
-    box,
+  case box,
     crow,
     curve,
     diamond,
@@ -269,19 +308,16 @@ enum ArrowType:
     normal,
     tee,
     vee,
-
     obox,
     odiamond,
     odot,
     oinv,
     onormal,
-
     halfvee
 
 object ArrowType:
   val synonyms = Map(
   )
-
 
 object ArrowHead extends DotAttributeEnum[ArrowType]:
   val default = ArrowType.normal // default for dir=forward

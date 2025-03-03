@@ -22,7 +22,7 @@ def RootGraphAttributesView(state: ViewerState) =
         label       = Some("Title"),
         placeholder = Some("Enter diagram title")
       ),
-      LabelLoc,
+      RootGraphLabelLoc,
       LabelJust,
       "Layout",
       Layout,

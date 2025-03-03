@@ -74,7 +74,7 @@ def GraphAttributesView(
     builder.buildRows(
       if selection then "Labels" else "",
       if selection then labelRow else "",
-      if selection then LabelLoc else "",
+      if selection then ClusterLabelLoc else "",
       if selection then LabelJust else "",
       "Fonts",
       FontName,

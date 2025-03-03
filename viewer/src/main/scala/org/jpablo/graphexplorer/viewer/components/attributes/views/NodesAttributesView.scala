@@ -72,7 +72,7 @@ def NodesAttributesView(
     builder.buildRows(
       "Label",
       labelRow,
-      LabelLoc,
+      NodeLabelLoc,
       if selection then XLabel else "",
       "Text Format",
       FontColor -> color,
