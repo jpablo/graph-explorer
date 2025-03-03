@@ -13,6 +13,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Attributes, GroupId, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.state.ViewerState.classifyNodes
 import org.jpablo.graphexplorer.viewer.utils.SvgPoint
 import org.scalajs.dom.SVGRect
 import upickle.default.*
@@ -177,41 +178,25 @@ case class ViewerState(
   def groupSelectedNodes() =
     sourceFlow.fullGraphV.update(_.addToNewGroup(diagramSelection.now()))
 
-  case class IdsByKind(
-      clusters: Seq[NodeId] = Seq.empty,
-      nodes:    Seq[NodeId] = Seq.empty,
-      arrows:   Seq[NodeId] = Seq.empty
-  )
-
-  def classifyNodes(mixed: Seq[NodeId]): IdsByKind =
-    val (arrows, notArrows) = mixed.partition(NodeId.isArrowId)
-    val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
-    IdsByKind(
-      clusters = clusterIds,
-      nodes    = nodeIds,
-      arrows   = arrows
-    )
-
   def addSelectionToGroup() =
-    val classified = classifyNodes(diagramSelection.now().toSeq)
+    val classified = classifyNodes(diagramSelection.now())
     for groupNodeId <- classified.clusters.headOption do
-      sourceFlow.fullGraphV.update(_.addToGroup(GroupId(groupNodeId.value), classified.nodes))
+      sourceFlow.fullGraphV.update(_.addToGroup(GroupId(groupNodeId.value), classified.nodes.toSeq))
 
   def ungroupSelection() =
     sourceFlow.fullGraphV.update(_.ungroupSelection(diagramSelection.now()))
 
   def selectGroupMembers() =
     val selection = diagramSelection.now()
-    val classified = classifyNodes(selection.toSeq)
+    val classified = classifyNodes(selection)
 
     // If we have clusters/groups in the selection, find their members
     if classified.clusters.nonEmpty then
-      val groupIds = classified.clusters.map(id => GroupId(id.value)).toSet
+      val groupIds = classified.clusters.map(id => GroupId(id.value))
       val fullGraphSnapshot = sourceFlow.fullGraph.now()
 
       // Get all node ids that are members of the selected groups
-      val memberNodeIds = fullGraphSnapshot.data.getAllChildren(groupIds)
-        .toSet.map(id => NodeId(id.value))
+      val memberNodeIds = fullGraphSnapshot.data.getAllChildren(groupIds).map(id => NodeId(id.value))
 
       // Keep the original groups/clusters in the selection and add all members
       diagramSelection.set(selection ++ memberNodeIds)
@@ -378,6 +363,22 @@ object PersistedState:
     )
 
 object ViewerState:
+
+  case class IdsByKind(
+    clusters: Set[NodeId] = Set.empty,
+    nodes   : Set[NodeId] = Set.empty,
+    arrows  : Set[NodeId] = Set.empty
+  )
+
+  def classifyNodes(mixed: Set[NodeId]): IdsByKind =
+    val (arrows, notArrows) = mixed.partition(NodeId.isArrowId)
+    val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
+    IdsByKind(
+      clusters = clusterIds,
+      nodes = nodeIds,
+      arrows = arrows
+    )
+
 
   def handleWheel(
       zoomValue:   Var[Double],

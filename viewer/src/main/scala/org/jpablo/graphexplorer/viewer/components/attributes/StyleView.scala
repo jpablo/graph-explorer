@@ -2,28 +2,18 @@ package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.models.NodeId.isArrowId
-import org.jpablo.graphexplorer.viewer.models.NodeId.isClusterId
-import org.jpablo.graphexplorer.viewer.widgets.{InputType, Select as SelectInput}
+import org.jpablo.graphexplorer.viewer.widgets.Select
 import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, range}
+import org.jpablo.graphexplorer.viewer.state.ViewerState.{classifyNodes, IdsByKind}
 
 def StyleView(state: ViewerState) =
   div(
     idAttr := "diagram-attributes",
     child <--
       state.diagramSelection.signal.map: selectedNodes =>
-        val (arrowIds, notArrows) = selectedNodes.partition(isArrowId)
-        val (clusterIds, nodeIds) = notArrows.partition(isClusterId)
-
-        val elementTypes = Map(
-          "edges"    -> (arrowIds, "Arrows"),
-          "nodes"    -> (nodeIds, "Nodes"),
-          "clusters" -> (clusterIds, "Clusters")
-        )
+        val IdsByKind(clusterIds, nodeIds, arrowIds) = classifyNodes(selectedNodes)
 
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>
@@ -76,9 +66,15 @@ def StyleView(state: ViewerState) =
             GeneralAttributesView(state)
 
           case _ =>
+            val elementTypes = Map(
+              "edges"    -> (arrowIds, "Arrows"),
+              "nodes"    -> (nodeIds, "Nodes"),
+              "clusters" -> (clusterIds, "Clusters")
+            )
+
             div(
               div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Filter"))),
-              SelectInput(
+              Select(
                 placeholderText = s"${selectedNodes.size} objects",
                 options = elementTypes.collect {
                   case (key, (ids, description)) if ids.nonEmpty =>
@@ -105,7 +101,7 @@ def GeneralAttributesView(state: ViewerState) =
     )
   div(
     div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Diagram Options"))),
-    RootGraphOptions(state),
+    RootGraphAttributesView(state),
     div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Defaults"))),
     div(
       cls := "flex justify-center",
@@ -127,32 +123,3 @@ def GeneralAttributesView(state: ViewerState) =
       for (view, i) <- tabsData.map(_._2).zipWithIndex yield view.amend(cls("hidden") <-- tabVisible(i).not)
     )
   )
-
-def RootGraphOptions(state: ViewerState) =
-  val builder = RowBuilder(state.graphTargetAttributes, None)
-  AttributesView(
-    id       = "root-graph-attributes",
-    titleStr = "Root Graph Options",
-    builder.buildRows(
-      "Title",
-      builder.simpleRow(
-        Label,
-        InputType.multiText,
-        onReset     = Some(""),
-        label       = Some("Title"),
-        placeholder = Some("Enter diagram title")
-      ),
-      LabelLoc,
-      LabelJust,
-      "Layout",
-      Layout,
-      Rankdir,
-      "Other",
-      Splines,
-      Concentrate -> InputType.checkbox,
-      BgColor -> color,
-      Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
-      RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
-      NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
-    )
-  ).amend(cls := "mb-8")

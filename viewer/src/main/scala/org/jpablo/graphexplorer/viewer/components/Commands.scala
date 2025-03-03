@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.ViewerState.classifyNodes
 import org.scalajs.dom.window
 
 import scala.collection.immutable.VectorMap
@@ -29,11 +30,11 @@ class Commands(state: ViewerState, router: Router):
       state.project.name.set(newName)
 
   private def moveToGroupActionVisible(selection: Set[NodeId]): Boolean =
-    val classified = state.classifyNodes(selection.toSeq)
+    val classified = classifyNodes(selection)
     classified.clusters.size == 1 && classified.nodes.nonEmpty
 
   private def isSingleGroupSelected(selection: Set[NodeId]): Boolean =
-    val classified = state.classifyNodes(selection.toSeq)
+    val classified = classifyNodes(selection)
     classified.clusters.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
 
   val menuSections: VectorMap[String, List[Command]] = VectorMap(
