@@ -22,11 +22,15 @@ def NewArrowButton(
       )
     )
 
+  val radius = 8
+  val centerX = 8
+  val centerY = 8
+
   val g0 =
     svg.g(
       svg.cls           := s"new-edge-button",
       svg.pointerEvents := "all",
-      svg.circle(svg.r := "8", svg.cx := "8", svg.cy := "8"),
+      svg.circle(svg.r := radius.toString, svg.cx := centerX.toString, svg.cy := centerY.toString),
       arrowGroup
     )
 
@@ -35,8 +39,8 @@ def NewArrowButton(
       val bbox = ref.getBBox()
       val refScaleFactor = SvgUtils.getCtmScale(ref)
       // Original width and height of the icon
-      val w = 16
-      val h = 16
+      val w = radius * 2
+      val h = radius * 2
 
       val scale = SvgUtils.calculateSimpleScale(ref, w.toDouble, targetScreenSize = 20)
 
@@ -61,7 +65,7 @@ def NewArrowButton(
         g0.amend(
           svg.transform := s"translate($trX, $trY) scale($scale)",
           arrowGroup.amend(
-            svg.transform := s"rotate($rotation, 8, 8)"
+            svg.transform := s"rotate($rotation, $centerX, $centerY)"
           )
         )
       )
