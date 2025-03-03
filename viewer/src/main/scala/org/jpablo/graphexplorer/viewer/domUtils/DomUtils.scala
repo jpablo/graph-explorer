@@ -41,54 +41,6 @@ object DOMPoint:
 /** Utilities for SVG coordinate and size conversions
   */
 object SvgUtils:
-  /** Calculates a scale factor to ensure SVG elements appear at a consistent size regardless of the viewbox/zoom level
-    *
-    * @param topLevelSvg
-    *   The SVG element that contains the transformation
-    * @param targetScreenSize
-    *   Desired size in screen pixels
-    * @param minSvgSize
-    *   Minimum SVG units size
-    * @param maxSvgSize
-    *   Maximum SVG units size
-    * @return
-    *   The calculated size in SVG units that will appear approximately as targetScreenSize
-    */
-  def calculateSvgSizeForConstantScreenSize(
-      topLevelSvg:      dom.svg.SVG,
-      targetScreenSize: Double,
-      minSvgSize:       Double = 0.5,
-      maxSvgSize:       Double = 100.0 // Much higher maximum for extremely large viewBoxes
-  ): Double =
-    // Try to get reliable scaling information from the SVG
-    // First attempt: Get the SVG's viewBox if available - this is more reliable for SVG scaling
-    val viewBoxScale = getViewBoxScale(topLevelSvg)
-
-    // Second attempt: Get scaling from the transformation matrix
-    val ctmScale = getCtmScale(topLevelSvg)
-
-
-    // Use the smaller scale factor (larger values in SVG units) to ensure visibility
-    // This is because smaller scale means we're more zoomed out and need larger elements
-    val effectiveScale = math.min(
-      viewBoxScale.getOrElse(Double.MaxValue),
-      ctmScale
-    )
-
-    // Calculate required size in SVG units (inverse of scale)
-    // Apply an additional scaling factor for extremely small scales
-    val baseSize = targetScreenSize / effectiveScale
-
-    // Apply aggressive scaling for very zoomed out views
-    // The smaller the effective scale, the larger the size adjustment
-    val adjustedSize =
-      if (effectiveScale < 0.01) baseSize * 3.0     // Extremely zoomed out
-      else if (effectiveScale < 0.1) baseSize * 2.0 // Very zoomed out
-      else if (effectiveScale < 0.5) baseSize * 1.5 // Moderately zoomed out
-      else baseSize                                 // Normal zoom level
-
-    // Apply reasonable bounds
-    math.min(math.max(adjustedSize, minSvgSize), maxSvgSize)
 
   def calculateSimpleScale(
       ref:              dom.svg.Locatable,
@@ -96,19 +48,6 @@ object SvgUtils:
       targetScreenSize: Double
   ): Double =
     targetScreenSize / svgSize / getCtmScale(ref)
-
-  /** Attempts to calculate scale factor from SVG viewBox
-    */
-  private def getViewBoxScale(svgElement: dom.svg.SVG): Option[Double] =
-    try
-      // Get viewBox dimensions if available
-      val viewBox = svgElement.viewBox.baseVal
-      if (viewBox != null && viewBox.width > 0)
-        // Compare client width to viewBox width to get scale factor
-        Some(svgElement.clientWidth / viewBox.width)
-      else None
-    catch
-      case _: Exception => None
 
   /** Calculates scale factor from the Current Transformation Matrix
     */

@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.Action
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
+import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 
 /** Creates a reactive SVG arrow element when dragging to create a new edge.
   *
@@ -74,6 +75,7 @@ def DraggingArrow(
 
           (clampedX, clampedY)
 
+        val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, targetScreenSize = 2)
         Some(
           svg.g(
             svg.idAttr := "dragging-arrow-group",
@@ -104,7 +106,7 @@ def DraggingArrow(
               svg.y2          := point.y.toString,
               svg.markerEnd   := "url(#arrowhead)",
               svg.stroke      := "#2c70ff", // Selected border blue
-              svg.strokeWidth := "1"        // Thinner line to match smaller arrowhead
+              svg.strokeWidth := scale.toString        // Thinner line to match smaller arrowhead
             )
           )
         )
