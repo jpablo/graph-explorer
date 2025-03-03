@@ -19,25 +19,18 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
 
   def selectedRect() =
     val bbox = ref.getBBox()
-    // Get SVG element
-    val svgElement = ref.closest("svg").asInstanceOf[dom.SVGSVGElement]
     val extra = 2
-    
+
     // Calculate stroke width that remains visually consistent at different zoom levels
-    val desiredScreenWidth = 1.8 // Slightly increased desired width for better visibility
-    val finalStrokeWidth = SvgUtils.calculateSvgSizeForConstantScreenSize(
-      svgElement, 
-      desiredScreenWidth,
-      minSvgSize = 1.0,
-      maxSvgSize = 30.0  // Increased maximum for better visibility at extreme zoom levels
-    )
+    val scale = SvgUtils.calculateSimpleScale(ref, 1, targetScreenSize = 1.5)
+    val extraScale = SvgUtils.calculateSimpleScale(ref, extra, targetScreenSize = 4)
 
     val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
-    rect.setAttribute("x", (bbox.x - extra).toString)
-    rect.setAttribute("y", (bbox.y - extra).toString)
-    rect.setAttribute("width", (bbox.width + extra * 2).toString)
-    rect.setAttribute("height", (bbox.height + extra * 2).toString)
-    rect.setAttribute("stroke-width", finalStrokeWidth.toString)
+    rect.setAttribute("x", (bbox.x - extra * extraScale).toString)
+    rect.setAttribute("y", (bbox.y - extra * extraScale).toString)
+    rect.setAttribute("width", (bbox.width + extra * 2 * extraScale).toString)
+    rect.setAttribute("height", (bbox.height + extra * 2 * extraScale).toString)
+    rect.setAttribute("stroke-width", scale.toString)
     rect.setAttribute("rx", "3")
     rect.setAttribute("ry", "3")
     rect.classList.add(selectionRectClass)

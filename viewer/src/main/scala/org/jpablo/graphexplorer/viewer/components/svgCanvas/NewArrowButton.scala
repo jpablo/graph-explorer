@@ -37,7 +37,6 @@ def NewArrowButton(
   elem match
     case NodeElement(ref) =>
       val bbox = ref.getBBox()
-      val refScaleFactor = SvgUtils.getCtmScale(ref)
       // Original width and height of the icon
       val w = radius * 2
       val h = radius * 2
