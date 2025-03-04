@@ -9,7 +9,8 @@ import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.*
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.CornerStyle.diagonals
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
-import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, number, range}
@@ -17,7 +18,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, number, range}
 
 def GraphAttributesView(
     state:     ViewerState,
-    attrsVar:  Var[Attributes],
+    attrsVar:  Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
@@ -39,8 +40,8 @@ def GraphAttributesView(
 
   val defaultSubAttrs: Signal[StyleSubAttributes] =
     defaults
-      .map(_.map(attrs => StyleSubAttributes.from(attrs).getOrElse(StyleSubAttributes.empty)))
-      .getOrElse(Signal.fromValue(StyleSubAttributes.empty))
+      .map(_.map(attrs => StyleSubAttributes.from(attrs).getOrElse(StyleSubAttributes.missing)))
+      .getOrElse(Signal.fromValue(StyleSubAttributes.missing))
 
 
   val commonSubAttrs = CommonSubAttributes(attrsVar, defaultSubAttrs)
@@ -52,7 +53,7 @@ def GraphAttributesView(
       .copy(
         options =
           BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), BorderStylePreview(style))
+            RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
       )
 
   val shapeModeStyleRow =
@@ -61,7 +62,7 @@ def GraphAttributesView(
       .copy(
         options =
           CornerStyle.valuesWithLabel.filterNot(_._2 == diagonals).toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), None)
+            RowOption(label, Single(AttrValue(style.toString)), None)
       )
 
   AttributesView(

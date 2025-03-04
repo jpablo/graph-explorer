@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.utils.Utils
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*
 
+import scala.annotation.targetName
 import scala.compiletime.asMatchable
 
 sealed trait ElementId:
@@ -113,11 +114,56 @@ object Arrow:
         if t != 0 then t else x.idAttr.toString `compareTo` y.idAttr.toString
 end Arrow
 
+enum AttrStatus[+A]:
+  case Single(value: A)
+  case Multiple
+  case Missing
+
+  def map[B](f: A => B): AttrStatus[B] =
+    this match
+      case Single(v) => Single(f(v))
+      case Multiple => Multiple
+      case Missing => Missing
+
+  def getOrElse(default: String): String =
+    this match
+      case Single(v) => v.toString
+      case _ => default
+
+  def is[A2 >: A](a: A2): Boolean =
+    this match
+      case Single(v) => v == a
+      case _ => false
+
+type SelectionAttrValue = AttrStatus[AttrValue]
+
+
 case class Attributes(values: Map[String, AttrValue]) extends AnyVal:
   def ++(other: Attributes): Attributes = Attributes(values ++ other.values)
+  @targetName("concatValues")
+  def ++(other: Map[String, AttrValue]): Attributes = Attributes(values ++ other)
+  def --(other: Set[String]): Attributes = Attributes(values -- other)
   def -(key: String): Attributes = Attributes(values - key)
   def +(kv: (String, AttrValue)): Attributes = Attributes(values + kv)
   def get(key: String): Option[AttrValue] = values.get(key)
+
+  def toAttributes2: AttributesUpdates =
+    AttributesUpdates(values.map((k, v) => k -> AttrStatus.Single(v)))
+
+
+case class AttributesUpdates(
+  attrs: Map[String, SelectionAttrValue],
+  update: Map[String, AttrValue] = Map.empty,
+  remove: Set[String] = Set.empty
+):
+  def -(key: String): AttributesUpdates = copy(remove = remove + key)
+  def +(kv: (String, AttrValue)): AttributesUpdates = copy(update = update + kv)
+
+  def filterSingleAttributes: Attributes =
+    Attributes(attrs.collect { case (k, AttrStatus.Single(v)) => k -> v } )
+
+  def applyUpdates: Attributes =
+    filterSingleAttributes ++ (update -- remove)
 
 object Attributes:
   val empty = Attributes(Map.empty)

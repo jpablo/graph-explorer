@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 
 class ViewerGraphSpec extends ScalaCheckSuite:
 
@@ -72,7 +73,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val updated = graph.updateAttributes(Set(edgeId), Attributes(Map("style" -> AttrValue("dashed"))))
+    val updated = graph.updateAttributes(Set(edgeId), AttributesUpdates(Map("style" -> Single(AttrValue("dashed")))))
     pprint.log(updated)
     assertEquals(updated, expected)
   }

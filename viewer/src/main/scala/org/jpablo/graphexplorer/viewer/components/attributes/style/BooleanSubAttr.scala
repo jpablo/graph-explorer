@@ -5,33 +5,28 @@ import com.raquo.laminar.api.L.*
 import com.softwaremill.quicklens.PathModify
 import org.jpablo.graphexplorer.viewer.components.attributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.models.AttrStatus
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
+import org.jpablo.graphexplorer.viewer.models.SelectionAttrValue
 
 class BooleanSubAttr(
-    getSubAttr:       StyleSubAttributes => Boolean,
-    pathModify:       StyleSubAttributes => PathModify[StyleSubAttributes, Boolean],
-    subAttributeVar:  Var[Option[StyleSubAttributes]],
+    getSubAttr:       StyleSubAttributes => AttrStatus[Boolean],
+    pathModify:       StyleSubAttributes => PathModify[StyleSubAttributes, AttrStatus[Boolean]],
+    subAttributeVar:  Var[StyleSubAttributes],
     defaultSubAttrsS: Signal[StyleSubAttributes],
     getSubAttrsNow:   Signal[StyleSubAttributes] => StyleSubAttributes
 ):
-  val getVar: Var[Option[AttrValue]] =
+  // TODO: refactor this (combine AttrStatus and SelectionAttrValue)
+  val getVar: Var[SelectionAttrValue] =
     subAttributeVar.zoomLazy(subAttrs =>
-      subAttrs.map(getSubAttr).map(b => AttrValue(b.toString))
-    )((subAttrs, attrValueO) =>
-      (subAttrs, attrValueO) match
-
-        case (None, None) => None
-
-        case (None, Some(attrValue)) =>
-          val defaultSubAttrs = getSubAttrsNow(defaultSubAttrsS)
-          Some(pathModify(defaultSubAttrs).setTo(attrValue.isTrue))
-
-        case (Some(subAttrs), None) =>
-          // Copy the default sub attributes to the current one, otherwise they will be overridden by "false" (implicit meaning of a missing value)
-          val defaultSubAttrs = getSubAttrsNow(defaultSubAttrsS)
-          Some(pathModify(subAttrs).setTo(getSubAttr(defaultSubAttrs)))
-
-        case (Some(subAttrs), Some(attrValue)) =>
-          Some(pathModify(subAttrs).setTo(attrValue.isTrue))
+      getSubAttr(subAttrs).map(b => AttrValue(b.toString))
+    )((subAttrs, userSelection) =>
+      val attrStatus =
+        userSelection match
+          case Single(value) => Single(value.isTrue)
+          case Multiple      => getSubAttr(getSubAttrsNow(defaultSubAttrsS))
+          case Missing       => getSubAttr(getSubAttrsNow(defaultSubAttrsS))
+      pathModify(subAttrs).setTo(attrStatus)
     )
 
   val getDefault: Signal[String] =

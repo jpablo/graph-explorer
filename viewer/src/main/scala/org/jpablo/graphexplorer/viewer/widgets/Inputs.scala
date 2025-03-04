@@ -6,6 +6,8 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
+import org.jpablo.graphexplorer.viewer.models.SelectionAttrValue
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 
 def SelectWithLabel(
     labelText:       String,
@@ -41,23 +43,24 @@ def Select(
 
 def SelectWithValue(
     options:     Seq[RowOption],
-    selectValue: Var[Option[AttrValue]],
+    selectValue: Var[SelectionAttrValue],
     default:     Signal[String],
     mods:        Mods*
 ) =
+  // TODO: use the SelectionAttrValue.Missing state (perhaps with a placeholder)
   select(
     cls := "select select-bordered select-xs w-full",
     options.map(o => option(o.name, value := o.value.toString)),
     controlled(
-      value <-- selectValue.signal.combineWith(default).map((sv, d) => sv.getOrElse(d).toString),
-      onChange.mapToValue.map(v => Some(AttrValue(v))) --> selectValue
+      value <-- selectValue.signal.combineWith(default).map(_.getOrElse(_)),
+      onChange.mapToValue.map(v => Single(AttrValue(v))) --> selectValue
     ),
     mods
   )
 
 def SelectWithPreview(
     options:     Seq[RowOption],
-    selectValue: Var[Option[AttrValue]],
+    selectValue: Var[SelectionAttrValue],
     default:     Signal[String]
 ) =
   div(
@@ -69,10 +72,10 @@ def SelectWithPreview(
       div(
         cls := "flex items-center gap-2",
         div(
-          cls := "w-4 flex justify-center items-center"  // Fixed width container matching the dropdown options
+          cls := "w-4 flex justify-center items-center" // Fixed width container matching the dropdown options
         ),
         child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
-          val currentValue = sv.getOrElse(d).toString
+          val currentValue = sv.getOrElse(d)
           options
             .collectFirst:
               case row if row.value.toString == currentValue =>
@@ -89,15 +92,15 @@ def SelectWithPreview(
           a(
             cls := "flex items-center gap-2",
             div(
-              cls := "w-4 flex justify-center items-center",  // Fixed width container for the checkmark
+              cls := "w-4 flex justify-center items-center", // Fixed width container for the checkmark
               child.maybe <-- selectValue.signal.combineWith(default).map((sv, d) =>
-                if sv.getOrElse(d).toString == row.value.toString then
+                if sv.getOrElse(d) == row.value.toString then
                   Some(i(cls := "bi bi-check2"))
                 else None
               )
             ),
             row.preview.fold(span(row.name))(p => span(p())),
-            onClick.mapTo(Some(row.value)) --> selectValue
+            onClick.mapTo(row.value) --> selectValue
           )
         )
       }
@@ -106,7 +109,7 @@ def SelectWithPreview(
 
 def SelectWithPreviewGrid(
     options:     Seq[RowOption],
-    selectValue: Var[Option[AttrValue]],
+    selectValue: Var[SelectionAttrValue],
     default:     Signal[String]
 ) =
   div(
@@ -118,7 +121,7 @@ def SelectWithPreviewGrid(
       div(
         cls := "flex items-center justify-center w-full pr-6",
         child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
-          val currentValue = sv.getOrElse(d).toString
+          val currentValue = sv.getOrElse(d)
           options
             .collectFirst:
               case row if row.value.toString == currentValue =>
@@ -128,21 +131,23 @@ def SelectWithPreviewGrid(
     ),
     // ---- Dropdown menu ----
     div(
-      cls := "dropdown-content card card-compact z-[1] w-64 p-2 shadow bg-base-100 border border-base-300",
+      cls      := "dropdown-content card card-compact z-[1] w-64 p-2 shadow bg-base-100 border border-base-300",
       tabIndex := 0,
       div(
         cls := "card-body grid grid-cols-3 gap-2 overflow-y-auto max-h-64",
         options.zipWithIndex.map { (row, index) =>
           div(
-            cls := s"tooltip ${if index < 3 then "tooltip-bottom" else "tooltip-top"}",
+            cls             := s"tooltip ${if index < 3 then "tooltip-bottom" else "tooltip-top"}",
             dataAttr("tip") := row.name,
             button(
               cls <-- selectValue.signal.combineWith(default).map((sv, d) =>
-                val currentValue = sv.getOrElse(d).toString
-                s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 ${if currentValue == row.value.toString then "btn-active" else ""}"
+                val currentValue = sv.getOrElse(d)
+                s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 ${
+                    if currentValue == row.value.toString then "btn-active" else ""
+                  }"
               ),
               row.preview.fold(span(row.name))(p => span(p())),
-              onClick.mapTo(Some(row.value)) --> selectValue
+              onClick.mapTo(row.value) --> selectValue
             )
           )
         }
@@ -164,7 +169,7 @@ def BasicInput(
 
 def InputWithValue(
     placeholderText: String,
-    inputValue:      Var[Option[AttrValue]],
+    inputValue:      Var[SelectionAttrValue],
     inputType:       String = "text",
     default:         Signal[String],
     setFocus:        Boolean = false,
@@ -175,22 +180,20 @@ def InputWithValue(
   def isHtml(s: String) = htmlRegex.matches(s)
 
   input(
-    cls         := "input input-xs w-full",
+    cls                   := "input input-xs w-full",
     cls("input-bordered") := border,
-    tpe         := inputType,
-    placeholder := placeholderText,
+    tpe                   := inputType,
+    placeholder           := placeholderText,
     controlled(
-      value <-- inputValue.signal.combineWith(default).map((sv, d) => sv.getOrElse(d).toString),
-      onInput.mapToValue.map { v =>
-        Some(AttrValue(if isHtml(v) then AttrEq(v, true) else v))
-      } --> inputValue.set
+      value <-- inputValue.signal.combineWith(default).map(_.getOrElse(_)),
+      onInput.mapToValue.map(v => Single(AttrValue(if isHtml(v) then AttrEq(v, true) else v))) --> inputValue
     ),
     if setFocus then onMountFocus else emptyMod
   )
 
 def TextAreaWithValue(
     placeholderText: String,
-    inputValue:      Var[Option[AttrValue]],
+    inputValue:      Var[SelectionAttrValue],
     default:         String = "",
     setFocus:        Boolean = false
 ) =
@@ -202,7 +205,7 @@ def TextAreaWithValue(
     .bimap(
       // DOT -> UI
       getThis = dotText =>
-        val uiText = dotText.getOrElse(default).toString
+        val uiText = dotText.getOrElse(default)
           .replaceAll(
             """\\\\""", // regex matching two backslashes
             """\\"""    // replaced by a single backslash
@@ -217,7 +220,7 @@ def TextAreaWithValue(
           .replaceAll("""\\""", """\\\\""")
           // replace '\n' (single character) with two characters: ['\\', 'n']
           .replaceAll("\n", """\\n""")
-        Some(AttrValue(if isHtml(uiText) then AttrEq(dotText, true) else dotText))
+        Single(AttrValue(if isHtml(uiText) then AttrEq(dotText, true) else dotText))
     )
 
   textArea(
@@ -230,7 +233,7 @@ def TextAreaWithValue(
 
 def Checked(
     placeholderText: String,
-    inputValue:      Var[Option[Boolean]],
+    inputValue:      Var[SelectionAttrValue],
     default:         Signal[Boolean]
 ) =
   input(
@@ -238,8 +241,13 @@ def Checked(
     tpe         := InputType.checkbox.toString,
     placeholder := placeholderText,
     controlled(
-      checked <-- inputValue.signal.combineWith(default).map((sv, d) => sv.getOrElse(d)),
-      onInput.mapToChecked.map(Some(_)) --> inputValue.set
+      checked <-- inputValue.signal.combineWith(default).map { (sv: SelectionAttrValue, d: Boolean) =>
+        sv match
+          case Single(attrValue) => attrValue.isTrue
+          case Multiple => d
+          case Missing => d
+      },
+      onInput.mapToChecked.map(b => Single(AttrValue(b.toString))) --> inputValue
     )
   )
 

@@ -3,24 +3,22 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
+import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.components.attributes.EdgesAttributesView
-import org.jpablo.graphexplorer.viewer.components.attributes.views.{
-  GraphAttributesView,
-  NodesAttributesView,
-  RootGraphAttributesView
-}
+import org.jpablo.graphexplorer.viewer.components.attributes.views.{GraphAttributesView, NodesAttributesView, RootGraphAttributesView}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.scalajs.dom.HTMLDivElement
 
 
 def GeneralAttributesView(state: ViewerState) =
   val tabIndex = Var(0)
   def tabVisible(i: Int) = tabIndex.signal.map(_ == i)
 
-  val tabsData =
+  val tabsData: List[(String, ReactiveHtmlElement[HTMLDivElement])] =
     List(
-      "Nodes"  -> NodesAttributesView("DiagramAttributesView", state, state.nodeTargetAttributes, selection = false),
-      "Arrows" -> EdgesAttributesView(state, state.edgeTargetAttributes, selection = false),
-      "Groups" -> GraphAttributesView(state, state.graphTargetAttributes, selection = false)
+      "Nodes"  -> NodesAttributesView("DiagramAttributesView", state, state.nodeTargetAttributes2, selection = false),
+      "Arrows" -> EdgesAttributesView(state, state.edgeTargetAttributes2, selection = false),
+      "Groups" -> GraphAttributesView(state, state.graphTargetAttributes2, selection = false)
     )
   div(
     div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Diagram Options"))),

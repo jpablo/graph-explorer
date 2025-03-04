@@ -3,8 +3,8 @@ package org.jpablo.graphexplorer.viewer.graph
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
 
 /** Represents a graph that can be visualized in the viewer.
   *
@@ -122,7 +122,7 @@ case class ViewerGraph(
     */
   def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraph =
     modifyData.using(_.addToNewGroup(ids, label))
-    
+
   def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraph =
     modifyData.using(_.addToGroup(groupId, nodeIds))
 
@@ -149,12 +149,15 @@ case class ViewerGraph(
   def setRootAttributes(target: AttributeTarget)(attrs: Attributes): ViewerGraph =
     modifyRootAttributes(target).setTo(attrs)
 
-  val init = Map.empty[String, AttrValue]
-
-  private def collectAttrs(nodeIds: Set[NodeId], attrs: Map[NodeId, Attributable]): Map[String, AttrValue] =
-    attrs.collect:
-      case (id, n) if id in nodeIds => n.attributes.values
-    .foldLeft(init)(_ ++ _)
+  private def collectAttrs2(nodeIds: Set[NodeId], attrs: Map[NodeId, Attributable]): Map[String, SelectionAttrValue] =
+    attrs.foldLeft(Map.empty):
+      case (acc, (nodeId, attributable)) if nodeId in nodeIds =>
+        val nodeIdAcc =
+          attributable.attributes.values.transform: (attrId, v) =>
+            // if attrId already exists then we have multiple values
+            if attrId in acc then Multiple else Single(v)
+        acc ++ nodeIdAcc
+      case (acc, _) => acc
 
   private def filterAttrs(nodeIds: Set[NodeId], attrs: Map[NodeId, Attributable]): Map[NodeId, Attributes] =
     attrs.view
@@ -162,21 +165,21 @@ case class ViewerGraph(
       .toMap
       .transform((_, n) => n.attributes)
 
-  def getAttributesById(nodeIds: Set[NodeId]): Attributes =
-    Attributes(
+  def getAttributesById2(nodeIds: Set[NodeId]): AttributesUpdates =
+    AttributesUpdates(
       nodeIds.headOption
         .map: id =>
           if NodeId.isArrowId(id) then
-            collectAttrs(nodeIds, data.arrows)
+            collectAttrs2(nodeIds, data.arrows)
           else if NodeId.isClusterId(id) then
-            collectAttrs(nodeIds, data.groups.map((g, v) => (NodeId(g.value), v)))
+            collectAttrs2(nodeIds, data.groups.map((g, v) => (NodeId(g.value), v)))
           else if id in data.nodes then
-            collectAttrs(nodeIds, data.nodes)
+            collectAttrs2(nodeIds, data.nodes)
           else Map.empty
         .getOrElse(Map.empty)
     )
 
-  def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraph =
+  def updateAttributes(idsToUpdate: Set[NodeId], attrs: AttributesUpdates): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, attrs))
 
   /** Unfolds a set of ids using a function that returns the related ids.

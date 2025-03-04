@@ -9,7 +9,8 @@ import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
-import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number, range}
@@ -17,7 +18,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, numbe
 def NodesAttributesView(
     parent:    String,
     state:     ViewerState,
-    attrsVar:  Var[Attributes],
+    attrsVar:  Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
@@ -38,8 +39,8 @@ def NodesAttributesView(
 
   val defaultSubAttrs: Signal[StyleSubAttributes] =
     defaults
-      .map(_.map(attrs => StyleSubAttributes.from(attrs).getOrElse(StyleSubAttributes.empty)))
-      .getOrElse(Signal.fromValue(StyleSubAttributes.empty))
+      .map(_.map(attrs => StyleSubAttributes.from(attrs).getOrElse(StyleSubAttributes.missing)))
+      .getOrElse(Signal.fromValue(StyleSubAttributes.missing))
 
   val commonSubAttrs = CommonSubAttributes(attrsVar, defaultSubAttrs)
   import commonSubAttrs.*
@@ -50,7 +51,7 @@ def NodesAttributesView(
       .copy(
         options =
           BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), BorderStylePreview(style))
+            RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
       )
 
   val shapeModeStyleRow =
@@ -63,7 +64,7 @@ def NodesAttributesView(
       .copy(
         options =
           Shape.valuesWithLabel.filterNot((l, s) => s in Shape.synonyms).toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), ShapePreview(style, 30))
+            RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 30))
       )
 
   AttributesView(

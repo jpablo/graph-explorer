@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.EdgesAttributesView
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{GraphAttributesView, NodesAttributesView}
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.state.ViewerState.{IdsByKind, classifyNodes}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData.{IdsByKind, classifyNodes}
 import org.jpablo.graphexplorer.viewer.widgets.Select
 
 def StyleView(state: ViewerState) =
@@ -24,7 +24,7 @@ def StyleView(state: ViewerState) =
               ),
               EdgesAttributesView(
                 state,
-                attrs     = state.nodesAttributes(arrowIds),
+                attrs     = state.elementAttributes2(arrowIds),
                 defaults  = Some(state.visibleGraph.map(_.root.edgeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
@@ -39,7 +39,7 @@ def StyleView(state: ViewerState) =
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
-                attrsVar  = state.nodesAttributes(nodeIds),
+                attrsVar  = state.elementAttributes2(nodeIds),
                 defaults  = Some(state.visibleGraph.map(_.root.nodeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
@@ -56,7 +56,7 @@ def StyleView(state: ViewerState) =
               ),
               GraphAttributesView(
                 state     = state,
-                attrsVar  = state.nodesAttributes(clusterIds),
+                attrsVar  = state.elementAttributes2(clusterIds),
                 defaults  = Some(state.visibleGraph.map(_.root.attributes)),
                 selection = true
               ).amend(cls("selection-attributes"))

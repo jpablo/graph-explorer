@@ -12,8 +12,8 @@ import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{Attributes, GroupId, NodeId, ViewerNode}
-import org.jpablo.graphexplorer.viewer.state.ViewerState.classifyNodes
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, GroupId, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData.classifyNodes
 import org.jpablo.graphexplorer.viewer.utils.SvgPoint
 import org.scalajs.dom.SVGRect
 import upickle.default.*
@@ -77,21 +77,33 @@ case class ViewerState(
         }
       )
 
+  val graphTargetAttributes2: Var[AttributesUpdates] =
+    sourceFlow.fullGraphV
+      .zoomLazy(_.getRootAttributes(AttributeTarget.graph).toAttributes2)(
+        { (graph, attrs2) =>
+          graph.setRootAttributes(AttributeTarget.graph)(attrs2.applyUpdates)
+        }
+      )
+
   // Optimization idea:
   // For changes that don't impact the layout we can update the SVG directly
   // instead of re-rendering the whole diagram
-  val nodeTargetAttributes =
+  val nodeTargetAttributes2 =
     sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.node))(_.setRootAttributes(AttributeTarget.node)(_))
+      .zoomLazy(_.getRootAttributes(AttributeTarget.node).toAttributes2) { (graph, attributes) =>
+        graph.setRootAttributes(AttributeTarget.node)(attributes.applyUpdates)
+      }
 
-  val edgeTargetAttributes =
+  val edgeTargetAttributes2 =
     sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.edge))(_.setRootAttributes(AttributeTarget.edge)(_))
+      .zoomLazy(_.getRootAttributes(AttributeTarget.edge).toAttributes2) { (graph, attributes) =>
+        graph.setRootAttributes(AttributeTarget.edge)(attributes.applyUpdates)
+      }
 
   // individual node attributes
-  def nodesAttributes(nodeIds: Set[NodeId]): Var[Attributes] =
+  def elementAttributes2(elementIds: Set[NodeId]): Var[AttributesUpdates] =
     sourceFlow.fullGraphV
-      .zoomLazy(_.getAttributesById(nodeIds))((graph, attrs) => graph.updateAttributes(nodeIds, attrs))
+      .zoomLazy(_.getAttributesById2(elementIds))((graph, attrs) => graph.updateAttributes(elementIds, attrs))
 
   // 6. SVG with extra elements: selection rect, etc.
   val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
@@ -258,7 +270,7 @@ case class ViewerState(
               // Create a new node with a random ID
               val (updatedGraph, newNodeId) = graph.addRandomNode(groupId)
               // Update the new node with the original node's attributes
-              val finalGraph = updatedGraph.updateAttributes(Set(newNodeId), originalNode.attributes)
+              val finalGraph = updatedGraph.updateAttributes(Set(newNodeId), originalNode.attributes.toAttributes2)
               // Add the new node ID to our collection
               (finalGraph, newIds + newNodeId)
           }
@@ -363,22 +375,6 @@ object PersistedState:
     )
 
 object ViewerState:
-
-  case class IdsByKind(
-    clusters: Set[NodeId] = Set.empty,
-    nodes   : Set[NodeId] = Set.empty,
-    arrows  : Set[NodeId] = Set.empty
-  )
-
-  def classifyNodes(mixed: Set[NodeId]): IdsByKind =
-    val (arrows, notArrows) = mixed.partition(NodeId.isArrowId)
-    val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
-    IdsByKind(
-      clusters = clusterIds,
-      nodes = nodeIds,
-      arrows = arrows
-    )
-
 
   def handleWheel(
       zoomValue:   Var[Double],

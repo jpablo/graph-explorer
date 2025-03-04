@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, range}
 
 
 def RootGraphAttributesView(state: ViewerState) =
-  val builder = RowBuilder(state.graphTargetAttributes, None)
+  val builder = RowBuilder(state.graphTargetAttributes2, None)
   AttributesView(
     id       = "root-graph-attributes",
     titleStr = "Root Graph Options",

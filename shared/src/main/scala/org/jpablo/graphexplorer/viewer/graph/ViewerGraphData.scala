@@ -2,7 +2,8 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, FlattenedGraphElement, SubGraph}
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, ElementId, GroupId, NodeId, ViewerGroup, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, AttributesUpdates, ElementId, GroupId, NodeId, ViewerGroup, ViewerNode}
+import com.softwaremill.quicklens.*
 
 type Arrows = Map[NodeId, Arrow]
 type Memberships = Map[ElementId, GroupId]
@@ -34,15 +35,15 @@ case class ViewerGraphData(
     val explicitChildren = memberships.collect {
       case (elementId, parentId) if parentId in groupIds => elementId
     }.toSet
-    
+
     // If this is the root group, also include elements that don't have explicit membership
     // (as they default to the root group)
     if groupIds.contains(rootId) then
-      val allNodeIds = nodes.keySet 
+      val allNodeIds = nodes.keySet
       val allGroupIds = groups.keySet - rootId // Exclude the root group itself
       val allElementIds = allNodeIds ++ allGroupIds
       val elementsWithExplicitMembership = memberships.keySet
-      
+
       explicitChildren ++ (allElementIds -- elementsWithExplicitMembership)
     else
       explicitChildren
@@ -56,12 +57,12 @@ case class ViewerGraphData(
   def getAllChildren(groupIds: Set[GroupId]): Set[ElementId] =
     // Get the direct children first
     val directChildren = getDirectChildren(groupIds)
-    
+
     // Find which of the direct children are groups themselves
     val childGroups = directChildren.collect {
       case elementId if GroupId(elementId.value) in groups => GroupId(elementId.value)
     }
-    
+
     // Base case: no child groups, return just the direct children
     if childGroups.isEmpty then directChildren
     else
@@ -173,40 +174,62 @@ case class ViewerGraphData(
     * 3. Updates attributes for matching nodes, including any endpoints of updated arrows
     * that were in the original selection
     *
-    * @param idsToUpdate Set of node and arrow IDs to update attributes for
-    * @param attrs The new attributes to apply
     * @return Updated ViewerGraphData with the new attributes applied
     */
-  def updateAttributes(idsToUpdate: Set[NodeId], attrs: Attributes): ViewerGraphData =
-    val (arrowIds, notArrows) = idsToUpdate.partition(NodeId.isArrowId)
-    val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
-    val groupIds = clusterIds.map(id => GroupId(id.value))
+  def updateAttributes(ids: Set[NodeId], attrs: AttributesUpdates): ViewerGraphData =
+      val classified = ViewerGraphData.classifyNodes(ids)
 
-    val updatedArrows = arrows.view
-      .filterKeys(_ in arrowIds)
-      .mapValues(_.copy(attributes = attrs))
-      .toMap
+      val updatedArrows = arrows.view
+        .filterKeys(_ in classified.arrows)
+        .mapValues(_.modify(_.attributes).using { (attributes: Attributes) =>
+          attributes ++ (attrs.update -- attrs.remove)
+        })
+        .toMap
 
-    val updatedClusters = groups.view
-      .filterKeys(_ in groupIds)
-      .mapValues(_.copy(attributes = attrs))
-      .toMap
+      val clusterIds = classified.clusters.map(id => GroupId(id.value))
 
-    val nodeIdsToUpdate = nodeIds ++
-      (updatedArrows.values.flatMap(_.endpoints).toSet & idsToUpdate)
+      val updatedClusters = groups.view
+        .filterKeys(_ in clusterIds)
+        .mapValues(_.modify(_.attributes).using { attributes =>
+          attributes ++ (attrs.update -- attrs.remove)
+        })
+        .toMap
 
-    val updatedNodes = nodeIdsToUpdate.foldLeft(nodes) { (nodes, id) =>
-      nodes.updated(id, nodes.getOrElse(id, ViewerNode(id)).copy(attributes = attrs))
-    }
+      val nodeIdsToUpdate = classified.nodes ++
+        (updatedArrows.values.flatMap(_.endpoints).toSet & ids)
 
-    copy(
-      arrows = arrows ++ updatedArrows,
-      nodes = updatedNodes,
-      groups = groups ++ updatedClusters
-    )
+      val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
+        nodes.updated(id, nodes.getOrElse(id, ViewerNode(id)).modify(_.attributes).using { attributes =>
+          attributes ++ (attrs.update -- attrs.remove)
+        })
+
+      copy(
+        arrows = arrows ++ updatedArrows,
+        nodes = updatedNodes,
+        groups = groups ++ updatedClusters
+      )
+
+
 end ViewerGraphData
 
 object ViewerGraphData:
+
+  case class IdsByKind(
+    clusters: Set[NodeId] = Set.empty,
+    nodes   : Set[NodeId] = Set.empty,
+    arrows  : Set[NodeId] = Set.empty
+  )
+
+  def classifyNodes(mixed: Set[NodeId]): IdsByKind =
+    val (arrows, notArrows) = mixed.partition(NodeId.isArrowId)
+    val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
+    IdsByKind(
+      clusters = clusterIds,
+      nodes = nodeIds,
+      arrows = arrows
+    )
+
+
   def from(data: FlattenedGraphElement) =
     val arrowEndpoints = data.arrows.flatMap(_.endpoints).toSet
     val nodesMap = data.nodes.map(n => n.id -> n).toMap

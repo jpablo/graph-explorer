@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.Missing
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def AttributesView(
@@ -27,10 +27,7 @@ def AttributesView(
           tbody(
             for row <- attrRows yield
               val isChanged =
-                row.inputVar.signal
-                  .combineWith(row.default)
-                  .map: (attr, d) =>
-                    attr.exists(_.toString != d)
+                row.inputVar.signal.combineWith(row.default).map((attr, d) => attr.toString != d)
               tr(
                 td(
                   cls := "w-32 align-middle whitespace-nowrap",
@@ -39,12 +36,12 @@ def AttributesView(
                     cls("font-bold") <-- isChanged,
                     span(row.label),
                     div(
-                      cls := "w-6",  // Fixed width space for the reset button
+                      cls := "w-6", // Fixed width space for the reset button
                       child <-- isChanged.map(c =>
                         if c then
                           Button(
                             title := s"reset ${row.label}",
-                            onClick --> row.inputVar.set(None),
+                            onClick --> row.inputVar.set(Missing),
                             i(cls := "bi bi-x")
                           ).tiny.ghost.circle
                         else
@@ -90,9 +87,7 @@ private def buildInputCell(row: InputAttribute) =
       SelectWithValue(row.options, row.inputVar, row.default)
 
     case InputType.checkbox =>
-      val inputVarBool =
-        row.inputVar.zoomLazy(_.map(_.toString.contains(true.toString)))((_, b) => b.map(v => AttrValue(v.toString)))
-      Checked(row.placeholder, inputVarBool, row.default.map(_ == true.toString))
+      Checked(row.placeholder, row.inputVar, row.default.map(_ == true.toString))
 
     case InputType.multiText =>
       TextAreaWithValue(row.placeholder, row.inputVar)
@@ -108,8 +103,8 @@ private def buildInputCell(row: InputAttribute) =
     case InputType.range(start, end, step) =>
       InputWithValue(row.placeholder, row.inputVar, "number", row.default, border = false)
         .amend(
-          tpe := "range",
-          cls := "range range-sm input-ghost",
+          tpe      := "range",
+          cls      := "range range-sm input-ghost",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")

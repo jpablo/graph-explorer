@@ -4,16 +4,17 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.airstream.core.Signal
 import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.views.AttributesView
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 
 def EdgesAttributesView(
     state:     ViewerState,
-    attrs:     Var[Attributes],
+    attrs:     Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
@@ -36,7 +37,7 @@ def EdgesAttributesView(
       .copy(
         options =
           EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, AttrValue(style.toString), EdgeStylePreview(style))
+            RowOption(label, Single(AttrValue(style.toString)), EdgeStylePreview(style))
       )
 
   val arrowHeadRow: AttributeRow =
@@ -45,7 +46,7 @@ def EdgesAttributesView(
       .copy(
         options =
           ArrowType.values.toSeq.map: arrowType =>
-            RowOption(arrowType.toString, AttrValue(arrowType.toString), ArrowPreview(arrowType, 50))
+            RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 50))
       )
 
   val arrowTailRow: AttributeRow =
@@ -54,7 +55,7 @@ def EdgesAttributesView(
       .copy(
         options =
           ArrowType.values.toSeq.map: arrowType =>
-            RowOption(arrowType.toString, AttrValue(arrowType.toString), ArrowPreview(arrowType, 50))
+            RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 50))
       )
 
   AttributesView(

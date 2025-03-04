@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.models.NodeId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.state.ViewerState.classifyNodes
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData.classifyNodes
 import org.scalajs.dom.window
 
 import scala.collection.immutable.VectorMap

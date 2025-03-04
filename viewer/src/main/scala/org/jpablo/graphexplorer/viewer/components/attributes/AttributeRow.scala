@@ -4,7 +4,8 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple}
-import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 enum AttributeRow:
@@ -15,7 +16,7 @@ enum AttributeRow:
       label:       String,
       placeholder: String,
       inputType:   InputType,
-      inputVar:    Var[Option[AttrValue]],
+      inputVar:    Var[SelectionAttrValue],
       options:     Seq[AttributeRow.RowOption] = Seq.empty,
       default:     Signal[String]
   )
@@ -23,14 +24,14 @@ enum AttributeRow:
 object AttributeRow:
   case class RowOption(
       name:    String,
-      value:   AttrValue,
+      value:   SelectionAttrValue,
       preview: Option[() => ReactiveSvgElement[dom.SVGSVGElement]] = None
   )
 
 import AttributeRow.*
 
 class RowBuilder(
-    elementAttributes: Var[Attributes],
+    elementAttributes: Var[AttributesUpdates],
     defaults:          Option[Signal[Attributes]] = None
 ):
 
@@ -62,7 +63,7 @@ class RowBuilder(
       onReset:     Option[String] = None,
       label:       Option[String] = None,
       placeholder: Option[String] = None
-  ) =
+  ): AttributeRow.InputAttribute =
     inputRow(
       attr        = attr -> inputType,
       inputVar    = simpleInputVar(attr.attrId, elementAttributes, onReset),
@@ -73,7 +74,7 @@ class RowBuilder(
 
   def inputRow(
       attr:        (DotAttribute[?], InputType),
-      inputVar:    Var[Option[AttrValue]],
+      inputVar:    Var[SelectionAttrValue],
       default:     Signal[String],
       label:       Option[String] = None,
       placeholder: Option[String] = None
@@ -86,22 +87,20 @@ class RowBuilder(
           placeholder = placeholder.getOrElse(attr.placeholderText),
           inputType   = it,
           inputVar    = inputVar,
-          options     = attr.valuesWithLabel.map((l, v) => RowOption(l, AttrValue(v.toString), None)).toSeq,
+          options     = attr.valuesWithLabel.map((l, v) => RowOption(l, Single(AttrValue(v.toString)), None)).toSeq,
           default     = default
         )
 
   def simpleInputVar(
       attrId:     String,
-      attributes: Var[Attributes],
+      attributes: Var[AttributesUpdates],
       onReset:    Option[String] = None
-  ): Var[Option[AttrValue]] =
-    attributes.zoomLazy(_.values.get(attrId))((attrs, value) =>
+  ): Var[SelectionAttrValue] =
+    attributes.zoomLazy(_.attrs.getOrElse(attrId, Missing))((attrs, value) =>
       value match
-        case None =>
-          onReset match
-            case Some(v) => attrs + (attrId -> AttrValue(v))
-            case None    => attrs - attrId // Remove override, will fall back to root value
-        case Some(attrValue) => attrs + (attrId -> attrValue)
+        case Single(selection) => attrs + (attrId -> selection)
+        case Multiple          => attrs
+        case Missing           => onReset.fold(attrs)(v => attrs + (attrId -> AttrValue(v)))
     )
 
   // uses the global default if present, otherwise uses the (hardcoded) default value.
