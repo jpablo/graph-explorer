@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.components.attributes.style
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.softwaremill.quicklens.PathModify
-import org.jpablo.graphexplorer.viewer.components.attributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.AttrStatus
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*

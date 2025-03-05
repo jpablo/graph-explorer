@@ -1,9 +1,9 @@
-package org.jpablo.graphexplorer.viewer.components.attributes
+package org.jpablo.graphexplorer.viewer.components.attributes.previews
 
 import com.raquo.laminar.api.L.svg
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.ArrowType
 import org.scalajs.dom.SVGSVGElement
-import com.raquo.laminar.nodes.ReactiveSvgElement
 
 def ArrowPreview(
     arrowType: ArrowType,

@@ -4,7 +4,7 @@ import org.jpablo.graphexplorer.viewer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.{InputAttribute, RowOption}
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.models.SelectionAttrValue
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*

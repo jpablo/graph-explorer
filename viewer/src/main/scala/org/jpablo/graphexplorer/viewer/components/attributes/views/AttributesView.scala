@@ -2,8 +2,8 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow
-import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.*
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{AttributeHeader, InputAttribute}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Missing
 import org.jpablo.graphexplorer.viewer.widgets.*
 

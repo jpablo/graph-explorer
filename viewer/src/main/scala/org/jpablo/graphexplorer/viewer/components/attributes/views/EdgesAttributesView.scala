@@ -1,16 +1,18 @@
-package org.jpablo.graphexplorer.viewer.components.attributes
+package org.jpablo.graphexplorer.viewer.components.attributes.views
 
-import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
-import org.jpablo.graphexplorer.viewer.widgets.InputType.*
-import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
-import org.jpablo.graphexplorer.viewer.state.ViewerState
 import com.raquo.airstream.core.Signal
-import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
+import com.raquo.airstream.state.Var
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
+import AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.{ArrowPreview, EdgeStylePreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.AttributesView
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
+import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.widgets.InputType
+import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
 def EdgesAttributesView(
     state:     ViewerState,

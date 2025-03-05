@@ -1,10 +1,9 @@
-package org.jpablo.graphexplorer.viewer.components.attributes
+package org.jpablo.graphexplorer.viewer.components.attributes.previews
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.L.svg
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.NodeStyle
 import org.scalajs.dom.SVGSVGElement
-import com.raquo.laminar.nodes.ReactiveSvgElement
 
 def NodeStylePreview(style: NodeStyle, width: Int = 100, height: Int = 20): Option[() => ReactiveSvgElement[SVGSVGElement]] =
   style match

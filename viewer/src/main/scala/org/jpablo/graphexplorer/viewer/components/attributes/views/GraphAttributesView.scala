@@ -2,9 +2,10 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
-import org.jpablo.graphexplorer.viewer.components.attributes.style.CommonSubAttributes
-import org.jpablo.graphexplorer.viewer.components.attributes.{BorderStylePreview, RowBuilder, StyleSubAttributes}
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.BorderStylePreview
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.components.attributes.style.{CommonSubAttributes, StyleSubAttributes}
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.*
 import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.CornerStyle.diagonals
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue

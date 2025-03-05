@@ -1,52 +1,25 @@
-package org.jpablo.graphexplorer.viewer.components.attributes
+package org.jpablo.graphexplorer.viewer.components.attributes.rows
 
+import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.viewer.components.attributes.*
+import AttributeRow.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.models.{AttributeId, Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
-enum AttributeRow:
-  case AttributeHeader(title: String)
-
-  case InputAttribute(
-      attrId:      AttributeId,
-      label:       String,
-      placeholder: String,
-      inputType:   InputType,
-      inputVar:    Var[SelectionAttrValue],
-      options:     Seq[AttributeRow.RowOption] = Seq.empty,
-      default:     Signal[String]
-  )
-
-object AttributeRow:
-  extension (row: InputAttribute)
-    def isChanged =
-      row.inputVar.signal.combineWith(row.default).map { (attr, d) => attr.exists(_.toString != d) }
-
-  
-  case class RowOption(
-      name:    String,
-      value:   SelectionAttrValue,
-      preview: Option[() => ReactiveSvgElement[dom.SVGSVGElement]] = None
-  ):
-    def hasValue(s: String) =
-      value.exists(_.toString == s)
-
-import AttributeRow.*
-
 class RowBuilder(
-    updates:  Var[AttributesUpdates],
-    defaults: Option[Signal[Attributes]] = None
+  updates:  Var[AttributesUpdates],
+  defaults: Option[Signal[Attributes]] = None
 ):
 
   def buildRows(
-      dotAttributes: DotAttribute[?]
-        | String
-        | AttributeRow
-        | (DotAttribute[?], InputType)*
+    dotAttributes: DotAttribute[?]
+      | String
+      | AttributeRow
+      | (DotAttribute[?], InputType)*
   ): Seq[AttributeRow] =
     dotAttributes
       .filter:
@@ -65,11 +38,11 @@ class RowBuilder(
           simpleRow(attr, inputType)
 
   def simpleRow(
-      attr:        DotAttribute[?],
-      inputType:   InputType,
-      onReset:     Option[String] = None,
-      label:       Option[String] = None,
-      placeholder: Option[String] = None
+    attr:        DotAttribute[?],
+    inputType:   InputType,
+    onReset:     Option[String] = None,
+    label:       Option[String] = None,
+    placeholder: Option[String] = None
   ): AttributeRow.InputAttribute =
     inputRow(
       attr        = attr -> inputType,
@@ -80,11 +53,11 @@ class RowBuilder(
     )
 
   def inputRow(
-      attr:        (DotAttribute[?], InputType),
-      inputVar:    Var[SelectionAttrValue],
-      default:     Signal[String],
-      label:       Option[String] = None,
-      placeholder: Option[String] = None
+    attr:        (DotAttribute[?], InputType),
+    inputVar:    Var[SelectionAttrValue],
+    default:     Signal[String],
+    label:       Option[String] = None,
+    placeholder: Option[String] = None
   ): InputAttribute =
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
@@ -99,9 +72,9 @@ class RowBuilder(
         )
 
   def simpleInputVar(
-      attrId:  AttributeId,
-      updates: Var[AttributesUpdates],
-      onReset: Option[String] = None
+    attrId:  AttributeId,
+    updates: Var[AttributesUpdates],
+    onReset: Option[String] = None
   ): Var[SelectionAttrValue] =
     updates.zoomLazy(_.attrs.getOrElse(attrId, Missing))((attrs, value) =>
       value match
