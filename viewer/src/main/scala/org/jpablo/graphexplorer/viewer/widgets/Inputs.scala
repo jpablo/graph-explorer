@@ -57,11 +57,7 @@ def SelectWithValue(
     mods
   )
 
-def SelectWithPreview(
-    options:     Seq[RowOption],
-    selectValue: Var[SelectionAttrValue],
-    default:     Signal[String]
-) =
+def SelectWithPreview(row: InputAttribute) =
   div(
     cls      := "dropdown w-full",
     tabIndex := 0,
@@ -73,9 +69,9 @@ def SelectWithPreview(
         div(
           cls := "w-4 flex justify-center items-center" // Fixed width container matching the dropdown options
         ),
-        child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
-          val currentValue = sv.getOrElse(d)
-          options
+        child.maybe <-- row.inputVar.signal.combineWith(row.default).map: (sv, d) =>
+          val currentValue = sv.getOrElse(d).toString
+          row.options
             .collectFirst:
               case row if row.value.toString == currentValue =>
                 row.preview.fold(span(row.name))(p => span(p()))
@@ -86,20 +82,20 @@ def SelectWithPreview(
     ul(
       cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full border border-base-300",
       tabIndex := 0,
-      options.map { row =>
+      row.options.map { rowOption =>
         li(
           a(
             cls := "flex items-center gap-2",
             div(
               cls := "w-4 flex justify-center items-center", // Fixed width container for the checkmark
-              child.maybe <-- selectValue.signal.combineWith(default).map((sv, d) =>
-                if sv.getOrElse(d) == row.value.toString then
+              child.maybe <-- row.inputVar.signal.combineWith(row.default).map((sv, d) =>
+                if sv.getOrElse(d).toString == rowOption.value.toString then
                   Some(i(cls := "bi bi-check2"))
                 else None
               )
             ),
-            row.preview.fold(span(row.name))(p => span(p())),
-            onClick.mapTo(row.value) --> selectValue
+            rowOption.preview.fold(span(rowOption.name))(p => span(p())),
+            onClick.mapTo(rowOption.value) --> row.inputVar
           )
         )
       }

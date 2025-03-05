@@ -78,8 +78,7 @@ private def buildInputCell(row: InputAttribute) =
     case InputType.selectWithPreviewGrid =>
       SelectWithPreviewGrid(row.options, row.inputVar, row.default)
 
-    case InputType.selectWithPreview =>
-      SelectWithPreview(row.options, row.inputVar, row.default)
+    case InputType.selectWithPreview => SelectWithPreview(row)
 
     case InputType.select => SelectWithValue(row)
 
