@@ -42,12 +42,18 @@ object DOMPoint:
   */
 object SvgUtils:
 
+  /** Converts a point from screen coordinates to SVG coordinates
+    *
+    * Screen pixels → SVG units: Multiply by the scale factor
+    *
+    * SVG units → Screen pixels: Divide by the scale factor
+    */
   def calculateSimpleScale(
-      ref:              dom.svg.Locatable,
-      svgSize:          Double,
-      targetScreenSize: Double
+      ref:        dom.svg.Locatable,
+      svgSize:    Double,
+      clientSize: Double // pixels
   ): Double =
-    targetScreenSize / svgSize / getCtmScale(ref)
+    clientSize / svgSize / getCtmScale(ref)
 
   /** Calculates scale factor from the Current Transformation Matrix
     */

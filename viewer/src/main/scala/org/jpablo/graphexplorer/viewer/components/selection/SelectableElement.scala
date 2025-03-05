@@ -19,19 +19,29 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
 
   def selectedRect() =
     val bbox = ref.getBBox()
-    val extra = 2
+    val pixelPadding = 2
+    val paddingScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = pixelPadding)
+    val svgPadding = pixelPadding * paddingScale
+    val strokeW = 1.5 * paddingScale
 
-    // Calculate stroke width that remains visually consistent at different zoom levels
-    val scale = SvgUtils.calculateSimpleScale(ref, 1, targetScreenSize = 1.5)
-    val extraScale = SvgUtils.calculateSimpleScale(ref, extra, targetScreenSize = 4)
-    val rScale = SvgUtils.calculateSimpleScale(ref, 1, targetScreenSize = 5)
+    val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect").asInstanceOf[dom.SVGRectElement]
 
-    val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
-    rect.setAttribute("x", (bbox.x - extra * extraScale).toString)
-    rect.setAttribute("y", (bbox.y - extra * extraScale).toString)
-    rect.setAttribute("width", (bbox.width + extra * 2 * extraScale).toString)
-    rect.setAttribute("height", (bbox.height + extra * 2 * extraScale).toString)
-    rect.setAttribute("stroke-width", scale.toString)
+    val rectX = bbox.x - svgPadding - strokeW
+    val rectY = bbox.y - svgPadding - strokeW
+    val rectW = bbox.width + ((svgPadding + strokeW) * 2)
+    val rectH = bbox.height + ((svgPadding + strokeW) * 2)
+
+    dom.console.log(ref)
+    dom.console.log(bbox)
+    pprint.log((rectX, rectY, rectW, rectH))
+
+    rect.setAttribute("x", rectX.toString)
+    rect.setAttribute("y", rectY.toString)
+    rect.setAttribute("width", rectW.toString)
+    rect.setAttribute("height", rectH.toString)
+    rect.setAttribute("stroke-width", strokeW.toString)
+
+    val rScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = 5)
     rect.setAttribute("rx", rScale.toString)
     rect.setAttribute("ry", rScale.toString)
     rect.classList.add(selectionRectClass)

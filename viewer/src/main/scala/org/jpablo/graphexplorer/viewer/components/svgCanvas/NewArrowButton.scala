@@ -37,14 +37,10 @@ def NewArrowButton(
       val w = radius * 2
       val h = radius * 2
 
-      val scale = SvgUtils.calculateSimpleScale(ref, w.toDouble, targetScreenSize = 20)
+      val scale = SvgUtils.calculateSimpleScale(ref, w.toDouble, clientSize = 20)
 
       // Get the rankdir value from graph attributes
       val rankdir = getRankdir()
-//      val rankdir = graphTargetAttributes.now().values.get(Rankdir.attrId)
-//        .map(_.value.toString)
-//        .flatMap(str => Try(Rankdir.valueOf(str)).toOption)
-//        .getOrElse(TB)
 
       // Calculate position and rotation based on rankdir
       val (trX, trY, rotation) = rankdir match

@@ -75,7 +75,7 @@ def DraggingArrow(
 
           (clampedX, clampedY)
 
-        val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, targetScreenSize = 2)
+        val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 2)
         Some(
           svg.g(
             svg.idAttr := "dragging-arrow-group",
