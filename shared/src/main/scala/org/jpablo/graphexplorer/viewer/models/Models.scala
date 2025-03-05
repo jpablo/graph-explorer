@@ -119,15 +119,21 @@ enum AttrStatus[+A]:
   case Multiple
   case Missing
 
+  override def toString: String =
+    this match
+      case Single(v) => v.toString
+      case Multiple => "Multiple"
+      case Missing => "Missing"
+
   def map[B](f: A => B): AttrStatus[B] =
     this match
       case Single(v) => Single(f(v))
       case Multiple => Multiple
       case Missing => Missing
 
-  def getOrElse(default: String): String =
+  def getOrElse[A2 >: A](default: A2): A2 =
     this match
-      case Single(v) => v.toString
+      case Single(v) => v
       case _ => default
 
   def exists[A2 >: A](p: A2 => Boolean): Boolean =

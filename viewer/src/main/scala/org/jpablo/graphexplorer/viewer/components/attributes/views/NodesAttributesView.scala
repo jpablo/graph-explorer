@@ -54,9 +54,9 @@ def NodesAttributesView(
             RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
       )
 
-  val shapeModeStyleRow =
+  val cornerStyleRow =
     builder
-      .inputRow(CornerStyle -> InputType.select, shapeModeStyle.getVar, shapeModeStyle.getDefault)
+      .inputRow(CornerStyle -> InputType.select, cornerStyle.getVar, cornerStyle.getDefault)
 
   val shapeRow: AttributeRow =
     builder
@@ -92,7 +92,7 @@ def NodesAttributesView(
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       Color    -> color,
       builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
-      shapeModeStyleRow
+      cornerStyleRow
     ),
     if selection then
       builder.buildRows(

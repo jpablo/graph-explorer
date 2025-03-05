@@ -31,7 +31,10 @@ class EnumSubAttr[A](
     )
 
   val getDefault: Signal[String] =
-    defaultSubAttrsS.map(getSubAttr).map(_.toString)
+    defaultSubAttrsS
+      .map(getSubAttr)
+      .map(_.getOrElse(AttrStatus.Single(hardDefault)))
+      .map(_.toString)
 end EnumSubAttr
 
 // Rules:

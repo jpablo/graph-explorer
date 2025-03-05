@@ -84,7 +84,7 @@ private def buildInputCell(row: InputAttribute) =
       SelectWithPreview(row.options, row.inputVar, row.default)
 
     case InputType.select =>
-      SelectWithValue(row.options, row.inputVar, row.default)
+      SelectWithValue(row)
 
     case InputType.checkbox =>
       Checked(row.placeholder, row.inputVar, row.default.map(_ == true.toString))

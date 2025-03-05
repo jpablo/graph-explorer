@@ -4,7 +4,7 @@ import org.jpablo.graphexplorer.viewer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.components.attributes.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.models.SelectionAttrValue
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
@@ -42,18 +42,17 @@ def Select(
   )
 
 def SelectWithValue(
-    options:     Seq[RowOption],
-    selectValue: Var[SelectionAttrValue],
-    default:     Signal[String],
-    mods:        Mods*
+    row:  InputAttribute,
+    mods: Mods*
 ) =
   // TODO: use the SelectionAttrValue.Missing state (perhaps with a placeholder)
   select(
     cls := "select select-bordered select-xs w-full",
-    options.map(o => option(o.name, value := o.value.toString)),
+    cls := s"cls-${row.attrId}",
+    row.options.map(o => option(o.name, value := o.value.toString)),
     controlled(
-      value <-- selectValue.signal.combineWith(default).map(_.getOrElse(_)),
-      onChange.mapToValue.map(v => Single(AttrValue(v))) --> selectValue
+      value <-- row.inputVar.signal.combineWith(row.default).map((v, d) => v.getOrElse(d).toString),
+      onChange.mapToValue.map(v => Single(AttrValue(v))) --> row.inputVar
     ),
     mods
   )
@@ -123,7 +122,7 @@ def SelectWithPreviewGrid(
         child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
           options
             .collectFirst:
-              case row if row.hasValue(sv.getOrElse(d)) =>
+              case row if row.hasValue(sv.getOrElse(d).toString) =>
                 row.preview.fold(span(row.name))(preview => span(preview()))
       ),
       i(cls := "bi bi-chevron-down absolute right-2")
@@ -141,7 +140,7 @@ def SelectWithPreviewGrid(
             button(
               cls <-- selectValue.signal.combineWith(default).map((sv, d) =>
                 s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 ${
-                    if row.hasValue(sv.getOrElse(d)) then "btn-active" else ""
+                    if row.hasValue(sv.getOrElse(d).toString) then "btn-active" else ""
                   }"
               ),
               row.preview.fold(span(row.name))(p => span(p())),
@@ -183,7 +182,7 @@ def InputWithValue(
     tpe                   := inputType,
     placeholder           := placeholderText,
     controlled(
-      value <-- inputValue.signal.combineWith(default).map(_.getOrElse(_)),
+      value <-- inputValue.signal.combineWith(default).map(_.getOrElse(_).toString),
       onInput.mapToValue.map(v => Single(AttrValue(if isHtml(v) then AttrEq(v, true) else v))) --> inputValue
     ),
     if setFocus then onMountFocus else emptyMod
@@ -203,7 +202,7 @@ def TextAreaWithValue(
     .bimap(
       // DOT -> UI
       getThis = dotText =>
-        val uiText = dotText.getOrElse(default)
+        val uiText = dotText.getOrElse(default).toString
           .replaceAll(
             """\\\\""", // regex matching two backslashes
             """\\"""    // replaced by a single backslash
@@ -242,8 +241,8 @@ def Checked(
       checked <-- inputValue.signal.combineWith(default).map { (sv: SelectionAttrValue, d: Boolean) =>
         sv match
           case Single(attrValue) => attrValue.isTrue
-          case Multiple => d
-          case Missing => d
+          case Multiple          => d
+          case Missing           => d
       },
       onInput.mapToChecked.map(b => Single(AttrValue(b.toString))) --> inputValue
     )

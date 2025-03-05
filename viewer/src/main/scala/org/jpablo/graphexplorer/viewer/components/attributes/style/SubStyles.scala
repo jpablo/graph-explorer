@@ -48,7 +48,7 @@ class CommonSubAttributes(attrsVar: Var[AttributesUpdates], defaultSubAttrs: Sig
       defaultSubAttrs,
       getSubAttrsNow
     )
-  val shapeModeStyle =
+  val cornerStyle =
     EnumSubAttr(
       _.corner,
       modify(_)(_.corner),

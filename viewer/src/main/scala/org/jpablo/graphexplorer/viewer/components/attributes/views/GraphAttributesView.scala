@@ -58,7 +58,7 @@ def GraphAttributesView(
 
   val shapeModeStyleRow =
     builder
-      .inputRow(CornerStyle -> InputType.select, shapeModeStyle.getVar, shapeModeStyle.getDefault)
+      .inputRow(CornerStyle -> InputType.select, cornerStyle.getVar, cornerStyle.getDefault)
       .copy(
         options =
           CornerStyle.valuesWithLabel.filterNot(_._2 == diagonals).toSeq.map: (label, style) =>
