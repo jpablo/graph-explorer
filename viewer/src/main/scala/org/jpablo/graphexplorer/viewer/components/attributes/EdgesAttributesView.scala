@@ -14,11 +14,11 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 
 def EdgesAttributesView(
     state:     ViewerState,
-    attrs:     Var[AttributesUpdates],
+    updates:   Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
-  val builder = RowBuilder(attrs, defaults)
+  val builder = RowBuilder(updates, defaults)
 
   val labelRow =
     if selection then

@@ -31,8 +31,8 @@ object AttributeRow:
 import AttributeRow.*
 
 class RowBuilder(
-    elementAttributes: Var[AttributesUpdates],
-    defaults:          Option[Signal[Attributes]] = None
+    updates:  Var[AttributesUpdates],
+    defaults: Option[Signal[Attributes]] = None
 ):
 
   def buildRows(
@@ -66,7 +66,7 @@ class RowBuilder(
   ): AttributeRow.InputAttribute =
     inputRow(
       attr        = attr -> inputType,
-      inputVar    = simpleInputVar(attr.attrId, elementAttributes, onReset),
+      inputVar    = simpleInputVar(attr.attrId, updates, onReset),
       default     = defaultValue(attr.attrId, attr.default.toString),
       label       = label,
       placeholder = placeholder
@@ -92,11 +92,11 @@ class RowBuilder(
         )
 
   def simpleInputVar(
-      attrId:     AttributeId,
-      attributes: Var[AttributesUpdates],
-      onReset:    Option[String] = None
+      attrId:  AttributeId,
+      updates: Var[AttributesUpdates],
+      onReset: Option[String] = None
   ): Var[SelectionAttrValue] =
-    attributes.zoomLazy(_.attrs.getOrElse(attrId, Missing))((attrs, value) =>
+    updates.zoomLazy(_.attrs.getOrElse(attrId, Missing))((attrs, value) =>
       value match
         case Single(selection) => attrs + (attrId -> selection)
         case Multiple          => attrs

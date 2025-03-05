@@ -24,7 +24,7 @@ def StyleView(state: ViewerState) =
               ),
               EdgesAttributesView(
                 state,
-                attrs     = state.elementAttributes(arrowIds),
+                updates     = state.elementAttributes(arrowIds),
                 defaults  = Some(state.visibleGraph.map(_.root.edgeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
