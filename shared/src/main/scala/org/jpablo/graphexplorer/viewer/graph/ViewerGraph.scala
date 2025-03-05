@@ -19,7 +19,7 @@ case class ViewerGraph(
     id:   String,
     data: ViewerGraphData,
     tpe:  String = "digraph"
-):
+) derives CanEqual:
   val nodeById = data.nodes
   val nodesSet = data.nodesSet
   val arrowsSet = data.arrowsSet
@@ -154,12 +154,12 @@ case class ViewerGraph(
 
   //
   private def mergeAttributes(nodeIds: Set[NodeId], attributables: Map[NodeId, Attributable]): Map[AttributeId, SelectionAttrValue] =
-    attributables.foldLeft(Map.empty):
+    attributables.foldLeft(Map.empty[AttributeId, SelectionAttrValue]):
       case (acc, (nodeId, attributable)) if nodeId in nodeIds =>
         val nodeIdAcc =
+          // replace attribute values with Single / Multiple (if they are already in the accumulator and they are different)
           attributable.attributes.values.transform: (attrId, v) =>
-            // if attrId already exists then we have multiple values
-            if attrId in acc then Multiple else Single(v)
+            if (attrId in acc) && !acc(attrId).is(v) then Multiple else Single(v)
         acc ++ nodeIdAcc
       case (acc, _) => acc
 

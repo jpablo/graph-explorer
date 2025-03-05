@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{AttributeHeader, InputAttribute}
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.Missing
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def AttributesView(
@@ -35,6 +35,15 @@ def AttributesView(
                     span(row.label),
                     div(
                       cls := "w-6", // Fixed width space for the reset button
+                      child <-- row.inputVar.signal.map { status =>
+                        if status == Multiple then
+                          span(
+                            title := s"Multiple values",
+                            i(cls := "bi bi-exclamation-triangle")
+                          )
+                        else
+                          ""
+                      },
                       child <-- row.isChanged.map(c =>
                         if c then
                           Button(
