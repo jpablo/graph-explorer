@@ -31,10 +31,6 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
     val rectW = bbox.width + ((svgPadding + strokeW) * 2)
     val rectH = bbox.height + ((svgPadding + strokeW) * 2)
 
-    dom.console.log(ref)
-    dom.console.log(bbox)
-    pprint.log((rectX, rectY, rectW, rectH))
-
     rect.setAttribute("x", rectX.toString)
     rect.setAttribute("y", rectY.toString)
     rect.setAttribute("width", rectW.toString)
