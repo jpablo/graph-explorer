@@ -130,10 +130,14 @@ enum AttrStatus[+A]:
       case Single(v) => v.toString
       case _ => default
 
-  def is[A2 >: A](a: A2): Boolean =
+  def exists[A2 >: A](p: A2 => Boolean): Boolean =
     this match
-      case Single(v) => v == a
+      case Single(v) => p(v)
       case _ => false
+
+  def is[A2 >: A](a: A2): Boolean =
+    exists(a == _)
+
 
 type SelectionAttrValue = AttrStatus[AttrValue]
 

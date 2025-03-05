@@ -27,7 +27,7 @@ def AttributesView(
           tbody(
             for row <- attrRows yield
               val isChanged =
-                row.inputVar.signal.combineWith(row.default).map((attr, d) => attr.toString != d)
+                row.inputVar.signal.combineWith(row.default).map((attr, d) => attr.exists(_.toString != d))
               tr(
                 td(
                   cls := "w-32 align-middle whitespace-nowrap",
