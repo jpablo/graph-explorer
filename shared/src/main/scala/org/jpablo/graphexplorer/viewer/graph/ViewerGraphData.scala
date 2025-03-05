@@ -14,6 +14,16 @@ import org.jpablo.graphexplorer.viewer.models.{
   ViewerNode
 }
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{
+  NodeStyle,
+  Style,
+  FillStyle,
+  BoldStyle,
+  InvisibleStyle,
+  BorderStyle,
+  CornerStyle
+}
 
 type Arrows = Map[NodeId, Arrow]
 type Memberships = Map[ElementId, GroupId]
@@ -39,6 +49,42 @@ case class ViewerGraphData(
     */
   def getMembership(id: ElementId): GroupId =
     memberships.getOrElse(id, rootId)
+
+  def expandStyleAttributes: ViewerGraphData =
+    copy(
+      groups = groups.transform { (_, g) =>
+        g.copy(
+          attributes = expandElementAttributes(g.attributes),
+          edgeAttrs  = expandElementAttributes(g.edgeAttrs),
+          nodeAttrs  = expandElementAttributes(g.nodeAttrs)
+        )
+      },
+      nodes = nodes.transform((_, n) => n.copy(attributes = expandElementAttributes(n.attributes)))
+    )
+
+  private def expandElementAttributes(attrs: Attributes): Attributes =
+    attrs.get(NodeStyle.attrId).fold(attrs): styleAttr =>
+      // replace the "style" attribute with its sub-attributes (fill, bold, etc.)
+      attrs - NodeStyle.attrId ++ StyleSubAttributes.parse(styleAttr).toSyntheticAttributes
+
+  def combineStyleAttributes: ViewerGraphData =
+    copy(
+      groups = groups.transform { (_, g) =>
+        g.copy(
+          attributes = combineElementAttributes(g.attributes),
+          edgeAttrs  = combineElementAttributes(g.edgeAttrs),
+          nodeAttrs  = combineElementAttributes(g.nodeAttrs)
+        )
+      },
+      nodes = nodes.transform((_, n) => n.copy(attributes = combineElementAttributes(n.attributes)))
+    )
+
+  private def combineElementAttributes(attrs: Attributes): Attributes =
+    val styleAttr = Style.attrId -> AttrValue(StyleSubAttributes.fromSynthetic(attrs).toDotString)
+    // Replace the sub-attributes with the combined "style" attribute
+    val filteredAttrs =
+      attrs -- Set(FillStyle.attrId, BoldStyle.attrId, InvisibleStyle.attrId, BorderStyle.attrId, CornerStyle.attrId)
+    filteredAttrs + styleAttr
 
   def getDirectChildren(groupIds: Set[GroupId]): Set[ElementId] =
     // For elements with explicit membership

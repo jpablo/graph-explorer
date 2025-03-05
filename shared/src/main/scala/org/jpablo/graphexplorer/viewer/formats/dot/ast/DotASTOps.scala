@@ -16,7 +16,7 @@ extension (ast: DotAST)
         EdgeStmt.resetId()
         val flattened = ast.toFlattenedElements
         val viewerGraphData = ViewerGraphData.from(flattened)
-        ViewerGraph(id, viewerGraphData, ast.tpe)
+        ViewerGraph(id, viewerGraphData.expandStyleAttributes, ast.tpe)
       case None =>
         throw new IllegalArgumentException("DotAST must have an id")
 
@@ -90,7 +90,6 @@ extension (ast: DotAST)
             case _ =>
               loop(remaining = (parent -> children) :: t, arrows, groups, nodes, memberships)
 
-    // TODO: add a group for the graph itself
     loop(
       remaining   = List(None -> ast.children),
       arrows      = Nil,

@@ -223,23 +223,21 @@ object Sides extends DotAttributeSimple[Int]:
   val label = "Sides"
 
 enum Style:
-  case dashed, dotted, solid, bold, invis, diagonals, rounded, striped, wedged, tapered
+  case filled, dashed, dotted, solid, bold, invis, diagonals, rounded, striped, wedged, tapered
 
 object Style extends DotAttributeEnum[Style]:
   val default = solid
   val label = "Style"
-  // part of the DOT style attribute but explicitly excluded from the enum
-  val filled = "filled"
 
 enum NodeStyle derives CanEqual:
   case dashed, dotted, solid, bold, invis, striped, wedged, diagonals, rounded
 
 object NodeStyle extends DotAttributeEnum[NodeStyle]:
-  override def attrId = AttributeId("style")
+  override def attrId = Style.attrId
   val default = solid
   val label = "Node Style"
   // part of the DOT style attribute but explicitly excluded from the enum
-  val filled = "filled"
+  val filled = Style.filled
   override def valuesWithLabel = Array(
     ("Dashed", dashed),
     ("Dotted", dotted),
@@ -256,7 +254,7 @@ enum EdgeStyle derives CanEqual:
   case dashed, dotted, solid, bold, invis, tapered
 
 object EdgeStyle extends DotAttributeEnum[EdgeStyle]:
-  override def attrId = AttributeId("style")
+  override def attrId = Style.attrId
   val default = solid
   val label = "Edge Style"
   override def valuesWithLabel = Array(
@@ -272,7 +270,7 @@ enum ClusterStyle:
   case filled, striped, rounded
 
 object ClusterStyle extends DotAttributeEnum[ClusterStyle]:
-  override def attrId = AttributeId("style")
+  override def attrId = Style.attrId
   val default = filled // This seems incorrect as the default is empty
   val label = "Cluster Style"
 

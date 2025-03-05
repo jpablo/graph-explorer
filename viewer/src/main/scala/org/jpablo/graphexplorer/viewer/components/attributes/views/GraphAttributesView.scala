@@ -6,8 +6,6 @@ import org.jpablo.graphexplorer.viewer.components.attributes.previews.BorderStyl
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.style.{CommonSubAttributes, StyleSubAttributes}
-import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.*
-import org.jpablo.graphexplorer.viewer.extensions.extraAttributes.CornerStyle.diagonals
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
@@ -62,7 +60,7 @@ def GraphAttributesView(
       .inputRow(CornerStyle -> InputType.select, cornerStyle.getVar, cornerStyle.getDefault)
       .copy(
         options =
-          CornerStyle.valuesWithLabel.filterNot(_._2 == diagonals).toSeq.map: (label, style) =>
+          CornerStyle.valuesWithLabel.filterNot(_._2 == CornerStyle.diagonals).toSeq.map: (label, style) =>
             RowOption(label, Single(AttrValue(style.toString)), None)
       )
 
