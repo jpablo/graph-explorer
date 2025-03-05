@@ -33,10 +33,10 @@ class CommonSubAttributes(attrsVar: Var[AttributesUpdates], defaultSubAttrs: Sig
 
   val subAttributeVar = buildSubAttributeVar(attrsVar, defaultSubAttrs)
 
-  val boldStyle = BooleanSubAttr(_.bold, modify(_)(_.bold), subAttributeVar, defaultSubAttrs, getSubAttrsNow)
-  val fillStyle = BooleanSubAttr(_.fill, modify(_)(_.fill), subAttributeVar, defaultSubAttrs, getSubAttrsNow)
+  val boldStyle = BooleanSubAttr(_.bold, modify(_)(_.bold), false, subAttributeVar, defaultSubAttrs, getSubAttrsNow)
+  val fillStyle = BooleanSubAttr(_.fill, modify(_)(_.fill), false, subAttributeVar, defaultSubAttrs, getSubAttrsNow)
   val invisibleStyle =
-    BooleanSubAttr(_.invisible, modify(_)(_.invisible), subAttributeVar, defaultSubAttrs, getSubAttrsNow)
+    BooleanSubAttr(_.invisible, modify(_)(_.invisible), false, subAttributeVar, defaultSubAttrs, getSubAttrsNow)
 
   val borderStyle =
     EnumSubAttr(

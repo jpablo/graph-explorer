@@ -12,11 +12,11 @@ import org.jpablo.graphexplorer.viewer.models.SelectionAttrValue
 class BooleanSubAttr(
     getSubAttr:       StyleSubAttributes => AttrStatus[Boolean],
     pathModify:       StyleSubAttributes => PathModify[StyleSubAttributes, AttrStatus[Boolean]],
+    hardDefault:      Boolean,
     subAttributeVar:  Var[StyleSubAttributes],
     defaultSubAttrsS: Signal[StyleSubAttributes],
     getSubAttrsNow:   Signal[StyleSubAttributes] => StyleSubAttributes
 ):
-  // TODO: refactor this (combine AttrStatus and SelectionAttrValue)
   val getVar: Var[SelectionAttrValue] =
     subAttributeVar.zoomLazy(subAttrs =>
       getSubAttr(subAttrs).map(b => AttrValue(b.toString))
@@ -30,5 +30,8 @@ class BooleanSubAttr(
     )
 
   val getDefault: Signal[String] =
-    defaultSubAttrsS.map(getSubAttr).map(_.toString)
+    defaultSubAttrsS
+      .map(getSubAttr)
+      .map(_.getOrElse(AttrStatus.Single(hardDefault)))
+      .map(_.toString)
 end BooleanSubAttr

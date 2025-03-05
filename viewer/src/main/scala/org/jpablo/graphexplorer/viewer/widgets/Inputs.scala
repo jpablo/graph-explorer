@@ -228,23 +228,20 @@ def TextAreaWithValue(
     if setFocus then onMountFocus else emptyMod
   )
 
-def Checked(
-    placeholderText: String,
-    inputValue:      Var[SelectionAttrValue],
-    default:         Signal[Boolean]
-) =
+def Checked(row: InputAttribute) =
+  val default = row.default.map(_ == true.toString)
   input(
     cls         := "checkbox checkbox-xs",
     tpe         := InputType.checkbox.toString,
-    placeholder := placeholderText,
+    placeholder := row.placeholder,
     controlled(
-      checked <-- inputValue.signal.combineWith(default).map { (sv: SelectionAttrValue, d: Boolean) =>
+      checked <-- row.inputVar.signal.combineWith(default).map { (sv: SelectionAttrValue, d: Boolean) =>
         sv match
           case Single(attrValue) => attrValue.isTrue
           case Multiple          => d
           case Missing           => d
       },
-      onInput.mapToChecked.map(b => Single(AttrValue(b.toString))) --> inputValue
+      onInput.mapToChecked.map(b => Single(AttrValue(b.toString))) --> row.inputVar
     )
   )
 

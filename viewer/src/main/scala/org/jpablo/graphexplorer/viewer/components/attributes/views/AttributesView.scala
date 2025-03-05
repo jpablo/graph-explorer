@@ -26,18 +26,16 @@ def AttributesView(
         case Right(attrRows) =>
           tbody(
             for row <- attrRows yield
-              val isChanged =
-                row.inputVar.signal.combineWith(row.default).map((attr, d) => attr.exists(_.toString != d))
               tr(
                 td(
                   cls := "w-32 align-middle whitespace-nowrap",
                   div(
                     cls := "flex items-center gap-1",
-                    cls("font-bold") <-- isChanged,
+                    cls("font-bold") <-- row.isChanged,
                     span(row.label),
                     div(
                       cls := "w-6", // Fixed width space for the reset button
-                      child <-- isChanged.map(c =>
+                      child <-- row.isChanged.map(c =>
                         if c then
                           Button(
                             title := s"reset ${row.label}",
@@ -83,11 +81,9 @@ private def buildInputCell(row: InputAttribute) =
     case InputType.selectWithPreview =>
       SelectWithPreview(row.options, row.inputVar, row.default)
 
-    case InputType.select =>
-      SelectWithValue(row)
+    case InputType.select => SelectWithValue(row)
 
-    case InputType.checkbox =>
-      Checked(row.placeholder, row.inputVar, row.default.map(_ == true.toString))
+    case InputType.checkbox => Checked(row)
 
     case InputType.multiText =>
       TextAreaWithValue(row.placeholder, row.inputVar)

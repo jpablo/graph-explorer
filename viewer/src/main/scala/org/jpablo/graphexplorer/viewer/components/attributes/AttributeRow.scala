@@ -22,6 +22,11 @@ enum AttributeRow:
   )
 
 object AttributeRow:
+  extension (row: InputAttribute)
+    def isChanged =
+      row.inputVar.signal.combineWith(row.default).map { (attr, d) => attr.exists(_.toString != d) }
+
+  
   case class RowOption(
       name:    String,
       value:   SelectionAttrValue,
