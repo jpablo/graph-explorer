@@ -39,7 +39,7 @@ def StyleView(state: ViewerState) =
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
-                attrsVar  = state.elementAttributes(nodeIds),
+                updates  = state.elementAttributes(nodeIds),
                 defaults  = Some(state.visibleGraph.map(_.root.nodeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))

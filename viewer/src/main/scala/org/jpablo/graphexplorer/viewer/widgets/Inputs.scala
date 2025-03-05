@@ -121,10 +121,9 @@ def SelectWithPreviewGrid(
       div(
         cls := "flex items-center justify-center w-full pr-6",
         child.maybe <-- selectValue.signal.combineWith(default).map: (sv, d) =>
-          val currentValue = sv.getOrElse(d)
           options
             .collectFirst:
-              case row if row.value.toString == currentValue =>
+              case row if row.hasValue(sv.getOrElse(d)) =>
                 row.preview.fold(span(row.name))(preview => span(preview()))
       ),
       i(cls := "bi bi-chevron-down absolute right-2")
@@ -141,9 +140,8 @@ def SelectWithPreviewGrid(
             dataAttr("tip") := row.name,
             button(
               cls <-- selectValue.signal.combineWith(default).map((sv, d) =>
-                val currentValue = sv.getOrElse(d)
                 s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 ${
-                    if currentValue == row.value.toString then "btn-active" else ""
+                    if row.hasValue(sv.getOrElse(d)) then "btn-active" else ""
                   }"
               ),
               row.preview.fold(span(row.name))(p => span(p())),

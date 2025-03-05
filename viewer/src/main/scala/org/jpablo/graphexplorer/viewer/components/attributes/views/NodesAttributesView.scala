@@ -18,11 +18,11 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, numbe
 def NodesAttributesView(
     parent:    String,
     state:     ViewerState,
-    attrsVar:  Var[AttributesUpdates],
+    updates:   Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
-  val builder = RowBuilder(attrsVar, defaults)
+  val builder = RowBuilder(updates, defaults)
 
   given owner: Owner = state.owner
 
@@ -42,7 +42,7 @@ def NodesAttributesView(
       .map(_.map(attrs => StyleSubAttributes.from(attrs).getOrElse(StyleSubAttributes.missing)))
       .getOrElse(Signal.fromValue(StyleSubAttributes.missing))
 
-  val commonSubAttrs = CommonSubAttributes(attrsVar, defaultSubAttrs)
+  val commonSubAttrs = CommonSubAttributes(updates, defaultSubAttrs)
   import commonSubAttrs.*
 
   val borderStyleRow =

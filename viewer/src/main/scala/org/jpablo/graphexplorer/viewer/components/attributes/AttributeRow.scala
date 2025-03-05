@@ -26,7 +26,9 @@ object AttributeRow:
       name:    String,
       value:   SelectionAttrValue,
       preview: Option[() => ReactiveSvgElement[dom.SVGSVGElement]] = None
-  )
+  ):
+    def hasValue(s: String) =
+      value.exists(_.toString == s)
 
 import AttributeRow.*
 
@@ -100,7 +102,7 @@ class RowBuilder(
       value match
         case Single(selection) => attrs + (attrId -> selection)
         case Multiple          => attrs
-        case Missing           => onReset.fold(attrs)(v => attrs + (attrId -> AttrValue(v)))
+        case Missing           => onReset.fold(attrs - attrId)(v => attrs + (attrId -> AttrValue(v)))
     )
 
   // uses the global default if present, otherwise uses the (hardcoded) default value.
