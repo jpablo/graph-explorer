@@ -11,11 +11,11 @@ import org.jpablo.graphexplorer.viewer.widgets.smallInput
 import com.raquo.airstream.state.Var
 
 // Enum for sort columns
-enum EdgeSortColumn:
+enum EdgeSortColumn derives CanEqual:
   case Label, Source, Target
 
 // Enum for sort direction
-enum EdgeSortDirection:
+enum EdgeSortDirection derives CanEqual:
   case Ascending, Descending
 
 def EdgesList(

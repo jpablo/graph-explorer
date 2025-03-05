@@ -5,7 +5,7 @@ import scala.scalajs.js.Date
 var lastDate: Date = null
 var step = 0
 
-enum Level:
+enum Level derives CanEqual:
   case Debug, Info, Warn, Error, None
 
   def toConsole = this match

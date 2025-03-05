@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.router
 import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.laminar.api.L.*
 
-enum Route:
+enum Route derives CanEqual:
   case Home
   case ProjectDetail(uuid: String)
 

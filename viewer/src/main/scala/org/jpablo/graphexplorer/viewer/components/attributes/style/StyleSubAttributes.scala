@@ -13,7 +13,7 @@ case class StyleSubAttributes(
     invisible: AttrStatus[Boolean],
     border:    AttrStatus[BorderStyle],
     corner:    AttrStatus[CornerStyle]
-):
+) derives CanEqual:
 
   def ++ (other: StyleSubAttributes): StyleSubAttributes =
     StyleSubAttributes(

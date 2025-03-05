@@ -4,7 +4,7 @@ import org.jpablo.graphexplorer.viewer.models.AttributeId
 
 import scala.util.Try
 
-enum Rankdir:
+enum Rankdir derives CanEqual:
   case TB, LR, BT, RL
 
 object Rankdir extends DotAttributeEnum[Rankdir]:
@@ -84,7 +84,7 @@ object Ordering extends DotAttributeEnum[Ordering]:
   val default = out
   val label = "Ordering"
 
-enum Shape:
+enum Shape derives CanEqual:
   case box, polygon, ellipse, oval, circle, point, egg, triangle, plaintext, plain, diamond, trapezium, parallelogram,
     house, pentagon, hexagon, septagon, octagon, doublecircle, doubleoctagon, tripleoctagon, invtriangle, invtrapezium,
     invhouse, Mdiamond, Msquare, Mcircle, Mrecord, rect, rectangle, square, star, underline, cylinder, note, tab,
@@ -231,7 +231,7 @@ object Style extends DotAttributeEnum[Style]:
   // part of the DOT style attribute but explicitly excluded from the enum
   val filled = "filled"
 
-enum NodeStyle:
+enum NodeStyle derives CanEqual:
   case dashed, dotted, solid, bold, invis, striped, wedged, diagonals, rounded
 
 object NodeStyle extends DotAttributeEnum[NodeStyle]:
@@ -252,7 +252,7 @@ object NodeStyle extends DotAttributeEnum[NodeStyle]:
     ("Rounded", rounded)
   )
 
-enum EdgeStyle:
+enum EdgeStyle derives CanEqual:
   case dashed, dotted, solid, bold, invis, tapered
 
 object EdgeStyle extends DotAttributeEnum[EdgeStyle]:
@@ -298,7 +298,7 @@ object Layout extends DotAttributeEnum[Layout]:
 //  val default = 0.0
 //  override val placeholderText = "Enter rotation here"
 
-enum ArrowType:
+enum ArrowType derives CanEqual:
   case box,
     crow,
     curve,

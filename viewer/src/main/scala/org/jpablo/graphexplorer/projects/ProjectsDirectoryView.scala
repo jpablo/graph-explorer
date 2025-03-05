@@ -12,7 +12,7 @@ import scala.compiletime.asMatchable
 import scala.scalajs.js
 import org.jpablo.graphexplorer.viewer.widgets.small
 
-enum SortOption:
+enum SortOption derives CanEqual:
   case LastModified, Title, CreationDate
 
   def label: String = this match

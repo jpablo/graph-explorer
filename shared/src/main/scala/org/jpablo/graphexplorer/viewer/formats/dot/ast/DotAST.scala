@@ -17,7 +17,7 @@ case class DotAST(
     tpe:      String,
     children: List[GraphElement],
     id:       Option[String] = None
-) derives ReadWriter:
+) derives ReadWriter, CanEqual:
   def asSubgraph: SubGraph = SubGraph(children, id)
 
 object DotAST:
@@ -46,7 +46,7 @@ object GraphElement:
         case a: SubGraph  => writeJs(a)
       },
       { jsValue =>
-        if jsValue("type") == ujson.Str("node_id") then read[DotNodeId](jsValue)
+        if jsValue("type").str == "node_id" then read[DotNodeId](jsValue)
         else read[SubGraph](jsValue)
       }
     )
@@ -64,7 +64,7 @@ case class Comment() extends GraphElement derives ReadWriter
 @key("attr_stmt")
 case class AttrStmt(target: String, attr_list: List[Attr]) extends GraphElement derives ReadWriter
 
-case class AttrValue(value: String | AttrEq):
+case class AttrValue(value: String | AttrEq) derives CanEqual:
   override def toString: String = value match
     case s: String => s
     case a: AttrEq => a.value

@@ -14,13 +14,14 @@ class RowBuilder(
   updates:  Var[AttributesUpdates],
   defaults: Option[Signal[Attributes]] = None
 ):
-
-  def buildRows(
-    dotAttributes: DotAttribute[?]
+  type buildRowsInput = DotAttribute[?]
       | String
       | AttributeRow
-      | (DotAttribute[?], InputType)*
-  ): Seq[AttributeRow] =
+      | (DotAttribute[?], InputType)
+
+  given CanEqual[buildRowsInput, buildRowsInput] = CanEqual.derived
+
+  def buildRows( dotAttributes: buildRowsInput*): Seq[AttributeRow] =
     dotAttributes
       .filter:
         case "" => false

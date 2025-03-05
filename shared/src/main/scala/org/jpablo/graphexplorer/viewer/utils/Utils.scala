@@ -8,7 +8,7 @@ trait Utils:
 
 object Utils extends UtilsPlatform
 
-enum ChangeOrigin:
+enum ChangeOrigin derives CanEqual:
   case CodeMirror, Graph
 
 extension [A](xs: List[A])

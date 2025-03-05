@@ -24,6 +24,7 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
     "-language:experimental.namedTuples",
     "-language:experimental.betterFors",
     "-language:experimental.pureFunctions",
+    "-language:strictEquality",
 //    "-language:experimental.captureChecking",
     "-source:future",
     "-deprecation",

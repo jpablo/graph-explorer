@@ -17,7 +17,7 @@ object InvisibleStyle extends DotAttributeSimple[Boolean]:
   val label = "Invisible"
   val invis = "invis"
 
-enum BorderStyle:
+enum BorderStyle derives CanEqual:
   case solid, dashed, dotted
 
 object BorderStyle extends DotAttributeEnum[BorderStyle]:
@@ -30,7 +30,7 @@ object BorderStyle extends DotAttributeEnum[BorderStyle]:
     ("Dotted", dotted)
   )
 
-enum CornerStyle:
+enum CornerStyle derives CanEqual:
   case rounded, diagonals, normal
 
 object CornerStyle extends DotAttributeEnum[CornerStyle]:

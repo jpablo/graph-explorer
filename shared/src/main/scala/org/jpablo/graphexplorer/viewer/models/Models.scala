@@ -10,11 +10,12 @@ import upickle.default.*
 import scala.annotation.targetName
 import scala.compiletime.asMatchable
 
-sealed trait ElementId:
+sealed trait ElementId derives CanEqual:
   def value: String
 
-case class GroupId(value: String) extends ElementId:
+case class GroupId(value: String) extends ElementId derives CanEqual:
   override def toString: String = value
+
 
 case class NodeId(value: String) extends ElementId:
   override def toString: String = value
@@ -114,7 +115,7 @@ object Arrow:
         if t != 0 then t else x.idAttr.toString `compareTo` y.idAttr.toString
 end Arrow
 
-enum AttrStatus[+A]:
+enum AttrStatus[+A] derives CanEqual:
   case Single(value: A)
   case Multiple
   case Missing
@@ -146,7 +147,7 @@ enum AttrStatus[+A]:
       case Single(v) => p(v)
       case _ => false
 
-  def is[A2 >: A](a: A2): Boolean =
+  def is[A2 >: A](a: A2)(using CanEqual[A2, A]): Boolean =
     exists(a == _)
 
 

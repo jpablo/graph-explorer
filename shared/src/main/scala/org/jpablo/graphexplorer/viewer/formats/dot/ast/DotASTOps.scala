@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.*
 import scala.annotation.tailrec
 
-enum AttributeTarget:
+enum AttributeTarget derives CanEqual:
   case node, edge, graph
 
 extension (ast: DotAST)
@@ -107,9 +107,9 @@ extension (ast: DotAST)
     @tailrec
     def loop(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
       children match
-        case h :: EdgeStmt(Nil, _) :: t => loop(h :: t, state) // why the focus on the 2nd element?
-        case Pad() :: Newline() :: t    => loop(t, state)
-        case h :: t                     => loop(t, h :: state)
-        case Nil                        => state.reverse
+        case h :: EdgeStmt(List(), _) :: t => loop(h :: t, state) // why the focus on the 2nd element?
+        case Pad() :: Newline() :: t       => loop(t, state)
+        case h :: t                        => loop(t, h :: state)
+        case Nil                           => state.reverse
 
     ast.modify(_.children).using(loop(_))

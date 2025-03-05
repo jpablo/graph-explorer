@@ -11,11 +11,11 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
 
 // Enum for sort columns
-enum SortColumn:
+enum SortColumn derives CanEqual:
   case Id, Label
 
 // Enum for sort direction
-enum SortDirection:
+enum SortDirection derives CanEqual:
   case Ascending, Descending
 
 def NodesList(
