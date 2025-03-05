@@ -136,6 +136,11 @@ enum AttrStatus[+A]:
       case Single(v) => v
       case _ => default
 
+  def orElse[A2 >: A](other: AttrStatus[A2]): AttrStatus[A2] =
+    this match
+      case s @ Single(_) => s
+      case _ => other
+
   def exists[A2 >: A](p: A2 => Boolean): Boolean =
     this match
       case Single(v) => p(v)

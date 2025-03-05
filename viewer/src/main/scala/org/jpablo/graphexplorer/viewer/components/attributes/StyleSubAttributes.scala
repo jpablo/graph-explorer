@@ -14,6 +14,16 @@ case class StyleSubAttributes(
     border:    AttrStatus[BorderStyle],
     corner:    AttrStatus[CornerStyle]
 ):
+
+  def ++ (other: StyleSubAttributes): StyleSubAttributes =
+    StyleSubAttributes(
+      fill      = other.fill.orElse(fill),
+      bold      = other.bold.orElse(bold),
+      invisible = other.invisible.orElse(invisible),
+      border    = other.border.orElse(border),
+      corner    = other.corner.orElse(corner)
+    )
+
   def toDotString: String =
     val fillPart = if fill.is(true) then List(NodeStyle.filled) else Nil
     val boldPart = if bold.is(true) then List(NodeStyle.bold.toString) else Nil

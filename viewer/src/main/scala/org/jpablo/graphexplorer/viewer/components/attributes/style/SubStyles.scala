@@ -15,15 +15,14 @@ def buildSubAttributeVar(
     defaultSubAttrs: Signal[StyleSubAttributes]
 )(using owner: Owner): Var[StyleSubAttributes] =
   attrsVar
-    .zoomLazy(StyleSubAttributes.from)((attrs, subAttrs) =>
+    .zoomLazy(StyleSubAttributes.from): (attrs, userSelection) =>
       val default = getSubAttrsNow(defaultSubAttrs)
-      val dotStyle = subAttrs.toDotString
+      val dotStyle = (default ++ userSelection).toDotString
       if default.toDotString == dotStyle then
         // otherwise changes to the default style will be ignored
         attrs - NodeStyle.attrId
       else
         attrs + (NodeStyle.attrId -> AttrValue(dotStyle))
-    )
 
 
 def getSubAttrsNow(s: Signal[StyleSubAttributes])(using owner: Owner): StyleSubAttributes =

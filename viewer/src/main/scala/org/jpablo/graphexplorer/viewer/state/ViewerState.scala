@@ -80,7 +80,6 @@ case class ViewerState(
   def rootTargetAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
     sourceFlow.fullGraphV
       .zoomLazy(_.getRootAttributes(target).toUpdates): (graph, updates) =>
-        pprint.log(updates)
         graph.updateRootAttributes(target)(updates.applyUpdatesTo)
 
   // individual node attributes
