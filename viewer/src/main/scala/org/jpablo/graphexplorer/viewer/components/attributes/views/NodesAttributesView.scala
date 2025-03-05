@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
-import org.jpablo.graphexplorer.viewer.components.attributes.style.{CommonSubAttributes, StyleSubAttributes}
 import org.jpablo.graphexplorer.viewer.components.attributes.*
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.{BorderStylePreview, ShapePreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
@@ -38,26 +37,14 @@ def NodesAttributesView(
     else
       ""
 
-  val defaultSubAttrs: Signal[StyleSubAttributes] =
-    defaults
-      .map(_.map(attrs => StyleSubAttributes.from(attrs).getOrElse(StyleSubAttributes.missing)))
-      .getOrElse(Signal.fromValue(StyleSubAttributes.missing))
-
-  val commonSubAttrs = CommonSubAttributes(updates, defaultSubAttrs)
-  import commonSubAttrs.*
-
   val borderStyleRow =
     builder
-      .inputRow(BorderStyle -> InputType.selectWithPreview, borderStyle.getVar, borderStyle.getDefault)
+      .simpleRow(BorderStyle, InputType.selectWithPreview)
       .copy(
         options =
           BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
             RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
       )
-
-  val cornerStyleRow =
-    builder
-      .inputRow(CornerStyle -> InputType.select, cornerStyle.getVar, cornerStyle.getDefault)
 
   val shapeRow: AttributeRow =
     builder
@@ -87,17 +74,17 @@ def NodesAttributesView(
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
       Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
       "Style",
-      builder.inputRow(FillStyle -> InputType.checkbox, fillStyle.getVar, fillStyle.getDefault),
+      FillStyle -> checkbox,
       FillColor -> color,
       borderStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       Color    -> color,
-      builder.inputRow(BoldStyle -> InputType.checkbox, boldStyle.getVar, boldStyle.getDefault),
-      cornerStyleRow
+      BoldStyle -> checkbox,
+      CornerStyle
     ),
     if selection then
       builder.buildRows(
-        builder.inputRow(InvisibleStyle -> InputType.checkbox, invisibleStyle.getVar, invisibleStyle.getDefault),
+        InvisibleStyle -> checkbox,
         "Other",
         URL
       )
