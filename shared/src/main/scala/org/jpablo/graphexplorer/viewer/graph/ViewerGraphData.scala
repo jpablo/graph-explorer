@@ -2,7 +2,17 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, FlattenedGraphElement, SubGraph}
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, AttributesUpdates, ElementId, GroupId, NodeId, ViewerGroup, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{
+  Arrow,
+  AttributeId,
+  Attributes,
+  AttributesUpdates,
+  ElementId,
+  GroupId,
+  NodeId,
+  ViewerGroup,
+  ViewerNode
+}
 import com.softwaremill.quicklens.*
 
 type Arrows = Map[NodeId, Arrow]
@@ -24,8 +34,8 @@ case class ViewerGraphData(
   val arrowValues: Iterable[Arrow] = arrows.values
   val arrowsSet: Set[Arrow] = arrowValues.toSet
 
-  /** Gets the group ID that an element belongs to.
-    * Returns the root group ID if the element is not explicitly assigned to a group.
+  /** Gets the group ID that an element belongs to. Returns the root group ID if the element is not explicitly assigned
+    * to a group.
     */
   def getMembership(id: ElementId): GroupId =
     memberships.getOrElse(id, rootId)
@@ -48,11 +58,13 @@ case class ViewerGraphData(
     else
       explicitChildren
 
-  /** Returns all children elements within the specified groups, including nested elements.
-    * This includes direct children as well as children of any subgroups recursively.
+  /** Returns all children elements within the specified groups, including nested elements. This includes direct
+    * children as well as children of any subgroups recursively.
     *
-    * @param groupIds The set of group IDs to retrieve children for
-    * @return A set of all element IDs that are direct or indirect children of the specified groups
+    * @param groupIds
+    *   The set of group IDs to retrieve children for
+    * @return
+    *   A set of all element IDs that are direct or indirect children of the specified groups
     */
   def getAllChildren(groupIds: Set[GroupId]): Set[ElementId] =
     // Get the direct children first
@@ -100,13 +112,13 @@ case class ViewerGraphData(
   def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraphData =
     // Filter out any edge IDs, keep nodes and groups (clusters)
     val validIds = ids.collect:
-      case id if id in nodes => id
+      case id if id in nodes                 => id
       case id if GroupId(id.value) in groups => GroupId(id.value)
 
     if validIds.isEmpty then this
     else
       val groupId = GroupId(s"cluster_${SubGraph.randomId()}")
-      val group = ViewerGroup(groupId, Attributes(Map("label" -> AttrValue(label))))
+      val group = ViewerGroup(groupId, Attributes(Map(AttributeId("label") -> AttrValue(label))))
 
       // Find the common parent group if one exists
       val parentGroupId = validIds
@@ -123,7 +135,7 @@ case class ViewerGraphData(
 
   def addNode(nodeId: NodeId, groupId: Option[GroupId] = None, label: String = ""): ViewerGraphData =
     copy(
-      nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map("label" -> AttrValue(label))))),
+      nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map(AttributeId("label") -> AttrValue(label))))),
       memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))
     )
 
@@ -144,17 +156,17 @@ case class ViewerGraphData(
         // If group is deleted, add element to group's container if it exists
         memberships.get(groupId).map(containerId => elementId -> containerId)
       else
-        Some(elementId -> groupId)  // Keep unchanged
+        Some(elementId -> groupId) // Keep unchanged
 
     val updatedArrows = arrows.filterNot: (arrowId, arrow) =>
       (arrowId in ids) || (arrow.source in ids) || (arrow.target in ids)
 
     copy(
-      arrows = updatedArrows,
-      groups = groups -- groupIdsToRemove,
-      nodes = nodes -- ids,
+      arrows      = updatedArrows,
+      groups      = groups -- groupIdsToRemove,
+      nodes       = nodes -- ids,
       memberships = updatedMemberships
-    ) //.removeEmptyGroups
+    ) // .removeEmptyGroups
 
   def arrowSequences(source: NodeId, target: NodeId): List[Int] =
     arrowValues
@@ -169,55 +181,50 @@ case class ViewerGraphData(
   /** Updates attributes for a set of nodes and arrows.
     *
     * This method updates the attributes of the specified nodes and arrows:
-    * 1. Separates the input IDs into arrow IDs and node IDs
-    * 2. Updates attributes for matching arrows
-    * 3. Updates attributes for matching nodes, including any endpoints of updated arrows
-    * that were in the original selection
+    *   1. Separates the input IDs into arrow IDs and node IDs 2. Updates attributes for matching arrows 3. Updates
+    *      attributes for matching nodes, including any endpoints of updated arrows that were in the original selection
     *
-    * @return Updated ViewerGraphData with the new attributes applied
+    * @return
+    *   Updated ViewerGraphData with the new attributes applied
     */
-  def updateAttributes(ids: Set[NodeId], attrs: AttributesUpdates): ViewerGraphData =
-      val classified = ViewerGraphData.classifyNodes(ids)
+  def updateAttributes(ids: Set[NodeId], updates: AttributesUpdates): ViewerGraphData =
+    val classified = ViewerGraphData.classifyNodes(ids)
 
-      val updatedArrows = arrows.view
-        .filterKeys(_ in classified.arrows)
-        .mapValues(_.modify(_.attributes).using { (attributes: Attributes) =>
-          attributes ++ (attrs.update -- attrs.remove)
-        })
-        .toMap
+    val updatedArrows = arrows.view
+      .filterKeys(_ in classified.arrows)
+      .mapValues(_.modify(_.attributes).using(updates.applyUpdatesTo))
+      .toMap
 
-      val clusterIds = classified.clusters.map(id => GroupId(id.value))
+    val clusterIds = classified.clusters.map(id => GroupId(id.value))
 
-      val updatedClusters = groups.view
-        .filterKeys(_ in clusterIds)
-        .mapValues(_.modify(_.attributes).using { attributes =>
-          attributes ++ (attrs.update -- attrs.remove)
-        })
-        .toMap
+    val updatedClusters = groups.view
+      .filterKeys(_ in clusterIds)
+      .mapValues(_.modify(_.attributes).using(updates.applyUpdatesTo))
+      .toMap
 
-      val nodeIdsToUpdate = classified.nodes ++
-        (updatedArrows.values.flatMap(_.endpoints).toSet & ids)
+    val nodeIdsToUpdate = classified.nodes ++
+      (updatedArrows.values.flatMap(_.endpoints).toSet & ids)
 
-      val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
-        nodes.updated(id, nodes.getOrElse(id, ViewerNode(id)).modify(_.attributes).using { attributes =>
-          attributes ++ (attrs.update -- attrs.remove)
-        })
-
-      copy(
-        arrows = arrows ++ updatedArrows,
-        nodes = updatedNodes,
-        groups = groups ++ updatedClusters
+    val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
+      nodes.updated(
+        id,
+        nodes.getOrElse(id, ViewerNode(id)).modify(_.attributes).using(updates.applyUpdatesTo)
       )
 
+    copy(
+      arrows = arrows ++ updatedArrows,
+      nodes  = updatedNodes,
+      groups = groups ++ updatedClusters
+    )
 
 end ViewerGraphData
 
 object ViewerGraphData:
 
   case class IdsByKind(
-    clusters: Set[NodeId] = Set.empty,
-    nodes   : Set[NodeId] = Set.empty,
-    arrows  : Set[NodeId] = Set.empty
+      clusters: Set[NodeId] = Set.empty,
+      nodes:    Set[NodeId] = Set.empty,
+      arrows:   Set[NodeId] = Set.empty
   )
 
   def classifyNodes(mixed: Set[NodeId]): IdsByKind =
@@ -225,10 +232,9 @@ object ViewerGraphData:
     val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
     IdsByKind(
       clusters = clusterIds,
-      nodes = nodeIds,
-      arrows = arrows
+      nodes    = nodeIds,
+      arrows   = arrows
     )
-
 
   def from(data: FlattenedGraphElement) =
     val arrowEndpoints = data.arrows.flatMap(_.endpoints).toSet

@@ -14,7 +14,7 @@ def graphToDotAST(graph: ViewerGraph): DotAST =
   )
 
 private def nodeToStmt(node: ViewerNode): NodeStmt =
-  NodeStmt(DotNodeId(node.id.value), node.attributes.values.map(Attr(_, _)).toList)
+  NodeStmt(DotNodeId(node.id.value), node.attributes.values.map((id, value) => Attr(id.value, value)).toList)
 
 private def arrowToStmt(arrow: Arrow): EdgeStmt =
   // we'll use the arrow sequence as the id to distinguish between arrows with the same source and target
@@ -24,13 +24,13 @@ private def arrowToStmt(arrow: Arrow): EdgeStmt =
       DotNodeId(arrow.source.value),
       DotNodeId(arrow.target.value)
     ),
-    attr_list = (arrow.attributes.values + seqAsId).map(Attr(_, _)).toList
+    attr_list = (arrow.attributes.values + seqAsId).map((id, value) => Attr(id.value, value)).toList
   )
 
 private def attrs(attrs: Attributes, target: AttributeTarget) =
   if attrs.values.nonEmpty then
-    List(AttrStmt(target.toString, attrs.values.map(Attr(_, _)).toList))
-  else 
+    List(AttrStmt(target.toString, attrs.values.map((id, value) => Attr(id.value, value)).toList))
+  else
     Nil
 
 def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] =

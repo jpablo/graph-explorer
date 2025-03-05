@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.RowBuilder
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
@@ -9,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, range}
 
 
 def RootGraphAttributesView(state: ViewerState) =
-  val builder = RowBuilder(state.graphTargetAttributes2, None)
+  val builder = RowBuilder(state.rootTargetAttributesUpdates(AttributeTarget.graph), None)
   AttributesView(
     id       = "root-graph-attributes",
     titleStr = "Root Graph Options",

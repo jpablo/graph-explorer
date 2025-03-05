@@ -67,20 +67,20 @@ case class ViewerGraph(
   val modifyRootEdgeAttrs = this.modify(_.data.groups.at(root.id).edgeAttrs)
 
   lazy val removeUnsupportedFeatures: ViewerGraph =
-    modifyRootGraphAttrs.using(_ - "size")
+    modifyRootGraphAttrs.using(_ - AttributeId("size"))
 
   val defaultNodeTheme =
     Attributes(
       Map(
-        "sides" -> AttrValue("5"),
+        AttributeId("sides") -> AttrValue("5"),
       )
     )
 
   val defaultEdgeTheme =
     Attributes(
       Map(
-        "dir" -> AttrValue("both"),
-        "arrowtail" -> AttrValue("none"),
+        AttributeId("dir") -> AttrValue("both"),
+        AttributeId("arrowtail") -> AttrValue("none"),
       )
     )
 
@@ -149,8 +149,12 @@ case class ViewerGraph(
   def setRootAttributes(target: AttributeTarget)(attrs: Attributes): ViewerGraph =
     modifyRootAttributes(target).setTo(attrs)
 
-  private def collectAttrs2(nodeIds: Set[NodeId], attrs: Map[NodeId, Attributable]): Map[String, SelectionAttrValue] =
-    attrs.foldLeft(Map.empty):
+  def updateRootAttributes(target: AttributeTarget)(update: Attributes => Attributes): ViewerGraph =
+    modifyRootAttributes(target).using(update)
+
+  //
+  private def mergeAttributes(nodeIds: Set[NodeId], attributables: Map[NodeId, Attributable]): Map[AttributeId, SelectionAttrValue] =
+    attributables.foldLeft(Map.empty):
       case (acc, (nodeId, attributable)) if nodeId in nodeIds =>
         val nodeIdAcc =
           attributable.attributes.values.transform: (attrId, v) =>
@@ -165,22 +169,22 @@ case class ViewerGraph(
       .toMap
       .transform((_, n) => n.attributes)
 
-  def getAttributesById2(nodeIds: Set[NodeId]): AttributesUpdates =
+  def getAttributesById(nodeIds: Set[NodeId]): AttributesUpdates =
     AttributesUpdates(
       nodeIds.headOption
         .map: id =>
           if NodeId.isArrowId(id) then
-            collectAttrs2(nodeIds, data.arrows)
+            mergeAttributes(nodeIds, data.arrows)
           else if NodeId.isClusterId(id) then
-            collectAttrs2(nodeIds, data.groups.map((g, v) => (NodeId(g.value), v)))
+            mergeAttributes(nodeIds, data.groups.map((g, v) => (NodeId(g.value), v)))
           else if id in data.nodes then
-            collectAttrs2(nodeIds, data.nodes)
+            mergeAttributes(nodeIds, data.nodes)
           else Map.empty
         .getOrElse(Map.empty)
     )
 
-  def updateAttributes(idsToUpdate: Set[NodeId], attrs: AttributesUpdates): ViewerGraph =
-    modifyData.using(_.updateAttributes(idsToUpdate, attrs))
+  def updateAttributes(idsToUpdate: Set[NodeId], updates: AttributesUpdates): ViewerGraph =
+    modifyData.using(_.updateAttributes(idsToUpdate, updates))
 
   /** Unfolds a set of ids using a function that returns the related ids.
     */

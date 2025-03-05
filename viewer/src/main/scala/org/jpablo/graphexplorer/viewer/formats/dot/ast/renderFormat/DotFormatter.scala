@@ -20,7 +20,7 @@ object DotFormatter:
 
     def renderAttributes(attributes: List[Attr], level: Int): String =
       val filteredAttrs =
-        attributes.filterNot(attr => !keepInternal && attr.id == idAttributeKey) // Skip rendering of id attributes
+        attributes.filterNot(attr => !keepInternal && attr.id == idAttributeKey.value) // Skip rendering of id attributes
       if filteredAttrs.isEmpty then
         ""
       else if filteredAttrs.length <= 1 then

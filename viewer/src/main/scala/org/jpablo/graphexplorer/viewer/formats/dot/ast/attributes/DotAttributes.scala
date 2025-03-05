@@ -1,5 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes
 
+import org.jpablo.graphexplorer.viewer.models.AttributeId
+
 import scala.util.Try
 
 enum Rankdir:
@@ -165,7 +167,7 @@ enum NodeLabelLoc:
   case t, c, b
 
 object NodeLabelLoc extends DotAttributeEnum[NodeLabelLoc]:
-  override val attrId = "labelloc"
+  override val attrId = AttributeId("labelloc")
   def default = c
   val label = "Vertical pos"
   override val valuesWithLabel = Array(
@@ -179,7 +181,7 @@ enum GroupLabelLoc:
 
 trait GroupLabelLocT extends DotAttributeEnum[GroupLabelLoc]:
   import GroupLabelLoc.*
-  override val attrId = "labelloc"
+  override val attrId = AttributeId("labelloc")
   val label = "Vertical pos"
   def values = Array(t, b)
   override val valuesWithLabel = Array(
@@ -233,7 +235,7 @@ enum NodeStyle:
   case dashed, dotted, solid, bold, invis, striped, wedged, diagonals, rounded
 
 object NodeStyle extends DotAttributeEnum[NodeStyle]:
-  override def attrId = "style"
+  override def attrId = AttributeId("style")
   val default = solid
   val label = "Node Style"
   // part of the DOT style attribute but explicitly excluded from the enum
@@ -254,7 +256,7 @@ enum EdgeStyle:
   case dashed, dotted, solid, bold, invis, tapered
 
 object EdgeStyle extends DotAttributeEnum[EdgeStyle]:
-  override def attrId = "style"
+  override def attrId = AttributeId("style")
   val default = solid
   val label = "Edge Style"
   override def valuesWithLabel = Array(
@@ -270,7 +272,7 @@ enum ClusterStyle:
   case filled, striped, rounded
 
 object ClusterStyle extends DotAttributeEnum[ClusterStyle]:
-  override def attrId = "style"
+  override def attrId = AttributeId("style")
   val default = filled // This seems incorrect as the default is empty
   val label = "Cluster Style"
 
@@ -378,7 +380,7 @@ object Pad extends DotAttributeSimple[Double]:
   val default = 0.0555
 
 object URL extends DotAttributeSimple[String]:
-  override val attrId = "URL"
+  override val attrId = AttributeId("URL")
   val label = "URL"
   val default = ""
   override val placeholderText = "Enter URL here"

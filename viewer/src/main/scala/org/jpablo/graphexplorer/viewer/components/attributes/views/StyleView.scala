@@ -24,7 +24,7 @@ def StyleView(state: ViewerState) =
               ),
               EdgesAttributesView(
                 state,
-                attrs     = state.elementAttributes2(arrowIds),
+                attrs     = state.elementAttributes(arrowIds),
                 defaults  = Some(state.visibleGraph.map(_.root.edgeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
@@ -39,7 +39,7 @@ def StyleView(state: ViewerState) =
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
-                attrsVar  = state.elementAttributes2(nodeIds),
+                attrsVar  = state.elementAttributes(nodeIds),
                 defaults  = Some(state.visibleGraph.map(_.root.nodeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
@@ -56,7 +56,7 @@ def StyleView(state: ViewerState) =
               ),
               GraphAttributesView(
                 state     = state,
-                attrsVar  = state.elementAttributes2(clusterIds),
+                attrsVar  = state.elementAttributes(clusterIds),
                 defaults  = Some(state.visibleGraph.map(_.root.attributes)),
                 selection = true
               ).amend(cls("selection-attributes"))

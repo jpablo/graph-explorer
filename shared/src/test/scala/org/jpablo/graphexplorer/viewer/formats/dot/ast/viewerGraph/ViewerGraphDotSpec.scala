@@ -16,7 +16,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
         data = ViewerGraphData(
           rootId      = rootId,
           arrows      = Map(arrow.id -> arrow),
-          groups      = Map(rootId -> ViewerGroup(rootId, Attributes(Map("label" -> AttrValue("Title"))))),
+          groups      = Map(rootId -> ViewerGroup(rootId, Attributes(Map(AttributeId("label") -> AttrValue("Title"))))),
           nodes       = Map(),
           memberships = Map()
         ),

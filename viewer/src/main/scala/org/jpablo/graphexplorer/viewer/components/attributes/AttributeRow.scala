@@ -5,14 +5,14 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{AttributeId, Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 enum AttributeRow:
   case AttributeHeader(title: String)
 
   case InputAttribute(
-      attrId:      String,
+      attrId:      AttributeId,
       label:       String,
       placeholder: String,
       inputType:   InputType,
@@ -92,7 +92,7 @@ class RowBuilder(
         )
 
   def simpleInputVar(
-      attrId:     String,
+      attrId:     AttributeId,
       attributes: Var[AttributesUpdates],
       onReset:    Option[String] = None
   ): Var[SelectionAttrValue] =
@@ -104,7 +104,7 @@ class RowBuilder(
     )
 
   // uses the global default if present, otherwise uses the (hardcoded) default value.
-  def defaultValue(attrId: String, default: String): Signal[String] =
+  def defaultValue(attrId: AttributeId, default: String): Signal[String] =
     defaults
       .map(_.map(_.get(attrId).map(_.toString).getOrElse(default)))
       .getOrElse(Signal.fromValue(default))

@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, AttributeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*
 import upickle.implicits.key
@@ -110,7 +110,7 @@ case class EdgeStmt(
     edge_list: List[EdgeElement],
     attr_list: List[Attr]
 ) extends GraphElement derives ReadWriter:
-  lazy val idAttr: Option[String] = attr_list.find(_.id == idAttributeKey).map(_.attrEq.toString)
+  lazy val idAttr: Option[String] = attr_list.find(_.id == idAttributeKey.value).map(_.attrEq.toString)
 
   def toGraphElements: List[GraphElement] =
     edge_list.flatMap:
@@ -173,12 +173,12 @@ case class StmtSep() extends GraphElement derives ReadWriter
 @key("subgraph")
 case class SubGraph(children: List[GraphElement], id: Option[String] = None)
     extends GraphElement derives ReadWriter:
-  def findAttributes: Map[AttributeTarget, Map[String, AttrValue]] =
+  def findAttributes: Map[AttributeTarget, Map[AttributeId, AttrValue]] =
     children
       .collect:
         case AttrStmt(target, attrs) =>
           val targetEnum = AttributeTarget.valueOf(target.toLowerCase)
-          (targetEnum, attrs.map(attr => attr.id -> attr.attrEq).toMap)
+          (targetEnum, attrs.map(attr => AttributeId(attr.id) -> attr.attrEq).toMap)
       .groupBy(_._1)
       .view
       .mapValues(_.flatMap(_._2).toMap)
@@ -188,5 +188,5 @@ object SubGraph:
   // TODO: find a better way to generate unique ids
   def randomId(): String = randomUUIDSafe().take(8)
 
-def toAttrsMap(attrList: List[Attr]): Map[String, AttrValue] =
-  attrList.map(attr => attr.id -> attr.attrEq).toMap
+def toAttrsMap(attrList: List[Attr]): Map[AttributeId, AttrValue] =
+  attrList.map(attr => AttributeId(attr.id) -> attr.attrEq).toMap

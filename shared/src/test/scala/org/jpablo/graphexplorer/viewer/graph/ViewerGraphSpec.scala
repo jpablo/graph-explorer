@@ -52,7 +52,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "G",
         ViewerGraphData(
           rootId      = rootId,
-          arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"))), 0)),
+          arrows      = Map(edgeId -> Arrow(a, b, Attributes(Map(AttributeId("id") -> AttrValue("1"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
           memberships = Map.empty
@@ -65,7 +65,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         ViewerGraphData(
           rootId = rootId,
           arrows =
-            Map(edgeId -> Arrow(a, b, Attributes(Map("id" -> AttrValue("1"), "style" -> AttrValue("dashed"))), 0)),
+            Map(edgeId -> Arrow(a, b, Attributes(Map(AttributeId("id") -> AttrValue("1"), AttributeId("style") -> AttrValue("dashed"))), 0)),
           groups      = Map(rootId -> ViewerGroup(rootId)),
           nodes       = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
           memberships = Map.empty
@@ -73,7 +73,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val updated = graph.updateAttributes(Set(edgeId), AttributesUpdates(Map("style" -> Single(AttrValue("dashed")))))
+    val updated = graph.updateAttributes(Set(edgeId), AttributesUpdates(Map(AttributeId("style") -> Single(AttrValue("dashed")))))
     pprint.log(updated)
     assertEquals(updated, expected)
   }

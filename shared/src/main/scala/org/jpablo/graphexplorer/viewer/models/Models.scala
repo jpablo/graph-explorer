@@ -38,7 +38,7 @@ trait Attributable:
   def attributes: Attributes
 
   def label: AttrValue =
-    attributes.values.getOrElse("label", AttrValue.empty)
+    attributes.values.getOrElse(AttributeId("label"), AttrValue.empty)
 
   def idAttr: AttrValue =
     attributes.values.getOrElse(idAttributeKey, AttrValue.empty)
@@ -47,7 +47,7 @@ trait Attributable:
 //    Attributes(attrs.values -- Attributable.internal)
 
 object Attributable:
-  val idAttributeKey = "id"
+  val idAttributeKey = AttributeId("id")
 //  val internal = Set(idAttributeKey)
 
 case class ViewerNode(
@@ -57,7 +57,7 @@ case class ViewerNode(
 ) extends Attributable
 
 object ViewerNode:
-  def node(name: String, attrs: Map[String, AttrValue] = Map.empty) =
+  def node(name: String, attrs: Map[AttributeId, AttrValue] = Map.empty) =
     ViewerNode(NodeId(name), Attributes(attrs))
 
 // ---- Edges ------
@@ -89,7 +89,7 @@ object Arrow:
 
   val titleIdSeparator = "->"
 
-  def arrow(t: (String, String), attrs: Map[String, AttrValue] = Map.empty, seq: Int = 0): Arrow =
+  def arrow(t: (String, String), attrs: Map[AttributeId, AttrValue] = Map.empty, seq: Int = 0): Arrow =
     new Arrow(NodeId(t._1), NodeId(t._2), Attributes(attrs), seq)
 
   // example:
@@ -137,33 +137,38 @@ enum AttrStatus[+A]:
 
 type SelectionAttrValue = AttrStatus[AttrValue]
 
+case class AttributeId(value: String) extends AnyVal:
+  override def toString: String = value
 
-case class Attributes(values: Map[String, AttrValue]) extends AnyVal:
+case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def ++(other: Attributes): Attributes = Attributes(values ++ other.values)
   @targetName("concatValues")
-  def ++(other: Map[String, AttrValue]): Attributes = Attributes(values ++ other)
-  def --(other: Set[String]): Attributes = Attributes(values -- other)
-  def -(key: String): Attributes = Attributes(values - key)
-  def +(kv: (String, AttrValue)): Attributes = Attributes(values + kv)
-  def get(key: String): Option[AttrValue] = values.get(key)
+  def ++(other: Map[AttributeId, AttrValue]): Attributes = Attributes(values ++ other)
+  def --(other: Set[AttributeId]): Attributes = Attributes(values -- other)
+  def -(key: AttributeId): Attributes = Attributes(values - key)
+  def +(kv: (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
+  def get(key: AttributeId): Option[AttrValue] = values.get(key)
 
-  def toAttributes2: AttributesUpdates =
-    AttributesUpdates(values.map((k, v) => k -> AttrStatus.Single(v)))
+  def toUpdates: AttributesUpdates =
+    AttributesUpdates(values.transform((_, v) => AttrStatus.Single(v)))
 
 
 case class AttributesUpdates(
-  attrs: Map[String, SelectionAttrValue],
-  update: Map[String, AttrValue] = Map.empty,
-  remove: Set[String] = Set.empty
+  attrs: Map[AttributeId, SelectionAttrValue],
+  update: Map[AttributeId, AttrValue] = Map.empty,
+  remove: Set[AttributeId] = Set.empty
 ):
-  def -(key: String): AttributesUpdates = copy(remove = remove + key)
-  def +(kv: (String, AttrValue)): AttributesUpdates = copy(update = update + kv)
+  def -(key: AttributeId): AttributesUpdates = copy(remove = remove + key)
+  def +(kv: (AttributeId, AttrValue)): AttributesUpdates = copy(update = update + kv)
 
-  def filterSingleAttributes: Attributes =
+  def singleAttributes: Attributes =
     Attributes(attrs.collect { case (k, AttrStatus.Single(v)) => k -> v } )
 
   def applyUpdates: Attributes =
-    filterSingleAttributes ++ (update -- remove)
+    applyUpdatesTo(singleAttributes)
+
+  def applyUpdatesTo(attrs: Attributes): Attributes =
+    attrs ++ update -- remove
 
 object Attributes:
   val empty = Attributes(Map.empty)

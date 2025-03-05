@@ -9,8 +9,8 @@ extension (graphElement: GraphElement)
     @tailrec
     def loop(
         remaining: List[GraphElement],
-        acc:       Map[String, Map[String, AttrValue]]
-    ): Map[String, Map[String, AttrValue]] =
+        acc:       Map[String, Map[AttributeId, AttrValue]]
+    ): Map[String, Map[AttributeId, AttrValue]] =
       remaining match
         case Nil => acc
 

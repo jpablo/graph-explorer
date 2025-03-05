@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
 import com.raquo.airstream.core.Signal
-import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
@@ -9,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.{Action, toSvgPair}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.models.Attributes
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint}
 
@@ -24,7 +23,7 @@ object SvgCanvas:
       transform:             Signal[String],
       diagramSelection:      DiagramSelectionOps,
       addNode:               () => Unit,
-      graphTargetAttributes: Var[Attributes]
+      getRankdir:            () => Rankdir,
   ): ReactiveSvgElement[dom.svg.SVG] =
 
     val firstGroup: dom.svg.G =
@@ -49,7 +48,7 @@ object SvgCanvas:
                   val nodeId = selectedNodes.head
                   for
                     elem <- selectableElements.find(_.nodeId == nodeId)
-                    btn  <- NewArrowButton(elem, graphTargetAttributes)
+                    btn  <- NewArrowButton(elem, getRankdir)
                   yield
                   // --------------------------------------------------------
                   // Mouse interaction

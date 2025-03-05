@@ -1,19 +1,15 @@
 package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
-import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
+import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir.*
-import org.jpablo.graphexplorer.viewer.models.Attributes
-import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
-
-import scala.util.Try
 
 def NewArrowButton(
     elem:                  SelectableElement,
-    graphTargetAttributes: Var[Attributes]
+    getRankdir:            () => Rankdir
 ): Option[ReactiveSvgElement[dom.svg.G]] =
   val arrowGroup =
     svg.g(
@@ -44,10 +40,11 @@ def NewArrowButton(
       val scale = SvgUtils.calculateSimpleScale(ref, w.toDouble, targetScreenSize = 20)
 
       // Get the rankdir value from graph attributes
-      val rankdir = graphTargetAttributes.now().values.get(Rankdir.attrId)
-        .map(_.value.toString)
-        .flatMap(str => Try(Rankdir.valueOf(str)).toOption)
-        .getOrElse(TB)
+      val rankdir = getRankdir()
+//      val rankdir = graphTargetAttributes.now().values.get(Rankdir.attrId)
+//        .map(_.value.toString)
+//        .flatMap(str => Try(Rankdir.valueOf(str)).toOption)
+//        .getOrElse(TB)
 
       // Calculate position and rotation based on rankdir
       val (trX, trY, rotation) = rankdir match

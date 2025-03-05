@@ -1,9 +1,11 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes
 
+import org.jpablo.graphexplorer.viewer.models.AttributeId
+
 import scala.reflect.ClassTag
 
 sealed trait DotAttribute[A]:
-  def attrId: String = this.getClass.getSimpleName.toLowerCase.replace("$", "")
+  def attrId: AttributeId = AttributeId(this.getClass.getSimpleName.toLowerCase.replace("$", ""))
   def label: String
   def default: A
   def placeholderText = ""

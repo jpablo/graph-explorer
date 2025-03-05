@@ -35,8 +35,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("b"), Attributes(Map("id" -> AttrValue("1"))), 1),
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 2)
+          Arrow(NodeId("a"), NodeId("b"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 1),
+          Arrow(NodeId("a"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 2)
         )
       )
     assertEquals(expanded, expected)
@@ -56,8 +56,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 1),
-          Arrow(NodeId("b"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 2)
+          Arrow(NodeId("a"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 1),
+          Arrow(NodeId("b"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 2)
         )
       )
     assertEquals(expanded, expected)
@@ -77,10 +77,10 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 1),
-          Arrow(NodeId("a"), NodeId("d"), Attributes(Map("id" -> AttrValue("1"))), 2),
-          Arrow(NodeId("b"), NodeId("c"), Attributes(Map("id" -> AttrValue("1"))), 3),
-          Arrow(NodeId("b"), NodeId("d"), Attributes(Map("id" -> AttrValue("1"))), 4)
+          Arrow(NodeId("a"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 1),
+          Arrow(NodeId("a"), NodeId("d"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 2),
+          Arrow(NodeId("b"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 3),
+          Arrow(NodeId("b"), NodeId("d"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 4)
         )
       )
     assertEquals(expanded, expected)

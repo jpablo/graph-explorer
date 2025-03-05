@@ -10,13 +10,16 @@ import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, GroupId, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData.classifyNodes
+import org.jpablo.graphexplorer.viewer.models
+import org.jpablo.graphexplorer.viewer.models.{AttributesUpdates, GroupId, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.utils.SvgPoint
 import org.scalajs.dom.SVGRect
 import upickle.default.*
+
+import scala.util.Try
 
 case class ViewerState(
     projectId:     ProjectId,
@@ -68,47 +71,32 @@ case class ViewerState(
   val leftPanelVisible = Var(true)
 
   // -------- Attribute management -----------
-  // top level attributes
-  val graphTargetAttributes: Var[Attributes] =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.graph))(
-        { (graph, attrs) =>
-          graph.setRootAttributes(AttributeTarget.graph)(attrs)
-        }
-      )
-
-  val graphTargetAttributes2: Var[AttributesUpdates] =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.graph).toAttributes2)(
-        { (graph, attrs2) =>
-          graph.setRootAttributes(AttributeTarget.graph)(attrs2.applyUpdates)
-        }
-      )
 
   // Optimization idea:
   // For changes that don't impact the layout we can update the SVG directly
   // instead of re-rendering the whole diagram
-  val nodeTargetAttributes2 =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.node).toAttributes2) { (graph, attributes) =>
-        graph.setRootAttributes(AttributeTarget.node)(attributes.applyUpdates)
-      }
 
-  val edgeTargetAttributes2 =
+  // --- top level attributes ---
+  def rootTargetAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
     sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(AttributeTarget.edge).toAttributes2) { (graph, attributes) =>
-        graph.setRootAttributes(AttributeTarget.edge)(attributes.applyUpdates)
-      }
+      .zoomLazy(_.getRootAttributes(target).toUpdates): (graph, updates) =>
+        graph.updateRootAttributes(target)(updates.applyUpdatesTo)
 
   // individual node attributes
-  def elementAttributes2(elementIds: Set[NodeId]): Var[AttributesUpdates] =
+  def elementAttributes(elementIds: Set[NodeId]): Var[AttributesUpdates] =
     sourceFlow.fullGraphV
-      .zoomLazy(_.getAttributesById2(elementIds))((graph, attrs) => graph.updateAttributes(elementIds, attrs))
+      .zoomLazy(_.getAttributesById(elementIds))((graph, updates) => graph.updateAttributes(elementIds, updates))
 
   // 6. SVG with extra elements: selection rect, etc.
   val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
     rawSVG.map: svg =>
-      SvgCanvas(svg, transform, diagramSelection, addNode, graphTargetAttributes)
+      def getRankdir =
+        sourceFlow.fullGraphV.now().data.root.attributes
+          .get(Rankdir.attrId)
+          .map(_.value.toString)
+          .map(str => Try(Rankdir.valueOf(str)).getOrElse(Rankdir.default))
+          .getOrElse(Rankdir.default)
+      SvgCanvas(svg, transform, diagramSelection, addNode, () => getRankdir)
 
   // -------- Public API -----------
 
@@ -270,7 +258,7 @@ case class ViewerState(
               // Create a new node with a random ID
               val (updatedGraph, newNodeId) = graph.addRandomNode(groupId)
               // Update the new node with the original node's attributes
-              val finalGraph = updatedGraph.updateAttributes(Set(newNodeId), originalNode.attributes.toAttributes2)
+              val finalGraph = updatedGraph.updateAttributes(Set(newNodeId), originalNode.attributes.toUpdates)
               // Add the new node ID to our collection
               (finalGraph, newIds + newNodeId)
           }
