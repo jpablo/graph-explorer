@@ -210,6 +210,10 @@ case class ViewerState(
   def hideAllNodes() =
     project.hiddenNodes.update(_ ++ sourceFlow.fullGraph.now().allNodeIds)
 
+  def selectAllVisibleNodes() =
+    val visibleNodes = sourceFlow.visibleGraph.observe().now().allNodeIds
+    diagramSelection.set(visibleNodes)
+
   def showOnlyGroup() =
     selectGroupMembers()
     hideNonSelectedNodes()

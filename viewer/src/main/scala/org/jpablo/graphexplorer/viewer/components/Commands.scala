@@ -39,7 +39,8 @@ class Commands(state: ViewerState, router: Router):
 
   val menuSections: VectorMap[String, List[Command]] = VectorMap(
     "Common" -> List(
-      Command("Add node", state.addNode, always, shortcut = List("n"), description = Some("Add a new node"))
+      Command("Add node", state.addNode, always, shortcut = List("n"), description = Some("Add a new node")),
+      Command("Select all nodes", state.selectAllVisibleNodes, always, shortcut = List("a"), description = Some("Select all visible nodes"))
     ),
     "Selection" -> List(
       Command("Hide", state.hideSelection, shortcut               = List("h"), description = Some("Hide selected nodes")),
