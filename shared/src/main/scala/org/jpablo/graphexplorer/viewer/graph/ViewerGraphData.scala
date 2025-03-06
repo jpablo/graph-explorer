@@ -52,39 +52,42 @@ case class ViewerGraphData(
 
   def expandStyleAttributes: ViewerGraphData =
     copy(
-      groups = groups.transform { (_, g) =>
+      groups = groups.transform { (id, g) =>
         g.copy(
-          attributes = expandElementAttributes(g.attributes),
-          edgeAttrs  = expandElementAttributes(g.edgeAttrs),
-          nodeAttrs  = expandElementAttributes(g.nodeAttrs)
+          attributes = expandElementAttributes(id, g.attributes),
+          edgeAttrs  = expandElementAttributes(id, g.edgeAttrs),
+          nodeAttrs  = expandElementAttributes(id, g.nodeAttrs)
         )
       },
-      nodes = nodes.transform((_, n) => n.copy(attributes = expandElementAttributes(n.attributes)))
+      nodes = nodes.transform((id, n) => n.copy(attributes = expandElementAttributes(id, n.attributes)))
     )
 
-  private def expandElementAttributes(attrs: Attributes): Attributes =
+  private def expandElementAttributes(id: ElementId, attrs: Attributes): Attributes =
     attrs.get(NodeStyle.attrId).fold(attrs): styleAttr =>
       // replace the "style" attribute with its sub-attributes (fill, bold, etc.)
       attrs - NodeStyle.attrId ++ StyleSubAttributes.parse(styleAttr).toSyntheticAttributes
 
   def combineStyleAttributes: ViewerGraphData =
     copy(
-      groups = groups.transform { (_, g) =>
+      groups = groups.transform { (id, g) =>
         g.copy(
-          attributes = combineElementAttributes(g.attributes),
-          edgeAttrs  = combineElementAttributes(g.edgeAttrs),
-          nodeAttrs  = combineElementAttributes(g.nodeAttrs)
+          attributes = combineElementAttributes(id, g.attributes),
+          edgeAttrs  = combineElementAttributes(id, g.edgeAttrs),
+          nodeAttrs  = combineElementAttributes(id, g.nodeAttrs)
         )
       },
-      nodes = nodes.transform((_, n) => n.copy(attributes = combineElementAttributes(n.attributes)))
+      nodes = nodes.transform((id, n) => n.copy(attributes = combineElementAttributes(id, n.attributes)))
     )
 
-  private def combineElementAttributes(attrs: Attributes): Attributes =
-    val styleAttr = Style.attrId -> AttrValue(StyleSubAttributes.fromSynthetic(attrs).toDotString)
+  private def combineElementAttributes(id: ElementId, attrs: Attributes): Attributes =
+    val dotStyleString = StyleSubAttributes.fromSynthetic(attrs).toDotString
     // Replace the sub-attributes with the combined "style" attribute
     val filteredAttrs =
       attrs -- Set(FillStyle.attrId, BoldStyle.attrId, InvisibleStyle.attrId, BorderStyle.attrId, CornerStyle.attrId)
-    filteredAttrs + styleAttr
+    if dotStyleString.isEmpty then
+      filteredAttrs
+    else
+      filteredAttrs + (Style.attrId -> AttrValue(dotStyleString))
 
   def getDirectChildren(groupIds: Set[GroupId]): Set[ElementId] =
     // For elements with explicit membership
