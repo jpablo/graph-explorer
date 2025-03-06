@@ -214,6 +214,28 @@ case class ViewerState(
     val visibleNodes = sourceFlow.visibleGraph.observe().now().allNodeIds
     diagramSelection.set(visibleNodes)
 
+  def selectAllVisibleArrows() =
+    val visibleArrows = sourceFlow.visibleGraph.observe().now().allArrowIds
+    diagramSelection.set(visibleArrows)
+
+  def selectAllVisibleGroups() =
+    val visibleGraph = sourceFlow.visibleGraph.observe().now()
+    val groupIds = visibleGraph.data.groups.keys
+      .filter(_ != visibleGraph.data.rootId) // Exclude the root group
+      .map(groupId => NodeId(groupId.value))
+      .toSet
+    diagramSelection.set(groupIds)
+
+  def selectAll() =
+    val visibleGraph = sourceFlow.visibleGraph.observe().now()
+    val nodes = visibleGraph.allNodeIds
+    val edges = visibleGraph.allArrowIds
+    val groups = visibleGraph.data.groups.keys
+      .filter(_ != visibleGraph.data.rootId) // Exclude the root group
+      .map(groupId => NodeId(groupId.value))
+      .toSet
+    diagramSelection.set(nodes ++ edges ++ groups)
+
   def showOnlyGroup() =
     selectGroupMembers()
     hideNonSelectedNodes()
