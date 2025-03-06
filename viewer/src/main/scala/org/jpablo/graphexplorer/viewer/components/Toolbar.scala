@@ -7,9 +7,9 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
-  val allNodesHidden = 
-    state.visibleGraph.map(_.allNodeIds.isEmpty)
-    
+  val hiddenNodesIsEmpty =
+    state.hiddenNodes.signal.map(_.isEmpty)
+
   div(
     idAttr := "toolbar",
     cls    := "bg-base-100/90",
@@ -34,8 +34,9 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       text = commands.showAll.titleWithShortcut,
       cls := "tooltip-bottom",
       Button(
-        commands.showAll.title, 
-        cls("btn-primary") <-- allNodesHidden,
+        commands.showAll.title,
+        cls := "btn-primary",
+        disabled <-- hiddenNodesIsEmpty,
         onClick --> commands.showAll.action()
       ).tiny
     ),

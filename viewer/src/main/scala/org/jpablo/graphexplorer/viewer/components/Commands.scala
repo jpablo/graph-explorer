@@ -17,7 +17,7 @@ case class Command(
     description: Option[String] = None
 ):
   def titleWithShortcut =
-    title + (if shortcut.nonEmpty then s" (${shortcut.mkString(" + ")})" else "")
+    description.getOrElse(title) + (if shortcut.nonEmpty then s" (${shortcut.mkString(" + ")})" else "")
 
 class Commands(state: ViewerState, router: Router):
 
@@ -73,7 +73,7 @@ class Commands(state: ViewerState, router: Router):
     ),
     "View" -> List(
       Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors")),
-      Command("Show all", state.showAllNodes, always, description = Some("Show all nodes")),
+      Command("Show all", state.showAllNodes, always, description = Some("Show all hidden nodes")),
       Command("Hide all", state.hideAllNodes, always, description = Some("Hide all nodes"))
     ),
     "Export" -> List(
