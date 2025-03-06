@@ -1,16 +1,16 @@
 package org.jpablo.graphexplorer.viewer.extensions
 
 extension [A](a: A)
-  def orElse(b: Boolean, f: A => A): A =
+  inline def orElse(b: Boolean, f: A => A): A =
     if b then a else f(a)
 
-  infix def in(sa: Set[A]): Boolean =
+  inline infix def in(sa: Set[A]): Boolean =
     sa.contains(a)
 
-  infix def in(sa: Map[A, ?]): Boolean =
+  inline infix def in(sa: Map[A, ?]): Boolean =
     sa.contains(a)
 
-  infix def notIn(sa: Set[A]): Boolean =
+  inline infix def notIn(sa: Set[A]): Boolean =
     !sa.contains(a)
 
 extension [A](set: Set[A])

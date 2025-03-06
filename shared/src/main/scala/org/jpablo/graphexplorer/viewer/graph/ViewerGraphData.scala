@@ -1,29 +1,15 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, FlattenedGraphElement, SubGraph}
-import org.jpablo.graphexplorer.viewer.models.{
-  Arrow,
-  AttributeId,
-  Attributes,
-  AttributesUpdates,
-  ElementId,
-  GroupId,
-  NodeId,
-  ViewerGroup,
-  ViewerNode
-}
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{
-  NodeStyle,
-  Style,
-  FillStyle,
-  BoldStyle,
-  InvisibleStyle,
-  BorderStyle,
-  CornerStyle
+import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes.{
+  fromSubAttributes,
+  subAttributeIds
 }
+import org.jpablo.graphexplorer.viewer.extensions.in
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{NodeStyle, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, FlattenedGraphElement, SubGraph}
+import org.jpablo.graphexplorer.viewer.models.*
 
 type Arrows = Map[NodeId, Arrow]
 type Memberships = Map[ElementId, GroupId]
@@ -62,10 +48,12 @@ case class ViewerGraphData(
       nodes = nodes.transform((id, n) => n.copy(attributes = expandElementAttributes(id, n.attributes)))
     )
 
+  // DOT -> ViewerGraph
+  // style="..." -> [fillStyle, boldStyle, invisibleStyle, borderStyle, cornerStyle]
   private def expandElementAttributes(id: ElementId, attrs: Attributes): Attributes =
     attrs.get(NodeStyle.attrId).fold(attrs): styleAttr =>
       // replace the "style" attribute with its sub-attributes (fill, bold, etc.)
-      attrs - NodeStyle.attrId ++ StyleSubAttributes.parse(styleAttr).toSyntheticAttributes
+      attrs - NodeStyle.attrId ++ StyleSubAttributes.parse(styleAttr).withDefaults.toSubAttributes
 
   def combineStyleAttributes: ViewerGraphData =
     copy(
@@ -76,18 +64,35 @@ case class ViewerGraphData(
           nodeAttrs  = combineElementAttributes(id, g.nodeAttrs)
         )
       },
-      nodes = nodes.transform((id, n) => n.copy(attributes = combineElementAttributes(id, n.attributes)))
+      nodes = nodes.transform { (id, n) =>
+        n.copy(
+          attributes = combineElementAttributes(id, n.attributes, globals = Some(root.nodeAttrs))
+        )
+      }
     )
 
-  private def combineElementAttributes(id: ElementId, attrs: Attributes): Attributes =
-    val dotStyleString = StyleSubAttributes.fromSynthetic(attrs).toDotString
-    // Replace the sub-attributes with the combined "style" attribute
-    val filteredAttrs =
-      attrs -- Set(FillStyle.attrId, BoldStyle.attrId, InvisibleStyle.attrId, BorderStyle.attrId, CornerStyle.attrId)
-    if dotStyleString.isEmpty then
-      filteredAttrs
-    else
-      filteredAttrs + (Style.attrId -> AttrValue(dotStyleString))
+  // ViewerGraph -> DOT
+  // Replace the sub-attributes with the combined "style" attribute
+  // [fillStyle, boldStyle, invisibleStyle, borderStyle, cornerStyle] -> style="..."
+  private def combineElementAttributes(
+      id:      ElementId,
+      attrs:   Attributes,
+      globals: Option[Attributes] = None
+  ): Attributes =
+    val localSubAttrs = fromSubAttributes(attrs)
+    val filteredAttrs = attrs -- subAttributeIds
+
+    val styleStringO =
+      globals match
+        case None =>
+          val styleString = localSubAttrs.toStyleStringSimple
+          if styleString.isEmpty then None else Some(styleString)
+        case Some(globalAttrs) =>
+          localSubAttrs.toStyleCombined(fromSubAttributes(globalAttrs))
+
+    styleStringO match
+      case None        => filteredAttrs // remove the style attribute
+      case Some(style) => filteredAttrs + (Style.attrId -> AttrValue(style))
 
   def getDirectChildren(groupIds: Set[GroupId]): Set[ElementId] =
     // For elements with explicit membership

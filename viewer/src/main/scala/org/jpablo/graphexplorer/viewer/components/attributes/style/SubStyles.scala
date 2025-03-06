@@ -14,8 +14,8 @@ def buildSubAttributeVar(
   attrsVar
     .zoomLazy(StyleSubAttributes.from): (attrs, userSelection) =>
       val default = getSubAttrsNow(defaultSubAttrs)
-      val dotStyle = (default ++ userSelection).toDotString
-      if default.toDotString == dotStyle then
+      val dotStyle = (default ++ userSelection).toStyleStringSimple
+      if default.toStyleStringSimple == dotStyle then
         // otherwise changes to the default style will be ignored
         attrs - NodeStyle.attrId
       else
