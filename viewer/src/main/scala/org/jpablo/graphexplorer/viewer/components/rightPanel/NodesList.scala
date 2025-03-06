@@ -43,7 +43,7 @@ def NodesList(
 
   div(
     form(
-      idAttr := "nodes-panel-controls",
+      idAttr := "right-panel-controls",
       Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveVar)),
       div(
         cls := "flex gap-2",
@@ -62,7 +62,7 @@ def NodesList(
       )
     ),
     div(
-      idAttr := "nodes-panel-contents",
+      idAttr := "right-panel-contents",
       table(
         cls := "table table-xs table-pin-rows",
         thead(

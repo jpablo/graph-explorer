@@ -34,18 +34,18 @@ class RightPanel(state: ViewerState):
         ).asBtn.tiny.layoutSidebarReverseIcon
       ),
       div(
-        idAttr := "nodes-panel",
+        idAttr := "right-panel",
         cls <--
-          state.rightPanelVisible.signal.map(if _ then "p-2 gap-3 opacity-100 visible flex flex-col h-full"
+          state.rightPanelVisible.signal.map(if _ then "p-1 gap-3 opacity-100 visible flex flex-col h-full"
           else "w-0 p-0 gap-0 opacity-0 invisible"),
         // Fixed header section
         div(
-          idAttr := "nodes-panel-header",
+          idAttr := "right-panel-header",
           cls := "flex-none",
           firstRow,
           // --- Tab Headers ---
           div(
-            idAttr := "nodes-panel-tab-buttons",
+            idAttr := "right-panel-tab-buttons",
             tabHeaderStyle(0),
             tabHeaderSource(1),
             tabHeaderNodes(2),
@@ -54,7 +54,7 @@ class RightPanel(state: ViewerState):
         ),
         // Scrollable content section
         div(
-          idAttr := "nodes-panel-content",
+          idAttr := "right-panel-content",
           cls := "flex-grow overflow-hidden",
           // --- Tab Body ---
           tabStyle(0),
