@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.components
 
-import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.state.ViewerState
