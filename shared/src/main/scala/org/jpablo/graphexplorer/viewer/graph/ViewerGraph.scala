@@ -30,10 +30,11 @@ case class ViewerGraph(
       arrows = arrowsSet.size
     )
 
-  val allNodeIds: Set[NodeId] =
-    nodesSet.map(_.id) ++ arrowsSet.flatMap(a => Set(a.source, a.target))
+  val allElementIds: ElementIds = ElementIds(nodeById.keySet ++ data.arrows.keySet ++ data.groups.keySet)
 
-  val allArrowIds: Set[NodeId] = arrowsSet.map(_.id)
+  val allNodeIds: Set[NodeId] = nodesSet.map(_.id)
+
+  val allArrowIds: Set[ArrowId] = arrowsSet.map(_.id)
 
   lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
     arrowsSet
@@ -88,7 +89,7 @@ case class ViewerGraph(
     modifyRootAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
       .modifyRootAttributes(AttributeTarget.edge).using(_ ++ defaultEdgeTheme)
 
-  def removeNodes(toRemove: Set[NodeId]): ViewerGraph =
+  def removeElements(toRemove: ElementIds): ViewerGraph =
     modifyData.using(_.removeElements(toRemove))
 
   def addEdge(source: NodeId, target: NodeId): (ViewerGraph, Arrow) =
@@ -120,17 +121,14 @@ case class ViewerGraph(
     * @return
     *   Updated ViewerGraph with the new group containing the specified nodes
     */
-  def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraph =
+  def addToNewGroup(ids: ElementIds, label: String = ""): ViewerGraph =
     modifyData.using(_.addToNewGroup(ids, label))
 
   def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraph =
     modifyData.using(_.addToGroup(groupId, nodeIds))
 
-  def ungroupSelection(ids: Set[NodeId]): ViewerGraph =
-    val validIds: Set[ElementId] = ids.collect:
-      case id if id in nodeById => id: ElementId
-      case id if GroupId(id.value) in data.groups => id: ElementId
-    modifyData.using(_.ungroup(validIds))
+  def ungroupSelection(ids: ElementIds): ViewerGraph =
+    modifyData.using(_.ungroup(ids.filter(id => id.isNodeId || id.isGroupId)))
 
   def root: ViewerGroup = data.root
 
@@ -153,7 +151,7 @@ case class ViewerGraph(
     modifyRootAttributes(target).using(update)
 
   //
-  private def mergeAttributes(nodeIds: Set[NodeId], attributables: Map[NodeId, Attributable]): Map[AttributeId, SelectionAttrValue] =
+  private def mergeAttributes[K <: ElementId, V <: Attributable](nodeIds: ElementIds, attributables: Map[K, V]): Map[AttributeId, SelectionAttrValue] =
     attributables.foldLeft(Map.empty[AttributeId, SelectionAttrValue]):
       case (acc, (nodeId, attributable)) if nodeId in nodeIds =>
         val nodeIdAcc =
@@ -163,27 +161,23 @@ case class ViewerGraph(
         acc ++ nodeIdAcc
       case (acc, _) => acc
 
-  private def filterAttrs(nodeIds: Set[NodeId], attrs: Map[NodeId, Attributable]): Map[NodeId, Attributes] =
+  private def filterAttrs(nodeIds: Set[ElementId], attrs: Map[ElementId, Attributable]): Map[ElementId, Attributes] =
     attrs.view
       .filterKeys(nodeIds)
       .toMap
       .transform((_, n) => n.attributes)
 
-  def getAttributesById(nodeIds: Set[NodeId]): AttributesUpdates =
+  def getAttributesById(ids: ElementIds): AttributesUpdates =
     AttributesUpdates(
-      nodeIds.headOption
-        .map: id =>
-          if NodeId.isArrowId(id) then
-            mergeAttributes(nodeIds, data.arrows)
-          else if NodeId.isClusterId(id) then
-            mergeAttributes(nodeIds, data.groups.map((g, v) => (NodeId(g.value), v)))
-          else if id in data.nodes then
-            mergeAttributes(nodeIds, data.nodes)
-          else Map.empty
+      ids.ids.headOption
+        .map:
+          case _: ArrowId => mergeAttributes(ids, data.arrows.map(identity))
+          case _: GroupId => mergeAttributes(ids, data.groups.map(identity))
+          case _: NodeId => mergeAttributes(ids, data.nodes.map(identity))
         .getOrElse(Map.empty)
     )
 
-  def updateAttributes(idsToUpdate: Set[NodeId], updates: AttributesUpdates): ViewerGraph =
+  def updateAttributes(idsToUpdate: ElementIds, updates: AttributesUpdates): ViewerGraph =
     modifyData.using(_.updateAttributes(idsToUpdate, updates))
 
   /** Unfolds a set of ids using a function that returns the related ids.
@@ -279,13 +273,13 @@ object ViewerGraph:
       groups: Set[ViewerGroup] = Set.empty
   ): ViewerGraph =
     fromKeyValues(
-      arrowsById = arrows.map(t => Arrow(t._1, t._2)).map(a => a.id -> a).toMap,
+      arrowsById = arrows.map(a => a.id -> a).toMap,
       nodeById   = nodes.groupMapReduce(_.id)(identity)((_, b) => b),
       groupsById = groups.groupMapReduce(_.id)(identity)((_, b) => b)
     )
 
   def fromKeyValues(
-      arrowsById: Map[NodeId, Arrow],
+      arrowsById: Map[ArrowId, Arrow],
       nodeById:   Map[NodeId, ViewerNode],
       groupsById: Map[GroupId, ViewerGroup] = Map.empty
   ): ViewerGraph =

@@ -1,5 +1,8 @@
 package org.jpablo.graphexplorer.viewer.extensions
 
+import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
+import scala.annotation.targetName
+
 extension [A](a: A)
   inline def orElse(b: Boolean, f: A => A): A =
     if b then a else f(a)
@@ -7,8 +10,17 @@ extension [A](a: A)
   inline infix def in(sa: Set[A]): Boolean =
     sa.contains(a)
 
+  @targetName("inSet")
+  inline infix def in(ids: ElementIds)(using A <:< ElementId): Boolean =
+    ids.contains(a)
+
   inline infix def in(sa: Map[A, ?]): Boolean =
     sa.contains(a)
+
+  @targetName("notInSet")
+  inline infix def notIn(ids: ElementIds)(using A <:< ElementId): Boolean =
+    !ids.contains(a)
+
 
   inline infix def notIn(sa: Set[A]): Boolean =
     !sa.contains(a)

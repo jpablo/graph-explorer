@@ -26,7 +26,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val edgeId = NodeId("a->b:1")
+    val edgeId = ArrowId("a->b:1")
     val expected =
       ViewerGraph(
         "G",
@@ -46,7 +46,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   }
 
   test("updateAttributes should update the attributes of an edge") {
-    val edgeId = NodeId("a->b:0")
+    val edgeId = ArrowId("a->b:0")
     val graph =
       ViewerGraph(
         "G",
@@ -73,14 +73,14 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val updated = graph.updateAttributes(Set(edgeId), AttributesUpdates(Map(AttributeId("style") -> Single(AttrValue("dashed")))))
+    val updated = graph.updateAttributes(ElementIds.from(edgeId), AttributesUpdates(Map(AttributeId("style") -> Single(AttrValue("dashed")))))
     pprint.log(updated)
     assertEquals(updated, expected)
   }
 
   test("removeNodes should remove the nodes and their edges") {
-    val edgeId1 = NodeId("a->b:0")
-    val edgeId2 = NodeId("b->c:0")
+    val edgeId1 = ArrowId("a->b:0")
+    val edgeId2 = ArrowId("b->c:0")
     val graph =
       ViewerGraph(
         "G",
@@ -117,13 +117,13 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val updated = graph.removeNodes(Set(b))
+    val updated = graph.removeElements(ElementIds.from(b))
     assertEquals(updated, expected)
   }
 
   test("removeNodes a single arrow") {
-    val edgeId1 = NodeId("a->b:0")
-    val edgeId2 = NodeId("a->b:1")
+    val edgeId1 = ArrowId("a->b:0")
+    val edgeId2 = ArrowId("a->b:1")
     val graph =
       ViewerGraph(
         "G",
@@ -161,7 +161,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         "digraph"
       )
 
-    val updated = graph.removeNodes(Set(edgeId1))
+    val updated = graph.removeElements(ElementIds.from(edgeId1))
 
     assertEquals(updated, expected)
   }

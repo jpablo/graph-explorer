@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckbox, Search}
 import com.raquo.airstream.state.Var
+import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
 
 // Enum for sort columns
@@ -56,7 +57,7 @@ def NodesList(
           title := "Select filtered nodes",
           "Select",
           onClick.preventDefault(_.sample(filteredGraph)) --> { graph =>
-            state.diagramSelection.set(graph.nodesSet.map(_.id))
+            state.diagramSelection.set(ElementIds(graph.nodesSet.map(_.id)))
           }
         )
       )
@@ -82,7 +83,7 @@ def NodesList(
                 }
               ),
               onClick --> handleSortClick(SortColumn.Id)
-            ), 
+            ),
             th(
               cls := "cursor-pointer select-none",
               cls("text-primary") <-- sortColumnVar.signal.map(_ == SortColumn.Label),
@@ -148,4 +149,4 @@ private def filteredDiagramEvent(
   .map: (fullGraph, onlyActive, filter, hiddenNodes) =>
     fullGraph
       .orElse(filter.isBlank, _.filterByNodeId(filter))
-      .orElse(!onlyActive, _.removeNodes(hiddenNodes))
+      .orElse(!onlyActive, _.removeElements(hiddenNodes))

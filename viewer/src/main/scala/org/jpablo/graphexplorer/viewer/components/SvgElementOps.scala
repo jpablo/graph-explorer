@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
+import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint, UserActionRect}
 
@@ -49,7 +50,7 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
     val bbox = elem.get.getBBox()
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
-  def toSVGTextWithIds(ids: Set[models.NodeId]): String =
+  def toSVGTextWithIds(ids: ElementIds): String =
     if (ids.isEmpty) ""
     else
       val (svgs, boxes) = SelectableElement.findAll(ref).filter(_.nodeId in ids).map(buildSvgElement).unzip

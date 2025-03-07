@@ -2,9 +2,8 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{GraphAttributesView, NodesAttributesView}
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.{ElementIds, IdsByKind}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData.{IdsByKind, classifyNodes}
 import org.jpablo.graphexplorer.viewer.widgets.Select
 
 def StyleView(state: ViewerState) =
@@ -12,7 +11,7 @@ def StyleView(state: ViewerState) =
     idAttr := "diagram-attributes",
     child <--
       state.diagramSelection.signal.map: selectedNodes =>
-        val IdsByKind(clusterIds, nodeIds, arrowIds) = classifyNodes(selectedNodes)
+        val IdsByKind(clusterIds, nodeIds, arrowIds) = selectedNodes.classify
 
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>
@@ -23,7 +22,7 @@ def StyleView(state: ViewerState) =
               ),
               EdgesAttributesView(
                 state,
-                updates     = state.elementAttributes(arrowIds),
+                updates     = state.elementAttributes(ElementIds(arrowIds)),
                 defaults  = Some(state.visibleGraph.map(_.root.edgeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
@@ -38,7 +37,7 @@ def StyleView(state: ViewerState) =
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
-                updates  = state.elementAttributes(nodeIds),
+                updates  = state.elementAttributes(ElementIds(nodeIds)),
                 defaults  = Some(state.visibleGraph.map(_.root.nodeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
@@ -55,7 +54,7 @@ def StyleView(state: ViewerState) =
               ),
               GraphAttributesView(
                 state     = state,
-                attrsVar  = state.elementAttributes(clusterIds),
+                attrsVar  = state.elementAttributes(ElementIds(clusterIds)),
                 defaults  = Some(state.visibleGraph.map(_.root.attributes)),
                 selection = true
               ).amend(cls("selection-attributes"))
@@ -66,9 +65,9 @@ def StyleView(state: ViewerState) =
 
           case _ =>
             val elementTypes = Map(
-              "edges"    -> (arrowIds, "Arrows"),
-              "nodes"    -> (nodeIds, "Nodes"),
-              "clusters" -> (clusterIds, "Clusters")
+              "edges"    -> (ElementIds(arrowIds), "Arrows"),
+              "nodes"    -> (ElementIds(nodeIds), "Nodes"),
+              "clusters" -> (ElementIds(clusterIds), "Clusters")
             )
 
             div(

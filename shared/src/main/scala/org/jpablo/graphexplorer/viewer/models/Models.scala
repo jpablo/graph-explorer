@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.models
 
+import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
@@ -10,25 +11,89 @@ import upickle.default.*
 import scala.annotation.targetName
 import scala.compiletime.asMatchable
 
-sealed trait ElementId derives CanEqual:
+sealed trait ElementId derives CanEqual, ReadWriter:
   def value: String
+
+  def isGroupId: Boolean = this match { case _: GroupId => true; case _ => false }
+  def isNodeId: Boolean = this match { case _: NodeId => true; case _ => false }
+  def isArrowId: Boolean = this match { case _: ArrowId => true; case _ => false }
 
 case class GroupId(value: String) extends ElementId derives CanEqual:
   override def toString: String = value
 
+object GroupId:
+  given rw: ReadWriter[GroupId] = stringKeyRW(readwriter[String].bimap[GroupId](_.value, GroupId(_)))
+
 
 case class NodeId(value: String) extends ElementId:
   override def toString: String = value
+
+case class ArrowId(value: String) extends ElementId:
+  override def toString: String = value
+
+object ArrowId:
+
+  given rw: ReadWriter[ArrowId] = stringKeyRW(readwriter[String].bimap[ArrowId](_.value, ArrowId(_)))
+
+  def isArrowId(id: ElementId): Boolean =
+    id.value.contains(Arrow.titleIdSeparator)
+
+
+case class IdsByKind(
+  clusters: Set[GroupId] = Set.empty,
+  nodes   : Set[NodeId] = Set.empty,
+  arrows  : Set[ArrowId] = Set.empty
+)
+
+
+case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
+
+  def upcast = ids.asInstanceOf[Set[ElementId]]
+
+  def isEmpty: Boolean = ids.isEmpty
+  def nonEmpty: Boolean = ids.nonEmpty
+  def size: Int = ids.size
+  def head: ElementId = ids.head
+  infix def intersect(that: ElementIds): ElementIds = ElementIds(upcast intersect that.upcast)
+  def toggle(id: ElementId) = if id notIn this then this + id else this - id
+
+  def contains(id: ElementId): Boolean =
+    upcast.contains(id)
+
+  def filter(p: ElementId => Boolean): ElementIds =
+    ElementIds(ids.filter(p))
+
+  def + (that: ElementId): ElementIds = ElementIds(upcast + that)
+  def - (that: ElementId): ElementIds = ElementIds(upcast - that)
+  def ++ (that: ElementIds): ElementIds = ElementIds(upcast ++ that.upcast)
+  def -- (that: ElementIds): ElementIds = ElementIds(upcast -- that.upcast)
+
+  def nodeIds = ids.collect { case id: NodeId => id }
+  def arrowIds = ids.collect { case id: ArrowId => id }
+  def groupIds = ids.collect { case id: GroupId => id }
+
+  def classify: IdsByKind =
+    ids.foldLeft(IdsByKind()): (acc, eId) =>
+      eId match
+        case id: GroupId => acc.copy(clusters = acc.clusters + id)
+        case id: NodeId => acc.copy(nodes = acc.nodes + id)
+        case id: ArrowId => acc.copy(arrows = acc.arrows + id)
+
+object ElementIds:
+  def from(ids: ElementId*): ElementIds = ElementIds(ids.toSet)
+
+  given rw: ReadWriter[ElementIds] = readwriter[Set[ElementId]].bimap[ElementIds](_.upcast, ElementIds(_))
+
 
 object NodeId:
   given rw: ReadWriter[NodeId] = stringKeyRW(readwriter[String].bimap[NodeId](_.value, NodeId(_)))
 
   def random(): NodeId = NodeId(randomUUIDSafe().take(8))
 
-  def isArrowId(nodeId: NodeId): Boolean =
-    nodeId.value.contains(titleIdSeparator)
+  def isArrowId(nodeId: ElementId): Boolean =
+    nodeId.value.contains(Arrow.titleIdSeparator)
 
-  def isClusterId(nodeId: NodeId): Boolean =
+  def isClusterId(nodeId: ElementId): Boolean =
     nodeId.value.startsWith("cluster_")
 
 
@@ -44,12 +109,8 @@ trait Attributable:
   def idAttr: AttrValue =
     attributes.values.getOrElse(idAttributeKey, AttrValue.empty)
 
-//  def publicAttrs: Attributes =
-//    Attributes(attrs.values -- Attributable.internal)
-
 object Attributable:
   val idAttributeKey = AttributeId("id")
-//  val internal = Set(idAttributeKey)
 
 case class ViewerNode(
     id        :    NodeId,
@@ -63,12 +124,6 @@ object ViewerNode:
 
 // ---- Edges ------
 
-case class ArrowId(value: String) extends AnyVal:
-  override def toString: String = value
-
-object ArrowId:
-  def random(): ArrowId = ArrowId(Utils.randomUUIDSafe())
-
 case class Arrow(
     source    : NodeId,
     target    : NodeId,
@@ -77,9 +132,9 @@ case class Arrow(
 ) extends Attributable:
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
-  val id = NodeId(s"${source.value}$titleIdSeparator${target.value}:$seq")
+  val id = ArrowId(s"${source.value}$titleIdSeparator${target.value}:$seq")
 
-  def nodeIds = Set(source, target, id)
+  def nodeIds = Set(source, target)
   def endpoints = Set(source, target)
 
   def mergeAttrs(other: Attributes): Arrow = copy(attributes = attributes ++ other)

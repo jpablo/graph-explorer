@@ -11,19 +11,16 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{NodeStyle, St
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, FlattenedGraphElement, SubGraph}
 import org.jpablo.graphexplorer.viewer.models.*
 
-type Arrows = Map[NodeId, Arrow]
-type Memberships = Map[ElementId, GroupId]
-
 case class ViewerGraphData(
     // the graph itself is a group
     rootId: GroupId,
     // arrow endpoints should already be in nodes
-    arrows: Arrows,
+    arrows: Map[ArrowId, Arrow],
     // Group elements are tracked in memberships
     groups: Map[GroupId, ViewerGroup],
     nodes:  Map[NodeId, ViewerNode],
     // ids not in memberships are assumed to be in the root group (the graph itself)
-    memberships: Memberships
+    memberships: Map[ElementId, GroupId]
 ):
   assert(rootId in groups, s"Root node $rootId not found in groups: $groups")
 
@@ -143,9 +140,9 @@ case class ViewerGraphData(
   def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraphData =
     copy(memberships = memberships ++ nodeIds.map(_ -> groupId))
 
-  def ungroup(ids: Set[ElementId]): ViewerGraphData =
+  def ungroup(elementIds: ElementIds): ViewerGraphData =
     // For each id, find its current group (parent) and that group's parent (grandparent)
-    val newMemberships = ids.foldLeft(memberships) { (mems, id) =>
+    val newMemberships = elementIds.ids.foldLeft(memberships) { (mems, id) =>
       val currentGroup = getMembership(id)
       // Only process if not already in root group
       if currentGroup == rootId then mems
@@ -163,11 +160,11 @@ case class ViewerGraphData(
     val nonEmptyGroups = groups.view.filterKeys(nonEmptyGroupIds).toMap
     copy(groups = nonEmptyGroups)
 
-  def addToNewGroup(ids: Set[NodeId], label: String = ""): ViewerGraphData =
+  def addToNewGroup(eIds: ElementIds, label: String = ""): ViewerGraphData =
     // Filter out any edge IDs, keep nodes and groups (clusters)
-    val validIds = ids.collect:
-      case id if id in nodes                 => id
-      case id if GroupId(id.value) in groups => GroupId(id.value)
+    val validIds = eIds.ids.collect:
+      case id: NodeId  => id
+      case id: GroupId => id
 
     if validIds.isEmpty then this
     else
@@ -198,12 +195,17 @@ case class ViewerGraphData(
 
   val nodesSet = nodes.values.toSet
 
-  def removeElements(ids: Set[NodeId]): ViewerGraphData =
-    val groupIdsToRemove = ids.filter(NodeId.isClusterId).map(id => GroupId(id.value))
+  def removeElements(elementIds: ElementIds): ViewerGraphData =
+    val classified = elementIds.classify
+    val groupIdsToRemove = classified.clusters
 
     val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
       // case 1: remove a nested group
-      if GroupId(elementId.value) in groupIdsToRemove then
+      if elementId match {
+          case GroupId(value) => GroupId(value) in groupIdsToRemove
+          case _              => false
+        }
+      then
         None
       // case 2: remove a node from a group
       else if groupId in groupIdsToRemove then
@@ -212,13 +214,17 @@ case class ViewerGraphData(
       else
         Some(elementId -> groupId) // Keep unchanged
 
-    val updatedArrows = arrows.filterNot: (arrowId, arrow) =>
-      (arrowId in ids) || (arrow.source in ids) || (arrow.target in ids)
+    val nodeIdsToRemove = classified.nodes
+    val arrowIdsToRemove = classified.arrows
+
+    val updatedArrows = arrows.filterNot { (arrowId, arrow) =>
+      (arrowId in arrowIdsToRemove) || (arrow.source in nodeIdsToRemove) || (arrow.target in nodeIdsToRemove)
+    }
 
     copy(
       arrows      = updatedArrows,
       groups      = groups -- groupIdsToRemove,
-      nodes       = nodes -- ids,
+      nodes       = nodes -- nodeIdsToRemove,
       memberships = updatedMemberships
     ) // .removeEmptyGroups
 
@@ -241,23 +247,23 @@ case class ViewerGraphData(
     * @return
     *   Updated ViewerGraphData with the new attributes applied
     */
-  def updateAttributes(ids: Set[NodeId], updates: AttributesUpdates): ViewerGraphData =
-    val classified = ViewerGraphData.classifyNodes(ids)
+  def updateAttributes(ids: ElementIds, updates: AttributesUpdates): ViewerGraphData =
+    val classified = ids.classify
 
     val updatedArrows = arrows.view
-      .filterKeys(_ in classified.arrows)
+      .filterKeys(arrowId => arrowId in classified.arrows)
       .mapValues(_.modify(_.attributes).using(updates.applyUpdatesTo))
       .toMap
 
     val clusterIds = classified.clusters.map(id => GroupId(id.value))
 
     val updatedClusters = groups.view
-      .filterKeys(_ in clusterIds)
+      .filterKeys(groupId => groupId in clusterIds)
       .mapValues(_.modify(_.attributes).using(updates.applyUpdatesTo))
       .toMap
 
     val nodeIdsToUpdate = classified.nodes ++
-      (updatedArrows.values.flatMap(_.endpoints).toSet & ids)
+      (updatedArrows.values.flatMap(_.endpoints).toSet & classified.nodes)
 
     val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
       nodes.updated(
@@ -274,21 +280,6 @@ case class ViewerGraphData(
 end ViewerGraphData
 
 object ViewerGraphData:
-
-  case class IdsByKind(
-      clusters: Set[NodeId] = Set.empty,
-      nodes:    Set[NodeId] = Set.empty,
-      arrows:   Set[NodeId] = Set.empty
-  )
-
-  def classifyNodes(mixed: Set[NodeId]): IdsByKind =
-    val (arrows, notArrows) = mixed.partition(NodeId.isArrowId)
-    val (clusterIds, nodeIds) = notArrows.partition(NodeId.isClusterId)
-    IdsByKind(
-      clusters = clusterIds,
-      nodes    = nodeIds,
-      arrows   = arrows
-    )
 
   def from(data: FlattenedGraphElement) =
     val arrowEndpoints = data.arrows.flatMap(_.endpoints).toSet

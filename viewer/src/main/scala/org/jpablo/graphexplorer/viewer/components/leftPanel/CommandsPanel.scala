@@ -2,11 +2,10 @@ package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.{Command, Commands}
-import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.models.NodeId
-import scala.scalajs.js
+import org.jpablo.graphexplorer.viewer.state.{SelectedNodes, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.intersperse
-import com.raquo.laminar.api.L.title
+
+import scala.scalajs.js
 
 def CommandsPanel(state: ViewerState, commands: Commands) =
   import state.owner
@@ -24,7 +23,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
   // Reset highlighted index when selection changes
   state.diagramSelection.signal.foreach(_ => highlightedIndex.set(-1))
 
-  def shouldShowCommand(term: String, selection: Set[NodeId])(cmd: Command) =
+  def shouldShowCommand(term: String, selection: SelectedNodes)(cmd: Command) =
     cmd.title.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
 
   // Global key handler for Cmd+K
@@ -42,7 +41,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
       state.leftPanelVisible.signal
     ).map(_ || _ || _)
 
-  def getVisibleCommands(term: String, selection: Set[NodeId]): Map[String, List[Command]] =
+  def getVisibleCommands(term: String, selection: SelectedNodes): Map[String, List[Command]] =
     commands.menuSections.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
 
   div(
@@ -123,7 +122,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                   a(
                     idAttr := s"cmd-${cmd.title.replace(" ", "-").toLowerCase}",
                     cls    := "flex justify-between",
-                    title := cmd.description.getOrElse(cmd.title),
+                    title  := cmd.description.getOrElse(cmd.title),
                     cls("active") <-- isActive,
                     inContext { thisNode =>
                       isActive --> { isActive =>

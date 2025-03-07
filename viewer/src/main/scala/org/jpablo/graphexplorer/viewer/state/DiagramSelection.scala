@@ -1,20 +1,19 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-import org.jpablo.graphexplorer.viewer.components.Action
-import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.components.Action
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
 import scala.scalajs.js
 
-type SelectedNodes = Set[NodeId]
+type SelectedNodes = ElementIds
 
 class DiagramSelectionOps:
-  private val selectedNodes: Var[SelectedNodes] = Var(Set.empty)
+  private val selectedNodes: Var[SelectedNodes] = Var(ElementIds())
 
   val signal = selectedNodes.signal
     .distinct
@@ -22,7 +21,7 @@ class DiagramSelectionOps:
 
   def now(): SelectedNodes = selectedNodes.now()
 
-  def toggle(ss: NodeId*): Unit = selectedNodes.update(ss.foldLeft(_)(_.toggle(_)))
+  def toggle(ss: ElementId*): Unit = selectedNodes.update(ss.foldLeft(_)(_.toggle(_)))
 
   def set(ss: SelectedNodes): Unit =
     selectedNodes.set(ss)
@@ -39,34 +38,34 @@ class DiagramSelectionOps:
 
   // def contains(s: NodeId): Boolean = selectedNodes.now().contains(s)
 
-  def clear(): Unit = set(Set.empty)
+  def clear(): Unit = set(ElementIds())
 
-  val selectSuccessors = selectRelated(_.allSuccessorsGraph(_))
-  val selectPredecessors = selectRelated(_.allPredecessorsGraph(_))
-  val selectDirectSuccessors = selectRelated(_.directSuccessorsGraph(_))
-  val selectDirectPredecessors = selectRelated(_.directPredecessorsGraph(_))
+  val selectSuccessors = selectRelated((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
+  val selectPredecessors = selectRelated((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
+  val selectDirectSuccessors = selectRelated((graph, nodes) => graph.directSuccessorsGraph(nodes.nodeIds))
+  val selectDirectPredecessors = selectRelated((graph, nodes) => graph.directPredecessorsGraph(nodes.nodeIds))
 
   private def selectRelated(
       selector: (ViewerGraph, SelectedNodes) => ViewerGraph
-  )(fullGraph: ViewerGraph, hiddenNodes: HiddenNodes): Unit =
-    val visibleSubGraph: ViewerGraph = fullGraph.removeNodes(hiddenNodes)
+  )(fullGraph: ViewerGraph, hiddenNodes: HiddenElements): Unit =
+    val visibleSubGraph: ViewerGraph = fullGraph.removeElements(hiddenNodes)
     val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selectedNodes.now())
     // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
-    val relatedIds = relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds
+    val relatedIds = ElementIds(relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds)
     add(relatedIds)
 
   def handleClickOnNode(nodeId: NodeId)(shiftKey: Boolean) =
     if shiftKey then
       toggle(nodeId)
     else
-      set(Set(nodeId))
+      set(ElementIds.from(nodeId))
 
   def handleClickOnArrow(arrow: Arrow)(shiftKey: Boolean) =
     val nodeId = arrow.id
     if shiftKey then
       toggle(nodeId)
     else
-      set(Set(nodeId))
+      set(ElementIds.from(nodeId))
 
   // -----------
 
@@ -96,8 +95,8 @@ class DiagramSelectionOps:
     // Make sure only start or (start,end) nodes are selected when creating a new edge
     // For now only allow a line selection into nodes
     findNode(elementsFromRectEnd, "g.node") match
-      case Some(end) => set(Set(start.nodeId, end))
-      case None      => set(Set(start.nodeId))
+      case Some(end) => set(ElementIds(Set(start.nodeId, end)))
+      case None      => set(ElementIds.from(start.nodeId))
 
   def handleSelectionAreaUpdate(
       rect:                UserActionRect,
@@ -110,7 +109,7 @@ class DiagramSelectionOps:
         case Some(end) => handleClickOnNode(end)(rect.shift)
         case None      => clear()
     else
-      val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet
+      val nodesInRect = ElementIds(selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet)
       if nodesInRect.nonEmpty then
         if rect.shift then
           add(nodesInRect)

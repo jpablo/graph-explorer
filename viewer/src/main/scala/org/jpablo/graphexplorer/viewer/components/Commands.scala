@@ -2,9 +2,8 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.models.NodeId
+import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData.classifyNodes
 import org.scalajs.dom.window
 
 import scala.collection.immutable.VectorMap
@@ -12,7 +11,7 @@ import scala.collection.immutable.VectorMap
 case class Command(
     title:       String,
     action:      () => Unit,
-    isVisible:   Set[NodeId] => Boolean = _.nonEmpty,
+    isVisible:   ElementIds => Boolean = _.nonEmpty,
     shortcut:    List[String] = Nil,
     description: Option[String] = None
 ):
@@ -22,19 +21,19 @@ case class Command(
 class Commands(state: ViewerState, router: Router):
 
   private val always = (_: Any) => true
-  private def not(pred: Set[NodeId] => Boolean)(selection: Set[NodeId]): Boolean = !pred(selection)
+  private def not(pred: ElementIds => Boolean)(selection: ElementIds): Boolean = !pred(selection)
 
   private def changeProjectNameAction(): Unit =
     val newName = window.prompt("Enter project Name", state.project.name.now())
     if newName != null then
       state.project.name.set(newName)
 
-  private def moveToGroupActionVisible(selection: Set[NodeId]): Boolean =
-    val classified = classifyNodes(selection)
+  private def moveToGroupActionVisible(selection: ElementIds): Boolean =
+    val classified = selection.classify
     classified.clusters.size == 1 && classified.nodes.nonEmpty
 
-  private def isSingleGroupSelected(selection: Set[NodeId]): Boolean =
-    val classified = classifyNodes(selection)
+  private def isSingleGroupSelected(selection: ElementIds): Boolean =
+    val classified = selection.classify
     classified.clusters.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
 
   val menuSections: VectorMap[String, List[Command]] = VectorMap(

@@ -7,10 +7,9 @@ import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphToDotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.NodeId
-import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
 import org.jpablo.graphexplorer.viewer.logging.*
+import org.jpablo.graphexplorer.viewer.models
+import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
 
 case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
 
@@ -41,7 +40,7 @@ end syncVars
 
 class SourceFlow(
     initialSource: String,
-    hiddenNodes:   Signal[Set[NodeId]],
+    hiddenNodes:   Signal[HiddenElements],
     resetView:     () => Unit
 )(using Owner):
 
@@ -102,7 +101,7 @@ class SourceFlow(
       Versioned[String](newSource, ast.version, ast.origin)
     },
     updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
-    level = Level.None
+    level   = Level.None
   )
 
   // -------------------------------
@@ -143,13 +142,12 @@ class SourceFlow(
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
     */
   val visibleGraph: Signal[ViewerGraph] =
-    fullGraphV.signal
-      .combineWith(hiddenNodes.signal)
+    fullGraphV.signal.combineWith(hiddenNodes)
       .map: (fullGraph, hiddenNodes) =>
         withLog("[fullGraphV -> visibleGraph]") {
           fullGraph
             .removeUnsupportedFeatures
-            .removeNodes(hiddenNodes)
+            .removeElements(hiddenNodes)
             .setDefaultTheme
         }
       .tapEach(_ => resetView())

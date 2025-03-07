@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.rightPanel
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.models.Arrow
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckbox, Search}
@@ -62,12 +62,12 @@ def EdgesList(
           "Select",
           onClick.preventDefault(_.sample(state.fullGraph.combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS))) --> { case (fullGraph, onlyActive, str, hiddenNodes) =>
             val filteredEdges = fullGraph
-              .orElse(!onlyActive, _.removeNodes(hiddenNodes))
+              .orElse(!onlyActive, _.removeElements(hiddenNodes))
               .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
               .toList
               .map(_.id)
               .toSet
-            state.diagramSelection.set(filteredEdges)
+            state.diagramSelection.set(ElementIds(filteredEdges))
           }
         )
       )
@@ -136,13 +136,13 @@ def EdgesList(
               .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS, sortColumnVar.signal, sortDirectionVar.signal)
               .map: (fullGraph, onlyActive, str, hiddenNodes, sortColumn, sortDirection) =>
                 val filteredEdges = fullGraph
-                  .orElse(!onlyActive, _.removeNodes(hiddenNodes))
+                  .orElse(!onlyActive, _.removeElements(hiddenNodes))
                   .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
                   .toList
-                
+
                 // Pre-calculate endpoints for sorting
                 val edgesWithEndpoints = filteredEdges.map(arrow => (arrow, arrowEndpoints(arrow)))
-                
+
                 val sortedEdges = sortColumn match
                   case EdgeSortColumn.Label =>
                     val sorted = edgesWithEndpoints.sortBy(_._1.label.toString.toLowerCase)
@@ -153,7 +153,7 @@ def EdgesList(
                   case EdgeSortColumn.Target =>
                     val sorted = edgesWithEndpoints.sortBy(_._2._2.toLowerCase)
                     if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
-                
+
                 sortedEdges.map: (arrow, labels) =>
                   val (sourceLabel, targetLabel) = labels
                   tr(
