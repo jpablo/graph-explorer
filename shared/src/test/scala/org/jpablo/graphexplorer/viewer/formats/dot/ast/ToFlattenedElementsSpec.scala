@@ -3,14 +3,14 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.EdgeStmt.resetId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToDotGraphElements
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
-import org.jpablo.graphexplorer.viewer.models.{Arrow, AttributeId, Attributes, GroupId, NodeId, ViewerGroup, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.*
 
 class ToFlattenedElementsSpec extends ScalaCheckSuite:
 
-  val rootId = ViewerGraph.defaultRootId
+  val rootId = ViewerGraphData.defaultRootId
   val group0 = GroupId("cluster_0")
   val group1 = GroupId("cluster_1")
 

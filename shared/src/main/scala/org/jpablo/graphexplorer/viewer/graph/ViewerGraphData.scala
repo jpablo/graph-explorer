@@ -6,27 +6,35 @@ import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttri
   fromSubAttributes,
   subAttributeIds
 }
-import org.jpablo.graphexplorer.viewer.extensions.in
+import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{NodeStyle, Style}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, FlattenedGraphElement, SubGraph}
 import org.jpablo.graphexplorer.viewer.models.*
 
 case class ViewerGraphData(
     // the graph itself is a group
-    rootId: GroupId,
+    rootId: GroupId = defaultRootId,
+    nodes:  Map[NodeId, ViewerNode] = Map.empty,
     // arrow endpoints should already be in nodes
-    arrows: Map[ArrowId, Arrow],
-    // Group elements are tracked in memberships
-    groups: Map[GroupId, ViewerGroup],
-    nodes:  Map[NodeId, ViewerNode],
-    // ids not in memberships are assumed to be in the root group (the graph itself)
-    memberships: Map[ElementId, GroupId]
+    arrows: Map[ArrowId, Arrow] = Map.empty,
+    // membership to the root group is implicit
+    // i.e. Map(id -> rootId) is not included and would be redundant.
+    // i.e. if an element is not in memberships, it belongs to the root group
+    memberships: Map[ElementId, GroupId] = Map.empty,
+    // The root group does appear here (defaults for nodes and edges).
+    groups: Map[GroupId, ViewerGroup] = Map(defaultRootId -> ViewerGroup(defaultRootId))
 ):
+  // groups(rootId) contains the defaults for nodes and edges
+  // strictly speaking it is not needed, but it is convenient, so let's enforce it.
   assume(rootId in groups, s"Root node $rootId not found in groups: $groups")
+  assume(rootId notIn memberships.values.toSet, "Root group should not be in memberships, it is implicit")
   assume(arrows.values.forall(a => (a.source in nodes) && (a.target in nodes)), "Arrow endpoints not found in nodes")
+
+  val root: ViewerGroup = groups(rootId)
 
   val arrowValues: Iterable[Arrow] = arrows.values
   val arrowsSet: Set[Arrow] = arrowValues.toSet
+  val nodesSet = nodes.values.toSet
 
   /** Gets the group ID that an element belongs to. Returns the root group ID if the element is not explicitly assigned
     * to a group.
@@ -188,11 +196,6 @@ case class ViewerGraphData(
       memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))
     )
 
-  val root: ViewerGroup =
-    groups(rootId)
-
-  val nodesSet = nodes.values.toSet
-
   def removeElements(elementIds: ElementIds): ViewerGraphData =
     val classified = elementIds.classify
     val groupIdsToRemove = classified.clusters
@@ -275,6 +278,8 @@ end ViewerGraphData
 
 object ViewerGraphData:
 
+  val defaultRootId = GroupId("G")
+
   def from(data: FlattenedGraphElement) =
     val arrowEndpoints = data.arrows.flatMap(_.endpoints).toSet
     val nodesMap = data.nodes.map(n => n.id -> n).toMap
@@ -282,10 +287,12 @@ object ViewerGraphData:
 
     ViewerGraphData(
       rootId      = data.rootId,
-      arrows      = data.arrows.map(a => a.id -> a).toMap,
-      groups      = data.groups.map(g => g.id -> g).toMap,
       nodes       = nodesMap ++ implicitNodeIds.map(n => n -> ViewerNode(n)),
-      memberships = data.memberships.toMap // This messes up with the order of elements
+      arrows      = data.arrows.map(a => a.id -> a).toMap,
+      memberships = data.memberships.toMap, // This messes up with the order of elements
+      groups      = data.groups.map(g => g.id -> g).toMap
     )
+
+  val minimal = ViewerGraphData()
 
 end ViewerGraphData

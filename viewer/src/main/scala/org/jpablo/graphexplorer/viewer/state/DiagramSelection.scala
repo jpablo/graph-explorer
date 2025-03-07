@@ -63,7 +63,7 @@ class DiagramSelectionOps:
     val visibleSubGraph: ViewerGraph = fullGraph.removeElements(hiddenNodes)
     val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selectedNodes.now())
     // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
-    add(relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds)
+    add(relatedSubGraph.nodeIds ++ relatedSubGraph.arrowIds)
 
   def handleClickOnNode(elementId: ElementId)(shiftKey: Boolean) =
     if shiftKey then

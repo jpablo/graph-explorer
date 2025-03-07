@@ -56,7 +56,7 @@ def NodesList(
           title := "Select filtered nodes",
           "Select",
           onClick.preventDefault(_.sample(filteredGraph)) --> { graph =>
-            state.diagramSelection.set(graph.nodesSet.map(_.id))
+            state.diagramSelection.set(graph.nodeIds)
           }
         )
       )
@@ -106,31 +106,30 @@ def NodesList(
             filteredGraph
               .combineWith(sortColumnVar.signal, sortDirectionVar.signal)
               .map: (graph, sortColumn, sortDirection) =>
-                val nodes = graph.nodesSet.toList
                 val sortedNodes = sortColumn match
                   case SortColumn.Id =>
-                    val sorted = nodes.sortBy(node => node.id.toString.toLowerCase)
+                    val sorted = graph.nodesSeq.sortBy((id, _) => id.toString.toLowerCase)
                     if sortDirection == SortDirection.Descending then sorted.reverse else sorted
                   case SortColumn.Label =>
-                    val sorted = nodes.sortBy(node => node.label.toString.toLowerCase)
+                    val sorted = graph.nodesSeq.sortBy((_, node) => node.label.toString.toLowerCase)
                     if sortDirection == SortDirection.Descending then sorted.reverse else sorted
 
-                sortedNodes.map: node =>
+                sortedNodes.map: (nodeId, node) =>
                   tr(
                     cls := "whitespace-nowrap hover cursor-pointer",
-                    cls("font-bold") <-- state.isNodeVisible(node.id),
-                    cls("bg-base-200") <-- state.isSelected(node.id),
-                    td(cls := "truncate", node.id.toString),
+                    cls("font-bold") <-- state.isNodeVisible(nodeId),
+                    cls("bg-base-200") <-- state.isSelected(nodeId),
+                    td(cls := "truncate", nodeId.toString),
                     td(cls := "truncate", node.label.toString),
                     onMouseDown.preventDefault --> Observer.empty,
-                    onClick.preventDefault.map(_.shiftKey) --> state.diagramSelection.handleClickOnNode(node.id),
+                    onClick.preventDefault.map(_.shiftKey) --> state.diagramSelection.handleClickOnNode(nodeId),
                     onDblClick
                       .preventDefault
-                      .stopPropagation(_.sample(state.isNodeVisible(node.id))) --> { visible =>
+                      .stopPropagation(_.sample(state.isNodeVisible(nodeId))) --> { visible =>
                       if visible then
-                        state.hideNodes(Set(node.id))
+                        state.hideNodes(Set(nodeId))
                       else
-                        state.showNodes(Set(node.id))
+                        state.showNodes(Set(nodeId))
                     }
                   )
         )

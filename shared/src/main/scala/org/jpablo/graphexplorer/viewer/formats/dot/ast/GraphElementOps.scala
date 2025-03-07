@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.models.*
 import scala.annotation.tailrec
 
 extension (graphElement: GraphElement)
-  def findAllViewerNodes: Set[ViewerNode] =
+  def findAllViewerNodes: Map[NodeId, ViewerNode] =
     @tailrec
     def loop(
         remaining: List[GraphElement],
@@ -27,7 +27,6 @@ extension (graphElement: GraphElement)
         case _ :: t => loop(remaining = t, acc)
 
     loop(List(graphElement), Map.empty)
-      .map((id, attrs) => ViewerNode(NodeId(id), Attributes(attrs)))
-      .toSet
+      .map((id, attrs) => NodeId(id) -> ViewerNode(NodeId(id), Attributes(attrs)))
 
 end extension

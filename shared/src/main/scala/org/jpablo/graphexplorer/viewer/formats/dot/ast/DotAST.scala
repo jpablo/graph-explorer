@@ -2,10 +2,10 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.EdgeStmt.nextId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
-import org.jpablo.graphexplorer.viewer.models.{Arrow, AttributeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, AttributeId}
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*
 import upickle.implicits.key
@@ -21,7 +21,7 @@ case class DotAST(
   def asSubgraph: SubGraph = SubGraph(children, id)
 
 object DotAST:
-  val empty: DotAST = DotAST("digraph", Nil, id = Some(ViewerGraph.defaultRootId.value))
+  val empty: DotAST = DotAST("digraph", Nil, id = Some(ViewerGraphData.defaultRootId.value))
 
 case class Location(start: Position, end: Position) derives ReadWriter
 
@@ -30,8 +30,7 @@ object Location:
 
 @key("type")
 sealed trait GraphElement derives ReadWriter:
-  lazy val allViewerNodes: List[ViewerNode] = this.findAllViewerNodes.toList
-  lazy val allNodesIds: List[String] = allViewerNodes.map(_.id.value)
+  lazy val allNodesIds: List[String] = this.findAllViewerNodes.keys.toList.map(_.value)
   def nodeId = this match
     case NodeStmt(node_id, _) => Some(node_id.id)
     case SubGraph(_, id)      => id

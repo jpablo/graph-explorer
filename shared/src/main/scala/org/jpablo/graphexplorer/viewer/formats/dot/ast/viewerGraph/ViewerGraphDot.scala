@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
-import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, GroupId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, Attributes, GroupId, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.extensions.in
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
@@ -13,8 +13,8 @@ def graphToDotAST(graph: ViewerGraph): DotAST =
     id       = Some(graph.id)
   )
 
-private def nodeToStmt(node: ViewerNode): NodeStmt =
-  NodeStmt(DotNodeId(node.id.value), node.attributes.values.map((id, value) => Attr(id.value, value)).toList)
+private def nodeToStmt(id: NodeId, node: ViewerNode): NodeStmt =
+  NodeStmt(DotNodeId(id.value), node.attributes.values.map((id, value) => Attr(id.value, value)).toList)
 
 private def arrowToStmt(arrow: Arrow): EdgeStmt =
   // we'll use the arrow sequence as the id to distinguish between arrows with the same source and target
@@ -38,8 +38,8 @@ def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] 
     if groupId in visited then
       None
     else
-      val nodeStmts = graphData.nodes.values
-        .filter(node => graphData.getMembership(node.id) == groupId)
+      val nodeStmts = graphData.nodes
+        .filter((id, _) => graphData.getMembership(id) == groupId)
         .map(nodeToStmt)
 
       val edgeStmts = graphData.arrows.values

@@ -123,7 +123,7 @@ case class ViewerState(
   def isNodeVisible(id: NodeId) = hiddenNodesS.map(ids => id notIn ids)
 
   def isEdgeVisible(id: ArrowId) =
-    visibleGraph.map(graph => id in graph.allArrowIds)
+    visibleGraph.map(graph => id in graph.arrowIds)
 
   def isSelected(id: ElementId) =
     diagramSelection.signal.map(ids => id in ids)
@@ -159,19 +159,19 @@ case class ViewerState(
 //    def --(a: Set[? <: ElementId]) = (ElementIds(ids) -- ElementIds(a)).ids
 
   def hideNonSelectedNodes() =
-    updateHiddenFromSelection((h, sel, g) => h ++ (g.allNodeIds -- sel.nodeIds))
+    updateHiddenFromSelection((h, sel, g) => h ++ (g.nodeIds -- sel.nodeIds))
 
   def showAllSuccessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- g.allSuccessorsGraph(sel.nodeIds).allNodeIds)
+    updateHiddenFromSelection((h, sel, g) => h -- g.allSuccessorsGraph(sel.nodeIds).nodeIds)
 
   def showDirectSuccessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- g.directSuccessorsGraph(sel.nodeIds).allNodeIds)
+    updateHiddenFromSelection((h, sel, g) => h -- g.directSuccessorsGraph(sel.nodeIds).nodeIds)
 
   def showAllPredecessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- g.allPredecessorsGraph(sel.nodeIds).allNodeIds)
+    updateHiddenFromSelection((h, sel, g) => h -- g.allPredecessorsGraph(sel.nodeIds).nodeIds)
 
   def showDirectPredecessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- g.directPredecessorsGraph(sel.nodeIds).allNodeIds)
+    updateHiddenFromSelection((h, sel, g) => h -- g.directPredecessorsGraph(sel.nodeIds).nodeIds)
 
   def selectSuccessors() =
     diagramSelection.selectSuccessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
@@ -215,17 +215,17 @@ case class ViewerState(
     diagramSelection.clear()
 
   def keepRootsOnly() =
-    project.hiddenElements.update(_ ++ (sourceFlow.fullGraph.now().allNodeIds -- sourceFlow.fullGraph.now().roots))
+    project.hiddenElements.update(_ ++ (sourceFlow.fullGraph.now().nodeIds -- sourceFlow.fullGraph.now().roots))
 
   def hideAllNodes() =
-    project.hiddenElements.update(_ ++ sourceFlow.fullGraph.now().allNodeIds)
+    project.hiddenElements.update(_ ++ sourceFlow.fullGraph.now().nodeIds)
 
   def selectAllVisibleNodes() =
-    val visibleNodes = sourceFlow.visibleGraph.observe().now().allNodeIds
+    val visibleNodes = sourceFlow.visibleGraph.observe().now().nodeIds
     diagramSelection.set(visibleNodes)
 
   def selectAllVisibleArrows() =
-    val visibleArrows = sourceFlow.visibleGraph.observe().now().allArrowIds
+    val visibleArrows = sourceFlow.visibleGraph.observe().now().arrowIds
     diagramSelection.set(visibleArrows)
 
   def selectAllVisibleGroups() =
@@ -237,8 +237,8 @@ case class ViewerState(
 
   def selectAll() =
     val visibleGraph = sourceFlow.visibleGraph.observe().now()
-    val nodes = visibleGraph.allNodeIds
-    val edges = visibleGraph.allArrowIds
+    val nodes = visibleGraph.nodeIds
+    val edges = visibleGraph.arrowIds
     val groups = visibleGraph.data.groups.keys
       .filter(_ != visibleGraph.data.rootId) // Exclude the root group
       .toSet

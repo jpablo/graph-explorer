@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.*
 
 class ViewerGraphDotSpec extends ScalaCheckSuite:
-  val rootId = ViewerGraph.defaultRootId
+  val rootId = ViewerGraphData.defaultRootId
 
   test("graphToDotAST should convert a ViewerGraph to a DotAST") {
     val arrow = Arrow(NodeId("a"), NodeId("b"), seq = 1)

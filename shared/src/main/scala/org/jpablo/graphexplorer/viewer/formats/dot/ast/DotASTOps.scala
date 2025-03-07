@@ -16,7 +16,7 @@ extension (ast: DotAST)
         EdgeStmt.resetId()
         val flattened = ast.toFlattenedElements
         val viewerGraphData = ViewerGraphData.from(flattened)
-        ViewerGraph(id, viewerGraphData.expandStyleAttributes, ast.tpe)
+        ViewerGraph(viewerGraphData.expandStyleAttributes, id, ast.tpe)
       case None =>
         throw new IllegalArgumentException("DotAST must have an id")
 
