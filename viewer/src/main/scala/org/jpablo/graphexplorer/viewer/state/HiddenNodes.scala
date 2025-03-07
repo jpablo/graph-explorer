@@ -27,10 +27,10 @@ class HiddenNodesOps(val hiddenNodesV: Var[HiddenElements]):
 //    hiddenNodesV.update(_ ++ ss)
 
   def add(ss: Set[NodeId]): Unit =
-    hiddenNodesV.update(_ ++ ElementIds(ss))
+    hiddenNodesV.update(_ ++ ss)
 
   def remove(ss: Set[NodeId]): Unit =
-    hiddenNodesV.update(_ -- ElementIds(ss))
+    hiddenNodesV.update(_ -- ss)
 
   def clear(): Unit =
     hiddenNodesV.set(ElementIds())

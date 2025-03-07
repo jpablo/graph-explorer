@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, ElementIds}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
+import scala.annotation.targetName
 import scala.scalajs.js
 
 type SelectedNodes = ElementIds
@@ -23,8 +24,19 @@ class DiagramSelectionOps:
 
   def toggle(ss: ElementId*): Unit = selectedNodes.update(ss.foldLeft(_)(_.toggle(_)))
 
+  def set(ss: ElementId*): Unit =
+    set(ss.toSet)
+
   def set(ss: SelectedNodes): Unit =
     selectedNodes.set(ss)
+
+  @targetName("setElementIds")
+  def set(ss: Set[? <: ElementId]): Unit =
+    set(ElementIds(ss))
+
+  @targetName("addElementIds")
+  def add(ss: Set[? <: ElementId]): Unit =
+    add(ElementIds(ss))
 
   def add(ss: SelectedNodes): Unit =
     val current = now()
@@ -51,8 +63,7 @@ class DiagramSelectionOps:
     val visibleSubGraph: ViewerGraph = fullGraph.removeElements(hiddenNodes)
     val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selectedNodes.now())
     // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
-    val relatedIds = ElementIds(relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds)
-    add(relatedIds)
+    add(relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds)
 
   def handleClickOnNode(elementId: ElementId)(shiftKey: Boolean) =
     if shiftKey then
@@ -95,8 +106,8 @@ class DiagramSelectionOps:
     // Make sure only start or (start,end) nodes are selected when creating a new edge
     // For now only allow a line selection into nodes
     findNode(elementsFromRectEnd, "g.node") match
-      case Some(end) => set(ElementIds(Set(start.elementId, end)))
-      case None      => set(ElementIds.from(start.elementId))
+      case Some(end) => set(Set(start.elementId, end))
+      case None      => set(start.elementId)
 
   def handleSelectionAreaUpdate(
       rect:                UserActionRect,
@@ -109,7 +120,7 @@ class DiagramSelectionOps:
         case Some(end) => handleClickOnNode(end)(rect.shift)
         case None      => clear()
     else
-      val nodesInRect = ElementIds(selectableElements.filter(isNodeInRect(_, rect)).map(_.elementId).toSet)
+      val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.elementId).toSet
       if nodesInRect.nonEmpty then
         if rect.shift then
           add(nodesInRect)

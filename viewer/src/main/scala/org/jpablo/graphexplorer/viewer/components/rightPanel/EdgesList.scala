@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.rightPanel
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.extensions.*
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementIds}
+import org.jpablo.graphexplorer.viewer.models.Arrow
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckbox, Search}
@@ -67,7 +67,7 @@ def EdgesList(
               .toList
               .map(_.id)
               .toSet
-            state.diagramSelection.set(ElementIds(filteredEdges))
+            state.diagramSelection.set(filteredEdges)
           }
         )
       )

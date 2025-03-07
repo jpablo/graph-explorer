@@ -159,19 +159,19 @@ case class ViewerState(
 //    def --(a: Set[? <: ElementId]) = (ElementIds(ids) -- ElementIds(a)).ids
 
   def hideNonSelectedNodes() =
-    updateHiddenFromSelection((h, sel, g) => h ++ (ElementIds(g.allNodeIds) -- ElementIds(sel.nodeIds)))
+    updateHiddenFromSelection((h, sel, g) => h ++ (g.allNodeIds -- sel.nodeIds))
 
   def showAllSuccessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- ElementIds(g.allSuccessorsGraph(sel.nodeIds).allNodeIds))
+    updateHiddenFromSelection((h, sel, g) => h -- g.allSuccessorsGraph(sel.nodeIds).allNodeIds)
 
   def showDirectSuccessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- ElementIds(g.directSuccessorsGraph(sel.nodeIds).allNodeIds))
+    updateHiddenFromSelection((h, sel, g) => h -- g.directSuccessorsGraph(sel.nodeIds).allNodeIds)
 
   def showAllPredecessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- ElementIds(g.allPredecessorsGraph(sel.nodeIds).allNodeIds))
+    updateHiddenFromSelection((h, sel, g) => h -- g.allPredecessorsGraph(sel.nodeIds).allNodeIds)
 
   def showDirectPredecessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- ElementIds(g.directPredecessorsGraph(sel.nodeIds).allNodeIds))
+    updateHiddenFromSelection((h, sel, g) => h -- g.directPredecessorsGraph(sel.nodeIds).allNodeIds)
 
   def selectSuccessors() =
     diagramSelection.selectSuccessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
@@ -191,7 +191,7 @@ case class ViewerState(
   def addSelectionToGroup() =
     val classified = diagramSelection.now().classify
     for groupNodeId <- classified.clusters.headOption do
-      sourceFlow.fullGraphV.update(_.addToGroup(GroupId(groupNodeId.value), classified.nodes.toSeq))
+      sourceFlow.fullGraphV.update(_.addToGroup(groupNodeId, classified.nodes.toSeq))
 
   def ungroupSelection() =
     sourceFlow.fullGraphV.update(_.ungroupSelection(diagramSelection.now()))
@@ -202,38 +202,38 @@ case class ViewerState(
 
     // If we have clusters/groups in the selection, find their members
     if classified.clusters.nonEmpty then
-      val groupIds = classified.clusters.map(id => GroupId(id.value))
+      val groupIds = classified.clusters
       val fullGraphSnapshot = sourceFlow.fullGraph.now()
 
       // Get all node ids that are members of the selected groups
       val memberNodeIds = fullGraphSnapshot.data.getAllChildren(groupIds)
 
       // Keep the original groups/clusters in the selection and add all members
-      diagramSelection.set(selection ++ ElementIds(memberNodeIds))
+      diagramSelection.set(selection ++ memberNodeIds)
 
   def clearSelection() =
     diagramSelection.clear()
 
-  def keepRootsOnly() = ???
-//    project.hiddenElements.update(_ ++ (sourceFlow.fullGraph.now().allNodeIds -- sourceFlow.fullGraph.now().roots))
+  def keepRootsOnly() =
+    project.hiddenElements.update(_ ++ (sourceFlow.fullGraph.now().allNodeIds -- sourceFlow.fullGraph.now().roots))
 
   def hideAllNodes() =
-    project.hiddenElements.update(_ ++ ElementIds(sourceFlow.fullGraph.now().allNodeIds))
+    project.hiddenElements.update(_ ++ sourceFlow.fullGraph.now().allNodeIds)
 
   def selectAllVisibleNodes() =
     val visibleNodes = sourceFlow.visibleGraph.observe().now().allNodeIds
-    diagramSelection.set(ElementIds(visibleNodes))
+    diagramSelection.set(visibleNodes)
 
   def selectAllVisibleArrows() =
     val visibleArrows = sourceFlow.visibleGraph.observe().now().allArrowIds
-    diagramSelection.set(ElementIds(visibleArrows))
+    diagramSelection.set(visibleArrows)
 
   def selectAllVisibleGroups() =
     val visibleGraph = sourceFlow.visibleGraph.observe().now()
     val groupIds = visibleGraph.data.groups.keys
       .filter(_ != visibleGraph.data.rootId) // Exclude the root group
       .toSet
-    diagramSelection.set(ElementIds(groupIds))
+    diagramSelection.set(groupIds)
 
   def selectAll() =
     val visibleGraph = sourceFlow.visibleGraph.observe().now()
@@ -242,7 +242,7 @@ case class ViewerState(
     val groups = visibleGraph.data.groups.keys
       .filter(_ != visibleGraph.data.rootId) // Exclude the root group
       .toSet
-    diagramSelection.set(ElementIds(nodes ++ edges ++ groups))
+    diagramSelection.set(nodes ++ edges ++ groups)
 
   def showOnlyGroup() =
     selectGroupMembers()
@@ -300,7 +300,7 @@ case class ViewerState(
           }
 
           // Select the newly created nodes
-          diagramSelection.set(ElementIds(newNodeIds))
+          diagramSelection.set(newNodeIds)
           newGraph
 
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an
@@ -320,7 +320,7 @@ case class ViewerState(
             case id: NodeId  => fullGraph.addNodeAndEdgeFrom(id)
             case id: GroupId => fullGraph.addRandomNode(Some(id))
             case _: ArrowId  => fullGraph.addRandomNode()
-      diagramSelection.set(ElementIds.from(newNodeId))
+      diagramSelection.set(newNodeId)
       newGraph
 
   def handleMouseUp(ev: dom.MouseEvent): Unit =

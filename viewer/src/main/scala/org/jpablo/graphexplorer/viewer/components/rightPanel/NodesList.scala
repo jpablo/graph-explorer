@@ -8,7 +8,6 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckbox, Search}
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
 
 // Enum for sort columns
@@ -57,7 +56,7 @@ def NodesList(
           title := "Select filtered nodes",
           "Select",
           onClick.preventDefault(_.sample(filteredGraph)) --> { graph =>
-            state.diagramSelection.set(ElementIds(graph.nodesSet.map(_.id)))
+            state.diagramSelection.set(graph.nodesSet.map(_.id))
           }
         )
       )
