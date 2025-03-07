@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 class ViewerGraphSpec extends ScalaCheckSuite:
 
@@ -15,17 +15,14 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   val c = NodeId("c")
 
   test("addEdge should add an arrow between two nodes") {
-    val graph =
-      ViewerGraph(
-        ViewerGraphData(nodes = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)))
-      )
+    val arrow = Arrow(a, b)
+    val graph = ViewerGraph(ViewerGraphData(nodes = Map(node(a), node(b), node(c))))
 
-    val arrowId = ArrowId("a->b:1")
     val expected =
       ViewerGraph(
         ViewerGraphData(
-          arrows = Map(arrowId -> Arrow(a, b, seq = 1)),
-          nodes  = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c))
+          nodes  = Map(node(a), node(b), node(c)),
+          arrows = Map(arrow.id -> Arrow(a, b))
         )
       )
 
@@ -35,35 +32,28 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   }
 
   test("updateAttributes should update the attributes of an arrow") {
-    val arrowId = ArrowId("a->b:0")
+    val arrow = Arrow(a, b)
     val graph =
       ViewerGraph(
         ViewerGraphData(
-          nodes  = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
-          arrows = Map(arrowId -> Arrow(a, b, Attributes(Map(AttributeId("id") -> AttrValue("1"))), 0))
+          nodes  = Map(node(a), node(b)),
+          arrows = Map(arrow.id -> arrow)
         )
       )
     val expected =
       ViewerGraph(
         ViewerGraphData(
-          nodes = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
-          arrows =
-            Map(arrowId ->
-              Arrow(
-                a,
-                b,
-                Attributes(Map(AttributeId("id") -> AttrValue("1"), AttributeId("style") -> AttrValue("dashed"))),
-                0
-              ))
-        ),
-        "digraph"
+          nodes  = Map(node(a), node(b)),
+          arrows = Map(arrow.id -> Arrow(a, b, Attributes(Map(AttributeId("style") -> AttrValue("dashed")))))
+        )
       )
 
-    val updated = graph.updateAttributes(
-      ElementIds.from(arrowId),
-      AttributesUpdates(Map(AttributeId("style") -> Single(AttrValue("dashed"))))
-    )
-    pprint.log(updated)
+    val updated =
+      graph.updateAttributes(
+        ElementIds.from(arrow.id),
+        AttributesUpdates(update = Map(AttributeId("style") -> AttrValue("dashed")))
+      )
+
     assertEquals(updated, expected)
   }
 
@@ -73,27 +63,16 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val graph =
       ViewerGraph(
         ViewerGraphData(
-          nodes = Map(
-            a -> ViewerNode(a),
-            b -> ViewerNode(b),
-            c -> ViewerNode(c)
-          ),
+          nodes = Map(node(a), node(b), node(c)),
           arrows = Map(
-            arrowId1 -> Arrow(a, b, seq = 0),
-            arrowId2 -> Arrow(b, c, seq = 0)
+            arrowId1 -> Arrow(a, b),
+            arrowId2 -> Arrow(b, c)
           )
         )
       )
 
     val expected =
-      ViewerGraph(
-        ViewerGraphData(
-          nodes = Map(
-            a -> ViewerNode(a),
-            c -> ViewerNode(c)
-          )
-        )
-      )
+      ViewerGraph(ViewerGraphData(nodes = Map(node(a), node(c))))
 
     val updated = graph.removeElements(ElementIds.from(b))
     assertEquals(updated, expected)
@@ -105,12 +84,9 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val graph =
       ViewerGraph(
         ViewerGraphData(
-          nodes = Map(
-            a -> ViewerNode(a),
-            b -> ViewerNode(b)
-          ),
+          nodes = Map(node(a), node(b)),
           arrows = Map(
-            arrowId1 -> Arrow(a, b, seq = 0),
+            arrowId1 -> Arrow(a, b),
             arrowId2 -> Arrow(a, b, seq = 1)
           )
         )
@@ -119,13 +95,8 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val expected =
       ViewerGraph(
         ViewerGraphData(
-          nodes = Map(
-            a -> ViewerNode(a),
-            b -> ViewerNode(b)
-          ),
-          arrows = Map(
-            arrowId2 -> Arrow(a, b, seq = 1)
-          )
+          nodes  = Map(node(a), node(b)),
+          arrows = Map(arrowId2 -> Arrow(a, b, seq = 1))
         )
       )
 

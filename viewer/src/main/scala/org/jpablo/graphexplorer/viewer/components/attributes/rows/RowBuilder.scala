@@ -77,7 +77,7 @@ class RowBuilder(
     updates: Var[AttributesUpdates],
     onReset: Option[String] = None
   ): Var[SelectionAttrValue] =
-    updates.zoomLazy(_.attrs.getOrElse(attrId, Missing))((attrs, value) =>
+    updates.zoomLazy(_.existing.getOrElse(attrId, Missing))((attrs, value) =>
       value match
         case Single(selection) => attrs + (attrId -> selection)
         case Multiple          => attrs

@@ -58,15 +58,15 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
     AttributesUpdates(values.transform((_, v) => AttrStatus.Single(v)))
 
 case class AttributesUpdates(
-    attrs:  Map[AttributeId, SelectionAttrValue],
-    update: Map[AttributeId, AttrValue] = Map.empty,
-    remove: Set[AttributeId] = Set.empty
+    existing: Map[AttributeId, SelectionAttrValue] = Map.empty,
+    update:   Map[AttributeId, AttrValue] = Map.empty,
+    remove:   Set[AttributeId] = Set.empty
 ):
   def -(key: AttributeId): AttributesUpdates = copy(remove = remove + key)
   def +(kv:  (AttributeId, AttrValue)): AttributesUpdates = copy(update = update + kv)
 
   def singleAttributes: Attributes =
-    Attributes(attrs.collect { case (k, AttrStatus.Single(v)) => k -> v })
+    Attributes(existing.collect { case (k, AttrStatus.Single(v)) => k -> v })
 
   def applyUpdates: Attributes =
     applyUpdatesTo(singleAttributes)

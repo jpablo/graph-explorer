@@ -122,7 +122,7 @@ object StyleSubAttributes:
     attrs.get(NodeStyle.attrId).map(StyleSubAttributes.parse)
 
   def from(attrs: AttributesUpdates): StyleSubAttributes =
-    attrs.attrs.get(NodeStyle.attrId).fold(missing)(StyleSubAttributes.from)
+    attrs.existing.get(NodeStyle.attrId).fold(missing)(StyleSubAttributes.from)
 
   def from(attrValue: SelectionAttrValue): StyleSubAttributes =
     attrValue match

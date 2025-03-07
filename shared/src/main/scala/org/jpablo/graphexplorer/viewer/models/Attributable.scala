@@ -29,13 +29,16 @@ object ViewerNode:
   def node(name: String, attrs: Map[AttributeId, AttrValue] = Map.empty) =
     ViewerNode(NodeId(name), Attributes(attrs))
 
+  def node(nodeId: NodeId) =
+    nodeId -> ViewerNode(nodeId)
+
 // ---- Edges ------
 
 case class Arrow(
     source:     NodeId,
     target:     NodeId,
     attributes: Attributes = Attributes.empty,
-    seq:        Int = 0
+    seq:        Int = 1
 ) extends Attributable:
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
@@ -50,7 +53,7 @@ object Arrow:
 
   val titleIdSeparator = "->"
 
-  def arrow(t: (String, String), attrs: Map[AttributeId, AttrValue] = Map.empty, seq: Int = 0): Arrow =
+  def arrow(t: (String, String), attrs: Map[AttributeId, AttrValue] = Map.empty, seq: Int = 1): Arrow =
     new Arrow(NodeId(t._1), NodeId(t._2), Attributes(attrs), seq)
 
   // example:
