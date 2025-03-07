@@ -34,34 +34,20 @@ private def attrs(attrs: Attributes, target: AttributeTarget) =
     Nil
 
 def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] =
+
   def groupToSubGraph(groupId: GroupId, visited: Set[GroupId] = Set()): Option[SubGraph] =
     if groupId in visited then
       None
     else
-      val nodeStmts = graphData.nodes
-        .filter((id, _) => graphData.getMembership(id) == groupId)
-        .map(nodeToStmt)
-
-      val edgeStmts = graphData.arrows.values
-        .filter(arrow => graphData.getMembership(arrow.id) == groupId)
-        .map(arrowToStmt)
-
-      val subGraphs = graphData.groups.values
-        .filter(group => graphData.getMembership(group.id) == groupId)
-        .flatMap(g => groupToSubGraph(g.id, visited + groupId))
-        .toList
-        .sortBy(_.id) // TODO: Is this really necessary?
-
-
+      val nodeStmts = graphData.nodes.map(nodeToStmt)
+      val edgeStmts = graphData.arrows.values.map(arrowToStmt)
+      val subGraphs = graphData.groups.flatMap((id, _) => groupToSubGraph(id, visited + groupId)).toList
       val viewerGroup = graphData.groups(groupId)
       val nodeAttrs = attrs(viewerGroup.nodeAttrs, AttributeTarget.node)
       val edgeAttrs = attrs(viewerGroup.edgeAttrs, AttributeTarget.edge)
       val groupAttrs = attrs(viewerGroup.attributes, AttributeTarget.graph)
-
       // Combine all elements
       val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++ subGraphs ++ nodeStmts ++ edgeStmts
-
       Some(SubGraph(children, Some(groupId.value)))
-  end groupToSubGraph
 
-  groupToSubGraph(graphData.rootId).toList.flatMap(_.children)
+  groupToSubGraph(graphData.rootId).map(_.children).getOrElse(Nil)

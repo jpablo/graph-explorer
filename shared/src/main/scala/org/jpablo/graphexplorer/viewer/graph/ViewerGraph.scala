@@ -123,8 +123,8 @@ case class ViewerGraph(
 
   def addNodeAndEdgeFrom(source: NodeId): (ViewerGraph, NodeId) =
     val nodeId = nextNodeId()
-    val sourceGroup = data.getMembership(source)
-    val (newGraph, arrow) = addNode(nodeId, Some(sourceGroup)).addEdge(source, nodeId)
+    val sourceGroup = data.membership(source)
+    val (newGraph, arrow) = addNode(nodeId, sourceGroup).addEdge(source, nodeId)
     (newGraph, nodeId)
 
   def addRandomNode(groupId: Option[GroupId] = None): (ViewerGraph, NodeId) =

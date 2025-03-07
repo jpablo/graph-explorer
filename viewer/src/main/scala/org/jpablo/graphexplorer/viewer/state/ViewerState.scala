@@ -294,7 +294,7 @@ case class ViewerState(
             case ((graph, newIds), originalId) =>
               // Get the original node's attributes and group
               val originalNode = graph.data.nodes(originalId)
-              val groupId = Some(graph.data.getMembership(originalId))
+              val groupId = graph.data.membership(originalId)
               // Create a new node with a random ID
               val (updatedGraph, newNodeId) = graph.addRandomNode(groupId)
               // Update the new node with the original node's attributes

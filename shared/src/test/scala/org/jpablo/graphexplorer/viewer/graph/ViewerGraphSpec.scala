@@ -17,13 +17,13 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   test("addEdge should add an arrow between two nodes") {
     val graph =
       ViewerGraph(
-        ViewerGraphData.minimal.copy(nodes = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)))
+        ViewerGraphData(nodes = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c)))
       )
 
     val arrowId = ArrowId("a->b:1")
     val expected =
       ViewerGraph(
-        ViewerGraphData.minimal.copy(
+        ViewerGraphData(
           arrows = Map(arrowId -> Arrow(a, b, seq = 1)),
           nodes  = Map(a -> ViewerNode(a), b -> ViewerNode(b), c -> ViewerNode(c))
         )
@@ -38,14 +38,14 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val arrowId = ArrowId("a->b:0")
     val graph =
       ViewerGraph(
-        ViewerGraphData.minimal.copy(
+        ViewerGraphData(
           nodes  = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
           arrows = Map(arrowId -> Arrow(a, b, Attributes(Map(AttributeId("id") -> AttrValue("1"))), 0))
         )
       )
     val expected =
       ViewerGraph(
-        ViewerGraphData.minimal.copy(
+        ViewerGraphData(
           nodes = Map(a -> ViewerNode(a), b -> ViewerNode(b)),
           arrows =
             Map(arrowId ->
