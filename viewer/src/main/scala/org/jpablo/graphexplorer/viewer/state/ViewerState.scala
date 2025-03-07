@@ -265,6 +265,11 @@ case class ViewerState(
     for ast <- sourceFlow.visibleAST do
       writeText(writeJs(ast).toString)
 
+  def printVisibleGraphToConsole(): Unit =
+    for graph <- visibleGraph do
+      pprint.log(graph)
+      dom.console.log("Visible graph printed to the console")
+
   def deleteSelection() =
     sourceFlow.fullGraphV.update: fullGraph =>
       fullGraph.removeElements(diagramSelection.now())

@@ -92,6 +92,9 @@ class Commands(state: ViewerState, router: Router):
       Command("Navigate home", () => router.navigateTo(Route.Home), always, description = Some("Navigate to the home page")),
       Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
       Command("Help - Keyboard Shortcuts", () => state.shortcutsModalOpen.set(true), always, description = Some("Open the keyboard shortcuts help dialog"))
+    ),
+    "Developer" -> List(
+      Command("Print visible graph to the console", state.printVisibleGraphToConsole, always, description = Some("Print the visible graph to the browser console for debugging"))
     )
   )
 
@@ -105,6 +108,7 @@ class Commands(state: ViewerState, router: Router):
     val zoom = menuSections("Zoom")
     val undoRedo = menuSections("Undo/Redo")
     val application = menuSections("Application")
+    val developer = menuSections("Developer")
 
   // some special cases for the menu
   val addNode = sections.common.find(_.title == "Add node").get

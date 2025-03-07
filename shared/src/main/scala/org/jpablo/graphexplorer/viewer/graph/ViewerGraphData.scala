@@ -22,7 +22,8 @@ case class ViewerGraphData(
     // ids not in memberships are assumed to be in the root group (the graph itself)
     memberships: Map[ElementId, GroupId]
 ):
-  assert(rootId in groups, s"Root node $rootId not found in groups: $groups")
+  assume(rootId in groups, s"Root node $rootId not found in groups: $groups")
+  assume(arrows.values.forall(a => (a.source in nodes) && (a.target in nodes)), "Arrow endpoints not found in nodes")
 
   val arrowValues: Iterable[Arrow] = arrows.values
   val arrowsSet: Set[Arrow] = arrowValues.toSet
