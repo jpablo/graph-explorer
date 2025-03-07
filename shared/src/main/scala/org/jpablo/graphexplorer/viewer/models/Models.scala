@@ -17,6 +17,8 @@ sealed trait ElementId derives CanEqual, ReadWriter:
   def isGroupId: Boolean = this match { case _: GroupId => true; case _ => false }
   def isNodeId: Boolean = this match { case _: NodeId => true; case _ => false }
   def isArrowId: Boolean = this match { case _: ArrowId => true; case _ => false }
+  
+  def asNodeId: Option[NodeId] = this match { case id: NodeId => Some(id); case _ => None }
 
 case class GroupId(value: String) extends ElementId derives CanEqual:
   override def toString: String = value

@@ -37,8 +37,8 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
   private def selectableElements =
     SelectableElement.findAll(ref)
 
-  def select(ids: Set[models.NodeId]): Unit =
-    for elem <- selectableElements if elem.nodeId in ids do elem.select()
+//  def select(ids: Set[models.NodeId]): Unit =
+//    for elem <- selectableElements if elem.elementId in ids do elem.select()
 
   private def buildSvgElement(elem: SelectableElement): (dom.svg.Element, BBox) =
     // Clone the element to avoid modifying the original
@@ -53,7 +53,7 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
   def toSVGTextWithIds(ids: ElementIds): String =
     if (ids.isEmpty) ""
     else
-      val (svgs, boxes) = SelectableElement.findAll(ref).filter(_.nodeId in ids).map(buildSvgElement).unzip
+      val (svgs, boxes) = SelectableElement.findAll(ref).filter(_.elementId in ids).map(buildSvgElement).unzip
       val bbox = boxes.reduce((a, b) =>
         val x = a.x min b.x
         val y = a.y min b.y

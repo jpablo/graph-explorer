@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, NodeId}
 import org.scalajs.dom
 import org.scalajs.dom.Element
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
@@ -12,7 +12,10 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
   protected val refTitle = ref.querySelector("title").textContent
   protected val refIdAttr = ref.id
 
-  def nodeId: NodeId
+  def elementId: ElementId
+  def nodeId: Option[NodeId] = elementId match { case n: NodeId => Some(n); case _ => None }
+  def arrowId: Option[models.ArrowId] = elementId match { case a: models.ArrowId => Some(a); case _ => None }
+  def groupId: Option[models.GroupId] = elementId match { case g: models.GroupId => Some(g); case _ => None }
 
   val get = ref
   val selectionRectClass = "selected-border"
@@ -77,7 +80,7 @@ end SelectableElement
 
 case class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
-  val nodeId: NodeId = models.NodeId(refTitle)
+  val elementId: NodeId = models.NodeId(refTitle)
 
 case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
@@ -86,13 +89,13 @@ case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
     Arrow.fromGraphvizTitle(refTitle, refIdAttr)
 
   // if parsing fails, use the title as the nodeId
-  lazy val nodeId: NodeId =
-    toArrow.map(a => NodeId(a.id.value)).getOrElse(models.NodeId(refTitle))
+  lazy val elementId =
+    toArrow.map(a => a.id).getOrElse(models.ArrowId(refTitle))
 end EdgeElement
 
 case class ClusterElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
-  val nodeId: NodeId = models.NodeId(refTitle)
+  val elementId = models.GroupId(refTitle)
 
 // ------------------------------
 // dom.Element extensions

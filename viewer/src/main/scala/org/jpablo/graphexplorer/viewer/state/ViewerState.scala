@@ -342,11 +342,9 @@ case class ViewerState(
           mouseReleasePoint._2 <= bbox.bottom
 
       if sel.size == 1 && isMouseInsideSourceNode then
-        addEdge(start.nodeId, start.nodeId)
+        start.nodeId.foreach(nodeId => addEdge(nodeId, nodeId))
       else if sel.size == 2 then
-        (sel - start.nodeId).head match
-          case end: NodeId => addEdge(start.nodeId, end)
-          case _           => ()
+        (sel - start.elementId).head.asNodeId.foreach(end => addEdge(start.nodeId.get, end))
 
   // -------- storage ------------
 

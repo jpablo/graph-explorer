@@ -45,9 +45,9 @@ object SvgCanvas:
             child.maybe <--
               diagramSelection.signal.map: selectedNodes =>
                 if selectedNodes.size == 1 then
-                  val nodeId = selectedNodes.head
+                  val elementId = selectedNodes.head
                   for
-                    elem <- selectableElements.find(_.nodeId == nodeId)
+                    elem <- selectableElements.find(_.elementId == elementId)
                     btn  <- NewArrowButton(elem, getRankdir)
                   yield
                   // --------------------------------------------------------
@@ -112,7 +112,7 @@ object SvgCanvas:
           // --------------------------------------------------------
           diagramSelection.signal --> { selectedNodes =>
             for elem <- selectableElements do
-              if elem.nodeId in selectedNodes then
+              if elem.elementId in selectedNodes then
                 elem.select()
               else
                 elem.unselect()

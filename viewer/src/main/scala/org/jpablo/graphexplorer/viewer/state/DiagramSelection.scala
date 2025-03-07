@@ -5,7 +5,7 @@ import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.Action
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, ElementIds}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
 import scala.scalajs.js
@@ -54,11 +54,11 @@ class DiagramSelectionOps:
     val relatedIds = ElementIds(relatedSubGraph.allNodeIds ++ relatedSubGraph.allArrowIds)
     add(relatedIds)
 
-  def handleClickOnNode(nodeId: NodeId)(shiftKey: Boolean) =
+  def handleClickOnNode(elementId: ElementId)(shiftKey: Boolean) =
     if shiftKey then
-      toggle(nodeId)
+      toggle(elementId)
     else
-      set(ElementIds.from(nodeId))
+      set(ElementIds.from(elementId))
 
   def handleClickOnArrow(arrow: Arrow)(shiftKey: Boolean) =
     val nodeId = arrow.id
@@ -95,8 +95,8 @@ class DiagramSelectionOps:
     // Make sure only start or (start,end) nodes are selected when creating a new edge
     // For now only allow a line selection into nodes
     findNode(elementsFromRectEnd, "g.node") match
-      case Some(end) => set(ElementIds(Set(start.nodeId, end)))
-      case None      => set(ElementIds.from(start.nodeId))
+      case Some(end) => set(ElementIds(Set(start.elementId, end)))
+      case None      => set(ElementIds.from(start.elementId))
 
   def handleSelectionAreaUpdate(
       rect:                UserActionRect,
@@ -109,7 +109,7 @@ class DiagramSelectionOps:
         case Some(end) => handleClickOnNode(end)(rect.shift)
         case None      => clear()
     else
-      val nodesInRect = ElementIds(selectableElements.filter(isNodeInRect(_, rect)).map(_.nodeId).toSet)
+      val nodesInRect = ElementIds(selectableElements.filter(isNodeInRect(_, rect)).map(_.elementId).toSet)
       if nodesInRect.nonEmpty then
         if rect.shift then
           add(nodesInRect)
@@ -123,14 +123,14 @@ class DiagramSelectionOps:
   private def findNode(
       elements: js.Array[dom.Element],
       selector: String = "g.node, g.edge, g.cluster"
-  ): Option[NodeId] =
+  ): Option[ElementId] =
     elements
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
       .flatMap(element => Option(element.closest(selector)))
       .distinct
       .map(SelectableElement.fromDomElement)
       .collectFirst:
-        case Some(elem) => elem.nodeId
+        case Some(elem) => elem.elementId
 
   /** Checks if a selectable element intersects with a selection rectangle
     *
