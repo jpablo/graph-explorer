@@ -160,12 +160,9 @@ case class ViewerGraphData(
     val nonEmptyGroups = groups.view.filterKeys(nonEmptyGroupIds).toMap
     copy(groups = nonEmptyGroups)
 
-  def addToNewGroup(eIds: ElementIds, label: String = ""): ViewerGraphData =
+  def addToNewGroup(elementIds: ElementIds, label: String = ""): ViewerGraphData =
     // Filter out any edge IDs, keep nodes and groups (clusters)
-    val validIds = eIds.ids.collect:
-      case id: NodeId  => id
-      case id: GroupId => id
-
+    val validIds = elementIds.ids.filter(id => id.isNodeId || id.isGroupId)
     if validIds.isEmpty then this
     else
       val groupId = GroupId(s"cluster_${SubGraph.randomId()}")
@@ -201,11 +198,7 @@ case class ViewerGraphData(
 
     val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
       // case 1: remove a nested group
-      if elementId match {
-          case GroupId(value) => GroupId(value) in groupIdsToRemove
-          case _              => false
-        }
-      then
+      if elementId.asGroupId.exists(_ in groupIdsToRemove) then
         None
       // case 2: remove a node from a group
       else if groupId in groupIdsToRemove then

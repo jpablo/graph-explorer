@@ -144,9 +144,6 @@ case class ViewerGraph(
       case AttributeTarget.node  => modifyRootNodeAttrs
       case AttributeTarget.edge  => modifyRootEdgeAttrs
 
-  def setRootAttributes(target: AttributeTarget)(attrs: Attributes): ViewerGraph =
-    modifyRootAttributes(target).setTo(attrs)
-
   def updateRootAttributes(target: AttributeTarget)(update: Attributes => Attributes): ViewerGraph =
     modifyRootAttributes(target).using(update)
 
@@ -160,12 +157,6 @@ case class ViewerGraph(
             if (attrId in acc) && !acc(attrId).is(v) then Multiple else Single(v)
         acc ++ nodeIdAcc
       case (acc, _) => acc
-
-  private def filterAttrs(nodeIds: Set[ElementId], attrs: Map[ElementId, Attributable]): Map[ElementId, Attributes] =
-    attrs.view
-      .filterKeys(nodeIds)
-      .toMap
-      .transform((_, n) => n.attributes)
 
   def getAttributesById(ids: ElementIds): AttributesUpdates =
     AttributesUpdates(
