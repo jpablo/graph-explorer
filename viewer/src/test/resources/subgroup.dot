@@ -1,17 +1,17 @@
 //# http://www.graphviz.org/content/cluster
 digraph G {
-    label="title"
+    label = "title"
     a
     b
     x -> y
     subgraph cluster_0 {
-    label=""
-    node [shape = "egg"];
-    z[label=ZZ]
-    a -> b
-    subgraph cluster_1 {
-    d
-    }
+        label = ""
+        node [shape = "egg"];
+        z [label = ZZ]
+        a -> b
+        subgraph cluster_1 {
+            d
+        }
     }
     x -> a
     b -> c

@@ -102,7 +102,7 @@ end Attr
 case class AttrEq(value: String, html: Boolean = false) derives ReadWriter
 
 @key("node_stmt")
-case class NodeStmt(node_id: DotNodeId, attr_list: List[Attr]) extends GraphElement derives ReadWriter
+case class NodeStmt(node_id: DotNodeId, attr_list: List[Attr] = Nil) extends GraphElement derives ReadWriter
 
 @key("edge_stmt")
 case class EdgeStmt(

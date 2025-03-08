@@ -89,4 +89,8 @@ case class ViewerGroup(
 
 object ViewerGroup:
   def empty(nodeId: GroupId) = ViewerGroup(nodeId)
+
+  def group(groupId: GroupId) =
+    groupId -> ViewerGroup(groupId)
+
 end ViewerGroup
