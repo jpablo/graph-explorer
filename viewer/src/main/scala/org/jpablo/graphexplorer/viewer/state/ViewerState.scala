@@ -186,7 +186,7 @@ case class ViewerState(
     diagramSelection.selectDirectPredecessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
 
   def groupSelectedNodes() =
-    sourceFlow.fullGraphV.update(_.addToNewGroup(diagramSelection.now()))
+    sourceFlow.fullGraphV.update(_.moveToNewGroup(diagramSelection.now()))
 
   def addSelectionToGroup() =
     val classified = diagramSelection.now().classify
@@ -267,7 +267,8 @@ case class ViewerState(
 
   def printVisibleGraphToConsole(): Unit =
     for graph <- visibleGraph do
-      pprint.log(graph)
+      // Don't remove this line!! it IS the actual functionality
+      pprint.log(graph, showFieldNames = false)
       dom.console.log("Visible graph printed to the console")
 
   def deleteSelection() =

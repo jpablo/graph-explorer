@@ -39,9 +39,37 @@ def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] 
     if groupId in visited then
       None
     else
-      val nodeStmts = graphData.nodes.map(nodeToStmt)
-      val edgeStmts = graphData.arrows.values.map(arrowToStmt)
-      val subGraphs = graphData.groups.flatMap((id, _) => groupToSubGraph(id, visited + groupId)).toList
+      val nodeStmts =
+        graphData.nodes
+          .filter((id, _) =>
+            if (groupId == graphData.rootId)
+              graphData.membership(id).forall(_ == groupId) // Include elements with no membership or root membership
+            else
+              graphData.membership(id).contains(groupId)
+          )
+          .map(nodeToStmt)
+
+      val edgeStmts =
+        graphData.arrows.values
+          .filter(arrow =>
+            if (groupId == graphData.rootId)
+              graphData.membership(arrow.id).forall(_ == groupId)
+            else
+              graphData.membership(arrow.id).contains(groupId)
+          )
+          .map(arrowToStmt)
+
+      val subGraphs =
+        graphData.groups
+          .filter((id, _) =>
+            if (groupId == graphData.rootId)
+              graphData.membership(id).forall(_ == groupId)
+            else
+              graphData.membership(id).contains(groupId)
+          )
+          .flatMap((id, _) => groupToSubGraph(id, visited + groupId))
+          .toList
+
       val viewerGroup = graphData.groups(groupId)
       val nodeAttrs = attrs(viewerGroup.nodeAttrs, AttributeTarget.node)
       val edgeAttrs = attrs(viewerGroup.edgeAttrs, AttributeTarget.edge)

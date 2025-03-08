@@ -143,8 +143,8 @@ case class ViewerGraph(
     * @return
     *   Updated ViewerGraph with the new group containing the specified nodes
     */
-  def addToNewGroup(ids: ElementIds, label: String = ""): ViewerGraph =
-    modifyData.using(_.addToNewGroup(ids, label))
+  def moveToNewGroup(ids: ElementIds, label: String = ""): ViewerGraph =
+    modifyData.using(_.moveToNewGroup(ids, label))
 
   def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraph =
     modifyData.using(_.addToGroup(groupId, nodeIds))

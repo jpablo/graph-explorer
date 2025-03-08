@@ -163,7 +163,7 @@ case class ViewerGraphData(
     val nonEmptyGroups = groups.view.filterKeys(nonEmptyGroupIds).toMap
     copy(groups = nonEmptyGroups)
 
-  def addToNewGroup(elementIds: ElementIds, label: String = ""): ViewerGraphData =
+  def moveToNewGroup(elementIds: ElementIds, label: String = ""): ViewerGraphData =
     // Filter out any edge IDs, keep nodes and groups (clusters)
     val nodesOrGroups = elementIds.ids.filter(id => id.isNodeId || id.isGroupId)
     if nodesOrGroups.isEmpty then this

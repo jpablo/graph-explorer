@@ -25,7 +25,7 @@ class ViewerGraphDataSpec extends ScalaCheckSuite:
     assertEquals(graphData.groups, Map(initialGroup))
 
     // Add elements to a new group with a label
-    val updatedGraphData = graphData.addToNewGroup(ElementIds.from(a, b), "New Group")
+    val updatedGraphData = graphData.moveToNewGroup(ElementIds.from(a, b), "New Group")
     val newGroupId = updatedGraphData.memberships(a)
 
     val expected =
@@ -57,7 +57,7 @@ class ViewerGraphDataSpec extends ScalaCheckSuite:
     val elementIds = ElementIds.from(a, b)
 
     // Add elements to a new group
-    val updatedGraphData = graphData.addToNewGroup(elementIds, "Nested Group")
+    val updatedGraphData = graphData.moveToNewGroup(elementIds, "Nested Group")
 
     pprint.pprintln(updatedGraphData, showFieldNames = false)
 

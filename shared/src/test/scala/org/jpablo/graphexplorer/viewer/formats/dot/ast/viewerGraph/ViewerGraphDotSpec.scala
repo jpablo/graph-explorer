@@ -4,24 +4,21 @@ import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 class ViewerGraphDotSpec extends ScalaCheckSuite:
   val rootId = ViewerGraphData.defaultRootId
+  val initialGroup = group(rootId)
 
-  test("graphToDotAST should convert a ViewerGraph to a DotAST") {
-    val arrow = Arrow(NodeId("a"), NodeId("b"), seq = 1)
+  val a = NodeId("a")
+  val b = NodeId("b")
+  val c = NodeId("c")
+
+  test("graphToDotAST should convert a ViewerGraph to a DotAST: two nodes and an arrow") {
     val graph =
-      ViewerGraph(
-        id = rootId.value,
-        data = ViewerGraphData(
-          rootId      = rootId,
-          arrows      = Map(arrow.id -> arrow),
-          groups      = Map(rootId -> ViewerGroup(rootId, Attributes(Map(AttributeId("label") -> AttrValue("Title"))))),
-          nodes       = Map(),
-          memberships = Map()
-        ),
-        tpe = "digraph"
-      )
+      ViewerGraph(ViewerGraphData(nodes = Map(node(a), node(b)), arrows = Map(arrow(a, b))))
 
     val ast = graphToDotAST(graph)
 
@@ -29,12 +26,60 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
       DotAST(
         "digraph",
         List(
-          AttrStmt("graph", List(Attr("label", AttrValue("Title")))),
-          EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List(Attr("id", AttrValue("1"))))
+          NodeStmt(DotNodeId("a")),
+          NodeStmt(DotNodeId("b")),
+          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("1"))))
         ),
         Some("G")
       )
-    pprint.log(ast, showFieldNames = false)
 
     assertEquals(ast, expected)
+  }
+
+  test("graphToDotAST should convert a ViewerGraph to a DotAST: two nodes and an arrow with one group") {
+
+    val ab = arrow(a, b)
+    // Setup initial graph with nodes
+    val graph = ViewerGraph(ViewerGraphData(nodes = Map(node(a), node(b)), arrows = Map(ab)))
+
+    // Add elements to a new group with a label
+    val updatedGraph = graph.moveToNewGroup(ElementIds.from(a), "New Group")
+    val newGroupId = updatedGraph.data.memberships(a)
+
+    val expected =
+      ViewerGraph(
+        ViewerGraphData(
+          nodes       = Map(node(a), node(b)),
+          arrows      = Map(ab),
+          memberships = Map(a -> newGroupId),
+          groups = Map(
+            initialGroup,
+            newGroupId -> ViewerGroup(newGroupId, Attributes(Map(AttributeId("label") -> AttrValue("New Group"))))
+          )
+        )
+      )
+
+    // sanity check
+    assertEquals(updatedGraph, expected)
+
+    val ast = graphToDotAST(updatedGraph)
+
+    val expectedAST =
+      DotAST(
+        "digraph",
+        List(
+          SubGraph(
+            List(
+              AttrStmt("graph", List(Attr("label", AttrValue("New Group")))),
+              NodeStmt(DotNodeId("a"))
+            ),
+            Some(newGroupId.value)
+          ),
+          NodeStmt(DotNodeId("b")),
+          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("1"))))
+        ),
+        Some("G")
+      )
+
+    assertEquals(ast, expectedAST)
   }

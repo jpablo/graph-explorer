@@ -46,7 +46,6 @@ case class Arrow(
 
   def nodeIds = Set(source, target)
   def endpoints = Set(source, target)
-
 end Arrow
 
 object Arrow:
@@ -55,6 +54,10 @@ object Arrow:
 
   def arrow(t: (String, String), attrs: Map[AttributeId, AttrValue] = Map.empty, seq: Int = 1): Arrow =
     new Arrow(NodeId(t._1), NodeId(t._2), Attributes(attrs), seq)
+
+  def arrow(s: NodeId, t: NodeId) =
+    val a = Arrow(s, t)
+    a.id -> a
 
   // example:
   // <title>A->B</title>

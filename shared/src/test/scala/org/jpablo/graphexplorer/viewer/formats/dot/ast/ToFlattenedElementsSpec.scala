@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.EdgeStmt.resetId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToDotGraphElements
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
@@ -27,7 +26,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
   }
 
   test("toFlattenedElements should return all arrows") {
-    resetId()
+    EdgeStmt.resetId()
     val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedArrows =
       List(
@@ -66,43 +65,50 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
   }
 
   test("toFlattenedElements should return all memberships") {
-    resetId()
+    EdgeStmt.resetId()
     val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedMemberships =
       List(
-        NodeId("z")      -> group0,
-        NodeId("a->b:2") -> group0,
-        group1           -> group0,
-        NodeId("d")      -> group1
+        NodeId("z")       -> group0,
+        ArrowId("a->b:2") -> group0,
+        group1            -> group0,
+        NodeId("d")       -> group1
       )
 
     assertEquals(data.memberships, expectedMemberships)
   }
 
   test("roundtrip") {
-    resetId()
+    EdgeStmt.resetId()
     val flattened = astWithNestedSubGraphs.toFlattenedElements
     val data = ViewerGraphData.from(flattened)
     val reconstructed = graphDataToDotGraphElements(data)
+    val x = DotNodeId("x")
+    val a = DotNodeId("a")
+    val y = DotNodeId("y")
+    val b = DotNodeId("b")
+    val c = DotNodeId("c")
+    val d = DotNodeId("d")
+    val z = DotNodeId("z")
     val expected =
       List(
         SubGraph(
           List(
             AttrStmt("node", List(Attr("shape", AttrValue("egg")))),
-            SubGraph(List(NodeStmt(DotNodeId("d", None), Nil)), Some("cluster_1")),
-            NodeStmt(DotNodeId("z", None), List(Attr("label", AttrValue("ZZ")))),
-            EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), List(Attr("id", AttrValue("2"))))
+            SubGraph(List(NodeStmt(d)), Some("cluster_1")),
+            NodeStmt(z, List(Attr("label", AttrValue("ZZ")))),
+            EdgeStmt(List(a, b), List(Attr("id", AttrValue("2"))))
           ),
           Some("cluster_0")
         ),
-        NodeStmt(DotNodeId("x", None), Nil),
-        NodeStmt(DotNodeId("a", None), Nil),
-        NodeStmt(DotNodeId("y", None), Nil),
-        NodeStmt(DotNodeId("b", None), Nil),
-        NodeStmt(DotNodeId("c", None), Nil),
-        EdgeStmt(List(DotNodeId("x", None), DotNodeId("y", None)), List(Attr("id", AttrValue("1")))),
-        EdgeStmt(List(DotNodeId("x", None), DotNodeId("a", None)), List(Attr("id", AttrValue("3")))),
-        EdgeStmt(List(DotNodeId("b", None), DotNodeId("c", None)), List(Attr("id", AttrValue("4"))))
+        NodeStmt(x),
+        NodeStmt(a),
+        NodeStmt(y),
+        NodeStmt(b),
+        NodeStmt(c),
+        EdgeStmt(List(x, y), List(Attr("id", AttrValue("1")))),
+        EdgeStmt(List(x, a), List(Attr("id", AttrValue("3")))),
+        EdgeStmt(List(b, c), List(Attr("id", AttrValue("4"))))
       )
     assertEquals(reconstructed, expected)
   }
@@ -114,13 +120,13 @@ val astWithNestedSubGraphs =
     List(
       Newline(),
       Pad(),
-      NodeStmt(DotNodeId("a", None), Nil),
+      NodeStmt(DotNodeId("a"), Nil),
       Newline(),
       Pad(),
-      NodeStmt(DotNodeId("b", None), Nil),
+      NodeStmt(DotNodeId("b"), Nil),
       Newline(),
       Pad(),
-      EdgeStmt(List(DotNodeId("x", None), DotNodeId("y", None)), Nil),
+      EdgeStmt(List(DotNodeId("x"), DotNodeId("y")), Nil),
       Newline(),
       Pad(),
       SubGraph(
@@ -131,14 +137,14 @@ val astWithNestedSubGraphs =
           StmtSep(),
           Newline(),
           Pad(),
-          NodeStmt(DotNodeId("z", None), List(Attr("label", AttrValue("ZZ")))),
+          NodeStmt(DotNodeId("z"), List(Attr("label", AttrValue("ZZ")))),
           Newline(),
           Pad(),
-          EdgeStmt(List(DotNodeId("a", None), DotNodeId("b", None)), Nil),
+          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), Nil),
           Newline(),
           Pad(),
           SubGraph(
-            List(Newline(), Pad(), NodeStmt(DotNodeId("d", None), Nil), Newline(), Pad()),
+            List(Newline(), Pad(), NodeStmt(DotNodeId("d"), Nil), Newline(), Pad()),
             Some("cluster_1")
           ),
           Newline(),
@@ -148,10 +154,10 @@ val astWithNestedSubGraphs =
       ),
       Newline(),
       Pad(),
-      EdgeStmt(List(DotNodeId("x", None), DotNodeId("a", None)), Nil),
+      EdgeStmt(List(DotNodeId("x"), DotNodeId("a")), Nil),
       Newline(),
       Pad(),
-      EdgeStmt(List(DotNodeId("b", None), DotNodeId("c", None)), Nil),
+      EdgeStmt(List(DotNodeId("b"), DotNodeId("c")), Nil),
       Newline()
     ),
     Some("G")
