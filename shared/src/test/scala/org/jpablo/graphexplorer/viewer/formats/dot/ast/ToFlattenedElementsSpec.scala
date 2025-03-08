@@ -78,7 +78,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
     assertEquals(data.memberships, expectedMemberships)
   }
 
-  test("roundtrip") {
+  test("roundtrip (toFlattenedElements -> graphDataToDotGraphElements) should produce equivalent elements") {
     EdgeStmt.resetId()
     val flattened = astWithNestedSubGraphs.toFlattenedElements
     val data = ViewerGraphData.from(flattened)
@@ -90,6 +90,9 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
     val c = DotNodeId("c")
     val d = DotNodeId("d")
     val z = DotNodeId("z")
+    // This is not the same as the original AST, but should render to something similar
+    // - Some elements like Newline and Pad are removed
+    // - Order of elements may change: SubGraphs -> NodeStmts -> EdgeStmts
     val expected =
       List(
         SubGraph(

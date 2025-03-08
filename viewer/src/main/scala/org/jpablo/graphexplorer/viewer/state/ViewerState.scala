@@ -271,6 +271,18 @@ case class ViewerState(
       pprint.log(graph, showFieldNames = false)
       dom.console.log("Visible graph printed to the console")
 
+  def printVisibleDOTtoConsole(): Unit =
+    for dotText <- visibleDOT do
+      // Don't remove this line!! it IS the actual functionality
+      dom.console.log(dotText.value)
+      dom.console.log("Visible DOT printed to the console")
+
+  def printVisibleJSONtoConsole(): Unit =
+    for ast <- sourceFlow.visibleAST do
+      // Don't remove this line!! it IS the actual functionality
+      dom.console.log(write(ast, indent = 2))
+      dom.console.log("Visible JSON DOT AST printed to the console")
+
   def deleteSelection() =
     sourceFlow.fullGraphV.update: fullGraph =>
       fullGraph.removeElements(diagramSelection.now())

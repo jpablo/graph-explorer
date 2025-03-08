@@ -38,46 +38,145 @@ class Commands(state: ViewerState, router: Router):
   val menuSections: VectorMap[String, List[Command]] = VectorMap(
     "Common" -> List(
       Command("Add node", state.addNode, always, shortcut = List("n"), description = Some("Add a new node")),
-      Command("Select all", state.selectAll, always, shortcut = List("a"), description = Some("Select all visible elements (nodes, arrows, and groups)")),
+      Command(
+        "Select all",
+        state.selectAll,
+        always,
+        shortcut    = List("a"),
+        description = Some("Select all visible elements (nodes, arrows, and groups)")
+      ),
       Command("Select all nodes", state.selectAllVisibleNodes, always, description = Some("Select all visible nodes")),
-      Command("Select all arrows", state.selectAllVisibleArrows, always, description = Some("Select all visible arrows")),
-      Command("Select all groups", state.selectAllVisibleGroups, always, description = Some("Select all visible groups"))
+      Command(
+        "Select all arrows",
+        state.selectAllVisibleArrows,
+        always,
+        description = Some("Select all visible arrows")
+      ),
+      Command(
+        "Select all groups",
+        state.selectAllVisibleGroups,
+        always,
+        description = Some("Select all visible groups")
+      )
     ),
     "Selection" -> List(
-      Command("Hide", state.hideSelection, shortcut               = List("h"), description = Some("Hide selected nodes")),
-      Command("Keep", state.hideNonSelectedNodes, not(isSingleGroupSelected), shortcut = List("k"), description = Some("Hide all nodes except selected")),
-      Command("Delete", state.deleteSelection, shortcut           = List("Backspace"), description = Some("Delete selected nodes")),
-      Command("Duplicate", state.duplicateSelection, not(isSingleGroupSelected), shortcut     = List("d"), description = Some("Duplicate selected nodes")),
-      Command("Group", state.groupSelectedNodes, shortcut         = List("g"), description = Some("Add selected nodes into a new group")),
-      Command("Move to group", state.addSelectionToGroup, moveToGroupActionVisible, description = Some("Add selected nodes to the selected group")),
-      Command("Ungroup", state.ungroupSelection, shortcut = List("u"), description = Some("Remove selected nodes from their current group")),
+      Command("Hide", state.hideSelection, shortcut = List("h"), description = Some("Hide selected nodes")),
+      Command(
+        "Keep",
+        state.hideNonSelectedNodes,
+        not(isSingleGroupSelected),
+        shortcut    = List("k"),
+        description = Some("Hide all nodes except selected")
+      ),
+      Command(
+        "Delete",
+        state.deleteSelection,
+        shortcut    = List("Backspace"),
+        description = Some("Delete selected nodes")
+      ),
+      Command(
+        "Duplicate",
+        state.duplicateSelection,
+        not(isSingleGroupSelected),
+        shortcut    = List("d"),
+        description = Some("Duplicate selected nodes")
+      ),
+      Command(
+        "Group",
+        state.groupSelectedNodes,
+        shortcut    = List("g"),
+        description = Some("Add selected nodes into a new group")
+      ),
+      Command(
+        "Move to group",
+        state.addSelectionToGroup,
+        moveToGroupActionVisible,
+        description = Some("Add selected nodes to the selected group")
+      ),
+      Command(
+        "Ungroup",
+        state.ungroupSelection,
+        shortcut    = List("u"),
+        description = Some("Remove selected nodes from their current group")
+      ),
       Command("Clear selection", state.clearSelection, shortcut = List("Esc")),
       //
-      Command("Select group members", state.selectGroupMembers, shortcut = List("m"), description = Some("Select all nodes that are members of the selected group")),
-      Command("Zoom into group", state.showOnlyGroup, isSingleGroupSelected, description = Some("Show only this group and its members")),
-      Command("Copy as SVG", state.copySelectionAsSVG, shortcut = List("c"), description = Some("Copy the selected nodes as SVG to the clipboard"))
+      Command(
+        "Select group members",
+        state.selectGroupMembers,
+        shortcut    = List("m"),
+        description = Some("Select all nodes that are members of the selected group")
+      ),
+      Command(
+        "Zoom into group",
+        state.showOnlyGroup,
+        isSingleGroupSelected,
+        description = Some("Show only this group and its members")
+      ),
+      Command(
+        "Copy as SVG",
+        state.copySelectionAsSVG,
+        shortcut    = List("c"),
+        description = Some("Copy the selected nodes as SVG to the clipboard")
+      )
     ),
     "Successors" -> List(
-      Command("Show all successors", state.showAllSuccessors, description = Some("Show all successors of the selected nodes")),
-      Command("Show direct successors", state.showDirectSuccessors, description = Some("Show direct successors of the selected nodes")),
-      Command("Select all successors", state.selectSuccessors, description = Some("Select all successors of the selected nodes")),
-      Command("Select direct successors", state.selectDirectSuccessors, description = Some("Select direct successors of the selected nodes"))
+      Command(
+        "Show all successors",
+        state.showAllSuccessors,
+        description = Some("Show all successors of the selected nodes")
+      ),
+      Command(
+        "Show direct successors",
+        state.showDirectSuccessors,
+        description = Some("Show direct successors of the selected nodes")
+      ),
+      Command(
+        "Select all successors",
+        state.selectSuccessors,
+        description = Some("Select all successors of the selected nodes")
+      ),
+      Command(
+        "Select direct successors",
+        state.selectDirectSuccessors,
+        description = Some("Select direct successors of the selected nodes")
+      )
     ),
     "Predecessors" -> List(
-      Command("Show all predecessors", state.showAllPredecessors, description = Some("Show all predecessors of the selected nodes")),
-      Command("Show direct predecessors", state.showDirectPredecessors, description = Some("Show direct predecessors of the selected nodes")),
-      Command("Select all predecessors", state.selectPredecessors, description = Some("Select all predecessors of the selected nodes")),
-      Command("Select direct predecessors", state.selectDirectPredecessors, description = Some("Select direct predecessors of the selected nodes"))
+      Command(
+        "Show all predecessors",
+        state.showAllPredecessors,
+        description = Some("Show all predecessors of the selected nodes")
+      ),
+      Command(
+        "Show direct predecessors",
+        state.showDirectPredecessors,
+        description = Some("Show direct predecessors of the selected nodes")
+      ),
+      Command(
+        "Select all predecessors",
+        state.selectPredecessors,
+        description = Some("Select all predecessors of the selected nodes")
+      ),
+      Command(
+        "Select direct predecessors",
+        state.selectDirectPredecessors,
+        description = Some("Select direct predecessors of the selected nodes")
+      )
     ),
     "View" -> List(
       Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors")),
-      Command("Show all", state.showAllNodes, always, description = Some("Show all hidden nodes")),
-      Command("Hide all", state.hideAllNodes, always, description = Some("Hide all nodes"))
+      Command("Show all", state.showAllNodes, always, description    = Some("Show all hidden nodes")),
+      Command("Hide all", state.hideAllNodes, always, description    = Some("Hide all nodes"))
     ),
     "Export" -> List(
-      Command("as SVG", state.copyAsFullDiagramSVG, always, description = Some("Copy the full diagram as SVG to the clipboard")),
+      Command(
+        "as SVG",
+        state.copyAsFullDiagramSVG,
+        always,
+        description = Some("Copy the full diagram as SVG to the clipboard")
+      ),
       Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard")),
-      Command("as JSON DOT AST", state.copyAsJSON, always, description = Some("Copy the full diagram as JSON DOT AST to the clipboard"))
     ),
     "Zoom" -> List(
       Command("Zoom out", () => state.zoomValue.update(_ * 0.9), always, description = Some("Zoom out the diagram")),
@@ -89,12 +188,39 @@ class Commands(state: ViewerState, router: Router):
       Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
     ),
     "Application" -> List(
-      Command("Navigate home", () => router.navigateTo(Route.Home), always, description = Some("Navigate to the home page")),
+      Command(
+        "Navigate home",
+        () => router.navigateTo(Route.Home),
+        always,
+        description = Some("Navigate to the home page")
+      ),
       Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
-      Command("Help - Keyboard Shortcuts", () => state.shortcutsModalOpen.set(true), always, description = Some("Open the keyboard shortcuts help dialog"))
+      Command(
+        "Help - Keyboard Shortcuts",
+        () => state.shortcutsModalOpen.set(true),
+        always,
+        description = Some("Open the keyboard shortcuts help dialog")
+      )
     ),
     "Developer" -> List(
-      Command("Print visible graph to the console", state.printVisibleGraphToConsole, always, description = Some("Print the visible graph to the browser console for debugging"))
+      Command(
+        "Print visible graph to the console",
+        state.printVisibleGraphToConsole,
+        always,
+        description = Some("Print the visible graph to the browser console for debugging")
+      ),
+      Command(
+        "Print visible DOT to the console",
+        state.printVisibleDOTtoConsole,
+        always,
+        description = Some("Print the visible DOT to the browser console for debugging")
+      ),
+      Command(
+        "Print JSON DOT AST to the console",
+        state.printVisibleJSONtoConsole,
+        always,
+        description = Some("Print the full diagram as JSON DOT AST to console for debugging")
+      )
     )
   )
 
