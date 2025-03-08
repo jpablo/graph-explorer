@@ -59,8 +59,6 @@ class ViewerGraphDataSpec extends ScalaCheckSuite:
     // Add elements to a new group
     val updatedGraphData = graphData.moveToNewGroup(elementIds, "Nested Group")
 
-    pprint.pprintln(updatedGraphData, showFieldNames = false)
-
     // Verify the new group was created
     val newGroupId = updatedGraphData.memberships(a)
     assertEquals(updatedGraphData.memberships(b), newGroupId, "Both nodes should be in the same group")

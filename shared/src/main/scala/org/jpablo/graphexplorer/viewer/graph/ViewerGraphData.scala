@@ -39,6 +39,9 @@ case class ViewerGraphData(
   def membership(id: ElementId): Option[GroupId] =
     memberships.get(id)
 
+  def belongsToGroup(elementId: ElementId, groupId: GroupId): Boolean =
+    memberships.getOrElse(elementId, rootId) == groupId
+
   def expandStyleAttributes: ViewerGraphData =
     copy(
       groups = groups.transform { (id, g) =>
@@ -186,7 +189,7 @@ case class ViewerGraphData(
 
   def addNode(nodeId: NodeId, groupId: Option[GroupId] = None, label: String = ""): ViewerGraphData =
     copy(
-      nodes = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map(AttributeId("label") -> AttrValue(label))))),
+      nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map(AttributeId("label") -> AttrValue(label))))),
       memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))
     )
 
