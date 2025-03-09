@@ -40,27 +40,27 @@ class Commands(state: ViewerState, router: Router):
       Command("Add node", state.addNode, always, shortcut = List("n"), description = Some("Add a new node")),
       Command(
         "Select all",
-        state.selectAll,
+        state.selection.selectAll,
         always,
         shortcut    = List("a"),
         description = Some("Select all visible elements (nodes, arrows, and groups)")
       ),
-      Command("Select all nodes", state.selectAllVisibleNodes, always, description = Some("Select all visible nodes")),
+      Command("Select all nodes", state.selection.selectAllVisibleNodes, always, description = Some("Select all visible nodes")),
       Command(
         "Select all arrows",
-        state.selectAllVisibleArrows,
+        state.selection.selectAllVisibleArrows,
         always,
         description = Some("Select all visible arrows")
       ),
       Command(
         "Select all groups",
-        state.selectAllVisibleGroups,
+        state.selection.selectAllVisibleGroups,
         always,
         description = Some("Select all visible groups")
       )
     ),
     "Selection" -> List(
-      Command("Hide", state.hideSelection, shortcut = List("h"), description = Some("Hide selected nodes")),
+      Command("Hide", state.selection.hide, shortcut = List("h"), description = Some("Hide selected nodes")),
       Command(
         "Keep",
         state.hideNonSelectedNodes,
@@ -70,40 +70,40 @@ class Commands(state: ViewerState, router: Router):
       ),
       Command(
         "Delete",
-        state.deleteSelection,
+        state.selection.deleteSelection,
         shortcut    = List("Backspace"),
         description = Some("Delete selected nodes")
       ),
       Command(
         "Duplicate",
-        state.duplicateSelection,
+        state.selection.duplicateSelection,
         not(isSingleGroupSelected),
         shortcut    = List("d"),
         description = Some("Duplicate selected nodes")
       ),
       Command(
         "Group",
-        state.groupSelectedNodes,
+        state.selection.group,
         shortcut    = List("g"),
         description = Some("Add selected nodes into a new group")
       ),
       Command(
         "Move to group",
-        state.addSelectionToGroup,
+        state.selection.addToGroup,
         moveToGroupActionVisible,
         description = Some("Add selected nodes to the selected group")
       ),
       Command(
         "Ungroup",
-        state.ungroupSelection,
+        state.selection.ungroup,
         shortcut    = List("u"),
         description = Some("Remove selected nodes from their current group")
       ),
-      Command("Clear selection", state.clearSelection, shortcut = List("Esc")),
+      Command("Clear selection", state.selection.clear, shortcut = List("Esc")),
       //
       Command(
         "Select group members",
-        state.selectGroupMembers,
+        state.selection.selectGroupMembers,
         shortcut    = List("m"),
         description = Some("Select all nodes that are members of the selected group")
       ),
@@ -133,12 +133,12 @@ class Commands(state: ViewerState, router: Router):
       ),
       Command(
         "Select all successors",
-        state.selectSuccessors,
+        state.selection.selectSuccessors,
         description = Some("Select all successors of the selected nodes")
       ),
       Command(
         "Select direct successors",
-        state.selectDirectSuccessors,
+        state.selection.selectDirectSuccessors,
         description = Some("Select direct successors of the selected nodes")
       )
     ),
@@ -155,12 +155,12 @@ class Commands(state: ViewerState, router: Router):
       ),
       Command(
         "Select all predecessors",
-        state.selectPredecessors,
+        state.selection.selectPredecessors,
         description = Some("Select all predecessors of the selected nodes")
       ),
       Command(
         "Select direct predecessors",
-        state.selectDirectPredecessors,
+        state.selection.selectDirectPredecessors,
         description = Some("Select direct predecessors of the selected nodes")
       )
     ),

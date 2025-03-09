@@ -56,7 +56,7 @@ def NodesList(
           title := "Select filtered nodes",
           "Select",
           onClick.preventDefault(_.sample(filteredGraph)) --> { graph =>
-            state.diagramSelection.set(graph.nodeIds)
+            state.selection.set(graph.nodeIds)
           }
         )
       )
@@ -118,11 +118,11 @@ def NodesList(
                   tr(
                     cls := "whitespace-nowrap hover cursor-pointer",
                     cls("font-bold") <-- state.isNodeVisible(nodeId),
-                    cls("bg-base-200") <-- state.isSelected(nodeId),
+                    cls("bg-base-200") <-- state.selection.contains(nodeId),
                     td(cls := "truncate", nodeId.toString),
                     td(cls := "truncate", node.label.toString),
                     onMouseDown.preventDefault --> Observer.empty,
-                    onClick.preventDefault.map(_.shiftKey) --> state.diagramSelection.handleClickOnNode(nodeId),
+                    onClick.preventDefault.map(_.shiftKey) --> state.selection.handleClickOnNode(nodeId),
                     onDblClick
                       .preventDefault
                       .stopPropagation(_.sample(state.isNodeVisible(nodeId))) --> { visible =>

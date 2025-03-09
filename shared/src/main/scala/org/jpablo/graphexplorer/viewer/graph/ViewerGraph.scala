@@ -2,21 +2,20 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
 
 import scala.annotation.tailrec
 
 /** Represents a graph that can be visualized in the viewer.
   */
 case class ViewerGraph(
-    data:    ViewerGraphData = ViewerGraphData.minimal,
-    id:      String = ViewerGraphData.defaultRootId.value,
-    tpe:     String = "digraph",
-    counter: Int = 0
-) derives CanEqual:
+    elements: ViewerGraphElements = ViewerGraphElements.minimal,
+    id:       String = ViewerGraphElements.defaultRootId.value,
+    tpe:      String = "digraph",
+    counter:  Int = 0
+) extends AttributesOps, TraversalOps, GroupsOps derives CanEqual:
 
   // --- mutable stuff ----
   private var nodeCounter = counter
@@ -26,40 +25,37 @@ case class ViewerGraph(
     def nextAvailable(): NodeId =
       nodeCounter += 1
       val id = NodeId(numberToLetterId(nodeCounter))
-      if id in nodeById then nextAvailable() else id
+      if id in nodes then nextAvailable() else id
     nextAvailable()
   // --- end mutable stuff ----
 
-  val root = data.root
+  val rootId = elements.rootId
+  val rootGroup = elements.rootGroup
 
-  val nodeById = data.nodes
-  val nodesSet = data.nodesSet
-  val nodeIds = data.nodes.keySet
-  lazy val nodesSeq = data.nodes.toSeq
+  protected val nodes = elements.nodes
+  protected val arrows = elements.arrows
+  protected val groups = elements.groups
+  protected val memberships = elements.memberships
 
-  val arrowById = data.arrows
-  val arrowsSet = data.arrowsSet
-  val arrowIds = data.arrows.keySet
-  lazy val arrowsSeq = data.arrows.toSeq
+  val nodeIds = nodes.keySet
+  val arrowIds = arrows.keySet
+  val groupIds = groups.keySet
 
-  val groupById = data.groups
+  lazy val nodesSeq = nodes.toSeq
+  val arrowsSet = arrows.values.toSet
 
-  val allElementIds: ElementIds = ElementIds(data.nodes.keySet ++ arrowIds ++ data.groups.keySet)
+  val modifyElements = this.modify(_.elements)
+  protected val modifyArrows = this.modify(_.elements.arrows)
+  protected val modifyMemberships = this.modify(_.elements.memberships)
+
+  def getNode(id: NodeId): Option[ViewerNode] =
+    nodes.get(id)
+
+  def membership(id: ElementId): Option[GroupId] =
+    memberships.get(id)
 
   def summary =
-    ViewerGraph.Summary(nodes = nodeById.size, arrows = arrowsSet.size)
-
-  lazy val directSuccessors: Map[NodeId, Set[NodeId]] =
-    arrowsSet
-      .groupBy(_.source)
-      .transform((_, ss) => ss.map(_.target))
-      .withDefaultValue(Set.empty)
-
-  lazy val directPredecessors: Map[NodeId, Set[NodeId]] =
-    arrowsSet
-      .groupBy(_.target)
-      .transform((_, ss) => ss.map(_.source))
-      .withDefaultValue(Set.empty)
+    ViewerGraph.Summary(nodes = nodes.size, arrows = arrowsSet.size)
 
   /** allNodeIds that are not in the target of any arrow
     */
@@ -70,56 +66,67 @@ case class ViewerGraph(
     *
     * It ignores groups and memberships.
     */
-  private def subgraph(ids: Set[NodeId]): ViewerGraph =
-    val foundNodes = nodeById.filter((id, _) => id in ids)
+  def subgraph(ids: Set[NodeId]): ViewerGraph =
+    val foundNodes = nodes.filter((id, _) => id in ids)
     val foundNodeIds = foundNodes.keySet
-    val relevantArrows = arrowById.filter((_, a) => (a.source in foundNodeIds) && (a.target in foundNodeIds))
+    val relevantArrows = arrows.filter((_, a) => (a.source in foundNodeIds) && (a.target in foundNodeIds))
     ViewerGraph(
-      ViewerGraphData(
-        rootId = data.rootId,
+      ViewerGraphElements(
+        rootId = rootId,
         nodes  = foundNodes,
         arrows = relevantArrows,
-        groups = Map(data.rootId -> data.root)
+        groups = Map(rootId -> rootGroup)
       )
     )
 
-  private val modifyData = this.modify(_.data)
+  def removeElements(elementIds: ElementIds): ViewerGraph =
+    val classified = elementIds.classify
+    val groupIdsToRemove = classified.clusters
 
-  val modifyRootGraphAttrs = this.modify(_.data.groups.at(root.id).attributes)
-  val modifyRootNodeAttrs = this.modify(_.data.groups.at(root.id).nodeAttrs)
-  val modifyRootEdgeAttrs = this.modify(_.data.groups.at(root.id).edgeAttrs)
+    val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
+      // case 1: remove a nested group
+      if elementId.asGroupId.exists(_ in groupIdsToRemove) then
+        None
+      // case 2: remove a node from a group
+      else if groupId in groupIdsToRemove then
+        // If group is deleted, add element to group's container if it exists
+        memberships.get(groupId).map(containerId => elementId -> containerId)
+      else
+        Some(elementId -> groupId) // Keep unchanged
 
-  lazy val removeUnsupportedFeatures: ViewerGraph =
-    modifyRootGraphAttrs.using(_ - AttributeId("size"))
+    val nodeIdsToRemove = classified.nodes
+    val arrowIdsToRemove = classified.arrows
 
-  val defaultNodeTheme =
-    Attributes(
-      Map(
-        AttributeId("sides") -> AttrValue("5")
-      )
-    )
+    val updatedArrows = arrows.filterNot { (arrowId, arrow) =>
+      (arrowId in arrowIdsToRemove) || (arrow.source in nodeIdsToRemove) || (arrow.target in nodeIdsToRemove)
+    }
 
-  val defaultEdgeTheme =
-    Attributes(
-      Map(
-        AttributeId("dir")       -> AttrValue("both"),
-        AttributeId("arrowtail") -> AttrValue("none")
-      )
-    )
+    modifyElements.using(_.copy(
+      nodes       = nodes -- nodeIdsToRemove,
+      arrows      = updatedArrows,
+      memberships = updatedMemberships,
+      groups      = groups -- groupIdsToRemove
+    ))
 
-  def setDefaultTheme: ViewerGraph =
-    modifyRootAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
-      .modifyRootAttributes(AttributeTarget.edge).using(_ ++ defaultEdgeTheme)
-
-  def removeElements(toRemove: ElementIds): ViewerGraph =
-    modifyData.using(_.removeElements(toRemove))
+  private def maxArrowSequence(source: NodeId, target: NodeId): Int =
+    val seqs = arrows.values
+      .filter(a => a.source == source && a.target == target)
+      .map(_.seq)
+      .toList
+    if seqs.isEmpty then 0 else seqs.max
 
   def addArrow(source: NodeId, target: NodeId): (ViewerGraph, Arrow) =
-    val (newData, arrow) = data.addArrow(source, target)
-    (modifyData.setTo(newData), arrow)
+    val newSeq = maxArrowSequence(source, target)
+    val arrow = Arrow(source, target, seq = newSeq + 1)
+    (modifyArrows.using(_ + (arrow.id -> arrow)), arrow)
 
   private def addNodeWithId(nodeId: NodeId, groupId: Option[GroupId] = None): ViewerGraph =
-    modifyData.using(_.addNode(nodeId, groupId))
+    modifyElements.using(
+      _.copy(
+        nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map(AttributeId("label") -> AttrValue(""))))),
+        memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))
+      )
+    )
 
   def addNode(groupId: Option[GroupId] = None): (ViewerGraph, NodeId) =
     val nodeId = nextNodeId()
@@ -127,95 +134,9 @@ case class ViewerGraph(
 
   def addNodeAndArrowFrom(source: NodeId): (ViewerGraph, NodeId) =
     val nodeId = nextNodeId()
-    val sourceGroup = data.membership(source)
+    val sourceGroup = membership(source)
     val (newGraph, arrow) = addNodeWithId(nodeId, sourceGroup).addArrow(source, nodeId)
     (newGraph, nodeId)
-
-  /** Creates a new group containing the specified nodes.
-    *
-    * Creates a new group with the given label and moves the specified nodes into it. Any nodes that were previously in
-    * other groups will be moved to this new group. Empty groups that result from moving nodes will be removed.
-    *
-    * @param ids
-    *   Set of node IDs to add to the new group
-    * @param label
-    *   Optional label for the new group, defaults to empty string
-    * @return
-    *   Updated ViewerGraph with the new group containing the specified nodes
-    */
-  def moveToNewGroup(ids: ElementIds, label: String = ""): ViewerGraph =
-    modifyData.using(_.moveToNewGroup(ids, label))
-
-  def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraph =
-    modifyData.using(_.addToGroup(groupId, nodeIds))
-
-  def ungroupSelection(ids: ElementIds): ViewerGraph =
-    modifyData.using(_.ungroup(ids.filter(id => id.isNodeId || id.isGroupId)))
-
-  def getRootAttributes(target: AttributeTarget): Attributes =
-    target match
-      case AttributeTarget.graph => root.attributes
-      case AttributeTarget.node  => root.nodeAttrs
-      case AttributeTarget.edge  => root.edgeAttrs
-
-  def modifyRootAttributes(target: AttributeTarget) =
-    target match
-      case AttributeTarget.graph => modifyRootGraphAttrs
-      case AttributeTarget.node  => modifyRootNodeAttrs
-      case AttributeTarget.edge  => modifyRootEdgeAttrs
-
-  def updateRootAttributes(target: AttributeTarget)(update: Attributes => Attributes): ViewerGraph =
-    modifyRootAttributes(target).using(update)
-
-  //
-  private def mergeAttributes[K <: ElementId, V <: Attributable](
-      nodeIds:       ElementIds,
-      attributables: Map[K, V]
-  ): Map[AttributeId, SelectionAttrValue] =
-    attributables.foldLeft(Map.empty[AttributeId, SelectionAttrValue]):
-      case (acc, (nodeId, attributable)) if nodeId in nodeIds =>
-        val nodeIdAcc =
-          // replace attribute values with Single / Multiple (if they are already in the accumulator and they are different)
-          attributable.attributes.values.transform: (attrId, v) =>
-            if (attrId in acc) && !acc(attrId).is(v) then Multiple else Single(v)
-        acc ++ nodeIdAcc
-      case (acc, _) => acc
-
-  def getAttributesById(ids: ElementIds): AttributesUpdates =
-    AttributesUpdates(
-      ids.ids.headOption
-        .map:
-          case _: ArrowId => mergeAttributes(ids, data.arrows.map(identity))
-          case _: GroupId => mergeAttributes(ids, data.groups.map(identity))
-          case _: NodeId  => mergeAttributes(ids, data.nodes.map(identity))
-        .getOrElse(Map.empty)
-    )
-
-  def updateAttributes(idsToUpdate: ElementIds, updates: AttributesUpdates): ViewerGraph =
-    modifyData.using(_.updateAttributes(idsToUpdate, updates))
-
-  /** Unfolds a set of ids using a function that returns the related ids.
-    */
-  def unfold(f: NodeId => Set[NodeId], ids0: Set[NodeId]): Set[NodeId] =
-    // How efficient is this compared to a tail rec version?
-    Set
-      .unfold((ids0, Set.empty[NodeId])): (ids, visited) =>
-        val newBatch = ids.flatMap(f) -- visited
-        if newBatch.isEmpty then None
-        else Some((newBatch, (newBatch, visited ++ newBatch)))
-      .flatten
-
-  private def subgraphUnfoldWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
-    subgraph(ids ++ unfold(f, ids))
-
-  private def subgraphWith(f: NodeId => Set[NodeId])(ids: Set[NodeId]): ViewerGraph =
-    subgraph(ids ++ ids.flatMap(f))
-
-  val directSuccessorsGraph: Set[NodeId] => ViewerGraph = subgraphWith(directSuccessors)
-  val directPredecessorsGraph: Set[NodeId] => ViewerGraph = subgraphWith(directPredecessors)
-
-  val allSuccessorsGraph: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(directSuccessors)
-  val allPredecessorsGraph: Set[NodeId] => ViewerGraph = subgraphUnfoldWith(directPredecessors)
 
 //  lazy val toTrees: Tree[ViewerNode] =
 //    val paths =
@@ -256,7 +177,7 @@ object ViewerGraph:
 
   def basic(arrows: (NodeId, NodeId)*): ViewerGraph =
     ViewerGraph(
-      data = ViewerGraphData(arrows = arrows.map((a, b) => Arrow(a, b)).map(a => a.id -> a).toMap)
+      ViewerGraphElements(arrows = arrows.map((a, b) => Arrow(a, b)).map(a => a.id -> a).toMap)
     )
 
   val empty: ViewerGraph = ViewerGraph()

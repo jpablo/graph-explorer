@@ -19,12 +19,14 @@ object SvgCanvas:
 
   // rawSvg is the SVG element as it comes from DOT
   def apply(
-      rawSvg:                dom.svg.SVG,
-      transform:             Signal[String],
-      diagramSelection:      DiagramSelectionOps,
-      addNode:               () => Unit,
-      getRankdir:            () => Rankdir,
+      rawSvg:       dom.svg.SVG,
+      transform:    Signal[String],
+      selectionOps: DiagramSelectionOps,
+      addNode:      () => Unit,
+      getRankdir:   () => Rankdir
   ): ReactiveSvgElement[dom.svg.SVG] =
+
+    import selectionOps.selection
 
     val firstGroup: dom.svg.G =
       val g0 = rawSvg.querySelector("g")
@@ -43,7 +45,7 @@ object SvgCanvas:
             //   "New arrow" button
             // --------------------------------------------------------
             child.maybe <--
-              diagramSelection.signal.map: selectedNodes =>
+              selection.signal.map: selectedNodes =>
                 if selectedNodes.size == 1 then
                   val elementId = selectedNodes.head
                   for
@@ -55,10 +57,10 @@ object SvgCanvas:
                   // --------------------------------------------------------
                   btn.amend(
                     onMouseDown.stopPropagation --> { ev =>
-                      diagramSelection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+                      selection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
                     },
                     onMouseUp.stopPropagation --> { _ =>
-                      diagramSelection.endSelectionLine()
+                      selection.endSelectionLine()
                       addNode()
                     }
                   )
@@ -68,7 +70,7 @@ object SvgCanvas:
             // --------------------------------------------------------
             //   draw dragging arrow
             // --------------------------------------------------------
-            child.maybe <-- DraggingArrow(diagramSelection.selectionRectLine.signal, group.ref)
+            child.maybe <-- DraggingArrow(selection.selectionRectLine.signal, group.ref)
           )
 
     // --------------------------------------------------------
@@ -85,24 +87,24 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   draw selection rect
           // --------------------------------------------------------
-          child.maybe <-- DrawSelectionRect(diagramSelection.selectionRectArea.signal, topLevelSvg.ref),
+          child.maybe <-- DrawSelectionRect(selection.selectionRectArea.signal, topLevelSvg.ref),
           // --------------------------------------------------------
           //   select elements intersecting selectionRec
           // --------------------------------------------------------
           // TODO: do we need to listen to state.selectionRectLine.signal here?
-          diagramSelection.selectionRectArea.signal --> { actionO =>
+          selection.selectionRectArea.signal --> { actionO =>
             for action <- actionO do
               val rect = action.rect
-              diagramSelection.handleSelectionAreaUpdate(
+              selection.handleSelectionAreaUpdate(
                 rect,
                 selectableElements,
                 dom.document.elementsFromPoint(rect.end.x, rect.end.y)
               )
           },
-          diagramSelection.selectionRectLine.signal --> { (actionO: Option[Action.Line]) =>
+          selection.selectionRectLine.signal --> { (actionO: Option[Action.Line]) =>
             for action <- actionO do
               val rect = action.rect
-              diagramSelection.handleSelectionLineUpdate(
+              selection.handleSelectionLineUpdate(
                 action.start,
                 dom.document.elementsFromPoint(rect.end.x, rect.end.y)
               )
@@ -110,7 +112,7 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   synchronize svg elements with diagramSelection
           // --------------------------------------------------------
-          diagramSelection.signal --> { selectedNodes =>
+          selection.signal --> { selectedNodes =>
             for elem <- selectableElements do
               if elem.elementId in selectedNodes then
                 elem.select()

@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.{Command, Commands}
-import org.jpablo.graphexplorer.viewer.state.{SelectedNodes, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{Selection, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.intersperse
 
 import scala.scalajs.js
@@ -21,9 +21,9 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
   // Reset highlighted index when search term changes
   searchTerm.signal.foreach(_ => highlightedIndex.set(-1))
   // Reset highlighted index when selection changes
-  state.diagramSelection.signal.foreach(_ => highlightedIndex.set(-1))
+  state.selection.signal.foreach(_ => highlightedIndex.set(-1))
 
-  def shouldShowCommand(term: String, selection: SelectedNodes)(cmd: Command) =
+  def shouldShowCommand(term: String, selection: Selection)(cmd: Command) =
     cmd.title.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
 
   // Global key handler for Cmd+K
@@ -36,12 +36,12 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
 
   val menuShouldBeVisible =
     Signal.combine(
-      state.diagramSelection.signal.map(_.nonEmpty),
+      state.selection.signal.map(_.nonEmpty),
       searchHasFocus.signal,
       state.leftPanelVisible.signal
     ).map(_ || _ || _)
 
-  def getVisibleCommands(term: String, selection: SelectedNodes): Map[String, List[Command]] =
+  def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command]] =
     commands.menuSections.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
 
   div(
@@ -62,7 +62,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
         // Handle keyboard navigation directly in the input
         onKeyDown --> { e =>
           val term = searchTerm.now()
-          val visibleCmds = getVisibleCommands(term, state.diagramSelection.now()).values.flatten.toSeq
+          val visibleCmds = getVisibleCommands(term, state.selection.now()).values.flatten.toSeq
           val cmdCount = visibleCmds.size
 
           if cmdCount > 0 then
@@ -102,7 +102,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
       display <-- menuShouldBeVisible.map(if _ then "block" else "none"),
       ul(
         cls := "menu menu-sm rounded-box",
-        children <-- searchTerm.signal.combineWith(state.diagramSelection.signal)
+        children <-- searchTerm.signal.combineWith(state.selection.signal)
           .map: (term, selection) =>
             val allVisibleCmds = getVisibleCommands(term, selection)
             val flattenedCmds = allVisibleCmds.values.flatten.toList

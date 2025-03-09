@@ -20,7 +20,7 @@ def GraphAttributesView(
     selection: Boolean
 ) =
   val builder = RowBuilder(attrsVar, defaults)
-  val isSingleClusterSelected = state.diagramSelection.signal.map(_.size == 1)
+  val isSingleClusterSelected = state.selection.signal.map(_.size == 1)
 
   given owner: Owner = state.owner
 

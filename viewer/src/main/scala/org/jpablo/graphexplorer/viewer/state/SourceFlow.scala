@@ -143,7 +143,7 @@ class SourceFlow(
     */
   val visibleGraph: Signal[ViewerGraph] =
     fullGraphV.signal.combineWith(hiddenNodes)
-      .map: (fullGraph, hiddenNodes) =>
+      .map: (fullGraph: ViewerGraph, hiddenNodes) =>
         withLog("[fullGraphV -> visibleGraph]") {
           fullGraph
             .removeUnsupportedFeatures

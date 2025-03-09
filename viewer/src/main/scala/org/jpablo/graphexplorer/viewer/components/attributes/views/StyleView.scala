@@ -10,7 +10,7 @@ def StyleView(state: ViewerState) =
   div(
     idAttr := "diagram-attributes",
     child <--
-      state.diagramSelection.signal.map: selectedNodes =>
+      state.selection.signal.map: selectedNodes =>
         val IdsByKind(clusterIds, nodeIds, arrowIds) = selectedNodes.classify
 
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
@@ -23,7 +23,7 @@ def StyleView(state: ViewerState) =
               EdgesAttributesView(
                 state,
                 updates     = state.elementAttributes(ElementIds(arrowIds)),
-                defaults  = Some(state.visibleGraph.map(_.root.edgeAttrs)),
+                defaults  = Some(state.visibleGraph.map(_.rootGroup.arrowAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
             )
@@ -38,7 +38,7 @@ def StyleView(state: ViewerState) =
                 "SelectionAttributes",
                 state,
                 updates  = state.elementAttributes(ElementIds(nodeIds)),
-                defaults  = Some(state.visibleGraph.map(_.root.nodeAttrs)),
+                defaults  = Some(state.visibleGraph.map(_.rootGroup.nodeAttrs)),
                 selection = true
               ).amend(cls("selection-attributes"))
             )
@@ -55,7 +55,7 @@ def StyleView(state: ViewerState) =
               GraphAttributesView(
                 state     = state,
                 attrsVar  = state.elementAttributes(ElementIds(clusterIds)),
-                defaults  = Some(state.visibleGraph.map(_.root.attributes)),
+                defaults  = Some(state.visibleGraph.map(_.rootGroup.attributes)),
                 selection = true
               ).amend(cls("selection-attributes"))
             )
@@ -80,7 +80,7 @@ def StyleView(state: ViewerState) =
                 }.toList,
                 onChange.mapToValue --> { value =>
                   for (ids, _) <- elementTypes.get(value) do
-                    state.diagramSelection.set(ids)
+                    state.selection.set(ids)
                 },
                 cls := "w-full mb-4"
               )

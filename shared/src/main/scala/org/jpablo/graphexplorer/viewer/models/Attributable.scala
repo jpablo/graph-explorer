@@ -86,7 +86,7 @@ end Arrow
 case class ViewerGroup(
     id:         GroupId,
     attributes: Attributes = Attributes.empty,
-    edgeAttrs:  Attributes = Attributes.empty,
+    arrowAttrs: Attributes = Attributes.empty,
     nodeAttrs:  Attributes = Attributes.empty
 ) extends Attributable
 

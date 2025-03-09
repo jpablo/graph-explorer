@@ -2,14 +2,14 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToDotGraphElements
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraphData
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.*
 
 class ToFlattenedElementsSpec extends ScalaCheckSuite:
 
-  val rootId = ViewerGraphData.defaultRootId
+  val rootId = ViewerGraphElements.defaultRootId
   val group0 = GroupId("cluster_0")
   val group1 = GroupId("cluster_1")
 
@@ -81,7 +81,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
   test("roundtrip (toFlattenedElements -> graphDataToDotGraphElements) should produce equivalent elements") {
     EdgeStmt.resetId()
     val flattened = astWithNestedSubGraphs.toFlattenedElements
-    val data = ViewerGraphData.from(flattened)
+    val data = ViewerGraphElements.from(flattened)
     val reconstructed = graphDataToDotGraphElements(data)
     val x = DotNodeId("x")
     val a = DotNodeId("a")

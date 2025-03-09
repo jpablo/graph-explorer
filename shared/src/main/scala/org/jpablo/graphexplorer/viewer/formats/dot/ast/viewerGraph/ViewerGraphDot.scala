@@ -2,14 +2,14 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphData}
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.*
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
   DotAST(
     tpe      = graph.tpe,
-    children = graphDataToDotGraphElements(graph.data.combineStyleAttributes),
+    children = graphDataToDotGraphElements(graph.combineStyleAttributes),
     id       = Some(graph.id)
   )
 
@@ -33,31 +33,34 @@ private def attrs(attrs: Attributes, target: AttributeTarget) =
   else
     Nil
 
-def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] =
+def graphDataToDotGraphElements(elements: ViewerGraphElements): List[GraphElement] =
+
+  def belongsToGroup(elementId: ElementId, groupId: GroupId): Boolean =
+    elements.memberships.getOrElse(elementId, elements.rootId) == groupId
 
   def groupToSubGraph(groupId: GroupId, visited: Set[GroupId] = Set()): Option[SubGraph] =
     if groupId in visited then
       None
     else
-      val nodeStmts = graphData.nodes
-        .filter((id, _) => graphData.belongsToGroup(id, groupId))
+      val nodeStmts = elements.nodes
+        .filter((id, _) => belongsToGroup(id, groupId))
         .map(nodeToStmt)
 
-      val edgeStmts = graphData.arrows.values
-        .filter(arrow => graphData.belongsToGroup(arrow.id, groupId))
+      val edgeStmts = elements.arrows.values
+        .filter(arrow => belongsToGroup(arrow.id, groupId))
         .map(arrowToStmt)
 
-      val subGraphs = graphData.groups
-        .filter((id, _) => graphData.belongsToGroup(id, groupId))
+      val subGraphs = elements.groups
+        .filter((id, _) => belongsToGroup(id, groupId))
         .flatMap((gId, _) => groupToSubGraph(gId, visited + groupId))
         .toList
 
-      val viewerGroup = graphData.groups(groupId)
+      val viewerGroup = elements.groups(groupId)
       val nodeAttrs = attrs(viewerGroup.nodeAttrs, AttributeTarget.node)
-      val edgeAttrs = attrs(viewerGroup.edgeAttrs, AttributeTarget.edge)
+      val edgeAttrs = attrs(viewerGroup.arrowAttrs, AttributeTarget.edge)
       val groupAttrs = attrs(viewerGroup.attributes, AttributeTarget.graph)
 
-      val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++  subGraphs ++ nodeStmts ++ edgeStmts
+      val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++ subGraphs ++ nodeStmts ++ edgeStmts
       Some(SubGraph(children, Some(groupId.value)))
 
-  groupToSubGraph(graphData.rootId).map(_.children).getOrElse(Nil)
+  groupToSubGraph(elements.rootId).map(_.children).getOrElse(Nil)

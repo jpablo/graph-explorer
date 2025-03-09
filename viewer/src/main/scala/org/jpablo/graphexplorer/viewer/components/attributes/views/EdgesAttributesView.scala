@@ -24,7 +24,7 @@ def EdgesAttributesView(
 
   val labelRow =
     if selection then
-      state.diagramSelection.signal.map(sel =>
+      state.selection.signal.map(sel =>
         if sel.size == 1 then
           builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
         else

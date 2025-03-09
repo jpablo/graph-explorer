@@ -67,7 +67,7 @@ def EdgesList(
               .toList
               .map(_.id)
               .toSet
-            state.diagramSelection.set(filteredEdges)
+            state.selection.set(filteredEdges)
           }
         )
       )
@@ -159,13 +159,13 @@ def EdgesList(
                   tr(
                     cls := "whitespace-nowrap hover cursor-pointer",
                     cls("font-bold") <-- state.isEdgeVisible(arrow.id),
-                    cls("bg-base-200") <-- state.isSelected(arrow.id),
+                    cls("bg-base-200") <-- state.selection.contains(arrow.id),
                     td(cls := "truncate", arrow.label.toString),
-                    td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.source), sourceLabel),
+                    td(cls := "truncate", cls("selected") <-- state.selection.contains(arrow.source), sourceLabel),
                     td("→"),
-                    td(cls := "truncate", cls("selected") <-- state.isSelected(arrow.target), targetLabel),
+                    td(cls := "truncate", cls("selected") <-- state.selection.contains(arrow.target), targetLabel),
                     onMouseDown.preventDefault --> Observer.empty,
-                    onClick.map(_.shiftKey) --> state.diagramSelection.handleClickOnArrow(arrow),
+                    onClick.map(_.shiftKey) --> state.selection.handleClickOnArrow(arrow),
                     onDblClick
                       .preventDefault
                       .stopPropagation(_.sample(state.isEdgeVisible(arrow.id))) --> { visible =>
