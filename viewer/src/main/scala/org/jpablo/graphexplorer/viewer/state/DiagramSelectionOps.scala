@@ -103,7 +103,7 @@ trait DiagramSelectionOps:
     def addToGroup() =
       val classified = now().classify
       for groupNodeId <- classified.clusters.headOption do
-        sourceFlow.fullGraphV.update(_.addToGroup(groupNodeId, classified.nodes.toSeq))
+        sourceFlow.fullGraphV.update(_.moveToGroup(groupNodeId, classified.nodes.toSeq))
 
     def group() =
       sourceFlow.fullGraphV.update(_.moveToNewGroup(now()))

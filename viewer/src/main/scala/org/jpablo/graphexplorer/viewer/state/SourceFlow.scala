@@ -58,10 +58,10 @@ class SourceFlow(
   private val sourceAST: Var[Versioned[DotAST]] = Var(Versioned(DotAST.empty, 0, ChangeOrigin.CodeMirror))
 
   // (b)
-  private val versionedFullGraphV = Var(Versioned(ViewerGraph.empty, 0, ChangeOrigin.CodeMirror))
+  private val versionedFullGraphV = Var(Versioned(ViewerGraph.minimal, 0, ChangeOrigin.CodeMirror))
 
   // updated by the UI (a)
-  val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.empty)
+  val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.minimal)
 
   val fullGraph = fullGraphV.signal
 

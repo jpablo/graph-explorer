@@ -34,8 +34,8 @@ case class ViewerGraph(
 
   protected val nodes = elements.nodes
   protected val arrows = elements.arrows
-  protected val groups = elements.groups
-  protected val memberships = elements.memberships
+  protected[graph] val groups = elements.groups
+  protected[graph] val memberships = elements.memberships
 
   val nodeIds = nodes.keySet
   val arrowIds = arrows.keySet
@@ -180,7 +180,7 @@ object ViewerGraph:
       ViewerGraphElements(arrows = arrows.map((a, b) => Arrow(a, b)).map(a => a.id -> a).toMap)
     )
 
-  val empty: ViewerGraph = ViewerGraph()
+  val minimal: ViewerGraph = ViewerGraph()
 
   case class Summary(
       nodes:  Int,

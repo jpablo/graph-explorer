@@ -2,13 +2,24 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, SubGraph}
-import org.jpablo.graphexplorer.viewer.models.{AttributeId, Attributes, ElementId, ElementIds, GroupId, NodeId, ViewerGroup}
+import org.jpablo.graphexplorer.viewer.models.{
+  AttributeId,
+  Attributes,
+  ElementId,
+  ElementIds,
+  GroupId,
+  NodeId,
+  ViewerGroup
+}
 
 trait GroupsOps:
   this: ViewerGraph =>
 
-  def addToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraph =
+  def moveToGroup(groupId: GroupId, nodeIds: Seq[NodeId]): ViewerGraph =
     modifyMemberships.using(_ ++ nodeIds.map(_ -> groupId))
+
+  def moveToNewGroup(label: String, elementIDS: ElementId*): ViewerGraph =
+    moveToNewGroup(ElementIds.from(elementIDS*), label)
 
   /** Creates a new group containing the specified nodes.
     *

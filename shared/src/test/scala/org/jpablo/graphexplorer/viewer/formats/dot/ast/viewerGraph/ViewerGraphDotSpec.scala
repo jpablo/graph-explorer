@@ -43,7 +43,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
     val graph = ViewerGraph(ViewerGraphElements(nodes = Map(node(a), node(b)), arrows = Map(ab)))
 
     // Add elements to a new group with a label
-    val updatedGraph = graph.moveToNewGroup(ElementIds.from(a), "New Group")
+    val updatedGraph = graph.moveToNewGroup("New Group", a)
     val newGroupId = updatedGraph.membership(a).get
 
     val expected =

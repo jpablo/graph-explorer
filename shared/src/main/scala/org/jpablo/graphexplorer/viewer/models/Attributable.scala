@@ -88,7 +88,7 @@ case class ViewerGroup(
     attributes: Attributes = Attributes.empty,
     arrowAttrs: Attributes = Attributes.empty,
     nodeAttrs:  Attributes = Attributes.empty
-) extends Attributable
+) extends Attributable derives CanEqual
 
 object ViewerGroup:
   def empty(nodeId: GroupId) = ViewerGroup(nodeId)
