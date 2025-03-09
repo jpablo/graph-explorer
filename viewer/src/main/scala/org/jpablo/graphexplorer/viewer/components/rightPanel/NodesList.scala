@@ -117,7 +117,7 @@ def NodesList(
                 sortedNodes.map: (nodeId, node) =>
                   tr(
                     cls := "whitespace-nowrap hover cursor-pointer",
-                    cls("font-bold") <-- state.isNodeVisible(nodeId),
+                    cls("font-bold") <-- state.isElementVisible(nodeId),
                     cls("bg-base-200") <-- state.selection.contains(nodeId),
                     td(cls := "truncate", nodeId.toString),
                     td(cls := "truncate", node.label.toString),
@@ -125,7 +125,7 @@ def NodesList(
                     onClick.preventDefault.map(_.shiftKey) --> state.selection.handleClickOnNode(nodeId),
                     onDblClick
                       .preventDefault
-                      .stopPropagation(_.sample(state.isNodeVisible(nodeId))) --> { visible =>
+                      .stopPropagation(_.sample(state.isElementVisible(nodeId))) --> { visible =>
                       if visible then
                         state.hideNodes(Set(nodeId))
                       else
@@ -143,7 +143,7 @@ private def filteredDiagramEvent(
     filterByNodeId: Signal[String]
 ): Signal[ViewerGraph] = state
   .fullGraph
-  .combineWith(onlyActive, filterByNodeId, state.hiddenNodesS)
+  .combineWith(onlyActive, filterByNodeId, state.hiddenElements.signal)
   .map: (fullGraph, onlyActive, filter, hiddenNodes) =>
     fullGraph
       .orElse(filter.isBlank, _.filterByNodeId(filter))

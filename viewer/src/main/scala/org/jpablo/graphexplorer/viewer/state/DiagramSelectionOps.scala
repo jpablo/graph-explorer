@@ -89,16 +89,16 @@ trait DiagramSelectionOps:
         set(s ++ memberNodeIds)
 
     def selectSuccessors() =
-      _selectSuccessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
+      _selectSuccessors(sourceFlow.fullGraph.now(), hiddenElements.now())
 
     def selectPredecessors() =
-      _selectPredecessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
+      _selectPredecessors(sourceFlow.fullGraph.now(), hiddenElements.now())
 
     def selectDirectSuccessors() =
-      _selectDirectSuccessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
+      _selectDirectSuccessors(sourceFlow.fullGraph.now(), hiddenElements.now())
 
     def selectDirectPredecessors() =
-      _selectDirectPredecessors(sourceFlow.fullGraph.now(), hiddenNodes.now())
+      _selectDirectPredecessors(sourceFlow.fullGraph.now(), hiddenElements.now())
 
     def addToGroup() =
       val classified = now().classify

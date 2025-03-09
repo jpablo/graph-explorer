@@ -1,45 +1,63 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
+import com.raquo.airstream.core.Signal
+import com.raquo.airstream.state.Var
+import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{ArrowId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
+import upickle.default.writeJs
+
+import scala.scalajs.js.JSON
+
+type HiddenElements = ElementIds
 
 trait VisibilityOps:
   this: ViewerState =>
 
-  val hiddenNodes = HiddenNodesOps(project.hiddenElements)
+  object hiddenElements:
+    private val _hiddenElements: Var[HiddenElements] = project.hiddenElements
 
-  val hiddenNodesS = hiddenNodes.signal
+    def now(): HiddenElements = _hiddenElements.now()
+
+    val update = _hiddenElements.update
+
+    val signal =
+      _hiddenElements.signal.tapEach(s => dom.console.debug("hiddenElementsV:", JSON.parse(writeJs(s).toString)))
+
+    def toggle(s: NodeId): Unit =
+      _hiddenElements.update(_.toggle(s))
+
+    def add(ss: Set[NodeId]): Unit =
+      _hiddenElements.update(_ ++ ss)
+
+    def remove(ss: Set[NodeId]): Unit =
+      _hiddenElements.update(_ -- ss)
+
+    def clear(): Unit =
+      _hiddenElements.set(ElementIds())
 
   def showAllNodes() =
-    hiddenNodes.clear()
+    hiddenElements.clear()
 
-  def isNodeVisible(id: NodeId) = hiddenNodesS.map(ids => id notIn ids)
-
-  def isEdgeVisible(id: ArrowId) =
-    visibleGraph.map(graph => id in graph.arrowIds)
-
-  def toggleNode(id: NodeId) =
-    hiddenNodes.toggle(id)
-    selection.toggle(id)
+  def isElementVisible(id: ElementId): Signal[Boolean] =
+    hiddenElements.signal.map(ids => id notIn ids)
 
   def showOnlyGroup() =
     selection.selectGroupMembers()
     hideNonSelectedNodes()
     selection.clear()
 
-
   def hideNodes(ids: Set[NodeId]) =
-    hiddenNodes.add(ids)
+    hiddenElements.add(ids)
 
   def showNodes(ids: Set[NodeId]) =
-    hiddenNodes.remove(ids)
+    hiddenElements.remove(ids)
 
   def keepRootsOnly() =
-    project.hiddenElements.update(_ ++ (sourceFlow.fullGraph.now().nodeIds -- sourceFlow.fullGraph.now().roots))
+    hiddenElements.update(_ ++ (sourceFlow.fullGraph.now().nodeIds -- sourceFlow.fullGraph.now().roots))
 
   def hideAllNodes() =
-    project.hiddenElements.update(_ ++ sourceFlow.fullGraph.now().nodeIds)
+    hiddenElements.update(_ ++ sourceFlow.fullGraph.now().nodeIds)
 
   def hideNonSelectedNodes() =
     updateHiddenFromSelection((h, sel, g) => h ++ (g.nodeIds -- sel.nodeIds))
@@ -57,5 +75,4 @@ trait VisibilityOps:
     updateHiddenFromSelection((h, sel, g) => h -- g.directPredecessorsGraph(sel.nodeIds).nodeIds)
 
   private def updateHiddenFromSelection(f: (HiddenElements, ElementIds, ViewerGraph) => HiddenElements) =
-    project.hiddenElements.update(f(_, selection.now(), sourceFlow.fullGraph.now()))
-
+    hiddenElements.update(f(_, selection.now(), sourceFlow.fullGraph.now()))

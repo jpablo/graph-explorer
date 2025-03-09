@@ -60,7 +60,7 @@ def EdgesList(
           cls := "btn btn-xs",
           title := "Select filtered edges",
           "Select",
-          onClick.preventDefault(_.sample(state.fullGraph.combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS))) --> { case (fullGraph, onlyActive, str, hiddenNodes) =>
+          onClick.preventDefault(_.sample(state.fullGraph.combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenElements.signal))) --> { case (fullGraph, onlyActive, str, hiddenNodes) =>
             val filteredEdges = fullGraph
               .orElse(!onlyActive, _.removeElements(hiddenNodes))
               .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
@@ -133,7 +133,7 @@ def EdgesList(
           children <--
             state
               .fullGraph
-              .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenNodesS, sortColumnVar.signal, sortDirectionVar.signal)
+              .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenElements.signal, sortColumnVar.signal, sortDirectionVar.signal)
               .map: (fullGraph, onlyActive, str, hiddenNodes, sortColumn, sortDirection) =>
                 val filteredEdges = fullGraph
                   .orElse(!onlyActive, _.removeElements(hiddenNodes))
@@ -158,7 +158,7 @@ def EdgesList(
                   val (sourceLabel, targetLabel) = labels
                   tr(
                     cls := "whitespace-nowrap hover cursor-pointer",
-                    cls("font-bold") <-- state.isEdgeVisible(arrow.id),
+                    cls("font-bold") <-- state.isElementVisible(arrow.id),
                     cls("bg-base-200") <-- state.selection.contains(arrow.id),
                     td(cls := "truncate", arrow.label.toString),
                     td(cls := "truncate", cls("selected") <-- state.selection.contains(arrow.source), sourceLabel),
@@ -168,7 +168,7 @@ def EdgesList(
                     onClick.map(_.shiftKey) --> state.selection.handleClickOnArrow(arrow),
                     onDblClick
                       .preventDefault
-                      .stopPropagation(_.sample(state.isEdgeVisible(arrow.id))) --> { visible =>
+                      .stopPropagation(_.sample(state.isElementVisible(arrow.id))) --> { visible =>
                       if visible then
                         state.hideNodes(arrow.nodeIds)
                       else

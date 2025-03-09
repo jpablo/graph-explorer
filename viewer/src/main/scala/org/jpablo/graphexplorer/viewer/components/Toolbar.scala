@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
   val hiddenNodesIsEmpty =
-    state.hiddenNodes.signal.map(_.isEmpty)
+    state.hiddenElements.signal.map(_.isEmpty)
 
   div(
     idAttr := "toolbar",
