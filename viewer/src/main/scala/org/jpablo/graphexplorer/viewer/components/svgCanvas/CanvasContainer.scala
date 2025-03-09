@@ -5,7 +5,6 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas.clientCoords
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.state.ViewerState.handleWheel
 
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
   *
@@ -27,7 +26,7 @@ def CanvasContainer(
     child <-- state.finalSVG,
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> { (e, svgElem) =>
-      handleWheel(state.zoomValue, state.translateXY)(e, svgElem.ref.viewBox.baseVal)
+      state.handleWheel(e, svgElem.ref.viewBox.baseVal)
     },
     onMouseDown.map(clientCoords) --> { (pos, shift) => state.selection.startSelectionArea(pos, shift) },
     // No Action is set when moving the mouse, to preserve the action set on mouse down
