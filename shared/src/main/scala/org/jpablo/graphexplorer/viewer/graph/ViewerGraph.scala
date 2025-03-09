@@ -114,22 +114,22 @@ case class ViewerGraph(
   def removeElements(toRemove: ElementIds): ViewerGraph =
     modifyData.using(_.removeElements(toRemove))
 
-  def addEdge(source: NodeId, target: NodeId): (ViewerGraph, Arrow) =
+  def addArrow(source: NodeId, target: NodeId): (ViewerGraph, Arrow) =
     val (newData, arrow) = data.addArrow(source, target)
     (modifyData.setTo(newData), arrow)
 
-  def addNode(nodeId: NodeId, groupId: Option[GroupId] = None): ViewerGraph =
+  private def addNodeWithId(nodeId: NodeId, groupId: Option[GroupId] = None): ViewerGraph =
     modifyData.using(_.addNode(nodeId, groupId))
 
-  def addNodeAndEdgeFrom(source: NodeId): (ViewerGraph, NodeId) =
+  def addNode(groupId: Option[GroupId] = None): (ViewerGraph, NodeId) =
+    val nodeId = nextNodeId()
+    (addNodeWithId(nodeId, groupId), nodeId)
+
+  def addNodeAndArrowFrom(source: NodeId): (ViewerGraph, NodeId) =
     val nodeId = nextNodeId()
     val sourceGroup = data.membership(source)
-    val (newGraph, arrow) = addNode(nodeId, sourceGroup).addEdge(source, nodeId)
+    val (newGraph, arrow) = addNodeWithId(nodeId, sourceGroup).addArrow(source, nodeId)
     (newGraph, nodeId)
-
-  def addRandomNode(groupId: Option[GroupId] = None): (ViewerGraph, NodeId) =
-    val nodeId = nextNodeId()
-    (addNode(nodeId, groupId), nodeId)
 
   /** Creates a new group containing the specified nodes.
     *
@@ -227,9 +227,6 @@ case class ViewerGraph(
   def filterByNodeId(str: String): ViewerGraph =
     val ids = nodeIds.filter(_.toString.toLowerCase.contains(str.toLowerCase))
     subgraph(ids)
-
-  def filterNodesBy(p: NodeId => Boolean): Set[NodeId] =
-    nodeIds.filter(p)
 
   def filterArrowsBy(p: Arrow => Boolean) =
     arrowsSet.filter(p)

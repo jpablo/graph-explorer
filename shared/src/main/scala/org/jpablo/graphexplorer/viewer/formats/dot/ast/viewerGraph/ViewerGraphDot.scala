@@ -39,7 +39,6 @@ def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] 
     if groupId in visited then
       None
     else
-      // Filter elements that belong to this group
       val nodeStmts = graphData.nodes
         .filter((id, _) => graphData.belongsToGroup(id, groupId))
         .map(nodeToStmt)
@@ -53,13 +52,11 @@ def graphDataToDotGraphElements(graphData: ViewerGraphData): List[GraphElement] 
         .flatMap((gId, _) => groupToSubGraph(gId, visited + groupId))
         .toList
 
-      // Get group attributes
       val viewerGroup = graphData.groups(groupId)
       val nodeAttrs = attrs(viewerGroup.nodeAttrs, AttributeTarget.node)
       val edgeAttrs = attrs(viewerGroup.edgeAttrs, AttributeTarget.edge)
       val groupAttrs = attrs(viewerGroup.attributes, AttributeTarget.graph)
 
-      // Combine all elements
       val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++  subGraphs ++ nodeStmts ++ edgeStmts
       Some(SubGraph(children, Some(groupId.value)))
 

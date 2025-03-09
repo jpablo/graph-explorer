@@ -26,7 +26,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         )
       )
 
-    val updated = graph.addEdge(a, b)._1
+    val updated = graph.addArrow(a, b)._1
 
     assertEquals(updated, expected)
   }

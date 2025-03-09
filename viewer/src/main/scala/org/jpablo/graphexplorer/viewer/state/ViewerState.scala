@@ -145,7 +145,7 @@ case class ViewerState(
 
   def addEdge(from: NodeId, to: NodeId): Unit =
     sourceFlow.fullGraphV.update: g =>
-      val (g2, a) = g.addEdge(from, to)
+      val (g2, a) = g.addArrow(from, to)
       diagramSelection.set(ElementIds.from(a.id))
       g2
 
@@ -309,7 +309,7 @@ case class ViewerState(
               val originalNode = graph.data.nodes(originalId)
               val groupId = graph.data.membership(originalId)
               // Create a new node with a random ID
-              val (updatedGraph, newNodeId) = graph.addRandomNode(groupId)
+              val (updatedGraph, newNodeId) = graph.addNode(groupId)
               // Update the new node with the original node's attributes
               val finalGraph =
                 updatedGraph.updateAttributes(ElementIds.from(newNodeId), originalNode.attributes.toUpdates)
@@ -330,14 +330,14 @@ case class ViewerState(
       val selection = diagramSelection.now()
       val (newGraph, newNodeId) =
         if selection.isEmpty then
-          fullGraph.addRandomNode()
+          fullGraph.addNode()
         else
           val source = selection.head
           // Only proceed if selected ID is a valid node in the graph
           source match
-            case id: NodeId  => fullGraph.addNodeAndEdgeFrom(id)
-            case id: GroupId => fullGraph.addRandomNode(Some(id))
-            case _: ArrowId  => fullGraph.addRandomNode()
+            case id: NodeId  => fullGraph.addNodeAndArrowFrom(id)
+            case id: GroupId => fullGraph.addNode(Some(id))
+            case _: ArrowId  => fullGraph.addNode()
       diagramSelection.set(newNodeId)
       newGraph
 

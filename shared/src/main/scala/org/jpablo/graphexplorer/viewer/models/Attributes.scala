@@ -65,12 +65,6 @@ case class AttributesUpdates(
   def -(key: AttributeId): AttributesUpdates = copy(remove = remove + key)
   def +(kv:  (AttributeId, AttrValue)): AttributesUpdates = copy(update = update + kv)
 
-  def singleAttributes: Attributes =
-    Attributes(existing.collect { case (k, AttrStatus.Single(v)) => k -> v })
-
-  def applyUpdates: Attributes =
-    applyUpdatesTo(singleAttributes)
-
   def applyUpdatesTo(attrs: Attributes): Attributes =
     attrs ++ update -- remove
 

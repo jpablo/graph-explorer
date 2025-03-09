@@ -222,14 +222,11 @@ case class ViewerGraphData(
       memberships = updatedMemberships
     ) // .removeEmptyGroups
 
-  def arrowSequences(source: NodeId, target: NodeId): List[Int] =
-    arrowValues
+  private def maxArrowSequence(source: NodeId, target: NodeId): Int =
+    val seqs = arrowValues
       .filter(a => a.source == source && a.target == target)
       .map(_.seq)
       .toList
-
-  def maxArrowSequence(source: NodeId, target: NodeId): Int =
-    val seqs = arrowSequences(source, target)
     if seqs.isEmpty then 0 else seqs.max
 
   /** Updates attributes for a set of nodes and arrows.
