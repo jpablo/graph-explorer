@@ -131,7 +131,7 @@ trait DiagramSelectionOps:
       val groups = visibleGraph.groupIds
         .filter(_ != visibleGraph.rootId) // Exclude the root group
       set(nodes ++ edges ++ groups)
-    
+
     def deleteSelection() =
       sourceFlow.fullGraphV.update: fullGraph =>
         fullGraph.removeElements(now())
@@ -219,8 +219,10 @@ trait DiagramSelectionOps:
       selectionRectLine.set(Some(Action.Line(UserActionRect(pos, pos, shift), start)))
 
     def updateSelection(pos: ClientPoint, shift: Boolean): Unit =
-      selectionRectArea.update(_.map(_.modify(_.rect).using(_.copy(end = pos, shift = shift))))
-      selectionRectLine.update(_.map(_.modify(_.rect).using(_.copy(end = pos, shift = shift))))
+      Var.update(
+        selectionRectArea -> { (area: Option[Action.Area]) => area.map(_.modify(_.rect).using(_.copy(end = pos, shift = shift))) },
+        selectionRectLine -> { (line: Option[Action.Line]) => line.map(_.modify(_.rect).using(_.copy(end = pos, shift = shift))) }
+      )
 
     def endSelectionArea(): Unit =
       selectionRectArea.set(None)
