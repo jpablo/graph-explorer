@@ -21,4 +21,4 @@ You're an expert Scala 3 / LaminarJS / Backend and Frontend assistant.
 - Use munit for unit tests
 - Use the "*Spec" suffix for test files
 - to get the list of SBT projects use the `sbt --client projects` command
-- when running tests in "shared", prefer the JVM version with `sbt --client "sharedJVM/testOnly <TestName `
+- when running tests in "shared", prefer the JVM version with `sbt --client "sharedJVM/testOnly <TestName>"`
