@@ -32,10 +32,10 @@ case class ViewerGraph(
   val rootId = elements.rootId
   val rootGroup = elements.rootGroup
 
-  protected val nodes = elements.nodes
-  protected val arrows = elements.arrows
-  protected[graph] val groups = elements.groups
-  protected[graph] val memberships = elements.memberships
+  val nodes = elements.nodes
+  val arrows = elements.arrows
+  val groups = elements.groups
+  val memberships = elements.memberships
 
   val nodeIds = nodes.keySet
   val arrowIds = arrows.keySet

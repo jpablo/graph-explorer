@@ -19,9 +19,9 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
       List(
         node("a"),
         node("b"),
-        node("z", Map(AttributeId("label") -> AttrValue("ZZ"))),
+        node("z", "label" -> "ZZ"),
         node("d")
-      )
+      ).unzip._2
     assertEquals(data.nodes, expectedNodes)
   }
 

@@ -26,11 +26,13 @@ case class ViewerNode(
 ) extends Attributable
 
 object ViewerNode:
-  def node(name: String, attrs: Map[AttributeId, AttrValue] = Map.empty) =
-    ViewerNode(NodeId(name), Attributes(attrs))
 
-  def node(nodeId: NodeId) =
-    nodeId -> ViewerNode(nodeId)
+  def node(nodeIdOrString: NodeId | String, attrs: (String, String)*) =
+    val nodeId =
+      nodeIdOrString match
+        case id: NodeId  => id
+        case str: String => NodeId(str)
+    nodeId -> ViewerNode(nodeId, Attributes(attrs.map((k, v) => AttributeId(k) -> AttrValue(v)).toMap))
 
 // ---- Edges ------
 

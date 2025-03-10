@@ -34,7 +34,7 @@ case class ViewerState(
 
   val fullGraph = sourceFlow.fullGraph
 
-  protected val visibleDOT = sourceFlow.visibleDOT
+  protected[state] val visibleDOT = sourceFlow.visibleDOT
 
   val visibleGraph = sourceFlow.visibleGraph
 

@@ -15,7 +15,7 @@ case class ViewerGraphElements(
     // i.e. if an element is not in memberships, it belongs to the root group
     memberships: Map[ElementId, GroupId] = Map.empty,
     // The root group does appear here (defaults for nodes and edges).
-    groups: Map[GroupId, ViewerGroup] = Map(defaultRootId -> ViewerGroup(defaultRootId))
+    groups: Map[GroupId, ViewerGroup] = Map(initialGroup)
 ):
   // groups(rootId) contains the defaults for nodes and edges
   // strictly speaking it is not needed, but it is convenient, so let's enforce it.
@@ -29,6 +29,7 @@ end ViewerGraphElements
 object ViewerGraphElements:
 
   val defaultRootId = GroupId("G")
+  val initialGroup = defaultRootId -> ViewerGroup(defaultRootId)
 
   def from(data: FlattenedGraphElement) =
     val arrowEndpoints = data.arrows.flatMap(_.endpoints).toSet
