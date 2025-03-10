@@ -12,15 +12,17 @@ trait Persistence:
     ProjectStorage.loadProjectPersistedState(projectId)
 
   def restoreState() =
-    val state0 = persistedState.now()
+    val restoredState = persistedState.now()
     // Restore ViewerState <~ PersistedStage (which comes from local storage)
     dom.console.debug("restoreState()")
-    sourceText.set(state0.source)
-    project.name.set(state0.projectName)
-    project.hiddenElements.set(state0.hiddenNodes)
-    rightPanelVisible.set(state0.rightPanelVisible)
-    rightPanelTabIndex.set(state0.sideBarTabIndex)
-    leftPanelVisible.set(state0.leftPanelVisible)
+    project.hiddenElements.set(restoredState.hiddenElements)
+    Var.set(
+      project.name           -> restoredState.projectName,
+      sourceText             -> restoredState.source,
+      rightPanelVisible      -> restoredState.rightPanelVisible,
+      rightPanelTabIndex     -> restoredState.sideBarTabIndex,
+      leftPanelVisible       -> restoredState.leftPanelVisible
+    )
     // synchronize ViewerState ~> PersistedStage
     project.hiddenElements.signal
       .combineWith(
@@ -29,26 +31,25 @@ trait Persistence:
         rightPanelVisible.signal,
         rightPanelTabIndex.signal,
         leftPanelVisible.signal
-      )
+      ).distinct
       .map(PersistedState.apply)
       .foreach(persistedState.set)
   end restoreState
 
-
 case class PersistedState(
-  hiddenNodes:       HiddenElements = ElementIds(),
-  projectName:       String = "",
-  source:            String = "",
-  rightPanelVisible: Boolean = true,
-  sideBarTabIndex:   Int = 0,
-  leftPanelVisible:  Boolean = true
+    hiddenElements:    HiddenElements = ElementIds(),
+    projectName:       String = "",
+    source:            String = "",
+    rightPanelVisible: Boolean = true,
+    sideBarTabIndex:   Int = 0,
+    leftPanelVisible:  Boolean = true
 ) derives ReadWriter
 
 object PersistedState:
   private val minimalGraphText = "digraph G {\n}"
   val empty =
     PersistedState(
-      hiddenNodes       = ElementIds(),
+      hiddenElements    = ElementIds(),
       projectName       = "Untitled",
       source            = minimalGraphText,
       rightPanelVisible = true,

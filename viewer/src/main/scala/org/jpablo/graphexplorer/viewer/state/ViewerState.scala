@@ -25,7 +25,7 @@ case class ViewerState(
   lazy val project =
     ProjectOps(Var(Project(projectId)))
 
-  protected val sourceFlow = SourceFlow(initialSource, project.hiddenElements.signal, resetView)
+  protected[state] val sourceFlow = SourceFlow(initialSource, project.hiddenElements.signal, resetView)
 
   val undoEvent: EventBus[Unit] = EventBus()
   val redoEvent: EventBus[Unit] = EventBus()

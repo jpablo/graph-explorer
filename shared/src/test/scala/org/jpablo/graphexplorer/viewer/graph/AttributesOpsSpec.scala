@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarg
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
-class AttributesOpsSpec extends FunSuite {
+class AttributesOpsSpec extends FunSuite:
 
   // Common test setup
   val rootId = ViewerGraphElements.defaultRootId
@@ -181,7 +181,7 @@ class AttributesOpsSpec extends FunSuite {
 
   test("getAttributesUpdatesById should return attributes for a node") {
     val graph = createTestGraph()
-      .modifyNodes.using( _ ++ 
+      .modifyNodes.using( _ ++
         Map(
           a -> ViewerNode(
             a,
@@ -273,4 +273,3 @@ class AttributesOpsSpec extends FunSuite {
       "Default edge theme should be set"
     )
   }
-}
