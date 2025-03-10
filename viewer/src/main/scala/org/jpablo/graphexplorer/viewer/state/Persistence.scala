@@ -46,7 +46,7 @@ case class PersistedState(
 ) derives ReadWriter
 
 object PersistedState:
-  private val minimalGraphText = "digraph G {\n}"
+  val minimalGraphText = "digraph G {\n}"
   val empty =
     PersistedState(
       hiddenElements    = ElementIds(),

@@ -24,7 +24,7 @@ class ViewerStateSpec extends FunSuite:
     assertEquals(viewerState.visibleDOT.observe().now().value, visibleDot)
   }
 
-  test("Set source text") {
+  test("Updating the source text should update the graph") {
     val viewerState = ViewerState(ProjectId("test"), _ => (), "")
     given Owner = viewerState.owner
 
@@ -41,4 +41,32 @@ class ViewerStateSpec extends FunSuite:
     assertEquals(graph.groups, Map(initialGroup))
     assert(graph.arrows.isEmpty)
     assert(graph.memberships.isEmpty)
+  }
+
+  test("Updating the graph should trigger an update to the source text") {
+    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    given Owner = viewerState.owner
+
+    // Initial state check
+    assertEquals(viewerState.sourceText.now(), PersistedState.minimalGraphText)
+    assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
+
+    // Update the graph by adding a node
+    viewerState.addNode()
+
+    // Verify that the source text was updated to reflect the new node
+
+    val updatedGraph = viewerState.fullGraph.now()
+    // The node count in the graph should match what we expect
+    assertEquals(updatedGraph.nodes.size, 1, "Graph should have exactly one node")
+
+    val graphId = updatedGraph.id
+    val nodeId = updatedGraph.nodeIds.head
+
+    val expectedSource =
+      s"""digraph "$graphId" {
+         |    "$nodeId" [label=""];
+         |}""".stripMargin
+
+    assertEquals(viewerState.sourceText.now(), expectedSource, "Source text should be updated to reflect the new node")
   }

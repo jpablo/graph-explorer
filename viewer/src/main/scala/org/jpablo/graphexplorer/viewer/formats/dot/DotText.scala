@@ -32,6 +32,6 @@ case class DotText(value: String):
 object DotText:
   private val gvInstance = new Graphviz
 
-  lazy val empty = DotText("digraph G { } ")
+  lazy val empty = DotText("digraph G { }")
 
 end DotText
