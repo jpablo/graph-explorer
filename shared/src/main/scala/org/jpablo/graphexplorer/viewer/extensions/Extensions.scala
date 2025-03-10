@@ -35,3 +35,10 @@ extension [A](set: Set[A])
 extension [K](map: Map[K, Boolean])
   def toggle(k: K, initial: Boolean = false) =
     map + (k -> !map.getOrElse(k, initial))
+
+
+def isSubmap[K, V](submap: Map[K, V], supermap: Map[K, V])(using CanEqual[V, V]): Boolean =
+  submap.forall { case (key, value) =>
+    supermap.get(key).contains(value)
+  }
+

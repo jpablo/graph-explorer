@@ -8,6 +8,8 @@ import scala.compiletime.asMatchable
 sealed trait ElementId derives CanEqual, ReadWriter:
   def value: String
 
+  def up[A <: ElementId]: ElementId = this
+
   def isGroupId: Boolean = this match { case _: GroupId => true; case _ => false }
   def isNodeId: Boolean = this match { case _: NodeId => true; case _ => false }
   def isArrowId: Boolean = this match { case _: ArrowId => true; case _ => false }
