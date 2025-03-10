@@ -11,8 +11,14 @@ You're an expert Scala 3 / LaminarJS / Backend and Frontend assistant.
 
 ## Stack
 - DaisyUI
-- TailwindCSS
-- LaminarJS
-- Airflow
+- TailwindCSS 3.4
+- LaminarJS / Airflow
 - ScalaJS
 - Scala 3
+
+
+## Tests
+- Use munit for unit tests
+- Use the "*Spec" suffix for test files
+- to get the list of SBT projects use the `sbt --client projects` command
+- when running tests in "shared", prefer the JVM version with `sbt --client "sharedJVM/testOnly <TestName `

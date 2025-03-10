@@ -102,6 +102,6 @@ case class ViewerState(
   // individual node attributes
   def elementAttributes(elementIds: ElementIds): Var[AttributesUpdates] =
     sourceFlow.fullGraphV
-      .zoomLazy(_.getAttributesById(elementIds))((graph, updates) => graph.updateAttributes(elementIds, updates))
+      .zoomLazy(_.getAttributesUpdatesById(elementIds))((graph, updates) => graph.updateAttributes(elementIds, updates))
 
 end ViewerState

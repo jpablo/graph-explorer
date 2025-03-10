@@ -45,6 +45,7 @@ case class ViewerGraph(
   val arrowsSet = arrows.values.toSet
 
   val modifyElements = this.modify(_.elements)
+  protected[graph] val modifyNodes = this.modify(_.elements.nodes)
   protected val modifyArrows = this.modify(_.elements.arrows)
   protected val modifyMemberships = this.modify(_.elements.memberships)
 

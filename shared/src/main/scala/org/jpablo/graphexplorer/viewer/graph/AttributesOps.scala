@@ -27,7 +27,7 @@ trait AttributesOps:
       groups = groups.transform { (id, g) =>
         g.copy(
           attributes = expandElementAttributes(id, g.attributes),
-          arrowAttrs  = expandElementAttributes(id, g.arrowAttrs),
+          arrowAttrs = expandElementAttributes(id, g.arrowAttrs),
           nodeAttrs  = expandElementAttributes(id, g.nodeAttrs)
         )
       },
@@ -46,7 +46,7 @@ trait AttributesOps:
       groups = groups.transform { (id, g) =>
         g.copy(
           attributes = combineElementAttributes(id, g.attributes),
-          arrowAttrs  = combineElementAttributes(id, g.arrowAttrs),
+          arrowAttrs = combineElementAttributes(id, g.arrowAttrs),
           nodeAttrs  = combineElementAttributes(id, g.nodeAttrs)
         )
       },
@@ -121,7 +121,7 @@ trait AttributesOps:
       )
     )
 
-  private def mergeAttributes[K <: ElementId, V <: Attributable](
+  private def mergeAttributeUpdates[K <: ElementId, V <: Attributable](
       nodeIds:       ElementIds,
       attributables: Map[K, V]
   ): Map[AttributeId, SelectionAttrValue] =
@@ -134,13 +134,19 @@ trait AttributesOps:
         acc ++ nodeIdAcc
       case (acc, _) => acc
 
-  def getAttributesById(ids: ElementIds): AttributesUpdates =
+  def getAttributesById(id: ElementId): Attributes =
+    id match
+      case id: ArrowId => arrows.get(id).fold(Attributes.empty)(_.attributes)
+      case id: GroupId => groups.get(id).fold(Attributes.empty)(_.attributes)
+      case id: NodeId  => nodes.get(id).fold(Attributes.empty)(_.attributes)
+
+  def getAttributesUpdatesById(ids: ElementIds): AttributesUpdates =
     AttributesUpdates(
-      ids.ids.headOption
+      existing = ids.ids.headOption
         .map:
-          case _: ArrowId => mergeAttributes(ids, arrows.map(identity))
-          case _: GroupId => mergeAttributes(ids, groups.map(identity))
-          case _: NodeId  => mergeAttributes(ids, nodes.map(identity))
+          case _: ArrowId => mergeAttributeUpdates(ids, arrows.map(identity))
+          case _: GroupId => mergeAttributeUpdates(ids, groups.map(identity))
+          case _: NodeId  => mergeAttributeUpdates(ids, nodes.map(identity))
         .getOrElse(Map.empty)
     )
 
