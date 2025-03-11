@@ -1,6 +1,5 @@
-//import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
-//import org.scalajs.jsenv.nodejs.NodeJSEnv
-import org.scalajs.linker.interface.{ModuleSplitStyle, OutputPatterns}
+import org.scalajs.linker.interface.ModuleSplitStyle
+import sbt.Test
 
 val graphExplorerVersion = "0.3.0"
 
@@ -114,7 +113,7 @@ lazy val viewer =
 //      Test / scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
 //      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
 //      Test / scalaJSLinkerConfig ~= {_.withModuleKind(ModuleKind.NoModule) },
-//      testFrameworks += new TestFramework("munit.Framework")
+      testFrameworks += new TestFramework("munit.Framework")
     )
 
 lazy val root =
