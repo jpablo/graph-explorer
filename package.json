@@ -1,18 +1,17 @@
 {
-  "name": "test-vite",
+  "name": "graph-explorer",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "NODE_OPTIONS='--max-old-space-size=4096' vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@codemirror/commands": "^6.7.0",
     "@codemirror/lang-javascript": "^6.2.2",
     "@codemirror/view": "^6.34.1",
-    "@scala-js/vite-plugin-scalajs": "^1.0.0",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.8.2",
     "@viz-js/lang-dot": "^1.0.4",
@@ -23,6 +22,7 @@
     "uuid": "^11.0.3"
   },
   "devDependencies": {
+    "@scala-js/vite-plugin-scalajs": "^1.0.0",
     "@tailwindcss/typography": "^0.5.15",
     "autoprefixer": "^10.4.19",
     "daisyui": "^4.12.14",

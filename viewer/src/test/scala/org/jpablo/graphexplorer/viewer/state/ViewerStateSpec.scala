@@ -41,6 +41,8 @@ class ViewerStateSpec extends FunSuite:
     assertEquals(graph.groups, Map(initialGroup))
     assert(graph.arrows.isEmpty)
     assert(graph.memberships.isEmpty)
+
+//    println(viewerState.rawSVG.observe().now())
   }
 
   test("Updating the graph should trigger an update to the source text") {

@@ -40,7 +40,7 @@ case class ViewerState(
 
   // 5. Render visible Dot to SVG
   // Dot ~> SVGSVGElement
-  private val rawSVG: Signal[dom.SVGSVGElement] =
+  val rawSVG: Signal[dom.SVGSVGElement] =
     visibleDOT.flatMapSwitch(_.toSvg)
 
   // 6. SVG with extra elements: selection rect, etc.

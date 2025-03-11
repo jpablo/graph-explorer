@@ -6,7 +6,7 @@ import scala.scalajs.js.annotation.JSImport
 // https://github.com/mdaines/viz-js
 
 @js.native
-@JSImport("@viz-js/viz", JSImport.Namespace)
+@JSImport("./node_modules/@viz-js/viz", JSImport.Namespace)
 object VizJS extends js.Object:
   def instance(): js.Promise[Viz] = js.native
 

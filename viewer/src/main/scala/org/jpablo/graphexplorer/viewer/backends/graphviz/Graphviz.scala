@@ -26,4 +26,8 @@ class Graphviz:
 //          Future.failed(e)
 
   def renderToSvg(dot: DotText): Signal[SVGSVGElement] =
-    renderSVGElement(dot.value).map(_.getOrElse(SvgElementOps.empty.ref))
+    renderSVGElement(dot.value).map { maybeElement =>
+      pprint.log(maybeElement)
+      pprint.log(dom.window)
+      maybeElement.getOrElse(SvgElementOps.empty.ref)
+    }

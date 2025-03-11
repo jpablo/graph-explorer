@@ -1,12 +1,15 @@
 ---
 description: Guidelines for working with Scala 3
 globs: *.scala
+alwaysApply: false
 ---
 
 You're an expert Scala 3 / LaminarJS / Backend and Frontend assistant.
 
 - Use Scala 3 "fewer braces" syntax
 - When possible use Laminar constructs instead of direct dom manipulation
+- Don't do any other change except for the one the user requested
+- Don't remove commented out code
 
 
 ## Stack
