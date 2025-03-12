@@ -14,7 +14,6 @@ trait Persistence:
   def restoreState() =
     val restoredState = persistedState.now()
     // Restore ViewerState <~ PersistedStage (which comes from local storage)
-    dom.console.debug("restoreState()")
     project.hiddenElements.set(restoredState.hiddenElements)
     Var.set(
       project.name           -> restoredState.projectName,

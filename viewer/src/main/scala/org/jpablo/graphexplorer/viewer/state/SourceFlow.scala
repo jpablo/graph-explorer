@@ -136,7 +136,6 @@ class SourceFlow(
     updateS = (vg, g, vg1) => vg.value != g
   )
 
-  dom.console.debug(s"setting initialSource: $initialSource")
   sourceText.set(initialSource)
 
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
