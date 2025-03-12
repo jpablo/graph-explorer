@@ -4,6 +4,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models.ElementIds
 
 class ViewerStateSpec extends FunSuite:
   test("addNodeWithSmartConnection should add a node to the graph") {
@@ -100,5 +101,64 @@ class ViewerStateSpec extends FunSuite:
       updatedGraph3.getRootAttributes(AttributeTarget.edge).get(Style.attrId),
       Some(AttrValue("dashed")),
       "Root edge attributes should be updated"
+    )
+  }
+
+  test("elementAttributes should update attributes for specific elements") {
+    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+
+    // Initial state check
+    assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
+
+    // Add two nodes to the graph
+    viewerState.addNodeWithSmartConnection()
+    viewerState.selection.clear()
+    viewerState.addNodeWithSmartConnection()
+
+    val Seq(nodeA, nodeB) = viewerState.allNodeIds().toSeq
+
+    // Add an arrow between the nodes
+    viewerState.addArrow(nodeA, nodeB)
+    val Seq(arrowId) = viewerState.allArrowIds().toSeq
+
+    // Test updating node attributes
+    val nodeUpdates = viewerState.elementAttributes(ElementIds.from(nodeA))
+    nodeUpdates.update(_ + (Color.attrId -> AttrValue("red")))
+
+    // Verify node attributes are updated
+    val updatedGraph = viewerState.fullGraph.now()
+    assertEquals(
+      updatedGraph.getAttributesById(nodeA).get(Color.attrId),
+      Some(AttrValue("red")),
+      "Node attributes should be updated"
+    )
+
+    // Test updating arrow attributes
+    val arrowUpdates = viewerState.elementAttributes(ElementIds.from(arrowId))
+    arrowUpdates.update(_ + (Style.attrId -> AttrValue("dotted")))
+
+    // Verify arrow attributes are updated
+    val updatedGraph2 = viewerState.fullGraph.now()
+    assertEquals(
+      updatedGraph2.getAttributesById(arrowId).get(Style.attrId),
+      Some(AttrValue("dotted")),
+      "Arrow attributes should be updated"
+    )
+
+    // Test updating multiple elements at once
+    val multiUpdates = viewerState.elementAttributes(ElementIds(Set(nodeA, nodeB)))
+    multiUpdates.update(_ + (Shape.attrId -> AttrValue("box")))
+
+    // Verify multiple elements are updated
+    val updatedGraph3 = viewerState.fullGraph.now()
+    assertEquals(
+      updatedGraph3.getAttributesById(nodeA).get(Shape.attrId),
+      Some(AttrValue("box")),
+      "First node shape should be updated"
+    )
+    assertEquals(
+      updatedGraph3.getAttributesById(nodeB).get(Shape.attrId),
+      Some(AttrValue("box")),
+      "Second node shape should be updated"
     )
   }

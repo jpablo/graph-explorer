@@ -133,11 +133,11 @@ case class ViewerGraph(
     val nodeId = nextNodeId()
     (addNodeWithId(nodeId, groupId), nodeId)
 
-  def addNodeAndArrowFrom(source: NodeId): (ViewerGraph, NodeId) =
+  def addNodeAndArrowFrom(source: NodeId): (ViewerGraph, NodeId, ArrowId) =
     val nodeId = nextNodeId()
     val sourceGroup = membership(source)
     val (newGraph, arrow) = addNodeWithId(nodeId, sourceGroup).addArrow(source, nodeId)
-    (newGraph, nodeId)
+    (newGraph, nodeId, arrow.id)
 
 //  lazy val toTrees: Tree[ViewerNode] =
 //    val paths =

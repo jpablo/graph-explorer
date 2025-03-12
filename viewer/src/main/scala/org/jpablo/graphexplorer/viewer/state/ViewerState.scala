@@ -53,7 +53,7 @@ case class ViewerState(
           .map(str => Try(Rankdir.valueOf(str)).getOrElse(Rankdir.default))
           .getOrElse(Rankdir.default)
 
-      SvgCanvas(svg, transform, this, addNodeWithSmartConnection, () => getRankdir)
+      SvgCanvas(svg, transform, this, () => { addNodeWithSmartConnection(); () }, () => getRankdir)
 
   // -------- storage ------------
   restoreState()
@@ -67,27 +67,42 @@ case class ViewerState(
   def allArrowIds(): Set[ArrowId] =
     fullGraph.observe().now().arrowIds
 
+
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an
     * edge. If the selected element is a group/cluster, the new node will be added to that group. The new node will
     * become the only selected element after creation.
+    *
+    * @return The result of the operation, which can be:
+    *   - None if no action was taken
+    *   - Some(NodeAdded) if a standalone node was added
+    *   - Some(NodeAndArrowAdded) if a node and an arrow were added
     */
-  def addNodeWithSmartConnection() =
+  def addNodeWithSmartConnection(): Unit =
     sourceFlow.fullGraphV.update: fullGraph =>
       val s = selection.now()
-      val (newGraph, newNodeId) =
-        if s.isEmpty then
-          fullGraph.addNode()
-        else
-          val source = s.head
-          // Only proceed if selected ID is a valid node in the graph
-          source match
-            case id: NodeId  => fullGraph.addNodeAndArrowFrom(id)
-            case id: GroupId => fullGraph.addNode(Some(id))
-            case _: ArrowId  => fullGraph.addNode()
-      selection.set(newNodeId)
-      newGraph
 
-  def addArrow(from: NodeId, to: NodeId): Unit =
+      if s.isEmpty then
+        val (newGraph, newNodeId) = fullGraph.addNode()
+        selection.set(newNodeId)
+        newGraph
+      else
+        val source = s.head
+        // Only proceed if selected ID is a valid node in the graph
+        source match
+          case id: NodeId =>
+            val (newGraph, newNodeId, _) = fullGraph.addNodeAndArrowFrom(id)
+            selection.set(newNodeId)
+            newGraph
+          case id: GroupId =>
+            val (newGraph, newNodeId) = fullGraph.addNode(Some(id))
+            selection.set(newNodeId)
+            newGraph
+          case _: ArrowId =>
+            val (newGraph, newNodeId) = fullGraph.addNode()
+            selection.set(newNodeId)
+            newGraph
+
+  def addArrow(from: NodeId, to: NodeId) =
     sourceFlow.fullGraphV.update: g =>
       val (g2, a) = g.addArrow(from, to)
       selection.set(ElementIds.from(a.id))
@@ -111,3 +126,9 @@ case class ViewerState(
       .zoomLazy(_.getAttributesUpdatesById(elementIds))((graph, updates) => graph.updateAttributes(elementIds, updates))
 
 end ViewerState
+
+object ViewerState:
+  /** Result type for addNodeWithSmartConnection */
+  enum NodeAddResult:
+    case NodeAdded(nodeId: NodeId)
+    case NodeAndArrowAdded(nodeId: NodeId, arrowId: ArrowId)
