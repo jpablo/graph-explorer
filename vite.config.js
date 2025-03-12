@@ -9,11 +9,6 @@ export default defineConfig({
     },
     root: '.',
     publicDir: 'viewer/src/main/resources',
-    resolve: {
-        alias: {
-            // '@viz-js/viz': path.resolve(__dirname, 'node_modules', '.vite', 'deps', '@viz-js_viz.js')
-        }
-    },
     build: {
         sourcemap: true,
         // outDir: "backend/src/universal/static"
