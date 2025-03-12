@@ -37,7 +37,10 @@ trait DiagramSelectionOps:
       // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
       selection.add(relatedSubGraph.nodeIds ++ relatedSubGraph.arrowIds)
 
+
     def now(): Selection = selectionV.now()
+
+    def size(): Int = now().size
 
     def toggle(ss: ElementId*): Unit = selectionV.update(ss.foldLeft(_)(_.toggle(_)))
 
@@ -207,9 +210,9 @@ trait DiagramSelectionOps:
             mouseReleasePoint._2 <= bbox.bottom
 
         if sel.size == 1 && isMouseInsideSourceNode then
-          start.nodeId.foreach(nodeId => addEdge(nodeId, nodeId))
+          start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
         else if sel.size == 2 then
-          (sel - start.elementId).head.asNodeId.foreach(end => addEdge(start.nodeId.get, end))
+          (sel - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
 
 
     def startSelectionArea(pos: ClientPoint, shift: Boolean): Unit =

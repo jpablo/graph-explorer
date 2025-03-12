@@ -101,7 +101,7 @@ lazy val viewer =
 //      Test / jsEnv := new org.scalajs.jsenv.nodejs.NodeJSEnv(),
 //      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
 //      Test / scalaJSLinkerConfig ~= {_.withModuleKind(ModuleKind.NoModule) },
-      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chrome", headless = true, showLogs = true),
+//      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chrome", headless = true, showLogs = true),
       testFrameworks += new TestFramework("munit.Framework")
     )
 

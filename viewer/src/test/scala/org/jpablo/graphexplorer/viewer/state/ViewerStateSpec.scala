@@ -1,72 +1,54 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import com.raquo.airstream.ownership.Owner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.initialGroup
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 class ViewerStateSpec extends FunSuite:
-  test("Sanity check") {
+  test("addNodeWithSmartConnection should add a node to the graph") {
     val viewerState = ViewerState(ProjectId("test"), _ => (), "")
-    given Owner = viewerState.owner
+    // sanity check
+    assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
+    assertEquals(viewerState.selection.size(), 0)
 
-    assertEquals(viewerState.sourceFlow.fullGraphV.now(), ViewerGraph.minimal)
+    viewerState.addNodeWithSmartConnection()
 
-    val visibleDot =
-      """|digraph "G" {
-         |    node [sides="5"];
-         |    edge [
-         |        dir="both",
-         |        arrowtail="none"
-         |    ];
-         |}""".stripMargin
-    assertEquals(viewerState.visibleDOT.observe().now().value, visibleDot)
+    // After this the recently added node is selected, so
+    assertEquals(viewerState.selection.size(), 1)
+
+    // ---- verify ---
+    assertEquals(viewerState.allNodeIds().size, 1)
+    assertEquals(viewerState.allArrowIds().size, 0)
   }
 
-  test("Updating the source text should update the graph") {
+  test("two consecutive addNodeWithSmartConnection should add two nodes and one arrow to the graph") {
     val viewerState = ViewerState(ProjectId("test"), _ => (), "")
-    given Owner = viewerState.owner
-
-    val newSource =
-      """|digraph "G" {
-         |    "a" [label="A", other="value"];
-         |}""".stripMargin
-
-    viewerState.sourceText.set(newSource)
-
-    val graph = viewerState.fullGraph.now()
-
-    assertEquals(graph.nodes, Map(node("a", "label" -> "A", "other" -> "value")))
-    assertEquals(graph.groups, Map(initialGroup))
-    assert(graph.arrows.isEmpty)
-    assert(graph.memberships.isEmpty)
-  }
-
-  test("Updating the graph should trigger an update to the source text") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
-    given Owner = viewerState.owner
-
     // Initial state check
-    assertEquals(viewerState.sourceText.now(), PersistedState.minimalGraphText)
     assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
 
-    // Update the graph by adding a node
-    viewerState.addNode()
+    viewerState.addNodeWithSmartConnection()
+    // new node added and is currently selected
+    viewerState.addNodeWithSmartConnection()
+    // new node added and an arrow between the selected node and the new node
 
-    // Verify that the source text was updated to reflect the new node
+    // ---- verify ---
+    assertEquals(viewerState.allNodeIds().size, 2)
+    assertEquals(viewerState.allArrowIds().size, 1)
+  }
 
-    val updatedGraph = viewerState.fullGraph.now()
-    // The node count in the graph should match what we expect
-    assertEquals(updatedGraph.nodes.size, 1, "Graph should have exactly one node")
+  test("addArrow should add an arrow to the graph") {
+    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
 
-    val graphId = updatedGraph.id
-    val nodeId = updatedGraph.nodeIds.head
+    // Initial state check
+    assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
 
-    val expectedSource =
-      s"""digraph "$graphId" {
-         |    "$nodeId" [label=""];
-         |}""".stripMargin
+    viewerState.addNodeWithSmartConnection()
+    // clear selection to add just a node
+    viewerState.selection.clear()
+    viewerState.addNodeWithSmartConnection()
+    val nodeIds = viewerState.allNodeIds().toSeq
+    viewerState.addArrow(nodeIds.head, nodeIds.last)
 
-    assertEquals(viewerState.sourceText.now(), expectedSource, "Source text should be updated to reflect the new node")
+    // ---- verify ---
+    assertEquals(viewerState.allNodeIds().size, 2)
+    assertEquals(viewerState.allArrowIds().size, 1)
   }

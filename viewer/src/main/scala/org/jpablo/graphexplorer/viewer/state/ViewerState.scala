@@ -53,7 +53,7 @@ case class ViewerState(
           .map(str => Try(Rankdir.valueOf(str)).getOrElse(Rankdir.default))
           .getOrElse(Rankdir.default)
 
-      SvgCanvas(svg, transform, this, addNode, () => getRankdir)
+      SvgCanvas(svg, transform, this, addNodeWithSmartConnection, () => getRankdir)
 
   // -------- storage ------------
   restoreState()
@@ -61,11 +61,17 @@ case class ViewerState(
   def getNodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
     ids.flatMap(fullGraph.observe().now().getNode)
 
+  def allNodeIds(): Set[NodeId] =
+    fullGraph.observe().now().nodeIds
+
+  def allArrowIds(): Set[ArrowId] =
+    fullGraph.observe().now().arrowIds
+
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an
     * edge. If the selected element is a group/cluster, the new node will be added to that group. The new node will
     * become the only selected element after creation.
     */
-  def addNode() =
+  def addNodeWithSmartConnection() =
     sourceFlow.fullGraphV.update: fullGraph =>
       val s = selection.now()
       val (newGraph, newNodeId) =
@@ -81,7 +87,7 @@ case class ViewerState(
       selection.set(newNodeId)
       newGraph
 
-  def addEdge(from: NodeId, to: NodeId): Unit =
+  def addArrow(from: NodeId, to: NodeId): Unit =
     sourceFlow.fullGraphV.update: g =>
       val (g2, a) = g.addArrow(from, to)
       selection.set(ElementIds.from(a.id))

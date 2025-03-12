@@ -14,7 +14,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
   val b = NodeId("b")
   val c = NodeId("c")
 
-  test("addEdge should add an arrow between two nodes") {
+  test("addArrow should add an arrow between two nodes") {
     val arrow = Arrow(a, b)
     val graph = ViewerGraph(ViewerGraphElements(nodes = Map(node(a), node(b), node(c))))
 
