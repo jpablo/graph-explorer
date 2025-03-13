@@ -121,6 +121,7 @@ trait AttributesOps:
       )
     )
 
+  // Used to combine the attributes of multiple selected elements (say two nodes)
   private def mergeAttributeUpdates[K <: ElementId, V <: Attributable](
       nodeIds:       ElementIds,
       attributables: Map[K, V]
@@ -183,3 +184,19 @@ trait AttributesOps:
   def setDefaultTheme: ViewerGraph =
     modifyRootAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
       .modifyRootAttributes(AttributeTarget.edge).using(_ ++ defaultEdgeTheme)
+
+object AttributesOps:
+
+  /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
+  def rootAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributesUpdates] =
+  Lens(
+    in  = graph => graph.getRootAttributes(target).toUpdates,
+    out = (graph, updates) => graph.updateRootAttributes(target)(updates.applyUpdatesTo)
+  )
+
+  /** Bundle functions for updating attributes of specific elements */
+  def elementAttributesUpdates(elementIds: ElementIds): Lens[ViewerGraph, AttributesUpdates] =
+    Lens(
+      in  = graph => graph.getAttributesUpdatesById(elementIds),
+      out = (graph, updates) => graph.updateAttributes(elementIds, updates)
+    )

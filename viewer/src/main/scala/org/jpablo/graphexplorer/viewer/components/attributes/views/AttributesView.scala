@@ -25,7 +25,7 @@ def AttributesView(
 
         case Right(attrRows) =>
           tbody(
-            for 
+            for
               row <- attrRows
               multipleValues = row.inputVar.signal.map(_ == Multiple)
             yield tr(
@@ -48,7 +48,7 @@ def AttributesView(
                         onClick --> row.inputVar.set(Missing),
                         i(cls := "bi bi-x")
                       ).tiny.ghost.circle
-                    ) <-- row.isChanged,
+                    ) <-- row.isChanged
                   )
                 )
               ),
@@ -80,7 +80,7 @@ private def buildInputCell(row: InputAttribute) =
   row.inputType match
 
     case InputType.selectWithPreviewGrid =>
-      SelectWithPreviewGrid(row.options, row.inputVar, row.default)
+      SelectWithPreviewGrid(row)
 
     case InputType.selectWithPreview => SelectWithPreview(row)
 
@@ -89,10 +89,10 @@ private def buildInputCell(row: InputAttribute) =
     case InputType.checkbox => Checked(row)
 
     case InputType.multiText =>
-      TextAreaWithValue(row.placeholder, row.inputVar)
+      TextAreaWithValue(row)
 
     case InputType.number(start, end, step) =>
-      InputWithValue(row.placeholder, row.inputVar, "number", row.default)
+      InputWithValue(row, "number")
         .amend(
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
@@ -100,7 +100,7 @@ private def buildInputCell(row: InputAttribute) =
         )
 
     case InputType.range(start, end, step) =>
-      InputWithValue(row.placeholder, row.inputVar, "number", row.default, border = false)
+      InputWithValue(row, "number", border = false)
         .amend(
           tpe      := "range",
           cls      := "range range-sm input-ghost",
@@ -110,9 +110,4 @@ private def buildInputCell(row: InputAttribute) =
         )
 
     case _ =>
-      InputWithValue(
-        row.placeholder,
-        row.inputVar,
-        row.inputType.toString,
-        row.default
-      )
+      InputWithValue(row, row.inputType.toString)

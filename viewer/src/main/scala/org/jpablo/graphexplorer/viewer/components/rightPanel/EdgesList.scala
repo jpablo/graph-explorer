@@ -41,7 +41,7 @@ def EdgesList(
   }
 
   def arrowEndpoints(arrow: Arrow): (String, String) =
-    val Seq(sourceNode, targetNode) = state.getNodeById(Seq(arrow.source, arrow.target))
+    val Seq(sourceNode, targetNode) = state.nodeById(Seq(arrow.source, arrow.target))
     val sl = sourceNode.label.toString
     val tl = targetNode.label.toString
     (if sl.isBlank then arrow.source.toString else sl, if tl.isBlank then arrow.target.toString else tl)

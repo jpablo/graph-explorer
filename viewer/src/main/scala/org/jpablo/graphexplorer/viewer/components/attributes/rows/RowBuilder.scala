@@ -11,17 +11,17 @@ import org.jpablo.graphexplorer.viewer.models.{AttributeId, Attributes, Attribut
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 class RowBuilder(
-  updates:  Var[AttributesUpdates],
-  defaults: Option[Signal[Attributes]] = None
+    updates:  Var[AttributesUpdates],
+    defaults: Option[Signal[Attributes]] = None
 ):
   type buildRowsInput = DotAttribute[?]
-      | String
-      | AttributeRow
-      | (DotAttribute[?], InputType)
+    | String
+    | AttributeRow
+    | (DotAttribute[?], InputType)
 
   given CanEqual[buildRowsInput, buildRowsInput] = CanEqual.derived
 
-  def buildRows( dotAttributes: buildRowsInput*): Seq[AttributeRow] =
+  def buildRows(dotAttributes: buildRowsInput*): Seq[AttributeRow] =
     dotAttributes
       .filter:
         case "" => false
@@ -39,11 +39,11 @@ class RowBuilder(
           simpleRow(attr, inputType)
 
   def simpleRow(
-    attr:        DotAttribute[?],
-    inputType:   InputType,
-    onReset:     Option[String] = None,
-    label:       Option[String] = None,
-    placeholder: Option[String] = None
+      attr:        DotAttribute[?],
+      inputType:   InputType,
+      onReset:     Option[String] = None,
+      label:       Option[String] = None,
+      placeholder: Option[String] = None
   ): AttributeRow.InputAttribute =
     inputRow(
       attr        = attr -> inputType,
@@ -54,11 +54,11 @@ class RowBuilder(
     )
 
   def inputRow(
-    attr:        (DotAttribute[?], InputType),
-    inputVar:    Var[SelectionAttrValue],
-    default:     Signal[String],
-    label:       Option[String] = None,
-    placeholder: Option[String] = None
+      attr:        (DotAttribute[?], InputType),
+      inputVar:    Var[SelectionAttrValue],
+      default:     Signal[String],
+      label:       Option[String] = None,
+      placeholder: Option[String] = None
   ): InputAttribute =
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
@@ -73,9 +73,9 @@ class RowBuilder(
         )
 
   def simpleInputVar(
-    attrId:  AttributeId,
-    updates: Var[AttributesUpdates],
-    onReset: Option[String] = None
+      attrId:  AttributeId,
+      updates: Var[AttributesUpdates],
+      onReset: Option[String] = None
   ): Var[SelectionAttrValue] =
     updates.zoomLazy(_.existing.getOrElse(attrId, Missing))((attrs, value) =>
       value match

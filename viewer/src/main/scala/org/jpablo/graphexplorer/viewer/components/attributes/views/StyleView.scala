@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{GraphAttributesView, NodesAttributesView}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, IdsByKind}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.Select
@@ -22,8 +23,8 @@ def StyleView(state: ViewerState) =
               ),
               EdgesAttributesView(
                 state,
-                updates     = state.elementAttributes(ElementIds(arrowIds)),
-                defaults  = Some(state.visibleGraph.map(_.rootGroup.arrowAttrs)),
+                updates   = state.elementAttributes(ElementIds(arrowIds)),
+                defaults  = Some(state.defaults(AttributeTarget.edge)),
                 selection = true
               ).amend(cls("selection-attributes"))
             )
@@ -37,8 +38,8 @@ def StyleView(state: ViewerState) =
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
-                updates  = state.elementAttributes(ElementIds(nodeIds)),
-                defaults  = Some(state.visibleGraph.map(_.rootGroup.nodeAttrs)),
+                updates   = state.elementAttributes(ElementIds(nodeIds)),
+                defaults  = Some(state.defaults(AttributeTarget.node)),
                 selection = true
               ).amend(cls("selection-attributes"))
             )
@@ -49,13 +50,13 @@ def StyleView(state: ViewerState) =
                 cls := "divider",
                 div(
                   cls := "divider-content",
-                  h2(cls := "text-lg font-semibold", s"Selected Clusters (${clusterIds.size})")
+                  h2(cls := "text-lg font-semibold", s"Selected Groups (${clusterIds.size})")
                 )
               ),
               GraphAttributesView(
                 state     = state,
                 attrsVar  = state.elementAttributes(ElementIds(clusterIds)),
-                defaults  = Some(state.visibleGraph.map(_.rootGroup.attributes)),
+                defaults  = Some(state.defaults(AttributeTarget.graph)),
                 selection = true
               ).amend(cls("selection-attributes"))
             )

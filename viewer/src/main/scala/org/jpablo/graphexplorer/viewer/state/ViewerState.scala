@@ -9,8 +9,10 @@ import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
+import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{ArrowId, AttributesUpdates, ElementIds, GroupId, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{ArrowId, Attributes, AttributesUpdates, ElementIds, GroupId, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.zoomLens
 import upickle.default.*
 
 import scala.util.Try
@@ -58,7 +60,7 @@ case class ViewerState(
   // -------- storage ------------
   restoreState()
 
-  def getNodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
+  def nodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
     ids.flatMap(fullGraph.observe().now().getNode)
 
   def allNodeIds(): Set[NodeId] =
@@ -116,14 +118,14 @@ case class ViewerState(
 
   // --- top level attributes ---
   def rootTargetAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getRootAttributes(target).toUpdates): (graph, updates) =>
-        graph.updateRootAttributes(target)(updates.applyUpdatesTo)
+    sourceFlow.fullGraphV.zoomLens(AttributesOps.rootAttributesUpdates(target))
+
+  def defaults(target: AttributeTarget): Signal[Attributes] =
+    fullGraph.map(_.getRootAttributes(target))
 
   // individual node attributes
   def elementAttributes(elementIds: ElementIds): Var[AttributesUpdates] =
-    sourceFlow.fullGraphV
-      .zoomLazy(_.getAttributesUpdatesById(elementIds))((graph, updates) => graph.updateAttributes(elementIds, updates))
+    sourceFlow.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
 
 end ViewerState
 
