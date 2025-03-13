@@ -8,7 +8,10 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, range}
 
-
+/** Attributes for the root graph.
+ *
+ * The root graph is itself a group (cluster) but it has some specific attributes.
+  */
 def RootGraphAttributesView(state: ViewerState) =
   val builder = RowBuilder(state.rootTargetAttributesUpdates(AttributeTarget.graph), None)
   AttributesView(

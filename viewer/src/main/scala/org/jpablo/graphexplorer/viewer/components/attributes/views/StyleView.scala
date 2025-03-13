@@ -61,7 +61,7 @@ def StyleView(state: ViewerState) =
             )
 
           case (false, false, false) =>
-            GeneralAttributesView(state)
+            DiagramOptionsAndDefaultsView(state)
 
           case _ =>
             val elementTypes = Map(

@@ -127,8 +127,3 @@ case class ViewerState(
 
 end ViewerState
 
-object ViewerState:
-  /** Result type for addNodeWithSmartConnection */
-  enum NodeAddResult:
-    case NodeAdded(nodeId: NodeId)
-    case NodeAndArrowAdded(nodeId: NodeId, arrowId: ArrowId)
