@@ -21,21 +21,20 @@ enum AttributeRow:
 
 object AttributeRow:
 
-  def _withDefault(row: InputAttribute) = row.inputVar.signal.combineWith(row.default)
+  def _combineDefault(row: InputAttribute) = row.inputVar.signal.combineWith(row.default)
 
   extension (row: InputAttribute)
 
+    def combineDefault = _combineDefault(row)
+
     def isChanged: Signal[Boolean] =
-      _withDefault(row).map { (attr, d) => attr.exists(_.toString != d) }
+      row.combineDefault.map { (attr, d) => attr.exists(_.toString != d) }
 
-    def withDefault =
-      _withDefault(row)
+    def combineDefaultString: Signal[String] =
+      row.combineDefault.map((v, d) => v.getOrElse(d).toString)
 
-    def withDefaultString: Signal[String] =
-      row.withDefault.map((v, d) => v.getOrElse(d).toString)
-
-    def withDefaultBoolean: Signal[Boolean] =
-      row.withDefaultString.map(_ == true.toString)
+    def combineDefaultBoolean: Signal[Boolean] =
+      row.combineDefaultString.map(_ == true.toString)
 
   case class RowOption(
       name:    String,

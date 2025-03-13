@@ -50,7 +50,7 @@ def SelectWithValue(
     cls := s"cls-${row.attrId}",
     row.options.map(o => option(o.name, value := o.value.toString)),
     controlled(
-      value <-- row.withDefault.map((v, d) => v.getOrElse(d).toString),
+      value <-- row.combineDefault.map((v, d) => v.getOrElse(d).toString),
       onChange.mapToValue.map(v => Single(AttrValue(v))) --> row.inputVar
     ),
     mods
@@ -110,7 +110,7 @@ def SelectWithPreviewGrid(row: InputAttribute) =
       tabIndex := 0,
       div(
         cls := "flex items-center justify-center w-full pr-6",
-        child.maybe <-- row.withDefault.map: (sv, d) =>
+        child.maybe <-- row.combineDefault.map: (sv, d) =>
           row.options
             .collectFirst:
               case row if row.hasValue(sv.getOrElse(d).toString) =>
@@ -129,7 +129,7 @@ def SelectWithPreviewGrid(row: InputAttribute) =
             cls             := s"tooltip ${if index < 3 then "tooltip-bottom" else "tooltip-top"}",
             dataAttr("tip") := rowOption.name,
             button(
-              cls <-- row.withDefault.map((sv, d) =>
+              cls <-- row.combineDefault.map((sv, d) =>
                 s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 ${
                     if rowOption.hasValue(sv.getOrElse(d).toString) then "btn-active" else ""
                   }"
@@ -171,7 +171,7 @@ def InputWithValue(
     tpe                   := inputType,
     placeholder           := row.placeholder,
     controlled(
-      value <-- row.withDefaultString,
+      value <-- row.combineDefaultString,
       onInput.mapToValue.map(v => Single(AttrValue(if isHtml(v) then AttrEq(v, true) else v))) --> row.inputVar
     ),
     if setFocus then onMountFocus else emptyMod
@@ -222,7 +222,7 @@ def Checked(row: InputAttribute) =
     tpe         := InputType.checkbox.toString,
     placeholder := row.placeholder,
     controlled(
-      checked <-- row.withDefaultBoolean,
+      checked <-- row.combineDefaultBoolean,
       onInput.mapToChecked.map(b => Single(AttrValue(b.toString))) --> row.inputVar
     )
   )

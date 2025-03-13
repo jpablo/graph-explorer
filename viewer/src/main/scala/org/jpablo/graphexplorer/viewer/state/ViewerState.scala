@@ -11,7 +11,15 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{ArrowId, Attributes, AttributesUpdates, ElementIds, GroupId, NodeId, ViewerNode}
+import org.jpablo.graphexplorer.viewer.models.{
+  ArrowId,
+  Attributes,
+  AttributesUpdates,
+  ElementIds,
+  GroupId,
+  NodeId,
+  ViewerNode
+}
 import org.jpablo.graphexplorer.zoomLens
 import upickle.default.*
 
@@ -69,12 +77,12 @@ case class ViewerState(
   def allArrowIds(): Set[ArrowId] =
     fullGraph.observe().now().arrowIds
 
-
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an
     * edge. If the selected element is a group/cluster, the new node will be added to that group. The new node will
     * become the only selected element after creation.
     *
-    * @return The result of the operation, which can be:
+    * @return
+    *   The result of the operation, which can be:
     *   - None if no action was taken
     *   - Some(NodeAdded) if a standalone node was added
     *   - Some(NodeAndArrowAdded) if a node and an arrow were added
@@ -117,6 +125,14 @@ case class ViewerState(
   // instead of re-rendering the whole diagram
 
   // --- top level attributes ---
+
+  /** This targets the root group of the graph. It is used to set attributes that apply to the entire graph, such as
+    * background color, rank direction, etc.
+    *
+    * node [...]
+    * edge [...]
+    * graph [...]
+    */
   def rootTargetAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
     sourceFlow.fullGraphV.zoomLens(AttributesOps.rootAttributesUpdates(target))
 
@@ -128,4 +144,3 @@ case class ViewerState(
     sourceFlow.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
 
 end ViewerState
-
