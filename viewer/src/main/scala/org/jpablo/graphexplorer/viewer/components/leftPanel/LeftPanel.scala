@@ -1,14 +1,15 @@
 package org.jpablo.graphexplorer.viewer.components.leftPanel
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
+import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.tiny
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
-import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.graphexplorer.viewer.widgets.tiny
 
-def LeftPanel(state: ViewerState, router: Router) =
+def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
   div(
     cls := "relative", // Container for absolute positioning
 
@@ -46,11 +47,7 @@ def LeftPanel(state: ViewerState, router: Router) =
               cls := "btn btn-ghost btn-xs",
               title := "Create Project",
               span().plusCircleIcon,
-              onClick --> { _ =>
-                // Add a new entry to the project directory and navigate to it
-                val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
-                router.navigateTo(Route.ProjectDetail(id.value))
-              }
+              onClick --> commands.createProject.action(),
             )
           )
         ),
@@ -68,7 +65,7 @@ def LeftPanel(state: ViewerState, router: Router) =
                     cls := "flex items-center gap-2 w-full",
                     cls("active") <-- state.project.signal.map(_.id == project.id),
                     div(cls := "truncate w-full", project.name),
-                    onClick --> { _ => router.navigateTo(Route.ProjectDetail(project.id.value)) }
+                    onClick --> router.navigateTo(Route.ProjectDetail(project.id.value))
                   )
                 )
               }

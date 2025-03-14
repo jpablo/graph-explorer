@@ -18,19 +18,40 @@ case class Command(
   def titleWithShortcut =
     description.getOrElse(title) + (if shortcut.nonEmpty then s" (${shortcut.mkString(" + ")})" else "")
 
-class Commands(state: ViewerState, router: Router):
+object Command:
+  val always = (_: Any) => true
+  def not(pred: ElementIds => Boolean)(selection: ElementIds): Boolean = !pred(selection)
 
-  private val always = (_: Any) => true
-  private def not(pred: ElementIds => Boolean)(selection: ElementIds): Boolean = !pred(selection)
+class RouterCommands(router: Router):
+  import Command.always
+
+  private def createProjectAndNavigate() =
+    val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
+    router.navigateTo(Route.ProjectDetail(id.value))
+
+  val createProject =
+    Command(
+      "Create new Project",
+      createProjectAndNavigate,
+      always,
+      description = Some("Create a new project and navigate to it")
+    )
+
+  val navigateHome =
+    Command(
+      "Navigate home",
+      () => router.navigateTo(Route.Home),
+      always,
+      description = Some("Navigate to the home page")
+    )
+
+class Commands(state: ViewerState, routerCmds: RouterCommands):
+  import Command.{not, always}
 
   private def changeProjectNameAction(): Unit =
     val newName = window.prompt("Enter project Name", state.project.name.now())
     if newName != null then
       state.project.name.set(newName)
-
-  private def createProjectAndNavigate() =
-    val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
-    router.navigateTo(Route.ProjectDetail(id.value))
 
   private def moveToGroupActionVisible(selection: ElementIds): Boolean =
     val classified = selection.classify
@@ -187,7 +208,7 @@ class Commands(state: ViewerState, router: Router):
     ),
     "Document" -> List(
       Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
-      Command("Create new Project", createProjectAndNavigate, always, description = Some("Create a new project and navigate to it")),
+      routerCmds.createProject
     ),
     "Export" -> List(
       Command(
@@ -208,12 +229,7 @@ class Commands(state: ViewerState, router: Router):
       Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
     ),
     "Application" -> List(
-      Command(
-        "Navigate home",
-        () => router.navigateTo(Route.Home),
-        always,
-        description = Some("Navigate to the home page")
-      ),
+      routerCmds.navigateHome,
       Command(
         "Help - Keyboard Shortcuts",
         () => state.shortcutsModalOpen.set(true),

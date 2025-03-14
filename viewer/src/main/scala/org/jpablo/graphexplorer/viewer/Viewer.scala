@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.projects.ProjectsDirectoryView
 import org.jpablo.graphexplorer.router
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.components.{Commands, TopLevel}
+import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel}
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
 import org.scalajs.dom
 import org.scalajs.dom.{document, window}
@@ -13,16 +13,17 @@ object Viewer:
 
   def main(args: Array[String]): Unit =
     val router = Router()
+    val routerCmds = RouterCommands(router)
     render(
       container = document.querySelector("#app"),
       rootNode = router.now() match
-        case Route.Home                     => ProjectsDirectoryView(router)
+        case Route.Home                     => ProjectsDirectoryView(router, routerCmds)
         case Route.ProjectDetail(projectId) =>
           val state = ViewerState(
             projectId = ProjectId(projectId),
             writeText = window.navigator.clipboard.writeText
           )
-          val commands = Commands(state, router)
+          val commands = Commands(state, routerCmds)
           TopLevel(state, router, commands)
     )
 

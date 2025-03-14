@@ -1,16 +1,15 @@
 package org.jpablo.graphexplorer.projects
 
-import org.jpablo.graphexplorer.viewer.widgets.Button
-import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.widgets.primary
-import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import com.raquo.laminar.api.features.unitArrows
-import scala.compiletime.asMatchable
+import org.jpablo.graphexplorer.router.{Route, Router}
+import org.jpablo.graphexplorer.viewer.components.RouterCommands
+import org.jpablo.graphexplorer.viewer.formats.dot.DotText
+import org.jpablo.graphexplorer.viewer.widgets.Icons.*
+import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
 
+import scala.compiletime.asMatchable
 import scala.scalajs.js
-import org.jpablo.graphexplorer.viewer.widgets.small
 
 enum SortOption derives CanEqual:
   case LastModified, Title, CreationDate
@@ -20,7 +19,7 @@ enum SortOption derives CanEqual:
     case Title        => "Title"
     case CreationDate => "Creation Date"
 
-def ProjectsDirectoryView(router: Router) =
+def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
   val sortOptionVar = Var[SortOption](SortOption.CreationDate)
   val searchTermVar = Var("")
 
@@ -86,12 +85,7 @@ def ProjectsDirectoryView(router: Router) =
             cls := "h-8",
             span().plusCircleIcon,
             "Create Project",
-            onClick --> { _ =>
-              // Add a new entry to the project directory and navigate to it
-              // This will create a new project with a default name.
-              val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
-              router.navigateTo(Route.ProjectDetail(id.value))
-            }
+            onClick --> routerCmds.createProject.action()
           ).primary.small
         )
       ),

@@ -22,7 +22,7 @@ def TopLevel(
       if visible then "--selection-sidebar-left: 16.5rem;"
       else "--selection-sidebar-left: 2.75rem;"
     ),
-    LeftPanel(state, router),
+    LeftPanel(state, router, commands),
     CanvasContainer(state, commands),
     CommandsPanel(state, commands),
     Toolbar(state.project.name.signal, commands, state),
