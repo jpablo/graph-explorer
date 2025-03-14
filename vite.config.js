@@ -1,6 +1,6 @@
 import {defineConfig} from "vite";
 import scalaJSPlugin from "@scala-js/vite-plugin-scalajs";
-import path from "path";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
     // base: "/abc",
@@ -14,5 +14,8 @@ export default defineConfig({
         // outDir: "backend/src/universal/static"
         // (default == "./dist")
     },
-    plugins: [scalaJSPlugin({projectID: 'viewer'})]
+    plugins: [
+        tailwindcss(),
+        scalaJSPlugin({projectID: 'viewer'}),
+    ]
 });
