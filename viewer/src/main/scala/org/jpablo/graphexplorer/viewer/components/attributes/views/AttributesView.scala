@@ -33,6 +33,7 @@ def AttributesView(
                 cls := "w-32 align-middle whitespace-nowrap",
                 div(
                   cls := "flex items-center gap-1",
+                  cls("font-bold") <-- row.isChanged,
                   span(row.label),
                   div(
                     cls := "w-6", // Fixed width space for the reset button

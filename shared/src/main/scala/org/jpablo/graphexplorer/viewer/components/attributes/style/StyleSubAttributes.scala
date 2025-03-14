@@ -84,15 +84,18 @@ case class StyleSubAttributes(
       None
     else if global != default && this == default then
       Some("")
-    else {
-      val gd = global.withDefaults
-      val dd = this.withDefaults
-      val merged = gd ++ dd
+    else
+      // TODO: analyze this further
+//      val gd = global.withDefaults
+//      val dd = this.withDefaults
+//      val merged = gd ++ dd
+//      val simple = merged.toStyleStringSimple
       val mergedNoDefaults = global ++ this
       val simpleNoDefaults = mergedNoDefaults.toStyleStringSimple
-      val simple = merged.toStyleStringSimple
-      Some(simpleNoDefaults)
-    }
+      if mergedNoDefaults == global then
+        None
+      else
+        Some(simpleNoDefaults)
 
   def isMissing: Boolean =
     this == StyleSubAttributes.missing
