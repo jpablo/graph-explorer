@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components
 
+import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -27,6 +28,10 @@ class Commands(state: ViewerState, router: Router):
     if newName != null then
       state.project.name.set(newName)
 
+  private def createProjectAndNavigate() =
+    val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
+    router.navigateTo(Route.ProjectDetail(id.value))
+
   private def moveToGroupActionVisible(selection: ElementIds): Boolean =
     val classified = selection.classify
     classified.clusters.size == 1 && classified.nodes.nonEmpty
@@ -37,7 +42,13 @@ class Commands(state: ViewerState, router: Router):
 
   val menuSections: VectorMap[String, List[Command]] = VectorMap(
     "Common" -> List(
-      Command("Add node", () => { state.addNodeWithSmartConnection(); () }, always, shortcut = List("n"), description = Some("Add a new node")),
+      Command(
+        "Add node",
+        () => { state.addNodeWithSmartConnection(); () },
+        always,
+        shortcut    = List("n"),
+        description = Some("Add a new node")
+      ),
       Command(
         "Select all",
         state.selection.selectAll,
@@ -45,7 +56,12 @@ class Commands(state: ViewerState, router: Router):
         shortcut    = List("a"),
         description = Some("Select all visible elements (nodes, arrows, and groups)")
       ),
-      Command("Select all nodes", state.selection.selectAllVisibleNodes, always, description = Some("Select all visible nodes")),
+      Command(
+        "Select all nodes",
+        state.selection.selectAllVisibleNodes,
+        always,
+        description = Some("Select all visible nodes")
+      ),
       Command(
         "Select all arrows",
         state.selection.selectAllVisibleArrows,
@@ -169,6 +185,10 @@ class Commands(state: ViewerState, router: Router):
       Command("Show all", state.showAllNodes, always, description    = Some("Show all hidden nodes")),
       Command("Hide all", state.hideAllNodes, always, description    = Some("Hide all nodes"))
     ),
+    "Document" -> List(
+      Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
+      Command("Create new Project", createProjectAndNavigate, always, description = Some("Create a new project and navigate to it")),
+    ),
     "Export" -> List(
       Command(
         "as SVG",
@@ -176,7 +196,7 @@ class Commands(state: ViewerState, router: Router):
         always,
         description = Some("Copy the full diagram as SVG to the clipboard")
       ),
-      Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard")),
+      Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard"))
     ),
     "Zoom" -> List(
       Command("Zoom out", () => state.zoomValue.update(_ * 0.9), always, description = Some("Zoom out the diagram")),
@@ -194,7 +214,6 @@ class Commands(state: ViewerState, router: Router):
         always,
         description = Some("Navigate to the home page")
       ),
-      Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
       Command(
         "Help - Keyboard Shortcuts",
         () => state.shortcutsModalOpen.set(true),
@@ -230,6 +249,7 @@ class Commands(state: ViewerState, router: Router):
     val successors = menuSections("Successors")
     val predecessors = menuSections("Predecessors")
     val view = menuSections("View")
+    val document = menuSections("Document")
     val exportAs = menuSections("Export")
     val zoom = menuSections("Zoom")
     val undoRedo = menuSections("Undo/Redo")
@@ -241,7 +261,8 @@ class Commands(state: ViewerState, router: Router):
   val List(zoomOut, fit, zoomIn) = sections.zoom
   val List(rootsOnly, showAll, hideAll) = sections.view
   val List(undo, redo) = sections.undoRedo
-  val List(navigateHome, changeProjectName, keyboardShortcuts) = sections.application
+  val List(changeProjectName, createProject) = sections.document
+  val List(navigateHome, keyboardShortcuts) = sections.application
 
   val commandsByShortcut: Map[List[String], Command] =
     menuSections.values.flatten
