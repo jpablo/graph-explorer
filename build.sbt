@@ -35,7 +35,8 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .in(file("shared"))
   .settings(
-    name := "shared",
+    name                     := "shared",
+    Test / parallelExecution := false,
     libraryDependencies ++= Seq(
       "com.lihaoyi"                %%% "upickle"          % "4.0.0",
       "com.lihaoyi"                %%% "pprint"           % "0.9.0",
@@ -45,6 +46,7 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
     )
   ).jsSettings(
     // JS-specific settings
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.8.0"
     )
@@ -61,7 +63,8 @@ lazy val viewer =
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
       scalacOptions ++= Seq("-explain", "-Ycheck-all-patmat", "-Yimports:java.lang,scala,scala.Predef,org.scalajs"),
-      Compile / mainClass := Some("org.jpablo.graphexplorer.viewer.Viewer"),
+      Compile / mainClass      := Some("org.jpablo.graphexplorer.viewer.Viewer"),
+      Test / parallelExecution := false,
       scalaJSLinkerConfig ~= {
         _.withModuleKind(ModuleKind.ESModule)
 //          .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
@@ -96,13 +99,13 @@ lazy val viewer =
         "org.scalablytyped" %%% "viz-js__lang-dot"            % "1.0.4-def35e",
         "org.scalablytyped" %%% "viz-js__viz"                 % "3.3.0-d43b8d"
       ),
-      excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat_sjs1"),
+      excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat_sjs1")
       // https://www.scala-js.org/doc/project/js-environments.html
 //      Test / jsEnv := new org.scalajs.jsenv.nodejs.NodeJSEnv(),
 //      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
 //      Test / scalaJSLinkerConfig ~= {_.withModuleKind(ModuleKind.NoModule) },
 //      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chrome", headless = true, showLogs = true),
-      testFrameworks += new TestFramework("munit.Framework")
+//      testFrameworks += new TestFramework("munit.Framework")
     )
 
 lazy val root =

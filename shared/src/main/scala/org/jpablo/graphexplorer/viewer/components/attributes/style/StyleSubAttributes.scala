@@ -30,13 +30,13 @@ case class StyleSubAttributes(
       corner    = corner.orElse(default.corner)
     )
 
-  def ++(other: StyleSubAttributes): StyleSubAttributes =
+  def ++(self: StyleSubAttributes): StyleSubAttributes =
     StyleSubAttributes(
-      fill      = other.fill.orElse(fill),
-      bold      = other.bold.orElse(bold),
-      invisible = other.invisible.orElse(invisible),
-      border    = other.border.orElse(border),
-      corner    = other.corner.orElse(corner)
+      fill      = self.fill.orElse(fill),
+      bold      = self.bold.orElse(bold),
+      invisible = self.invisible.orElse(invisible),
+      border    = self.border.orElse(border),
+      corner    = self.corner.orElse(corner)
     )
 
   private def toKV[A](status: AttrStatus[A], attrId: AttributeId)(using
@@ -84,8 +84,15 @@ case class StyleSubAttributes(
       None
     else if global != default && this == default then
       Some("")
-    else
-      Some((global.withDefaults ++ this.withDefaults).toStyleStringSimple)
+    else {
+      val gd = global.withDefaults
+      val dd = this.withDefaults
+      val merged = gd ++ dd
+      val mergedNoDefaults = global ++ this
+      val simpleNoDefaults = mergedNoDefaults.toStyleStringSimple
+      val simple = merged.toStyleStringSimple
+      Some(simpleNoDefaults)
+    }
 
   def isMissing: Boolean =
     this == StyleSubAttributes.missing

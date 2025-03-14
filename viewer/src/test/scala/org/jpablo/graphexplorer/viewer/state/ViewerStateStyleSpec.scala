@@ -226,25 +226,12 @@ class ViewerStateStyleSpec extends FunSuite:
     assertEquals(localControls.getFilled, true, "no local style yet so the root value should be used")
     assertEquals(localControls.getBold, BoldStyle.default, "hard-coded default value")
 
-    // -- action: local transition true -> false
-    localControls.setBold(Some(false))
+    // -- action: set local bold to true
+    localControls.setBold(Some(true))
 
-    pprint.log(localControls.ast)
     // --- verify ---
     assertEquals(localControls.getDOTGroupNodeStyle.get, "filled", "Group style should not change")
     // to set local bold but keep default filled, we need to set local style="filled,bold"
-    assertEquals(localControls.getDOTNodesStyles.head, "filled,bold", "Local style should be set to an empty string")
-
-
-//    assertEquals(localControls.getFilled, false, "after unchecking local, the value should be false")
-//    assertEquals(localControls.resetFilledIsVisible, true, "local is different from root, so it should be reset-able")
-//
-//    // -- action: local transition false -> true
-//    localControls.setFilled(Some(true))
-//    // --- verify ---
-//    // at this point local and default styles are the same so the local style should be removed
-//    assertEquals(localControls.getDOTNodesStyles, Nil, "Local DOT style should not be present")
-//    assertEquals(localControls.resetFilledIsVisible, false, "no local style yet, so there's nothing to reset")
-//    assertEquals(localControls.getFilled, true, "no local style yet so the root value should be used")
+    assertEquals(localControls.getDOTNodesStyles.head, "filled,bold", "Local style should combine local and default styles")
   }
 

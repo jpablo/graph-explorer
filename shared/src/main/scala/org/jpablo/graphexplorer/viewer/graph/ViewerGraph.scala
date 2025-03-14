@@ -121,7 +121,7 @@ case class ViewerGraph(
     val arrow = Arrow(source, target, seq = newSeq + 1)
     (modifyArrows.using(_ + (arrow.id -> arrow)), arrow)
 
-  private def addNodeWithId(nodeId: NodeId, groupId: Option[GroupId] = None): ViewerGraph =
+  def addNodeWithId(nodeId: NodeId, groupId: Option[GroupId] = None): ViewerGraph =
     modifyElements.using(
       _.copy(
         nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map(AttributeId("label") -> AttrValue(""))))),

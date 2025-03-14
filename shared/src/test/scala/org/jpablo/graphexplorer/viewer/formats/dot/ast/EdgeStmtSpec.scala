@@ -39,6 +39,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
           Arrow(NodeId("a"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 2)
         )
       )
+    // Flaky test
     assertEquals(expanded, expected)
   }
 
@@ -60,6 +61,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
           Arrow(NodeId("b"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 2)
         )
       )
+    // TODO: Flaky test
     assertEquals(expanded, expected)
   }
 

@@ -66,7 +66,6 @@ trait AttributesOps:
       globals: Option[Attributes] = None
   ): Attributes =
     val localSubAttrs = fromSubAttributes(attrs)
-    val filteredAttrs = attrs -- subAttributeIds
 
     val styleStringO =
       globals match
@@ -74,8 +73,10 @@ trait AttributesOps:
           val styleString = localSubAttrs.toStyleStringSimple
           if styleString.isEmpty then None else Some(styleString)
         case Some(globalAttrs) =>
-          localSubAttrs.toStyleCombined(fromSubAttributes(globalAttrs))
+          val c = localSubAttrs.toStyleCombined(fromSubAttributes(globalAttrs))
+          c
 
+    val filteredAttrs = attrs -- subAttributeIds
     styleStringO match
       case None        => filteredAttrs // remove the style attribute
       case Some(style) => filteredAttrs + (Style.attrId -> AttrValue(style))

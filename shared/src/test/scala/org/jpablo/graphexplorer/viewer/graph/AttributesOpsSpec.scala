@@ -120,6 +120,29 @@ class AttributesOpsSpec extends FunSuite:
     )
   }
 
+  test("combineStyleAttributes should use rootGroup.nodeAttrs as defaults for nodes.attributes") {
+    // Create a graph with sub-attributes
+    val graph0 = ViewerGraph.minimal
+      .addNodeWithId(a)
+      .updateRootAttributes(AttributeTarget.node)(_ + (BoldStyle.attrId -> AttrValue(true.toString)))
+
+    val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).out
+    val updates = AttributesUpdates(update = Map(BorderStyle.attrId -> AttrValue(BorderStyle.dashed.toString)))
+
+    val graph1 = updateAttributes(graph0, updates)
+
+    // ------------------------------------------------------------------
+    // We need to create a new graph with the combined elements to test it
+    val graph2 = graph1.modifyElements.setTo(graph1.combineStyleAttributes)
+    // ------------------------------------------------------------------
+
+    assertEquals(
+      obtained = graph2.getNode(a).get.attributes.get(NodeStyle.attrId).get.toString,
+      expected = "bold,dashed",
+      "style attribute should contain the combined values"
+    )
+  }
+
   test("updateAttributes should update attributes for nodes") {
     val graph = createTestGraph()
 
@@ -181,7 +204,7 @@ class AttributesOpsSpec extends FunSuite:
 
   test("getAttributesUpdatesById should return attributes for a node") {
     val graph = createTestGraph()
-      .modifyNodes.using( _ ++
+      .modifyNodes.using(_ ++
         Map(
           a -> ViewerNode(
             a,
@@ -190,8 +213,7 @@ class AttributesOpsSpec extends FunSuite:
               Shape.attrId -> AttrValue(Shape.box.toString)
             ))
           )
-        )
-      )
+        ))
 
     // Apply the method
     val result = graph.getAttributesUpdatesById(ElementIds.from(a))
