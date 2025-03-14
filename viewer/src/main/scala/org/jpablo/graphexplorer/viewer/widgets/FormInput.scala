@@ -12,7 +12,7 @@ def FormInput(
     cls := "form-control w-full",
     label(cls := "label", span(cls := "label-text", labelText)),
     input(
-      cls         := "input input-bordered w-full",
+      cls         := "input  w-full",
       tpe         := inputType,
       placeholder := placeholderText,
       controlled(value <-- inputValue.signal, onInput.mapToValue --> inputValue.set)

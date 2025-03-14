@@ -44,6 +44,7 @@ def ProjectsDirectoryView(router: Router) =
       // Projects navbar with background
       div(
         cls := "navbar px-6",
+        // left side
         div(
           cls := "flex-1",
           h1(
@@ -52,27 +53,26 @@ def ProjectsDirectoryView(router: Router) =
             "Library"
           )
         ),
+        // right side
         div(
-          cls := "flex-none gap-2",
+          cls := "flex gap-2",
           // Search input
-          div(
-            cls := "form-control",
-            div(
-              cls := "input-group input-group-sm",
-              span(cls := "px-3", i(cls := "bi bi-search")),
-              input(
-                cls         := "input input-sm input-bordered w-48",
-                placeholder := "Search library...",
-                controlled(
-                  value <-- searchTermVar,
-                  onInput.mapToValue --> searchTermVar
-                )
+          label(
+            cls := "input input-sm",
+            i(cls := "bi bi-search"),
+            input(
+              cls         := "grow",
+              tpe         := "search",
+              placeholder := "Search library...",
+              controlled(
+                value <-- searchTermVar,
+                onInput.mapToValue --> searchTermVar
               )
             )
           ),
           // Sort dropdown
           select(
-            cls := "select select-sm select-bordered h-8",
+            cls := "select select-sm h-8",
             SortOption.values.toSeq.map { opt =>
               option(
                 value := opt.toString,
@@ -140,7 +140,8 @@ private def projectCard(router: Router)(project: ProjectInfo) =
                     cls := "absolute inset-0 w-full h-full",
                     foreignSvgElement(svg.svg, svgElement)
                   )
-                ),
+                )
+              ,
               onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
             )
       )

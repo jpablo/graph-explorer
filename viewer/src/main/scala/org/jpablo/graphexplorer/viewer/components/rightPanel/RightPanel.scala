@@ -41,7 +41,7 @@ class RightPanel(state: ViewerState):
         // Fixed header section
         div(
           idAttr := "right-panel-header",
-          cls := "flex-none",
+          cls    := "flex-none",
           firstRow,
           // --- Tab Headers ---
           div(
@@ -55,12 +55,15 @@ class RightPanel(state: ViewerState):
         // Scrollable content section
         div(
           idAttr := "right-panel-content",
-          cls := "flex-grow overflow-hidden",
+          cls    := "flex-grow overflow-hidden",
           // --- Tab Body ---
-          tabStyle(0),
-          tabSource(1),
-          tabNodes(2),
-          tabEdges(3)
+          child <-- visibleTab.signal.map {
+            case 0 => StyleView(state)
+            case 1 => TabSource
+            case 2 => NodesList(state, onlyActiveNodes)
+            case 3 => EdgesList(state, onlyActiveEdges)
+            case _ => span()
+          }.map(_.amend(cls := "h-full overflow-y-auto"))
         )
       )
     )
@@ -98,16 +101,9 @@ class RightPanel(state: ViewerState):
       onClick --> visibleTab.set(idx)
     ).tiny
 
-  private def tabStyle(idx: Int) =
-    StyleView(state).amend(
-      cls := "h-full overflow-y-auto",
-      cls("hidden") <-- !isVisible(idx)
-    )
-
-  private def tabSource(idx: Int) =
+  private def TabSource =
     div(
       cls := "flex flex-col h-full",
-      cls("hidden") <-- !isVisible(idx),
       div(
         cls := "mb-4 flex-none",
         a(
@@ -122,22 +118,8 @@ class RightPanel(state: ViewerState):
         cls := "flex-grow overflow-y-auto",
         CodeMirror(
           state,
-          idAttr := "nodes-source",
+          idAttr      := "nodes-source",
           placeholder := "DOT source"
         )
       )
     )
-
-  private def tabNodes(idx: Int) =
-    NodesList(state, onlyActiveNodes)
-      .amend(
-        cls := "h-full overflow-y-auto",
-        cls("hidden") <-- !isVisible(idx)
-      )
-
-  private def tabEdges(idx: Int) =
-    EdgesList(state, onlyActiveEdges)
-      .amend(
-        cls := "h-full overflow-y-auto",
-        cls("hidden") <-- !isVisible(idx)
-      )

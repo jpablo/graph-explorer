@@ -53,7 +53,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
       cls := "flex items-center gap-1",
       input(
         typ         := "search",
-        cls         := "input input-bordered input-xs w-full px-2",
+        cls         := "input  input-xs w-full px-2",
         placeholder := "Enter command...",
         onFocus.mapTo(true) --> searchHasFocus,
         onBlur.mapTo(false) --> searchHasFocus,

@@ -16,10 +16,10 @@ def SelectWithLabel(
     mods:            Mods*
 ) =
   label(
-    cls := "form-control w-full max-w-xs",
+    cls := "form-control ",
     div(cls := "label-text", span(cls := "label-text", labelText)),
     select(
-      cls := "select select-bordered",
+      cls := "select",
       option(placeholderText, disabled := true, selected := true),
       options.map((name, id) => option(name, value := id)),
       value <-- selectValue.signal.map(_.getOrElse("")),
@@ -34,7 +34,7 @@ def Select(
     mods:            Mods*
 ) =
   select(
-    cls := "select select-bordered select-xs max-w-xs",
+    cls := "select select-xs max-w-xs",
     option(placeholderText, disabled := true, selected := true),
     options.map((name, id) => option(name, value := id)),
     mods
@@ -46,7 +46,7 @@ def SelectWithValue(
 ) =
   // TODO: use the SelectionAttrValue.Missing state (perhaps with a placeholder)
   select(
-    cls := "select select-bordered select-xs w-full",
+    cls := "select select-xs w-full",
     cls := s"cls-${row.attrId}",
     row.options.map(o => option(o.name, value := o.value.toString)),
     controlled(
@@ -149,7 +149,7 @@ def BasicInput(
     inputType:       String = "text"
 ) =
   input(
-    cls         := "input input-bordered input-sm w-full",
+    cls         := "input  input-sm w-full",
     tpe         := inputType,
     placeholder := placeholderText,
     controlled(value <-- inputValue.signal, onInput.mapToValue --> inputValue.set)
@@ -166,10 +166,10 @@ def InputWithValue(
   def isHtml(s: String) = htmlRegex.matches(s)
 
   input(
-    cls                   := "input input-xs w-full",
-    cls("input-bordered") := border,
-    tpe                   := inputType,
-    placeholder           := row.placeholder,
+    cls         := "input input-xs w-full",
+    cls("")     := border,
+    tpe         := inputType,
+    placeholder := row.placeholder,
     controlled(
       value <-- row.combineDefaultString,
       onInput.mapToValue.map(v => Single(AttrValue(if isHtml(v) then AttrEq(v, true) else v))) --> row.inputVar
@@ -178,9 +178,9 @@ def InputWithValue(
   )
 
 def TextAreaWithValue(
-    row:             InputAttribute,
-    default:         String = "",
-    setFocus:        Boolean = false
+    row:      InputAttribute,
+    default:  String = "",
+    setFocus: Boolean = false
 ) =
   val htmlRegex = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
   def isHtml(s: String) = htmlRegex.matches(s)
@@ -209,7 +209,7 @@ def TextAreaWithValue(
     )
 
   textArea(
-    cls         := "textarea textarea-bordered textarea-xs p-2 w-full max-w-xs",
+    cls         := "textarea textarea-xs p-2 ",
     placeholder := row.placeholder,
     value <-- rawText.signal,
     onInput.mapToValue --> rawText.set,
@@ -233,7 +233,7 @@ def Checkbox(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
 def Search(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
   input(
     tpe := InputType.search.toString,
-    cls := "input input-bordered input-xs input-primary w-full",
+    cls := "input  input-xs input-primary",
     mods
   )
 
