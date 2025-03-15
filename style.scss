@@ -47,7 +47,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #left-panel {
-    @apply bg-base-100 p-2 gap-3 z-10 w-64 flex-shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200;
+    @apply bg-base-100 p-2 gap-3 z-10 w-64 shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200;
     order: -1;
 
     .header-section {
@@ -64,7 +64,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #right-panel {
-    @apply bg-base-100 gap-3 z-10 w-96 flex-shrink-0 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
+    @apply bg-base-100 gap-3 z-10 w-96 shrink-0 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
     order: 2;
 
     #right-panel-header {
@@ -108,7 +108,7 @@ label[for ^= show-ns-kind-] {
       }
 
       #diagram-attributes-content {
-        @apply overflow-y-auto flex-grow;
+        @apply overflow-y-auto grow;
       }
 
       //.selection-attributes {
@@ -118,11 +118,13 @@ label[for ^= show-ns-kind-] {
     }
   }
 
+
   #canvas-container {
-    @apply p-1 z-10 flex-grow overflow-hidden flex;
-    background-image: radial-gradient(oklch(var(--bc)/.2) .5px, oklch(var(--b2)/1) .5px);
-    background-size: 5px 5px;
+    @apply p-1 z-10 grow overflow-hidden flex;
     position: relative;
+    background-color: var(--color-base-200);
+    background-image: radial-gradient(circle, var(--color-base-300) .5px, transparent .5px);
+    background-size: 5px 5px;
 
     justify-content: center;
 
