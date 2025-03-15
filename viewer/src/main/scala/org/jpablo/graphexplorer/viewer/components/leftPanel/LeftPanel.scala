@@ -29,8 +29,8 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
       cls <-- state.leftPanelVisible.signal.map(if _ then "w-[16rem] p-2 gap-3 opacity-100 visible"
       else "w-0 p-0 gap-0 opacity-0 invisible"),
       styleAttr <-- state.leftPanelVisible.signal.map(visible =>
-        if visible then "--left-panel-width: 16rem;" // 16rem = w-64
-        else "--left-panel-width: 0px;"
+        if visible then "--left-panel-width: 16rem; --left-panel-border-width: 0px;"
+        else "--left-panel-width: 0px; --left-panel-border-width: 0px;"
       ),
 
       // Header section with margin-top to accommodate selection sidebar

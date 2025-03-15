@@ -47,8 +47,11 @@ label[for ^= show-ns-kind-] {
   }
 
   #left-panel {
-    @apply bg-base-100 p-2 gap-3 z-10 w-64 shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200;
+    @apply bg-base-100 gap-3 z-10 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200;
     order: -1;
+    width: var(--left-panel-width, 16rem);
+    flex-shrink: 0;
+    border-right-width: var(--left-panel-border-width, 0px);
 
     .header-section {
       @apply mt-[25rem];
@@ -64,8 +67,10 @@ label[for ^= show-ns-kind-] {
   }
 
   #right-panel {
-    @apply bg-base-100 gap-3 z-10 w-96 shrink-0 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
+    @apply bg-base-100 gap-3 z-10 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
     order: 2;
+    width: var(--right-panel-width, 24rem);
+    flex-shrink: 0;
 
     #right-panel-header {
       @apply sticky top-0 z-10 bg-base-100 p-2;

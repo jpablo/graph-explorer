@@ -38,6 +38,10 @@ class RightPanel(state: ViewerState):
         cls <--
           state.rightPanelVisible.signal.map(if _ then "p-1 gap-3 opacity-100 visible flex flex-col h-full"
           else "w-0 p-0 gap-0 opacity-0 invisible"),
+        styleAttr <-- state.rightPanelVisible.signal.map(visible =>
+          if visible then "--right-panel-width: 24rem;"
+          else "--right-panel-width: 0px;"
+        ),
         // Fixed header section
         div(
           idAttr := "right-panel-header",
