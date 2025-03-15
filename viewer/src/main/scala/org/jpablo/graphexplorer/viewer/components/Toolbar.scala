@@ -16,13 +16,20 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     // -------- Navigation --------
     div(
       cls := "breadcrumbs font-bold py-0",
-      a(cls := "mr-2 link", span().chevronLeftIcon, onClick --> commands.navigateHome.action()),
-      a(
-        cls := "link",
-        text <-- projectName,
-        onClick --> commands.changeProjectName.action()
+      ul(
+        li(
+          a(cls := "mr-2 link", span().houseIcon, onClick --> commands.navigateHome.action())
+        ),
+        li(
+          a(
+            cls := "link",
+            text <-- projectName,
+            onClick --> commands.changeProjectName.action()
+          )
+        )
       )
     ),
+    span(cls := "divider divider-horizontal mx-0"),
     // -------- new node button --------
     Tooltip(
       text = commands.addNode.titleWithShortcut,

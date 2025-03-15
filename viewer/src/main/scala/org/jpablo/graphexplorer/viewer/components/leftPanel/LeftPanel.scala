@@ -42,7 +42,8 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           cls := "flex items-center gap-2 border-b border-base-300",
           div(
             cls := "flex items-center justify-between w-full",
-            h2(cls := "text-lg font-bold", "Library"),
+            a(cls := "mr-2 link", span().folderIcon, onClick --> commands.navigateHome.action()),
+            h2(cls := "text-lg font-bold flex-1", "Library"),
             button(
               cls := "btn btn-ghost btn-xs",
               title := "Create Project",

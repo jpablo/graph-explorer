@@ -29,6 +29,7 @@ object Icons:
     def folderIcon = elem.amend(cls := "bi bi-folder")
     def folderMinusIcon = elem.amend(cls := "bi bi-folder-minus")
     def folderPlusIcon = elem.amend(cls := "bi bi-folder-plus")
+    def houseIcon = elem.amend(cls := "bi bi-house")
     def layoutSidebarIcon = elem.amend(cls := "bi bi-layout-sidebar")
     def layoutSidebarReverseIcon = elem.amend(cls := "bi bi-layout-sidebar-reverse")
     def listIcon = elem.amend(cls := "bi bi-list")
