@@ -23,7 +23,7 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
           ),
           tbody(
             for
-              (shortcut, command) <- commands.commandsByShortcut.toSeq.sortBy(_._1.mkString(""))
+              (shortcut, command) <- commands.byShortcut.toSeq.sortBy(_._1.mkString(""))
             yield tr(
               td(cls := "whitespace-nowrap", shortcut.map(kbd(cls := "kbd kbd-sm", _)).intersperse(span(" + "))),
               td(command.description.getOrElse(command.title))
@@ -45,9 +45,9 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
           tbody(
             tr(
               td(
-                kbd(cls := "kbd kbd-sm", "Click"), 
-                span(" + "), 
-                kbd(cls := "kbd kbd-sm", "Drag"), 
+                kbd(cls := "kbd kbd-sm", "Click"),
+                span(" + "),
+                kbd(cls := "kbd kbd-sm", "Drag"),
                 span(" between nodes")
               ),
               td("Create a new edge between nodes")

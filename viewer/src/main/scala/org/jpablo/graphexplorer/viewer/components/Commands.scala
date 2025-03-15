@@ -61,8 +61,21 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
     val classified = selection.classify
     classified.clusters.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
 
-  val menuSections: VectorMap[String, List[Command]] = VectorMap(
-    "Common" -> List(
+  object headers:
+    val common = "Common"
+    val selection = "Selection"
+    val successors = "Successors"
+    val predecessors = "Predecessors"
+    val view = "View"
+    val document = "Document"
+    val exportAs = "Export"
+    val zoom = "Zoom"
+    val undoRedo = "Undo/Redo"
+    val application = "Application"
+    val developer = "Developer"
+
+  val bySection: VectorMap[String, List[Command]] = VectorMap(
+    headers.common -> List(
       Command(
         "Add node",
         () => { state.addNodeWithSmartConnection(); () },
@@ -96,7 +109,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Select all visible groups")
       )
     ),
-    "Selection" -> List(
+    headers.selection -> List(
       Command("Hide", state.selection.hide, shortcut = List("h"), description = Some("Hide selected nodes")),
       Command(
         "Keep",
@@ -157,7 +170,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Copy the selected nodes as SVG to the clipboard")
       )
     ),
-    "Successors" -> List(
+    headers.successors -> List(
       Command(
         "Show all successors",
         state.showAllSuccessors,
@@ -179,7 +192,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Select direct successors of the selected nodes")
       )
     ),
-    "Predecessors" -> List(
+    headers.predecessors -> List(
       Command(
         "Show all predecessors",
         state.showAllPredecessors,
@@ -201,16 +214,16 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Select direct predecessors of the selected nodes")
       )
     ),
-    "View" -> List(
+    headers.view -> List(
       Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors")),
       Command("Show all", state.showAllNodes, always, description    = Some("Show all hidden nodes")),
       Command("Hide all", state.hideAllNodes, always, description    = Some("Hide all nodes"))
     ),
-    "Document" -> List(
+    headers.document -> List(
       Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
       routerCmds.createProject
     ),
-    "Export" -> List(
+    headers.exportAs -> List(
       Command(
         "as SVG",
         state.copyAsFullDiagramSVG,
@@ -219,16 +232,16 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
       ),
       Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard"))
     ),
-    "Zoom" -> List(
+    headers.zoom -> List(
       Command("Zoom out", () => state.zoomValue.update(_ * 0.9), always, description = Some("Zoom out the diagram")),
       Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen")),
       Command("Zoom in", () => state.zoomValue.update(_ * 1.1), always, description = Some("Zoom in the diagram"))
     ),
-    "Undo/Redo" -> List(
+    headers.undoRedo -> List(
       Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action")),
       Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
     ),
-    "Application" -> List(
+    headers.application -> List(
       routerCmds.navigateHome,
       Command(
         "Help - Keyboard Shortcuts",
@@ -237,7 +250,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Open the keyboard shortcuts help dialog")
       )
     ),
-    "Developer" -> List(
+    headers.developer -> List(
       Command(
         "Print visible graph to the console",
         state.printVisibleGraphToConsole,
@@ -260,33 +273,23 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
   )
 
   object sections:
-    val common = menuSections("Common")
-    val selection = menuSections("Selection")
-    val successors = menuSections("Successors")
-    val predecessors = menuSections("Predecessors")
-    val view = menuSections("View")
-    val document = menuSections("Document")
-    val exportAs = menuSections("Export")
-    val zoom = menuSections("Zoom")
-    val undoRedo = menuSections("Undo/Redo")
-    val application = menuSections("Application")
-    val developer = menuSections("Developer")
+    val exportAs = bySection(headers.exportAs)
 
   // some special cases for the menu
-  val addNode = sections.common.find(_.title == "Add node").get
-  val List(zoomOut, fit, zoomIn) = sections.zoom
-  val List(rootsOnly, showAll, hideAll) = sections.view
-  val List(undo, redo) = sections.undoRedo
-  val List(changeProjectName, createProject) = sections.document
-  val List(navigateHome, keyboardShortcuts) = sections.application
+  val addNode = bySection(headers.common).find(_.title == "Add node").get
+  val List(zoomOut, fit, zoomIn) = bySection(headers.zoom)
+  val List(rootsOnly, showAll, hideAll) = bySection(headers.view)
+  val List(undo, redo) = bySection(headers.undoRedo)
+  val List(changeProjectName, createProject) = bySection(headers.document)
+  val List(navigateHome, keyboardShortcuts) = bySection(headers.application)
 
-  val commandsByShortcut: Map[List[String], Command] =
-    menuSections.values.flatten
+  val byShortcut: Map[List[String], Command] =
+    bySection.values.flatten
       .collect { case c: Command if c.shortcut.nonEmpty => c.shortcut -> c }
       .toMap
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
     val sh = if ev.shiftKey then List("Shift", ev.key) else List(ev.key)
-    for cmd <- commandsByShortcut.get(sh) do
+    for cmd <- byShortcut.get(sh) do
       ev.preventDefault()
       cmd.action()

@@ -42,7 +42,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
     ).map(_ || _ || _)
 
   def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command]] =
-    commands.menuSections.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
+    commands.bySection.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
 
   div(
     idAttr := "commands-panel",
