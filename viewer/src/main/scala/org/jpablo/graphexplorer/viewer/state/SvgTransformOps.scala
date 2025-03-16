@@ -12,7 +12,15 @@ trait SvgTransformOps:
 
   val zoomValue = Var(1.0)
 
+  val minZoom = 0.05
+
   val fitDiagram = EventBus[Unit]()
+
+  def zoomOut() =
+    zoomValue.update(_ * .9 max minZoom)
+
+  def zoomIn() =
+    zoomValue.update(_ * 1.1)
 
   val transform =
     zoomValue.signal
@@ -32,7 +40,7 @@ trait SvgTransformOps:
 
     if wEv.metaKey && wEv.deltaY != 0 then
       zoomValue.update: z =>
-        z - wEv.deltaY / clientHeight max 0.001
+        z - wEv.deltaY / clientHeight max minZoom
     else
       val z = zoomValue.now()
       val scale = viewBox.width / clientWidth max viewBox.height / clientHeight

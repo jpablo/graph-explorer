@@ -58,7 +58,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         for cmd <- commands.sections.exportAs yield li(a(cmd.title, onClick --> cmd.action()))
       )
     ),
-    // ----------
+    // ---------- zoom ----------
     Join(
       Button(span().dashIcon, onClick --> commands.zoomOut.action()).tiny,
       Button(commands.fit.title, onClick --> commands.fit.action()).tiny,

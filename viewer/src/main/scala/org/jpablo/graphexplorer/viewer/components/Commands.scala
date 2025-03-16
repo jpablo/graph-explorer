@@ -245,9 +245,9 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
       Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard"))
     ),
     headers.zoom -> List(
-      Command("Zoom out", () => state.zoomValue.update(_ * 0.9), always, description = Some("Zoom out the diagram")),
+      Command("Zoom out", state.zoomOut, always, description = Some("Zoom out the diagram")),
       Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen")),
-      Command("Zoom in", () => state.zoomValue.update(_ * 1.1), always, description = Some("Zoom in the diagram"))
+      Command("Zoom in", state.zoomIn, always, description = Some("Zoom in the diagram"))
     ),
     headers.undoRedo -> List(
       Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action")),
