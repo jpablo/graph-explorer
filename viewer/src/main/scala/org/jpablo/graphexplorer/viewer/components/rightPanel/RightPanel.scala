@@ -61,13 +61,13 @@ class RightPanel(state: ViewerState):
           idAttr := "right-panel-content",
           cls    := "flex-grow overflow-hidden",
           // --- Tab Body ---
-          child <-- visibleTab.signal.map {
-            case 0 => StyleView(state)
-            case 1 => TabSource
-            case 2 => NodesList(state, onlyActiveNodes)
-            case 3 => EdgesList(state, onlyActiveEdges)
-            case _ => span()
-          }.map(_.amend(cls := "h-full overflow-y-auto"))
+          List(
+            StyleView(state),
+            TabSource,
+            NodesList(state, onlyActiveNodes),
+            EdgesList(state, onlyActiveEdges)
+          ).zipWithIndex.map: (child, idx) =>
+            child.amend(cls := "h-full overflow-y-auto", cls("hidden") <-- !isVisible(idx))
         )
       )
     )

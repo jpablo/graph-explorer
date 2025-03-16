@@ -101,12 +101,11 @@ label[for ^= show-ns-kind-] {
     }
 
     #diagram-attributes {
+      @apply h-full overflow-hidden;
+
       thead {
         @apply bg-base-200 rounded;
       }
-
-      // -------------
-      @apply h-full overflow-hidden flex flex-col;
 
       > div {
         @apply h-full flex flex-col overflow-hidden;
