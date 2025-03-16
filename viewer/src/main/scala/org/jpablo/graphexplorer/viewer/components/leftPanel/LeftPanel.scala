@@ -64,7 +64,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
                   cls := "w-full",
                   a(
                     cls := "flex items-center gap-2 w-full",
-                    cls("active") <-- state.project.signal.map(_.id == project.id),
+                    cls("menu-active") <-- state.project.signal.map(_.id == project.id),
                     div(cls := "truncate w-full", project.name),
                     onClick --> router.navigateTo(Route.ProjectDetail(project.id.value))
                   )

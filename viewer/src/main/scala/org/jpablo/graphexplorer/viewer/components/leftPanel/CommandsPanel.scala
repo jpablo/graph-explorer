@@ -123,7 +123,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                     idAttr := s"cmd-${cmd.title.replace(" ", "-").toLowerCase}",
                     cls    := "flex justify-between",
                     title  := cmd.description.getOrElse(cmd.title),
-                    cls("active") <-- isActive,
+                    cls("menu-active") <-- isActive,
                     inContext { thisNode =>
                       isActive --> { isActive =>
                         if isActive then
@@ -131,7 +131,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                       }
                     },
                     span(cmd.title),
-                    div(cmd.shortcut.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + "))),
+                    div(cmd.shortcut.map(_.toList.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + ")))),
                     onMouseDown.stopPropagation.preventDefault --> { e =>
                       cmd.action()
                       focusSearch.emit(true)

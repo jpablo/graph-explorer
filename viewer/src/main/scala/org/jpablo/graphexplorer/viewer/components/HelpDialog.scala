@@ -23,9 +23,9 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
           ),
           tbody(
             for
-              (shortcut, command) <- commands.byShortcut.toSeq.sortBy(_._1.mkString(""))
+              (shortcut, command) <- commands.byShortcut.toSeq.sortBy(_._1.toList.mkString(""))
             yield tr(
-              td(cls := "whitespace-nowrap", shortcut.map(kbd(cls := "kbd kbd-sm", _)).intersperse(span(" + "))),
+              td(cls := "whitespace-nowrap", shortcut.toList.map(kbd(cls := "kbd kbd-sm", _)).intersperse(span(" + "))),
               td(command.description.getOrElse(command.title))
             )
           )

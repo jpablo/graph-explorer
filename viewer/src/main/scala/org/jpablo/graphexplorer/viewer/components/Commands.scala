@@ -8,11 +8,23 @@ import org.scalajs.dom.window
 
 import scala.collection.immutable.VectorMap
 
+case class Shortcut(
+    key:   String,
+    shift: Boolean = false,
+    meta:  Boolean = false,
+    alt:   Boolean = false,
+    ctrl:  Boolean = false
+):
+
+  def toList: List[String] =
+    List((key, true), ("Shift", shift), ("Meta", meta), ("Alt", alt), ("Ctrl", ctrl))
+      .collect { case (str, true) => str }
+
 case class Command(
     title:       String,
     action:      () => Unit,
     isVisible:   ElementIds => Boolean = _.nonEmpty,
-    shortcut:    List[String] = Nil,
+    shortcut:    Option[Shortcut] = None,
     description: Option[String] = None
 ):
   def titleWithShortcut =
@@ -80,14 +92,14 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         "Add node",
         () => { state.addNodeWithSmartConnection(); () },
         always,
-        shortcut    = List("n"),
+        shortcut    = Some(Shortcut("n")),
         description = Some("Add a new node")
       ),
       Command(
         "Select all",
         state.selection.selectAll,
         always,
-        shortcut    = List("a"),
+        shortcut    = Some(Shortcut("a")),
         description = Some("Select all visible elements (nodes, arrows, and groups)")
       ),
       Command(
@@ -110,31 +122,31 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
       )
     ),
     headers.selection -> List(
-      Command("Hide", state.selection.hide, shortcut = List("h"), description = Some("Hide selected nodes")),
+      Command("Hide", state.selection.hide, shortcut = Some(Shortcut("h")), description = Some("Hide selected nodes")),
       Command(
         "Keep",
         state.hideNonSelectedNodes,
         not(isSingleGroupSelected),
-        shortcut    = List("k"),
+        shortcut    = Some(Shortcut("k")),
         description = Some("Hide all nodes except selected")
       ),
       Command(
         "Delete",
         state.selection.deleteSelection,
-        shortcut    = List("Backspace"),
+        shortcut    = Some(Shortcut("Backspace")),
         description = Some("Delete selected nodes")
       ),
       Command(
         "Duplicate",
         state.selection.duplicateSelection,
         not(isSingleGroupSelected),
-        shortcut    = List("d"),
+        shortcut    = Some(Shortcut("d")),
         description = Some("Duplicate selected nodes")
       ),
       Command(
         "Group",
         state.selection.group,
-        shortcut    = List("g"),
+        shortcut    = Some(Shortcut("g")),
         description = Some("Add selected nodes into a new group")
       ),
       Command(
@@ -146,15 +158,15 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
       Command(
         "Ungroup",
         state.selection.ungroup,
-        shortcut    = List("u"),
+        shortcut    = Some(Shortcut("u")),
         description = Some("Remove selected nodes from their current group")
       ),
-      Command("Clear selection", state.selection.clear, shortcut = List("Esc")),
+      Command("Clear selection", state.selection.clear, shortcut = Some(Shortcut("Esc"))),
       //
       Command(
         "Select group members",
         state.selection.selectGroupMembers,
-        shortcut    = List("m"),
+        shortcut    = Some(Shortcut("m")),
         description = Some("Select all nodes that are members of the selected group")
       ),
       Command(
@@ -166,7 +178,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
       Command(
         "Copy as SVG",
         state.copySelectionAsSVG,
-        shortcut    = List("c"),
+        shortcut    = Some(Shortcut("c")),
         description = Some("Copy the selected nodes as SVG to the clipboard")
       )
     ),
@@ -283,13 +295,13 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
   val List(changeProjectName, createProject) = bySection(headers.document)
   val List(navigateHome, keyboardShortcuts) = bySection(headers.application)
 
-  val byShortcut: Map[List[String], Command] =
+  val byShortcut: Map[Shortcut, Command] =
     bySection.values.flatten
-      .collect { case c: Command if c.shortcut.nonEmpty => c.shortcut -> c }
+      .collect { case c @ Command(_, _, _, Some(shortcut), _) => shortcut -> c }
       .toMap
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
-    val sh = if ev.shiftKey then List("Shift", ev.key) else List(ev.key)
+    val sh = Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
     for cmd <- byShortcut.get(sh) do
       ev.preventDefault()
       cmd.action()
