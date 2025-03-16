@@ -302,7 +302,6 @@ enum ArrowType derives CanEqual:
     curve,
     diamond,
     dot,
-    icurve,
     inv,
     none,
     normal,
@@ -311,7 +310,6 @@ enum ArrowType derives CanEqual:
     obox,
     odiamond,
     odot,
-    oinv,
     onormal,
     halfvee
 

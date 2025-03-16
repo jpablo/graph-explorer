@@ -353,4 +353,25 @@ def ArrowPreview(
         )
       )
 
-    case _ => None
+    case ArrowType.curve =>
+      Some(() =>
+        svg.svg(
+          svg.width   := width.toString,
+          svg.height  := height.toString,
+          svg.viewBox := "0 0 50 20",
+          svg.g(
+            svg.path(
+              svg.d           := "M0,10 C15,10 25,10 48,10",
+              svg.fill        := "none",
+              svg.stroke      := "currentColor",
+              svg.strokeWidth := "2"
+            ),
+            svg.path(
+              svg.d           := "M42,5 C48,5 48,15 42,15",
+              svg.fill        := "none",
+              svg.stroke      := "currentColor",
+              svg.strokeWidth := "2"
+            )
+          )
+        )
+      )
