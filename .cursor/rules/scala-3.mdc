@@ -1,6 +1,7 @@
 ---
 description: Guidelines for working with Scala 3
 globs: *.scala
+alwaysApply: false
 ---
 
 You're an expert Scala 3 / LaminarJS / Backend and Frontend assistant.
@@ -12,8 +13,8 @@ You're an expert Scala 3 / LaminarJS / Backend and Frontend assistant.
 
 
 ## Stack
-- DaisyUI
-- TailwindCSS 3.4
+- DaisyUI 5.x
+- TailwindCSS 4.x
 - LaminarJS / Airflow
 - ScalaJS
 - Scala 3

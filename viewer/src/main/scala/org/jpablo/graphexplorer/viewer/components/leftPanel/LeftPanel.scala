@@ -25,21 +25,19 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
     // Panel content
     div(
       idAttr := "left-panel",
-      // cls := "bg-base-100 z-10 flex-shrink-0 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200",
-      cls <-- state.leftPanelVisible.signal.map(if _ then "w-[16rem] p-2 gap-3 opacity-100 visible"
-      else "w-0 p-0 gap-0 opacity-0 invisible"),
+      cls <-- state.leftPanelVisible.signal.map(if _ then "w-[16rem] opacity-100 visible"
+      else "w-0 opacity-0 invisible"),
       styleAttr <-- state.leftPanelVisible.signal.map(visible =>
         if visible then "--left-panel-width: 16rem; --left-panel-border-width: 0px;"
         else "--left-panel-width: 0px; --left-panel-border-width: 0px;"
       ),
 
       // Header section with margin-top to accommodate selection sidebar
-
       div(
-        cls := "header-section",
+        cls := "header-section flex flex-col h-full",
         div(cls := "divider"),
         div(
-          cls := "flex items-center gap-2 border-b border-base-300",
+          cls := "flex items-center gap-2 border-b border-base-300 px-2",
           div(
             cls := "flex items-center justify-between w-full",
             a(cls := "mr-2 link", span().folderIcon, onClick --> commands.navigateHome.action()),
@@ -53,19 +51,18 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           )
         ),
 
-        // Projects list
+        // Projects list - now takes remaining height
         div(
-          cls := "flex-grow overflow-y-auto overflow-x-hidden w-full",
+          cls := "grow overflow-y-auto px-2",
           ul(
-            cls := "menu menu-sm w-full",
+            cls := "menu menu-sm",
             children <-- ProjectStorage.directory.map { directory =>
               directory.projects.sortBy(-_.createdAt).map { project =>
                 li(
-                  cls := "w-full",
                   a(
-                    cls := "flex items-center gap-2 w-full",
+                    cls := "flex items-center gap-2",
                     cls("menu-active") <-- state.project.signal.map(_.id == project.id),
-                    div(cls := "truncate w-full", project.name),
+                    div(cls := "truncate", project.name),
                     onClick --> router.navigateTo(Route.ProjectDetail(project.id.value))
                   )
                 )

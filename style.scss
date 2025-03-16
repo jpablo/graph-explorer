@@ -47,14 +47,15 @@ label[for ^= show-ns-kind-] {
   }
 
   #left-panel {
-    @apply bg-base-100 gap-3 z-10 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200;
+    @apply bg-base-100 z-10 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200;
     order: -1;
     width: var(--left-panel-width, 16rem);
     flex-shrink: 0;
     border-right-width: var(--left-panel-border-width, 0px);
 
     .header-section {
-      @apply mt-[25rem];
+      @apply mt-[26rem];
+      height: calc(100% - 26rem);
     }
   }
 
