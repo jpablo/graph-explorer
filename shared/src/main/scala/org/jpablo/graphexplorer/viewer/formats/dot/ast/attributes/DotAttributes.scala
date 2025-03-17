@@ -4,6 +4,25 @@ import org.jpablo.graphexplorer.viewer.models.AttributeId
 
 import scala.util.Try
 
+enum GraphType derives CanEqual:
+  case graph, digraph
+
+object GraphType extends DotAttributeEnum[GraphType]:
+  val default = digraph
+  val label = "Graph Type"
+  override val valuesWithLabel = Array(
+    ("Undirected graph", graph),
+    ("Directed graph", digraph)
+  )
+
+object Id extends DotAttributeSimple[String]:
+  val label = "Id"
+  val default = ""
+
+object Size extends DotAttributeSimple[Double]:
+  val label = "Size"
+  val default = 0.0
+
 enum Rankdir derives CanEqual:
   case TB, LR, BT, RL
 

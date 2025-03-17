@@ -1,22 +1,35 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Id
 import org.jpablo.graphexplorer.viewer.models.*
 
 class EdgeStmtSpec extends ScalaCheckSuite {
+  val idAttr = Id.attrId
+
+  val a: NodeId = NodeId("a")
+  val b: NodeId = NodeId("b")
+  val c: NodeId = NodeId("c")
+  val d: NodeId = NodeId("d")
+
+  val dotA = DotNodeId("a")
+  val dotB = DotNodeId("b")
+  val dotC = DotNodeId("c")
+  val dotD = DotNodeId("d")
+
   test("expandArrows should process simple nodes (case 2)") {
     val edgeStmt =
       EdgeStmt(
-        List(DotNodeId("a", None), DotNodeId("b", None), DotNodeId("c", None), DotNodeId("d", None)),
+        List(dotA, dotB, dotC, dotD),
         Nil
       )
     EdgeStmt.resetId()
     val expanded = edgeStmt.expandArrows
     val expected =
       List(
-        List(Arrow(NodeId("a"), NodeId("b"), Attributes(Map()), 1)),
-        List(Arrow(NodeId("b"), NodeId("c"), Attributes(Map()), 2)),
-        List(Arrow(NodeId("c"), NodeId("d"), Attributes(Map()), 3))
+        List(Arrow(a, b, Attributes(Map()), 1)),
+        List(Arrow(b, c, Attributes(Map()), 2)),
+        List(Arrow(c, d, Attributes(Map()), 3))
       )
     assertEquals(expanded, expected)
   }
@@ -25,8 +38,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val edgeStmt =
       EdgeStmt(
         List(
-          DotNodeId("a", None),
-          SubGraph(List(NodeStmt(DotNodeId("b", None), Nil), NodeStmt(DotNodeId("c", None), Nil)), None)
+          dotA,
+          SubGraph(List(NodeStmt(dotB, Nil), NodeStmt(dotC)), None)
         ),
         List(Attr("id", AttrValue("1")))
       )
@@ -35,8 +48,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("b"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 1),
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 2)
+          Arrow(a, b, Attributes(Map(idAttr -> AttrValue("1"))), 1),
+          Arrow(a, c, Attributes(Map(idAttr -> AttrValue("1"))), 2)
         )
       )
     // Flaky test
@@ -47,8 +60,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val edgeStmt =
       EdgeStmt(
         List(
-          SubGraph(List(NodeStmt(DotNodeId("a", None), Nil), NodeStmt(DotNodeId("b", None), Nil)), None),
-          DotNodeId("c", None)
+          SubGraph(List(NodeStmt(dotA), NodeStmt(dotB)), None),
+          dotC
         ),
         List(Attr("id", AttrValue("1")))
       )
@@ -57,8 +70,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 1),
-          Arrow(NodeId("b"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 2)
+          Arrow(a, c, Attributes(Map(idAttr -> AttrValue("1"))), 1),
+          Arrow(b, c, Attributes(Map(idAttr -> AttrValue("1"))), 2)
         )
       )
     // TODO: Flaky test
@@ -69,8 +82,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val edgeStmt =
       EdgeStmt(
         List(
-          SubGraph(List(NodeStmt(DotNodeId("a", None), Nil), NodeStmt(DotNodeId("b", None), Nil)), None),
-          SubGraph(List(NodeStmt(DotNodeId("c", None), Nil), NodeStmt(DotNodeId("d", None), Nil)), None)
+          SubGraph(List(NodeStmt(dotA), NodeStmt(dotB)), None),
+          SubGraph(List(NodeStmt(dotC), NodeStmt(dotD)), None)
         ),
         List(Attr("id", AttrValue("1")))
       )
@@ -79,10 +92,10 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expected =
       List(
         List(
-          Arrow(NodeId("a"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 1),
-          Arrow(NodeId("a"), NodeId("d"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 2),
-          Arrow(NodeId("b"), NodeId("c"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 3),
-          Arrow(NodeId("b"), NodeId("d"), Attributes(Map(AttributeId("id") -> AttrValue("1"))), 4)
+          Arrow(a, c, Attributes(Map(idAttr -> AttrValue("1"))), 1),
+          Arrow(a, d, Attributes(Map(idAttr -> AttrValue("1"))), 2),
+          Arrow(b, c, Attributes(Map(idAttr -> AttrValue("1"))), 3),
+          Arrow(b, d, Attributes(Map(idAttr -> AttrValue("1"))), 4)
         )
       )
     assertEquals(expanded, expected)

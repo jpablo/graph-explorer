@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.models.*
 
 def graphToDotAST(graph: ViewerGraph): DotAST =
   DotAST(
-    tpe      = graph.tpe,
+    tpe      = graph.tpe.toString,
     children = graphDataToDotGraphElements(graph.combineStyleAttributes),
     id       = Some(graph.id)
   )

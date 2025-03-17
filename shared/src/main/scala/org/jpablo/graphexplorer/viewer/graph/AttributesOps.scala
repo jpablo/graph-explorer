@@ -2,13 +2,10 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes
-import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes.{
-  fromSubAttributes,
-  subAttributeIds
-}
+import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes.{fromSubAttributes, subAttributeIds}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{NodeStyle, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{ArrowTail, ArrowType, Dir, DirType, GraphType, NodeStyle, Sides, Size, Style}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
 
@@ -20,7 +17,7 @@ trait AttributesOps:
   lazy val modifyRootEdgeAttrs = this.modify(_.elements.groups.at(rootGroup.id).arrowAttrs)
 
   lazy val removeUnsupportedFeatures: ViewerGraph =
-    modifyRootGraphAttrs.using(_ - AttributeId("size"))
+    modifyRootGraphAttrs.using(_ - Size.attrId)
 
   def expandStyleAttributes: ViewerGraphElements =
     elements.copy(
@@ -73,8 +70,7 @@ trait AttributesOps:
           val styleString = localSubAttrs.toStyleStringSimple
           if styleString.isEmpty then None else Some(styleString)
         case Some(globalAttrs) =>
-          val c = localSubAttrs.toStyleCombined(fromSubAttributes(globalAttrs))
-          c
+          localSubAttrs.toStyleCombined(fromSubAttributes(globalAttrs))
 
     val filteredAttrs = attrs -- subAttributeIds
     styleStringO match
@@ -170,15 +166,18 @@ trait AttributesOps:
   val defaultNodeTheme =
     Attributes(
       Map(
-        AttributeId("sides") -> AttrValue("5")
+        Sides.attrId -> AttrValue("5")
       )
     )
 
   val defaultEdgeTheme =
+    val dir = tpe match
+      case GraphType.graph => DirType.none
+      case GraphType.digraph => DirType.both
     Attributes(
       Map(
-        AttributeId("dir")       -> AttrValue("both"),
-        AttributeId("arrowtail") -> AttrValue("none")
+        Dir.attrId       -> AttrValue(dir.toString),
+        ArrowTail.attrId -> AttrValue(ArrowType.none.toString)
       )
     )
 
@@ -190,10 +189,10 @@ object AttributesOps:
 
   /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
   def rootAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributesUpdates] =
-  Lens(
-    in  = graph => graph.getRootAttributes(target).toUpdates,
-    out = (graph, updates) => graph.updateRootAttributes(target)(updates.applyUpdatesTo)
-  )
+    Lens(
+      in  = graph => graph.getRootAttributes(target).toUpdates,
+      out = (graph, updates) => graph.updateRootAttributes(target)(updates.applyUpdatesTo)
+    )
 
   /** Bundle functions for updating attributes of specific elements */
   def elementAttributesUpdates(elementIds: ElementIds): Lens[ViewerGraph, AttributesUpdates] =

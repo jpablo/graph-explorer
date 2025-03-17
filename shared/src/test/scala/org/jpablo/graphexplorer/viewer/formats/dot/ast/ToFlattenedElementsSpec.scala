@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Shape
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToDotGraphElements
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
@@ -42,7 +43,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
     val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedGroups =
       List(
-        ViewerGroup(group0, nodeAttrs = Attributes(Map(AttributeId("shape") -> AttrValue("egg")))),
+        ViewerGroup(group0, nodeAttrs = Attributes(Map(Shape.attrId -> AttrValue(Shape.egg.toString)))),
         ViewerGroup(group1),
         ViewerGroup(rootId)
       )

@@ -1,8 +1,11 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.defaultRootId
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
+
 import scala.annotation.tailrec
 
 enum AttributeTarget derives CanEqual:
@@ -15,7 +18,7 @@ extension (ast: DotAST)
       case Some(id) =>
         EdgeStmt.resetId()
         val flattened = ast.toFlattenedElements
-        val g = ViewerGraph(ViewerGraphElements.from(flattened), id, ast.tpe)
+        val g = ViewerGraph(ViewerGraphElements.from(flattened), id, GraphType.valueOf(ast.tpe))
         g.modifyElements.setTo(g.expandStyleAttributes)
       case None =>
         throw new IllegalArgumentException("DotAST must have an id")
@@ -40,7 +43,7 @@ extension (ast: DotAST)
     ): FlattenedGraphElement =
       remaining match
         case Nil =>
-          val rootId = GroupId(ast.id.getOrElse("G"))
+          val rootId = ast.id.map(GroupId.apply).getOrElse(defaultRootId)
           val graphGroup = subGraphToViewerGroup(rootId, ast.asSubgraph)
           FlattenedGraphElement(
             rootId      = rootId,

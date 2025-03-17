@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Style
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
@@ -44,14 +45,14 @@ class ViewerGraphSpec extends ScalaCheckSuite:
       ViewerGraph(
         ViewerGraphElements(
           nodes  = Map(node(a), node(b)),
-          arrows = Map(arrow.id -> Arrow(a, b, Attributes(Map(AttributeId("style") -> AttrValue("dashed")))))
+          arrows = Map(arrow.id -> Arrow(a, b, Attributes(Map(Style.attrId -> AttrValue("dashed")))))
         )
       )
 
     val updated =
       graph.updateAttributes(
         ElementIds.from(arrow.id),
-        AttributesUpdates(update = Map(AttributeId("style") -> AttrValue("dashed")))
+        AttributesUpdates(update = Map(Style.attrId -> AttrValue("dashed")))
       )
 
     assertEquals(updated, expected)

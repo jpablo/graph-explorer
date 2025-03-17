@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{GraphType, Label}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -13,7 +14,7 @@ import scala.annotation.tailrec
 case class ViewerGraph(
     elements: ViewerGraphElements = ViewerGraphElements.minimal,
     id:       String = ViewerGraphElements.defaultRootId.value,
-    tpe:      String = "digraph",
+    tpe:      GraphType = GraphType.default,
     counter:  Int = 0
 ) extends AttributesOps, TraversalOps, GroupsOps derives CanEqual:
 
@@ -124,7 +125,7 @@ case class ViewerGraph(
   def addNodeWithId(nodeId: NodeId, groupId: Option[GroupId] = None): ViewerGraph =
     modifyElements.using(
       _.copy(
-        nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map(AttributeId("label") -> AttrValue(""))))),
+        nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map(Label.attrId -> AttrValue(""))))),
         memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))
       )
     )

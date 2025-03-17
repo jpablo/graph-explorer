@@ -39,14 +39,14 @@ class AttributesOpsSpec extends FunSuite:
   test("removeUnsupportedFeatures should remove 'size' attribute from root graph") {
     // Create a graph with a 'size' attribute
     val graph = createTestGraph()
-      .modifyRootGraphAttrs.using(_ + (AttributeId("size") -> AttrValue("10,10")))
+      .modifyRootGraphAttrs.using(_ + (Size.attrId -> AttrValue("10,10")))
 
     // Apply the method
     val result = graph.removeUnsupportedFeatures
 
     // Verify the 'size' attribute is removed
     assertEquals(
-      result.rootGroup.attributes.get(AttributeId("size")),
+      result.rootGroup.attributes.get(Size.attrId),
       None,
       "The 'size' attribute should be removed"
     )

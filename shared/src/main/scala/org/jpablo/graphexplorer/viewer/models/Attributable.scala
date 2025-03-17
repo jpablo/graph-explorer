@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.models
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{Id, Label}
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import upickle.default.*
@@ -11,13 +12,13 @@ trait Attributable:
   def attributes: Attributes
 
   def label: AttrValue =
-    attributes.values.getOrElse(AttributeId("label"), AttrValue.empty)
+    attributes.values.getOrElse(Label.attrId, AttrValue.empty)
 
   def idAttr: AttrValue =
     attributes.values.getOrElse(idAttributeKey, AttrValue.empty)
 
 object Attributable:
-  val idAttributeKey = AttributeId("id")
+  val idAttributeKey = Id.attrId
 
 case class ViewerNode(
     id:         NodeId,

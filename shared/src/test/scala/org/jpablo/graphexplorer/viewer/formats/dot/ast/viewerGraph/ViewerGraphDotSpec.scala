@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
@@ -54,7 +55,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
           memberships = Map(a -> newGroupId),
           groups = Map(
             initialGroup,
-            newGroupId -> ViewerGroup(newGroupId, Attributes(Map(AttributeId("label") -> AttrValue("New Group"))))
+            newGroupId -> ViewerGroup(newGroupId, Attributes(Map(Label.attrId -> AttrValue("New Group"))))
           )
         )
       )

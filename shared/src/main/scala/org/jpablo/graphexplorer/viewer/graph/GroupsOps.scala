@@ -1,16 +1,9 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Label
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, SubGraph}
-import org.jpablo.graphexplorer.viewer.models.{
-  AttributeId,
-  Attributes,
-  ElementId,
-  ElementIds,
-  GroupId,
-  NodeId,
-  ViewerGroup
-}
+import org.jpablo.graphexplorer.viewer.models.*
 
 trait GroupsOps:
   this: ViewerGraph =>
@@ -39,7 +32,7 @@ trait GroupsOps:
     if nodesOrGroups.isEmpty then this
     else
       val groupId = GroupId(s"cluster_${SubGraph.randomId()}")
-      val group = ViewerGroup(groupId, Attributes(Map(AttributeId("label") -> AttrValue(label))))
+      val group = ViewerGroup(groupId, Attributes(Map(Label.attrId -> AttrValue(label))))
 
       // Find the common parent group if one exists
       val parentGroupId =
