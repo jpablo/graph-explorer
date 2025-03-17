@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType.digraph
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 
 object DotFormatter:
@@ -48,7 +49,7 @@ object DotFormatter:
             s"$pad${formatNodeId(nodeId.id)}${renderAttributes(attrs, level)};"
 
         case EdgeStmt(edgeList, attrs) =>
-          val edgeOp = if ast.tpe == "digraph" then "->" else "--"
+          val edgeOp = if ast.tpe == digraph.toString then "->" else "--"
           val edges = edgeList.map {
             case n: DotNodeId => formatNodeId(n.id)
             case s: SubGraph  => renderSubgraph(s, level)

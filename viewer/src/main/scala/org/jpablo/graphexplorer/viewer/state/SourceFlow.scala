@@ -84,7 +84,7 @@ class SourceFlow(
   // -------------------------------
   // versionedText <-> sourceAST
   // -------------------------------
-  syncVars(
+  syncVars[Versioned[String], Versioned[DotAST]](
     source = versionedText,
     target = sourceAST,
     // -------------------------------

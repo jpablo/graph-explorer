@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType.digraph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Shape
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToDotGraphElements
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
@@ -51,7 +52,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
   }
 
   test("toFlattenedElements in empty graphs should find a single group (the root group)") {
-    val emptyAST = DotAST(tpe = "digraph", children = Nil, id = Some(rootId.value))
+    val emptyAST = DotAST(tpe = digraph.toString, children = Nil, id = Some(rootId.value))
     val data = emptyAST.toFlattenedElements
     val expected =
       FlattenedGraphElement(
@@ -120,7 +121,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
 // viewer/testOnly org.jpablo.graphexplorer.viewer.formats.dot.ast.DotASTParsingTest
 val astWithNestedSubGraphs =
   DotAST(
-    "digraph",
+    digraph.toString,
     List(
       Newline(),
       Pad(),

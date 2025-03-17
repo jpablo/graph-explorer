@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType.digraph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -25,7 +26,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
 
     val expected =
       DotAST(
-        "digraph",
+        digraph.toString,
         List(
           NodeStmt(DotNodeId("a")),
           NodeStmt(DotNodeId("b")),
@@ -67,7 +68,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
 
     val expectedAST =
       DotAST(
-        "digraph",
+        digraph.toString,
         List(
           SubGraph(
             List(

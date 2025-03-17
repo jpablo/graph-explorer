@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType.digraph
 //import upickle.default.*
 
 import scala.scalajs.js.Dynamic.global as g
@@ -18,7 +19,7 @@ class DotASTParsingTest extends ScalaCheckSuite:
   def expected =
     List(
       DotAST(
-        "digraph",
+        digraph.toString,
         List(
           Newline(),
           Pad(),
