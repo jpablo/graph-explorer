@@ -1,0 +1,60 @@
+graph "g" {
+    graph [
+        bgcolor="#ffffff00",
+        overlap="scale",
+        start="2",
+        layout="fdp"
+    ];
+    node [
+        fontsize="12",
+        fixedsize="true",
+        style="filled",
+        color="black",
+        fillcolor="white",
+        shape="circle",
+        width="0.25"
+    ];
+    edge [
+        arrowsize="0.6",
+        fontsize="8",
+        penwidth="0.75",
+        color="black",
+        forcelabels="true"
+    ];
+    subgraph cluster_G0 {
+        graph [label="G∪T"];
+        subgraph cluster_G1 {
+            graph [
+                label="G",
+                bgcolor="white"
+            ];
+            "node1" -- "node2";
+            "node3" -- "node1";
+            "node2" -- "node3";
+        }
+        subgraph cluster_G2 {
+            graph [
+                label="H",
+                bgcolor="white"
+            ];
+            "node5" -- "node6";
+            "node6" -- "node4";
+            "node6" -- "node7";
+            "node4" -- "node5";
+        }
+        "node3" -- "node6" [
+            style="dashed",
+            penwidth="1"
+        ];
+    }
+    "node5" [label="t₂"];
+    "node7" [label="t₄"];
+    "node3" [label="s₃"];
+    "node2" [label="s₂"];
+    "node1" [
+        label="s₁",
+        style="dashed"
+    ];
+    "node6" [label="t₃"];
+    "node4" [label="t₁"];
+}
