@@ -30,6 +30,11 @@ object ArrowHead extends DotAttributeEnum[ArrowType]:
   val label = "Arrow head"
   def values: Array[ArrowType] = ArrowType.values
 
+object ArrowSize extends DotAttributeSimple[Double]:
+  val label = "Arrow Size"
+  val default = 1.0
+  override val placeholderText = "Enter arrow size here"
+
 object ArrowTail extends DotAttributeEnum[ArrowType]:
   val default = ArrowType.none // default for dir=forward
   val label = "Arrow tail"

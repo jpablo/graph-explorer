@@ -79,6 +79,7 @@ def EdgesAttributesView(
       Color    -> color,
       arrowHeadRow,
       arrowTailRow,
+      ArrowSize -> number(start = Some(0), end = Some(5), step = Some(0.1)),
       "Layout",
       Constraint -> checkbox
     ),
