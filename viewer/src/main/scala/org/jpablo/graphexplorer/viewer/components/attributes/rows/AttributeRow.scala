@@ -21,7 +21,8 @@ enum AttributeRow:
 
 object AttributeRow:
 
-  def _combineDefault(row: InputAttribute) = row.inputVar.signal.combineWith(row.default)
+  def _combineDefault(row: InputAttribute): Signal[(SelectionAttrValue, String)] = 
+    row.inputVar.signal.combineWith(row.default)
 
   extension (row: InputAttribute)
 

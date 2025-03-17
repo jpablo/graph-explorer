@@ -2,18 +2,37 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
+import org.jpablo.graphexplorer.viewer.models.AttrStatus
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{color, range}
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, multiText, range}
 
 /** Attributes for the root graph.
- *
- * The root graph is itself a group (cluster) but it has some specific attributes.
+  *
+  * The root graph is itself a group (cluster) but it has some specific attributes.
   */
 def RootGraphAttributesView(state: ViewerState) =
   val builder = RowBuilder(state.rootTargetAttributesUpdates(AttributeTarget.graph), None)
+
+  val directedVar: Var[AttrStatus[AttrValue]] =
+    state.graphType.zoomLazy(tpe =>
+      AttrStatus.Single(AttrValue((tpe == GraphType.digraph).toString))
+    ): (_, status) =>
+      status match
+        case AttrStatus.Single(value) => if value.isTrue then GraphType.digraph else GraphType.graph
+        case AttrStatus.Multiple      => GraphType.default
+        case AttrStatus.Missing       => GraphType.default
+
+  val graphTypeRow =
+    RowBuilder.inputRow(
+      attr        = GraphType -> checkbox,
+      inputVar    = directedVar,
+      default     = Signal.fromValue(true.toString),
+      label       = Some("Directed"),
+      placeholder = None
+    )
+
   AttributesView(
     id       = "root-graph-attributes",
     titleStr = "Root Graph Options",
@@ -21,7 +40,7 @@ def RootGraphAttributesView(state: ViewerState) =
       "Title",
       builder.simpleRow(
         Label,
-        InputType.multiText,
+        multiText,
         onReset     = Some(""),
         label       = Some("Title"),
         placeholder = Some("Enter diagram title")
@@ -30,10 +49,11 @@ def RootGraphAttributesView(state: ViewerState) =
       LabelJust,
       "Layout",
       Layout,
+      graphTypeRow,
       Rankdir,
       "Other",
       Splines,
-      Concentrate -> InputType.checkbox,
+      Concentrate -> checkbox,
       BgColor     -> color,
       Pad         -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
       RankSep     -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),

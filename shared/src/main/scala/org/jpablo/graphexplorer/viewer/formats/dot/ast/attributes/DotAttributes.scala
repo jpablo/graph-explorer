@@ -7,6 +7,7 @@ import scala.util.Try
 enum GraphType derives CanEqual:
   case graph, digraph
 
+// Not an attribute but rather a type of graph
 object GraphType extends DotAttributeEnum[GraphType]:
   val default = digraph
   val label = "Graph Type"

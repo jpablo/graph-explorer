@@ -4,6 +4,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.*
 import AttributeRow.*
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder.{inputRow, simpleInputVar}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
@@ -53,6 +54,25 @@ class RowBuilder(
       placeholder = placeholder
     )
 
+  // uses the global default if present, otherwise uses the (hardcoded) default value.
+  def defaultValue(attrId: AttributeId, default: String): Signal[String] =
+    defaults
+      .map(_.map(_.get(attrId).map(_.toString).getOrElse(default)))
+      .getOrElse(Signal.fromValue(default))
+
+object RowBuilder:
+  def simpleInputVar(
+      attrId:  AttributeId,
+      updates: Var[AttributesUpdates],
+      onReset: Option[String] = None
+  ): Var[SelectionAttrValue] =
+    updates.zoomLazy(_.existing.getOrElse(attrId, Missing))((attrs, value) =>
+      value match
+        case Single(selection) => attrs + (attrId -> selection)
+        case Multiple          => attrs
+        case Missing           => onReset.fold(attrs - attrId)(v => attrs + (attrId -> AttrValue(v)))
+    )
+
   def inputRow(
       attr:        (DotAttribute[?], InputType),
       inputVar:    Var[SelectionAttrValue],
@@ -71,21 +91,3 @@ class RowBuilder(
           options     = attr.valuesWithLabel.map((l, v) => RowOption(l, Single(AttrValue(v.toString)), None)).toSeq,
           default     = default
         )
-
-  def simpleInputVar(
-      attrId:  AttributeId,
-      updates: Var[AttributesUpdates],
-      onReset: Option[String] = None
-  ): Var[SelectionAttrValue] =
-    updates.zoomLazy(_.existing.getOrElse(attrId, Missing))((attrs, value) =>
-      value match
-        case Single(selection) => attrs + (attrId -> selection)
-        case Multiple          => attrs
-        case Missing           => onReset.fold(attrs - attrId)(v => attrs + (attrId -> AttrValue(v)))
-    )
-
-  // uses the global default if present, otherwise uses the (hardcoded) default value.
-  def defaultValue(attrId: AttributeId, default: String): Signal[String] =
-    defaults
-      .map(_.map(_.get(attrId).map(_.toString).getOrElse(default)))
-      .getOrElse(Signal.fromValue(default))
