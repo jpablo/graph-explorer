@@ -5,6 +5,17 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType.digr
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 
 object DotFormatter:
+  /** Renders a DotAST to a string in DOT format.
+    *
+    * @param ast
+    *   The DotAST to render.
+    * @param keepInternal
+    *   If true, internal attributes (like id) will be included in the output.
+    * @param paddingSize
+    *   The number of spaces to use for indentation.
+    * @return
+    *   A string representation of the DotAST in DOT format.
+    */
   def renderFormat(ast: DotAST, keepInternal: Boolean = false, paddingSize: Int = 4): String =
     def padding(level: Int): String = " " * (level * paddingSize)
 
@@ -21,7 +32,9 @@ object DotFormatter:
 
     def renderAttributes(attributes: List[Attr], level: Int): String =
       val filteredAttrs =
-        attributes.filterNot(attr => !keepInternal && attr.id == idAttributeKey.value) // Skip rendering of id attributes
+        attributes.filterNot(attr =>
+          !keepInternal && attr.id == idAttributeKey.value
+        ) // Skip rendering of id attributes
       if filteredAttrs.isEmpty then
         ""
       else if filteredAttrs.length <= 1 then

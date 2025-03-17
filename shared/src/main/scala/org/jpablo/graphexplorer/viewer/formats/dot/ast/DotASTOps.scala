@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.defaultRootId
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -28,7 +29,7 @@ extension (ast: DotAST)
     ViewerGroup(
       id         = subId,
       attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
-      arrowAttrs  = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
+      arrowAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
       nodeAttrs  = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
 
@@ -101,10 +102,6 @@ extension (ast: DotAST)
       memberships = Nil
     )
 
-//  def setDefaultTheme: DotAST =
-//    ast.modify(_.children).using: children =>
-//      Newline() :: Pad() :: AttrStmt("node", List(Attr("style", "filled"))) :: children
-
   def optimize: DotAST =
     @tailrec
     def loop(children: List[GraphElement], state: List[GraphElement] = Nil): List[GraphElement] =
@@ -115,3 +112,6 @@ extension (ast: DotAST)
         case Nil                           => state.reverse
 
     ast.modify(_.children).using(loop(_))
+
+  def render(keepInternal: Boolean = false): String =
+    DotFormatter.renderFormat(ast, keepInternal)
