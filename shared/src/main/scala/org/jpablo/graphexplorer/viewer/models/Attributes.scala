@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.models
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.DotAttribute
 import upickle.default.*
 
 import scala.annotation.targetName
@@ -50,9 +51,16 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   @targetName("concatValues")
   def ++(other: Map[AttributeId, AttrValue]): Attributes = Attributes(values ++ other)
   def --(other: Set[AttributeId]): Attributes = Attributes(values -- other)
-  def -(key:    AttributeId): Attributes = Attributes(values - key)
-  def +(kv:     (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
-  def get(key:  AttributeId): Option[AttrValue] = values.get(key)
+
+  def -(key: AttributeId): Attributes = Attributes(values - key)
+  def +(kv:  (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
+
+  def get(key: AttributeId): Option[AttrValue] = values.get(key)
+
+  def getAs[A, B <: DotAttribute[A]](b: B): A =
+    get(b.attrId)
+      .flatMap(v => b.fromString(v.toString))
+      .getOrElse(b.default)
 
   def toUpdates: AttributesUpdates =
     AttributesUpdates(values.transform((_, v) => AttrStatus.Single(v)))

@@ -64,6 +64,7 @@ object Concentrate extends DotAttributeSimple[Boolean]:
 object Constraint extends DotAttributeSimple[Boolean]:
   val label = "Constraint"
   val default = true
+  override val validLayouts = Set(Layout.dot)
 
 object Decorate extends DotAttributeSimple[Boolean]:
   val label = "Decorate"
@@ -115,11 +116,11 @@ object FontColor extends DotAttributeSimple[String]:
   val default = "#000000"
   override val placeholderText = "Enter font color here"
 
-object FontName extends DotAttributeEnum[String]:
+object FontName extends DotAttributeSimple[String]:
   val label = "Font Name"
   val default = "Times New Roman"
   override val placeholderText = "Enter font name here"
-  val values: Array[String] =
+  override val values: Array[String] =
     Array("Arial", "Courier New", "Georgia", "Lucida Console", "Times New Roman", "Verdana")
 
 object FontSize extends DotAttributeSimple[Double]:
@@ -314,6 +315,7 @@ enum Rankdir derives CanEqual:
 object Rankdir extends DotAttributeEnum[Rankdir]:
   val default = TB
   val label = "Direction"
+  override val validLayouts = Set(Layout.dot)
   override val valuesWithLabel = Array(
     ("Top to Bottom", TB),
     ("Left to Right", LR),
@@ -324,6 +326,7 @@ object Rankdir extends DotAttributeEnum[Rankdir]:
 object RankSep extends DotAttributeSimple[Double]:
   val label = "Rank Separation"
   val default = 0.5
+  override val validLayouts = Set(Layout.dot, Layout.twopi)
   override val placeholderText = "Enter rank separation here"
 
 object Regular extends DotAttributeSimple[Boolean]:

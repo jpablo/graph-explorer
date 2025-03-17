@@ -36,6 +36,7 @@ def RootGraphAttributesView(state: ViewerState) =
   AttributesView(
     id       = "root-graph-attributes",
     titleStr = "Root Graph Options",
+    state.layout,
     builder.buildRows(
       "Title",
       builder.simpleRow(

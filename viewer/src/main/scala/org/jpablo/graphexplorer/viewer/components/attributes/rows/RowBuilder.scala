@@ -83,11 +83,12 @@ object RowBuilder:
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
         InputAttribute(
-          attrId      = attr.attrId,
-          label       = label.getOrElse(attr.label),
-          placeholder = placeholder.getOrElse(attr.placeholderText),
-          inputType   = it,
-          inputVar    = inputVar,
-          options     = attr.valuesWithLabel.map((l, v) => RowOption(l, Single(AttrValue(v.toString)), None)).toSeq,
-          default     = default
+          attrId       = attr.attrId,
+          label        = label.getOrElse(attr.label),
+          placeholder  = placeholder.getOrElse(attr.placeholderText),
+          inputType    = it,
+          inputVar     = inputVar,
+          options      = attr.valuesWithLabel.map((l, v) => RowOption(l, Single(AttrValue(v.toString)), None)).toSeq,
+          default      = default,
+          validLayouts = attr.validLayouts
         )

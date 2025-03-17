@@ -8,7 +8,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{GraphType, Rankdir}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{GraphType, Layout, Rankdir}
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
@@ -117,9 +117,12 @@ case class ViewerState(
   // instead of re-rendering the whole diagram
 
   // --- top level attributes ---
-      
+
   def graphType: Var[GraphType] =
     sourceFlow.fullGraphV.zoomLazy(_.tpe)((g, tpe) => g.copy(tpe = tpe))
+
+  def layout: Signal[Layout] =
+    defaults(AttributeTarget.graph).map(_.getAs(Layout))
 
   /** This targets the root group of the graph. It is used to set attributes that apply to the entire graph, such as
     * background color, rank direction, etc.

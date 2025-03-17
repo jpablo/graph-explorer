@@ -47,6 +47,7 @@ def GraphAttributesView(
   AttributesView(
     id       = "graph-attributes",
     titleStr = "Cluster Attributes",
+    state.layout,
     builder.buildRows(
       if selection then "Labels" else "",
       if selection then labelRow else "",
