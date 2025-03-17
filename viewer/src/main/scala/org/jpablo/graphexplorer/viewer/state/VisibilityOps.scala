@@ -9,8 +9,6 @@ import upickle.default.writeJs
 
 import scala.scalajs.js.JSON
 
-type HiddenElements = ElementIds
-
 trait VisibilityOps:
   this: ViewerState =>
 

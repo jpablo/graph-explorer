@@ -1,10 +1,10 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*
-import org.jpablo.graphexplorer.viewer.utils.UuidV4
 
 case class ProjectId(value: String) derives ReadWriter, CanEqual
 
 object ProjectId:
   def random =
-    ProjectId(UuidV4())
+    ProjectId(randomUUIDSafe())

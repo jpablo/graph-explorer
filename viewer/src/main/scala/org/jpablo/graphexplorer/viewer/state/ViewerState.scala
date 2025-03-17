@@ -11,15 +11,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{
-  ArrowId,
-  Attributes,
-  AttributesUpdates,
-  ElementIds,
-  GroupId,
-  NodeId,
-  ViewerNode
-}
+import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.zoomLens
 import upickle.default.*
 
