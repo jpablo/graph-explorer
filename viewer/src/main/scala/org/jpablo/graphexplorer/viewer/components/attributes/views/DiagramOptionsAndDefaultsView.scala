@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{
   GraphAttributesView,
   NodesAttributesView,
@@ -11,16 +10,28 @@ import org.jpablo.graphexplorer.viewer.components.attributes.views.{
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
-
 def DiagramOptionsAndDefaultsView(state: ViewerState) =
   val tabIndex = Var(0)
   def tabVisible(i: Int) = tabIndex.signal.map(_ == i)
 
   val tabsData =
     List(
-      "Nodes"  -> NodesAttributesView("DiagramAttributesView", state, state.rootTargetAttributesUpdates(AttributeTarget.node), selection = false),
-      "Arrows" -> EdgesAttributesView(state, state.rootTargetAttributesUpdates(AttributeTarget.edge), selection = false),
-      "Groups" -> GraphAttributesView(state, state.rootTargetAttributesUpdates(AttributeTarget.graph), selection = false)
+      "Nodes" -> NodesAttributesView(
+        "DiagramAttributesView",
+        state,
+        state.rootTargetAttributesUpdates(AttributeTarget.node),
+        selection = false
+      ),
+      "Arrows" -> EdgesAttributesView(
+        state,
+        state.rootTargetAttributesUpdates(AttributeTarget.edge),
+        selection = false
+      ),
+      "Groups" -> GraphAttributesView(
+        state,
+        state.rootTargetAttributesUpdates(AttributeTarget.graph),
+        selection = false
+      )
     )
   div(
     div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Diagram Options"))),
@@ -30,15 +41,15 @@ def DiagramOptionsAndDefaultsView(state: ViewerState) =
       cls := "flex justify-center",
       div(
         role := "tablist",
-        cls  := "tabs tabs-boxed tabs-xs w-[300px]",
+        cls  := "tabs tabs-box tabs-xs w-[300px]",
         for (tabName, i) <- tabsData.map(_._1).zipWithIndex
-          yield a(
-            role := "tab",
-            cls  := "tab flex-1",
-            tabName,
-            cls("tab-active") <-- tabVisible(i),
-            onClick --> tabIndex.set(i)
-          )
+        yield a(
+          role := "tab",
+          cls  := "tab flex-1",
+          cls("tab-active") <-- tabVisible(i),
+          onClick.mapTo(i) --> tabIndex,
+          tabName
+        )
       )
     ),
     div(
