@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{DependentAttributes, RowOption}
 import org.jpablo.graphexplorer.viewer.components.attributes.*
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.{BorderStylePreview, ShapePreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
@@ -10,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number, range}
@@ -46,7 +46,7 @@ def NodesAttributesView(
             RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
       )
 
-  val shapeRow: AttributeRow =
+  val shapeRow: AttributeRow.InputAttribute =
     builder
       .simpleRow(Shape, InputType.selectWithPreviewGrid)
       .copy(
@@ -69,8 +69,11 @@ def NodesAttributesView(
       FontName,
       FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Shape",
-      shapeRow,
-      Sides       -> number(start = Some(3), end = Some(10), step = Some(1)),
+      DependentAttributes(
+        shapeRow,
+        shapeRow.inputVar.signal.map(_.exists(_.toString == Shape.polygon.toString)),
+        builder.simpleRow(Sides, number(start = Some(3), end = Some(10), step = Some(1)))
+      ),
       Regular     -> checkbox,
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
       Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
@@ -78,8 +81,8 @@ def NodesAttributesView(
       FillStyle -> checkbox,
       FillColor -> color,
       borderStyleRow,
-      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      Color    -> color,
+      PenWidth  -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      Color     -> color,
       BoldStyle -> checkbox,
       CornerStyle
     ),

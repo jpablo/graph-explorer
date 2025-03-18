@@ -7,10 +7,18 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.models.{AttributeId, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
-enum AttributeRow:
-  case AttributeHeader(title: String)
+sealed trait AttributeRow
 
-  case InputAttribute(
+object AttributeRow:
+  sealed trait InputRow:
+    def getValidLayouts: Set[Layout] =
+      this match
+        case ia: InputAttribute            => ia.validLayouts
+        case DependentAttributes(ia, _, _) => ia.validLayouts
+
+  case class AttributeHeader(title: String) extends AttributeRow
+
+  case class InputAttribute(
       attrId:       AttributeId,
       label:        String,
       placeholder:  String,
@@ -19,9 +27,13 @@ enum AttributeRow:
       options:      Seq[AttributeRow.RowOption] = Seq.empty,
       default:      Signal[String],
       validLayouts: Set[Layout] = Set.empty
-  )
+  ) extends AttributeRow, InputRow
 
-object AttributeRow:
+  case class DependentAttributes(
+      attribute: InputAttribute,
+      visible:   Signal[Boolean],
+      dependent: InputAttribute
+  ) extends AttributeRow, InputRow
 
   def _combineDefault(row: InputAttribute): Signal[(SelectionAttrValue, String)] =
     row.inputVar.signal.combineWith(row.default)
