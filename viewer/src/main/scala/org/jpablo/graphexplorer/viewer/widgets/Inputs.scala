@@ -132,11 +132,10 @@ def SelectWithPreviewGrid(row: InputAttribute) =
             dataAttr("tip") := rowOption.name,
             button(
               cls <-- row.combineDefault.map((sv, d) =>
-                s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 ${
-                    if rowOption.hasValue(sv.getOrElse(d).toString) then "btn-active" else ""
-                  }"
+                val active = if rowOption.hasValue(sv.getOrElse(d).toString) then "btn-active" else ""
+                s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 $active"
               ),
-              rowOption.preview.fold(span(rowOption.name))(p => span(p())),
+              rowOption.preview.fold(span(rowOption.name))(elem => elem()),
               onClick.mapTo(rowOption.value) --> row.inputVar
             )
           )
@@ -183,7 +182,7 @@ def InputWithValue(
       case _ => Seq.empty
 
   val colorType = row.combineDefaultString.map(ColorType.fromString)
-  
+
   // While we get a better color selector, approximate by remove the alpha channel
   val valueSignal = row.inputType match
     case InputType.color => colorType.map(ColorType.toHexNoAlpha)
