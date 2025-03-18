@@ -169,6 +169,7 @@ def InputWithValue(
     row.inputType match
       case InputType.number(start, end, step) =>
         Seq(
+          tpe      := "number",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")
