@@ -404,6 +404,7 @@ object Shape extends DotAttributeEnum[Shape]:
 object Sides extends DotAttributeSimple[Int]:
   val default = 4
   val label = "Sides"
+  // only show when Shape.polygon is selected
 
 object Size extends DotAttributeSimple[Double]:
   val label = "Size"

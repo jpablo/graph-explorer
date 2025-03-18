@@ -29,38 +29,39 @@ def AttributesView(
         case Right(attrRows) =>
           tbody(
             children <-- layout.map: layout =>
-              for
-                row <- attrRows if layout in row.validLayouts
-                multipleValues = row.inputVar.signal.map(_ == Multiple)
-              yield tr(
-                td(
-                  cls := "w-32 align-middle whitespace-nowrap",
-                  div(
-                    cls := "flex items-center gap-1",
-                    cls("font-bold") <-- row.isChanged,
-                    span(row.label),
-                    div(
-                      cls := "w-6", // Fixed width space for the reset button
-                      child(
-                        span(
-                          title := s"Multiple values",
-                          i(cls := "bi bi-exclamation-triangle")
-                        )
-                      ) <-- multipleValues,
-                      child(
-                        Button(
-                          title := s"reset ${row.label}",
-                          onClick --> row.inputVar.set(Missing),
-                          i(cls := "bi bi-x")
-                        ).tiny.ghost.circle
-                      ) <-- row.isChanged
-                    )
-                  )
-                ),
-                td(cls := "align-middle", buildInputCell(row))
-              )
+              for row <- attrRows if layout in row.validLayouts yield AttributesViewRow(row)
           )
     )
+  )
+
+private def AttributesViewRow(row: InputAttribute) =
+  val multipleValues = row.inputVar.signal.map(_ == Multiple)
+  tr(
+    td(
+      cls := "w-32 align-middle whitespace-nowrap",
+      div(
+        cls := "flex items-center gap-1",
+        cls("font-bold") <-- row.isChanged,
+        span(row.label),
+        div(
+          cls := "w-6", // Fixed width space for the reset button
+          child(
+            span(
+              title := s"Multiple values",
+              i(cls := "bi bi-exclamation-triangle")
+            )
+          ) <-- multipleValues,
+          child(
+            Button(
+              title := s"reset ${row.label}",
+              onClick --> row.inputVar.set(Missing),
+              i(cls := "bi bi-x")
+            ).tiny.ghost.circle
+          ) <-- row.isChanged
+        )
+      )
+    ),
+    td(cls := "align-middle", buildInputCell(row))
   )
 
 private def buildGroups(rows: Seq[AttributeRow]) =
