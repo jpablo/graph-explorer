@@ -6,7 +6,9 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
+import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
+import org.jpablo.graphexplorer.viewer.widgets
 
 def SelectWithLabel(
     labelText:       String,
@@ -156,25 +158,46 @@ def BasicInput(
   )
 
 def InputWithValue(
-    row:       InputAttribute,
-    inputType: String = "text",
-    setFocus:  Boolean = false,
-    border:    Boolean = true
+    row:      InputAttribute,
+    setFocus: Boolean = false
 ) =
   // hack
   val htmlRegex = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
   def isHtml(s: String) = htmlRegex.matches(s)
 
+  val extra =
+    row.inputType match
+      case InputType.number(start, end, step) =>
+        Seq(
+          minAttr  := start.map(_.toString).getOrElse(""),
+          maxAttr  := end.map(_.toString).getOrElse(""),
+          stepAttr := step.map(_.toString).getOrElse("")
+        )
+      case InputType.range(start, end, step) =>
+        Seq(
+          tpe      := "range",
+          cls      := "range range-sm input-ghost",
+          minAttr  := start.map(_.toString).getOrElse(""),
+          maxAttr  := end.map(_.toString).getOrElse(""),
+          stepAttr := step.map(_.toString).getOrElse("")
+        )
+      case _ => Seq.empty
+
+  // While we get a better color selector, approximate by remove the alpha channel
+  val valueSignal = row.inputType match
+    case InputType.color => row.combineDefaultString.map(ColorType.fromString).map(ColorType.toHexNoAlpha)
+    case _               => row.combineDefaultString
+
   input(
     cls         := "input input-xs w-full",
-    cls("")     := border,
-    tpe         := inputType,
+    tpe         := row.inputType.toString,
     placeholder := row.placeholder,
     controlled(
-      value <-- row.combineDefaultString,
+      value <-- valueSignal,
       onInput.mapToValue.map(v => Single(AttrValue(if isHtml(v) then AttrEq(v, true) else v))) --> row.inputVar
     ),
-    if setFocus then onMountFocus else emptyMod
+    if setFocus then onMountFocus else emptyMod,
+    extra
   )
 
 def TextAreaWithValue(

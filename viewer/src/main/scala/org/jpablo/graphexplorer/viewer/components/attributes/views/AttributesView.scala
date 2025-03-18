@@ -3,10 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{
-  AttributeHeader,
-  InputAttribute,
-}
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{AttributeHeader, InputAttribute}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -87,36 +84,9 @@ private def buildGroups(rows: Seq[AttributeRow]) =
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
-
-    case InputType.selectWithPreviewGrid =>
-      SelectWithPreviewGrid(row)
-
-    case InputType.selectWithPreview => SelectWithPreview(row)
-
-    case InputType.select => SelectWithValue(row)
-
-    case InputType.checkbox => Checked(row)
-
-    case InputType.multiText =>
-      TextAreaWithValue(row)
-
-    case InputType.number(start, end, step) =>
-      InputWithValue(row, "number")
-        .amend(
-          minAttr  := start.map(_.toString).getOrElse(""),
-          maxAttr  := end.map(_.toString).getOrElse(""),
-          stepAttr := step.map(_.toString).getOrElse("")
-        )
-
-    case InputType.range(start, end, step) =>
-      InputWithValue(row, "number", border = false)
-        .amend(
-          tpe      := "range",
-          cls      := "range range-sm input-ghost",
-          minAttr  := start.map(_.toString).getOrElse(""),
-          maxAttr  := end.map(_.toString).getOrElse(""),
-          stepAttr := step.map(_.toString).getOrElse("")
-        )
-
-    case _ =>
-      InputWithValue(row, row.inputType.toString)
+    case InputType.selectWithPreviewGrid => SelectWithPreviewGrid(row)
+    case InputType.selectWithPreview     => SelectWithPreview(row)
+    case InputType.select                => SelectWithValue(row)
+    case InputType.checkbox              => Checked(row)
+    case InputType.multiText             => TextAreaWithValue(row)
+    case _                               => InputWithValue(row)
