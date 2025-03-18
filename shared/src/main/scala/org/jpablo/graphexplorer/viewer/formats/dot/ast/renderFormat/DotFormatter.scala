@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType.digraph
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType.digraph
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 
 object DotFormatter:

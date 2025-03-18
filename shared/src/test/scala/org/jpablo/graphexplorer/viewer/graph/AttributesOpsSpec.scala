@@ -1,8 +1,8 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, BoldStyle, BorderStyle, Color, Dir, DirType, FillStyle, Label, NodeStyle, Shape, Sides, Size, Style}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 

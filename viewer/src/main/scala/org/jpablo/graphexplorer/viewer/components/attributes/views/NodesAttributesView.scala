@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.R
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, Color, CornerStyle, FillColor, FillStyle, FontColor, FontName, FontSize, InvisibleStyle, Label, NodeLabelLoc, Orientation, PenWidth, Peripheries, Regular, Shape, Sides, URL, XLabel}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.state.ViewerState

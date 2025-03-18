@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes
+package org.jpablo.graphexplorer.viewer.formats.dot.attributes
 
 import org.jpablo.graphexplorer.viewer.models.AttributeId
 //import scala.deriving.Mirror

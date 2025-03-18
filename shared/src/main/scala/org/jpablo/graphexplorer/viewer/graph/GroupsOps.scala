@@ -1,8 +1,8 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Label
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, SubGraph}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.*
 
 trait GroupsOps:

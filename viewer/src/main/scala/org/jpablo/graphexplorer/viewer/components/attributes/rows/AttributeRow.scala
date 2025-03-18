@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.rows
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Layout
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.models.{AttributeId, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.widgets.InputType

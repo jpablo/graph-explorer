@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Style
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Style
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 

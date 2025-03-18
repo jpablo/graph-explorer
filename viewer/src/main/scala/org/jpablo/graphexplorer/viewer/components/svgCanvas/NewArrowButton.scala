@@ -4,8 +4,8 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir.*
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir.*
 
 def NewArrowButton(
     elem:                  SelectableElement,

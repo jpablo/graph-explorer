@@ -1,8 +1,8 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.defaultRootId
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*

@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{
   AttributeHeader,
   InputAttribute,
 }
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Layout
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 

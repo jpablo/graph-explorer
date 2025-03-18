@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.models
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{Id, Label}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Id, Label}
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import upickle.default.*

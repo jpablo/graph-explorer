@@ -2,8 +2,8 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, Concentrate, GraphType, Label, LabelJust, Layout, NodeSep, Pad, RankSep, Rankdir, RootGraphLabelLoc, Splines}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, multiText, range}

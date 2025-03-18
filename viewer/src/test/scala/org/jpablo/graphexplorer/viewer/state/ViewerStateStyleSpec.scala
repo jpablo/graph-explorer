@@ -5,8 +5,8 @@ import com.raquo.airstream.ownership.Owner
 import com.raquo.airstream.state.Var
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget, DotAST, toFlattenedElements}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, FillStyle, Layout, Style}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Single}
 import org.jpablo.graphexplorer.viewer.models.{AttributeId, Attributes, AttributesUpdates, ElementId, ElementIds}

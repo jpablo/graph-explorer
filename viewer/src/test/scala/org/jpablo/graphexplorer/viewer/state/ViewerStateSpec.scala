@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Color, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 

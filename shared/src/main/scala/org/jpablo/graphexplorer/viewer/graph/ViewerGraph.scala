@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{GraphType, Label}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
 

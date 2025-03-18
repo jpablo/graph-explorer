@@ -1,9 +1,9 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.GraphType.digraph
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Shape
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType.digraph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToDotGraphElements
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node

@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Id
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Id
 import org.jpablo.graphexplorer.viewer.models.*
 
 class EdgeStmtSpec extends ScalaCheckSuite {

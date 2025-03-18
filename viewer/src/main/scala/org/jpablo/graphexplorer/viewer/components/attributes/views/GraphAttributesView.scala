@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.previews.BorderStyl
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, ClusterLabelLoc, CornerStyle, FillColor, FillStyle, FontColor, FontName, FontSize, InvisibleStyle, Label, LabelJust, PenColor, PenWidth, URL}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState

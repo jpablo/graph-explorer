@@ -8,7 +8,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{GraphType, Layout, Rankdir}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Layout, Rankdir}
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*

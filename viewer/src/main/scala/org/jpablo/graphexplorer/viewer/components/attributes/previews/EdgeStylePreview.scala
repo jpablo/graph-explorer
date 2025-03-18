@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.previews
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.EdgeStyle
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.EdgeStyle
 import org.scalajs.dom.SVGSVGElement
 
 def EdgeStylePreview(

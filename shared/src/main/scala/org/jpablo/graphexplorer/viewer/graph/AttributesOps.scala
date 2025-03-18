@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttri
 import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes.{fromSubAttributes, subAttributeIds}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.{ArrowTail, ArrowType, Dir, DirType, GraphType, NodeStyle, Overlap, Sides, Size, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, Dir, DirType, GraphType, NodeStyle, Overlap, Sides, Size, Style}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
 

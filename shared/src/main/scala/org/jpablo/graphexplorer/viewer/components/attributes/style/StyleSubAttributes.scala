@@ -3,15 +3,9 @@ package org.jpablo.graphexplorer.viewer.components.attributes.style
 import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes.{default, missing}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, CornerStyle, FillStyle, InvisibleStyle, NodeStyle}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
-import org.jpablo.graphexplorer.viewer.models.{
-  AttrStatus,
-  AttributeId,
-  Attributes,
-  AttributesUpdates,
-  SelectionAttrValue
-}
+import org.jpablo.graphexplorer.viewer.models.{AttrStatus, AttributeId, Attributes, AttributesUpdates, SelectionAttrValue}
 
 case class StyleSubAttributes(
     fill:      AttrStatus[Boolean],

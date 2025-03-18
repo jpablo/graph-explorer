@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.previews
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Shape
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.scalajs.dom.SVGSVGElement
 
 def ShapePreview(shape: Shape, width: Int = 100, height: Int = 20): Option[() => ReactiveSvgElement[SVGSVGElement]] =

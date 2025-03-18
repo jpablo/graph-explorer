@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Label
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.*

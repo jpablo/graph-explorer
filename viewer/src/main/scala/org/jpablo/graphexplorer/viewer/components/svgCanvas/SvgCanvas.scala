@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.{Action, toSvgPair}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Rankdir
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint}
 

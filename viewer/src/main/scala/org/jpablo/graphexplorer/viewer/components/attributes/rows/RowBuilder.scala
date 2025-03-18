@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder.{inputRow, simpleInputVar}
 import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.*
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple, Layout}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.models.{AttributeId, Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.widgets.InputType

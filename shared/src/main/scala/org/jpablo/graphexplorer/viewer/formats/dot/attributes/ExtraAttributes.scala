@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes
+package org.jpablo.graphexplorer.viewer.formats.dot.attributes
 
 // "Synthetic" attributes:
 // These are attributes that are not part of the DOT language,
