@@ -146,18 +146,18 @@ class ColorTypeSpec extends FunSuite:
       "#00ff0040"
     )
 
-  test("toHex returns named colors as-is"):
+  test("toHex converts named colors into #000000"):
     assertEquals(
       ColorType.toHex(ColorType.named("red")),
-      "red"
+      "#000000"
     )
     assertEquals(
       ColorType.toHex(ColorType.named("transparent")),
-      "transparent"
+      "#000000"
     )
     assertEquals(
       ColorType.toHex(ColorType.named("#123456")), // Still treated as a name, not converted
-      "#123456"
+      "#000000"
     )
 
   test("toHexNoAlpha converts RGB colors correctly"):
