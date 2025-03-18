@@ -8,9 +8,30 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.R
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, Color, CornerStyle, FillColor, FillStyle, FontColor, FontName, FontSize, InvisibleStyle, Label, NodeLabelLoc, Orientation, PenWidth, Peripheries, Regular, Shape, Sides, URL, XLabel}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  BoldStyle,
+  BorderStyle,
+  Color,
+  CornerStyle,
+  FillColor,
+  FillStyle,
+  FontColor,
+  FontName,
+  FontSize,
+  InvisibleStyle,
+  Label,
+  NodeLabelLoc,
+  Orientation,
+  PenWidth,
+  Peripheries,
+  Regular,
+  Shape,
+  Sides,
+  URL,
+  XLabel
+}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{AttrStatus, Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number, range}
@@ -74,16 +95,15 @@ def NodesAttributesView(
 
   val fillColorRow =
     builder.simpleRow(
-      attr = FillColor,
+      attr      = FillColor,
       inputType = color,
       hidden = Some(
         Signal.combine(
           builder.invalidLayout(FillColor),
-          fillStyleRow.inputVar.signal.map(_.forall(_.toString == false.toString))
+          fillStyleRow.inputVar.signal.map(_.exists(_.toString == false.toString))
         ).map(_ || _)
       )
     )
-
 
   AttributesView(
     id       = "node-attributes",

@@ -169,14 +169,12 @@ def InputWithValue(
     row.inputType match
       case InputType.number(start, end, step) =>
         Seq(
-          tpe      := "number",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")
         )
       case InputType.range(start, end, step) =>
         Seq(
-          tpe      := "range",
           cls      := "range range-sm input-ghost",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
@@ -184,14 +182,26 @@ def InputWithValue(
         )
       case _ => Seq.empty
 
+  val colorType = row.combineDefaultString.map(ColorType.fromString)
+  
   // While we get a better color selector, approximate by remove the alpha channel
   val valueSignal = row.inputType match
-    case InputType.color => row.combineDefaultString.map(ColorType.fromString).map(ColorType.toHexNoAlpha)
+    case InputType.color => colorType.map(ColorType.toHexNoAlpha)
     case _               => row.combineDefaultString
 
+  // While we get a better color selector, use a text input for named colors
+  val inputType = row.inputType match
+    case InputType.color => colorType
+        .map:
+          case ColorType.named(_) => "text"
+          case _                  => "color"
+    case _: InputType.number => Signal.fromValue("number")
+    case _: InputType.range  => Signal.fromValue("range")
+    case _                   => Signal.fromValue(row.inputType.toString)
+
   input(
-    cls         := "input input-xs w-full",
-    tpe         := row.inputType.toString,
+    cls := s"input input-xs w-full ${row.attrId}",
+    tpe <-- inputType,
     placeholder := row.placeholder,
     controlled(
       value <-- valueSignal,

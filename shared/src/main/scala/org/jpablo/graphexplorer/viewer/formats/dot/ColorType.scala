@@ -9,10 +9,22 @@ enum ColorType:
   case named(value: String)
 
 object ColorType:
+  def  nameToHex(color: String) =
+    color match
+//      case "black" => "#000000"
+//      case "white" => "#ffffff"
+//      case "red" => "#ff0000"
+//      case "green" => "#00ff00"
+//      case "blue" => "#0000ff"
+//      case "yellow" => "#ffff00"
+//      case "cyan" => "#00ffff"
+//      case "magenta" => "#ff00ff"
+      case other => other
+
   def toHex(color: ColorType): String =
     color match
       case RGB(r, g, b) => f"#$r%02x$g%02x$b%02x"
-      case RGBA(r, g, b, a) => 
+      case RGBA(r, g, b, a) =>
         // Using Math.round to ensure correct rounding of alpha values
         val alpha = Math.round(a * 255).toInt
         f"#$r%02x$g%02x$b%02x$alpha%02x"
@@ -21,7 +33,7 @@ object ColorType:
         val c = v * s
         val x = c * (1 - math.abs((h / 60) % 2 - 1))
         val m = v - c
-        
+
         val (r1, g1, b1) = h match
           case h if h < 60 => (c, x, 0.0)
           case h if h < 120 => (x, c, 0.0)
@@ -29,21 +41,21 @@ object ColorType:
           case h if h < 240 => (0.0, x, c)
           case h if h < 300 => (x, 0.0, c)
           case _ => (c, 0.0, x)
-        
+
         val (r, g, b) = (
           ((r1 + m) * 255).toInt,
           ((g1 + m) * 255).toInt,
           ((b1 + m) * 255).toInt
         )
         f"#$r%02x$g%02x$b%02x"
-        
+
       case HSVA(h, s, v, a) =>
         val rgbHex = toHex(HSV(h, s, v))
         // Using Math.round to ensure correct rounding of alpha values
         val alpha = Math.round(a * 255).toInt
         rgbHex + f"$alpha%02x"
-        
-      case named(value) => "#000000" // Named colors are returned as-is
+
+      case named(value) => nameToHex(value)
 
   /** Converts any ColorType to a hex format suitable for HTML color input (discarding alpha) */
   def toHexNoAlpha(color: ColorType): String =
