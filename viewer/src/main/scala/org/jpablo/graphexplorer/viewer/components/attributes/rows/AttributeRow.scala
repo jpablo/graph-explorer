@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.rows
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveSvgElement
+import com.raquo.laminar.nodes.ReactiveElement
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.models.{AttributeId, SelectionAttrValue}
@@ -43,7 +43,7 @@ object AttributeRow:
   case class RowOption(
       name:    String,
       value:   SelectionAttrValue,
-      preview: Option[() => ReactiveSvgElement[dom.SVGSVGElement]] = None
+      preview: Option[() => ReactiveElement[dom.Element]] = None
   ):
     def hasValue(s: String) =
       value.exists(_.toString == s)
