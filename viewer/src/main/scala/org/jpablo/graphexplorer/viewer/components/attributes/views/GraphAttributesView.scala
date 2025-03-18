@@ -56,7 +56,7 @@ def GraphAttributesView(
         )
 
   val fillStyleRow = builder.simpleRow(FillStyle, checkbox)
-  val fillColorRow = builder.simpleRow(FillColor, color)
+  val fillColorRow = builder.simpleRow(FillColor, InputType.selectWithPreviewGrid)
     .copy(
       options = fillColorRowOpts,
       hidden =
