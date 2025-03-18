@@ -186,7 +186,7 @@ case class SubGraph(children: List[GraphElement], id: Option[String] = None)
 
 object SubGraph:
   // TODO: find a better way to generate unique ids
-  def randomId(): String = randomUUIDSafe().take(8)
+  def randomId(): String = "g" + randomUUIDSafe().take(8)
 
 def toAttrsMap(attrList: List[Attr]): Map[AttributeId, AttrValue] =
   attrList.map(attr => AttributeId(attr.id) -> attr.attrEq).toMap
