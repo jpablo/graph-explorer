@@ -5,11 +5,8 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{
   AttributeHeader,
-  DependentAttributes,
   InputAttribute,
-  InputRow
 }
-import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -35,19 +32,7 @@ def AttributesView(
           tbody(
             for
               row <- attrRows
-              r <-
-                val hidden = layout.map(_ notIn row.getValidLayouts)  
-                row match
-                  case ia: InputAttribute =>
-                    List(
-                      AttributesViewRow(ia).amend(cls("hidden") <-- hidden)
-                    )
-                  case DependentAttributes(ia, isVisible, extra) =>
-                    List(
-                      AttributesViewRow(ia).amend(cls("hidden") <-- hidden),
-                      AttributesViewRow(extra).amend(cls("hidden") <-- isVisible.not.combineWith(hidden).map(_ || _))
-                    )
-            yield r
+            yield AttributesViewRow(row).amend(cls("hidden") <-- row.hidden)
           )
     )
   )
@@ -83,7 +68,7 @@ private def AttributesViewRow(row: InputAttribute) =
   )
 
 private def buildGroups(rows: Seq[AttributeRow]) =
-  var rr: List[Either[List[AttributeHeader], List[InputRow]]] = List.empty
+  var rr: List[Either[List[AttributeHeader], List[InputAttribute]]] = List.empty
 
   for rowType <- rows do
     (rr, rowType) match
@@ -94,10 +79,6 @@ private def buildGroups(rows: Seq[AttributeRow]) =
       case (Nil, r: InputAttribute)            => rr = List(Right(List(r)))
       case (Left(hs) :: t, r: InputAttribute)  => rr = Right(List(r)) :: Left(hs) :: t
       case (Right(rs) :: t, r: InputAttribute) => rr = Right(r :: rs) :: t
-
-      case (Nil, r: DependentAttributes)            => rr = List(Right(List(r)))
-      case (Left(hs) :: t, r: DependentAttributes)  => rr = Right(List(r)) :: Left(hs) :: t
-      case (Right(rs) :: t, r: DependentAttributes) => rr = Right(r :: rs) :: t
 
   rr.map:
     case Left(hs)  => Left(hs.reverse)

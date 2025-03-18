@@ -10,12 +10,6 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 sealed trait AttributeRow
 
 object AttributeRow:
-  sealed trait InputRow:
-    def getValidLayouts: Set[Layout] =
-      this match
-        case ia: InputAttribute            => ia.validLayouts
-        case DependentAttributes(ia, _, _) => ia.validLayouts
-
   case class AttributeHeader(title: String) extends AttributeRow
 
   case class InputAttribute(
@@ -26,14 +20,9 @@ object AttributeRow:
       inputVar:     Var[SelectionAttrValue],
       options:      Seq[AttributeRow.RowOption] = Seq.empty,
       default:      Signal[String],
-      validLayouts: Set[Layout] = Set.empty
-  ) extends AttributeRow, InputRow
-
-  case class DependentAttributes(
-      attribute: InputAttribute,
-      visible:   Signal[Boolean],
-      dependent: InputAttribute
-  ) extends AttributeRow, InputRow
+      validLayouts: Set[Layout],
+      hidden:       Signal[Boolean]
+  ) extends AttributeRow
 
   def _combineDefault(row: InputAttribute): Signal[(SelectionAttrValue, String)] =
     row.inputVar.signal.combineWith(row.default)

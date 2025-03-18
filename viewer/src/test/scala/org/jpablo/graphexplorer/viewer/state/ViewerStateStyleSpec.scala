@@ -24,7 +24,7 @@ class ViewerStateStyleSpec extends FunSuite:
       owner:    Owner
   ):
     given Owner = owner
-    val builder = RowBuilder(updates, defaults)
+    val builder = RowBuilder(updates, Signal.fromValue(Layout.dot), defaults)
     val filledRow = builder.simpleRow(FillStyle, checkbox)
     val boldRow = builder.simpleRow(BoldStyle, checkbox)
 

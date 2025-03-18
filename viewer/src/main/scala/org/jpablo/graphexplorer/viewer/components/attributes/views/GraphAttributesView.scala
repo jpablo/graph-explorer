@@ -19,7 +19,7 @@ def GraphAttributesView(
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
-  val builder = RowBuilder(attrsVar, defaults)
+  val builder = RowBuilder(attrsVar, state.layout, defaults)
   val isSingleClusterSelected = state.selection.signal.map(_.size == 1)
 
   given owner: Owner = state.owner
@@ -44,6 +44,21 @@ def GraphAttributesView(
             RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
       )
 
+  val fillStyleRow =
+    builder.simpleRow(FillStyle, checkbox)
+
+  val fillColorRow =
+    builder.simpleRow(
+      attr = FillColor,
+      inputType = color,
+      hidden = Some(
+        Signal.combine(
+          builder.invalidLayout(FillColor),
+          fillStyleRow.inputVar.signal.map(_.forall(_.toString == false.toString))
+        ).map(_ || _)
+      )
+    )
+
   AttributesView(
     id       = "graph-attributes",
     titleStr = "Cluster Attributes",
@@ -58,8 +73,8 @@ def GraphAttributesView(
       FontColor -> color,
       FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Style",
-      FillStyle -> checkbox,
-      FillColor -> color,
+      fillStyleRow,
+      fillColorRow,
       borderStyleRow,
       PenWidth  -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       PenColor  -> color,

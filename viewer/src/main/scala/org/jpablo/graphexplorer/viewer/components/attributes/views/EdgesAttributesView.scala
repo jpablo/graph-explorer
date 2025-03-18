@@ -20,7 +20,7 @@ def EdgesAttributesView(
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
-  val builder = RowBuilder(updates, defaults)
+  val builder = RowBuilder(updates, state.layout, defaults)
 
   val labelRow =
     if selection then
@@ -79,7 +79,7 @@ def EdgesAttributesView(
       Color    -> color,
       arrowHeadRow,
       arrowTailRow,
-      ArrowSize -> number(start = Some(0), end = Some(5), step = Some(0.1)),
+      ArrowSize -> range(start = Some(0), end = Some(5), step = Some(0.1)),
       "Layout",
       Constraint -> checkbox
     ),

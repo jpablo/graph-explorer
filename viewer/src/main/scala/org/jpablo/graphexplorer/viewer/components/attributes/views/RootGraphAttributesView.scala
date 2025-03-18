@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, multi
   * The root graph is itself a group (cluster) but it has some specific attributes.
   */
 def RootGraphAttributesView(state: ViewerState) =
-  val builder = RowBuilder(state.rootTargetAttributesUpdates(AttributeTarget.graph), None)
+  val builder = RowBuilder(state.rootTargetAttributesUpdates(AttributeTarget.graph), state.layout, None)
 
   val directedVar: Var[AttrStatus[AttrValue]] =
     state.graphType.zoomLazy(tpe =>
@@ -26,11 +26,10 @@ def RootGraphAttributesView(state: ViewerState) =
 
   val graphTypeRow =
     RowBuilder.inputRow(
-      attr        = GraphType -> checkbox,
-      inputVar    = directedVar,
-      default     = Signal.fromValue(true.toString),
-      label       = Some("Directed"),
-      placeholder = None
+      attr     = GraphType -> checkbox,
+      inputVar = directedVar,
+      default  = Signal.fromValue(true.toString),
+      label    = Some("Directed")
     )
 
   AttributesView(

@@ -38,6 +38,11 @@ enum AttrStatus[+A] derives CanEqual:
       case Single(v) => p(v)
       case _         => false
 
+  def forall[A2 >: A](p: A2 => Boolean): Boolean =
+    this match
+      case Single(v) => p(v)
+      case _         => true
+
   def is[A2 >: A](a: A2)(using CanEqual[A2, A]): Boolean =
     exists(a == _)
 
