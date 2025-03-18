@@ -6,7 +6,23 @@ import org.jpablo.graphexplorer.viewer.components.attributes.previews.BorderStyl
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, ClusterLabelLoc, CornerStyle, FillColor, FillStyle, FontColor, FontName, FontSize, InvisibleStyle, Label, LabelJust, PenColor, PenWidth, URL}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  BoldStyle,
+  BorderStyle,
+  ClusterLabelLoc,
+  CornerStyle,
+  FillColor,
+  FillStyle,
+  FontColor,
+  FontName,
+  FontSize,
+  InvisibleStyle,
+  Label,
+  LabelJust,
+  PenColor,
+  PenWidth,
+  URL
+}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -44,19 +60,14 @@ def GraphAttributesView(
             RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
       )
 
-  val fillStyleRow =
-    builder.simpleRow(FillStyle, checkbox)
-
-  val fillColorRow =
-    builder.simpleRow(
-      attr = FillColor,
-      inputType = color,
-      hidden = Some(
+  val fillStyleRow = builder.simpleRow(FillStyle, checkbox)
+  val fillColorRow = builder.simpleRow(FillColor, color)
+    .copy(
+      hidden =
         Signal.combine(
           builder.invalidLayout(FillColor),
-          fillStyleRow.inputVar.signal.map(_.forall(_.toString == false.toString))
+          fillStyleRow.combineDefaultBoolean.not
         ).map(_ || _)
-      )
     )
 
   AttributesView(

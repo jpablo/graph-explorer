@@ -191,10 +191,6 @@ def InputWithValue(
 
   // While we get a better color selector, use a text input for named colors
   val inputType = row.inputType match
-    case InputType.color => colorType
-        .map:
-          case ColorType.named(_) => "text"
-          case _                  => "color"
     case _: InputType.number => Signal.fromValue("number")
     case _: InputType.range  => Signal.fromValue("range")
     case _                   => Signal.fromValue(row.inputType.toString)

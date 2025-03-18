@@ -90,19 +90,14 @@ def NodesAttributesView(
       )
     )
 
-  val fillStyleRow =
-    builder.simpleRow(FillStyle, checkbox)
-
-  val fillColorRow =
-    builder.simpleRow(
-      attr      = FillColor,
-      inputType = color,
-      hidden = Some(
+  val fillStyleRow = builder.simpleRow(FillStyle, checkbox)
+  val fillColorRow = builder.simpleRow(FillColor, color)
+    .copy(
+      hidden =
         Signal.combine(
           builder.invalidLayout(FillColor),
-          fillStyleRow.inputVar.signal.map(_.exists(_.toString == false.toString))
+          fillStyleRow.combineDefaultBoolean.not
         ).map(_ || _)
-      )
     )
 
   AttributesView(
