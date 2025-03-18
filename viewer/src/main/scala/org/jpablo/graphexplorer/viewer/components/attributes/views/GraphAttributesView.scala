@@ -5,24 +5,9 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.BorderStylePreview
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
+import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
-  BoldStyle,
-  BorderStyle,
-  ClusterLabelLoc,
-  CornerStyle,
-  FillColor,
-  FillStyle,
-  FontColor,
-  FontName,
-  FontSize,
-  InvisibleStyle,
-  Label,
-  LabelJust,
-  PenColor,
-  PenWidth,
-  URL
-}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, ClusterLabelLoc, CornerStyle, FillColor, FillStyle, FontColor, FontName, FontSize, InvisibleStyle, Label, LabelJust, PenColor, PenWidth, URL}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -60,9 +45,20 @@ def GraphAttributesView(
             RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
       )
 
+  val fillColorRowOpts =
+    ColorType.x11BasicColors.toSeq
+      .sortBy(_._2)(Ordering.String.reverse)
+      .map: (name, hex) =>
+        RowOption(
+          name,
+          Single(AttrValue(hex)),
+          Some(() => div(cls := s"w-8 h-4 rounded border-1 border-solid", styleAttr := s"background-color: $hex"))
+        )
+
   val fillStyleRow = builder.simpleRow(FillStyle, checkbox)
   val fillColorRow = builder.simpleRow(FillColor, color)
     .copy(
+      options = fillColorRowOpts,
       hidden =
         Signal.combine(
           builder.invalidLayout(FillColor),

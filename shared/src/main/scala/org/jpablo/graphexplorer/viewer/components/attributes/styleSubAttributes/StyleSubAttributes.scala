@@ -1,6 +1,6 @@
-package org.jpablo.graphexplorer.viewer.components.attributes.style
+package org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes
 
-import org.jpablo.graphexplorer.viewer.components.attributes.style.StyleSubAttributes.{default, missing}
+import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{default, missing}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, CornerStyle, FillStyle, InvisibleStyle, NodeStyle}

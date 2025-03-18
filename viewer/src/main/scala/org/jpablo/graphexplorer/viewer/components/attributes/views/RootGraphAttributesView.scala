@@ -1,12 +1,29 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
+import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, Concentrate, GraphType, Label, LabelJust, Layout, NodeSep, Pad, RankSep, Rankdir, RootGraphLabelLoc, Splines}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  BgColor,
+  Concentrate,
+  GraphType,
+  Label,
+  LabelJust,
+  Layout,
+  NodeSep,
+  Pad,
+  RankSep,
+  Rankdir,
+  RootGraphLabelLoc,
+  Splines
+}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, multiText, range}
+import org.jpablo.graphexplorer.viewer.widgets.InputType
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, multiText, range}
 
 /** Attributes for the root graph.
   *
@@ -32,6 +49,17 @@ def RootGraphAttributesView(state: ViewerState) =
       label    = Some("Directed")
     )
 
+  val fillColorRowOpts =
+    ColorType.x11BasicColors.toSeq
+      .sortBy(_._2)(Ordering.String.reverse)
+      .map: (name, hex) =>
+        RowOption(
+          name,
+          Single(AttrValue(hex)),
+          Some(() => div(cls := s"w-8 h-4 rounded border-1 border-solid", styleAttr := s"background-color: $hex"))
+        )
+  val bgColorColorRow = builder.simpleRow(BgColor, InputType.selectWithPreviewGrid).copy(options = fillColorRowOpts)
+
   AttributesView(
     id       = "root-graph-attributes",
     titleStr = "Root Graph Options",
@@ -54,9 +82,9 @@ def RootGraphAttributesView(state: ViewerState) =
       "Other",
       Splines,
       Concentrate -> checkbox,
-      BgColor     -> color,
-      Pad         -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
-      RankSep     -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
-      NodeSep     -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
+      bgColorColorRow,
+      Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
+      RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
+      NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
     )
   ).amend(cls := "mb-8")

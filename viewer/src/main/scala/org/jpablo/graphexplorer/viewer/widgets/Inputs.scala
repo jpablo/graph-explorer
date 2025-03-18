@@ -116,7 +116,7 @@ def SelectWithPreviewGrid(row: InputAttribute) =
           row.options
             .collectFirst:
               case row if row.hasValue(sv.getOrElse(d).toString) =>
-                row.preview.fold(span(row.name))(preview => span(preview()))
+                row.preview.fold(span(row.name))(preview => preview())
       ),
       i(cls := "bi bi-chevron-down absolute right-2")
     ),
@@ -135,7 +135,7 @@ def SelectWithPreviewGrid(row: InputAttribute) =
                 val active = if rowOption.hasValue(sv.getOrElse(d).toString) then "btn-active" else ""
                 s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 $active"
               ),
-              rowOption.preview.fold(span(rowOption.name))(elem => elem()),
+              rowOption.preview.fold(span(rowOption.name))(preview => preview()),
               onClick.mapTo(rowOption.value) --> row.inputVar
             )
           )
