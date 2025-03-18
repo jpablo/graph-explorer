@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot
 
 import munit.FunSuite
 
-class ColorTypeTest extends FunSuite:
+class ColorTypeSpec extends FunSuite:
   test("parse RGB hex color format (#rrggbb)"):
     assertEquals(
       ColorType.fromString("#ff0000"),
@@ -74,4 +74,88 @@ class ColorTypeTest extends FunSuite:
     assertEquals(
       ColorType.fromString("transparent"),
       ColorType.named("transparent")
+    )
+
+  test("toHex converts RGB to hex"):
+    assertEquals(
+      ColorType.toHex(ColorType.RGB(255, 0, 0)),
+      "#ff0000"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.RGB(0, 255, 0)),
+      "#00ff00"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.RGB(0, 0, 255)),
+      "#0000ff"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.RGB(255, 255, 255)),
+      "#ffffff"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.RGB(0, 0, 0)),
+      "#000000"
+    )
+
+  test("toHex converts RGBA to hex"):
+    assertEquals(
+      ColorType.toHex(ColorType.RGBA(255, 0, 0, 1.0)),
+      "#ff0000ff"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.RGBA(0, 255, 0, 0.5)),
+      "#00ff0080"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.RGBA(0, 0, 255, 0.0)),
+      "#0000ff00"
+    )
+
+  test("toHex converts HSV to hex"):
+    // Red in HSV (0, 1, 1) -> RGB (255, 0, 0)
+    assertEquals(
+      ColorType.toHex(ColorType.HSV(0.0, 1.0, 1.0)),
+      "#ff0000"
+    )
+    // Green in HSV (120, 1, 1) -> RGB (0, 255, 0)
+    assertEquals(
+      ColorType.toHex(ColorType.HSV(120.0, 1.0, 1.0)),
+      "#00ff00"
+    )
+    // Blue in HSV (240, 1, 1) -> RGB (0, 0, 255)
+    assertEquals(
+      ColorType.toHex(ColorType.HSV(240.0, 1.0, 1.0)),
+      "#0000ff"
+    )
+    // Black in HSV (0, 0, 0) -> RGB (0, 0, 0)
+    assertEquals(
+      ColorType.toHex(ColorType.HSV(0.0, 0.0, 0.0)),
+      "#000000"
+    )
+
+  test("toHex converts HSVA to hex"):
+    // Red with alpha 50%
+    assertEquals(
+      ColorType.toHex(ColorType.HSVA(0.0, 1.0, 1.0, 0.5)),
+      "#ff000080"
+    )
+    // Green with alpha 25%
+    assertEquals(
+      ColorType.toHex(ColorType.HSVA(120.0, 1.0, 1.0, 0.25)),
+      "#00ff0040"
+    )
+
+  test("toHex returns named colors as-is"):
+    assertEquals(
+      ColorType.toHex(ColorType.named("red")),
+      "red"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.named("transparent")),
+      "transparent"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.named("#123456")), // Still treated as a name, not converted
+      "#123456"
     )

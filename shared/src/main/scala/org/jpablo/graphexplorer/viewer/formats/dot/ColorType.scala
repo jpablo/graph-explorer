@@ -9,6 +9,42 @@ enum ColorType:
   case named(value: String)
 
 object ColorType:
+  def toHex(color: ColorType): String =
+    color match
+      case RGB(r, g, b) => f"#$r%02x$g%02x$b%02x"
+      case RGBA(r, g, b, a) => 
+        // Using Math.round to ensure correct rounding of alpha values
+        val alpha = Math.round(a * 255).toInt
+        f"#$r%02x$g%02x$b%02x$alpha%02x"
+      case HSV(h, s, v) =>
+        // Convert HSV to RGB
+        val c = v * s
+        val x = c * (1 - math.abs((h / 60) % 2 - 1))
+        val m = v - c
+        
+        val (r1, g1, b1) = h match
+          case h if h < 60 => (c, x, 0.0)
+          case h if h < 120 => (x, c, 0.0)
+          case h if h < 180 => (0.0, c, x)
+          case h if h < 240 => (0.0, x, c)
+          case h if h < 300 => (x, 0.0, c)
+          case _ => (c, 0.0, x)
+        
+        val (r, g, b) = (
+          ((r1 + m) * 255).toInt,
+          ((g1 + m) * 255).toInt,
+          ((b1 + m) * 255).toInt
+        )
+        f"#$r%02x$g%02x$b%02x"
+        
+      case HSVA(h, s, v, a) =>
+        val rgbHex = toHex(HSV(h, s, v))
+        // Using Math.round to ensure correct rounding of alpha values
+        val alpha = Math.round(a * 255).toInt
+        rgbHex + f"$alpha%02x"
+        
+      case named(value) => value // Named colors are returned as-is
+
   def fromString(s: String): ColorType =
     val trimmed = s.trim
     trimmed match
