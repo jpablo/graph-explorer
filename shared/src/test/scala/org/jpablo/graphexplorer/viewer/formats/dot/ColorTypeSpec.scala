@@ -159,3 +159,65 @@ class ColorTypeSpec extends FunSuite:
       ColorType.toHex(ColorType.named("#123456")), // Still treated as a name, not converted
       "#123456"
     )
+
+  test("toHexNoAlpha converts RGB colors correctly"):
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.RGB(255, 0, 0)),
+      "#ff0000"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.RGB(0, 255, 0)),
+      "#00ff00"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.RGB(0, 0, 255)),
+      "#0000ff"
+    )
+
+  test("toHexNoAlpha discards alpha from RGBA colors"):
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.RGBA(255, 0, 0, 1.0)),
+      "#ff0000"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.RGBA(0, 255, 0, 0.5)),
+      "#00ff00"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.RGBA(0, 0, 255, 0.0)),
+      "#0000ff"
+    )
+
+  test("toHexNoAlpha converts HSV colors correctly"):
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.HSV(0.0, 1.0, 1.0)),
+      "#ff0000"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.HSV(120.0, 1.0, 1.0)),
+      "#00ff00"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.HSV(240.0, 1.0, 1.0)),
+      "#0000ff"
+    )
+
+  test("toHexNoAlpha discards alpha from HSVA colors"):
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.HSVA(0.0, 1.0, 1.0, 0.5)),
+      "#ff0000"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.HSVA(120.0, 1.0, 1.0, 0.25)),
+      "#00ff00"
+    )
+
+  test("toHexNoAlpha converts named colors to #000000"):
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.named("red")),
+      "#000000"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.named("transparent")),
+      "#000000"
+    )

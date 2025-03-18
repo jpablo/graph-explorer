@@ -45,6 +45,15 @@ object ColorType:
         
       case named(value) => value // Named colors are returned as-is
 
+  /** Converts any ColorType to a hex format suitable for HTML color input (discarding alpha) */
+  def toHexNoAlpha(color: ColorType): String =
+    color match
+      case RGB(r, g, b) => f"#$r%02x$g%02x$b%02x"
+      case RGBA(r, g, b, _) => f"#$r%02x$g%02x$b%02x"
+      case HSV(h, s, v) => toHex(HSV(h, s, v))
+      case HSVA(h, s, v, _) => toHex(HSV(h, s, v))
+      case named(value) => "#000000" // Default to black for named colors since HTML color input doesn't support names
+
   def fromString(s: String): ColorType =
     val trimmed = s.trim
     trimmed match
