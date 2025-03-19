@@ -15,17 +15,13 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     cls    := "bg-base-100/90",
     // -------- Navigation --------
     div(
-      cls := "breadcrumbs font-bold py-0",
+      cls := "breadcrumbs text-md py-0",
       ul(
         li(
-          a(cls := "link", span().houseIcon, onClick --> commands.navigateHome.action())
+          a(cls := "link", title := "Home", span().houseIcon, onClick --> commands.navigateHome.action())
         ),
         li(
-          a(
-            cls := "link",
-            text <-- projectName,
-            onClick --> commands.changeProjectName.action()
-          )
+          a(cls := "link", title := "Change title", text <-- projectName, onClick --> commands.changeProjectName.action())
         )
       )
     ),
