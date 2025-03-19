@@ -47,7 +47,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #left-panel {
-    @apply bg-base-100 z-10 h-full flex flex-col overflow-hidden print:hidden border-r border-base-300 transition-all duration-200;
+    @apply z-10 h-full flex flex-col overflow-hidden print:hidden transition-all duration-200;
     order: -1;
     width: var(--left-panel-width, 16rem);
     flex-shrink: 0;
@@ -58,71 +58,6 @@ label[for ^= show-ns-kind-] {
       height: calc(100% - 26rem);
     }
   }
-
-  .selection-attributes {
-    @apply bg-base-100;
-
-    thead {
-      @apply bg-base-200 rounded;
-    }
-  }
-
-  #right-panel {
-    @apply bg-base-100 gap-3 z-10 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
-    order: 2;
-    width: var(--right-panel-width, 24rem);
-    flex-shrink: 0;
-
-    #right-panel-header {
-      @apply sticky top-0 z-10 bg-base-100 p-2;
-    }
-
-    #right-panel-tab-buttons {
-      @apply flex gap-1 mt-2;
-    }
-
-    #right-panel-content {
-      @apply flex flex-col h-full overflow-hidden;
-    }
-
-    #nodes-source {
-      @apply whitespace-nowrap w-full h-full;
-    }
-
-    #right-panel-controls, #edges-panel-controls {
-      @apply bg-base-100 z-20 pb-2 rounded-box sticky top-0;
-    }
-
-    #right-panel-contents, #edges-panel-contents {
-      @apply overflow-y-auto overflow-x-auto rounded-box bg-base-100 h-full;
-
-      .selected {
-        background-color: rgba(251, 191, 36, .1);
-      }
-    }
-
-    #diagram-attributes {
-      @apply h-full overflow-hidden;
-
-      thead {
-        @apply bg-base-200 rounded;
-      }
-
-      > div {
-        @apply h-full flex flex-col overflow-hidden;
-      }
-
-      #diagram-attributes-content {
-        @apply overflow-y-auto grow;
-      }
-
-      //.selection-attributes {
-      //  position: static;
-      //  width: 100%;
-      //}
-    }
-  }
-
 
   #canvas-container {
     @apply p-1 z-10 grow overflow-hidden flex;
@@ -145,8 +80,9 @@ label[for ^= show-ns-kind-] {
         circle {
           stroke: white;
           fill: #d7effa;
-          filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.5));
+          filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.5));
         }
+
         path {
           fill: #33ade6;
         }
@@ -155,8 +91,9 @@ label[for ^= show-ns-kind-] {
           circle {
             stroke: white;
             fill: #33ade6;
-            filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.5));
+            filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.5));
           }
+
           path {
             fill: white;
           }
@@ -200,11 +137,85 @@ label[for ^= show-ns-kind-] {
     }
   }
 
-  .attributes-view {
-    table {
-      @apply table-xs;
+  #right-panel {
+    @apply border-base-300 border-l z-10 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
+    order: 2;
+    width: var(--right-panel-width, 24rem);
+    flex-shrink: 0;
+
+    &.visible {
+      @apply visible flex flex-col h-full
+    }
+
+    &.not-visible {
+      @apply w-0 p-0 gap-0 opacity-0 invisible
+    }
+
+    #right-panel-header {
+      @apply sticky top-0 z-10 bg-base-100 p-2;
+    }
+
+    #right-panel-tab-buttons {
+      @apply flex gap-1 mt-2;
+    }
+
+    #right-panel-content {
+      @apply flex flex-col h-full overflow-hidden flex-grow;
+    }
+
+    #nodes-source {
+      @apply whitespace-nowrap w-full h-full;
+    }
+
+    #right-panel-controls, #edges-panel-controls {
+      @apply bg-base-100 z-20 pb-2 rounded-box sticky top-0;
+    }
+
+    #right-panel-contents, #edges-panel-contents {
+      @apply overflow-y-auto overflow-x-auto rounded-box bg-base-100 h-full;
+
+      .selected {
+        background-color: rgba(251, 191, 36, .1);
+      }
+    }
+
+    #style-view {
+
+      > div {
+        @apply h-full flex flex-col overflow-hidden;
+      }
+
+      #diagram-defaults-view {
+        @apply overflow-y-auto grow;
+      }
+    }
+
+    .attributes-view {
+      table {
+        @apply table mt-3 table-xs;
+
+        thead {
+          @apply bg-base-200 rounded;
+        }
+
+        tbody {
+          tr {
+
+            td:first-child {
+              @apply w-32 align-middle whitespace-nowrap;
+
+              div {
+                @apply flex items-center gap-1;
+              }
+            }
+
+          }
+        }
+
+      }
     }
   }
+
 }
 
 svg.plantuml {

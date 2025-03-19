@@ -53,7 +53,7 @@ def DiagramOptionsAndDefaultsView(state: ViewerState) =
       )
     ),
     div(
-      idAttr := "diagram-attributes-content",
+      idAttr := "diagram-defaults-view",
       for (view, i) <- tabsData.map(_._2).zipWithIndex yield view.amend(cls("hidden") <-- tabVisible(i).not)
     )
   )

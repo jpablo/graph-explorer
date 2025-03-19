@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.widgets.Select
 
 def StyleView(state: ViewerState) =
   div(
-    idAttr := "diagram-attributes",
+    idAttr := "style-view",
     child <--
       state.selection.signal.map: selectedNodes =>
         val IdsByKind(clusterIds, nodeIds, arrowIds) = selectedNodes.classify

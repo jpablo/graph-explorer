@@ -20,10 +20,9 @@ def AttributesView(
     idAttr := id,
     cls    := "attributes-view",
     table(
-      cls := "table mt-3",
       buildGroups(rows.flatten).map:
         case Left(headers) =>
-          thead(for h <- headers yield tr(th(colSpan := 3, h.title)))
+          thead(for h <- headers yield tr(th(colSpan := 2, h.title)))
 
         case Right(attrRows) =>
           tbody(
@@ -38,9 +37,7 @@ private def AttributesViewRow(row: InputAttribute) =
   val multipleValues = row.inputVar.signal.map(_ == Multiple)
   tr(
     td(
-      cls := "w-32 align-middle whitespace-nowrap",
       div(
-        cls := "flex items-center gap-1",
         cls("font-bold") <-- row.isChanged,
         span(row.label),
         div(

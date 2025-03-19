@@ -11,7 +11,7 @@ import org.jpablo.graphexplorer.viewer.widgets.tiny
 
 def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
   div(
-    cls := "relative", // Container for absolute positioning
+    cls := "relative border-r border-base-300", // Container for absolute positioning
 
     // Toggle button (always visible)
     button(
@@ -40,13 +40,13 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           cls := "flex items-center gap-2 border-b border-base-300 px-2",
           div(
             cls := "flex items-center justify-between w-full",
-            a(cls := "mr-2 link", span().folderIcon, onClick --> commands.navigateHome.action()),
+            a(cls  := "mr-2 link", span().folderIcon, onClick --> commands.navigateHome.action()),
             h2(cls := "text-lg font-bold flex-1", "Library"),
             button(
-              cls := "btn btn-ghost btn-xs",
+              cls   := "btn btn-ghost btn-xs",
               title := "Create Project",
               span().plusCircleIcon,
-              onClick --> commands.createProject.action(),
+              onClick --> commands.createProject.action()
             )
           )
         ),
