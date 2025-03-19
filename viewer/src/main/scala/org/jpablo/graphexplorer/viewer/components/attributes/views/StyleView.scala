@@ -17,10 +17,7 @@ def StyleView(state: ViewerState) =
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>
             div(
-              div(
-                cls := "divider",
-                div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Arrows (${arrowIds.size})"))
-              ),
+              h2(cls := "attributes-title", s"Selected Arrows (${arrowIds.size})"),
               EdgesAttributesView(
                 state,
                 updates   = state.elementAttributes(ElementIds(arrowIds)),
@@ -31,10 +28,7 @@ def StyleView(state: ViewerState) =
 
           case (false, true, false) =>
             div(
-              div(
-                cls := "divider",
-                div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Selected Nodes (${nodeIds.size})"))
-              ),
+              h2(cls := "attributes-title", s"Selected Nodes (${nodeIds.size})"),
               NodesAttributesView(
                 "SelectionAttributes",
                 state,
@@ -46,13 +40,7 @@ def StyleView(state: ViewerState) =
 
           case (false, false, true) =>
             div(
-              div(
-                cls := "divider",
-                div(
-                  cls := "divider-content",
-                  h2(cls := "text-lg font-semibold", s"Selected Groups (${clusterIds.size})")
-                )
-              ),
+              h2(cls := "attributes-title", s"Selected Groups (${clusterIds.size})"),
               GraphAttributesView(
                 state     = state,
                 attrsVar  = state.elementAttributes(ElementIds(clusterIds)),
@@ -62,7 +50,10 @@ def StyleView(state: ViewerState) =
             )
 
           case (false, false, false) =>
-            DiagramOptionsView(state)
+            div(
+              h2(cls := "attributes-title", "Diagram"),
+              RootGraphAttributesView(state),
+            )
 
           case _ =>
             val elementTypes = Map(
@@ -72,7 +63,8 @@ def StyleView(state: ViewerState) =
             )
 
             div(
-              div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", s"Filter"))),
+              cls := "m-4",
+              h2(cls := "font-semibold", s"Filter"),
               Select(
                 placeholderText = s"${selectedNodes.size} objects",
                 options = elementTypes.collect {
@@ -83,7 +75,7 @@ def StyleView(state: ViewerState) =
                   for (ids, _) <- elementTypes.get(value) do
                     state.selection.set(ids)
                 },
-                cls := "w-full mb-4"
+                cls := "w-full"
               )
             )
   )

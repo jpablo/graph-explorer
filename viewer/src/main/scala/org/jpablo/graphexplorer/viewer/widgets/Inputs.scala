@@ -247,7 +247,7 @@ def TextAreaWithValue(
 
 def Checked(row: InputAttribute) =
   input(
-    cls         := "checkbox checkbox-xs",
+    cls         := "toggle toggle-xs",
     tpe         := InputType.checkbox.toString,
     placeholder := row.placeholder,
     controlled(

@@ -181,6 +181,16 @@ label[for ^= show-ns-kind-] {
 
     #style-view {
 
+      .tabs {
+        @apply pb-2;
+        .tab {
+        }
+      }
+
+      .attributes-title {
+        @apply text-lg font-semibold m-2;
+      }
+
       > div {
         @apply h-full flex flex-col overflow-hidden;
       }

@@ -29,22 +29,18 @@ def DefaultsView(state: ViewerState) =
     )
 
   div(
-    idAttr := "style-view",
+    idAttr := "defaults-view",
     div(
-      div(cls := "divider", div(cls := "divider-content", h2(cls := "text-lg font-semibold", "Defaults"))),
       div(
-        cls := "flex justify-center",
-        div(
-          role := "tablist",
-          cls  := "tabs tabs-box tabs-xs w-[300px]",
-          for (tabName, i) <- tabsData.map(_._1).zipWithIndex
-            yield a(
-              role := "tab",
-              cls  := "tab flex-1",
-              cls("tab-active") <-- tabVisible(i),
-              onClick.mapTo(i) --> tabIndex,
-              tabName
-            )
+        role := "tablist",
+        cls  := "tabs tabs-lift tabs-xs",
+        for (tabName, i) <- tabsData.map(_._1).zipWithIndex
+        yield a(
+          role := "tab",
+          cls  := "tab flex-1",
+          cls("tab-active") <-- tabVisible(i),
+          onClick.mapTo(i) --> tabIndex,
+          tabName
         )
       ),
       div(

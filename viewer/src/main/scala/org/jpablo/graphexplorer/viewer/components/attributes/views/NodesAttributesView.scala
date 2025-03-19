@@ -132,12 +132,12 @@ def NodesAttributesView(
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
       Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
       "Style",
+      BoldStyle -> checkbox,
       fillStyleRow,
       fillColorRow,
       borderStyleRow,
       PenWidth  -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       Color     -> color,
-      BoldStyle -> checkbox,
       CornerStyle
     ),
     if selection then
