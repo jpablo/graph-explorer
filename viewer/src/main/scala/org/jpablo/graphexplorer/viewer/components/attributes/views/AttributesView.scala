@@ -42,18 +42,10 @@ private def AttributesViewRow(row: InputAttribute) =
         span(row.label),
         div(
           cls := "w-6", // Fixed width space for the reset button
+          child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle"))) <-- multipleValues,
           child(
-            span(
-              title := s"Multiple values",
-              i(cls := "bi bi-exclamation-triangle")
-            )
-          ) <-- multipleValues,
-          child(
-            Button(
-              title := s"reset ${row.label}",
-              onClick --> row.inputVar.set(Missing),
-              i(cls := "bi bi-x")
-            ).tiny.ghost.circle
+            Button(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x"))
+              .tiny.ghost.circle
           ) <-- row.isChanged
         )
       )
