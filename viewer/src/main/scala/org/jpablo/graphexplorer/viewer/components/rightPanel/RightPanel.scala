@@ -21,7 +21,7 @@ class RightPanel(state: ViewerState):
       // -------- Style Panel Toggle --------
       Tooltip(
         text = "Style",
-        cls := "flex-none tooltip-bottom absolute right-2 top-2 z-20",
+        cls := "flex-none tooltip-bottom absolute right-2 top-2.5 z-20",
         input(idAttr := inputId, tpe := "checkbox", cls := "drawer-toggle"),
         label(
           forId := inputId,
@@ -41,20 +41,19 @@ class RightPanel(state: ViewerState):
         // Fixed header section
         div(
           idAttr := "right-panel-header",
-          cls    := "flex-none",
+          cls    := "flex justify-center",
           // --- Tab Headers ---
           div(
-            idAttr := "right-panel-tab-buttons",
+            role := "tablist",
+            cls := "tabs tabs-box tabs-xs",
             List(
-              Button("Style").tiny,
-              Button("Elements").tiny,
-//              Button(child <-- state.fullGraph.map(_.summary.nodes).map(n => s"Nodes ($n)")).tiny,
-//              Button(child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Arrows ($n)")).tiny,
-              Button("Defaults").tiny,
-              Button("Source").tiny
+              a("Style"),
+              a("Elements"),
+              a("Defaults"),
+              a("Source")
             ).zipWithIndex.map: (child, idx) =>
-              child.amend(cls("btn-active") <-- isVisible(idx), onClick --> visibleTab.set(idx))
-          )
+              child.amend(role := "tab", cls := "tab",  cls("tab-active") <-- isVisible(idx), onClick --> visibleTab.set(idx))
+          ),
         ),
         // Scrollable content section
         div(
