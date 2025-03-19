@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
 
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
   val hiddenNodesIsEmpty =
@@ -21,7 +22,12 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           a(cls := "link", title := "Home", span().houseIcon, onClick --> commands.navigateHome.action())
         ),
         li(
-          a(cls := "link", title := "Change title", text <-- projectName, onClick --> commands.changeProjectName.action())
+          a(
+            cls   := "link",
+            title := "Change title",
+            text <-- projectName,
+            onClick --> commands.changeProjectName.action()
+          )
         )
       )
     ),
@@ -44,15 +50,19 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       ).tiny
     ),
     // -------- actions toolbar --------
-    div(
-      cls := "dropdown dropdown-hover",
-      div(tabIndex := 0, role := "button", cls := "whitespace-nowrap", span("Copy as"), i(cls := "bi bi-chevron-down"))
-        .asBtn.tiny,
-      ul(
-        tabIndex := 0,
-        cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
-        for cmd <- commands.sections.exportAs yield li(a(cmd.title, onClick --> cmd.action()))
-      )
+    Dropdown(
+      placeholderText = "Copy as",
+      options         = commands.sections.exportAs.map(cmd => cmd.title -> cmd.action),
+      onClickHandler   = _ --> (command => command())
+    ),
+    Dropdown(
+      placeholderText = "Examples",
+      options         = examples.toSeq,
+      onClickHandler =
+        _.flatMap(FetchStream.get(_)) --> { source =>
+          state.showAllNodes()
+          state.sourceText.set(source)
+        }
     ),
     // ---------- zoom ----------
     Join(

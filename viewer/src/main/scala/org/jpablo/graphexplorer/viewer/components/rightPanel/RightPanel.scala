@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.rightPanel
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
+
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{DefaultsView, StyleView}
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -46,7 +46,6 @@ class RightPanel(state: ViewerState):
         div(
           idAttr := "right-panel-header",
           cls    := "flex-none",
-          firstRow,
           // --- Tab Headers ---
           div(
             idAttr := "right-panel-tab-buttons",
@@ -73,19 +72,6 @@ class RightPanel(state: ViewerState):
           ).zipWithIndex.map: (child, idx) =>
             child.amend(cls := "h-full overflow-y-auto", cls("hidden") <-- !isVisible(idx))
         )
-      )
-    )
-
-  private def firstRow =
-    div(
-      cls := "flex gap-2 justify-between",
-      Select(
-        placeholderText = "Select example",
-        options         = examples.keys.map(name => name -> name),
-        onChange.mapToValue.map(examples).flatMap(FetchStream.get(_)) --> { source =>
-          state.showAllNodes()
-          state.sourceText.set(source)
-        }
       )
     )
 

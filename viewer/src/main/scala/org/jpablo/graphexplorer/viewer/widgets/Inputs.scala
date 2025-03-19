@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
+import org.scalajs.dom.MouseEvent
 
 def SelectWithLabel(
     labelText:       String,
@@ -36,9 +37,34 @@ def Select(
     mods:            Mods*
 ) =
   select(
-    cls := "select select-xs max-w-xs",
+    cls := "select select-xs",
     option(placeholderText, disabled := true, selected := true),
     options.map((name, id) => option(name, value := id)),
+    mods
+  )
+
+def Dropdown[A](
+    placeholderText: String,
+    options:         Seq[(String, A)],
+    onClickHandler:  EventProcessor[MouseEvent, A] => Modifier[Anchor],
+    mods:            Mods*
+) =
+  div(
+    cls := "dropdown dropdown-hover",
+    div(
+      tabIndex := 0,
+      role     := "button",
+      cls      := "whitespace-nowrap",
+      span(placeholderText),
+      i(cls := "bi bi-chevron-down")
+    ).asBtn.tiny,
+    ul(
+      tabIndex := 0,
+      cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
+      for
+        (name, value) <- options
+      yield li(a(name, onClickHandler(onClick.mapTo(value))))
+    ),
     mods
   )
 
