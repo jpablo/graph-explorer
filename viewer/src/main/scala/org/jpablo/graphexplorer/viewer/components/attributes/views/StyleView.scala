@@ -68,7 +68,7 @@ def StyleView(state: ViewerState) =
             case (false, false, false) =>
               div(
                 div(cls := "attributes-title", h2("Diagram")),
-                RootGraphAttributesView(state)
+                DiagramAttributesView(state)
               )
 
             case _ =>

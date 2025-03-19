@@ -29,7 +29,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, multiText, r
   *
   * The root graph is itself a group (cluster) but it has some specific attributes.
   */
-def RootGraphAttributesView(state: ViewerState) =
+def DiagramAttributesView(state: ViewerState) =
   val builder = RowBuilder(state.rootTargetAttributesUpdates(AttributeTarget.graph), state.layout, None)
 
   val directedVar: Var[AttrStatus[AttrValue]] =
@@ -77,8 +77,8 @@ def RootGraphAttributesView(state: ViewerState) =
       LabelJust,
       "Layout",
       Layout,
-      graphTypeRow,
       Rankdir,
+      graphTypeRow,
       "Other",
       Splines,
       Concentrate -> checkbox,
