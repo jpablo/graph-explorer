@@ -2,8 +2,6 @@ package org.jpablo.graphexplorer.viewer.widgets
 
 import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.scalajs.dom
 
 object Icons:
 
@@ -16,7 +14,7 @@ object Icons:
       cls <-- $isOpen.map(o => if o then "bi-chevron-down" else "bi-chevron-right")
     ).amend(mods)
 
-  extension (elem: ReactiveHtmlElement[dom.HTMLElement])
+  extension (elem: HtmlElement)
     def barChartStepsIcon = elem.amend(cls := "bi bi-bar-chart-steps")
     def boxesIcon = elem.amend(cls := "bi bi-boxes")
     def boxSeamIcon = elem.amend(cls := "bi bi-box-seam")

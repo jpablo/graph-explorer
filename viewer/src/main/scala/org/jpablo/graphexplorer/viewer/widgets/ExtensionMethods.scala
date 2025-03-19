@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.widgets
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 
 
 /*
@@ -18,7 +17,7 @@ extension (elem: Input)
 
 
 //extension (btn: Button)
-extension (btn: ReactiveHtmlElement[dom.HTMLElement])
+extension (btn: HtmlElement)
   def asBtn = btn.amend(cls := "btn")
   def outline = btn.amend(cls := "btn-outline")
   def neutral = btn.amend(cls := "btn-neutral")

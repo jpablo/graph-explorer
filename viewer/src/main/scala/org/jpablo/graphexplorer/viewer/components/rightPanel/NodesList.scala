@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -18,10 +17,8 @@ enum SortColumn derives CanEqual:
 enum SortDirection derives CanEqual:
   case Ascending, Descending
 
-def NodesList(
-    state:          ViewerState,
-    onlyActiveVar:  Var[Boolean]
-): ReactiveHtmlElement[dom.HTMLDivElement] =
+def NodesList(state: ViewerState): Div =
+  val onlyActiveVar = Var(false)
   val filterVar = Var("")
   val sortColumnVar = Var(SortColumn.Id)
   val sortDirectionVar = Var(SortDirection.Ascending)
@@ -32,7 +29,7 @@ def NodesList(
     if sortColumnVar.now() == column then
       // Toggle direction if same column
       sortDirectionVar.update {
-        case SortDirection.Ascending => SortDirection.Descending
+        case SortDirection.Ascending  => SortDirection.Descending
         case SortDirection.Descending => SortDirection.Ascending
       }
     else
@@ -53,7 +50,7 @@ def NodesList(
           controlled(value <-- filterVar, onInput.mapToValue --> filterVar)
         ).smallInput,
         button(
-          cls := "btn btn-xs",
+          cls   := "btn btn-xs",
           title := "Select filtered nodes",
           "Select",
           onClick.preventDefault(_.sample(filteredGraph)) --> { graph =>
@@ -77,7 +74,7 @@ def NodesList(
                 cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
                   if column == SortColumn.Id then
                     direction match
-                      case SortDirection.Ascending => "after:content-['↑']"
+                      case SortDirection.Ascending  => "after:content-['↑']"
                       case SortDirection.Descending => "after:content-['↓']"
                   else ""
                 }
@@ -93,7 +90,7 @@ def NodesList(
                 cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
                   if column == SortColumn.Label then
                     direction match
-                      case SortDirection.Ascending => "after:content-['↑']"
+                      case SortDirection.Ascending  => "after:content-['↑']"
                       case SortDirection.Descending => "after:content-['↓']"
                   else ""
                 }

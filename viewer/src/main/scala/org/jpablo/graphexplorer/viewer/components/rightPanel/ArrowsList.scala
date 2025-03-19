@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.models.Arrow
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -18,10 +17,8 @@ enum EdgeSortColumn derives CanEqual:
 enum EdgeSortDirection derives CanEqual:
   case Ascending, Descending
 
-def ArrowsList(
-    state: ViewerState,
-    onlyActiveEdges: Var[Boolean],
-): ReactiveHtmlElement[dom.HTMLDivElement] =
+def ArrowsList(state: ViewerState): Div =
+  val onlyActiveEdges = Var(false)
   val filterEdgesByNodeId = Var("")
   val sortColumnVar = Var(EdgeSortColumn.Label)
   val sortDirectionVar = Var(EdgeSortDirection.Ascending)

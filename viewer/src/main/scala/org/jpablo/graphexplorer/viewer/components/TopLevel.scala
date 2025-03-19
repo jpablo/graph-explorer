@@ -1,20 +1,17 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.router.Router
-import org.jpablo.graphexplorer.viewer.components.rightPanel.RightPanel
-import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.scalajs.dom
-import org.scalajs.dom.HTMLDivElement
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
+import org.jpablo.graphexplorer.viewer.components.rightPanel.RightPanel
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.CanvasContainer
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 def TopLevel(
     state:         ViewerState,
     router:        Router,
     commands:      Commands,
-): ReactiveHtmlElement[HTMLDivElement] =
+): Div =
   div(
     idAttr := "top-level",
     styleAttr <-- state.leftPanelVisible.signal.map(visible =>

@@ -13,8 +13,6 @@ import org.jpablo.graphexplorer.viewer.widgets.Icons.layoutSidebarReverseIcon
 
 class RightPanel(state: ViewerState):
   private val visibleTab = state.rightPanelTabIndex
-  private val onlyActiveNodes = Var(false)
-  private val onlyActiveEdges = Var(false)
 
   private val inputId = s"toggle-diagram-elements"
 
@@ -65,8 +63,8 @@ class RightPanel(state: ViewerState):
           // --- Tab Body ---
           List(
             StyleView(state),
-            NodesList(state, onlyActiveNodes),
-            ArrowsList(state, onlyActiveEdges),
+            NodesList(state),
+            ArrowsList(state),
             DefaultsView(state),
             SourceTab
           ).zipWithIndex.map: (child, idx) =>
