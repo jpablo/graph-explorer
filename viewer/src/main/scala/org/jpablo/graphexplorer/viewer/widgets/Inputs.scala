@@ -264,7 +264,7 @@ def TextAreaWithValue(
     )
 
   textArea(
-    cls         := "textarea textarea-xs p-2 ",
+    cls         := "textarea textarea-xs p-1 min-h-[2rem] h-auto",
     placeholder := row.placeholder,
     value <-- rawText.signal,
     onInput.mapToValue --> rawText.set,
