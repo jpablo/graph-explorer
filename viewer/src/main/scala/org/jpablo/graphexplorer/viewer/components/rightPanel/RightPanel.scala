@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
-import org.jpablo.graphexplorer.viewer.components.attributes.views.StyleView
+import org.jpablo.graphexplorer.viewer.components.attributes.views.{DefaultsView, StyleView}
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -50,10 +50,14 @@ class RightPanel(state: ViewerState):
           // --- Tab Headers ---
           div(
             idAttr := "right-panel-tab-buttons",
-            tabHeaderStyle(0),
-            tabHeaderSource(1),
-            tabHeaderNodes(2),
-            tabHeaderEdges(3)
+            List(
+              Button("Style").tiny,
+              Button(child <-- state.fullGraph.map(_.summary.nodes).map(n => s"Nodes ($n)")).tiny,
+              Button(child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Arrows ($n)")).tiny,
+              Button("Defaults").tiny,
+              Button("Source").tiny,
+            ).zipWithIndex.map: (child, idx) =>
+              child.amend(cls("btn-active") <-- isVisible(idx), onClick --> visibleTab.set(idx))
           )
         ),
         // Scrollable content section
@@ -62,9 +66,10 @@ class RightPanel(state: ViewerState):
           // --- Tab Body ---
           List(
             StyleView(state),
-            TabSource,
             NodesList(state, onlyActiveNodes),
-            EdgesList(state, onlyActiveEdges)
+            EdgesList(state, onlyActiveEdges),
+            DefaultsView(state),
+            TabSource,
           ).zipWithIndex.map: (child, idx) =>
             child.amend(cls := "h-full overflow-y-auto", cls("hidden") <-- !isVisible(idx))
         )
@@ -83,26 +88,6 @@ class RightPanel(state: ViewerState):
         }
       )
     )
-
-  private def tabHeaderStyle(idx: Int) =
-    Button("Style", cls("btn-active") <-- isVisible(idx), onClick --> visibleTab.set(idx)).tiny
-
-  private def tabHeaderSource(idx: Int) =
-    Button("Source", cls("btn-active") <-- isVisible(idx), onClick --> visibleTab.set(idx)).tiny
-
-  private def tabHeaderNodes(idx: Int) =
-    Button(
-      child <-- state.fullGraph.map(_.summary.nodes).map(n => s"Nodes ($n)"),
-      cls("btn-active") <-- isVisible(idx),
-      onClick --> visibleTab.set(idx)
-    ).tiny
-
-  private def tabHeaderEdges(idx: Int) =
-    Button(
-      child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Arrows ($n)"),
-      cls("btn-active") <-- isVisible(idx),
-      onClick --> visibleTab.set(idx)
-    ).tiny
 
   private def TabSource =
     div(

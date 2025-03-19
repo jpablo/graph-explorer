@@ -195,7 +195,15 @@ label[for ^= show-ns-kind-] {
         @apply table mt-3 table-xs;
 
         thead {
-          @apply bg-base-200 rounded;
+          tr {
+            @apply bg-base-200 border-b border-t border-base-300;
+
+            th {
+                @apply text-xs p-2;
+            }
+
+          }
+
         }
 
         tbody {
