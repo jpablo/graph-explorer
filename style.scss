@@ -201,10 +201,6 @@ label[for ^= show-ns-kind-] {
       > div {
         @apply h-full flex flex-col overflow-hidden;
       }
-
-      #diagram-defaults-view {
-        @apply overflow-y-auto grow;
-      }
     }
 
     .attributes-view {
@@ -239,6 +235,23 @@ label[for ^= show-ns-kind-] {
 
       }
     }
+
+    #defaults-view {
+      @apply pt-2;
+
+      #defaults-view-content {
+        @apply overflow-y-auto grow;
+      }
+    }
+
+    #elements-view {
+      @apply pt-2;
+
+      #elements-view-content {
+        @apply overflow-y-auto grow;
+      }
+    }
+
   }
 
 }
