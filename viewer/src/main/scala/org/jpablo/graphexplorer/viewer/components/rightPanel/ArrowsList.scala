@@ -18,7 +18,7 @@ enum EdgeSortColumn derives CanEqual:
 enum EdgeSortDirection derives CanEqual:
   case Ascending, Descending
 
-def EdgesList(
+def ArrowsList(
     state: ViewerState,
     onlyActiveEdges: Var[Boolean],
 ): ReactiveHtmlElement[dom.HTMLDivElement] =
@@ -47,6 +47,7 @@ def EdgesList(
     (if sl.isBlank then arrow.source.toString else sl, if tl.isBlank then arrow.target.toString else tl)
 
   div(
+    idAttr := "arrows-list",
     form(
       idAttr := "edges-panel-controls",
       Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),

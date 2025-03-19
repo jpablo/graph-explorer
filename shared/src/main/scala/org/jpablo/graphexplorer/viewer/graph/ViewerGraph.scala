@@ -57,7 +57,11 @@ case class ViewerGraph(
     memberships.get(id)
 
   def summary =
-    ViewerGraph.Summary(nodes = nodes.size, arrows = arrowsSet.size)
+    ViewerGraph.Summary(
+      nodes  = nodes.size,
+      arrows = arrows.size,
+      groups = groups.size - 1 // skip root group
+    )
 
   /** allNodeIds that are not in the target of any arrow
     */
@@ -186,7 +190,8 @@ object ViewerGraph:
 
   case class Summary(
       nodes:  Int,
-      arrows: Int
+      arrows: Int,
+      groups: Int
   )
 
 end ViewerGraph

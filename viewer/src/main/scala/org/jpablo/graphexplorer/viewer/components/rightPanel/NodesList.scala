@@ -42,6 +42,7 @@ def NodesList(
   }
 
   div(
+    idAttr := "nodes-list",
     form(
       idAttr := "right-panel-controls",
       Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveVar)),

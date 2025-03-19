@@ -161,6 +161,10 @@ label[for ^= show-ns-kind-] {
 
     #right-panel-content {
       @apply flex flex-col h-full overflow-hidden flex-grow;
+
+      #nodes-list, #arrows-list {
+        @apply m-2;
+      }
     }
 
     #nodes-source {
@@ -188,7 +192,10 @@ label[for ^= show-ns-kind-] {
       }
 
       .attributes-title {
-        @apply text-lg font-semibold m-2;
+        @apply m-2 flex justify-between;
+        h2 {
+          @apply text-lg font-semibold;
+        }
       }
 
       > div {

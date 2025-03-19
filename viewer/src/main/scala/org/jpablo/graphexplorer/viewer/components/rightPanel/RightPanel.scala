@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.views.{DefaultsView
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
-import org.jpablo.graphexplorer.viewer.components.rightPanel.{EdgesList, NodesList}
+import org.jpablo.graphexplorer.viewer.components.rightPanel.{ArrowsList, NodesList}
 import org.jpablo.graphexplorer.viewer.widgets.Icons.layoutSidebarReverseIcon
 
 class RightPanel(state: ViewerState):
@@ -55,7 +55,7 @@ class RightPanel(state: ViewerState):
               Button(child <-- state.fullGraph.map(_.summary.nodes).map(n => s"Nodes ($n)")).tiny,
               Button(child <-- state.fullGraph.map(_.summary.arrows).map(n => s"Arrows ($n)")).tiny,
               Button("Defaults").tiny,
-              Button("Source").tiny,
+              Button("Source").tiny
             ).zipWithIndex.map: (child, idx) =>
               child.amend(cls("btn-active") <-- isVisible(idx), onClick --> visibleTab.set(idx))
           )
@@ -67,9 +67,9 @@ class RightPanel(state: ViewerState):
           List(
             StyleView(state),
             NodesList(state, onlyActiveNodes),
-            EdgesList(state, onlyActiveEdges),
+            ArrowsList(state, onlyActiveEdges),
             DefaultsView(state),
-            TabSource,
+            SourceTab
           ).zipWithIndex.map: (child, idx) =>
             child.amend(cls := "h-full overflow-y-auto", cls("hidden") <-- !isVisible(idx))
         )
@@ -89,11 +89,12 @@ class RightPanel(state: ViewerState):
       )
     )
 
-  private def TabSource =
+  private def SourceTab =
     div(
-      cls := "flex flex-col h-full",
+      idAttr := "source-tab",
+      cls    := "flex flex-col h-full",
       div(
-        cls := "mb-4 flex-none",
+        cls := "m-2 flex-none",
         a(
           cls    := "link",
           href   := "https://www.graphviz.org/documentation/",
