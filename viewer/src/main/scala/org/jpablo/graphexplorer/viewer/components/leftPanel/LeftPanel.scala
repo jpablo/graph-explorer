@@ -15,10 +15,10 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
 
     // Toggle button (always visible)
     button(
-      cls   := "btn btn-ghost absolute top-4 left-2 z-20",
+      cls   := "btn absolute top-1 left-1 z-20",
       title := "Toggle Library",
       cls("btn-active") <-- state.leftPanelVisible,
-      i(cls := "bi bi-layout-sidebar"),
+      span().folderIcon,
       onMouseDown --> state.leftPanelVisible.update(!_)
     ).tiny,
 
@@ -35,13 +35,15 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
       // Header section with margin-top to accommodate selection sidebar
       div(
         cls := "header-section flex flex-col h-full",
-        div(cls := "divider"),
         div(
-          cls := "flex items-center gap-2 border-b border-base-300 px-2",
+          cls := "flex items-center border-b border-base-300 px-2 pb-1",
           div(
             cls := "flex items-center justify-between w-full",
-            a(cls  := "mr-2 link", span().folderIcon, onClick --> commands.navigateHome.action()),
-            h2(cls := "text-lg font-bold flex-1", "Library"),
+            a(
+              cls := "ml-8 text-lg font-bold flex-1 link",
+              onClick --> commands.navigateHome.action(),
+              "Library"
+            ),
             button(
               cls   := "btn btn-ghost btn-xs",
               title := "Create Project",
@@ -53,9 +55,9 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
 
         // Projects list - now takes remaining height
         div(
-          cls := "grow overflow-y-auto px-2",
+          cls := "grow overflow-y-auto",
           ul(
-            cls := "menu menu-sm",
+            cls := "menu menu-sm w-full",
             children <-- ProjectStorage.directory.map { directory =>
               directory.projects.sortBy(-_.createdAt).map { project =>
                 li(

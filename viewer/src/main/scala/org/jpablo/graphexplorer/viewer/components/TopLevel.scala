@@ -7,7 +7,6 @@ import org.jpablo.graphexplorer.viewer.components.rightPanel.RightPanel
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
-import org.jpablo.graphexplorer.viewer.components.leftPanel.CommandsPanel
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.CanvasContainer
 
@@ -24,7 +23,7 @@ def TopLevel(
     ),
     LeftPanel(state, router, commands),
     CanvasContainer(state, commands),
-    CommandsPanel(state, commands),
+//    CommandsPanel(state, commands),
     Toolbar(state.project.name.signal, commands, state),
     RightPanel(state).render(),
     HelpDialog(state.shortcutsModalOpen, commands)

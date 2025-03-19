@@ -54,8 +54,8 @@ label[for ^= show-ns-kind-] {
     border-right-width: var(--left-panel-border-width, 0px);
 
     .header-section {
-      @apply mt-[26rem];
-      height: calc(100% - 26rem);
+      //@apply mt-[26rem];
+      //height: calc(100% - 26rem);
     }
   }
 
