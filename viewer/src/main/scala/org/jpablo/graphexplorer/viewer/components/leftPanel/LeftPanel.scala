@@ -15,7 +15,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
 
     // Toggle button (always visible)
     button(
-      cls   := "btn absolute top-1 left-1 z-20",
+      cls   := "btn absolute top-2 left-1 z-20",
       title := "Toggle Library",
       cls("btn-active") <-- state.leftPanelVisible,
       span().folderIcon,
@@ -38,10 +38,9 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
         div(
           cls := "flex items-center border-b border-base-300 px-2 pb-1",
           div(
-            cls := "flex items-center justify-between w-full",
-            a(
-              cls := "ml-8 text-lg font-bold flex-1 link",
-              onClick --> commands.navigateHome.action(),
+            cls := "flex items-center justify-between w-full ml-8 mt-1.5",
+            h2(
+              cls := "text-lg font-bold flex-1",
               "Library"
             ),
             button(

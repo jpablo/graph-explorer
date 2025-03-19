@@ -18,7 +18,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "breadcrumbs font-bold py-0",
       ul(
         li(
-          a(cls := "mr-2 link", span().houseIcon, onClick --> commands.navigateHome.action())
+          a(cls := "link", span().houseIcon, onClick --> commands.navigateHome.action())
         ),
         li(
           a(
