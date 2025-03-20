@@ -33,27 +33,20 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     ),
     span(cls := "divider divider-horizontal mx-0"),
     // -------- new node button --------
-    Tooltip(
-      text = commands.addNode.titleWithShortcut,
-      cls := "tooltip-bottom",
-      Button(span().biSquareIcon, onClick --> commands.addNode.action()).tiny
-    ),
+    Button(span().biSquareIcon, onClick --> commands.addNode.action())
+      .tiny.toTooltip(commands.addNode.titleWithShortcut),
     // -------- show all --------
-    Tooltip(
-      text = commands.showAll.titleWithShortcut,
-      cls := "tooltip-bottom",
-      Button(
-        commands.showAll.title,
-        cls := "btn-primary",
-        disabled <-- hiddenNodesIsEmpty,
-        onClick --> commands.showAll.action()
-      ).tiny
-    ),
+    Button(
+      commands.showAll.title,
+      cls := "btn-primary",
+      disabled <-- hiddenNodesIsEmpty,
+      onClick --> commands.showAll.action()
+    ).tiny.toTooltip(commands.showAll.titleWithShortcut),
     // -------- actions toolbar --------
     Dropdown(
       placeholderText = "Copy as",
       options         = commands.sections.exportAs.map(cmd => cmd.title -> cmd.action),
-      onClickHandler   = _ --> (command => command())
+      onClickHandler  = _ --> (command => command())
     ),
     Dropdown(
       placeholderText = "Examples",
@@ -67,20 +60,17 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     // ---------- Undo/Redo ----------
     Join(
       Button(
-        i(cls := "bi bi-arrow-counterclockwise"),
-        title := commands.undo.title,
+        span(cls := "bi bi-arrow-counterclockwise").toTooltip(commands.undo.titleWithShortcut),
         onClick --> commands.undo.action()
       ).tiny,
       Button(
-        i(cls := "bi bi-arrow-clockwise"),
-        title := commands.redo.title,
+        span(cls := "bi bi-arrow-clockwise").toTooltip(commands.redo.titleWithShortcut),
         onClick --> commands.redo.action()
       ).tiny
     ),
     Join(
       Button(
-        i(cls := "bi bi-question-circle"),
-        title := commands.keyboardShortcuts.title,
+        span(cls := "bi bi-question-circle").toTooltip(commands.keyboardShortcuts.titleWithShortcut),
         onClick --> commands.keyboardShortcuts.action()
       ).tiny,
       a(
