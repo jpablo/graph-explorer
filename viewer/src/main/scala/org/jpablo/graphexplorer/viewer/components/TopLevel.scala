@@ -42,8 +42,8 @@ def RightToolbar(state: ViewerState) =
           text = text,
           cls := "tooltip-left",
           span(
-            cls := "cursor-pointer p-1.5 hover:bg-base-200 rounded-lg",
-            cls("bg-base-300 hover:bg-base-300") <-- isVisible(idx),
+            cls := "cursor-pointer p-1.5 hover:bg-base-300 rounded-lg",
+            cls("bg-base-300 hover:bg-base-300 border-1 border-base-300") <-- isVisible(idx),
             i(cls := s"bi $icon"),
             onClick --> visibleTab.update: j =>
               if idx == j then -1 else idx
