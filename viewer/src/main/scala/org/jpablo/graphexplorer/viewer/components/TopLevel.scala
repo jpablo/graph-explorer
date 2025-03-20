@@ -20,6 +20,7 @@ def TopLevel(
     CanvasContainer(state, commands),
 //    CommandsPanel(state, commands),
     Toolbar(state.project.name.signal, commands, state),
+    ZoomToolbar(commands),
     RightPanel(state).render(),
     RightToolbar(state),
     HelpDialog(state.shortcutsModalOpen, commands)

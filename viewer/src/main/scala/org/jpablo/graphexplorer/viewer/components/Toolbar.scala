@@ -13,7 +13,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
 
   div(
     idAttr := "toolbar",
-    cls    := "bg-base-100/90",
+    cls    := "floating-toolbar",
     // -------- Navigation --------
     div(
       cls := "breadcrumbs text-md py-0",
@@ -63,12 +63,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           state.showAllNodes()
           state.sourceText.set(source)
         }
-    ),
-    // ---------- zoom ----------
-    Join(
-      Button(span().dashIcon, onClick --> commands.zoomOut.action()).tiny,
-      Button(commands.fit.title, onClick --> commands.fit.action()).tiny,
-      Button(span().plusIcon, onClick --> commands.zoomIn.action()).tiny
     ),
     // ---------- Undo/Redo ----------
     Join(

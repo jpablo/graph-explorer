@@ -27,8 +27,16 @@ label[for ^= show-ns-kind-] {
   @apply bg-base-100 border-base-300 flex h-screen;
   position: relative;
 
+  .floating-toolbar {
+    @apply shadow-md bg-base-100/90 rounded-box flex items-center gap-2 p-1.5 absolute z-10 print:hidden border border-base-300;
+  }
+
   #toolbar {
-    @apply shadow-md bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute top-1 left-2/4 -translate-x-2/4 z-10 print:hidden border border-base-300;
+    @apply top-2 left-2/4 -translate-x-2/4;
+  }
+
+  #zoom-toolbar {
+    @apply bottom-2 left-2/4 -translate-x-2/4;
   }
 
   #commands-panel {
@@ -237,7 +245,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #right-toolbar {
-    @apply flex flex-col m-1 gap-2 mt-2;
+    @apply flex flex-col m-1 gap-3 mt-2;
   }
 }
 
