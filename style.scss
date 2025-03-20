@@ -186,12 +186,8 @@ label[for ^= show-ns-kind-] {
 
     #style-view {
 
-      //@apply m-2;
-
       .tabs {
         @apply pb-2;
-        .tab {
-        }
       }
 
       .attributes-title {
@@ -234,7 +230,6 @@ label[for ^= show-ns-kind-] {
 
     #defaults-view {
       @apply pt-2;
-      @apply m-2;
 
       #defaults-view-content {
         @apply overflow-y-auto grow pt-4;
