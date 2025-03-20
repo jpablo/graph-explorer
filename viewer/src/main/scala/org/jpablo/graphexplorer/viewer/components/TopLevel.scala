@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.router.Router
-import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
+import org.jpablo.graphexplorer.viewer.components.leftPanel.{CommandsPanel, LeftPanel}
 import org.jpablo.graphexplorer.viewer.components.rightPanel.RightPanel
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.CanvasContainer
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -18,7 +18,7 @@ def TopLevel(
     idAttr := "top-level",
     LeftPanel(state, router, commands),
     CanvasContainer(state, commands),
-//    CommandsPanel(state, commands),
+    CommandsPanel(state, commands),
     Toolbar(state.project.name.signal, commands, state),
     ZoomToolbar(commands),
     RightPanel(state).render(),

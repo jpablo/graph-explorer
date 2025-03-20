@@ -34,12 +34,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
     e.preventDefault()
     focusSearch.emit(true)
 
-  val menuShouldBeVisible =
-    Signal.combine(
-      state.selection.signal.map(_.nonEmpty),
-      searchHasFocus.signal,
-      state.leftPanelVisible.signal
-    ).map(_ || _ || _)
+  val menuShouldBeVisible = searchHasFocus.signal
 
   def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command]] =
     commands.bySection.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))

@@ -40,12 +40,15 @@ label[for ^= show-ns-kind-] {
   }
 
   #commands-panel {
-    @apply flex flex-col w-[15rem] max-h-[26rem] z-10;
-    @apply absolute top-2 left-1 print:hidden bg-base-100/90 rounded-box;
+    @apply flex flex-col w-[12rem] max-h-[26rem] z-10;
+    @apply absolute top-2 left-80 print:hidden bg-base-100/95 rounded-box;
     pointer-events: auto;
 
     label {
-      @apply p-2 pl-10;
+      @apply p-1.5;
+      input {
+        @apply focus:outline-none;
+      }
     }
 
     #commands-panel-menu-container {
