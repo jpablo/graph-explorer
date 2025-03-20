@@ -36,7 +36,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
     focusSearch.emit(true)
 
   def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command]] =
-    commands.bySection.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
+    commands.byHeader.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
 
   val rows: Signal[Seq[LI]] =
     searchTerm.signal.combineWith(state.selection.signal)

@@ -86,8 +86,10 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
     val application = "Application"
     val developer = "Developer"
 
-  val bySection: VectorMap[String, List[Command]] = VectorMap(
-    headers.common -> List(
+  import headers.*
+
+  val byHeader: VectorMap[String, List[Command]] = VectorMap(
+    common -> List(
       Command(
         "Add node",
         () => { state.addNodeWithSmartConnection(); () },
@@ -121,7 +123,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Select all visible groups")
       )
     ),
-    headers.selection -> List(
+    selection -> List(
       Command("Hide", state.selection.hide, shortcut = Some(Shortcut("h")), description = Some("Hide selected nodes")),
       Command(
         "Keep",
@@ -182,7 +184,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Copy the selected nodes as SVG to the clipboard")
       )
     ),
-    headers.successors -> List(
+    successors -> List(
       Command(
         "Show all successors",
         state.showAllSuccessors,
@@ -204,7 +206,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Select direct successors of the selected nodes")
       )
     ),
-    headers.predecessors -> List(
+    predecessors -> List(
       Command(
         "Show all predecessors",
         state.showAllPredecessors,
@@ -226,16 +228,16 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Select direct predecessors of the selected nodes")
       )
     ),
-    headers.view -> List(
+    view -> List(
       Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors")),
       Command("Show all", state.showAllNodes, always, description    = Some("Show all hidden nodes")),
       Command("Hide all", state.hideAllNodes, always, description    = Some("Hide all nodes"))
     ),
-    headers.document -> List(
+    document -> List(
       Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
       routerCmds.createProject
     ),
-    headers.exportAs -> List(
+    exportAs -> List(
       Command(
         "as SVG",
         state.copyAsFullDiagramSVG,
@@ -244,16 +246,16 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
       ),
       Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard"))
     ),
-    headers.zoom -> List(
+    zoom -> List(
       Command("Zoom out", state.zoomOut, always, description              = Some("Zoom out the diagram")),
       Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen")),
       Command("Zoom in", state.zoomIn, always, description                = Some("Zoom in the diagram"))
     ),
-    headers.undoRedo -> List(
+    undoRedo -> List(
       Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action")),
       Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
     ),
-    headers.application -> List(
+    application -> List(
       routerCmds.navigateHome,
       Command(
         "Help - Keyboard Shortcuts",
@@ -262,7 +264,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         description = Some("Open the keyboard shortcuts help dialog")
       )
     ),
-    headers.developer -> List(
+    developer -> List(
       Command(
         "Print visible graph to the console",
         state.printVisibleGraphToConsole,
@@ -285,18 +287,18 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
   )
 
   object sections:
-    val exportAs = bySection(headers.exportAs)
+    val exportAs = byHeader(headers.exportAs)
 
   // some special cases for the menu
-  val addNode = bySection(headers.common).find(_.title == "Add node").get
-  val List(zoomOut, fit, zoomIn) = bySection(headers.zoom)
-  val List(rootsOnly, showAll, hideAll) = bySection(headers.view)
-  val List(undo, redo) = bySection(headers.undoRedo)
-  val List(changeProjectName, createProject) = bySection(headers.document)
-  val List(navigateHome, keyboardShortcuts) = bySection(headers.application)
+  val addNode = byHeader(common).find(_.title == "Add node").get
+  val List(zoomOut, fit, zoomIn) = byHeader(zoom)
+  val List(rootsOnly, showAll, hideAll) = byHeader(view)
+  val List(undo, redo) = byHeader(undoRedo)
+  val List(changeProjectName, createProject) = byHeader(document)
+  val List(navigateHome, keyboardShortcuts) = byHeader(application)
 
   val byShortcut: Map[Shortcut, Command] =
-    bySection.values.flatten
+    byHeader.values.flatten
       .collect { case c @ Command(_, _, _, Some(shortcut), _) => shortcut -> c }
       .toMap
 
