@@ -44,13 +44,13 @@ private def AttributesViewRow(row: InputAttribute) =
     case InputType.range(s, e, step) =>
       Seq(
         label(
-          cls := "fieldset-label fieldset-input mt-2 flex justify-between",
+          cls := "fieldset-label fieldset-input flex justify-between",
           inputLabel(row),
           buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
             .amend(cls := "w-20 text-[.6rem] input-ghost")
         ),
         div(
-          cls := "fieldset-input",
+          cls := "fieldset-input mt-[-.4rem]",
           buildInputCell(row)
         )
       )
@@ -58,7 +58,7 @@ private def AttributesViewRow(row: InputAttribute) =
     case InputType.checkbox =>
       Seq(
         label(
-          cls := "fieldset-label fieldset-input mt-2",
+          cls := "fieldset-label fieldset-input",
           span(row.label),
           buildInputCell(row)
         )
@@ -67,7 +67,7 @@ private def AttributesViewRow(row: InputAttribute) =
     case _ =>
       Seq(
         label(
-          cls := "fieldset-label fieldset-input mt-2 flex justify-between",
+          cls := "fieldset-label fieldset-input flex justify-between",
           inputLabel(row),
           buildInputCell(row).amend(cls := "w-40")
         )
