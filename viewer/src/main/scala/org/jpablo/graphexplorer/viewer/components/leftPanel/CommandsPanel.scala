@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.{Command, Commands}
 import org.jpablo.graphexplorer.viewer.state.{Selection, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.intersperse
+import com.raquo.laminar.api.features.unitArrows
 
 import scala.scalajs.js
 
@@ -34,108 +35,115 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
     e.preventDefault()
     focusSearch.emit(true)
 
-  val menuShouldBeVisible = searchHasFocus.signal
-
   def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command]] =
     commands.bySection.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
 
+  val rows: Signal[Seq[LI]] =
+    searchTerm.signal.combineWith(state.selection.signal)
+      .map: (term, selection) =>
+        val allVisibleCmds = getVisibleCommands(term, selection)
+        val flattenedCmds = allVisibleCmds.values.flatten.toList
+        // Build the UI elements with sections
+        for
+          (cmdTitle, visibleCmds) <- allVisibleCmds.toSeq
+          // Only include section if it has visible commands
+          if visibleCmds.nonEmpty
+          // Create section title
+          titleElement = li(cls := "menu-title", h1(cmdTitle), hr())
+          // Create command rows
+          commandRows = visibleCmds.map { cmd =>
+            // Find the index of this command in the flat list
+            val cmdIndex = flattenedCmds.indexWhere(_.title == cmd.title)
+            val isActive = highlightedIndex.signal.map(_ == cmdIndex)
+            li(
+              a(
+                idAttr := s"cmd-${cmd.title.replace(" ", "-").toLowerCase}",
+                cls    := "flex justify-between",
+                title  := cmd.description.getOrElse(cmd.title),
+                cls("menu-active") <-- isActive,
+                inContext { thisNode =>
+                  isActive --> { isActive =>
+                    if isActive then
+                      thisNode.ref.asInstanceOf[js.Dynamic].scrollIntoView(js.Dynamic.literal(block = "nearest"))
+                  }
+                },
+                span(cmd.title),
+                div(
+                  cmd.shortcut.map(_.toList.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + ")))
+                ),
+                onMouseDown.stopPropagation.preventDefault --> { e =>
+                  cmd.action()
+                  focusSearch.emit(true)
+                }
+              )
+            )
+          }
+          row <- titleElement +: commandRows
+        yield row
+
   div(
-    idAttr := "commands-panel",
-    // Dynamic styling based on leftPanelVisible
-    cls("shadow-md border border-base-300") <-- state.leftPanelVisible.signal.not,
+    cls := "dropdown",
     // Search box at the top with consistent styling
     label(
-      cls := "flex items-center gap-1",
-      input(
-        typ         := "search",
-        cls         := "input  input-xs w-full px-2",
-        placeholder := "Enter command...",
-        onFocus.mapTo(true) --> searchHasFocus,
-        onBlur.mapTo(false) --> searchHasFocus,
-        onInput.mapToValue --> searchTerm,
-        focus <-- focusSearch.events,
-        // Handle keyboard navigation directly in the input
-        onKeyDown --> { e =>
-          val term = searchTerm.now()
-          val visibleCmds = getVisibleCommands(term, state.selection.now()).values.flatten.toSeq
-          val cmdCount = visibleCmds.size
+      cls := "input input-xs px-1 w-32 transition-all duration-200 ease-in-out",
+      inContext { thisNode =>
+        input(
+          typ         := "search",
+          cls         := "grow",
+          placeholder := "Command...",
+          onFocus.mapTo(true) --> searchHasFocus,
+          onBlur.mapTo(false) --> searchHasFocus,
+          onFocus --> thisNode.ref.classList.add("w-40"),
+          onBlur --> thisNode.ref.classList.remove("w-40"),
+          onInput.mapToValue --> searchTerm,
+          focus <-- focusSearch.events,
+          // Handle keyboard navigation directly in the input
+          onKeyDown --> { e =>
+            val term = searchTerm.now()
+            val visibleCmds = getVisibleCommands(term, state.selection.now()).values.flatten.toSeq
+            val cmdCount = visibleCmds.size
 
-          if cmdCount > 0 then
-            e.key match
-              case "ArrowDown" =>
-                e.preventDefault()
-                Var.update(
-                  scrollDown       -> { (_: Boolean) => true },
-                  highlightedIndex -> { (idx: Int) => (idx + 1) % cmdCount }
-                )
-              case "ArrowUp" =>
-                e.preventDefault()
-                Var.update(
-                  scrollDown       -> { (_: Boolean) => false },
-                  highlightedIndex -> { (idx: Int) => ((idx - 1) % cmdCount + cmdCount) % cmdCount }
-                )
-              case "Enter" =>
-                e.preventDefault()
-                val idx = highlightedIndex.now()
-                if idx >= 0 && idx < cmdCount then
-                  visibleCmds(idx).action()
+            if cmdCount > 0 then
+              e.key match
+                case "ArrowDown" =>
+                  e.preventDefault()
+                  Var.update(
+                    scrollDown       -> { (_: Boolean) => true },
+                    highlightedIndex -> { (idx: Int) => (idx + 1) % cmdCount }
+                  )
+                case "ArrowUp" =>
+                  e.preventDefault()
+                  Var.update(
+                    scrollDown       -> { (_: Boolean) => false },
+                    highlightedIndex -> { (idx: Int) => ((idx - 1) % cmdCount + cmdCount) % cmdCount }
+                  )
+                case "Enter" =>
+                  e.preventDefault()
+                  val idx = highlightedIndex.now()
+                  if idx >= 0 && idx < cmdCount then
+                    visibleCmds(idx).action()
+                    focusSearch.emit(false)
+                    highlightedIndex.set(-1)
+                case "Escape" =>
+                  e.preventDefault()
                   focusSearch.emit(false)
                   highlightedIndex.set(-1)
-              case "Escape" =>
-                e.preventDefault()
-                focusSearch.emit(false)
-                highlightedIndex.set(-1)
-              case _ => ()
-        }
-      ),
-      kbd(cls := "kbd kbd-sm opacity-60", "⌘"),
-      kbd(cls := "kbd kbd-sm opacity-60", "K")
+                case _ => ()
+          }
+        )
+      },
+      kbd(cls := "kbd kbd-xs opacity-60 mr-[-5px]", "⌘"),
+      kbd(cls := "kbd kbd-xs opacity-60", "K")
     ),
-    // menu container
+
+    // Dropdown content
     div(
-      idAttr := "commands-panel-menu-container",
-      display <-- menuShouldBeVisible.map(if _ then "block" else "none"),
+      cls := "dropdown-content bg-base-100 rounded-box z-1 w-52 shadow-lg border-4 border-base-100",
+      cls := "max-h-80 overflow-y-auto",
       ul(
-        cls := "menu menu-sm rounded-box",
-        children <-- searchTerm.signal.combineWith(state.selection.signal)
-          .map: (term, selection) =>
-            val allVisibleCmds = getVisibleCommands(term, selection)
-            val flattenedCmds = allVisibleCmds.values.flatten.toList
-            // Build the UI elements with sections
-            for
-              (cmdTitle, visibleCmds) <- allVisibleCmds.toSeq
-              // Only include section if it has visible commands
-              if visibleCmds.nonEmpty
-              // Create section title
-              titleElement = li(cls := "menu-title", h1(cmdTitle), hr())
-              // Create command rows
-              commandRows = visibleCmds.map { cmd =>
-                // Find the index of this command in the flat list
-                val cmdIndex = flattenedCmds.indexWhere(_.title == cmd.title)
-                val isActive = highlightedIndex.signal.map(_ == cmdIndex)
-                li(
-                  a(
-                    idAttr := s"cmd-${cmd.title.replace(" ", "-").toLowerCase}",
-                    cls    := "flex justify-between",
-                    title  := cmd.description.getOrElse(cmd.title),
-                    cls("menu-active") <-- isActive,
-                    inContext { thisNode =>
-                      isActive --> { isActive =>
-                        if isActive then
-                          thisNode.ref.asInstanceOf[js.Dynamic].scrollIntoView(js.Dynamic.literal(block = "nearest"))
-                      }
-                    },
-                    span(cmd.title),
-                    div(cmd.shortcut.map(_.toList.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + ")))),
-                    onMouseDown.stopPropagation.preventDefault --> { e =>
-                      cmd.action()
-                      focusSearch.emit(true)
-                    }
-                  )
-                )
-              }
-              row <- titleElement +: commandRows
-            yield row
+        tabIndex := 0,
+        cls      := "menu",
+        children <-- rows
       )
     )
   )

@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
+import org.jpablo.graphexplorer.viewer.components.leftPanel.CommandsPanel
 
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
   val hiddenNodesIsEmpty =
@@ -57,6 +58,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           state.sourceText.set(source)
         }
     ),
+    CommandsPanel(state, commands),
     // ---------- Undo/Redo ----------
     Join(
       Button(

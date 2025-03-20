@@ -50,7 +50,7 @@ def Dropdown[A](
     mods:            Mods*
 ) =
   div(
-    cls := "dropdown dropdown-hover",
+    cls := "dropdown",
     div(
       tabIndex := 0,
       role     := "button",
@@ -60,7 +60,7 @@ def Dropdown[A](
     ).asBtn.tiny,
     ul(
       tabIndex := 0,
-      cls      := "dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg",
+      cls      := "dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-lg",
       for
         (name, value) <- options
       yield li(a(name, onClickHandler(onClick.mapTo(value))))

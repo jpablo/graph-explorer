@@ -41,7 +41,7 @@ label[for ^= show-ns-kind-] {
 
   #commands-panel {
     @apply flex flex-col w-[12rem] max-h-[26rem] z-10;
-    @apply absolute top-2 left-80 print:hidden bg-base-100/95 rounded-box;
+    @apply print:hidden bg-base-100 rounded-box;
     pointer-events: auto;
 
     label {
@@ -52,7 +52,7 @@ label[for ^= show-ns-kind-] {
     }
 
     #commands-panel-menu-container {
-      @apply grow overflow-y-auto mb-2;
+      @apply grow overflow-y-auto border rounded-box border-base-300 shadow-lg;
       scroll-behavior: smooth;
     }
   }
