@@ -32,12 +32,7 @@ class RightPanel(state: ViewerState):
       div(
         idAttr := "right-panel",
         cls <-- state.rightPanelVisible.signal.map(if _ then "visible" else "not-visible"),
-        styleAttr <-- state.rightPanelVisible.signal.map { visible =>
-          if visible then
-            "--right-panel-width: 24rem;"
-          else
-            "--right-panel-width: 0px;"
-        },
+
         // Fixed header section
         div(
           idAttr := "right-panel-header",
@@ -45,15 +40,20 @@ class RightPanel(state: ViewerState):
           // --- Tab Headers ---
           div(
             role := "tablist",
-            cls := "tabs tabs-box tabs-xs",
+            cls  := "tabs tabs-box tabs-xs",
             List(
               a("Style"),
               a("Elements"),
               a("Defaults"),
               a("Source")
             ).zipWithIndex.map: (child, idx) =>
-              child.amend(role := "tab", cls := "tab",  cls("tab-active") <-- isVisible(idx), onClick --> visibleTab.set(idx))
-          ),
+              child.amend(
+                role := "tab",
+                cls  := "tab",
+                cls("tab-active") <-- isVisible(idx),
+                onClick --> visibleTab.set(idx)
+              )
+          )
         ),
         // Scrollable content section
         div(

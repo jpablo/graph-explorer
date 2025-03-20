@@ -16,60 +16,72 @@ def AttributesView(
 ) =
   // TODO: Finish implementing this
   //  def getFonts(): js.Dynamic = js.Dynamic.global.window.queryLocalFonts().`then`(x => dom.console.log(x))
+
+  // Group the headers with their content
+  val groupedContent = buildGroupedContent(rows.flatten)
+
   div(
     idAttr := id,
     cls    := "attributes-view",
-    table(
-      buildGroups(rows.flatten).map:
-        case Left(headers) =>
-          thead(for h <- headers yield tr(th(colSpan := 2, h.title)))
-
-        case Right(attrRows) =>
-          tbody(
-            for
-              row <- attrRows
-            yield AttributesViewRow(row).amend(cls("hidden") <-- row.hidden)
-          )
-    )
+    groupedContent.map { (header, attrRows) =>
+      fieldSet(
+        cls := "fieldset",
+        legend(cls := "fieldset-legend", header.title),
+        for row <- attrRows
+        yield AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
+      )
+    }
   )
 
 private def AttributesViewRow(row: InputAttribute) =
-  val multipleValues = row.inputVar.signal.map(_ == Multiple)
-  tr(
-    td(
-      div(
-        cls("font-bold") <-- row.isChanged,
-        span(row.label),
-        div(
-          cls := "w-6", // Fixed width space for the reset button
-          child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle"))) <-- multipleValues,
-          child(
-            Button(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x"))
-              .tiny.ghost.circle
-          ) <-- row.isChanged
-        )
-      )
-    ),
-    td(cls := "align-middle", buildInputCell(row))
+  Seq(
+    label(cls := "fieldset-label", inputLabel(row)),
+    div(
+      cls := "fieldset-input",
+      buildInputCell(row)
+    )
   )
 
-private def buildGroups(rows: Seq[AttributeRow]) =
-  var rr: List[Either[List[AttributeHeader], List[InputAttribute]]] = List.empty
+private def inputLabel(row: InputAttribute) =
+  val multipleValues = row.inputVar.signal.map(_ == Multiple)
+  div(
+    cls := "flex items-center gap-2",
+    //
+    span(cls("font-bold") <-- row.isChanged, row.label),
+    //
+    div(
+      cls := "w-6 flex items-center justify-center",
+      child(
+        span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))
+      ) <-- multipleValues,
+      child(
+        Button(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x"))
+          .tiny.ghost.circle
+      ) <-- row.isChanged
+    )
+  )
 
-  for rowType <- rows do
-    (rr, rowType) match
-      case (Nil, h: AttributeHeader)            => rr = List(Left(List(h)))
-      case (Left(hs) :: t, h: AttributeHeader)  => rr = Left(h :: hs) :: t
-      case (Right(rs) :: t, h: AttributeHeader) => rr = Left(List(h)) :: Right(rs) :: t
+private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(AttributeHeader, Seq[InputAttribute])] =
+  var result: List[(AttributeHeader, List[InputAttribute])] = List.empty
+  var currentHeader: Option[AttributeHeader] = None
+  var currentAttributes: List[InputAttribute] = List.empty
 
-      case (Nil, r: InputAttribute)            => rr = List(Right(List(r)))
-      case (Left(hs) :: t, r: InputAttribute)  => rr = Right(List(r)) :: Left(hs) :: t
-      case (Right(rs) :: t, r: InputAttribute) => rr = Right(r :: rs) :: t
+  for row <- rows do
+    row match
+      case header: AttributeHeader =>
+        if currentHeader.nonEmpty then
+          result            = (currentHeader.get, currentAttributes.reverse) :: result
+          currentAttributes = List.empty
+        currentHeader = Some(header)
 
-  rr.map:
-    case Left(hs)  => Left(hs.reverse)
-    case Right(rs) => Right(rs.reverse)
-  .reverse
+      case attr: InputAttribute =>
+        currentAttributes = attr :: currentAttributes
+
+  // Add the last group if exists
+  if currentHeader.nonEmpty then
+    result = (currentHeader.get, currentAttributes.reverse) :: result
+
+  result.reverse.map((h, attrs) => (h, attrs))
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
