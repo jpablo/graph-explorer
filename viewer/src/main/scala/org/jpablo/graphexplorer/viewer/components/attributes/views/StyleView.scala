@@ -13,7 +13,7 @@ def StyleView(state: ViewerState) =
     child <--
       Signal.combine(
         state.selection.signal,
-        state.fullGraph.map(_.summary)
+        state.fullGraph.map(_.summary).distinct
       )
         .map: (selectedNodes, summary) =>
           val IdsByKind(clusterIds, nodeIds, arrowIds) = selectedNodes.classify
