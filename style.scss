@@ -144,7 +144,7 @@ label[for ^= show-ns-kind-] {
 
     &.visible {
       @apply visible flex flex-col h-full;
-      width: 22rem;
+      width: 20rem;
     }
 
     &.not-visible {
@@ -203,8 +203,6 @@ label[for ^= show-ns-kind-] {
     }
 
     .attributes-view {
-      @apply flex flex-col gap-2;
-
       .fieldset {
         .fieldset-legend {
           @apply bg-base-200 pl-2 w-full border-y border-base-300;

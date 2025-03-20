@@ -4,14 +4,11 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{AttributeHeader, InputAttribute}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def AttributesView(
     id:       String,
-    titleStr: String,
-    layout:   Signal[Layout],
     rows:     Seq[AttributeRow]*
 ) =
   // TODO: Finish implementing this
@@ -34,18 +31,56 @@ def AttributesView(
   )
 
 private def AttributesViewRow(row: InputAttribute) =
-  Seq(
-    label(cls := "fieldset-label", inputLabel(row)),
-    div(
-      cls := "fieldset-input",
-      buildInputCell(row)
-    )
-  )
+  row.inputType match
+    case InputType.multiText =>
+      Seq(
+        label(cls := "fieldset-label", inputLabel(row)),
+        div(
+          cls := "fieldset-input",
+          buildInputCell(row)
+        )
+      )
 
-private def inputLabel(row: InputAttribute) =
+    case InputType.select =>
+      Seq(
+        label(
+          cls := "fieldset-label fieldset-input mt-2 flex justify-between",
+          inputLabel(row),
+          buildInputCell(row).amend(cls := "w-40")
+        )
+      )
+
+    case InputType.selectWithPreviewGrid =>
+      Seq(
+        label(
+          cls := "fieldset-label fieldset-input mt-2 flex justify-between",
+          inputLabel(row),
+          buildInputCell(row).amend(cls := "w-40")
+        )
+      )
+
+    case InputType.checkbox =>
+      Seq(
+        label(
+          cls := "fieldset-label fieldset-input mt-2",
+          span(row.label),
+          buildInputCell(row)
+        )
+      )
+
+    case _ =>
+      Seq(
+        label(
+          cls := "fieldset-label fieldset-input mt-2 flex justify-between",
+          inputLabel(row),
+          buildInputCell(row).amend(cls := "w-40")
+        )
+      )
+
+private def inputLabel(row: InputAttribute): Div =
   val multipleValues = row.inputVar.signal.map(_ == Multiple)
   div(
-    cls := "flex items-center gap-2",
+    cls := "flex items-center gap-2 whitespace-nowrap",
     //
     span(cls("font-bold") <-- row.isChanged, row.label),
     //

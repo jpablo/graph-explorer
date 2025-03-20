@@ -114,8 +114,6 @@ def NodesAttributesView(
 
   AttributesView(
     id       = "node-attributes",
-    titleStr = s"Node Attributes ($parent)",
-    state.layout,
     builder.buildRows(
       "Label",
       labelRow,

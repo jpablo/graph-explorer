@@ -74,7 +74,7 @@ def SelectWithValue(
 ) =
   // TODO: use the SelectionAttrValue.Missing state (perhaps with a placeholder)
   select(
-    cls := "select select-xs w-full",
+    cls := "select select-xs",
     cls := s"cls-${row.attrId}",
     row.options.map(o => option(o.name, value := o.value.toString)),
     controlled(
@@ -86,7 +86,7 @@ def SelectWithValue(
 
 def SelectWithPreview(row: InputAttribute) =
   div(
-    cls      := "dropdown w-full",
+    cls      := "dropdown",
     tabIndex := 0,
     button(
       cls      := "btn btn-xs w-full flex justify-between items-center",
@@ -131,7 +131,7 @@ def SelectWithPreview(row: InputAttribute) =
 
 def SelectWithPreviewGrid(row: InputAttribute) =
   div(
-    cls      := "dropdown dropdown-bottom dropdown-end w-full",
+    cls      := "dropdown dropdown-bottom dropdown-end",
     tabIndex := 0,
     button(
       cls      := "btn btn-xs w-full flex justify-between items-center",
@@ -221,7 +221,7 @@ def InputWithValue(
     case _                   => Signal.fromValue(row.inputType.toString)
 
   input(
-    cls := s"input input-xs w-full ${row.attrId}",
+    cls := s"input input-xs ${row.attrId}",
     tpe <-- inputType,
     placeholder := row.placeholder,
     controlled(
@@ -264,7 +264,7 @@ def TextAreaWithValue(
     )
 
   textArea(
-    cls         := "textarea textarea-xs min-h-[2rem] h-auto w-full",
+    cls         := "textarea textarea-xs min-h-[2rem] h-auto w-full p-1",
     placeholder := row.placeholder,
     value <-- rawText.signal,
     onInput.mapToValue --> rawText.set,

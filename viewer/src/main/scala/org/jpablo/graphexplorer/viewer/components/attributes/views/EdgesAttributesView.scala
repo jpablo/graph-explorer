@@ -62,8 +62,6 @@ def EdgesAttributesView(
 
   AttributesView(
     id       = "edge-attributes",
-    titleStr = "Edge Attributes",
-    state.layout,
     builder.buildRows(
       "Label",
       labelRow,

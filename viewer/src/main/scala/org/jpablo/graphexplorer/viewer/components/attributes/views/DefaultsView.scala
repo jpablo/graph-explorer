@@ -31,19 +31,22 @@ def DefaultsView(state: ViewerState) =
   div(
     idAttr := "defaults-view",
     div(
-      role := "tablist",
-      cls  := "tabs tabs-lift tabs-xs",
-      for (tabName, i) <- tabsData.map(_._1).zipWithIndex
-      yield a(
-        role := "tab",
-        cls  := "tab flex-1",
-        cls("tab-active") <-- tabVisible(i),
-        onClick.mapTo(i) --> tabIndex,
-        tabName
+      div(
+        role := "tablist",
+        cls  := "tabs tabs-lift tabs-xs",
+        for (tabName, i) <- tabsData.map(_._1).zipWithIndex
+        yield a(
+          role := "tab",
+          cls  := "tab flex-1",
+          cls("tab-active") <-- tabVisible(i),
+          onClick.mapTo(i) --> tabIndex,
+          tabName
+        )
+      ),
+      div(
+        idAttr := "defaults-view-content",
+        for (view, i) <- tabsData.map(_._2).zipWithIndex
+        yield view.amend(cls("hidden") <-- tabVisible(i).not)
       )
-    ),
-    div(
-      idAttr := "defaults-view-content",
-      for (view, i) <- tabsData.map(_._2).zipWithIndex yield view.amend(cls("hidden") <-- tabVisible(i).not)
     )
   )
