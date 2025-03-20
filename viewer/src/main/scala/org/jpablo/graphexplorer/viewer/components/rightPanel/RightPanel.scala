@@ -1,60 +1,22 @@
 package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{DefaultsView, ElementsView, StyleView}
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.*
-import org.jpablo.graphexplorer.viewer.widgets.Icons.layoutSidebarReverseIcon
 
 class RightPanel(state: ViewerState):
   private val visibleTab = state.rightPanelTabIndex
-
-  private val inputId = s"toggle-diagram-elements"
 
   private def isVisible(i: Int) = visibleTab.signal.map(_ == i)
 
   def render() =
     div(
       // -------- Style Panel Toggle --------
-      Tooltip(
-        text = "Style",
-        cls := "flex-none tooltip-bottom absolute right-2 top-2.5 z-20",
-        input(idAttr := inputId, tpe := "checkbox", cls := "drawer-toggle"),
-        label(
-          forId := inputId,
-          cls("btn-active") <-- state.rightPanelVisible,
-          onClick --> state.rightPanelVisible.toggle()
-        ).asBtn.tiny.layoutSidebarReverseIcon
-      ),
       div(
         idAttr := "right-panel",
         cls <-- state.rightPanelVisible.signal.map(if _ then "visible" else "not-visible"),
-
-        // Fixed header section
-        div(
-          idAttr := "right-panel-header",
-          cls    := "flex justify-center",
-          // --- Tab Headers ---
-          div(
-            role := "tablist",
-            cls  := "tabs tabs-box tabs-xs",
-            List(
-              a("Style"),
-              a("Defaults"),
-              a("Elements"),
-              a("Source")
-            ).zipWithIndex.map: (child, idx) =>
-              child.amend(
-                role := "tab",
-                cls  := "tab",
-                cls("tab-active") <-- isVisible(idx),
-                onClick --> visibleTab.set(idx)
-              )
-          )
-        ),
         // Scrollable content section
         div(
           idAttr := "right-panel-content",

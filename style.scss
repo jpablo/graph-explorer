@@ -138,7 +138,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #right-panel {
-    @apply border-base-300 border-l z-10 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
+    @apply border-base-300 border-x z-10 h-full flex flex-col overflow-x-hidden print:hidden transition-all duration-200;
     order: 2;
     flex-shrink: 0;
 
@@ -236,6 +236,9 @@ label[for ^= show-ns-kind-] {
 
   }
 
+  #right-toolbar {
+    @apply flex flex-col m-1 gap-2;
+  }
 }
 
 svg.plantuml {
