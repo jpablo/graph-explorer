@@ -194,18 +194,19 @@ def InputWithValue(
     row.inputType match
       case InputType.number(start, end, step) =>
         Seq(
+          cls      := s"input input-xs",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")
         )
       case InputType.range(start, end, step) =>
         Seq(
-          cls      := "range range-sm input-ghost",
+          cls      := "range range-xs input-ghost",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")
         )
-      case _ => Seq.empty
+      case _ => Seq(cls := s"input input-xs")
 
   val colorType = row.combineDefaultString.map(ColorType.fromString)
 
@@ -221,7 +222,6 @@ def InputWithValue(
     case _                   => Signal.fromValue(row.inputType.toString)
 
   input(
-    cls := s"input input-xs ${row.attrId}",
     tpe <-- inputType,
     placeholder := row.placeholder,
     controlled(

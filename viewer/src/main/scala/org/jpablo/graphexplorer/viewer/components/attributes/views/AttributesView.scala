@@ -8,8 +8,8 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def AttributesView(
-    id:       String,
-    rows:     Seq[AttributeRow]*
+    id:   String,
+    rows: Seq[AttributeRow]*
 ) =
   // TODO: Finish implementing this
   //  def getFonts(): js.Dynamic = js.Dynamic.global.window.queryLocalFonts().`then`(x => dom.console.log(x))
@@ -41,21 +41,17 @@ private def AttributesViewRow(row: InputAttribute) =
         )
       )
 
-    case InputType.select =>
+    case InputType.range(s, e, step) =>
       Seq(
         label(
           cls := "fieldset-label fieldset-input mt-2 flex justify-between",
           inputLabel(row),
-          buildInputCell(row).amend(cls := "w-40")
-        )
-      )
-
-    case InputType.selectWithPreviewGrid =>
-      Seq(
-        label(
-          cls := "fieldset-label fieldset-input mt-2 flex justify-between",
-          inputLabel(row),
-          buildInputCell(row).amend(cls := "w-40")
+          buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
+            .amend(cls := "w-20 text-[.6rem] input-ghost")
+        ),
+        div(
+          cls := "fieldset-input",
+          buildInputCell(row)
         )
       )
 
@@ -80,18 +76,21 @@ private def AttributesViewRow(row: InputAttribute) =
 private def inputLabel(row: InputAttribute): Div =
   val multipleValues = row.inputVar.signal.map(_ == Multiple)
   div(
-    cls := "flex items-center gap-2 whitespace-nowrap",
+    cls := "flex items-center justify-start",
     //
-    span(cls("font-bold") <-- row.isChanged, row.label),
+    div(cls("font-bold") <-- row.isChanged, row.label),
     //
     div(
-      cls := "w-6 flex items-center justify-center",
+      cls("w-6 flex items-center justify-center") <-- multipleValues.combineWith(row.isChanged).map(_ || _),
       child(
         span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))
       ) <-- multipleValues,
       child(
-        Button(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x"))
-          .tiny.ghost.circle
+        a(
+          title := s"reset ${row.label}",
+          onClick --> row.inputVar.set(Missing),
+          i(cls := "bi bi-x")
+        ).tiny // .ghost //.circle
       ) <-- row.isChanged
     )
   )

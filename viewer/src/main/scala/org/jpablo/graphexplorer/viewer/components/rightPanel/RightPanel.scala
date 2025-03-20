@@ -43,8 +43,8 @@ class RightPanel(state: ViewerState):
             cls  := "tabs tabs-box tabs-xs",
             List(
               a("Style"),
-              a("Elements"),
               a("Defaults"),
+              a("Elements"),
               a("Source")
             ).zipWithIndex.map: (child, idx) =>
               child.amend(
@@ -61,8 +61,8 @@ class RightPanel(state: ViewerState):
           // --- Tab Body ---
           List(
             StyleView(state),
-            ElementsView(state),
             DefaultsView(state),
+            ElementsView(state),
             SourceTab
           ).zipWithIndex.map: (child, idx) =>
             child.amend(cls := "h-full overflow-y-auto", cls("hidden") <-- !isVisible(idx))
