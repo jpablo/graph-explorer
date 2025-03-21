@@ -58,6 +58,7 @@ def Dropdown[A](
       span(placeholderText),
       i(cls := "bi bi-chevron-down")
     ).asBtn.tiny,
+    // ---- Dropdown menu ----
     ul(
       tabIndex := 0,
       cls      := "dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-lg",
@@ -86,11 +87,11 @@ def SelectWithValue(
 
 def SelectWithPreview(row: InputAttribute) =
   div(
-    cls      := "dropdown",
-    tabIndex := 0,
-    button(
-      cls      := "btn btn-xs w-full flex justify-between items-center",
+    cls := "dropdown",
+    div(
       tabIndex := 0,
+      role     := "button",
+      cls      := "btn btn-xs w-full flex justify-between items-center",
       div(
         cls := "flex items-center gap-2",
         div(
@@ -104,11 +105,11 @@ def SelectWithPreview(row: InputAttribute) =
                 row.preview.fold(span(row.name))(p => span(p()))
       ),
       i(cls := "bi bi-chevron-down")
-    ),
+    ).asBtn.tiny,
     // ---- Dropdown menu ----
     ul(
-      cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full border border-base-300",
       tabIndex := 0,
+      cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full border border-base-300",
       row.options.map { rowOption =>
         li(
           a(

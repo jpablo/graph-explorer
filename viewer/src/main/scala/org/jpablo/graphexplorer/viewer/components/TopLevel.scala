@@ -18,7 +18,6 @@ def TopLevel(
     idAttr := "top-level",
     LeftPanel(state, router, commands),
     CanvasContainer(state, commands),
-//    CommandsPanel(state, commands),
     Toolbar(state.project.name.signal, commands, state),
     ZoomToolbar(commands),
     RightPanel(state).render(),

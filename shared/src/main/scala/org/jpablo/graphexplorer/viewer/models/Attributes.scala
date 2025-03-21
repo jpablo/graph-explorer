@@ -17,6 +17,11 @@ enum AttrStatus[+A] derives CanEqual:
       case Multiple  => "Multiple"
       case Missing   => "Missing"
 
+  def toOption: Option[A] =
+    this match
+      case Single(v) => Some(v)
+      case _         => None
+
   def map[B](f: A => B): AttrStatus[B] =
     this match
       case Single(v) => Single(f(v))

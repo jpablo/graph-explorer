@@ -126,22 +126,34 @@ case class ViewerGraph(
     val arrow = Arrow(source, target, seq = newSeq + 1)
     (modifyArrows.using(_ + (arrow.id -> arrow)), arrow)
 
-  def addNodeWithId(nodeId: NodeId, groupId: Option[GroupId] = None): ViewerGraph =
+  def addNodeWithId(
+      nodeId:     NodeId,
+      groupId:    Option[GroupId] = None,
+      attributes: Map[AttributeId, AttrValue] = Map.empty
+  ): ViewerGraph =
+    val nodeAttrs = Attributes(Map(Label.attrId -> AttrValue("")) ++ attributes)
+
     modifyElements.using(
       _.copy(
-        nodes       = nodes + (nodeId -> ViewerNode(nodeId, Attributes(Map(Label.attrId -> AttrValue(""))))),
+        nodes       = nodes + (nodeId -> ViewerNode(nodeId, nodeAttrs)),
         memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))
       )
     )
 
-  def addNode(groupId: Option[GroupId] = None): (ViewerGraph, NodeId) =
+  def addNode(
+      groupId:    Option[GroupId] = None,
+      attributes: Map[AttributeId, AttrValue] = Map.empty
+  ): (ViewerGraph, NodeId) =
     val nodeId = nextNodeId()
-    (addNodeWithId(nodeId, groupId), nodeId)
+    (addNodeWithId(nodeId, groupId, attributes), nodeId)
 
-  def addNodeAndArrowFrom(source: NodeId): (ViewerGraph, NodeId, ArrowId) =
+  def addNodeAndArrowFrom(
+      source:     NodeId,
+      attributes: Map[AttributeId, AttrValue] = Map.empty
+  ): (ViewerGraph, NodeId, ArrowId) =
     val nodeId = nextNodeId()
     val sourceGroup = membership(source)
-    val (newGraph, arrow) = addNodeWithId(nodeId, sourceGroup).addArrow(source, nodeId)
+    val (newGraph, arrow) = addNodeWithId(nodeId, sourceGroup, attributes).addArrow(source, nodeId)
     (newGraph, nodeId, arrow.id)
 
 //  lazy val toTrees: Tree[ViewerNode] =

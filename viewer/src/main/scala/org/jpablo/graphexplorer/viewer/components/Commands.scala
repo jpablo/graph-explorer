@@ -92,7 +92,7 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
     common -> List(
       Command(
         "Add node",
-        () => { state.addNodeWithSmartConnection(); () },
+        () => state.addNodeWithSmartConnection(),
         always,
         shortcut    = Some(Shortcut("n")),
         description = Some("Add a new node")
