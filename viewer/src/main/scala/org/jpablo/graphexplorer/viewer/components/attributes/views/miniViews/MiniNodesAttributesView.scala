@@ -34,7 +34,7 @@ def MiniNodesAttributesView(
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  val shapesRowOpts = Shape.valuesWithLabel
+  val shapesRowOptions = Shape.valuesWithLabel
     .filterNot((_, s) => s in Shape.synonyms).toSeq
     .map: (label, style) =>
       RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 30))
@@ -45,9 +45,9 @@ def MiniNodesAttributesView(
     RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
 
   AttributesView(
-    id = "node-attributes",
+    id = "mini-node-attributes",
     rows(
-      row(Shape, InputType.selectWithPreviewGrid).copy(options = shapesRowOpts),
+      row(Shape, InputType.selectWithPreviewGrid).copy(options = shapesRowOptions),
       row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       row(FillColor, InputType.selectWithPreviewGrid)
         .copy(

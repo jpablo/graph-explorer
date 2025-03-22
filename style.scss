@@ -71,9 +71,9 @@ label[for ^= show-ns-kind-] {
   }
 
   #selection-panel {
-    @apply absolute top-2 left-10 z-20 transition-all duration-200;
+    @apply absolute top-10 left-2 z-20 transition-all duration-200;
     &.left-panel-visible {
-      @apply left-[16.5rem];
+      @apply top-2 left-[16.5rem];
     }
 
     .card {
