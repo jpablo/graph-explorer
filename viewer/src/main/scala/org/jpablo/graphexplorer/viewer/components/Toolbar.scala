@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePreview
 import org.jpablo.graphexplorer.viewer.components.leftPanel.CommandsPanel
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.models.Attributes
@@ -13,6 +14,12 @@ import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
   val hiddenNodesIsEmpty =
     state.hiddenElements.signal.map(_.isEmpty)
+
+  def shapePreview(shape: Shape) =
+    ShapePreview(shape, 20).get()
+
+  val defaultShapePreview =
+    state.nodeShape.map(shapePreview)
 
   div(
     idAttr := "toolbar",
@@ -40,7 +47,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "join inline",
       Button(
         cls := "join-item",
-        span().biSquareIcon.toTooltip(commands.addNode.titleWithShortcut),
+        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(commands.addNode.titleWithShortcut)),
         onClick --> commands.addNode.action()
       ).tiny,
       DropdownHeader(
@@ -48,11 +55,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         icon  = i().threeDotsVertical,
         join  = true,
         Menu(
-          options = Seq(
-            span().rectangleIcon -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.box))),
-            span().circleIcon    -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.circle))),
-            span().diamondIcon   -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.diamond)))
-          ),
+          options = Seq(Shape.box, Shape.circle, Shape.ellipse, Shape.diamond, Shape.star).map: shape =>
+            shapePreview(shape) -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> shape))),
           onClickHandler = _ --> (action => action())
         ).amend(cls := "items-center")
       ).amend(cls := "dropdown-center ml-[-1px]")
