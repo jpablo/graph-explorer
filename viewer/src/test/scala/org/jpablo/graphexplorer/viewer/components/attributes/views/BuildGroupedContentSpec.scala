@@ -51,20 +51,20 @@ class BuildGroupedContentSpec extends FunSuite {
     val result = buildGroupedContent(rows)
 
     // Assert
-    assertEquals(result.length, 2, "Should have 2 groups")
-    assertEquals(result(0)._1, Some(header1), "First group should have header1")
-    assertEquals(result(0)._2.length, 2, "First group should have 2 attributes")
-    assertEquals(result(0)._2(0), attr1, "First attribute in first group should be attr1")
-    assertEquals(result(0)._2(1), attr2, "Second attribute in first group should be attr2")
-    assertEquals(result(1)._1, Some(header2), "Second group should have header2")
-    assertEquals(result(1)._2.length, 2, "Second group should have 2 attributes")
-    assertEquals(result(1)._2(0), attr3, "First attribute in second group should be attr3")
-    assertEquals(result(1)._2(1), attr4, "Second attribute in second group should be attr4")
+    assertEquals(result.length, 2)
+    assertEquals(result(0)._1, Some(header1))
+    assertEquals(result(0)._2.length, 2)
+    assertEquals(result(0)._2(0), attr1)
+    assertEquals(result(0)._2(1), attr2)
+    assertEquals(result(1)._1, Some(header2))
+    assertEquals(result(1)._2.length, 2)
+    assertEquals(result(1)._2(0), attr3)
+    assertEquals(result(1)._2(1), attr4)
   }
 
   test("buildGroupedContent should handle empty input") {
     val result = buildGroupedContent(Seq.empty)
-    assertEquals(result.length, 0, "Result should be empty for empty input")
+    assert(result.isEmpty)
   }
 
   test("buildGroupedContent should handle input with only headers (no attributes)") {
@@ -74,7 +74,7 @@ class BuildGroupedContentSpec extends FunSuite {
     val rows = Seq(header1, header2)
     val result = buildGroupedContent(rows)
 
-    assertEquals(result.length, 0, "Should have 0 groups")
+    assert(result.isEmpty)
   }
 
   test("buildGroupedContent should handle input with only attributes (no headers)") {
@@ -84,11 +84,11 @@ class BuildGroupedContentSpec extends FunSuite {
     val rows = Seq(attr1, attr2)
     val result = buildGroupedContent(rows)
 
-    assertEquals(result.length, 1, "Should have 1 group")
-    assertEquals(result(0)._1, None, "Group should have no header")
-    assertEquals(result(0)._2.length, 2, "Group should have 2 attributes")
-    assertEquals(result(0)._2(0), attr1, "First attribute should be attr1")
-    assertEquals(result(0)._2(1), attr2, "Second attribute should be attr2")
+    assertEquals(result.length, 1)
+    assertEquals(result(0)._1, None)
+    assertEquals(result(0)._2.length, 2)
+    assertEquals(result(0)._2(0), attr1)
+    assertEquals(result(0)._2(1), attr2)
   }
 
   test("buildGroupedContent should maintain order of attributes within groups") {
@@ -100,13 +100,13 @@ class BuildGroupedContentSpec extends FunSuite {
     val rows = Seq(header, attr1, attr2, attr3)
     val result = buildGroupedContent(rows)
 
-    assertEquals(result.length, 1, "Should have 1 group")
-    assertEquals(result(0)._1, Some(header), "Group should have header")
+    assertEquals(result.length, 1)
+    assertEquals(result(0)._1, Some(header))
     val attrGroup = result(0)._2
-    assertEquals(attrGroup.length, 3, "Group should have 3 attributes")
-    assertEquals(attrGroup(0), attr1, "First attribute should be attr1")
-    assertEquals(attrGroup(1), attr2, "Second attribute should be attr2")
-    assertEquals(attrGroup(2), attr3, "Third attribute should be attr3")
+    assertEquals(attrGroup.length, 3)
+    assertEquals(attrGroup(0), attr1)
+    assertEquals(attrGroup(1), attr2)
+    assertEquals(attrGroup(2), attr3)
   }
 
   test("buildGroupedContent should handle multiple headers without attributes between them") {
@@ -118,9 +118,9 @@ class BuildGroupedContentSpec extends FunSuite {
     val rows = Seq(header1, header2, header3, attr1)
     val result = buildGroupedContent(rows)
 
-    assertEquals(result.length, 1, "Should have 1 group")
-    assertEquals(result(0)._1, Some(header3), "Group should have header3")
-    assertEquals(result(0)._2.length, 1, "Group should have 1 attribute")
-    assertEquals(result(0)._2(0), attr1, "Attribute should be attr1")
+    assertEquals(result.length, 1)
+    assertEquals(result(0)._1, Some(header3))
+    assertEquals(result(0)._2.length, 1)
+    assertEquals(result(0)._2(0), attr1)
   }
 }
