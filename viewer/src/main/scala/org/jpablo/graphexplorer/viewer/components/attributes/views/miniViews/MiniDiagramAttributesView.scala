@@ -46,12 +46,12 @@ def MiniDiagramAttributesView(state: ViewerState) =
           Single(AttrValue(hex)),
           Some(() => div(cls := s"w-8 h-4 rounded border-1 border-solid", styleAttr := s"background-color: $hex"))
         )
-  val bgColorColorRow = builder.simpleRow(BgColor, InputType.selectWithPreviewGrid).copy(options = fillColorRowOpts)
+  val bgColorColorRow = builder.row(BgColor, InputType.selectWithPreviewGrid).copy(options = fillColorRowOpts)
 
   AttributesView(
     id       = "root-graph-attributes",
-    builder.buildRows(
-      builder.simpleRow(
+    builder.rows(
+      builder.row(
         Label,
         multiText,
         onReset     = Some(""),

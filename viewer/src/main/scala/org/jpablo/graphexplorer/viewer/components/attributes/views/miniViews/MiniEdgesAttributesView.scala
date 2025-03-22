@@ -26,7 +26,7 @@ def MiniEdgesAttributesView(
     if selection then
       state.selection.signal.map(sel =>
         if sel.size == 1 then
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
+          builder.row(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
         else
           ""
       ).observe(using state.owner).now()
@@ -35,7 +35,7 @@ def MiniEdgesAttributesView(
 
   val edgeStyleRow: AttributeRow =
     builder
-      .simpleRow(EdgeStyle, InputType.selectWithPreview)
+      .row(EdgeStyle, InputType.selectWithPreview)
       .copy(
         options =
           EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
@@ -44,7 +44,7 @@ def MiniEdgesAttributesView(
 
   val arrowHeadRow: AttributeRow =
     builder
-      .simpleRow(ArrowHead, InputType.selectWithPreviewGrid)
+      .row(ArrowHead, InputType.selectWithPreviewGrid)
       .copy(
         options =
           ArrowType.values.toSeq.map: arrowType =>
@@ -53,7 +53,7 @@ def MiniEdgesAttributesView(
 
   val arrowTailRow: AttributeRow =
     builder
-      .simpleRow(ArrowTail, InputType.selectWithPreviewGrid)
+      .row(ArrowTail, InputType.selectWithPreviewGrid)
       .copy(
         options =
           ArrowType.values.toSeq.map: arrowType =>
@@ -62,20 +62,20 @@ def MiniEdgesAttributesView(
 
   AttributesView(
     id = "edge-attributes",
-    builder.buildRows(
+    builder.rows(
       labelRow,
       if selection then XLabel else "",
       Decorate -> checkbox,
-      builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       FontName -> InputType.select,
       FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
       edgeStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.simpleRow(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       arrowHeadRow,
       arrowTailRow,
       ArrowSize -> range(start = Some(0), end = Some(5), step = Some(0.1)),
       Constraint -> checkbox
     ),
-    if selection then builder.buildRows("Other", URL) else Seq.empty
+    if selection then builder.rows("Other", URL) else Seq.empty
   )

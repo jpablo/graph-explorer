@@ -31,7 +31,7 @@ def NodesAttributesView(
     if selection then
       state.selection.signal.map(sel =>
         if sel.size == 1 then
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
+          builder.row(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
         else
           ""
       ).observe().now()
@@ -40,7 +40,7 @@ def NodesAttributesView(
 
   val borderStyleRow =
     builder
-      .simpleRow(BorderStyle, InputType.selectWithPreview)
+      .row(BorderStyle, InputType.selectWithPreview)
       .copy(
         options =
           BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
@@ -55,11 +55,11 @@ def NodesAttributesView(
 
   val shapeRow: AttributeRow.InputAttribute =
     builder
-      .simpleRow(Shape, InputType.selectWithPreviewGrid)
+      .row(Shape, InputType.selectWithPreviewGrid)
       .copy(options = shapesRowOpts)
 
   val sidesRow =
-    builder.simpleRow(
+    builder.row(
       attr      = Sides,
       inputType = number(start = Some(3), end = Some(10), step = Some(1)),
       hidden = Some(
@@ -67,8 +67,8 @@ def NodesAttributesView(
       )
     )
 
-  val fillStyleRow = builder.simpleRow(FillStyle, checkbox)
-  val fillColorRow = builder.simpleRow(FillColor, InputType.selectWithPreviewGrid)
+  val fillStyleRow = builder.row(FillStyle, checkbox)
+  val fillColorRow = builder.row(FillColor, InputType.selectWithPreviewGrid)
     .copy(
       options = colorRowOptions,
       hidden  = builder.invalidLayout(FillColor) || fillStyleRow.combineDefaultBoolean.not
@@ -76,7 +76,7 @@ def NodesAttributesView(
 
   AttributesView(
     id = "node-attributes",
-    builder.buildRows(
+    builder.rows(
       // ----------------------
       "Label",
       // ----------------------
@@ -86,7 +86,7 @@ def NodesAttributesView(
       // ----------------------
       "Text Format",
       // ----------------------
-      builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       FontName -> InputType.select,
       FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
       // ----------------------
@@ -105,11 +105,11 @@ def NodesAttributesView(
       fillColorRow,
       borderStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.simpleRow(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       CornerStyle
     ),
     if selection then
-      builder.buildRows(
+      builder.rows(
         InvisibleStyle -> checkbox,
         // ----------------------
         "Other",

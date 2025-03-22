@@ -24,7 +24,7 @@ class RowBuilder(
 
   given CanEqual[buildRowsInput, buildRowsInput] = CanEqual.derived
 
-  def buildRows(dotAttributes: buildRowsInput*): Seq[AttributeRow] =
+  def rows(dotAttributes: buildRowsInput*): Seq[AttributeRow] =
     dotAttributes
       .filter:
         case "" => false
@@ -39,12 +39,12 @@ class RowBuilder(
               case attr: DotAttributeEnum[?]              => (attr, InputType.select)
               case attr: DotAttributeSimple[?]            => (attr, InputType.text)
               case (attr: DotAttribute[?], it: InputType) => (attr, it)
-          simpleRow(attr, inputType)
+          row(attr, inputType)
 
   def invalidLayout(attr: DotAttribute[?]): Signal[Boolean] =
     layout.map(_ notIn attr.validLayouts)
 
-  def simpleRow(
+  def row(
       attr:        DotAttribute[?],
       inputType:   InputType,
       onReset:     Option[String] = None,

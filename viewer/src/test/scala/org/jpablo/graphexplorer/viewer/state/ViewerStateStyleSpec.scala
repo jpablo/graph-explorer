@@ -25,8 +25,8 @@ class ViewerStateStyleSpec extends FunSuite:
   ):
     given Owner = owner
     val builder = RowBuilder(updates, Signal.fromValue(Layout.dot), defaults)
-    val filledRow = builder.simpleRow(FillStyle, checkbox)
-    val boldRow = builder.simpleRow(BoldStyle, checkbox)
+    val filledRow = builder.row(FillStyle, checkbox)
+    val boldRow = builder.row(BoldStyle, checkbox)
 
     def setFilled(value: Option[Boolean]): Unit =
       filledRow.inputVar.set:

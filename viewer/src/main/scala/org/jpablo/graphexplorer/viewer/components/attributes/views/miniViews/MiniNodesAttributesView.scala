@@ -24,67 +24,50 @@ def MiniNodesAttributesView(
     defaults:  Option[Signal[Attributes]] = None,
     selection: Boolean
 ) =
-  val builder = RowBuilder(updates, state.layout, defaults)
-
   given owner: Owner = state.owner
-
   val multiSelection = state.selection.signal.map(_.size != 1)
 
-  val labelRow = builder
-    .simpleRow(Label, InputType.multiText, onReset = Some(""))
-    .copy(hidden = multiSelection)
+  val builder = RowBuilder(updates, state.layout, defaults)
+  import builder.{row, rows}
 
-  val labelEmpty = labelRow.combineDefaultString.map(_.isEmpty)
-  val labelRelatedHidden = labelEmpty && multiSelection.not
+  val labelRow = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
 
-  val borderStyleRow =
-    builder
-      .simpleRow(BorderStyle, InputType.selectWithPreview)
-      .copy(
-        options =
-          BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
-      )
+  val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  val shapesRowOpts =
-    Shape.valuesWithLabel
-      .filterNot((_, s) => s in Shape.synonyms).toSeq
-      .map: (label, style) =>
-        RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 30))
+  val shapesRowOpts = Shape.valuesWithLabel
+    .filterNot((_, s) => s in Shape.synonyms).toSeq
+    .map: (label, style) =>
+      RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 30))
 
-  val shapeRow: AttributeRow.InputAttribute =
-    builder
-      .simpleRow(Shape, InputType.selectWithPreviewGrid)
-      .copy(options = shapesRowOpts)
+  val fillStyleRow = row(FillStyle, checkbox)
 
-  val fillStyleRow = builder.simpleRow(FillStyle, checkbox)
-  val fillColorRow = builder.simpleRow(FillColor, InputType.selectWithPreviewGrid)
-    .copy(
-      options = colorRowOptions,
-      hidden  = builder.invalidLayout(FillColor) || fillStyleRow.combineDefaultBoolean.not
-    )
+  val borderStyleOptions = BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
+    RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
 
   AttributesView(
     id = "node-attributes",
-    builder.buildRows(
-      shapeRow,
-      builder.simpleRow(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
-      fillColorRow,
+    rows(
+      row(Shape, InputType.selectWithPreviewGrid).copy(options = shapesRowOpts),
+      row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      row(FillColor, InputType.selectWithPreviewGrid)
+        .copy(
+          options = colorRowOptions,
+          hidden  = builder.invalidLayout(FillColor) || fillStyleRow.combineDefaultBoolean.not
+        ),
       fillStyleRow,
-      borderStyleRow,
+      row(BorderStyle, InputType.selectWithPreview).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       CornerStyle,
       InvisibleStyle -> checkbox,
       // ---------- label stuff ------------
       labelRow,
-      builder.simpleRow(NodeLabelLoc, InputType.select).copy(hidden = labelRelatedHidden),
-      builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(
+      row(NodeLabelLoc, InputType.select).copy(hidden = labelRelatedHidden),
+      row(FontColor, InputType.selectWithPreviewGrid).copy(
         options = colorRowOptions,
         hidden  = labelRelatedHidden
       ),
-      builder.simpleRow(FontName, InputType.select).copy(hidden = labelRelatedHidden),
-      builder.simpleRow(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden =
-        labelRelatedHidden
-      )
+      row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
+
+      row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
     )
   )

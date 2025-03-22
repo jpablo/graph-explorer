@@ -30,16 +30,16 @@ def MiniGraphAttributesView(
     if selection then
       isSingleClusterSelected.map(single =>
         if single then
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter group label"))
+          builder.row(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter group label"))
         else
           ""
       ).observe(using state.owner).now()
     else
-      builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter group label"))
+      builder.row(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter group label"))
 
   val borderStyleRow =
     builder
-      .simpleRow(BorderStyle, InputType.selectWithPreview)
+      .row(BorderStyle, InputType.selectWithPreview)
       .copy(
         options =
           BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
@@ -56,8 +56,8 @@ def MiniGraphAttributesView(
           Some(() => div(cls := s"w-8 h-4 rounded border-1 border-solid", styleAttr := s"background-color: $hex"))
         )
 
-  val fillStyleRow = builder.simpleRow(FillStyle, checkbox)
-  val fillColorRow = builder.simpleRow(FillColor, InputType.selectWithPreviewGrid)
+  val fillStyleRow = builder.row(FillStyle, checkbox)
+  val fillColorRow = builder.row(FillColor, InputType.selectWithPreviewGrid)
     .copy(
       options = fillColorRowOpts,
       hidden =
@@ -69,23 +69,23 @@ def MiniGraphAttributesView(
 
   AttributesView(
     id       = "graph-attributes",
-    builder.buildRows(
+    builder.rows(
       if selection then "Labels" else "",
       if selection then labelRow else "",
       if selection then ClusterLabelLoc else "",
       if selection then LabelJust else "",
-      builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
       fillStyleRow,
       fillColorRow,
       borderStyleRow,
       PenWidth  -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.simpleRow(PenColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(PenColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       BoldStyle -> checkbox,
       CornerStyle
     ),
     if selection then
-      builder.buildRows(
+      builder.rows(
         InvisibleStyle -> checkbox,
         URL
       )
