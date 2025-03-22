@@ -68,12 +68,13 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       disabled <-- hiddenNodesIsEmpty,
       onClick --> commands.showAll.action()
     ).tiny.toTooltip(commands.showAll.titleWithShortcut),
-    // -------- actions toolbar --------
+    // -------- actions --------
     Dropdown(
       title          = span("Copy as"),
       options        = commands.sections.exportAs.map(cmd => cmd.title -> cmd.action),
       onClickHandler = _ --> (action => action())
     ),
+    // -------- examples --------
     Dropdown(
       title   = span("Examples"),
       options = examples.toSeq,

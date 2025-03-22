@@ -7,12 +7,27 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.R
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, ClusterLabelLoc, CornerStyle, FillColor, FillStyle, FontColor, FontName, FontSize, InvisibleStyle, Label, LabelJust, PenColor, PenWidth, URL}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  BoldStyle,
+  BorderStyle,
+  ClusterLabelLoc,
+  CornerStyle,
+  FillColor,
+  FillStyle,
+  FontColor,
+  FontSize,
+  InvisibleStyle,
+  Label,
+  LabelJust,
+  PenColor,
+  PenWidth,
+  URL
+}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, color, number, range}
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 
 def GraphAttributesView(
     state:     ViewerState,
@@ -74,15 +89,14 @@ def GraphAttributesView(
       if selection then ClusterLabelLoc else "",
       if selection then LabelJust else "",
       "Fonts",
-      FontName,
-      FontColor -> color,
+      builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Style",
       fillStyleRow,
       fillColorRow,
       borderStyleRow,
       PenWidth  -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      PenColor  -> color,
+      builder.simpleRow(PenColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       BoldStyle -> checkbox,
       CornerStyle
     ),

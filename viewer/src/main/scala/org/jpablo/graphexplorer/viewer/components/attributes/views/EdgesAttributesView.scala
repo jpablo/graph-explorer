@@ -7,7 +7,23 @@ import AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.{ArrowPreview, EdgeStylePreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.AttributesView
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowSize, ArrowTail, ArrowType, Color, Constraint, Decorate, EdgeStyle, FontColor, FontName, FontSize, Label, PenWidth, URL, XLabel}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  ArrowHead,
+  ArrowSize,
+  ArrowTail,
+  ArrowType,
+  Color,
+  Constraint,
+  Decorate,
+  EdgeStyle,
+  FontColor,
+  FontName,
+  FontSize,
+  Label,
+  PenWidth,
+  URL,
+  XLabel
+}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -61,24 +77,32 @@ def EdgesAttributesView(
       )
 
   AttributesView(
-    id       = "edge-attributes",
+    id = "edge-attributes",
     builder.buildRows(
+      // ----------------
       "Label",
+      // ----------------
       labelRow,
       if selection then XLabel else "",
       Decorate -> checkbox,
+      // ----------------
       "Text Format",
-      FontColor -> color,
-      FontName,
+      // ----------------
+      builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      FontName -> InputType.select,
       FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
+      // ----------------
       "Style",
+      // ----------------
       edgeStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      Color    -> color,
+      builder.simpleRow(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       arrowHeadRow,
       arrowTailRow,
       ArrowSize -> range(start = Some(0), end = Some(5), step = Some(0.1)),
+      // ----------------
       "Layout",
+      // ----------------
       Constraint -> checkbox
     ),
     if selection then builder.buildRows("Other", URL) else Seq.empty
