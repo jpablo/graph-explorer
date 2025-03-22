@@ -2,7 +2,22 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, BoldStyle, BorderStyle, Color, Dir, DirType, FillStyle, Label, NodeStyle, Shape, Sides, Size, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  ArrowTail,
+  ArrowType,
+  BoldStyle,
+  BorderStyle,
+  Color,
+  Dir,
+  DirType,
+  FillStyle,
+  Label,
+  NodeStyle,
+  Shape,
+  Sides,
+  Size,
+  Style
+}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
@@ -28,9 +43,9 @@ class AttributesOpsSpec extends FunSuite:
           rootId -> rootGroup,
           groupId -> ViewerGroup(
             id         = groupId,
-            attributes = Attributes(Map(Label.attrId -> AttrValue("Cluster 1"))),
-            nodeAttrs  = Attributes(Map(Shape.attrId -> AttrValue("box"))),
-            arrowAttrs = Attributes(Map(Style.attrId -> AttrValue("dashed")))
+            attributes = Attributes.of(Label -> "Cluster 1"),
+            nodeAttrs  = Attributes.of(Shape -> Shape.box),
+            arrowAttrs = Attributes.of(Style -> Style.dashed)
           )
         )
       )
@@ -148,22 +163,22 @@ class AttributesOpsSpec extends FunSuite:
 
     // Apply the method
     val result =
-      graph.updateAttributes(ElementIds.from(a), AttributesUpdates(update = Map(Color.attrId -> AttrValue("red"))))
+      graph.updateAttributes(ElementIds.from(a), AttributesUpdates(update = Attributes.of(Color -> "red").values))
 
     // Verify the attributes are updated
     assertEquals(
       result.getAttributesById(a),
-      Attributes(Map(Color.attrId -> AttrValue("red"))),
+      Attributes.of(Color -> "red"),
       "Node attributes should be updated"
     )
 
     // Verify that the original attributes are preserved
     val result2 =
-      result.updateAttributes(ElementIds.from(a), AttributesUpdates(update = Map(Shape.attrId -> AttrValue("box"))))
+      result.updateAttributes(ElementIds.from(a), AttributesUpdates(update = Attributes.of(Shape -> Shape.box).values))
 
     assertEquals(
       result2.getAttributesById(a),
-      Attributes(Map(Color.attrId -> AttrValue("red"), Shape.attrId -> AttrValue("box"))),
+      Attributes.of(Color -> "red", Shape -> Shape.box),
       "Node attributes should be updated"
     )
   }
@@ -172,7 +187,7 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
     // Get the arrow ID from the graph
     val arrowId = Arrow(a, b).id
-    val updates = AttributesUpdates(update = Map(Color.attrId -> AttrValue("blue")))
+    val updates = AttributesUpdates(update = Attributes.of(Color -> "blue").values)
 
     // Apply the method
     val result = graph.updateAttributes(ElementIds.from(arrowId), updates)
@@ -188,7 +203,7 @@ class AttributesOpsSpec extends FunSuite:
   test("updateAttributes should update attributes for groups") {
     val graph = createTestGraph()
     val updates = AttributesUpdates(
-      update = Map(Color.attrId -> AttrValue("green"))
+      update = Attributes.of(Color -> "green").values
     )
 
     // Apply the method
@@ -205,15 +220,7 @@ class AttributesOpsSpec extends FunSuite:
   test("getAttributesUpdatesById should return attributes for a node") {
     val graph = createTestGraph()
       .modifyNodes.using(_ ++
-        Map(
-          a -> ViewerNode(
-            a,
-            Attributes(Map(
-              Color.attrId -> AttrValue("red"),
-              Shape.attrId -> AttrValue(Shape.box.toString)
-            ))
-          )
-        ))
+        Map(a -> ViewerNode(a, Attributes.of(Color -> "red", Shape -> Shape.box))))
 
     // Apply the method
     val result = graph.getAttributesUpdatesById(ElementIds.from(a))

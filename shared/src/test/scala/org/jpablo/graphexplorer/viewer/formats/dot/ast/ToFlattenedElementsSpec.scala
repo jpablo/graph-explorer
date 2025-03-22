@@ -23,7 +23,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
         node("b"),
         node("z", "label" -> "ZZ"),
         node("d")
-      ).unzip._2
+      ).map(_._2)
     assertEquals(data.nodes, expectedNodes)
   }
 
@@ -44,7 +44,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
     val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedGroups =
       List(
-        ViewerGroup(group0, nodeAttrs = Attributes(Map(Shape.attrId -> AttrValue(Shape.egg.toString)))),
+        ViewerGroup(group0, nodeAttrs = Attributes.of(Shape -> Shape.egg)),
         ViewerGroup(group1),
         ViewerGroup(rootId)
       )

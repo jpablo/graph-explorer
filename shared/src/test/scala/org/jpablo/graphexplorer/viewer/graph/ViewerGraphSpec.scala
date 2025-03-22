@@ -45,14 +45,14 @@ class ViewerGraphSpec extends ScalaCheckSuite:
       ViewerGraph(
         ViewerGraphElements(
           nodes  = Map(node(a), node(b)),
-          arrows = Map(arrow.id -> Arrow(a, b, Attributes(Map(Style.attrId -> AttrValue("dashed")))))
+          arrows = Map(arrow.id -> Arrow(a, b, Attributes.of(Style -> Style.dashed)))
         )
       )
 
     val updated =
       graph.updateAttributes(
         ElementIds.from(arrow.id),
-        AttributesUpdates(update = Map(Style.attrId -> AttrValue("dashed")))
+        AttributesUpdates(update = Attributes.of(Style -> Style.dashed).values)
       )
 
     assertEquals(updated, expected)

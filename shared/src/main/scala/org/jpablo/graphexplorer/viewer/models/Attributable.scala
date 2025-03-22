@@ -33,7 +33,7 @@ object ViewerNode:
       nodeIdOrString match
         case id: NodeId  => id
         case str: String => NodeId(str)
-    nodeId -> ViewerNode(nodeId, Attributes(attrs.map((k, v) => AttributeId(k) -> AttrValue(v)).toMap))
+    nodeId -> ViewerNode(nodeId, Attributes.of(attrs*))
 
 // ---- Edges ------
 

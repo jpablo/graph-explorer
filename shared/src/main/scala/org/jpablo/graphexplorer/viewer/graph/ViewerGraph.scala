@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
@@ -131,7 +130,7 @@ case class ViewerGraph(
       groupId:    Option[GroupId] = None,
       attributes: Attributes = Attributes.empty
   ): ViewerGraph =
-    val nodeAttrs = Attributes(Map(Label.attrId -> AttrValue(""))) ++ attributes
+    val nodeAttrs = Attributes.of(Label -> "") ++ attributes
 
     modifyElements.using(
       _.copy(

@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
@@ -30,7 +29,7 @@ class GroupsOpsSpec extends FunSuite:
 
     val newGroupId = updatedGraph.membership(a).get
     val newGroup =
-      newGroupId -> ViewerGroup(newGroupId, Attributes(Map(Label.attrId -> AttrValue("New Group"))))
+      newGroupId -> ViewerGroup(newGroupId, Attributes.of(Label -> "New Group"))
 
     val expected =
       ViewerGraph.minimal.modifyElements.using(

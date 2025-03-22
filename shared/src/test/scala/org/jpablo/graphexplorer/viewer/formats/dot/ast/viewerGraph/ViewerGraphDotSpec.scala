@@ -56,7 +56,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
           memberships = Map(a -> newGroupId),
           groups = Map(
             initialGroup,
-            newGroupId -> ViewerGroup(newGroupId, Attributes(Map(Label.attrId -> AttrValue("New Group"))))
+            newGroupId -> ViewerGroup(newGroupId, Attributes.of(Label -> "New Group"))
           )
         )
       )

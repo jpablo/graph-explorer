@@ -164,22 +164,13 @@ trait AttributesOps:
     modifyRootAttributes(target).using(update)
 
   val defaultNodeTheme =
-    Attributes(
-      Map(
-        Sides.attrId -> AttrValue("5")
-      )
-    )
+    Attributes.of(Sides -> 5)
 
   val defaultEdgeTheme =
     val dir = tpe match
       case GraphType.graph => DirType.none
       case GraphType.digraph => DirType.both
-    Attributes(
-      Map(
-        Dir.attrId       -> AttrValue(dir.toString),
-        ArrowTail.attrId -> AttrValue(ArrowType.none.toString)
-      )
-    )
+    Attributes.of(Dir -> dir, ArrowTail -> ArrowType.none)
 
   def setDefaultTheme: ViewerGraph =
     modifyRootAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
