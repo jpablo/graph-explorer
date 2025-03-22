@@ -14,16 +14,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
   val hiddenNodesIsEmpty =
     state.hiddenElements.signal.map(_.isEmpty)
 
-  val svgBox =
-    svg.svg(
-      svg.width   := 24.toString,
-      svg.height  := 16.toString,
-      svg.viewBox := "0 0 24 16",
-      svg.path(
-        svg.d := "M22 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"
-      )
-    )
-
   div(
     idAttr := "toolbar",
     cls    := "floating-toolbar",
@@ -59,13 +49,13 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         join  = true,
         Menu(
           options = Seq(
-            span(svgBox)        -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.box))),
-            span().circleIcon   -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.circle))),
-            span().diamondIcon  -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.diamond)))
+            span().rectangleIcon -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.box))),
+            span().circleIcon    -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.circle))),
+            span().diamondIcon   -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> Shape.diamond)))
           ),
           onClickHandler = _ --> (action => action())
         ).amend(cls := "items-center")
-      ).amend(cls := "dropdown-center")
+      ).amend(cls := "dropdown-center ml-[-1px]")
     ),
     // -------- show all --------
     Button(

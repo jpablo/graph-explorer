@@ -38,4 +38,15 @@ object Icons:
     def pencilSquareIcon = elem.amend(cls := "bi bi-pencil-square")
     def plusCircleIcon = elem.amend(cls := "bi bi-plus-circle")
     def plusIcon = elem.amend(cls := "bi bi-plus")
+    def rectangleIcon = elem.amend(rectangle)
     def threeDotsVertical = elem.amend(cls := "bi bi-three-dots-vertical")
+
+  val rectangle =
+    svg.svg(
+      svg.width   := 21.toString,
+      svg.height  := 14.toString,
+      svg.viewBox := "0 0 24 16",
+      svg.path(
+        svg.d := "M22 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"
+      )
+    )
