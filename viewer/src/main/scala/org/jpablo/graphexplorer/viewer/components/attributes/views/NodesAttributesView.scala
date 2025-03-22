@@ -88,7 +88,7 @@ def NodesAttributesView(
       // ----------------------
       builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       FontName -> InputType.select,
-      FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
+      FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
       // ----------------------
       "Shape",
       // ----------------------

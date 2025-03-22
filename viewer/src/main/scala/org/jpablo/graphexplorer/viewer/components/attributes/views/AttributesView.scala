@@ -50,7 +50,7 @@ private def AttributesViewRow(row: InputAttribute) =
             .amend(cls := "w-20 text-[.6rem] input-ghost")
         ),
         div(
-          cls := "fieldset-input mt-[-.4rem]",
+          cls := "fieldset-input",
           buildInputCell(row)
         )
       )

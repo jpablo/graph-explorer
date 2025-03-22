@@ -213,7 +213,7 @@ def InputWithValue(
     row.inputType match
       case InputType.number(start, end, step) =>
         Seq(
-          cls      := s"input input-xs text-right",
+          cls      := s"input input-xs text-right input-ghost",
           minAttr  := start.map(_.toString).getOrElse(""),
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")
@@ -225,11 +225,11 @@ def InputWithValue(
           maxAttr  := end.map(_.toString).getOrElse(""),
           stepAttr := step.map(_.toString).getOrElse("")
         )
-      case _ => Seq(cls := s"input input-xs")
+      case _ => Seq(cls := s"input input-xs input-ghost hover")
 
   val colorType = row.combineDefaultString.map(ColorType.fromString)
 
-  // While we get a better color selector, approximate by remove the alpha channel
+  // While we get a better color selector, approximate by removing the alpha channel
   val valueSignal = row.inputType match
     case InputType.color => colorType.map(ColorType.toHexNoAlpha)
     case _               => row.combineDefaultString
