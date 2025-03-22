@@ -52,14 +52,11 @@ class BuildGroupedContentSpec extends FunSuite {
 
     // Assert
     assertEquals(result.length, 2)
-    assertEquals(result(0)._1, Some(header1))
-    assertEquals(result(0)._2.length, 2)
-    assertEquals(result(0)._2(0), attr1)
-    assertEquals(result(0)._2(1), attr2)
-    assertEquals(result(1)._1, Some(header2))
-    assertEquals(result(1)._2.length, 2)
-    assertEquals(result(1)._2(0), attr3)
-    assertEquals(result(1)._2(1), attr4)
+    val Seq((firstGroup, firstAttrs), (secondGroup, secondAttrs)) = result
+    assertEquals(firstGroup, Some(header1))
+    assertEquals(firstAttrs, Seq(attr1, attr2))
+    assertEquals(secondGroup, Some(header2))
+    assertEquals(secondAttrs, Seq(attr3, attr4))
   }
 
   test("buildGroupedContent should handle empty input") {
@@ -85,10 +82,9 @@ class BuildGroupedContentSpec extends FunSuite {
     val result = buildGroupedContent(rows)
 
     assertEquals(result.length, 1)
-    assertEquals(result(0)._1, None)
-    assertEquals(result(0)._2.length, 2)
-    assertEquals(result(0)._2(0), attr1)
-    assertEquals(result(0)._2(1), attr2)
+    val Seq((headerOpt, attrs)) = result
+    assertEquals(headerOpt, None)
+    assertEquals(attrs, Seq(attr1, attr2))
   }
 
   test("buildGroupedContent should maintain order of attributes within groups") {
@@ -101,12 +97,9 @@ class BuildGroupedContentSpec extends FunSuite {
     val result = buildGroupedContent(rows)
 
     assertEquals(result.length, 1)
-    assertEquals(result(0)._1, Some(header))
-    val attrGroup = result(0)._2
-    assertEquals(attrGroup.length, 3)
-    assertEquals(attrGroup(0), attr1)
-    assertEquals(attrGroup(1), attr2)
-    assertEquals(attrGroup(2), attr3)
+    val Seq((headerOpt, attrs)) = result
+    assertEquals(headerOpt, Some(header))
+    assertEquals(attrs, Seq(attr1, attr2, attr3))
   }
 
   test("buildGroupedContent should handle multiple headers without attributes between them") {
@@ -119,8 +112,8 @@ class BuildGroupedContentSpec extends FunSuite {
     val result = buildGroupedContent(rows)
 
     assertEquals(result.length, 1)
-    assertEquals(result(0)._1, Some(header3))
-    assertEquals(result(0)._2.length, 1)
-    assertEquals(result(0)._2(0), attr1)
+    val Seq((headerOpt, attrs)) = result
+    assertEquals(headerOpt, Some(header3))
+    assertEquals(attrs, Seq(attr1))
   }
 }
