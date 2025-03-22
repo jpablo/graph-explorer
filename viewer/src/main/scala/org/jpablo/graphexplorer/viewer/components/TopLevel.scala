@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.router.Router
+import org.jpablo.graphexplorer.viewer.components.attributes.views.miniViews.MiniStyleView
 import org.jpablo.graphexplorer.viewer.components.leftPanel.LeftPanel
 import org.jpablo.graphexplorer.viewer.components.rightPanel.RightPanel
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.CanvasContainer
@@ -17,12 +18,26 @@ def TopLevel(
   div(
     idAttr := "top-level",
     LeftPanel(state, router, commands),
+    child(SelectionPanel(state)) <-- state.selection.signal.map(_ => true),
     CanvasContainer(state, commands),
     Toolbar(state.project.name.signal, commands, state),
     ZoomToolbar(commands),
     RightPanel(state).render(),
     RightToolbar(state),
     HelpDialog(state.shortcutsModalOpen, commands)
+  )
+
+def SelectionPanel(state: ViewerState) =
+  div(
+    idAttr := "selection-panel",
+    cls("left-panel-visible") <-- state.leftPanelVisible,
+    div(
+      cls := "card card-sm",
+      div(
+        cls := "card-body",
+        MiniStyleView(state)
+      )
+    )
   )
 
 def RightToolbar(state: ViewerState) =

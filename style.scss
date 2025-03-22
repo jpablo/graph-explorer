@@ -70,6 +70,18 @@ label[for ^= show-ns-kind-] {
     }
   }
 
+  #selection-panel {
+    @apply absolute top-2 left-10 z-20 transition-all duration-200;
+    &.left-panel-visible {
+      @apply left-[16.5rem];
+    }
+
+    .card {
+      //@apply bg-base-100 w-48 h-80 shadow-sm ;
+      @apply bg-base-100 w-72 h-160 shadow-sm ;
+    }
+  }
+
   #canvas-container {
     @apply p-1 z-10 grow overflow-hidden flex;
     position: relative;

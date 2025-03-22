@@ -21,7 +21,8 @@ object AttributeRow:
       options:      Seq[AttributeRow.RowOption] = Seq.empty,
       default:      Signal[String],
       validLayouts: Set[Layout],
-      hidden:       Signal[Boolean]
+      hidden:       Signal[Boolean],
+      singleRow:    Boolean = true
   ) extends AttributeRow
 
   def _combineDefault(row: InputAttribute): Signal[(SelectionAttrValue, String)] =
