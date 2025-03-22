@@ -15,7 +15,7 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{AttrStatus, Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, range}
 
 def MiniNodesAttributesView(
     parent:    String,
@@ -28,16 +28,14 @@ def MiniNodesAttributesView(
 
   given owner: Owner = state.owner
 
-  val labelRow =
-    if selection then
-      state.selection.signal.map(sel =>
-        if sel.size == 1 then
-          builder.simpleRow(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
-        else
-          ""
-      ).observe().now()
-    else
-      ""
+  val multiSelection = state.selection.signal.map(_.size != 1)
+
+  val labelRow = builder
+    .simpleRow(Label, InputType.multiText, onReset = Some(""))
+    .copy(hidden = multiSelection)
+
+  val labelEmpty = labelRow.combineDefaultString.map(_.isEmpty)
+  val labelRelatedHidden = labelEmpty && multiSelection.not
 
   val borderStyleRow =
     builder
@@ -59,15 +57,6 @@ def MiniNodesAttributesView(
       .simpleRow(Shape, InputType.selectWithPreviewGrid)
       .copy(options = shapesRowOpts)
 
-  val sidesRow =
-    builder.simpleRow(
-      attr      = Sides,
-      inputType = number(start = Some(3), end = Some(10), step = Some(1)),
-      hidden = Some(
-        builder.invalidLayout(Sides) || shapeRow.inputVar.signal.map(_.exists(_.toString != Shape.polygon.toString))
-      )
-    )
-
   val fillStyleRow = builder.simpleRow(FillStyle, checkbox)
   val fillColorRow = builder.simpleRow(FillColor, InputType.selectWithPreviewGrid)
     .copy(
@@ -78,24 +67,24 @@ def MiniNodesAttributesView(
   AttributesView(
     id = "node-attributes",
     builder.buildRows(
-      labelRow,
-      NodeLabelLoc,
-      builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
-      FontName -> InputType.select,
-      FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
       shapeRow,
-      BoldStyle -> checkbox,
-      fillStyleRow,
+      builder.simpleRow(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       fillColorRow,
+      fillStyleRow,
       borderStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.simpleRow(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
-      CornerStyle
-    ),
-    if selection then
-      builder.buildRows(
-        InvisibleStyle -> checkbox,
-        URL
+      CornerStyle,
+      InvisibleStyle -> checkbox,
+      // ---------- label stuff ------------
+      labelRow,
+      builder.simpleRow(NodeLabelLoc, InputType.select).copy(hidden = labelRelatedHidden),
+      builder.simpleRow(FontColor, InputType.selectWithPreviewGrid).copy(
+        options = colorRowOptions,
+        hidden  = labelRelatedHidden
+      ),
+      builder.simpleRow(FontName, InputType.select).copy(hidden = labelRelatedHidden),
+      builder.simpleRow(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden =
+        labelRelatedHidden
       )
-    else Seq.empty
+    )
   )

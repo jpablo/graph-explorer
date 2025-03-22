@@ -58,7 +58,7 @@ object ClusterStyle extends DotAttributeEnum[ClusterStyle]:
   val label = "Cluster Style"
 
 object Color extends DotAttributeSimple[String]:
-  val label = "Color"
+  val label = "Border Color"
   val default = "#000000"
   override val placeholderText = "Enter color here"
 
