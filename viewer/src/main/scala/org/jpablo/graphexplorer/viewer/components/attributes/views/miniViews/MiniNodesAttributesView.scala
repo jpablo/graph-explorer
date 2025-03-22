@@ -95,9 +95,6 @@ def MiniNodesAttributesView(
     if selection then
       builder.buildRows(
         InvisibleStyle -> checkbox,
-        // ----------------------
-        "Other",
-        // ----------------------
         URL
       )
     else Seq.empty

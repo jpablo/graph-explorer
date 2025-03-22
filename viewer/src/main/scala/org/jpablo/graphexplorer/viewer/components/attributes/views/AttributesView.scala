@@ -20,14 +20,13 @@ def AttributesView(
   div(
     idAttr := id,
     cls    := "attributes-view",
-    groupedContent.map { (header, attrRows) =>
+    groupedContent.map: (headerOpt, attrRows) =>
       fieldSet(
         cls := "fieldset",
-        legend(cls := "fieldset-legend", header.title),
+        headerOpt.map(header => legend(cls := "fieldset-legend", header.title)),
         for row <- attrRows
         yield AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
       )
-    }
   )
 
 private def AttributesViewRow(row: InputAttribute) =
@@ -95,25 +94,30 @@ private def inputLabel(row: InputAttribute): Div =
     )
   )
 
-private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(AttributeHeader, Seq[InputAttribute])] =
-  var result: List[(AttributeHeader, List[InputAttribute])] = List.empty
+/** Takes a flat sequence of mixed headers and rows and groups them by (optional) header.
+  */
+private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(Option[AttributeHeader], Seq[InputAttribute])] =
+  var result: List[(Option[AttributeHeader], List[InputAttribute])] = Nil
   var currentHeader: Option[AttributeHeader] = None
-  var currentAttributes: List[InputAttribute] = List.empty
+  var currentAttributes: List[InputAttribute] = Nil
 
   for row <- rows do
     row match
       case header: AttributeHeader =>
-        if currentHeader.nonEmpty then
-          result            = (currentHeader.get, currentAttributes.reverse) :: result
-          currentAttributes = List.empty
+        if currentAttributes.nonEmpty then
+          // Add current attributes with their header (or None if no header)
+          result ::= currentHeader -> currentAttributes.reverse
+          currentAttributes = Nil
+
+        // Start a new group with the new header
         currentHeader = Some(header)
 
       case attr: InputAttribute =>
-        currentAttributes = attr :: currentAttributes
+        currentAttributes ::= attr
 
-  // Add the last group if exists
-  if currentHeader.nonEmpty then
-    result = (currentHeader.get, currentAttributes.reverse) :: result
+  // Add the last group if it has attributes
+  if currentAttributes.nonEmpty then
+    result ::= currentHeader -> currentAttributes.reverse
 
   result.reverse.map((h, attrs) => (h, attrs))
 
