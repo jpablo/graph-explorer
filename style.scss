@@ -214,6 +214,8 @@ label[for ^= show-ns-kind-] {
     }
 
     .attributes-view {
+      @apply h-screen;
+
       .fieldset {
         .fieldset-legend {
           @apply bg-base-200 pl-2 w-full border-y border-base-300;

@@ -167,7 +167,7 @@ def SelectWithPreviewGrid(row: InputAttribute) =
     ),
     // ---- Dropdown menu ----
     div(
-      cls      := "dropdown-content card card-compact z-[1] w-64 p-2 shadow bg-base-100 border border-base-300",
+      cls      := "dropdown-content card card-md w-48 shadow bg-base-100 border border-base-300",
       tabIndex := 0,
       div(
         cls := "card-body grid grid-cols-3 gap-2 overflow-y-auto max-h-64",
