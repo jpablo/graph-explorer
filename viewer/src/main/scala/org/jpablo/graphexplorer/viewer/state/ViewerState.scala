@@ -79,8 +79,8 @@ case class ViewerState(
     *   - Some(NodeAdded) if a standalone node was added
     *   - Some(NodeAndArrowAdded) if a node and an arrow were added
     */
-  def addNodeWithSmartConnection(shape: Option[AttrValue] = None): Unit =
-    val shapeAttr = shape.fold(Map.empty)(s => Map(Shape.attrId -> s))
+  def addNodeWithSmartConnection(shape: Option[Shape] = None): Unit =
+    val shapeAttr = shape.fold(Map.empty)(s => Map(Shape.attrId -> AttrValue(s.toString)))
 
     sourceFlow.fullGraphV.update: fullGraph =>
       val sel = selection.now()

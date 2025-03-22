@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
+import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom.MouseEvent
 
 def SelectWithLabel(
@@ -43,30 +44,47 @@ def Select(
     mods
   )
 
+def Menu[A](
+    options:        Seq[(Modifier.Base | String, A)],
+    onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor]
+) =
+  ul(
+    tabIndex := 0,
+    cls      := "menu bg-base-100 rounded-box z-1 p-2 shadow-lg",
+    for
+      (name, value) <- options
+      nameMod = name match
+        case m: Modifier.Base => m
+        case s: String        => span(s)
+    yield li(a(nameMod, onClickHandler(onClick.mapTo(value))))
+  )
+
 def Dropdown[A](
-    placeholderText: String,
-    options:         Seq[(String, A)],
-    onClickHandler:  EventProcessor[MouseEvent, A] => Modifier[Anchor],
-    mods:            Mods*
+    title:          Modifier.Base,
+    options:        Seq[(Modifier.Base | String, A)],
+    onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor],
+    icon:           Modifier.Base = i(cls := "bi bi-chevron-down"),
+    join:           Boolean = false
+) =
+  DropdownHeader(title, icon, join, Menu(options, onClickHandler).amend(cls := "w-52"))
+
+def DropdownHeader(
+    title: Modifier.Base,
+    icon:  Modifier.Base = i(cls := "bi bi-chevron-down"),
+    join:  Boolean = false,
+    body:  HtmlElement
 ) =
   div(
     cls := "dropdown",
     div(
-      tabIndex := 0,
-      role     := "button",
-      cls      := "whitespace-nowrap",
-      span(placeholderText),
-      i(cls := "bi bi-chevron-down")
+      tabIndex         := 0,
+      role             := "button",
+      cls              := "whitespace-nowrap",
+      cls("join-item") := join,
+      title,
+      icon
     ).asBtn.tiny,
-    // ---- Dropdown menu ----
-    ul(
-      tabIndex := 0,
-      cls      := "dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-lg",
-      for
-        (name, value) <- options
-      yield li(a(name, onClickHandler(onClick.mapTo(value))))
-    ),
-    mods
+    body.amend(cls := "dropdown-content")
   )
 
 def SelectWithValue(
