@@ -8,7 +8,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Layout, Rankdir, Shape}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Layout, Rankdir}
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
@@ -79,14 +79,14 @@ case class ViewerState(
     *   - Some(NodeAdded) if a standalone node was added
     *   - Some(NodeAndArrowAdded) if a node and an arrow were added
     */
-  def addNodeWithSmartConnection(shape: Option[Shape] = None): Unit =
-    val shapeAttr = shape.fold(Map.empty)(s => Map(Shape.attrId -> AttrValue(s.toString)))
+  def addNodeWithSmartConnection(attributes: Attributes = Attributes.empty): Unit =
+//    val shapeAttr = shape.fold(Map.empty)(s => Map(Shape.attrId -> AttrValue(s.toString)))
 
     sourceFlow.fullGraphV.update: fullGraph =>
       val sel = selection.now()
 
       if sel.isEmpty then
-        val (newGraph, newNodeId) = fullGraph.addNode(attributes = shapeAttr)
+        val (newGraph, newNodeId) = fullGraph.addNode(attributes = attributes)
         selection.set(newNodeId)
         newGraph
       else
@@ -94,15 +94,15 @@ case class ViewerState(
         // Only proceed if selected ID is a valid node in the graph
         source match
           case id: NodeId =>
-            val (newGraph, newNodeId, _) = fullGraph.addNodeAndArrowFrom(source = id, attributes = shapeAttr)
+            val (newGraph, newNodeId, _) = fullGraph.addNodeAndArrowFrom(source = id, attributes = attributes)
             selection.set(newNodeId)
             newGraph
           case id: GroupId =>
-            val (newGraph, newNodeId) = fullGraph.addNode(groupId = Some(id), attributes = shapeAttr)
+            val (newGraph, newNodeId) = fullGraph.addNode(groupId = Some(id), attributes = attributes)
             selection.set(newNodeId)
             newGraph
           case _: ArrowId =>
-            val (newGraph, newNodeId) = fullGraph.addNode(attributes = shapeAttr)
+            val (newGraph, newNodeId) = fullGraph.addNode(attributes = attributes)
             selection.set(newNodeId)
             newGraph
 

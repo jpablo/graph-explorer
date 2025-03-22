@@ -50,7 +50,7 @@ def Menu[A](
 ) =
   ul(
     tabIndex := 0,
-    cls      := "menu bg-base-100 rounded-box z-1 p-2 shadow-lg",
+    cls      := "menu bg-base-100 rounded-box z-1 shadow-lg",
     for
       (name, value) <- options
       nameMod = name match

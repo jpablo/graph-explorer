@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.models
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.DotAttribute
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{DotAttribute, DotAttributeEnum}
 import upickle.default.*
 
 import scala.annotation.targetName
@@ -88,3 +88,17 @@ case class AttributesUpdates(
 
 object Attributes:
   val empty = Attributes(Map.empty)
+
+  def of(values: AttributePair*) =
+    Attributes(values.map(_.toTuple).toMap)
+
+
+
+trait AttributePair:
+  def toTuple: (AttributeId, AttrValue)
+
+
+object AttributePair:
+  implicit def pair[A](p: (DotAttributeEnum[A], A)): AttributePair =
+    new AttributePair:
+      def toTuple: (AttributeId, AttrValue) = p._1.attrId -> AttrValue(p._2.toString)

@@ -129,9 +129,9 @@ case class ViewerGraph(
   def addNodeWithId(
       nodeId:     NodeId,
       groupId:    Option[GroupId] = None,
-      attributes: Map[AttributeId, AttrValue] = Map.empty
+      attributes: Attributes = Attributes.empty
   ): ViewerGraph =
-    val nodeAttrs = Attributes(Map(Label.attrId -> AttrValue("")) ++ attributes)
+    val nodeAttrs = Attributes(Map(Label.attrId -> AttrValue(""))) ++ attributes
 
     modifyElements.using(
       _.copy(
@@ -142,14 +142,14 @@ case class ViewerGraph(
 
   def addNode(
       groupId:    Option[GroupId] = None,
-      attributes: Map[AttributeId, AttrValue] = Map.empty
+      attributes: Attributes = Attributes.empty
   ): (ViewerGraph, NodeId) =
     val nodeId = nextNodeId()
     (addNodeWithId(nodeId, groupId, attributes), nodeId)
 
   def addNodeAndArrowFrom(
       source:     NodeId,
-      attributes: Map[AttributeId, AttrValue] = Map.empty
+      attributes: Attributes = Attributes.empty
   ): (ViewerGraph, NodeId, ArrowId) =
     val nodeId = nextNodeId()
     val sourceGroup = membership(source)
