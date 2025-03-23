@@ -22,8 +22,8 @@ def MiniStyleView(state: ViewerState) =
               div(
                 MiniEdgesAttributesView(
                   state,
-                  updates   = state.elementAttributes(ElementIds(arrowIds)),
-                  defaults  = Some(state.defaults(AttributeTarget.edge)),
+                  updates = state.elementAttributes(ElementIds(arrowIds)),
+                  defaults = Some(state.defaults(AttributeTarget.edge)),
                   selection = true
                 ).amend(cls("selection-attributes"))
               )
@@ -33,26 +33,23 @@ def MiniStyleView(state: ViewerState) =
                 MiniNodesAttributesView(
                   "SelectionAttributes",
                   state,
-                  updates   = state.elementAttributes(ElementIds(nodeIds)),
-                  defaults  = Some(state.defaults(AttributeTarget.node)),
-                  selection = true
+                  updates = state.elementAttributes(ElementIds(nodeIds)),
+                  defaults = Some(state.defaults(AttributeTarget.node))
                 ).amend(cls("selection-attributes"))
               )
 
             case (false, false, true) =>
               div(
                 MiniGraphAttributesView(
-                  state     = state,
-                  attrsVar  = state.elementAttributes(ElementIds(clusterIds)),
-                  defaults  = Some(state.defaults(AttributeTarget.graph)),
+                  state = state,
+                  attrsVar = state.elementAttributes(ElementIds(clusterIds)),
+                  defaults = Some(state.defaults(AttributeTarget.graph)),
                   selection = true
                 ).amend(cls("selection-attributes"))
               )
 
             case (false, false, false) =>
-              div(
-                MiniDiagramAttributesView(state)
-              )
+              div()
 
             case _ =>
               val elementTypes = Map(

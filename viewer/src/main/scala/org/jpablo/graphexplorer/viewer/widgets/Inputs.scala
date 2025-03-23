@@ -56,7 +56,55 @@ def Menu[A](
       nameMod = name match
         case m: Modifier.Base => m
         case s: String        => span(s)
-    yield li(a(nameMod, onClickHandler(onClick.mapTo(value))))
+    yield li(
+      a(
+        nameMod,
+        onClickHandler(onClick.mapTo(value))
+      )
+    )
+  )
+
+/** A menu with a horizontal layout, with the last item being a dropdown menu.
+  */
+def MenuWithExtraDropdown(row: InputAttribute, initial: Int) =
+  ul(
+    tabIndex := 0,
+    cls      := "menu menu-horizontal bg-base-100 rounded-box p-0",
+    for
+      option <- row.options.take(initial)
+    yield li(
+      button(
+        cls := "btn btn-ghost btn-xs",
+        option.preview.fold(span(option.name))(elem => elem()),
+        onClick.mapTo(option.value) --> row.inputVar
+      )
+    ),
+    li(
+      div(
+        cls := "dropdown p-0",
+        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs px-1", i().threeDotsVertical),
+        div(
+          tabIndex := 0,
+          cls      := "dropdown-content card card-xs bg-base-100 z-1 w-61 shadow-md",
+          div(
+            cls := "card-body p-0",
+            ul(
+              tabIndex := 0,
+              cls      := "p-0 m-0 menu menu-horizontal [&:before]:hidden",
+              for
+                option <- row.options.drop(initial)
+              yield li(
+                button(
+                  cls := "btn btn-ghost btn-xs",
+                  option.preview.fold(span(option.name))(elem => elem()),
+                  onClick.mapTo(option.value) --> row.inputVar
+                )
+              )
+            )
+          )
+        )
+      )
+    )
   )
 
 def Dropdown[A](
@@ -148,6 +196,12 @@ def SelectWithPreview(row: InputAttribute) =
     )
   )
 
+def SingleRowMenu(row: InputAttribute) =
+  Menu(
+    options = row.options.map(o => o.name -> o.value),
+    onClickHandler = _ --> (action => println(action))
+  ).amend(cls := "items-center")
+
 def SelectWithPreviewGrid(row: InputAttribute) =
   div(
     cls      := "dropdown dropdown-bottom dropdown-end",
@@ -206,7 +260,7 @@ def InputWithValue(
     setFocus: Boolean = false
 ) =
   // hack
-  val htmlRegex = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
+  val htmlRegex         = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
   def isHtml(s: String) = htmlRegex.matches(s)
 
   val extra =
@@ -256,7 +310,7 @@ def TextAreaWithValue(
     default:  String = "",
     setFocus: Boolean = false
 ) =
-  val htmlRegex = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
+  val htmlRegex         = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
   def isHtml(s: String) = htmlRegex.matches(s)
 
   // Note .replaceAll operates on regexes, so we need to escape the backslashes

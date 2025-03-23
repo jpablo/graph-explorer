@@ -22,7 +22,7 @@ object AttributeRow:
       default:      Signal[String],
       validLayouts: Set[Layout],
       hidden:       Signal[Boolean],
-      singleRow:    Boolean = true
+      singleRow:    Boolean = false
   ) extends AttributeRow
 
   def _combineDefault(row: InputAttribute): Signal[(SelectionAttrValue, String)] =

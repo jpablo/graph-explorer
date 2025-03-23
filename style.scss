@@ -76,9 +76,8 @@ label[for ^= show-ns-kind-] {
       @apply top-2 left-[16.5rem];
     }
 
-    .card {
-      //@apply bg-base-100 w-48 h-80 shadow-sm ;
-      @apply bg-base-100 w-72 h-160 shadow-sm ;
+    > .card {
+      @apply bg-base-100 w-52 h-160 shadow-sm ;
     }
   }
 

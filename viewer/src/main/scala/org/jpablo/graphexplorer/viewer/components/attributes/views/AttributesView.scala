@@ -34,10 +34,7 @@ private def AttributesViewRow(row: InputAttribute) =
     case InputType.multiText =>
       Seq(
         label(cls := "fieldset-label", inputLabel(row)),
-        div(
-          cls := "fieldset-input",
-          buildInputCell(row)
-        )
+        div(cls   := "fieldset-input", buildInputCell(row))
       )
 
     case InputType.range(s, e, step) =>
@@ -64,21 +61,25 @@ private def AttributesViewRow(row: InputAttribute) =
       )
 
     case _ =>
-      Seq(
-        label(
-          cls := "fieldset-label fieldset-input flex justify-between",
-          inputLabel(row),
-          buildInputCell(row).amend(cls := "w-40")
+      if row.singleRow then
+        Seq(
+          label(
+            cls := "fieldset-label fieldset-input flex justify-between",
+            inputLabel(row),
+            buildInputCell(row).amend(cls := "w-40")
+          )
         )
-      )
+      else
+        Seq(
+          label(cls := "fieldset-label", inputLabel(row)),
+          div(cls   := "fieldset-input", buildInputCell(row))
+        )
 
 private def inputLabel(row: InputAttribute): Div =
   val multipleValues = row.inputVar.signal.map(_ == Multiple)
   div(
     cls := "flex items-center justify-start",
-    //
     div(cls("font-bold") <-- row.isChanged, row.label),
-    //
     div(
       cls("w-6 flex items-center justify-center") <-- multipleValues.combineWith(row.isChanged).map(_ || _),
       child(
@@ -98,8 +99,8 @@ private def inputLabel(row: InputAttribute): Div =
   */
 private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(Option[AttributeHeader], Seq[InputAttribute])] =
   var result: List[(Option[AttributeHeader], List[InputAttribute])] = Nil
-  var currentHeader: Option[AttributeHeader] = None
-  var currentAttributes: List[InputAttribute] = Nil
+  var currentHeader: Option[AttributeHeader]                        = None
+  var currentAttributes: List[InputAttribute]                       = Nil
 
   for row <- rows do
     row match
@@ -123,9 +124,10 @@ private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(Option[AttributeH
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
-    case InputType.selectWithPreviewGrid => SelectWithPreviewGrid(row)
-    case InputType.selectWithPreview     => SelectWithPreview(row)
-    case InputType.select                => SelectWithValue(row)
-    case InputType.checkbox              => Checked(row)
-    case InputType.multiText             => TextAreaWithValue(row)
-    case _                               => InputWithValue(row)
+    case InputType.menuWithExtra(initial) => MenuWithExtraDropdown(row, initial)
+    case InputType.selectWithPreviewGrid  => SelectWithPreviewGrid(row)
+    case InputType.selectWithPreview      => SelectWithPreview(row)
+    case InputType.select                 => SelectWithValue(row)
+    case InputType.checkbox               => Checked(row)
+    case InputType.multiText              => TextAreaWithValue(row)
+    case _                                => InputWithValue(row)

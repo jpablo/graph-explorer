@@ -21,6 +21,9 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
   val defaultShapePreview =
     state.nodeShape.map(shapePreview)
 
+  val shapePreviews = Seq(Shape.box, Shape.circle, Shape.ellipse, Shape.diamond, Shape.star).map: shape =>
+    shapePreview(shape) -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> shape)))
+
   div(
     idAttr := "toolbar",
     cls    := "floating-toolbar",
@@ -52,13 +55,10 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       ).tiny,
       DropdownHeader(
         title = emptyMod,
-        icon  = i().threeDotsVertical,
-        join  = true,
-        Menu(
-          options = Seq(Shape.box, Shape.circle, Shape.ellipse, Shape.diamond, Shape.star).map: shape =>
-            shapePreview(shape) -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> shape))),
-          onClickHandler = _ --> (action => action())
-        ).amend(cls := "items-center")
+        icon = i().threeDotsVertical,
+        join = true,
+        Menu(options = shapePreviews, onClickHandler = _ --> (action => action()))
+          .amend(cls := "items-center")
       ).amend(cls := "dropdown-center ml-[-1px]")
     ),
     // -------- show all --------
@@ -70,13 +70,13 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     ).tiny.toTooltip(commands.showAll.titleWithShortcut),
     // -------- actions --------
     Dropdown(
-      title          = span("Copy as"),
-      options        = commands.sections.exportAs.map(cmd => cmd.title -> cmd.action),
+      title = span("Copy as"),
+      options = commands.sections.exportAs.map(cmd => cmd.title -> cmd.action),
       onClickHandler = _ --> (action => action())
     ),
     // -------- examples --------
     Dropdown(
-      title   = span("Examples"),
+      title = span("Examples"),
       options = examples.toSeq,
       onClickHandler =
         _.flatMap(FetchStream.get(_)) --> { source =>

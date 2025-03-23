@@ -22,7 +22,6 @@ def MiniNodesAttributesView(
     state:     ViewerState,
     updates:   Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
-    selection: Boolean
 ) =
   given owner: Owner = state.owner
   val multiSelection = state.selection.signal.map(_.size != 1)
@@ -37,22 +36,23 @@ def MiniNodesAttributesView(
   val shapesRowOptions = Shape.valuesWithLabel
     .filterNot((_, s) => s in Shape.synonyms).toSeq
     .map: (label, style) =>
-      RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 30))
+      RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 20, 20))
 
   val fillStyleRow = row(FillStyle, checkbox)
 
-  val borderStyleOptions = BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
-    RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
+  val borderStyleOptions = BorderStyle.valuesWithLabel
+    .toSeq.map: (label, style) =>
+      RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
 
   AttributesView(
     id = "mini-node-attributes",
     rows(
-      row(Shape, InputType.selectWithPreviewGrid).copy(options = shapesRowOptions),
+      row(Shape, InputType.menuWithExtra(4)).copy(options = shapesRowOptions),
       row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
       row(FillColor, InputType.selectWithPreviewGrid)
         .copy(
           options = colorRowOptions,
-          hidden  = builder.invalidLayout(FillColor) || fillStyleRow.combineDefaultBoolean.not
+          hidden = builder.invalidLayout(FillColor) // || fillStyleRow.combineDefaultBoolean.not
         ),
       fillStyleRow,
       row(BorderStyle, InputType.selectWithPreview).copy(options = borderStyleOptions),
@@ -64,10 +64,9 @@ def MiniNodesAttributesView(
       row(NodeLabelLoc, InputType.select).copy(hidden = labelRelatedHidden),
       row(FontColor, InputType.selectWithPreviewGrid).copy(
         options = colorRowOptions,
-        hidden  = labelRelatedHidden
+        hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
-
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
     )
   )

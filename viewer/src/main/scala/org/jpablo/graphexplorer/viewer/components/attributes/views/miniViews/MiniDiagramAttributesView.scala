@@ -49,7 +49,7 @@ def MiniDiagramAttributesView(state: ViewerState) =
   val bgColorColorRow = builder.row(BgColor, InputType.selectWithPreviewGrid).copy(options = fillColorRowOpts)
 
   AttributesView(
-    id       = "root-graph-attributes",
+    id       = "mini-root-graph-attributes",
     builder.rows(
       builder.row(
         Label,
@@ -70,4 +70,4 @@ def MiniDiagramAttributesView(state: ViewerState) =
       RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
       NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
     )
-  ).amend(cls := "mb-8")
+  )
