@@ -43,7 +43,7 @@ private def AttributesViewRow(row: InputAttribute) =
           cls := "fieldset-label fieldset-input flex justify-between",
           inputLabel(row),
           buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
-            .amend(cls := "w-20 text-[.6rem] input-ghost")
+            .amend(cls := "w-16 text-[.6rem] input-ghost")
         ),
         div(
           cls := "fieldset-input",
@@ -82,16 +82,8 @@ private def inputLabel(row: InputAttribute): Div =
     div(cls("font-bold") <-- row.isChanged, row.label),
     div(
       cls("w-6 flex items-center justify-center") <-- multipleValues.combineWith(row.isChanged).map(_ || _),
-      child(
-        span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))
-      ) <-- multipleValues,
-      child(
-        a(
-          title := s"reset ${row.label}",
-          onClick --> row.inputVar.set(Missing),
-          i(cls := "bi bi-x")
-        ).tiny // .ghost //.circle
-      ) <-- row.isChanged
+      child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,
+      child(a(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x")).tiny) <-- row.isChanged
     )
   )
 
