@@ -43,7 +43,6 @@ def MiniStyleView(state: ViewerState) =
                   state = state,
                   attrsVar = state.elementAttributes(ElementIds(clusterIds)),
                   defaults = Some(state.defaults(AttributeTarget.graph)),
-                  selection = true
                 ).amend(cls("selection-attributes"))
               )
 

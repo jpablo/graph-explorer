@@ -5,7 +5,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.EdgeStyle
 import org.scalajs.dom.SVGSVGElement
 
-def EdgeStylePreview(
+def ArrowStylePreview(
     style:  EdgeStyle,
     width:  Int = 100,
     height: Int = 20

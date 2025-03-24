@@ -44,11 +44,15 @@ def MiniNodesAttributesView(
     .toSeq.map: (label, style) =>
       RowOption(label, Single(AttrValue(style.toString)), CornerPreview(style))
 
-  val verticalAlignmentOptions = Seq(
-    RowOption("Top", Single(AttrValue("top")), Some(() => i(cls := "bi bi-align-top"))),
-    RowOption("Center", Single(AttrValue("center")), Some(() => i(cls := "bi bi-align-middle"))),
-    RowOption("Bottom", Single(AttrValue("bottom")), Some(() => i(cls := "bi bi-align-bottom")))
+  val alignIcons = Map(
+    NodeLabelLoc.t -> "bi-align-top",
+    NodeLabelLoc.c -> "bi-align-middle",
+    NodeLabelLoc.b -> "bi-align-bottom"
   )
+  val verticalAlignmentOptions =
+    NodeLabelLoc.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${alignIcons(style)}")))
 
   AttributesView(
     id = "mini-node-attributes",

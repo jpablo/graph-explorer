@@ -151,7 +151,7 @@ enum GroupLabelLoc:
 trait GroupLabelLocT extends DotAttributeEnum[GroupLabelLoc]:
   import GroupLabelLoc.*
   override val attrId = AttributeId("labelloc")
-  val label = "Vertical pos"
+  val label = "Vertical alignment"
   def values = Array(t, b)
   override val valuesWithLabel = Array(
     ("Top", t),
@@ -179,7 +179,7 @@ object Label extends DotAttributeSimple[String]:
 
 object LabelJust extends DotAttributeEnum[LabelJust]:
   val default = c
-  val label = "Horizontal pos"
+  val label = "Horizontal alignment"
   override val valuesWithLabel = Array(
     ("Left", l),
     ("Center", c),
@@ -289,7 +289,7 @@ object Pad extends DotAttributeSimple[Double]:
   val default = 0.0555
 
 object PenColor extends DotAttributeSimple[String]:
-  val label = "Pen Color"
+  val label = "Border Color"
   val default = "#000000" // default for nodes
   override val placeholderText = "Enter border color here"
 

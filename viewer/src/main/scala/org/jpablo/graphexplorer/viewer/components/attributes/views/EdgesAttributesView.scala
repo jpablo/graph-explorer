@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import AttributeRow.RowOption
-import org.jpablo.graphexplorer.viewer.components.attributes.previews.{ArrowPreview, EdgeStylePreview}
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.{ArrowPreview, ArrowStylePreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.AttributesView
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
@@ -55,7 +55,7 @@ def EdgesAttributesView(
       .copy(
         options =
           EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, Single(AttrValue(style.toString)), EdgeStylePreview(style))
+            RowOption(label, Single(AttrValue(style.toString)), ArrowStylePreview(style))
       )
 
   val arrowHeadRow: AttributeRow =

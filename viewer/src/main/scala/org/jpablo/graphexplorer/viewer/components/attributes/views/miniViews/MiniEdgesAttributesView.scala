@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.syntaxSignalOfBoolean
-import org.jpablo.graphexplorer.viewer.components.attributes.previews.{ArrowPreview, EdgeStylePreview}
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.{ArrowPreview, ArrowStylePreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{AttributesView, colorRowOptions}
@@ -30,26 +30,23 @@ def MiniEdgesAttributesView(
   val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  val edgeStyleOptions =
+  val arrowStyleOptions =
     EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
-      RowOption(label, Single(AttrValue(style.toString)), EdgeStylePreview(style, 20))
+      RowOption(label, Single(AttrValue(style.toString)), ArrowStylePreview(style, 20))
 
-  val arrowHeadOptions =
+  val arrowEndpointOptions =
     ArrowType.values.toSeq.map: arrowType =>
       RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 20))
 
-  val arrowTailOptions =
-    ArrowType.values.toSeq.map: arrowType =>
-      RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 20))
 
   AttributesView(
     id = "edge-attributes",
     rows(
       row(Color, InputType.menuWithExtra(4)).copy(options = colorRowOptions),
-      row(EdgeStyle, InputType.menuWithExtra(4)).copy(options = edgeStyleOptions),
+      row(EdgeStyle, InputType.menuWithExtra(4)).copy(options = arrowStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(ArrowHead, InputType.menuWithExtra(4)).copy(options = arrowHeadOptions),
-      row(ArrowTail, InputType.menuWithExtra(4)).copy(options = arrowTailOptions),
+      row(ArrowHead, InputType.menuWithExtra(4)).copy(options = arrowEndpointOptions),
+      row(ArrowTail, InputType.menuWithExtra(4)).copy(options = arrowEndpointOptions),
       ArrowSize  -> range(start = Some(0), end = Some(5), step = Some(0.1)),
       Constraint -> checkbox,
       // ---------- label stuff ------------
