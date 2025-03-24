@@ -95,7 +95,7 @@ object Distortion:
 object EdgeStyle extends DotAttributeEnum[EdgeStyle]:
   override def attrId = Style.attrId
   val default = solid
-  val label = "Edge Style"
+  val label = "Border Style"
   override def valuesWithLabel = Array(
     ("Dashed", dashed),
     ("Dotted", dotted),

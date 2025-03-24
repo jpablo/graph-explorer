@@ -24,7 +24,6 @@ def MiniStyleView(state: ViewerState) =
                   state,
                   updates = state.elementAttributes(ElementIds(arrowIds)),
                   defaults = Some(state.defaults(AttributeTarget.edge)),
-                  selection = true
                 ).amend(cls("selection-attributes"))
               )
 

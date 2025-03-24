@@ -2,6 +2,8 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.miniViews
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
+import com.raquo.laminar.api.L.*
+import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.{ArrowPreview, EdgeStylePreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
@@ -18,64 +20,42 @@ def MiniEdgesAttributesView(
     state:     ViewerState,
     updates:   Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
-    selection: Boolean
 ) =
+  given owner: Owner = state.owner
+  val multiSelection = state.selection.signal.map(_.size != 1)
+
   val builder = RowBuilder(updates, state.layout, defaults)
+  import builder.{row, rows}
 
-  val labelRow =
-    if selection then
-      state.selection.signal.map(sel =>
-        if sel.size == 1 then
-          builder.row(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
-        else
-          ""
-      ).observe(using state.owner).now()
-    else
-      ""
+  val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
+  val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  val edgeStyleRow: AttributeRow =
-    builder
-      .row(EdgeStyle, InputType.selectWithPreview)
-      .copy(
-        options =
-          EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, Single(AttrValue(style.toString)), EdgeStylePreview(style))
-      )
+  val edgeStyleOptions =
+    EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
+      RowOption(label, Single(AttrValue(style.toString)), EdgeStylePreview(style, 20))
 
-  val arrowHeadRow: AttributeRow =
-    builder
-      .row(ArrowHead, InputType.selectWithPreviewGrid)
-      .copy(
-        options =
-          ArrowType.values.toSeq.map: arrowType =>
-            RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 50))
-      )
+  val arrowHeadOptions =
+    ArrowType.values.toSeq.map: arrowType =>
+      RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 20))
 
-  val arrowTailRow: AttributeRow =
-    builder
-      .row(ArrowTail, InputType.selectWithPreviewGrid)
-      .copy(
-        options =
-          ArrowType.values.toSeq.map: arrowType =>
-            RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 50))
-      )
+  val arrowTailOptions =
+    ArrowType.values.toSeq.map: arrowType =>
+      RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 20))
 
   AttributesView(
     id = "edge-attributes",
-    builder.rows(
-      labelRow,
-      if selection then XLabel else "",
-      Decorate -> checkbox,
-      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
-      FontName -> InputType.select,
-      FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
-      edgeStyleRow,
+    rows(
+      row(Color, InputType.menuWithExtra(4)).copy(options = colorRowOptions),
+      row(EdgeStyle, InputType.menuWithExtra(4)).copy(options = edgeStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
-      arrowHeadRow,
-      arrowTailRow,
-      ArrowSize -> range(start = Some(0), end = Some(5), step = Some(0.1)),
-      Constraint -> checkbox
-    ),
-    if selection then builder.rows("Other", URL) else Seq.empty
+      row(ArrowHead, InputType.menuWithExtra(4)).copy(options = arrowHeadOptions),
+      row(ArrowTail, InputType.menuWithExtra(4)).copy(options = arrowTailOptions),
+      ArrowSize  -> range(start = Some(0), end = Some(5), step = Some(0.1)),
+      Constraint -> checkbox,
+      // ---------- label stuff ------------
+      labelRow,
+      row(FontColor, InputType.menuWithExtra(4)).copy(options = colorRowOptions, hidden = labelRelatedHidden),
+      row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
+      row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
+    )
   )

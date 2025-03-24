@@ -2,8 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.miniViews
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.components.attributes.*
+import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.{BorderStylePreview, ShapePreview, CornerPreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
@@ -29,8 +28,7 @@ def MiniNodesAttributesView(
   val builder = RowBuilder(updates, state.layout, defaults)
   import builder.{row, rows}
 
-  val labelRow = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
-
+  val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
   val shapesRowOptions = Shape.valuesWithLabel
