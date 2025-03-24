@@ -59,7 +59,7 @@ def MiniNodesAttributesView(
           hidden = builder.invalidLayout(FillColor) // || fillStyleRow.combineDefaultBoolean.not
         ),
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
-      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      PenWidth -> range(start = Some(0.1), end = Some(4), step = Some(0.25)),
       CornerStyle,
       InvisibleStyle -> checkbox,
       // ---------- label stuff ------------

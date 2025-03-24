@@ -294,7 +294,7 @@ object PenColor extends DotAttributeSimple[String]:
   override val placeholderText = "Enter border color here"
 
 object PenWidth extends DotAttributeSimple[Double]:
-  val label = "Pen Width"
+  val label = "Border Width"
   val default = 1.0
   override val placeholderText = "Enter pen width here"
 
