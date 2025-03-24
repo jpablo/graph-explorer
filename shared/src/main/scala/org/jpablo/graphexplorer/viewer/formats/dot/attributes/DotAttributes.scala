@@ -122,7 +122,7 @@ object FontColor extends DotAttributeSimple[String]:
   override val placeholderText = "Enter font color here"
 
 object FontName extends DotAttributeSimple[String]:
-  val label = "Font Name"
+  val label = "Font Family"
   val default = "Times New Roman"
   override val placeholderText = "Enter font name here"
   override val values: Array[String] =

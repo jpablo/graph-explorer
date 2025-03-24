@@ -18,7 +18,7 @@ def TopLevel(
   div(
     idAttr := "top-level",
     LeftPanel(state, router, commands),
-    child(SelectionPanel(state)) <-- state.selection.signal.map(_ => true),
+    child(SelectionPanel(state)) <-- state.selection.signal.map(_.nonEmpty),
     CanvasContainer(state, commands),
     Toolbar(state.project.name.signal, commands, state),
     ZoomToolbar(commands),
