@@ -28,12 +28,10 @@ case class ViewerNode(
 
 object ViewerNode:
 
-  def node(nodeIdOrString: NodeId | String, attrs: (String, String)*) =
-    val nodeId =
-      nodeIdOrString match
-        case id: NodeId  => id
-        case str: String => NodeId(str)
-    nodeId -> ViewerNode(nodeId, Attributes.of(attrs*))
+  val defaultNodeAttributes = Attributes.of(Label -> "")
+
+  def node(nodeId: NodeId, attributes: Attributes = Attributes.empty) =
+    ViewerNode(nodeId, defaultNodeAttributes ++ attributes)
 
 // ---- Edges ------
 
@@ -47,7 +45,7 @@ case class Arrow(
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
   val id = ArrowId(s"${source.value}$titleIdSeparator${target.value}:$seq")
 
-  def nodeIds = Set(source, target)
+  def nodeIds   = Set(source, target)
   def endpoints = Set(source, target)
 end Arrow
 

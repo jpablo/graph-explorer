@@ -55,7 +55,7 @@ case class ViewerState(
           .map(str => Try(Rankdir.valueOf(str)).getOrElse(Rankdir.default))
           .getOrElse(Rankdir.default)
 
-      SvgCanvas(svg, transform, this, () => { addNodeWithSmartConnection(); () }, () => getRankdir)
+      SvgCanvas(svg, transform, this, () => addNodeWithSmartConnection(), () => getRankdir)
 
   // -------- storage ------------
   restoreState()
@@ -125,7 +125,7 @@ case class ViewerState(
 
   def layout: Signal[Layout] =
     defaults(AttributeTarget.graph).map(_.getAs(Layout))
-    
+
   def nodeShape: Signal[Shape] =
     defaults(AttributeTarget.node).map(_.getAs(Shape))
 

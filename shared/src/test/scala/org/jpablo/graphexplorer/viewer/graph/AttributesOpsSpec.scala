@@ -1,25 +1,9 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
-  ArrowTail,
-  ArrowType,
-  BoldStyle,
-  BorderStyle,
-  Color,
-  Dir,
-  DirType,
-  FillStyle,
-  Label,
-  NodeStyle,
-  Shape,
-  Sides,
-  Size,
-  Style
-}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget, nodeWithId}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, BoldStyle, BorderStyle, Color, Dir, DirType, FillStyle, Label, NodeStyle, Shape, Sides, Size, Style}
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 class AttributesOpsSpec extends FunSuite:
 
@@ -37,7 +21,7 @@ class AttributesOpsSpec extends FunSuite:
     val arrow = Arrow(a, b)
     ViewerGraph(
       ViewerGraphElements(
-        nodes  = Map(node(a), node(b), node(c)),
+        nodes  = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
         arrows = Map(arrow.id -> arrow),
         groups = Map(
           rootId -> rootGroup,

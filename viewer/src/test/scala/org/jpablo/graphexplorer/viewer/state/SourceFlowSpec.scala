@@ -2,9 +2,9 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.ownership.Owner
 import munit.FunSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.nodeWithId
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.initialGroup
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 class SourceFlowSpec extends FunSuite:
   test("Sanity check") {
@@ -37,7 +37,7 @@ class SourceFlowSpec extends FunSuite:
 
     val graph = viewerState.fullGraph.now()
 
-    assertEquals(graph.nodes, Map(node("a", "label" -> "A", "other" -> "value")))
+    assertEquals(graph.nodes, Map(nodeWithId("a", "label" -> "A", "other" -> "value")))
     assertEquals(graph.groups, Map(initialGroup))
     assert(graph.arrows.isEmpty)
     assert(graph.memberships.isEmpty)

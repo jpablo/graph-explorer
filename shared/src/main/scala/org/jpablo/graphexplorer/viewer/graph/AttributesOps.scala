@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarg
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, Dir, DirType, GraphType, NodeStyle, Overlap, Sides, Size, Style}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 trait AttributesOps:
   this: ViewerGraph =>
@@ -107,7 +108,7 @@ trait AttributesOps:
     val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
       nodes.updated(
         id,
-        nodes.getOrElse(id, ViewerNode(id)).modify(_.attributes).using(updates.applyUpdatesTo)
+        nodes.getOrElse(id, node(id)).modify(_.attributes).using(updates.applyUpdatesTo)
       )
 
     modifyElements.using(

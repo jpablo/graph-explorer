@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.defaultRootId
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 import scala.annotation.tailrec
 
@@ -87,7 +88,7 @@ extension (ast: DotAST)
                 remaining   = (parent -> children) :: t,
                 arrows      = arrows,
                 groups      = groups,
-                nodes       = ViewerNode(nodeId, Attributes(toAttrsMap(attr_list))) :: nodes,
+                nodes       = node(nodeId, Attributes(toAttrsMap(attr_list))) :: nodes,
                 memberships = parent.fold(memberships)(p => (nodeId -> p) :: memberships)
               )
 

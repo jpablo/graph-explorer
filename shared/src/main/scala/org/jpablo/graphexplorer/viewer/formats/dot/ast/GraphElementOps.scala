@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 import scala.annotation.tailrec
 
@@ -27,6 +28,6 @@ extension (graphElement: GraphElement)
         case _ :: t => loop(remaining = t, acc)
 
     loop(List(graphElement), Map.empty)
-      .map((id, attrs) => NodeId(id) -> ViewerNode(NodeId(id), Attributes(attrs)))
+      .map((id, attrs) => NodeId(id) -> node(NodeId(id), Attributes(attrs)))
 
 end extension

@@ -6,7 +6,6 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphDataToDo
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.*
 
 class ToFlattenedElementsSpec extends ScalaCheckSuite:
@@ -19,10 +18,10 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
     val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedNodes =
       List(
-        node("a"),
-        node("b"),
-        node("z", "label" -> "ZZ"),
-        node("d")
+        nodeWithId("a"),
+        nodeWithId("b"),
+        nodeWithId("z", "label" -> "ZZ"),
+        nodeWithId("d")
       ).map(_._2)
     assertEquals(data.nodes, expectedNodes)
   }

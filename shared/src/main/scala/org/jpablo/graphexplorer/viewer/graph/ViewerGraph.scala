@@ -2,9 +2,10 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 import scala.annotation.tailrec
 
@@ -29,25 +30,25 @@ case class ViewerGraph(
     nextAvailable()
   // --- end mutable stuff ----
 
-  val rootId = elements.rootId
+  val rootId    = elements.rootId
   val rootGroup = elements.rootGroup
 
-  val nodes = elements.nodes
-  val arrows = elements.arrows
-  val groups = elements.groups
+  val nodes       = elements.nodes
+  val arrows      = elements.arrows
+  val groups      = elements.groups
   val memberships = elements.memberships
 
-  val nodeIds = nodes.keySet
+  val nodeIds  = nodes.keySet
   val arrowIds = arrows.keySet
   val groupIds = groups.keySet
 
   lazy val nodesSeq = nodes.toSeq
-  val arrowsSet = arrows.values.toSet
+  val arrowsSet     = arrows.values.toSet
 
-  val modifyElements = this.modify(_.elements)
+  val modifyElements               = this.modify(_.elements)
   protected[graph] val modifyNodes = this.modify(_.elements.nodes)
-  protected val modifyArrows = this.modify(_.elements.arrows)
-  protected val modifyMemberships = this.modify(_.elements.memberships)
+  protected val modifyArrows       = this.modify(_.elements.arrows)
+  protected val modifyMemberships  = this.modify(_.elements.memberships)
 
   def getNode(id: NodeId): Option[ViewerNode] =
     nodes.get(id)
@@ -57,7 +58,7 @@ case class ViewerGraph(
 
   def summary =
     ViewerGraph.Summary(
-      nodes  = nodes.size,
+      nodes = nodes.size,
       arrows = arrows.size,
       groups = groups.size - 1 // skip root group
     )
@@ -72,20 +73,20 @@ case class ViewerGraph(
     * It ignores groups and memberships.
     */
   def subgraph(ids: Set[NodeId]): ViewerGraph =
-    val foundNodes = nodes.filter((id, _) => id in ids)
-    val foundNodeIds = foundNodes.keySet
+    val foundNodes     = nodes.filter((id, _) => id in ids)
+    val foundNodeIds   = foundNodes.keySet
     val relevantArrows = arrows.filter((_, a) => (a.source in foundNodeIds) && (a.target in foundNodeIds))
     ViewerGraph(
       ViewerGraphElements(
         rootId = rootId,
-        nodes  = foundNodes,
+        nodes = foundNodes,
         arrows = relevantArrows,
         groups = Map(rootId -> rootGroup)
       )
     )
 
   def removeElements(elementIds: ElementIds): ViewerGraph =
-    val classified = elementIds.classify
+    val classified       = elementIds.classify
     val groupIdsToRemove = classified.clusters
 
     val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
@@ -99,7 +100,7 @@ case class ViewerGraph(
       else
         Some(elementId -> groupId) // Keep unchanged
 
-    val nodeIdsToRemove = classified.nodes
+    val nodeIdsToRemove  = classified.nodes
     val arrowIdsToRemove = classified.arrows
 
     val updatedArrows = arrows.filterNot { (arrowId, arrow) =>
@@ -107,10 +108,10 @@ case class ViewerGraph(
     }
 
     modifyElements.using(_.copy(
-      nodes       = nodes -- nodeIdsToRemove,
-      arrows      = updatedArrows,
+      nodes = nodes -- nodeIdsToRemove,
+      arrows = updatedArrows,
       memberships = updatedMemberships,
-      groups      = groups -- groupIdsToRemove
+      groups = groups -- groupIdsToRemove
     ))
 
   private def maxArrowSequence(source: NodeId, target: NodeId): Int =
@@ -122,7 +123,7 @@ case class ViewerGraph(
 
   def addArrow(source: NodeId, target: NodeId): (ViewerGraph, Arrow) =
     val newSeq = maxArrowSequence(source, target)
-    val arrow = Arrow(source, target, seq = newSeq + 1)
+    val arrow  = Arrow(source, target, seq = newSeq + 1)
     (modifyArrows.using(_ + (arrow.id -> arrow)), arrow)
 
   def addNodeWithId(
@@ -130,11 +131,9 @@ case class ViewerGraph(
       groupId:    Option[GroupId] = None,
       attributes: Attributes = Attributes.empty
   ): ViewerGraph =
-    val nodeAttrs = Attributes.of(Label -> "") ++ attributes
-
     modifyElements.using(
       _.copy(
-        nodes       = nodes + (nodeId -> ViewerNode(nodeId, nodeAttrs)),
+        nodes = nodes + (nodeId -> node(nodeId, attributes)),
         memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))
       )
     )
@@ -150,8 +149,8 @@ case class ViewerGraph(
       source:     NodeId,
       attributes: Attributes = Attributes.empty
   ): (ViewerGraph, NodeId, ArrowId) =
-    val nodeId = nextNodeId()
-    val sourceGroup = membership(source)
+    val nodeId            = nextNodeId()
+    val sourceGroup       = membership(source)
     val (newGraph, arrow) = addNodeWithId(nodeId, sourceGroup, attributes).addArrow(source, nodeId)
     (newGraph, nodeId, arrow.id)
 
@@ -185,8 +184,8 @@ object ViewerGraph:
       def toBase26(n: Int): List[Int] =
         if n == 0 then Nil
         else
-          val adjusted = n - 1
-          val quotient = adjusted / 26
+          val adjusted  = n - 1
+          val quotient  = adjusted / 26
           val remainder = adjusted % 26
           remainder :: (if quotient > 0 then toBase26(quotient) else Nil)
 
