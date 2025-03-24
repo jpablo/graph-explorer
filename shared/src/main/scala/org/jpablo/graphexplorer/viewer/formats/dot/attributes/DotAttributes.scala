@@ -110,6 +110,7 @@ enum EdgeStyle derives CanEqual:
 
 object FillColor extends DotAttributeSimple[String]:
   val label = "Fill Color"
+  val none = "none"
   val default = "#d3d3d3" // default for nodes
   override val placeholderText = "Enter fill color here"
 

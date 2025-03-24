@@ -3,10 +3,30 @@ package org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes
 import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{default, missing}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, CornerStyle, FillStyle, InvisibleStyle, NodeStyle}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  BoldStyle,
+  BorderStyle,
+  CornerStyle,
+  FillColor,
+  FillStyle,
+  InvisibleStyle,
+  NodeStyle
+}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
-import org.jpablo.graphexplorer.viewer.models.{AttrStatus, AttributeId, Attributes, AttributesUpdates, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{
+  AttrStatus,
+  AttributeId,
+  Attributes,
+  AttributesUpdates,
+  SelectionAttrValue
+}
 
+/** Provides "virtual" attributes that correspond to sub-attributes of the "style" attribute.
+  *
+  * The "style" attribute is a comma-separated list of sub-attributes, which complicates its usage in the application.
+  *
+  * These attributes are not part of the dot language.
+  */
 case class StyleSubAttributes(
     fill:      AttrStatus[Boolean],
     bold:      AttrStatus[Boolean],
@@ -17,20 +37,20 @@ case class StyleSubAttributes(
 
   def withDefaults =
     StyleSubAttributes(
-      fill      = fill.orElse(default.fill),
-      bold      = bold.orElse(default.bold),
+      fill = fill.orElse(default.fill),
+      bold = bold.orElse(default.bold),
       invisible = invisible.orElse(default.invisible),
-      border    = border.orElse(default.border),
-      corner    = corner.orElse(default.corner)
+      border = border.orElse(default.border),
+      corner = corner.orElse(default.corner)
     )
 
   def ++(self: StyleSubAttributes): StyleSubAttributes =
     StyleSubAttributes(
-      fill      = self.fill.orElse(fill),
-      bold      = self.bold.orElse(bold),
+      fill = self.fill.orElse(fill),
+      bold = self.bold.orElse(bold),
       invisible = self.invisible.orElse(invisible),
-      border    = self.border.orElse(border),
-      corner    = self.corner.orElse(corner)
+      border = self.border.orElse(border),
+      corner = self.corner.orElse(corner)
     )
 
   private def toKV[A](status: AttrStatus[A], attrId: AttributeId)(using
@@ -41,7 +61,7 @@ case class StyleSubAttributes(
       case _         => None
 
   // default values will be omitted in the dot string
-  def toSubAttributes: Attributes =
+  def toAttributes: Attributes =
     Attributes(
       Seq(
         toKV(fill, FillStyle.attrId),
@@ -54,8 +74,8 @@ case class StyleSubAttributes(
 
   // The "simple" mode is used when the style is not a combination of multiple styles
   def toStyleStringSimple: String =
-    val fillPart = if fill.is(true) then List(NodeStyle.filled.toString) else Nil
-    val boldPart = if bold.is(true) then List(NodeStyle.bold.toString) else Nil
+    val fillPart  = if fill.is(true) then List(NodeStyle.filled.toString) else Nil
+    val boldPart  = if bold.is(true) then List(NodeStyle.bold.toString) else Nil
     val invisPart = if invisible.is(true) then List(NodeStyle.invis.toString) else Nil
     val borderPart = border match
       case Single(b) if b != BorderStyle.default => List(b.toString)
@@ -84,42 +104,39 @@ case class StyleSubAttributes(
 //      val dd = this.withDefaults
 //      val merged = gd ++ dd
 //      val simple = merged.toStyleStringSimple
-      val mergedNoDefaults = global ++ this
-      val simpleNoDefaults = mergedNoDefaults.toStyleStringSimple
-      if mergedNoDefaults == global then
+      val merged = global ++ this
+      val simple = merged.toStyleStringSimple
+      if merged == global then
         None
       else
-        Some(simpleNoDefaults)
-
-  def isMissing: Boolean =
-    this == StyleSubAttributes.missing
+        Some(simple)
 
 object StyleSubAttributes:
   val subAttributeIds =
     Set(FillStyle.attrId, BoldStyle.attrId, InvisibleStyle.attrId, BorderStyle.attrId, CornerStyle.attrId)
 
   val default = StyleSubAttributes(
-    fill      = Single(FillStyle.default),
-    bold      = Single(BoldStyle.default),
+    fill = Single(FillStyle.default),
+    bold = Single(BoldStyle.default),
     invisible = Single(InvisibleStyle.default),
-    border    = Single(BorderStyle.default),
-    corner    = Single(CornerStyle.default)
+    border = Single(BorderStyle.default),
+    corner = Single(CornerStyle.default)
   )
 
   val missing = StyleSubAttributes(
-    fill      = Missing,
-    bold      = Missing,
+    fill = Missing,
+    bold = Missing,
     invisible = Missing,
-    border    = Missing,
-    corner    = Missing
+    border = Missing,
+    corner = Missing
   )
 
   val multiple = StyleSubAttributes(
-    fill      = Multiple,
-    bold      = Multiple,
+    fill = Multiple,
+    bold = Multiple,
     invisible = Multiple,
-    border    = Multiple,
-    corner    = Multiple
+    border = Multiple,
+    corner = Multiple
   )
 
   def from(attrs: Attributes): Option[StyleSubAttributes] =
@@ -134,20 +151,25 @@ object StyleSubAttributes:
       case Multiple      => multiple
       case Missing       => missing
 
+  private def handleFillStyle(attrs: Attributes) =
+    // If no fill color is specified, interpret the fill style as false
+    attrs.get(FillColor.attrId).map(_.toString != FillColor.none)
+
   // TODO: we need to use Missing!!! (at least for local values, not sure about global)
   def fromSubAttributes(attrs: Attributes): StyleSubAttributes =
     val borderStr = attrs.get(BorderStyle.attrId).map(_.toString)
-    val border = BorderStyle.values.find(style => borderStr.contains(style.toString))
+    val border    = BorderStyle.values.find(style => borderStr.contains(style.toString))
 
     val cornerStr = attrs.get(CornerStyle.attrId).map(_.toString)
-    val corner = CornerStyle.values.find(style => cornerStr.contains(style.toString))
+    val corner    = CornerStyle.values.find(style => cornerStr.contains(style.toString))
 
     StyleSubAttributes(
-      fill      = attrs.get(FillStyle.attrId).map(_.isTrue).fold(Missing)(Single(_)),
-      bold      = attrs.get(BoldStyle.attrId).map(_.isTrue).fold(Missing)(Single(_)),
+      // Note that this ignores any existing FillStyle attribute. Rather it uses the FillColor attribute to determine if the node is filled.
+      fill = handleFillStyle(attrs).fold(Missing)(Single(_)),
+      bold = attrs.get(BoldStyle.attrId).map(_.isTrue).fold(Missing)(Single(_)),
       invisible = attrs.get(InvisibleStyle.attrId).map(_.isTrue).fold(Missing)(Single(_)),
-      border    = border.map(Single(_)).getOrElse(Missing),
-      corner    = corner.map(Single(_)).getOrElse(Missing)
+      border = border.map(Single(_)).getOrElse(Missing),
+      corner = corner.map(Single(_)).getOrElse(Missing)
     )
 
   // Examples:
@@ -157,7 +179,7 @@ object StyleSubAttributes:
   // [style=""] --> a:false,b:false
   // [] --> a:missing,b:missing == a:false,b:false
 
-  val singleTrue = Single(true)
+  val singleTrue  = Single(true)
   val singleFalse = Single(false)
   private inline def singleBoolean(value: Boolean): AttrStatus[Boolean] =
     if value then singleTrue else singleFalse
@@ -168,9 +190,9 @@ object StyleSubAttributes:
       missing
     else
       StyleSubAttributes(
-        fill      = singleBoolean(NodeStyle.filled.toString in parts),
-        bold      = singleBoolean(NodeStyle.bold.toString in parts),
+        fill = singleBoolean(NodeStyle.filled.toString in parts),
+        bold = singleBoolean(NodeStyle.bold.toString in parts),
         invisible = singleBoolean(NodeStyle.invis.toString in parts),
-        border    = Single(BorderStyle.values.find(_.toString in parts).getOrElse(BorderStyle.default)),
-        corner    = Single(CornerStyle.values.find(_.toString in parts).getOrElse(CornerStyle.default))
+        border = Single(BorderStyle.values.find(_.toString in parts).getOrElse(BorderStyle.default)),
+        corner = Single(CornerStyle.values.find(_.toString in parts).getOrElse(CornerStyle.default))
       )

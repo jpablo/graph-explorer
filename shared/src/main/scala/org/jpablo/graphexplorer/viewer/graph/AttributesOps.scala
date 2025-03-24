@@ -34,6 +34,8 @@ trait AttributesOps:
   lazy val removeUnsupportedFeatures: ViewerGraph =
     modifyRootGraphAttrs.using(_ - Size.attrId - Overlap.attrId)
 
+  /** Expands the "style" attribute into its sub-attributes (fill, bold, invisible, border, corner)
+    */
   def expandStyleAttributes: ViewerGraphElements =
     elements.copy(
       groups = groups.transform { (id, g) =>
@@ -51,8 +53,10 @@ trait AttributesOps:
   private def expandElementAttributes(id: ElementId, attrs: Attributes): Attributes =
     attrs.get(NodeStyle.attrId).fold(attrs): styleAttr =>
       // replace the "style" attribute with its sub-attributes (fill, bold, etc.)
-      attrs - NodeStyle.attrId ++ StyleSubAttributes.parse(styleAttr).withDefaults.toSubAttributes
+      attrs - NodeStyle.attrId ++ StyleSubAttributes.parse(styleAttr).withDefaults.toAttributes
 
+  /** Combines the style sub-attributes into a single "style" attribute.
+    */
   def combineStyleAttributes: ViewerGraphElements =
     elements.copy(
       groups = groups.transform { (id, g) =>

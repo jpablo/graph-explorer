@@ -38,8 +38,6 @@ def MiniNodesAttributesView(
     .map: (label, style) =>
       RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 20, 20))
 
-  val fillStyleRow = row(FillStyle, checkbox)
-
   val borderStyleOptions = BorderStyle.valuesWithLabel
     .toSeq.map: (label, style) =>
       RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style, 20))
@@ -55,7 +53,6 @@ def MiniNodesAttributesView(
     rows(
       row(Shape, InputType.menuWithExtra(4)).copy(options = shapesRowOptions),
       row(Color, InputType.menuWithExtra(4)).copy(options = colorRowOptions),
-      fillStyleRow,
       row(FillColor, InputType.menuWithExtra(4))
         .copy(
           options = colorRowOptions,
