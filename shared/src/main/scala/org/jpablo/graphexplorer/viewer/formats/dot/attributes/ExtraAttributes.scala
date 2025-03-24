@@ -50,7 +50,7 @@ object CornerStyle extends DotAttributeEnum[CornerStyle]:
   val label = "Corner Style"
 
   override def valuesWithLabel = Array(
+    ("Normal", normal),
     ("Rounded", rounded),
     ("Diagonals", diagonals),
-    ("Normal", normal)
   )

@@ -4,7 +4,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.attributes.*
-import org.jpablo.graphexplorer.viewer.components.attributes.previews.{BorderStylePreview, ShapePreview}
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.{BorderStylePreview, ShapePreview, CornerPreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{AttributesView, colorRowOptions}
@@ -18,10 +18,10 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, range}
 
 def MiniNodesAttributesView(
-    parent:    String,
-    state:     ViewerState,
-    updates:   Var[AttributesUpdates],
-    defaults:  Option[Signal[Attributes]] = None,
+    parent:   String,
+    state:    ViewerState,
+    updates:  Var[AttributesUpdates],
+    defaults: Option[Signal[Attributes]] = None
 ) =
   given owner: Owner = state.owner
   val multiSelection = state.selection.signal.map(_.size != 1)
@@ -42,6 +42,10 @@ def MiniNodesAttributesView(
     .toSeq.map: (label, style) =>
       RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style, 20))
 
+  val cornerStyleOptions = CornerStyle.valuesWithLabel
+    .toSeq.map: (label, style) =>
+      RowOption(label, Single(AttrValue(style.toString)), CornerPreview(style))
+
   val verticalAlignmentOptions = Seq(
     RowOption("Top", Single(AttrValue("top")), Some(() => i(cls := "bi bi-align-top"))),
     RowOption("Center", Single(AttrValue("center")), Some(() => i(cls := "bi bi-align-middle"))),
@@ -60,11 +64,14 @@ def MiniNodesAttributesView(
         ),
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.1), end = Some(4), step = Some(0.25)),
-      CornerStyle,
+      row(CornerStyle, InputType.menuWithExtra(4)).copy(options = cornerStyleOptions),
       InvisibleStyle -> checkbox,
       // ---------- label stuff ------------
       labelRow,
-      row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(options = verticalAlignmentOptions, hidden = labelRelatedHidden),
+      row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(
+        options = verticalAlignmentOptions,
+        hidden = labelRelatedHidden
+      ),
       row(FontColor, InputType.menuWithExtra(4)).copy(
         options = colorRowOptions,
         hidden = labelRelatedHidden
