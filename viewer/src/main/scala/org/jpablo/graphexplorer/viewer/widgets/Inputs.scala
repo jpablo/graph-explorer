@@ -69,33 +69,41 @@ def Menu[A](
 def MenuWithExtraDropdown(row: InputAttribute, initial: Int) =
   def menuButton(option: RowOption) =
     div(
-      cls := "px-2",
+      cls   := "px-2",
       title := option.name,
       option.elem.fold(span(option.name))(elem => elem()),
       onClick.mapTo(option.value) --> row.inputVar
     )
 
+  val initialOptions = row.options.take(initial)
+  val extraOptions   = row.options.drop(initial)
   ul(
     tabIndex := 0,
     cls      := "menu menu-horizontal bg-base-100 rounded-box p-0",
-    for option <- row.options.take(initial) yield li(menuButton(option)),
+    for option <- initialOptions yield li(menuButton(option)),
     li(
       cls := "justify-center",
       div(
         cls := "dropdown p-0 m-0",
-        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs px-1", i().threeDotsVertical),
-        div(
-          tabIndex := 0,
-          cls      := "dropdown-content card card-xs bg-base-100 z-1 w-61 shadow-md",
-          div(
-            cls := "card-body p-0",
-            ul(
+        if extraOptions.isEmpty then emptyMod
+        else
+          Seq(
+            // "extra" button
+            div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs px-1", i().threeDotsVertical),
+            // popup card
+            div(
               tabIndex := 0,
-              cls      := "p-0 m-0 menu menu-horizontal [&:before]:hidden",
-              for option <- row.options.drop(initial) yield li(menuButton(option))
+              cls      := "dropdown-content card card-xs bg-base-100 z-1 w-61 shadow-md",
+              div(
+                cls := "card-body p-0",
+                ul(
+                  tabIndex := 0,
+                  cls      := "p-0 m-0 menu menu-horizontal [&:before]:hidden",
+                  for option <- extraOptions yield li(menuButton(option))
+                )
+              )
             )
           )
-        )
       )
     )
   )

@@ -5,7 +5,6 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.R
 import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
-//import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 
 package object views:
   val colorRowOptions =
