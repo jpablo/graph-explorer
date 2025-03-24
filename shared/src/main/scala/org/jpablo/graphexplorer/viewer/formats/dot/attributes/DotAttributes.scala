@@ -320,7 +320,7 @@ enum Rankdir derives CanEqual:
 
 object Rankdir extends DotAttributeEnum[Rankdir]:
   val default = TB
-  val label = "Direction"
+  val label = "Diagram Direction"
   override val validLayouts = Set(Layout.dot)
   override val valuesWithLabel = Array(
     ("Top to Bottom", TB),

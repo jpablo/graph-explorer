@@ -61,6 +61,13 @@ def DiagramAttributesView(state: ViewerState) =
     LabelJust.r -> "bi-align-end"
   )
 
+  val directionIcons = Map(
+    Rankdir.TB -> "bi-arrow-down",
+    Rankdir.LR -> "bi-arrow-right",
+    Rankdir.BT -> "bi-arrow-up",
+    Rankdir.RL -> "bi-arrow-left"
+  )
+
   val verticalAlignmentOptions =
     RootGraphLabelLoc.valuesWithLabel
       .toSeq.map: (label, style) =>
@@ -70,6 +77,11 @@ def DiagramAttributesView(state: ViewerState) =
     LabelJust.valuesWithLabel
       .toSeq.map: (label, style) =>
         RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${hAlignIcons(style)}")))
+
+  val directionOptions =
+    Rankdir.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${directionIcons(style)}")))
 
   val labelRow =
     row(Label, multiText, onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title"))
@@ -90,7 +102,7 @@ def DiagramAttributesView(state: ViewerState) =
       ),
       "Layout",
       Layout,
-      Rankdir,
+      row(Rankdir, InputType.menuWithExtra(4)).copy(options = directionOptions),
       graphTypeRow,
       "Other",
       Splines,
@@ -100,7 +112,6 @@ def DiagramAttributesView(state: ViewerState) =
           options = colorRowOptions,
           hidden = builder.invalidLayout(BgColor)
         ),
-
       Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
       RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
       NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
