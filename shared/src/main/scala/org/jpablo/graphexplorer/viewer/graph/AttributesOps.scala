@@ -2,10 +2,24 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes
-import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{fromSubAttributes, subAttributeIds}
+import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{
+  fromSubAttributes,
+  subAttributeIds
+}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, Dir, DirType, GraphType, NodeStyle, Overlap, Sides, Size, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  ArrowTail,
+  ArrowType,
+  Dir,
+  DirType,
+  GraphType,
+  NodeStyle,
+  Overlap,
+  Sides,
+  Size,
+  Style
+}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
@@ -14,8 +28,8 @@ trait AttributesOps:
   this: ViewerGraph =>
 
   lazy val modifyRootGraphAttrs = this.modify(_.elements.groups.at(rootGroup.id).attributes)
-  lazy val modifyRootNodeAttrs = this.modify(_.elements.groups.at(rootGroup.id).nodeAttrs)
-  lazy val modifyRootEdgeAttrs = this.modify(_.elements.groups.at(rootGroup.id).arrowAttrs)
+  lazy val modifyRootNodeAttrs  = this.modify(_.elements.groups.at(rootGroup.id).nodeAttrs)
+  lazy val modifyRootEdgeAttrs  = this.modify(_.elements.groups.at(rootGroup.id).arrowAttrs)
 
   lazy val removeUnsupportedFeatures: ViewerGraph =
     modifyRootGraphAttrs.using(_ - Size.attrId - Overlap.attrId)
@@ -26,10 +40,10 @@ trait AttributesOps:
         g.copy(
           attributes = expandElementAttributes(id, g.attributes),
           arrowAttrs = expandElementAttributes(id, g.arrowAttrs),
-          nodeAttrs  = expandElementAttributes(id, g.nodeAttrs)
+          nodeAttrs = expandElementAttributes(id, g.nodeAttrs)
         )
       },
-      nodes = nodes.transform((id, n) => n.copy(attributes = expandElementAttributes(id, n.attributes)))
+      nodes = nodes.transform((id, n) => n.modifyAttrs.setTo(expandElementAttributes(id, n.attributes)))
     )
 
   // DOT -> ViewerGraph
@@ -45,12 +59,12 @@ trait AttributesOps:
         g.copy(
           attributes = combineElementAttributes(id, g.attributes),
           arrowAttrs = combineElementAttributes(id, g.arrowAttrs),
-          nodeAttrs  = combineElementAttributes(id, g.nodeAttrs)
+          nodeAttrs = combineElementAttributes(id, g.nodeAttrs)
         )
       },
       nodes = nodes.transform { (id, n) =>
-        n.copy(
-          attributes = combineElementAttributes(id, n.attributes, globals = Some(rootGroup.nodeAttrs))
+        n.modifyAttrs.setTo(
+          combineElementAttributes(id, n.attributes, globals = Some(rootGroup.nodeAttrs))
         )
       }
     )
@@ -108,13 +122,13 @@ trait AttributesOps:
     val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
       nodes.updated(
         id,
-        nodes.getOrElse(id, node(id)).modify(_.attributes).using(updates.applyUpdatesTo)
+        nodes.getOrElse(id, node(id)).modifyAttrs.using(updates.applyUpdatesTo)
       )
 
     modifyElements.using(
       _.copy(
         arrows = arrows ++ updatedArrows,
-        nodes  = updatedNodes,
+        nodes = updatedNodes,
         groups = groups ++ updatedClusters
       )
     )
@@ -169,7 +183,7 @@ trait AttributesOps:
 
   val defaultEdgeTheme =
     val dir = tpe match
-      case GraphType.graph => DirType.none
+      case GraphType.graph   => DirType.none
       case GraphType.digraph => DirType.both
     Attributes.of(Dir -> dir, ArrowTail -> ArrowType.none)
 
@@ -182,13 +196,13 @@ object AttributesOps:
   /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
   def rootAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributesUpdates] =
     Lens(
-      in  = graph => graph.getRootAttributes(target).toUpdates,
+      in = graph => graph.getRootAttributes(target).toUpdates,
       out = (graph, updates) => graph.updateRootAttributes(target)(updates.applyUpdatesTo)
     )
 
   /** Bundle functions for updating attributes of specific elements */
   def elementAttributesUpdates(elementIds: ElementIds): Lens[ViewerGraph, AttributesUpdates] =
     Lens(
-      in  = graph => graph.getAttributesUpdatesById(elementIds),
+      in = graph => graph.getAttributesUpdatesById(elementIds),
       out = (graph, updates) => graph.updateAttributes(elementIds, updates)
     )

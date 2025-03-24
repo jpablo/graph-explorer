@@ -2,18 +2,34 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget, nodeWithId}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, BoldStyle, BorderStyle, Color, Dir, DirType, FillStyle, Label, NodeStyle, Shape, Sides, Size, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  ArrowTail,
+  ArrowType,
+  BoldStyle,
+  BorderStyle,
+  Color,
+  Dir,
+  DirType,
+  FillStyle,
+  Label,
+  NodeStyle,
+  Shape,
+  Sides,
+  Size,
+  Style
+}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 class AttributesOpsSpec extends FunSuite:
 
   // Common test setup
-  val rootId = ViewerGraphElements.defaultRootId
+  val rootId    = ViewerGraphElements.defaultRootId
   val rootGroup = ViewerGroup(rootId)
 
-  val a = NodeId("a")
-  val b = NodeId("b")
-  val c = NodeId("c")
+  val a       = NodeId("a")
+  val b       = NodeId("b")
+  val c       = NodeId("c")
   val groupId = GroupId("cluster_1")
 
   // Helper method to create a basic graph for testing
@@ -21,14 +37,14 @@ class AttributesOpsSpec extends FunSuite:
     val arrow = Arrow(a, b)
     ViewerGraph(
       ViewerGraphElements(
-        nodes  = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
+        nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
         arrows = Map(arrow.id -> arrow),
         groups = Map(
           rootId -> rootGroup,
           groupId -> ViewerGroup(
-            id         = groupId,
+            id = groupId,
             attributes = Attributes.of(Label -> "Cluster 1"),
-            nodeAttrs  = Attributes.of(Shape -> Shape.box),
+            nodeAttrs = Attributes.of(Shape -> Shape.box),
             arrowAttrs = Attributes.of(Style -> Style.dashed)
           )
         )
@@ -57,9 +73,9 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
       .modifyNodes.setTo(
         Map(
-          a -> ViewerNode(a, Attributes(Map(NodeStyle.attrId -> styleValue))),
-          b -> ViewerNode(b),
-          c -> ViewerNode(c)
+          a -> node(a, Attributes(Map(NodeStyle.attrId -> styleValue))),
+          b -> node(b),
+          c -> node(c)
         )
       )
 
@@ -87,7 +103,7 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
       .modifyNodes.setTo(
         Map(
-          a -> ViewerNode(
+          a -> node(
             a,
             Attributes(Map(
               FillStyle.attrId   -> AttrValue(true.toString),
@@ -95,8 +111,8 @@ class AttributesOpsSpec extends FunSuite:
               BorderStyle.attrId -> AttrValue(BorderStyle.dashed.toString)
             ))
           ),
-          b -> ViewerNode(b),
-          c -> ViewerNode(c)
+          b -> node(b),
+          c -> node(c)
         )
       )
 
@@ -126,7 +142,7 @@ class AttributesOpsSpec extends FunSuite:
       .updateRootAttributes(AttributeTarget.node)(_ + (BoldStyle.attrId -> AttrValue(true.toString)))
 
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).out
-    val updates = AttributesUpdates(update = Map(BorderStyle.attrId -> AttrValue(BorderStyle.dashed.toString)))
+    val updates          = AttributesUpdates(update = Map(BorderStyle.attrId -> AttrValue(BorderStyle.dashed.toString)))
 
     val graph1 = updateAttributes(graph0, updates)
 
@@ -204,7 +220,7 @@ class AttributesOpsSpec extends FunSuite:
   test("getAttributesUpdatesById should return attributes for a node") {
     val graph = createTestGraph()
       .modifyNodes.using(_ ++
-        Map(a -> ViewerNode(a, Attributes.of(Color -> "red", Shape -> Shape.box))))
+        Map(a -> node(a, Attributes.of(Color -> "red", Shape -> Shape.box))))
 
     // Apply the method
     val result = graph.getAttributesUpdatesById(ElementIds.from(a))

@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.formats.dot
 
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 import org.jpablo.graphexplorer.viewer.models.{Attributes, NodeId, ViewerNode}
 
 package object ast:
@@ -8,6 +9,4 @@ package object ast:
       nodeIdOrString match
         case id: NodeId  => id
         case str: String => NodeId(str)
-    nodeId -> ViewerNode(nodeId, Attributes.of(attrs*))
-
-
+    nodeId -> node(nodeId, Attributes.of(attrs*))

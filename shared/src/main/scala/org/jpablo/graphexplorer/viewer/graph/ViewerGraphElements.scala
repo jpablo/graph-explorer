@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.FlattenedGraphElement
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 case class ViewerGraphElements(
     // the graph itself is a group
@@ -38,7 +39,7 @@ object ViewerGraphElements:
 
     ViewerGraphElements(
       rootId      = data.rootId,
-      nodes       = nodesMap ++ implicitNodeIds.map(n => n -> ViewerNode(n)),
+      nodes       = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
       arrows      = data.arrows.map(a => a.id -> a).toMap,
       memberships = data.memberships.toMap, // This messes up with the order of elements
       groups      = data.groups.map(g => g.id -> g).toMap

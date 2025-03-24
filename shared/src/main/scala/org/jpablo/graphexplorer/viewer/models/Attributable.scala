@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Id, Label}
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import upickle.default.*
+import com.softwaremill.quicklens.*
 
 type ViewerKind = Option[String]
 
@@ -20,11 +21,12 @@ trait Attributable:
 object Attributable:
   val idAttributeKey = Id.attrId
 
-case class ViewerNode(
+case class ViewerNode private (
     id:         NodeId,
     attributes: Attributes = Attributes.empty,
     kind:       ViewerKind = None
-) extends Attributable
+) extends Attributable:
+  def modifyAttrs = this.modify(_.attributes)
 
 object ViewerNode:
 
