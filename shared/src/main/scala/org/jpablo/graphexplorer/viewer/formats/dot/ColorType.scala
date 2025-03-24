@@ -1,5 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot
 
+import scala.collection.immutable.VectorMap
+
 enum ColorType:
   case RGB(r: Int, g: Int, b: Int)
   case RGBA(r: Int, g: Int, b: Int, a: Double)
@@ -8,7 +10,8 @@ enum ColorType:
   case named(value: String)
 
 object ColorType:
-  val x11Colors = Map(
+  val x11Colors = VectorMap(
+    "none"                 -> "#fffffe",
     "aliceblue"            -> "#f0f8ff",
     "antiquewhite"         -> "#faebd7",
     "antiquewhite1"        -> "#ffefdb",
@@ -388,7 +391,6 @@ object ColorType:
     "indianred3"           -> "#cd5555",
     "indianred4"           -> "#8b3a3a",
     "indigo"               -> "#4b0082",
-    "invis"                -> "#fffffe",
     "ivory"                -> "#fffff0",
     "ivory1"               -> "#fffff0",
     "ivory2"               -> "#eeeee0",
@@ -505,7 +507,6 @@ object ColorType:
     "navajowhite4"         -> "#8b795e",
     "navy"                 -> "#000080",
     "navyblue"             -> "#000080",
-    "none"                 -> "#fffffe",
     "oldlace"              -> "#fdf5e6",
     "olive"                -> "#808000",
     "olivedrab"            -> "#6b8e23",
@@ -653,7 +654,6 @@ object ColorType:
     "tomato2"              -> "#ee5c42",
     "tomato3"              -> "#cd4f39",
     "tomato4"              -> "#8b3626",
-    "transparent"          -> "#fffffe",
     "turquoise"            -> "#40e0d0",
     "turquoise1"           -> "#00f5ff",
     "turquoise2"           -> "#00e5ee",
@@ -690,7 +690,8 @@ object ColorType:
     "yellowgreen"          -> "#9acd32"
   )
 
-  val x11BasicColors = Map(
+  val x11BasicColors = VectorMap(
+    "none"                 -> "#fffffe",
     "aliceblue"            -> "#f0f8ff",
     "antiquewhite"         -> "#faebd7",
     "aqua"                 -> "#00ffff",
@@ -752,7 +753,6 @@ object ColorType:
     "hotpink"              -> "#ff69b4",
     "indianred"            -> "#cd5c5c",
     "indigo"               -> "#4b0082",
-    "invis"                -> "#fffffe",
     "ivory"                -> "#fffff0",
     "khaki"                -> "#f0e68c",
     "lavender"             -> "#e6e6fa",
@@ -797,7 +797,6 @@ object ColorType:
     "navajowhite"          -> "#ffdead",
     "navy"                 -> "#000080",
     "navyblue"             -> "#000080",
-    "none"                 -> "#fffffe",
     "oldlace"              -> "#fdf5e6",
     "olive"                -> "#808000",
     "olivedrab"            -> "#6b8e23",
@@ -837,7 +836,6 @@ object ColorType:
     "teal"                 -> "#008080",
     "thistle"              -> "#d8bfd8",
     "tomato"               -> "#ff6347",
-    "transparent"          -> "#fffffe",
     "turquoise"            -> "#40e0d0",
     "violet"               -> "#ee82ee",
     "violetred"            -> "#d02090",
@@ -850,7 +848,7 @@ object ColorType:
     "white"                -> "#ffffff",
     "whitesmoke"           -> "#f5f5f5",
     "yellow"               -> "#ffff00",
-    "yellowgreen"          -> "#9acd32",
+    "yellowgreen"          -> "#9acd32"
   )
 
 //  val x11BasicColors =
@@ -908,26 +906,26 @@ object ColorType:
       // RGB format "#rrggbb"
       case rgb if rgb.matches("^#[0-9a-fA-F]{6}$") =>
         val hex = rgb.substring(1)
-        val r = Integer.parseInt(hex.substring(0, 2), 16)
-        val g = Integer.parseInt(hex.substring(2, 4), 16)
-        val b = Integer.parseInt(hex.substring(4, 6), 16)
+        val r   = Integer.parseInt(hex.substring(0, 2), 16)
+        val g   = Integer.parseInt(hex.substring(2, 4), 16)
+        val b   = Integer.parseInt(hex.substring(4, 6), 16)
         RGB(r, g, b)
 
       // Shorthand RGB format "#rgb"
       case shortRgb if shortRgb.matches("^#[0-9a-fA-F]{3}$") =>
         val hex = shortRgb.substring(1)
-        val r = Integer.parseInt(hex.substring(0, 1) * 2, 16)
-        val g = Integer.parseInt(hex.substring(1, 2) * 2, 16)
-        val b = Integer.parseInt(hex.substring(2, 3) * 2, 16)
+        val r   = Integer.parseInt(hex.substring(0, 1) * 2, 16)
+        val g   = Integer.parseInt(hex.substring(1, 2) * 2, 16)
+        val b   = Integer.parseInt(hex.substring(2, 3) * 2, 16)
         RGB(r, g, b)
 
       // RGBA format "#rrggbbaa"
       case rgba if rgba.matches("^#[0-9a-fA-F]{8}$") =>
         val hex = rgba.substring(1)
-        val r = Integer.parseInt(hex.substring(0, 2), 16)
-        val g = Integer.parseInt(hex.substring(2, 4), 16)
-        val b = Integer.parseInt(hex.substring(4, 6), 16)
-        val a = Integer.parseInt(hex.substring(6, 8), 16) / 255.0
+        val r   = Integer.parseInt(hex.substring(0, 2), 16)
+        val g   = Integer.parseInt(hex.substring(2, 4), 16)
+        val b   = Integer.parseInt(hex.substring(4, 6), 16)
+        val a   = Integer.parseInt(hex.substring(6, 8), 16) / 255.0
         RGBA(r, g, b, a)
 
       // HSV format "H[, ]+S[, ]+V" where H,S,V are between 0.0 and 1.0

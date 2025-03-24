@@ -44,7 +44,7 @@ object AttributeRow:
   case class RowOption(
       name:    String,
       value:   SelectionAttrValue,
-      preview: Option[() => ReactiveElement[dom.Element]] = None
+      elem: Option[() => ReactiveElement[dom.Element]] = None
   ):
     def hasValue(s: String) =
       value.exists(_.toString == s)

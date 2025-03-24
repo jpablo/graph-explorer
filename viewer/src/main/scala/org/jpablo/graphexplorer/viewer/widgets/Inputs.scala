@@ -67,21 +67,22 @@ def Menu[A](
 /** A menu with a horizontal layout, with the last item being a dropdown menu.
   */
 def MenuWithExtraDropdown(row: InputAttribute, initial: Int) =
+  def menuButton(option: RowOption) =
+    div(
+      cls := "px-2",
+      title := option.name,
+      option.elem.fold(span(option.name))(elem => elem()),
+      onClick.mapTo(option.value) --> row.inputVar
+    )
+
   ul(
     tabIndex := 0,
     cls      := "menu menu-horizontal bg-base-100 rounded-box p-0",
-    for
-      option <- row.options.take(initial)
-    yield li(
-      button(
-        cls := "btn btn-ghost btn-xs",
-        option.preview.fold(span(option.name))(elem => elem()),
-        onClick.mapTo(option.value) --> row.inputVar
-      )
-    ),
+    for option <- row.options.take(initial) yield li(menuButton(option)),
     li(
+      cls := "justify-center",
       div(
-        cls := "dropdown p-0",
+        cls := "dropdown p-0 m-0",
         div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs px-1", i().threeDotsVertical),
         div(
           tabIndex := 0,
@@ -91,15 +92,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int) =
             ul(
               tabIndex := 0,
               cls      := "p-0 m-0 menu menu-horizontal [&:before]:hidden",
-              for
-                option <- row.options.drop(initial)
-              yield li(
-                button(
-                  cls := "btn btn-ghost btn-xs",
-                  option.preview.fold(span(option.name))(elem => elem()),
-                  onClick.mapTo(option.value) --> row.inputVar
-                )
-              )
+              for option <- row.options.drop(initial) yield li(menuButton(option))
             )
           )
         )
@@ -168,7 +161,7 @@ def SelectWithPreview(row: InputAttribute) =
           row.options
             .collectFirst:
               case row if row.value.toString == currentValue =>
-                row.preview.fold(span(row.name))(p => span(p()))
+                row.elem.fold(span(row.name))(p => span(p()))
       ),
       i(cls := "bi bi-chevron-down")
     ).asBtn.tiny,
@@ -188,7 +181,7 @@ def SelectWithPreview(row: InputAttribute) =
                 else None
               )
             ),
-            rowOption.preview.fold(span(rowOption.name))(p => span(p())),
+            rowOption.elem.fold(span(rowOption.name))(p => span(p())),
             onClick.mapTo(rowOption.value) --> row.inputVar
           )
         )
@@ -215,7 +208,7 @@ def SelectWithPreviewGrid(row: InputAttribute) =
           row.options
             .collectFirst:
               case row if row.hasValue(sv.getOrElse(d).toString) =>
-                row.preview.fold(span(row.name))(preview => preview())
+                row.elem.fold(span(row.name))(preview => preview())
       ),
       i(cls := "bi bi-chevron-down absolute right-2")
     ),
@@ -234,7 +227,7 @@ def SelectWithPreviewGrid(row: InputAttribute) =
                 val active = if rowOption.hasValue(sv.getOrElse(d).toString) then "btn-active" else ""
                 s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 $active"
               ),
-              rowOption.preview.fold(span(rowOption.name))(preview => preview()),
+              rowOption.elem.fold(span(rowOption.name))(preview => preview()),
               onClick.mapTo(rowOption.value) --> row.inputVar
             )
           )

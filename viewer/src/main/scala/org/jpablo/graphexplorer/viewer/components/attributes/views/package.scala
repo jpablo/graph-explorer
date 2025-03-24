@@ -5,15 +5,25 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.R
 import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
+//import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 
 package object views:
-  val colorRowOptions: Seq[RowOption] =
+  val colorRowOptions =
     ColorType.x11BasicColors.toSeq
-      .sortBy(_._2)(Ordering.String.reverse)
       .map: (name, hex) =>
+        val cssColor = if name == "none" then "unset" else hex
+        val dotColor = if name == "none" then "none" else hex
         RowOption(
-          name,
-          Single(AttrValue(hex)),
-          Some(() => div(cls := s"w-8 h-4 rounded border-1 border-solid", styleAttr := s"background-color: $hex"))
+          name = name,
+          value = Single(AttrValue(dotColor)),
+          elem =
+            Some(() =>
+              if name == "none" then
+                div(cls := "w-5 h-5 mt-[-3px]", i(cls := "bi bi-ban", styleAttr := "font-size: 18px"))
+              else
+                div(
+                  cls       := s"w-5 h-5 rounded-full border border-solid border-neutral",
+                  styleAttr := s"background-color: $cssColor"
+                )
+            )
         )
-

@@ -42,20 +42,20 @@ def MiniNodesAttributesView(
 
   val borderStyleOptions = BorderStyle.valuesWithLabel
     .toSeq.map: (label, style) =>
-      RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
+      RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style, 20))
 
   AttributesView(
     id = "mini-node-attributes",
     rows(
       row(Shape, InputType.menuWithExtra(4)).copy(options = shapesRowOptions),
-      row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
-      row(FillColor, InputType.selectWithPreviewGrid)
+      row(Color, InputType.menuWithExtra(4)).copy(options = colorRowOptions),
+      fillStyleRow,
+      row(FillColor, InputType.menuWithExtra(4))
         .copy(
           options = colorRowOptions,
           hidden = builder.invalidLayout(FillColor) // || fillStyleRow.combineDefaultBoolean.not
         ),
-      fillStyleRow,
-      row(BorderStyle, InputType.selectWithPreview).copy(options = borderStyleOptions),
+      row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       CornerStyle,
       InvisibleStyle -> checkbox,

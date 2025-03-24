@@ -32,7 +32,7 @@ def SelectionPanel(state: ViewerState) =
     idAttr := "selection-panel",
     cls("left-panel-visible") <-- state.leftPanelVisible,
     div(
-      cls := "card card-sm",
+      cls := "card card-xs",
       div(
         cls := "card-body",
         MiniStyleView(state)
