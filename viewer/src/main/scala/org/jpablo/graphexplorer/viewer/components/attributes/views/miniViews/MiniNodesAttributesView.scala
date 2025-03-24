@@ -44,6 +44,12 @@ def MiniNodesAttributesView(
     .toSeq.map: (label, style) =>
       RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style, 20))
 
+  val verticalAlignmentOptions = Seq(
+    RowOption("Top", Single(AttrValue("top")), Some(() => i(cls := "bi bi-align-top"))),
+    RowOption("Center", Single(AttrValue("center")), Some(() => i(cls := "bi bi-align-middle"))),
+    RowOption("Bottom", Single(AttrValue("bottom")), Some(() => i(cls := "bi bi-align-bottom")))
+  )
+
   AttributesView(
     id = "mini-node-attributes",
     rows(
@@ -61,8 +67,8 @@ def MiniNodesAttributesView(
       InvisibleStyle -> checkbox,
       // ---------- label stuff ------------
       labelRow,
-      row(NodeLabelLoc, InputType.select).copy(hidden = labelRelatedHidden),
-      row(FontColor, InputType.selectWithPreviewGrid).copy(
+      row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(options = verticalAlignmentOptions, hidden = labelRelatedHidden),
+      row(FontColor, InputType.menuWithExtra(4)).copy(
         options = colorRowOptions,
         hidden = labelRelatedHidden
       ),

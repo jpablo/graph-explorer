@@ -228,7 +228,7 @@ enum NodeLabelLoc:
 object NodeLabelLoc extends DotAttributeEnum[NodeLabelLoc]:
   override val attrId = AttributeId("labelloc")
   def default = c
-  val label = "Vertical pos"
+  val label = "Vertical alignment"
   override val valuesWithLabel = Array(
     ("Top", t),
     ("Center", c),
