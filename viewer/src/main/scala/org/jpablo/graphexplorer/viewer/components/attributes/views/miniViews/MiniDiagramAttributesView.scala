@@ -1,14 +1,10 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views.miniViews
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
-import org.jpablo.graphexplorer.viewer.components.attributes.views.AttributesView
-import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, Concentrate, GraphType, Label, LabelJust, Layout, NodeSep, Pad, RankSep, Rankdir, RootGraphLabelLoc, Splines}
-import org.jpablo.graphexplorer.viewer.models.AttrStatus
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
+import org.jpablo.graphexplorer.viewer.components.attributes.views.{AttributesView, buildDirectedVar, colorOptions}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, multiText, range}
@@ -19,43 +15,28 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, multiText, r
   */
 def MiniDiagramAttributesView(state: ViewerState) =
   val builder = RowBuilder(state.rootTargetAttributesUpdates(AttributeTarget.graph), state.layout, None)
+  import builder.{row, rows}
 
-  val directedVar: Var[AttrStatus[AttrValue]] =
-    state.graphType.zoomLazy(tpe =>
-      AttrStatus.Single(AttrValue((tpe == GraphType.digraph).toString))
-    ): (_, status) =>
-      status match
-        case AttrStatus.Single(value) => if value.isTrue then GraphType.digraph else GraphType.graph
-        case AttrStatus.Multiple      => GraphType.default
-        case AttrStatus.Missing       => GraphType.default
+  val directedVar = buildDirectedVar(state.graphType)
 
   val graphTypeRow =
     RowBuilder.inputRow(
-      attr     = GraphType -> checkbox,
+      attr = GraphType -> checkbox,
       inputVar = directedVar,
-      default  = Signal.fromValue(true.toString),
-      label    = Some("Directed")
+      default = Signal.fromValue(true.toString),
+      label = Some("Directed")
     )
 
-  val fillColorRowOpts =
-    ColorType.x11BasicColors.toSeq
-      .sortBy(_._2)(Ordering.String.reverse)
-      .map: (name, hex) =>
-        RowOption(
-          name,
-          Single(AttrValue(hex)),
-          Some(() => div(cls := s"w-8 h-4 rounded border-1 border-solid", styleAttr := s"background-color: $hex"))
-        )
-  val bgColorColorRow = builder.row(BgColor, InputType.selectWithPreviewGrid).copy(options = fillColorRowOpts)
+  val bgColorColorRow = row(BgColor, InputType.selectWithPreviewGrid).copy(options = colorOptions)
 
   AttributesView(
-    id       = "mini-root-graph-attributes",
-    builder.rows(
-      builder.row(
+    id = "mini-root-graph-attributes",
+    rows(
+      row(
         Label,
         multiText,
-        onReset     = Some(""),
-        label       = Some("Title"),
+        onReset = Some(""),
+        label = Some("Title"),
         placeholder = Some("Enter diagram title")
       ),
       RootGraphLabelLoc,

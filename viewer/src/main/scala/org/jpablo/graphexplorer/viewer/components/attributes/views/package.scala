@@ -18,11 +18,15 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
   ClusterLabelLoc,
   CornerStyle,
   EdgeStyle,
+  GraphType,
   GroupLabelLoc,
   LabelJust,
   NodeLabelLoc,
+  Rankdir,
+  RootGraphLabelLoc,
   Shape
 }
+import org.jpablo.graphexplorer.viewer.models.AttrStatus
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 
 package object views:
@@ -84,7 +88,7 @@ package object views:
       RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 20))
 
   val validCornerStyle = Set(CornerStyle.normal, CornerStyle.rounded)
-  
+
   val graphCornerStyleOptions = CornerStyle.valuesWithLabel.filter((_, s) => validCornerStyle(s))
     .toSeq.map: (label, style) =>
       RowOption(label, Single(AttrValue(style.toString)), CornerPreview(style))
@@ -107,3 +111,36 @@ package object views:
     LabelJust.valuesWithLabel
       .toSeq.map: (label, style) =>
         RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${hAlignIcons(style)}")))
+
+  def buildDirectedVar(graphType: Var[GraphType]): Var[AttrStatus[AttrValue]] =
+    graphType.zoomLazy(tpe =>
+      AttrStatus.Single(AttrValue((tpe == GraphType.digraph).toString))
+    ): (_, status) =>
+      status match
+        case AttrStatus.Single(value) => if value.isTrue then GraphType.digraph else GraphType.graph
+        case AttrStatus.Multiple      => GraphType.default
+        case AttrStatus.Missing       => GraphType.default
+
+  // ---- diagram attributes ----
+
+  val vAlignIcons = Map(
+    GroupLabelLoc.t -> "bi-align-top",
+    GroupLabelLoc.b -> "bi-align-bottom"
+  )
+
+  val directionIcons = Map(
+    Rankdir.TB -> "bi-arrow-down",
+    Rankdir.LR -> "bi-arrow-right",
+    Rankdir.BT -> "bi-arrow-up",
+    Rankdir.RL -> "bi-arrow-left"
+  )
+
+  val rootVerticalAlignmentOptions =
+    RootGraphLabelLoc.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${vAlignIcons(style)}")))
+
+  val directionOptions =
+    Rankdir.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${directionIcons(style)}")))
