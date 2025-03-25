@@ -17,30 +17,20 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 
 def NodesAttributesView(
-    parent:    String,
-    state:     ViewerState,
-    updates:   Var[AttributesUpdates],
-    defaults:  Option[Signal[Attributes]] = None,
-    selection: Boolean
+    parent:       String,
+    state:        ViewerState,
+    updates:      Var[AttributesUpdates],
+    defaults:     Option[Signal[Attributes]] = None,
+    defaultsView: Boolean
 ) =
+  val multiSelection = state.selection.signal.map(_.size != 1)
+
   val builder = RowBuilder(updates, state.layout, defaults)
   import builder.{row, rows}
 
-//  val labelRow = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
-//  val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
-
-  given owner: Owner = state.owner
-
   val labelRow =
-    if selection then
-      state.selection.signal.map(sel =>
-        if sel.size == 1 then
-          builder.row(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
-        else
-          ""
-      ).observe().now()
-    else
-      ""
+    row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || Signal.fromValue(defaultsView))
+//  val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
   val shapesRowOpts =
     Shape.valuesWithLabel
@@ -66,47 +56,29 @@ def NodesAttributesView(
   AttributesView(
     id = "node-attributes",
     rows(
-      // ----------------------
-      "Label",
-      // ----------------------
+      row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions),
+      row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
+      row(FillColor, InputType.menuWithExtra(4))
+        .copy(
+          options = colorOptions,
+          hidden = builder.invalidLayout(FillColor)
+        ),
+      row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
+      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      row(CornerStyle, InputType.menuWithExtra(4)).copy(options = cornerStyleOptions),
+      if defaultsView then InvisibleStyle -> checkbox else "",
+      // ---------- label stuff ------------//
       labelRow,
       row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(options = nodeLabelVerticalAlignOptions),
-      if selection then XLabel else "",
-      // ----------------------
-      "Text Format",
-      // ----------------------
+      if defaultsView then XLabel else "",
       row(FontColor, InputType.menuWithExtra(4)).copy(options = colorOptions),
       FontName -> InputType.select,
       FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
-      // ----------------------
-      "Shape",
-      // ----------------------
-      row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions),
+      // -- advanced --
       sidesRow,
       Regular     -> checkbox,
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
       Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
-      // ----------------------
-      "Style",
-      // ----------------------
-      BoldStyle -> checkbox,
-      row(FillColor, InputType.menuWithExtra(4))
-        .copy(
-          options = colorOptions,
-          hidden = builder.invalidLayout(FillColor) // || fillStyleRow.combineDefaultBoolean.not
-        ),
-      row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
-      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
-      row(CornerStyle, InputType.menuWithExtra(4)).copy(options = cornerStyleOptions),
-    ),
-    if selection then
-      builder.rows(
-        InvisibleStyle -> checkbox,
-        // ----------------------
-        "Other",
-        // ----------------------
-        URL
-      )
-    else Seq.empty
+      if defaultsView then URL else ""
+    )
   )

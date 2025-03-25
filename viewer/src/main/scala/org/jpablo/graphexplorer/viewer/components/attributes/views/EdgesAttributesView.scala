@@ -34,12 +34,12 @@ def EdgesAttributesView(
     state:     ViewerState,
     updates:   Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
-    selection: Boolean
+    defaultsView: Boolean
 ) =
   val builder = RowBuilder(updates, state.layout, defaults)
 
   val labelRow =
-    if selection then
+    if defaultsView then
       state.selection.signal.map(sel =>
         if sel.size == 1 then
           builder.row(Label, InputType.multiText, onReset = Some(""), placeholder = Some(sel.head.value))
@@ -83,7 +83,7 @@ def EdgesAttributesView(
       "Label",
       // ----------------
       labelRow,
-      if selection then XLabel else "",
+      if defaultsView then XLabel else "",
       Decorate -> checkbox,
       // ----------------
       "Text Format",
@@ -105,5 +105,5 @@ def EdgesAttributesView(
       // ----------------
       Constraint -> checkbox
     ),
-    if selection then builder.rows("Other", URL) else Seq.empty
+    if defaultsView then builder.rows("Other", URL) else Seq.empty
   )

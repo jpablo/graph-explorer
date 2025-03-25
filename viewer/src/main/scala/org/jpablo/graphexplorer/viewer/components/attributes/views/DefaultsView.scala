@@ -14,17 +14,17 @@ def DefaultsView(state: ViewerState) =
         "DiagramAttributesView",
         state,
         state.rootTargetAttributesUpdates(AttributeTarget.node),
-        selection = false
+        defaultsView = true
       ),
       "Arrows" -> EdgesAttributesView(
         state,
         state.rootTargetAttributesUpdates(AttributeTarget.edge),
-        selection = false
+        defaultsView = true
       ),
       "Groups" -> GraphAttributesView(
         state,
         state.rootTargetAttributesUpdates(AttributeTarget.graph),
-        selection = false
+        defaultsView = true
       )
     )
 

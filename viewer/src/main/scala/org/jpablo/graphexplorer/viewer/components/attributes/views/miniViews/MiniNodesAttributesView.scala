@@ -33,7 +33,7 @@ def MiniNodesAttributesView(
       row(FillColor, InputType.menuWithExtra(4))
         .copy(
           options = colorOptions,
-          hidden = builder.invalidLayout(FillColor) // || fillStyleRow.combineDefaultBoolean.not
+          hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.1), end = Some(4), step = Some(0.25)),

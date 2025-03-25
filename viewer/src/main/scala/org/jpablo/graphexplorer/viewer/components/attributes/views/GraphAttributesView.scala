@@ -33,7 +33,7 @@ def GraphAttributesView(
     state:     ViewerState,
     attrsVar:  Var[AttributesUpdates],
     defaults:  Option[Signal[Attributes]] = None,
-    selection: Boolean
+    defaultsView: Boolean
 ) =
   val builder = RowBuilder(attrsVar, state.layout, defaults)
   val isSingleClusterSelected = state.selection.signal.map(_.size == 1)
@@ -41,7 +41,7 @@ def GraphAttributesView(
   given owner: Owner = state.owner
 
   val labelRow =
-    if selection then
+    if defaultsView then
       isSingleClusterSelected.map(single =>
         if single then
           builder.row(Label, InputType.multiText, onReset = Some(""), placeholder = Some("Enter group label"))
@@ -84,10 +84,10 @@ def GraphAttributesView(
   AttributesView(
     id       = "graph-attributes",
     builder.rows(
-      if selection then "Labels" else "",
-      if selection then labelRow else "",
-      if selection then ClusterLabelLoc else "",
-      if selection then LabelJust else "",
+      if defaultsView then "Labels" else "",
+      if defaultsView then labelRow else "",
+      if defaultsView then ClusterLabelLoc else "",
+      if defaultsView then LabelJust else "",
       "Fonts",
       builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorOptions),
       FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
@@ -100,7 +100,7 @@ def GraphAttributesView(
       BoldStyle -> checkbox,
       CornerStyle
     ),
-    if selection then
+    if defaultsView then
       builder.rows(
         InvisibleStyle -> checkbox,
         "Other",
