@@ -356,10 +356,13 @@ def Checked(row: InputAttribute) =
     )
   )
 
-def Checkbox(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
-  input(tpe := InputType.checkbox.toString, cls := "checkbox", mods)
+def Toggle(text: String, mods: Mods*) =
+  label( cls := "fieldset-label",
+    input(tpe := InputType.checkbox.toString, cls := "toggle toggle-xs", mods),
+    text
+  )
 
-def Search(mods: Modifier[ReactiveHtmlElement.Base]*): Input =
+def Search(mods: Mods*): Input =
   input(
     tpe := InputType.search.toString,
     cls := "input  input-xs input-primary",
@@ -371,7 +374,7 @@ def LabeledCheckbox(
     labelStr:   String,
     isChecked:  Var[Boolean],
     isDisabled: Signal[Boolean] = Signal.fromValue(false),
-    toggle:     Boolean = false
+    toggle:     Boolean = true
 ) =
   div(
     cls := "form-control",

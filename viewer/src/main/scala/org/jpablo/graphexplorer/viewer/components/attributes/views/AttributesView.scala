@@ -8,25 +8,24 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def AttributesView(
-    id:   String,
-    rows: Seq[AttributeRow]*
+    id:    String,
+    rows:  Seq[AttributeRow],
+    extra: Seq[AttributeRow] = Seq.empty
 ) =
   // TODO: Finish implementing this
   //  def getFonts(): js.Dynamic = js.Dynamic.global.window.queryLocalFonts().`then`(x => dom.console.log(x))
 
-  // Group the headers with their content
-  val groupedContent = buildGroupedContent(rows.flatten)
+  val extraVisible = Var(false)
 
   div(
     idAttr := id,
     cls    := "attributes-view",
-    groupedContent.map: (headerOpt, attrRows) =>
-      fieldSet(
-        cls := "fieldset",
-        headerOpt.map(header => legend(cls := "fieldset-legend", header.title)),
-        for row <- attrRows
-        yield AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
-      )
+    LabeledCheckbox(id + "extra-visible", "extra", extraVisible).amend(
+      cls           := "flex justify-end",
+      cls("hidden") := extra.isEmpty
+    ),
+    children(buildFieldSets(rows)) <-- extraVisible.signal.map(!_),
+    children(buildFieldSets(extra)) <-- extraVisible.signal
   )
 
 private def AttributesViewRow(row: InputAttribute) =
@@ -86,6 +85,15 @@ private def inputLabel(row: InputAttribute): Div =
       child(a(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x")).tiny) <-- row.isChanged
     )
   )
+
+private def buildFieldSets(rows: Seq[AttributeRow]) =
+  buildGroupedContent(rows).map: (headerOpt, attrRows) =>
+    fieldSet(
+      cls := "fieldset",
+      headerOpt.map(header => legend(cls := "fieldset-legend", header.title)),
+      for row <- attrRows
+      yield AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
+    )
 
 /** Takes a flat sequence of mixed headers and rows and groups them by (optional) header.
   */

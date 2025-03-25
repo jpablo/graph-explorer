@@ -51,11 +51,9 @@ def NodesAttributesView(
       )
     )
 
-  val fillStyleRow = row(FillStyle, checkbox)
-
   AttributesView(
     id = "node-attributes",
-    rows(
+    rows = rows(
       row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions),
       row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
       row(FillColor, InputType.menuWithExtra(4))
@@ -66,19 +64,20 @@ def NodesAttributesView(
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       row(CornerStyle, InputType.menuWithExtra(4)).copy(options = cornerStyleOptions),
-      if defaultsView then InvisibleStyle -> checkbox else "",
       // ---------- label stuff ------------//
       labelRow,
       row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(options = nodeLabelVerticalAlignOptions),
       if defaultsView then XLabel else "",
       row(FontColor, InputType.menuWithExtra(4)).copy(options = colorOptions),
       FontName -> InputType.select,
-      FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
-      // -- advanced --
+      FontSize -> range(start = Some(1), end = Some(100), step = Some(1))
+    ),
+    extra = rows(
+      if defaultsView then "" else InvisibleStyle -> checkbox,
       sidesRow,
       Regular     -> checkbox,
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
       Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
-      if defaultsView then URL else ""
+      if defaultsView then "" else URL
     )
   )

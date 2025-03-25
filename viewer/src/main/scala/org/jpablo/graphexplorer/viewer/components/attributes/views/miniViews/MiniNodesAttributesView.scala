@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, range}
+import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 
 def MiniNodesAttributesView(
     parent:   String,
@@ -25,10 +25,20 @@ def MiniNodesAttributesView(
   val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
+  val shapeRow = row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions)
+  val sidesRow =
+    row(
+      attr = Sides,
+      inputType = number(start = Some(3), end = Some(10), step = Some(1)),
+      hidden = Some(
+        builder.invalidLayout(Sides) || shapeRow.inputVar.signal.map(_.exists(_.toString != Shape.polygon.toString))
+      )
+    )
+
   AttributesView(
     id = "mini-node-attributes",
-    rows(
-      row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions),
+    rows = rows(
+      shapeRow,
       row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
       row(FillColor, InputType.menuWithExtra(4))
         .copy(
@@ -38,8 +48,6 @@ def MiniNodesAttributesView(
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.1), end = Some(4), step = Some(0.25)),
       row(CornerStyle, InputType.menuWithExtra(4)).copy(options = cornerStyleOptions),
-      InvisibleStyle -> checkbox,
-      // ---------- label stuff ------------
       labelRow,
       row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(
         options = nodeLabelVerticalAlignOptions,
@@ -50,6 +58,14 @@ def MiniNodesAttributesView(
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
-      row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
+      row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden),
+    ),
+    extra = rows(
+      InvisibleStyle -> checkbox,
+      sidesRow,
+      Regular     -> checkbox,
+      Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
+      Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
+      URL
     )
   )
