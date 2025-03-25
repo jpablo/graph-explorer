@@ -30,34 +30,37 @@ def DiagramAttributesView(state: ViewerState) =
     row(Label, multiText, onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title"))
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty)
-
-  AttributesView(
-    id = "root-graph-attributes",
-    rows(
-      "Title",
-      labelRow,
-      row(RootGraphLabelLoc, InputType.menuWithExtra(4)).copy(
-        options = clusterVerticalAlignmentOptions,
-        hidden = labelRelatedHidden
-      ),
-      row(LabelJust, InputType.menuWithExtra(4)).copy(
-        options = horizontalAlignmentOptions,
-        hidden = labelRelatedHidden
-      ),
-      "Layout",
-      Layout,
-      row(Rankdir, InputType.menuWithExtra(4)).copy(options = directionOptions),
-      graphTypeRow,
-      "Other",
-      Splines,
-      Concentrate -> checkbox,
-      row(BgColor, InputType.menuWithExtra(4))
-        .copy(
-          options = colorOptions,
-          hidden = builder.invalidLayout(BgColor)
+  div(
+    idAttr := "diagram-attributes-view",
+    div(cls := "attributes-title", h2("Diagram")),
+    AttributesView(
+      id = "root-graph-attributes",
+      rows(
+        "Title",
+        labelRow,
+        row(RootGraphLabelLoc, InputType.menuWithExtra(4)).copy(
+          options = clusterVerticalAlignmentOptions,
+          hidden = labelRelatedHidden
         ),
-      Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
-      RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
-      NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
-    )
-  ).amend(cls := "mb-8")
+        row(LabelJust, InputType.menuWithExtra(4)).copy(
+          options = horizontalAlignmentOptions,
+          hidden = labelRelatedHidden
+        ),
+        "Layout",
+        Layout,
+        row(Rankdir, InputType.menuWithExtra(4)).copy(options = directionOptions),
+        graphTypeRow,
+        "Other",
+        Splines,
+        Concentrate -> checkbox,
+        row(BgColor, InputType.menuWithExtra(4))
+          .copy(
+            options = colorOptions,
+            hidden = builder.invalidLayout(BgColor)
+          ),
+        Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),
+        RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
+        NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
+      )
+    ).amend(cls := "mb-8")
+  )

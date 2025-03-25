@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.components.attributes.views.{DefaultsView, ElementsView, StyleView}
+import org.jpablo.graphexplorer.viewer.components.attributes.views.{DefaultsView, DiagramAttributesView, ElementsView}
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
@@ -22,7 +22,7 @@ class RightPanel(state: ViewerState):
           idAttr := "right-panel-content",
           // --- Tab Body ---
           List(
-            StyleView(state),
+            DiagramAttributesView(state),
             DefaultsView(state),
             ElementsView(state),
             SourceTab

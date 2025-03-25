@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.widgets.Select
 
 def MiniStyleView(state: ViewerState) =
   div(
-    idAttr := "style-view",
+    idAttr := "mini-style-view",
     child <--
       Signal.combine(
         state.selection.signal,

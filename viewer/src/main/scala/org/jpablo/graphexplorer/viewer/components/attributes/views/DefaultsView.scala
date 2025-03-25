@@ -30,6 +30,7 @@ def DefaultsView(state: ViewerState) =
 
   div(
     idAttr := "defaults-view",
+    div(cls := "attributes-title", h2("Defaults")),
     div(
       div(
         role := "tablist",

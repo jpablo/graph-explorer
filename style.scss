@@ -206,26 +206,14 @@ label[for ^= show-ns-kind-] {
       }
     }
 
-    #style-view {
-
-      .tabs {
-        @apply pb-2;
-      }
-
-      .attributes-title {
-        @apply m-2 flex justify-between;
-        h2 {
-          @apply text-lg font-semibold;
-        }
-      }
-
-      > div {
-        @apply h-full flex flex-col overflow-hidden;
+    .attributes-title {
+      @apply m-2 flex justify-between;
+      h2 {
+        @apply text-lg font-semibold;
       }
     }
 
     .attributes-view {
-      @apply h-screen;
 
       .fieldset {
         .fieldset-legend {
