@@ -30,7 +30,6 @@ def NodesAttributesView(
 
   val labelRow =
     row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || Signal.fromValue(defaultsView))
-//  val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
   val shapesRowOpts =
     Shape.valuesWithLabel

@@ -17,7 +17,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
-def MiniEdgesAttributesView(
+def MiniArrowsAttributesView(
     state:    ViewerState,
     updates:  Var[AttributesUpdates],
     defaults: Option[Signal[Attributes]] = None
@@ -47,5 +47,11 @@ def MiniEdgesAttributesView(
       row(FontColor, InputType.menuWithExtra(4)).copy(options = colorOptions, hidden = labelRelatedHidden),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
+    ),
+    extra = rows(
+      Constraint -> checkbox,
+      Decorate   -> checkbox,
+      XLabel,
+      URL
     )
   )

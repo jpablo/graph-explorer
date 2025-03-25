@@ -16,7 +16,7 @@ def DefaultsView(state: ViewerState) =
         state.rootTargetAttributesUpdates(AttributeTarget.node),
         defaultsView = true
       ),
-      "Arrows" -> EdgesAttributesView(
+      "Arrows" -> ArrowsAttributesView(
         state,
         state.rootTargetAttributesUpdates(AttributeTarget.edge),
         defaultsView = true

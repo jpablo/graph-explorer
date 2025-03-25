@@ -20,7 +20,7 @@ def MiniStyleView(state: ViewerState) =
           (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
             case (true, false, false) =>
               div(
-                MiniEdgesAttributesView(
+                MiniArrowsAttributesView(
                   state,
                   updates = state.elementAttributes(ElementIds(arrowIds)),
                   defaults = Some(state.defaults(AttributeTarget.edge)),
