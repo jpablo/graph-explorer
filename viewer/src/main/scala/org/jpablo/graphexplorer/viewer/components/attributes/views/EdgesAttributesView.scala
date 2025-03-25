@@ -31,9 +31,9 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
 def EdgesAttributesView(
-    state:     ViewerState,
-    updates:   Var[AttributesUpdates],
-    defaults:  Option[Signal[Attributes]] = None,
+    state:        ViewerState,
+    updates:      Var[AttributesUpdates],
+    defaults:     Option[Signal[Attributes]] = None,
     defaultsView: Boolean
 ) =
   val builder = RowBuilder(updates, state.layout, defaults)
@@ -78,7 +78,7 @@ def EdgesAttributesView(
 
   AttributesView(
     id = "edge-attributes",
-    builder.rows(
+    rows = builder.rows(
       // ----------------
       "Label",
       // ----------------
@@ -103,7 +103,8 @@ def EdgesAttributesView(
       // ----------------
       "Layout",
       // ----------------
-      Constraint -> checkbox
-    ),
-    if defaultsView then builder.rows("Other", URL) else Seq.empty
+      Constraint -> checkbox,
+      "Other",
+      if defaultsView then URL else ""
+    )
   )

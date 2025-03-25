@@ -25,7 +25,7 @@ def MiniGraphAttributesView(
 
   AttributesView(
     id = "mini-graph-attributes",
-    rows(
+    rows = rows(
       row(PenColor, InputType.menuWithExtra(4)).copy(options = colorOptions),
       row(FillColor, InputType.menuWithExtra(4))
         .copy(

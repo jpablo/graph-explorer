@@ -30,12 +30,12 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 
 def GraphAttributesView(
-    state:     ViewerState,
-    attrsVar:  Var[AttributesUpdates],
-    defaults:  Option[Signal[Attributes]] = None,
+    state:        ViewerState,
+    attrsVar:     Var[AttributesUpdates],
+    defaults:     Option[Signal[Attributes]] = None,
     defaultsView: Boolean
 ) =
-  val builder = RowBuilder(attrsVar, state.layout, defaults)
+  val builder                 = RowBuilder(attrsVar, state.layout, defaults)
   val isSingleClusterSelected = state.selection.signal.map(_.size == 1)
 
   given owner: Owner = state.owner
@@ -82,30 +82,25 @@ def GraphAttributesView(
     )
 
   AttributesView(
-    id       = "graph-attributes",
-    builder.rows(
+    id = "graph-attributes",
+    rows = builder.rows(
       if defaultsView then "Labels" else "",
       if defaultsView then labelRow else "",
       if defaultsView then ClusterLabelLoc else "",
       if defaultsView then LabelJust else "",
       "Fonts",
       builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorOptions),
-      FontSize  -> number(start = Some(1), end = Some(100), step = Some(1)),
+      FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
       "Style",
       fillStyleRow,
       fillColorRow,
       borderStyleRow,
-      PenWidth  -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       builder.row(PenColor, InputType.selectWithPreviewGrid).copy(options = colorOptions),
       BoldStyle -> checkbox,
-      CornerStyle
-    ),
-    if defaultsView then
-      builder.rows(
-        InvisibleStyle -> checkbox,
-        "Other",
-        URL
-      )
-    else
-      Seq.empty
+      CornerStyle,
+      if defaultsView then InvisibleStyle -> checkbox else "",
+      if defaultsView then "Other" else "",
+      if defaultsView then URL else ""
+    )
   )

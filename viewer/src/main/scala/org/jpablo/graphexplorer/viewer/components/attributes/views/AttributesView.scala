@@ -8,9 +8,10 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def AttributesView(
-    id:    String,
-    rows:  Seq[AttributeRow],
-    extra: Seq[AttributeRow] = Seq.empty
+    id:          String,
+    showHeaders: Boolean = true,
+    rows:        Seq[AttributeRow],
+    extra:       Seq[AttributeRow] = Seq.empty
 ) =
   // TODO: Finish implementing this
   //  def getFonts(): js.Dynamic = js.Dynamic.global.window.queryLocalFonts().`then`(x => dom.console.log(x))
@@ -24,8 +25,8 @@ def AttributesView(
       cls           := "flex justify-end",
       cls("hidden") := extra.isEmpty
     ),
-    children(buildFieldSets(rows)) <-- extraVisible.signal.map(!_),
-    children(buildFieldSets(extra)) <-- extraVisible.signal
+    children(buildFieldSets(rows, showHeaders)) <-- extraVisible.signal.map(!_),
+    children(buildFieldSets(extra, showHeaders)) <-- extraVisible.signal
   )
 
 private def AttributesViewRow(row: InputAttribute) =
@@ -86,11 +87,11 @@ private def inputLabel(row: InputAttribute): Div =
     )
   )
 
-private def buildFieldSets(rows: Seq[AttributeRow]) =
+private def buildFieldSets(rows: Seq[AttributeRow], showHeaders: Boolean = true) =
   buildGroupedContent(rows).map: (headerOpt, attrRows) =>
     fieldSet(
       cls := "fieldset",
-      headerOpt.map(header => legend(cls := "fieldset-legend", header.title)),
+      if showHeaders then headerOpt.map(header => legend(cls := "fieldset-legend", header.title)) else emptyNode,
       for row <- attrRows
       yield AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
     )

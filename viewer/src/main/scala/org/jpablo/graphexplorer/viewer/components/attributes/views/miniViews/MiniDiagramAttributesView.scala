@@ -31,7 +31,7 @@ def MiniDiagramAttributesView(state: ViewerState) =
 
   AttributesView(
     id = "mini-root-graph-attributes",
-    rows(
+    rows = rows(
       row(
         Label,
         multiText,

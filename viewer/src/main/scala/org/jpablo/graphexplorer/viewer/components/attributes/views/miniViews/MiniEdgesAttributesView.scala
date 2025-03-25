@@ -34,7 +34,7 @@ def MiniEdgesAttributesView(
 
   AttributesView(
     id = "edge-attributes",
-    rows(
+    rows = rows(
       row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
       row(EdgeStyle, InputType.menuWithExtra(4)).copy(options = arrowStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),

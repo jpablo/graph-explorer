@@ -35,7 +35,8 @@ def DiagramAttributesView(state: ViewerState) =
     div(cls := "attributes-title", h2("Diagram")),
     AttributesView(
       id = "root-graph-attributes",
-      rows(
+      showHeaders = false,
+      rows = rows(
         "Title",
         labelRow,
         row(RootGraphLabelLoc, InputType.menuWithExtra(4)).copy(
