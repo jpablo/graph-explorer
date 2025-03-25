@@ -26,23 +26,23 @@ object ArrowType:
   )
 
 object ArrowHead extends DotAttributeEnum[ArrowType]:
-  val default = ArrowType.normal // default for dir=forward
-  val label = "Arrow head"
+  val default                  = ArrowType.normal // default for dir=forward
+  val label                    = "Arrow head"
   def values: Array[ArrowType] = ArrowType.values
 
 object ArrowSize extends DotAttributeSimple[Double]:
-  val label = "Arrow Size"
-  val default = 1.0
+  val label                    = "Arrow Size"
+  val default                  = 1.0
   override val placeholderText = "Enter arrow size here"
 
 object ArrowTail extends DotAttributeEnum[ArrowType]:
-  val default = ArrowType.none // default for dir=forward
-  val label = "Arrow tail"
+  val default                  = ArrowType.none // default for dir=forward
+  val label                    = "Arrow tail"
   def values: Array[ArrowType] = ArrowType.values
 
 object BgColor extends DotAttributeSimple[String]:
-  val label = "Background color"
-  val default = "#ffffff"
+  val label                    = "Background color"
+  val default                  = "#ffffff"
   override val placeholderText = "Enter background color here"
 
 object ClusterLabelLoc extends GroupLabelLocT:
@@ -54,30 +54,30 @@ enum ClusterStyle:
 
 object ClusterStyle extends DotAttributeEnum[ClusterStyle]:
   override def attrId = Style.attrId
-  val default = filled // This seems incorrect as the default is empty
-  val label = "Cluster Style"
+  val default         = filled // This seems incorrect as the default is empty
+  val label           = "Cluster Style"
 
 object Color extends DotAttributeSimple[String]:
-  val label = "Border Color"
-  val default = "#000000"
+  val label                    = "Border Color"
+  val default                  = "#000000"
   override val placeholderText = "Enter color here"
 
 object Concentrate extends DotAttributeSimple[Boolean]:
-  val label = "Concentrate"
+  val label   = "Concentrate"
   val default = false
 
 object Constraint extends DotAttributeSimple[Boolean]:
-  val label = "Constraint"
-  val default = true
+  val label                 = "Constraint"
+  val default               = true
   override val validLayouts = Set(Layout.dot)
 
 object Decorate extends DotAttributeSimple[Boolean]:
-  val label = "Decorate"
+  val label   = "Decorate"
   val default = false
 
 object Dir extends DotAttributeEnum[DirType]:
-  val default = DirType.forward
-  val label = "Direction"
+  val default                = DirType.forward
+  val label                  = "Direction"
   val values: Array[DirType] = DirType.values
   override def valuesWithLabel = Array(
     ("Forward", DirType.forward),
@@ -94,8 +94,8 @@ object Distortion:
 
 object EdgeStyle extends DotAttributeEnum[EdgeStyle]:
   override def attrId = Style.attrId
-  val default = solid
-  val label = "Border Style"
+  val default         = solid
+  val label           = "Border Style"
   override def valuesWithLabel = Array(
     ("Dashed", dashed),
     ("Dotted", dotted),
@@ -109,37 +109,37 @@ enum EdgeStyle derives CanEqual:
   case dashed, dotted, solid, bold, invis, tapered
 
 object FillColor extends DotAttributeSimple[String]:
-  val label = "Fill Color"
-  val none = "none"
-  val default = "#d3d3d3" // default for nodes
+  val label                    = "Fill Color"
+  val none                     = "none"
+  val default                  = "#d3d3d3" // default for nodes
   override val placeholderText = "Enter fill color here"
 
 object FixedSize:
   val default = false
 
 object FontColor extends DotAttributeSimple[String]:
-  val label = "Font Color"
-  val default = "#000000"
+  val label                    = "Font Color"
+  val default                  = "#000000"
   override val placeholderText = "Enter font color here"
 
 object FontName extends DotAttributeSimple[String]:
-  val label = "Font Family"
-  val default = "Times New Roman"
+  val label                    = "Font Family"
+  val default                  = "Times New Roman"
   override val placeholderText = "Enter font name here"
   override val values: Array[String] =
     Array("Arial", "Courier New", "Georgia", "Lucida Console", "Times New Roman", "Verdana")
 
 object FontSize extends DotAttributeSimple[Double]:
-  val label = "Font Size"
+  val label                    = "Font Size"
   override val placeholderText = "Enter font size here"
-  val default = 14.0
+  val default                  = 14.0
 
 enum GraphType derives CanEqual:
   case graph, digraph
 
 object GraphType extends DotAttributeEnum[GraphType]:
   val default = digraph
-  val label = "Graph Type"
+  val label   = "Graph Type"
   override val valuesWithLabel = Array(
     ("Undirected graph", graph),
     ("Directed graph", digraph)
@@ -151,8 +151,8 @@ enum GroupLabelLoc:
 trait GroupLabelLocT extends DotAttributeEnum[GroupLabelLoc]:
   import GroupLabelLoc.*
   override val attrId = AttributeId("labelloc")
-  val label = "Vertical alignment"
-  def values = Array(t, b)
+  val label           = "Vertical alignment"
+  def values          = Array(t, b)
   override val valuesWithLabel = Array(
     ("Top", t),
     ("Bottom", b)
@@ -162,7 +162,7 @@ object Height:
   val default = 0.5
 
 object Id extends DotAttributeSimple[String]:
-  val label = "Id"
+  val label   = "Id"
   val default = ""
 
 enum ImageScale:
@@ -170,16 +170,16 @@ enum ImageScale:
 
 object ImageScale extends DotAttributeEnum[ImageScale]:
   val default = `false`
-  val label = "Image Scale"
+  val label   = "Image Scale"
 
 object Label extends DotAttributeSimple[String]:
-  val label = "Label"
-  val default = ""
+  val label                    = "Label"
+  val default                  = ""
   override val placeholderText = "Enter label here"
 
 object LabelJust extends DotAttributeEnum[LabelJust]:
   val default = c
-  val label = "Horizontal alignment"
+  val label   = "Horizontal alignment"
   override val valuesWithLabel = Array(
     ("Left", l),
     ("Center", c),
@@ -194,7 +194,7 @@ enum Layout:
 
 object Layout extends DotAttributeEnum[Layout]:
   val default = dot
-  val label = "Layout"
+  val label   = "Layout"
   override val valuesWithLabel = Array(
     ("Hierarchical", dot),
     ("Spring model", neato),
@@ -226,10 +226,12 @@ object NodeDimension:
 enum NodeLabelLoc:
   case t, c, b
 
+/** Vertical alignment of node labels
+  */
 object NodeLabelLoc extends DotAttributeEnum[NodeLabelLoc]:
   override val attrId = AttributeId("labelloc")
-  def default = c
-  val label = "Vertical alignment"
+  def default         = c
+  val label           = "Vertical alignment"
   override val valuesWithLabel = Array(
     ("Top", t),
     ("Center", c),
@@ -237,8 +239,8 @@ object NodeLabelLoc extends DotAttributeEnum[NodeLabelLoc]:
   )
 
 object NodeSep extends DotAttributeSimple[Double]:
-  val label = "Node Separation"
-  val default = 0.25
+  val label                    = "Node Separation"
+  val default                  = 0.25
   override val placeholderText = "Enter node separation here"
 
 enum NodeStyle derives CanEqual:
@@ -246,8 +248,8 @@ enum NodeStyle derives CanEqual:
 
 object NodeStyle extends DotAttributeEnum[NodeStyle]:
   override def attrId = Style.attrId
-  val default = solid
-  val label = "Node Style"
+  val default         = solid
+  val label           = "Node Style"
   // part of the DOT style attribute but explicitly excluded from the enum
   val filled = Style.filled
   override def valuesWithLabel = Array(
@@ -267,14 +269,14 @@ object NoJustify:
 
 object Ordering extends DotAttributeEnum[Ordering]:
   val default = out
-  val label = "Ordering"
+  val label   = "Ordering"
 
 enum Ordering:
   case out, in
 
 object Orientation extends DotAttributeSimple[Double]:
-  val label = "Orientation"
-  val default = 0.0
+  val label                    = "Orientation"
+  val default                  = 0.0
   override val placeholderText = "Enter orientation here"
 
 enum Overlap:
@@ -282,25 +284,25 @@ enum Overlap:
 
 object Overlap extends DotAttributeEnum[Overlap]:
   val default = `false`
-  val label = "Overlap"
+  val label   = "Overlap"
 
 object Pad extends DotAttributeSimple[Double]:
-  val label = "Padding"
+  val label   = "Padding"
   val default = 0.0555
 
 object PenColor extends DotAttributeSimple[String]:
-  val label = "Border Color"
-  val default = "#000000" // default for nodes
+  val label                    = "Border Color"
+  val default                  = "#000000" // default for nodes
   override val placeholderText = "Enter border color here"
 
 object PenWidth extends DotAttributeSimple[Double]:
-  val label = "Border Width"
-  val default = 1.0
+  val label                    = "Border Width"
+  val default                  = 1.0
   override val placeholderText = "Enter pen width here"
 
 object Peripheries extends DotAttributeSimple[Int]:
-  val label = "Peripheries"
-  val default = 1
+  val label                    = "Peripheries"
+  val default                  = 1
   override val placeholderText = "Enter peripheries here"
 
 object Pin:
@@ -310,17 +312,17 @@ case class Point(x: Double, y: Double)
 
 case class PointList(points: List[Point])
 
-type Points = Double
+type Points     = Double
 type LayerRange = String
-type StyleSpec = String
-type FilePath = String
+type StyleSpec  = String
+type FilePath   = String
 
 enum Rankdir derives CanEqual:
   case TB, LR, BT, RL
 
 object Rankdir extends DotAttributeEnum[Rankdir]:
-  val default = TB
-  val label = "Diagram Direction"
+  val default               = TB
+  val label                 = "Diagram Direction"
   override val validLayouts = Set(Layout.dot)
   override val valuesWithLabel = Array(
     ("Top to Bottom", TB),
@@ -330,14 +332,14 @@ object Rankdir extends DotAttributeEnum[Rankdir]:
   )
 
 object RankSep extends DotAttributeSimple[Double]:
-  val label = "Rank Separation"
-  val default = 0.5
-  override val validLayouts = Set(Layout.dot, Layout.twopi)
+  val label                    = "Rank Separation"
+  val default                  = 0.5
+  override val validLayouts    = Set(Layout.dot, Layout.twopi)
   override val placeholderText = "Enter rank separation here"
 
 object Regular extends DotAttributeSimple[Boolean]:
   val default = false
-  val label = "Regular"
+  val label   = "Regular"
 
 object RootGraphLabelLoc extends GroupLabelLocT:
   import GroupLabelLoc.*
@@ -353,14 +355,14 @@ enum Shape derives CanEqual:
 
 object Shape extends DotAttributeEnum[Shape]:
   val default = ellipse
-  val label = "Shape"
+  val label   = "Shape"
 
-  val basicShapes = List(box, ellipse, circle, diamond)
-  val polygonShapes = List(polygon, pentagon, hexagon, septagon, octagon)
-  val invShapes = List(invtriangle, invtrapezium, invhouse)
-  val mShapes = List(Mdiamond, Msquare, Mcircle, Mrecord)
-  val recordShapes = List(Mrecord, tab, note, tab, folder, box3d)
-  val invRecordShapes = List(invhouse, invtriangle, invtrapezium)
+  val basicShapes      = List(box, ellipse, circle, diamond)
+  val polygonShapes    = List(polygon, pentagon, hexagon, septagon, octagon)
+  val invShapes        = List(invtriangle, invtrapezium, invhouse)
+  val mShapes          = List(Mdiamond, Msquare, Mcircle, Mrecord)
+  val recordShapes     = List(Mrecord, tab, note, tab, folder, box3d)
+  val invRecordShapes  = List(invhouse, invtriangle, invtrapezium)
   val invRecordMShapes = List(invhouse, invtriangle, invtrapezium)
   val otherShapes = List(
     component,
@@ -404,11 +406,11 @@ object Shape extends DotAttributeEnum[Shape]:
 
 object Sides extends DotAttributeSimple[Int]:
   val default = 4
-  val label = "Sides"
+  val label   = "Sides"
   // only show when Shape.polygon is selected
 
 object Size extends DotAttributeSimple[Double]:
-  val label = "Size"
+  val label   = "Size"
   val default = 0.0
 
 object Skew:
@@ -419,7 +421,7 @@ enum Splines:
 
 object Splines extends DotAttributeEnum[Splines]:
   val default = spline
-  val label = "Curve style"
+  val label   = "Curve style"
   override val valuesWithLabel = Array(
     ("Spline", spline),
     ("Line", line),
@@ -436,30 +438,30 @@ enum Style:
 
 object Style extends DotAttributeEnum[Style]:
   val default = solid
-  val label = "Style"
+  val label   = "Style"
 
 object URL extends DotAttributeSimple[String]:
-  override val attrId = AttributeId("URL")
-  val label = "URL"
-  val default = ""
+  override val attrId          = AttributeId("URL")
+  val label                    = "URL"
+  val default                  = ""
   override val placeholderText = "Enter URL here"
 
 object Weight extends DotAttributeSimple[Double]:
-  val label = "Weight"
-  val default = 1.0
+  val label                    = "Weight"
+  val default                  = 1.0
   override val placeholderText = "Enter weight here"
 
 object Width:
   val default = 0.75
 
 object XLabel extends DotAttributeSimple[String]:
-  val label = "External label"
-  val default = ""
+  val label                    = "External label"
+  val default                  = ""
   override val placeholderText = "Enter label here"
 
 object Xlp extends DotAttributeSimple[Double]:
-  val label = "External pos"
-  val default = 1
+  val label                    = "External pos"
+  val default                  = 1
   override val placeholderText = "External label position"
 
 object ZCoord:

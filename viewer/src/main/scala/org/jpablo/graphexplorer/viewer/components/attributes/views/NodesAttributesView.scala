@@ -70,7 +70,7 @@ def NodesAttributesView(
   val fillStyleRow = builder.row(FillStyle, checkbox)
   val fillColorRow = builder.row(FillColor, InputType.selectWithPreviewGrid)
     .copy(
-      options = colorRowOptions,
+      options = colorOptions,
       hidden  = builder.invalidLayout(FillColor) || fillStyleRow.combineDefaultBoolean.not
     )
 
@@ -86,7 +86,7 @@ def NodesAttributesView(
       // ----------------------
       "Text Format",
       // ----------------------
-      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorOptions),
       FontName -> InputType.select,
       FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
       // ----------------------
@@ -105,7 +105,7 @@ def NodesAttributesView(
       fillColorRow,
       borderStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(Color, InputType.selectWithPreviewGrid).copy(options = colorOptions),
       CornerStyle
     ),
     if selection then

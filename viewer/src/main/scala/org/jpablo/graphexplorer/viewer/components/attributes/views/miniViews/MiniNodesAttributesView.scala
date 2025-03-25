@@ -3,15 +3,10 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.miniViews
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.syntaxSignalOfBoolean
-import org.jpablo.graphexplorer.viewer.components.attributes.previews.{BorderStylePreview, ShapePreview, CornerPreview}
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
-import org.jpablo.graphexplorer.viewer.components.attributes.views.{AttributesView, colorRowOptions}
-import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
-import org.jpablo.graphexplorer.viewer.models.{AttrStatus, Attributes, AttributesUpdates, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, range}
@@ -22,7 +17,6 @@ def MiniNodesAttributesView(
     updates:  Var[AttributesUpdates],
     defaults: Option[Signal[Attributes]] = None
 ) =
-  given owner: Owner = state.owner
   val multiSelection = state.selection.signal.map(_.size != 1)
 
   val builder = RowBuilder(updates, state.layout, defaults)
@@ -31,37 +25,14 @@ def MiniNodesAttributesView(
   val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  val shapesRowOptions = Shape.valuesWithLabel
-    .filterNot((_, s) => s in Shape.synonyms).toSeq
-    .map: (label, style) =>
-      RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 20, 20))
-
-  val borderStyleOptions = BorderStyle.valuesWithLabel
-    .toSeq.map: (label, style) =>
-      RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style, 20))
-
-  val cornerStyleOptions = CornerStyle.valuesWithLabel
-    .toSeq.map: (label, style) =>
-      RowOption(label, Single(AttrValue(style.toString)), CornerPreview(style))
-
-  val alignIcons = Map(
-    NodeLabelLoc.t -> "bi-align-top",
-    NodeLabelLoc.c -> "bi-align-middle",
-    NodeLabelLoc.b -> "bi-align-bottom"
-  )
-  val verticalAlignmentOptions =
-    NodeLabelLoc.valuesWithLabel
-      .toSeq.map: (label, style) =>
-        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${alignIcons(style)}")))
-
   AttributesView(
     id = "mini-node-attributes",
     rows(
-      row(Shape, InputType.menuWithExtra(4)).copy(options = shapesRowOptions),
-      row(Color, InputType.menuWithExtra(4)).copy(options = colorRowOptions),
+      row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions),
+      row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
       row(FillColor, InputType.menuWithExtra(4))
         .copy(
-          options = colorRowOptions,
+          options = colorOptions,
           hidden = builder.invalidLayout(FillColor) // || fillStyleRow.combineDefaultBoolean.not
         ),
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
@@ -71,11 +42,11 @@ def MiniNodesAttributesView(
       // ---------- label stuff ------------
       labelRow,
       row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(
-        options = verticalAlignmentOptions,
+        options = nodeLabelVerticalAlignOptions,
         hidden = labelRelatedHidden
       ),
       row(FontColor, InputType.menuWithExtra(4)).copy(
-        options = colorRowOptions,
+        options = colorOptions,
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),

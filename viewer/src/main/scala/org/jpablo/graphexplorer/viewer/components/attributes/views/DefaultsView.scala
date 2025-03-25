@@ -33,7 +33,7 @@ def DefaultsView(state: ViewerState) =
     div(
       div(
         role := "tablist",
-        cls  := "tabs tabs-lift tabs-xs",
+        cls  := "tabs tabs-border tabs-xs",
         for (tabName, i) <- tabsData.map(_._1).zipWithIndex
         yield a(
           role := "tab",

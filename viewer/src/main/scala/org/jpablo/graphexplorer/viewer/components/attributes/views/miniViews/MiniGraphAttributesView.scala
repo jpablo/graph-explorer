@@ -6,7 +6,7 @@ import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.{BorderStylePreview, CornerPreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
-import org.jpablo.graphexplorer.viewer.components.attributes.views.{AttributesView, colorRowOptions}
+import org.jpablo.graphexplorer.viewer.components.attributes.views.{AttributesView, colorOptions}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
@@ -60,10 +60,10 @@ def MiniGraphAttributesView(
   AttributesView(
     id = "mini-graph-attributes",
     rows(
-      row(PenColor, InputType.menuWithExtra(4)).copy(options = colorRowOptions),
+      row(PenColor, InputType.menuWithExtra(4)).copy(options = colorOptions),
       row(FillColor, InputType.menuWithExtra(4))
         .copy(
-          options = colorRowOptions,
+          options = colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
@@ -81,7 +81,7 @@ def MiniGraphAttributesView(
         hidden = labelRelatedHidden
       ),
       row(FontColor, InputType.menuWithExtra(4)).copy(
-        options = colorRowOptions,
+        options = colorOptions,
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),

@@ -109,7 +109,7 @@ def DiagramAttributesView(state: ViewerState) =
       Concentrate -> checkbox,
       row(BgColor, InputType.menuWithExtra(4))
         .copy(
-          options = colorRowOptions,
+          options = colorOptions,
           hidden = builder.invalidLayout(BgColor)
         ),
       Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),

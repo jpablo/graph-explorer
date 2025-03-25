@@ -88,7 +88,7 @@ def EdgesAttributesView(
       // ----------------
       "Text Format",
       // ----------------
-      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorOptions),
       FontName -> InputType.select,
       FontSize -> number(start = Some(1), end = Some(100), step = Some(1)),
       // ----------------
@@ -96,7 +96,7 @@ def EdgesAttributesView(
       // ----------------
       edgeStyleRow,
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.row(Color, InputType.selectWithPreviewGrid).copy(options = colorRowOptions),
+      builder.row(Color, InputType.selectWithPreviewGrid).copy(options = colorOptions),
       arrowHeadRow,
       arrowTailRow,
       ArrowSize -> range(start = Some(0), end = Some(5), step = Some(0.1)),

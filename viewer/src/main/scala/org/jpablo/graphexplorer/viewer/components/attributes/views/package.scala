@@ -1,14 +1,32 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.{
+  ArrowPreview,
+  ArrowStylePreview,
+  BorderStylePreview,
+  CornerPreview,
+  ShapePreview
+}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
+import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  ArrowType,
+  BorderStyle,
+  CornerStyle,
+  EdgeStyle,
+  NodeLabelLoc,
+  Shape
+}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 
 package object views:
-  val colorRowOptions =
-    ColorType.x11BasicColors.toSeq
+
+  val colorOptions =
+    ColorType.x11BasicColors
+      .toSeq
       .map: (name, hex) =>
         val cssColor = if name == "none" then "unset" else hex
         val dotColor = if name == "none" then "none" else hex
@@ -26,3 +44,38 @@ package object views:
                 )
             )
         )
+
+  val shapesOptions =
+    Shape.valuesWithLabel
+      .filterNot((_, s) => s in Shape.synonyms).toSeq
+      .map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 20, 20))
+
+  val borderStyleOptions =
+    BorderStyle.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style, 20))
+
+  val cornerStyleOptions =
+    CornerStyle.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), CornerPreview(style))
+
+  val nodeLabelLocIcons = Map(
+    NodeLabelLoc.t -> "bi-align-top",
+    NodeLabelLoc.c -> "bi-align-middle",
+    NodeLabelLoc.b -> "bi-align-bottom"
+  )
+
+  val nodeLabelVerticalAlignOptions =
+    NodeLabelLoc.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${nodeLabelLocIcons(style)}")))
+
+  val arrowStyleOptions =
+    EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
+      RowOption(label, Single(AttrValue(style.toString)), ArrowStylePreview(style, 20))
+
+  val arrowTypeOptions =
+    ArrowType.values.toSeq.map: arrowType =>
+      RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 20))
