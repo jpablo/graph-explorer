@@ -39,7 +39,7 @@ def MiniGraphAttributesView(
       // ---------- label stuff ------------
       labelRow,
       row(ClusterLabelLoc, InputType.menuWithExtra(4)).copy(
-        options = verticalAlignmentOptions,
+        options = clusterVerticalAlignmentOptions,
         hidden = labelRelatedHidden
       ),
       row(LabelJust, InputType.menuWithExtra(4)).copy(

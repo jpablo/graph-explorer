@@ -23,7 +23,6 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
   LabelJust,
   NodeLabelLoc,
   Rankdir,
-  RootGraphLabelLoc,
   Shape
 }
 import org.jpablo.graphexplorer.viewer.models.AttrStatus
@@ -102,7 +101,7 @@ package object views:
     LabelJust.c -> "bi-align-center",
     LabelJust.r -> "bi-align-end"
   )
-  val verticalAlignmentOptions =
+  val clusterVerticalAlignmentOptions =
     ClusterLabelLoc.valuesWithLabel
       .toSeq.map: (label, style) =>
         RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${groupVAlignIcons(style)}")))
@@ -134,11 +133,6 @@ package object views:
     Rankdir.BT -> "bi-arrow-up",
     Rankdir.RL -> "bi-arrow-left"
   )
-
-  val rootVerticalAlignmentOptions =
-    RootGraphLabelLoc.valuesWithLabel
-      .toSeq.map: (label, style) =>
-        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${vAlignIcons(style)}")))
 
   val directionOptions =
     Rankdir.valuesWithLabel

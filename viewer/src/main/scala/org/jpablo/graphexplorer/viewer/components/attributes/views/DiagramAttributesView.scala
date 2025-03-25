@@ -37,7 +37,7 @@ def DiagramAttributesView(state: ViewerState) =
       "Title",
       labelRow,
       row(RootGraphLabelLoc, InputType.menuWithExtra(4)).copy(
-        options = verticalAlignmentOptions,
+        options = clusterVerticalAlignmentOptions,
         hidden = labelRelatedHidden
       ),
       row(LabelJust, InputType.menuWithExtra(4)).copy(
