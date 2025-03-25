@@ -15,8 +15,11 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
   ArrowType,
   BorderStyle,
+  ClusterLabelLoc,
   CornerStyle,
   EdgeStyle,
+  GroupLabelLoc,
+  LabelJust,
   NodeLabelLoc,
   Shape
 }
@@ -79,3 +82,28 @@ package object views:
   val arrowTypeOptions =
     ArrowType.values.toSeq.map: arrowType =>
       RowOption(arrowType.toString, Single(AttrValue(arrowType.toString)), ArrowPreview(arrowType, 20))
+
+  val validCornerStyle = Set(CornerStyle.normal, CornerStyle.rounded)
+  
+  val graphCornerStyleOptions = CornerStyle.valuesWithLabel.filter((_, s) => validCornerStyle(s))
+    .toSeq.map: (label, style) =>
+      RowOption(label, Single(AttrValue(style.toString)), CornerPreview(style))
+
+  val groupVAlignIcons = Map(
+    GroupLabelLoc.t -> "bi-align-top",
+    GroupLabelLoc.b -> "bi-align-bottom"
+  )
+  val hAlignIcons = Map(
+    LabelJust.l -> "bi-align-start",
+    LabelJust.c -> "bi-align-center",
+    LabelJust.r -> "bi-align-end"
+  )
+  val verticalAlignmentOptions =
+    ClusterLabelLoc.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${groupVAlignIcons(style)}")))
+
+  val horizontalAlignmentOptions =
+    LabelJust.valuesWithLabel
+      .toSeq.map: (label, style) =>
+        RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${hAlignIcons(style)}")))
