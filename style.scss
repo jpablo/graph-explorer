@@ -63,11 +63,6 @@ label[for ^= show-ns-kind-] {
     width: var(--left-panel-width, 16rem);
     flex-shrink: 0;
     border-right-width: var(--left-panel-border-width, 0px);
-
-    .header-section {
-      //@apply mt-[26rem];
-      //height: calc(100% - 26rem);
-    }
   }
 
   #selection-panel {
@@ -146,7 +141,6 @@ label[for ^= show-ns-kind-] {
           .selected-border {
             fill: rgba(255, 165, 0, 0.15);
             stroke: #2c70ff;
-            // stroke-width: .5;
           }
         }
 
@@ -235,14 +229,6 @@ label[for ^= show-ns-kind-] {
 
       #elements-view-content {
         @apply overflow-y-auto grow;
-      }
-    }
-
-    #defaults-view {
-      @apply pt-2;
-
-      #defaults-view-content {
-        @apply overflow-y-auto grow pt-4;
       }
     }
 

@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 def DefaultsView(state: ViewerState) =
-  val tabIndex = Var(0)
+  val tabIndex           = Var(0)
   def tabVisible(i: Int) = tabIndex.signal.map(_ == i)
 
   val tabsData =
@@ -30,24 +30,23 @@ def DefaultsView(state: ViewerState) =
 
   div(
     idAttr := "defaults-view",
-    div(cls := "attributes-title", h2("Defaults")),
+    div(cls := "attributes-title flex-none", h2("Defaults")),
     div(
-      div(
-        role := "tablist",
-        cls  := "tabs tabs-border tabs-xs",
-        for (tabName, i) <- tabsData.map(_._1).zipWithIndex
-        yield a(
-          role := "tab",
-          cls  := "tab flex-1",
-          cls("tab-active") <-- tabVisible(i),
-          onClick.mapTo(i) --> tabIndex,
-          tabName
-        )
-      ),
-      div(
-        idAttr := "defaults-view-content",
-        for (view, i) <- tabsData.map(_._2).zipWithIndex
-        yield view.amend(cls("hidden") <-- tabVisible(i).not)
+      role := "tablist",
+      cls  := "tabs tabs-border tabs-xs flex-none",
+      for (tabName, i) <- tabsData.map(_._1).zipWithIndex
+      yield a(
+        role := "tab",
+        cls  := "tab flex-1",
+        cls("tab-active") <-- tabVisible(i),
+        onClick.mapTo(i) --> tabIndex,
+        tabName
       )
+    ),
+    div(
+      idAttr := "defaults-view-content",
+      cls := "flex-grow overflow-y-auto",
+      for (view, i) <- tabsData.map(_._2).zipWithIndex
+      yield view.amend(cls("hidden") <-- tabVisible(i).not)
     )
   )

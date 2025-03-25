@@ -1,9 +1,9 @@
 package org.jpablo.graphexplorer.viewer.widgets
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.jpablo.graphexplorer.Mods
 
 
-def Button(mods: Modifier[ReactiveHtmlElement.Base]*): Button =
+def Button(mods: Mods*): Button =
   button(cls := "btn", mods)
 

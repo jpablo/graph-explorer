@@ -27,7 +27,7 @@ class RightPanel(state: ViewerState):
             ElementsView(state),
             SourceTab
           ).zipWithIndex.map: (child, idx) =>
-            child.amend(cls := "h-full overflow-y-auto", cls("hidden") <-- !isVisible(idx))
+            child.amend(cls := "h-full flex flex-col", cls("hidden") <-- !isVisible(idx))
         )
       )
     )
@@ -35,7 +35,6 @@ class RightPanel(state: ViewerState):
   private def SourceTab =
     div(
       idAttr := "source-tab",
-      cls    := "flex flex-col h-full",
       div(
         cls := "m-2 flex-none",
         a(

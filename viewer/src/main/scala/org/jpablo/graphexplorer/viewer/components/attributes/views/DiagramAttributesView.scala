@@ -32,7 +32,7 @@ def DiagramAttributesView(state: ViewerState) =
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty)
   div(
     idAttr := "diagram-attributes-view",
-    div(cls := "attributes-title", h2("Diagram")),
+    div(cls := "attributes-title flex-none", h2("Diagram")),
     AttributesView(
       id = "root-graph-attributes",
       showHeaders = false,
@@ -63,5 +63,5 @@ def DiagramAttributesView(state: ViewerState) =
         RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
         NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
       )
-    ).amend(cls := "mb-8")
+    ).amend(cls := "flex-grow overflow-y-auto")
   )

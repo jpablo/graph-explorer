@@ -1,19 +1,19 @@
 package org.jpablo.graphexplorer.viewer.components.codeMirror
 
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import typings.codemirrorState.anon.{Dispatch, From}
 import typings.codemirrorState.mod.{Transaction, TransactionSpec}
 
 import scala.scalajs.js
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.Mods
 import typings.codemirror.mod as codemirror
 import typings.codemirrorView.mod.{EditorView, EditorViewConfig, ViewUpdate, keymap}
 import typings.vizJsLangDot.mod.dot
 import typings.codemirrorCommands.mod.indentWithTab
-import typings.codemirrorCommands.mod.{undo, redo}
+import typings.codemirrorCommands.mod.{redo, undo}
 
-def CodeMirror(state: ViewerState, mods: Modifier[ReactiveHtmlElement.Base]*) =
+def CodeMirror(state: ViewerState, mods: Mods*) =
 
   lazy val extensions =
     js.Array[Any](
