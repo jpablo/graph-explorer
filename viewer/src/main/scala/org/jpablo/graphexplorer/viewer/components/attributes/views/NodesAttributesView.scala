@@ -4,7 +4,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.attributes.*
-import org.jpablo.graphexplorer.viewer.components.attributes.previews.{BorderStylePreview, ShapePreview}
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePreview
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.extensions.in
@@ -24,6 +24,10 @@ def NodesAttributesView(
     selection: Boolean
 ) =
   val builder = RowBuilder(updates, state.layout, defaults)
+  import builder.{row, rows}
+
+//  val labelRow = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
+//  val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
   given owner: Owner = state.owner
 
@@ -38,15 +42,6 @@ def NodesAttributesView(
     else
       ""
 
-  val borderStyleRow =
-    builder
-      .row(BorderStyle, InputType.selectWithPreview)
-      .copy(
-        options =
-          BorderStyle.valuesWithLabel.toSeq.map: (label, style) =>
-            RowOption(label, Single(AttrValue(style.toString)), BorderStylePreview(style))
-      )
-
   val shapesRowOpts =
     Shape.valuesWithLabel
       .filterNot((_, s) => s in Shape.synonyms).toSeq
@@ -54,45 +49,39 @@ def NodesAttributesView(
         RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 30))
 
   val shapeRow: AttributeRow.InputAttribute =
-    builder
-      .row(Shape, InputType.selectWithPreviewGrid)
+    row(Shape, InputType.selectWithPreviewGrid)
       .copy(options = shapesRowOpts)
 
   val sidesRow =
-    builder.row(
-      attr      = Sides,
+    row(
+      attr = Sides,
       inputType = number(start = Some(3), end = Some(10), step = Some(1)),
       hidden = Some(
         builder.invalidLayout(Sides) || shapeRow.inputVar.signal.map(_.exists(_.toString != Shape.polygon.toString))
       )
     )
 
-  val fillStyleRow = builder.row(FillStyle, checkbox)
-  val fillColorRow = builder.row(FillColor, InputType.selectWithPreviewGrid)
-    .copy(
-      options = colorOptions,
-      hidden  = builder.invalidLayout(FillColor) || fillStyleRow.combineDefaultBoolean.not
-    )
+  val fillStyleRow = row(FillStyle, checkbox)
 
   AttributesView(
     id = "node-attributes",
-    builder.rows(
+    rows(
       // ----------------------
       "Label",
       // ----------------------
       labelRow,
-      NodeLabelLoc,
+      row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(options = nodeLabelVerticalAlignOptions),
       if selection then XLabel else "",
       // ----------------------
       "Text Format",
       // ----------------------
-      builder.row(FontColor, InputType.selectWithPreviewGrid).copy(options = colorOptions),
+      row(FontColor, InputType.menuWithExtra(4)).copy(options = colorOptions),
       FontName -> InputType.select,
       FontSize -> range(start = Some(1), end = Some(100), step = Some(1)),
       // ----------------------
       "Shape",
       // ----------------------
-      shapeRow,
+      row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions),
       sidesRow,
       Regular     -> checkbox,
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
@@ -101,12 +90,15 @@ def NodesAttributesView(
       "Style",
       // ----------------------
       BoldStyle -> checkbox,
-      fillStyleRow,
-      fillColorRow,
-      borderStyleRow,
+      row(FillColor, InputType.menuWithExtra(4))
+        .copy(
+          options = colorOptions,
+          hidden = builder.invalidLayout(FillColor) // || fillStyleRow.combineDefaultBoolean.not
+        ),
+      row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      builder.row(Color, InputType.selectWithPreviewGrid).copy(options = colorOptions),
-      CornerStyle
+      row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
+      row(CornerStyle, InputType.menuWithExtra(4)).copy(options = cornerStyleOptions),
     ),
     if selection then
       builder.rows(
