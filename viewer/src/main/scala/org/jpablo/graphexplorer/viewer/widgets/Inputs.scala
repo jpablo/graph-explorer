@@ -72,7 +72,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection)
             // popup card
             div(
               tabIndex := 0,
-              cls      := "dropdown-content card card-xs bg-base-100 z-1 w-61 shadow-md",
+              cls      := "dropdown-content card card-xs bg-base-100 z-1 w-61 shadow-md border border-base-200",
               div(
                 cls := "card-body p-0",
                 ul(
