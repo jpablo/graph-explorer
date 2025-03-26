@@ -63,5 +63,5 @@ def DiagramAttributesView(state: ViewerState) =
         RankSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05)),
         NodeSep -> range(start = Some(0.02), end = Some(2.0), step = Some(0.05))
       )
-    ).amend(cls := "flex-grow overflow-y-auto")
+    ).amend(cls := "flex-grow")
   )

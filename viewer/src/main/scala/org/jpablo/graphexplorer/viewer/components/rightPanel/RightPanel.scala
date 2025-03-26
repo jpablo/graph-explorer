@@ -13,22 +13,17 @@ class RightPanel(state: ViewerState):
 
   def render() =
     div(
-      // -------- Style Panel Toggle --------
+      idAttr := "right-panel",
+      cls <-- state.rightPanelVisible.signal.map(if _ then "visible" else "not-visible"),
       div(
-        idAttr := "right-panel",
-        cls <-- state.rightPanelVisible.signal.map(if _ then "visible" else "not-visible"),
-        // Scrollable content section
-        div(
-          idAttr := "right-panel-content",
-          // --- Tab Body ---
-          List(
-            DiagramAttributesView(state),
-            DefaultsView(state),
-            ElementsView(state),
-            SourceTab
-          ).zipWithIndex.map: (child, idx) =>
-            child.amend(cls := "h-full flex flex-col", cls("hidden") <-- !isVisible(idx))
-        )
+        idAttr := "right-panel-content",
+        List(
+          DiagramAttributesView(state),
+          DefaultsView(state),
+          ElementsView(state),
+          SourceTab
+        ).zipWithIndex.map: (child, idx) =>
+          child.amend(cls := "h-full flex flex-col", cls("hidden") <-- !isVisible(idx))
       )
     )
 

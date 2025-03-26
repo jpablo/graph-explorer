@@ -45,7 +45,7 @@ def DefaultsView(state: ViewerState) =
     ),
     div(
       idAttr := "defaults-view-content",
-      cls := "flex-grow overflow-y-auto",
+      cls := "flex-grow",
       for (view, i) <- tabsData.map(_._2).zipWithIndex
       yield view.amend(cls("hidden") <-- tabVisible(i).not)
     )
