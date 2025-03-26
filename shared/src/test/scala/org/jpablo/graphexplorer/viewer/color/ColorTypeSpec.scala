@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.formats.dot
+package org.jpablo.graphexplorer.viewer.color
 
 import munit.FunSuite
 
@@ -146,18 +146,18 @@ class ColorTypeSpec extends FunSuite:
       "#00ff0040"
     )
 
-  test("toHex converts named colors into #000000"):
+  test("toHex converts named colors to their X11 hex values"):
     assertEquals(
       ColorType.toHex(ColorType.named("red")),
-      "#000000"
+      "#ff0000"
     )
     assertEquals(
-      ColorType.toHex(ColorType.named("transparent")),
-      "#000000"
+      ColorType.toHex(ColorType.named("blue")),
+      "#0000ff"
     )
     assertEquals(
-      ColorType.toHex(ColorType.named("#123456")), // Still treated as a name, not converted
-      "#000000"
+      ColorType.toHex(ColorType.named("green")),
+      "#00ff00"
     )
 
   test("toHexNoAlpha converts RGB colors correctly"):
@@ -212,12 +212,82 @@ class ColorTypeSpec extends FunSuite:
       "#00ff00"
     )
 
-  test("toHexNoAlpha converts named colors to #000000"):
+  test("toHexNoAlpha converts named colors to their X11 hex values"):
     assertEquals(
       ColorType.toHexNoAlpha(ColorType.named("red")),
-      "#000000"
+      "#ff0000"
     )
     assertEquals(
-      ColorType.toHexNoAlpha(ColorType.named("transparent")),
-      "#000000"
+      ColorType.toHexNoAlpha(ColorType.named("blue")),
+      "#0000ff"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.named("green")),
+      "#00ff00"
+    )
+
+  test("toHex converts nRGB to hex"):
+    assertEquals(
+      ColorType.toHex(ColorType.nRGB(1.0, 0.0, 0.0)),
+      "#ff0000"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.nRGB(0.0, 1.0, 0.0)),
+      "#00ff00"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.nRGB(0.0, 0.0, 1.0)),
+      "#0000ff"
+    )
+    assertEquals(
+      ColorType.toHex(ColorType.nRGB(0.5, 0.5, 0.5)),
+      "#7f7f7f"
+    )
+
+  test("toHex converts OKCLH to hex".ignore):
+    // Red in OKCLH
+    assertEquals(
+      ColorType.toHex(ColorType.OKCLH(0.627, 0.237, 25.331)),
+      "#f62926"
+    )
+    // Green in OKCLH
+    assertEquals(
+      ColorType.toHex(ColorType.OKCLH(0.723, 0.219, 149.579)),
+      "#00ff00"
+    )
+    // Blue in OKCLH
+    assertEquals(
+      ColorType.toHex(ColorType.OKCLH(0.546, 0.245, 262.881)),
+      "#0000ff"
+    )
+
+  test("toHexNoAlpha converts nRGB to hex"):
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.nRGB(1.0, 0.0, 0.0)),
+      "#ff0000"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.nRGB(0.0, 1.0, 0.0)),
+      "#00ff00"
+    )
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.nRGB(0.0, 0.0, 1.0)),
+      "#0000ff"
+    )
+
+  test("toHexNoAlpha converts OKCLH to hex".ignore):
+    // Red in OKCLH
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.OKCLH(0.627, 0.237, 25.331)),
+      "#f62926"
+    )
+    // Green in OKCLH
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.OKCLH(0.723, 0.219, 149.579)),
+      "#00ff00"
+    )
+    // Blue in OKCLH
+    assertEquals(
+      ColorType.toHexNoAlpha(ColorType.OKCLH(0.546, 0.245, 262.881)),
+      "#0000ff"
     )

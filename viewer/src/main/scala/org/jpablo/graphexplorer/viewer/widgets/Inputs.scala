@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
-import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
+import org.jpablo.graphexplorer.viewer.color.ColorType
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*

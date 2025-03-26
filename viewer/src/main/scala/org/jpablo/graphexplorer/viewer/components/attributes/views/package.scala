@@ -1,37 +1,19 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.components.attributes.previews.{
-  ArrowPreview,
-  ArrowStylePreview,
-  BorderStylePreview,
-  CornerPreview,
-  ShapePreview
-}
+import org.jpablo.graphexplorer.viewer.color
+import org.jpablo.graphexplorer.viewer.components.attributes.previews.{ArrowPreview, ArrowStylePreview, BorderStylePreview, CornerPreview, ShapePreview}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
-  ArrowType,
-  BorderStyle,
-  ClusterLabelLoc,
-  CornerStyle,
-  EdgeStyle,
-  GraphType,
-  GroupLabelLoc,
-  LabelJust,
-  NodeLabelLoc,
-  Rankdir,
-  Shape
-}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowType, BorderStyle, ClusterLabelLoc, CornerStyle, EdgeStyle, GraphType, GroupLabelLoc, LabelJust, NodeLabelLoc, Rankdir, Shape}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 
 package object views:
 
   val colorOptions =
-    ColorType.x11BasicColors
+    color.x11BasicColors
       .toSeq
       .map: (name, hex) =>
         val cssColor = if name == "none" then "unset" else hex

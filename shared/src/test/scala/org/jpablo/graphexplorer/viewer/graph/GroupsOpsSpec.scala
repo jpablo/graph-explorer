@@ -1,10 +1,10 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.nodeWithId
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
 
 class GroupsOpsSpec extends FunSuite:
 

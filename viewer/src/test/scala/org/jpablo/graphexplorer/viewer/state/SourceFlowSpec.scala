@@ -2,9 +2,9 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.ownership.Owner
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.nodeWithId
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.initialGroup
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
 
 class SourceFlowSpec extends FunSuite:
   test("Sanity check") {

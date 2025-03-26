@@ -1,9 +1,9 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.ScalaCheckSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.nodeWithId
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
 
 class ViewerGraphElementsSpec extends ScalaCheckSuite:
 

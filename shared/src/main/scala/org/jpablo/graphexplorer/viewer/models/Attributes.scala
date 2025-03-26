@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.models
 
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, AttrValue}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.DotAttribute
 import upickle.default.*
 
@@ -60,10 +60,13 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def ++(other: Attributes): Attributes = Attributes(values ++ other.values)
   @targetName("concatValues")
   def ++(other: Map[AttributeId, AttrValue]): Attributes = Attributes(values ++ other)
-  def --(other: Set[AttributeId]): Attributes = Attributes(values -- other)
+  def --(other: Set[AttributeId]): Attributes            = Attributes(values -- other)
 
-  def -(key: AttributeId): Attributes = Attributes(values - key)
+  def -(key: AttributeId): Attributes              = Attributes(values - key)
   def +(kv:  (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
+
+  def toDotAttr: List[Attr] =
+    values.map((k, v) => Attr(k.value, v)).toList
 
   def get(key: AttributeId): Option[AttrValue] = values.get(key)
 
@@ -80,7 +83,7 @@ case class AttributesUpdates(
     update:   Map[AttributeId, AttrValue] = Map.empty,
     remove:   Set[AttributeId] = Set.empty
 ):
-  def -(key: AttributeId): AttributesUpdates = copy(remove = remove + key)
+  def -(key: AttributeId): AttributesUpdates              = copy(remove = remove + key)
   def +(kv:  (AttributeId, AttrValue)): AttributesUpdates = copy(update = update + kv)
 
   def applyUpdatesTo(attrs: Attributes): Attributes =
@@ -96,11 +99,8 @@ object Attributes:
   def of(attrs: (String, String)*) =
     Attributes(attrs.map((k, v) => AttributeId(k) -> AttrValue(v)).toMap)
 
-
-
 trait AttributePair:
   def toTuple: (AttributeId, AttrValue)
-
 
 object AttributePair:
   implicit def pair[A](p: (DotAttribute[A], A)): AttributePair =

@@ -1,25 +1,10 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget, nodeWithId}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
-  ArrowTail,
-  ArrowType,
-  BoldStyle,
-  BorderStyle,
-  Color,
-  Dir,
-  DirType,
-  FillStyle,
-  Label,
-  NodeStyle,
-  Shape,
-  Sides,
-  Size,
-  Style
-}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, BoldStyle, BorderStyle, Color, Dir, DirType, FillStyle, Label, NodeStyle, Shape, Sides, Size, Style}
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, node, nodeWithId}
 
 class AttributesOpsSpec extends FunSuite:
 
@@ -98,19 +83,12 @@ class AttributesOpsSpec extends FunSuite:
     )
   }
 
-  test("combineStyleAttributes should combine sub-attributes into a style attribute") {
+  test("combineStyleAttributes should combine sub-attributes into a style attribute and ignore `filled`") {
     // Create a graph with sub-attributes
     val graph = createTestGraph()
       .modifyNodes.setTo(
         Map(
-          a -> node(
-            a,
-            Attributes(Map(
-              FillStyle.attrId   -> AttrValue(true.toString),
-              BoldStyle.attrId   -> AttrValue(true.toString),
-              BorderStyle.attrId -> AttrValue(BorderStyle.dashed.toString)
-            ))
-          ),
+          a -> node(a, Attributes.of(FillStyle -> true, BoldStyle -> true, BorderStyle -> BorderStyle.dashed)),
           b -> node(b),
           c -> node(c)
         )
@@ -128,11 +106,9 @@ class AttributesOpsSpec extends FunSuite:
     assertEquals(nodeAttrs.get(BorderStyle.attrId), None, "borderstyle should be removed")
 
     // The style attribute should be present with the combined value
-    assertEquals(
-      nodeAttrs.get(NodeStyle.attrId),
-      Some(AttrValue("filled,bold,dashed")),
-      "style attribute should contain the combined values"
-    )
+    val expected: Some[AttrValue] = Some(AttrValue("bold,dashed"))
+    // Note: we're ignoring `filled` now as it is derived from the `color` attribute
+    assertEquals(nodeAttrs.get(NodeStyle.attrId), expected, "style attribute should contain the combined values")
   }
 
   test("combineStyleAttributes should use rootGroup.nodeAttrs as defaults for nodes.attributes") {
@@ -168,7 +144,7 @@ class AttributesOpsSpec extends FunSuite:
     // Verify the attributes are updated
     assertEquals(
       result.getAttributesById(a),
-      Attributes.of(Color -> "red"),
+      defaultNodeAttributes ++ Attributes.of(Color -> "red"),
       "Node attributes should be updated"
     )
 
@@ -178,7 +154,7 @@ class AttributesOpsSpec extends FunSuite:
 
     assertEquals(
       result2.getAttributesById(a),
-      Attributes.of(Color -> "red", Shape -> Shape.box),
+      defaultNodeAttributes ++ Attributes.of(Color -> "red", Shape -> Shape.box),
       "Node attributes should be updated"
     )
   }

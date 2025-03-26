@@ -35,6 +35,14 @@ object ViewerNode:
   def node(nodeId: NodeId, attributes: Attributes = Attributes.empty) =
     ViewerNode(nodeId, defaultNodeAttributes ++ attributes)
 
+  def nodeWithId(nodeIdOrString: NodeId | String, attrs: (String, String)*) =
+    val nodeId =
+      nodeIdOrString match
+        case id: NodeId => id
+        case str: String => NodeId(str)
+    nodeId -> node(nodeId, Attributes.of(attrs *))
+
+
 // ---- Edges ------
 
 case class Arrow(

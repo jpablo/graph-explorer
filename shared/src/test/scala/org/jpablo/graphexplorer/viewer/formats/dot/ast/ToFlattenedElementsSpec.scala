@@ -7,12 +7,14 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithId}
 
 class ToFlattenedElementsSpec extends ScalaCheckSuite:
 
-  val rootId = ViewerGraphElements.defaultRootId
-  val group0 = GroupId("cluster_0")
-  val group1 = GroupId("cluster_1")
+  val rootId          = ViewerGraphElements.defaultRootId
+  val group0          = GroupId("cluster_0")
+  val group1          = GroupId("cluster_1")
+  val defaultDotAttrs = defaultNodeAttributes.toDotAttr
 
   test("toFlattenedElements should return all nodes") {
     val data = astWithNestedSubGraphs.toFlattenedElements
@@ -52,13 +54,13 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
 
   test("toFlattenedElements in empty graphs should find a single group (the root group)") {
     val emptyAST = DotAST(tpe = digraph.toString, children = Nil, id = Some(rootId.value))
-    val data = emptyAST.toFlattenedElements
+    val data     = emptyAST.toFlattenedElements
     val expected =
       FlattenedGraphElement(
-        rootId      = rootId,
-        arrows      = Nil,
-        groups      = List(ViewerGroup(rootId)),
-        nodes       = Nil,
+        rootId = rootId,
+        arrows = Nil,
+        groups = List(ViewerGroup(rootId)),
+        nodes = Nil,
         memberships = Nil
       )
 
@@ -81,16 +83,16 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
 
   test("roundtrip (toFlattenedElements -> graphDataToDotGraphElements) should produce equivalent elements") {
     EdgeStmt.resetId()
-    val flattened = astWithNestedSubGraphs.toFlattenedElements
-    val data = ViewerGraphElements.from(flattened)
+    val flattened     = astWithNestedSubGraphs.toFlattenedElements
+    val data          = ViewerGraphElements.from(flattened)
     val reconstructed = graphDataToDotGraphElements(data)
-    val x = DotNodeId("x")
-    val a = DotNodeId("a")
-    val y = DotNodeId("y")
-    val b = DotNodeId("b")
-    val c = DotNodeId("c")
-    val d = DotNodeId("d")
-    val z = DotNodeId("z")
+    val x             = DotNodeId("x")
+    val a             = DotNodeId("a")
+    val y             = DotNodeId("y")
+    val b             = DotNodeId("b")
+    val c             = DotNodeId("c")
+    val d             = DotNodeId("d")
+    val z             = DotNodeId("z")
     // This is not the same as the original AST, but should render to something similar
     // - Some elements like Newline and Pad are removed
     // - Order of elements may change: SubGraphs -> NodeStmts -> EdgeStmts
@@ -99,17 +101,17 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
         SubGraph(
           List(
             AttrStmt("node", List(Attr("shape", AttrValue("egg")))),
-            SubGraph(List(NodeStmt(d)), Some("cluster_1")),
+            SubGraph(List(NodeStmt(d, defaultDotAttrs)), Some("cluster_1")),
             NodeStmt(z, List(Attr("label", AttrValue("ZZ")))),
             EdgeStmt(List(a, b), List(Attr("id", AttrValue("2"))))
           ),
           Some("cluster_0")
         ),
-        NodeStmt(x),
-        NodeStmt(a),
-        NodeStmt(y),
-        NodeStmt(b),
-        NodeStmt(c),
+        NodeStmt(x, defaultDotAttrs),
+        NodeStmt(a, defaultDotAttrs),
+        NodeStmt(y, defaultDotAttrs),
+        NodeStmt(b, defaultDotAttrs),
+        NodeStmt(c, defaultDotAttrs),
         EdgeStmt(List(x, y), List(Attr("id", AttrValue("1")))),
         EdgeStmt(List(x, a), List(Attr("id", AttrValue("3")))),
         EdgeStmt(List(b, c), List(Attr("id", AttrValue("4"))))
