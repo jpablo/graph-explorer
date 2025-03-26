@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.InputType
+import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, multiText, range}
 
 /** Attributes for the root graph.
@@ -37,7 +37,6 @@ def DiagramAttributesView(state: ViewerState) =
       id = "root-graph-attributes",
       showHeaders = false,
       rows = rows(
-        "Title",
         labelRow,
         row(RootGraphLabelLoc, InputType.menuWithExtra(4)).copy(
           options = clusterVerticalAlignmentOptions,
@@ -47,14 +46,12 @@ def DiagramAttributesView(state: ViewerState) =
           options = horizontalAlignmentOptions,
           hidden = labelRelatedHidden
         ),
-        "Layout",
         Layout,
         row(Rankdir, InputType.menuWithExtra(4)).copy(options = directionOptions),
         graphTypeRow,
-        "Other",
         Splines,
         Concentrate -> checkbox,
-        row(BgColor, InputType.menuWithExtra(4))
+        row(BgColor, InputType.menuWithExtra(4, MenuDirection.center))
           .copy(
             options = colorOptions,
             hidden = builder.invalidLayout(BgColor)

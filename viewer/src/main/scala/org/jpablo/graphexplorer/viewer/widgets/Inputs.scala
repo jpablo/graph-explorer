@@ -45,7 +45,7 @@ def Menu[A](
 
 /** A menu with a horizontal layout, with the last item being a dropdown menu.
   */
-def MenuWithExtraDropdown(row: InputAttribute, initial: Int) =
+def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection) =
   def menuButton(option: RowOption) =
     div(
       cls   := "px-2",
@@ -63,7 +63,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int) =
     li(
       cls := "justify-center",
       div(
-        cls := "dropdown p-0 m-0",
+        cls := s"dropdown dropdown-$dir p-0 m-0",
         if extraOptions.isEmpty then emptyMod
         else
           Seq(

@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow,
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.InputType
+import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 
 def NodesAttributesView(
@@ -27,7 +27,8 @@ def NodesAttributesView(
   val labelRow =
     row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || Signal.fromValue(defaultsView))
 
-  val shapeRow = row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions)
+  val extraMenuDir = MenuDirection.center
+  val shapeRow = row(Shape, InputType.menuWithExtra(4, extraMenuDir)).copy(options = shapesOptions)
 
   val sidesRow =
     row(
@@ -42,8 +43,8 @@ def NodesAttributesView(
     id = "node-attributes",
     rows = rows(
       shapeRow,
-      row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
-      row(FillColor, InputType.menuWithExtra(4))
+      row(Color, InputType.menuWithExtra(4, extraMenuDir)).copy(options = colorOptions),
+      row(FillColor, InputType.menuWithExtra(4, extraMenuDir))
         .copy(
           options = colorOptions,
           hidden = builder.invalidLayout(FillColor)
@@ -55,7 +56,7 @@ def NodesAttributesView(
       labelRow,
       row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(options = nodeLabelVerticalAlignOptions),
       if defaultsView then XLabel else "",
-      row(FontColor, InputType.menuWithExtra(4)).copy(options = colorOptions),
+      row(FontColor, InputType.menuWithExtra(4, extraMenuDir)).copy(options = colorOptions),
       FontName -> InputType.select,
       FontSize -> range(start = Some(1), end = Some(100), step = Some(1))
     ),

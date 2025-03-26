@@ -21,7 +21,7 @@ def DefaultsView(state: ViewerState) =
         state.rootTargetAttributesUpdates(AttributeTarget.edge),
         defaultsView = true
       ),
-      "Groups" -> GraphAttributesView(
+      "Groups" -> GroupAttributesView(
         state,
         state.rootTargetAttributesUpdates(AttributeTarget.graph),
         defaultsView = true
