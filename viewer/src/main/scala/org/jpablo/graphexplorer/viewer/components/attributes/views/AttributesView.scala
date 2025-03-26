@@ -126,8 +126,6 @@ private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(Option[AttributeH
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
     case InputType.menuWithExtra(initial) => MenuWithExtraDropdown(row, initial)
-    case InputType.selectWithPreviewGrid  => SelectWithPreviewGrid(row)
-    case InputType.selectWithPreview      => SelectWithPreview(row)
     case InputType.select                 => SelectWithValue(row)
     case InputType.checkbox               => Checked(row)
     case InputType.multiText              => TextAreaWithValue(row)

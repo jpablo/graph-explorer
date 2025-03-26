@@ -27,7 +27,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.0.14",
     "autoprefixer": "^10.4.19",
-    "daisyui": "^5.0.4",
+    "daisyui": "^5.0.9",
     "postcss": "^8.4.31",
     "rollup": "^4.24.2",
     "sass": "^1.58.3",

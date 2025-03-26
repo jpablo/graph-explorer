@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.formats.dot.ColorType
@@ -11,26 +10,6 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom.MouseEvent
-
-def SelectWithLabel(
-    labelText:       String,
-    placeholderText: String,
-    options:         Seq[(String, String)],
-    selectValue:     Var[Option[String]],
-    mods:            Mods*
-) =
-  label(
-    cls := "form-control ",
-    div(cls := "label-text", span(cls := "label-text", labelText)),
-    select(
-      cls := "select",
-      option(placeholderText, disabled := true, selected := true),
-      options.map((name, id) => option(name, value := id)),
-      value <-- selectValue.signal.map(_.getOrElse("")),
-      onChange.mapToValue.map(Some(_)) --> selectValue,
-      mods
-    )
-  )
 
 def Select(
     placeholderText: String,
@@ -152,110 +131,6 @@ def SelectWithValue(
     mods
   )
 
-def SelectWithPreview(row: InputAttribute) =
-  div(
-    cls := "dropdown",
-    div(
-      tabIndex := 0,
-      role     := "button",
-      cls      := "btn btn-xs w-full flex justify-between items-center",
-      div(
-        cls := "flex items-center gap-2",
-        div(
-          cls := "w-4 flex justify-center items-center" // Fixed width container matching the dropdown options
-        ),
-        child.maybe <-- row.inputVar.signal.combineWith(row.default).map: (sv, d) =>
-          val currentValue = sv.getOrElse(d).toString
-          row.options
-            .collectFirst:
-              case row if row.value.toString == currentValue =>
-                row.elem.fold(span(row.name))(p => span(p()))
-      ),
-      i(cls := "bi bi-chevron-down")
-    ).asBtn.tiny,
-    // ---- Dropdown menu ----
-    ul(
-      tabIndex := 0,
-      cls      := "dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full border border-base-300",
-      row.options.map { rowOption =>
-        li(
-          a(
-            cls := "flex items-center gap-2",
-            div(
-              cls := "w-4 flex justify-center items-center", // Fixed width container for the checkmark
-              child.maybe <-- row.inputVar.signal.combineWith(row.default).map((sv, d) =>
-                if sv.getOrElse(d).toString == rowOption.value.toString then
-                  Some(i(cls := "bi bi-check2"))
-                else None
-              )
-            ),
-            rowOption.elem.fold(span(rowOption.name))(p => span(p())),
-            onClick.mapTo(rowOption.value) --> row.inputVar
-          )
-        )
-      }
-    )
-  )
-
-def SingleRowMenu(row: InputAttribute) =
-  Menu(
-    options = row.options.map(o => o.name -> o.value),
-    onClickHandler = _ --> (action => println(action))
-  ).amend(cls := "items-center")
-
-def SelectWithPreviewGrid(row: InputAttribute) =
-  div(
-    cls      := "dropdown dropdown-bottom dropdown-end",
-    tabIndex := 0,
-    button(
-      cls      := "btn btn-xs w-full flex justify-between items-center",
-      tabIndex := 0,
-      div(
-        cls := "flex items-center justify-center w-full pr-6",
-        child.maybe <-- row.combineDefault.map: (sv, d) =>
-          row.options
-            .collectFirst:
-              case row if row.hasValue(sv.getOrElse(d).toString) =>
-                row.elem.fold(span(row.name))(preview => preview())
-      ),
-      i(cls := "bi bi-chevron-down absolute right-2")
-    ),
-    // ---- Dropdown menu ----
-    div(
-      cls      := "dropdown-content card card-md w-48 shadow bg-base-100 border border-base-300",
-      tabIndex := 0,
-      div(
-        cls := "card-body grid grid-cols-3 gap-2 overflow-y-auto max-h-64",
-        row.options.zipWithIndex.map { (rowOption, index) =>
-          div(
-            cls             := s"tooltip ${if index < 3 then "tooltip-bottom" else "tooltip-top"}",
-            dataAttr("tip") := rowOption.name,
-            button(
-              cls <-- row.combineDefault.map((sv, d) =>
-                val active = if rowOption.hasValue(sv.getOrElse(d).toString) then "btn-active" else ""
-                s"btn btn-ghost btn-sm flex flex-col items-center justify-center p-1 $active"
-              ),
-              rowOption.elem.fold(span(rowOption.name))(preview => preview()),
-              onClick.mapTo(rowOption.value) --> row.inputVar
-            )
-          )
-        }
-      )
-    )
-  )
-
-def BasicInput(
-    placeholderText: String,
-    inputValue:      Var[String],
-    inputType:       String = "text"
-) =
-  input(
-    cls         := "input  input-sm w-full",
-    tpe         := inputType,
-    placeholder := placeholderText,
-    controlled(value <-- inputValue.signal, onInput.mapToValue --> inputValue.set)
-  )
-
 def InputWithValue(
     row:      InputAttribute,
     setFocus: Boolean = false
@@ -354,12 +229,6 @@ def Checked(row: InputAttribute) =
       checked <-- row.combineDefaultBoolean,
       onInput.mapToChecked.map(b => Single(AttrValue(b.toString))) --> row.inputVar
     )
-  )
-
-def Toggle(text: String, mods: Mods*) =
-  label( cls := "fieldset-label",
-    input(tpe := InputType.checkbox.toString, cls := "toggle toggle-xs", mods),
-    text
   )
 
 def Search(mods: Mods*): Input =

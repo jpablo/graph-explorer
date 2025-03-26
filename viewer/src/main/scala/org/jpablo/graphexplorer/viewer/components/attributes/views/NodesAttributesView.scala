@@ -4,14 +4,10 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.attributes.*
-import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePreview
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
-import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
-import org.jpablo.graphexplorer.viewer.models.{AttrStatus, Attributes, AttributesUpdates, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
@@ -31,15 +27,7 @@ def NodesAttributesView(
   val labelRow =
     row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || Signal.fromValue(defaultsView))
 
-  val shapesRowOpts =
-    Shape.valuesWithLabel
-      .filterNot((_, s) => s in Shape.synonyms).toSeq
-      .map: (label, style) =>
-        RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 30))
-
-  val shapeRow: AttributeRow.InputAttribute =
-    row(Shape, InputType.selectWithPreviewGrid)
-      .copy(options = shapesRowOpts)
+  val shapeRow = row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions)
 
   val sidesRow =
     row(
@@ -53,7 +41,7 @@ def NodesAttributesView(
   AttributesView(
     id = "node-attributes",
     rows = rows(
-      row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions),
+      shapeRow,
       row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
       row(FillColor, InputType.menuWithExtra(4))
         .copy(
