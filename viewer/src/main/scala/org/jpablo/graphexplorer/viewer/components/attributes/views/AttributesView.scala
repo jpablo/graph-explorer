@@ -22,7 +22,7 @@ def AttributesView(
     idAttr := id,
     cls    := "attributes-view",
     LabeledCheckbox(id + "extra-visible", "extra", extraVisible).amend(
-      cls           := "flex justify-end",
+      cls           := "flex justify-end mr-2",
       cls("hidden") := extra.isEmpty
     ),
     children(buildFieldSets(rows, showHeaders)) <-- extraVisible.signal.map(!_),
