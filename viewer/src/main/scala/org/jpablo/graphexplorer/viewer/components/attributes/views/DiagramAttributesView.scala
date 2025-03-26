@@ -51,7 +51,7 @@ def DiagramAttributesView(state: ViewerState) =
         graphTypeRow,
         Splines,
         Concentrate -> checkbox,
-        row(BgColor, InputType.menuWithExtra(4, MenuDirection.center))
+        row(BgColor, InputType.menuWithExtra(7, MenuDirection.end))
           .copy(
             options = colorOptions,
             hidden = builder.invalidLayout(BgColor)

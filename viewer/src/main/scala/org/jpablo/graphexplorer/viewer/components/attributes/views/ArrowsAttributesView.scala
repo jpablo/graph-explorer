@@ -24,20 +24,22 @@ def ArrowsAttributesView(
   val labelRow =
     row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || Signal.fromValue(defaultsView))
 
-  val extraMenuDir = MenuDirection.center
+  val extraMenuDir = MenuDirection.end
+  val initialMenuItems = 7
+
   AttributesView(
     id = "edge-attributes",
     showHeaders = false,
     rows = rows(
-      row(Color, InputType.menuWithExtra(4, extraMenuDir)).copy(options = colorOptions),
-      row(EdgeStyle, InputType.menuWithExtra(4, extraMenuDir)).copy(options = arrowStyleOptions),
+      row(Color, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
+      row(EdgeStyle, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = arrowStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(ArrowHead, InputType.menuWithExtra(4, extraMenuDir)).copy(options = arrowTypeOptions),
-      row(ArrowTail, InputType.menuWithExtra(4, extraMenuDir)).copy(options = arrowTypeOptions),
+      row(ArrowHead, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = arrowTypeOptions),
+      row(ArrowTail, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = arrowTypeOptions),
       ArrowSize -> range(start = Some(0), end = Some(5), step = Some(0.1)),
       labelRow,
       "Text Format",
-      row(FontColor, InputType.menuWithExtra(4, extraMenuDir)).copy(options = colorOptions),
+      row(FontColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
       row(FontName, InputType.select),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1)))
       // --- extra

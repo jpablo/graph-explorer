@@ -27,8 +27,10 @@ def NodesAttributesView(
   val labelRow =
     row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || Signal.fromValue(defaultsView))
 
-  val extraMenuDir = MenuDirection.center
-  val shapeRow = row(Shape, InputType.menuWithExtra(4, extraMenuDir)).copy(options = shapesOptions)
+  val extraMenuDir     = MenuDirection.end
+  val initialMenuItems = 7
+
+  val shapeRow = row(Shape, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = shapesOptions)
 
   val sidesRow =
     row(
@@ -43,20 +45,20 @@ def NodesAttributesView(
     id = "node-attributes",
     rows = rows(
       shapeRow,
-      row(Color, InputType.menuWithExtra(4, extraMenuDir)).copy(options = colorOptions),
-      row(FillColor, InputType.menuWithExtra(4, extraMenuDir))
+      row(Color, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
+      row(FillColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir))
         .copy(
           options = colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
-      row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
+      row(BorderStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(CornerStyle, InputType.menuWithExtra(4)).copy(options = cornerStyleOptions),
+      row(CornerStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = cornerStyleOptions),
       // ---------- label stuff ------------//
       labelRow,
-      row(NodeLabelLoc, InputType.menuWithExtra(4)).copy(options = nodeLabelVerticalAlignOptions),
+      row(NodeLabelLoc, InputType.menuWithExtra(initialMenuItems)).copy(options = nodeLabelVerticalAlignOptions),
       if defaultsView then XLabel else "",
-      row(FontColor, InputType.menuWithExtra(4, extraMenuDir)).copy(options = colorOptions),
+      row(FontColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
       FontName -> InputType.select,
       FontSize -> range(start = Some(1), end = Some(100), step = Some(1))
     ),

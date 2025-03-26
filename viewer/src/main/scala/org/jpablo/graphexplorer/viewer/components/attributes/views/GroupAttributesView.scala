@@ -23,7 +23,8 @@ def GroupAttributesView(
 
   val defaultsViewS = Signal.fromValue(defaultsView)
 
-  val extraMenuDir = MenuDirection.center
+  val extraMenuDir = MenuDirection.end
+  val initialMenuItems = 7
 
   val labelRow =
     row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || defaultsViewS)
@@ -31,20 +32,20 @@ def GroupAttributesView(
   AttributesView(
     id = "graph-attributes",
     rows = rows(
-      row(PenColor, InputType.menuWithExtra(4, extraMenuDir)).copy(options = colorOptions),
-      row(FillColor, InputType.menuWithExtra(4, extraMenuDir))
+      row(PenColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
+      row(FillColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir))
         .copy(
           options = colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
-      row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
+      row(BorderStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(CornerStyle, InputType.menuWithExtra(4)).copy(options = graphCornerStyleOptions),
+      row(CornerStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = graphCornerStyleOptions),
       // --
       labelRow,
-      row(ClusterLabelLoc, InputType.menuWithExtra(4)).copy(options = clusterVerticalAlignmentOptions),
-      row(LabelJust, InputType.menuWithExtra(4)).copy(options = horizontalAlignmentOptions),
-      row(FontColor, InputType.menuWithExtra(4, extraMenuDir)).copy(options = colorOptions),
+      row(ClusterLabelLoc, InputType.menuWithExtra(initialMenuItems)).copy(options = clusterVerticalAlignmentOptions),
+      row(LabelJust, InputType.menuWithExtra(initialMenuItems)).copy(options = horizontalAlignmentOptions),
+      row(FontColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
       row(FontName, InputType.select),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))),
 
