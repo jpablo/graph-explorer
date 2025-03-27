@@ -39,10 +39,10 @@ def MiniNodesAttributesView(
     id = "mini-node-attributes",
     rows = rows(
       shapeRow,
-      row(Color, InputType.menuWithExtra(4)).copy(options = mediumRows ++ colorOptions),
-      row(FillColor, InputType.menuWithExtra(4))
+      row(Color, InputType.menuWithExtra(mediumRows4.length)).copy(options = mediumRows4 ++ colorOptions),
+      row(FillColor, InputType.menuWithExtra(lightRows4.length))
         .copy(
-          options = lightRows ++ colorOptions,
+          options = lightRows4 ++ colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
@@ -53,8 +53,8 @@ def MiniNodesAttributesView(
         options = nodeLabelVerticalAlignOptions,
         hidden = labelRelatedHidden
       ),
-      row(FontColor, InputType.menuWithExtra(4)).copy(
-        options = mediumRows ++ colorOptions,
+      row(FontColor, InputType.menuWithExtra(mediumRows4.length)).copy(
+        options = mediumRows4 ++ colorOptions,
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),

@@ -58,12 +58,20 @@ package object views:
             )
         )
 
-  val mediumRows =
-    List("red-500", "yellow-500", "green-500", "blue-500", "indigo-500", "purple-500", "pink-500")
+  val mediumRows7 =
+    List("red-500", "yellow-500", "green-500", "blue-500", "indigo-500", "sky-500", "slate-500")
       .map(twColorOptions)
 
-  val lightRows =
-    List("red-200", "yellow-200", "green-200", "blue-200", "indigo-200", "purple-200", "pink-200")
+  val lightRows7 =
+    List("red-200", "yellow-200", "green-200", "blue-200", "indigo-200", "sky-200", "slate-200")
+      .map(twColorOptions)
+
+  val mediumRows4 =
+    List("red-500", "yellow-500", "green-500", "blue-500")
+      .map(twColorOptions)
+
+  val lightRows4 =
+    List("red-200", "yellow-200", "green-200", "blue-200")
       .map(twColorOptions)
 
   val colorOptions = twColorOptions.values.toSeq

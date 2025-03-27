@@ -45,10 +45,10 @@ def NodesAttributesView(
     id = "node-attributes",
     rows = rows(
       shapeRow,
-      row(Color, InputType.menuWithExtra(mediumRows.length, extraMenuDir)).copy(options = mediumRows ++ colorOptions),
-      row(FillColor, InputType.menuWithExtra(lightRows.length, extraMenuDir))
+      row(Color, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
+      row(FillColor, InputType.menuWithExtra(lightRows7.length, extraMenuDir))
         .copy(
-          options = lightRows ++ colorOptions,
+          options = lightRows7 ++ colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = borderStyleOptions),
@@ -58,7 +58,7 @@ def NodesAttributesView(
       labelRow,
       row(NodeLabelLoc, InputType.menuWithExtra(initialMenuItems)).copy(options = nodeLabelVerticalAlignOptions),
       if defaultsView then XLabel else "",
-      row(FontColor, InputType.menuWithExtra(mediumRows.length, extraMenuDir)).copy(options = mediumRows ++ colorOptions),
+      row(FontColor, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
       FontName -> InputType.select,
       FontSize -> range(start = Some(1), end = Some(100), step = Some(1))
     ),
