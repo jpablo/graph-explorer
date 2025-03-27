@@ -39,10 +39,10 @@ def MiniNodesAttributesView(
     id = "mini-node-attributes",
     rows = rows(
       shapeRow,
-      row(Color, InputType.menuWithExtra(4)).copy(options = colorOptions),
+      row(Color, InputType.menuWithExtra(4)).copy(options = mediumRows ++ colorOptions),
       row(FillColor, InputType.menuWithExtra(4))
         .copy(
-          options = colorOptions,
+          options = lightRows ++ colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
@@ -54,7 +54,7 @@ def MiniNodesAttributesView(
         hidden = labelRelatedHidden
       ),
       row(FontColor, InputType.menuWithExtra(4)).copy(
-        options = colorOptions,
+        options = mediumRows ++ colorOptions,
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),

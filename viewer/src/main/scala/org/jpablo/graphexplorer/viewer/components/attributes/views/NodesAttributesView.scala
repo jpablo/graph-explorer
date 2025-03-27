@@ -30,7 +30,7 @@ def NodesAttributesView(
   val extraMenuDir     = MenuDirection.end
   val initialMenuItems = 7
 
-  val shapeRow = row(Shape, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = shapesOptions)
+  val shapeRow = row(Shape, InputType.menuWithExtra(7, extraMenuDir)).copy(options = shapesOptions)
 
   val sidesRow =
     row(
@@ -45,10 +45,10 @@ def NodesAttributesView(
     id = "node-attributes",
     rows = rows(
       shapeRow,
-      row(Color, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
-      row(FillColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir))
+      row(Color, InputType.menuWithExtra(mediumRows.length, extraMenuDir)).copy(options = mediumRows ++ colorOptions),
+      row(FillColor, InputType.menuWithExtra(lightRows.length, extraMenuDir))
         .copy(
-          options = colorOptions,
+          options = lightRows ++ colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = borderStyleOptions),
@@ -58,7 +58,7 @@ def NodesAttributesView(
       labelRow,
       row(NodeLabelLoc, InputType.menuWithExtra(initialMenuItems)).copy(options = nodeLabelVerticalAlignOptions),
       if defaultsView then XLabel else "",
-      row(FontColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
+      row(FontColor, InputType.menuWithExtra(mediumRows.length, extraMenuDir)).copy(options = mediumRows ++ colorOptions),
       FontName -> InputType.select,
       FontSize -> range(start = Some(1), end = Some(100), step = Some(1))
     ),

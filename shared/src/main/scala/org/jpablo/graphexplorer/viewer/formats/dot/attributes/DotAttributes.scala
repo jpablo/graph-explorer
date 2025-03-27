@@ -57,6 +57,8 @@ object ClusterStyle extends DotAttributeEnum[ClusterStyle]:
   val default         = filled // This seems incorrect as the default is empty
   val label           = "Cluster Style"
 
+/** Border color
+  */
 object Color extends DotAttributeSimple[String]:
   val label                    = "Border Color"
   val default                  = "#000000"
