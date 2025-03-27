@@ -148,36 +148,36 @@ class ColorTypeSpec extends FunSuite:
       "#00ff00"
     )
 
-  test("toHex converts OKCLH to hex".ignore):
+  test("toHex converts OKCLH to hex"):
     // Red in OKCLH
     assertEquals(
       ColorType.toHex(ColorType.OKCLH(0.627, 0.237, 25.331)),
-      "#f62926"
+      "#f72633"
     )
     // Green in OKCLH
     assertEquals(
       ColorType.toHex(ColorType.OKCLH(0.723, 0.219, 149.579)),
-      "#00ff00"
+      "#00c950"
     )
     // Blue in OKCLH
     assertEquals(
       ColorType.toHex(ColorType.OKCLH(0.546, 0.245, 262.881)),
-      "#0000ff"
+      "#155dfc"
     )
 
-  test("toHexNoAlpha converts OKCLH to hex".ignore):
+  test("toHexNoAlpha converts OKCLH to hex"):
     // Red in OKCLH
     assertEquals(
       ColorType.toHexNoAlpha(ColorType.OKCLH(0.627, 0.237, 25.331)),
-      "#f62926"
+      "#f72633"
     )
     // Green in OKCLH
     assertEquals(
       ColorType.toHexNoAlpha(ColorType.OKCLH(0.723, 0.219, 149.579)),
-      "#00ff00"
+      "#00c950"
     )
     // Blue in OKCLH
     assertEquals(
       ColorType.toHexNoAlpha(ColorType.OKCLH(0.546, 0.245, 262.881)),
-      "#0000ff"
+      "#155dfc"
     )
