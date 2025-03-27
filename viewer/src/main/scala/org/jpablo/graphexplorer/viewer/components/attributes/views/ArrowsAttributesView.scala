@@ -31,7 +31,7 @@ def ArrowsAttributesView(
     id = "edge-attributes",
     showHeaders = false,
     rows = rows(
-      row(Color, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
+      row(Color, InputType.menuWithExtra(mediumRows.length, extraMenuDir)).copy(options = mediumRows ++ colorOptions),
       row(EdgeStyle, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = arrowStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       row(ArrowHead, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = arrowTypeOptions),
@@ -39,7 +39,7 @@ def ArrowsAttributesView(
       ArrowSize -> range(start = Some(0), end = Some(5), step = Some(0.1)),
       labelRow,
       "Text Format",
-      row(FontColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
+      row(FontColor, InputType.menuWithExtra(mediumRows.length, extraMenuDir)).copy(options = mediumRows ++ colorOptions),
       row(FontName, InputType.select),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1)))
       // --- extra

@@ -48,7 +48,7 @@ def RightToolbar(state: ViewerState) =
     List(
       ("bi-pencil", "Diagram"),
       ("bi-pencil-square", "Defaults"),
-      ("bi-diagram-2", "Elements"),
+      ("bi-list-ul", "Elements"),
       ("bi-code-square", "Source")
     ).zipWithIndex.map:
       case ((icon, text), idx) =>

@@ -32,10 +32,10 @@ def GroupAttributesView(
   AttributesView(
     id = "graph-attributes",
     rows = rows(
-      row(PenColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
-      row(FillColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir))
+      row(PenColor, InputType.menuWithExtra(mediumRows.length, extraMenuDir)).copy(options = mediumRows ++ colorOptions),
+      row(FillColor, InputType.menuWithExtra(lightRows.length, extraMenuDir))
         .copy(
-          options = colorOptions,
+          options = lightRows ++ colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = borderStyleOptions),
@@ -45,7 +45,7 @@ def GroupAttributesView(
       labelRow,
       row(ClusterLabelLoc, InputType.menuWithExtra(initialMenuItems)).copy(options = clusterVerticalAlignmentOptions),
       row(LabelJust, InputType.menuWithExtra(initialMenuItems)).copy(options = horizontalAlignmentOptions),
-      row(FontColor, InputType.menuWithExtra(initialMenuItems, extraMenuDir)).copy(options = colorOptions),
+      row(FontColor, InputType.menuWithExtra(mediumRows.length, extraMenuDir)).copy(options = mediumRows ++ colorOptions),
       row(FontName, InputType.select),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))),
 
