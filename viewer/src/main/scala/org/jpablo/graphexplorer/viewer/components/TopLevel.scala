@@ -47,7 +47,7 @@ def RightToolbar(state: ViewerState) =
   val buttons =
     List(
       ("bi-pencil", "Diagram"),
-      ("bi-pencil-square", "Defaults"),
+      ("bi-pencil-square", "Default Style"),
       ("bi-list-ul", "Elements"),
       ("bi-code-square", "Source")
     ).zipWithIndex.map:

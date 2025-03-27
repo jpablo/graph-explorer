@@ -30,7 +30,7 @@ def DefaultsView(state: ViewerState) =
 
   div(
     idAttr := "defaults-view",
-    div(cls := "attributes-title flex-none", h2("Defaults")),
+    div(cls := "attributes-title flex-none", h2("Default style")),
     div(
       role := "tablist",
       cls  := "tabs tabs-border tabs-xs flex-none",
