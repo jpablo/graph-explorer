@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
-import org.jpablo.graphexplorer.viewer.color.ColorType
+import org.jpablo.graphexplorer.viewer.color.ColorFormat
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -157,11 +157,11 @@ def InputWithValue(
         )
       case _ => Seq(cls := s"input input-xs input-ghost hover")
 
-  val colorType = row.combineDefaultString.map(ColorType.fromString)
+  val colorType = row.combineDefaultString.map(ColorFormat.fromString)
 
   // While we get a better color selector, approximate by removing the alpha channel
   val valueSignal = row.inputType match
-    case InputType.color => colorType.map(ColorType.toHexNoAlpha)
+    case InputType.color => colorType.map(c => ColorFormat.toHexNoAlpha(c).value)
     case _               => row.combineDefaultString
 
   // While we get a better color selector, use a text input for named colors

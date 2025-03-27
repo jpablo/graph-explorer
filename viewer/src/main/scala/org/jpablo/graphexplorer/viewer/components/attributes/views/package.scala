@@ -2,8 +2,8 @@ package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.color
-import org.jpablo.graphexplorer.viewer.color.ColorType
-import org.jpablo.graphexplorer.viewer.color.ColorType.{OKCLH, oklchToRgb, toHex}
+import org.jpablo.graphexplorer.viewer.color.ColorFormat.toHex
+import org.jpablo.graphexplorer.viewer.color.{ColorFormat, TailWindColors, X11BasicColors}
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.extensions.in
@@ -12,12 +12,10 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 
-import scala.collection.immutable.VectorMap
-
 package object views:
 
   val x11ColorOptions =
-    color.x11BasicColors
+    X11BasicColors.x11BasicColors
       .toSeq
       .map: (name, hex) =>
         val cssColor = if name == "none" then "unset" else hex
@@ -37,26 +35,24 @@ package object views:
             )
         )
 
-  val twColorOptions =
-    (color.tailWindColors: VectorMap[String, OKCLH])
-      .transform: (name, okclh) =>
+  val twColorOptions = TailWindColors.rgbColors
+    .transform: (name, rgb) =>
 //        val cssColor = if twClass == "none" then "unset" else okclh
 //        val dotColor = if twClass == "none" then "none" else okclh
-        val rgb = oklchToRgb(okclh.l, okclh.c, okclh.h)
-        RowOption(
-          name = name,
-          value = Single(AttrValue(toHex(rgb))),
-          elem =
-            Some(() =>
-              if name == "none" then
-                div(cls := "w-5 h-5 mt-[-3px]", i(cls := "bi bi-ban", styleAttr := "font-size: 18px"))
-              else
-                div(
-                  cls       := s"w-5 h-5 rounded-full border border-solid border-neutral",
-                  styleAttr := s"background-color: rgb(${rgb.r} ${rgb.g} ${rgb.b})"
-                )
-            )
-        )
+      RowOption(
+        name = name,
+        value = Single(AttrValue(toHex(rgb).value)),
+        elem =
+          Some(() =>
+            if name == "none" then
+              div(cls := "w-5 h-5 mt-[-3px]", i(cls := "bi bi-ban", styleAttr := "font-size: 18px"))
+            else
+              div(
+                cls       := s"w-5 h-5 rounded-full border border-solid border-neutral",
+                styleAttr := s"background-color: rgb(${rgb.r} ${rgb.g} ${rgb.b})"
+              )
+          )
+      )
 
   val mediumRows7 =
     List("red-500", "yellow-500", "green-500", "blue-500", "indigo-500", "sky-500", "slate-500")

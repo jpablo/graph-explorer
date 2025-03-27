@@ -1,18 +1,22 @@
 package org.jpablo.graphexplorer.viewer.color
 
-enum ColorType:
+import scala.annotation.tailrec
+
+enum ColorFormat:
   case RGB(r: Int, g: Int, b: Int)
   case RGBA(r: Int, g: Int, b: Int, a: Double)
-  case OKCLH(l: Double, c: Double, h: Double)
+  case OKLCH(l: Double, c: Double, h: Double)
+  case Hex(value: String)
   case named(value: String)
 
-object ColorType:
+object ColorFormat:
 
   def x11ColorSchemeToHex(color: String): String =
     x11Colors.getOrElse(color.toLowerCase, "#000000") // default to black if color not found
 
   // --------------------------------
-  def oklchToRgb(l: Double, c: Double, h: Double): RGB = {
+  def oklchToRgb(oklch: OKLCH): RGB =
+    val OKLCH(l, c, h) = oklch
     // Implementation of the OKLCH to RGB conversion
     // This is a simplified version - a full implementation would require
     // multiple conversion steps: OKLCH → OKLAB → Linear RGB → sRGB
@@ -21,7 +25,6 @@ object ColorType:
     val hRad = h * Math.PI / 180.0 // Convert degrees to radians
     val a    = c * Math.cos(hRad)
     val bLab = c * Math.sin(hRad)  // Renamed to bLab to avoid conflict
-
     // Convert OKLAB to linear RGB
     val l_ = l + 0.3963377774 * a + 0.2158037573 * bLab
     val m_ = l - 0.1055613458 * a - 0.0638541728 * bLab
@@ -30,21 +33,14 @@ object ColorType:
     val l_cubed = l_ * l_ * l_
     val m_cubed = m_ * m_ * m_
     val s_cubed = s_ * s_ * s_
-
     // Linear RGB
     val linearR = +4.0767416621 * l_cubed - 3.3077115913 * m_cubed + 0.2309699292 * s_cubed
     val linearG = -1.2684380046 * l_cubed + 2.6097574011 * m_cubed - 0.3413193965 * s_cubed
     val linearB = -0.0041960863 * l_cubed - 0.7034186147 * m_cubed + 1.7076147010 * s_cubed
-
     // Convert linear RGB to sRGB
-    val rOut = linearToSrgb(linearR) // Renamed to rOut
-    val gOut = linearToSrgb(linearG) // Renamed to gOut
-    val bOut = linearToSrgb(linearB) // Renamed to bOut
+    RGB(linearToSrgb(linearR), linearToSrgb(linearG), linearToSrgb(linearB))
 
-    RGB(rOut, gOut, bOut)
-  }
-
-  def linearToSrgb(c: Double): Int = {
+  def linearToSrgb(c: Double): Int =
     val v = if (c <= 0.0) {
       0
     } else if (c >= 1.0) {
@@ -59,29 +55,29 @@ object ColorType:
     }
 
     Math.max(0, Math.min(255, v))
-  }
 
   // --------------------------------
 
-  def toHex(color: ColorType): String =
+  @tailrec
+  def toHex(color: ColorFormat): Hex =
     color match
-      case RGB(r, g, b)     => f"#$r%02x$g%02x$b%02x"
+      case RGB(r, g, b)     => Hex(f"#$r%02x$g%02x$b%02x")
       case RGBA(r, g, b, a) =>
         // Using Math.round to ensure correct rounding of alpha values
         val alpha = Math.round(a * 255).toInt
-        f"#$r%02x$g%02x$b%02x$alpha%02x"
+        Hex(f"#$r%02x$g%02x$b%02x$alpha%02x")
 
-      case named(value)   => x11ColorSchemeToHex(value)
-      case OKCLH(l, c, h) => toHex(oklchToRgb(l, c, h))
-
+      case named(value) => Hex(x11ColorSchemeToHex(value))
+      case c: OKLCH     => toHex(oklchToRgb(c))
+      case c: Hex       => c
+      
   /** Converts any ColorType to a hex format suitable for HTML color input (discarding alpha) */
-  def toHexNoAlpha(color: ColorType): String =
+  def toHexNoAlpha(color: ColorFormat): Hex =
     color match
-      case RGB(_, _, _) | named(_) | OKCLH(_, _, _) =>
-        toHex(color)
+      case RGB(_, _, _) | named(_) | OKLCH(_, _, _) | Hex(_) => toHex(color)
       case RGBA(r, g, b, _) => toHex(RGB(r, g, b))
 
-  def fromString(s: String): ColorType =
+  def fromString(s: String): ColorFormat =
     val trimmed = s.trim
     trimmed match
       // RGB format "#rrggbb"
