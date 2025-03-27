@@ -63,7 +63,7 @@ package object views:
       .map(twColorOptions)
 
   val column200row =
-    List("red-500", "yellow-500", "green-500", "blue-500", "indigo-500", "purple-500", "pink-500")
+    List("red-200", "yellow-200", "green-200", "blue-200", "indigo-200", "purple-200", "pink-200")
       .map(twColorOptions)
 
   val colorOptions = twColorOptions.values.toSeq
