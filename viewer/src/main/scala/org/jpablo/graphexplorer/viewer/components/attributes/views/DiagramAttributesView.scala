@@ -53,7 +53,7 @@ def DiagramAttributesView(state: ViewerState) =
         Concentrate -> checkbox,
         row(BgColor, InputType.menuWithExtra(7, MenuDirection.end))
           .copy(
-            options = twColorOptions.take(7) ++ twColorOptions,
+            options = column500row ++ colorOptions,
             hidden = builder.invalidLayout(BgColor)
           ),
         Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),

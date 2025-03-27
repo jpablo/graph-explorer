@@ -12,9 +12,11 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 
+import scala.collection.immutable.VectorMap
+
 package object views:
 
-  val colorOptions =
+  val x11ColorOptions =
     color.x11BasicColors
       .toSeq
       .map: (name, hex) =>
@@ -36,8 +38,8 @@ package object views:
         )
 
   val twColorOptions =
-    (color.tailWindColors: Seq[(String, OKCLH)])
-      .map: (name, okclh) =>
+    (color.tailWindColors: VectorMap[String, OKCLH])
+      .transform: (name, okclh) =>
 //        val cssColor = if twClass == "none" then "unset" else okclh
 //        val dotColor = if twClass == "none" then "none" else okclh
         val rgb = oklchToRgb(okclh.l, okclh.c, okclh.h)
@@ -50,11 +52,21 @@ package object views:
                 div(cls := "w-5 h-5 mt-[-3px]", i(cls := "bi bi-ban", styleAttr := "font-size: 18px"))
               else
                 div(
-                  cls := s"w-5 h-5 rounded-full border border-solid border-neutral",
+                  cls       := s"w-5 h-5 rounded-full border border-solid border-neutral",
                   styleAttr := s"background-color: rgb(${rgb.r} ${rgb.g} ${rgb.b})"
                 )
             )
         )
+
+  val column500row =
+    List("red-500", "yellow-500", "green-500", "blue-500", "indigo-500", "purple-500", "pink-500")
+      .map(twColorOptions)
+
+  val column200row =
+    List("red-500", "yellow-500", "green-500", "blue-500", "indigo-500", "purple-500", "pink-500")
+      .map(twColorOptions)
+
+  val colorOptions = twColorOptions.values.toSeq
 
   val shapesOptions =
     Shape.valuesWithLabel

@@ -2,7 +2,9 @@ package org.jpablo.graphexplorer.viewer.color
 
 import org.jpablo.graphexplorer.viewer.color.ColorType.OKCLH
 
-val tailWindColors: Seq[(String, OKCLH)] = Seq(
+import scala.collection.immutable.VectorMap
+
+val tailWindColors: VectorMap[String, OKCLH] = VectorMap(
   "red-50"      -> OKCLH(0.971, 0.013, 17.38),
   "red-100"     -> OKCLH(0.936, 0.032, 17.717),
   "red-200"     -> OKCLH(0.885, 0.062, 18.334),
