@@ -314,11 +314,6 @@ case class Point(x: Double, y: Double)
 
 case class PointList(points: List[Point])
 
-type Points     = Double
-type LayerRange = String
-type StyleSpec  = String
-type FilePath   = String
-
 enum Rankdir derives CanEqual:
   case TB, LR, BT, RL
 
