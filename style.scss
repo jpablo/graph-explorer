@@ -23,11 +23,20 @@ label[for ^= show-ns-kind-] {
   }
 }
 
-.none-color-icon {
-  @apply rounded-full text-center;
+.menu-with-extra-dropdown {
+  .none-color-icon {
+    @apply rounded-full text-center;
 
-  &::before {
-    font-size: 1.25rem;
+    &::before {
+      font-size: 1.25rem;
+    }
+  }
+
+  .card {
+    @apply w-82;
+    &.narrow-card {
+      @apply w-64;
+    }
   }
 }
 

@@ -10,4 +10,4 @@ enum InputType derives CanEqual:
     datetime, datetimeLocal, date, month, time, week, url, email, search, tel
   case number(start: Option[Double] = None, end: Option[Double] = None, step: Option[Double] = None)
   case range(start: Option[Double] = None, end: Option[Double] = None, step: Option[Double] = None)
-  case menuWithExtra(initial: Int, dir: MenuDirection = MenuDirection.bottom)
+  case menuWithExtra(initial: Int, dir: MenuDirection = MenuDirection.bottom, cardClass: Option[String] = None)

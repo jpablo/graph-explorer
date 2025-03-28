@@ -125,7 +125,7 @@ private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(Option[AttributeH
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
-    case InputType.menuWithExtra(initial, dir) => MenuWithExtraDropdown(row, initial, dir)
+    case InputType.menuWithExtra(initial, dir, cardClass) => MenuWithExtraDropdown(row, initial, dir, cardClass)
     case InputType.select                      => SelectWithValue(row)
     case InputType.checkbox                    => Checked(row)
     case InputType.multiText                   => TextAreaWithValue(row)

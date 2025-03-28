@@ -25,7 +25,7 @@ def MiniNodesAttributesView(
   val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  val shapeRow = row(Shape, InputType.menuWithExtra(4)).copy(options = shapesOptions)
+  val shapeRow = row(Shape, InputType.menuWithExtra(5, cardClass = Some("narrow-card"))).copy(options = shapesOptions)
   val sidesRow =
     row(
       attr = Sides,

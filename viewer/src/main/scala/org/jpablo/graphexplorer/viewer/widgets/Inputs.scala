@@ -45,7 +45,7 @@ def Menu[A](
 
 /** A menu with a horizontal layout, with the last item being a dropdown menu.
   */
-def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection) =
+def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection, cardClass: Option[String] = None) =
   def menuButton(rowOption: RowOption) =
     div(
       cls := "p-1",
@@ -59,7 +59,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection)
   val extraOptions   = row.options.drop(initial)
   ul(
     tabIndex := 0,
-    cls      := "menu menu-horizontal bg-base-100 rounded-box p-0",
+    cls      := "menu-with-extra-dropdown menu menu-horizontal bg-base-100 rounded-box p-0",
     for option <- initialOptions yield li(menuButton(option)),
     li(
       cls := "justify-center",
@@ -73,7 +73,8 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection)
             // popup card
             div(
               tabIndex := 0,
-              cls := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
+              cls := "dropdown-content card card-xs bg-base-100 z-1 max-h-100 overflow-y-auto shadow-md border border-base-200",
+              cardClass.map(cc => cls := cc),
               div(
                 cls := "card-body p-0",
                 ul(
