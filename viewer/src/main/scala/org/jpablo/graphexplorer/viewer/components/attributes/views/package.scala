@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.color
-import org.jpablo.graphexplorer.viewer.color.ColorFormat.toHex
+import org.jpablo.graphexplorer.viewer.color.ColorFormat.{RGB, toHex}
 import org.jpablo.graphexplorer.viewer.color.{ColorFormat, TailWindColors}
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
@@ -18,9 +18,9 @@ import scala.collection.immutable.VectorMap
 
 package object views:
   val twColorOptions: VectorMap[String, RowOption] =
-    TailWindColors.rgbColors.transform(rowOption)
+    TailWindColors.rgbColors.transform(colorRowOption)
 
-  private def rowOption(name: String, rgb: ColorFormat.RGB) =
+  private def colorRowOption(name: String, rgb: RGB) =
     // Special "invisible" color
     val (cssColor, dotColor) =
       if name == "none" then ("unset", "none") else (s"rgb(${rgb.r} ${rgb.g} ${rgb.b})", toHex(rgb).value)
@@ -39,15 +39,15 @@ package object views:
         )
     )
 
-  private val noneRow = rowOption("none", ColorFormat.RGB(0, 0, 0))
+  private val colorNoneRow = colorRowOption("none", RGB(0, 0, 0))
 
   private val basic7 = List(red, yellow, green, blue, indigo, sky, slate)
   private val basic4 = List(red, yellow, green, blue)
 
-  val mediumRows7 = noneRow :: basic7.map(c => s"$c-500").map(twColorOptions)
-  val lightRows7  = noneRow :: basic7.map(c => s"$c-200").map(twColorOptions)
-  val mediumRows4 = noneRow :: basic4.map(c => s"$c-500").map(twColorOptions)
-  val lightRows4  = noneRow :: basic4.map(c => s"$c-200").map(twColorOptions)
+  val mediumRows7 = colorNoneRow :: basic7.map(c => s"$c-500").map(twColorOptions)
+  val lightRows7  = colorNoneRow :: basic7.map(c => s"$c-200").map(twColorOptions)
+  val mediumRows4 = colorNoneRow :: basic4.map(c => s"$c-500").map(twColorOptions)
+  val lightRows4  = colorNoneRow :: basic4.map(c => s"$c-200").map(twColorOptions)
 
   val colorOptions = twColorOptions.values.toSeq
 
