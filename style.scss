@@ -24,8 +24,12 @@ label[for ^= show-ns-kind-] {
 }
 
 .menu-with-extra-dropdown {
+  .regular-color-icon {
+    @apply rounded-full border border-solid border-neutral/50;
+  }
+
   .none-color-icon {
-    @apply rounded-full text-center;
+    @apply rounded-full text-center text-neutral/75;
 
     &::before {
       font-size: 1.25rem;
@@ -89,7 +93,7 @@ label[for ^= show-ns-kind-] {
     }
 
     > .card {
-      @apply bg-base-100 w-50 shadow-lg;
+      @apply bg-base-100 w-46 shadow-lg;
     }
   }
 

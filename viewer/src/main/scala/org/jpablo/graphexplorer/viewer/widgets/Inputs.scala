@@ -68,12 +68,13 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
         if extraOptions.isEmpty then emptyMod
         else
           Seq(
-            // "extra" button
+            // "more" button
             div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs px-1", i().threeDotsVertical),
             // popup card
             div(
               tabIndex := 0,
               cls := "dropdown-content card card-xs bg-base-100 z-1 max-h-100 overflow-y-auto shadow-md border border-base-200",
+              // extra style
               cardClass.map(cc => cls := cc),
               div(
                 cls := "card-body p-0",

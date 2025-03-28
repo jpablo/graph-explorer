@@ -30,10 +30,10 @@ package object views:
       elem =
         Some(() =>
           if name == "none" then
-            div(cls := "w-5 h-5 bi bi-ban none-color-icon text-neutral")
+            div(cls := "w-5 h-5 bi bi-ban none-color-icon")
           else
             div(
-              cls       := s"w-5 h-5 rounded-full border border-solid border-neutral",
+              cls       := s"w-5 h-5 regular-color-icon",
               styleAttr := s"background-color: $cssColor"
             )
         )
