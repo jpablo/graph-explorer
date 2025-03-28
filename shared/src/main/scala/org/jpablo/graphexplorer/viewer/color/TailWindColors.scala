@@ -6,6 +6,11 @@ import scala.collection.immutable.VectorMap
 import org.jpablo.graphexplorer.viewer.color.ColorFormat.oklchToRgb
 
 object TailWindColors:
+  enum ColorName:
+    case red, orange, amber, yellow, lime, green, emerald, teal, cyan, sky,
+         blue, indigo, violet, purple, fuchsia, pink, rose, slate, gray,
+         zinc, neutral, stone
+
 // https://tailwindcss.com/docs/colors#default-color-palette-reference
   val oklchColors: VectorMap[String, OKLCH] = VectorMap(
     "red-50"      -> OKLCH(0.971, 0.013, 17.38),
