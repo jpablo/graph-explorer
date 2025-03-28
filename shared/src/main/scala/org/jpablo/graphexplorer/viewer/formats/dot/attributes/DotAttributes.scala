@@ -94,16 +94,18 @@ enum DirType:
 object Distortion:
   val default = 0.0
 
+/** aka Border style
+  */
 object EdgeStyle extends DotAttributeEnum[EdgeStyle]:
   override def attrId = Style.attrId
   val default         = solid
   val label           = "Border Style"
   override def valuesWithLabel = Array(
+    ("Invisible", invis),
     ("Dashed", dashed),
     ("Dotted", dotted),
     ("Solid", solid),
     ("Bold", bold),
-    ("Invisible", invis),
     ("Tapered", tapered)
   )
 

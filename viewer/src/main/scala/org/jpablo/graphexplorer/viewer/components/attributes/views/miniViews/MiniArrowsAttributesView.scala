@@ -31,7 +31,7 @@ def MiniArrowsAttributesView(
     id = "edge-attributes",
     rows = rows(
       row(Color, InputType.menuWithExtra(mediumRows4.length)).copy(options = mediumRows4 ++ colorOptions),
-      row(EdgeStyle, InputType.menuWithExtra(4)).copy(options = arrowStyleOptions),
+      row(EdgeStyle, InputType.menuWithExtra(5, cardClass = Some("narrow-card"))).copy(options = arrowStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       row(ArrowHead, InputType.menuWithExtra(4)).copy(options = arrowTypeOptions),
       row(ArrowTail, InputType.menuWithExtra(4)).copy(options = arrowTypeOptions),

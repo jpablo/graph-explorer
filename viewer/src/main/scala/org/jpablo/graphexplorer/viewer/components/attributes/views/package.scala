@@ -80,7 +80,17 @@ package object views:
 
   val arrowStyleOptions =
     EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
-      RowOption(label, Single(AttrValue(style.toString)), ArrowStylePreview(style, 20))
+      val elem =
+        if style == EdgeStyle.invis then
+          Some(() => div(cls := "w-5 h-5 bi bi-ban none-color-icon"))
+        else
+          ArrowStylePreview(style, 18)
+
+      RowOption(
+        name = label,
+        value = Single(AttrValue(style.toString)),
+        elem = elem
+      )
 
   val arrowTypeOptions =
     ArrowType.values.toSeq.map: arrowType =>
