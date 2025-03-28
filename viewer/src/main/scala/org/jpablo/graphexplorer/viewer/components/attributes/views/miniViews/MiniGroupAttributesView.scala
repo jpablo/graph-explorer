@@ -11,7 +11,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, range}
 
-def MiniGraphAttributesView(
+def MiniGroupAttributesView(
     state:    ViewerState,
     attrsVar: Var[AttributesUpdates],
     defaults: Option[Signal[Attributes]] = None

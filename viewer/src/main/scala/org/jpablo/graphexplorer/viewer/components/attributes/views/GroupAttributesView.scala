@@ -32,7 +32,7 @@ def GroupAttributesView(
   AttributesView(
     id = "graph-attributes",
     rows = rows(
-      row(PenColor, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
+      row(CornerStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = graphCornerStyleOptions),
       row(FillColor, InputType.menuWithExtra(lightRows7.length, extraMenuDir))
         .copy(
           options = lightRows7 ++ colorOptions,
@@ -40,8 +40,8 @@ def GroupAttributesView(
         ),
       row(BorderStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(CornerStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = graphCornerStyleOptions),
-      // --
+      row(PenColor, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
+
       labelRow,
       row(ClusterLabelLoc, InputType.menuWithExtra(initialMenuItems)).copy(options = clusterVerticalAlignmentOptions),
       row(LabelJust, InputType.menuWithExtra(initialMenuItems)).copy(options = horizontalAlignmentOptions),
@@ -49,7 +49,6 @@ def GroupAttributesView(
       row(FontName, InputType.select),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))),
 
-      // --
       if defaultsView then "" else URL
     )
   )

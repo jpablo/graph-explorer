@@ -39,7 +39,7 @@ def MiniStyleView(state: ViewerState) =
 
             case (false, false, true) =>
               div(
-                MiniGraphAttributesView(
+                MiniGroupAttributesView(
                   state = state,
                   attrsVar = state.elementAttributes(ElementIds(clusterIds)),
                   defaults = Some(state.defaults(AttributeTarget.graph)),
