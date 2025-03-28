@@ -5,20 +5,20 @@ import org.jpablo.graphexplorer.viewer.models.AttributeId
 import scala.util.Try
 
 enum ArrowType derives CanEqual:
-  case box,
+  case none,
+    vee,
+    normal,
+    onormal,
+    odot,
+    box,
     crow,
     curve,
     diamond,
     dot,
     inv,
-    none,
-    normal,
     tee,
-    vee,
     obox,
     odiamond,
-    odot,
-    onormal,
     halfvee
 
 object ArrowType:
