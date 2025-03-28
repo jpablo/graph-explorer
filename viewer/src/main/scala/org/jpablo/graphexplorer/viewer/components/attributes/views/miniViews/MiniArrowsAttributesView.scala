@@ -39,7 +39,10 @@ def MiniArrowsAttributesView(
       Constraint -> checkbox,
       // ---------- label stuff ------------
       labelRow,
-      row(FontColor, InputType.menuWithExtra(4)).copy(options = colorOptions, hidden = labelRelatedHidden),
+      row(FontColor, InputType.menuWithExtra(mediumRows4.length)).copy(
+        options = mediumRows4 ++ colorOptions,
+        hidden = labelRelatedHidden
+      ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
     ),
