@@ -45,7 +45,7 @@ def NodesAttributesView(
     id = "node-attributes",
     rows = rows(
       shapeRow,
-      row(Color, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
+      row(CornerStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = cornerStyleOptions),
       row(FillColor, InputType.menuWithExtra(lightRows7.length, extraMenuDir))
         .copy(
           options = lightRows7 ++ colorOptions,
@@ -53,14 +53,14 @@ def NodesAttributesView(
         ),
       row(BorderStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(CornerStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = cornerStyleOptions),
+      row(Color, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
       // ---------- label stuff ------------//
       labelRow,
       row(NodeLabelLoc, InputType.menuWithExtra(initialMenuItems)).copy(options = nodeLabelVerticalAlignOptions),
-      if defaultsView then XLabel else "",
+      if defaultsView then "" else XLabel,
       row(FontColor, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
-      FontName -> InputType.select,
-      FontSize -> range(start = Some(1), end = Some(100), step = Some(1))
+      row(FontName, InputType.select),
+      row(FontSize, range(start = Some(1), end = Some(100), step = Some(1)))
     ),
     extra = rows(
       if defaultsView then "" else InvisibleStyle -> checkbox,
