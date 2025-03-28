@@ -210,7 +210,7 @@ label[for ^= show-ns-kind-] {
     }
 
     #right-panel-controls, #edges-panel-controls {
-      @apply bg-base-100 z-20 pb-2 rounded-box sticky top-0;
+      @apply bg-base-100 pb-2 rounded-box sticky top-0;
     }
 
     #right-panel-contents, #edges-panel-contents {
