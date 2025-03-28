@@ -26,15 +26,15 @@ def MiniGraphAttributesView(
   AttributesView(
     id = "mini-graph-attributes",
     rows = rows(
-      row(PenColor, InputType.menuWithExtra(4)).copy(options = mediumRows7 ++ colorOptions),
-      row(FillColor, InputType.menuWithExtra(4))
+      row(CornerStyle, InputType.menuWithExtra(4)).copy(options = graphCornerStyleOptions),
+      row(FillColor, InputType.menuWithExtra(lightRows4.length))
         .copy(
-          options = lightRows7 ++ colorOptions,
+          options = lightRows4 ++ colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.menuWithExtra(4)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(CornerStyle, InputType.menuWithExtra(4)).copy(options = graphCornerStyleOptions),
+      row(PenColor, InputType.menuWithExtra(mediumRows4.length)).copy(options = mediumRows4 ++ colorOptions),
       InvisibleStyle -> checkbox,
       // ---------- label stuff ------------
       labelRow,
@@ -46,8 +46,8 @@ def MiniGraphAttributesView(
         options = horizontalAlignmentOptions,
         hidden = labelRelatedHidden
       ),
-      row(FontColor, InputType.menuWithExtra(4)).copy(
-        options = mediumRows7 ++ colorOptions,
+      row(FontColor, InputType.menuWithExtra(mediumRows4.length)).copy(
+        options = mediumRows4 ++ colorOptions,
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
