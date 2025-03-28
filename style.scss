@@ -24,6 +24,8 @@ label[for ^= show-ns-kind-] {
 }
 
 .menu-with-extra-dropdown {
+  @apply w-full;
+
   .regular-color-icon {
     @apply rounded-full border border-solid border-neutral/50;
   }
@@ -36,11 +38,8 @@ label[for ^= show-ns-kind-] {
     }
   }
 
-  .card {
-    @apply w-82;
-    &.narrow-card {
-      @apply w-64;
-    }
+  .narrow-card {
+    @apply w-64;
   }
 }
 

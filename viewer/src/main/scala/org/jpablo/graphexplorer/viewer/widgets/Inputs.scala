@@ -59,7 +59,8 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
   val extraOptions   = row.options.drop(initial)
   ul(
     tabIndex := 0,
-    cls      := "menu-with-extra-dropdown menu menu-horizontal bg-base-100 rounded-box p-0",
+    cls := s"menu-with-extra-dropdown menu menu-horizontal bg-base-100 rounded-box p-0",
+    cls("justify-between") := extraOptions.nonEmpty,
     for option <- initialOptions yield li(menuButton(option)),
     li(
       cls := "justify-center",
@@ -73,7 +74,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
             // popup card
             div(
               tabIndex := 0,
-              cls := "dropdown-content card card-xs bg-base-100 z-1 max-h-100 overflow-y-auto shadow-md border border-base-200",
+              cls := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
               // extra style
               cardClass.map(cc => cls := cc),
               div(
