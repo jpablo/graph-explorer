@@ -34,6 +34,9 @@ object AttributeRow:
 
     def isChanged: Signal[Boolean] =
       row.combineDefault.map { (attr, d) => attr.exists(_.toString != d) }
+      
+    def isSelected(rowOption: RowOption): Signal[Boolean] =
+      row.combineDefault.map((sv, d) => rowOption.hasValue(sv.getOrElse(d).toString))
 
     def combineDefaultString: Signal[String] =
       row.combineDefault.map((v, d) => v.getOrElse(d).toString)

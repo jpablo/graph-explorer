@@ -23,6 +23,14 @@ label[for ^= show-ns-kind-] {
   }
 }
 
+.none-color-icon {
+  @apply rounded-full text-center;
+
+  &::before {
+    font-size: 1.25rem;
+  }
+}
+
 #top-level {
   @apply bg-base-100 border-base-300 flex h-screen;
   position: relative;

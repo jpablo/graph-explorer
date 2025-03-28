@@ -46,12 +46,13 @@ def Menu[A](
 /** A menu with a horizontal layout, with the last item being a dropdown menu.
   */
 def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection) =
-  def menuButton(option: RowOption) =
+  def menuButton(rowOption: RowOption) =
     div(
-      cls   := "p-1",
-      title := option.name,
-      option.elem.fold(span(option.name))(elem => elem()),
-      onClick.mapTo(option.value) --> row.inputVar
+      cls := "p-1",
+      cls("bg-base-200") <-- row.isSelected(rowOption),
+      title := rowOption.name,
+      rowOption.elem.fold(span(rowOption.name))(elem => elem()),
+      onClick.mapTo(rowOption.value) --> row.inputVar
     )
 
   val initialOptions = row.options.take(initial)
