@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.defaultRootId
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 import scala.annotation.tailrec
@@ -20,18 +21,18 @@ extension (ast: DotAST)
       case Some(id) =>
         EdgeStmt.resetId()
         val flattened = ast.toFlattenedElements
-        val g = ViewerGraph(ViewerGraphElements.from(flattened), id, GraphType.valueOf(ast.tpe))
+        val g         = ViewerGraph(ViewerGraphElements.from(flattened), id, GraphType.valueOf(ast.tpe))
         g.modifyElements.setTo(g.expandStyleAttributes)
       case None =>
         throw new IllegalArgumentException("DotAST must have an id")
 
   private def subGraphToViewerGroup(subId: GroupId, sub: SubGraph): ViewerGroup =
     val attrs = sub.findAttributes
-    ViewerGroup(
-      id         = subId,
+    group(
+      groupId = subId,
       attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
       arrowAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
-      nodeAttrs  = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
+      nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
 
   def toFlattenedElements: FlattenedGraphElement =
@@ -45,13 +46,13 @@ extension (ast: DotAST)
     ): FlattenedGraphElement =
       remaining match
         case Nil =>
-          val rootId = ast.id.map(GroupId.apply).getOrElse(defaultRootId)
+          val rootId     = ast.id.map(GroupId.apply).getOrElse(defaultRootId)
           val graphGroup = subGraphToViewerGroup(rootId, ast.asSubgraph)
           FlattenedGraphElement(
-            rootId      = rootId,
-            arrows      = arrows,
-            groups      = (graphGroup :: groups).reverse,
-            nodes       = nodes.reverse,
+            rootId = rootId,
+            arrows = arrows,
+            groups = (graphGroup :: groups).reverse,
+            nodes = nodes.reverse,
             memberships = memberships.reverse
           )
 
@@ -65,30 +66,30 @@ extension (ast: DotAST)
             case sub @ SubGraph(subChildren, id) =>
               val subId = GroupId(id.getOrElse(SubGraph.randomId()))
               loop(
-                remaining   = (Some(subId) -> subChildren) :: ((parent -> children) :: t),
-                arrows      = arrows,
-                groups      = subGraphToViewerGroup(subId, sub) :: groups,
-                nodes       = nodes,
+                remaining = (Some(subId) -> subChildren) :: ((parent -> children) :: t),
+                arrows = arrows,
+                groups = subGraphToViewerGroup(subId, sub) :: groups,
+                nodes = nodes,
                 memberships = parent.fold(memberships)(p => (subId -> p) :: memberships)
               )
 
             case e: EdgeStmt =>
               val edgeArrows = e.expandArrows
               loop(
-                remaining   = (parent -> children) :: t,
-                arrows      = arrows ++ edgeArrows.flatten,
-                groups      = groups,
-                nodes       = nodes,
+                remaining = (parent -> children) :: t,
+                arrows = arrows ++ edgeArrows.flatten,
+                groups = groups,
+                nodes = nodes,
                 memberships = parent.fold(memberships)(p => edgeArrows.flatten.map(_.id -> p) ++ memberships)
               )
 
             case NodeStmt(dotNodeId, attr_list) =>
               val nodeId = NodeId(dotNodeId.id)
               loop(
-                remaining   = (parent -> children) :: t,
-                arrows      = arrows,
-                groups      = groups,
-                nodes       = node(nodeId, Attributes(toAttrsMap(attr_list))) :: nodes,
+                remaining = (parent -> children) :: t,
+                arrows = arrows,
+                groups = groups,
+                nodes = node(nodeId, Attributes(toAttrsMap(attr_list))) :: nodes,
                 memberships = parent.fold(memberships)(p => (nodeId -> p) :: memberships)
               )
 
@@ -96,10 +97,10 @@ extension (ast: DotAST)
               loop(remaining = (parent -> children) :: t, arrows, groups, nodes, memberships)
 
     loop(
-      remaining   = List(None -> ast.children),
-      arrows      = Nil,
-      groups      = Nil,
-      nodes       = Nil,
+      remaining = List(None -> ast.children),
+      arrows = Nil,
+      groups = Nil,
+      nodes = Nil,
       memberships = Nil
     )
 

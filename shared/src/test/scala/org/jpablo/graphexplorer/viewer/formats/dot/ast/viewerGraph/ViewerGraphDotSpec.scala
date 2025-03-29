@@ -7,12 +7,12 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
-import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.{group, groupWithId}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithId}
 
 class ViewerGraphDotSpec extends ScalaCheckSuite:
   val rootId = ViewerGraphElements.defaultRootId
-  val initialGroup = group(rootId)
+  val initialGroup = groupWithId(rootId)
 
   val a = NodeId("a")
   val b = NodeId("b")
@@ -58,7 +58,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
           memberships = Map(a -> newGroupId),
           groups = Map(
             initialGroup,
-            newGroupId -> ViewerGroup(newGroupId, Attributes.of(Label -> "New Group"))
+            newGroupId -> group(newGroupId, Attributes.of(Label -> "New Group"))
           )
         )
       )

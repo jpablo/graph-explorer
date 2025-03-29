@@ -43,8 +43,6 @@ def GroupAttributesView(
       row(PenColor, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
 
       labelRow,
-      row(ClusterLabelLoc, InputType.menuWithExtra(initialMenuItems)).copy(options = clusterVerticalAlignmentOptions),
-      row(LabelJust, InputType.menuWithExtra(initialMenuItems)).copy(options = horizontalAlignmentOptions),
       row(FontColor, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
       row(FontName, InputType.select),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))),

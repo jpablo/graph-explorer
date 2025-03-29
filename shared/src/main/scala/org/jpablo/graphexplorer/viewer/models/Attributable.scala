@@ -1,11 +1,11 @@
 package org.jpablo.graphexplorer.viewer.models
 
+import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Id, Label}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ClusterLabelLoc, Id, Label, LabelJust}
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
 import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
 import upickle.default.*
-import com.softwaremill.quicklens.*
 
 type ViewerKind = Option[String]
 
@@ -38,10 +38,9 @@ object ViewerNode:
   def nodeWithId(nodeIdOrString: NodeId | String, attrs: (String, String)*) =
     val nodeId =
       nodeIdOrString match
-        case id: NodeId => id
+        case id: NodeId  => id
         case str: String => NodeId(str)
-    nodeId -> node(nodeId, Attributes.of(attrs *))
-
+    nodeId -> node(nodeId, Attributes.of(attrs*))
 
 // ---- Edges ------
 
@@ -94,17 +93,36 @@ end Arrow
 
 // ---- groups ------
 
-case class ViewerGroup(
+case class ViewerGroup private (
     id:         GroupId,
     attributes: Attributes = Attributes.empty,
-    arrowAttrs: Attributes = Attributes.empty,
-    nodeAttrs:  Attributes = Attributes.empty
+    nodeAttrs:  Attributes = Attributes.empty,
+    arrowAttrs: Attributes = Attributes.empty
 ) extends Attributable derives CanEqual
 
 object ViewerGroup:
-  def empty(nodeId: GroupId) = ViewerGroup(nodeId)
+  def modifyAttrs      = modify(_: ViewerGroup)(_.attributes)
+  def modifyNodeAttrs  = modify(_: ViewerGroup)(_.nodeAttrs)
+  def modifyArrowAttrs = modify(_: ViewerGroup)(_.arrowAttrs)
 
-  def group(groupId: GroupId) =
+  val defaultGroupAttributes: Attributes =
+    Attributes.of(
+      Label           -> "",
+      ClusterLabelLoc -> ClusterLabelLoc.default,
+      LabelJust       -> LabelJust.default
+    )
+
+  def group(
+      groupId:    GroupId,
+      attributes: Attributes = Attributes.empty,
+      nodeAttrs:  Attributes = Attributes.empty,
+      arrowAttrs: Attributes = Attributes.empty
+  ) =
+    ViewerGroup(groupId, defaultGroupAttributes ++ attributes, nodeAttrs, arrowAttrs)
+
+  def empty(groupId: GroupId) = ViewerGroup(groupId)
+
+  def groupWithId(groupId: GroupId) =
     groupId -> ViewerGroup(groupId)
 
 end ViewerGroup

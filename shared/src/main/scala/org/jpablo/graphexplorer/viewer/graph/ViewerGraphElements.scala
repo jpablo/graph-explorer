@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.FlattenedGraphElement
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 case class ViewerGraphElements(
@@ -30,7 +31,7 @@ end ViewerGraphElements
 object ViewerGraphElements:
 
   val defaultRootId = GroupId("G")
-  val initialGroup = defaultRootId -> ViewerGroup(defaultRootId)
+  val initialGroup = defaultRootId -> group(defaultRootId)
 
   def from(data: FlattenedGraphElement) =
     val arrowEndpoints = data.arrows.flatMap(_.endpoints).toSet

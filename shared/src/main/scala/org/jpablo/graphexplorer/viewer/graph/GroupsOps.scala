@@ -4,6 +4,7 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 
 trait GroupsOps:
   this: ViewerGraph =>
@@ -32,7 +33,7 @@ trait GroupsOps:
     if nodesOrGroups.isEmpty then this
     else
       val groupId = GroupId(s"cluster_${SubGraph.randomId()}")
-      val group = ViewerGroup(groupId, Attributes.of(Label -> label))
+      val newGroup = group(groupId, Attributes.of(Label -> label))
 
       // Find the common parent group if one exists
       val parentGroupId =
@@ -43,7 +44,7 @@ trait GroupsOps:
       val updated = memberships ++ nodesOrGroups.map(_ -> groupId)
       modifyElements.using(
         _.copy(
-          groups = groups + (groupId -> group),
+          groups = groups + (groupId -> newGroup),
           // Add the new group to the common parent if it's not the root
           memberships = if parentGroupId == rootId then updated else updated + (groupId -> parentGroupId)
         )

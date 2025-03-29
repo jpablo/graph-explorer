@@ -22,14 +22,16 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
 }
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 trait AttributesOps:
   this: ViewerGraph =>
 
-  lazy val modifyRootGraphAttrs = this.modify(_.elements.groups.at(rootGroup.id).attributes)
-  lazy val modifyRootNodeAttrs  = this.modify(_.elements.groups.at(rootGroup.id).nodeAttrs)
-  lazy val modifyRootEdgeAttrs  = this.modify(_.elements.groups.at(rootGroup.id).arrowAttrs)
+  lazy val groupIdLens          = modify(_: ViewerGraph)(_.elements.groups.at(rootGroup.id))
+  lazy val modifyRootGraphAttrs = (groupIdLens andThenModify ViewerGroup.modifyAttrs)(this)
+  lazy val modifyRootNodeAttrs  = (groupIdLens andThenModify ViewerGroup.modifyNodeAttrs)(this)
+  lazy val modifyRootEdgeAttrs  = (groupIdLens andThenModify ViewerGroup.modifyArrowAttrs)(this)
 
   lazy val removeUnsupportedFeatures: ViewerGraph =
     modifyRootGraphAttrs.using(_ - Size.attrId - Overlap.attrId)
@@ -39,7 +41,8 @@ trait AttributesOps:
   def expandStyleAttributes: ViewerGraphElements =
     elements.copy(
       groups = groups.transform { (id, g) =>
-        g.copy(
+        group(
+          groupId = g.id,
           attributes = expandElementAttributes(id, g.attributes),
           arrowAttrs = expandElementAttributes(id, g.arrowAttrs),
           nodeAttrs = expandElementAttributes(id, g.nodeAttrs)
@@ -60,7 +63,8 @@ trait AttributesOps:
   def combineStyleAttributes: ViewerGraphElements =
     elements.copy(
       groups = groups.transform { (id, g) =>
-        g.copy(
+        group(
+          groupId = g.id,
           attributes = combineElementAttributes(id, g.attributes),
           arrowAttrs = combineElementAttributes(id, g.arrowAttrs),
           nodeAttrs = combineElementAttributes(id, g.nodeAttrs)
@@ -117,7 +121,7 @@ trait AttributesOps:
 
     val updatedClusters = groups.view
       .filterKeys(groupId => groupId in clusterIds)
-      .mapValues(_.modify(_.attributes).using(updates.applyUpdatesTo))
+      .mapValues(g => ViewerGroup.modifyAttrs(g).using(updates.applyUpdatesTo))
       .toMap
 
     val nodeIdsToUpdate = classified.nodes ++
@@ -185,7 +189,7 @@ trait AttributesOps:
   val defaultNodeTheme =
     Attributes.of(Sides -> 5)
 
-  val defaultEdgeTheme =
+  val defaultEdgeTheme: Attributes =
     val dir = tpe match
       case GraphType.graph   => DirType.none
       case GraphType.digraph => DirType.both

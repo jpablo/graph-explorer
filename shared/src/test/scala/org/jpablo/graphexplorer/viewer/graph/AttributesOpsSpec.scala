@@ -2,20 +2,38 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, BoldStyle, BorderStyle, Color, Dir, DirType, FillStyle, Label, NodeStyle, Shape, Sides, Size, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.NodeStyle.{bold, dashed, filled}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  ArrowTail,
+  ArrowType,
+  BoldStyle,
+  BorderStyle,
+  Color,
+  Dir,
+  DirType,
+  FillStyle,
+  Label,
+  NodeStyle,
+  Shape,
+  Sides,
+  Size,
+  Style
+}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, node, nodeWithId}
 
 class AttributesOpsSpec extends FunSuite:
 
   // Common test setup
   val rootId    = ViewerGraphElements.defaultRootId
-  val rootGroup = ViewerGroup(rootId)
+  val rootGroup = group(rootId)
 
-  val a       = NodeId("a")
-  val b       = NodeId("b")
-  val c       = NodeId("c")
-  val groupId = GroupId("cluster_1")
+  val a                   = NodeId("a")
+  val b                   = NodeId("b")
+  val c                   = NodeId("c")
+  val groupId             = GroupId("cluster_1")
+  val trueAttr: AttrValue = AttrValue(true.toString)
 
   // Helper method to create a basic graph for testing
   def createTestGraph(): ViewerGraph =
@@ -26,8 +44,8 @@ class AttributesOpsSpec extends FunSuite:
         arrows = Map(arrow.id -> arrow),
         groups = Map(
           rootId -> rootGroup,
-          groupId -> ViewerGroup(
-            id = groupId,
+          groupId -> group(
+            groupId = groupId,
             attributes = Attributes.of(Label -> "Cluster 1"),
             nodeAttrs = Attributes.of(Shape -> Shape.box),
             arrowAttrs = Attributes.of(Style -> Style.dashed)
@@ -54,7 +72,8 @@ class AttributesOpsSpec extends FunSuite:
 
   test("expandStyleAttributes should expand style attributes into sub-attributes") {
     // Create a graph with a style attribute
-    val styleValue = AttrValue("filled,bold,dashed")
+
+    val styleValue = AttrValue(Seq(filled, bold, dashed).mkString(","))
     val graph = createTestGraph()
       .modifyNodes.setTo(
         Map(
@@ -71,16 +90,12 @@ class AttributesOpsSpec extends FunSuite:
     val nodeAttrs = result.getNode(a).get.attributes
 
     // The original style attribute should be removed
-    assertEquals(nodeAttrs.get(NodeStyle.attrId), None, "The style attribute should be removed")
+    assertEquals(nodeAttrs.get(NodeStyle), None, "The style attribute should be removed")
 
     // The sub-attributes should be present
-    assertEquals(nodeAttrs.get(FillStyle.attrId), Some(AttrValue(true.toString)), "fillStyle should be present")
-    assertEquals(nodeAttrs.get(BoldStyle.attrId), Some(AttrValue(true.toString)), "boldStyle should be present")
-    assertEquals(
-      nodeAttrs.get(BorderStyle.attrId),
-      Some(AttrValue(BorderStyle.dashed.toString)),
-      "borderStyle should be present"
-    )
+    assertEquals(nodeAttrs.get(FillStyle), Some(trueAttr), "fillStyle should be present")
+    assertEquals(nodeAttrs.get(BoldStyle), Some(trueAttr), "boldStyle should be present")
+    assertEquals(nodeAttrs.get(BorderStyle), Some(AttrValue(dashed.toString)), "borderStyle should be present")
   }
 
   test("combineStyleAttributes should combine sub-attributes into a style attribute and ignore `filled`") {
@@ -101,24 +116,24 @@ class AttributesOpsSpec extends FunSuite:
     val nodeAttrs = result.getNode(a).get.attributes
 
     // The sub-attributes should be removed
-    assertEquals(nodeAttrs.get(FillStyle.attrId), None, "fillstyle should be removed")
-    assertEquals(nodeAttrs.get(BoldStyle.attrId), None, "boldstyle should be removed")
-    assertEquals(nodeAttrs.get(BorderStyle.attrId), None, "borderstyle should be removed")
+    assertEquals(nodeAttrs.get(FillStyle), None, "fillstyle should be removed")
+    assertEquals(nodeAttrs.get(BoldStyle), None, "boldstyle should be removed")
+    assertEquals(nodeAttrs.get(BorderStyle), None, "borderstyle should be removed")
 
     // The style attribute should be present with the combined value
     val expected: Some[AttrValue] = Some(AttrValue("bold,dashed"))
     // Note: we're ignoring `filled` now as it is derived from the `color` attribute
-    assertEquals(nodeAttrs.get(NodeStyle.attrId), expected, "style attribute should contain the combined values")
+    assertEquals(nodeAttrs.get(NodeStyle), expected, "style attribute should contain the combined values")
   }
 
   test("combineStyleAttributes should use rootGroup.nodeAttrs as defaults for nodes.attributes") {
     // Create a graph with sub-attributes
     val graph0 = ViewerGraph.minimal
       .addNodeWithId(a)
-      .updateRootAttributes(AttributeTarget.node)(_ + (BoldStyle.attrId -> AttrValue(true.toString)))
+      .updateRootAttributes(AttributeTarget.node)(_ + (BoldStyle.attrId -> trueAttr))
 
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).out
-    val updates          = AttributesUpdates(update = Map(BorderStyle.attrId -> AttrValue(BorderStyle.dashed.toString)))
+    val updates          = AttributesUpdates(update = Attributes.of(BorderStyle -> BorderStyle.dashed).values)
 
     val graph1 = updateAttributes(graph0, updates)
 
@@ -128,7 +143,7 @@ class AttributesOpsSpec extends FunSuite:
     // ------------------------------------------------------------------
 
     assertEquals(
-      obtained = graph2.getNode(a).get.attributes.get(NodeStyle.attrId).get.toString,
+      obtained = graph2.getNode(a).get.attributes.get(NodeStyle).get.toString,
       expected = "bold,dashed",
       "style attribute should contain the combined values"
     )

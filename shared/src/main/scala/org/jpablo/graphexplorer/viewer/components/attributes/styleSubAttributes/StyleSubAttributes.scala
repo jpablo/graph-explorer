@@ -28,7 +28,9 @@ import org.jpablo.graphexplorer.viewer.models.{
   * These attributes are not part of the dot language.
   */
 case class StyleSubAttributes(
+    // automatically set based on the FillColor attribute
     fill:      AttrStatus[Boolean],
+    // Not used, kept for compatibility
     bold:      AttrStatus[Boolean],
     invisible: AttrStatus[Boolean],
     border:    AttrStatus[BorderStyle],

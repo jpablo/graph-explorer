@@ -2,13 +2,13 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.groupWithId
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
 
 class ViewerGraphElementsSpec extends ScalaCheckSuite:
 
   val rootId = ViewerGraphElements.defaultRootId
-  val initialGroup = group(rootId)
+  val initialGroup = groupWithId(rootId)
   val a = NodeId("a")
 
   test("Constructor should create a ViewerGraphElements with default values") {

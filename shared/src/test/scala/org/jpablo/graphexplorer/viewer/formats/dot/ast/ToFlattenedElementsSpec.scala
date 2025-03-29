@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithId}
 
 class ToFlattenedElementsSpec extends ScalaCheckSuite:
@@ -45,9 +46,9 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
     val data = astWithNestedSubGraphs.toFlattenedElements
     val expectedGroups =
       List(
-        ViewerGroup(group0, nodeAttrs = Attributes.of(Shape -> Shape.egg)),
-        ViewerGroup(group1),
-        ViewerGroup(rootId)
+        group(group0, nodeAttrs = Attributes.of(Shape -> Shape.egg)),
+        group(group1),
+        group(rootId)
       )
     assertEquals(data.groups, expectedGroups)
   }
@@ -59,7 +60,7 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
       FlattenedGraphElement(
         rootId = rootId,
         arrows = Nil,
-        groups = List(ViewerGroup(rootId)),
+        groups = List(group(rootId)),
         nodes = Nil,
         memberships = Nil
       )

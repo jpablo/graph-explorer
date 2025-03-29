@@ -4,12 +4,13 @@ import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Style
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
 
 class ViewerGraphSpec extends ScalaCheckSuite:
 
   val rootId = ViewerGraphElements.defaultRootId
-  val rootGroup = ViewerGroup(rootId)
+  val rootGroup = group(rootId)
 
   val a = NodeId("a")
   val b = NodeId("b")
