@@ -142,7 +142,7 @@ trait AttributesOps:
     )
 
   // Used to combine the attributes of multiple selected elements (say two nodes)
-  private def mergeAttributeUpdates[K <: ElementId, V <: Attributable](
+  private def mergeAttributeUpdates[K <: ElementId, V <: ViewerElement](
       nodeIds:       ElementIds,
       attributables: Map[K, V]
   ): Map[AttributeId, SelectionAttrValue] =

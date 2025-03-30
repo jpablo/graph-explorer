@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
-import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
+import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.*
 
 def graphToDotAST(graph: ViewerGraph): DotAST =

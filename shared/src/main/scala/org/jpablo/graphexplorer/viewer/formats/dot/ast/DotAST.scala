@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.Location.Position
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType.digraph
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
-import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
+import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
 import org.jpablo.graphexplorer.viewer.models.{Arrow, AttributeId}
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*

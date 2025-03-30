@@ -4,12 +4,14 @@ import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ClusterLabelLoc, Id, Label, LabelJust}
 import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
-import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
+import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
 import upickle.default.*
 
 type ViewerKind = Option[String]
 
-trait Attributable:
+trait ViewerElement:
+  def id: ElementId
+
   def attributes: Attributes
 
   def label: AttrValue =
@@ -18,14 +20,14 @@ trait Attributable:
   def idAttr: AttrValue =
     attributes.values.getOrElse(idAttributeKey, AttrValue.empty)
 
-object Attributable:
+object ViewerElement:
   val idAttributeKey = Id.attrId
 
 case class ViewerNode private (
-    id:         NodeId,
-    attributes: Attributes = Attributes.empty,
-    kind:       ViewerKind = None
-) extends Attributable:
+    override val id: NodeId,
+    attributes:      Attributes = Attributes.empty,
+    kind:            ViewerKind = None
+) extends ViewerElement:
   def modifyAttrs = this.modify(_.attributes)
 
 object ViewerNode:
@@ -49,10 +51,11 @@ case class Arrow(
     target:     NodeId,
     attributes: Attributes = Attributes.empty,
     seq:        Int = 1
-) extends Attributable:
+) extends ViewerElement:
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
-  val id = ArrowId(s"${source.value}$titleIdSeparator${target.value}:$seq")
+  override val id: ArrowId =
+    ArrowId(s"${source.value}$titleIdSeparator${target.value}:$seq")
 
   def nodeIds   = Set(source, target)
   def endpoints = Set(source, target)
@@ -81,24 +84,16 @@ object Arrow:
         Some(arrow(l.trim -> r.trim, seq = idAttr.toInt))
 
       case _ => None
-
-//  given arrowOrd: scala.Ordering[Arrow]:
-//    def compare(x: Arrow, y: Arrow): Int =
-//      val s = x.source.value `compareTo` y.source.value
-//      if s != 0 then s
-//      else
-//        val t = x.target.value `compareTo` y.target.value
-//        if t != 0 then t else x.idAttr.toString `compareTo` y.idAttr.toString
 end Arrow
 
 // ---- groups ------
 
 case class ViewerGroup private (
-    id:         GroupId,
-    attributes: Attributes = Attributes.empty,
-    nodeAttrs:  Attributes = Attributes.empty,
-    arrowAttrs: Attributes = Attributes.empty
-) extends Attributable derives CanEqual
+    override val id: GroupId,
+    attributes:      Attributes = Attributes.empty,
+    nodeAttrs:       Attributes = Attributes.empty,
+    arrowAttrs:      Attributes = Attributes.empty
+) extends ViewerElement derives CanEqual
 
 object ViewerGroup:
   def modifyAttrs      = modify(_: ViewerGroup)(_.attributes)

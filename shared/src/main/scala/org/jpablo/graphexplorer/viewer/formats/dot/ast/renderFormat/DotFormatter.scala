@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType.digraph
-import org.jpablo.graphexplorer.viewer.models.Attributable.idAttributeKey
+import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
 
 object DotFormatter:
   /** Renders a DotAST to a string in DOT format.
