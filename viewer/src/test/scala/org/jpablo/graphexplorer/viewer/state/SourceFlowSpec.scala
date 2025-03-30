@@ -15,6 +15,11 @@ class SourceFlowSpec extends FunSuite:
 
     val visibleDot =
       """|digraph "G" {
+         |    graph [
+         |        label="",
+         |        labelloc="t",
+         |        labeljust="c"
+         |    ];
          |    node [sides="5"];
          |    edge [
          |        dir="both",
@@ -65,6 +70,11 @@ class SourceFlowSpec extends FunSuite:
 
     val expectedSource =
       s"""digraph "$graphId" {
+         |    graph [
+         |        label="",
+         |        labelloc="t",
+         |        labeljust="c"
+         |    ];
          |    "$nodeId" [label=""];
          |}""".stripMargin
 

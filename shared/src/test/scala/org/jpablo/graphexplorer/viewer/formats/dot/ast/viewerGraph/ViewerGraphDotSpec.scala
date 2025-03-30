@@ -7,18 +7,19 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
-import org.jpablo.graphexplorer.viewer.models.ViewerGroup.{group, groupWithId}
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.{defaultGroupAttributes, group, groupWithId}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithId}
 
 class ViewerGraphDotSpec extends ScalaCheckSuite:
-  val rootId = ViewerGraphElements.defaultRootId
+  val rootId       = ViewerGraphElements.defaultRootId
   val initialGroup = groupWithId(rootId)
 
   val a = NodeId("a")
   val b = NodeId("b")
   val c = NodeId("c")
 
-  val defaultDotAttrs = defaultNodeAttributes.toDotAttr
+  val defaultNodeDotAttrs  = defaultNodeAttributes.toDotAttr
+  val defaultGroupAttrStmt = AttrStmt("graph", defaultGroupAttributes.toDotAttr)
 
   test("graphToDotAST should convert a ViewerGraph to a DotAST: two nodes and an arrow") {
     val graph =
@@ -30,8 +31,9 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
       DotAST(
         digraph.toString,
         List(
-          NodeStmt(DotNodeId("a"), defaultDotAttrs),
-          NodeStmt(DotNodeId("b"), defaultDotAttrs),
+          defaultGroupAttrStmt,
+          NodeStmt(DotNodeId("a"), defaultNodeDotAttrs),
+          NodeStmt(DotNodeId("b"), defaultNodeDotAttrs),
           EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("1"))))
         ),
         Some("G")
@@ -48,13 +50,13 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
 
     // Add elements to a new group with a label
     val updatedGraph = graph.moveToNewGroup("New Group", a)
-    val newGroupId = updatedGraph.membership(a).get
+    val newGroupId   = updatedGraph.membership(a).get
 
     val expected =
       ViewerGraph(
         ViewerGraphElements(
-          nodes       = Map(nodeWithId(a), nodeWithId(b)),
-          arrows      = Map(ab),
+          nodes = Map(nodeWithId(a), nodeWithId(b)),
+          arrows = Map(ab),
           memberships = Map(a -> newGroupId),
           groups = Map(
             initialGroup,
@@ -72,14 +74,15 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
       DotAST(
         digraph.toString,
         List(
+          defaultGroupAttrStmt,
           SubGraph(
             List(
-              AttrStmt("graph", List(Attr("label", AttrValue("New Group")))),
-              NodeStmt(DotNodeId("a"), defaultDotAttrs)
+              AttrStmt("graph", (defaultGroupAttributes + (Label.attrId -> AttrValue("New Group"))).toDotAttr),
+              NodeStmt(DotNodeId("a"), defaultNodeDotAttrs)
             ),
             Some(newGroupId.value)
           ),
-          NodeStmt(DotNodeId("b"), defaultDotAttrs),
+          NodeStmt(DotNodeId("b"), defaultNodeDotAttrs),
           EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("1"))))
         ),
         Some("G")

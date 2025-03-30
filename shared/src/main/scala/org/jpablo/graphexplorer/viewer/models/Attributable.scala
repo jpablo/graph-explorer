@@ -123,6 +123,6 @@ object ViewerGroup:
   def empty(groupId: GroupId) = ViewerGroup(groupId)
 
   def groupWithId(groupId: GroupId) =
-    groupId -> ViewerGroup(groupId)
+    groupId -> group(groupId)
 
 end ViewerGroup

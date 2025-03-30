@@ -69,9 +69,9 @@ case class ViewerState(
   def allArrowIds(): Set[ArrowId] =
     fullGraph.observe().now().arrowIds
 
-  /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an
-    * edge. If the selected element is a group/cluster, the new node will be added to that group. The new node will
-    * become the only selected element after creation.
+  /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an edge. If the
+    * selected element is a group/cluster, the new node will be added to that group. The new node will become the only selected element
+    * after creation.
     *
     * @return
     *   The result of the operation, which can be:
@@ -80,8 +80,6 @@ case class ViewerState(
     *   - Some(NodeAndArrowAdded) if a node and an arrow were added
     */
   def addNodeWithSmartConnection(attributes: Attributes = Attributes.empty): Unit =
-//    val shapeAttr = shape.fold(Map.empty)(s => Map(Shape.attrId -> AttrValue(s.toString)))
-
     sourceFlow.fullGraphV.update: fullGraph =>
       val sel = selection.now()
 
@@ -129,12 +127,10 @@ case class ViewerState(
   def nodeShape: Signal[Shape] =
     defaults(AttributeTarget.node).map(_.getAs(Shape))
 
-  /** This targets the root group of the graph. It is used to set attributes that apply to the entire graph, such as
-    * background color, rank direction, etc.
+  /** This targets the root group of the graph. It is used to set attributes that apply to the entire graph, such as background color, rank
+    * direction, etc.
     *
-    * node [...]
-    * edge [...]
-    * graph [...]
+    * node [...] edge [...] graph [...]
     */
   def rootTargetAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
     sourceFlow.fullGraphV.zoomLens(AttributesOps.rootAttributesUpdates(target))

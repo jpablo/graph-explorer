@@ -7,15 +7,16 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.{defaultGroupAttributes, group}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithId}
 
 class ToFlattenedElementsSpec extends ScalaCheckSuite:
 
-  val rootId          = ViewerGraphElements.defaultRootId
-  val group0          = GroupId("cluster_0")
-  val group1          = GroupId("cluster_1")
-  val defaultDotAttrs = defaultNodeAttributes.toDotAttr
+  val rootId               = ViewerGraphElements.defaultRootId
+  val group0               = GroupId("cluster_0")
+  val group1               = GroupId("cluster_1")
+  val defaultNodeDotAttrs  = defaultNodeAttributes.toDotAttr
+  val defaultGroupAttrStmt = AttrStmt("graph", defaultGroupAttributes.toDotAttr)
 
   test("toFlattenedElements should return all nodes") {
     val data = astWithNestedSubGraphs.toFlattenedElements
@@ -99,20 +100,22 @@ class ToFlattenedElementsSpec extends ScalaCheckSuite:
     // - Order of elements may change: SubGraphs -> NodeStmts -> EdgeStmts
     val expected =
       List(
+        defaultGroupAttrStmt,
         SubGraph(
           List(
+            defaultGroupAttrStmt,
             AttrStmt("node", List(Attr("shape", AttrValue("egg")))),
-            SubGraph(List(NodeStmt(d, defaultDotAttrs)), Some("cluster_1")),
+            SubGraph(List(defaultGroupAttrStmt, NodeStmt(d, defaultNodeDotAttrs)), Some("cluster_1")),
             NodeStmt(z, List(Attr("label", AttrValue("ZZ")))),
             EdgeStmt(List(a, b), List(Attr("id", AttrValue("2"))))
           ),
           Some("cluster_0")
         ),
-        NodeStmt(x, defaultDotAttrs),
-        NodeStmt(a, defaultDotAttrs),
-        NodeStmt(y, defaultDotAttrs),
-        NodeStmt(b, defaultDotAttrs),
-        NodeStmt(c, defaultDotAttrs),
+        NodeStmt(x, defaultNodeDotAttrs),
+        NodeStmt(a, defaultNodeDotAttrs),
+        NodeStmt(y, defaultNodeDotAttrs),
+        NodeStmt(b, defaultNodeDotAttrs),
+        NodeStmt(c, defaultNodeDotAttrs),
         EdgeStmt(List(x, y), List(Attr("id", AttrValue("1")))),
         EdgeStmt(List(x, a), List(Attr("id", AttrValue("3")))),
         EdgeStmt(List(b, c), List(Attr("id", AttrValue("4"))))
