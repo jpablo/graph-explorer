@@ -1,10 +1,8 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.FlattenedGraphElement
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 case class ViewerGraphElements(
     // the graph itself is a group
@@ -29,30 +27,6 @@ case class ViewerGraphElements(
 end ViewerGraphElements
 
 object ViewerGraphElements:
-
   val defaultRootId = GroupId("G")
   val initialGroup  = defaultRootId -> group(defaultRootId)
-
-  def from(data: FlattenedGraphElement) =
-    val arrowEndpoints  = data.arrows.flatMap(_.endpoints).toSet
-    val nodesMap        = data.nodes.map(n => n.id -> n).toMap
-    val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
-
-    val memberships =
-      data.memberships.foldLeft(Map.empty[GroupMemberId, GroupId]):
-        case (acc, (memId, groupId)) =>
-          memId match
-            case m: GroupMemberId => acc + (m -> groupId)
-            case _           => acc
-
-    ViewerGraphElements(
-      rootId = data.rootId,
-      nodes = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
-      arrows = data.arrows.map(a => a.id -> a).toMap,
-      memberships = memberships,
-      groups = data.groups.map(g => g.id -> g).toMap
-    )
-
-  val minimal = ViewerGraphElements()
-
-end ViewerGraphElements
+  val minimal       = ViewerGraphElements()

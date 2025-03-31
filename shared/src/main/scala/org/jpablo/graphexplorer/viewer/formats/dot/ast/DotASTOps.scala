@@ -20,84 +20,120 @@ extension (ast: DotAST)
     ast.id match
       case Some(id) =>
         EdgeStmt.resetId()
-        val flattened = ast.toFlattenedElements
-        val g         = ViewerGraph(ViewerGraphElements.from(flattened), id, GraphType.valueOf(ast.tpe))
+        val g =
+          ViewerGraph(
+            elements = ast.toViewerGraphElements,
+            id = id,
+            tpe = GraphType.valueOf(ast.tpe)
+          )
         g.modifyElements.setTo(g.expandStyleAttributes)
+
       case None =>
         throw new IllegalArgumentException("DotAST must have an id")
 
-  private def subGraphToViewerGroup(subId: GroupId, sub: SubGraph): ViewerGroup =
-    val attrs = sub.findAttributes
+  private def nodeStmtToViewerNode(nodeStmt: NodeStmt): ViewerNode =
+    node(
+      nodeId = NodeId(nodeStmt.node_id.id),
+      attributes = Attributes(toAttrsMap(nodeStmt.attr_list))
+    )
+
+  private def subGraphToViewerGroup(sub: SubGraph, gId: Option[GroupId] = None): ViewerGroup =
+    val attrs = sub.collectAttributesByTarget
     group(
-      groupId = subId,
+      groupId = gId.getOrElse(GroupId(sub.id.getOrElse(SubGraph.randomId()))),
       attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
       arrowAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
       nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
 
-  def toFlattenedElements: FlattenedGraphElement =
+  private def buildViewerGraphElements(
+      nodes:       List[ViewerNode],
+      arrows:      List[Arrow],
+      memberships: List[(ElementId, GroupId)], // List of (element, group) memberships
+      groups:      List[ViewerGroup]
+  ): ViewerGraphElements =
+    val arrowEndpoints  = arrows.flatMap(_.endpoints).toSet
+    val nodesMap        = nodes.map(n => n.id -> n).toMap
+    val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
+
+    // DOT allows arrows within clusters, we don't.
+    val filteredMemberships =
+      memberships.foldLeft(Map.empty[GroupMemberId, GroupId]):
+        case (acc, (memId, groupId)) =>
+          memId match
+            case m: GroupMemberId => acc + (m -> groupId)
+            case _                => acc
+
+    val rootId    = ast.id.map(GroupId.apply).getOrElse(defaultRootId)
+    val rootGroup = subGraphToViewerGroup(ast.toSubGraph, Some(rootId))
+
+    ViewerGraphElements(
+      rootId = rootId,
+      nodes = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
+      arrows = arrows.map(a => a.id -> a).toMap,
+      memberships = filteredMemberships,
+      groups = (rootGroup :: groups).map(g => g.id -> g).toMap
+    )
+
+  def toViewerGraphElements: ViewerGraphElements =
     @tailrec
     def loop(
-        remaining:   List[(Option[GroupId], List[GraphElement])],
-        arrows:      List[Arrow],
-        groups:      List[ViewerGroup],
-        nodes:       List[ViewerNode],
-        memberships: List[(ElementId, GroupId)] // List of (element, group) memberships
-    ): FlattenedGraphElement =
-      remaining match
-        case Nil =>
-          val rootId     = ast.id.map(GroupId.apply).getOrElse(defaultRootId)
-          val graphGroup = subGraphToViewerGroup(rootId, ast.asSubgraph)
-          FlattenedGraphElement(
-            rootId = rootId,
-            arrows = arrows,
-            groups = (graphGroup :: groups).reverse,
-            nodes = nodes.reverse,
-            memberships = memberships.reverse
-          )
+        pendingGroups: List[(Option[GroupId], List[GraphElement])],
+        arrows:        List[Arrow],
+        groups:        List[ViewerGroup],
+        nodes:         List[ViewerNode],
+        memberships:   List[(ElementId, GroupId)] // List of (element, group) memberships
+    ): ViewerGraphElements =
+      pendingGroups match
 
-        case (_, Nil) :: t =>
-          loop(remaining = t, arrows, groups, nodes, memberships)
+        case Nil => buildViewerGraphElements(nodes.reverse, arrows, memberships.reverse, groups.reverse)
 
-        // firstChild and children belong to the same parent node
-        case (parent, firstChild :: children) :: t => // remaining
+        // corner case: a groupId without children. Skipping it.
+        case (_, Nil) :: t => loop(t, arrows, groups, nodes, memberships)
+
+        // firstChild and children belong to the same parent group
+        case (groupId, firstChild :: children) :: restGroups => // remaining
+          // \________ first group _________/
+
+          val pendingGroups = (groupId -> children) :: restGroups
+
           firstChild match
 
-            case sub @ SubGraph(subChildren, id) =>
-              val subId = GroupId(id.getOrElse(SubGraph.randomId()))
+            case sub: SubGraph =>
+              val viewerGroup = subGraphToViewerGroup(sub)
               loop(
-                remaining = (Some(subId) -> subChildren) :: ((parent -> children) :: t),
+                pendingGroups = (Some(viewerGroup.id) -> sub.children) :: pendingGroups,
                 arrows = arrows,
-                groups = subGraphToViewerGroup(subId, sub) :: groups,
+                groups = viewerGroup :: groups,
                 nodes = nodes,
-                memberships = parent.fold(memberships)(p => (subId -> p) :: memberships)
+                memberships = groupId.fold(memberships)(gId => (viewerGroup.id -> gId) :: memberships)
               )
 
             case e: EdgeStmt =>
               val edgeArrows = e.expandArrows
               loop(
-                remaining = (parent -> children) :: t,
-                arrows = arrows ++ edgeArrows.flatten,
+                pendingGroups = pendingGroups,
+                arrows = arrows ++ edgeArrows,
                 groups = groups,
                 nodes = nodes,
-                memberships = parent.fold(memberships)(p => edgeArrows.flatten.map(_.id -> p) ++ memberships)
+                memberships = groupId.fold(memberships)(gId => edgeArrows.map(_.id -> gId) ++ memberships)
               )
 
-            case NodeStmt(dotNodeId, attr_list) =>
-              val nodeId = NodeId(dotNodeId.id)
+            case n: NodeStmt =>
+              val viewerNode = nodeStmtToViewerNode(n)
               loop(
-                remaining = (parent -> children) :: t,
+                pendingGroups = pendingGroups,
                 arrows = arrows,
                 groups = groups,
-                nodes = node(nodeId, Attributes(toAttrsMap(attr_list))) :: nodes,
-                memberships = parent.fold(memberships)(p => (nodeId -> p) :: memberships)
+                nodes = viewerNode :: nodes,
+                memberships = groupId.fold(memberships)(gId => (viewerNode.id -> gId) :: memberships)
               )
 
             case _ =>
-              loop(remaining = (parent -> children) :: t, arrows, groups, nodes, memberships)
+              loop(pendingGroups, arrows, groups, nodes, memberships)
 
     loop(
-      remaining = List(None -> ast.children),
+      pendingGroups = List(None -> ast.children),
       arrows = Nil,
       groups = Nil,
       nodes = Nil,

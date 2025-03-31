@@ -14,14 +14,15 @@ case class IdsByKind(
 case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
 
   // TODO: Find a way to avoid this cast
-  def upcast = ids.asInstanceOf[Set[ElementId]]
+  private def upcast = ids.asInstanceOf[Set[ElementId]]
 
-  def isEmpty: Boolean                              = ids.isEmpty
-  def nonEmpty: Boolean                             = ids.nonEmpty
-  def size: Int                                     = ids.size
-  def head: ElementId                               = ids.head
-  infix def intersect(that: ElementIds): ElementIds = ElementIds(upcast intersect that.upcast)
-  def toggle(id:            ElementId)              = if id notIn this then this + id else this - id
+  def isEmpty: Boolean      = ids.isEmpty
+  def nonEmpty: Boolean     = ids.nonEmpty
+  def size: Int             = ids.size
+  def head: ElementId       = ids.head
+  def toggle(id: ElementId) = if id notIn this then this + id else this - id
+
+  infix def intersect(that: ElementIds) = ElementIds(upcast intersect that.upcast)
 
   def contains(id: ElementId): Boolean =
     upcast.contains(id)

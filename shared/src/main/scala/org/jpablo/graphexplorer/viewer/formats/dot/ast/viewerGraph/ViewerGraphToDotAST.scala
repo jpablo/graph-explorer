@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.models.*
 def graphToDotAST(graph: ViewerGraph): DotAST =
   DotAST(
     tpe = graph.tpe.toString,
-    children = graphDataToDotGraphElements(graph.combineStyleAttributes),
+    children = viewerGraphElementsToDotGraphElements(graph.combineStyleAttributes),
     id = Some(graph.id)
   )
 
@@ -34,7 +34,7 @@ private def attrs(attrs: Attributes, target: AttributeTarget) =
     Nil
 
 // TODO: Add more tests for this function
-def graphDataToDotGraphElements(elements: ViewerGraphElements): List[GraphElement] =
+def viewerGraphElementsToDotGraphElements(elements: ViewerGraphElements): List[GraphElement] =
 
   def belongsToGroup(memberId: GroupMemberId, groupId: GroupId): Boolean =
     elements.memberships.getOrElse(memberId, elements.rootId) == groupId
