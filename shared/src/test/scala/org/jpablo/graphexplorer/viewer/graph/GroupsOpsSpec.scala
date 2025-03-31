@@ -70,7 +70,7 @@ class GroupsOpsSpec extends FunSuite:
     val updatedGraph = graphWithGroup.moveToGroup(groupId, Seq(a, b))
 
     // Verify nodes were moved to the group
-    val expected = Map(a.up -> groupId, b -> groupId, c -> groupId)
+    val expected = Map[GroupMemberId, GroupId](a -> groupId, b -> groupId, c -> groupId)
     assertEquals(updatedGraph.memberships, expected, "All nodes should be in the group")
   }
 
@@ -87,7 +87,7 @@ class GroupsOpsSpec extends FunSuite:
 
     assertEquals(
       graphWithNestedGroup.memberships,
-      Map(a.up -> nestedGroupId, b -> nestedGroupId) ++ Map(c -> parentGroupId, nestedGroupId -> parentGroupId),
+      Map[GroupMemberId, GroupId](a -> nestedGroupId, b -> nestedGroupId) ++ Map(c -> parentGroupId, nestedGroupId -> parentGroupId),
       "Verify initial group structure"
     )
 
@@ -97,7 +97,7 @@ class GroupsOpsSpec extends FunSuite:
     // Verify nodes were moved to parent group
     assertEquals(
       updatedGraph.memberships,
-      Map(a.up -> parentGroupId, b -> parentGroupId, c -> parentGroupId, nestedGroupId -> parentGroupId),
+      Map[GroupMemberId, GroupId](a -> parentGroupId, b -> parentGroupId, c -> parentGroupId, nestedGroupId -> parentGroupId),
       "Nodes a, b should be moved to parent group"
     )
   }

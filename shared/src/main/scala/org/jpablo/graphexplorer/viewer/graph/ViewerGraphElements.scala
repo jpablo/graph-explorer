@@ -15,7 +15,7 @@ case class ViewerGraphElements(
     // membership to the root group is implicit
     // i.e. Map(id -> rootId) is not included and would be redundant.
     // i.e. if an element is not in memberships, it belongs to the root group
-    memberships: Map[ElementId, GroupId] = Map.empty,
+    memberships: Map[GroupMemberId, GroupId] = Map.empty,
     // The root group does appear here (defaults for nodes and edges).
     groups: Map[GroupId, ViewerGroup] = Map(initialGroup)
 ):
@@ -31,19 +31,26 @@ end ViewerGraphElements
 object ViewerGraphElements:
 
   val defaultRootId = GroupId("G")
-  val initialGroup = defaultRootId -> group(defaultRootId)
+  val initialGroup  = defaultRootId -> group(defaultRootId)
 
   def from(data: FlattenedGraphElement) =
-    val arrowEndpoints = data.arrows.flatMap(_.endpoints).toSet
-    val nodesMap = data.nodes.map(n => n.id -> n).toMap
+    val arrowEndpoints  = data.arrows.flatMap(_.endpoints).toSet
+    val nodesMap        = data.nodes.map(n => n.id -> n).toMap
     val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
 
+    val memberships =
+      data.memberships.foldLeft(Map.empty[GroupMemberId, GroupId]):
+        case (acc, (memId, groupId)) =>
+          memId match
+            case m: GroupMemberId => acc + (m -> groupId)
+            case _           => acc
+
     ViewerGraphElements(
-      rootId      = data.rootId,
-      nodes       = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
-      arrows      = data.arrows.map(a => a.id -> a).toMap,
-      memberships = data.memberships.toMap, // This messes up with the order of elements
-      groups      = data.groups.map(g => g.id -> g).toMap
+      rootId = data.rootId,
+      nodes = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
+      arrows = data.arrows.map(a => a.id -> a).toMap,
+      memberships = memberships,
+      groups = data.groups.map(g => g.id -> g).toMap
     )
 
   val minimal = ViewerGraphElements()

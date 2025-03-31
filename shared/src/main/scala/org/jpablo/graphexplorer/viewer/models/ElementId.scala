@@ -8,8 +8,6 @@ import scala.compiletime.asMatchable
 sealed trait ElementId derives CanEqual, ReadWriter:
   def value: String
 
-  def up[A <: ElementId]: ElementId = this
-
   def isGroupId: Boolean = this match { case _: GroupId => true; case _ => false }
   def isNodeId: Boolean = this match { case _: NodeId => true; case _ => false }
   def isArrowId: Boolean = this match { case _: ArrowId => true; case _ => false }
@@ -18,10 +16,12 @@ sealed trait ElementId derives CanEqual, ReadWriter:
   def asArrowId: Option[ArrowId] = this match { case id: ArrowId => Some(id); case _ => None }
   def asGroupId: Option[GroupId] = this match { case id: GroupId => Some(id); case _ => None }
 
-case class GroupId(value: String) extends ElementId derives CanEqual:
+sealed trait GroupMemberId extends ElementId derives ReadWriter
+
+case class GroupId(value: String) extends GroupMemberId derives CanEqual:
   override def toString: String = value
 
-case class NodeId(value: String) extends ElementId:
+case class NodeId(value: String) extends GroupMemberId:
   override def toString: String = value
 
 case class ArrowId(value: String) extends ElementId:

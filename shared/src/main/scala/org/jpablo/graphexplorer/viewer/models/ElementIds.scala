@@ -16,12 +16,12 @@ case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
   // TODO: Find a way to avoid this cast
   def upcast = ids.asInstanceOf[Set[ElementId]]
 
-  def isEmpty: Boolean = ids.isEmpty
-  def nonEmpty: Boolean = ids.nonEmpty
-  def size: Int = ids.size
-  def head: ElementId = ids.head
+  def isEmpty: Boolean                              = ids.isEmpty
+  def nonEmpty: Boolean                             = ids.nonEmpty
+  def size: Int                                     = ids.size
+  def head: ElementId                               = ids.head
   infix def intersect(that: ElementIds): ElementIds = ElementIds(upcast intersect that.upcast)
-  def toggle(id:            ElementId) = if id notIn this then this + id else this - id
+  def toggle(id:            ElementId)              = if id notIn this then this + id else this - id
 
   def contains(id: ElementId): Boolean =
     upcast.contains(id)
@@ -29,8 +29,8 @@ case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
   def filter(p: ElementId => Boolean): ElementIds =
     ElementIds(ids.filter(p))
 
-  def +(that:  ElementId): ElementIds = ElementIds(upcast + that)
-  def -(that:  ElementId): ElementIds = ElementIds(upcast - that)
+  def +(that:  ElementId): ElementIds  = ElementIds(upcast + that)
+  def -(that:  ElementId): ElementIds  = ElementIds(upcast - that)
   def ++(that: ElementIds): ElementIds = ElementIds(upcast ++ that.upcast)
   def --(that: ElementIds): ElementIds = ElementIds(upcast -- that.upcast)
   @targetName("addSet")
@@ -38,9 +38,11 @@ case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
   @targetName("removeSet")
   def --(that: Set[? <: ElementId]): ElementIds = ElementIds(upcast -- that)
 
-  def nodeIds = ids.collect { case id: NodeId => id }
+  def nodeIds  = ids.collect { case id: NodeId => id }
   def arrowIds = ids.collect { case id: ArrowId => id }
   def groupIds = ids.collect { case id: GroupId => id }
+
+  def memberIds: Set[GroupMemberId] = ids.collect { case id: (GroupId | NodeId) => id }
 
   def classify: IdsByKind =
     ids.foldLeft(IdsByKind()): (acc, eId) =>

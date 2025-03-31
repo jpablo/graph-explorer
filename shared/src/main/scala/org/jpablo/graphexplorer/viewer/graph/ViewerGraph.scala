@@ -53,7 +53,7 @@ case class ViewerGraph(
   def getNode(id: NodeId): Option[ViewerNode] =
     nodes.get(id)
 
-  def membership(id: ElementId): Option[GroupId] =
+  def membership(id: GroupMemberId): Option[GroupId] =
     memberships.get(id)
 
   def summary =
