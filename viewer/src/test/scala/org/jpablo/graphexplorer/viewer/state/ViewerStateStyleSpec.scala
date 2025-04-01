@@ -128,7 +128,7 @@ class ViewerStateStyleSpec extends FunSuite:
     state.addNodeWithSmartConnection()
 
     val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val localUpdates = state.elementAttributes(ElementIds(state.allNodeIds()))
+    val localUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
 
     val defaults = Some(state.defaults(AttributeTarget.node))
 
@@ -152,7 +152,7 @@ class ViewerStateStyleSpec extends FunSuite:
     state.addNodeWithSmartConnection()
 
     val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val localUpdates = state.elementAttributes(ElementIds(state.allNodeIds()))
+    val localUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
 
     val nodeDefaults = Some(state.defaults(AttributeTarget.node))
 
@@ -172,7 +172,7 @@ class ViewerStateStyleSpec extends FunSuite:
     state.addNodeWithSmartConnection()
 
     val rootUpdates   = state.defaultAttributesUpdates(AttributeTarget.node)
-    val localUpdates  = state.elementAttributes(ElementIds(state.allNodeIds()))
+    val localUpdates  = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
     val defaults      = Some(state.defaults(AttributeTarget.node))
     val rootControls  = NodeStyleControls(state, rootUpdates)
     val localControls = NodeStyleControls(state, localUpdates, defaults)
@@ -211,7 +211,7 @@ class ViewerStateStyleSpec extends FunSuite:
     state.addNodeWithSmartConnection()
 
     val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val localUpdates = state.elementAttributes(ElementIds(state.allNodeIds()))
+    val localUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
 
     val defaults = Some(state.defaults(AttributeTarget.node))
 

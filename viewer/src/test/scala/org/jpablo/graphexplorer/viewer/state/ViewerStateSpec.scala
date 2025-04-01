@@ -122,7 +122,7 @@ class ViewerStateSpec extends FunSuite:
     val Seq(arrowId) = viewerState.allArrowIds().toSeq
 
     // Test updating node attributes
-    val nodeUpdates = viewerState.elementAttributes(ElementIds.from(nodeA))
+    val nodeUpdates = viewerState.elementAttributesUpdates(ElementIds.from(nodeA))
     nodeUpdates.update(_ + (Color.attrId -> AttrValue("red")))
 
     // Verify node attributes are updated
@@ -134,7 +134,7 @@ class ViewerStateSpec extends FunSuite:
     )
 
     // Test updating arrow attributes
-    val arrowUpdates = viewerState.elementAttributes(ElementIds.from(arrowId))
+    val arrowUpdates = viewerState.elementAttributesUpdates(ElementIds.from(arrowId))
     arrowUpdates.update(_ + (Style.attrId -> AttrValue("dotted")))
 
     // Verify arrow attributes are updated
@@ -146,7 +146,7 @@ class ViewerStateSpec extends FunSuite:
     )
 
     // Test updating multiple elements at once
-    val multiUpdates = viewerState.elementAttributes(ElementIds(Set(nodeA, nodeB)))
+    val multiUpdates = viewerState.elementAttributesUpdates(ElementIds(Set(nodeA, nodeB)))
     multiUpdates.update(_ + (Shape.attrId -> AttrValue("box")))
 
     // Verify multiple elements are updated

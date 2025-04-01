@@ -22,7 +22,7 @@ def MiniStyleView(state: ViewerState) =
               div(
                 MiniArrowsAttributesView(
                   state,
-                  updates = state.elementAttributes(ElementIds(arrowIds)),
+                  updates = state.elementAttributesUpdates(ElementIds(arrowIds)),
                   defaults = Some(state.defaults(AttributeTarget.edge)),
                 ).amend(cls("selection-attributes"))
               )
@@ -32,7 +32,7 @@ def MiniStyleView(state: ViewerState) =
                 MiniNodesAttributesView(
                   "SelectionAttributes",
                   state,
-                  updates = state.elementAttributes(ElementIds(nodeIds)),
+                  updates = state.elementAttributesUpdates(ElementIds(nodeIds)),
                   defaults = Some(state.defaults(AttributeTarget.node))
                 ).amend(cls("selection-attributes"))
               )
@@ -41,7 +41,7 @@ def MiniStyleView(state: ViewerState) =
               div(
                 MiniGroupAttributesView(
                   state = state,
-                  attrsVar = state.elementAttributes(ElementIds(clusterIds)),
+                  attrsVar = state.elementAttributesUpdates(ElementIds(clusterIds)),
                   defaults = Some(state.defaults(AttributeTarget.graph)),
                 ).amend(cls("selection-attributes"))
               )

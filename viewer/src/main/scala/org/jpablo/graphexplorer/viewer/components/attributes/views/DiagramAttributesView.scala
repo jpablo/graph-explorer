@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
@@ -13,7 +12,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, multiText, r
   * The root graph is itself a group (cluster) but it has some specific attributes.
   */
 def DiagramAttributesView(state: ViewerState) =
-  val builder = RowBuilder(state.defaultAttributesUpdates(AttributeTarget.graph), state.graphLayout, None)
+  val builder = RowBuilder(state.diagramAttributesUpdates, state.graphLayout, None)
   import builder.{row, rows}
 
   val directedVar = buildDirectedVar(state.graphType)

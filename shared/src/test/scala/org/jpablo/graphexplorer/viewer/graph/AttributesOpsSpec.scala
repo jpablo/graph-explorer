@@ -55,7 +55,8 @@ class AttributesOpsSpec extends FunSuite:
   test("removeUnsupportedFeatures should remove 'size' attribute from root graph") {
     // Create a graph with a 'size' attribute
     val graph = createTestGraph()
-      .modifyDefaultGroupAttrs.using(_ + (Size.attrId -> AttrValue("10,10")))
+      .modifyDefaultAttributes(AttributeTarget.graph)
+      .using(_ + (Size.attrId -> AttrValue("10,10")))
 
     // Apply the method
     val result = graph.removeUnsupportedFeatures
@@ -128,7 +129,7 @@ class AttributesOpsSpec extends FunSuite:
     // Create a graph with sub-attributes
     val graph0 = ViewerGraph.minimal
       .addNodeWithId(a)
-      .updateDefaultAttributes(AttributeTarget.node)(_ + (BoldStyle.attrId -> trueAttr))
+      .modifyDefaultAttributes(AttributeTarget.node).using(_ + (BoldStyle.attrId -> trueAttr))
 
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).out
     val updates          = AttributesUpdates(update = Attributes.of(BorderStyle -> BorderStyle.dashed).values)
@@ -252,7 +253,7 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
 
     // Apply the method for graph attributes
-    val result = graph.updateDefaultAttributes(AttributeTarget.graph)(_ + (Color.attrId -> AttrValue("purple")))
+    val result = graph.modifyDefaultAttributes(AttributeTarget.graph).using(_ + (Color.attrId -> AttrValue("purple")))
 
     // Verify the attributes are updated
     assertEquals(

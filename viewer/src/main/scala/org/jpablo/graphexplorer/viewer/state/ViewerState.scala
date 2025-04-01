@@ -124,19 +124,16 @@ case class ViewerState(
   def nodeShape: Signal[Shape] =
     defaults(AttributeTarget.node).map(_.getAs(Shape))
 
-  /** This targets the root group of the graph. It is used to set attributes that apply to the entire graph, such as background color, rank
-    * direction, etc.
-    *
-    * node [...] edge [...] graph [...]
-    */
-  def defaultAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
-    sourceFlow.fullGraphV.zoomLens(AttributesOps.defaultAttributesUpdates(target))
-
   def defaults(target: AttributeTarget): Signal[Attributes] =
     fullGraph.map(_.getDefaultAttributes(target))
 
-  // individual node attributes
-  def elementAttributes(elementIds: ElementIds): Var[AttributesUpdates] =
+  def diagramAttributesUpdates: Var[AttributesUpdates] =
+    sourceFlow.fullGraphV.zoomLens(AttributesOps.diagramAttributesUpdates)
+
+  def defaultAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
+    sourceFlow.fullGraphV.zoomLens(AttributesOps.defaultAttributesUpdates(target))
+
+  def elementAttributesUpdates(elementIds: ElementIds): Var[AttributesUpdates] =
     sourceFlow.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
 
 end ViewerState

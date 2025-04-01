@@ -61,11 +61,21 @@ extension (ast: DotAST)
             case m: GroupMemberId => acc + (m -> groupId)
             case _                => acc
 
+    val attrs = ast.toSubGraph.collectAttributesByTarget
+
+    val attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty))
+    val arrowAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty))
+    val nodeAttrs  = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
+
     ViewerGraphElements(
       nodes = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
       arrows = arrows.map(a => a.id -> a).toMap,
       memberships = filteredMemberships,
-      groups = groups.map(g => g.id -> g).toMap
+      groups = groups.map(g => g.id -> g).toMap,
+      graphAttributes = attributes, // TODO: split attributes (here and below)
+      defaultNodeAttributes = nodeAttrs,
+      defaultArrowAttributes = arrowAttrs,
+      defaultGroupAttributes = attributes // <--
     )
 
   /** Builds a ViewerGraphElements from a DotAST.

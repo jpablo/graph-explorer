@@ -25,10 +25,6 @@ import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 trait AttributesOps:
   this: ViewerGraph =>
 
-  lazy val modifyDefaultGroupAttrs: PathModify[ViewerGraph, Attributes] = (modify(_: ViewerGraph)(_.elements.defaultGroupAttributes))(this)
-  lazy val modifyDefaultNodeAttrs: PathModify[ViewerGraph, Attributes]  = (modify(_: ViewerGraph)(_.elements.defaultNodeAttributes))(this)
-  lazy val modifyDefaultArrowAttrs: PathModify[ViewerGraph, Attributes] = (modify(_: ViewerGraph)(_.elements.defaultArrowAttributes))(this)
-
   lazy val removeUnsupportedFeatures: ViewerGraph =
     this.modify(_.elements.graphAttributes).using(_ - Size.attrId - Overlap.attrId)
 
@@ -39,7 +35,8 @@ trait AttributesOps:
       groups = groups.transform { (id, g) =>
         group(
           groupId = g.id,
-          attributes = expandElementAttributes(id, g.attributes),
+          attributes = expandElementAttributes(id, g.attributes)
+          // TODO: expand the arrow and node attributes
 //          arrowAttrs = expandElementAttributes(id, g.arrowAttrs),
 //          nodeAttrs = expandElementAttributes(id, g.nodeAttrs)
         )
@@ -61,7 +58,7 @@ trait AttributesOps:
       groups = groups.transform { (id, g) =>
         group(
           groupId = g.id,
-          attributes = combineElementAttributes(id, g.attributes),
+          attributes = combineElementAttributes(id, g.attributes)
 //          arrowAttrs = combineElementAttributes(id, g.arrowAttrs),
 //          nodeAttrs = combineElementAttributes(id, g.nodeAttrs)
         )
@@ -175,12 +172,9 @@ trait AttributesOps:
 
   def modifyDefaultAttributes(target: AttributeTarget) =
     target match
-      case AttributeTarget.graph => modifyDefaultGroupAttrs
-      case AttributeTarget.node  => modifyDefaultNodeAttrs
-      case AttributeTarget.edge  => modifyDefaultArrowAttrs
-
-  def updateDefaultAttributes(target: AttributeTarget)(update: Attributes => Attributes): ViewerGraph =
-    modifyDefaultAttributes(target).using(update)
+      case AttributeTarget.graph => this.modify(_.elements.defaultGroupAttributes)
+      case AttributeTarget.node  => this.modify(_.elements.defaultNodeAttributes)
+      case AttributeTarget.edge  => this.modify(_.elements.defaultArrowAttributes)
 
   val defaultNodeTheme =
     Attributes.of(Sides -> 5)
@@ -197,11 +191,18 @@ trait AttributesOps:
 
 object AttributesOps:
 
+  /** Lens for accessing and updating the main graph attributes */
+  def diagramAttributesUpdates: Lens[ViewerGraph, AttributesUpdates] =
+    Lens(
+      in = graph => graph.elements.graphAttributes.toUpdates,
+      out = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyUpdatesTo)
+    )
+
   /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
   def defaultAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributesUpdates] =
     Lens(
       in = graph => graph.getDefaultAttributes(target).toUpdates,
-      out = (graph, updates) => graph.updateDefaultAttributes(target)(updates.applyUpdatesTo)
+      out = (graph, updates) => graph.modifyDefaultAttributes(target).using(updates.applyUpdatesTo)
     )
 
   /** Bundle functions for updating attributes of specific elements */

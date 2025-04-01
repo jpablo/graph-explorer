@@ -25,7 +25,7 @@ trait ExportOps:
   def printVisibleGraphToConsole(): Unit =
     for graph <- visibleGraph do
       // Don't remove this line!! it IS the actual functionality
-      pprint.log(graph, showFieldNames = false)
+      pprint.log(graph, showFieldNames = true)
       dom.console.log("Visible graph printed to the console")
   
   def printVisibleDOTtoConsole(): Unit =
