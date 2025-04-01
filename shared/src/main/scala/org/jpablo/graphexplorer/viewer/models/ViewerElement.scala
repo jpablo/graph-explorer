@@ -91,11 +91,10 @@ end Arrow
 case class ViewerGroup private (
     override val id: GroupId,
     attributes:      Attributes = Attributes.empty
-) extends ViewerElement derives CanEqual
+) extends ViewerElement derives CanEqual:
+  def modifyAttrs = this.modify(_.attributes)
 
 object ViewerGroup:
-  def modifyAttrs = modify(_: ViewerGroup)(_.attributes)
-
   val defaultGroupAttributes: Attributes =
     Attributes.of(
       Label           -> "",

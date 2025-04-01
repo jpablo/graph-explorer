@@ -19,7 +19,6 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
 }
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
-import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 
 trait AttributesOps:
@@ -31,22 +30,20 @@ trait AttributesOps:
   /** Expands the "style" attribute into its sub-attributes (fill, bold, invisible, border, corner)
     */
   def expandStyleAttributes: ViewerGraphElements =
-    elements.copy(
-      groups = groups.transform { (id, g) =>
-        group(
-          groupId = g.id,
-          attributes = expandElementAttributes(id, g.attributes)
-          // TODO: expand the arrow and node attributes
-//          arrowAttrs = expandElementAttributes(id, g.arrowAttrs),
-//          nodeAttrs = expandElementAttributes(id, g.nodeAttrs)
-        )
-      },
-      nodes = nodes.transform((id, n) => n.modifyAttrs.setTo(expandElementAttributes(id, n.attributes)))
-    )
+    elements
+      .copy(
+        nodes = nodes.transform((_, n) => n.modifyAttrs.using(expandElementAttributes)),
+        groups = groups.transform((_, g) => g.modifyAttrs.using(expandElementAttributes))
+      ).modifyAll(
+        _.graphAttributes,
+        _.defaultNodeAttributes,
+        _.defaultArrowAttributes,
+        _.defaultGroupAttributes
+      ).using(expandElementAttributes)
 
   // DOT -> ViewerGraph
   // style="..." -> [fillStyle, boldStyle, invisibleStyle, borderStyle, cornerStyle]
-  private def expandElementAttributes(id: ElementId, attrs: Attributes): Attributes =
+  private def expandElementAttributes(attrs: Attributes): Attributes =
     attrs.get(NodeStyle.attrId).fold(attrs): styleAttr =>
       // replace the "style" attribute with its sub-attributes (fill, bold, etc.)
       attrs - NodeStyle.attrId ++ StyleSubAttributes.parse(styleAttr).withDefaults.toAttributes
@@ -54,27 +51,25 @@ trait AttributesOps:
   /** Combines the style sub-attributes into a single "style" attribute.
     */
   def combineStyleAttributes: ViewerGraphElements =
-    elements.copy(
-      groups = groups.transform { (id, g) =>
-        group(
-          groupId = g.id,
-          attributes = combineElementAttributes(id, g.attributes)
-//          arrowAttrs = combineElementAttributes(id, g.arrowAttrs),
-//          nodeAttrs = combineElementAttributes(id, g.nodeAttrs)
-        )
-      },
-      nodes = nodes.transform { (id, n) =>
-        n.modifyAttrs.setTo(
-          combineElementAttributes(id, n.attributes, defaults = Some(elements.defaultNodeAttributes))
-        )
-      }
-    )
+    elements
+      .copy(
+        nodes = nodes.transform { (_, n) =>
+          n.modifyAttrs.using(combineElementAttributes(_, defaults = Some(elements.defaultNodeAttributes)))
+        },
+        groups = groups.transform { (_, g) =>
+          g.modifyAttrs.using(combineElementAttributes(_, defaults = Some(elements.defaultGroupAttributes)))
+        }
+      ).modifyAll(
+        _.graphAttributes,
+        _.defaultNodeAttributes,
+        _.defaultArrowAttributes,
+        _.defaultGroupAttributes
+      ).using(combineElementAttributes(_))
 
   // ViewerGraph -> DOT
   // Replace the sub-attributes with the combined "style" attribute
   // [fillStyle, boldStyle, invisibleStyle, borderStyle, cornerStyle] -> style="..."
   private def combineElementAttributes(
-      id:       ElementId,
       attrs:    Attributes,
       defaults: Option[Attributes] = None
   ): Attributes =
@@ -114,7 +109,7 @@ trait AttributesOps:
 
     val updatedClusters = groups.view
       .filterKeys(groupId => groupId in clusterIds)
-      .mapValues(g => ViewerGroup.modifyAttrs(g).using(updates.applyUpdatesTo))
+      .mapValues(_.modifyAttrs.using(updates.applyUpdatesTo))
       .toMap
 
     val nodeIdsToUpdate = classified.nodes ++
