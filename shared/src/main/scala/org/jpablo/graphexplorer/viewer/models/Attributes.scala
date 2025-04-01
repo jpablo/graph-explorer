@@ -70,6 +70,9 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
 
   def get(key:  AttributeId): Option[AttrValue]     = values.get(key)
   def get(attr: DotAttribute[?]): Option[AttrValue] = values.get(attr.attrId)
+  
+  def filterKeys(p: AttributeId => Boolean): Attributes =
+    Attributes(values.view.filterKeys(p).toMap)
 
   def getAs[A, B <: DotAttribute[A]](b: B): A =
     get(b.attrId)

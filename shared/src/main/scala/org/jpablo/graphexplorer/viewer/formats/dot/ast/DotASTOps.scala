@@ -1,8 +1,9 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
+import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes as attr //.{BgColor, Concentrate, GraphType, Label, LabelJust, Layout, NodeSep, RankSep, Rankdir, RootGraphLabelLoc, Splines}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
@@ -20,7 +21,7 @@ extension (ast: DotAST)
       case Some(id) =>
         // TODO: should resetId be called inside toViewerGraphElements?
         EdgeStmt.resetId()
-        val g = ViewerGraph(elements = ast.toViewerGraphElements, id = id, tpe = GraphType.valueOf(ast.tpe))
+        val g = ViewerGraph(elements = ast.toViewerGraphElements, id = id, tpe = attr.GraphType.valueOf(ast.tpe))
         g.modifyElements.setTo(g.expandStyleAttributes)
 
       case None =>
@@ -33,14 +34,9 @@ extension (ast: DotAST)
     )
 
   private def subGraphToViewerGroup(sub: SubGraph, gId: Option[GroupId] = None): ViewerGroup =
-    val attrs = sub.collectAttributesByTarget
     group(
       groupId = gId.getOrElse(GroupId(sub.id.getOrElse(SubGraph.randomId()))),
-      attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty))
-      // arrow and node attributes in a subGraph are not supported in the viewer
-      // TODO: copy the attributes to each element!
-//      arrowAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
-//      nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
+      attributes = Attributes(sub.collectAttributesByTarget.getOrElse(AttributeTarget.graph, Map.empty))
     )
 
   private def buildViewerGraphElements(
@@ -61,21 +57,40 @@ extension (ast: DotAST)
             case m: GroupMemberId => acc + (m -> groupId)
             case _                => acc
 
-    val attrs = ast.toSubGraph.collectAttributesByTarget
+    // Top level attributes. Only keep one set of attributes for each target.
+    // TODO: In case of multiple attributes, we need to keep track of their scope (nodes following the attribute)
+    // and apply them accordingly.
+    val attrsByTarget = ast.toSubGraph.collectAttributesByTarget
 
-    val attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty))
-    val arrowAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty))
-    val nodeAttrs  = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
+    val attributes = Attributes(attrsByTarget.getOrElse(AttributeTarget.graph, Map.empty))
+    val arrowAttrs = Attributes(attrsByTarget.getOrElse(AttributeTarget.edge, Map.empty))
+    val nodeAttrs  = Attributes(attrsByTarget.getOrElse(AttributeTarget.node, Map.empty))
+
+    // These attributes are only used for the top level graph (as opposed to group defaults)
+    // We separate them when importing from DOT and merge them when exporting to DOT.
+    val graphAttrIds = Set(
+      attr.BgColor.attrId,
+      attr.Concentrate.attrId,
+      attr.Label.attrId,
+      attr.LabelJust.attrId,
+      attr.Layout.attrId,
+      attr.NodeSep.attrId,
+      attr.Pad.attrId,
+      attr.RankSep.attrId,
+      attr.Rankdir.attrId,
+      attr.RootGraphLabelLoc.attrId,
+      attr.Splines.attrId
+    )
 
     ViewerGraphElements(
       nodes = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
       arrows = arrows.map(a => a.id -> a).toMap,
       memberships = filteredMemberships,
       groups = groups.map(g => g.id -> g).toMap,
-      graphAttributes = attributes, // TODO: split attributes (here and below)
+      graphAttributes = attributes.filterKeys(_ in graphAttrIds),
       defaultNodeAttributes = nodeAttrs,
       defaultArrowAttributes = arrowAttrs,
-      defaultGroupAttributes = attributes // <--
+      defaultGroupAttributes = attributes.filterKeys(_ notIn graphAttrIds)
     )
 
   /** Builds a ViewerGraphElements from a DotAST.
