@@ -24,9 +24,9 @@ trait DiagramSelectionOps:
       .distinct
     //    .tapEach(s => if s.nonEmpty then dom.console.log(s"Selection: $s"))
 
-    val _selectSuccessors = selectRelated((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
-    val _selectPredecessors = selectRelated((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
-    val _selectDirectSuccessors = selectRelated((graph, nodes) => graph.directSuccessorsGraph(nodes.nodeIds))
+    val _selectSuccessors         = selectRelated((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
+    val _selectPredecessors       = selectRelated((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
+    val _selectDirectSuccessors   = selectRelated((graph, nodes) => graph.directSuccessorsGraph(nodes.nodeIds))
     val _selectDirectPredecessors = selectRelated((graph, nodes) => graph.directPredecessorsGraph(nodes.nodeIds))
 
     private def selectRelated(
@@ -36,7 +36,6 @@ trait DiagramSelectionOps:
       val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selection.now())
       // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
       selection.add(relatedSubGraph.nodeIds ++ relatedSubGraph.arrowIds)
-
 
     def now(): Selection = selectionV.now()
 
@@ -59,12 +58,12 @@ trait DiagramSelectionOps:
       add(ElementIds(ss))
 
     def add(ss: Selection): Unit =
-      val current = now()
+      val current  = now()
       val newNodes = ss -- current
       if newNodes.nonEmpty then set(current ++ newNodes)
 
     def remove(ss: Selection): Unit =
-      val current = now()
+      val current       = now()
       val nodesToRemove = ss intersect current
       if nodesToRemove.nonEmpty then set(current -- nodesToRemove)
 
@@ -76,14 +75,17 @@ trait DiagramSelectionOps:
     def hide() =
       project.hiddenElements.update(_ ++ selection.now())
 
+    private val fullGraphNow: ViewerGraph = sourceFlow.fullGraph.now()
+    private val visibleGraphNow = sourceFlow.visibleGraph.observe().now()
+
     def selectGroupMembers() =
-      val s = now()
+      val s          = now()
       val classified = s.classify
 
       // If we have clusters/groups in the selection, find their members
-      if classified.clusters.nonEmpty then
-        val groupIds = classified.clusters
-        val fullGraphSnapshot = sourceFlow.fullGraph.now()
+      if classified.groups.nonEmpty then
+        val groupIds          = classified.groups
+        val fullGraphSnapshot = fullGraphNow
 
         // Get all node ids that are members of the selected groups
         val memberNodeIds = fullGraphSnapshot.getAllChildren(groupIds)
@@ -92,20 +94,20 @@ trait DiagramSelectionOps:
         set(s ++ memberNodeIds)
 
     def selectSuccessors() =
-      _selectSuccessors(sourceFlow.fullGraph.now(), hiddenElements.now())
+      _selectSuccessors(fullGraphNow, hiddenElements.now())
 
     def selectPredecessors() =
-      _selectPredecessors(sourceFlow.fullGraph.now(), hiddenElements.now())
+      _selectPredecessors(fullGraphNow, hiddenElements.now())
 
     def selectDirectSuccessors() =
-      _selectDirectSuccessors(sourceFlow.fullGraph.now(), hiddenElements.now())
+      _selectDirectSuccessors(fullGraphNow, hiddenElements.now())
 
     def selectDirectPredecessors() =
-      _selectDirectPredecessors(sourceFlow.fullGraph.now(), hiddenElements.now())
+      _selectDirectPredecessors(fullGraphNow, hiddenElements.now())
 
     def addToGroup() =
       val classified = now().classify
-      for groupNodeId <- classified.clusters.headOption do
+      for groupNodeId <- classified.groups.headOption do
         sourceFlow.fullGraphV.update(_.moveToGroup(groupNodeId, classified.nodes.toSeq))
 
     def group() =
@@ -115,32 +117,28 @@ trait DiagramSelectionOps:
       sourceFlow.fullGraphV.update(_.ungroupSelection(now()))
 
     def selectAllVisibleNodes() =
-      val visibleNodes = sourceFlow.visibleGraph.observe().now().nodeIds
+      val visibleNodes = visibleGraphNow.nodeIds
       set(visibleNodes)
 
     def selectAllVisibleArrows() =
-      val visibleArrows = sourceFlow.visibleGraph.observe().now().arrowIds
-      set(visibleArrows)
+      set(visibleGraphNow.arrowIds)
 
     def selectAllVisibleGroups() =
-      val visibleGraph = sourceFlow.visibleGraph.observe().now()
-      val groupIds = visibleGraph.groupIds.filter(_ != visibleGraph.rootId) // Exclude the root group
-      set(groupIds)
+      set(visibleGraphNow.groupIds)
 
     def selectAll() =
-      val visibleGraph = sourceFlow.visibleGraph.observe().now()
-      val nodes = visibleGraph.nodeIds
-      val edges = visibleGraph.arrowIds
-      val groups = visibleGraph.groupIds
-        .filter(_ != visibleGraph.rootId) // Exclude the root group
+      val visibleGraph = visibleGraphNow
+      val nodes        = visibleGraph.nodeIds
+      val edges        = visibleGraph.arrowIds
+      val groups       = visibleGraph.groupIds
       set(nodes ++ edges ++ groups)
 
     def deleteSelection() =
       sourceFlow.fullGraphV.update: fullGraph =>
         fullGraph.removeElements(now())
 
-    /** Duplicates the currently selected nodes. Creates new nodes with the same attributes as the selected nodes and
-      * places them in the same groups. The newly created nodes become the selected elements after duplication.
+    /** Duplicates the currently selected nodes. Creates new nodes with the same attributes as the selected nodes and places them in the
+      * same groups. The newly created nodes become the selected elements after duplication.
       */
     def duplicateSelection() =
       sourceFlow.fullGraphV.update: fullGraph =>
@@ -149,7 +147,7 @@ trait DiagramSelectionOps:
           fullGraph
         else
           // Filter out any non-node elements (like edges)
-          val classified = s.classify
+          val classified       = s.classify
           val nodesToDuplicate = classified.nodes
           if nodesToDuplicate.isEmpty then
             fullGraph
@@ -159,7 +157,7 @@ trait DiagramSelectionOps:
               case ((graph, newIds), originalId) =>
                 // Get the original node's attributes and group
                 val originalNode = graph.getNode(originalId).get // Look into this
-                val groupId = graph.membership(originalId)
+                val groupId      = graph.membership(originalId)
                 // Create a new node with a random ID
                 val (updatedGraph, newNodeId) = graph.addNode(groupId)
                 // Update the new node with the original node's attributes
@@ -197,11 +195,11 @@ trait DiagramSelectionOps:
       endSelectionLine()
       for action <- lineAction do
         val start = action.start
-        val sel = now()
+        val sel   = now()
         clear()
 
         // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
-        val bbox = start.get.getBoundingClientRect()
+        val bbox              = start.get.getBoundingClientRect()
         val mouseReleasePoint = (ev.clientX, ev.clientY)
         val isMouseInsideSourceNode =
           mouseReleasePoint._1 >= bbox.left &&
@@ -213,7 +211,6 @@ trait DiagramSelectionOps:
           start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
         else if sel.size == 2 then
           (sel - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
-
 
     def startSelectionArea(pos: ClientPoint, shift: Boolean): Unit =
       selectionRectArea.set(Some(Action.Area(UserActionRect(pos, pos, shift))))
@@ -287,14 +284,14 @@ trait DiagramSelectionOps:
       *   true if the element's bounding box intersects with the selection rectangle
       *
       * The method:
-      *   1. Gets the element's bounding box in client coordinates 2. Normalizes the selection rect coordinates to
-      *      handle any direction of dragging 3. Uses a standard rectangle intersection test
+      *   1. Gets the element's bounding box in client coordinates 2. Normalizes the selection rect coordinates to handle any direction of
+      *      dragging 3. Uses a standard rectangle intersection test
       */
     def isNodeInRect(elem: SelectableElement, rect: UserActionRect): Boolean =
-      val bbox = elem.get.getBoundingClientRect()
-      val x = rect.start.x min rect.end.x
-      val y = rect.start.y min rect.end.y
-      val width = math.abs(rect.end.x - rect.start.x)
+      val bbox   = elem.get.getBoundingClientRect()
+      val x      = rect.start.x min rect.end.x
+      val y      = rect.start.y min rect.end.y
+      val width  = math.abs(rect.end.x - rect.start.x)
       val height = math.abs(rect.end.y - rect.start.y)
       !(bbox.right < x ||
         bbox.left > x + width ||

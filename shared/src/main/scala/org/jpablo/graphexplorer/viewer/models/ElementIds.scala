@@ -6,9 +6,9 @@ import upickle.default.*
 import scala.annotation.targetName
 
 case class IdsByKind(
-    clusters: Set[GroupId] = Set.empty,
-    nodes:    Set[NodeId] = Set.empty,
-    arrows:   Set[ArrowId] = Set.empty
+    groups: Set[GroupId] = Set.empty,
+    nodes:  Set[NodeId] = Set.empty,
+    arrows: Set[ArrowId] = Set.empty
 )
 
 case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
@@ -48,7 +48,7 @@ case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
   def classify: IdsByKind =
     ids.foldLeft(IdsByKind()): (acc, eId) =>
       eId match
-        case id: GroupId => acc.copy(clusters = acc.clusters + id)
+        case id: GroupId => acc.copy(groups = acc.groups + id)
         case id: NodeId  => acc.copy(nodes = acc.nodes + id)
         case id: ArrowId => acc.copy(arrows = acc.arrows + id)
 

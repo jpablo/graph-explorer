@@ -18,7 +18,7 @@ def GroupAttributesView(
     defaultsView: Boolean
 ) =
   val multiSelection = state.selection.signal.map(_.size != 1)
-  val builder        = RowBuilder(attrsVar, state.layout, defaults)
+  val builder        = RowBuilder(attrsVar, state.graphLayout, defaults)
   import builder.{row, rows}
 
   val defaultsViewS = Signal.fromValue(defaultsView)

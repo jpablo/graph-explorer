@@ -26,7 +26,7 @@ def MiniArrowsAttributesView(
   given owner: Owner = state.owner
   val multiSelection = state.selection.signal.map(_.size != 1)
 
-  val builder = RowBuilder(updates, state.layout, defaults)
+  val builder = RowBuilder(updates, state.graphLayout, defaults)
   import builder.{row, rows}
 
   val labelRow = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)

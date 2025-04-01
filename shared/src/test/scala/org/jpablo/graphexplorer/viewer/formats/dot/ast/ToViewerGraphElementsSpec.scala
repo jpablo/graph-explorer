@@ -48,9 +48,6 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
   }
 
   test("toViewerGraphElements should return all arrows") {
-    // flaky
-
-
     val expectedArrows =
       List(
         arrow("x" -> "y", seq = 1),
@@ -65,9 +62,8 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
   test("toViewerGraphElements should return all groups") {
     val expectedGroups =
       List(
-        group(group0, nodeAttrs = Attributes.of(Shape -> Shape.egg)),
-        group(group1),
-        group(rootId)
+        group(group0, attributes = Attributes.of(Shape -> Shape.triangle)),
+        group(group1)
       ).map(a => a.id -> a).toMap
 
     assertEquals(viewerGraphElements.groups, expectedGroups)
@@ -76,13 +72,12 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
   test("toViewerGraphElements in empty graphs should find a single group (the root group)") {
     val emptyAST = DotAST(tpe = digraph.toString, children = Nil, id = Some(rootId.value))
     val emptyVGE = emptyAST.toViewerGraphElements
-    val expected = ViewerGraphElements(rootId = rootId, groups = Map(rootId -> group(rootId)))
+    val expected = ViewerGraphElements()
 
     assertEquals(emptyVGE, expected)
   }
 
   test("toViewerGraphElements should return all memberships") {
-    EdgeStmt.resetId()
     val expectedMemberships =
       List(
         NodeId("z") -> group0,
@@ -102,7 +97,9 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
         EdgeStmt(List(x, y)),
         SubGraph(
           List(
+            // this will be ignored (only the top level node and edge attributes are kept as defaults)
             AttrStmt("node", List(Attr("shape", "egg"))),
+            AttrStmt("graph", List(Attr("shape", "triangle"))), // this will be kept (group attributes)
             NodeStmt(z, List(Attr("label", "ZZ"))),
             EdgeStmt(List(a, b)),
             SubGraph(List(NodeStmt(d)), Some("cluster_1"))

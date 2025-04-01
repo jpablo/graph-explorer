@@ -36,17 +36,20 @@ trait GroupsOps:
       val newGroup = group(groupId, Attributes.of(Label -> label))
 
       // Find the common parent group if one exists
-      val parentGroupId =
-        memberIds.flatMap(membership)
-          .reduceOption((g1, g2) => if g1 == g2 then g1 else rootId)
-          .getOrElse(rootId)
+      // Get all parent group IDs for the elements being moved
+      val parents = memberIds.flatMap(membership)
+
+      // Determine the common parent (if any)
+      val commonParentId: Option[GroupId] =
+        if parents.size == 1 then parents.headOption
+        else None // No single common parent (or elements had no parents)
 
       val updated = memberships ++ memberIds.map(_ -> groupId)
       modifyElements.using(
         _.copy(
           groups = groups + (groupId -> newGroup),
           // Add the new group to the common parent if it's not the root
-          memberships = if parentGroupId == rootId then updated else updated + (groupId -> parentGroupId)
+          memberships = commonParentId.fold(updated)(pId => updated + (groupId -> pId))
         )
       )
 
@@ -64,20 +67,10 @@ trait GroupsOps:
     modifyMemberships.setTo(newMemberships)
 
   def getDirectChildren(groupIds: Set[GroupId]): Set[GroupMemberId] =
-    // For elements with explicit membership
-    val explicitChildren = memberships.collect { case (memId, gId) if gId in groupIds => memId }.toSet
+    memberships.collect { case (memId, gId) if gId in groupIds => memId }.toSet
 
-    // If this is the root group, also include elements that don't have explicit membership
-    // (as they default to the root group)
-    if groupIds.contains(rootId) then
-      val allNodeIds        = nodes.keySet
-      val allGroupIds       = groups.keySet - rootId // Exclude the root group itself
-      val allElementIds     = allNodeIds ++ allGroupIds
-      val explicitMemberIds = memberships.keySet
-
-      explicitChildren ++ (allElementIds -- explicitMemberIds)
-    else
-      explicitChildren
+  def getRootChildren: Set[GroupMemberId] =
+    (nodes.keySet ++ groups.keySet) -- memberships.keySet
 
   /** Returns all children elements within the specified groups, including nested elements. This includes direct children as well as
     * children of any subgroups recursively.

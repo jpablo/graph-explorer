@@ -31,7 +31,6 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
       DotAST(
         digraph.toString,
         List(
-          defaultGroupAttrStmt,
           NodeStmt(DotNodeId("a"), defaultNodeDotAttrs),
           NodeStmt(DotNodeId("b"), defaultNodeDotAttrs),
           EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("1"))))
@@ -58,10 +57,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
           nodes = Map(nodeWithId(a), nodeWithId(b)),
           arrows = Map(ab),
           memberships = Map(a -> newGroupId),
-          groups = Map(
-            initialGroup,
-            newGroupId -> group(newGroupId, Attributes.of(Label -> "New Group"))
-          )
+          groups = Map(newGroupId -> group(newGroupId, Attributes.of(Label -> "New Group")))
         )
       )
 
@@ -74,7 +70,6 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
       DotAST(
         digraph.toString,
         List(
-          defaultGroupAttrStmt,
           SubGraph(
             List(
               AttrStmt("graph", (defaultGroupAttributes + (Label.attrId -> AttrValue("New Group"))).toDotAttr),

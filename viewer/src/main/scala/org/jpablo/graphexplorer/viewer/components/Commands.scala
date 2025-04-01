@@ -67,11 +67,11 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
 
   private def moveToGroupActionVisible(selection: ElementIds): Boolean =
     val classified = selection.classify
-    classified.clusters.size == 1 && classified.nodes.nonEmpty
+    classified.groups.size == 1 && classified.nodes.nonEmpty
 
   private def isSingleGroupSelected(selection: ElementIds): Boolean =
     val classified = selection.classify
-    classified.clusters.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
+    classified.groups.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
 
   object headers:
     val common = "Common"

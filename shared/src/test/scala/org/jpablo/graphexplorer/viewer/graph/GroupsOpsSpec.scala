@@ -21,7 +21,7 @@ class GroupsOpsSpec extends FunSuite:
   test("moveToNewGroup should create a new group and add elements to it") {
     val graph = ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     // sanity check
-    assert(graph.groups == Map(initialGroup))
+    assert(graph.groups == Map.empty)
     assert(graph.memberships.isEmpty)
 
     // Add elements to a new group with a label
@@ -36,7 +36,7 @@ class GroupsOpsSpec extends FunSuite:
         _.copy(
           nodes       = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
           memberships = Map(a -> newGroupId, b -> newGroupId),
-          groups      = Map(initialGroup, newGroup)
+          groups      = Map(newGroup)
         )
       )
     assertEquals(updatedGraph, expected, "The graph should be updated with the new group and memberships")
@@ -128,7 +128,7 @@ class GroupsOpsSpec extends FunSuite:
     val updatedGraph = graph.moveToNewGroup("Group 1", a, b)
 
     // Get direct children of root group
-    val rootChildren = updatedGraph.getDirectChildren(Set(rootId))
+    val rootChildren = updatedGraph.getRootChildren
 
     // Verify direct children of root
     val group1 = updatedGraph.membership(a).get

@@ -56,7 +56,7 @@ class ViewerStateStyleSpec extends FunSuite:
     def ast: DotAST        = state.sourceFlow.visibleAST.observe().now()
 
     def getNodeDefaultAttrs: Map[AttributeId, AttrValue] =
-      graph.getRootAttributes(AttributeTarget.node).values
+      graph.getDefaultAttributes(AttributeTarget.node).values
 
     def getNodeAttrs =
       graph.nodes.keys.map(graph.getAttributesById).map(_.values).toList
@@ -71,7 +71,7 @@ class ViewerStateStyleSpec extends FunSuite:
 
   test("[Defaults] InvisibleStyle=true") {
     val state        = ViewerState(ProjectId("test"), _ => (), "")
-    val rootUpdates  = state.rootTargetAttributesUpdates(AttributeTarget.node)
+    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val rootControls = NodeStyleControls(state, rootUpdates)
 
     // --- Initial state ---
@@ -86,7 +86,7 @@ class ViewerStateStyleSpec extends FunSuite:
 
   test("[Defaults] borderStyle=dashed,InvisibleStyle=true -> borderStyle=dotted -> InvisibleStyle=false -> borderStyle=solid") {
     val state        = ViewerState(ProjectId("test"), _ => (), "")
-    val rootUpdates  = state.rootTargetAttributesUpdates(AttributeTarget.node)
+    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val rootControls = NodeStyleControls(state, rootUpdates)
 
     rootControls.setBorder(Some(BorderStyle.dashed))
@@ -109,7 +109,7 @@ class ViewerStateStyleSpec extends FunSuite:
 
   test("[Defaults] borderStyle=dashed,InvisibleStyle=true -> borderStyle=x") {
     val state        = ViewerState(ProjectId("test"), _ => (), "")
-    val rootUpdates  = state.rootTargetAttributesUpdates(AttributeTarget.node)
+    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val rootControls = NodeStyleControls(state, rootUpdates)
 
     rootControls.setBorder(Some(BorderStyle.dashed))
@@ -127,7 +127,7 @@ class ViewerStateStyleSpec extends FunSuite:
     given Owner = state.owner
     state.addNodeWithSmartConnection()
 
-    val rootUpdates  = state.rootTargetAttributesUpdates(AttributeTarget.node)
+    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val localUpdates = state.elementAttributes(ElementIds(state.allNodeIds()))
 
     val defaults = Some(state.defaults(AttributeTarget.node))
@@ -151,7 +151,7 @@ class ViewerStateStyleSpec extends FunSuite:
 //    given Owner = state.owner
     state.addNodeWithSmartConnection()
 
-    val rootUpdates  = state.rootTargetAttributesUpdates(AttributeTarget.node)
+    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val localUpdates = state.elementAttributes(ElementIds(state.allNodeIds()))
 
     val nodeDefaults = Some(state.defaults(AttributeTarget.node))
@@ -171,7 +171,7 @@ class ViewerStateStyleSpec extends FunSuite:
     val state = ViewerState(ProjectId("test"), _ => (), "")
     state.addNodeWithSmartConnection()
 
-    val rootUpdates   = state.rootTargetAttributesUpdates(AttributeTarget.node)
+    val rootUpdates   = state.defaultAttributesUpdates(AttributeTarget.node)
     val localUpdates  = state.elementAttributes(ElementIds(state.allNodeIds()))
     val defaults      = Some(state.defaults(AttributeTarget.node))
     val rootControls  = NodeStyleControls(state, rootUpdates)
@@ -210,7 +210,7 @@ class ViewerStateStyleSpec extends FunSuite:
     given Owner = state.owner
     state.addNodeWithSmartConnection()
 
-    val rootUpdates  = state.rootTargetAttributesUpdates(AttributeTarget.node)
+    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val localUpdates = state.elementAttributes(ElementIds(state.allNodeIds()))
 
     val defaults = Some(state.defaults(AttributeTarget.node))

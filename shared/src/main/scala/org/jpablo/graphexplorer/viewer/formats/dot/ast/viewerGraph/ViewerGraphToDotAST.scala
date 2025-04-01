@@ -27,7 +27,7 @@ private def arrowToStmt(arrow: Arrow): EdgeStmt =
     attr_list = (arrow.attributes.values + seqAsId).map((id, value) => Attr(id.value, value)).toList
   )
 
-private def attrs(attrs: Attributes, target: AttributeTarget) =
+private def attrs(target: AttributeTarget, attrs: Attributes) =
   if attrs.values.nonEmpty then
     List(AttrStmt(target.toString, attrs.values.map((id, value) => Attr(id.value, value)).toList))
   else
@@ -36,27 +36,56 @@ private def attrs(attrs: Attributes, target: AttributeTarget) =
 // TODO: Add more tests for this function
 def viewerGraphElementsToDotGraphElements(elements: ViewerGraphElements): List[GraphElement] =
 
-  def belongsToGroup(memberId: GroupMemberId, groupId: GroupId): Boolean =
-    elements.memberships.getOrElse(memberId, elements.rootId) == groupId
+  def belongsToGroup(memberId: GroupMemberId, groupId: Option[GroupId]): Boolean =
+    elements.memberships.get(memberId) == groupId
 
   def groupToSubGraph(groupId: GroupId, visited: Set[GroupId] = Set()): Option[SubGraph] =
     if groupId in visited then
       None
     else
-      val nodeStmts = elements.nodes.filter((nId, _) => belongsToGroup(nId, groupId)).map(nodeToStmt)
-      // Arrows can only be members of the root group
-      val edgeStmts = if groupId == elements.rootId then elements.arrows.values.map(arrowToStmt) else Iterable.empty
+      val nodeStmts = elements.nodes
+        .filter((nId, _) => belongsToGroup(nId, Some(groupId))).map(nodeToStmt)
+
       val subGraphs = elements.groups
-        .filter((gId, _) => belongsToGroup(gId, groupId))
+        .filter((gId, _) => belongsToGroup(gId, Some(groupId)))
         .flatMap((gId, _) => groupToSubGraph(gId, visited + groupId))
         .toList
 
       val viewerGroup = elements.groups(groupId)
-      val nodeAttrs   = attrs(viewerGroup.nodeAttrs, AttributeTarget.node)
-      val edgeAttrs   = attrs(viewerGroup.arrowAttrs, AttributeTarget.edge)
-      val groupAttrs  = attrs(viewerGroup.attributes, AttributeTarget.graph)
-
-      val children = groupAttrs ++ nodeAttrs ++ edgeAttrs ++ subGraphs ++ nodeStmts ++ edgeStmts
+      val groupAttrs  = attrs(AttributeTarget.graph, viewerGroup.attributes)
+      // only 3 types of children are allowed in a subgraph:
+      // 1. Cluster attributes (i.e. the current group configuration)
+      // 2. SubGraphs
+      // 3. Nodes
+      val children = groupAttrs ++ subGraphs ++ nodeStmts
       Some(SubGraph(children, Some(groupId.value)))
 
-  groupToSubGraph(elements.rootId).map(_.children).getOrElse(Nil)
+  def topLevelGraphToSubGraph: Option[SubGraph] =
+    val nodeStmts = elements.nodes
+      .filter((nId, _) => belongsToGroup(nId, None))
+      .map(nodeToStmt)
+
+    val edgeStmts = elements.arrows.values.map(arrowToStmt)
+
+    val subGraphs = elements.groups
+      .filter((gId, _) => belongsToGroup(gId, None))
+      .flatMap((gId, _) => groupToSubGraph(gId))
+      .toList
+
+    val graphAttributes        = attrs(AttributeTarget.graph, elements.graphAttributes)
+    val defaultNodeAttributes  = attrs(AttributeTarget.node, elements.defaultNodeAttributes)
+    val defaultArrowAttributes = attrs(AttributeTarget.edge, elements.defaultArrowAttributes)
+    val defaultGroupAttributes = attrs(AttributeTarget.graph, elements.defaultGroupAttributes)
+
+    val children =
+      graphAttributes ++
+        defaultNodeAttributes ++
+        defaultArrowAttributes ++
+        defaultGroupAttributes ++
+        subGraphs ++
+        nodeStmts ++
+        edgeStmts
+
+    Some(SubGraph(children, None))
+
+  topLevelGraphToSubGraph.map(_.children).getOrElse(Nil)

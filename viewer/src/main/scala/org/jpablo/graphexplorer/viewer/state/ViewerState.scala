@@ -15,8 +15,6 @@ import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.zoomLens
 import upickle.default.*
 
-import scala.util.Try
-
 case class ViewerState(
     projectId:     ProjectId,
     writeText:     String => Any = _ => (),
@@ -48,14 +46,7 @@ case class ViewerState(
   // 6. SVG with extra elements: selection rect, etc.
   lazy val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
     rawSVG.map: svg =>
-      def getRankdir =
-        sourceFlow.fullGraphV.now().rootGroup.attributes
-          .get(Rankdir.attrId)
-          .map(_.value.toString)
-          .map(str => Try(Rankdir.valueOf(str)).getOrElse(Rankdir.default))
-          .getOrElse(Rankdir.default)
-
-      SvgCanvas(svg, transform, this, () => addNodeWithSmartConnection(), () => getRankdir)
+      SvgCanvas(svg, transform, this, () => addNodeWithSmartConnection(), () => graphRankDir.observe().now())
 
   // -------- storage ------------
   restoreState()
@@ -121,8 +112,14 @@ case class ViewerState(
   def graphType: Var[GraphType] =
     sourceFlow.fullGraphV.zoomLazy(_.tpe)((g, tpe) => g.copy(tpe = tpe))
 
-  def layout: Signal[Layout] =
-    defaults(AttributeTarget.graph).map(_.getAs(Layout))
+  def graphLayout: Signal[Layout] =
+    graphAttributes.map(_.getAs(Layout))
+
+  def graphRankDir: Signal[Rankdir] =
+    graphAttributes.map(_.getAs(Rankdir))
+
+  def graphAttributes: Signal[Attributes] =
+    fullGraph.map(_.elements.graphAttributes)
 
   def nodeShape: Signal[Shape] =
     defaults(AttributeTarget.node).map(_.getAs(Shape))
@@ -132,11 +129,11 @@ case class ViewerState(
     *
     * node [...] edge [...] graph [...]
     */
-  def rootTargetAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
-    sourceFlow.fullGraphV.zoomLens(AttributesOps.rootAttributesUpdates(target))
+  def defaultAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
+    sourceFlow.fullGraphV.zoomLens(AttributesOps.defaultAttributesUpdates(target))
 
   def defaults(target: AttributeTarget): Signal[Attributes] =
-    fullGraph.map(_.getRootAttributes(target))
+    fullGraph.map(_.getDefaultAttributes(target))
 
   // individual node attributes
   def elementAttributes(elementIds: ElementIds): Var[AttributesUpdates] =

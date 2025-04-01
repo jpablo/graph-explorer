@@ -62,7 +62,7 @@ class ViewerStateSpec extends FunSuite:
     // Initial state check
     assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
 
-    val graphUpdates = viewerState.rootTargetAttributesUpdates(AttributeTarget.graph)
+    val graphUpdates = viewerState.defaultAttributesUpdates(AttributeTarget.graph)
 
     // Update graph attributes
     graphUpdates.update(_ + (Color.attrId -> AttrValue("blue")))
@@ -70,13 +70,13 @@ class ViewerStateSpec extends FunSuite:
     // Verify the updates are applied
     val updatedGraph = viewerState.fullGraph.now()
     assertEquals(
-      updatedGraph.getRootAttributes(AttributeTarget.graph).get(Color.attrId),
+      updatedGraph.getDefaultAttributes(AttributeTarget.graph).get(Color.attrId),
       Some(AttrValue("blue")),
       "Root graph attributes should be updated"
     )
 
     // Get the AttributesUpdates for node target
-    val nodeUpdates = viewerState.rootTargetAttributesUpdates(AttributeTarget.node)
+    val nodeUpdates = viewerState.defaultAttributesUpdates(AttributeTarget.node)
 
     // Update node attributes
     nodeUpdates.update(_ + (Shape.attrId -> AttrValue("box")))
@@ -84,13 +84,13 @@ class ViewerStateSpec extends FunSuite:
     // Verify the updates are applied
     val updatedGraph2 = viewerState.fullGraph.now()
     assertEquals(
-      updatedGraph2.getRootAttributes(AttributeTarget.node).get(Shape.attrId),
+      updatedGraph2.getDefaultAttributes(AttributeTarget.node).get(Shape.attrId),
       Some(AttrValue("box")),
       "Root node attributes should be updated"
     )
 
     // Get the AttributesUpdates for edge target
-    val edgeUpdates = viewerState.rootTargetAttributesUpdates(AttributeTarget.edge)
+    val edgeUpdates = viewerState.defaultAttributesUpdates(AttributeTarget.edge)
 
     // Update edge attributes
     edgeUpdates.update(_ + (Style.attrId -> AttrValue("dashed")))
@@ -98,7 +98,7 @@ class ViewerStateSpec extends FunSuite:
     // Verify the updates are applied
     val updatedGraph3 = viewerState.fullGraph.now()
     assertEquals(
-      updatedGraph3.getRootAttributes(AttributeTarget.edge).get(Style.attrId),
+      updatedGraph3.getDefaultAttributes(AttributeTarget.edge).get(Style.attrId),
       Some(AttrValue("dashed")),
       "Root edge attributes should be updated"
     )

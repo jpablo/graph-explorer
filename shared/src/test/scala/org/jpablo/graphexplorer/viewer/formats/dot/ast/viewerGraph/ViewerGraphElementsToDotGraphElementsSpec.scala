@@ -52,10 +52,10 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
       Some("G")
     )
 
+  EdgeStmt.resetId()
   val viewerGraphElements = dotAST.toViewerGraphElements
 
   test("roundtrip (toViewerGraphElements -> viewerGraphElementsToDotGraphElements) should produce equivalent elements") {
-    EdgeStmt.resetId()
     val reconstructed = viewerGraphElementsToDotGraphElements(viewerGraphElements)
 
     // This is not the same as the original AST, but should render to something similar
@@ -66,11 +66,9 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
 
     val expected =
       List(
-        defaultGroupAttrStmt,
         SubGraph(
           List(
             defaultGroupAttrStmt,
-            AttrStmt("node", List(Attr("shape", "egg"))),
             SubGraph(List(defaultGroupAttrStmt, NodeStmt(d, defaultNodeDotAttrs)), Some("cluster_1")),
             NodeStmt(z, List(Attr("label", "ZZ")))
           ),
@@ -86,5 +84,6 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
         EdgeStmt(List(x, a), List(Attr("id", "3"))),
         EdgeStmt(List(b, c), List(Attr("id", "4")))
       )
+
     assertEquals(reconstructed, expected)
   }

@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.defaultRootId
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
@@ -19,13 +18,9 @@ extension (ast: DotAST)
   def toViewerGraph: ViewerGraph =
     ast.id match
       case Some(id) =>
+        // TODO: should resetId be called inside toViewerGraphElements?
         EdgeStmt.resetId()
-        val g =
-          ViewerGraph(
-            elements = ast.toViewerGraphElements,
-            id = id,
-            tpe = GraphType.valueOf(ast.tpe)
-          )
+        val g = ViewerGraph(elements = ast.toViewerGraphElements, id = id, tpe = GraphType.valueOf(ast.tpe))
         g.modifyElements.setTo(g.expandStyleAttributes)
 
       case None =>
@@ -41,9 +36,11 @@ extension (ast: DotAST)
     val attrs = sub.collectAttributesByTarget
     group(
       groupId = gId.getOrElse(GroupId(sub.id.getOrElse(SubGraph.randomId()))),
-      attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty)),
-      arrowAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
-      nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
+      attributes = Attributes(attrs.getOrElse(AttributeTarget.graph, Map.empty))
+      // arrow and node attributes in a subGraph are not supported in the viewer
+      // TODO: copy the attributes to each element!
+//      arrowAttrs = Attributes(attrs.getOrElse(AttributeTarget.edge, Map.empty)),
+//      nodeAttrs = Attributes(attrs.getOrElse(AttributeTarget.node, Map.empty))
     )
 
   private def buildViewerGraphElements(
@@ -64,17 +61,21 @@ extension (ast: DotAST)
             case m: GroupMemberId => acc + (m -> groupId)
             case _                => acc
 
-    val rootId    = ast.id.map(GroupId.apply).getOrElse(defaultRootId)
-    val rootGroup = subGraphToViewerGroup(ast.toSubGraph, Some(rootId))
-
     ViewerGraphElements(
-      rootId = rootId,
       nodes = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
       arrows = arrows.map(a => a.id -> a).toMap,
       memberships = filteredMemberships,
-      groups = (rootGroup :: groups).map(g => g.id -> g).toMap
+      groups = groups.map(g => g.id -> g).toMap
     )
 
+  /** Builds a ViewerGraphElements from a DotAST.
+    *
+    * This method traverses the AST and builds a ViewerGraphElements structure. It handles groups, edges, and nodes, and ensures they are
+    * correctly associated.
+    *
+    * @return
+    *   A ViewerGraphElements structure matching the AST.
+    */
   def toViewerGraphElements: ViewerGraphElements =
     @tailrec
     def loop(

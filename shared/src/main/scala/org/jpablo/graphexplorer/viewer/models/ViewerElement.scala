@@ -90,15 +90,11 @@ end Arrow
 
 case class ViewerGroup private (
     override val id: GroupId,
-    attributes:      Attributes = Attributes.empty,
-    nodeAttrs:       Attributes = Attributes.empty,
-    arrowAttrs:      Attributes = Attributes.empty
+    attributes:      Attributes = Attributes.empty
 ) extends ViewerElement derives CanEqual
 
 object ViewerGroup:
-  def modifyAttrs      = modify(_: ViewerGroup)(_.attributes)
-  def modifyNodeAttrs  = modify(_: ViewerGroup)(_.nodeAttrs)
-  def modifyArrowAttrs = modify(_: ViewerGroup)(_.arrowAttrs)
+  def modifyAttrs = modify(_: ViewerGroup)(_.attributes)
 
   val defaultGroupAttributes: Attributes =
     Attributes.of(
@@ -109,11 +105,9 @@ object ViewerGroup:
 
   def group(
       groupId:    GroupId,
-      attributes: Attributes = Attributes.empty,
-      nodeAttrs:  Attributes = Attributes.empty,
-      arrowAttrs: Attributes = Attributes.empty
+      attributes: Attributes = Attributes.empty
   ) =
-    ViewerGroup(groupId, defaultGroupAttributes ++ attributes, nodeAttrs, arrowAttrs)
+    ViewerGroup(groupId, defaultGroupAttributes ++ attributes)
 
   def empty(groupId: GroupId) = ViewerGroup(groupId)
 

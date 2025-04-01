@@ -16,8 +16,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
   NodeStyle,
   Shape,
   Sides,
-  Size,
-  Style
+  Size
 }
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
@@ -43,12 +42,11 @@ class AttributesOpsSpec extends FunSuite:
         nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
         arrows = Map(arrow.id -> arrow),
         groups = Map(
-          rootId -> rootGroup,
           groupId -> group(
             groupId = groupId,
-            attributes = Attributes.of(Label -> "Cluster 1"),
-            nodeAttrs = Attributes.of(Shape -> Shape.box),
-            arrowAttrs = Attributes.of(Style -> Style.dashed)
+            attributes = Attributes.of(Label -> "Cluster 1")
+//            nodeAttrs = Attributes.of(Shape -> Shape.box),
+//            arrowAttrs = Attributes.of(Style -> Style.dashed)
           )
         )
       )
@@ -57,14 +55,14 @@ class AttributesOpsSpec extends FunSuite:
   test("removeUnsupportedFeatures should remove 'size' attribute from root graph") {
     // Create a graph with a 'size' attribute
     val graph = createTestGraph()
-      .modifyRootGraphAttrs.using(_ + (Size.attrId -> AttrValue("10,10")))
+      .modifyDefaultGroupAttrs.using(_ + (Size.attrId -> AttrValue("10,10")))
 
     // Apply the method
     val result = graph.removeUnsupportedFeatures
 
     // Verify the 'size' attribute is removed
     assertEquals(
-      result.rootGroup.attributes.get(Size.attrId),
+      result.elements.graphAttributes.get(Size.attrId),
       None,
       "The 'size' attribute should be removed"
     )
@@ -130,7 +128,7 @@ class AttributesOpsSpec extends FunSuite:
     // Create a graph with sub-attributes
     val graph0 = ViewerGraph.minimal
       .addNodeWithId(a)
-      .updateRootAttributes(AttributeTarget.node)(_ + (BoldStyle.attrId -> trueAttr))
+      .updateDefaultAttributes(AttributeTarget.node)(_ + (BoldStyle.attrId -> trueAttr))
 
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).out
     val updates          = AttributesUpdates(update = Attributes.of(BorderStyle -> BorderStyle.dashed).values)
@@ -233,36 +231,32 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
 
     // Test for graph attributes
-    assertEquals(
-      graph.getRootAttributes(AttributeTarget.graph),
-      rootGroup.attributes,
-      "Should return root graph attributes"
-    )
+    assertEquals(graph.getDefaultAttributes(AttributeTarget.graph), Attributes.empty, "Should return root graph attributes")
 
     // Test for node attributes
     assertEquals(
-      graph.getRootAttributes(AttributeTarget.node),
-      rootGroup.nodeAttrs,
+      graph.getDefaultAttributes(AttributeTarget.node),
+      Attributes.empty,
       "Should return root node attributes"
     )
 
     // Test for edge attributes
     assertEquals(
-      graph.getRootAttributes(AttributeTarget.edge),
-      rootGroup.arrowAttrs,
+      graph.getDefaultAttributes(AttributeTarget.edge),
+      Attributes.empty,
       "Should return root edge attributes"
     )
   }
 
-  test("updateRootAttributes should update attributes for the specified target") {
+  test("updateDefaultAttributes should update attributes for the specified target") {
     val graph = createTestGraph()
 
     // Apply the method for graph attributes
-    val result = graph.updateRootAttributes(AttributeTarget.graph)(_ + (Color.attrId -> AttrValue("purple")))
+    val result = graph.updateDefaultAttributes(AttributeTarget.graph)(_ + (Color.attrId -> AttrValue("purple")))
 
     // Verify the attributes are updated
     assertEquals(
-      result.rootGroup.attributes.get(Color.attrId),
+      result.getDefaultAttributes(AttributeTarget.graph).get(Color.attrId),
       Some(AttrValue("purple")),
       "Root graph attributes should be updated"
     )
@@ -276,19 +270,19 @@ class AttributesOpsSpec extends FunSuite:
 
     // Verify the default theme is set
     assertEquals(
-      result.rootGroup.nodeAttrs.get(Sides.attrId),
+      result.getDefaultAttributes(AttributeTarget.node).get(Sides.attrId),
       Some(AttrValue("5")),
       "Default node theme should be set"
     )
 
     assertEquals(
-      result.rootGroup.arrowAttrs.get(Dir.attrId),
+      result.getDefaultAttributes(AttributeTarget.edge).get(Dir.attrId),
       Some(AttrValue(DirType.both.toString)),
       "Default edge theme should be set"
     )
 
     assertEquals(
-      result.rootGroup.arrowAttrs.get(ArrowTail.attrId),
+      result.getDefaultAttributes(AttributeTarget.edge).get(ArrowTail.attrId),
       Some(AttrValue(ArrowType.none.toString)),
       "Default edge theme should be set"
     )

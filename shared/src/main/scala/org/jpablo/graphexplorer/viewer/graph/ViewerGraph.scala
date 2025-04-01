@@ -30,8 +30,7 @@ case class ViewerGraph(
     nextAvailable()
   // --- end mutable stuff ----
 
-  val rootId    = elements.rootId
-  val rootGroup = elements.rootGroup
+//  val rootId    = elements.rootId
 
   val nodes       = elements.nodes
   val arrows      = elements.arrows
@@ -78,16 +77,14 @@ case class ViewerGraph(
     val relevantArrows = arrows.filter((_, a) => (a.source in foundNodeIds) && (a.target in foundNodeIds))
     ViewerGraph(
       ViewerGraphElements(
-        rootId = rootId,
         nodes = foundNodes,
-        arrows = relevantArrows,
-        groups = Map(rootId -> rootGroup)
+        arrows = relevantArrows
       )
     )
 
   def removeElements(elementIds: ElementIds): ViewerGraph =
     val classified       = elementIds.classify
-    val groupIdsToRemove = classified.clusters
+    val groupIdsToRemove = classified.groups
 
     val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
       // case 1: remove a nested group

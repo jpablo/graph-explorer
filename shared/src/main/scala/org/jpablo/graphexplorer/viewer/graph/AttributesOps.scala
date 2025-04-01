@@ -2,10 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes
-import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{
-  fromSubAttributes,
-  subAttributeIds
-}
+import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{fromSubAttributes, subAttributeIds}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
@@ -28,13 +25,12 @@ import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
 trait AttributesOps:
   this: ViewerGraph =>
 
-  lazy val groupIdLens          = modify(_: ViewerGraph)(_.elements.groups.at(rootGroup.id))
-  lazy val modifyRootGraphAttrs = (groupIdLens andThenModify ViewerGroup.modifyAttrs)(this)
-  lazy val modifyRootNodeAttrs  = (groupIdLens andThenModify ViewerGroup.modifyNodeAttrs)(this)
-  lazy val modifyRootEdgeAttrs  = (groupIdLens andThenModify ViewerGroup.modifyArrowAttrs)(this)
+  lazy val modifyDefaultGroupAttrs: PathModify[ViewerGraph, Attributes] = (modify(_: ViewerGraph)(_.elements.defaultGroupAttributes))(this)
+  lazy val modifyDefaultNodeAttrs: PathModify[ViewerGraph, Attributes]  = (modify(_: ViewerGraph)(_.elements.defaultNodeAttributes))(this)
+  lazy val modifyDefaultArrowAttrs: PathModify[ViewerGraph, Attributes] = (modify(_: ViewerGraph)(_.elements.defaultArrowAttributes))(this)
 
   lazy val removeUnsupportedFeatures: ViewerGraph =
-    modifyRootGraphAttrs.using(_ - Size.attrId - Overlap.attrId)
+    this.modify(_.elements.graphAttributes).using(_ - Size.attrId - Overlap.attrId)
 
   /** Expands the "style" attribute into its sub-attributes (fill, bold, invisible, border, corner)
     */
@@ -44,8 +40,8 @@ trait AttributesOps:
         group(
           groupId = g.id,
           attributes = expandElementAttributes(id, g.attributes),
-          arrowAttrs = expandElementAttributes(id, g.arrowAttrs),
-          nodeAttrs = expandElementAttributes(id, g.nodeAttrs)
+//          arrowAttrs = expandElementAttributes(id, g.arrowAttrs),
+//          nodeAttrs = expandElementAttributes(id, g.nodeAttrs)
         )
       },
       nodes = nodes.transform((id, n) => n.modifyAttrs.setTo(expandElementAttributes(id, n.attributes)))
@@ -66,13 +62,13 @@ trait AttributesOps:
         group(
           groupId = g.id,
           attributes = combineElementAttributes(id, g.attributes),
-          arrowAttrs = combineElementAttributes(id, g.arrowAttrs),
-          nodeAttrs = combineElementAttributes(id, g.nodeAttrs)
+//          arrowAttrs = combineElementAttributes(id, g.arrowAttrs),
+//          nodeAttrs = combineElementAttributes(id, g.nodeAttrs)
         )
       },
       nodes = nodes.transform { (id, n) =>
         n.modifyAttrs.setTo(
-          combineElementAttributes(id, n.attributes, globals = Some(rootGroup.nodeAttrs))
+          combineElementAttributes(id, n.attributes, defaults = Some(elements.defaultNodeAttributes))
         )
       }
     )
@@ -81,14 +77,14 @@ trait AttributesOps:
   // Replace the sub-attributes with the combined "style" attribute
   // [fillStyle, boldStyle, invisibleStyle, borderStyle, cornerStyle] -> style="..."
   private def combineElementAttributes(
-      id:      ElementId,
-      attrs:   Attributes,
-      globals: Option[Attributes] = None
+      id:       ElementId,
+      attrs:    Attributes,
+      defaults: Option[Attributes] = None
   ): Attributes =
     val localSubAttrs = fromSubAttributes(attrs)
 
     val styleStringO =
-      globals match
+      defaults match
         case None =>
           val styleString = localSubAttrs.toStyleStringSimple
           if styleString.isEmpty then None else Some(styleString)
@@ -103,8 +99,8 @@ trait AttributesOps:
   /** Updates attributes for a set of nodes and arrows.
     *
     * This method updates the attributes of the specified nodes and arrows:
-    *   1. Separates the input IDs into arrow IDs and node IDs 2. Updates attributes for matching arrows 3. Updates
-    *      attributes for matching nodes, including any endpoints of updated arrows that were in the original selection
+    *   1. Separates the input IDs into arrow IDs and node IDs 2. Updates attributes for matching arrows 3. Updates attributes for matching
+    *      nodes, including any endpoints of updated arrows that were in the original selection
     *
     * @return
     *   Updated ViewerGraphData with the new attributes applied
@@ -117,7 +113,7 @@ trait AttributesOps:
       .mapValues(_.modify(_.attributes).using(updates.applyUpdatesTo))
       .toMap
 
-    val clusterIds = classified.clusters.map(id => GroupId(id.value))
+    val clusterIds = classified.groups.map(id => GroupId(id.value))
 
     val updatedClusters = groups.view
       .filterKeys(groupId => groupId in clusterIds)
@@ -171,20 +167,20 @@ trait AttributesOps:
         .getOrElse(Map.empty)
     )
 
-  def getRootAttributes(target: AttributeTarget): Attributes =
+  def getDefaultAttributes(target: AttributeTarget): Attributes =
     target match
-      case AttributeTarget.graph => rootGroup.attributes
-      case AttributeTarget.node  => rootGroup.nodeAttrs
-      case AttributeTarget.edge  => rootGroup.arrowAttrs
+      case AttributeTarget.graph => elements.defaultGroupAttributes
+      case AttributeTarget.node  => elements.defaultNodeAttributes
+      case AttributeTarget.edge  => elements.defaultArrowAttributes
 
-  def modifyRootAttributes(target: AttributeTarget) =
+  def modifyDefaultAttributes(target: AttributeTarget) =
     target match
-      case AttributeTarget.graph => modifyRootGraphAttrs
-      case AttributeTarget.node  => modifyRootNodeAttrs
-      case AttributeTarget.edge  => modifyRootEdgeAttrs
+      case AttributeTarget.graph => modifyDefaultGroupAttrs
+      case AttributeTarget.node  => modifyDefaultNodeAttrs
+      case AttributeTarget.edge  => modifyDefaultArrowAttrs
 
-  def updateRootAttributes(target: AttributeTarget)(update: Attributes => Attributes): ViewerGraph =
-    modifyRootAttributes(target).using(update)
+  def updateDefaultAttributes(target: AttributeTarget)(update: Attributes => Attributes): ViewerGraph =
+    modifyDefaultAttributes(target).using(update)
 
   val defaultNodeTheme =
     Attributes.of(Sides -> 5)
@@ -196,16 +192,16 @@ trait AttributesOps:
     Attributes.of(Dir -> dir, ArrowTail -> ArrowType.none)
 
   def setDefaultTheme: ViewerGraph =
-    modifyRootAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
-      .modifyRootAttributes(AttributeTarget.edge).using(_ ++ defaultEdgeTheme)
+    modifyDefaultAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
+      .modifyDefaultAttributes(AttributeTarget.edge).using(_ ++ defaultEdgeTheme)
 
 object AttributesOps:
 
   /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
-  def rootAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributesUpdates] =
+  def defaultAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributesUpdates] =
     Lens(
-      in = graph => graph.getRootAttributes(target).toUpdates,
-      out = (graph, updates) => graph.updateRootAttributes(target)(updates.applyUpdatesTo)
+      in = graph => graph.getDefaultAttributes(target).toUpdates,
+      out = (graph, updates) => graph.updateDefaultAttributes(target)(updates.applyUpdatesTo)
     )
 
   /** Bundle functions for updating attributes of specific elements */
