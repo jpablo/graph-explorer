@@ -223,7 +223,7 @@ def TextAreaWithValue(
     cls         := "textarea textarea-xs min-h-[2rem] h-auto w-full p-1",
     placeholder := row.placeholder,
     value <-- rawText.signal,
-    onInput.mapToValue --> rawText.set,
+    onInput.mapToValue(_.debounce(300)) --> rawText.set,
     if setFocus then onMountFocus else emptyMod
   )
 
