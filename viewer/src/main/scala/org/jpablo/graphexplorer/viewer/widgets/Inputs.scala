@@ -180,10 +180,8 @@ def InputWithValue(
   input(
     tpe <-- inputType,
     placeholder := row.placeholder,
-    controlled(
-      value <-- valueSignal,
-      onInput.mapToValue.map(v => Single(AttrValue(if isHtml(v) then AttrEq(v, true) else v))) --> row.inputVar
-    ),
+    value <-- valueSignal,
+    onInput.mapToValue.map(v => Single(AttrValue(if isHtml(v) then AttrEq(v, true) else v)))(_.throttle(50)) --> row.inputVar,
     if setFocus then onMountFocus else emptyMod,
     extra
   )
