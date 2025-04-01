@@ -65,7 +65,10 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
     li(
       cls := "justify-center",
       div(
-        cls := s"dropdown dropdown-$dir p-0 m-0",
+        cls := s"dropdown dropdown-bottom p-0 m-0",
+        // TailwindCSS classes seem to have issues with dynamic strings, so we add the cases we need here.
+        cls("dropdown-start") := dir == MenuDirection.start,
+        cls("dropdown-end") := dir == MenuDirection.end,
         if extraOptions.isEmpty then emptyMod
         else
           Seq(
