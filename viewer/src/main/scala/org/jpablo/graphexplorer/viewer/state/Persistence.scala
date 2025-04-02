@@ -16,22 +16,19 @@ trait Persistence:
     // Restore ViewerState <~ PersistedStage (which comes from local storage)
     project.hiddenElements.set(restoredState.hiddenElements)
     Var.set(
-      project.name           -> restoredState.projectName,
-      sourceText             -> restoredState.source,
-      rightPanelVisible      -> restoredState.rightPanelVisible,
-      rightPanelTabIndex     -> restoredState.sideBarTabIndex,
-      leftPanelVisible       -> restoredState.leftPanelVisible
+      project.name       -> restoredState.projectName,
+      sourceText         -> restoredState.source,
+      rightPanelVisible  -> restoredState.rightPanelVisible,
+      rightPanelTabIndex -> restoredState.sideBarTabIndex,
+      leftPanelVisible   -> restoredState.leftPanelVisible
     )
     // synchronize ViewerState ~> PersistedStage
-    project.hiddenElements.signal
-      .combineWith(
-        project.name.signal,
-        sourceText.signal,
-        rightPanelVisible.signal,
-        rightPanelTabIndex.signal,
-        leftPanelVisible.signal
-      ).distinct
-      .map(PersistedState.apply)
+    project.hiddenElements
+      .signal
+      .combineWithFn(project.name.signal, sourceText.signal, rightPanelVisible.signal, rightPanelTabIndex.signal, leftPanelVisible.signal)(
+        PersistedState.apply
+      )
+      .distinct
       .foreach(persistedState.set)
   end restoreState
 
@@ -48,10 +45,10 @@ object PersistedState:
   val minimalGraphText = "digraph G {\n}"
   val empty =
     PersistedState(
-      hiddenElements    = ElementIds(),
-      projectName       = "Untitled",
-      source            = minimalGraphText,
+      hiddenElements = ElementIds(),
+      projectName = "Untitled",
+      source = minimalGraphText,
       rightPanelVisible = true,
-      sideBarTabIndex   = 0,
-      leftPanelVisible  = true
+      sideBarTabIndex = 0,
+      leftPanelVisible = true
     )

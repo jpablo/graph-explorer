@@ -18,17 +18,17 @@ enum EdgeSortDirection derives CanEqual:
   case Ascending, Descending
 
 def ArrowsList(state: ViewerState): Div =
-  val onlyActiveEdges = Var(false)
+  val onlyActiveEdges     = Var(false)
   val filterEdgesByNodeId = Var("")
-  val sortColumnVar = Var(EdgeSortColumn.Label)
-  val sortDirectionVar = Var(EdgeSortDirection.Ascending)
+  val sortColumnVar       = Var(EdgeSortColumn.Label)
+  val sortDirectionVar    = Var(EdgeSortDirection.Ascending)
 
   // Helper function to toggle sort direction or set a new sort column
   def handleSortClick(column: EdgeSortColumn) = Observer[dom.MouseEvent] { _ =>
     if sortColumnVar.now() == column then
       // Toggle direction if same column
       sortDirectionVar.update {
-        case EdgeSortDirection.Ascending => EdgeSortDirection.Descending
+        case EdgeSortDirection.Ascending  => EdgeSortDirection.Descending
         case EdgeSortDirection.Descending => EdgeSortDirection.Ascending
       }
     else
@@ -39,8 +39,8 @@ def ArrowsList(state: ViewerState): Div =
 
   def arrowEndpoints(arrow: Arrow): (String, String) =
     val Seq(sourceNode, targetNode) = state.nodeById(Seq(arrow.source, arrow.target))
-    val sl = sourceNode.label.toString
-    val tl = targetNode.label.toString
+    val sl                          = sourceNode.label.toString
+    val tl                          = targetNode.label.toString
     (if sl.isBlank then arrow.source.toString else sl, if tl.isBlank then arrow.target.toString else tl)
 
   div(
@@ -55,10 +55,14 @@ def ArrowsList(state: ViewerState): Div =
           controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
         ).smallInput,
         button(
-          cls := "btn btn-xs",
+          cls   := "btn btn-xs",
           title := "Select filtered edges",
           "Select",
-          onClick.preventDefault(_.sample(state.fullGraph.combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenElements.signal))) --> { case (fullGraph, onlyActive, str, hiddenNodes) =>
+          onClick.preventDefault(_.sample(state.fullGraph.combineWith(
+            onlyActiveEdges,
+            filterEdgesByNodeId.signal,
+            state.hiddenElements.signal
+          ))) --> { case (fullGraph, onlyActive, str, hiddenNodes) =>
             val filteredEdges = fullGraph
               .orElse(!onlyActive, _.removeElements(hiddenNodes))
               .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))
@@ -82,10 +86,10 @@ def ArrowsList(state: ViewerState): Div =
               "Label ",
               span(
                 cls := "inline-block",
-                cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
+                cls <-- sortColumnVar.signal.combineWithFn(sortDirectionVar.signal) { (column, direction) =>
                   if column == EdgeSortColumn.Label then
                     direction match
-                      case EdgeSortDirection.Ascending => "after:content-['↑']"
+                      case EdgeSortDirection.Ascending  => "after:content-['↑']"
                       case EdgeSortDirection.Descending => "after:content-['↓']"
                   else ""
                 }
@@ -98,10 +102,10 @@ def ArrowsList(state: ViewerState): Div =
               "Source ",
               span(
                 cls := "inline-block",
-                cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
+                cls <-- sortColumnVar.signal.combineWithFn(sortDirectionVar.signal) { (column, direction) =>
                   if column == EdgeSortColumn.Source then
                     direction match
-                      case EdgeSortDirection.Ascending => "after:content-['↑']"
+                      case EdgeSortDirection.Ascending  => "after:content-['↑']"
                       case EdgeSortDirection.Descending => "after:content-['↓']"
                   else ""
                 }
@@ -115,10 +119,10 @@ def ArrowsList(state: ViewerState): Div =
               "Target ",
               span(
                 cls := "inline-block",
-                cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
+                cls <-- sortColumnVar.signal.combineWithFn(sortDirectionVar.signal) { (column, direction) =>
                   if column == EdgeSortColumn.Target then
                     direction match
-                      case EdgeSortDirection.Ascending => "after:content-['↑']"
+                      case EdgeSortDirection.Ascending  => "after:content-['↑']"
                       case EdgeSortDirection.Descending => "after:content-['↓']"
                   else ""
                 }
@@ -131,8 +135,13 @@ def ArrowsList(state: ViewerState): Div =
           children <--
             state
               .fullGraph
-              .combineWith(onlyActiveEdges, filterEdgesByNodeId.signal, state.hiddenElements.signal, sortColumnVar.signal, sortDirectionVar.signal)
-              .map: (fullGraph, onlyActive, str, hiddenNodes, sortColumn, sortDirection) =>
+              .combineWithFn(
+                onlyActiveEdges,
+                filterEdgesByNodeId.signal,
+                state.hiddenElements.signal,
+                sortColumnVar.signal,
+                sortDirectionVar.signal
+              ): (fullGraph, onlyActive, str, hiddenNodes, sortColumn, sortDirection) =>
                 val filteredEdges = fullGraph
                   .orElse(!onlyActive, _.removeElements(hiddenNodes))
                   .filterArrowsBy(a => a.source.toString.contains(str) || a.target.toString.contains(str))

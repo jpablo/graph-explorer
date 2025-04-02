@@ -18,11 +18,11 @@ enum SortDirection derives CanEqual:
   case Ascending, Descending
 
 def NodesList(state: ViewerState): Div =
-  val onlyActiveVar = Var(false)
-  val filterVar = Var("")
-  val sortColumnVar = Var(SortColumn.Id)
+  val onlyActiveVar    = Var(false)
+  val filterVar        = Var("")
+  val sortColumnVar    = Var(SortColumn.Id)
   val sortDirectionVar = Var(SortDirection.Ascending)
-  val filteredGraph = filteredDiagramEvent(state, onlyActiveVar.signal, filterVar.signal)
+  val filteredGraph    = filteredDiagramEvent(state, onlyActiveVar.signal, filterVar.signal)
 
   // Helper function to toggle sort direction or set a new sort column
   def handleSortClick(column: SortColumn) = Observer[dom.MouseEvent] { _ =>
@@ -71,7 +71,7 @@ def NodesList(state: ViewerState): Div =
               "Id ",
               span(
                 cls := "inline-block",
-                cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
+                cls <-- sortColumnVar.signal.combineWithFn(sortDirectionVar.signal) { (column, direction) =>
                   if column == SortColumn.Id then
                     direction match
                       case SortDirection.Ascending  => "after:content-['↑']"
@@ -87,7 +87,7 @@ def NodesList(state: ViewerState): Div =
               "Label ",
               span(
                 cls := "inline-block",
-                cls <-- sortColumnVar.signal.combineWith(sortDirectionVar.signal).map { (column, direction) =>
+                cls <-- sortColumnVar.signal.combineWithFn(sortDirectionVar.signal) { (column, direction) =>
                   if column == SortColumn.Label then
                     direction match
                       case SortDirection.Ascending  => "after:content-['↑']"
@@ -102,8 +102,7 @@ def NodesList(state: ViewerState): Div =
         tbody(
           children <--
             filteredGraph
-              .combineWith(sortColumnVar.signal, sortDirectionVar.signal)
-              .map: (graph, sortColumn, sortDirection) =>
+              .combineWithFn(sortColumnVar.signal, sortDirectionVar.signal): (graph, sortColumn, sortDirection) =>
                 val sortedNodes = sortColumn match
                   case SortColumn.Id =>
                     val sorted = graph.nodesSeq.sortBy((id, _) => id.toString.toLowerCase)
@@ -141,8 +140,7 @@ private def filteredDiagramEvent(
     filterByNodeId: Signal[String]
 ): Signal[ViewerGraph] = state
   .fullGraph
-  .combineWith(onlyActive, filterByNodeId, state.hiddenElements.signal)
-  .map: (fullGraph, onlyActive, filter, hiddenNodes) =>
+  .combineWithFn(onlyActive, filterByNodeId, state.hiddenElements.signal): (fullGraph, onlyActive, filter, hiddenNodes) =>
     fullGraph
       .orElse(filter.isBlank, _.filterByNodeId(filter))
       .orElse(!onlyActive, _.removeElements(hiddenNodes))

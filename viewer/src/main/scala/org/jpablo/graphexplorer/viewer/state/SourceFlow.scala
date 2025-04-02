@@ -26,13 +26,13 @@ def syncVars[S, T](
 )(using Owner): Unit =
   // source -> target
   for s <- source.signal do
-    val t = target.now()
+    val t  = target.now()
     val t1 = toT(s, t)
     if updateT(s, t, t1) then
       withLog(labelT, level = level)(target.set(t1))
   // target -> source
   for t <- target.signal do
-    val s = source.now()
+    val s  = source.now()
     val s1 = toS(s, t)
     if updateS(s, t, s1) then
       withLog(labelS, level = level)(source.set(s1))
@@ -72,12 +72,12 @@ class SourceFlow(
     source = sourceText,
     target = versionedText,
     // -------------------------------
-    labelT  = "[sourceText -> versionedText]", // a -> b
-    toT     = (st, vt) => Versioned[String](st, vt.version + 1, ChangeOrigin.CodeMirror),
+    labelT = "[sourceText -> versionedText]", // a -> b
+    toT = (st, vt) => Versioned[String](st, vt.version + 1, ChangeOrigin.CodeMirror),
     updateT = (st, vt, vt1) => st != vt.value,
     // -------------------------------
-    labelS  = "[versionedText -> sourceText]", // b -> a
-    toS     = (st, vt) => vt.value,
+    labelS = "[versionedText -> sourceText]", // b -> a
+    toS = (st, vt) => vt.value,
     updateS = (st, vt, st1) => st != vt.value
   )
 
@@ -101,7 +101,7 @@ class SourceFlow(
       Versioned[String](newSource, ast.version, ast.origin)
     },
     updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
-    level   = Level.None
+    level = Level.None
   )
 
   // -------------------------------
@@ -111,12 +111,12 @@ class SourceFlow(
     source = sourceAST,
     target = versionedFullGraphV,
     // -------------------------------
-    labelT  = "[sourceAST -> versionedFullGraphV]", // c -> b
-    toT     = (ast: Versioned[DotAST], vg) => Versioned[ViewerGraph](ast.value.toViewerGraph, ast.version, ast.origin),
+    labelT = "[sourceAST -> versionedFullGraphV]", // c -> b
+    toT = (ast: Versioned[DotAST], vg) => Versioned[ViewerGraph](ast.value.toViewerGraph, ast.version, ast.origin),
     updateT = (ast, vg, vg1) => vg.value != vg1.value && ast.origin == ChangeOrigin.CodeMirror,
     // -------------------------------
-    labelS  = "[versionedFullGraphV -> sourceAST]", // b -> c
-    toS     = (ast, vg) => Versioned[DotAST](graphToDotAST(vg.value), vg.version, vg.origin),
+    labelS = "[versionedFullGraphV -> sourceAST]", // b -> c
+    toS = (ast, vg) => Versioned[DotAST](graphToDotAST(vg.value), vg.version, vg.origin),
     updateS = (ast, vg, ast1) => ast.value != ast1.value && vg.origin == ChangeOrigin.Graph
   )
 
@@ -127,12 +127,12 @@ class SourceFlow(
     source = versionedFullGraphV,
     target = fullGraphV,
     // -------------------------------
-    labelT  = "[versionedFullGraphV -> fullGraphV]", // b -> a
-    toT     = (vg, g) => vg.value,
+    labelT = "[versionedFullGraphV -> fullGraphV]", // b -> a
+    toT = (vg, g) => vg.value,
     updateT = (vg, g, g1) => g != g1,
     // -------------------------------
-    labelS  = "[fullGraphV -> versionedFullGraphV]", // a -> b
-    toS     = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
+    labelS = "[fullGraphV -> versionedFullGraphV]", // a -> b
+    toS = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
     updateS = (vg, g, vg1) => vg.value != g
   )
 
@@ -141,15 +141,14 @@ class SourceFlow(
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
     */
   val visibleGraph: Signal[ViewerGraph] =
-    fullGraphV.signal.combineWith(hiddenNodes)
-      .map: (fullGraph: ViewerGraph, hiddenNodes) =>
-        withLog("[fullGraphV -> visibleGraph]") {
-          fullGraph
-            .removeUnsupportedFeatures
-            .removeElements(hiddenNodes)
-            .setDefaultTheme
-        }
-      .tapEach(_ => resetView())
+    fullGraphV.signal.combineWithFn(hiddenNodes): (fullGraph: ViewerGraph, hiddenNodes) =>
+      withLog("[fullGraphV -> visibleGraph]") {
+        fullGraph
+          .removeUnsupportedFeatures
+          .removeElements(hiddenNodes)
+          .setDefaultTheme
+      }
+    .tapEach(_ => resetView())
 
   // -------------------------------
   // rendering

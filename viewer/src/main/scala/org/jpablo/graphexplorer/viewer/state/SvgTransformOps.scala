@@ -24,8 +24,7 @@ trait SvgTransformOps:
 
   val transform =
     zoomValue.signal
-      .combineWith(translateXY.signal)
-      .map: (z, p) =>
+      .combineWithFn(translateXY.signal): (z, p) =>
         s"scale($z) translate(${p.x} ${p.y})"
 
   def resetView(): Unit =
@@ -36,13 +35,13 @@ trait SvgTransformOps:
 
   def handleWheel(wEv: dom.WheelEvent, viewBox: dom.SVGRect) =
     val clientHeight = dom.window.innerHeight max 1
-    val clientWidth = dom.window.innerWidth max 1
+    val clientWidth  = dom.window.innerWidth max 1
 
     if wEv.metaKey && wEv.deltaY != 0 then
       zoomValue.update: z =>
         z - wEv.deltaY / clientHeight max minZoom
     else
-      val z = zoomValue.now()
+      val z     = zoomValue.now()
       val scale = viewBox.width / clientWidth max viewBox.height / clientHeight
       val delta = SvgPoint(wEv.deltaX * scale / z, wEv.deltaY * scale / z)
       translateXY.update(_ - delta)

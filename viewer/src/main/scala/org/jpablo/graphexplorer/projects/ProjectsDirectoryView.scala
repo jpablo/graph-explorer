@@ -99,8 +99,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
             .startWith("")
 
           ProjectStorage.directory
-            .combineWith(debouncedSearch, sortOptionVar.signal)
-            .map: (directory, searchTerm, sortOption) =>
+            .combineWithFn(debouncedSearch, sortOptionVar.signal): (directory, searchTerm, sortOption) =>
               val filteredProjects = directory.projects.filter(_.name.toLowerCase.contains(searchTerm.toLowerCase))
               val sorted =
                 sortOption match

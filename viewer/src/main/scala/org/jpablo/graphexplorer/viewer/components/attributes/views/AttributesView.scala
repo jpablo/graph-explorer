@@ -81,7 +81,7 @@ private def inputLabel(row: InputAttribute): Div =
     cls := "flex items-center justify-start",
     div(cls("font-bold") <-- row.isChanged, row.label),
     div(
-      cls("w-6 flex items-center justify-center") <-- multipleValues.combineWith(row.isChanged).map(_ || _),
+      cls("w-6 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
       child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,
       child(a(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x")).tiny) <-- row.isChanged
     )
