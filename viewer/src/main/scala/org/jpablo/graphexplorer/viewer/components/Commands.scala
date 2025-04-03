@@ -73,6 +73,9 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
     val classified = selection.classify
     classified.groups.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
 
+  private def isSingleElementSelected(selection: ElementIds): Boolean =
+    selection.size == 1
+
   object headers:
     val common = "Common"
     val selection = "Selection"
@@ -96,6 +99,20 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
         always,
         shortcut    = Some(Shortcut("n")),
         description = Some("Add a new node")
+      ),
+      Command(
+        "Add backwards node",
+        () => state.addNodeWithSmartConnection(direction = state.Direction.To),
+        always,
+        shortcut    = Some(Shortcut("p")),
+        description = Some("Add a new node connected to the selected node")
+      ),
+      Command(
+        "Edit label",
+        state.editLabel,
+        isSingleElementSelected,
+        shortcut    = Some(Shortcut("Enter")),
+        description = Some("Edit the label of the selected element")
       ),
       Command(
         "Select all",
@@ -305,5 +322,4 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
     val sh = Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
     for cmd <- byShortcut.get(sh) do
-      ev.preventDefault()
       cmd.action()

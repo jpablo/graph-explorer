@@ -7,8 +7,9 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
+import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Layout, Rankdir, Shape}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label, Layout, Rankdir, Shape}
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
@@ -46,7 +47,14 @@ case class ViewerState(
   // 6. SVG with extra elements: selection rect, etc.
   lazy val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
     rawSVG.map: svg =>
-      SvgCanvas(svg, transform, this, () => addNodeWithSmartConnection(), () => graphRankDir.observe().now())
+      SvgCanvas(
+        rawSvg = svg,
+        transform = transform,
+        selectionOps = this,
+        addNode = () => addNodeWithSmartConnection(),
+        getRankdir = () => graphRankDir.observe().now(),
+        updateLabel = updateLabel
+      )
 
   // -------- storage ------------
   restoreState()
@@ -60,17 +68,27 @@ case class ViewerState(
   def allArrowIds(): Set[ArrowId] =
     fullGraph.observe().now().arrowIds
 
+  enum Direction derives CanEqual:
+    case From, To
+
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an edge. If the
     * selected element is a group/cluster, the new node will be added to that group. The new node will become the only selected element
     * after creation.
     *
+    * @param attributes
+    *   The attributes to apply to the new node
+    * @param direction
+    *   The direction of the arrow when connecting to an existing node (From: existing -> new, To: new -> existing)
     * @return
     *   The result of the operation, which can be:
     *   - None if no action was taken
     *   - Some(NodeAdded) if a standalone node was added
     *   - Some(NodeAndArrowAdded) if a node and an arrow were added
     */
-  def addNodeWithSmartConnection(attributes: Attributes = Attributes.empty): Unit =
+  def addNodeWithSmartConnection(
+      attributes: Attributes = Attributes.empty,
+      direction:  Direction = Direction.From
+  ): Unit =
     sourceFlow.fullGraphV.update: fullGraph =>
       val sel = selection.now()
 
@@ -79,26 +97,28 @@ case class ViewerState(
         selection.set(newNodeId)
         newGraph
       else
-        val source = sel.head
+        val selected = sel.head
         // Only proceed if selected ID is a valid node in the graph
-        source match
+        selected match
           case id: NodeId =>
-            val (newGraph, newNodeId, _) = fullGraph.addNodeAndArrowFrom(source = id, attributes = attributes)
-            selection.set(newNodeId)
+            val (newGraph, _, _) = direction match
+              case Direction.From => fullGraph.addNodeAndArrowFrom(source = id, attributes = attributes)
+              case Direction.To   => fullGraph.addNodeAndArrowTo(target = id, attributes = attributes)
             newGraph
           case id: GroupId =>
-            val (newGraph, newNodeId) = fullGraph.addNode(groupId = Some(id), attributes = attributes)
-            selection.set(newNodeId)
+            val (newGraph, _) = fullGraph.addNode(groupId = Some(id), attributes = attributes)
             newGraph
           case _: ArrowId =>
-            val (newGraph, newNodeId) = fullGraph.addNode(attributes = attributes)
-            selection.set(newNodeId)
+            val (newGraph, _) = fullGraph.addNode(attributes = attributes)
             newGraph
+
+  def editLabel(): Unit =
+    selection.editSelectedLabel()
 
   def addArrow(from: NodeId, to: NodeId) =
     sourceFlow.fullGraphV.update: g =>
-      val (g2, a) = g.addArrow(from, to)
-      selection.set(ElementIds.from(a.id))
+      val (g2, _) = g.addArrow(from, to)
+      selection.set(ElementIds.from(from))
       g2
 
   // -------- Attribute management -----------
@@ -123,6 +143,10 @@ case class ViewerState(
 
   def nodeShape: Signal[Shape] =
     defaults(AttributeTarget.node).map(_.getAs(Shape))
+
+  def updateLabel(elementId: ElementId, label: String): Unit =
+    elementAttributesUpdates(ElementIds.from(elementId)).set:
+      AttributesUpdates(update = Attributes.of(Label -> TextUtils.escape(label)).values)
 
   def defaults(target: AttributeTarget): Signal[Attributes] =
     fullGraph.map(_.getDefaultAttributes(target))

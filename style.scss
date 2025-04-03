@@ -23,6 +23,18 @@ label[for ^= show-ns-kind-] {
   }
 }
 
+.inline-input {
+  @apply text-[10px] w-full h-full text-center align-middle bg-base-200/0 flex items-center;
+
+  &:focus-visible {
+    @apply outline-0;
+
+  }
+  //&:focus {
+  //  @apply bg-base-200;
+  //}
+}
+
 .menu-with-extra-dropdown {
   @apply w-full;
 

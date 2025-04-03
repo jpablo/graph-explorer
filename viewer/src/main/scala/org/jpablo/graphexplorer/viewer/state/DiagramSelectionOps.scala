@@ -18,11 +18,14 @@ trait DiagramSelectionOps:
   this: ViewerState =>
 
   private val selectionV: Var[Selection] = Var(ElementIds())
+  private val editingElementV            = Var[Option[ElementId]](None)
 
   object selection:
     val signal = selectionV.signal
       .distinct
     //    .tapEach(s => if s.nonEmpty then dom.console.log(s"Selection: $s"))
+
+    val editingElement = editingElementV.signal.distinct
 
     val _selectSuccessors         = selectRelated((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
     val _selectPredecessors       = selectRelated((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
@@ -36,6 +39,14 @@ trait DiagramSelectionOps:
       val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selection.now())
       // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
       selection.add(relatedSubGraph.nodeIds ++ relatedSubGraph.arrowIds)
+
+    def editSelectedLabel(): Unit =
+      val current = now()
+      if current.size == 1 then
+        editingElementV.set(Some(current.head))
+
+    def clearEditing(): Unit =
+      editingElementV.set(None)
 
     def now(): Selection = selectionV.now()
 
@@ -75,8 +86,8 @@ trait DiagramSelectionOps:
     def hide() =
       project.hiddenElements.update(_ ++ selection.now())
 
-    private val fullGraphNow: ViewerGraph = sourceFlow.fullGraph.now()
-    private val visibleGraphNow = sourceFlow.visibleGraph.observe().now()
+    private def fullGraphNow: ViewerGraph = sourceFlow.fullGraph.now()
+    def visibleGraphNow: ViewerGraph      = sourceFlow.visibleGraph.observe().now()
 
     def selectGroupMembers() =
       val s          = now()

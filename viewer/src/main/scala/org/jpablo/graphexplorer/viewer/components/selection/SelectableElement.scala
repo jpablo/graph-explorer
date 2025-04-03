@@ -1,56 +1,28 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
+import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
+import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, NodeId}
+import org.jpablo.graphexplorer.viewer.utils.BBox
 import org.scalajs.dom
-import org.scalajs.dom.Element
-import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
+import org.scalajs.dom.{Element, FocusEvent}
+
+import scala.scalajs.js
 
 sealed trait SelectableElement(ref: dom.SVGGElement):
   def selectedClass: String
 
-  protected val refTitle = ref.querySelector("title").textContent
+  protected val refTitle  = ref.querySelector("title").textContent
   protected val refIdAttr = ref.id
 
   def elementId: ElementId
-  def nodeId: Option[NodeId] = elementId match { case n: NodeId => Some(n); case _ => None }
+  def nodeId: Option[NodeId]          = elementId match { case n: NodeId => Some(n); case _ => None }
   def arrowId: Option[models.ArrowId] = elementId match { case a: models.ArrowId => Some(a); case _ => None }
   def groupId: Option[models.GroupId] = elementId match { case g: models.GroupId => Some(g); case _ => None }
 
-  val get = ref
+  val get                = ref
   val selectionRectClass = "selected-border"
-
-  def selectedRect() =
-    val bbox = ref.getBBox()
-    val pixelPadding = 2
-    val paddingScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = pixelPadding)
-    val svgPadding = pixelPadding * paddingScale
-    val strokeW = 1.5 * paddingScale
-
-    val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect").asInstanceOf[dom.SVGRectElement]
-
-    val rectX = bbox.x - svgPadding - strokeW
-    val rectY = bbox.y - svgPadding - strokeW
-    val rectW = bbox.width + ((svgPadding + strokeW) * 2)
-    val rectH = bbox.height + ((svgPadding + strokeW) * 2)
-
-    rect.setAttribute("x", rectX.toString)
-    rect.setAttribute("y", rectY.toString)
-    rect.setAttribute("width", rectW.toString)
-    rect.setAttribute("height", rectH.toString)
-    rect.setAttribute("stroke-width", strokeW.toString)
-
-    val rScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = 5)
-    rect.setAttribute("rx", rScale.toString)
-    rect.setAttribute("ry", rScale.toString)
-    rect.classList.add(selectionRectClass)
-    rect
-
-  def select(): Unit =
-    ref.classList.add(selectedClass)
-    val rect = ref.querySelector(s"rect.$selectionRectClass")
-    if rect == null then
-      ref.appendChild(selectedRect())
 
   def unselect(): Unit =
     ref.classList.remove(selectedClass)
@@ -58,9 +30,102 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
     if rect != null then
       rect.remove()
 
-  def toggle(): Unit =
-    if ref.classList.contains(selectedClass) then unselect()
-    else select()
+  def select(): Unit =
+    ref.classList.add(selectedClass)
+    val rect = ref.querySelector(s"rect.$selectionRectClass")
+    if rect == null then
+      ref.appendChild(selectedRect())
+
+  /** Replaces the `<text>` elements with a `<textArea>` for inline editing. When the user presses Enter, it updates the label.
+    */
+  def installEditor(
+      updateLabel:  (ElementId, String) => Unit,
+      clearEditing: () => Unit,
+      label:        String
+  ): Unit =
+    val polygon      = ref.querySelector("polygon").asInstanceOf[dom.SVGPolygonElement]
+    val groupBBox    = (if polygon == null then ref else polygon).getBBox()
+    val textElements = ref.querySelectorAll("text").toSeq.map(_.asInstanceOf[dom.SVGTextElement])
+    val bBox =
+      if textElements.isEmpty then
+        BBox(groupBBox.x, groupBBox.y, groupBBox.width, groupBBox.height)
+      else
+        val textBBox = getUnionBBox(textElements.map(_.getBBox()))
+        BBox(groupBBox.x, textBBox.y, groupBBox.width, textBBox.height)
+
+    val (fo, input) = buildInputElement(bBox)
+
+    lazy val blurHandler: js.Function1[dom.FocusEvent, Unit] =
+      _ => restoreOriginalText()
+
+    def restoreOriginalText(): Unit =
+      input.removeEventListener("blur", blurHandler)
+      fo.remove()
+      textElements.foreach(te => ref.appendChild(te))
+      clearEditing()
+
+    input.value = TextUtils.unescape(label)
+
+    input.addEventListener("blur", blurHandler)
+
+    input.onkeydown = (event: dom.KeyboardEvent) => {
+      event.stopPropagation()
+      event.key match
+        case "Enter" if !event.shiftKey =>
+          event.preventDefault()
+          restoreOriginalText()
+          updateLabel(elementId, input.value)
+        case "Escape" =>
+          event.preventDefault()
+          input.blur()
+        case _ =>
+    }
+    // --------------------
+
+    textElements.foreach(_.remove())
+    ref.appendChild(fo)
+    // Focus the input element automatically, slightly delayed
+    dom.window.setTimeout(() => { input.focus(); input.select() }, 0)
+  end installEditor
+
+  private def buildInputElement(bbox: BBox) =
+    val xMargin = 2
+    val fo      = dom.document.createElementNS("http://www.w3.org/2000/svg", "foreignObject")
+    fo.setAttribute("x", (bbox.x + xMargin).toString) // Center approximately
+    fo.setAttribute("y", bbox.y.toString)             // Adjust for input height
+    fo.setAttribute("width", (bbox.width - 2 * xMargin).toString)
+    fo.setAttribute("height", bbox.height.toString)
+    fo.classList.add("editable-text-fo") // Add class for easier selection/removal
+
+    val input = dom.document.createElement("textarea").asInstanceOf[dom.html.TextArea]
+    input.classList.add("inline-input")
+    fo.appendChild(input)
+    (fo, input)
+
+  private def selectedRect() =
+    val bbox         = ref.getBBox()
+    val pixelPadding = 2
+    val paddingScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = pixelPadding)
+    val svgPadding   = pixelPadding * paddingScale
+    val strokeW      = 1.5 * paddingScale
+
+    val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect").asInstanceOf[dom.SVGRectElement]
+
+    val rectX  = bbox.x - svgPadding - strokeW
+    val rectY  = bbox.y - svgPadding - strokeW
+    val rectW  = bbox.width + ((svgPadding + strokeW) * 2)
+    val rectH  = bbox.height + ((svgPadding + strokeW) * 2)
+    val rScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = 5)
+
+    rect.setAttribute("x", rectX.toString)
+    rect.setAttribute("y", rectY.toString)
+    rect.setAttribute("width", rectW.toString)
+    rect.setAttribute("height", rectH.toString)
+    rect.setAttribute("stroke-width", strokeW.toString)
+    rect.setAttribute("rx", rScale.toString)
+    rect.setAttribute("ry", rScale.toString)
+    rect.classList.add(selectionRectClass)
+    rect
 
 object SelectableElement:
 
@@ -79,7 +144,7 @@ object SelectableElement:
 end SelectableElement
 
 case class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
-  val selectedClass = "selected"
+  val selectedClass     = "selected"
   val elementId: NodeId = models.NodeId(refTitle)
 
 case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
@@ -95,7 +160,7 @@ end EdgeElement
 
 case class ClusterElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
-  val elementId = models.GroupId(refTitle)
+  val elementId     = models.GroupId(refTitle)
 
 // ------------------------------
 // dom.Element extensions
@@ -131,3 +196,23 @@ extension (e: dom.Element)
 
   def removeStyle(styleName: String): Unit =
     replaceStyle((e.styleMap - styleName).toList*)
+
+def getUnionBBox(bboxes: Seq[dom.SVGRect]): BBox =
+  // Initialize with extreme values in opposite directions
+  var minX = Double.PositiveInfinity
+  var minY = Double.PositiveInfinity
+  var maxX = Double.NegativeInfinity
+  var maxY = Double.NegativeInfinity
+
+  for bbox <- bboxes do
+    minX = Math.min(minX, bbox.x)
+    minY = Math.min(minY, bbox.y)
+    maxX = Math.max(maxX, bbox.x + bbox.width)
+    maxY = Math.max(maxY, bbox.y + bbox.height)
+
+  BBox(
+    x = minX,
+    y = minY,
+    width = maxX - minX,
+    height = maxY - minY
+  )

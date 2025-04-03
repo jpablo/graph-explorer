@@ -158,6 +158,6 @@ class SourceFlow(
 
   val visibleDOT: Signal[DotText] =
     visibleAST
-      .map(ast => withLog("[visibleAST -> visibleDOT]")(DotText(ast.render(keepInternal = true))))
+      .map(ast => withLog("[visibleAST -> visibleDOT]", level = Level.None)(DotText(ast.render(keepInternal = true))))
 
 end SourceFlow

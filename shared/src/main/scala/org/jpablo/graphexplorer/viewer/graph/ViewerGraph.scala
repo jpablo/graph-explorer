@@ -151,6 +151,15 @@ case class ViewerGraph(
     val (newGraph, arrow) = addNodeWithId(nodeId, sourceGroup, attributes).addArrow(source, nodeId)
     (newGraph, nodeId, arrow.id)
 
+  def addNodeAndArrowTo(
+      target:     NodeId,
+      attributes: Attributes = Attributes.empty
+  ): (ViewerGraph, NodeId, ArrowId) =
+    val nodeId            = nextNodeId()
+    val targetGroup       = membership(target)
+    val (newGraph, arrow) = addNodeWithId(nodeId, targetGroup, attributes).addArrow(nodeId, target)
+    (newGraph, nodeId, arrow.id)
+
 //  lazy val toTrees: Tree[ViewerNode] =
 //    val paths =
 //      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.label, ns)

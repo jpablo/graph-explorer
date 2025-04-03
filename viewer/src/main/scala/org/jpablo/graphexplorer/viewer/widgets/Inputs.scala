@@ -6,6 +6,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.color.ColorFormat
+import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -58,8 +59,8 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
   val initialOptions = row.options.take(initial)
   val extraOptions   = row.options.drop(initial)
   ul(
-    tabIndex := 0,
-    cls := s"menu-with-extra-dropdown menu menu-horizontal bg-base-100 rounded-box p-0",
+    tabIndex               := 0,
+    cls                    := s"menu-with-extra-dropdown menu menu-horizontal bg-base-100 rounded-box p-0",
     cls("justify-between") := extraOptions.nonEmpty,
     for option <- initialOptions yield li(menuButton(option)),
     li(
@@ -68,7 +69,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
         cls := s"dropdown dropdown-bottom p-0 m-0",
         // TailwindCSS classes seem to have issues with dynamic strings, so we add the cases we need here.
         cls("dropdown-start") := dir == MenuDirection.start,
-        cls("dropdown-end") := dir == MenuDirection.end,
+        cls("dropdown-end")   := dir == MenuDirection.end,
         if extraOptions.isEmpty then emptyMod
         else
           Seq(
@@ -77,7 +78,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
             // popup card
             div(
               tabIndex := 0,
-              cls := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
+              cls      := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
               // extra style
               cardClass.map(cc => cls := cc),
               div(
@@ -198,22 +199,11 @@ def TextAreaWithValue(
   val rawText = row.inputVar
     .bimap(
       // DOT -> UI
-      getThis = dotText =>
-        val uiText = dotText.getOrElse(default).toString
-          .replaceAll(
-            """\\\\""", // regex matching two backslashes
-            """\\"""    // replaced by a single backslash
-          )
-          .replaceAll("""\\n""", "\n")
-        uiText
+      getThis = dotText => TextUtils.unescape(dotText.getOrElse(default).toString)
     )(
       // UI -> DOT
       getParent = uiText =>
-        val dotText = uiText
-          // escape single slashes first; this will ignore newlines
-          .replaceAll("""\\""", """\\\\""")
-          // replace '\n' (single character) with two characters: ['\\', 'n']
-          .replaceAll("\n", """\\n""")
+        val dotText = TextUtils.escape(uiText)
         Single(AttrValue(if isHtml(uiText) then AttrEq(dotText, true) else dotText))
     )
 

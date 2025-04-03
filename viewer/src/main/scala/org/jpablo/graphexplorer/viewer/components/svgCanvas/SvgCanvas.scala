@@ -9,7 +9,8 @@ import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
-import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
+import org.jpablo.graphexplorer.viewer.models.{ElementId, NodeId}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, Selection}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
@@ -23,9 +24,9 @@ object SvgCanvas:
       transform:    Signal[String],
       selectionOps: DiagramSelectionOps,
       addNode:      () => Unit,
-      getRankdir:   () => Rankdir
+      getRankdir:   () => Rankdir,
+      updateLabel:  (ElementId, String) => Unit
   ): ReactiveSvgElement[dom.svg.SVG] =
-
     import selectionOps.selection
 
     val firstGroup: dom.svg.G =
@@ -33,54 +34,13 @@ object SvgCanvas:
       (if g0 == null then dom.document.createElement("g") else g0).asInstanceOf[dom.svg.G]
 
     // --------------------------------------------------------
-    // The top level <g> element
-    // --------------------------------------------------------
-    val topLevelGroup =
-      foreignSvgElement(svg.g, firstGroup)
-        .amendThis: group =>
-          val selectableElements = SelectableElement.findAll(group.ref)
-          Seq(
-            svg.transform <-- transform,
-            // --------------------------------------------------------
-            //   "New arrow" button
-            // --------------------------------------------------------
-            child.maybe <--
-              selection.signal.map: selectedNodes =>
-                if selectedNodes.size == 1 then
-                  val elementId = selectedNodes.head
-                  for
-                    elem <- selectableElements.find(_.elementId == elementId)
-                    btn  <- NewArrowButton(elem, getRankdir)
-                  yield
-                  // --------------------------------------------------------
-                  // Mouse interaction
-                  // --------------------------------------------------------
-                  btn.amend(
-                    onMouseDown.stopPropagation --> { ev =>
-                      selection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
-                    },
-                    onMouseUp.stopPropagation --> { _ =>
-                      selection.endSelectionLine()
-                      addNode()
-                    }
-                  )
-                else
-                  None
-            ,
-            // --------------------------------------------------------
-            //   draw dragging arrow
-            // --------------------------------------------------------
-            child.maybe <-- DraggingArrow(selection.selectionRectLine.signal, group.ref)
-          )
-
-    // --------------------------------------------------------
     // The top level <svg> element
     // --------------------------------------------------------
     val viewBox = rawSvg.viewBox.baseVal
-    val tr = getTranslate(firstGroup)
-    val bbox = BBox(viewBox.x - tr.x, viewBox.y - tr.y, viewBox.width, viewBox.height)
+    val tr      = getTranslate(firstGroup)
+    val bbox    = BBox(viewBox.x - tr.x, viewBox.y - tr.y, viewBox.width, viewBox.height)
     selfContainedSvg(bbox)
-      .amend(topLevelGroup)
+      .amend(TopLevelGroup(firstGroup, transform, selectionOps, addNode, getRankdir))
       .amendThis { topLevelSvg =>
         val selectableElements = SelectableElement.findAll(topLevelSvg.ref)
         Seq(
@@ -112,17 +72,67 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   synchronize svg elements with diagramSelection
           // --------------------------------------------------------
-          selection.signal --> { selectedNodes =>
+          selection.signal.combineWith(selection.editingElement) --> { (selectedNodes: Selection, editing: Option[ElementId]) =>
             for elem <- selectableElements do
               if elem.elementId in selectedNodes then
                 elem.select()
+                // only nodes for now
+                elem.elementId match
+                  case id: NodeId =>
+                    for editingId <- editing if editingId == elem.elementId do
+                      val node = selection.visibleGraphNow.nodes(id)
+                      elem.installEditor(updateLabel, selection.clearEditing, node.label.toString)
+                  case _ =>
               else
                 elem.unselect()
           }
         )
       }
-
   end apply
+
+  // --------------------------------------------------------
+  // The top level <g> element
+  // --------------------------------------------------------
+  def TopLevelGroup(
+      firstGroup:   dom.svg.G,
+      transform:    Signal[String],
+      selectionOps: DiagramSelectionOps,
+      addNode:      () => Unit,
+      getRankdir:   () => Rankdir
+  ) =
+    import selectionOps.selection
+    foreignSvgElement(svg.g, firstGroup)
+      .amendThis: group =>
+        val selectableElements = SelectableElement.findAll(group.ref)
+        Seq(
+          svg.transform <-- transform,
+          // --------------------------------------------------------
+          //   "New arrow" button
+          // --------------------------------------------------------
+          child.maybe <--
+            selection.signal.map: selectedNodes =>
+              if selectedNodes.size == 1 then
+                val elementId = selectedNodes.head
+                for
+                  elem <- selectableElements.find(_.elementId == elementId)
+                  btn  <- NewArrowButton(elem, getRankdir)
+                yield btn.amend(
+                  onMouseDown.stopPropagation --> { ev =>
+                    selection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+                  },
+                  onMouseUp.stopPropagation --> { _ =>
+                    selection.endSelectionLine()
+                    addNode()
+                  }
+                )
+              else
+                None
+          ,
+          // --------------------------------------------------------
+          //   draw dragging arrow
+          // --------------------------------------------------------
+          child.maybe <-- DraggingArrow(selection.selectionRectLine.signal, group.ref)
+        )
 
   /** Creates a standalone SVG element with the given viewBox
     */
@@ -141,8 +151,7 @@ object SvgCanvas:
     * @param topLevelSVG
     *   The SVG element that contains the selection
     * @return
-    *   Signal containing an optional SVG rect element. The rect is only present when there is an active selection
-    *   action.
+    *   Signal containing an optional SVG rect element. The rect is only present when there is an active selection action.
     */
   private def DrawSelectionRect(
       action:      Signal[Option[Action.Area]],
