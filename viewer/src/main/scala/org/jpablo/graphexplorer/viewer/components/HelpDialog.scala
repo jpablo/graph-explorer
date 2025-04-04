@@ -76,8 +76,7 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
             ),
             tr(
               td(
-                kbd(cls := "kbd kbd-sm", "Click"),
-                span(" element")
+                kbd(cls := "kbd kbd-sm", "Click")
               ),
               td("Select element")
             ),
@@ -85,10 +84,9 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
               td(
                 kbd(cls := "kbd kbd-sm", "Shift"),
                 span(" + "),
-                kbd(cls := "kbd kbd-sm", "Click"),
-                span(" element")
+                kbd(cls := "kbd kbd-sm", "Click")
               ),
-              td(cls := "p-2 border", "Toggle element selection")
+              td(cls := "p-2", "Toggle element selection")
             )
           )
         )
