@@ -134,7 +134,7 @@ case class EdgeStmt(
 
         // (3) a -> {x y ...}  =>  a -> x, a -> y, ...
         case List(DotNodeId(a, _), sub @ SubGraph(_, _)) =>
-          (sub.allNodesIds.map(x => arrow(a -> x, attrs, nextId())))
+          sub.allNodesIds.map(x => arrow(a -> x, attrs, nextId()))
 
         // (4) {x y ...} -> a  =>  x -> a, y -> a, ...
         case List(sub @ SubGraph(_, _), DotNodeId(a, _)) =>

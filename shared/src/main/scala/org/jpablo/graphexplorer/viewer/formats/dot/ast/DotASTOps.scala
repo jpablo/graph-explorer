@@ -3,11 +3,11 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes as attr //.{BgColor, Concentrate, GraphType, Label, LabelJust, Layout, NodeSep, RankSep, Rankdir, RootGraphLabelLoc, Splines}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes as attr
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeNoDefaults
 
 import scala.annotation.tailrec
 
@@ -28,7 +28,7 @@ extension (ast: DotAST)
         throw new IllegalArgumentException("DotAST must have an id")
 
   private def nodeStmtToViewerNode(nodeStmt: NodeStmt): ViewerNode =
-    node(
+    nodeNoDefaults(
       nodeId = NodeId(nodeStmt.node_id.id),
       attributes = Attributes(toAttrsMap(nodeStmt.attr_list))
     )
@@ -83,7 +83,7 @@ extension (ast: DotAST)
     )
 
     ViewerGraphElements(
-      nodes = nodesMap ++ implicitNodeIds.map(n => n -> node(n)),
+      nodes = nodesMap ++ implicitNodeIds.map(n => n -> nodeNoDefaults(n)),
       arrows = arrows.map(a => a.id -> a).toMap,
       memberships = filteredMemberships,
       groups = groups.map(g => g.id -> g).toMap,

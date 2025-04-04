@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
 
 import scala.annotation.tailrec
 
@@ -130,7 +130,7 @@ case class ViewerGraph(
   ): ViewerGraph =
     modifyElements.using(
       _.copy(
-        nodes = nodes + (nodeId -> node(nodeId, attributes)),
+        nodes = nodes + (nodeId -> nodeWithDefaults(nodeId, attributes)),
         memberships = groupId.fold(memberships)(g => memberships + (nodeId -> g))
       )
     )

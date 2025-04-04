@@ -19,7 +19,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
 }
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.node
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
 
 trait AttributesOps:
   this: ViewerGraph =>
@@ -118,7 +118,7 @@ trait AttributesOps:
     val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
       nodes.updated(
         id,
-        nodes.getOrElse(id, node(id)).modifyAttrs.using(updates.applyUpdatesTo)
+        nodes.getOrElse(id, nodeWithDefaults(id)).modifyAttrs.using(updates.applyUpdatesTo)
       )
 
     modifyElements.using(

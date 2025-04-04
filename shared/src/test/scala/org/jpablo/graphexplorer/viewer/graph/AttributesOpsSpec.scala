@@ -20,7 +20,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
 }
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, node, nodeWithId}
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithDefaults, nodeWithId}
 
 class AttributesOpsSpec extends FunSuite:
 
@@ -76,9 +76,9 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
       .modifyNodes.setTo(
         Map(
-          a -> node(a, Attributes(Map(NodeStyle.attrId -> styleValue))),
-          b -> node(b),
-          c -> node(c)
+          a -> nodeWithDefaults(a, Attributes(Map(NodeStyle.attrId -> styleValue))),
+          b -> nodeWithDefaults(b),
+          c -> nodeWithDefaults(c)
         )
       )
 
@@ -102,9 +102,9 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
       .modifyNodes.setTo(
         Map(
-          a -> node(a, Attributes.of(FillStyle -> true, BoldStyle -> true, BorderStyle -> BorderStyle.dashed)),
-          b -> node(b),
-          c -> node(c)
+          a -> nodeWithDefaults(a, Attributes.of(FillStyle -> true, BoldStyle -> true, BorderStyle -> BorderStyle.dashed)),
+          b -> nodeWithDefaults(b),
+          c -> nodeWithDefaults(c)
         )
       )
 
@@ -210,7 +210,7 @@ class AttributesOpsSpec extends FunSuite:
   test("getAttributesUpdatesById should return attributes for a node") {
     val graph = createTestGraph()
       .modifyNodes.using(_ ++
-        Map(a -> node(a, Attributes.of(Color -> "red", Shape -> Shape.box))))
+        Map(a -> nodeWithDefaults(a, Attributes.of(Color -> "red", Shape -> Shape.box))))
 
     // Apply the method
     val result = graph.getAttributesUpdatesById(ElementIds.from(a))
