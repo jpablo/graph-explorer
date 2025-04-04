@@ -69,16 +69,16 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
         SubGraph(
           List(
             defaultGroupAttrStmt,
-            SubGraph(List(defaultGroupAttrStmt, NodeStmt(d, defaultNodeDotAttrs)), Some("cluster_1")),
-            NodeStmt(z, List(Attr("label", "ZZ")))
+            SubGraph(List(defaultGroupAttrStmt, NodeStmt(d)), Some("cluster_1")),
+            NodeStmt(a),
+            NodeStmt(b),
+            NodeStmt(z, List(Attr("shape", "egg"), Attr("label", "ZZ")))
           ),
           Some("cluster_0")
         ),
-        NodeStmt(x, defaultNodeDotAttrs),
-        NodeStmt(a, defaultNodeDotAttrs),
-        NodeStmt(y, defaultNodeDotAttrs),
-        NodeStmt(b, defaultNodeDotAttrs),
-        NodeStmt(c, defaultNodeDotAttrs),
+        NodeStmt(x),
+        NodeStmt(y),
+        NodeStmt(c),
         EdgeStmt(List(x, y), List(Attr("id", "1"))),
         EdgeStmt(List(a, b), List(Attr("id", "2"))), // This edge was originally in the subgraph but now at the top level
         EdgeStmt(List(x, a), List(Attr("id", "3"))),

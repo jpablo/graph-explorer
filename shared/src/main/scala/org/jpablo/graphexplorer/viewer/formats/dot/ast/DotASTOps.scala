@@ -44,7 +44,8 @@ extension (ast: DotAST)
       nodes:       List[ViewerNode],
       arrows:      List[Arrow],
       memberships: List[(ElementId, GroupId)], // List of (element, group) memberships
-      groups:      List[ViewerGroup]
+      groups:      List[ViewerGroup],
+      groupAttrs:  Map[GroupId, Map[AttributeTarget, Attributes]]
   ): ViewerGraphElements =
     val nodesMap        = VectorMap.from(nodes.map(n => n.id -> n))
     val arrowsMap       = arrows.map(a => a.id -> a).toMap
@@ -86,8 +87,16 @@ extension (ast: DotAST)
       attr.Splines.attrId
     )
 
+    // Create implicit nodes with their group's node attributes if they belong to a group
+    val implicitNodes = implicitNodeIds.map { nodeId =>
+      val groupNodeAttrs = allMemberships.get(nodeId)
+        .flatMap(groupId => groupAttrs.get(groupId).flatMap(_.get(AttributeTarget.node)))
+        .getOrElse(Attributes.empty)
+      nodeId -> nodeNoDefaults(nodeId, groupNodeAttrs)
+    }
+
     ViewerGraphElements(
-      nodes = nodesMap ++ implicitNodeIds.map(n => n -> nodeNoDefaults(n)),
+      nodes = nodesMap ++ implicitNodes,
       arrows = arrowsMap,
       memberships = allMemberships,
       groups = groups.map(g => g.id -> g).toMap,
@@ -112,14 +121,15 @@ extension (ast: DotAST)
         arrows:        List[Arrow],
         groups:        List[ViewerGroup],
         nodes:         List[ViewerNode],
-        memberships:   List[(ElementId, GroupId)] // List of (element, group) memberships
+        memberships:   List[(ElementId, GroupId)],                                // List of (element, group) memberships
+        groupAttrs:    Map[GroupId, Map[AttributeTarget, Attributes]] = Map.empty // Track group-specific attributes
     ): ViewerGraphElements =
       pendingGroups match
 
-        case Nil => buildViewerGraphElements(nodes.reverse, arrows, memberships.reverse, groups.reverse)
+        case Nil => buildViewerGraphElements(nodes.reverse, arrows, memberships.reverse, groups.reverse, groupAttrs)
 
         // corner case: a groupId without children. Skipping it.
-        case (_, Nil) :: t => loop(t, arrows, groups, nodes, memberships)
+        case (_, Nil) :: t => loop(t, arrows, groups, nodes, memberships, groupAttrs)
 
         // firstChild and children belong to the same parent group
         case (groupId, firstChild :: children) :: restGroups => // remaining
@@ -130,13 +140,16 @@ extension (ast: DotAST)
           firstChild match
 
             case sub: SubGraph =>
-              val viewerGroup = subGraphToViewerGroup(sub)
+              val viewerGroup       = subGraphToViewerGroup(sub)
+              val byTarget          = sub.collectAttributesByTarget
+              val updatedGroupAttrs = groupAttrs + (viewerGroup.id -> byTarget.map { case (k, v) => k -> Attributes(v) })
               loop(
                 pendingGroups = (Some(viewerGroup.id) -> sub.children) :: pendingGroups,
                 arrows = arrows,
                 groups = viewerGroup :: groups,
                 nodes = nodes,
-                memberships = groupId.fold(memberships)(gId => (viewerGroup.id -> gId) :: memberships)
+                memberships = groupId.fold(memberships)(gId => (viewerGroup.id -> gId) :: memberships),
+                groupAttrs = updatedGroupAttrs
               )
 
             case e: EdgeStmt =>
@@ -146,21 +159,30 @@ extension (ast: DotAST)
                 arrows = arrows ++ edgeArrows,
                 groups = groups,
                 nodes = nodes,
-                memberships = groupId.fold(memberships)(gId => edgeArrows.reverse.map(_.id -> gId) ++ memberships)
+                memberships = groupId.fold(memberships)(gId => edgeArrows.reverse.map(_.id -> gId) ++ memberships),
+                groupAttrs = groupAttrs
               )
 
             case n: NodeStmt =>
-              val viewerNode = nodeStmtToViewerNode(n)
+              val nodeAttributes = groupId
+                .flatMap(gId => groupAttrs.get(gId).flatMap(_.get(AttributeTarget.node)))
+                .getOrElse(Attributes.empty)
+
+              val viewerNode = nodeNoDefaults(
+                nodeId = NodeId(n.node_id.id),
+                attributes = nodeAttributes ++ Attributes(toAttrsMap(n.attr_list))
+              )
               loop(
                 pendingGroups = pendingGroups,
                 arrows = arrows,
                 groups = groups,
                 nodes = viewerNode :: nodes,
-                memberships = groupId.fold(memberships)(gId => (viewerNode.id -> gId) :: memberships)
+                memberships = groupId.fold(memberships)(gId => (viewerNode.id -> gId) :: memberships),
+                groupAttrs = groupAttrs
               )
 
             case _ =>
-              loop(pendingGroups, arrows, groups, nodes, memberships)
+              loop(pendingGroups, arrows, groups, nodes, memberships, groupAttrs)
 
     loop(
       pendingGroups = List(None -> ast.children),

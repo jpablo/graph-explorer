@@ -3,23 +3,9 @@ package org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes
 import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{default, missing}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
-  BoldStyle,
-  BorderStyle,
-  CornerStyle,
-  FillColor,
-  FillStyle,
-  InvisibleStyle,
-  NodeStyle
-}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
-import org.jpablo.graphexplorer.viewer.models.{
-  AttrStatus,
-  AttributeId,
-  Attributes,
-  AttributesUpdates,
-  SelectionAttrValue
-}
+import org.jpablo.graphexplorer.viewer.models.*
 
 /** Provides "virtual" attributes that correspond to sub-attributes of the "style" attribute.
   *
@@ -29,7 +15,7 @@ import org.jpablo.graphexplorer.viewer.models.{
   */
 case class StyleSubAttributes(
     // automatically set based on the FillColor attribute
-    fill:      AttrStatus[Boolean],
+    fill: AttrStatus[Boolean],
     // Not used, kept for compatibility
     bold:      AttrStatus[Boolean],
     invisible: AttrStatus[Boolean],
@@ -153,9 +139,22 @@ object StyleSubAttributes:
       case Multiple      => multiple
       case Missing       => missing
 
+  // If no fill color is specified, interpret the fill style as false
   private def handleFillStyle(attrs: Attributes) =
-    // If no fill color is specified, interpret the fill style as false
-    attrs.get(FillColor.attrId).map(_.toString != FillColor.none)
+    val color     = attrs.get(Color.attrId)
+    val fillColor = attrs.get(FillColor.attrId)
+    val fill      = attrs.get(FillStyle.attrId)
+
+    if color.isDefined && fillColor.isEmpty && fill.isDefined then
+      // This case accounts for this DOT rule:
+      // - color controls the border color
+      // - fillcolor controls the fill color
+      // - When style="filled" and only color is specified, the fill color defaults to the same value as the border color
+      color.map(_.toString != FillColor.none)
+    else if fill.isDefined then
+      Some(true)
+    else
+      fillColor.map(_.toString != FillColor.none)
 
   // TODO: we need to use Missing!!! (at least for local values, not sure about global)
   def fromSubAttributes(attrs: Attributes): StyleSubAttributes =

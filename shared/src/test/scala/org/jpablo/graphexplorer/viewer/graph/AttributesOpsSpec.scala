@@ -1,9 +1,10 @@
 package org.jpablo.graphexplorer.viewer.graph
 
+import com.softwaremill.quicklens.*
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.NodeStyle.{bold, dashed, filled}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, BoldStyle, BorderStyle, Color, Dir, DirType, FillStyle, Label, NodeStyle, Shape, Sides, Size}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithDefaults, nodeWithId}
@@ -29,14 +30,7 @@ class AttributesOpsSpec extends FunSuite:
       ViewerGraphElements(
         nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
         arrows = Map(arrow.id -> arrow),
-        groups = Map(
-          groupId -> group(
-            groupId = groupId,
-            attributes = Attributes.of(Label -> "Cluster 1")
-//            nodeAttrs = Attributes.of(Shape -> Shape.box),
-//            arrowAttrs = Attributes.of(Style -> Style.dashed)
-          )
-        )
+        groups = Map(groupId -> group(groupId, Attributes.of(Label -> "Cluster 1")))
       )
     )
 
@@ -94,13 +88,17 @@ class AttributesOpsSpec extends FunSuite:
           b -> nodeWithDefaults(b),
           c -> nodeWithDefaults(c)
         )
-      )
+      ).modify(_.elements.groups.at(groupId)).using { g =>
+        // make sure that importing a group honors the filled attribute
+        g.modifyAttrs.using(_ ++ Attributes.of(FillStyle -> true))
+      }
 
+    val elems1 = graph.combineStyleAttributes
     // We need to create a new graph with the combined elements to test it
-    val result = graph.modifyElements.setTo(graph.combineStyleAttributes)
+    val modifiedGraph = graph.modifyElements.setTo(elems1)
 
     // Verify the sub-attributes are combined using getNode
-    val nodeAttrs = result.getNode(a).get.attributes
+    val nodeAttrs = modifiedGraph.getNode(a).get.attributes
 
     // The sub-attributes should be removed
     assertEquals(nodeAttrs.get(FillStyle), None, "fillstyle should be removed")
@@ -108,9 +106,11 @@ class AttributesOpsSpec extends FunSuite:
     assertEquals(nodeAttrs.get(BorderStyle), None, "borderstyle should be removed")
 
     // The style attribute should be present with the combined value
-    val expected: Some[AttrValue] = Some(AttrValue("bold,dashed"))
-    // Note: we're ignoring `filled` now as it is derived from the `color` attribute
-    assertEquals(nodeAttrs.get(NodeStyle), expected, "style attribute should contain the combined values")
+    assertEquals(nodeAttrs.get(NodeStyle), Some(AttrValue("filled,bold,dashed")), "style attribute should contain the combined values")
+
+    val groupAttrs = modifiedGraph.groups(groupId).attributes
+    val expected = ViewerGroup.defaultGroupAttributes ++ Attributes.of(Style -> Style.filled, Label -> "Cluster 1")
+    assertEquals(groupAttrs, expected)
   }
 
   test("combineStyleAttributes should use rootGroup.nodeAttrs as defaults for nodes.attributes") {

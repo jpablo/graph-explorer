@@ -65,12 +65,15 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def -(key: AttributeId): Attributes              = Attributes(values - key)
   def +(kv:  (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
 
+  def contains (key: AttributeId) : Boolean =
+    values.contains(key)
+
   def toDotAttr: List[Attr] =
     values.map((k, v) => Attr(k.value, v)).toList
 
   def get(key:  AttributeId): Option[AttrValue]     = values.get(key)
   def get(attr: DotAttribute[?]): Option[AttrValue] = values.get(attr.attrId)
-  
+
   def filterKeys(p: AttributeId => Boolean): Attributes =
     Attributes(values.view.filterKeys(p).toMap)
 

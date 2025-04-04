@@ -7,7 +7,9 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.{defaultGroupAttributes, group}
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithId}
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeNoDefaults, nodeWithId}
+
+import scala.collection.immutable.VectorMap
 
 class ToViewerGraphElementsSpec extends ScalaCheckSuite:
 
@@ -28,21 +30,22 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
 
   extension (d: DotNodeId)
     def nodeTuple: (NodeId, ViewerNode) =
-      nodeWithId(d.id)
+      val nId = NodeId(d.id)
+      nId -> nodeNoDefaults(nId)
 
   EdgeStmt.resetId()
   val viewerGraphElements = astWithNestedSubGraphs.toViewerGraphElements
 
   test("toViewerGraphElements should return all nodes") {
     val expectedNodes =
-      Map(
+      VectorMap(
         a.nodeTuple,
         b.nodeTuple,
-        c.nodeTuple,
+        nodeWithId("z", "shape" -> "egg", "label" -> "ZZ"),
         d.nodeTuple,
         x.nodeTuple,
         y.nodeTuple,
-        nodeWithId("z", "label" -> "ZZ")
+        c.nodeTuple,
       )
     assertEquals(viewerGraphElements.nodes, expectedNodes)
   }
@@ -81,6 +84,8 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
     val expectedMemberships =
       List(
         NodeId("z") -> group0,
+        NodeId("a") -> group0,
+        NodeId("b") -> group0,
         group1      -> group0,
         NodeId("d") -> group1
       ).toMap
