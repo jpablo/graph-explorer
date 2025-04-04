@@ -10,6 +10,7 @@ import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeNoDefaults
 
 import scala.annotation.tailrec
+import scala.collection.immutable.VectorMap
 
 enum AttributeTarget derives CanEqual:
   case node, edge, graph
@@ -45,17 +46,20 @@ extension (ast: DotAST)
       memberships: List[(ElementId, GroupId)], // List of (element, group) memberships
       groups:      List[ViewerGroup]
   ): ViewerGraphElements =
-    val arrowEndpoints  = arrows.flatMap(_.endpoints).toSet
-    val nodesMap        = nodes.map(n => n.id -> n).toMap
-    val implicitNodeIds = arrowEndpoints -- nodesMap.keySet
+    val nodesMap        = VectorMap.from(nodes.map(n => n.id -> n))
+    val arrowsMap       = arrows.map(a => a.id -> a).toMap
+    val nodeIds         = nodesMap.keySet
+    val implicitNodeIds = arrows.flatMap(_.endpoints).filterNot(nodeIds)
 
     // DOT allows arrows within clusters, we don't.
-    val filteredMemberships =
-      memberships.foldLeft(Map.empty[GroupMemberId, GroupId]):
+    val allMemberships =
+      memberships.foldLeft(VectorMap.empty[GroupMemberId, GroupId]):
         case (acc, (memId, groupId)) =>
           memId match
             case m: GroupMemberId => acc + (m -> groupId)
-            case _                => acc
+            case aId: ArrowId =>
+              val Seq(a, b) = arrowsMap(aId).endpoints
+              acc + (a -> groupId) + (b -> groupId)
 
     // Top level attributes. Only keep one set of attributes for each target.
     // TODO: In case of multiple attributes, we need to keep track of their scope (nodes following the attribute)
@@ -84,8 +88,8 @@ extension (ast: DotAST)
 
     ViewerGraphElements(
       nodes = nodesMap ++ implicitNodeIds.map(n => n -> nodeNoDefaults(n)),
-      arrows = arrows.map(a => a.id -> a).toMap,
-      memberships = filteredMemberships,
+      arrows = arrowsMap,
+      memberships = allMemberships,
       groups = groups.map(g => g.id -> g).toMap,
       graphAttributes = attributes.filterKeys(_ in graphAttrIds),
       defaultNodeAttributes = nodeAttrs,
@@ -142,7 +146,7 @@ extension (ast: DotAST)
                 arrows = arrows ++ edgeArrows,
                 groups = groups,
                 nodes = nodes,
-                memberships = groupId.fold(memberships)(gId => edgeArrows.map(_.id -> gId) ++ memberships)
+                memberships = groupId.fold(memberships)(gId => edgeArrows.reverse.map(_.id -> gId) ++ memberships)
               )
 
             case n: NodeStmt =>

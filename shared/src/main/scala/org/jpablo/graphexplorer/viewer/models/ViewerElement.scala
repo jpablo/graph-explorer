@@ -60,8 +60,7 @@ case class Arrow(
   override val id: ArrowId =
     ArrowId(s"${source.value}$titleIdSeparator${target.value}:$seq")
 
-  def nodeIds   = Set(source, target)
-  def endpoints = Set(source, target)
+  def endpoints = Seq(source, target)
 end Arrow
 
 object Arrow:

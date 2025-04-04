@@ -2,10 +2,12 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.models.*
 
+import scala.collection.immutable.VectorMap
+
 case class ViewerGraphElements(
     // the graph itself is a group
 //    rootId: GroupId = defaultRootId,
-    nodes: Map[NodeId, ViewerNode] = Map.empty,
+    nodes: VectorMap[NodeId, ViewerNode] = VectorMap.empty,
     // arrow endpoints should already be in nodes
     arrows: Map[ArrowId, Arrow] = Map.empty,
     // membership to the top-level graph is implicit

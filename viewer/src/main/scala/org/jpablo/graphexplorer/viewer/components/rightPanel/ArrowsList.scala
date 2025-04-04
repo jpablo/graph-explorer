@@ -177,9 +177,9 @@ def ArrowsList(state: ViewerState): Div =
                       .preventDefault
                       .stopPropagation(_.sample(state.isElementVisible(arrow.id))) --> { visible =>
                       if visible then
-                        state.hideNodes(arrow.nodeIds)
+                        state.hideNodes(arrow.endpoints.toSet)
                       else
-                        state.showNodes(arrow.nodeIds)
+                        state.showNodes(arrow.endpoints.toSet)
                     }
                   )
         )

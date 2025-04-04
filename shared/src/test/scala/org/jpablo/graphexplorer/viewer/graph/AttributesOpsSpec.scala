@@ -3,24 +3,12 @@ package org.jpablo.graphexplorer.viewer.graph
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.NodeStyle.{bold, dashed, filled}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
-  ArrowTail,
-  ArrowType,
-  BoldStyle,
-  BorderStyle,
-  Color,
-  Dir,
-  DirType,
-  FillStyle,
-  Label,
-  NodeStyle,
-  Shape,
-  Sides,
-  Size
-}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowTail, ArrowType, BoldStyle, BorderStyle, Color, Dir, DirType, FillStyle, Label, NodeStyle, Shape, Sides, Size}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithDefaults, nodeWithId}
+
+import scala.collection.immutable.VectorMap
 
 class AttributesOpsSpec extends FunSuite:
 
@@ -39,7 +27,7 @@ class AttributesOpsSpec extends FunSuite:
     val arrow = Arrow(a, b)
     ViewerGraph(
       ViewerGraphElements(
-        nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
+        nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
         arrows = Map(arrow.id -> arrow),
         groups = Map(
           groupId -> group(
@@ -75,7 +63,7 @@ class AttributesOpsSpec extends FunSuite:
     val styleValue = AttrValue(Seq(filled, bold, dashed).mkString(","))
     val graph = createTestGraph()
       .modifyNodes.setTo(
-        Map(
+        VectorMap(
           a -> nodeWithDefaults(a, Attributes(Map(NodeStyle.attrId -> styleValue))),
           b -> nodeWithDefaults(b),
           c -> nodeWithDefaults(c)
@@ -101,7 +89,7 @@ class AttributesOpsSpec extends FunSuite:
     // Create a graph with sub-attributes
     val graph = createTestGraph()
       .modifyNodes.setTo(
-        Map(
+        VectorMap(
           a -> nodeWithDefaults(a, Attributes.of(FillStyle -> true, BoldStyle -> true, BorderStyle -> BorderStyle.dashed)),
           b -> nodeWithDefaults(b),
           c -> nodeWithDefaults(c)

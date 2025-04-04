@@ -10,6 +10,8 @@ import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.{defaultGroupAttributes, group, groupWithId}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithId}
 
+import scala.collection.immutable.VectorMap
+
 class ViewerGraphDotSpec extends ScalaCheckSuite:
   val rootId       = ViewerGraphElements.defaultRootId
   val initialGroup = groupWithId(rootId)
@@ -23,7 +25,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
 
   test("graphToDotAST should convert a ViewerGraph to a DotAST: two nodes and an arrow") {
     val graph =
-      ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b)), arrows = Map(arrow(a, b))))
+      ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b)), arrows = Map(arrow(a, b))))
 
     val ast = graphToDotAST(graph)
 
@@ -45,7 +47,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
 
     val ab = arrow(a, b)
     // Setup initial graph with nodes
-    val graph = ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b)), arrows = Map(ab)))
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b)), arrows = Map(ab)))
 
     // Add elements to a new group with a label
     val updatedGraph = graph.moveToNewGroup("New Group", a)
@@ -54,9 +56,9 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
     val expected =
       ViewerGraph(
         ViewerGraphElements(
-          nodes = Map(nodeWithId(a), nodeWithId(b)),
+          nodes = VectorMap(nodeWithId(a), nodeWithId(b)),
           arrows = Map(ab),
-          memberships = Map(a -> newGroupId),
+          memberships = VectorMap(a -> newGroupId),
           groups = Map(newGroupId -> group(newGroupId, Attributes.of(Label -> "New Group")))
         )
       )

@@ -6,6 +6,8 @@ import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.{group, groupWithId}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
 
+import scala.collection.immutable.VectorMap
+
 class GroupsOpsSpec extends FunSuite:
 
   val rootId = ViewerGraphElements.defaultRootId
@@ -19,7 +21,7 @@ class GroupsOpsSpec extends FunSuite:
   val c = NodeId("c")
 
   test("moveToNewGroup should create a new group and add elements to it") {
-    val graph = ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     // sanity check
     assert(graph.groups == Map.empty)
     assert(graph.memberships.isEmpty)
@@ -34,8 +36,8 @@ class GroupsOpsSpec extends FunSuite:
     val expected =
       ViewerGraph.minimal.modifyElements.using(
         _.copy(
-          nodes       = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
-          memberships = Map(a -> newGroupId, b -> newGroupId),
+          nodes       = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
+          memberships = VectorMap(a -> newGroupId, b -> newGroupId),
           groups      = Map(newGroup)
         )
       )
@@ -44,7 +46,7 @@ class GroupsOpsSpec extends FunSuite:
 
   test("moveToNewGroup should add the new group to a common parent when elements share a parent") {
     val graphWithGroup =
-      ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+      ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
         .moveToNewGroup("Parent group", a, b)
 
     val parentGroup = graphWithGroup.membership(a).get
@@ -62,7 +64,7 @@ class GroupsOpsSpec extends FunSuite:
 
   test("moveToGroup should move nodes to an existing group") {
     // Create a graph with nodes and a group
-    val graph = ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     val graphWithGroup = graph.moveToNewGroup("Group 1", c)
     val groupId = graphWithGroup.membership(c).get
 
@@ -77,7 +79,7 @@ class GroupsOpsSpec extends FunSuite:
   test("ungroupSelection should move elements to their grandparent group") {
     // Create a nested group structure
     val graph =
-      ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+      ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
         .moveToNewGroup("Parent Group", a, b, c)
 
     val parentGroupId = graph.membership(a).get
@@ -104,7 +106,7 @@ class GroupsOpsSpec extends FunSuite:
 
   test("getDirectChildren should return direct children of a group") {
     // Create a nested group structure
-    val graph = ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     val graphWithParentGroup = graph.moveToNewGroup("Parent Group", a, b, c)
     val parentGroupId = graphWithParentGroup.membership(a).get
 
@@ -124,7 +126,7 @@ class GroupsOpsSpec extends FunSuite:
 
   test("getDirectChildren should include elements without explicit membership when root group is specified") {
     // Create a graph with some nodes in groups and some not
-    val graph = ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     val updatedGraph = graph.moveToNewGroup("Group 1", a, b)
 
     // Get direct children of root group
@@ -139,7 +141,7 @@ class GroupsOpsSpec extends FunSuite:
 
   test("getAllChildren should return all nested children of a group") {
     // Create a nested group structure
-    val graph = ViewerGraph(ViewerGraphElements(nodes = Map(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     val graphWithParentGroup = graph.moveToNewGroup("Parent Group", a, b, c)
     val parentGroupId = graphWithParentGroup.membership(a).get
 
