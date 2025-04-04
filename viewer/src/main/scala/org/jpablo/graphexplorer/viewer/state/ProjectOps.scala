@@ -22,7 +22,7 @@ case class ProjectOps(project: Var[Project]):
   val hiddenElements: Var[HiddenElements] =
     project.zoomLazy(_.page.hiddenElements)((p, s) => p.modify(_.page.hiddenElements).setTo(s))
 
-  val basePaths: Signal[List[Path]] =
+  val basePaths: Signal[List[String]] =
     project.signal.map(_.projectSettings.basePaths).distinct
 
   val projectSettings: Signal[ProjectSettings] =

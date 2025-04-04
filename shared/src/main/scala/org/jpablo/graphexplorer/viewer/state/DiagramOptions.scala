@@ -5,8 +5,6 @@ import org.jpablo.graphexplorer.viewer.models.{NodeId, ViewerKind}
 import upickle.default.*
 
 
-private type Path = String
-
 // packages tree configuration
 case class PackagesOptions(
     onlyActive: Boolean = false,
@@ -15,7 +13,7 @@ case class PackagesOptions(
 
 // project configuration
 case class ProjectSettings(
-    basePaths:     List[Path] = List.empty,
+    basePaths:     List[String] = List.empty,
     hiddenFields:  List[String] = List.empty,
     hiddenNodeIds: List[NodeId] = List.empty
 )

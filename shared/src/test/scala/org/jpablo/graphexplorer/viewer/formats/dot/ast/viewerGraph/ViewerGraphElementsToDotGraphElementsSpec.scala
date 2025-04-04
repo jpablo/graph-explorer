@@ -30,6 +30,8 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
     def nodeTuple: (NodeId, ViewerNode) =
       nodeWithId(d.id)
 
+  val shapeEgg = Attr("shape", "egg")
+
   val dotAST =
     DotAST(
       digraph.toString,
@@ -39,7 +41,7 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
         EdgeStmt(List(x, y)),
         SubGraph(
           List(
-            AttrStmt("node", List(Attr("shape", "egg"))),
+            AttrStmt("node", List(shapeEgg)),
             NodeStmt(z, List(Attr("label", "ZZ"))),
             EdgeStmt(List(a, b)),
             SubGraph(List(NodeStmt(d)), Some("cluster_1"))
@@ -69,10 +71,10 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
         SubGraph(
           List(
             defaultGroupAttrStmt,
-            SubGraph(List(defaultGroupAttrStmt, NodeStmt(d)), Some("cluster_1")),
-            NodeStmt(a),
-            NodeStmt(b),
-            NodeStmt(z, List(Attr("shape", "egg"), Attr("label", "ZZ")))
+            SubGraph(List(defaultGroupAttrStmt, NodeStmt(d, List(shapeEgg))), Some("cluster_1")),
+            NodeStmt(a, List(shapeEgg)),
+            NodeStmt(b, List(shapeEgg)),
+            NodeStmt(z, List(shapeEgg, Attr("label", "ZZ")))
           ),
           Some("cluster_0")
         ),

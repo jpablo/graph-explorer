@@ -5,11 +5,11 @@ import com.raquo.airstream.ownership.Owner
 import com.raquo.airstream.state.Var
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget, DotAST, toViewerGraphElements}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Single}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Single}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.checkbox
 
 class ViewerStateStyleSpec extends FunSuite:
@@ -17,7 +17,7 @@ class ViewerStateStyleSpec extends FunSuite:
   val trueAttr  = AttrValue(true.toString)
   val falseAttr = AttrValue(false.toString)
 
-  // Wire InputAttribute rows for filled and bold styles + helper methods to set the values
+  // Wire InputAttribute rows for invis and border styles + helper methods to set the values
   class TestRows(
       updates:  Var[AttributesUpdates],
       defaults: Option[Signal[Attributes]],
@@ -45,7 +45,7 @@ class ViewerStateStyleSpec extends FunSuite:
     def getBorder: BorderStyle =
       BorderStyle.valueOf(borderRow.combineDefaultString.observe().now())
 
-  // TestRows + helper methods to inspect local and root attributes and AST styles
+  // TestRows + helper methods to inspect element and root attributes and AST styles
   case class NodeStyleControls(
       state:    ViewerState,
       updates:  Var[AttributesUpdates],
@@ -55,183 +55,176 @@ class ViewerStateStyleSpec extends FunSuite:
     def graph: ViewerGraph = state.fullGraph.now()
     def ast: DotAST        = state.sourceFlow.visibleAST.observe().now()
 
-    def getNodeDefaultAttrs: Map[AttributeId, AttrValue] =
-      graph.getDefaultAttributes(AttributeTarget.node).values
+    def getNodeDefaultAttrs: Attributes =
+      graph.getDefaultAttributes(AttributeTarget.node)
 
-    def getNodeAttrs =
-      graph.nodes.keys.map(graph.getAttributesById).map(_.values).toList
+    def getDOTDefaultStyle(target: "node" | "edge" | "graph"): List[String] =
+      ast.children
+        .collect:
+          case AttrStmt(`target`, attrs) => attrs.find(_.id == Style.attrId.value).map(_.attrEq.toString)
+        .flatten
 
-//    def getDOTGroupNodeStyle: Option[String] =
-//      val elements = ast.toViewerGraphElements
-//      elements.groups.head.nodeAttrs.get(Style.attrId).map(_.value.toString)
-
-    def getDOTNodesStyles: List[String] =
-      val elements = ast.toViewerGraphElements
-      elements.nodes.flatMap(_._2.attributes.get(Style.attrId).map(_.value.toString)).toList
+    def getDOTNodeStyles: List[String] =
+      ast.children
+        .collect:
+          case NodeStmt(_, attrs) => attrs.find(_.id == Style.attrId.value).map(_.attrEq.toString)
+        .flatten
 
   test("[Defaults] InvisibleStyle=true") {
-    val state        = ViewerState(ProjectId("test"), _ => (), "")
-    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val rootControls = NodeStyleControls(state, rootUpdates)
+    val state           = ViewerState(ProjectId("test"), _ => (), "")
+    val defaultUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
+    val defaultControls = NodeStyleControls(state, defaultUpdates)
 
     // --- Initial state ---
-    assertEquals(rootControls.getNodeDefaultAttrs, Attributes.empty.values)
-//    assertEquals(rootControls.getDOTGroupNodeStyle, None)
+    assertEquals(defaultControls.getNodeDefaultAttrs, Attributes.empty)
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), Nil)
 
-    rootControls.setInvisible(Some(true))
-    assertEquals(rootControls.resetInvisibleIsVisible, true, "value different from hardcoded default, so should be reset-able")
-    assertEquals(rootControls.getNodeDefaultAttrs, Attributes.of(InvisibleStyle -> true).values)
-//    assertEquals(rootControls.getDOTGroupNodeStyle.get, s"${Style.invis}")
+    defaultControls.setInvisible(Some(true))
+    assertEquals(defaultControls.resetInvisibleIsVisible, true, "value different from hardcoded default, so should be reset-able")
+    assertEquals(defaultControls.getNodeDefaultAttrs, Attributes.of(InvisibleStyle -> true))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("invis"))
   }
 
   test("[Defaults] borderStyle=dashed,InvisibleStyle=true -> borderStyle=dotted -> InvisibleStyle=false -> borderStyle=solid") {
-    val state        = ViewerState(ProjectId("test"), _ => (), "")
-    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val rootControls = NodeStyleControls(state, rootUpdates)
+    val state           = ViewerState(ProjectId("test"), _ => (), "")
+    val defaultUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
+    val defaultControls = NodeStyleControls(state, defaultUpdates)
 
-    rootControls.setBorder(Some(BorderStyle.dashed))
-    rootControls.setInvisible(Some(true))
-    assertEquals(rootControls.getNodeDefaultAttrs, Attributes.of(BorderStyle -> BorderStyle.dashed, InvisibleStyle -> true).values)
-//    assertEquals(rootControls.getDOTGroupNodeStyle.get, s"${Style.invis},${BorderStyle.dashed}")
+    defaultControls.setBorder(Some(BorderStyle.dashed))
+    defaultControls.setInvisible(Some(true))
+    assertEquals(defaultControls.getNodeDefaultAttrs, Attributes.of(BorderStyle -> BorderStyle.dashed, InvisibleStyle -> true))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("invis,dashed"))
 
-    rootControls.setBorder(Some(BorderStyle.dotted))
-    assertEquals(rootControls.getNodeDefaultAttrs, Attributes.of(BorderStyle -> BorderStyle.dotted, InvisibleStyle -> true).values)
-//    assertEquals(rootControls.getDOTGroupNodeStyle.get, s"${Style.invis},${BorderStyle.dotted}")
+    defaultControls.setBorder(Some(BorderStyle.dotted))
+    assertEquals(defaultControls.getNodeDefaultAttrs, Attributes.of(BorderStyle -> BorderStyle.dotted, InvisibleStyle -> true))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("invis,dotted"))
 
-    rootControls.setInvisible(Some(false))
-    assertEquals(rootControls.getNodeDefaultAttrs, Attributes.of(BorderStyle -> BorderStyle.dotted, InvisibleStyle -> false).values)
-//    assertEquals(rootControls.getDOTGroupNodeStyle.get, s"${BorderStyle.dotted}")
+    defaultControls.setInvisible(Some(false))
+    assertEquals(defaultControls.getNodeDefaultAttrs, Attributes.of(BorderStyle -> BorderStyle.dotted, InvisibleStyle -> false))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("dotted"))
 
-    rootControls.setBorder(Some(BorderStyle.solid))
-    assertEquals(rootControls.getNodeDefaultAttrs, Attributes.of(BorderStyle -> BorderStyle.solid, InvisibleStyle -> false).values)
-//    assertEquals(rootControls.getDOTGroupNodeStyle, None)
+    defaultControls.setBorder(Some(BorderStyle.solid))
+    assertEquals(defaultControls.getNodeDefaultAttrs, Attributes.of(BorderStyle -> BorderStyle.solid, InvisibleStyle -> false))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), Nil)
   }
 
   test("[Defaults] borderStyle=dashed,InvisibleStyle=true -> borderStyle=x") {
-    val state        = ViewerState(ProjectId("test"), _ => (), "")
-    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val rootControls = NodeStyleControls(state, rootUpdates)
+    val state           = ViewerState(ProjectId("test"), _ => (), "")
+    val defaultUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
+    val defaultControls = NodeStyleControls(state, defaultUpdates)
 
-    rootControls.setBorder(Some(BorderStyle.dashed))
-    rootControls.setInvisible(Some(true))
-//    assertEquals(rootControls.getDOTGroupNodeStyle.get, s"${Style.invis},${BorderStyle.dashed}")
+    defaultControls.setBorder(Some(BorderStyle.dashed))
+    defaultControls.setInvisible(Some(true))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("invis,dashed"))
 
     // resetting an attribute removes it from the attributes Map
-    rootControls.setBorder(None)
-    assertEquals(rootControls.getNodeDefaultAttrs, Map(InvisibleStyle.attrId -> trueAttr))
-//    assertEquals(rootControls.getDOTGroupNodeStyle.get, s"${Style.invis}")
+    defaultControls.setBorder(None)
+    assertEquals(defaultControls.getNodeDefaultAttrs, Attributes.of(InvisibleStyle -> true))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("invis"))
   }
 
-  test("Empty defaults, verify that local is false") {
-    val state   = ViewerState(ProjectId("test"), _ => (), "")
-    given Owner = state.owner
+  test("Empty defaults, verify that element is false") {
+    val state = ViewerState(ProjectId("test"), _ => (), "")
     state.addNodeWithSmartConnection()
 
-    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val localUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
+    val defaultUpdates = state.defaultAttributesUpdates(AttributeTarget.node)
+    val elementUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
 
     val defaults = Some(state.defaults(AttributeTarget.node))
 
-    val rootControls  = NodeStyleControls(state, rootUpdates)
-    val localControls = NodeStyleControls(state, localUpdates, defaults)
+    val defaultControls = NodeStyleControls(state, defaultUpdates)
+    val elementControls = NodeStyleControls(state, elementUpdates, defaults)
 
-//    assertEquals(rootControls.getDOTGroupNodeStyle, None)
-//    assertEquals(localControls.getDOTGroupNodeStyle, None)
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), Nil)
+    assertEquals(elementControls.getDOTDefaultStyle("node"), Nil)
 
     assertEquals(
-      localControls.getInvisible,
+      elementControls.getInvisible,
       FillStyle.default,
-      "When defaults are empty, local should be the hardcoded default"
+      "When defaults are empty, element should be the hardcoded default"
     )
-
   }
 
-  test("[Defaults] InvisibleStyle=true [Locals] invisible should be true") {
+  test("[Defaults] InvisibleStyle=true [element] invisible should be true") {
     val state = ViewerState(ProjectId("test"), _ => (), "")
-//    given Owner = state.owner
     state.addNodeWithSmartConnection()
 
-    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val localUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
+    val defaultUpdates = state.defaultAttributesUpdates(AttributeTarget.node)
+    val elementUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
 
-    val nodeDefaults = Some(state.defaults(AttributeTarget.node))
-
-    val rootControls  = NodeStyleControls(state, rootUpdates)
-    val localControls = NodeStyleControls(state, localUpdates, nodeDefaults)
+    val defaultControls = NodeStyleControls(state, defaultUpdates)
+    val elementControls = NodeStyleControls(state, elementUpdates, defaults = Some(state.defaults(AttributeTarget.node)))
 
     // --- preparation: set default invisible to true ---
-    rootControls.setInvisible(Some(true))
-//    assertEquals(rootControls.getDOTGroupNodeStyle.get, "invis")
+    defaultControls.setInvisible(Some(true))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("invis"))
 
     // --- test ---
-    assertEquals(localControls.getInvisible, true, "When defaults are true, local should start as true")
+    assertEquals(elementControls.getInvisible, true, "When defaults are true, element should start as true")
   }
 
-  test("[Defaults] InvisibleStyle=true [Locals] InvisibleStyle=false and then InvisibleStyle=true") {
+  test("[Defaults] InvisibleStyle=true [element] InvisibleStyle=false and then InvisibleStyle=true") {
     val state = ViewerState(ProjectId("test"), _ => (), "")
     state.addNodeWithSmartConnection()
 
-    val rootUpdates   = state.defaultAttributesUpdates(AttributeTarget.node)
-    val localUpdates  = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
-    val defaults      = Some(state.defaults(AttributeTarget.node))
-    val rootControls  = NodeStyleControls(state, rootUpdates)
-    val localControls = NodeStyleControls(state, localUpdates, defaults)
+    val defaultUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
+    val elementUpdates  = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
+    val defaultControls = NodeStyleControls(state, defaultUpdates)
+    val elementControls = NodeStyleControls(state, elementUpdates, defaults = Some(state.defaults(AttributeTarget.node)))
 
-    // --- preparation: set default filled to true ---
-    rootControls.setInvisible(Some(true))
-//    assertEquals(rootControls.getDOTGroupNodeStyle, Some("invis"))
-
-    // --- verify ---
-    assertEquals(localControls.resetInvisibleIsVisible, false, "no local style yet, so there's nothing to reset")
-    assertEquals(localControls.getInvisible, true, "no local style yet so the root value should be used")
-
-    // -- action: local transition true -> false
-    localControls.setInvisible(Some(false))
+    // --- preparation: set default invis to true ---
+    defaultControls.setInvisible(Some(true))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("invis"))
 
     // --- verify ---
-//    assertEquals(localControls.getDOTGroupNodeStyle, Some("invis"), "Group style should not change")
-    // local style="" is the only way to override the default style="filled"
-    assertEquals(localControls.getDOTNodesStyles, List(""), "Local style should be set to an empty string")
+    assertEquals(elementControls.resetInvisibleIsVisible, false, "no element style yet, so there's nothing to reset")
+    assertEquals(elementControls.getInvisible, true, "no element style yet so the root value should be used")
 
-    assertEquals(localControls.getInvisible, false, "after unchecking local, the value should be false")
-    assertEquals(localControls.resetInvisibleIsVisible, true, "local is different from root, so it should be reset-able")
+    // -- action: element transition true -> false
+    elementControls.setInvisible(Some(false))
 
-    // -- action: local transition false -> true
-    localControls.setInvisible(Some(true))
     // --- verify ---
-    // at this point local and default styles are the same so the local style should be removed
-    assertEquals(localControls.getDOTNodesStyles, Nil, "Local DOT style should not be present")
-    assertEquals(localControls.resetInvisibleIsVisible, false, "no local style yet, so there's nothing to reset")
-    assertEquals(localControls.getInvisible, true, "no local style yet so the root value should be used")
+    assertEquals(elementControls.getDOTDefaultStyle("node"), List("invis"), "Group style should not change")
+    // element style="" is the only way to override the default style="invis"
+    assertEquals(elementControls.getDOTNodeStyles, List(""), "Element style should be set to an empty string")
+    assertEquals(elementControls.getInvisible, false, "after unchecking element, the value should be false")
+    assertEquals(elementControls.resetInvisibleIsVisible, true, "element is different from root, so it should be reset-able")
+
+    // -- action: element transition false -> true
+    elementControls.setInvisible(Some(true))
+
+    // --- verify ---
+    // at this point element and default styles are the same so the element style should be removed
+    assertEquals(elementControls.getDOTNodeStyles, Nil, "Element DOT style should not be present")
+    assertEquals(elementControls.getNodeDefaultAttrs, Attributes.of(InvisibleStyle -> true))
+    assertEquals(elementControls.resetInvisibleIsVisible, false, "no element style yet, so there's nothing to reset")
+    assertEquals(elementControls.getInvisible, true, "no element style yet so the root value should be used")
   }
 
-  test("[Defaults] InvisibleStyle=true [Locals] borderStyle=dotted") {
-    val state   = ViewerState(ProjectId("test"), _ => (), "")
-    given Owner = state.owner
+  test("[Defaults] InvisibleStyle=true [element] borderStyle=dotted") {
+    val state = ViewerState(ProjectId("test"), _ => (), "")
     state.addNodeWithSmartConnection()
 
-    val rootUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
-    val localUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
+    val defaultUpdates = state.defaultAttributesUpdates(AttributeTarget.node)
+    val elementUpdates = state.elementAttributesUpdates(ElementIds(state.allNodeIds()))
 
-    val defaults = Some(state.defaults(AttributeTarget.node))
+    val defaultControls = NodeStyleControls(state, defaultUpdates)
+    val elementControls = NodeStyleControls(state, elementUpdates, defaults = Some(state.defaults(AttributeTarget.node)))
 
-    val rootControls  = NodeStyleControls(state, rootUpdates)
-    val localControls = NodeStyleControls(state, localUpdates, defaults)
-
-    // --- preparation: set default filled to true ---
-    rootControls.setInvisible(Some(true))
-//    assertEquals(rootControls.getDOTGroupNodeStyle.get, "invis")
+    // --- preparation: set default invis to true ---
+    defaultControls.setInvisible(Some(true))
+    assertEquals(defaultControls.getDOTDefaultStyle("node"), List("invis"))
 
     // --- verify ---
-    assertEquals(localControls.resetInvisibleIsVisible, false, "no local style yet, so there's nothing to reset")
-    assertEquals(localControls.getInvisible, true, "no local style yet so the root value should be used")
-    assertEquals(localControls.getBorder, BorderStyle.default, "hard-coded default value")
+    assertEquals(elementControls.resetInvisibleIsVisible, false, "no element style yet, so there's nothing to reset")
+    assertEquals(elementControls.getInvisible, true, "no element style yet so the root value should be used")
+    assertEquals(elementControls.getBorder, BorderStyle.default, "hard-coded default value")
 
     // -- action: set border to dotted
-    localControls.setBorder(Some(BorderStyle.dotted))
+    elementControls.setBorder(Some(BorderStyle.dotted))
 
     // --- verify ---
-//    assertEquals(localControls.getDOTGroupNodeStyle.get, "invis", "Group style should not change")
-    // to set local bold but keep default filled, we need to set local style="filled,bold"
-    assertEquals(localControls.getDOTNodesStyles.head, "invis,dotted", "Local style should combine local and default styles")
+    assertEquals(elementControls.getDOTDefaultStyle("node"), List("invis"), "Group style should not change")
+    // to set element bold but keep default invis, we need to set element style="invis,bold"
+    assertEquals(elementControls.getDOTNodeStyles, List("invis,dotted"), "Element style should combine element and default styles")
   }

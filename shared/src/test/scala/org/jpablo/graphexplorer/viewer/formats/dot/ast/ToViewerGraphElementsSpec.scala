@@ -28,10 +28,12 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
   val y = DotNodeId("y")
   val z = DotNodeId("z")
 
+  val shapeEgg = Attributes.of(Shape -> Shape.egg)
+
   extension (d: DotNodeId)
-    def nodeTuple: (NodeId, ViewerNode) =
+    def nodeTuple(attrs: Attributes = Attributes.empty): (NodeId, ViewerNode) =
       val nId = NodeId(d.id)
-      nId -> nodeNoDefaults(nId)
+      nId -> nodeNoDefaults(nId, attrs)
 
   EdgeStmt.resetId()
   val viewerGraphElements = astWithNestedSubGraphs.toViewerGraphElements
@@ -39,13 +41,13 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
   test("toViewerGraphElements should return all nodes") {
     val expectedNodes =
       VectorMap(
-        a.nodeTuple,
-        b.nodeTuple,
+        a.nodeTuple(shapeEgg),
+        b.nodeTuple(shapeEgg),
         nodeWithId("z", "shape" -> "egg", "label" -> "ZZ"),
-        d.nodeTuple,
-        x.nodeTuple,
-        y.nodeTuple,
-        c.nodeTuple,
+        d.nodeTuple(shapeEgg),
+        x.nodeTuple(),
+        y.nodeTuple(),
+        c.nodeTuple(),
       )
     assertEquals(viewerGraphElements.nodes, expectedNodes)
   }
