@@ -77,7 +77,10 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     Dropdown(
       title = span("Select"),
       options = Seq(
-        commands.all.addNode
+        commands.all.selectAll,
+        commands.all.selectAllNodes,
+        commands.all.selectAllArrows,
+        commands.all.selectAllGroups,
       ).map(cmd => cmd.title -> cmd.action),
       onClickHandler = _ --> (action => action())
     ),
