@@ -25,7 +25,7 @@ trait AttributesOps:
   this: ViewerGraph =>
 
   lazy val removeUnsupportedFeatures: ViewerGraph =
-    this.modify(_.elements.graphAttributes).using(_ - Size.attrId - Overlap.attrId)
+    this.modifyAll(_.elements.graphAttributes, _.elements.defaultGroupAttributes).using(_ - Size.attrId - Overlap.attrId)
 
   /** Expands the "style" attribute into its sub-attributes (fill, bold, invisible, border, corner)
     */
