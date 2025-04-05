@@ -32,14 +32,14 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "breadcrumbs text-md py-0",
       ul(
         li(
-          a(cls := "link", title := "Home", span().houseIcon, onClick --> commands.navigateHome.action())
+          a(cls := "link", title := "Home", span().houseIcon, onClick --> commands.routerCmds.navigateHome.action())
         ),
         li(
           a(
             cls   := "link",
             title := "Change title",
             text <-- projectName,
-            onClick --> commands.changeProjectName.action()
+            onClick --> commands.all.changeProjectName.action()
           )
         )
       )
@@ -50,8 +50,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "join inline",
       Button(
         cls := "join-item",
-        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(commands.addNode.titleWithShortcut)),
-        onClick --> commands.addNode.action()
+        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(commands.all.addNode.titleWithShortcut)),
+        onClick --> commands.all.addNode.action()
       ).tiny,
       DropdownHeader(
         title = emptyMod,
@@ -63,15 +63,22 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     ),
     // -------- show all --------
     Button(
-      commands.showAll.title,
+      commands.all.showAllNodes.title,
       cls := "btn-primary",
       disabled <-- hiddenNodesIsEmpty,
-      onClick --> commands.showAll.action()
-    ).tiny.toTooltip(commands.showAll.titleWithShortcut),
+      onClick --> commands.all.showAllNodes.action()
+    ).tiny.toTooltip(commands.all.showAllNodes.titleWithShortcut),
     // -------- actions --------
     Dropdown(
       title = span("Copy as"),
       options = commands.sections.exportAs.map(cmd => cmd.title -> cmd.action),
+      onClickHandler = _ --> (action => action())
+    ),
+    Dropdown(
+      title = span("Select"),
+      options = Seq(
+        commands.all.addNode
+      ).map(cmd => cmd.title -> cmd.action),
       onClickHandler = _ --> (action => action())
     ),
     // -------- examples --------
@@ -88,18 +95,18 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     // ---------- Undo/Redo ----------
     Join(
       Button(
-        span(cls := "bi bi-arrow-counterclockwise").toTooltip(commands.undo.titleWithShortcut),
-        onClick --> commands.undo.action()
+        span(cls := "bi bi-arrow-counterclockwise").toTooltip(commands.all.undo.titleWithShortcut),
+        onClick --> commands.all.undo.action()
       ).tiny,
       Button(
-        span(cls := "bi bi-arrow-clockwise").toTooltip(commands.redo.titleWithShortcut),
-        onClick --> commands.redo.action()
+        span(cls := "bi bi-arrow-clockwise").toTooltip(commands.all.redo.titleWithShortcut),
+        onClick --> commands.all.redo.action()
       ).tiny
     ),
     Join(
       Button(
-        span(cls := "bi bi-question-circle").toTooltip(commands.keyboardShortcuts.titleWithShortcut),
-        onClick --> commands.keyboardShortcuts.action()
+        span(cls := "bi bi-question-circle").toTooltip(commands.all.helpKeyboardShortcuts.titleWithShortcut),
+        onClick --> commands.all.helpKeyboardShortcuts.action()
       ).tiny,
       a(
         cls    := "btn btn-xs",

@@ -15,7 +15,6 @@ case class Shortcut(
     alt:   Boolean = false,
     ctrl:  Boolean = false
 ):
-
   def toList: List[String] =
     List((key, true), ("Shift", shift), ("Meta", meta), ("Alt", alt), ("Ctrl", ctrl))
       .collect { case (str, true) => str }
@@ -31,7 +30,7 @@ case class Command(
     description.getOrElse(title) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
 
 object Command:
-  val always = (_: Any) => true
+  val always                                                           = (_: Any) => true
   def not(pred: ElementIds => Boolean)(selection: ElementIds): Boolean = !pred(selection)
 
 class RouterCommands(router: Router):
@@ -42,24 +41,17 @@ class RouterCommands(router: Router):
     router.navigateTo(Route.ProjectDetail(id.value))
 
   val createProject =
-    Command(
-      "Create new Project",
-      createProjectAndNavigate,
-      always,
-      description = Some("Create a new project and navigate to it")
-    )
+    Command("Create new Project", createProjectAndNavigate, always, description = Some("Create a new project and navigate to it"))
 
   val navigateHome =
-    Command(
-      "Navigate home",
-      () => router.navigateTo(Route.Home),
-      always,
-      description = Some("Navigate to the home page")
-    )
+    Command("Navigate home", () => router.navigateTo(Route.Home), always, description = Some("Navigate to the home page"))
 
-class Commands(state: ViewerState, routerCmds: RouterCommands):
+class Commands(state: ViewerState, val routerCmds: RouterCommands):
   import Command.{not, always}
 
+  // -----------------------------------
+  // miscellaneous actions
+  // -----------------------------------
   private def changeProjectNameAction(): Unit =
     val newName = window.prompt("Enter project Name", state.project.name.now())
     if newName != null then
@@ -76,243 +68,312 @@ class Commands(state: ViewerState, routerCmds: RouterCommands):
   private def isSingleElementSelected(selection: ElementIds): Boolean =
     selection.size == 1
 
+  object all:
+    val addNode =
+      Command("Add node", () => state.addNodeWithSmartConnection(), always, Some(Shortcut("n")), Some("Add a new node"))
+
+    val addBackwardsNode = Command(
+      "Add backwards node",
+      () => state.addNodeWithSmartConnection(direction = state.Direction.To),
+      always,
+      Some(Shortcut("N")),
+      Some("Add a new node without connections")
+    )
+
+    val editLabel = Command(
+      "Edit label",
+      state.editLabel,
+      isSingleElementSelected,
+      Some(Shortcut("Enter")),
+      description = Some("Edit the label of the selected element")
+    )
+
+    val selectAll = Command(
+      "Select all",
+      state.selection.selectAll,
+      always,
+      Some(Shortcut("a")),
+      description = Some("Select all visible elements (nodes, arrows, and groups)")
+    )
+
+    val selectAllNodes = Command(
+      "Select all nodes",
+      state.selection.selectAllVisibleNodes,
+      always,
+      description = Some("Select all visible nodes")
+    )
+
+    val selectAllArrows = Command(
+      "Select all arrows",
+      state.selection.selectAllVisibleArrows,
+      always,
+      description = Some("Select all visible arrows")
+    )
+
+    val selectAllGroups = Command(
+      "Select all groups",
+      state.selection.selectAllVisibleGroups,
+      always,
+      description = Some("Select all visible groups")
+    )
+
+    val hide = Command("Hide", state.selection.hide, shortcut = Some(Shortcut("h")), description = Some("Hide selected nodes"))
+
+    val keep = Command(
+      "Keep",
+      state.hideNonSelectedNodes,
+      not(isSingleGroupSelected),
+      Some(Shortcut("k")),
+      description = Some("Hide all nodes except selected")
+    )
+
+    val delete = Command(
+      "Delete",
+      state.selection.deleteSelection,
+      shortcut = Some(Shortcut("Backspace")),
+      description = Some("Delete selected nodes")
+    )
+
+    val duplicate = Command(
+      "Duplicate",
+      state.selection.duplicateSelection,
+      not(isSingleGroupSelected),
+      shortcut = Some(Shortcut("d")),
+      description = Some("Duplicate selected nodes")
+    )
+
+    val group = Command(
+      "Group",
+      state.selection.group,
+      shortcut = Some(Shortcut("g")),
+      description = Some("Add selected nodes into a new group")
+    )
+
+    val moveToGroup = Command(
+      "Move to group",
+      () => state.selection.addToGroup(),
+      moveToGroupActionVisible,
+      description = Some("Move selected nodes to a group")
+    )
+
+    val ungroup = Command(
+      "Ungroup",
+      state.selection.ungroup,
+      shortcut = Some(Shortcut("u")),
+      description = Some("Remove selected nodes from their current group")
+    )
+
+    val clearSelection = Command("Clear selection", state.selection.clear, shortcut = Some(Shortcut("Esc")))
+
+    val selectGroupMembers = Command(
+      "Select group members",
+      state.selection.selectGroupMembers,
+      shortcut = Some(Shortcut("m")),
+      description = Some("Select all nodes that are members of the selected group")
+    )
+
+    val zoomIntoGroup = Command(
+      "Zoom into group",
+      state.showOnlyGroup,
+      isSingleGroupSelected,
+      description = Some("Show only this group and its members")
+    )
+
+    val copyAsSVG = Command(
+      "Copy as SVG",
+      state.copySelectionAsSVG,
+      shortcut = Some(Shortcut("c")),
+      description = Some("Copy the selected nodes as SVG to the clipboard")
+    )
+
+    val showAllSuccessors = Command(
+      "Show all successors",
+      state.showAllSuccessors,
+      description = Some("Show all successors of the selected nodes")
+    )
+
+    val showDirectSuccessors = Command(
+      "Show direct successors",
+      state.showDirectSuccessors,
+      description = Some("Show direct successors of the selected nodes")
+    )
+
+    val selectAllSuccessors = Command(
+      "Select all successors",
+      state.selection.selectSuccessors,
+      description = Some("Select all successors of the selected nodes")
+    )
+
+    val selectDirectSuccessors = Command(
+      "Select direct successors",
+      state.selection.selectDirectSuccessors,
+      description = Some("Select direct successors of the selected nodes")
+    )
+
+    val showAllPredecessors = Command(
+      "Show all predecessors",
+      state.showAllPredecessors,
+      description = Some("Show all predecessors of the selected nodes")
+    )
+
+    val showDirectPredecessors = Command(
+      "Show direct predecessors",
+      state.showDirectPredecessors,
+      description = Some("Show direct predecessors of the selected nodes")
+    )
+
+    val selectAllPredecessors = Command(
+      "Select all predecessors",
+      state.selection.selectPredecessors,
+      description = Some("Select all predecessors of the selected nodes")
+    )
+
+    val selectDirectPredecessors = Command(
+      "Select direct predecessors",
+      state.selection.selectDirectPredecessors,
+      description = Some("Select direct predecessors of the selected nodes")
+    )
+
+    val rootsOnly    = Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors"))
+    val showAllNodes = Command("Show all", state.showAllNodes, always, description = Some("Show all hidden nodes"))
+    val hideAllNodes = Command("Hide all", state.hideAllNodes, always, description = Some("Hide all nodes"))
+
+    val changeProjectName = Command(
+      "Change project name",
+      changeProjectNameAction,
+      always,
+      description = Some("Change the name of the current project")
+    )
+
+    val exportAsSVG =
+      Command("as SVG", state.copyAsFullDiagramSVG, always, description = Some("Copy the full diagram as SVG to the clipboard"))
+
+    val exportAsDOT  = Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard"))
+    val exportAsJSON = Command("as JSON", state.copyAsJSON, always, description = Some("Copy the full diagram as JSON to the clipboard"))
+    val zoomOut      = Command("Zoom out", state.zoomOut, always, description = Some("Zoom out the diagram"))
+    val fit          = Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen"))
+    val zoomIn       = Command("Zoom in", state.zoomIn, always, description = Some("Zoom in the diagram"))
+    val undo         = Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action"))
+    val redo         = Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
+
+    val helpKeyboardShortcuts = Command(
+      "Help - Keyboard Shortcuts",
+      () => state.shortcutsModalOpen.set(true),
+      always,
+      description = Some("Open the keyboard shortcuts help dialog")
+    )
+
+    val printVisibleGraphToConsole = Command(
+      "Print visible graph to the console",
+      state.printVisibleGraphToConsole,
+      always,
+      description = Some("Print the visible graph to the browser console for debugging")
+    )
+
+    val printVisibleDOTtoConsole = Command(
+      "Print visible DOT to the console",
+      state.printVisibleDOTtoConsole,
+      always,
+      description = Some("Print the visible DOT to the browser console for debugging")
+    )
+
+    val printVisibleJSONtoConsole = Command(
+      "Print JSON DOT AST to the console",
+      state.printVisibleJSONtoConsole,
+      always,
+      description = Some("Print the full diagram as JSON DOT AST to console for debugging")
+    )
+
   object headers:
-    val common = "Common"
-    val selection = "Selection"
-    val successors = "Successors"
+    val common       = "Common"
+    val selection    = "Selection"
+    val successors   = "Successors"
     val predecessors = "Predecessors"
-    val view = "View"
-    val document = "Document"
-    val exportAs = "Export"
-    val zoom = "Zoom"
-    val undoRedo = "Undo/Redo"
-    val application = "Application"
-    val developer = "Developer"
+    val view         = "View"
+    val document     = "Document"
+    val exportAs     = "Export"
+    val zoom         = "Zoom"
+    val undoRedo     = "Undo/Redo"
+    val application  = "Application"
+    val developer    = "Developer"
 
   import headers.*
 
   val byHeader: VectorMap[String, List[Command]] = VectorMap(
     common -> List(
-      Command(
-        "Add node",
-        () => state.addNodeWithSmartConnection(),
-        always,
-        shortcut    = Some(Shortcut("n")),
-        description = Some("Add a new node")
-      ),
-      Command(
-        "Add backwards node",
-        () => state.addNodeWithSmartConnection(direction = state.Direction.To),
-        always,
-        shortcut    = Some(Shortcut("p")),
-        description = Some("Add a new node connected to the selected node")
-      ),
-      Command(
-        "Edit label",
-        state.editLabel,
-        isSingleElementSelected,
-        shortcut    = Some(Shortcut("Enter")),
-        description = Some("Edit the label of the selected element")
-      ),
-      Command(
-        "Select all",
-        state.selection.selectAll,
-        always,
-        shortcut    = Some(Shortcut("a")),
-        description = Some("Select all visible elements (nodes, arrows, and groups)")
-      ),
-      Command(
-        "Select all nodes",
-        state.selection.selectAllVisibleNodes,
-        always,
-        description = Some("Select all visible nodes")
-      ),
-      Command(
-        "Select all arrows",
-        state.selection.selectAllVisibleArrows,
-        always,
-        description = Some("Select all visible arrows")
-      ),
-      Command(
-        "Select all groups",
-        state.selection.selectAllVisibleGroups,
-        always,
-        description = Some("Select all visible groups")
-      )
+      all.addNode,
+      all.addBackwardsNode,
+      all.changeProjectName,
+      all.moveToGroup,
+      routerCmds.createProject,
+      routerCmds.navigateHome
     ),
     selection -> List(
-      Command("Hide", state.selection.hide, shortcut = Some(Shortcut("h")), description = Some("Hide selected nodes")),
-      Command(
-        "Keep",
-        state.hideNonSelectedNodes,
-        not(isSingleGroupSelected),
-        shortcut    = Some(Shortcut("k")),
-        description = Some("Hide all nodes except selected")
-      ),
-      Command(
-        "Delete",
-        state.selection.deleteSelection,
-        shortcut    = Some(Shortcut("Backspace")),
-        description = Some("Delete selected nodes")
-      ),
-      Command(
-        "Duplicate",
-        state.selection.duplicateSelection,
-        not(isSingleGroupSelected),
-        shortcut    = Some(Shortcut("d")),
-        description = Some("Duplicate selected nodes")
-      ),
-      Command(
-        "Group",
-        state.selection.group,
-        shortcut    = Some(Shortcut("g")),
-        description = Some("Add selected nodes into a new group")
-      ),
-      Command(
-        "Move to group",
-        state.selection.addToGroup,
-        moveToGroupActionVisible,
-        description = Some("Add selected nodes to the selected group")
-      ),
-      Command(
-        "Ungroup",
-        state.selection.ungroup,
-        shortcut    = Some(Shortcut("u")),
-        description = Some("Remove selected nodes from their current group")
-      ),
-      Command("Clear selection", state.selection.clear, shortcut = Some(Shortcut("Esc"))),
-      //
-      Command(
-        "Select group members",
-        state.selection.selectGroupMembers,
-        shortcut    = Some(Shortcut("m")),
-        description = Some("Select all nodes that are members of the selected group")
-      ),
-      Command(
-        "Zoom into group",
-        state.showOnlyGroup,
-        isSingleGroupSelected,
-        description = Some("Show only this group and its members")
-      ),
-      Command(
-        "Copy as SVG",
-        state.copySelectionAsSVG,
-        shortcut    = Some(Shortcut("c")),
-        description = Some("Copy the selected nodes as SVG to the clipboard")
-      )
+      all.hide,
+      all.keep,
+      all.delete,
+      all.duplicate,
+      all.group,
+      all.ungroup,
+      all.clearSelection,
+      all.selectGroupMembers,
+      all.zoomIntoGroup,
+      all.copyAsSVG,
+      all.editLabel,
+      all.selectAll,
+      all.selectAllNodes,
+      all.selectAllArrows,
+      all.selectAllGroups
     ),
     successors -> List(
-      Command(
-        "Show all successors",
-        state.showAllSuccessors,
-        description = Some("Show all successors of the selected nodes")
-      ),
-      Command(
-        "Show direct successors",
-        state.showDirectSuccessors,
-        description = Some("Show direct successors of the selected nodes")
-      ),
-      Command(
-        "Select all successors",
-        state.selection.selectSuccessors,
-        description = Some("Select all successors of the selected nodes")
-      ),
-      Command(
-        "Select direct successors",
-        state.selection.selectDirectSuccessors,
-        description = Some("Select direct successors of the selected nodes")
-      )
+      all.showAllSuccessors,
+      all.showDirectSuccessors,
+      all.selectAllSuccessors,
+      all.selectDirectSuccessors
     ),
     predecessors -> List(
-      Command(
-        "Show all predecessors",
-        state.showAllPredecessors,
-        description = Some("Show all predecessors of the selected nodes")
-      ),
-      Command(
-        "Show direct predecessors",
-        state.showDirectPredecessors,
-        description = Some("Show direct predecessors of the selected nodes")
-      ),
-      Command(
-        "Select all predecessors",
-        state.selection.selectPredecessors,
-        description = Some("Select all predecessors of the selected nodes")
-      ),
-      Command(
-        "Select direct predecessors",
-        state.selection.selectDirectPredecessors,
-        description = Some("Select direct predecessors of the selected nodes")
-      )
+      all.showAllPredecessors,
+      all.showDirectPredecessors,
+      all.selectAllPredecessors,
+      all.selectDirectPredecessors
     ),
     view -> List(
-      Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors")),
-      Command("Show all", state.showAllNodes, always, description    = Some("Show all hidden nodes")),
-      Command("Hide all", state.hideAllNodes, always, description    = Some("Hide all nodes"))
+      all.rootsOnly,
+      all.showAllNodes,
+      all.hideAllNodes
     ),
     document -> List(
-      Command("Change project name", changeProjectNameAction, always, description = Some("Change the project name")),
+      all.changeProjectName,
       routerCmds.createProject
     ),
     exportAs -> List(
-      Command(
-        "as SVG",
-        state.copyAsFullDiagramSVG,
-        always,
-        description = Some("Copy the full diagram as SVG to the clipboard")
-      ),
-      Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard"))
+      all.copyAsSVG,
+      all.exportAsSVG,
+      all.exportAsDOT,
+      all.exportAsJSON
     ),
     zoom -> List(
-      Command("Zoom out", state.zoomOut, always, description              = Some("Zoom out the diagram")),
-      Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen")),
-      Command("Zoom in", state.zoomIn, always, description                = Some("Zoom in the diagram"))
+      all.zoomOut,
+      all.fit,
+      all.zoomIn
     ),
     undoRedo -> List(
-      Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action")),
-      Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
+      all.undo,
+      all.redo
     ),
     application -> List(
       routerCmds.navigateHome,
-      Command(
-        "Help - Keyboard Shortcuts",
-        () => state.shortcutsModalOpen.set(true),
-        always,
-        description = Some("Open the keyboard shortcuts help dialog")
-      )
+      all.helpKeyboardShortcuts
     ),
     developer -> List(
-      Command(
-        "Print visible graph to the console",
-        state.printVisibleGraphToConsole,
-        always,
-        description = Some("Print the visible graph to the browser console for debugging")
-      ),
-      Command(
-        "Print visible DOT to the console",
-        state.printVisibleDOTtoConsole,
-        always,
-        description = Some("Print the visible DOT to the browser console for debugging")
-      ),
-      Command(
-        "Print JSON DOT AST to the console",
-        state.printVisibleJSONtoConsole,
-        always,
-        description = Some("Print the full diagram as JSON DOT AST to console for debugging")
-      )
+      all.printVisibleGraphToConsole,
+      all.printVisibleDOTtoConsole,
+      all.printVisibleJSONtoConsole
     )
   )
 
   object sections:
     val exportAs = byHeader(headers.exportAs)
-
-  // some special cases for the menu
-  val addNode = byHeader(common).find(_.title == "Add node").get
-  val List(zoomOut, fit, zoomIn) = byHeader(zoom)
-  val List(rootsOnly, showAll, hideAll) = byHeader(view)
-  val List(undo, redo) = byHeader(undoRedo)
-  val List(changeProjectName, createProject) = byHeader(document)
-  val List(navigateHome, keyboardShortcuts) = byHeader(application)
 
   val byShortcut: Map[Shortcut, Command] =
     byHeader.values.flatten
