@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.BBox
 import org.scalajs.dom
-import org.scalajs.dom.{Element, FocusEvent}
+import org.scalajs.dom.{Element, FocusEvent, KeyValue}
 
 import scala.scalajs.js
 
@@ -71,11 +71,11 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
     input.onkeydown = (event: dom.KeyboardEvent) => {
       event.stopPropagation()
       event.key match
-        case "Enter" if !event.shiftKey =>
+        case KeyValue.Enter if !event.shiftKey =>
           event.preventDefault()
           restoreOriginalText()
           updateLabel(elementId, input.value)
-        case "Escape" =>
+        case KeyValue.Escape =>
           event.preventDefault()
           input.blur()
         case _ =>

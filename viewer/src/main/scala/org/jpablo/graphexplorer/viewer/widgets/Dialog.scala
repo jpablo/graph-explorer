@@ -4,11 +4,12 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.Mods
 import org.jpablo.graphexplorer.viewer.domUtils.dialog
+import org.scalajs.dom.KeyValue
 
 def SimpleDialog(open: Var[Boolean], contents: Mods*) =
   Dialog(
     mods = cls("modal-open") <-- open.signal,
-    onKeyDown.filter(_.key == "Escape") --> open.set(false),
+    onKeyDown.filter(_.key == KeyValue.Escape) --> open.set(false),
     tabIndex := 0,
     focus <-- open.signal.changes
   )(contents)(

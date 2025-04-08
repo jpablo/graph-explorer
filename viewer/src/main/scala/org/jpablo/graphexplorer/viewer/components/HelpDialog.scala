@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.widgets.SimpleDialog
 import org.jpablo.graphexplorer.viewer.utils.intersperse
+import org.scalajs.dom.KeyValue
 
 def HelpDialog(open: Var[Boolean], commands: Commands) =
   SimpleDialog(
@@ -68,7 +69,7 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
             ),
             tr(
               td(
-                kbd(cls := "kbd kbd-sm", "Shift"),
+                kbd(cls := "kbd kbd-sm", KeyValue.Shift),
                 span(" + "),
                 kbd(cls := "kbd kbd-sm", "Mouse wheel")
               ),
@@ -82,7 +83,7 @@ def HelpDialog(open: Var[Boolean], commands: Commands) =
             ),
             tr(
               td(
-                kbd(cls := "kbd kbd-sm", "Shift"),
+                kbd(cls := "kbd kbd-sm", KeyValue.Shift),
                 span(" + "),
                 kbd(cls := "kbd kbd-sm", "Click")
               ),

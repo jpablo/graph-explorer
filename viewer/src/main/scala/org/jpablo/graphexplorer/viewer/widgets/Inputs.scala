@@ -42,7 +42,7 @@ def Menu[A](
 ) =
   ul(
     tabIndex := 0,
-    cls      := "menu menu-xs bg-base-100 rounded-box z-1 shadow-lg",
+    cls      := "menu menu-xs bg-base-100 rounded-box z-1 shadow-lg p-1.5",
     children <-- options.map: opts =>
       for
         entry <- opts

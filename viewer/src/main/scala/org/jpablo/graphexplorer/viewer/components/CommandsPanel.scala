@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.{Selection, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.intersperse
+import org.scalajs.dom.KeyValue
 
 import scala.scalajs.js
 
@@ -103,26 +104,26 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
 
             if cmdCount > 0 then
               e.key match
-                case "ArrowDown" =>
+                case KeyValue.ArrowDown =>
                   e.preventDefault()
                   Var.update(
                     scrollDown       -> { (_: Boolean) => true },
                     highlightedIndex -> { (idx: Int) => (idx + 1) % cmdCount }
                   )
-                case "ArrowUp" =>
+                case KeyValue.ArrowUp =>
                   e.preventDefault()
                   Var.update(
                     scrollDown       -> { (_: Boolean) => false },
                     highlightedIndex -> { (idx: Int) => ((idx - 1) % cmdCount + cmdCount) % cmdCount }
                   )
-                case "Enter" =>
+                case KeyValue.Enter =>
                   e.preventDefault()
                   val idx = highlightedIndex.now()
                   if idx >= 0 && idx < cmdCount then
                     visibleCmds(idx).action()
                     focusSearch.emit(false)
                     highlightedIndex.set(-1)
-                case "Escape" =>
+                case KeyValue.Escape =>
                   e.preventDefault()
                   focusSearch.emit(false)
                   highlightedIndex.set(-1)
@@ -140,7 +141,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
       cls := "max-h-80 overflow-y-auto",
       ul(
         tabIndex := 0,
-        cls      := "menu menu-sm",
+        cls      := "menu menu-xs p-1",
         children <-- rows
       )
     )

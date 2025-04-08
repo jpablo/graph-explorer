@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty}
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.scalajs.dom.window
+import org.scalajs.dom.{KeyValue, window}
 
 import scala.collection.immutable.VectorMap
 
@@ -17,7 +17,7 @@ case class Shortcut(
     ctrl:  Boolean = false
 ):
   def toList: List[String] =
-    List((key, true), ("Shift", shift), ("Meta", meta), ("Alt", alt), ("Ctrl", ctrl))
+    List((key, true), (KeyValue.Shift, shift), (KeyValue.Meta, meta), (KeyValue.Alt, alt), (KeyValue.Control, ctrl))
       .collect { case (str, true) => str }
 
 case class Command(
@@ -102,7 +102,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "Edit label",
       state.editLabel,
       singleNodeSelected,
-      Some(Shortcut("Enter")),
+      Some(Shortcut(KeyValue.Enter)),
       description = Some("Edit the label of the selected element")
     )
 
@@ -149,7 +149,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val delete = Command(
       "Delete selection",
       state.selection.deleteSelection,
-      shortcut = Some(Shortcut("Backspace")),
+      shortcut = Some(Shortcut(KeyValue.Backspace)),
       description = Some("Delete selected nodes")
     )
 
@@ -183,7 +183,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Remove selected nodes from their current group")
     )
 
-    val clearSelection = Command("Clear selection", state.selection.clear, shortcut = Some(Shortcut("Esc")))
+    val clearSelection = Command("Clear selection", state.selection.clear, shortcut = Some(Shortcut(KeyValue.Escape)))
 
     val selectGroupMembers = Command(
       "Select group members",
