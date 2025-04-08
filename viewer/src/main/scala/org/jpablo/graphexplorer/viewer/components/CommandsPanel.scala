@@ -140,7 +140,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
       cls := "max-h-80 overflow-y-auto",
       ul(
         tabIndex := 0,
-        cls      := "menu",
+        cls      := "menu menu-sm",
         children <-- rows
       )
     )

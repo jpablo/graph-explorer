@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
+import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
 
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
   import commands.{all, routerCmds, sections}
@@ -22,24 +23,31 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
   val defaultShapePreview =
     state.nodeShape.map(shapePreview)
 
-  val shapePreviews: Seq[MenuOption[() => Unit]] =
-    Seq(Shape.box, Shape.circle, Shape.ellipse, Shape.diamond, Shape.star).map: shape =>
-      MenuOption(
-        elem = shapePreview(shape),
-        value = () => state.addNodeWithSmartConnection(Attributes.of(Shape -> shape))
-      )
+  val shapePreviews: Seq[MenuEntry[() => Unit]] =
+    Seq(Shape.box, Shape.circle, Shape.ellipse, Shape.diamond, Shape.star)
+      .map: shape =>
+        MenuOption(
+          elem = shapePreview(shape),
+          value = () => state.addNodeWithSmartConnection(Attributes.of(Shape -> shape)),
+          description = None,
+          shortcut = None
+        )
 
-  def filteredMenu(cmds: Command*) =
+  def filteredMenu(cmds: Command | Sep.type*) =
     state.selection.signal.map: selection =>
       cmds
-        .filter(_.isVisible(selection))
-        .map: cmd =>
-          MenuOption(
-            elem = cmd.shortLabel,
-            value = cmd.action,
-            description = Some(cmd.description.getOrElse(cmd.shortLabel)),
-            shortcut = cmd.shortcut.map(_.toList)
-          )
+        .filter:
+          case cmd: Command => cmd.isVisible(selection)
+          case _            => true
+        .map:
+          case cmd: Command =>
+            MenuOption(
+              elem = cmd.shortLabel,
+              value = cmd.action,
+              description = Some(cmd.description.getOrElse(cmd.shortLabel)),
+              shortcut = cmd.shortcut.map(_.toList)
+            )
+          case _ => Sep
 
   div(
     idAttr := "toolbar",
@@ -102,6 +110,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         all.selectAllArrows,
         all.selectAllGroups,
         all.selectGroupMembers,
+//        Sep,
         all.selectAllSuccessors,
         all.selectDirectSuccessors,
         all.selectAllPredecessors,
@@ -121,6 +130,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         all.duplicate,
         all.zoomIntoGroup,
         all.editLabel,
+//        Sep,
         all.rootsOnly,
         all.hideAllNodes,
         all.showAllSuccessors,
@@ -138,7 +148,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     // -------- examples --------
     Dropdown(
       title = span("Examples"),
-      options = Signal.fromValue(examples.toSeq.map((a, b) => MenuOption(a, b))),
+      options = Signal.fromValue(examples.toSeq.map((a, b) => MenuOption(a, b, None, None))),
       onClickHandler =
         _.flatMap(FetchStream.get(_)) --> { source =>
           state.showAll()

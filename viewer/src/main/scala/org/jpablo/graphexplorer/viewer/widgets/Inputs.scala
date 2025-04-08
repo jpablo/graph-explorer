@@ -12,13 +12,17 @@ import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom.MouseEvent
 import org.jpablo.graphexplorer.viewer.utils.intersperse
+import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.*
 
-case class MenuOption[A](
-    elem:        Modifier.Base | String,
-    value:       A,
-    description: Option[String] = None,
-    shortcut:    Option[List[String]] = None
-)
+enum MenuEntry[+A] derives CanEqual:
+  case MenuOption(
+      elem:        Modifier.Base | String,
+      value:       A,
+      description: Option[String] = None,
+      shortcut:    Option[List[String]] = None
+  )
+
+  case Sep
 
 def Select(
     placeholderText: String,
@@ -33,7 +37,7 @@ def Select(
   )
 
 def Menu[A](
-    options:        Signal[Seq[MenuOption[A]]],
+    options:        Signal[Seq[MenuEntry[A]]],
     onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor]
 ) =
   ul(
@@ -41,19 +45,23 @@ def Menu[A](
     cls      := "menu menu-xs bg-base-100 rounded-box z-1 shadow-lg",
     children <-- options.map: opts =>
       for
-        MenuOption(elem, value, description, shortcut) <- opts
-        nameMod = elem match
-          case m: Modifier.Base => m
-          case s: String        => span(s)
-      yield li(
-        a(
-          cls := "flex justify-between",
-          title.maybe(description),
-          nameMod,
-          shortcut.map(_.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + "))),
-          onClickHandler(onClick.mapTo(value))
-        )
-      )
+        entry <- opts
+      yield entry match
+        case MenuOption(elem, value, description, shortcut) =>
+          val nameMod = elem match
+            case m: Modifier.Base => m
+            case s: String        => span(s)
+          li(
+            a(
+              cls := "flex justify-between",
+              title.maybe(description),
+              nameMod,
+              shortcut.map(_.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + "))),
+              onClickHandler(onClick.mapTo(value))
+            )
+          )
+
+        case Sep => li()
   )
 
 /** A menu with a horizontal layout, with the last item being a dropdown menu.
@@ -109,7 +117,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
 
 def Dropdown[A](
     title:          Modifier.Base,
-    options:        Signal[Seq[MenuOption[A]]],
+    options:        Signal[Seq[MenuEntry[A]]],
     onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor],
     icon:           Modifier.Base = i(cls := "bi bi-chevron-down"),
     join:           Boolean = false
