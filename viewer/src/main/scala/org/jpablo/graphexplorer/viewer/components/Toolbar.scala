@@ -4,7 +4,6 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePreview
-import org.jpablo.graphexplorer.viewer.components.leftPanel.CommandsPanel
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -36,9 +35,10 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         .filter(_.isVisible(selection))
         .map: cmd =>
           MenuOption(
-            elem = cmd.title,
+            elem = cmd.shortLabel,
             value = cmd.action,
-            extra = Some(cmd.titleWithShortcut)
+            description = Some(cmd.description.getOrElse(cmd.shortLabel)),
+            shortcut = cmd.shortcut.map(_.toList)
           )
 
   div(
@@ -67,7 +67,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "join inline",
       Button(
         cls := "join-item",
-        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.addNode.titleWithShortcut)),
+        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.addNode.labelWithShortcut)),
         onClick --> all.addNode.action()
       ).tiny,
       DropdownHeader(
@@ -80,11 +80,11 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     ),
     // -------- show all --------
     Button(
-      all.showAll.title,
+      all.showAll.shortLabel,
       cls := "btn-primary",
       disabled <-- hiddenNodesIsEmpty,
       onClick --> all.showAll.action()
-    ).tiny.toTooltip(all.showAll.titleWithShortcut),
+    ).tiny.toTooltip(all.showAll.labelWithShortcut),
     // -------- actions --------
     Dropdown(
       title = span("Add"),
@@ -149,17 +149,17 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     // ---------- Undo/Redo ----------
     Join(
       Button(
-        span(cls := "bi bi-arrow-counterclockwise").toTooltip(all.undo.titleWithShortcut),
+        span(cls := "bi bi-arrow-counterclockwise").toTooltip(all.undo.labelWithShortcut),
         onClick --> all.undo.action()
       ).tiny,
       Button(
-        span(cls := "bi bi-arrow-clockwise").toTooltip(all.redo.titleWithShortcut),
+        span(cls := "bi bi-arrow-clockwise").toTooltip(all.redo.labelWithShortcut),
         onClick --> all.redo.action()
       ).tiny
     ),
     Join(
       Button(
-        span(cls := "bi bi-question-circle").toTooltip(all.helpKeyboardShortcuts.titleWithShortcut),
+        span(cls := "bi bi-question-circle").toTooltip(all.helpKeyboardShortcuts.labelWithShortcut),
         onClick --> all.helpKeyboardShortcuts.action()
       ).tiny,
       a(

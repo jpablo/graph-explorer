@@ -21,14 +21,14 @@ case class Shortcut(
       .collect { case (str, true) => str }
 
 case class Command(
-    title:       String,
+    shortLabel:  String,
     action:      () => Unit,
     isVisible:   ElementIds => Boolean = _.nonEmpty,
     shortcut:    Option[Shortcut] = None,
     description: Option[String] = None
 ):
-  def titleWithShortcut =
-    description.getOrElse(title) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
+  def labelWithShortcut =
+    description.getOrElse(shortLabel) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
 
 object Command:
   val always = (_: Any) => true
@@ -94,7 +94,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "Add backwards node",
       () => state.addNodeWithSmartConnection(direction = state.Direction.To),
       singleNodeSelected,
-      Some(Shortcut("N")),
+      Some(Shortcut("p")),
       Some("Add a new node without connections")
     )
 
@@ -255,7 +255,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Select direct predecessors of the selected nodes")
     )
 
-    val rootsOnly    = Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors"))
+    val rootsOnly    = Command("Show roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors"))
     val showAll      = Command("Show all", state.showAll, always, description = Some("Show all elements"))
     val hideAllNodes = Command("Hide all", state.hideAllNodes, always, description = Some("Hide all nodes"))
 

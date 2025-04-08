@@ -11,11 +11,13 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom.MouseEvent
+import org.jpablo.graphexplorer.viewer.utils.intersperse
 
 case class MenuOption[A](
-    elem:  Modifier.Base | String,
-    value: A,
-    extra: Option[String] = None
+    elem:        Modifier.Base | String,
+    value:       A,
+    description: Option[String] = None,
+    shortcut:    Option[List[String]] = None
 )
 
 def Select(
@@ -39,14 +41,16 @@ def Menu[A](
     cls      := "menu menu-xs bg-base-100 rounded-box z-1 shadow-lg",
     children <-- options.map: opts =>
       for
-        MenuOption(name, value, extra) <- opts
-        nameMod = name match
+        MenuOption(elem, value, description, shortcut) <- opts
+        nameMod = elem match
           case m: Modifier.Base => m
           case s: String        => span(s)
       yield li(
         a(
-          title.maybe(extra),
+          cls := "flex justify-between",
+          title.maybe(description),
           nameMod,
+          shortcut.map(_.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + "))),
           onClickHandler(onClick.mapTo(value))
         )
       )

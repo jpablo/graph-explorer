@@ -1,10 +1,9 @@
-package org.jpablo.graphexplorer.viewer.components.leftPanel
+package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.components.{Command, Commands}
+import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.{Selection, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.intersperse
-import com.raquo.laminar.api.features.unitArrows
 
 import scala.scalajs.js
 
@@ -25,7 +24,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
   state.selection.signal.foreach(_ => highlightedIndex.set(-1))
 
   def shouldShowCommand(term: String, selection: Selection)(cmd: Command) =
-    cmd.title.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
+    cmd.shortLabel.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
 
   // Global key handler for Cmd+K
   for
@@ -52,13 +51,13 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
         // Create command rows
         commandRows = visibleCmds.map { cmd =>
           // Find the index of this command in the flat list
-          val cmdIndex = flattenedCmds.indexWhere(_.title == cmd.title)
+          val cmdIndex = flattenedCmds.indexWhere(_.shortLabel == cmd.shortLabel)
           val isActive = highlightedIndex.signal.map(_ == cmdIndex)
           li(
             a(
-              idAttr := s"cmd-${cmd.title.replace(" ", "-").toLowerCase}",
+              idAttr := s"cmd-${cmd.shortLabel.replace(" ", "-").toLowerCase}",
               cls    := "flex justify-between",
-              title  := cmd.description.getOrElse(cmd.title),
+              title  := cmd.description.getOrElse(cmd.shortLabel),
               cls("menu-active") <-- isActive,
               inContext { thisNode =>
                 isActive --> { isActive =>
@@ -66,7 +65,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                     thisNode.ref.asInstanceOf[js.Dynamic].scrollIntoView(js.Dynamic.literal(block = "nearest"))
                 }
               },
-              span(cmd.title),
+              span(cmd.shortLabel),
               div(
                 cmd.shortcut.map(_.toList.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + ")))
               ),
