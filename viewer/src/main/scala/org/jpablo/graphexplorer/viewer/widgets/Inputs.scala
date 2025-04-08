@@ -122,7 +122,7 @@ def Dropdown[A](
     icon:           Modifier.Base = i(cls := "bi bi-chevron-down"),
     join:           Boolean = false
 ) =
-  DropdownHeader(title, icon, join, Menu(options, onClickHandler).amend(cls := "w-52"))
+  DropdownHeader(title, icon, join, Menu(options, onClickHandler).amend(cls := "w-48"))
 
 def DropdownHeader(
     title: Modifier.Base,

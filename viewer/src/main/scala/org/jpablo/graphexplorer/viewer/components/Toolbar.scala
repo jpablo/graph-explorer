@@ -72,9 +72,9 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     span(cls := "divider divider-horizontal mx-0"),
     // -------- new node button --------
     div(
-      cls := "join inline",
+      cls := "join flex-nowrap",
       Button(
-        cls := "join-item",
+        cls := "join-item mt-[2px]",
         child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.addNode.labelWithShortcut)),
         onClick --> all.addNode.action()
       ).tiny,

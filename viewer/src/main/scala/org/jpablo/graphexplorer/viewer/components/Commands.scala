@@ -173,7 +173,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "Move to group",
       () => state.selection.addToGroup(),
       moveToGroupActionVisible,
-      description = Some("Move selected nodes to a group")
+      description = Some("Move selected nodes to existing group")
     )
 
     val ungroup = Command(
