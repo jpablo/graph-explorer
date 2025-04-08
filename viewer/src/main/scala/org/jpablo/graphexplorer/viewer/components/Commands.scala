@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components
 
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
+import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty}
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.window
@@ -30,8 +31,17 @@ case class Command(
     description.getOrElse(title) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
 
 object Command:
-  val always                                                           = (_: Any) => true
+  val always = (_: Any) => true
+
+  def selectionNonEmpty(selection: ElementIds) = selection.nonEmpty
+
   def not(pred: ElementIds => Boolean)(selection: ElementIds): Boolean = !pred(selection)
+
+  def and(p: ElementIds => Boolean, q: ElementIds => Boolean)(selection: ElementIds): Boolean =
+    p(selection) && q(selection)
+
+  def or(p: ElementIds => Boolean, q: ElementIds => Boolean)(selection: ElementIds): Boolean =
+    p(selection) || q(selection)
 
 class RouterCommands(router: Router):
   import Command.always
@@ -47,7 +57,7 @@ class RouterCommands(router: Router):
     Command("Navigate home", () => router.navigateTo(Route.Home), always, description = Some("Navigate to the home page"))
 
 class Commands(state: ViewerState, val routerCmds: RouterCommands):
-  import Command.{not, always}
+  import Command.{always, not}
 
   // -----------------------------------
   // miscellaneous actions
@@ -61,11 +71,19 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val classified = selection.classify
     classified.groups.size == 1 && classified.nodes.nonEmpty
 
-  private def isSingleGroupSelected(selection: ElementIds): Boolean =
+  private def singleGroupSelected(selection: ElementIds): Boolean =
     val classified = selection.classify
     classified.groups.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
 
-  private def isSingleElementSelected(selection: ElementIds): Boolean =
+  private def singleNodeSelected(selection: ElementIds): Boolean =
+    val classified = selection.classify
+    classified.nodes.size == 1 && classified.groups.isEmpty && classified.arrows.isEmpty
+
+  private def onlyArrowSelected(selection: ElementIds): Boolean =
+    val classified = selection.classify
+    classified.nodes.isEmpty && classified.groups.isEmpty && classified.arrows.nonEmpty
+
+  private def singleElementSelected(selection: ElementIds): Boolean =
     selection.size == 1
 
   object all:
@@ -75,7 +93,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val addBackwardsNode = Command(
       "Add backwards node",
       () => state.addNodeWithSmartConnection(direction = state.Direction.To),
-      always,
+      singleNodeSelected,
       Some(Shortcut("N")),
       Some("Add a new node without connections")
     )
@@ -83,7 +101,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val editLabel = Command(
       "Edit label",
       state.editLabel,
-      isSingleElementSelected,
+      singleNodeSelected,
       Some(Shortcut("Enter")),
       description = Some("Edit the label of the selected element")
     )
@@ -117,27 +135,28 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Select all visible groups")
     )
 
-    val hide = Command("Hide", state.selection.hide, shortcut = Some(Shortcut("h")), description = Some("Hide selected nodes"))
+    val hideSelection =
+      Command("Hide selection", state.selection.hide, shortcut = Some(Shortcut("h")), description = Some("Hide selected nodes"))
 
     val keep = Command(
-      "Keep",
+      "Keep selection",
       state.hideNonSelectedNodes,
-      not(isSingleGroupSelected),
+      and(not(singleGroupSelected), selectionNonEmpty),
       Some(Shortcut("k")),
       description = Some("Hide all nodes except selected")
     )
 
     val delete = Command(
-      "Delete",
+      "Delete selection",
       state.selection.deleteSelection,
       shortcut = Some(Shortcut("Backspace")),
       description = Some("Delete selected nodes")
     )
 
     val duplicate = Command(
-      "Duplicate",
+      "Duplicate selection",
       state.selection.duplicateSelection,
-      not(isSingleGroupSelected),
+      and(not(singleGroupSelected), selectionNonEmpty),
       shortcut = Some(Shortcut("d")),
       description = Some("Duplicate selected nodes")
     )
@@ -145,6 +164,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val group = Command(
       "Group",
       state.selection.group,
+      and(not(onlyArrowSelected), selectionNonEmpty),
       shortcut = Some(Shortcut("g")),
       description = Some("Add selected nodes into a new group")
     )
@@ -168,6 +188,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val selectGroupMembers = Command(
       "Select group members",
       state.selection.selectGroupMembers,
+      singleGroupSelected,
       shortcut = Some(Shortcut("m")),
       description = Some("Select all nodes that are members of the selected group")
     )
@@ -175,12 +196,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val zoomIntoGroup = Command(
       "Zoom into group",
       state.showOnlyGroup,
-      isSingleGroupSelected,
+      singleGroupSelected,
       description = Some("Show only this group and its members")
     )
 
     val copyAsSVG = Command(
-      "Copy as SVG",
+      "Copy selection as SVG",
       state.copySelectionAsSVG,
       shortcut = Some(Shortcut("c")),
       description = Some("Copy the selected nodes as SVG to the clipboard")
@@ -235,7 +256,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     )
 
     val rootsOnly    = Command("Roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors"))
-    val showAllNodes = Command("Show all", state.showAllNodes, always, description = Some("Show all hidden nodes"))
+    val showAll      = Command("Show all", state.showAll, always, description = Some("Show all elements"))
     val hideAllNodes = Command("Hide all", state.hideAllNodes, always, description = Some("Hide all nodes"))
 
     val changeProjectName = Command(
@@ -246,7 +267,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     )
 
     val exportAsSVG =
-      Command("as SVG", state.copyAsFullDiagramSVG, always, description = Some("Copy the full diagram as SVG to the clipboard"))
+      Command(
+        "Copy full diagram as SVG",
+        state.copyAsFullDiagramSVG,
+        always,
+        description = Some("Copy the full diagram as SVG to the clipboard")
+      )
 
     val exportAsDOT  = Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard"))
     val exportAsJSON = Command("as JSON", state.copyAsJSON, always, description = Some("Copy the full diagram as JSON to the clipboard"))
@@ -309,7 +335,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       routerCmds.navigateHome
     ),
     selection -> List(
-      all.hide,
+      all.hideSelection,
       all.keep,
       all.delete,
       all.duplicate,
@@ -339,7 +365,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     ),
     view -> List(
       all.rootsOnly,
-      all.showAllNodes,
+      all.showAll,
       all.hideAllNodes
     ),
     document -> List(

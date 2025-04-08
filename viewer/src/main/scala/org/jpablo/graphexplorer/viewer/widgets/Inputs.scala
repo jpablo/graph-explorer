@@ -12,6 +12,12 @@ import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom.MouseEvent
 
+case class MenuOption[A](
+    elem:  Modifier.Base | String,
+    value: A,
+    extra: Option[String] = None
+)
+
 def Select(
     placeholderText: String,
     options:         Seq[(String, String)],
@@ -25,23 +31,25 @@ def Select(
   )
 
 def Menu[A](
-    options:        Seq[(Modifier.Base | String, A)],
+    options:        Signal[Seq[MenuOption[A]]],
     onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor]
 ) =
   ul(
     tabIndex := 0,
-    cls      := "menu bg-base-100 rounded-box z-1 shadow-lg",
-    for
-      (name, value) <- options
-      nameMod = name match
-        case m: Modifier.Base => m
-        case s: String        => span(s)
-    yield li(
-      a(
-        nameMod,
-        onClickHandler(onClick.mapTo(value))
+    cls      := "menu menu-xs bg-base-100 rounded-box z-1 shadow-lg",
+    children <-- options.map: opts =>
+      for
+        MenuOption(name, value, extra) <- opts
+        nameMod = name match
+          case m: Modifier.Base => m
+          case s: String        => span(s)
+      yield li(
+        a(
+          title.maybe(extra),
+          nameMod,
+          onClickHandler(onClick.mapTo(value))
+        )
       )
-    )
   )
 
 /** A menu with a horizontal layout, with the last item being a dropdown menu.
@@ -97,7 +105,7 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
 
 def Dropdown[A](
     title:          Modifier.Base,
-    options:        Seq[(Modifier.Base | String, A)],
+    options:        Signal[Seq[MenuOption[A]]],
     onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor],
     icon:           Modifier.Base = i(cls := "bi bi-chevron-down"),
     join:           Boolean = false

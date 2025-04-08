@@ -34,7 +34,7 @@ trait VisibilityOps:
     def clear(): Unit =
       _hiddenElements.set(ElementIds())
 
-  def showAllNodes() =
+  def showAll() =
     hiddenElements.clear()
 
   def isElementVisible(id: ElementId): Signal[Boolean] =

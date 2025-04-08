@@ -12,6 +12,8 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
+  import commands.{all, routerCmds, sections}
+
   val hiddenNodesIsEmpty =
     state.hiddenElements.signal.map(_.isEmpty)
 
@@ -21,8 +23,23 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
   val defaultShapePreview =
     state.nodeShape.map(shapePreview)
 
-  val shapePreviews = Seq(Shape.box, Shape.circle, Shape.ellipse, Shape.diamond, Shape.star).map: shape =>
-    shapePreview(shape) -> (() => state.addNodeWithSmartConnection(Attributes.of(Shape -> shape)))
+  val shapePreviews: Seq[MenuOption[() => Unit]] =
+    Seq(Shape.box, Shape.circle, Shape.ellipse, Shape.diamond, Shape.star).map: shape =>
+      MenuOption(
+        elem = shapePreview(shape),
+        value = () => state.addNodeWithSmartConnection(Attributes.of(Shape -> shape))
+      )
+
+  def filteredMenu(cmds: Command*) =
+    state.selection.signal.map: selection =>
+      cmds
+        .filter(_.isVisible(selection))
+        .map: cmd =>
+          MenuOption(
+            elem = cmd.title,
+            value = cmd.action,
+            extra = Some(cmd.titleWithShortcut)
+          )
 
   div(
     idAttr := "toolbar",
@@ -32,14 +49,14 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "breadcrumbs text-md py-0",
       ul(
         li(
-          a(cls := "link", title := "Home", span().houseIcon, onClick --> commands.routerCmds.navigateHome.action())
+          a(cls := "link", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
         ),
         li(
           a(
             cls   := "link",
             title := "Change title",
             text <-- projectName,
-            onClick --> commands.all.changeProjectName.action()
+            onClick --> all.changeProjectName.action()
           )
         )
       )
@@ -50,47 +67,81 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "join inline",
       Button(
         cls := "join-item",
-        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(commands.all.addNode.titleWithShortcut)),
-        onClick --> commands.all.addNode.action()
+        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.addNode.titleWithShortcut)),
+        onClick --> all.addNode.action()
       ).tiny,
       DropdownHeader(
         title = emptyMod,
         icon = i().threeDotsVertical,
         join = true,
-        Menu(options = shapePreviews, onClickHandler = _ --> (action => action()))
+        Menu(options = Signal.fromValue(shapePreviews), onClickHandler = _ --> (action => action()))
           .amend(cls := "items-center")
       ).amend(cls := "dropdown-center ml-[-1px]")
     ),
     // -------- show all --------
     Button(
-      commands.all.showAllNodes.title,
+      all.showAll.title,
       cls := "btn-primary",
       disabled <-- hiddenNodesIsEmpty,
-      onClick --> commands.all.showAllNodes.action()
-    ).tiny.toTooltip(commands.all.showAllNodes.titleWithShortcut),
+      onClick --> all.showAll.action()
+    ).tiny.toTooltip(all.showAll.titleWithShortcut),
     // -------- actions --------
     Dropdown(
-      title = span("Copy as"),
-      options = commands.sections.exportAs.map(cmd => cmd.title -> cmd.action),
+      title = span("Add"),
+      options = filteredMenu(
+        all.addNode,
+        all.addBackwardsNode
+      ),
       onClickHandler = _ --> (action => action())
     ),
     Dropdown(
       title = span("Select"),
-      options = Seq(
-        commands.all.selectAll,
-        commands.all.selectAllNodes,
-        commands.all.selectAllArrows,
-        commands.all.selectAllGroups,
-      ).map(cmd => cmd.title -> cmd.action),
+      options = filteredMenu(
+        all.selectAll,
+        all.selectAllNodes,
+        all.selectAllArrows,
+        all.selectAllGroups,
+        all.selectGroupMembers,
+        all.selectAllSuccessors,
+        all.selectDirectSuccessors,
+        all.selectAllPredecessors,
+        all.selectDirectPredecessors
+      ),
+      onClickHandler = _ --> (action => action())
+    ),
+    Dropdown(
+      title = span("Actions"),
+      options = filteredMenu(
+        all.group,
+        all.ungroup,
+        all.moveToGroup,
+        all.hideSelection,
+        all.keep,
+        all.delete,
+        all.duplicate,
+        all.zoomIntoGroup,
+        all.editLabel,
+        all.rootsOnly,
+        all.hideAllNodes,
+        all.showAllSuccessors,
+        all.showDirectSuccessors,
+        all.showAllPredecessors,
+        all.showDirectPredecessors
+      ),
+      onClickHandler = _ --> (action => action())
+    ),
+    Dropdown(
+      title = span("Copy as"),
+      options = filteredMenu(sections.exportAs*),
       onClickHandler = _ --> (action => action())
     ),
     // -------- examples --------
     Dropdown(
       title = span("Examples"),
-      options = examples.toSeq,
+      options = Signal.fromValue(examples.toSeq.map((a, b) => MenuOption(a, b))),
       onClickHandler =
         _.flatMap(FetchStream.get(_)) --> { source =>
-          state.showAllNodes()
+          state.showAll()
           state.sourceText.set(source)
         }
     ),
@@ -98,18 +149,18 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     // ---------- Undo/Redo ----------
     Join(
       Button(
-        span(cls := "bi bi-arrow-counterclockwise").toTooltip(commands.all.undo.titleWithShortcut),
-        onClick --> commands.all.undo.action()
+        span(cls := "bi bi-arrow-counterclockwise").toTooltip(all.undo.titleWithShortcut),
+        onClick --> all.undo.action()
       ).tiny,
       Button(
-        span(cls := "bi bi-arrow-clockwise").toTooltip(commands.all.redo.titleWithShortcut),
-        onClick --> commands.all.redo.action()
+        span(cls := "bi bi-arrow-clockwise").toTooltip(all.redo.titleWithShortcut),
+        onClick --> all.redo.action()
       ).tiny
     ),
     Join(
       Button(
-        span(cls := "bi bi-question-circle").toTooltip(commands.all.helpKeyboardShortcuts.titleWithShortcut),
-        onClick --> commands.all.helpKeyboardShortcuts.action()
+        span(cls := "bi bi-question-circle").toTooltip(all.helpKeyboardShortcuts.titleWithShortcut),
+        onClick --> all.helpKeyboardShortcuts.action()
       ).tiny,
       a(
         cls    := "btn btn-xs",
