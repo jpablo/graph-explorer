@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple, Layout}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
-import org.jpablo.graphexplorer.viewer.models.{AttributeId, Attributes, AttributesUpdates, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{AttributeId, AttributesUpdates, Attributes, SelectionAttrValue}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 class RowBuilder(
@@ -53,12 +53,12 @@ class RowBuilder(
       hidden:      Option[Signal[Boolean]] = None
   ): AttributeRow.InputAttribute =
     inputRow(
-      attr        = attr -> inputType,
-      inputVar    = simpleInputVar(attr.attrId, updates, onReset),
-      default     = defaultValue(attr.attrId, attr.default.toString),
-      label       = label,
+      attr = attr -> inputType,
+      inputVar = simpleInputVar(attr.attrId, updates, onReset),
+      default = defaultValue(attr.attrId, attr.default.toString),
+      label = label,
       placeholder = placeholder,
-      hidden      = hidden.orElse(Some(invalidLayout(attr)))
+      hidden = hidden.orElse(Some(invalidLayout(attr)))
     )
 
   // uses the global default if present, otherwise uses the (hardcoded) default value.
@@ -68,17 +68,18 @@ class RowBuilder(
       .getOrElse(Signal.fromValue(default))
 
 object RowBuilder:
+
   def simpleInputVar(
       attrId:  AttributeId,
       updates: Var[AttributesUpdates],
       onReset: Option[String] = None
   ): Var[SelectionAttrValue] =
-    updates.zoomLazy(_.existing.getOrElse(attrId, Missing))((attrs, value) =>
-      value match
-        case Single(selection) => attrs + (attrId -> selection)
-        case Multiple          => attrs
-        case Missing           => onReset.fold(attrs - attrId)(v => attrs + (attrId -> AttrValue(v)))
-    )
+    updates.zoomLazy(_.updates.getOrElse(attrId, Missing)): (attrs, value) =>
+      attrs + (attrId -> (
+        value match
+          case Missing => onReset.fold(value)(v => Single(AttrValue(v)))
+          case _       => value
+      ))
 
   def inputRow(
       attr:        (DotAttribute[?], InputType),
@@ -91,13 +92,13 @@ object RowBuilder:
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
         InputAttribute(
-          attrId       = attr.attrId,
-          label        = label.getOrElse(attr.label),
-          placeholder  = placeholder.getOrElse(attr.placeholderText),
-          inputType    = it,
-          inputVar     = inputVar,
-          options      = attr.valuesWithLabel.map((l, v) => RowOption(l, Single(AttrValue(v.toString)), None)).toSeq,
-          default      = default,
+          attrId = attr.attrId,
+          label = label.getOrElse(attr.label),
+          placeholder = placeholder.getOrElse(attr.placeholderText),
+          inputType = it,
+          inputVar = inputVar,
+          options = attr.valuesWithLabel.map((l, v) => RowOption(l, Single(AttrValue(v.toString)), None)).toSeq,
+          default = default,
           validLayouts = attr.validLayouts,
-          hidden       = hidden.getOrElse(Signal.fromValue(false))
+          hidden = hidden.getOrElse(Signal.fromValue(false))
         )

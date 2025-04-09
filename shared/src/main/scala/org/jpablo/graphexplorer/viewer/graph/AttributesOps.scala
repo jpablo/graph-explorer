@@ -101,15 +101,13 @@ trait AttributesOps:
     val classified = ids.classify
 
     val updatedArrows = arrows.view
-      .filterKeys(arrowId => arrowId in classified.arrows)
-      .mapValues(_.modify(_.attributes).using(updates.applyUpdatesTo))
+      .filterKeys(classified.arrows)
+      .mapValues(_.modify(_.attributes).using(updates.applyUpdates))
       .toMap
 
-    val clusterIds = classified.groups.map(id => GroupId(id.value))
-
     val updatedClusters = groups.view
-      .filterKeys(groupId => groupId in clusterIds)
-      .mapValues(_.modifyAttrs.using(updates.applyUpdatesTo))
+      .filterKeys(classified.groups)
+      .mapValues(_.modifyAttrs.using(updates.applyUpdates))
       .toMap
 
     val nodeIdsToUpdate = classified.nodes ++
@@ -118,7 +116,7 @@ trait AttributesOps:
     val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
       nodes.updated(
         id,
-        nodes.getOrElse(id, nodeWithDefaults(id)).modifyAttrs.using(updates.applyUpdatesTo)
+        nodes.getOrElse(id, nodeWithDefaults(id)).modifyAttrs.using(updates.applyUpdates)
       )
 
     modifyElements.using(
@@ -131,11 +129,11 @@ trait AttributesOps:
 
   // Used to combine the attributes of multiple selected elements (say two nodes)
   private def mergeAttributeUpdates[K <: ElementId, V <: ViewerElement](
-      nodeIds:       ElementIds,
-      attributables: Map[K, V]
+      elementIds: ElementIds,
+      elements:   Map[K, V]
   ): Map[AttributeId, SelectionAttrValue] =
-    attributables.foldLeft(Map.empty[AttributeId, SelectionAttrValue]):
-      case (acc, (nodeId, attributable)) if nodeId in nodeIds =>
+    elements.foldLeft(Map.empty[AttributeId, SelectionAttrValue]):
+      case (acc, (nodeId, attributable)) if nodeId in elementIds =>
         val nodeIdAcc =
           // replace attribute values with Single / Multiple (if they are already in the accumulator and they are different)
           attributable.attributes.values.transform: (attrId, v) =>
@@ -151,11 +149,11 @@ trait AttributesOps:
 
   def getAttributesUpdatesById(ids: ElementIds): AttributesUpdates =
     AttributesUpdates(
-      existing = ids.ids.headOption
+      ids.ids.headOption
         .map:
-          case _: ArrowId => mergeAttributeUpdates(ids, arrows.map(identity))
-          case _: GroupId => mergeAttributeUpdates(ids, groups.map(identity))
-          case _: NodeId  => mergeAttributeUpdates(ids, nodes.map(identity))
+          case _: ArrowId => mergeAttributeUpdates(ids, arrows)
+          case _: GroupId => mergeAttributeUpdates(ids, groups)
+          case _: NodeId  => mergeAttributeUpdates(ids, nodes)
         .getOrElse(Map.empty)
     )
 
@@ -190,14 +188,14 @@ object AttributesOps:
   def diagramAttributesUpdates: Lens[ViewerGraph, AttributesUpdates] =
     Lens(
       in = graph => graph.elements.graphAttributes.toUpdates,
-      out = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyUpdatesTo)
+      out = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyUpdates)
     )
 
   /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
   def defaultAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributesUpdates] =
     Lens(
       in = graph => graph.getDefaultAttributes(target).toUpdates,
-      out = (graph, updates) => graph.modifyDefaultAttributes(target).using(updates.applyUpdatesTo)
+      out = (graph, updates) => graph.modifyDefaultAttributes(target).using(updates.applyUpdates)
     )
 
   /** Bundle functions for updating attributes of specific elements */

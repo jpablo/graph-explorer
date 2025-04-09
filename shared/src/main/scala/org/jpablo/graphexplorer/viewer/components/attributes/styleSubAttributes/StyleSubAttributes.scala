@@ -130,9 +130,6 @@ object StyleSubAttributes:
   def from(attrs: Attributes): Option[StyleSubAttributes] =
     attrs.get(NodeStyle.attrId).map(StyleSubAttributes.parse)
 
-  def from(attrs: AttributesUpdates): StyleSubAttributes =
-    attrs.existing.get(NodeStyle.attrId).fold(missing)(StyleSubAttributes.from)
-
   def from(attrValue: SelectionAttrValue): StyleSubAttributes =
     attrValue match
       case Single(value) => StyleSubAttributes.parse(value)

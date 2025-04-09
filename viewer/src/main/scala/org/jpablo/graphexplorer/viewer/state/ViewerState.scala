@@ -146,7 +146,7 @@ case class ViewerState(
 
   def updateLabel(elementId: ElementId, label: String): Unit =
     elementAttributesUpdates(ElementIds.from(elementId)).set:
-      AttributesUpdates(update = Attributes.of(Label -> TextUtils.escape(label)).values)
+      AttributesUpdates.of(Label -> TextUtils.escape(label))
 
   def defaults(target: AttributeTarget): Signal[Attributes] =
     fullGraph.map(_.getDefaultAttributes(target))

@@ -13,17 +13,17 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.range
 
 def GroupAttributesView(
     state:        ViewerState,
-    attrsVar:     Var[AttributesUpdates],
+    updates:      Var[AttributesUpdates],
     defaults:     Option[Signal[Attributes]] = None,
     defaultsView: Boolean
 ) =
   val multiSelection = state.selection.signal.map(_.size != 1)
-  val builder        = RowBuilder(attrsVar, state.graphLayout, defaults)
+  val builder        = RowBuilder(updates, state.graphLayout, defaults)
   import builder.{row, rows}
 
   val defaultsViewS = Signal.fromValue(defaultsView)
 
-  val extraMenuDir = MenuDirection.end
+  val extraMenuDir     = MenuDirection.end
   val initialMenuItems = 7
 
   val labelRow =
@@ -41,12 +41,10 @@ def GroupAttributesView(
       row(BorderStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       row(PenColor, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
-
       labelRow,
       row(FontColor, InputType.menuWithExtra(mediumRows7.length, extraMenuDir)).copy(options = mediumRows7 ++ colorOptions),
       row(FontName, InputType.select),
       row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))),
-
       if defaultsView then "" else URL
     )
   )

@@ -130,6 +130,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         all.duplicate,
         all.zoomIntoGroup,
         all.editLabel,
+        all.resetAttributes,
 //        Sep,
         all.rootsOnly,
         all.hideAllNodes,

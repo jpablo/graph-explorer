@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{AttributeId, AttributesUpdates, Arrow, ElementId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, AttributeId, AttributesUpdates, ElementId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
 import scala.annotation.targetName
@@ -205,13 +205,11 @@ trait DiagramSelectionOps:
                 currentGraph
               else
                 // Convert keys back to AttributeId for the update
-                val attributeIdsToRemove = keysToRemove.map(AttributeId(_))
-                val updateForThisElement = AttributesUpdates(remove = attributeIdsToRemove)
+                val updateForThisElement = AttributesUpdates.remove(keysToRemove.map(AttributeId(_)))
                 // updateAttributes returns a *new* graph, so use it in the next fold step
                 currentGraph.updateAttributes(ElementIds.from(elementId), updateForThisElement)
 
-    /** Resets the layout-related attributes for the selected elements.
-      * Placeholder implementation.
+    /** Resets the layout-related attributes for the selected elements. Placeholder implementation.
       */
     def resetLayout(): Unit =
       // TODO: Implement layout reset logic

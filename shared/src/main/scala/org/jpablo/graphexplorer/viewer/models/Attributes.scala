@@ -6,6 +6,10 @@ import upickle.default.*
 
 import scala.annotation.targetName
 
+// -------------------
+// --- AttrStatus ---
+// -------------------
+
 enum AttrStatus[+A] derives CanEqual:
   case Single(value: A)
   case Multiple
@@ -56,6 +60,10 @@ type SelectionAttrValue = AttrStatus[AttrValue]
 case class AttributeId(value: String) extends AnyVal:
   override def toString: String = value
 
+// -------------------
+// --- Attributes ---
+// -------------------
+
 case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def ++(other: Attributes): Attributes = Attributes(values ++ other.values)
   @targetName("concatValues")
@@ -65,7 +73,7 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def -(key: AttributeId): Attributes              = Attributes(values - key)
   def +(kv:  (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
 
-  def contains (key: AttributeId) : Boolean =
+  def contains(key: AttributeId): Boolean =
     values.contains(key)
 
   def toDotAttr: List[Attr] =
@@ -85,17 +93,6 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def toUpdates: AttributesUpdates =
     AttributesUpdates(values.transform((_, v) => AttrStatus.Single(v)))
 
-case class AttributesUpdates(
-    existing: Map[AttributeId, SelectionAttrValue] = Map.empty,
-    update:   Map[AttributeId, AttrValue] = Map.empty,
-    remove:   Set[AttributeId] = Set.empty
-):
-  def -(key: AttributeId): AttributesUpdates              = copy(remove = remove + key)
-  def +(kv:  (AttributeId, AttrValue)): AttributesUpdates = copy(update = update + kv)
-
-  def applyUpdatesTo(attrs: Attributes): Attributes =
-    attrs ++ update -- remove
-
 object Attributes:
   val empty = Attributes(Map.empty)
 
@@ -105,6 +102,45 @@ object Attributes:
   @targetName("ofTuple")
   def of(attrs: (String, String)*) =
     Attributes(attrs.map((k, v) => AttributeId(k) -> AttrValue(v)).toMap)
+
+// ------------------------
+// --- AttributesUpdates --
+// ------------------------
+
+case class AttributesUpdates(updates: Map[AttributeId, SelectionAttrValue] = Map.empty):
+  def applyUpdates(attrs: Attributes): Attributes =
+    Attributes(
+      updates.foldLeft(attrs.values):
+        case (acc, (attrId, status)) =>
+          status match
+            case AttrStatus.Single(v) => acc + (attrId -> v)
+            case _                    => acc - attrId
+    )
+
+  def -(key: AttributeId) = AttributesUpdates(updates - key)
+
+  def +(kv: (AttributeId, AttrValue)) = AttributesUpdates(updates + (kv._1 -> AttrStatus.Single(kv._2)))
+
+  @targetName("concatUpdates")
+  def +(kv: (AttributeId, SelectionAttrValue)) = AttributesUpdates(updates + kv)
+
+object AttributesUpdates:
+
+  def of(values: AttributePair*) =
+    AttributesUpdates(
+      values
+        .map: pair =>
+          val (attrId, attrValue) = pair.toTuple
+          attrId -> AttrStatus.Single(attrValue)
+        .toMap
+    )
+
+  def remove(keys: Set[AttributeId]): AttributesUpdates =
+    AttributesUpdates(keys.map(_ -> AttrStatus.Missing).toMap)
+
+// ------------------------
+// --- AttributePair --
+// ------------------------
 
 trait AttributePair:
   def toTuple: (AttributeId, AttrValue)

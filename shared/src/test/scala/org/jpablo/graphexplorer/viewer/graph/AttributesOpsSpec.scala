@@ -109,7 +109,7 @@ class AttributesOpsSpec extends FunSuite:
     assertEquals(nodeAttrs.get(NodeStyle), Some(AttrValue("filled,bold,dashed")), "style attribute should contain the combined values")
 
     val groupAttrs = modifiedGraph.groups(groupId).attributes
-    val expected = ViewerGroup.defaultGroupAttributes ++ Attributes.of(Style -> Style.filled, Label -> "Cluster 1")
+    val expected   = ViewerGroup.defaultGroupAttributes ++ Attributes.of(Style -> Style.filled, Label -> "Cluster 1")
     assertEquals(groupAttrs, expected)
   }
 
@@ -120,7 +120,7 @@ class AttributesOpsSpec extends FunSuite:
       .modifyDefaultAttributes(AttributeTarget.node).using(_ + (BoldStyle.attrId -> trueAttr))
 
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).out
-    val updates          = AttributesUpdates(update = Attributes.of(BorderStyle -> BorderStyle.dashed).values)
+    val updates          =  AttributesUpdates.of(BorderStyle -> BorderStyle.dashed)
 
     val graph1 = updateAttributes(graph0, updates)
 
@@ -141,7 +141,7 @@ class AttributesOpsSpec extends FunSuite:
 
     // Apply the method
     val result =
-      graph.updateAttributes(ElementIds.from(a), AttributesUpdates(update = Attributes.of(Color -> "red").values))
+      graph.updateAttributes(ElementIds.from(a), AttributesUpdates.of(Color -> "red"))
 
     // Verify the attributes are updated
     assertEquals(
@@ -152,7 +152,7 @@ class AttributesOpsSpec extends FunSuite:
 
     // Verify that the original attributes are preserved
     val result2 =
-      result.updateAttributes(ElementIds.from(a), AttributesUpdates(update = Attributes.of(Shape -> Shape.box).values))
+      result.updateAttributes(ElementIds.from(a), AttributesUpdates.of(Shape -> Shape.box))
 
     assertEquals(
       result2.getAttributesById(a),
@@ -165,7 +165,7 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
     // Get the arrow ID from the graph
     val arrowId = Arrow(a, b).id
-    val updates = AttributesUpdates(update = Attributes.of(Color -> "blue").values)
+    val updates = AttributesUpdates.of(Color -> "blue")
 
     // Apply the method
     val result = graph.updateAttributes(ElementIds.from(arrowId), updates)
@@ -179,10 +179,8 @@ class AttributesOpsSpec extends FunSuite:
   }
 
   test("updateAttributes should update attributes for groups") {
-    val graph = createTestGraph()
-    val updates = AttributesUpdates(
-      update = Attributes.of(Color -> "green").values
-    )
+    val graph   = createTestGraph()
+    val updates = AttributesUpdates.of(Color -> "green")
 
     // Apply the method
     val result = graph.updateAttributes(ElementIds.from(groupId), updates)
@@ -205,12 +203,12 @@ class AttributesOpsSpec extends FunSuite:
 
     // Verify the attributes are returned
     assertEquals(
-      result.existing(Color.attrId),
+      result.updates(Color.attrId),
       AttrStatus.Single(AttrValue("red")),
       "Node color attribute should be returned"
     )
     assertEquals(
-      result.existing(Shape.attrId),
+      result.updates(Shape.attrId),
       AttrStatus.Single(AttrValue(Shape.box.toString)),
       "Node shape attribute should be returned"
     )
