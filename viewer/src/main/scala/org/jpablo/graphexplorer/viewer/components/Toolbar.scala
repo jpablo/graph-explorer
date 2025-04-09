@@ -75,8 +75,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "join flex-nowrap",
       Button(
         cls := "join-item mt-[2px]",
-        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.addNode.labelWithShortcut)),
-        onClick --> all.addNode.action()
+        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.newNode.labelWithShortcut)),
+        onClick --> all.newNode.action()
       ).tiny,
       DropdownHeader(
         title = emptyMod,
@@ -97,8 +97,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     Dropdown(
       title = span("Add"),
       options = filteredMenu(
-        all.addNode,
-        all.addBackwardsNode
+        all.newNode,
+        all.newBackwardsNode
       ),
       onClickHandler = _ --> (action => action())
     ),

@@ -87,11 +87,11 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     selection.size == 1
 
   object all:
-    val addNode =
-      Command("Add node", () => state.addNodeWithSmartConnection(), always, Some(Shortcut("n")), Some("Add a new node"))
+    val newNode =
+      Command("New node", () => state.addNodeWithSmartConnection(), always, Some(Shortcut("n")), Some("Add a new node"))
 
-    val addBackwardsNode = Command(
-      "Add backwards node",
+    val newBackwardsNode = Command(
+      "New backwards node",
       () => state.addNodeWithSmartConnection(direction = state.Direction.To),
       singleNodeSelected,
       Some(Shortcut("p")),
@@ -310,6 +310,22 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Print the full diagram as JSON DOT AST to console for debugging")
     )
 
+    val resetAttributes = Command(
+      "Reset Attributes",
+      () => state.selection.resetAttributes(), // Action to be implemented in ViewerState/SelectionHandler
+      selectionNonEmpty,                        // Visible when selection is not empty
+      shortcut = None,                          // No shortcut for now
+      description = Some("Remove all attributes except 'label' from selected elements")
+    )
+
+    val resetLayout = Command(
+      "Reset Layout",
+      () => state.selection.resetLayout(), // Action to be implemented in ViewerState/SelectionHandler
+      selectionNonEmpty,                     // Visible when selection is not empty
+      shortcut = None,                       // No shortcut for now
+      description = Some("Reset the layout of the selected elements")
+    )
+
   object headers:
     val common       = "Common"
     val selection    = "Selection"
@@ -327,8 +343,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
   val byHeader: VectorMap[String, List[Command]] = VectorMap(
     common -> List(
-      all.addNode,
-      all.addBackwardsNode,
+      all.newNode,
+      all.newBackwardsNode,
       all.changeProjectName,
       all.moveToGroup,
       routerCmds.createProject,
@@ -341,6 +357,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.duplicate,
       all.group,
       all.ungroup,
+      all.resetAttributes,
       all.clearSelection,
       all.selectGroupMembers,
       all.zoomIntoGroup,
@@ -349,7 +366,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.selectAll,
       all.selectAllNodes,
       all.selectAllArrows,
-      all.selectAllGroups
+      all.selectAllGroups,
+//      all.resetLayout
     ),
     successors -> List(
       all.showAllSuccessors,

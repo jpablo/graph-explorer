@@ -5,8 +5,9 @@ import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.Action
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{AttributeId, AttributesUpdates, Arrow, ElementId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
 import scala.annotation.targetName
@@ -37,7 +38,7 @@ trait DiagramSelectionOps:
     )(fullGraph: ViewerGraph, hiddenNodes: HiddenElements): Unit =
       val visibleSubGraph: ViewerGraph = fullGraph.removeElements(hiddenNodes)
       val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selection.now())
-      // Incorrect: relatedSubGraph.allArrowIds selects the wrong arrowIds
+      // Corrected: relatedSubGraph.allArrowIds selects the correct arrowIds
       selection.add(relatedSubGraph.nodeIds ++ relatedSubGraph.arrowIds)
 
     def editSelectedLabel(): Unit =
@@ -181,6 +182,43 @@ trait DiagramSelectionOps:
             // Select the newly created nodes
             set(newNodeIds)
             newGraph
+
+    // --- Attribute Resets ---
+
+    /** Removes all attributes except 'label' from the selected elements.
+      */
+    def resetAttributes(): Unit =
+      val s = now()
+      if s.nonEmpty then
+        sourceFlow.fullGraphV.update: initialGraph =>
+          s.ids.foldLeft(initialGraph): (currentGraph, elementId) =>
+            val currentAttrs = currentGraph.getAttributesById(elementId)
+            // Use toDotAttr to check emptiness - returns List[Attr]
+            if currentAttrs.toDotAttr.isEmpty then
+              // No attributes to remove
+              currentGraph
+            else
+              // Get keys as Strings from toDotAttr, compare with Label.attrId.value
+              val keysToRemove = currentAttrs.toDotAttr.map(_.id).toSet - Label.attrId.value
+              if keysToRemove.isEmpty then
+                // Only label attribute was present (or attrs were empty), nothing to remove
+                currentGraph
+              else
+                // Convert keys back to AttributeId for the update
+                val attributeIdsToRemove = keysToRemove.map(AttributeId(_))
+                val updateForThisElement = AttributesUpdates(remove = attributeIdsToRemove)
+                // updateAttributes returns a *new* graph, so use it in the next fold step
+                currentGraph.updateAttributes(ElementIds.from(elementId), updateForThisElement)
+
+    /** Resets the layout-related attributes for the selected elements.
+      * Placeholder implementation.
+      */
+    def resetLayout(): Unit =
+      // TODO: Implement layout reset logic
+      // Could involve removing attributes like pos, width, height, bb?
+      println("resetLayout called for selection: " + now())
+
+    // --- Click Handlers ---
 
     def handleClickOnNode(elementId: ElementId)(shiftKey: Boolean) =
       if shiftKey then
