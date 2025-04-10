@@ -17,14 +17,18 @@ def TopLevel(
 ): Div =
   div(
     idAttr := "top-level",
-    LeftPanel(state, router, commands),
-    child(SelectionPanel(state)) <-- state.selection.signal.map(_.nonEmpty),
-    CanvasContainer(state, commands),
+    cls    := "flex flex-col",
     Toolbar(state.project.name.signal, commands, state),
-    ZoomToolbar(commands),
-    RightPanel(state).render(),
-    RightToolbar(state),
-    HelpDialog(state.shortcutsModalOpen, commands)
+    div(
+      cls := "flex h-full",
+      LeftPanel(state, router, commands),
+      child(SelectionPanel(state)) <-- state.selection.signal.map(_.nonEmpty),
+      CanvasContainer(state, commands),
+      ZoomToolbar(commands),
+      RightPanel(state).render(),
+      RightToolbar(state),
+      HelpDialog(state.shortcutsModalOpen, commands)
+    )
   )
 
 def SelectionPanel(state: ViewerState) =
@@ -41,7 +45,7 @@ def SelectionPanel(state: ViewerState) =
   )
 
 def RightToolbar(state: ViewerState) =
-  val visibleTab = state.rightPanelTabIndex
+  val visibleTab        = state.rightPanelTabIndex
   def isVisible(i: Int) = visibleTab.signal.map(_ == i)
 
   val buttons =

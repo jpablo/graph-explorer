@@ -64,7 +64,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #toolbar {
-    @apply top-2 left-2/4 -translate-x-2/4;
+    @apply flex items-center gap-2 border-b border-base-300 px-1.5 py-1 print:hidden;
   }
 
   #zoom-toolbar {

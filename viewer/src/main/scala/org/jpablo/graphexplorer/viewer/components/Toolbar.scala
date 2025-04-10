@@ -51,7 +51,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
 
   div(
     idAttr := "toolbar",
-    cls    := "floating-toolbar",
     // -------- Navigation --------
     div(
       cls := "breadcrumbs text-md py-0",
@@ -162,19 +161,19 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       Button(
         span(cls := "bi bi-arrow-counterclockwise").toTooltip(all.undo.labelWithShortcut),
         onClick --> all.undo.action()
-      ).tiny,
+      ).tiny.ghost,
       Button(
         span(cls := "bi bi-arrow-clockwise").toTooltip(all.redo.labelWithShortcut),
         onClick --> all.redo.action()
-      ).tiny
+      ).tiny.ghost
     ),
     Join(
       Button(
         span(cls := "bi bi-question-circle").toTooltip(all.helpKeyboardShortcuts.labelWithShortcut),
         onClick --> all.helpKeyboardShortcuts.action()
-      ).tiny,
+      ).tiny.ghost,
       a(
-        cls    := "btn btn-xs",
+        cls    := "btn btn-xs btn-ghost",
         href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
         target := "_blank",
         i(cls := "bi bi-github")
