@@ -53,13 +53,23 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     idAttr := "toolbar",
     // -------- Navigation --------
     div(
-      cls := "breadcrumbs text-md py-0 navbar-start",
-      ul(
-        li(
-          a(cls := "link", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
-        ),
-        li(
-          a(cls := "link", title := "Change title", text <-- projectName, onClick --> all.changeProjectName.action())
+      cls := "navbar-start gap-2",
+      //
+      Button(
+        title := "Toggle Library",
+        cls("btn-active") <-- state.leftPanelVisible,
+        span().folderIcon,
+        onMouseDown --> state.leftPanelVisible.update(!_)
+      ).tiny.ghost,
+      div(
+        cls := "breadcrumbs text-md py-0 ",
+        ul(
+          li(
+            a(cls := "link", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
+          ),
+          li(
+            a(cls := "link", title := "Change title", text <-- projectName, onClick --> all.changeProjectName.action())
+          )
         )
       )
     ),

@@ -7,21 +7,10 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
-import org.jpablo.graphexplorer.viewer.widgets.tiny
 
 def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
   div(
-    cls := "relative border-r border-base-300", // Container for absolute positioning
-
-    // Toggle button (always visible)
-    button(
-      cls   := "btn absolute top-2 left-1 z-20",
-      title := "Toggle Library",
-      cls("btn-active") <-- state.leftPanelVisible,
-      span().folderIcon,
-      onMouseDown --> state.leftPanelVisible.update(!_)
-    ).tiny,
-
+    cls := "border-r border-base-300",
     // Panel content
     div(
       idAttr := "left-panel",
@@ -38,7 +27,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
         div(
           cls := "flex items-center border-b border-base-300 px-2 pb-1",
           div(
-            cls := "flex items-center justify-between w-full ml-8 mt-1.5",
+            cls := "flex items-center justify-between w-full ml-2 mt-1.5",
             h2(
               cls := "text-lg font-bold flex-1",
               "Library"
