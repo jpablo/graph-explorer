@@ -90,7 +90,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       div(
         cls := "join flex-nowrap",
         Button(
-          cls := "join-item mt-[2px] btn-ghost",
+          cls := "join-item btn-ghost",
           child <-- defaultShapePreview.map(icon => span(icon)),
           onClick --> all.newNode.action()
         ).tiny.toTooltip(all.newNode.labelWithShortcut),
