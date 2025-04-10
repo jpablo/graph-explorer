@@ -7,16 +7,19 @@ import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 class RightPanel(state: ViewerState):
-  private val visibleTab = state.rightPanelTabIndex
+  private def isVisible(i: Int) = state.rightPanelTabIndex.signal.map(_ == i)
 
-  private def isVisible(i: Int) = visibleTab.signal.map(_ == i)
+  val isFloating = state.rightPanelTabIndex.signal.map(i => i == 0 || i == 1)
 
   def render() =
     div(
       idAttr := "right-panel",
       cls <-- state.rightPanelVisible.signal.map(if _ then "visible" else "not-visible"),
+      cls("floating card card-xs") <-- isFloating,
+      cls("not-floating") <-- isFloating.not,
       div(
         idAttr := "right-panel-content",
+        cls("card-body") <-- isFloating,
         List(
           DiagramAttributesView(state),
           DefaultsView(state),

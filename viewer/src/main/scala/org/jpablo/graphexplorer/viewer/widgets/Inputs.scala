@@ -135,7 +135,7 @@ def DropdownHeader(
     div(
       tabIndex         := 0,
       role             := "button",
-      cls              := "whitespace-nowrap",
+      cls              := "whitespace-nowrap btn-ghost",
       cls("join-item") := join,
       title,
       icon

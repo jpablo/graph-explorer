@@ -66,7 +66,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         cls := "breadcrumbs text-md py-0",
         ul(
           li(
-            a(cls := "text-sm", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
+            a(cls := "text-xs", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
           ),
           li(
             text <-- projectName,
@@ -87,7 +87,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       div(
         cls := "join flex-nowrap",
         Button(
-          cls := "join-item mt-[2px]",
+          cls := "join-item mt-[2px] btn-ghost",
           child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.newNode.labelWithShortcut)),
           onClick --> all.newNode.action()
         ).tiny,
@@ -102,7 +102,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       // -------- show all --------
       Button(
         all.showAll.shortLabel,
-        cls := "btn-primary",
+        cls := "btn-soft btn-primary",
         disabled <-- hiddenNodesIsEmpty,
         onClick --> all.showAll.action()
       ).tiny.toTooltip(all.showAll.labelWithShortcut),

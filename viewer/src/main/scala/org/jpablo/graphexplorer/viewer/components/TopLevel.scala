@@ -44,10 +44,10 @@ def SelectionPanel(state: ViewerState) =
   )
 
 def RightToolbar(state: ViewerState) =
-  val visibleTab        = state.rightPanelTabIndex
-  def isVisible(i: Int) = visibleTab.signal.map(_ == i)
+  def isVisible(i: Int) = state.rightPanelTabIndex.signal.map(_ == i)
 
-  val buttons =
+  div(
+    idAttr := "right-toolbar",
     List(
       ("bi-pencil", "Diagram"),
       ("bi-pencil-square", "Default Style"),
@@ -62,14 +62,11 @@ def RightToolbar(state: ViewerState) =
             cls := "cursor-pointer p-1.5 hover:bg-base-300 rounded-lg",
             cls("bg-base-300 hover:bg-base-300 border-1 border-base-300") <-- isVisible(idx),
             i(cls := s"bi $icon"),
-            onClick --> visibleTab.update: j =>
+            onClick --> state.rightPanelTabIndex.update: j =>
               if idx == j then -1 else idx
           )
-        )
-  div(
-    idAttr := "right-toolbar",
-    buttons,
-    visibleTab.signal --> { idx =>
+        ),
+    state.rightPanelTabIndex.signal --> { idx =>
       if idx == -1 then state.rightPanelVisible.set(false)
       else state.rightPanelVisible.set(true)
     }
