@@ -56,7 +56,7 @@ label[for ^= show-ns-kind-] {
 }
 
 #top-level {
-  @apply bg-base-100 border-base-300 flex h-screen;
+  @apply bg-base-100 border-base-300 flex flex-col h-screen;
   position: relative;
 
   .floating-toolbar {
@@ -64,7 +64,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #toolbar {
-    @apply flex items-center gap-2 border-b border-base-300 px-1.5 py-1 print:hidden;
+    @apply flex /*justify-center items-center gap-2 */border-b border-base-300 px-1.5 py-1 print:hidden;
   }
 
   #zoom-toolbar {
@@ -98,9 +98,9 @@ label[for ^= show-ns-kind-] {
   }
 
   #selection-panel {
-    @apply absolute top-10 left-2 z-20 transition-all duration-200;
+    @apply absolute top-10 left-10 z-20 transition-all duration-200;
     &.left-panel-visible {
-      @apply top-2 left-[16.5rem];
+      @apply top-10 left-[16.5rem];
     }
 
     > .card {

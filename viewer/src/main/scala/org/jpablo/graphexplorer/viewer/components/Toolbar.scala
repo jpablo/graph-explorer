@@ -53,130 +53,131 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     idAttr := "toolbar",
     // -------- Navigation --------
     div(
-      cls := "breadcrumbs text-md py-0",
+      cls := "breadcrumbs text-md py-0 navbar-start",
       ul(
         li(
           a(cls := "link", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
         ),
         li(
-          a(
-            cls   := "link",
-            title := "Change title",
-            text <-- projectName,
-            onClick --> all.changeProjectName.action()
-          )
+          a(cls := "link", title := "Change title", text <-- projectName, onClick --> all.changeProjectName.action())
         )
       )
     ),
-    span(cls := "divider divider-horizontal mx-0"),
     // -------- new node button --------
     div(
-      cls := "join flex-nowrap",
-      Button(
-        cls := "join-item mt-[2px]",
-        child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.newNode.labelWithShortcut)),
-        onClick --> all.newNode.action()
-      ).tiny,
-      DropdownHeader(
-        title = emptyMod,
-        icon = i().threeDotsVertical,
-        join = true,
-        Menu(options = Signal.fromValue(shapePreviews), onClickHandler = _ --> (action => action()))
-          .amend(cls := "items-center")
-      ).amend(cls := "dropdown-center ml-[-1px]")
-    ),
-    // -------- show all --------
-    Button(
-      all.showAll.shortLabel,
-      cls := "btn-primary",
-      disabled <-- hiddenNodesIsEmpty,
-      onClick --> all.showAll.action()
-    ).tiny.toTooltip(all.showAll.labelWithShortcut),
-    // -------- actions --------
-    Dropdown(
-      title = span("Add"),
-      options = filteredMenu(
-        all.newNode,
-        all.newBackwardsNode
+      cls := "navbar-center gap-2",
+      // ---
+      div(
+        cls := "join flex-nowrap",
+        Button(
+          cls := "join-item mt-[2px]",
+          child <-- defaultShapePreview.map(icon => span(icon).toTooltip(all.newNode.labelWithShortcut)),
+          onClick --> all.newNode.action()
+        ).tiny,
+        DropdownHeader(
+          title = emptyMod,
+          icon = i().threeDotsVertical,
+          join = true,
+          Menu(options = Signal.fromValue(shapePreviews), onClickHandler = _ --> (action => action()))
+            .amend(cls := "items-center")
+        ).amend(cls := "dropdown-center ml-[-1px]")
       ),
-      onClickHandler = _ --> (action => action())
-    ),
-    Dropdown(
-      title = span("Select"),
-      options = filteredMenu(
-        all.selectAll,
-        all.selectAllNodes,
-        all.selectAllArrows,
-        all.selectAllGroups,
-        all.selectGroupMembers,
+      // -------- show all --------
+      Button(
+        all.showAll.shortLabel,
+        cls := "btn-primary",
+        disabled <-- hiddenNodesIsEmpty,
+        onClick --> all.showAll.action()
+      ).tiny.toTooltip(all.showAll.labelWithShortcut),
+      // -------- actions --------
+      Dropdown(
+        title = span("Add"),
+        options = filteredMenu(
+          all.newNode,
+          all.newBackwardsNode
+        ),
+        onClickHandler = _ --> (action => action())
+      ),
+      Dropdown(
+        title = span("Select"),
+        options = filteredMenu(
+          all.selectAll,
+          all.selectAllNodes,
+          all.selectAllArrows,
+          all.selectAllGroups,
+          all.selectGroupMembers,
 //        Sep,
-        all.selectAllSuccessors,
-        all.selectDirectSuccessors,
-        all.selectAllPredecessors,
-        all.selectDirectPredecessors
+          all.selectAllSuccessors,
+          all.selectDirectSuccessors,
+          all.selectAllPredecessors,
+          all.selectDirectPredecessors
+        ),
+        onClickHandler = _ --> (action => action())
       ),
-      onClickHandler = _ --> (action => action())
-    ),
-    Dropdown(
-      title = span("Actions"),
-      options = filteredMenu(
-        all.group,
-        all.ungroup,
-        all.moveToGroup,
-        all.hideSelection,
-        all.keep,
-        all.delete,
-        all.duplicate,
-        all.zoomIntoGroup,
-        all.editLabel,
-        all.resetAttributes,
+      Dropdown(
+        title = span("Actions"),
+        options = filteredMenu(
+          all.group,
+          all.ungroup,
+          all.moveToGroup,
+          all.hideSelection,
+          all.keep,
+          all.delete,
+          all.duplicate,
+          all.zoomIntoGroup,
+          all.editLabel,
+          all.resetAttributes,
 //        Sep,
-        all.rootsOnly,
-        all.hideAllNodes,
-        all.showAllSuccessors,
-        all.showDirectSuccessors,
-        all.showAllPredecessors,
-        all.showDirectPredecessors
+          all.rootsOnly,
+          all.hideAllNodes,
+          all.showAllSuccessors,
+          all.showDirectSuccessors,
+          all.showAllPredecessors,
+          all.showDirectPredecessors
+        ),
+        onClickHandler = _ --> (action => action())
       ),
-      onClickHandler = _ --> (action => action())
+      Dropdown(
+        title = span("Copy as"),
+        options = filteredMenu(sections.exportAs*),
+        onClickHandler = _ --> (action => action())
+      ),
+      // -------- examples --------
+      Dropdown(
+        title = span("Examples"),
+        options = Signal.fromValue(examples.toSeq.map((a, b) => MenuOption(a, b, None, None))),
+        onClickHandler =
+          _.flatMap(FetchStream.get(_)) --> { source =>
+            state.showAll()
+            state.sourceText.set(source)
+          }
+      ),
+      CommandsPanel(state, commands)
     ),
-    Dropdown(
-      title = span("Copy as"),
-      options = filteredMenu(sections.exportAs*),
-      onClickHandler = _ --> (action => action())
-    ),
-    // -------- examples --------
-    Dropdown(
-      title = span("Examples"),
-      options = Signal.fromValue(examples.toSeq.map((a, b) => MenuOption(a, b, None, None))),
-      onClickHandler =
-        _.flatMap(FetchStream.get(_)) --> { source =>
-          state.showAll()
-          state.sourceText.set(source)
-        }
-    ),
-    CommandsPanel(state, commands),
-    // ---------- Undo/Redo ----------
-    Join(
-      Button(
-        span(cls := "bi bi-arrow-counterclockwise").toTooltip(all.undo.labelWithShortcut),
-        onClick --> all.undo.action()
-      ).tiny.ghost,
-      Button(
-        span(cls := "bi bi-arrow-clockwise").toTooltip(all.redo.labelWithShortcut),
-        onClick --> all.redo.action()
-      ).tiny.ghost
-    ),
-    Join(
-      Button(
-        span(cls := "bi bi-question-circle").toTooltip(all.helpKeyboardShortcuts.labelWithShortcut),
-        onClick --> all.helpKeyboardShortcuts.action()
-      ).tiny.ghost,
-      a(
-        cls    := "btn btn-xs btn-ghost",
-        href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
-        target := "_blank",
-        i(cls := "bi bi-github")
+    div(
+      cls := "navbar-end gap-2",
+      // ---------- Undo/Redo ----------
+      Join(
+        Button(
+          span(cls := "bi bi-arrow-counterclockwise").toTooltip(all.undo.labelWithShortcut),
+          onClick --> all.undo.action()
+        ).tiny.ghost,
+        Button(
+          span(cls := "bi bi-arrow-clockwise").toTooltip(all.redo.labelWithShortcut),
+          onClick --> all.redo.action()
+        ).tiny.ghost
+      ),
+      Join(
+        Button(
+          span(cls := "bi bi-question-circle").toTooltip(all.helpKeyboardShortcuts.labelWithShortcut),
+          onClick --> all.helpKeyboardShortcuts.action()
+        ).tiny.ghost,
+        a(
+          cls    := "btn btn-xs btn-ghost",
+          href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
+          target := "_blank",
+          i(cls := "bi bi-github")
+        )
       )
     )
   )

@@ -17,7 +17,6 @@ def TopLevel(
 ): Div =
   div(
     idAttr := "top-level",
-    cls    := "flex flex-col",
     Toolbar(state.project.name.signal, commands, state),
     div(
       cls := "flex h-full",
