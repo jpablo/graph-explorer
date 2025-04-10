@@ -76,7 +76,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             a(
               cls   := "btn btn-xs btn-circle btn-ghost ml-[1px] w-4 h-4",
               title := "Change title",
-              i(cls := "text-[.6rem] text-base-content/50"),
+              i(cls := "text-[.6rem] text-base-content/50").pencilIcon,
               onClick --> all.changeProjectName.action()
             )
           )
