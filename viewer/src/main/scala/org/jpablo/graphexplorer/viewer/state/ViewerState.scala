@@ -146,18 +146,18 @@ case class ViewerState(
 
   def updateLabel(elementId: ElementId, label: String): Unit =
     elementAttributesUpdates(ElementIds.from(elementId)).set:
-      AttributesUpdates.of(Label -> TextUtils.escape(label))
+      AttributeUpdates.of(Label -> TextUtils.escape(label))
 
   def defaults(target: AttributeTarget): Signal[Attributes] =
     fullGraph.map(_.getDefaultAttributes(target))
 
-  def diagramAttributesUpdates: Var[AttributesUpdates] =
+  def diagramAttributesUpdates: Var[AttributeUpdates] =
     sourceFlow.fullGraphV.zoomLens(AttributesOps.diagramAttributesUpdates)
 
-  def defaultAttributesUpdates(target: AttributeTarget): Var[AttributesUpdates] =
+  def defaultAttributesUpdates(target: AttributeTarget): Var[AttributeUpdates] =
     sourceFlow.fullGraphV.zoomLens(AttributesOps.defaultAttributesUpdates(target))
 
-  def elementAttributesUpdates(elementIds: ElementIds): Var[AttributesUpdates] =
+  def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
     sourceFlow.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
 
 end ViewerState

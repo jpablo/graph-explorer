@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.{AttributesUpdates, Attributes, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{AttributeUpdates, Attributes, AttrValueWithStatus}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
@@ -15,7 +15,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, rang
 def NodesAttributesView(
     parent:       String,
     state:        ViewerState,
-    updates:      Var[AttributesUpdates],
+    updates:      Var[AttributeUpdates],
     defaults:     Option[Signal[Attributes]] = None,
     defaultsView: Boolean
 ) =

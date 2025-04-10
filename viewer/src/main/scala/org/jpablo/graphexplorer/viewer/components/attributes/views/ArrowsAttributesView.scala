@@ -7,14 +7,14 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.R
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.components.attributes.views.AttributesView
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributeUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
 def ArrowsAttributesView(
     state:        ViewerState,
-    updates:      Var[AttributesUpdates],
+    updates:      Var[AttributeUpdates],
     defaults:     Option[Signal[Attributes]] = None,
     defaultsView: Boolean
 ) =
@@ -24,7 +24,7 @@ def ArrowsAttributesView(
   val labelRow =
     row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || Signal.fromValue(defaultsView))
 
-  val extraMenuDir = MenuDirection.end
+  val extraMenuDir     = MenuDirection.end
   val initialMenuItems = 7
 
   AttributesView(

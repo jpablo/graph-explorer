@@ -9,11 +9,11 @@ import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple, Layout}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
-import org.jpablo.graphexplorer.viewer.models.{AttributeId, AttributesUpdates, Attributes, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{AttributeId, AttributeUpdates, Attributes, AttrValueWithStatus}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 class RowBuilder(
-    updates:  Var[AttributesUpdates],
+    updates:  Var[AttributeUpdates],
     layout:   Signal[Layout],
     defaults: Option[Signal[Attributes]] = None
 ):
@@ -71,10 +71,10 @@ object RowBuilder:
 
   def simpleInputVar(
       attrId:  AttributeId,
-      updates: Var[AttributesUpdates],
+      updates: Var[AttributeUpdates],
       onReset: Option[String] = None
-  ): Var[SelectionAttrValue] =
-    updates.zoomLazy(_.updates.getOrElse(attrId, Missing)): (attrs, value) =>
+  ): Var[AttrValueWithStatus] =
+    updates.zoomLazy(_.statuses.getOrElse(attrId, Missing)): (attrs, value) =>
       attrs + (attrId -> (
         value match
           case Missing => onReset.fold(value)(v => Single(AttrValue(v)))
@@ -83,7 +83,7 @@ object RowBuilder:
 
   def inputRow(
       attr:        (DotAttribute[?], InputType),
-      inputVar:    Var[SelectionAttrValue],
+      inputVar:    Var[AttrValueWithStatus],
       default:     Signal[String],
       label:       Option[String] = None,
       placeholder: Option[String] = None,

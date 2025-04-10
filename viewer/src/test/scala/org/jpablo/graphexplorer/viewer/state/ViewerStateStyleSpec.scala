@@ -19,7 +19,7 @@ class ViewerStateStyleSpec extends FunSuite:
 
   // Wire InputAttribute rows for invis and border styles + helper methods to set the values
   class TestRows(
-      updates:  Var[AttributesUpdates],
+      updates:  Var[AttributeUpdates],
       defaults: Option[Signal[Attributes]],
       owner:    Owner
   ):
@@ -48,7 +48,7 @@ class ViewerStateStyleSpec extends FunSuite:
   // TestRows + helper methods to inspect element and root attributes and AST styles
   case class NodeStyleControls(
       state:    ViewerState,
-      updates:  Var[AttributesUpdates],
+      updates:  Var[AttributeUpdates],
       defaults: Option[Signal[Attributes]] = None
   ) extends TestRows(updates, defaults, state.owner):
 

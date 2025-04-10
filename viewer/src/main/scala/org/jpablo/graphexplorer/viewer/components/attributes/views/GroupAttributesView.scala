@@ -6,14 +6,14 @@ import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributeUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.range
 
 def GroupAttributesView(
     state:        ViewerState,
-    updates:      Var[AttributesUpdates],
+    updates:      Var[AttributeUpdates],
     defaults:     Option[Signal[Attributes]] = None,
     defaultsView: Boolean
 ) =

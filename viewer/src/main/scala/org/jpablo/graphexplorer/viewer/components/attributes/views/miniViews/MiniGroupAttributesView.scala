@@ -6,14 +6,14 @@ import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributeUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, range}
 
 def MiniGroupAttributesView(
     state:    ViewerState,
-    attrsVar: Var[AttributesUpdates],
+    attrsVar: Var[AttributeUpdates],
     defaults: Option[Signal[Attributes]] = None
 ) =
   val multiSelection = state.selection.signal.map(_.size != 1)

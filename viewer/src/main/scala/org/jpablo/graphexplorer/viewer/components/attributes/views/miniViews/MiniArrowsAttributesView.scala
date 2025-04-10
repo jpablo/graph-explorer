@@ -13,14 +13,14 @@ import org.jpablo.graphexplorer.viewer.components.attributes.views.{
   mediumRows4
 }
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributeUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
 def MiniArrowsAttributesView(
     state:    ViewerState,
-    updates:  Var[AttributesUpdates],
+    updates:  Var[AttributeUpdates],
     defaults: Option[Signal[Attributes]] = None
 ) =
   given owner: Owner = state.owner

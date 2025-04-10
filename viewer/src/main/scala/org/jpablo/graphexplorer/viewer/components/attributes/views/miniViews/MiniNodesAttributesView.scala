@@ -6,7 +6,7 @@ import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributesUpdates, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributeUpdates, AttrValueWithStatus}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
@@ -14,7 +14,7 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, rang
 def MiniNodesAttributesView(
     parent:   String,
     state:    ViewerState,
-    updates:  Var[AttributesUpdates],
+    updates:  Var[AttributeUpdates],
     defaults: Option[Signal[Attributes]] = None
 ) =
   val multiSelection = state.selection.signal.map(_.size != 1)

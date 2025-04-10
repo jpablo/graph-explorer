@@ -55,7 +55,7 @@ enum AttrStatus[+A] derives CanEqual:
   def is[A2 >: A](a: A2)(using CanEqual[A2, A]): Boolean =
     exists(a == _)
 
-type SelectionAttrValue = AttrStatus[AttrValue]
+type AttrValueWithStatus = AttrStatus[AttrValue]
 
 case class AttributeId(value: String) extends AnyVal:
   override def toString: String = value
@@ -90,8 +90,8 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
       .flatMap(v => b.fromString(v.toString))
       .getOrElse(b.default)
 
-  def toUpdates: AttributesUpdates =
-    AttributesUpdates(values.transform((_, v) => AttrStatus.Single(v)))
+  def toUpdates: AttributeUpdates =
+    AttributeUpdates(values.transform((_, v) => AttrStatus.Single(v)))
 
 object Attributes:
   val empty = Attributes(Map.empty)
@@ -107,27 +107,43 @@ object Attributes:
 // --- AttributesUpdates --
 // ------------------------
 
-case class AttributesUpdates(updates: Map[AttributeId, SelectionAttrValue] = Map.empty):
+/** A variant of Attributes where the values can be missing for two reasons: missing or multiple.
+  *   - Missing means that the attributeId should be removed from the element's attributes.
+  *   - Multiple means that the attributeId is present with multiple values in the selection. This distinction is used in the UI.
+  *
+  * This class is used in two ways:
+  *   - As a read model: to send the current selection's attribute values to the UI.
+  *
+  * Three possible states: AttrStatus = Single, Multiple, Missing
+  *
+  *   - as a write model: to apply instructions to the attributes of selected elements.
+  *
+  * Two possible actions: Remove and Set. We reuse Missing and Single for this.
+  *
+  * @param statuses
+  *   When used as a write model, this map contains *instructions* to update the attributes of selected elements.
+  */
+case class AttributeUpdates(statuses: Map[AttributeId, AttrValueWithStatus] = Map.empty):
   def applyUpdates(attrs: Attributes): Attributes =
     Attributes(
-      updates.foldLeft(attrs.values):
+      statuses.foldLeft(attrs.values):
         case (acc, (attrId, status)) =>
           status match
             case AttrStatus.Single(v) => acc + (attrId -> v)
             case _                    => acc - attrId
     )
 
-  def -(key: AttributeId) = AttributesUpdates(updates - key)
+  def -(key: AttributeId) = AttributeUpdates(statuses - key)
 
-  def +(kv: (AttributeId, AttrValue)) = AttributesUpdates(updates + (kv._1 -> AttrStatus.Single(kv._2)))
+  def +(kv: (AttributeId, AttrValue)) = AttributeUpdates(statuses + (kv._1 -> AttrStatus.Single(kv._2)))
 
   @targetName("concatUpdates")
-  def +(kv: (AttributeId, SelectionAttrValue)) = AttributesUpdates(updates + kv)
+  def +(kv: (AttributeId, AttrValueWithStatus)) = AttributeUpdates(statuses + kv)
 
-object AttributesUpdates:
+object AttributeUpdates:
 
   def of(values: AttributePair*) =
-    AttributesUpdates(
+    AttributeUpdates(
       values
         .map: pair =>
           val (attrId, attrValue) = pair.toTuple
@@ -135,8 +151,8 @@ object AttributesUpdates:
         .toMap
     )
 
-  def remove(keys: Set[AttributeId]): AttributesUpdates =
-    AttributesUpdates(keys.map(_ -> AttrStatus.Missing).toMap)
+  def remove(keys: Set[AttributeId]): AttributeUpdates =
+    AttributeUpdates(keys.map(_ -> AttrStatus.Missing).toMap)
 
 // ------------------------
 // --- AttributePair --

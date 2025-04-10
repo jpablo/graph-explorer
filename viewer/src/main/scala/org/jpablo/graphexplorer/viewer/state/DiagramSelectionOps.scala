@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{Arrow, AttributeId, AttributesUpdates, ElementId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, AttributeId, AttributeUpdates, ElementId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
 import scala.annotation.targetName
@@ -205,7 +205,7 @@ trait DiagramSelectionOps:
                 currentGraph
               else
                 // Convert keys back to AttributeId for the update
-                val updateForThisElement = AttributesUpdates.remove(keysToRemove.map(AttributeId(_)))
+                val updateForThisElement = AttributeUpdates.remove(keysToRemove.map(AttributeId(_)))
                 // updateAttributes returns a *new* graph, so use it in the next fold step
                 currentGraph.updateAttributes(ElementIds.from(elementId), updateForThisElement)
 

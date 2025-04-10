@@ -55,7 +55,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val updated =
       graph.updateAttributes(
         ElementIds.from(arrow.id),
-        AttributesUpdates.of(Style -> Style.dashed)
+        AttributeUpdates.of(Style -> Style.dashed)
       )
 
     assertEquals(updated, expected)

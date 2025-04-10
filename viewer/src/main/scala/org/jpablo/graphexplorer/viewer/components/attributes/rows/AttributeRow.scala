@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveElement
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
-import org.jpablo.graphexplorer.viewer.models.{AttributeId, SelectionAttrValue}
+import org.jpablo.graphexplorer.viewer.models.{AttributeId, AttrValueWithStatus}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 sealed trait AttributeRow
@@ -17,7 +17,7 @@ object AttributeRow:
       label:        String,
       placeholder:  String,
       inputType:    InputType,
-      inputVar:     Var[SelectionAttrValue],
+      inputVar:     Var[AttrValueWithStatus],
       options:      Seq[AttributeRow.RowOption] = Seq.empty,
       default:      Signal[String],
       validLayouts: Set[Layout],
@@ -25,7 +25,7 @@ object AttributeRow:
       singleRow:    Boolean = false
   ) extends AttributeRow
 
-  def _combineDefault(row: InputAttribute): Signal[(SelectionAttrValue, String)] =
+  def _combineDefault(row: InputAttribute): Signal[(AttrValueWithStatus, String)] =
     row.inputVar.signal.combineWith(row.default)
 
   extension (row: InputAttribute)
@@ -46,7 +46,7 @@ object AttributeRow:
 
   case class RowOption(
       name:    String,
-      value:   SelectionAttrValue,
+      value:   AttrValueWithStatus,
       elem: Option[() => ReactiveElement[dom.Element]] = None
   ):
     def hasValue(s: String) =

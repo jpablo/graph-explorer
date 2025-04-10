@@ -120,7 +120,7 @@ class AttributesOpsSpec extends FunSuite:
       .modifyDefaultAttributes(AttributeTarget.node).using(_ + (BoldStyle.attrId -> trueAttr))
 
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).out
-    val updates          =  AttributesUpdates.of(BorderStyle -> BorderStyle.dashed)
+    val updates          =  AttributeUpdates.of(BorderStyle -> BorderStyle.dashed)
 
     val graph1 = updateAttributes(graph0, updates)
 
@@ -141,7 +141,7 @@ class AttributesOpsSpec extends FunSuite:
 
     // Apply the method
     val result =
-      graph.updateAttributes(ElementIds.from(a), AttributesUpdates.of(Color -> "red"))
+      graph.updateAttributes(ElementIds.from(a), AttributeUpdates.of(Color -> "red"))
 
     // Verify the attributes are updated
     assertEquals(
@@ -152,7 +152,7 @@ class AttributesOpsSpec extends FunSuite:
 
     // Verify that the original attributes are preserved
     val result2 =
-      result.updateAttributes(ElementIds.from(a), AttributesUpdates.of(Shape -> Shape.box))
+      result.updateAttributes(ElementIds.from(a), AttributeUpdates.of(Shape -> Shape.box))
 
     assertEquals(
       result2.getAttributesById(a),
@@ -165,7 +165,7 @@ class AttributesOpsSpec extends FunSuite:
     val graph = createTestGraph()
     // Get the arrow ID from the graph
     val arrowId = Arrow(a, b).id
-    val updates = AttributesUpdates.of(Color -> "blue")
+    val updates = AttributeUpdates.of(Color -> "blue")
 
     // Apply the method
     val result = graph.updateAttributes(ElementIds.from(arrowId), updates)
@@ -180,7 +180,7 @@ class AttributesOpsSpec extends FunSuite:
 
   test("updateAttributes should update attributes for groups") {
     val graph   = createTestGraph()
-    val updates = AttributesUpdates.of(Color -> "green")
+    val updates = AttributeUpdates.of(Color -> "green")
 
     // Apply the method
     val result = graph.updateAttributes(ElementIds.from(groupId), updates)
@@ -203,12 +203,12 @@ class AttributesOpsSpec extends FunSuite:
 
     // Verify the attributes are returned
     assertEquals(
-      result.updates(Color.attrId),
+      result.statuses(Color.attrId),
       AttrStatus.Single(AttrValue("red")),
       "Node color attribute should be returned"
     )
     assertEquals(
-      result.updates(Shape.attrId),
+      result.statuses(Shape.attrId),
       AttrStatus.Single(AttrValue(Shape.box.toString)),
       "Node shape attribute should be returned"
     )
