@@ -65,7 +65,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #toolbar {
-    @apply border-b border-base-300 px-1 print:hidden min-h-auto;
+    @apply border-b border-base-300 px-1 py-0.5 print:hidden min-h-auto;
 
     #toggle-library {
       @apply btn-ghost text-sm;

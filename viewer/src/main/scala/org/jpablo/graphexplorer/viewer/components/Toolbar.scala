@@ -63,6 +63,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         span().layoutSidebarReverseIcon,
         onMouseDown --> state.leftPanelVisible.update(!_)
       ).tiny,
+      // -------- Breadcrumbs --------
       div(
         cls := "breadcrumbs text-md py-0",
         ul(
@@ -70,11 +71,12 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             a(cls := "text-xs", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
           ),
           li(
+            cls := "text-sm",
             text <-- projectName,
             a(
-              cls   := "btn btn-xs btn-ghost btn-circle ml-[2px]",
+              cls   := "btn btn-xs btn-circle btn-ghost ml-[1px] w-4 h-4",
               title := "Change title",
-              i(cls := "text-[.75rem] text-base-content/70").pencilIcon,
+              i(cls := "text-[.6rem] text-base-content/50"),
               onClick --> all.changeProjectName.action()
             )
           )
