@@ -65,6 +65,10 @@ label[for ^= show-ns-kind-] {
 
   #toolbar {
     @apply flex /*justify-center items-center gap-2 */border-b border-base-300 px-1.5 py-1 print:hidden;
+
+    #toggle-library {
+      @apply btn-ghost text-sm;
+    }
   }
 
   #zoom-toolbar {

@@ -53,22 +53,29 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     idAttr := "toolbar",
     // -------- Navigation --------
     div(
-      cls := "navbar-start gap-2",
+      cls := "navbar-start gap-4",
       //
       Button(
-        title := "Toggle Library",
+        idAttr := "toggle-library",
+        title  := "Toggle Library",
         cls("btn-active") <-- state.leftPanelVisible,
-        span().folderIcon,
+        span().layoutSidebarReverseIcon,
         onMouseDown --> state.leftPanelVisible.update(!_)
-      ).tiny.ghost,
+      ).tiny,
       div(
-        cls := "breadcrumbs text-md py-0 ",
+        cls := "breadcrumbs text-md py-0",
         ul(
           li(
-            a(cls := "link", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
+            a(cls := "text-sm", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
           ),
           li(
-            a(cls := "link", title := "Change title", text <-- projectName, onClick --> all.changeProjectName.action())
+            text <-- projectName,
+            a(
+              cls   := "btn btn-xs btn-ghost btn-circle ml-[2px]",
+              title := "Change title",
+              i(cls := "text-[.75rem] text-base-content/70").pencilIcon,
+              onClick --> all.changeProjectName.action()
+            )
           )
         )
       )
@@ -165,24 +172,28 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       CommandsPanel(state, commands)
     ),
     div(
-      cls := "navbar-end gap-2",
+      cls := "navbar-end gap-2 ",
       // ---------- Undo/Redo ----------
       Join(
         Button(
+          cls := "text-base",
           span(cls := "bi bi-arrow-counterclockwise").toTooltip(all.undo.labelWithShortcut),
           onClick --> all.undo.action()
         ).tiny.ghost,
         Button(
+          cls := "text-base",
           span(cls := "bi bi-arrow-clockwise").toTooltip(all.redo.labelWithShortcut),
           onClick --> all.redo.action()
         ).tiny.ghost
       ),
       Join(
         Button(
+          cls := "text-base",
           span(cls := "bi bi-question-circle").toTooltip(all.helpKeyboardShortcuts.labelWithShortcut),
           onClick --> all.helpKeyboardShortcuts.action()
         ).tiny.ghost,
         a(
+          cls    := "text-base",
           cls    := "btn btn-xs btn-ghost",
           href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
           target := "_blank",
