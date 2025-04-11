@@ -58,10 +58,17 @@ label[for ^= show-ns-kind-] {
 }
 
 .horizontal-attributes-view {
+
   @apply flex flex-row gap-3;
 
+
   .fieldset {
-    @apply flex py-0  gap-0 pr-2 border-r border-base-300;
+    @apply flex py-0 gap-0 flex-nowrap;
+
+    &:not(:last-child) {
+      @apply pr-2 border-r border-base-300;
+    }
+
     > * {
       //@apply border;
     }

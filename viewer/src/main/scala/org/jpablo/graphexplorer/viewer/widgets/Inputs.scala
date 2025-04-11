@@ -144,7 +144,7 @@ def CurrentValueWithSelector(row: InputAttribute, dir: MenuDirection, cardClass:
     else
       Seq(
         // current value button
-        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs p-1", child <-- selectedOption),
+        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs p-1 ml-1", child <-- selectedOption),
         // popup card
         div(
           tabIndex := 0,
@@ -162,6 +162,32 @@ def CurrentValueWithSelector(row: InputAttribute, dir: MenuDirection, cardClass:
         )
       )
   )
+
+def DropdownForRow(row: InputAttribute) =
+  val selectedOption: Signal[ReactiveElement.Base] =
+    row.combineDefaultString.map: attrValueStr =>
+      val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
+      if selected.isEmpty then
+        pprint.log(attrValueStr)
+        pprint.log(row.options.map(o => o.value.toString))
+      selected.getOrElse(span("?"))
+
+  Dropdown(
+    title = emptyMod,
+    options = Signal.fromValue(
+      row.options.map(o =>
+        MenuOption(
+          elem = o.elem.getOrElse(() => span(o.name))(),
+          value = o.value,
+          description = Some(o.name),
+          shortcut = None
+        )
+      )
+    ),
+    onClickHandler = _ --> (attrValue => row.inputVar.set(attrValue)),
+    icon = child <-- selectedOption,
+    menuCls = "items-center"
+  ).amend(cls := "dropdown-center")
 
 def Dropdown[A](
     title:          Modifier.Base,
@@ -184,8 +210,7 @@ def DropdownHeader(
     div(
       tabIndex         := 0,
       role             := "button",
-//      cls              := "btn mt-[-3px] whitespace-nowrap btn-ghost",
-      cls              := "btn whitespace-nowrap btn-ghost p-1",
+      cls              := "btn whitespace-nowrap btn-ghost p-1 ml-1",
       cls("join-item") := join,
       title,
       icon

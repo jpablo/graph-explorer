@@ -2,12 +2,10 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import com.raquo.laminar.nodes.ReactiveElement.Base
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{AttributeHeader, InputAttribute}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
-import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.MenuOption
 
 def HorizontalAttributesView(
     showHeaders: Boolean = true,
@@ -68,18 +66,17 @@ private def AttributesViewRow(row: InputAttribute) =
 private def inputLabel(row: InputAttribute): Div =
   val multipleValues = row.inputVar.signal.map(_ == Multiple)
   div(
-    cls := "flex items-center justify-start",
+    cls := "flex items-center justify-start text-nowrap",
     div(cls("font-bold") <-- row.isChanged, row.label),
     div(
       cls("w-3 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
       child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,
       child(
         a(
-//          cls   := "link hover:bg-base-300 rounded-full",
           cls   := "btn btn-xs btn-circle btn-ghost ml-[1px] w-4 h-4",
           title := s"reset ${row.label}",
           i(cls := "bi bi-x text-[.6rem] text-base-content/50"),
-          onClick --> row.inputVar.set(Missing),
+          onClick --> row.inputVar.set(Missing)
         )
       ) <-- row.isChanged
     )
@@ -124,33 +121,8 @@ private def buildInputCell(row: InputAttribute) =
   row.inputType match
     case InputType.menuWithExtra(initial, dir, cardClass)   => MenuWithExtraDropdown(row, initial, dir, cardClass)
     case InputType.currentValueWithSelector(dir, cardClass) => CurrentValueWithSelector(row, dir, cardClass)
-    case InputType.dropdown =>
-      val selectedOption: Signal[Base] =
-        row.combineDefaultString.map: attrValueStr =>
-          val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
-          if selected.isEmpty then
-            pprint.log(attrValueStr)
-            pprint.log(row.options.map(o => o.value.toString))
-          selected.getOrElse(span("?"))
-
-      Dropdown(
-        title = emptyMod,
-        options = Signal.fromValue(
-          row.options.map(o =>
-            MenuOption(
-              elem = o.elem.getOrElse(() => span(o.name))(),
-              value = o.value,
-              description = Some(o.name),
-              shortcut = None
-            )
-          )
-        ),
-        onClickHandler = _ --> (attrValue => row.inputVar.set(attrValue)),
-        icon = child <-- selectedOption,
-        menuCls = "items-center"
-      ).amend(cls := "dropdown-center")
-
-    case InputType.select    => SelectWithValue(row)
-    case InputType.checkbox  => Checked(row)
-    case InputType.multiText => TextAreaWithValue(row)
-    case _                   => InputWithValue(row)
+    case InputType.dropdown                                 => DropdownForRow(row)
+    case InputType.select                                   => SelectWithValue(row)
+    case InputType.checkbox                                 => Checked(row)
+    case InputType.multiText                                => TextAreaWithValue(row)
+    case _                                                  => InputWithValue(row)
