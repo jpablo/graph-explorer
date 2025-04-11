@@ -48,11 +48,15 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
             val selection = Var("nodes")
             div(
               cls := "flex flex-row gap-2",
-              Select(
-                placeholderText = None,
-                options = Seq("Nodes", "Arrows", "Groups").map(label => label -> label.toLowerCase),
-                cls := "w-22 no-outline",
-                onChange.mapToValue --> selection
+              Tooltip(
+                text = "Select object type",
+                cls := "tooltip-right",
+                Select(
+                  placeholderText = None,
+                  options = Seq("Nodes", "Arrows", "Groups").map(label => label -> label.toLowerCase),
+                  cls := "w-22 no-outline",
+                  onChange.mapToValue --> selection
+                )
               ),
               child <-- selection.signal.map:
                 case "nodes"  => ToolbarNodesAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.node))
