@@ -1,8 +1,11 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.components.attributes.views.miniViews.MiniGroupAttributesView
-import org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews.{ToolbarArrowsAttributesView, ToolbarNodesAttributesView}
+import org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews.{
+  ToolbarArrowsAttributesView,
+  ToolbarGroupAttributesView,
+  ToolbarNodesAttributesView
+}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, IdsByKind}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -36,7 +39,7 @@ def SelectionToolbar(projectName: Signal[String], commands: Commands, state: Vie
             )
 
           case (false, false, true) =>
-            MiniGroupAttributesView(
+            ToolbarGroupAttributesView(
               state = state,
               attrsVar = state.elementAttributesUpdates(ElementIds(clusterIds)),
               defaults = Some(state.defaults(AttributeTarget.graph))
