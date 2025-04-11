@@ -43,11 +43,15 @@ def ToolbarNodesAttributesView(
       row(FillColor, InputType.currentValueWithSelector())
         .copy(
           options = /*lightRows4 ++ */ colorOptions,
-          hidden = builder.invalidLayout(FillColor)
+          hidden = builder.invalidLayout(FillColor),
+          missingRowOption = Some(missingColorHandler)
         ),
       row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
       PenWidth -> number(start = Some(0.1), end = Some(4), step = Some(0.25)),
-      row(Color, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */ colorOptions),
+      row(Color, InputType.currentValueWithSelector()).copy(
+        options = /*mediumRows4 ++ */ colorOptions,
+        missingRowOption = Some(missingColorHandler)
+      ),
 //      labelRow,
       row(NodeLabelLoc, InputType.dropdown).copy(
         options = nodeLabelVerticalAlignOptions,
@@ -55,7 +59,8 @@ def ToolbarNodesAttributesView(
       ),
       row(FontColor, InputType.currentValueWithSelector()).copy(
         options = /*mediumRows4 ++ */ colorOptions,
-        hidden = labelRelatedHidden
+        hidden = labelRelatedHidden,
+        missingRowOption = Some(missingColorHandler)
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
       row(FontSize, number(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)

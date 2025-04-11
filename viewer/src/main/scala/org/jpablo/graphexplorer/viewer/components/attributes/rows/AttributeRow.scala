@@ -13,16 +13,17 @@ object AttributeRow:
   case class AttributeHeader(title: String) extends AttributeRow
 
   case class InputAttribute(
-      attrId:       AttributeId,
-      label:        String,
-      placeholder:  String,
-      inputType:    InputType,
-      inputVar:     Var[AttrValueWithStatus],
-      options:      Seq[AttributeRow.RowOption] = Seq.empty,
-      default:      Signal[String],
-      validLayouts: Set[Layout],
-      hidden:       Signal[Boolean],
-      singleRow:    Boolean = false
+      attrId:           AttributeId,
+      label:            String,
+      placeholder:      String,
+      inputType:        InputType,
+      inputVar:         Var[AttrValueWithStatus],
+      options:          Seq[AttributeRow.RowOption] = Seq.empty,
+      default:          Signal[String],
+      validLayouts:     Set[Layout],
+      hidden:           Signal[Boolean],
+      singleRow:        Boolean = false,
+      missingRowOption: Option[String => ReactiveElement.Base] = None
   ) extends AttributeRow
 
   def _combineDefault(row: InputAttribute): Signal[(AttrValueWithStatus, String)] =

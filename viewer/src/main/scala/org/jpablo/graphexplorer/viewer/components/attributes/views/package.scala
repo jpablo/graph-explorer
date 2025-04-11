@@ -18,28 +18,35 @@ import scala.collection.immutable.VectorMap
 
 package object views:
   val twColorOptions: VectorMap[String, RowOption] =
-    TailWindColors.rgbColors.transform(colorRowOption)
+    TailWindColors.rgbColors.transform(rgbColorRowOption)
 
-  private def colorRowOption(name: String, rgb: RGB) =
+  def missingColorHandler(attrStr: String) =
+    val cssColor =
+      if attrStr == "none" then "unset"
+      else
+        toHex(ColorFormat.fromString(attrStr)).value
+    cssColorRowElement(attrStr, cssColor)
+
+  def cssColorRowElement(name: String, cssColor: String) =
+    if name == "none" then
+      div(cls := "w-5 h-5 bi bi-ban none-color-icon")
+    else
+      div(
+        cls       := s"w-5 h-5 regular-color-icon",
+        styleAttr := s"background-color: $cssColor"
+      )
+
+  private def rgbColorRowOption(name: String, rgb: RGB) =
     // Special "invisible" color
     val (cssColor, dotColor) =
       if name == "none" then ("unset", "none") else (s"rgb(${rgb.r} ${rgb.g} ${rgb.b})", toHex(rgb).value)
     RowOption(
       name = name,
       value = Single(AttrValue(dotColor)),
-      elem =
-        Some(() =>
-          if name == "none" then
-            div(cls := "w-5 h-5 bi bi-ban none-color-icon")
-          else
-            div(
-              cls       := s"w-5 h-5 regular-color-icon",
-              styleAttr := s"background-color: $cssColor"
-            )
-        )
+      elem = Some(() => cssColorRowElement(name, cssColor))
     )
 
-  private val colorNoneRow = colorRowOption("none", RGB(0, 0, 0))
+  private val colorNoneRow = rgbColorRowOption("none", RGB(0, 0, 0))
 
   private val basic7 = List(red, yellow, green, blue, indigo, sky, slate)
   private val basic4 = List(red, yellow, green, blue)

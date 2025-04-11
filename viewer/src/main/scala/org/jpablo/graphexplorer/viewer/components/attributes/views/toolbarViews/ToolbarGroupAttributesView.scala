@@ -28,12 +28,17 @@ def ToolbarGroupAttributesView(
       row(CornerStyle, InputType.dropdown).copy(options = graphCornerStyleOptions),
       row(FillColor, InputType.currentValueWithSelector())
         .copy(
-          options = /*lightRows4 ++ */colorOptions,
-          hidden = builder.invalidLayout(FillColor)
+          options = /*lightRows4 ++ */ colorOptions,
+          hidden = builder.invalidLayout(FillColor),
+          missingRowOption = Some(missingColorHandler)
         ),
       row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
       PenWidth -> InputType.number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
-      row(PenColor, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */colorOptions),
+      row(PenColor, InputType.currentValueWithSelector())
+        .copy(
+          options = /*mediumRows4 ++ */ colorOptions,
+          missingRowOption = Some(missingColorHandler)
+        ),
       // ---------- label stuff ------------
 //      labelRow,
       row(ClusterLabelLoc, InputType.currentValueWithSelector()).copy(
@@ -45,8 +50,9 @@ def ToolbarGroupAttributesView(
         hidden = labelRelatedHidden
       ),
       row(FontColor, InputType.currentValueWithSelector()).copy(
-        options = /*mediumRows4 ++ */colorOptions,
-        hidden = labelRelatedHidden
+        options = /*mediumRows4 ++ */ colorOptions,
+        hidden = labelRelatedHidden,
+        missingRowOption = Some(missingColorHandler)
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
       row(FontSize, InputType.number(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)

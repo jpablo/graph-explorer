@@ -29,7 +29,11 @@ def ToolbarArrowsAttributesView(
 
   HorizontalAttributesView(
     rows = rows(
-      row(Color, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */colorOptions),
+      row(Color, InputType.currentValueWithSelector())
+        .copy(
+          options = /*mediumRows4 ++ */ colorOptions,
+          missingRowOption = Some(missingColorHandler)
+        ),
       row(EdgeStyle, InputType.dropdown).copy(options = arrowStyleOptions),
       PenWidth -> InputType.number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       row(ArrowHead, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions),
@@ -39,8 +43,9 @@ def ToolbarArrowsAttributesView(
       // ---------- label stuff ------------
 //      labelRow,
       row(FontColor, InputType.currentValueWithSelector()).copy(
-        options = /*mediumRows4 ++ */colorOptions,
-        hidden = labelRelatedHidden
+        options = /*mediumRows4 ++ */ colorOptions,
+        hidden = labelRelatedHidden,
+        missingRowOption = Some(missingColorHandler)
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
       row(FontSize, InputType.number(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)

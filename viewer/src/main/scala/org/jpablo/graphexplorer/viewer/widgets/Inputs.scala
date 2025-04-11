@@ -125,10 +125,7 @@ def DropdownWithCurrentValue(row: InputAttribute, dir: MenuDirection, cardClass:
   val selectedOption: Signal[ReactiveElement.Base] =
     row.combineDefaultString.map: attrValueStr =>
       val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
-      if selected.isEmpty then
-        pprint.log(attrValueStr)
-        pprint.log(row.options.map(o => o.value.toString))
-      selected.getOrElse(span("?"))
+      selected.orElse(row.missingRowOption.map(_(attrValueStr))).getOrElse(span(attrValueStr))
 
   div(
     cls := s"menu dropdown dropdown-bottom p-0 m-0",
