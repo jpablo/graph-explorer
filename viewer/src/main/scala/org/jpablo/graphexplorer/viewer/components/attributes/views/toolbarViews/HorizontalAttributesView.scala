@@ -118,7 +118,7 @@ private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(Option[AttributeH
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
     case InputType.menuWithExtra(initial, dir, cardClass)   => MenuWithExtraDropdown(row, initial, dir, cardClass)
-    case InputType.currentValueWithSelector(dir, cardClass) => CurrentValueWithSelector(row, dir, cardClass)
+    case InputType.currentValueWithSelector(dir, cardClass) => DropdownWithCurrentValue(row, dir, cardClass)
     case InputType.dropdown                                 => DropdownForRow(row)
     case InputType.select                                   => SelectWithValue(row).amend(cls := "ml-1")
     case InputType.checkbox                                 => Checked(row)

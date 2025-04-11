@@ -51,11 +51,14 @@ label[for ^= show-ns-kind-] {
 .menu-with-extra-dropdown {
   @apply w-full;
 
-
   .narrow-card {
     @apply w-64;
   }
 }
+
+//.ge-popup-card {
+//  @apply card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200;
+//}
 
 .horizontal-attributes-view {
 
@@ -80,7 +83,7 @@ label[for ^= show-ns-kind-] {
 }
 
 .horizontal-attribute-input {
-  @apply  text-[.6rem] input-ghost p-0 ml-1 mt-0.5 h-[1.25rem] w-6;
+  @apply text-[.6rem] input-ghost p-0 ml-1 mt-0.5 h-[1.25rem] w-6;
   &:focus, &:focus-visible, &:focus-within {
     @apply outline-0 border-1 border-base-300;
   }

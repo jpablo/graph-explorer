@@ -7,6 +7,7 @@ import com.raquo.laminar.nodes.ReactiveElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.color.ColorFormat
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
@@ -66,27 +67,44 @@ def Menu[A](
         case Sep => li()
   )
 
+def popupCardMenuButton(row: InputAttribute, rowOption: RowOption) =
+  div(
+    cls := "p-1",
+    cls("bg-base-200") <-- row.isSelected(rowOption),
+    title := rowOption.name,
+    rowOption.elem.fold(span(rowOption.name))(elem => elem()),
+    onClick.mapTo(rowOption.value) --> row.inputVar
+  )
+
+def PopupCard(row: InputAttribute, options: Seq[AttributeRow.RowOption], cardClass: Option[String] = None) =
+  div(
+    tabIndex := 0,
+    cls      := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
+    // extra style
+    cardClass.map(cc => cls := cc),
+    div(
+      cls := "card-body p-0",
+      ul(
+        tabIndex := 0,
+        cls      := "p-0 m-0 menu menu-horizontal [&:before]:hidden",
+        for option <- options yield li(popupCardMenuButton(row, option))
+      )
+    )
+  )
+
 /** A menu with a horizontal layout, with the last item being a dropdown menu.
   */
 def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection, cardClass: Option[String] = None) =
-  def menuButton(rowOption: RowOption) =
-    div(
-      cls := "p-1",
-      cls("bg-base-200") <-- row.isSelected(rowOption),
-      title := rowOption.name,
-      rowOption.elem.fold(span(rowOption.name))(elem => elem()),
-      onClick.mapTo(rowOption.value) --> row.inputVar
-    )
-
   val initialOptions = row.options.take(initial)
   val extraOptions   = row.options.drop(initial)
   ul(
     tabIndex               := 0,
     cls                    := s"menu-with-extra-dropdown menu menu-horizontal bg-base-100 rounded-box p-0",
     cls("justify-between") := extraOptions.nonEmpty,
-    for option <- initialOptions yield li(menuButton(option)),
+    for option <- initialOptions yield li(popupCardMenuButton(row, option)),
     li(
       cls := "justify-center",
+      // ----- dropdown -----
       div(
         cls := s"dropdown dropdown-bottom p-0 m-0",
         // TailwindCSS classes seem to have issues with dynamic strings, so we add the cases we need here.
@@ -97,36 +115,13 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
           Seq(
             // "more" button
             div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs px-1", i().threeDotsVertical),
-            // popup card
-            div(
-              tabIndex := 0,
-              cls      := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
-              // extra style
-              cardClass.map(cc => cls := cc),
-              div(
-                cls := "card-body p-0",
-                ul(
-                  tabIndex := 0,
-                  cls      := "p-0 m-0 menu menu-horizontal [&:before]:hidden",
-                  for option <- extraOptions yield li(menuButton(option))
-                )
-              )
-            )
+            PopupCard(row, extraOptions, cardClass)
           )
       )
     )
   )
 
-def CurrentValueWithSelector(row: InputAttribute, dir: MenuDirection, cardClass: Option[String] = None) =
-  def menuButton(rowOption: RowOption) =
-    div(
-      cls := "p-1",
-      cls("bg-base-200") <-- row.isSelected(rowOption),
-      title := rowOption.name,
-      rowOption.elem.fold(span(rowOption.name))(elem => elem()),
-      onClick.mapTo(rowOption.value) --> row.inputVar
-    )
-
+def DropdownWithCurrentValue(row: InputAttribute, dir: MenuDirection, cardClass: Option[String] = None) =
   val selectedOption: Signal[ReactiveElement.Base] =
     row.combineDefaultString.map: attrValueStr =>
       val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
@@ -136,7 +131,7 @@ def CurrentValueWithSelector(row: InputAttribute, dir: MenuDirection, cardClass:
       selected.getOrElse(span("?"))
 
   div(
-    cls := s"dropdown dropdown-bottom p-0 m-0",
+    cls := s"menu dropdown dropdown-bottom p-0 m-0",
     // TailwindCSS classes seem to have issues with dynamic strings, so we add the cases we need here.
     cls("dropdown-start") := dir == MenuDirection.start,
     cls("dropdown-end")   := dir == MenuDirection.end,
@@ -145,21 +140,7 @@ def CurrentValueWithSelector(row: InputAttribute, dir: MenuDirection, cardClass:
       Seq(
         // current value button
         div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs p-1 ml-1", child <-- selectedOption),
-        // popup card
-        div(
-          tabIndex := 0,
-          cls      := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
-          // extra style
-          cardClass.map(cc => cls := cc),
-          div(
-            cls := "card-body p-0",
-            ul(
-              tabIndex := 0,
-              cls      := "p-0 m-0 menu menu-horizontal [&:before]:hidden",
-              for option <- row.options yield li(menuButton(option))
-            )
-          )
-        )
+        PopupCard(row, row.options, cardClass)
       )
   )
 
