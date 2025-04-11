@@ -71,9 +71,17 @@ private def inputLabel(row: InputAttribute): Div =
     cls := "flex items-center justify-start",
     div(cls("font-bold") <-- row.isChanged, row.label),
     div(
-      cls("w-6 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
+      cls("w-3 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
       child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,
-      child(a(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x")).tiny) <-- row.isChanged
+      child(
+        a(
+//          cls   := "link hover:bg-base-300 rounded-full",
+          cls   := "btn btn-xs btn-circle btn-ghost ml-[1px] w-4 h-4",
+          title := s"reset ${row.label}",
+          i(cls := "bi bi-x text-[.6rem] text-base-content/50"),
+          onClick --> row.inputVar.set(Missing),
+        )
+      ) <-- row.isChanged
     )
   )
 
@@ -140,7 +148,7 @@ private def buildInputCell(row: InputAttribute) =
         onClickHandler = _ --> (attrValue => row.inputVar.set(attrValue)),
         icon = child <-- selectedOption,
         menuCls = "items-center"
-      ).amend(cls := "dropdown-center ml-[-1px]")
+      ).amend(cls := "dropdown-center")
 
     case InputType.select    => SelectWithValue(row)
     case InputType.checkbox  => Checked(row)

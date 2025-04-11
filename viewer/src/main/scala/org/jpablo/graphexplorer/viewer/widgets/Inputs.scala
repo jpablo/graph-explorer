@@ -144,7 +144,7 @@ def CurrentValueWithSelector(row: InputAttribute, dir: MenuDirection, cardClass:
     else
       Seq(
         // current value button
-        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs px-1", child <-- selectedOption),
+        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs p-1", child <-- selectedOption),
         // popup card
         div(
           tabIndex := 0,
@@ -184,7 +184,8 @@ def DropdownHeader(
     div(
       tabIndex         := 0,
       role             := "button",
-      cls              := "btn mt-[-3px] whitespace-nowrap btn-ghost",
+//      cls              := "btn mt-[-3px] whitespace-nowrap btn-ghost",
+      cls              := "btn whitespace-nowrap btn-ghost p-1",
       cls("join-item") := join,
       title,
       icon
