@@ -46,7 +46,7 @@ def ToolbarNodesAttributesView(
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
-      PenWidth -> range(start = Some(0.1), end = Some(4), step = Some(0.25)),
+      PenWidth -> number(start = Some(0.1), end = Some(4), step = Some(0.25)),
       row(Color, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */ colorOptions),
 //      labelRow,
       row(NodeLabelLoc, InputType.dropdown).copy(
@@ -58,7 +58,7 @@ def ToolbarNodesAttributesView(
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
-      row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
+      row(FontSize, number(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
     ),
     extra = rows(
       InvisibleStyle -> checkbox,

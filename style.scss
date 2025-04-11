@@ -75,6 +75,17 @@ label[for ^= show-ns-kind-] {
   }
 }
 
+.range-nano {
+  --range-thumb-size: calc(var(--size-selector, 0.25rem) * 3);
+}
+
+.horizontal-attribute-input {
+  @apply  text-[.6rem] input-ghost p-0 ml-1 mt-0.5 h-[1.25rem] w-6;
+  &:focus, &:focus-visible, &:focus-within {
+    @apply outline-0 border-1 border-base-300;
+  }
+}
+
 #top-level {
   @apply bg-base-100 flex flex-col h-screen;
   position: relative;

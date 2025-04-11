@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{AttributeHeader, InputAttribute}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
+import org.jpablo.graphexplorer.viewer.widgets.InputType.number
 
 def HorizontalAttributesView(
     showHeaders: Boolean = true,
@@ -16,6 +17,14 @@ def HorizontalAttributesView(
     cls := "horizontal-attributes-view",
     buildFieldSets(rows, showHeaders)
   )
+
+private def buildFieldSets(rows: Seq[AttributeRow], showHeaders: Boolean = true) =
+  buildGroupedContent(rows).flatMap: (_, attrRows) =>
+    for row <- attrRows
+    yield fieldSet(
+      cls := "fieldset",
+      AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
+    )
 
 private def AttributesViewRow(row: InputAttribute) =
   row.inputType match
@@ -30,13 +39,10 @@ private def AttributesViewRow(row: InputAttribute) =
         label(
           cls := "fieldset-label fieldset-input flex justify-between",
           inputLabel(row),
-          buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
-            .amend(cls := "w-16 text-[.6rem] input-ghost")
-        ),
-        div(
-          cls := "fieldset-input",
-          buildInputCell(row)
+          buildInputCell(row /*.copy(inputType = InputType.number(s, e, step))*/ )
+//            .amend(cls := "text-[.6rem] bg-base-200 input-ghost")
         )
+//        div(cls := "fieldset-input", buildInputCell(row))
       )
 
     case InputType.checkbox =>
@@ -82,14 +88,6 @@ private def inputLabel(row: InputAttribute): Div =
     )
   )
 
-private def buildFieldSets(rows: Seq[AttributeRow], showHeaders: Boolean = true) =
-  buildGroupedContent(rows).flatMap: (_, attrRows) =>
-    for row <- attrRows
-    yield fieldSet(
-      cls := "fieldset",
-      AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
-    )
-
 /** Takes a flat sequence of mixed headers and rows and groups them by (optional) header.
   */
 private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(Option[AttributeHeader], Seq[InputAttribute])] =
@@ -122,7 +120,8 @@ private def buildInputCell(row: InputAttribute) =
     case InputType.menuWithExtra(initial, dir, cardClass)   => MenuWithExtraDropdown(row, initial, dir, cardClass)
     case InputType.currentValueWithSelector(dir, cardClass) => CurrentValueWithSelector(row, dir, cardClass)
     case InputType.dropdown                                 => DropdownForRow(row)
-    case InputType.select                                   => SelectWithValue(row)
+    case InputType.select                                   => SelectWithValue(row).amend(cls := "ml-1")
     case InputType.checkbox                                 => Checked(row)
     case InputType.multiText                                => TextAreaWithValue(row)
+    case _: number                                          => InputWithValue(row).amend(cls := "horizontal-attribute-input")
     case _                                                  => InputWithValue(row)
