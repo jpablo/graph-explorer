@@ -8,14 +8,12 @@ import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def HorizontalAttributesView(
-    id:          String,
     showHeaders: Boolean = true,
     rows:        Seq[AttributeRow],
     extra:       Seq[AttributeRow] = Seq.empty
 ) =
   div(
-    idAttr := id,
-    cls    := "",
+    cls := "horizontal-attributes-view",
     buildFieldSets(rows, showHeaders)
   )
 

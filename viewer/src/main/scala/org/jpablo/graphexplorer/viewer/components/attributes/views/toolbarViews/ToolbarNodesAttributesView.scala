@@ -37,25 +37,24 @@ def ToolbarNodesAttributesView(
     )
 
   HorizontalAttributesView(
-    id = "horizontal-attributes-view",
     rows = rows(
       shapeRow,
       row(CornerStyle, InputType.currentValueWithSelector()).copy(options = cornerStyleOptions),
       row(FillColor, InputType.currentValueWithSelector())
         .copy(
-          options = /*lightRows4 ++ */colorOptions,
+          options = /*lightRows4 ++ */ colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
       row(BorderStyle, InputType.currentValueWithSelector()).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.1), end = Some(4), step = Some(0.25)),
-      row(Color, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */colorOptions),
+      row(Color, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */ colorOptions),
 //      labelRow,
       row(NodeLabelLoc, InputType.currentValueWithSelector()).copy(
         options = nodeLabelVerticalAlignOptions,
         hidden = labelRelatedHidden
       ),
       row(FontColor, InputType.currentValueWithSelector()).copy(
-        options = /*mediumRows4 ++ */colorOptions,
+        options = /*mediumRows4 ++ */ colorOptions,
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
