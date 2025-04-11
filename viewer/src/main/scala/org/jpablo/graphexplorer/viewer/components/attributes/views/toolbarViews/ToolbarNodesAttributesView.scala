@@ -12,7 +12,6 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 
 def ToolbarNodesAttributesView(
-    parent:   String,
     state:    ViewerState,
     updates:  Var[AttributeUpdates],
     defaults: Option[Signal[Attributes]] = None
@@ -78,6 +77,7 @@ def ToolbarNodesAttributesView(
     ),
     extra = rows(
       InvisibleStyle -> checkbox,
+      XLabel,
       sidesRow,
       Regular     -> checkbox,
       Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),

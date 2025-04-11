@@ -13,11 +13,11 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType.checkbox
 
 def ToolbarGroupAttributesView(
     state:    ViewerState,
-    attrsVar: Var[AttributeUpdates],
+    updates:  Var[AttributeUpdates],
     defaults: Option[Signal[Attributes]] = None
 ) =
   val multiSelection = state.selection.signal.map(_.size != 1)
-  val builder        = RowBuilder(attrsVar, state.graphLayout, defaults)
+  val builder        = RowBuilder(updates, state.graphLayout, defaults)
   import builder.{row, rows}
 
   val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)

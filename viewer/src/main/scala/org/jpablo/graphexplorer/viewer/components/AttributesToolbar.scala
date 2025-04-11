@@ -11,7 +11,7 @@ import org.jpablo.graphexplorer.viewer.models.{ElementIds, IdsByKind}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 
-def SelectionToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
+def AttributesToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
   div(
     idAttr := "selection-toolbar",
     cls    := "navbar bg-base-200/75",
@@ -32,7 +32,6 @@ def SelectionToolbar(projectName: Signal[String], commands: Commands, state: Vie
 
           case (false, true, false) =>
             ToolbarNodesAttributesView(
-              "SelectionAttributes",
               state,
               updates = state.elementAttributesUpdates(ElementIds(nodeIds)),
               defaults = Some(state.defaults(AttributeTarget.node))
@@ -41,12 +40,26 @@ def SelectionToolbar(projectName: Signal[String], commands: Commands, state: Vie
           case (false, false, true) =>
             ToolbarGroupAttributesView(
               state = state,
-              attrsVar = state.elementAttributesUpdates(ElementIds(clusterIds)),
+              updates = state.elementAttributesUpdates(ElementIds(clusterIds)),
               defaults = Some(state.defaults(AttributeTarget.graph))
             )
 
           case (false, false, false) =>
-            div("tbd")
+            val selection = Var("nodes")
+            div(
+              cls := "flex flex-row gap-2",
+              Select(
+                placeholderText = None,
+                options = Seq("Nodes", "Arrows", "Groups").map(label => label -> label.toLowerCase),
+                cls := "w-22 no-outline",
+                onChange.mapToValue --> selection
+              ),
+              child <-- selection.signal.map:
+                case "nodes"  => ToolbarNodesAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.node))
+                case "arrows" => ToolbarArrowsAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.edge))
+                case "groups" => ToolbarGroupAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.graph))
+                case _        => div("No selection")
+            )
 
           case _ =>
             val elementTypes = Map(
@@ -57,21 +70,16 @@ def SelectionToolbar(projectName: Signal[String], commands: Commands, state: Vie
 
             div(
               cls := "flex flex-row gap-2",
-              div(cls := "attributes-title", h2(s"Filter")),
-              div(
-                cls := "mx-4",
-                Select(
-                  placeholderText = s"${selectedNodes.size} objects",
-                  options = elementTypes.collect {
-                    case (key, (ids, description)) if ids.nonEmpty =>
-                      s"$description (${ids.size})" -> key
-                  }.toList,
-                  onChange.mapToValue --> { value =>
-                    for (ids, _) <- elementTypes.get(value) do
-                      state.selection.set(ids)
-                  },
-                  cls := "w-full"
-                )
+              Select(
+                placeholderText = Some(s"Filter ${selectedNodes.size} objects"),
+                options = elementTypes
+                  .collect:
+                    case (key, (ids, description)) if ids.nonEmpty => s"$description (${ids.size})" -> key
+                  .toList,
+                onChange.mapToValue --> { value =>
+                  for (ids, _) <- elementTypes.get(value) do
+                    state.selection.set(ids)
+                }
               )
             )
   )

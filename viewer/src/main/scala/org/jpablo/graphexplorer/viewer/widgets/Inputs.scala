@@ -27,13 +27,13 @@ enum MenuEntry[+A] derives CanEqual:
   case Sep
 
 def Select(
-    placeholderText: String,
+    placeholderText: Option[String],
     options:         Seq[(String, String)],
     mods:            Mods*
 ) =
   select(
     cls := "select select-xs",
-    option(placeholderText, disabled := true, selected := true),
+    placeholderText.map(option(_, disabled := true, selected := true)),
     options.map((name, id) => option(name, value := id)),
     mods
   )

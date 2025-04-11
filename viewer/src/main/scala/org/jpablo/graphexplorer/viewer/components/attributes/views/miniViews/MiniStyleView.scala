@@ -61,7 +61,7 @@ def MiniStyleView(state: ViewerState) =
                 div(
                   cls := "mx-4",
                   Select(
-                    placeholderText = s"${selectedNodes.size} objects",
+                    placeholderText = Some(s"${selectedNodes.size} objects"),
                     options = elementTypes.collect {
                       case (key, (ids, description)) if ids.nonEmpty =>
                         s"$description (${ids.size})" -> key

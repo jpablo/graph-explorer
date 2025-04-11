@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
-import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
@@ -17,7 +16,6 @@ def ToolbarArrowsAttributesView(
     updates:  Var[AttributeUpdates],
     defaults: Option[Signal[Attributes]] = None
 ) =
-  given owner: Owner = state.owner
   val multiSelection = state.selection.signal.map(_.size != 1)
 
   val builder = RowBuilder(updates, state.graphLayout, defaults)

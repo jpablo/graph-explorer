@@ -18,7 +18,7 @@ def TopLevel(
   div(
     idAttr := "top-level",
     Toolbar(state.project.name.signal, commands, state),
-    SelectionToolbar(state.project.name.signal, commands, state),
+    AttributesToolbar(state.project.name.signal, commands, state),
     div(
       cls := "flex flex-1 overflow-y-auto",
       LeftPanel(state, router, commands),
@@ -51,7 +51,6 @@ def RightToolbar(state: ViewerState) =
     idAttr := "right-toolbar",
     List(
       ("bi-pencil", "Diagram"),
-      ("bi-pencil-square", "Default Style"),
       ("bi-list-ul", "Elements"),
       ("bi-code-square", "Source")
     ).zipWithIndex.map:

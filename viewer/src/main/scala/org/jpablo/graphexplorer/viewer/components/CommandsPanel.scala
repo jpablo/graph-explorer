@@ -84,7 +84,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
     cls := "dropdown",
     // Search box at the top with consistent styling
     label(
-      cls := "input input-xs px-1 w-32 transition-all duration-200 ease-in-out mt-[-3px]",
+      cls := "input input-xs px-1 w-32 transition-all duration-200 ease-in-out mt-[-3px] no-outline",
       inContext { thisNode =>
         input(
           typ         := "search",

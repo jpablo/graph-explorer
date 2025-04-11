@@ -2,14 +2,14 @@ package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.components.attributes.views.{DefaultsView, DiagramAttributesView, ElementsView}
+import org.jpablo.graphexplorer.viewer.components.attributes.views.{DiagramAttributesView, ElementsView}
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 class RightPanel(state: ViewerState):
   private def isVisible(i: Int) = state.rightPanelTabIndex.signal.map(_ == i)
 
-  val isFloating = state.rightPanelTabIndex.signal.map(i => i == 0 || i == 1)
+  val isFloating = state.rightPanelTabIndex.signal.map(_ == 0)
 
   def render() =
     div(
@@ -22,7 +22,6 @@ class RightPanel(state: ViewerState):
         cls("card-body") <-- isFloating,
         List(
           DiagramAttributesView(state),
-          DefaultsView(state),
           ElementsView(state),
           SourceTab
         ).zipWithIndex.map: (child, idx) =>

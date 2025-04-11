@@ -120,5 +120,5 @@ private def buildInputCell(row: InputAttribute) =
     case InputType.select                                   => SelectWithValue(row).amend(cls := "ml-1")
     case InputType.checkbox                                 => Checked(row)
     case InputType.multiText                                => TextAreaWithValue(row)
-    case _: number                                          => InputWithValue(row).amend(cls := "horizontal-attribute-input")
+    case _: number                                          => InputWithValue(row).amend(cls := "horizontal-attribute-input no-outline")
     case _                                                  => InputWithValue(row)
