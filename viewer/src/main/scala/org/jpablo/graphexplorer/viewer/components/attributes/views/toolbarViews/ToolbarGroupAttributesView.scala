@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.models.{AttributeUpdates, Attributes}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType
-import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, range}
+import org.jpablo.graphexplorer.viewer.widgets.InputType.checkbox
 
 def ToolbarGroupAttributesView(
     state:    ViewerState,
@@ -25,14 +25,14 @@ def ToolbarGroupAttributesView(
 
   HorizontalAttributesView(
     rows = rows(
-      row(CornerStyle, InputType.currentValueWithSelector()).copy(options = graphCornerStyleOptions),
+      row(CornerStyle, InputType.dropdown).copy(options = graphCornerStyleOptions),
       row(FillColor, InputType.currentValueWithSelector())
         .copy(
           options = /*lightRows4 ++ */colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
-      row(BorderStyle, InputType.currentValueWithSelector()).copy(options = borderStyleOptions),
-      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
+      PenWidth -> InputType.number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       row(PenColor, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */colorOptions),
       // ---------- label stuff ------------
 //      labelRow,
@@ -49,7 +49,7 @@ def ToolbarGroupAttributesView(
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
-      row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
+      row(FontSize, InputType.number(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
     ),
     extra = rows(
       InvisibleStyle -> checkbox

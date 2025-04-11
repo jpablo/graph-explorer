@@ -30,11 +30,11 @@ def ToolbarArrowsAttributesView(
   HorizontalAttributesView(
     rows = rows(
       row(Color, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */colorOptions),
-      row(EdgeStyle, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowStyleOptions),
-      PenWidth -> range(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      row(EdgeStyle, InputType.dropdown).copy(options = arrowStyleOptions),
+      PenWidth -> InputType.number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       row(ArrowHead, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions),
       row(ArrowTail, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions),
-      ArrowSize  -> range(start = Some(0), end = Some(5), step = Some(0.1)),
+      ArrowSize  -> InputType.number(start = Some(0), end = Some(5), step = Some(0.1)),
       Constraint -> checkbox,
       // ---------- label stuff ------------
 //      labelRow,
@@ -43,7 +43,7 @@ def ToolbarArrowsAttributesView(
         hidden = labelRelatedHidden
       ),
       row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
-      row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
+      row(FontSize, InputType.number(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
     ),
     extra = rows(
       Constraint -> checkbox,
