@@ -74,7 +74,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #toolbar, #selection-toolbar {
-    @apply flex-none border-b border-base-300 px-1 py-[2px] m-0 print:hidden min-h-auto;
+    @apply flex-none border-b border-base-300 px-2 py-[2px] m-0 print:hidden min-h-auto;
 
     .dropdown {
       @apply m-0 p-0;

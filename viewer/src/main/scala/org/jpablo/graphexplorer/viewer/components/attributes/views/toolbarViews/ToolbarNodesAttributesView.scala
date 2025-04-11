@@ -39,17 +39,17 @@ def ToolbarNodesAttributesView(
   HorizontalAttributesView(
     rows = rows(
       shapeRow,
-      row(CornerStyle, InputType.currentValueWithSelector()).copy(options = cornerStyleOptions),
+      row(CornerStyle, InputType.dropdown).copy(options = cornerStyleOptions),
       row(FillColor, InputType.currentValueWithSelector())
         .copy(
           options = /*lightRows4 ++ */ colorOptions,
           hidden = builder.invalidLayout(FillColor)
         ),
-      row(BorderStyle, InputType.currentValueWithSelector()).copy(options = borderStyleOptions),
+      row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
       PenWidth -> range(start = Some(0.1), end = Some(4), step = Some(0.25)),
       row(Color, InputType.currentValueWithSelector()).copy(options = /*mediumRows4 ++ */ colorOptions),
 //      labelRow,
-      row(NodeLabelLoc, InputType.currentValueWithSelector()).copy(
+      row(NodeLabelLoc, InputType.dropdown).copy(
         options = nodeLabelVerticalAlignOptions,
         hidden = labelRelatedHidden
       ),

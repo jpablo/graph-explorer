@@ -2,10 +2,12 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
+import com.raquo.laminar.nodes.ReactiveElement.Base
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{AttributeHeader, InputAttribute}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
+import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.MenuOption
 
 def HorizontalAttributesView(
     showHeaders: Boolean = true,
@@ -114,6 +116,31 @@ private def buildInputCell(row: InputAttribute) =
   row.inputType match
     case InputType.menuWithExtra(initial, dir, cardClass)   => MenuWithExtraDropdown(row, initial, dir, cardClass)
     case InputType.currentValueWithSelector(dir, cardClass) => CurrentValueWithSelector(row, dir, cardClass)
+    case InputType.dropdown =>
+      val selectedOption: Signal[Base] =
+        row.combineDefaultString.map: attrValueStr =>
+          val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
+          if selected.isEmpty then
+            pprint.log(attrValueStr)
+            pprint.log(row.options.map(o => o.value.toString))
+          selected.getOrElse(span("?"))
+
+      Dropdown(
+        title = emptyMod,
+        options = Signal.fromValue(
+          row.options.map(o =>
+            MenuOption(
+              elem = o.elem.getOrElse(() => span(o.name))(),
+              value = o.value,
+              description = Some(o.name),
+              shortcut = None
+            )
+          )
+        ),
+        onClickHandler = _ --> (attrValue => row.inputVar.set(attrValue)),
+        icon = child <-- selectedOption,
+        menuCls = "items-center"
+      ).amend(cls := "dropdown-center ml-[-1px]")
 
     case InputType.select    => SelectWithValue(row)
     case InputType.checkbox  => Checked(row)

@@ -8,6 +8,7 @@ enum MenuDirection derives CanEqual:
 enum InputType derives CanEqual:
   case select, text, multiText, color, checkbox, radio, file, hidden, password, submit, reset, button, image,
     datetime, datetimeLocal, date, month, time, week, url, email, search, tel
+  case dropdown
   case number(start: Option[Double] = None, end: Option[Double] = None, step: Option[Double] = None)
   case range(start: Option[Double] = None, end: Option[Double] = None, step: Option[Double] = None)
   case menuWithExtra(initial: Int, dir: MenuDirection = MenuDirection.start, cardClass: Option[String] = None)

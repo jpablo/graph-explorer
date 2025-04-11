@@ -34,7 +34,7 @@ object AttributeRow:
 
     def isChanged: Signal[Boolean] =
       row.combineDefault.map { (attr, d) => attr.exists(_.toString != d) }
-      
+
     def isSelected(rowOption: RowOption): Signal[Boolean] =
       row.combineDefault.map((sv, d) => rowOption.hasValue(sv.getOrElse(d).toString))
 
@@ -45,9 +45,9 @@ object AttributeRow:
       row.combineDefaultString.map(_ == true.toString)
 
   case class RowOption(
-      name:    String,
-      value:   AttrValueWithStatus,
-      elem: Option[() => ReactiveElement[dom.Element]] = None
+      name:  String,
+      value: AttrValueWithStatus,
+      elem:  Option[() => ReactiveElement.Base] = None
   ):
     def hasValue(s: String) =
       value.exists(_.toString == s)

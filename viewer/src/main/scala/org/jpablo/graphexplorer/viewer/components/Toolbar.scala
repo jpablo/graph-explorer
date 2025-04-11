@@ -94,12 +94,14 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           child <-- defaultShapePreview.map(icon => span(icon)),
           onClick --> all.newNode.action()
         ).tiny.toTooltip(all.newNode.labelWithShortcut),
-        DropdownHeader(
+        // --- extra options ---
+        Dropdown(
           title = emptyMod,
+          options = Signal.fromValue(shapePreviews),
+          onClickHandler = _ --> (action => action()),
           icon = i().threeDotsVertical,
           join = true,
-          Menu(options = Signal.fromValue(shapePreviews), onClickHandler = _ --> (action => action()))
-            .amend(cls := "items-center")
+          menuCls = "items-center"
         ).amend(cls := "dropdown-center ml-[-1px]")
       ),
       // -------- show all --------

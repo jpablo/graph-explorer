@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.color.ColorFormat
@@ -126,8 +127,7 @@ def CurrentValueWithSelector(row: InputAttribute, dir: MenuDirection, cardClass:
       onClick.mapTo(rowOption.value) --> row.inputVar
     )
 
-  row.combineDefaultString
-  val selectedOption =
+  val selectedOption: Signal[ReactiveElement.Base] =
     row.combineDefaultString.map: attrValueStr =>
       val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
       if selected.isEmpty then
@@ -168,9 +168,10 @@ def Dropdown[A](
     options:        Signal[Seq[MenuEntry[A]]],
     onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor],
     icon:           Modifier.Base = i(cls := "bi bi-chevron-down"),
-    join:           Boolean = false
+    join:           Boolean = false,
+    menuCls:        String = "w-48"
 ) =
-  DropdownHeader(title, icon, join, Menu(options, onClickHandler).amend(cls := "w-48"))
+  DropdownHeader(title, icon, join, Menu(options, onClickHandler).amend(cls := menuCls))
 
 def DropdownHeader(
     title: Modifier.Base,
