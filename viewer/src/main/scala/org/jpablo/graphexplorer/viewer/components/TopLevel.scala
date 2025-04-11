@@ -21,7 +21,7 @@ def TopLevel(
     Toolbar(state.project.name.signal, commands, state),
     SelectionToolbar(state.project.name.signal, commands, state),
     div(
-      cls := "flex h-full",
+      cls := "flex flex-1 h-1 border-0 border-black",
       LeftPanel(state, router, commands),
 //      child(SelectionPanel(state)) <-- state.selection.signal.map(_.nonEmpty),
       CanvasContainer(state, commands),
