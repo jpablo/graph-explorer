@@ -26,13 +26,18 @@ def ToolbarNodesAttributesView(
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  val shapeRow = row(Shape, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = shapesOptions)
+  val shapeRow          = row(Shape, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = shapesOptions)
+  val shapeIsNotPolygon = shapeRow.inputVar.signal.map(_.exists(_.toString != Shape.polygon.toString))
+  val shapeIsPlainOrPlainText = shapeRow.inputVar.signal.map(_.exists { shape =>
+    shape.toString == Shape.plain.toString || shape.toString == Shape.plaintext.toString
+  })
+
   val sidesRow =
     row(
       attr = Sides,
       inputType = number(start = Some(3), end = Some(10), step = Some(1)),
       hidden = Some(
-        builder.invalidLayout(Sides) || shapeRow.inputVar.signal.map(_.exists(_.toString != Shape.polygon.toString))
+        builder.invalidLayout(Sides) || shapeIsNotPolygon
       )
     )
 
@@ -46,10 +51,16 @@ def ToolbarNodesAttributesView(
           hidden = builder.invalidLayout(FillColor),
           missingRowOption = Some(missingColorHandler)
         ),
-      row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
-      PenWidth -> number(start = Some(0.1), end = Some(4), step = Some(0.25)),
+      row(BorderStyle, InputType.dropdown).copy(
+        options = borderStyleOptions,
+        hidden = shapeIsPlainOrPlainText
+      ),
+      row(PenWidth, number(start = Some(0.1), end = Some(4), step = Some(0.25))).copy(
+        hidden = shapeIsPlainOrPlainText
+      ),
       row(Color, InputType.currentValueWithSelector()).copy(
         options = /*mediumRows4 ++ */ colorOptions,
+        hidden = shapeIsPlainOrPlainText,
         missingRowOption = Some(missingColorHandler)
       ),
 //      labelRow,
