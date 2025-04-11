@@ -29,7 +29,7 @@ def GroupAttributesView(
   val labelRow =
     row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection || defaultsViewS)
 
-  AttributesView(
+  VerticalAttributesView(
     id = "graph-attributes",
     rows = rows(
       row(CornerStyle, InputType.menuWithExtra(initialMenuItems)).copy(options = graphCornerStyleOptions),

@@ -6,7 +6,7 @@ import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.{
-  AttributesView,
+  VerticalAttributesView,
   arrowStyleOptions,
   arrowTypeOptions,
   colorOptions,
@@ -33,7 +33,7 @@ def MiniArrowsAttributesView(
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  AttributesView(
+  VerticalAttributesView(
     id = "edge-attributes",
     rows = rows(
       row(Color, InputType.menuWithExtra(mediumRows4.length)).copy(options = mediumRows4 ++ colorOptions),

@@ -36,23 +36,32 @@ label[for ^= show-ns-kind-] {
   //}
 }
 
+.regular-color-icon {
+  @apply rounded-full border border-solid border-neutral/50;
+}
+
+.none-color-icon {
+  @apply rounded-full text-center text-neutral/75;
+
+  &::before {
+    font-size: 1.25rem;
+  }
+}
+
 .menu-with-extra-dropdown {
   @apply w-full;
 
-  .regular-color-icon {
-    @apply rounded-full border border-solid border-neutral/50;
-  }
-
-  .none-color-icon {
-    @apply rounded-full text-center text-neutral/75;
-
-    &::before {
-      font-size: 1.25rem;
-    }
-  }
 
   .narrow-card {
     @apply w-64;
+  }
+}
+
+#horizontal-attributes-view {
+  @apply flex flex-row gap-2;
+
+  .fieldset {
+    @apply flex py-0;
   }
 }
 
@@ -64,7 +73,7 @@ label[for ^= show-ns-kind-] {
     @apply shadow-md bg-base-100/90 rounded-box flex items-center gap-2 p-1.5 absolute z-10 print:hidden border border-base-300;
   }
 
-  #toolbar {
+  #toolbar, #selection-toolbar {
     @apply border-b border-base-300 px-1 py-[2px] m-0 print:hidden min-h-auto;
 
     .dropdown {
@@ -119,12 +128,18 @@ label[for ^= show-ns-kind-] {
 
   #selection-panel {
     @apply absolute top-10 left-2 z-20 transition-all duration-200;
+
     &.left-panel-visible {
-      @apply top-10 left-[16.5rem];
+      @apply top-16 left-[16.5rem];
     }
 
     > .card {
       @apply bg-base-100 w-46 shadow-lg;
+      //@apply bg-base-100 h-18 shadow-lg;
+    }
+
+    .attributes-view {
+      //@apply flex flex-row;
     }
   }
 
@@ -209,16 +224,18 @@ label[for ^= show-ns-kind-] {
     @apply border-base-300 border-x print:hidden;
 
     &.floating {
-      @apply absolute right-11 top-10 bg-base-100;
+      @apply absolute right-11 top-16 bg-base-100;
     }
+
     &.not-floating {
-      @apply  transition-all duration-200;
+      @apply transition-all duration-200;
     }
 
     flex-shrink: 0;
 
     &.visible {
-      @apply visible flex flex-col /* h-full*/;
+      @apply visible flex flex-col /* h-full*/
+      ;
       width: 20rem;
     }
 

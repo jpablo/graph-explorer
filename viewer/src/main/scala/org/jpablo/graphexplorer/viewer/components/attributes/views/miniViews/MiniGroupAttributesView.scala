@@ -23,7 +23,7 @@ def MiniGroupAttributesView(
   val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  AttributesView(
+  VerticalAttributesView(
     id = "mini-graph-attributes",
     rows = rows(
       row(CornerStyle, InputType.menuWithExtra(4)).copy(options = graphCornerStyleOptions),

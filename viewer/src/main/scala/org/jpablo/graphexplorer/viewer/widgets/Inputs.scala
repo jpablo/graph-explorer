@@ -116,6 +116,53 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
     )
   )
 
+def CurrentValueWithSelector(row: InputAttribute, dir: MenuDirection, cardClass: Option[String] = None) =
+  def menuButton(rowOption: RowOption) =
+    div(
+      cls := "p-1",
+      cls("bg-base-200") <-- row.isSelected(rowOption),
+      title := rowOption.name,
+      rowOption.elem.fold(span(rowOption.name))(elem => elem()),
+      onClick.mapTo(rowOption.value) --> row.inputVar
+    )
+
+  row.combineDefaultString
+  val selectedOption =
+    row.combineDefaultString.map: attrValueStr =>
+      val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
+      if selected.isEmpty then
+        pprint.log(attrValueStr)
+        pprint.log(row.options.map(o => o.value.toString))
+      selected.getOrElse(span("?"))
+
+  div(
+    cls := s"dropdown dropdown-bottom p-0 m-0",
+    // TailwindCSS classes seem to have issues with dynamic strings, so we add the cases we need here.
+    cls("dropdown-start") := dir == MenuDirection.start,
+    cls("dropdown-end")   := dir == MenuDirection.end,
+    if row.options.isEmpty then emptyMod
+    else
+      Seq(
+        // current value button
+        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs px-1", child <-- selectedOption),
+        // popup card
+        div(
+          tabIndex := 0,
+          cls      := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
+          // extra style
+          cardClass.map(cc => cls := cc),
+          div(
+            cls := "card-body p-0",
+            ul(
+              tabIndex := 0,
+              cls      := "p-0 m-0 menu menu-horizontal [&:before]:hidden",
+              for option <- row.options yield li(menuButton(option))
+            )
+          )
+        )
+      )
+  )
+
 def Dropdown[A](
     title:          Modifier.Base,
     options:        Signal[Seq[MenuEntry[A]]],

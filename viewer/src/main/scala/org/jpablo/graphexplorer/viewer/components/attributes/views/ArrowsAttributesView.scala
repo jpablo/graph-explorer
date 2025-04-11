@@ -5,7 +5,7 @@ import com.raquo.airstream.state.Var
 import io.laminext.syntax.core.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
-import org.jpablo.graphexplorer.viewer.components.attributes.views.AttributesView
+import org.jpablo.graphexplorer.viewer.components.attributes.views.VerticalAttributesView
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.{Attributes, AttributeUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -27,7 +27,7 @@ def ArrowsAttributesView(
   val extraMenuDir     = MenuDirection.end
   val initialMenuItems = 7
 
-  AttributesView(
+  VerticalAttributesView(
     id = "edge-attributes",
     showHeaders = false,
     rows = rows(

@@ -32,7 +32,7 @@ def DiagramAttributesView(state: ViewerState) =
   div(
     idAttr := "diagram-attributes-view",
     div(cls := "attributes-title flex-none", h2("Diagram")),
-    AttributesView(
+    VerticalAttributesView(
       id = "root-graph-attributes",
       showHeaders = false,
       rows = rows(

@@ -19,10 +19,11 @@ def TopLevel(
     idAttr := "top-level",
     cls    := "flex flex-col",
     Toolbar(state.project.name.signal, commands, state),
+    SelectionToolbar(state.project.name.signal, commands, state),
     div(
       cls := "flex h-full",
       LeftPanel(state, router, commands),
-      child(SelectionPanel(state)) <-- state.selection.signal.map(_.nonEmpty),
+//      child(SelectionPanel(state)) <-- state.selection.signal.map(_.nonEmpty),
       CanvasContainer(state, commands),
       ZoomToolbar(commands),
       RightPanel(state).render(),

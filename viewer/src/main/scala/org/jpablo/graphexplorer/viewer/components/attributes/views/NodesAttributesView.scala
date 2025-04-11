@@ -41,7 +41,7 @@ def NodesAttributesView(
       )
     )
 
-  AttributesView(
+  VerticalAttributesView(
     id = "node-attributes",
     rows = rows(
       shapeRow,

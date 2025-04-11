@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
-def AttributesView(
+def VerticalAttributesView(
     id:          String,
     showHeaders: Boolean = true,
     rows:        Seq[AttributeRow],
@@ -88,13 +88,13 @@ private def inputLabel(row: InputAttribute): Div =
   )
 
 private def buildFieldSets(rows: Seq[AttributeRow], showHeaders: Boolean = true) =
-  buildGroupedContent(rows).map: (headerOpt, attrRows) =>
-    fieldSet(
-      cls := "fieldset",
-      if showHeaders then headerOpt.map(header => legend(cls := "fieldset-legend", header.title)) else emptyNode,
+  buildGroupedContent(rows).flatMap: (_, attrRows) =>
       for row <- attrRows
-      yield AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
-    )
+      yield
+        fieldSet(
+          cls := "fieldset",
+            AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
+        )
 
 /** Takes a flat sequence of mixed headers and rows and groups them by (optional) header.
   */
