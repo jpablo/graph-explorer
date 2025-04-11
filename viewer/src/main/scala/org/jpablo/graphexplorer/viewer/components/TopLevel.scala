@@ -17,11 +17,10 @@ def TopLevel(
 ): Div =
   div(
     idAttr := "top-level",
-    cls    := "flex flex-col",
     Toolbar(state.project.name.signal, commands, state),
     SelectionToolbar(state.project.name.signal, commands, state),
     div(
-      cls := "flex flex-1 h-1 border-0 border-black",
+      cls := "flex flex-1 overflow-y-auto",
       LeftPanel(state, router, commands),
 //      child(SelectionPanel(state)) <-- state.selection.signal.map(_.nonEmpty),
       CanvasContainer(state, commands),
