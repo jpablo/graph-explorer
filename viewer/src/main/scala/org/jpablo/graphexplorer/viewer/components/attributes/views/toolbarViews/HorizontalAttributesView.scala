@@ -21,10 +21,7 @@ def HorizontalAttributesView(
 private def buildFieldSets(rows: Seq[AttributeRow], showHeaders: Boolean = true) =
   buildGroupedContent(rows).flatMap: (_, attrRows) =>
     for row <- attrRows
-    yield fieldSet(
-      cls := "fieldset",
-      AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
-    )
+    yield child(fieldSet(cls := "fieldset", AttributesViewRow(row))) <-- row.hidden.not
 
 private def AttributesViewRow(row: InputAttribute) =
   row.inputType match
