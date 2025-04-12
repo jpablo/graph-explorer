@@ -11,7 +11,7 @@ def RightToolbar(state: ViewerState) =
   div(
     idAttr := "right-toolbar",
     List(
-      ("bi-pencil", "Diagram"),
+      ("bi-sliders", "Diagram"),
       ("bi-list-ul", "Elements"),
       ("bi-code-square", "Source")
     ).zipWithIndex.map:
