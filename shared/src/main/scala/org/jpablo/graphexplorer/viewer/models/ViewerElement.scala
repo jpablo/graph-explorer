@@ -66,19 +66,13 @@ case class Arrow(
 end Arrow
 
 object Arrow:
-  private var _seq = 0
 
-  def resetSequence() =
-    _seq = 0
-
-  def nextSequence() =
-    _seq += 1
-    _seq
+  given SequenceGenerator = new DefaultSequenceGenerator()
 
   val titleIdSeparator = "->"
 
-  def nextArrow(t: (String, String), attrs: Attributes = Attributes.empty): Arrow =
-    arrow(t, attrs, nextSequence())
+  def nextArrow(t: (String, String), attrs: Attributes = Attributes.empty)(using seq: SequenceGenerator): Arrow =
+    arrow(t, attrs, seq.nextSequence())
 
   def arrow(t: (String, String), attrs: Attributes = Attributes.empty, seq: Int): Arrow =
     new Arrow(NodeId(t._1), NodeId(t._2), attrs, seq)

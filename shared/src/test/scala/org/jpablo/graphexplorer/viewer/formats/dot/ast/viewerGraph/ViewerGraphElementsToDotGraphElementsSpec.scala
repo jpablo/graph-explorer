@@ -54,7 +54,6 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
       Some("G")
     )
 
-  Arrow.resetSequence()
   val viewerGraphElements = dotAST.toViewerGraphElements
 
   test("roundtrip (toViewerGraphElements -> viewerGraphElementsToDotGraphElements) should produce equivalent elements") {
