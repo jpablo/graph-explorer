@@ -100,7 +100,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val editLabel = Command(
       "Edit label",
-      state.editLabel,
+      state.selection.editSelectedLabel,
       singleNodeSelected,
       Some(Shortcut(KeyValue.Enter)),
       description = Some("Edit the label of the selected element")
@@ -284,7 +284,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val helpKeyboardShortcuts = Command(
       "Help - Keyboard Shortcuts",
-      () => state.shortcutsModalOpen.set(true),
+      () => state.helpDialogOpen.set(true),
       always,
       description = Some("Open the keyboard shortcuts help dialog")
     )
@@ -313,16 +313,16 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val resetAttributes = Command(
       "Reset Attributes",
       () => state.selection.resetAttributes(), // Action to be implemented in ViewerState/SelectionHandler
-      selectionNonEmpty,                        // Visible when selection is not empty
-      shortcut = None,                          // No shortcut for now
+      selectionNonEmpty,                       // Visible when selection is not empty
+      shortcut = None,                         // No shortcut for now
       description = Some("Remove all attributes except 'label' from selected elements")
     )
 
     val resetLayout = Command(
       "Reset Layout",
       () => state.selection.resetLayout(), // Action to be implemented in ViewerState/SelectionHandler
-      selectionNonEmpty,                     // Visible when selection is not empty
-      shortcut = None,                       // No shortcut for now
+      selectionNonEmpty,                   // Visible when selection is not empty
+      shortcut = None,                     // No shortcut for now
       description = Some("Reset the layout of the selected elements")
     )
 
@@ -366,7 +366,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.selectAll,
       all.selectAllNodes,
       all.selectAllArrows,
-      all.selectAllGroups,
+      all.selectAllGroups
 //      all.resetLayout
     ),
     successors -> List(
@@ -427,4 +427,6 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
     val sh = Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
     for cmd <- byShortcut.get(sh) do
+      if ev.key == KeyValue.Enter then
+        ev.preventDefault()
       cmd.action()

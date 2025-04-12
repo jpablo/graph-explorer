@@ -13,7 +13,7 @@ def SimpleDialog(open: Var[Boolean], contents: Mods*) =
     tabIndex := 0,
     focus <-- open.signal.changes
   )(contents)(
-    action = button(cls := "btn", "close", onClick --> open.set(false))
+    action = button(cls := "btn btn-sm", "close", onClick --> open.set(false))
   )
 
 def Dialog(mods: Mods*)(contents: Mods*)(action: Mods*) =

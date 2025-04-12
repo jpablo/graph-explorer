@@ -9,7 +9,7 @@ import org.scalajs.dom.KeyValue
 def HelpDialog(open: Var[Boolean], commands: Commands) =
   SimpleDialog(
     open = open,
-    contents = div(
+    div(
       cls := "p-4 space-y-6",
       // Keyboard Shortcuts Section
       div(

@@ -1,0 +1,35 @@
+package org.jpablo.graphexplorer.viewer.components
+
+import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
+import org.jpablo.graphexplorer.viewer.components.attributes.views.buildFieldSets
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
+import org.jpablo.graphexplorer.viewer.models.ElementIds
+import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.widgets.{InputType, SimpleDialog}
+import com.raquo.laminar.api.features.unitArrows
+import org.scalajs.dom.KeyValue
+
+def EditLabelDialog(state: ViewerState) =
+  val isOpen = state.editingElementV
+    .zoomLazy(_.isDefined)((elem, open) => if open then elem else None)
+
+  val control =
+    state.editingElementV.signal.map:
+      case Some(eId) =>
+        val builder =
+          RowBuilder(
+            updates = state.elementAttributesUpdates(ElementIds(Set(eId))),
+            layout = state.graphLayout
+          )
+        val row = builder.row(Label, InputType.multiText(setFocus = true), onReset = Some(""))
+        buildFieldSets(Seq(row)).map(_.amend(cls := "p-0"))
+
+      case None => Seq.empty
+
+  SimpleDialog(
+    open = isOpen,
+    cls := "p-4",
+    children <-- control,
+    onKeyDown.filter(ev => ev.key == KeyValue.Enter && ev.metaKey) --> isOpen.set(false)
+  )

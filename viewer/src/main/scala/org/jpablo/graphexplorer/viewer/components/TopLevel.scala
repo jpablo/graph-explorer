@@ -23,6 +23,7 @@ def TopLevel(
       ZoomToolbar(commands),
       RightPanel(state).render(),
       RightToolbar(state),
-      HelpDialog(state.shortcutsModalOpen, commands)
+      HelpDialog(state.helpDialogOpen, commands),
+      EditLabelDialog(state),
     )
   )

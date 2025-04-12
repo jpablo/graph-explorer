@@ -25,7 +25,7 @@ private def buildFieldSets(rows: Seq[AttributeRow], showHeaders: Boolean = true)
 
 private def AttributesViewRow(row: InputAttribute) =
   row.inputType match
-    case InputType.multiText =>
+    case InputType.multiText(_) =>
       Seq(
         label(cls := "fieldset-label", inputLabel(row)),
         div(cls   := "fieldset-input", buildInputCell(row))
@@ -119,6 +119,6 @@ private def buildInputCell(row: InputAttribute) =
     case InputType.dropdown                                 => DropdownForRow(row)
     case InputType.select                                   => SelectWithValue(row).amend(cls := "ml-1")
     case InputType.checkbox                                 => Checked(row)
-    case InputType.multiText                                => TextAreaWithValue(row)
+    case InputType.multiText(setFocus)                      => TextAreaWithValue(row, setFocus = setFocus)
     case _: number                                          => InputWithValue(row).amend(cls := "horizontal-attribute-input no-outline")
     case _                                                  => InputWithValue(row)

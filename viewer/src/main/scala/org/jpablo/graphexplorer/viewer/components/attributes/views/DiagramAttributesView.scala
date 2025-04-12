@@ -26,7 +26,7 @@ def DiagramAttributesView(state: ViewerState) =
     )
 
   val labelRow =
-    row(Label, multiText, onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title"))
+    row(Label, multiText(), onReset = Some(""), label = Some("Title"), placeholder = Some("Enter diagram title"))
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty)
   div(

@@ -112,9 +112,6 @@ case class ViewerState(
             val (newGraph, _) = fullGraph.addNode(attributes = attributes)
             newGraph
 
-  def editLabel(): Unit =
-    selection.editSelectedLabel()
-
   def addArrow(from: NodeId, to: NodeId) =
     sourceFlow.fullGraphV.update: g =>
       val (g2, _) = g.addArrow(from, to)

@@ -31,7 +31,7 @@ def VerticalAttributesView(
 
 private def AttributesViewRow(row: InputAttribute) =
   row.inputType match
-    case InputType.multiText =>
+    case InputType.multiText(_) =>
       Seq(
         label(cls := "fieldset-label", inputLabel(row)),
         div(cls   := "fieldset-input", buildInputCell(row))
@@ -87,14 +87,13 @@ private def inputLabel(row: InputAttribute): Div =
     )
   )
 
-private def buildFieldSets(rows: Seq[AttributeRow], showHeaders: Boolean = true) =
+def buildFieldSets(rows: Seq[AttributeRow], showHeaders: Boolean = true) =
   buildGroupedContent(rows).flatMap: (_, attrRows) =>
-      for row <- attrRows
-      yield
-        fieldSet(
-          cls := "fieldset",
-            AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
-        )
+    for row <- attrRows
+    yield fieldSet(
+      cls := "fieldset",
+      AttributesViewRow(row).map(_.amend(cls("hidden") <-- row.hidden))
+    )
 
 /** Takes a flat sequence of mixed headers and rows and groups them by (optional) header.
   */
@@ -126,7 +125,7 @@ private def buildGroupedContent(rows: Seq[AttributeRow]): Seq[(Option[AttributeH
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
     case InputType.menuWithExtra(initial, dir, cardClass) => MenuWithExtraDropdown(row, initial, dir, cardClass)
-    case InputType.select                      => SelectWithValue(row)
-    case InputType.checkbox                    => Checked(row)
-    case InputType.multiText                   => TextAreaWithValue(row)
-    case _                                     => InputWithValue(row)
+    case InputType.select                                 => SelectWithValue(row)
+    case InputType.checkbox                               => Checked(row)
+    case InputType.multiText(setFocus)                    => TextAreaWithValue(row, setFocus = setFocus)
+    case _                                                => InputWithValue(row)

@@ -5,6 +5,6 @@ import com.raquo.airstream.state.Var
 trait UIState:
   val rightPanelVisible = Var(true)
   val rightPanelTabIndex = Var(0)
-  val shortcutsModalOpen = Var(false)
+  val helpDialogOpen = Var(false)
   val leftPanelVisible = Var(true)
 

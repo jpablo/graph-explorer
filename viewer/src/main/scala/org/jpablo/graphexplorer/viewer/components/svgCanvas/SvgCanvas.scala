@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
-import org.jpablo.graphexplorer.viewer.models.{ElementId, NodeId}
+import org.jpablo.graphexplorer.viewer.models.ElementId
 import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, Selection}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint}
 
@@ -76,13 +76,14 @@ object SvgCanvas:
             for elem <- selectableElements do
               if elem.elementId in selectedNodes then
                 elem.select()
-                // only nodes for now
-                elem.elementId match
-                  case id: NodeId =>
-                    for editingId <- editing if editingId == elem.elementId do
-                      val node = selection.visibleGraphNow.nodes(id)
-                      elem.installEditor(updateLabel, selection.clearEditing, node.label.toString)
-                  case _ =>
+                // TODO: polish this and extend to arrows and groups
+//                // only nodes for now
+//                elem.elementId match
+//                  case id: NodeId =>
+//                    for editingId <- editing if editingId == elem.elementId do
+//                      val node = selection.visibleGraphNow.nodes(id)
+//                      elem.installEditor(updateLabel, selection.clearEditing, node.label.toString)
+//                  case _ =>
               else
                 elem.unselect()
           }

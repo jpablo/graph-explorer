@@ -19,7 +19,8 @@ trait DiagramSelectionOps:
   this: ViewerState =>
 
   private val selectionV: Var[Selection] = Var(ElementIds())
-  private val editingElementV            = Var[Option[ElementId]](None)
+
+  val editingElementV = Var[Option[ElementId]](None)
 
   object selection:
     val signal = selectionV.signal

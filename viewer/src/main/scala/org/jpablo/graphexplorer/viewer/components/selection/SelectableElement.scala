@@ -135,8 +135,8 @@ object SelectableElement:
     else if isDiagramElement(e, "cluster") then Some(ClusterElement(e.asInstanceOf[dom.SVGGElement]))
     else None
 
-  def findAll(e: dom.Element): Seq[SelectableElement] =
-    e.querySelectorAll("g").flatMap(fromDomElement).toSeq
+  def findAll(ref: dom.Element): Seq[SelectableElement] =
+    ref.querySelectorAll("g").flatMap(fromDomElement).toSeq
 
   private def isDiagramElement(e: dom.Element, cls: String) =
     e.tagName == "g" && e.classList.contains(cls)

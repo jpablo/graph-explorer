@@ -20,7 +20,7 @@ def ToolbarGroupAttributesView(
   val builder        = RowBuilder(updates, state.graphLayout, defaults)
   import builder.{row, rows}
 
-  val labelRow           = row(Label, InputType.multiText, onReset = Some("")).copy(hidden = multiSelection)
+  val labelRow           = row(Label, InputType.multiText(), onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
   HorizontalAttributesView(
