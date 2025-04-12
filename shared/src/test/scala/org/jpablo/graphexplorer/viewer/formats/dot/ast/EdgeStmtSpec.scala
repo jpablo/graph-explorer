@@ -24,7 +24,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
         List(dotA, dotB, dotC, dotD),
         Nil
       )
-    Arrow.resetId()
+    Arrow.resetSequence()
     val expanded = edgeToViewerArrows(edgeStmt)
     val expected =
       List(
@@ -44,7 +44,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
         ),
         List(Attr("id", AttrValue("1")))
       )
-    Arrow.resetId()
+    Arrow.resetSequence()
     val expanded = edgeToViewerArrows(edgeStmt)
     val expected =
       List(
@@ -64,7 +64,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
         ),
         List(Attr("id", AttrValue("1")))
       )
-    Arrow.resetId()
+    Arrow.resetSequence()
     val expanded = edgeToViewerArrows(edgeStmt)
     val expected =
       List(
@@ -84,7 +84,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
         ),
         List(Attr("id", AttrValue("1")))
       )
-    Arrow.resetId()
+    Arrow.resetSequence()
     val expanded = edgeToViewerArrows(edgeStmt)
     val expected =
       List(

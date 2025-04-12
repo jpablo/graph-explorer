@@ -35,7 +35,7 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
       val nId = NodeId(d.id)
       nId -> nodeNoDefaults(nId, attrs)
 
-  Arrow.resetId()
+  Arrow.resetSequence()
   val viewerGraphElements = astWithNestedSubGraphs.toViewerGraphElements
 
   test("toViewerGraphElements should return all nodes") {

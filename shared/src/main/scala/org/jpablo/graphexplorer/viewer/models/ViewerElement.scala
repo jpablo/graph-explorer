@@ -66,18 +66,21 @@ case class Arrow(
 end Arrow
 
 object Arrow:
-  private var idx = 0
+  private var _seq = 0
 
-  def resetId() =
-    idx = 0
+  def resetSequence() =
+    _seq = 0
 
-  def nextId() =
-    idx += 1
-    idx
+  def nextSequence() =
+    _seq += 1
+    _seq
 
   val titleIdSeparator = "->"
 
-  def arrow(t: (String, String), attrs: Attributes = Attributes.empty, seq: Int = 1): Arrow =
+  def nextArrow(t: (String, String), attrs: Attributes = Attributes.empty): Arrow =
+    arrow(t, attrs, nextSequence())
+
+  def arrow(t: (String, String), attrs: Attributes = Attributes.empty, seq: Int): Arrow =
     new Arrow(NodeId(t._1), NodeId(t._2), attrs, seq)
 
   def arrow(s: NodeId, t: NodeId) =

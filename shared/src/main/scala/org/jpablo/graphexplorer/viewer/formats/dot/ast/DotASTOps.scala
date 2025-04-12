@@ -12,7 +12,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes as attr
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
+import org.jpablo.graphexplorer.viewer.models.Arrow.nextArrow
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeNoDefaults
 
@@ -45,7 +45,7 @@ extension (ast: DotAST)
     ast.id match
       case Some(id) =>
         // TODO: should resetId be called inside toViewerGraphElements?
-        Arrow.resetId()
+        Arrow.resetSequence()
         val g = ViewerGraph(elements = ast.toViewerGraphElements, id = id, tpe = attr.GraphType.valueOf(ast.tpe))
         g.modifyElements.setTo(g.expandStyleAttributes)
 
@@ -176,22 +176,22 @@ object DotASTOps:
         case List(SubGraph(_, _)) => Nil
 
         // (2) a -> b =>  a -> b
-        case List(DotNodeId(a, _), DotNodeId(b, _)) => List(arrow(a -> b, attrs, Arrow.nextId()))
+        case List(DotNodeId(a, _), DotNodeId(b, _)) => List(nextArrow(a -> b, attrs))
 
         // (3) a -> {x y ...}  =>  a -> x, a -> y, ...
         case List(DotNodeId(a, _), sub @ SubGraph(_, _)) =>
-          sub.allNodesIds.map(x => arrow(a -> x, attrs, Arrow.nextId()))
+          sub.allNodesIds.map(x => nextArrow(a -> x, attrs))
 
         // (4) {x y ...} -> a  =>  x -> a, y -> a, ...
         case List(sub @ SubGraph(_, _), DotNodeId(a, _)) =>
-          sub.allNodesIds.map(x => arrow(x -> a, attrs, Arrow.nextId()))
+          sub.allNodesIds.map(x => nextArrow(x -> a, attrs))
 
         // (5) {x y ...} -> {a b ...}  =>  x -> a, x -> b, y -> a, y -> b, ...
         case List(sub1 @ SubGraph(_, _), sub2 @ SubGraph(_, _)) =>
           for
             x <- sub1.allNodesIds
             a <- sub2.allNodesIds
-          yield arrow(x -> a, attrs, Arrow.nextId())
+          yield nextArrow(x -> a, attrs)
 
         case _ => Nil
 
