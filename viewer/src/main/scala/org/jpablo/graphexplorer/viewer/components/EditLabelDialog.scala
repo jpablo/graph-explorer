@@ -11,25 +11,20 @@ import com.raquo.laminar.api.features.unitArrows
 import org.scalajs.dom.KeyValue
 
 def EditLabelDialog(state: ViewerState) =
-  val isOpen = state.editingElementV
-    .zoomLazy(_.isDefined)((elem, open) => if open then elem else None)
+  val isOpen =
+    state.editingElementV.zoomLazy(_.isDefined)((elem, open) => if open then elem else None)
 
   val control =
-    state.editingElementV.signal.map:
-      case Some(eId) =>
-        val builder =
-          RowBuilder(
-            updates = state.elementAttributesUpdates(ElementIds(Set(eId))),
-            layout = state.graphLayout
-          )
-        val row = builder.row(Label, InputType.multiText(setFocus = true), onReset = Some(""))
-        buildFieldSets(Seq(row)).map(_.amend(cls := "p-0"))
-
-      case None => Seq.empty
+    state.editingElementV.signal.map: eId =>
+      val builder = RowBuilder(updates = state.elementAttributesUpdates(ElementIds(eId.toSet)), layout = state.graphLayout)
+      val row     = builder.row(Label, InputType.multiText(setFocus = true), onReset = Some(""))
+      buildFieldSets(Seq(row)).map(_.amend(cls := "p-0"))
 
   SimpleDialog(
     open = isOpen,
     cls := "p-4",
     children <-- control,
+    // Makes sure the focus is restored to CanvasContainer when dialog is closed
+    isOpen.signal.changes.filter(!_) --> state.canvasContainerFocus.set(true),
     onKeyDown.filter(ev => ev.key == KeyValue.Enter && ev.metaKey) --> isOpen.set(false)
   )

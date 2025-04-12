@@ -7,4 +7,5 @@ trait UIState:
   val rightPanelTabIndex = Var(0)
   val helpDialogOpen = Var(false)
   val leftPanelVisible = Var(true)
+  val canvasContainerFocus = Var(true)
 

@@ -24,6 +24,7 @@ def CanvasContainer(
     tabIndex := 0,
     state.fitDiagram.events --> state.resetView(),
     child <-- state.finalSVG,
+    focus <-- state.canvasContainerFocus.signal.changes,
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> { (e, svgElem) =>
       state.handleWheel(e, svgElem.ref.viewBox.baseVal)

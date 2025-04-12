@@ -12,12 +12,13 @@ import org.scalajs.dom.{document, window}
 object Viewer:
 
   def main(args: Array[String]): Unit =
-    val router = Router()
+    val errors     = setupErrorHandling()
+    val router     = Router()
     val routerCmds = RouterCommands(router)
     render(
       container = document.querySelector("#app"),
       rootNode = router.now() match
-        case Route.Home                     => ProjectsDirectoryView(router, routerCmds)
+        case Route.Home => ProjectsDirectoryView(router, routerCmds)
         case Route.ProjectDetail(projectId) =>
           val state = ViewerState(
             projectId = ProjectId(projectId),
@@ -27,10 +28,9 @@ object Viewer:
           TopLevel(state, router, commands)
     )
 
-  private def setupErrorHandling()(using Owner): EventBus[String] =
-    val errors = new EventBus[String]
-    AirstreamError.registerUnhandledErrorCallback: ex =>
-      errors.emit(ex.getMessage)
-    windowEvents(_.onError).foreach: e =>
-      errors.emit(e.message)
+  private def setupErrorHandling(): EventBus[String] =
+    val errors  = new EventBus[String]
+    AirstreamError.registerUnhandledErrorCallback(ex => errors.emit(ex.getMessage))
+    windowEvents(_.onError).foreach(e => errors.emit(e.message))(unsafeWindowOwner)
+    document.addEventListener("focusin", e => dom.console.debug(e.target))
     errors
