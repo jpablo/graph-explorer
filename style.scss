@@ -86,6 +86,29 @@ label[for ^= show-ns-kind-] {
   @apply text-[.6rem] input-ghost p-0 ml-1 mt-0.5 h-[1.25rem] w-6;
 }
 
+#edit-label-dialog {
+  .modal-box {
+    @apply p-3;
+
+    .fieldset {
+      @apply p-0;
+
+      textarea {
+        @apply outline-0;
+      }
+    }
+
+    .modal-action {
+      @apply mt-2;
+
+      button {
+        @apply btn-xs;
+      }
+    }
+  }
+}
+
+
 #top-level {
   @apply bg-base-100 flex flex-col h-screen;
   position: relative;

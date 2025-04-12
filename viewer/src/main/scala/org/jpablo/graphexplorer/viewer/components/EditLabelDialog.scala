@@ -18,13 +18,12 @@ def EditLabelDialog(state: ViewerState) =
     state.editingElementV.signal.map: eId =>
       val builder = RowBuilder(updates = state.elementAttributesUpdates(ElementIds(eId.toSet)), layout = state.graphLayout)
       val row     = builder.row(Label, InputType.multiText(setFocus = true), onReset = Some(""))
-      buildFieldSets(Seq(row)).map(_.amend(cls := "p-0"))
+      buildFieldSets(Seq(row))
 
   SimpleDialog(
     open = isOpen,
-    cls := "p-4",
     children <-- control,
     // Makes sure the focus is restored to CanvasContainer when dialog is closed
     isOpen.signal.changes.filter(!_) --> state.canvasContainerFocus.set(true),
     onKeyDown.filter(ev => ev.key == KeyValue.Enter && ev.metaKey) --> isOpen.set(false)
-  )
+  ).amend(idAttr := "edit-label-dialog")
