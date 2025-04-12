@@ -52,10 +52,10 @@ trait VisibilityOps:
     hiddenElements.remove(ids)
 
   def keepRootsOnly() =
-    hiddenElements.update(_ ++ (sourceFlow.fullGraph.now().nodeIds -- sourceFlow.fullGraph.now().roots))
+    hiddenElements.update(_ ++ (phases.fullGraph.now().nodeIds -- phases.fullGraph.now().roots))
 
   def hideAllNodes() =
-    hiddenElements.update(_ ++ sourceFlow.fullGraph.now().nodeIds)
+    hiddenElements.update(_ ++ phases.fullGraph.now().nodeIds)
 
   def hideNonSelectedNodes() =
     updateHiddenFromSelection((h, sel, g) => h ++ (g.nodeIds -- sel.nodeIds))
@@ -73,4 +73,4 @@ trait VisibilityOps:
     updateHiddenFromSelection((h, sel, g) => h -- g.directPredecessorsGraph(sel.nodeIds).nodeIds)
 
   private def updateHiddenFromSelection(f: (HiddenElements, ElementIds, ViewerGraph) => HiddenElements) =
-    hiddenElements.update(f(_, selection.now(), sourceFlow.fullGraph.now()))
+    hiddenElements.update(f(_, selection.now(), phases.fullGraph.now()))

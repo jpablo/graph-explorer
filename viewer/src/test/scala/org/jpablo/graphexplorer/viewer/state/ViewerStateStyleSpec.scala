@@ -53,7 +53,7 @@ class ViewerStateStyleSpec extends FunSuite:
   ) extends TestRows(updates, defaults, state.owner):
 
     def graph: ViewerGraph = state.fullGraph.now()
-    def ast: DotAST        = state.sourceFlow.visibleAST.observe().now()
+    def ast: DotAST        = state.phases.visibleAST.observe().now()
 
     def getNodeDefaultAttrs: Attributes =
       graph.getDefaultAttributes(AttributeTarget.node)

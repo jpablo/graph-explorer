@@ -88,8 +88,8 @@ trait DiagramSelectionOps:
     def hide() =
       project.hiddenElements.update(_ ++ selection.now())
 
-    private def fullGraphNow: ViewerGraph = sourceFlow.fullGraph.now()
-    def visibleGraphNow: ViewerGraph      = sourceFlow.visibleGraph.observe().now()
+    private def fullGraphNow: ViewerGraph = phases.fullGraph.now()
+    def visibleGraphNow: ViewerGraph      = phases.visibleGraph.observe().now()
 
     def selectGroupMembers() =
       val s          = now()
@@ -121,13 +121,13 @@ trait DiagramSelectionOps:
     def addToGroup() =
       val classified = now().classify
       for groupNodeId <- classified.groups.headOption do
-        sourceFlow.fullGraphV.update(_.moveToGroup(groupNodeId, classified.nodes.toSeq))
+        phases.fullGraphV.update(_.moveToGroup(groupNodeId, classified.nodes.toSeq))
 
     def group() =
-      sourceFlow.fullGraphV.update(_.moveToNewGroup(now()))
+      phases.fullGraphV.update(_.moveToNewGroup(now()))
 
     def ungroup() =
-      sourceFlow.fullGraphV.update(_.ungroupSelection(now()))
+      phases.fullGraphV.update(_.ungroupSelection(now()))
 
     def selectAllVisibleNodes() =
       val visibleNodes = visibleGraphNow.nodeIds
@@ -147,14 +147,14 @@ trait DiagramSelectionOps:
       set(nodes ++ edges ++ groups)
 
     def deleteSelection() =
-      sourceFlow.fullGraphV.update: fullGraph =>
+      phases.fullGraphV.update: fullGraph =>
         fullGraph.removeElements(now())
 
     /** Duplicates the currently selected nodes. Creates new nodes with the same attributes as the selected nodes and places them in the
       * same groups. The newly created nodes become the selected elements after duplication.
       */
     def duplicateSelection() =
-      sourceFlow.fullGraphV.update: fullGraph =>
+      phases.fullGraphV.update: fullGraph =>
         val s: Selection = now()
         if s.isEmpty then
           fullGraph
@@ -191,7 +191,7 @@ trait DiagramSelectionOps:
     def resetAttributes(): Unit =
       val s = now()
       if s.nonEmpty then
-        sourceFlow.fullGraphV.update: initialGraph =>
+        phases.fullGraphV.update: initialGraph =>
           s.ids.foldLeft(initialGraph): (currentGraph, elementId) =>
             val currentAttrs = currentGraph.getAttributesById(elementId)
             // Use toDotAttr to check emptiness - returns List[Attr]

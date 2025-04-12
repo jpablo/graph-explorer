@@ -161,7 +161,7 @@ object DotASTOps:
     nodeNoDefaults(
       nodeId = NodeId(stmt.node_id.id),
       // Store ONLY the node's specific attributes for now. Inheritance happens later.
-      attributes = Attributes(toAttrsMap(stmt.attr_list))
+      attributes = toAttrsMap(stmt.attr_list)
     )
 
   /** @return

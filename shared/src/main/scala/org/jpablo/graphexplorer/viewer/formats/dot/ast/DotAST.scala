@@ -154,5 +154,5 @@ object SubGraph:
   // TODO: find a better way to generate unique ids
   def randomId(): String = "g" + randomUUIDSafe().take(8)
 
-def toAttrsMap(attrList: List[Attr]): Map[AttributeId, AttrValue] =
-  attrList.map(attr => AttributeId(attr.id) -> attr.attrEq).toMap
+def toAttrsMap(attrList: List[Attr]): Attributes =
+  Attributes(attrList.map(attr => AttributeId(attr.id) -> attr.attrEq).toMap)

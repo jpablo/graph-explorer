@@ -19,10 +19,10 @@ extension (graphElement: GraphElement)
         case SubGraph(children, _) :: t => loop(remaining = children ++ t, acc)
 
         case NodeStmt(nodeId, attr_list) :: t =>
-          val attrMap = toAttrsMap(attr_list)
+          val attrMap = toAttrsMap(attr_list).values
           loop(
             remaining = t,
-            acc       = acc.updatedWith(nodeId.id)(_.fold(Some(attrMap))(existing => Some(existing ++ attrMap)))
+            acc = acc.updatedWith(nodeId.id)(_.fold(Some(attrMap))(existing => Some(existing ++ attrMap)))
           )
 
         case _ :: t => loop(remaining = t, acc)

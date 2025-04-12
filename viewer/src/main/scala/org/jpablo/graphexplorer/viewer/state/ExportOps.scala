@@ -19,7 +19,7 @@ trait ExportOps:
     writeText(dot.value)
 
   def copyAsJSON(): Unit =
-    val ast = sourceFlow.visibleAST.observe().now()
+    val ast = phases.visibleAST.observe().now()
     writeText(writeJs(ast).toString)
 
   def printVisibleGraphToConsole(): Unit =
@@ -35,7 +35,7 @@ trait ExportOps:
     dom.console.log("Visible DOT printed to the console")
 
   def printVisibleJSONtoConsole(): Unit =
-    val ast = sourceFlow.visibleAST.observe().now()
+    val ast = phases.visibleAST.observe().now()
     // Don't remove this line!! it IS the actual functionality
     dom.console.log(write(ast, indent = 2))
     dom.console.log("Visible JSON DOT AST printed to the console")
