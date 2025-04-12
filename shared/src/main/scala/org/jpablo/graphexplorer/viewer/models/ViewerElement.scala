@@ -66,6 +66,14 @@ case class Arrow(
 end Arrow
 
 object Arrow:
+  private var idx = 0
+
+  def resetId() =
+    idx = 0
+
+  def nextId() =
+    idx += 1
+    idx
 
   val titleIdSeparator = "->"
 

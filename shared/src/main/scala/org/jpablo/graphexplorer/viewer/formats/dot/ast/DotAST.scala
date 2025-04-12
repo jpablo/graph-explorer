@@ -115,18 +115,6 @@ case class EdgeStmt(
       case n: DotNodeId          => NodeStmt(n, Nil) :: Nil
       case SubGraph(children, _) => children
 
-object EdgeStmt:
-  private var idx = 0
-
-  def resetId() =
-    idx = 0
-
-  def nextId() =
-    idx += 1
-    idx
-
-end EdgeStmt
-
 @key("node_id")
 case class DotNodeId(id: String, port: Option[Port] = None) derives ReadWriter
 
