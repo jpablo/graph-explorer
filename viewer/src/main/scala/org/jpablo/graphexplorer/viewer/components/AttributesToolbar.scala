@@ -49,8 +49,8 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
             div(
               cls := "flex flex-row gap-2",
               Tooltip(
-                text = "Select object type",
-                cls := "tooltip-right",
+                text = "Defaults",
+                cls := "tooltip-top",
                 Select(
                   placeholderText = None,
                   options = Seq("Nodes", "Arrows", "Groups").map(label => label -> label.toLowerCase),

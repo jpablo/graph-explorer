@@ -100,12 +100,11 @@ label[for ^= show-ns-kind-] {
     .dropdown {
       @apply m-0 p-0;
       .dropdown-content {
-        @apply mt-[2px];
+        @apply mt-[3px];
       }
     }
 
     .tooltip {
-      //@apply border p-0 m-0;
 
       > button {
         @apply mt-[-3px];
@@ -242,14 +241,10 @@ label[for ^= show-ns-kind-] {
   }
 
   #right-panel {
-    @apply border-base-300 border-x print:hidden;
+    @apply border-base-300 border print:hidden;
 
     &.floating {
-      @apply absolute right-11 top-16 bg-base-100;
-    }
-
-    &.not-floating {
-      @apply transition-all duration-200;
+      @apply absolute right-11 top-17 bg-base-100;
     }
 
     flex-shrink: 0;
