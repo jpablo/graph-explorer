@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotASTOps.edgeToViewerArrows
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Id
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -24,7 +25,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
         Nil
       )
     EdgeStmt.resetId()
-    val expanded = edgeStmt.expandArrows
+    val expanded = edgeToViewerArrows(edgeStmt)
     val expected =
       List(
         Arrow(a, b, Attributes.empty, 1),
@@ -44,7 +45,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
         List(Attr("id", AttrValue("1")))
       )
     EdgeStmt.resetId()
-    val expanded = edgeStmt.expandArrows
+    val expanded = edgeToViewerArrows(edgeStmt)
     val expected =
       List(
         Arrow(a, b, Attributes.of(Id -> "1"), 1),
@@ -64,7 +65,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
         List(Attr("id", AttrValue("1")))
       )
     EdgeStmt.resetId()
-    val expanded = edgeStmt.expandArrows
+    val expanded = edgeToViewerArrows(edgeStmt)
     val expected =
       List(
         Arrow(a, c, Attributes.of(Id -> "1"), 1),
@@ -84,7 +85,7 @@ class EdgeStmtSpec extends ScalaCheckSuite {
         List(Attr("id", AttrValue("1")))
       )
     EdgeStmt.resetId()
-    val expanded = edgeStmt.expandArrows
+    val expanded = edgeToViewerArrows(edgeStmt)
     val expected =
       List(
         Arrow(a, c, Attributes.of(Id -> "1"), 1),

@@ -38,7 +38,7 @@ def syncVars[S, T](
       withLog(labelS, level = level)(source.set(s1))
 end syncVars
 
-class SourceFlow(
+class InternalPhases(
     initialSource: String,
     hiddenNodes:   Signal[HiddenElements],
     resetView:     () => Unit
@@ -136,7 +136,15 @@ class SourceFlow(
     updateS = (vg, g, vg1) => vg.value != g
   )
 
+  // -------------------------------
+  // Start the process
+  // -------------------------------
+
   sourceText.set(initialSource)
+
+  // -------------------------------
+  // fullGraphV --> visibleGraph
+  // -------------------------------
 
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
     */
@@ -151,7 +159,8 @@ class SourceFlow(
     .tapEach(_ => resetView())
 
   // -------------------------------
-  // rendering
+  // rendering:
+  // visibleGraph -> visibleAST -> visibleDOT
   // -------------------------------
   val visibleAST: Signal[DotAST] =
     visibleGraph.map(graph => withLog("[visibleGraph -> visibleAST]")(graphToDotAST(graph)))
@@ -160,4 +169,4 @@ class SourceFlow(
     visibleAST
       .map(ast => withLog("[visibleAST -> visibleDOT]", level = Level.None)(DotText(ast.render(keepInternal = true))))
 
-end SourceFlow
+end InternalPhases

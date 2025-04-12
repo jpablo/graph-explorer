@@ -9,7 +9,9 @@ import upickle.default.*
 
 type ViewerKind = Option[String]
 
-trait ViewerElement:
+/** Internal representation of graphical elements in the viewer (nodes, arrows, groups).
+  */
+sealed trait ViewerElement:
   def id: ElementId
 
   def attributes: Attributes

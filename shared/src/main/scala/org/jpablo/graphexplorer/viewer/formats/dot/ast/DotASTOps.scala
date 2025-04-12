@@ -2,10 +2,18 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotASTOps.{
+  buildViewerGraphElements,
+  edgeToViewerArrows,
+  nodeToViewerNode,
+  subGraphToViewerGroup
+}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.EdgeStmt.nextId
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes as attr
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeNoDefaults
 
@@ -45,78 +53,6 @@ extension (ast: DotAST)
       case None =>
         throw new IllegalArgumentException("DotAST must have an id")
 
-  private def subGraphToViewerGroup(sub: SubGraph, gId: Option[GroupId] = None): ViewerGroup =
-    group(
-      groupId = gId.getOrElse(GroupId(sub.id.getOrElse(SubGraph.randomId()))),
-      attributes = Attributes(sub.collectAttributesByTarget.getOrElse(AttributeTarget.graph, Map.empty))
-    )
-
-  private def buildViewerGraphElements(
-      rawNodes:    List[ViewerNode],           // Nodes with only their specific attributes initially
-      arrows:      List[Arrow],
-      memberships: List[(ElementId, GroupId)], // List of (element, group) memberships
-      groups:      List[ViewerGroup],
-      groupAttrs:  Map[GroupId, Map[AttributeTarget, Attributes]]
-  ): ViewerGraphElements =
-    val arrowsMap       = arrows.map(a => a.id -> a).toMap
-    val explicitNodeIds = rawNodes.map(_.id).toSet
-    val implicitNodeIds = arrows.flatMap(_.endpoints).filterNot(explicitNodeIds)
-
-    // Build the complete membership map (including nodes added via arrows within groups)
-    val allMemberships = memberships.foldLeft(VectorMap.empty[GroupMemberId, GroupId]) {
-      case (acc, (memId, groupId)) =>
-        memId match
-          case m: GroupMemberId => acc + (m -> groupId)
-          case aId: ArrowId => // If an arrow is in a group, its nodes are implicitly in it too
-            arrowsMap.get(aId).map(_.endpoints) match
-              case Some(Seq(a, b)) => acc + (a -> groupId) + (b -> groupId)
-              case _               => acc // Should not happen if arrowsMap is consistent
-    }
-
-    // Top level default attributes
-    val attrsByTarget = ast.toSubGraph.collectAttributesByTarget
-
-    val attributes        = Attributes(attrsByTarget.getOrElse(AttributeTarget.graph, Map.empty))
-    val defaultArrowAttrs = Attributes(attrsByTarget.getOrElse(AttributeTarget.edge, Map.empty))
-    val defaultNodeAttrs  = Attributes(attrsByTarget.getOrElse(AttributeTarget.node, Map.empty))
-
-    // Helper to find all ancestor groups and combine their node attributes
-    def getInheritedNodeAttributes(memberId: GroupMemberId): Attributes =
-      @tailrec
-      def findAncestorGroups(currentId: GroupMemberId, ancestors: List[GroupId]): List[GroupId] =
-        allMemberships.get(currentId) match
-          case Some(parentId) => findAncestorGroups(parentId, parentId :: ancestors)
-          case None           => ancestors
-
-      val ancestorGroups = findAncestorGroups(memberId, Nil) // List from closest to farthest
-
-      // Start with root defaults, then apply ancestor defaults from farthest to closest
-      ancestorGroups.reverse.foldLeft(defaultNodeAttrs): (accAttrs, groupId) =>
-        val groupNodeSpecificAttrs = groupAttrs.get(groupId).flatMap(_.get(AttributeTarget.node)).getOrElse(Attributes.empty)
-        accAttrs ++ groupNodeSpecificAttrs // Closer group attributes override farther ones
-
-    // Calculate final attributes for explicit nodes
-    val finalNodesMap = VectorMap.from(
-      rawNodes.map: node =>
-        // Node-specific attributes take the highest precedence
-        node.id -> nodeNoDefaults(node.id, getInheritedNodeAttributes(node.id) ++ node.attributes)
-    )
-    // Create implicit nodes with their inherited attributes
-    val implicitNodesMap = VectorMap.from(
-      implicitNodeIds.map(nId => nId -> nodeNoDefaults(nId, getInheritedNodeAttributes(nId)))
-    )
-
-    ViewerGraphElements(
-      nodes = finalNodesMap ++ implicitNodesMap,
-      arrows = arrowsMap,
-      memberships = allMemberships,
-      groups = groups.map(g => g.id -> g).toMap,
-      graphAttributes = attributes.filterKeys(_ in graphAttrIds),
-      defaultNodeAttributes = defaultNodeAttrs, // These were already used as the base for inheritance
-      defaultArrowAttributes = defaultArrowAttrs,
-      defaultGroupAttributes = attributes.filterKeys(_ notIn graphAttrIds)
-    )
-
   /** Builds a ViewerGraphElements from a DotAST.
     *
     * This method traverses the AST and builds a ViewerGraphElements structure. It handles groups, edges, and nodes, and ensures they are
@@ -139,7 +75,7 @@ extension (ast: DotAST)
 
         case Nil =>
           // Pass raw nodes to buildViewerGraphElements for final attribute calculation
-          buildViewerGraphElements(nodes.reverse, arrows, memberships.reverse, groups.reverse, groupAttrs)
+          buildViewerGraphElements(ast, nodes.reverse, arrows, memberships.reverse, groups.reverse, groupAttrs)
 
         // corner case: a groupId without children. Skipping it.
         case (_, Nil) :: t => loop(t, arrows, groups, nodes, memberships, groupAttrs)
@@ -154,8 +90,7 @@ extension (ast: DotAST)
 
             case sub: SubGraph =>
               val viewerGroup       = subGraphToViewerGroup(sub)
-              val byTarget          = sub.collectAttributesByTarget
-              val updatedGroupAttrs = groupAttrs + (viewerGroup.id -> byTarget.map { case (k, v) => k -> Attributes(v) })
+              val updatedGroupAttrs = groupAttrs + (viewerGroup.id -> sub.collectAttributesByTarget)
               loop(
                 pendingGroups = (Some(viewerGroup.id) -> sub.children) :: pendingGroups,
                 arrows = arrows,
@@ -166,7 +101,7 @@ extension (ast: DotAST)
               )
 
             case e: EdgeStmt =>
-              val edgeArrows = e.expandArrows
+              val edgeArrows = edgeToViewerArrows(e)
               loop(
                 pendingGroups = pendingGroups,
                 arrows = arrows ++ edgeArrows,
@@ -177,12 +112,7 @@ extension (ast: DotAST)
               )
 
             case n: NodeStmt =>
-              // Store ONLY the node's specific attributes for now. Inheritance happens later.
-              val specificAttributes = Attributes(toAttrsMap(n.attr_list))
-              val viewerNode = nodeNoDefaults(
-                nodeId = NodeId(n.node_id.id),
-                attributes = specificAttributes
-              )
+              val viewerNode = nodeToViewerNode(n)
               loop(
                 pendingGroups = pendingGroups,
                 arrows = arrows,
@@ -215,4 +145,123 @@ extension (ast: DotAST)
     ast.modify(_.children).using(loop(_))
 
   def render(keepInternal: Boolean = false): String =
-    DotFormatter.renderFormat(ast, keepInternal)
+    DotFormatter(ast, keepInternal).render()
+
+end extension
+
+object DotASTOps:
+
+  def subGraphToViewerGroup(sub: SubGraph, gId: Option[GroupId] = None): ViewerGroup =
+    group(
+      groupId = gId.getOrElse(GroupId(sub.id.getOrElse(SubGraph.randomId()))),
+      attributes = sub.collectAttributesByTarget.getOrElse(AttributeTarget.graph, Attributes.empty)
+    )
+
+  def nodeToViewerNode(stmt: NodeStmt): ViewerNode =
+    nodeNoDefaults(
+      nodeId = NodeId(stmt.node_id.id),
+      // Store ONLY the node's specific attributes for now. Inheritance happens later.
+      attributes = Attributes(toAttrsMap(stmt.attr_list))
+    )
+
+  /** @return
+    *   all arrows generated by the nodes in the edge_list
+    */
+  def edgeToViewerArrows(stmt: EdgeStmt): List[Arrow] =
+    val attrs = toAttrsMap(stmt.attr_list)
+    stmt.edge_list
+      .sliding(2)
+      .toList
+      .flatMap:
+        // (1) Not sure this case is even possible
+        case List(SubGraph(_, _)) => Nil
+
+        // (2) a -> b =>  a -> b
+        case List(DotNodeId(a, _), DotNodeId(b, _)) => List(arrow(a -> b, attrs, nextId()))
+
+        // (3) a -> {x y ...}  =>  a -> x, a -> y, ...
+        case List(DotNodeId(a, _), sub @ SubGraph(_, _)) =>
+          sub.allNodesIds.map(x => arrow(a -> x, attrs, nextId()))
+
+        // (4) {x y ...} -> a  =>  x -> a, y -> a, ...
+        case List(sub @ SubGraph(_, _), DotNodeId(a, _)) =>
+          sub.allNodesIds.map(x => arrow(x -> a, attrs, nextId()))
+
+        // (5) {x y ...} -> {a b ...}  =>  x -> a, x -> b, y -> a, y -> b, ...
+        case List(sub1 @ SubGraph(_, _), sub2 @ SubGraph(_, _)) =>
+          for
+            x <- sub1.allNodesIds
+            a <- sub2.allNodesIds
+          yield arrow(x -> a, attrs, nextId())
+
+        case _ => Nil
+
+  /** Take all the flattened AST elements and build a ViewerGraphElements structure.
+    */
+  def buildViewerGraphElements(
+      ast:         DotAST,
+      rawNodes:    List[ViewerNode],           // Nodes with only their specific attributes initially
+      arrows:      List[Arrow],
+      memberships: List[(ElementId, GroupId)], // List of (element, group) memberships
+      groups:      List[ViewerGroup],
+      groupAttrs:  Map[GroupId, Map[AttributeTarget, Attributes]]
+  ): ViewerGraphElements =
+    val arrowsMap       = arrows.map(a => a.id -> a).toMap
+    val explicitNodeIds = rawNodes.map(_.id).toSet
+    val implicitNodeIds = arrows.flatMap(_.endpoints).filterNot(explicitNodeIds)
+
+    // Build the complete membership map (including nodes added via arrows within groups)
+    val allMemberships = memberships.foldLeft(VectorMap.empty[GroupMemberId, GroupId]) {
+      case (acc, (memId, groupId)) =>
+        memId match
+          case m: GroupMemberId => acc + (m -> groupId)
+          case aId: ArrowId => // If an arrow is in a group, its nodes are implicitly in it too
+            arrowsMap.get(aId).map(_.endpoints) match
+              case Some(Seq(a, b)) => acc + (a -> groupId) + (b -> groupId)
+              case _               => acc // Should not happen if arrowsMap is consistent
+    }
+
+    // Top level default attributes
+    val attrsByTarget = ast.toSubGraph.collectAttributesByTarget
+
+    val attributes        = attrsByTarget.getOrElse(AttributeTarget.graph, Attributes.empty)
+    val defaultArrowAttrs = attrsByTarget.getOrElse(AttributeTarget.edge, Attributes.empty)
+    val defaultNodeAttrs  = attrsByTarget.getOrElse(AttributeTarget.node, Attributes.empty)
+
+    // Helper to find all ancestor groups and combine their node attributes
+    def getInheritedNodeAttributes(memberId: GroupMemberId): Attributes = {
+      @tailrec
+      def findAncestorGroups(currentId: GroupMemberId, ancestors: List[GroupId]): List[GroupId] =
+        allMemberships.get(currentId) match
+          case Some(parentId) => findAncestorGroups(parentId, parentId :: ancestors)
+          case None           => ancestors
+
+      val ancestorGroups = findAncestorGroups(memberId, Nil) // List from closest to farthest
+
+      // Start with root defaults, then apply ancestor defaults from farthest to closest
+      ancestorGroups.reverse.foldLeft(defaultNodeAttrs): (accAttrs, groupId) =>
+        val groupNodeSpecificAttrs = groupAttrs.get(groupId).flatMap(_.get(AttributeTarget.node)).getOrElse(Attributes.empty)
+        accAttrs ++ groupNodeSpecificAttrs // Closer group attributes override farther ones
+    }
+
+    // Calculate final attributes for explicit nodes
+    val finalNodesMap = VectorMap.from(
+      rawNodes.map: node =>
+        // Node-specific attributes take the highest precedence
+        node.id -> nodeNoDefaults(node.id, getInheritedNodeAttributes(node.id) ++ node.attributes)
+    )
+    // Create implicit nodes with their inherited attributes
+    val implicitNodesMap = VectorMap.from(
+      implicitNodeIds.map(nId => nId -> nodeNoDefaults(nId, getInheritedNodeAttributes(nId)))
+    )
+
+    ViewerGraphElements(
+      nodes = finalNodesMap ++ implicitNodesMap,
+      arrows = arrowsMap,
+      memberships = allMemberships,
+      groups = groups.map(g => g.id -> g).toMap,
+      graphAttributes = attributes.filterKeys(_ in graphAttrIds),
+      defaultNodeAttributes = defaultNodeAttrs, // These were already used as the base for inheritance
+      defaultArrowAttributes = defaultArrowAttrs,
+      defaultGroupAttributes = attributes.filterKeys(_ notIn graphAttrIds)
+    )

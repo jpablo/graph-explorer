@@ -26,18 +26,15 @@ case class ViewerState(
   lazy val project =
     ProjectOps(Var(Project(projectId)))
 
-  protected[state] val sourceFlow = SourceFlow(initialSource, project.hiddenElements.signal, resetView)
+  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView)
 
   val undoEvent: EventBus[Unit] = EventBus()
   val redoEvent: EventBus[Unit] = EventBus()
 
-  val sourceText = sourceFlow.sourceText
-
-  val fullGraph = sourceFlow.fullGraph
-
-  protected[state] val visibleDOT = sourceFlow.visibleDOT
-
-  val visibleGraph = sourceFlow.visibleGraph
+  val sourceText                  = phases.sourceText
+  val fullGraph                   = phases.fullGraph
+  protected[state] val visibleDOT = phases.visibleDOT
+  val visibleGraph                = phases.visibleGraph
 
   // 5. Render visible Dot to SVG
   // Dot ~> SVGSVGElement
@@ -89,7 +86,7 @@ case class ViewerState(
       attributes: Attributes = Attributes.empty,
       direction:  Direction = Direction.From
   ): Unit =
-    sourceFlow.fullGraphV.update: fullGraph =>
+    phases.fullGraphV.update: fullGraph =>
       val sel = selection.now()
 
       if sel.isEmpty then
@@ -113,7 +110,7 @@ case class ViewerState(
             newGraph
 
   def addArrow(from: NodeId, to: NodeId) =
-    sourceFlow.fullGraphV.update: g =>
+    phases.fullGraphV.update: g =>
       val (g2, _) = g.addArrow(from, to)
       selection.set(ElementIds.from(from))
       g2
@@ -127,7 +124,7 @@ case class ViewerState(
   // --- top level attributes ---
 
   def graphType: Var[GraphType] =
-    sourceFlow.fullGraphV.zoomLazy(_.tpe)((g, tpe) => g.copy(tpe = tpe))
+    phases.fullGraphV.zoomLazy(_.tpe)((g, tpe) => g.copy(tpe = tpe))
 
   def graphLayout: Signal[Layout] =
     graphAttributes.map(_.getAs(Layout))
@@ -149,12 +146,12 @@ case class ViewerState(
     fullGraph.map(_.getDefaultAttributes(target))
 
   def diagramAttributesUpdates: Var[AttributeUpdates] =
-    sourceFlow.fullGraphV.zoomLens(AttributesOps.diagramAttributesUpdates)
+    phases.fullGraphV.zoomLens(AttributesOps.diagramAttributesUpdates)
 
   def defaultAttributesUpdates(target: AttributeTarget): Var[AttributeUpdates] =
-    sourceFlow.fullGraphV.zoomLens(AttributesOps.defaultAttributesUpdates(target))
+    phases.fullGraphV.zoomLens(AttributesOps.defaultAttributesUpdates(target))
 
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
-    sourceFlow.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
+    phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
 
 end ViewerState

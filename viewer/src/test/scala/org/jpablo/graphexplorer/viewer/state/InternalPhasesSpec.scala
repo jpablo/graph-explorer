@@ -5,12 +5,12 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
 
-class SourceFlowSpec extends FunSuite:
+class InternalPhasesSpec extends FunSuite:
   test("Sanity check") {
     val viewerState = ViewerState(ProjectId("test"), _ => (), "")
     given Owner = viewerState.owner
 
-    assertEquals(viewerState.sourceFlow.fullGraphV.now(), ViewerGraph.minimal)
+    assertEquals(viewerState.phases.fullGraphV.now(), ViewerGraph.minimal)
 
     val visibleDot =
       """|digraph "G" {
