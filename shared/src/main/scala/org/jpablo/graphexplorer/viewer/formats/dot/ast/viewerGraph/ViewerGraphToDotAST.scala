@@ -17,18 +17,25 @@ def graphToDotAST(graph: ViewerGraph): DotAST =
     id = Some(graph.id)
   )
 
-private def nodeToStmt(id: NodeId, node: ViewerNode): NodeStmt =
-  NodeStmt(DotNodeId(id.value), node.attributes.values.map((id, value) => Attr(id.value, value)).toList)
+private def viewerNodeToNode(id: NodeId, node: ViewerNode): NodeStmt =
+  val svgIdAttr = idAttributeKey -> AttrValue(SvgNodeElementId.toSvgIdAttr(id))
+  NodeStmt(
+    node_id = DotNodeId(id.value),
+    attr_list = (node.attributes.values + svgIdAttr).map((id, value) => Attr(id.value, value)).toList
+  )
 
-private def arrowToStmt(arrow: Arrow): EdgeStmt =
+private def arrowToEdge(arrow: Arrow): EdgeStmt =
   // we'll use the arrow sequence as the id to distinguish between arrows with the same source and target
-  val seqAsId = idAttributeKey -> AttrValue(arrow.seq.toString)
+  val svgIdAttr = idAttributeKey -> AttrValue(SvgEdgeElementId.toSvgIdAttr(arrow.seq))
+  // Adding an `id` attribute to control the svg ids generated
+  // Example:
+  // <g id="edge:1" class="edge"><title>a->b</title>...</g>
   EdgeStmt(
     edge_list = List(
       DotNodeId(arrow.source.value),
       DotNodeId(arrow.target.value)
     ),
-    attr_list = (arrow.attributes.values + seqAsId).map((id, value) => Attr(id.value, value)).toList
+    attr_list = (arrow.attributes.values + svgIdAttr).map((id, value) => Attr(id.value, value)).toList
   )
 
 private def attributesToStmt(target: AttributeTarget, attrs: Attributes): List[AttrStmt] =
@@ -47,23 +54,27 @@ def viewerGraphElementsToDotGraphElements(elements: ViewerGraphElements): List[G
     if groupId in visited then
       None
     else
-      val nodeStmts = elements.nodes.filter((nId, _) => belongsToGroup(nId, Some(groupId))).map(nodeToStmt)
+      val nodeStmts = elements.nodes.filter((nId, _) => belongsToGroup(nId, Some(groupId))).map(viewerNodeToNode)
       val subGraphs = elements.groups
         .filter((gId, _) => belongsToGroup(gId, Some(groupId)))
         .flatMap((gId, _) => groupToSubGraph(gId, visited + groupId))
         .toList
-      val groupAttrs = attributesToStmt(AttributeTarget.graph, elements.groups(groupId).attributes)
+      val svgIdAttr = idAttributeKey -> AttrValue(SvgGroupElementId.toSvgIdAttr(groupId))
+      val groupAttrs = attributesToStmt(AttributeTarget.graph, elements.groups(groupId).attributes + svgIdAttr)
       // only 3 types of children are allowed in a subgraph:
       // 1. Cluster attributes (i.e. the current group configuration)
       // 2. SubGraphs
       // 3. Nodes
-      Some(SubGraph(groupAttrs ++ subGraphs ++ nodeStmts, Some(groupId.value)))
+      Some(SubGraph(
+        children = groupAttrs ++ subGraphs ++ nodeStmts,
+        id = Some(groupId.value)
+      ))
 
   // ------------------------
   // Top level elements
   // ------------------------
-  val nodeStmts = elements.nodes.filter((nId, _) => belongsToGroup(nId, None)).map(nodeToStmt)
-  val edgeStmts = elements.arrows.values.map(arrowToStmt)
+  val nodeStmts = elements.nodes.filter((nId, _) => belongsToGroup(nId, None)).map(viewerNodeToNode)
+  val edgeStmts = elements.arrows.values.map(arrowToEdge)
   val subGraphs = elements.groups
     .filter((gId, _) => belongsToGroup(gId, None))
     .flatMap((gId, _) => groupToSubGraph(gId))

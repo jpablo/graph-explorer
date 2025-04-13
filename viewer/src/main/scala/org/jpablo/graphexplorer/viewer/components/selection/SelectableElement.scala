@@ -14,7 +14,8 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
   def selectedClass: String
 
   protected val refTitle  = ref.querySelector("title").textContent
-  protected val refIdAttr = ref.id
+  // example: <g id="edge:id"> ...
+  protected val svgIdAttr = ref.id
 
   def elementId: ElementId
   def nodeId: Option[NodeId]          = elementId match { case n: NodeId => Some(n); case _ => None }
@@ -151,7 +152,7 @@ case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
 
   lazy val toArrow: Option[Arrow] =
-    Arrow.fromGraphvizTitle(refTitle, refIdAttr)
+    Arrow.fromGraphvizTitle(refTitle, svgIdAttr)
 
   // if parsing fails, use the title as the nodeId
   lazy val elementId =
