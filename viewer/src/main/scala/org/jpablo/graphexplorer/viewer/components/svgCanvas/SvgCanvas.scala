@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.{Action, toSvgPair}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
@@ -113,26 +113,35 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   "New arrow" button
           // --------------------------------------------------------
-          child.maybe <--
+          children <--
             selection.signal.map: selected =>
               // only show the "New arrow" button if there is exactly one selected element
               if selected.size == 1 then
                 for
-                  elem <- SelectableElement.query(group.ref, selected).headOption
-                  btn  <- NewArrowButton(elem, getRankdir)
-                yield btn.amend(
-                  onMouseDown.stopPropagation --> { ev =>
-                    dom.console.log(ev.target)
-                    dom.console.log(elem.get)
-                    selection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
-                  },
-                  onMouseUp.stopPropagation --> { _ =>
-                    selection.endSelectionLine()
-                    addNode()
-                  }
-                )
+                  elem <- SelectableElement.query(group.ref, selected).headOption.toSeq
+                  newArrowButton =
+                    NewArrowButton(elem, getRankdir).map(_.amend(
+                      onMouseDown.stopPropagation --> { ev =>
+                        selection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+                      },
+                      onMouseUp.stopPropagation --> { _ =>
+                        selection.endSelectionLine()
+                        addNode()
+                      }
+                    ))
+                  arrowEndpoint =
+                    elem match
+                      case edge: EdgeElement => Some(ArrowEndpointButton(edge, true))
+                      case _                 => None
+
+                  btn <- (newArrowButton, arrowEndpoint) match
+                    case (Some(b), Some(ep)) => Seq(b, ep)
+                    case (Some(b), None)     => Seq(b)
+                    case (None, Some(ep))    => Seq(ep)
+                    case _                   => Seq.empty
+                yield btn
               else
-                None
+                Nil
           ,
           // --------------------------------------------------------
           //   draw dragging arrow
