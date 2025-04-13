@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.selection
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ElementId, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowId, ElementId, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.BBox
 import org.scalajs.dom
 import org.scalajs.dom.{Element, FocusEvent, KeyValue}
@@ -151,12 +151,13 @@ case class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
 case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
   val selectedClass = "selected"
 
-  lazy val toArrow: Option[Arrow] =
-    Arrow.fromGraphvizTitle(refTitle, svgIdAttr)
+  private lazy val toArrowId: Option[ArrowId] =
+    Arrow.fromSvg(svgIdAttr)
 
   // if parsing fails, use the title as the nodeId
   lazy val elementId =
-    toArrow.map(a => a.id).getOrElse(models.ArrowId(refTitle))
+    toArrowId.getOrElse(models.ArrowId(refTitle))
+
 end EdgeElement
 
 case class ClusterElement(ref: dom.SVGGElement) extends SelectableElement(ref):
