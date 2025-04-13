@@ -7,10 +7,9 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.{Action, toSvgPair}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
-import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.models.ElementId
-import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, Selection}
+import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
@@ -43,6 +42,16 @@ object SvgCanvas:
       .amend(TopLevelGroup(firstGroup, transform, selectionOps, addNode, getRankdir))
       .amendThis { topLevelSvg =>
         val selectableElements = SelectableElement.findAll(topLevelSvg.ref)
+
+        val selectionGroups =
+          selection.signal
+            .scanLeft(x => (x, x)):
+              case ((_, curr), next) => (curr, next)
+            .map: (curr, next) =>
+              val toUnselect = curr.filter(id => !next.contains(id))
+              val toSelect   = next.filter(id => !curr.contains(id))
+              (SelectableElement.query(topLevelSvg.ref, toUnselect), SelectableElement.query(topLevelSvg.ref, toSelect))
+
         Seq(
           // --------------------------------------------------------
           //   draw selection rect
@@ -72,20 +81,9 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   synchronize svg elements with diagramSelection
           // --------------------------------------------------------
-          selection.signal.combineWith(selection.editingElement) --> { (selectedNodes: Selection, editing: Option[ElementId]) =>
-            for elem <- selectableElements do
-              if elem.elementId in selectedNodes then
-                elem.select()
-                // TODO: polish this and extend to arrows and groups
-//                // only nodes for now
-//                elem.elementId match
-//                  case id: NodeId =>
-//                    for editingId <- editing if editingId == elem.elementId do
-//                      val node = selection.visibleGraphNow.nodes(id)
-//                      elem.installEditor(updateLabel, selection.clearEditing, node.label.toString)
-//                  case _ =>
-              else
-                elem.unselect()
+          selectionGroups --> { (toUnselect: Seq[SelectableElement], toSelect: Seq[SelectableElement]) =>
+            toUnselect.foreach(_.unselect())
+            toSelect.foreach(_.select())
           }
         )
       }

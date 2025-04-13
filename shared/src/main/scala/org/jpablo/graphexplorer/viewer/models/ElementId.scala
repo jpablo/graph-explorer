@@ -16,6 +16,8 @@ sealed trait ElementId derives CanEqual, ReadWriter:
   def asArrowId: Option[ArrowId] = this match { case id: ArrowId => Some(id); case _ => None }
   def asGroupId: Option[GroupId] = this match { case id: GroupId => Some(id); case _ => None }
 
+  def toSvg: String
+
 sealed trait GroupMemberId extends ElementId derives ReadWriter
 
 case class GroupId(value: String) extends GroupMemberId derives CanEqual:

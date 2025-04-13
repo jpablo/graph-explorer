@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.selection
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.models
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowId, ElementId, NodeId}
+import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
 import org.scalajs.dom
 import org.scalajs.dom.{Element, FocusEvent, KeyValue}
@@ -13,7 +13,7 @@ import scala.scalajs.js
 sealed trait SelectableElement(ref: dom.SVGGElement):
   def selectedClass: String
 
-  protected val refTitle  = ref.querySelector("title").textContent
+  protected val refTitle = ref.querySelector("title").textContent
   // example: <g id="edge:id"> ...
   protected val svgIdAttr = ref.id
 
@@ -138,6 +138,12 @@ object SelectableElement:
 
   def findAll(ref: dom.Element): Seq[SelectableElement] =
     ref.querySelectorAll("g").flatMap(fromDomElement).toSeq
+
+  def query(ref: dom.Element, elems: ElementIds): Seq[SelectableElement] =
+    if elems.isEmpty then
+      Seq.empty
+    else
+      ref.querySelectorAll(elems.ids.map(id => s"g[id='${id.toSvg}']").mkString(",")).flatMap(fromDomElement).toSeq
 
   private def isDiagramElement(e: dom.Element, cls: String) =
     e.tagName == "g" && e.classList.contains(cls)
