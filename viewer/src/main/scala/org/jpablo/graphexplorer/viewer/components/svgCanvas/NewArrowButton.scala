@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
@@ -9,7 +10,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir.*
 
 def NewArrowButton(
     elem:       SelectableElement,
-    getRankdir: () => Rankdir
+    getRankdir: () => Rankdir,
+    svgMods:    SvgMods*
 ): Option[ReactiveSvgElement[dom.svg.G]] =
   val arrowGroup =
     svg.g(
@@ -52,9 +54,8 @@ def NewArrowButton(
           svg.circle(svg.r := radius.toString, svg.cx := centerX.toString, svg.cy := centerY.toString),
           arrowGroup,
           svg.transform := s"translate($trX, $trY) scale($scale)",
-          arrowGroup.amend(
-            svg.transform := s"rotate($rotation, $centerX, $centerY)"
-          )
+          arrowGroup.amend(svg.transform := s"rotate($rotation, $centerX, $centerY)"),
+          svgMods
         )
       )
     case _ => None

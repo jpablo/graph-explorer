@@ -16,7 +16,10 @@ import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 object SvgCanvas:
 
-  def clientCoords(e: dom.MouseEvent) = (ClientPoint(e.clientX, e.clientY), e.shiftKey)
+  extension (e: dom.MouseEvent)
+    def clientCoords    = (ClientPoint(e.clientX, e.clientY), e.shiftKey)
+    def leftButton      = e.button == 0
+    def leftButtonMoved = e.buttons == 1
 
   // rawSvg is the SVG element as it comes from DOT
   def apply(
@@ -119,8 +122,11 @@ object SvgCanvas:
               if selected.size == 1 then
                 for
                   elem <- SelectableElement.query(group.ref, selected).headOption.toSeq
+
                   newArrowButton =
-                    NewArrowButton(elem, getRankdir).map(_.amend(
+                    NewArrowButton(
+                      elem,
+                      getRankdir,
                       onMouseDown.stopPropagation --> { ev =>
                         selection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
                       },
@@ -128,17 +134,13 @@ object SvgCanvas:
                         selection.endSelectionLine()
                         addNode()
                       }
-                    ))
+                    )
                   arrowEndpoint =
                     elem match
                       case edge: EdgeElement => Some(ArrowEndpointButton(edge, true))
                       case _                 => None
 
-                  btn <- (newArrowButton, arrowEndpoint) match
-                    case (Some(b), Some(ep)) => Seq(b, ep)
-                    case (Some(b), None)     => Seq(b)
-                    case (None, Some(ep))    => Seq(ep)
-                    case _                   => Seq.empty
+                  btn <- newArrowButton.toSeq ++ arrowEndpoint.toSeq
                 yield btn
               else
                 Nil
