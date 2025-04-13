@@ -148,9 +148,9 @@ end extension
 
 object DotASTOps:
 
-  def subGraphToViewerGroup(sub: SubGraph, gId: Option[GroupId] = None): ViewerGroup =
+  def subGraphToViewerGroup(sub: SubGraph): ViewerGroup =
     group(
-      groupId = gId.getOrElse(GroupId(sub.id.getOrElse(SubGraph.randomId()))),
+      groupId = sub.id.map(GroupId.fromDot).getOrElse(GroupId(SubGraph.randomId())),
       attributes = sub.collectAttributesByTarget.getOrElse(AttributeTarget.graph, Attributes.empty)
     )
 

@@ -67,7 +67,7 @@ def viewerGraphElementsToDotGraphElements(elements: ViewerGraphElements): List[G
       // 3. Nodes
       Some(SubGraph(
         children = groupAttrs ++ subGraphs ++ nodeStmts,
-        id = Some(groupId.value)
+        id = Some(groupId.toDot)
       ))
 
   // ------------------------

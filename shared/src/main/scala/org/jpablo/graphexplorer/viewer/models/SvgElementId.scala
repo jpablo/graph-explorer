@@ -8,36 +8,35 @@ package org.jpablo.graphexplorer.viewer.models
 
 object SvgEdgeElementId:
 
-  val edgeIdPattern = raw"edge:(\d+)".r
+  val edgeSeq = raw"arrow:(\d+)".r
 
   def getSeq(svgIdAttr: String): Option[Int] =
     svgIdAttr match
-      case edgeIdPattern(seq) => Some(seq.toInt)
+      case edgeSeq(seq) => Some(seq.toInt)
       case _                  => None
 
-  def toSvgIdAttr(seq: Int): String = s"edge:$seq"
-
+  def toSvgIdAttr(seq: Int): String = s"arrow:$seq"
 
 object SvgNodeElementId:
 
-  val nodeIdPattern = raw"node:(.+)".r
+  val nodeId = raw"node:(.+)".r
 
   def getId(svgIdAttr: String): Option[NodeId] =
     svgIdAttr match
-      case nodeIdPattern(seq) => Some(NodeId(seq))
-      case _                  => None
+      case nodeId(seq) => Some(NodeId(seq))
+      case _            => None
 
   // the same as "node:\\N" in DOT
   def toSvgIdAttr(id: NodeId): String = s"node:$id"
 
 object SvgGroupElementId:
 
-  val groupIdPattern = raw"group:(.+)".r
+  val groupId = raw"group:(.+)".r
 
   def getId(svgIdAttr: String): Option[GroupId] =
     svgIdAttr match
-      case groupIdPattern(seq) => Some(GroupId(seq))
-      case _                  => None
+      case groupId(seq) => Some(GroupId(seq))
+      case _            => None
 
   // the same as "node:\\N" in DOT
   def toSvgIdAttr(id: GroupId): String = s"group:$id"

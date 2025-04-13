@@ -32,7 +32,7 @@ trait GroupsOps:
     val memberIds = elementIds.memberIds
     if memberIds.isEmpty then this
     else
-      val groupId  = GroupId(s"cluster_${SubGraph.randomId()}")
+      val groupId  = GroupId(SubGraph.randomId())
       val newGroup = group(groupId, Attributes.of(Label -> label))
 
       // Find the common parent group if one exists
