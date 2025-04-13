@@ -70,7 +70,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
               div(
                 cmd.shortcut.map(_.toList.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + ")))
               ),
-              onMouseDown.stopPropagation.preventDefault --> { e =>
+              onMouseDown.stopPropagation.preventDefault --> { _ =>
                 cmd.action()
                 focusSearch.emit(true)
               }

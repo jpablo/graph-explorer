@@ -119,7 +119,7 @@ class AttributesOpsSpec extends FunSuite:
       .addNodeWithId(a)
       .modifyDefaultAttributes(AttributeTarget.node).using(_ + (BoldStyle.attrId -> trueAttr))
 
-    val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).out
+    val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).update
     val updates          =  AttributeUpdates.of(BorderStyle -> BorderStyle.dashed)
 
     val graph1 = updateAttributes(graph0, updates)

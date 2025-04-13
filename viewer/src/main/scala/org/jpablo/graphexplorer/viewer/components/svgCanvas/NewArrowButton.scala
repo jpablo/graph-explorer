@@ -8,8 +8,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir.*
 
 def NewArrowButton(
-    elem:                  SelectableElement,
-    getRankdir:            () => Rankdir
+    elem:       SelectableElement,
+    getRankdir: () => Rankdir
 ): Option[ReactiveSvgElement[dom.svg.G]] =
   val arrowGroup =
     svg.g(
@@ -18,17 +18,9 @@ def NewArrowButton(
       )
     )
 
-  val radius = 8
+  val radius  = 8
   val centerX = 8
   val centerY = 8
-
-  val g0 =
-    svg.g(
-      svg.cls           := s"new-edge-button",
-      svg.pointerEvents := "all",
-      svg.circle(svg.r := radius.toString, svg.cx := centerX.toString, svg.cy := centerY.toString),
-      arrowGroup
-    )
 
   elem match
     case NodeElement(ref) =>
@@ -54,7 +46,11 @@ def NewArrowButton(
           (bbox.x - (w * scale) - (w * scale) / 4 - 1, bbox.y + bbox.height / 2 - (h * scale) / 2, 90)
 
       Some(
-        g0.amend(
+        svg.g(
+          svg.cls           := s"new-edge-button",
+          svg.pointerEvents := "all",
+          svg.circle(svg.r := radius.toString, svg.cx := centerX.toString, svg.cy := centerY.toString),
+          arrowGroup,
           svg.transform := s"translate($trX, $trY) scale($scale)",
           arrowGroup.amend(
             svg.transform := s"rotate($rotation, $centerX, $centerY)"

@@ -29,8 +29,8 @@ def CanvasContainer(
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> { (e, svgElem) =>
       state.handleWheel(e, svgElem.ref.viewBox.baseVal)
     },
-    onMouseDown.map(clientCoords) --> { (pos, shift) => state.selection.startSelectionArea(pos, shift) },
+    onMouseDown.map(clientCoords) --> state.selection.startSelectionArea.tupled,
     // No Action is set when moving the mouse, to preserve the action set on mouse down
-    onMouseMove.map(clientCoords) --> { (pos, shift) => state.selection.updateSelection(pos, shift) },
+    onMouseMove.map(clientCoords) --> state.selection.updateSelection.tupled,
     onMouseUp --> state.selection.handleMouseUp
   )

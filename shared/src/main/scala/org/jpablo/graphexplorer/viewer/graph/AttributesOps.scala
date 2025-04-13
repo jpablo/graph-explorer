@@ -187,20 +187,20 @@ object AttributesOps:
   /** Lens for accessing and updating the main graph attributes */
   def diagramAttributesUpdates: Lens[ViewerGraph, AttributeUpdates] =
     Lens(
-      in = graph => graph.elements.graphAttributes.toUpdates,
-      out = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyUpdates)
+      get = graph => graph.elements.graphAttributes.toUpdates,
+      update = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyUpdates)
     )
 
   /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
   def defaultAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributeUpdates] =
     Lens(
-      in = graph => graph.getDefaultAttributes(target).toUpdates,
-      out = (graph, updates) => graph.modifyDefaultAttributes(target).using(updates.applyUpdates)
+      get = graph => graph.getDefaultAttributes(target).toUpdates,
+      update = (graph, updates) => graph.modifyDefaultAttributes(target).using(updates.applyUpdates)
     )
 
   /** Bundle functions for updating attributes of specific elements */
   def elementAttributesUpdates(elementIds: ElementIds): Lens[ViewerGraph, AttributeUpdates] =
     Lens(
-      in = graph => graph.getAttributesUpdatesById(elementIds),
-      out = (graph, updates) => graph.updateAttributes(elementIds, updates)
+      get = graph => graph.getAttributesUpdatesById(elementIds),
+      update = (graph, updates) => graph.updateAttributes(elementIds, updates)
     )

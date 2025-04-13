@@ -130,7 +130,8 @@ case class AttributeUpdates(statuses: Map[AttributeId, AttrValueWithStatus] = Ma
         case (acc, (attrId, status)) =>
           status match
             case AttrStatus.Single(v) => acc + (attrId -> v)
-            case _                    => acc - attrId
+            case AttrStatus.Multiple  => acc
+            case AttrStatus.Missing   => acc - attrId
     )
 
   def -(key: AttributeId) = AttributeUpdates(statuses - key)

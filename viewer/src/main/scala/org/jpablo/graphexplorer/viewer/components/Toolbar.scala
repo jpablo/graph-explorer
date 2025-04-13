@@ -61,7 +61,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         title  := "Toggle Library",
         cls("btn-active") <-- state.leftPanelVisible,
         span().layoutSidebarReverseIcon,
-        onMouseDown --> state.leftPanelVisible.update(!_)
+        onClick --> state.leftPanelVisible.update(!_)
       ).tiny,
       // -------- Breadcrumbs --------
       div(

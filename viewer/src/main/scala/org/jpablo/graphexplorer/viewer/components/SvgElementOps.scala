@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
@@ -61,7 +60,7 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
         val height = ((a.y + a.height) max (b.y + b.height)) - y
         BBox(x, y, width, height)
       )
-      val s = SvgCanvas.selfContainedSvg(bbox).amend(svgs.map(foreignSvgElement)*)
+      val s = SvgCanvas.emptySvg(bbox, svgs.map(foreignSvgElement))
       s.ref.outerHTML
 
 object SvgElementOps:
