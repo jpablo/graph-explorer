@@ -23,26 +23,43 @@ case class GroupId(value: String) extends GroupMemberId derives CanEqual:
   override def toString: String = value
 
   def toDot: String = s"cluster_$value"
+  def toSvg: String = s"group:$value"
 
 case class NodeId(value: String) extends GroupMemberId:
   override def toString: String = value
 
+  def toSvg: String = s"node:$value"
+
 case class ArrowId(value: String) extends ElementId:
   override def toString: String = value
+
+  def toSvg: String = s"arrow:$value"
 
 object GroupId:
   val clusterId = raw"cluster_(.+)".r
 
-  def fromDot(cluster: String): GroupId =
-    cluster match
-      case clusterId(id) => GroupId(id)
-      case _             => GroupId(cluster)
+  def fromDot(cluster: String): GroupId = cluster match
+    case clusterId(id) => GroupId(id)
+    case _             => GroupId(cluster)
 
+  val groupId = raw"group:(.+)".r
+
+  def fromSvg(idAttr: String): Option[GroupId] = idAttr match
+    case groupId(seq) => Some(GroupId(seq))
+    case _            => None
 
 object NodeId:
   given ReadWriter[NodeId] = stringKeyRW(readwriter[String].bimap[NodeId](_.value, NodeId(_)))
 
   def random(): NodeId = NodeId(randomUUIDSafe().take(8))
+
+  val nodeId = raw"node:(.+)".r
+
+  def fromSvg(idAttr: String): Option[NodeId] =
+    idAttr match
+      case nodeId(seq) => Some(NodeId(seq))
+      case _ => None
+
 
 object ArrowId:
   given ReadWriter[ArrowId] = stringKeyRW(readwriter[String].bimap[ArrowId](_.value, ArrowId(_)))

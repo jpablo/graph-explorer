@@ -62,6 +62,9 @@ case class Arrow(
   override val id: ArrowId =
     ArrowId(s"${source.value}$titleIdSeparator${target.value}:$seq")
 
+  def toSvg: String = s"arrow:$id"
+
+
   def endpoints = Seq(source, target)
 end Arrow
 
@@ -91,8 +94,18 @@ object Arrow:
   def fromGraphvizTitle(title: String, svgIdAttr: String): Option[Arrow] =
     title match
       case edgeTitlePattern(l, r) if l.trim.nonEmpty && r.trim.nonEmpty =>
-        SvgEdgeElementId.getSeq(svgIdAttr).map(i => arrow(l.trim -> r.trim, seq = i))
+        getSeq(svgIdAttr).map(i => arrow(l.trim -> r.trim, seq = i))
       case _ => None
+
+
+  val edgeSeq = raw"arrow:(\d+)".r
+
+  def getSeq(svgIdAttr: String): Option[Int] =
+    svgIdAttr match
+      case edgeSeq(seq) => Some(seq.toInt)
+      case _ => None
+
+
 end Arrow
 
 // ---- groups ------
