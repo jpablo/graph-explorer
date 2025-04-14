@@ -3,11 +3,11 @@ import sbt.Test
 
 val graphExplorerVersion = "0.3.0"
 
-val scala3Version = "3.6.4"
-val scalametaVersion = "4.8.2"
+val scala3Version     = "3.6.4"
+val scalametaVersion  = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
-val zioVersion = "2.1.1"
-val laminarVersion = "17.2.1"
+val zioVersion        = "2.1.1"
+val laminarVersion    = "17.2.1"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
@@ -38,11 +38,12 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
     name                     := "shared",
     Test / parallelExecution := false,
     libraryDependencies ++= Seq(
-      "com.lihaoyi"                %%% "upickle"          % "4.0.0",
-      "com.lihaoyi"                %%% "pprint"           % "0.9.0",
-      "com.softwaremill.quicklens" %%% "quicklens"        % "1.9.0",
-      "org.scalameta"              %%% "munit"            % "1.0.0" % Test,
-      "org.scalameta"              %%% "munit-scalacheck" % "1.0.0" % Test
+      "com.lihaoyi"                %%% "upickle"                  % "4.0.0",
+      "com.lihaoyi"                %%% "pprint"                   % "0.9.0",
+      "com.softwaremill.quicklens" %%% "quicklens"                % "1.9.0",
+      "org.scala-lang.modules"     %%% "scala-parser-combinators" % "2.4.0",
+      "org.scalameta"              %%% "munit"                    % "1.0.0" % Test,
+      "org.scalameta"              %%% "munit-scalacheck"         % "1.0.0" % Test
     )
   ).jsSettings(
     // JS-specific settings

@@ -12,13 +12,13 @@ object SVGPathParser:
 
   /** Parses an SVG path string and extracts the coordinates after the 'M' command.
     *
-    * @param path
+    * @param pathData
     *   The SVG path string
     * @return
     *   An Option containing the (x,y) coordinates if found, None otherwise
     */
-  def parseCoordinatesAfterM(path: String): Option[(Double, Double)] =
-    path match
+  def parseCoordinatesAfterM(pathData: String): Option[(Double, Double)] =
+    pathData match
       case MoveCommandRegex(x, y) => Some((x.toDouble, y.toDouble))
       case _                      => None
 
@@ -43,7 +43,9 @@ def ArrowEndpointButton(
   val w       = radius * 2
   val h       = radius * 2
 
-  val startPoint = SVGPathParser.parseCoordinatesAfterM(elem.ref.querySelector("path").asInstanceOf[dom.svg.Path].getAttribute("d"))
+  val svgPath = elem.ref.querySelector("path").asInstanceOf[dom.svg.Path]
+  dom.console.log(svgPath)
+  val startPoint = SVGPathParser.parseCoordinatesAfterM(svgPath.getAttribute("d"))
   val scale      = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = 15)
 
   val bbox = elem.ref.getBBox()
