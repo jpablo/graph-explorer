@@ -4,40 +4,28 @@ import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
-import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
-import org.jpablo.graphexplorer.viewer.formats.svg.SVGPathParser
+import org.jpablo.graphexplorer.viewer.formats.svg.Command.MoveTo
+import org.jpablo.graphexplorer.viewer.formats.svg.{Command, SVGPathParser}
 import org.jpablo.graphexplorer.viewer.state.MouseAction
 
-
 def ArrowWithEndpoint(
-  rect:      Signal[Option[MouseAction.MoveArrowStartAction]],
-  rootGroup: dom.svg.G
+    rect:      Signal[Option[MouseAction.MoveArrowStartAction]],
+    rootGroup: dom.svg.G
 ): Signal[Option[ReactiveSvgElement[dom.svg.Path]]] =
   rect.map:
     _.flatMap: action =>
       if action.rect.isEmpty then
         None
       else
-        val svgArrowGroup = action.start.get
-        val clonedPath = svgArrowGroup.querySelector("path").cloneNode().asInstanceOf[dom.svg.Path]
+        val clonedPath = action.start.get.querySelector("path").cloneNode().asInstanceOf[dom.svg.Path]
+        val pathData   = clonedPath.getAttribute("d")
+        val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
 
-        val pathData = clonedPath.getAttribute("d")
-        SVGPathParser.parse(pathData) match
-          case Right(commands) =>
-            pprint.log(commands)
-          case Left(error) =>
-            println(error)
+        def updateOrigin(commands: List[Command]) =
+          commands match
+            case MoveTo(a, _ :: pt) :: ct => MoveTo(a, point.toTuple :: pt) :: ct
+            case other                    => other
 
-        val startPoint = SVGSimplePathParser.parseCoordinatesAfterM(pathData)
-        val point = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
-
-        val startBBox = svgArrowGroup.getBBox()
-        // Calculate center point
-        val centerX = startBBox.x + startBBox.width / 2
-        val centerY = startBBox.y + startBBox.height / 2
-
-        val (x1, y1) = (centerX, centerY)
-        val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 2)
-        Some(
-          foreignSvgElement(svg.path, clonedPath)
-        )
+        val updatedPathData = SVGPathParser.parse(pathData).map(updateOrigin).map(Command.toData).getOrElse(pathData)
+        clonedPath.setAttribute("d", updatedPathData)
+        Some(foreignSvgElement(svg.path, clonedPath))

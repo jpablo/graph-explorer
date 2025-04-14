@@ -69,7 +69,6 @@ object SvgCanvas:
         // --------------------------------------------------------
         //   select elements intersecting selectionRec
         // --------------------------------------------------------
-        // TODO: do we need to listen to state.selectionRectLine.signal here?
         selection.extendSelectionAction --> { actionO =>
           for action <- actionO do
             selection.selectExtendSelectionOverlappingElements(
@@ -79,6 +78,13 @@ object SvgCanvas:
             )
         },
         selection.addNewArrowAction --> { actionO =>
+          for action <- actionO do
+            selection.selectAddNewArrowEndpoints(
+              action.start,
+              dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
+            )
+        },
+        selection.moveArrowStartAction --> { actionO =>
           for action <- actionO do
             selection.selectAddNewArrowEndpoints(
               action.start,

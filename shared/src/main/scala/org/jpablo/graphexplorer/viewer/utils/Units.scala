@@ -11,7 +11,8 @@ case class UserActionRect(
     UserActionRect(start, end = end, shift = shift)
 
 // SVG internal coordinate system (user space)
-case class SvgPoint(x: Double, y: Double)
+case class SvgPoint(x: Double, y: Double):
+  def toTuple = (x, y)
 
 object SvgPoint:
   val origin: SvgPoint = SvgPoint(0.0, 0.0)

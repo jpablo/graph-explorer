@@ -251,9 +251,8 @@ trait DiagramSelectionOps:
         case a: MoveArrowStartAction => Some(a)
         case _                       => None
       .distinct
-//        .tapEach(e => pprint.log(e, "moveArrowStartAction", showFieldNames = false))
 
-    def handleAddNewArrowEnd(ev: dom.MouseEvent, lastActionValue: MouseAction.AddNewArrowAction): Unit =
+    def handleAddNewArrowMouseUp(ev: dom.MouseEvent, lastActionValue: MouseAction.AddNewArrowAction): Unit =
       val current = now()
       val start   = lastActionValue.start
       clear()
@@ -267,10 +266,29 @@ trait DiagramSelectionOps:
           mouseReleasePoint._2 >= startBbox.top &&
           mouseReleasePoint._2 <= startBbox.bottom
 
+      // Single selection and mouse released on the source node: add a self loop
       if current.size == 1 && isMouseInsideSourceNode then
         start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
       else if current.size == 2 then
         (current - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
+
+    def handleMoveArrowStartMouseUp(ev: dom.MouseEvent, lastActionValue: MouseAction.MoveArrowStartAction): Unit =
+      val current = now()
+      val start   = lastActionValue.start
+      clear()
+      // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
+      val startBbox         = start.get.getBoundingClientRect()
+      val mouseReleasePoint = (ev.clientX, ev.clientY)
+      val isMouseInsideSourceNode =
+        mouseReleasePoint._1 >= startBbox.left &&
+          mouseReleasePoint._1 <= startBbox.right &&
+          mouseReleasePoint._2 >= startBbox.top &&
+          mouseReleasePoint._2 <= startBbox.bottom
+
+      if current.size == 2 && !isMouseInsideSourceNode then
+        pprint.log((current, start.elementId))
+        // move the arrow start point to the new position
+        (current - start.elementId).head.asNodeId.foreach(end => moveArrowSource(start.arrowId.get, end))
 
     def selectAddNewArrowEndpoints(
         start:               SelectableElement,
@@ -282,7 +300,6 @@ trait DiagramSelectionOps:
         case Some(endElementId) => set(Set(start.elementId, endElementId))
         case None               => set(start.elementId)
 
-//    def handleExtendSelectionActionUpdate(
     def selectExtendSelectionOverlappingElements(
         rect:                UserActionRect,
         selectableElements:  Seq[SelectableElement],
