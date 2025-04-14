@@ -14,6 +14,47 @@ enum Command:
   case SmoothQuadraticBezierCurveTo(absolute: Boolean, points: List[(Double, Double)])
   case EllipticalArc(absolute: Boolean, args: List[(Double, Double, Double, Boolean, Boolean, (Double, Double))])
 
+  // Helper to format coordinate pairs
+  private def formatPair(p: (Double, Double)): String = s"${p._1},${p._2}"
+
+  // Convert a single command to its string representation
+  def asString: String = this match
+    case MoveTo(abs, pts) =>
+      val cmd = if (abs) "M" else "m"
+      cmd + pts.map(formatPair).mkString(" ")
+    case ClosePath() => "Z"
+    case LineTo(abs, pts) =>
+      val cmd = if (abs) "L" else "l"
+      cmd + pts.map(formatPair).mkString(" ")
+    case HorizontalLineTo(abs, vals) =>
+      val cmd = if (abs) "H" else "h"
+      cmd + vals.mkString(" ")
+    case VerticalLineTo(abs, vals) =>
+      val cmd = if (abs) "V" else "v"
+      cmd + vals.mkString(" ")
+    case CurveTo(abs, pts) =>
+      val cmd = if (abs) "C" else "c"
+      cmd + pts.map { case (p1, p2, p3) => s"${formatPair(p1)} ${formatPair(p2)} ${formatPair(p3)}" }.mkString(" ")
+    case SmoothCurveTo(abs, pts) =>
+      val cmd = if (abs) "S" else "s"
+      cmd + pts.map { case (p1, p2) => s"${formatPair(p1)} ${formatPair(p2)}" }.mkString(" ")
+    case QuadraticBezierCurveTo(abs, pts) =>
+      val cmd = if (abs) "Q" else "q"
+      cmd + pts.map { case (p1, p2) => s"${formatPair(p1)} ${formatPair(p2)}" }.mkString(" ")
+    case SmoothQuadraticBezierCurveTo(abs, pts) =>
+      val cmd = if (abs) "T" else "t"
+      cmd + pts.map(formatPair).mkString(" ")
+    case EllipticalArc(abs, args) =>
+      val cmd = if (abs) "A" else "a"
+      cmd + args.map { case (rx, ry, angle, largeArc, sweep, point) =>
+        s"$rx $ry $angle ${if (largeArc) 1 else 0} ${if (sweep) 1 else 0} ${formatPair(point)}"
+      }.mkString(" ")
+
+object Command:
+  // Convert a list of commands to the full SVG path data string
+  def toData(commands: List[Command]): String =
+    commands.map(_.asString).mkString(" ")
+
 class SVGPathParser extends RegexParsers:
   override def skipWhitespace = true // Let's handle whitespace automatically
 
@@ -109,9 +150,11 @@ object SVGPathParser:
 @main def testSVGPathParser(): Unit =
 //  val testPath = "M10 10 L 20 20 H 30 V 40 C 10 20 30 40 50 60 Z"
   val testPath = "M325.6,-264.61C298.88,-252.16 262.71,-235.31 234.01,-221.94"
+  println(testPath)
   SVGPathParser.parse(testPath) match
     case Right(commands) =>
       println("Successfully parsed:")
       commands.foreach(println)
+      println(Command.toData(commands))
     case Left(error) =>
       println(error)

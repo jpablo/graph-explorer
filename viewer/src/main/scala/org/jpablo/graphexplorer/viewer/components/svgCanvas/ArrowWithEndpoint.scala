@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
+import org.jpablo.graphexplorer.viewer.formats.svg.SVGPathParser
 import org.jpablo.graphexplorer.viewer.state.MouseAction
 
 
@@ -21,7 +22,13 @@ def ArrowWithEndpoint(
         val clonedPath = svgArrowGroup.querySelector("path").cloneNode().asInstanceOf[dom.svg.Path]
 
         val pathData = clonedPath.getAttribute("d")
-        val startPoint = SVGPathParser.parseCoordinatesAfterM(pathData)
+        SVGPathParser.parse(pathData) match
+          case Right(commands) =>
+            pprint.log(commands)
+          case Left(error) =>
+            println(error)
+
+        val startPoint = SVGSimplePathParser.parseCoordinatesAfterM(pathData)
         val point = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
 
         val startBBox = svgArrowGroup.getBBox()

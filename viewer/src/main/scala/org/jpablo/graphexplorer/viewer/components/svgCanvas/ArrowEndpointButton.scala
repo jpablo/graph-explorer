@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.EdgeElement
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 
-object SVGPathParser:
+object SVGSimplePathParser:
   // Regular expression to match the 'M' command followed by coordinates
   private val MoveCommandRegex = """M\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+).*""".r
 
@@ -45,7 +45,7 @@ def ArrowEndpointButton(
 
   val svgPath = elem.ref.querySelector("path").asInstanceOf[dom.svg.Path]
   dom.console.log(svgPath)
-  val startPoint = SVGPathParser.parseCoordinatesAfterM(svgPath.getAttribute("d"))
+  val startPoint = SVGSimplePathParser.parseCoordinatesAfterM(svgPath.getAttribute("d"))
   val scale      = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = 15)
 
   val bbox = elem.ref.getBBox()
