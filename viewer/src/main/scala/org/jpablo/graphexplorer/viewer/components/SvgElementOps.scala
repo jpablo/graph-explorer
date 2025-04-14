@@ -11,10 +11,6 @@ import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint, UserActionRect}
 
-enum Action:
-  case Area(rect: UserActionRect)
-  case Line(rect: UserActionRect, start: SelectableElement)
-
 extension (clientPoint: ClientPoint)
   def toSvgPoint(screenCtm: dom.SVGMatrix): SvgPoint =
     val DOMPoint = new DOMPoint(clientPoint.x, clientPoint.y).matrixTransform(screenCtm.inverse())
@@ -54,9 +50,9 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
     else
       val (svgs, boxes) = SelectableElement.findAll(ref).filter(_.elementId in ids).map(buildSvgElement).unzip
       val bbox = boxes.reduce((a, b) =>
-        val x = a.x min b.x
-        val y = a.y min b.y
-        val width = a.width max (b.x + b.width - x)
+        val x      = a.x min b.x
+        val y      = a.y min b.y
+        val width  = a.width max (b.x + b.width - x)
         val height = ((a.y + a.height) max (b.y + b.height)) - y
         BBox(x, y, width, height)
       )

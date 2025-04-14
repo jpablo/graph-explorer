@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
-import org.jpablo.graphexplorer.viewer.components.{Action, toSvgPair}
+import org.jpablo.graphexplorer.viewer.components.toSvgPair
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
@@ -70,7 +70,7 @@ object SvgCanvas:
         //   select elements intersecting selectionRec
         // --------------------------------------------------------
         // TODO: do we need to listen to state.selectionRectLine.signal here?
-        selection.extendSelectionAction.signal --> { actionO =>
+        selection.extendSelectionAction --> { actionO =>
           for action <- actionO do
             val rect = action.rect
             selection.handleSelectionAreaUpdate(
@@ -79,7 +79,7 @@ object SvgCanvas:
               dom.document.elementsFromPoint(rect.end.x, rect.end.y)
             )
         },
-        selection.addNewArrowAction.signal --> { (actionO: Option[Action.Line]) =>
+        selection.addNewArrowAction --> { actionO =>
           for action <- actionO do
             val rect = action.rect
             selection.handleSelectionLineUpdate(
@@ -130,13 +130,10 @@ object SvgCanvas:
                       elem,
                       getRankdir,
                       onMouseDown.stopPropagation --> { ev =>
-                        val pos = ClientPoint(ev.clientX, ev.clientY)
-//                        selection.addNewArrowAction.set(Some(Action.Line(UserActionRect(pos, pos, shift = false), elem)))
-                        selection.addNewArrowAction.start(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
-
+                        selection.mouseAction.startAddNewArrow(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
                       },
                       onMouseUp.stopPropagation --> { _ =>
-                        selection.addNewArrowAction.end()
+                        selection.mouseAction.inactive()
                         addNode()
                       }
                     )
@@ -147,10 +144,10 @@ object SvgCanvas:
                             edge,
                             true,
                             onMouseDown.stopPropagation --> { ev =>
-                              selection.moveArrowStartAction.start(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+                              selection.mouseAction.startMoveArrowStart(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
                             },
                             onMouseUp.stopPropagation --> { _ =>
-                              selection.moveArrowStartAction.end()
+                              selection.mouseAction.inactive()
                               addNode()
                             }
                           )
@@ -165,7 +162,7 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   draw dragging arrow
           // --------------------------------------------------------
-          child.maybe <-- DraggingArrow(selection.addNewArrowAction.signal, group.ref)
+          child.maybe <-- DraggingArrow(selection.addNewArrowAction, group.ref)
         )
 
   /** Creates a standalone SVG element with the given viewBox

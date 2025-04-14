@@ -3,9 +3,9 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.components.Action
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
+import org.jpablo.graphexplorer.viewer.state.MouseAction
 
 /** Creates a reactive SVG arrow element when dragging to create a new edge.
   *
@@ -18,7 +18,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
   *   current mouse position, and a circle at the end point. Only present during an Edge action.
   */
 def DraggingArrow(
-    rect:      Signal[Option[Action.Line]],
+    rect:      Signal[Option[MouseAction.AddNewArrowAction]],
     rootGroup: dom.svg.G
 ): Signal[Option[ReactiveSvgElement[dom.svg.G]]] =
   rect.map:

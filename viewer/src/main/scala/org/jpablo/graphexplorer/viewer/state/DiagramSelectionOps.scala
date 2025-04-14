@@ -1,53 +1,19 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import com.raquo.airstream.state.{SourceVar, Var}
-import com.softwaremill.quicklens.*
-import org.jpablo.graphexplorer.viewer.components.Action
+import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
+import org.jpablo.graphexplorer.viewer.state.MouseAction.{AddNewArrowAction, ExtendSelectionAction, MoveArrowStartAction}
+import org.jpablo.graphexplorer.viewer.utils.UserActionRect
 
 import scala.annotation.targetName
 import scala.scalajs.js
-import scala.util.Try
 
 type Selection = ElementIds
 
-trait ActionWrapper[A <: Action]:
-  def initial: Option[A]
-
-  val sourceVar = SourceVar[Option[A]](initial = Try(initial))
-  export sourceVar.{now, signal}
-
-  def star(pos: ClientPoint, shift: Boolean)(using Action.Area =:= A): Unit =
-    sourceVar.set(Some(Action.Area(UserActionRect(pos, pos, shift))))
-
-  def end() = sourceVar.set(None)
-
-class LineActionWrapper(
-    val initial: Option[Action.Line]
-) extends ActionWrapper[Action.Line]:
-
-  def start(pos: ClientPoint, shift: Boolean, elem: SelectableElement): Unit =
-    sourceVar.set(Some(Action.Line(UserActionRect(pos, pos, shift), elem)))
-
-  def update(pos: ClientPoint, shift: Boolean) =
-    sourceVar.update: line =>
-      line.map(_.modify(_.rect).using(_.copy(end = pos, shift = shift)))
-
-class AreaActionWrapper(
-    val initial: Option[Action.Area]
-) extends ActionWrapper[Action.Area]:
-
-  def start(pos: ClientPoint, shift: Boolean): Unit =
-    sourceVar.set(Some(Action.Area(UserActionRect(pos, pos, shift))))
-
-  def update(pos: ClientPoint, shift: Boolean) =
-    sourceVar.update: area =>
-      area.map(_.modify(_.rect).using(_.copy(end = pos, shift = shift)))
 
 trait DiagramSelectionOps:
   this: ViewerState =>
@@ -267,16 +233,29 @@ trait DiagramSelectionOps:
         set(ElementIds.from(nodeId))
 
     // -----------
+    val mouseAction = MouseActionVar()
 
-    val extendSelectionAction = AreaActionWrapper(None)
-    val addNewArrowAction     = LineActionWrapper(None)
-    val moveArrowStartAction  = LineActionWrapper(None)
+    val extendSelectionAction =
+      mouseAction.signal.map:
+        case a: ExtendSelectionAction => Some(a)
+        case _                        => None
+      .distinct
+
+    val addNewArrowAction =
+      mouseAction.signal.map:
+        case a: AddNewArrowAction => Some(a)
+        case _                    => None
+      .distinct
+
+    val moveArrowStartAction =
+      mouseAction.signal.map:
+        case a: MoveArrowStartAction => Some(a)
+        case _                       => None
+      .distinct
 
     def handleMouseUp(ev: dom.MouseEvent): Unit =
-      val lineAction = addNewArrowAction.now()
-      extendSelectionAction.end()
-      addNewArrowAction.end()
-      moveArrowStartAction.end()
+      val lineAction = addNewArrowAction.observe().now()
+      mouseAction.inactive()
       for action <- lineAction do
         val start = action.start
         val sel   = now()
@@ -295,7 +274,6 @@ trait DiagramSelectionOps:
           start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
         else if sel.size == 2 then
           (sel - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
-
 
     def handleSelectionLineUpdate(
         start:               SelectableElement,

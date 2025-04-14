@@ -7,6 +7,9 @@ case class UserActionRect(
 ):
   def isEmpty: Boolean = start.x == end.x && start.y == end.y
 
+  def update(end: ClientPoint, shift: Boolean) =
+    UserActionRect(start, end = end, shift = shift)
+
 // SVG internal coordinate system (user space)
 case class SvgPoint(x: Double, y: Double)
 
