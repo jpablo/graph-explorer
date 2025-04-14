@@ -251,6 +251,7 @@ trait DiagramSelectionOps:
         case a: MoveArrowStartAction => Some(a)
         case _                       => None
       .distinct
+//        .tapEach(e => pprint.log(e, "moveArrowStartAction", showFieldNames = false))
 
     def handleAddNewArrowEnd(ev: dom.MouseEvent, lastActionValue: MouseAction.AddNewArrowAction): Unit =
       val current = now()
@@ -271,24 +272,25 @@ trait DiagramSelectionOps:
       else if current.size == 2 then
         (current - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
 
-    def handleAddNewArrowActionUpdate(
+    def selectAddNewArrowEndpoints(
         start:               SelectableElement,
         elementsFromRectEnd: js.Array[dom.Element]
     ) =
-      // Make sure only start or (start,end) nodes are selected when creating a new edge
+      // Make sure only start or (start,end) nodes are selected when creating a new arrow
       // For now only allow a line selection into nodes
-      findNode(elementsFromRectEnd, "g.node") match
-        case Some(end) => set(Set(start.elementId, end))
-        case None      => set(start.elementId)
+      findFirstElementId(elementsFromRectEnd, "g.node") match
+        case Some(endElementId) => set(Set(start.elementId, endElementId))
+        case None               => set(start.elementId)
 
-    def handleExtendSelectionActionUpdate(
+//    def handleExtendSelectionActionUpdate(
+    def selectExtendSelectionOverlappingElements(
         rect:                UserActionRect,
         selectableElements:  Seq[SelectableElement],
         elementsFromRectEnd: js.Array[dom.Element]
     ) =
       // This is meant to capture a single click.
       if rect.isEmpty then
-        findNode(elementsFromRectEnd) match
+        findFirstElementId(elementsFromRectEnd) match
           case Some(end) => handleClickOnNode(end)(rect.shift)
           case None      => clear()
       else
@@ -303,7 +305,7 @@ trait DiagramSelectionOps:
 
     /** Finds the node ID at the given selection rectangle's end point
       */
-    private def findNode(
+    private def findFirstElementId(
         elements: js.Array[dom.Element],
         selector: String = "g.node, g.edge, g.cluster"
     ): Option[ElementId] =

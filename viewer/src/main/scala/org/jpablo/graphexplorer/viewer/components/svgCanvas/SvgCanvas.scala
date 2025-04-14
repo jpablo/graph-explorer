@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.toSvgPair
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
-import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
+import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, elementsFromPoint}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.models.ElementId
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
@@ -72,19 +72,17 @@ object SvgCanvas:
         // TODO: do we need to listen to state.selectionRectLine.signal here?
         selection.extendSelectionAction --> { actionO =>
           for action <- actionO do
-            val rect = action.rect
-            selection.handleExtendSelectionActionUpdate(
-              rect,
+            selection.selectExtendSelectionOverlappingElements(
+              action.rect,
               selectableElements,
-              dom.document.elementsFromPoint(rect.end.x, rect.end.y)
+              dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
             )
         },
         selection.addNewArrowAction --> { actionO =>
           for action <- actionO do
-            val rect = action.rect
-            selection.handleAddNewArrowActionUpdate(
+            selection.selectAddNewArrowEndpoints(
               action.start,
-              dom.document.elementsFromPoint(rect.end.x, rect.end.y)
+              dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
             )
         },
         // --------------------------------------------------------
@@ -123,28 +121,29 @@ object SvgCanvas:
               // only show the "New arrow" button if there is exactly one selected element
               if selected.size == 1 then
                 for
-                  elem <- SelectableElement.query(group.ref, selected).headOption.toSeq
+                  selectedElem <- SelectableElement.query(group.ref, selected).headOption.toSeq
 
                   newArrowButton =
                     NewArrowButton(
-                      elem,
+                      selectedElem,
                       getRankdir,
                       onMouseDown.stopPropagation --> { ev =>
-                        selection.mouseAction.startAddNewArrow(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+                        selection.mouseAction.startAddNewArrow(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
                       },
                       onMouseUp.stopPropagation --> { _ =>
                         selection.mouseAction.inactive()
                         addNode()
                       }
                     )
+
                   startArrowEndpoint =
-                    elem match
+                    selectedElem match
                       case edge: EdgeElement => Some(
                           ArrowEndpointButton(
                             edge,
                             true,
                             onMouseDown.stopPropagation --> { ev =>
-                              selection.mouseAction.startMoveArrowStart(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+                              selection.mouseAction.startMoveArrowStart(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
                             },
                             onMouseUp.stopPropagation --> { _ =>
                               selection.mouseAction.inactive()
@@ -162,7 +161,8 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   draw dragging arrow
           // --------------------------------------------------------
-          child.maybe <-- DraggingArrow(selection.addNewArrowAction, group.ref)
+          child.maybe <-- DraggingArrow(selection.addNewArrowAction, group.ref),
+          child.maybe <-- ArrowWithEndpoint(selection.moveArrowStartAction, group.ref),
         )
 
   /** Creates a standalone SVG element with the given viewBox
