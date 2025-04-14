@@ -14,7 +14,6 @@ import scala.scalajs.js
 
 type Selection = ElementIds
 
-
 trait DiagramSelectionOps:
   this: ViewerState =>
 
@@ -253,29 +252,26 @@ trait DiagramSelectionOps:
         case _                       => None
       .distinct
 
-    def handleMouseUp(ev: dom.MouseEvent): Unit =
-      val lineAction = addNewArrowAction.observe().now()
-      mouseAction.inactive()
-      for action <- lineAction do
-        val start = action.start
-        val sel   = now()
-        clear()
+    def handleAddNewArrowEnd(ev: dom.MouseEvent, lastActionValue: MouseAction.AddNewArrowAction): Unit =
+      val current = now()
+      val start   = lastActionValue.start
+      clear()
 
-        // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
-        val bbox              = start.get.getBoundingClientRect()
-        val mouseReleasePoint = (ev.clientX, ev.clientY)
-        val isMouseInsideSourceNode =
-          mouseReleasePoint._1 >= bbox.left &&
-            mouseReleasePoint._1 <= bbox.right &&
-            mouseReleasePoint._2 >= bbox.top &&
-            mouseReleasePoint._2 <= bbox.bottom
+      // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
+      val startBbox         = start.get.getBoundingClientRect()
+      val mouseReleasePoint = (ev.clientX, ev.clientY)
+      val isMouseInsideSourceNode =
+        mouseReleasePoint._1 >= startBbox.left &&
+          mouseReleasePoint._1 <= startBbox.right &&
+          mouseReleasePoint._2 >= startBbox.top &&
+          mouseReleasePoint._2 <= startBbox.bottom
 
-        if sel.size == 1 && isMouseInsideSourceNode then
-          start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
-        else if sel.size == 2 then
-          (sel - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
+      if current.size == 1 && isMouseInsideSourceNode then
+        start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
+      else if current.size == 2 then
+        (current - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
 
-    def handleSelectionLineUpdate(
+    def handleAddNewArrowActionUpdate(
         start:               SelectableElement,
         elementsFromRectEnd: js.Array[dom.Element]
     ) =
@@ -285,7 +281,7 @@ trait DiagramSelectionOps:
         case Some(end) => set(Set(start.elementId, end))
         case None      => set(start.elementId)
 
-    def handleSelectionAreaUpdate(
+    def handleExtendSelectionActionUpdate(
         rect:                UserActionRect,
         selectableElements:  Seq[SelectableElement],
         elementsFromRectEnd: js.Array[dom.Element]

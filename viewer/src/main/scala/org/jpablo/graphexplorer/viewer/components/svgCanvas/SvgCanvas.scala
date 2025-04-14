@@ -73,7 +73,7 @@ object SvgCanvas:
         selection.extendSelectionAction --> { actionO =>
           for action <- actionO do
             val rect = action.rect
-            selection.handleSelectionAreaUpdate(
+            selection.handleExtendSelectionActionUpdate(
               rect,
               selectableElements,
               dom.document.elementsFromPoint(rect.end.x, rect.end.y)
@@ -82,7 +82,7 @@ object SvgCanvas:
         selection.addNewArrowAction --> { actionO =>
           for action <- actionO do
             val rect = action.rect
-            selection.handleSelectionLineUpdate(
+            selection.handleAddNewArrowActionUpdate(
               action.start,
               dom.document.elementsFromPoint(rect.end.x, rect.end.y)
             )

@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.laminar.api.L.*
 import com.raquo.airstream.state.SourceVar
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.state.MouseAction.Inactive
