@@ -42,6 +42,7 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
       "com.lihaoyi"                %%% "pprint"                   % "0.9.0",
       "com.softwaremill.quicklens" %%% "quicklens"                % "1.9.0",
       "org.scala-lang.modules"     %%% "scala-parser-combinators" % "2.4.0",
+      "com.lihaoyi"                %%% "fastparse"                % "3.1.1",
       "org.scalameta"              %%% "munit"                    % "1.0.0" % Test,
       "org.scalameta"              %%% "munit-scalacheck"         % "1.0.0" % Test
     )

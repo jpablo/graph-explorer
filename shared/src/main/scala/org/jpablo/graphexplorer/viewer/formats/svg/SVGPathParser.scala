@@ -24,7 +24,7 @@ class SVGPathParser extends RegexParsers:
 
   // Coordinate parsers
   def coordinate: Parser[Double] = number
-  
+
   def coordinatePair: Parser[(Double, Double)] = coordinate ~ opt(comma) ~ coordinate ^^ {
     case x ~ _ ~ y => (x, y)
   }
