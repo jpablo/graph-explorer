@@ -72,61 +72,75 @@ class SVGPathParser extends RegexParsers:
 
   // Command parsers
   def moveTo: Parser[Command] =
-    ("M" | "m") ~> rep1(coordinatePair) ^^ {
-      case pairs => Command.MoveTo(pairs.head._1.toString.head.isUpper, pairs)
+    ("M" | "m") >> { cmdChar =>
+      rep1(coordinatePair) ^^ { pairs =>
+        Command.MoveTo(cmdChar.head.isUpper, pairs)
+      }
     }
 
   def closePath: Parser[Command] =
     ("Z" | "z") ^^^ Command.ClosePath()
 
   def lineTo: Parser[Command] =
-    ("L" | "l") ~> rep1(coordinatePair) ^^ {
-      case pairs => Command.LineTo(pairs.head._1.toString.head.isUpper, pairs)
+    ("L" | "l") >> { cmdChar =>
+      rep1(coordinatePair) ^^ { pairs =>
+        Command.LineTo(cmdChar.head.isUpper, pairs)
+      }
     }
 
   def horizontalLineTo: Parser[Command] =
-    ("H" | "h") ~> rep1(coordinate) ^^ {
-      case coords => Command.HorizontalLineTo(coords.head.toString.head.isUpper, coords)
+    ("H" | "h") >> { cmdChar =>
+      rep1(coordinate) ^^ { coords =>
+        Command.HorizontalLineTo(cmdChar.head.isUpper, coords)
+      }
     }
 
   def verticalLineTo: Parser[Command] =
-    ("V" | "v") ~> rep1(coordinate) ^^ {
-      case coords => Command.VerticalLineTo(coords.head.toString.head.isUpper, coords)
+    ("V" | "v") >> { cmdChar =>
+      rep1(coordinate) ^^ { coords =>
+        Command.VerticalLineTo(cmdChar.head.isUpper, coords)
+      }
     }
 
   def curveTo: Parser[Command] =
-    ("C" | "c") ~> rep1(coordinatePair ~ coordinatePair ~ coordinatePair) ^^ {
-      case triplets =>
+    ("C" | "c") >> { cmdChar =>
+      rep1(coordinatePair ~ coordinatePair ~ coordinatePair) ^^ { triplets =>
         val points = triplets.map { case a ~ b ~ c => (a, b, c) }
-        Command.CurveTo(triplets.head._1._1.toString.head.isUpper, points)
+        Command.CurveTo(cmdChar.head.isUpper, points)
+      }
     }
 
   def smoothCurveTo: Parser[Command] =
-    ("S" | "s") ~> rep1(coordinatePair ~ coordinatePair) ^^ {
-      case doubles =>
+    ("S" | "s") >> { cmdChar =>
+      rep1(coordinatePair ~ coordinatePair) ^^ { doubles =>
         val points = doubles.map { case a ~ b => (a, b) }
-        Command.SmoothCurveTo(doubles.head._1._1.toString.head.isUpper, points)
+        Command.SmoothCurveTo(cmdChar.head.isUpper, points)
+      }
     }
 
   def quadraticBezierCurveTo: Parser[Command] =
-    ("Q" | "q") ~> rep1(coordinatePair ~ coordinatePair) ^^ {
-      case doubles =>
+    ("Q" | "q") >> { cmdChar =>
+      rep1(coordinatePair ~ coordinatePair) ^^ { doubles =>
         val points = doubles.map { case a ~ b => (a, b) }
-        Command.QuadraticBezierCurveTo(doubles.head._1._1.toString.head.isUpper, points)
+        Command.QuadraticBezierCurveTo(cmdChar.head.isUpper, points)
+      }
     }
 
   def smoothQuadraticBezierCurveTo: Parser[Command] =
-    ("T" | "t") ~> rep1(coordinatePair) ^^ {
-      case pairs => Command.SmoothQuadraticBezierCurveTo(pairs.head._1.toString.head.isUpper, pairs)
+    ("T" | "t") >> { cmdChar =>
+      rep1(coordinatePair) ^^ { pairs =>
+        Command.SmoothQuadraticBezierCurveTo(cmdChar.head.isUpper, pairs)
+      }
     }
 
   def ellipticalArc: Parser[Command] =
-    ("A" | "a") ~> rep1(coordinate ~ coordinate ~ coordinate ~ flag ~ flag ~ coordinatePair) ^^ {
-      case args =>
+    ("A" | "a") >> { cmdChar =>
+      rep1(coordinate ~ coordinate ~ coordinate ~ flag ~ flag ~ coordinatePair) ^^ { args =>
         val points = args.map { case rx ~ ry ~ angle ~ largeArc ~ sweep ~ point =>
           (rx, ry, angle, largeArc, sweep, point)
         }
-        Command.EllipticalArc(args.head._1.toString.head.isUpper, points)
+        Command.EllipticalArc(cmdChar.head.isUpper, points)
+      }
     }
 
   def command: Parser[Command] =
