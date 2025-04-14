@@ -63,14 +63,14 @@ object SvgCanvas:
         //   draw selection rect
         // --------------------------------------------------------
         child.maybe <-- DrawSelectionRect(
-          selection.selectionRectArea.signal
+          selection.extendSelectionAction.signal
             .map(_.map(_.rect.toSvgPair(topLevelSvg.ref.getScreenCTM())))
         ),
         // --------------------------------------------------------
         //   select elements intersecting selectionRec
         // --------------------------------------------------------
         // TODO: do we need to listen to state.selectionRectLine.signal here?
-        selection.selectionRectArea.signal --> { actionO =>
+        selection.extendSelectionAction.signal --> { actionO =>
           for action <- actionO do
             val rect = action.rect
             selection.handleSelectionAreaUpdate(
@@ -79,7 +79,7 @@ object SvgCanvas:
               dom.document.elementsFromPoint(rect.end.x, rect.end.y)
             )
         },
-        selection.selectionRectLine.signal --> { (actionO: Option[Action.Line]) =>
+        selection.addNewArrowAction.signal --> { (actionO: Option[Action.Line]) =>
           for action <- actionO do
             val rect = action.rect
             selection.handleSelectionLineUpdate(
@@ -114,7 +114,9 @@ object SvgCanvas:
         Seq(
           svg.transform <-- transform,
           // --------------------------------------------------------
-          //   "New arrow" button
+          // Action buttons for selected elements:
+          //   - "New arrow" button
+          //   - Arrow endpoint button
           // --------------------------------------------------------
           children <--
             selection.signal.map: selected =>
@@ -128,19 +130,34 @@ object SvgCanvas:
                       elem,
                       getRankdir,
                       onMouseDown.stopPropagation --> { ev =>
-                        selection.startSelectionLine(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+                        val pos = ClientPoint(ev.clientX, ev.clientY)
+//                        selection.addNewArrowAction.set(Some(Action.Line(UserActionRect(pos, pos, shift = false), elem)))
+                        selection.addNewArrowAction.start(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+
                       },
                       onMouseUp.stopPropagation --> { _ =>
-                        selection.endSelectionLine()
+                        selection.addNewArrowAction.end()
                         addNode()
                       }
                     )
-                  arrowEndpoint =
+                  startArrowEndpoint =
                     elem match
-                      case edge: EdgeElement => Some(ArrowEndpointButton(edge, true))
-                      case _                 => None
+                      case edge: EdgeElement => Some(
+                          ArrowEndpointButton(
+                            edge,
+                            true,
+                            onMouseDown.stopPropagation --> { ev =>
+                              selection.moveArrowStartAction.start(ClientPoint(ev.clientX, ev.clientY), shift = false, elem)
+                            },
+                            onMouseUp.stopPropagation --> { _ =>
+                              selection.moveArrowStartAction.end()
+                              addNode()
+                            }
+                          )
+                        )
+                      case _ => None
 
-                  btn <- newArrowButton.toSeq ++ arrowEndpoint.toSeq
+                  btn <- newArrowButton.toSeq ++ startArrowEndpoint.toSeq
                 yield btn
               else
                 Nil
@@ -148,7 +165,7 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   draw dragging arrow
           // --------------------------------------------------------
-          child.maybe <-- DraggingArrow(selection.selectionRectLine.signal, group.ref)
+          child.maybe <-- DraggingArrow(selection.addNewArrowAction.signal, group.ref)
         )
 
   /** Creates a standalone SVG element with the given viewBox

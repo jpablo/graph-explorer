@@ -3,11 +3,11 @@ import sbt.Test
 
 val graphExplorerVersion = "0.3.0"
 
-val scala3Version = "3.6.3"
+val scala3Version = "3.6.4"
 val scalametaVersion = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
 val zioVersion = "2.1.1"
-val laminarVersion = "17.2.0"
+val laminarVersion = "17.2.1"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"

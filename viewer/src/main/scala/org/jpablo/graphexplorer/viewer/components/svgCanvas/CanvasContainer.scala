@@ -26,15 +26,20 @@ def CanvasContainer(
     child <-- state.finalSVG,
     focus <-- state.canvasContainerFocus.signal.changes,
     onBlur --> { _ =>
-      state.selection.endSelectionArea()
-      state.selection.endSelectionLine()
+      state.selection.extendSelectionAction.end()
+      state.selection.addNewArrowAction.end()
+      state.selection.moveArrowStartAction.end()
     },
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> { (e, svgElem) =>
       state.handleWheel(e, svgElem.ref.viewBox.baseVal)
     },
-    onMouseDown.filter(leftButton).map(clientCoords) --> state.selection.startSelectionArea.tupled,
+    onMouseDown.filter(leftButton).map(clientCoords) --> state.selection.extendSelectionAction.start.tupled,
     // No Action is set when moving the mouse, to preserve the action set on mouse down
-    onMouseMove.filter(leftButtonMoved).map(clientCoords) --> state.selection.updateSelection.tupled,
+    onMouseMove.filter(leftButtonMoved).map(clientCoords) -->  { t =>
+      state.selection.extendSelectionAction.update.tupled(t)
+      state.selection.addNewArrowAction.update.tupled(t)
+      state.selection.moveArrowStartAction.update.tupled(t)
+    },
     onMouseUp.filter(leftButton) --> state.selection.handleMouseUp
   )

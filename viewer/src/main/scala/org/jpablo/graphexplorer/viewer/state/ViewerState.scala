@@ -14,7 +14,6 @@ import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.zoomLens
-import upickle.default.*
 
 case class ViewerState(
     projectId:     ProjectId,

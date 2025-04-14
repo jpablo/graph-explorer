@@ -2,49 +2,65 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.EdgeElement
+import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 
-/**
- * Creates a small disk placed near the endpoint of an edge.
- * Diameter: 8px, Border: 1px
- *
- * @param elem The EdgeElement the disk is associated with.
- * @param start Whether this disk is for the start or end point (currently unused).
- * @return A reactive SVG group element containing the disk.
- */
+object SVGPathParser:
+  // Regular expression to match the 'M' command followed by coordinates
+  private val MoveCommandRegex = """M\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+).*""".r
+
+  /** Parses an SVG path string and extracts the coordinates after the 'M' command.
+    *
+    * @param path
+    *   The SVG path string
+    * @return
+    *   An Option containing the (x,y) coordinates if found, None otherwise
+    */
+  def parseCoordinatesAfterM(path: String): Option[(Double, Double)] =
+    path match
+      case MoveCommandRegex(x, y) => Some((x.toDouble, y.toDouble))
+      case _                      => None
+
+/** Creates a small disk placed near the endpoint of an edge. Diameter: 8px, Border: 1px
+  *
+  * @param elem
+  *   The EdgeElement the disk is associated with.
+  * @param start
+  *   Whether this disk is for the start or end point (currently unused).
+  * @return
+  *   A reactive SVG group element containing the disk.
+  */
 def ArrowEndpointButton(
-    elem:  EdgeElement,
-    start: Boolean // TODO: Use this parameter to position correctly at start/end
+    elem:    EdgeElement,
+    start:   Boolean,
+    svgMods: SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   // Define disk properties
-  val diskDiameter = 8
-  val diskRadius   = diskDiameter / 2
-  val centerX      = diskRadius
-  val centerY      = diskRadius
+  val radius  = 8
+  val centerX = 0
+  val centerY = 0
+  val w       = radius * 2
+  val h       = radius * 2
 
-  val ref  = elem.ref
-  val bbox = ref.getBBox()
-  // Original width and height of the disk
-  val w = diskDiameter
-  val h = diskDiameter
+  val startPoint = SVGPathParser.parseCoordinatesAfterM(elem.ref.querySelector("path").asInstanceOf[dom.svg.Path].getAttribute("d"))
+  val scale      = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = 15)
 
-  // Calculate position based on the bounding box of the edge element
-  // NOTE: This positioning might need adjustment based on actual edge coordinates
-  // It currently places the disk relative to the edge's overall bounding box.
-  val trX = bbox.x + bbox.width / 2 - diskRadius
-  val trY = bbox.y + bbox.height + 3 // Approximation, adjust as needed
+  val bbox = elem.ref.getBBox()
+  val trX  = startPoint.map(_._1).getOrElse(bbox.x)
+  val trY  = startPoint.map(_._2).getOrElse(bbox.y)
 
   svg.g(
     svg.cls           := s"edge-endpoint-disk",
     svg.pointerEvents := "all", // Keep interactive if needed
     svg.circle(
-      svg.r           := diskRadius.toString,
+      svg.r           := radius.toString,
       svg.cx          := centerX.toString,
       svg.cy          := centerY.toString,
       svg.fill        := "white",
       svg.stroke      := "black",
       svg.strokeWidth := "1"
     ),
-    svg.transform := s"translate($trX, $trY)"
-    // Removed scaling and rotation
+    svg.transform := s"translate($trX, $trY) scale($scale)",
+    svgMods
   )
