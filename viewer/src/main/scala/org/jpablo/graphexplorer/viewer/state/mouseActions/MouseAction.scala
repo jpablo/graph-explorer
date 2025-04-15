@@ -44,15 +44,3 @@ class MouseActionVar(initial: MouseAction = Inactive):
       case a: ExtendSelectionAction => Some(a)
       case _                        => None
     .distinct
-
-  val addNewArrowAction =
-    signal.map:
-      case a: AddNewArrowAction => Some(a)
-      case _                    => None
-    .distinct
-
-  val moveArrowStartAction =
-    signal.map:
-      case a: MoveArrowSourceAction => Some(a)
-      case _                       => None
-    .distinct

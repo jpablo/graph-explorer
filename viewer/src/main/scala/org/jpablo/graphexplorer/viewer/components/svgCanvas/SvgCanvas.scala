@@ -84,7 +84,10 @@ def SvgCanvas(
           (SelectableElement.query(topLevelSvg.ref, toUnselect), SelectableElement.query(topLevelSvg.ref, toSelect))
 
     Seq(
-      child.maybe <-- viewerOps.buildDrawSelectionRect(topLevelSvg.ref),
+      child.maybe <--
+        mouseAction.signal.map:
+          case a: ExtendSelectionAction => Some(viewerOps.DrawSelectionRect(topLevelSvg.ref, a))
+          case _                        => None,
       // --------------------------------------------------------
       //   synchronize svg elements with diagramSelection
       // --------------------------------------------------------
