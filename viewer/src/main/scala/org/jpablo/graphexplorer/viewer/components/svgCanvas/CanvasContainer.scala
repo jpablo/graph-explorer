@@ -3,9 +3,9 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.Commands
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas.{clientCoords, leftButton, leftButtonMoved}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
   *
@@ -16,10 +16,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
   * @return
   *   A div element containing the SVG canvas with interaction handlers
   */
-def CanvasContainer(
-    state:    ViewerState,
-    commands: Commands
-) =
+def CanvasContainer(state: ViewerState, commands: Commands) =
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,
@@ -41,9 +38,14 @@ def CanvasContainer(
     onMouseUp.filter(leftButton) --> { ev =>
       state.mouseAction.now() match
         case a: AddNewArrowAction     => state.handleAddNewArrowMouseUp(ev, a)
-        case a: MoveArrowStartAction  => state.handleMoveArrowStartMouseUp(ev, a)
+        case a: MoveArrowSourceAction  => state.handleMoveArrowStartMouseUp(ev, a)
         case a: ExtendSelectionAction => ()
         case Inactive                 => ()
       state.mouseAction.inactive()
     }
   )
+
+extension (e: dom.MouseEvent)
+  def clientCoords    = (ClientPoint(e.clientX, e.clientY), e.shiftKey)
+  def leftButton      = e.button == 0
+  def leftButtonMoved = e.buttons == 1

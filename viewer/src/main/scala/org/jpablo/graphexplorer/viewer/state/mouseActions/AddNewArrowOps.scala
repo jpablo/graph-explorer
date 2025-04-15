@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointButton, DraggingArrow}
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.ArrowEndpointButton
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findFirstElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -66,6 +66,3 @@ trait AddNewArrowOps:
           )
         )
       case _ => None
-
-  def buildDraggingArrow(groupRef: dom.svg.G) =
-    DraggingArrow(mouseAction.addNewArrowAction, groupRef)

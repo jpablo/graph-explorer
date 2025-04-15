@@ -12,7 +12,7 @@ enum MouseAction derives CanEqual:
   case Inactive
   case ExtendSelectionAction(rect: UserActionRect)
   case AddNewArrowAction(rect: UserActionRect, start: SelectableElement)
-  case MoveArrowStartAction(rect: UserActionRect, start: SelectableElement)
+  case MoveArrowSourceAction(rect: UserActionRect, start: SelectableElement)
 
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 
@@ -28,7 +28,7 @@ class MouseActionVar(initial: MouseAction = Inactive):
     sourceVar.set(AddNewArrowAction(UserActionRect(pos, pos, shift), start))
 
   def startMoveArrowStart(pos: ClientPoint, shift: Boolean, start: SelectableElement): Unit =
-    sourceVar.set(MoveArrowStartAction(UserActionRect(pos, pos, shift), start))
+    sourceVar.set(MoveArrowSourceAction(UserActionRect(pos, pos, shift), start))
 
   def inactive() = sourceVar.set(Inactive)
 
@@ -37,7 +37,7 @@ class MouseActionVar(initial: MouseAction = Inactive):
       case Inactive                          => Inactive
       case ExtendSelectionAction(rect)       => ExtendSelectionAction(rect.update(end, shift))
       case AddNewArrowAction(rect, start)    => AddNewArrowAction(rect.update(end, shift), start)
-      case MoveArrowStartAction(rect, start) => MoveArrowStartAction(rect.update(end, shift), start)
+      case MoveArrowSourceAction(rect, start) => MoveArrowSourceAction(rect.update(end, shift), start)
 
   val extendSelectionAction =
     signal.map:
@@ -53,6 +53,6 @@ class MouseActionVar(initial: MouseAction = Inactive):
 
   val moveArrowStartAction =
     signal.map:
-      case a: MoveArrowStartAction => Some(a)
+      case a: MoveArrowSourceAction => Some(a)
       case _                       => None
     .distinct

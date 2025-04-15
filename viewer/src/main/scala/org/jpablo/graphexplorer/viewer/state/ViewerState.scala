@@ -54,12 +54,7 @@ case class ViewerState(
   // 6. SVG with extra elements: selection rect, etc.
   lazy val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
     rawSVG.map: svg =>
-      SvgCanvas(
-        rawSvg = svg,
-        transform = transform,
-        viewerOps = this,
-        mouseAction = mouseAction
-      )
+      SvgCanvas(rawSvg = svg, transform = transform, viewerOps = this, mouseAction = mouseAction)
 
   // -------- storage ------------
   restoreState()
