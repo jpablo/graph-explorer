@@ -46,7 +46,7 @@ def ArrowEndpointButton(
   val svgPath = elem.ref.querySelector("path").asInstanceOf[dom.svg.Path]
   dom.console.log(svgPath)
   val startPoint = SVGSimplePathParser.parseCoordinatesAfterM(svgPath.getAttribute("d"))
-  val scale      = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = 15)
+  val scale      = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = 10)
 
   val bbox = elem.ref.getBBox()
   val trX  = startPoint.map(_._1).getOrElse(bbox.x)
@@ -60,8 +60,8 @@ def ArrowEndpointButton(
       svg.cx          := centerX.toString,
       svg.cy          := centerY.toString,
       svg.fill        := "white",
-      svg.stroke      := "black",
-      svg.strokeWidth := "1"
+      svg.stroke      := "blue",
+      svg.strokeWidth := "4"
     ),
     svg.transform := s"translate($trX, $trY) scale($scale)",
     svgMods

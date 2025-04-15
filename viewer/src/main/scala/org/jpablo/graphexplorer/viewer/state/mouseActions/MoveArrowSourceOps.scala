@@ -1,9 +1,10 @@
 package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.ArrowEndpointButton
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointButton, clientCoords}
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.formats.svg.Command.MoveTo
@@ -12,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowSourceAction
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
+import org.jpablo.graphexplorer.viewer.utils.UserActionRect
 
 /*
  * This trait contains the logic for handling mouse actions related to moving the start of an arrow in the graph.
@@ -72,6 +73,8 @@ trait MoveArrowSourceOps:
 
       val updatedPathData = SVGPathParser.parse(pathData).map(updateOrigin).map(Command.toData).getOrElse(pathData)
       clonedPath.setAttribute("d", updatedPathData)
+      clonedPath.setAttribute("stroke", "#2c70ff")
+      clonedPath.setAttribute("stroke-dasharray", "2 2")
       Some(foreignSvgElement(svg.path, clonedPath))
 
   def buildArrowEndpointButton(selectedElem: SelectableElement) =
@@ -80,14 +83,10 @@ trait MoveArrowSourceOps:
           ArrowEndpointButton(
             edge,
             true,
-            onMouseDown.stopPropagation --> { ev =>
-              val pos = ClientPoint(ev.clientX, ev.clientY)
+            onMouseDown.stopPropagation.map(clientCoords) --> { (pos, _) =>
               mouseAction.start(MoveArrowSourceAction(UserActionRect(start = pos, end = pos, shift = false), start = selectedElem))
             },
-            onMouseUp.stopPropagation --> { _ =>
-              mouseAction.inactive()
-              addNodeWithSmartConnection()
-            }
+            onMouseUp.stopPropagation --> mouseAction.inactive()
           )
         )
       case _ => None
