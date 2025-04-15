@@ -8,6 +8,8 @@ import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.formats.svg.Command.MoveTo
 import org.jpablo.graphexplorer.viewer.formats.svg.{Command, SVGPathParser}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
+import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowSourceAction
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
@@ -37,11 +39,20 @@ trait MoveArrowSourceOps:
       // move the arrow start point to the new position
       (current - start.elementId).head.asNodeId.foreach(end => moveArrowSource(start.arrowId.get, end))
 
-  def onMoveArrowStart(action: MouseAction.MoveArrowSourceAction) =
-    selectAddNewArrowEndpoints(
-      start = action.start,
-      elementsFromRectEnd = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
-    )
+  def onMoveArrowSourceAction(action: MouseAction.MoveArrowSourceAction) =
+    val start     = action.start
+    val neighbors = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
+
+    findClosestElementId(neighbors, "g.node") match
+      case Some(endElementId) =>
+        val ignore = (start, endElementId) match
+          case (e: EdgeElement, n: NodeId) => Arrow.fromArrowId(e.elementId).exists(_.source == n)
+          case _                           => false
+        if !ignore then
+          selection.set3(Set(start.elementId, endElementId))
+
+      case None =>
+        selection.set(start.elementId)
 
   def ArrowFromPointerToTarget(
       action:    MouseAction.MoveArrowSourceAction,
@@ -66,17 +77,17 @@ trait MoveArrowSourceOps:
   def buildArrowEndpointButton(selectedElem: SelectableElement) =
     selectedElem match
       case edge: EdgeElement => Option(
-        ArrowEndpointButton(
-          edge,
-          true,
-          onMouseDown.stopPropagation --> { ev =>
-            val pos = ClientPoint(ev.clientX, ev.clientY)
-            mouseAction.start(MoveArrowSourceAction(UserActionRect(pos, pos, shift = false), selectedElem))
-          },
-          onMouseUp.stopPropagation --> { _ =>
-            mouseAction.inactive()
-            addNodeWithSmartConnection()
-          }
+          ArrowEndpointButton(
+            edge,
+            true,
+            onMouseDown.stopPropagation --> { ev =>
+              val pos = ClientPoint(ev.clientX, ev.clientY)
+              mouseAction.start(MoveArrowSourceAction(UserActionRect(start = pos, end = pos, shift = false), start = selectedElem))
+            },
+            onMouseUp.stopPropagation --> { _ =>
+              mouseAction.inactive()
+              addNodeWithSmartConnection()
+            }
+          )
         )
-      )
       case _ => None

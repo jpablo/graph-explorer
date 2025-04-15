@@ -26,7 +26,8 @@ class MouseActionVar(initial: MouseAction = Inactive):
   def start(mouseAction: MouseAction): Unit =
     sourceVar.set(mouseAction)
 
-  def inactive() = sourceVar.set(Inactive)
+  def inactive() =
+    sourceVar.set(Inactive)
 
   def updateEndpoint(end: ClientPoint, shift: Boolean): Unit =
     sourceVar.update:

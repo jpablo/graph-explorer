@@ -5,7 +5,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowButton
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
-import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findFirstElementId
+import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.AddNewArrowAction
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
@@ -36,19 +36,19 @@ trait AddNewArrowOps:
       (current - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
 
   def onAddNewArrowAction(action: AddNewArrowAction) =
-    selectAddNewArrowEndpoints(
+    selectWithClosestNode(
       start = action.start,
       elementsFromRectEnd = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
     )
 
-  def selectAddNewArrowEndpoints(
+  def selectWithClosestNode(
       start:               SelectableElement,
       elementsFromRectEnd: js.Array[dom.Element]
   ) =
     // Make sure only start or (start,end) nodes are selected when creating a new arrow
     // For now only allow a line selection into nodes
-    findFirstElementId(elementsFromRectEnd, "g.node") match
-      case Some(endElementId) => selection.set(Set(start.elementId, endElementId))
+    findClosestElementId(elementsFromRectEnd, "g.node") match
+      case Some(endElementId) => selection.set3(Set(start.elementId, endElementId))
       case None               => selection.set(start.elementId)
 
   def buildNewArrowButton(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
@@ -65,4 +65,3 @@ trait AddNewArrowOps:
         addNodeWithSmartConnection()
       }
     )
-

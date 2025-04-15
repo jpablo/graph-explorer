@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findFirstElementId
+import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.utils.UserActionRect
 
 import scala.annotation.targetName
@@ -56,20 +56,25 @@ trait DiagramSelectionOps:
     def toggle(ss: ElementId*): Unit = selectionV.update(ss.foldLeft(_)(_.toggle(_)))
 
     def set(ss: ElementId*): Unit =
-      set(ss.toSet)
+      pprint.log(ss, "set1")
+      set3(ss.toSet)
 
     def set(ss: Selection): Unit =
+      pprint.log(ss, "set2")
       selectionV.set(ss)
 
     @targetName("setElementIds")
-    def set(ss: Set[? <: ElementId]): Unit =
+    def set3(ss: Set[? <: ElementId]): Unit =
+      pprint.log(ss, "set3")
       set(ElementIds(ss))
 
     @targetName("addElementIds")
     def add(ss: Set[? <: ElementId]): Unit =
+      pprint.log(ss, "set4")
       add(ElementIds(ss))
 
     def add(ss: Selection): Unit =
+      pprint.log(ss, "add")
       val current  = now()
       val newNodes = ss -- current
       if newNodes.nonEmpty then set(current ++ newNodes)
@@ -130,20 +135,20 @@ trait DiagramSelectionOps:
 
     def selectAllVisibleNodes() =
       val visibleNodes = visibleGraphNow.nodeIds
-      set(visibleNodes)
+      set3(visibleNodes)
 
     def selectAllVisibleArrows() =
-      set(visibleGraphNow.arrowIds)
+      set3(visibleGraphNow.arrowIds)
 
     def selectAllVisibleGroups() =
-      set(visibleGraphNow.groupIds)
+      set3(visibleGraphNow.groupIds)
 
     def selectAll() =
       val visibleGraph = visibleGraphNow
       val nodes        = visibleGraph.nodeIds
       val edges        = visibleGraph.arrowIds
       val groups       = visibleGraph.groupIds
-      set(nodes ++ edges ++ groups)
+      set3(nodes ++ edges ++ groups)
 
     def deleteSelection() =
       phases.fullGraphV.update: fullGraph =>
@@ -180,7 +185,7 @@ trait DiagramSelectionOps:
             }
 
             // Select the newly created nodes
-            set(newNodeIds)
+            set3(newNodeIds)
             newGraph
 
     // --- Attribute Resets ---
@@ -240,16 +245,17 @@ trait DiagramSelectionOps:
     ) =
       // This is meant to capture a single click.
       if rect.isEmpty then
-        findFirstElementId(elementsFromRectEnd) match
+        findClosestElementId(elementsFromRectEnd) match
           case Some(end) => handleClickOnNode(end)(rect.shift)
           case None      => clear()
       else
         val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.elementId).toSet
+        pprint.log(nodesInRect)
         if nodesInRect.nonEmpty then
           if rect.shift then
             add(nodesInRect)
           else
-            set(nodesInRect)
+            set3(nodesInRect)
         else if !rect.shift then
           clear()
 
@@ -282,7 +288,7 @@ end DiagramSelectionOps
 object DiagramSelectionOps:
   /** Finds the node ID at the given selection rectangle's end point
     */
-  def findFirstElementId(
+  def findClosestElementId(
       elements: js.Array[dom.Element],
       selector: String = "g.node, g.edge, g.cluster"
   ): Option[ElementId] =

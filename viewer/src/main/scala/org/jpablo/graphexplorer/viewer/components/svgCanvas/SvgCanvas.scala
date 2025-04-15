@@ -69,7 +69,7 @@ def SvgCanvas(
             action match
               case a: ExtendSelectionAction => viewerOps.onExtendSelectionAction(allSelectable)(a)
               case a: AddNewArrowAction     => viewerOps.onAddNewArrowAction(a)
-              case a: MoveArrowSourceAction => viewerOps.onMoveArrowStart(a)
+              case a: MoveArrowSourceAction => viewerOps.onMoveArrowSourceAction(a)
               case Inactive                 => ()
           }
         )
