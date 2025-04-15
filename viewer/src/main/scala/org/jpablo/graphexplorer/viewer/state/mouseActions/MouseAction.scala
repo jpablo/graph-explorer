@@ -21,26 +21,16 @@ class MouseActionVar(initial: MouseAction = Inactive):
   val sourceVar = SourceVar[MouseAction](initial = Success(initial))
   export sourceVar.{now, signal}
 
-  def startExtendSelection(pos: ClientPoint, shift: Boolean): Unit =
-    sourceVar.set(ExtendSelectionAction(UserActionRect(pos, pos, shift)))
+  sourceVar.signal.foreach(e => pprint.log(e))(unsafeWindowOwner)
 
-  def startAddNewArrow(pos: ClientPoint, shift: Boolean, start: SelectableElement): Unit =
-    sourceVar.set(AddNewArrowAction(UserActionRect(pos, pos, shift), start))
-
-  def startMoveArrowStart(pos: ClientPoint, shift: Boolean, start: SelectableElement): Unit =
-    sourceVar.set(MoveArrowSourceAction(UserActionRect(pos, pos, shift), start))
+  def start(mouseAction: MouseAction): Unit =
+    sourceVar.set(mouseAction)
 
   def inactive() = sourceVar.set(Inactive)
 
   def updateEndpoint(end: ClientPoint, shift: Boolean): Unit =
     sourceVar.update:
-      case Inactive                          => Inactive
-      case ExtendSelectionAction(rect)       => ExtendSelectionAction(rect.update(end, shift))
-      case AddNewArrowAction(rect, start)    => AddNewArrowAction(rect.update(end, shift), start)
+      case Inactive                           => Inactive
+      case ExtendSelectionAction(rect)        => ExtendSelectionAction(rect.update(end, shift))
+      case AddNewArrowAction(rect, start)     => AddNewArrowAction(rect.update(end, shift), start)
       case MoveArrowSourceAction(rect, start) => MoveArrowSourceAction(rect.update(end, shift), start)
-
-  val extendSelectionAction =
-    signal.map:
-      case a: ExtendSelectionAction => Some(a)
-      case _                        => None
-    .distinct

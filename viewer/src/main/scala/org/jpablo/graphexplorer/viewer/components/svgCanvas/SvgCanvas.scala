@@ -14,7 +14,7 @@ import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{
   Inactive,
   MoveArrowSourceAction
 }
-import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowStartOps}
+import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowSourceOps}
 import org.jpablo.graphexplorer.viewer.utils.BBox
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
@@ -22,7 +22,7 @@ import org.jpablo.graphexplorer.viewer.utils.BBox
 def SvgCanvas(
     rawSvg:      dom.svg.SVG,
     transform:   Signal[String],
-    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowStartOps & ExtendSelectionOps,
+    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowSourceOps & ExtendSelectionOps,
     mouseAction: MouseActionVar
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection

@@ -2,19 +2,20 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.ArrowEndpointButton
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowButton
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findFirstElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.utils.ClientPoint
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.AddNewArrowAction
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
 import scala.scalajs.js
 
 trait AddNewArrowOps:
   this: ViewerState =>
 
-  def handleAddNewArrowMouseUp(ev: dom.MouseEvent, lastActionValue: MouseAction.AddNewArrowAction): Unit =
+  def handleAddNewArrowMouseUp(ev: dom.MouseEvent, lastActionValue: AddNewArrowAction): Unit =
     val current = selection.now()
     val start   = lastActionValue.start
     selection.clear()
@@ -34,7 +35,7 @@ trait AddNewArrowOps:
     else if current.size == 2 then
       (current - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
 
-  def onAddNewArrowAction(action: MouseAction.AddNewArrowAction) =
+  def onAddNewArrowAction(action: AddNewArrowAction) =
     selectAddNewArrowEndpoints(
       start = action.start,
       elementsFromRectEnd = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
@@ -50,19 +51,18 @@ trait AddNewArrowOps:
       case Some(endElementId) => selection.set(Set(start.elementId, endElementId))
       case None               => selection.set(start.elementId)
 
-  def buildArrowEndpointButton(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
-    selectedElem match
-      case edge: EdgeElement => Option(
-          ArrowEndpointButton(
-            edge,
-            true,
-            onMouseDown.stopPropagation --> { ev =>
-              mouseAction.startMoveArrowStart(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
-            },
-            onMouseUp.stopPropagation --> { _ =>
-              mouseAction.inactive()
-              addNodeWithSmartConnection()
-            }
-          )
-        )
-      case _ => None
+  def buildNewArrowButton(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
+    NewArrowButton(
+      selectedElem,
+      graphRankDir.observe().now,
+      onMouseDown.stopPropagation --> { ev =>
+        val pos = ClientPoint(ev.clientX, ev.clientY)
+        mouseAction.start(AddNewArrowAction(UserActionRect(pos, pos, shift = false), selectedElem))
+
+      },
+      onMouseUp.stopPropagation --> { _ =>
+        mouseAction.inactive()
+        addNodeWithSmartConnection()
+      }
+    )
+

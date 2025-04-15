@@ -24,8 +24,7 @@ object Viewer:
             projectId = ProjectId(projectId),
             writeText = window.navigator.clipboard.writeText
           )
-          val commands = Commands(state, routerCmds)
-          TopLevel(state, router, commands)
+          TopLevel(state, router, Commands(state, routerCmds))
     )
 
   private def setupErrorHandling(): EventBus[String] =
