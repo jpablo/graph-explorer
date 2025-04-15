@@ -8,8 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPair
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, elementsFromPoint}
-import org.jpablo.graphexplorer.viewer.models.ElementId
-import org.jpablo.graphexplorer.viewer.state.{AddNewArrowOps, DiagramSelectionOps, MoveArrowStartOps}
+import org.jpablo.graphexplorer.viewer.state.{AddNewArrowOps, DiagramSelectionOps, MouseActionVar, MoveArrowStartOps}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
@@ -22,12 +21,12 @@ object SvgCanvas:
 
   // rawSvg is the SVG element as it comes from DOT
   def apply(
-      rawSvg:       dom.svg.SVG,
-      transform:    Signal[String],
-      selectionOps: DiagramSelectionOps & AddNewArrowOps & MoveArrowStartOps,
-      updateLabel:  (ElementId, String) => Unit
+      rawSvg:      dom.svg.SVG,
+      transform:   Signal[String],
+      viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowStartOps,
+      mouseAction: MouseActionVar
   ): ReactiveSvgElement[dom.svg.SVG] =
-    import selectionOps.selection
+    import viewerOps.selection
 
     val firstGroup: dom.svg.G =
       val g0 = rawSvg.querySelector("g")
@@ -42,7 +41,27 @@ object SvgCanvas:
 
     emptySvg(
       viewBox = bbox,
-      TopLevelGroup(firstGroup, transform, selectionOps)
+      // -------------------------
+      // The top level <g> element
+      // -------------------------
+      foreignSvgElement(svg.g, firstGroup)
+        .amendThis: group =>
+          Seq(
+            svg.transform <-- transform,
+            children <--
+              selection.signal.map: selected =>
+                // only show the "New arrow" button if there is exactly one selected element
+                if selected.size == 1 then
+                  for
+                    elem <- SelectableElement.query(group.ref, selected).headOption.toSeq
+                    btn  <- viewerOps.buildNewArrowButton(elem) ++ viewerOps.buildArrowEndpointButton(elem)
+                  yield btn
+                else
+                  Nil
+            ,
+            child.maybe <-- viewerOps.buildDraggingArrow(group.ref),
+            child.maybe <-- viewerOps.buildArrowWithEndpoint(group.ref)
+          )
     ).amendThis { topLevelSvg =>
       val selectableElements = SelectableElement.findAll(topLevelSvg.ref)
 
@@ -60,13 +79,13 @@ object SvgCanvas:
         //   draw selection rect
         // --------------------------------------------------------
         child.maybe <-- DrawSelectionRect(
-          selection.mouseAction.extendSelectionAction
+          mouseAction.extendSelectionAction
             .map(_.map(_.rect.toSvgPair(topLevelSvg.ref.getScreenCTM())))
         ),
         // --------------------------------------------------------
         //   select elements intersecting selectionRec
         // --------------------------------------------------------
-        selection.mouseAction.extendSelectionAction --> { actionO =>
+        mouseAction.extendSelectionAction --> { actionO =>
           for action <- actionO do
             selection.selectExtendSelectionOverlappingElements(
               action.rect,
@@ -74,8 +93,8 @@ object SvgCanvas:
               dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
             )
         },
-        selection.mouseAction.addNewArrowAction --> selectionOps.onAddNewArrowAction,
-        selection.mouseAction.moveArrowStartAction --> selectionOps.onMoveArrowStart,
+        mouseAction.addNewArrowAction --> viewerOps.onAddNewArrowAction,
+        mouseAction.moveArrowStartAction --> viewerOps.onMoveArrowStart,
         // --------------------------------------------------------
         //   synchronize svg elements with diagramSelection
         // --------------------------------------------------------
@@ -86,43 +105,6 @@ object SvgCanvas:
       )
     }
   end apply
-
-  // --------------------------------------------------------
-  // The top level <g> element
-  // --------------------------------------------------------
-  def TopLevelGroup(
-      firstGroup:   dom.svg.G,
-      transform:    Signal[String],
-      selectionOps: DiagramSelectionOps & AddNewArrowOps & MoveArrowStartOps,
-  ): ReactiveSvgElement[dom.svg.G] =
-    import selectionOps.selection
-    foreignSvgElement(svg.g, firstGroup)
-      .amendThis: group =>
-        Seq(
-          svg.transform <-- transform,
-          // --------------------------------------------------------
-          // Action buttons for selected elements:
-          //   - "New arrow" button
-          //   - Arrow endpoint button
-          // --------------------------------------------------------
-          children <--
-            selection.signal.map: selected =>
-              // only show the "New arrow" button if there is exactly one selected element
-              if selected.size == 1 then
-                for
-                  selectedElem <- SelectableElement.query(group.ref, selected).headOption.toSeq
-                  btn <- selectionOps.buildNewArrowButton(selectedElem) ++ selectionOps.buildArrowEndpointButton(selectedElem)
-                yield btn
-              else
-                Nil
-          ,
-          // --------------------------------------------------------
-          //   draw dragging arrow
-          // --------------------------------------------------------
-          child.maybe <-- DraggingArrow(selection.mouseAction.addNewArrowAction, group.ref),
-          child.maybe <-- ArrowWithEndpoint(selection.mouseAction.moveArrowStartAction, group.ref),
-          child.maybe <-- selectionOps.buildArrowWithEndpoint(group.ref)
-        )
 
   /** Creates a standalone SVG element with the given viewBox
     */

@@ -42,6 +42,8 @@ case class ViewerState(
   protected[state] val visibleDOT = phases.visibleDOT
   val visibleGraph                = phases.visibleGraph
 
+  val mouseAction = MouseActionVar()
+
   // 5. Render visible Dot to SVG
   // Dot ~> SVGSVGElement
   private val rawSVG: Signal[dom.SVGSVGElement] =
@@ -53,8 +55,8 @@ case class ViewerState(
       SvgCanvas(
         rawSvg = svg,
         transform = transform,
-        selectionOps = this,
-        updateLabel = updateLabel
+        viewerOps = this,
+        mouseAction = mouseAction
       )
 
   // -------- storage ------------

@@ -232,7 +232,6 @@ trait DiagramSelectionOps:
         set(ElementIds.from(nodeId))
 
     // -----------
-    val mouseAction = MouseActionVar()
 
     def selectExtendSelectionOverlappingElements(
         rect:                UserActionRect,

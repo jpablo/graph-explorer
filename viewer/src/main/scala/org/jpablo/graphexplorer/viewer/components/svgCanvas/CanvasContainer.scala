@@ -26,18 +26,17 @@ def CanvasContainer(
     state.fitDiagram.events --> state.resetView(),
     child <-- state.finalSVG,
     focus <-- state.canvasContainerFocus.signal.changes,
-    onBlur --> state.selection.mouseAction.inactive(),
+    onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElem) => state.handleWheel(e, svgElem.ref.viewBox.baseVal)),
-    onMouseDown.filter(leftButton).map(clientCoords) --> state.selection.mouseAction.startExtendSelection.tupled,
-    onMouseMove.filter(leftButtonMoved).map(clientCoords) --> state.selection.mouseAction.updateEndpoint.tupled,
+    onMouseDown.filter(leftButton).map(clientCoords) --> state.mouseAction.startExtendSelection.tupled,
+    onMouseMove.filter(leftButtonMoved).map(clientCoords) --> state.mouseAction.updateEndpoint.tupled,
     onMouseUp.filter(leftButton) --> { ev =>
-      val mouseAction = state.selection.mouseAction.now()
-      state.selection.mouseAction.inactive()
-      mouseAction match
+      state.mouseAction.now() match
         case a: AddNewArrowAction     => state.handleAddNewArrowMouseUp(ev, a)
         case a: MoveArrowStartAction  => state.handleMoveArrowStartMouseUp(ev, a)
         case a: ExtendSelectionAction => ()
         case Inactive                 => ()
+      state.mouseAction.inactive()
     }
   )

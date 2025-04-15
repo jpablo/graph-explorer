@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointButton, ArrowWithEndpoint}
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointButton, DraggingArrow}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findFirstElementId
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
@@ -50,9 +50,6 @@ trait AddNewArrowOps:
       case Some(endElementId) => selection.set(Set(start.elementId, endElementId))
       case None               => selection.set(start.elementId)
 
-  def buildArrowWithEndpoint(groupRef: dom.svg.G) =
-    ArrowWithEndpoint(selection.mouseAction.moveArrowStartAction, groupRef)
-
   def buildArrowEndpointButton(selectedElem: SelectableElement): Seq[ReactiveSvgElement[dom.svg.G]] =
     selectedElem match
       case edge: EdgeElement => Seq(
@@ -60,12 +57,15 @@ trait AddNewArrowOps:
             edge,
             true,
             onMouseDown.stopPropagation --> { ev =>
-              selection.mouseAction.startMoveArrowStart(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
+              mouseAction.startMoveArrowStart(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
             },
             onMouseUp.stopPropagation --> { _ =>
-              selection.mouseAction.inactive()
+              mouseAction.inactive()
               addNodeWithSmartConnection()
             }
           )
         )
       case _ => Seq.empty
+
+  def buildDraggingArrow(groupRef: dom.svg.G) =
+    DraggingArrow(mouseAction.addNewArrowAction, groupRef)

@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowButton
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowWithEndpoint, NewArrowButton}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
@@ -35,15 +35,18 @@ trait MoveArrowStartOps:
         dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
       )
 
+  def buildArrowWithEndpoint(groupRef: dom.svg.G) =
+    ArrowWithEndpoint(mouseAction.moveArrowStartAction, groupRef)
+
   def buildNewArrowButton(selectedElem: SelectableElement) =
     NewArrowButton(
       selectedElem,
       graphRankDir.observe().now,
       onMouseDown.stopPropagation --> { ev =>
-        selection.mouseAction.startAddNewArrow(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
+        mouseAction.startAddNewArrow(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
       },
       onMouseUp.stopPropagation --> { _ =>
-        selection.mouseAction.inactive()
+        mouseAction.inactive()
         addNodeWithSmartConnection()
       }
     ).toSeq
