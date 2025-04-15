@@ -46,19 +46,12 @@ object SvgCanvas:
       // -------------------------
       foreignSvgElement(svg.g, firstGroup)
         .amendThis: group =>
+          val singleSelection = selection.signal.map: selected =>
+            if selected.size == 1 then SelectableElement.query(group.ref, selected).headOption else None
           Seq(
             svg.transform <-- transform,
-            children <--
-              selection.signal.map: selected =>
-                // only show the "New arrow" button if there is exactly one selected element
-                if selected.size == 1 then
-                  for
-                    elem <- SelectableElement.query(group.ref, selected).headOption.toSeq
-                    btn  <- viewerOps.buildNewArrowButton(elem) ++ viewerOps.buildArrowEndpointButton(elem)
-                  yield btn
-                else
-                  Nil
-            ,
+            child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildNewArrowButton)),
+            child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildArrowEndpointButton)),
             child.maybe <-- viewerOps.buildDraggingArrow(group.ref),
             child.maybe <-- viewerOps.buildArrowWithEndpoint(group.ref)
           )
@@ -78,10 +71,7 @@ object SvgCanvas:
         // --------------------------------------------------------
         //   draw selection rect
         // --------------------------------------------------------
-        child.maybe <-- DrawSelectionRect(
-          mouseAction.extendSelectionAction
-            .map(_.map(_.rect.toSvgPair(topLevelSvg.ref.getScreenCTM())))
-        ),
+        child.maybe <-- DrawSelectionRect(mouseAction.extendSelectionAction.map(_.map(_.rect.toSvgPair(topLevelSvg.ref.getScreenCTM())))),
         // --------------------------------------------------------
         //   select elements intersecting selectionRec
         // --------------------------------------------------------

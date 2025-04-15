@@ -50,9 +50,9 @@ trait AddNewArrowOps:
       case Some(endElementId) => selection.set(Set(start.elementId, endElementId))
       case None               => selection.set(start.elementId)
 
-  def buildArrowEndpointButton(selectedElem: SelectableElement): Seq[ReactiveSvgElement[dom.svg.G]] =
+  def buildArrowEndpointButton(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
     selectedElem match
-      case edge: EdgeElement => Seq(
+      case edge: EdgeElement => Option(
           ArrowEndpointButton(
             edge,
             true,
@@ -65,7 +65,7 @@ trait AddNewArrowOps:
             }
           )
         )
-      case _ => Seq.empty
+      case _ => None
 
   def buildDraggingArrow(groupRef: dom.svg.G) =
     DraggingArrow(mouseAction.addNewArrowAction, groupRef)

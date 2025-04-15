@@ -49,4 +49,4 @@ trait MoveArrowStartOps:
         mouseAction.inactive()
         addNodeWithSmartConnection()
       }
-    ).toSeq
+    )
