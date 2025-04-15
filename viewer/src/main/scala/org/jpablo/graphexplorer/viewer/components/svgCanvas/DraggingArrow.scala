@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
-import org.jpablo.graphexplorer.viewer.state.MouseAction
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction
 
 /** Creates a reactive SVG arrow element when dragging to create a new edge.
   *

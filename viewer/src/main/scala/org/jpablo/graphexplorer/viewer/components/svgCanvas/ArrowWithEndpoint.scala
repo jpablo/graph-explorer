@@ -6,7 +6,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.formats.svg.Command.MoveTo
 import org.jpablo.graphexplorer.viewer.formats.svg.{Command, SVGPathParser}
-import org.jpablo.graphexplorer.viewer.state.MouseAction
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction
 
 def ArrowWithEndpoint(
     rect:      Signal[Option[MouseAction.MoveArrowStartAction]],

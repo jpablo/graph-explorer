@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.state
+package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, Select
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointButton, DraggingArrow}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findFirstElementId
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 
 import scala.scalajs.js

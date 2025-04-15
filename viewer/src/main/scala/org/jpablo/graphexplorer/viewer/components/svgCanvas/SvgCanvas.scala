@@ -8,7 +8,8 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPair
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, elementsFromPoint}
-import org.jpablo.graphexplorer.viewer.state.{AddNewArrowOps, DiagramSelectionOps, MouseActionVar, MoveArrowStartOps}
+import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
+import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, MouseActionVar, MoveArrowStartOps}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.

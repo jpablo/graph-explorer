@@ -4,8 +4,8 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas.{clientCoords, leftButton, leftButtonMoved}
-import org.jpablo.graphexplorer.viewer.state.MouseAction.*
-import org.jpablo.graphexplorer.viewer.state.{MouseAction, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
   *

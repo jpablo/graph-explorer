@@ -1,10 +1,11 @@
-package org.jpablo.graphexplorer.viewer.state
+package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowWithEndpoint, NewArrowButton}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 
 trait MoveArrowStartOps:
