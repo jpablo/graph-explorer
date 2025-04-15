@@ -38,3 +38,21 @@ class MouseActionVar(initial: MouseAction = Inactive):
       case ExtendSelectionAction(rect)       => ExtendSelectionAction(rect.update(end, shift))
       case AddNewArrowAction(rect, start)    => AddNewArrowAction(rect.update(end, shift), start)
       case MoveArrowStartAction(rect, start) => MoveArrowStartAction(rect.update(end, shift), start)
+
+  val extendSelectionAction =
+    signal.map:
+      case a: ExtendSelectionAction => Some(a)
+      case _                        => None
+    .distinct
+
+  val addNewArrowAction =
+    signal.map:
+      case a: AddNewArrowAction => Some(a)
+      case _                    => None
+    .distinct
+
+  val moveArrowStartAction =
+    signal.map:
+      case a: MoveArrowStartAction => Some(a)
+      case _                       => None
+    .distinct

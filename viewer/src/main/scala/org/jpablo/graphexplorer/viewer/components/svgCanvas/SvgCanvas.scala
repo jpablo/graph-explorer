@@ -4,13 +4,13 @@ import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
-import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPair
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, elementsFromPoint}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.models.ElementId
-import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
+import org.jpablo.graphexplorer.viewer.state.{AddNewArrowOps, DiagramSelectionOps}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
@@ -25,7 +25,7 @@ object SvgCanvas:
   def apply(
       rawSvg:       dom.svg.SVG,
       transform:    Signal[String],
-      selectionOps: DiagramSelectionOps,
+      selectionOps: DiagramSelectionOps & AddNewArrowOps,
       addNode:      () => Unit,
       getRankdir:   () => Rankdir,
       updateLabel:  (ElementId, String) => Unit
@@ -63,13 +63,13 @@ object SvgCanvas:
         //   draw selection rect
         // --------------------------------------------------------
         child.maybe <-- DrawSelectionRect(
-          selection.extendSelectionAction.signal
+          selection.mouseAction.extendSelectionAction
             .map(_.map(_.rect.toSvgPair(topLevelSvg.ref.getScreenCTM())))
         ),
         // --------------------------------------------------------
         //   select elements intersecting selectionRec
         // --------------------------------------------------------
-        selection.extendSelectionAction --> { actionO =>
+        selection.mouseAction.extendSelectionAction --> { actionO =>
           for action <- actionO do
             selection.selectExtendSelectionOverlappingElements(
               action.rect,
@@ -77,16 +77,10 @@ object SvgCanvas:
               dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
             )
         },
-        selection.addNewArrowAction --> { actionO =>
+        selection.mouseAction.addNewArrowAction --> selectionOps.onAddNewArrowAction,
+        selection.mouseAction.moveArrowStartAction --> { actionO =>
           for action <- actionO do
-            selection.selectAddNewArrowEndpoints(
-              action.start,
-              dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
-            )
-        },
-        selection.moveArrowStartAction --> { actionO =>
-          for action <- actionO do
-            selection.selectAddNewArrowEndpoints(
+            selectionOps.selectAddNewArrowEndpoints(
               action.start,
               dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
             )
@@ -108,7 +102,7 @@ object SvgCanvas:
   def TopLevelGroup(
       firstGroup:   dom.svg.G,
       transform:    Signal[String],
-      selectionOps: DiagramSelectionOps,
+      selectionOps: DiagramSelectionOps & AddNewArrowOps,
       addNode:      () => Unit,
       getRankdir:   () => Rankdir
   ): ReactiveSvgElement[dom.svg.G] =
@@ -142,24 +136,7 @@ object SvgCanvas:
                       }
                     )
 
-                  startArrowEndpoint =
-                    selectedElem match
-                      case edge: EdgeElement => Some(
-                          ArrowEndpointButton(
-                            edge,
-                            true,
-                            onMouseDown.stopPropagation --> { ev =>
-                              selection.mouseAction.startMoveArrowStart(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
-                            },
-                            onMouseUp.stopPropagation --> { _ =>
-                              selection.mouseAction.inactive()
-                              addNode()
-                            }
-                          )
-                        )
-                      case _ => None
-
-                  btn <- newArrowButton.toSeq ++ startArrowEndpoint.toSeq
+                  btn <- newArrowButton.toSeq ++ selectionOps.startArrowEndpoint(selectedElem)
                 yield btn
               else
                 Nil
@@ -167,8 +144,9 @@ object SvgCanvas:
           // --------------------------------------------------------
           //   draw dragging arrow
           // --------------------------------------------------------
-          child.maybe <-- DraggingArrow(selection.addNewArrowAction, group.ref),
-          child.maybe <-- ArrowWithEndpoint(selection.moveArrowStartAction, group.ref),
+          child.maybe <-- DraggingArrow(selection.mouseAction.addNewArrowAction, group.ref),
+          child.maybe <-- ArrowWithEndpoint(selection.mouseAction.moveArrowStartAction, group.ref),
+          child.maybe <-- selectionOps.buildArrowWithEndpoint(group.ref)
         )
 
   /** Creates a standalone SVG element with the given viewBox

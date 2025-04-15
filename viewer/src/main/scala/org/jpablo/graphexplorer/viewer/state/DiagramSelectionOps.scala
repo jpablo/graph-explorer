@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.state.MouseAction.{AddNewArrowAction, ExtendSelectionAction, MoveArrowStartAction}
+import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findFirstElementId
 import org.jpablo.graphexplorer.viewer.utils.UserActionRect
 
 import scala.annotation.targetName
@@ -234,44 +234,6 @@ trait DiagramSelectionOps:
     // -----------
     val mouseAction = MouseActionVar()
 
-    val extendSelectionAction =
-      mouseAction.signal.map:
-        case a: ExtendSelectionAction => Some(a)
-        case _                        => None
-      .distinct
-
-    val addNewArrowAction =
-      mouseAction.signal.map:
-        case a: AddNewArrowAction => Some(a)
-        case _                    => None
-      .distinct
-
-    val moveArrowStartAction =
-      mouseAction.signal.map:
-        case a: MoveArrowStartAction => Some(a)
-        case _                       => None
-      .distinct
-
-    def handleAddNewArrowMouseUp(ev: dom.MouseEvent, lastActionValue: MouseAction.AddNewArrowAction): Unit =
-      val current = now()
-      val start   = lastActionValue.start
-      clear()
-
-      // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
-      val startBbox         = start.get.getBoundingClientRect()
-      val mouseReleasePoint = (ev.clientX, ev.clientY)
-      val isMouseInsideSourceNode =
-        mouseReleasePoint._1 >= startBbox.left &&
-          mouseReleasePoint._1 <= startBbox.right &&
-          mouseReleasePoint._2 >= startBbox.top &&
-          mouseReleasePoint._2 <= startBbox.bottom
-
-      // Single selection and mouse released on the source node: add a self loop
-      if current.size == 1 && isMouseInsideSourceNode then
-        start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
-      else if current.size == 2 then
-        (current - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
-
     def handleMoveArrowStartMouseUp(ev: dom.MouseEvent, lastActionValue: MouseAction.MoveArrowStartAction): Unit =
       val current = now()
       val start   = lastActionValue.start
@@ -289,16 +251,6 @@ trait DiagramSelectionOps:
         pprint.log((current, start.elementId))
         // move the arrow start point to the new position
         (current - start.elementId).head.asNodeId.foreach(end => moveArrowSource(start.arrowId.get, end))
-
-    def selectAddNewArrowEndpoints(
-        start:               SelectableElement,
-        elementsFromRectEnd: js.Array[dom.Element]
-    ) =
-      // Make sure only start or (start,end) nodes are selected when creating a new arrow
-      // For now only allow a line selection into nodes
-      findFirstElementId(elementsFromRectEnd, "g.node") match
-        case Some(endElementId) => set(Set(start.elementId, endElementId))
-        case None               => set(start.elementId)
 
     def selectExtendSelectionOverlappingElements(
         rect:                UserActionRect,
@@ -319,20 +271,6 @@ trait DiagramSelectionOps:
             set(nodesInRect)
         else if !rect.shift then
           clear()
-
-    /** Finds the node ID at the given selection rectangle's end point
-      */
-    private def findFirstElementId(
-        elements: js.Array[dom.Element],
-        selector: String = "g.node, g.edge, g.cluster"
-    ): Option[ElementId] =
-      elements
-        .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-        .flatMap(element => Option(element.closest(selector)))
-        .distinct
-        .map(SelectableElement.fromDomElement)
-        .collectFirst:
-          case Some(elem) => elem.elementId
 
     /** Checks if a selectable element intersects with a selection rectangle
       *
@@ -357,5 +295,22 @@ trait DiagramSelectionOps:
         bbox.left > x + width ||
         bbox.bottom < y ||
         bbox.top > y + height)
+
+end DiagramSelectionOps
+
+object DiagramSelectionOps:
+  /** Finds the node ID at the given selection rectangle's end point
+    */
+  def findFirstElementId(
+      elements: js.Array[dom.Element],
+      selector: String = "g.node, g.edge, g.cluster"
+  ): Option[ElementId] =
+    elements
+      .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
+      .flatMap(element => Option(element.closest(selector)))
+      .distinct
+      .map(SelectableElement.fromDomElement)
+      .collectFirst:
+        case Some(elem) => elem.elementId
 
 end DiagramSelectionOps

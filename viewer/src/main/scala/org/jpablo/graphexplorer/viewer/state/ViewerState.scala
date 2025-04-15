@@ -19,7 +19,13 @@ case class ViewerState(
     projectId:     ProjectId,
     writeText:     String => Any = _ => (),
     initialSource: String = ""
-) extends SvgTransformOps, DiagramSelectionOps, VisibilityOps, ExportOps, UIState, Persistence:
+) extends SvgTransformOps,
+      DiagramSelectionOps,
+      VisibilityOps,
+      ExportOps,
+      AddNewArrowOps,
+      UIState,
+      Persistence:
   given owner: Owner = OneTimeOwner(() => ())
 
   lazy val project =
