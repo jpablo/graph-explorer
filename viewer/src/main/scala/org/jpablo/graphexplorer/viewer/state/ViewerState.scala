@@ -24,6 +24,7 @@ case class ViewerState(
       VisibilityOps,
       ExportOps,
       AddNewArrowOps,
+      MoveArrowStartOps,
       UIState,
       Persistence:
   given owner: Owner = OneTimeOwner(() => ())
@@ -53,8 +54,6 @@ case class ViewerState(
         rawSvg = svg,
         transform = transform,
         selectionOps = this,
-        addNode = () => addNodeWithSmartConnection(),
-        getRankdir = () => graphRankDir.observe().now(),
         updateLabel = updateLabel
       )
 

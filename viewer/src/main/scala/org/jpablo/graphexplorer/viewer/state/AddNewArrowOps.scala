@@ -53,7 +53,7 @@ trait AddNewArrowOps:
   def buildArrowWithEndpoint(groupRef: dom.svg.G) =
     ArrowWithEndpoint(selection.mouseAction.moveArrowStartAction, groupRef)
 
-  def startArrowEndpoint(selectedElem: SelectableElement): Seq[ReactiveSvgElement[dom.svg.G]] =
+  def buildArrowEndpointButton(selectedElem: SelectableElement): Seq[ReactiveSvgElement[dom.svg.G]] =
     selectedElem match
       case edge: EdgeElement => Seq(
           ArrowEndpointButton(

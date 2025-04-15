@@ -8,9 +8,8 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPair
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, elementsFromPoint}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.models.ElementId
-import org.jpablo.graphexplorer.viewer.state.{AddNewArrowOps, DiagramSelectionOps}
+import org.jpablo.graphexplorer.viewer.state.{AddNewArrowOps, DiagramSelectionOps, MoveArrowStartOps}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
@@ -25,9 +24,7 @@ object SvgCanvas:
   def apply(
       rawSvg:       dom.svg.SVG,
       transform:    Signal[String],
-      selectionOps: DiagramSelectionOps & AddNewArrowOps,
-      addNode:      () => Unit,
-      getRankdir:   () => Rankdir,
+      selectionOps: DiagramSelectionOps & AddNewArrowOps & MoveArrowStartOps,
       updateLabel:  (ElementId, String) => Unit
   ): ReactiveSvgElement[dom.svg.SVG] =
     import selectionOps.selection
@@ -45,7 +42,7 @@ object SvgCanvas:
 
     emptySvg(
       viewBox = bbox,
-      TopLevelGroup(firstGroup, transform, selectionOps, addNode, getRankdir)
+      TopLevelGroup(firstGroup, transform, selectionOps)
     ).amendThis { topLevelSvg =>
       val selectableElements = SelectableElement.findAll(topLevelSvg.ref)
 
@@ -78,13 +75,7 @@ object SvgCanvas:
             )
         },
         selection.mouseAction.addNewArrowAction --> selectionOps.onAddNewArrowAction,
-        selection.mouseAction.moveArrowStartAction --> { actionO =>
-          for action <- actionO do
-            selectionOps.selectAddNewArrowEndpoints(
-              action.start,
-              dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
-            )
-        },
+        selection.mouseAction.moveArrowStartAction --> selectionOps.onMoveArrowStart,
         // --------------------------------------------------------
         //   synchronize svg elements with diagramSelection
         // --------------------------------------------------------
@@ -102,9 +93,7 @@ object SvgCanvas:
   def TopLevelGroup(
       firstGroup:   dom.svg.G,
       transform:    Signal[String],
-      selectionOps: DiagramSelectionOps & AddNewArrowOps,
-      addNode:      () => Unit,
-      getRankdir:   () => Rankdir
+      selectionOps: DiagramSelectionOps & AddNewArrowOps & MoveArrowStartOps,
   ): ReactiveSvgElement[dom.svg.G] =
     import selectionOps.selection
     foreignSvgElement(svg.g, firstGroup)
@@ -122,21 +111,7 @@ object SvgCanvas:
               if selected.size == 1 then
                 for
                   selectedElem <- SelectableElement.query(group.ref, selected).headOption.toSeq
-
-                  newArrowButton =
-                    NewArrowButton(
-                      selectedElem,
-                      getRankdir,
-                      onMouseDown.stopPropagation --> { ev =>
-                        selection.mouseAction.startAddNewArrow(ClientPoint(ev.clientX, ev.clientY), shift = false, selectedElem)
-                      },
-                      onMouseUp.stopPropagation --> { _ =>
-                        selection.mouseAction.inactive()
-                        addNode()
-                      }
-                    )
-
-                  btn <- newArrowButton.toSeq ++ selectionOps.startArrowEndpoint(selectedElem)
+                  btn <- selectionOps.buildNewArrowButton(selectedElem) ++ selectionOps.buildArrowEndpointButton(selectedElem)
                 yield btn
               else
                 Nil

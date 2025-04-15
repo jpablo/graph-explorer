@@ -36,7 +36,7 @@ def CanvasContainer(
       state.selection.mouseAction.inactive()
       mouseAction match
         case a: AddNewArrowAction     => state.handleAddNewArrowMouseUp(ev, a)
-        case a: MoveArrowStartAction  => state.selection.handleMoveArrowStartMouseUp(ev, a)
+        case a: MoveArrowStartAction  => state.handleMoveArrowStartMouseUp(ev, a)
         case a: ExtendSelectionAction => ()
         case Inactive                 => ()
     }

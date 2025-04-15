@@ -234,24 +234,6 @@ trait DiagramSelectionOps:
     // -----------
     val mouseAction = MouseActionVar()
 
-    def handleMoveArrowStartMouseUp(ev: dom.MouseEvent, lastActionValue: MouseAction.MoveArrowStartAction): Unit =
-      val current = now()
-      val start   = lastActionValue.start
-      clear()
-      // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
-      val startBbox         = start.get.getBoundingClientRect()
-      val mouseReleasePoint = (ev.clientX, ev.clientY)
-      val isMouseInsideSourceNode =
-        mouseReleasePoint._1 >= startBbox.left &&
-          mouseReleasePoint._1 <= startBbox.right &&
-          mouseReleasePoint._2 >= startBbox.top &&
-          mouseReleasePoint._2 <= startBbox.bottom
-
-      if current.size == 2 && !isMouseInsideSourceNode then
-        pprint.log((current, start.elementId))
-        // move the arrow start point to the new position
-        (current - start.elementId).head.asNodeId.foreach(end => moveArrowSource(start.arrowId.get, end))
-
     def selectExtendSelectionOverlappingElements(
         rect:                UserActionRect,
         selectableElements:  Seq[SelectableElement],
