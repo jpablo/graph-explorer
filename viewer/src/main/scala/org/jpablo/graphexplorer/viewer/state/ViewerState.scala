@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label,
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, MouseActionVar, MoveArrowStartOps}
+import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowStartOps}
 import org.jpablo.graphexplorer.zoomLens
 
 case class ViewerState(
@@ -26,6 +26,7 @@ case class ViewerState(
       ExportOps,
       AddNewArrowOps,
       MoveArrowStartOps,
+      ExtendSelectionOps,
       UIState,
       Persistence:
   given owner: Owner = OneTimeOwner(() => ())

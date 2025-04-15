@@ -24,13 +24,20 @@ def CanvasContainer(
     idAttr   := "canvas-container",
     tabIndex := 0,
     state.fitDiagram.events --> state.resetView(),
+    // the main canvas!!
     child <-- state.finalSVG,
+    // we need a way to move the focus here after certain events
     focus <-- state.canvasContainerFocus.signal.changes,
+    // abort ongoing mouse actions when the focus is lost
     onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElem) => state.handleWheel(e, svgElem.ref.viewBox.baseVal)),
+    // mouse related "actions"
+    // 1. Drawing a selecting rectangle starts here. Other actions start in their respective elements.
     onMouseDown.filter(leftButton).map(clientCoords) --> state.mouseAction.startExtendSelection.tupled,
+    // 2. Any ongoing action is updated here (i.e. mouse position)
     onMouseMove.filter(leftButtonMoved).map(clientCoords) --> state.mouseAction.updateEndpoint.tupled,
+    // 3. Any ongoing action end here
     onMouseUp.filter(leftButton) --> { ev =>
       state.mouseAction.now() match
         case a: AddNewArrowAction     => state.handleAddNewArrowMouseUp(ev, a)

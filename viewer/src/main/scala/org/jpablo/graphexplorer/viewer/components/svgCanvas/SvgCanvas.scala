@@ -5,12 +5,17 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-import org.jpablo.graphexplorer.viewer.components.toSvgPair
+import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
-import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, elementsFromPoint}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
-import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, MouseActionVar, MoveArrowStartOps}
-import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint}
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{
+  AddNewArrowAction,
+  ExtendSelectionAction,
+  Inactive,
+  MoveArrowStartAction
+}
+import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowStartOps}
+import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 object SvgCanvas:
@@ -24,7 +29,7 @@ object SvgCanvas:
   def apply(
       rawSvg:      dom.svg.SVG,
       transform:   Signal[String],
-      viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowStartOps,
+      viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowStartOps & ExtendSelectionOps,
       mouseAction: MouseActionVar
   ): ReactiveSvgElement[dom.svg.SVG] =
     import viewerOps.selection
@@ -47,18 +52,31 @@ object SvgCanvas:
       // -------------------------
       foreignSvgElement(svg.g, firstGroup)
         .amendThis: group =>
-          val singleSelection = selection.signal.map: selected =>
-            if selected.size == 1 then SelectableElement.query(group.ref, selected).headOption else None
+          val singleSelection =
+            selection.signal.map: selected =>
+              if selected.size == 1 then SelectableElement.query(group.ref, selected).headOption else None
+
+          val allSelectable =
+            SelectableElement.findAll(group.ref)
+
           Seq(
             svg.transform <-- transform,
+            // "buttons" to initiate mouse actions
             child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildNewArrowButton)),
             child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildArrowEndpointButton)),
+            // visual feedback for ongoing mouse actions
             child.maybe <-- viewerOps.buildDraggingArrow(group.ref),
-            child.maybe <-- viewerOps.buildArrowWithEndpoint(group.ref)
+            child.maybe <-- viewerOps.buildArrowWithEndpoint(group.ref),
+            // selection changes as a result of ongoing mouse actions
+            mouseAction.signal --> { action =>
+              action match
+                case a: ExtendSelectionAction => viewerOps.onExtendSelectionAction(allSelectable)(a)
+                case a: AddNewArrowAction     => viewerOps.onAddNewArrowAction(a)
+                case a: MoveArrowStartAction  => viewerOps.onMoveArrowStart(a)
+                case Inactive                 => ()
+            }
           )
     ).amendThis { topLevelSvg =>
-      val selectableElements = SelectableElement.findAll(topLevelSvg.ref)
-
       val selectionGroups =
         selection.signal
           .scanLeft(x => (x, x)):
@@ -69,23 +87,7 @@ object SvgCanvas:
             (SelectableElement.query(topLevelSvg.ref, toUnselect), SelectableElement.query(topLevelSvg.ref, toSelect))
 
       Seq(
-        // --------------------------------------------------------
-        //   draw selection rect
-        // --------------------------------------------------------
-        child.maybe <-- DrawSelectionRect(mouseAction.extendSelectionAction.map(_.map(_.rect.toSvgPair(topLevelSvg.ref.getScreenCTM())))),
-        // --------------------------------------------------------
-        //   select elements intersecting selectionRec
-        // --------------------------------------------------------
-        mouseAction.extendSelectionAction --> { actionO =>
-          for action <- actionO do
-            selection.selectExtendSelectionOverlappingElements(
-              action.rect,
-              selectableElements,
-              dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
-            )
-        },
-        mouseAction.addNewArrowAction --> viewerOps.onAddNewArrowAction,
-        mouseAction.moveArrowStartAction --> viewerOps.onMoveArrowStart,
+        child.maybe <-- viewerOps.buildDrawSelectionRect(topLevelSvg.ref),
         // --------------------------------------------------------
         //   synchronize svg elements with diagramSelection
         // --------------------------------------------------------
@@ -107,27 +109,3 @@ object SvgCanvas:
       svg.cls        := "graphviz no-text-select",
       mods
     )
-
-  /** Creates a reactive SVG rectangle element representing the selection box when dragging.
-    *
-    * @param action
-    *   Signal containing the current selection rectangle state
-    * @param topLevelSVG
-    *   The SVG element that contains the selection
-    * @return
-    *   Signal containing an optional SVG rect element. The rect is only present when there is an active selection action.
-    */
-  private def DrawSelectionRect(
-      startEnd: Signal[Option[(SvgPoint, SvgPoint)]]
-  ): Signal[Option[ReactiveSvgElement[dom.svg.RectElement]]] =
-    startEnd.map:
-      _.flatMap: (start, end) =>
-        Some(
-          svg.rect(
-            svg.idAttr := "selection-rectangle",
-            svg.x      := (start.x min end.x).toString,
-            svg.y      := (start.y min end.y).toString,
-            svg.width  := math.abs(end.x - start.x).toString,
-            svg.height := math.abs(end.y - start.y).toString
-          )
-        )

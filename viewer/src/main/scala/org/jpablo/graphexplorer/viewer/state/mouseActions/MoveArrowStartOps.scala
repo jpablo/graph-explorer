@@ -29,12 +29,11 @@ trait MoveArrowStartOps:
       // move the arrow start point to the new position
       (current - start.elementId).head.asNodeId.foreach(end => moveArrowSource(start.arrowId.get, end))
 
-  def onMoveArrowStart(actionO: Option[MouseAction.MoveArrowStartAction]) =
-    for action <- actionO do
-      selectAddNewArrowEndpoints(
-        action.start,
-        dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
-      )
+  def onMoveArrowStart(action: MouseAction.MoveArrowStartAction) =
+    selectAddNewArrowEndpoints(
+      start = action.start,
+      elementsFromRectEnd = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
+    )
 
   def buildArrowWithEndpoint(groupRef: dom.svg.G) =
     ArrowWithEndpoint(mouseAction.moveArrowStartAction, groupRef)

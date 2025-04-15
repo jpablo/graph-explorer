@@ -34,12 +34,11 @@ trait AddNewArrowOps:
     else if current.size == 2 then
       (current - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
 
-  def onAddNewArrowAction(actionO: Option[MouseAction.AddNewArrowAction]) =
-    for action <- actionO do
-      selectAddNewArrowEndpoints(
-        action.start,
-        dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
-      )
+  def onAddNewArrowAction(action: MouseAction.AddNewArrowAction) =
+    selectAddNewArrowEndpoints(
+      start = action.start,
+      elementsFromRectEnd = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
+    )
 
   def selectAddNewArrowEndpoints(
       start:               SelectableElement,
