@@ -43,8 +43,7 @@ def ArrowEndpointButton(
   val w       = radius * 2
   val h       = radius * 2
 
-  val svgPath = elem.ref.querySelector("path").asInstanceOf[dom.svg.Path]
-  dom.console.log(svgPath)
+  val svgPath    = elem.ref.querySelector("path").asInstanceOf[dom.svg.Path]
   val startPoint = SVGSimplePathParser.parseCoordinatesAfterM(svgPath.getAttribute("d"))
   val scale      = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = 10)
 

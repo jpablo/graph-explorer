@@ -56,25 +56,20 @@ trait DiagramSelectionOps:
     def toggle(ss: ElementId*): Unit = selectionV.update(ss.foldLeft(_)(_.toggle(_)))
 
     def set(ss: ElementId*): Unit =
-      pprint.log(ss, "set1")
       set3(ss.toSet)
 
     def set(ss: Selection): Unit =
-      pprint.log(ss, "set2")
       selectionV.set(ss)
 
     @targetName("setElementIds")
     def set3(ss: Set[? <: ElementId]): Unit =
-      pprint.log(ss, "set3")
       set(ElementIds(ss))
 
     @targetName("addElementIds")
     def add(ss: Set[? <: ElementId]): Unit =
-      pprint.log(ss, "set4")
       add(ElementIds(ss))
 
     def add(ss: Selection): Unit =
-      pprint.log(ss, "add")
       val current  = now()
       val newNodes = ss -- current
       if newNodes.nonEmpty then set(current ++ newNodes)
@@ -250,7 +245,6 @@ trait DiagramSelectionOps:
           case None      => clear()
       else
         val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.elementId).toSet
-        pprint.log(nodesInRect)
         if nodesInRect.nonEmpty then
           if rect.shift then
             add(nodesInRect)
