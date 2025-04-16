@@ -71,14 +71,13 @@ trait MoveArrowTargetOps:
           case commands =>
             // Find the last command to update the target point
             val lastIndex = commands.size - 1
-            commands.zipWithIndex.map {
+            commands.zipWithIndex.map:
               case (LineTo(a, pts), i) if i == lastIndex     => LineTo(a, pts.init :+ point.toTuple)
               case (CurveTo(a, points), i) if i == lastIndex =>
                 // For CurveTo, we need to update the last point in the last triplet
                 val updatedPoints = points.init :+ (points.last._1, points.last._2, point.toTuple)
                 CurveTo(a, updatedPoints)
               case (cmd, _) => cmd
-            }
 
       val updatedPathData = SVGPathParser.parse(pathData).map(updateTarget).map(PathCommand.toData).getOrElse(pathData)
       clonedPath.setAttribute("d", updatedPathData)
