@@ -7,8 +7,8 @@ import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, Select
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointButton, clientCoords}
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
-import org.jpablo.graphexplorer.viewer.formats.svg.Command.MoveTo
-import org.jpablo.graphexplorer.viewer.formats.svg.{Command, SVGPathParser}
+import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand.MoveTo
+import org.jpablo.graphexplorer.viewer.formats.svg.{PathCommand, SVGPathParser}
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -66,12 +66,12 @@ trait MoveArrowSourceOps:
       val pathData   = clonedPath.getAttribute("d")
       val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
 
-      def updateOrigin(commands: List[Command]) =
+      def updateOrigin(commands: List[PathCommand]) =
         commands match
           case MoveTo(a, _ :: pt) :: ct => MoveTo(a, point.toTuple :: pt) :: ct
           case other                    => other
 
-      val updatedPathData = SVGPathParser.parse(pathData).map(updateOrigin).map(Command.toData).getOrElse(pathData)
+      val updatedPathData = SVGPathParser.parse(pathData).map(updateOrigin).map(PathCommand.toData).getOrElse(pathData)
       clonedPath.setAttribute("d", updatedPathData)
       clonedPath.setAttribute("stroke", "#2c70ff")
       clonedPath.setAttribute("stroke-dasharray", "2 2")

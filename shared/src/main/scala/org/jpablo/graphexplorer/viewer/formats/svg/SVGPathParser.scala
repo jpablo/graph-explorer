@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.svg
 
 import scala.util.parsing.combinator.*
 
-enum Command:
+enum PathCommand:
   case MoveTo(absolute: Boolean, points: List[(Double, Double)])
   case ClosePath()
   case LineTo(absolute: Boolean, points: List[(Double, Double)])
@@ -50,9 +50,9 @@ enum Command:
         s"$rx $ry $angle ${if (largeArc) 1 else 0} ${if (sweep) 1 else 0} ${formatPair(point)}"
       }.mkString(" ")
 
-object Command:
+object PathCommand:
   // Convert a list of commands to the full SVG path data string
-  def toData(commands: List[Command]): String =
+  def toData(commands: List[PathCommand]): String =
     commands.map(_.asString).mkString(" ")
 
 class SVGPathParser extends RegexParsers:
@@ -71,93 +71,93 @@ class SVGPathParser extends RegexParsers:
   }
 
   // Command parsers
-  def moveTo: Parser[Command] =
+  def moveTo: Parser[PathCommand] =
     ("M" | "m") >> { cmdChar =>
       rep1(coordinatePair) ^^ { pairs =>
-        Command.MoveTo(cmdChar.head.isUpper, pairs)
+        PathCommand.MoveTo(cmdChar.head.isUpper, pairs)
       }
     }
 
-  def closePath: Parser[Command] =
-    ("Z" | "z") ^^^ Command.ClosePath()
+  def closePath: Parser[PathCommand] =
+    ("Z" | "z") ^^^ PathCommand.ClosePath()
 
-  def lineTo: Parser[Command] =
+  def lineTo: Parser[PathCommand] =
     ("L" | "l") >> { cmdChar =>
       rep1(coordinatePair) ^^ { pairs =>
-        Command.LineTo(cmdChar.head.isUpper, pairs)
+        PathCommand.LineTo(cmdChar.head.isUpper, pairs)
       }
     }
 
-  def horizontalLineTo: Parser[Command] =
+  def horizontalLineTo: Parser[PathCommand] =
     ("H" | "h") >> { cmdChar =>
       rep1(coordinate) ^^ { coords =>
-        Command.HorizontalLineTo(cmdChar.head.isUpper, coords)
+        PathCommand.HorizontalLineTo(cmdChar.head.isUpper, coords)
       }
     }
 
-  def verticalLineTo: Parser[Command] =
+  def verticalLineTo: Parser[PathCommand] =
     ("V" | "v") >> { cmdChar =>
       rep1(coordinate) ^^ { coords =>
-        Command.VerticalLineTo(cmdChar.head.isUpper, coords)
+        PathCommand.VerticalLineTo(cmdChar.head.isUpper, coords)
       }
     }
 
-  def curveTo: Parser[Command] =
+  def curveTo: Parser[PathCommand] =
     ("C" | "c") >> { cmdChar =>
       rep1(coordinatePair ~ coordinatePair ~ coordinatePair) ^^ { triplets =>
         val points = triplets.map { case a ~ b ~ c => (a, b, c) }
-        Command.CurveTo(cmdChar.head.isUpper, points)
+        PathCommand.CurveTo(cmdChar.head.isUpper, points)
       }
     }
 
-  def smoothCurveTo: Parser[Command] =
+  def smoothCurveTo: Parser[PathCommand] =
     ("S" | "s") >> { cmdChar =>
       rep1(coordinatePair ~ coordinatePair) ^^ { doubles =>
         val points = doubles.map { case a ~ b => (a, b) }
-        Command.SmoothCurveTo(cmdChar.head.isUpper, points)
+        PathCommand.SmoothCurveTo(cmdChar.head.isUpper, points)
       }
     }
 
-  def quadraticBezierCurveTo: Parser[Command] =
+  def quadraticBezierCurveTo: Parser[PathCommand] =
     ("Q" | "q") >> { cmdChar =>
       rep1(coordinatePair ~ coordinatePair) ^^ { doubles =>
         val points = doubles.map { case a ~ b => (a, b) }
-        Command.QuadraticBezierCurveTo(cmdChar.head.isUpper, points)
+        PathCommand.QuadraticBezierCurveTo(cmdChar.head.isUpper, points)
       }
     }
 
-  def smoothQuadraticBezierCurveTo: Parser[Command] =
+  def smoothQuadraticBezierCurveTo: Parser[PathCommand] =
     ("T" | "t") >> { cmdChar =>
       rep1(coordinatePair) ^^ { pairs =>
-        Command.SmoothQuadraticBezierCurveTo(cmdChar.head.isUpper, pairs)
+        PathCommand.SmoothQuadraticBezierCurveTo(cmdChar.head.isUpper, pairs)
       }
     }
 
-  def ellipticalArc: Parser[Command] =
+  def ellipticalArc: Parser[PathCommand] =
     ("A" | "a") >> { cmdChar =>
       rep1(coordinate ~ coordinate ~ coordinate ~ flag ~ flag ~ coordinatePair) ^^ { args =>
         val points = args.map { case rx ~ ry ~ angle ~ largeArc ~ sweep ~ point =>
           (rx, ry, angle, largeArc, sweep, point)
         }
-        Command.EllipticalArc(cmdChar.head.isUpper, points)
+        PathCommand.EllipticalArc(cmdChar.head.isUpper, points)
       }
     }
 
-  def command: Parser[Command] =
+  def command: Parser[PathCommand] =
     moveTo | closePath | lineTo | horizontalLineTo | verticalLineTo |
       curveTo | smoothCurveTo | quadraticBezierCurveTo |
       smoothQuadraticBezierCurveTo | ellipticalArc
 
-  def svgPath: Parser[List[Command]] =
+  def svgPath: Parser[List[PathCommand]] =
     phrase(rep1(command))
 
-  def parse(input: String): Either[String, List[Command]] =
+  def parse(input: String): Either[String, List[PathCommand]] =
     parseAll(svgPath, input) match
       case Success(result, _) => Right(result)
       case failure            => Left(s"Error parsing path: $failure")
 
 object SVGPathParser:
-  def parse(input: String): Either[String, List[Command]] =
+  def parse(input: String): Either[String, List[PathCommand]] =
     (new SVGPathParser).parse(input)
 
 // Example usage
@@ -169,6 +169,6 @@ object SVGPathParser:
     case Right(commands) =>
       println("Successfully parsed:")
       commands.foreach(println)
-      println(Command.toData(commands))
+      println(PathCommand.toData(commands))
     case Left(error) =>
       println(error)
