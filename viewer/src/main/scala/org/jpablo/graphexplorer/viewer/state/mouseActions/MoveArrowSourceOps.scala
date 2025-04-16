@@ -36,7 +36,6 @@ trait MoveArrowSourceOps:
         mouseReleasePoint._2 <= startBbox.bottom
 
     if current.size == 2 && !isMouseInsideSourceNode then
-      pprint.log((current, start.elementId))
       // move the arrow start point to the new position
       (current - start.elementId).head.asNodeId.foreach(end => moveArrowSource(start.arrowId.get, end))
 
