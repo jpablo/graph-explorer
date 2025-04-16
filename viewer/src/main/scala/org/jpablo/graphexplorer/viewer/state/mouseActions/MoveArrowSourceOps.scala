@@ -79,7 +79,7 @@ trait MoveArrowSourceOps:
 
   def buildArrowEndpointButton(selectedElem: SelectableElement) =
     selectedElem match
-      case edge: EdgeElement => Option(
+      case edge: EdgeElement => Seq(
           ArrowEndpointButton(
             edge,
             true,
@@ -87,6 +87,10 @@ trait MoveArrowSourceOps:
               mouseAction.start(MoveArrowSourceAction(UserActionRect(start = pos, end = pos, shift = false), start = selectedElem))
             },
             onMouseUp.stopPropagation --> mouseAction.inactive()
+          ),
+          ArrowEndpointButton(
+            edge,
+            false
           )
         )
-      case _ => None
+      case _ => Seq.empty

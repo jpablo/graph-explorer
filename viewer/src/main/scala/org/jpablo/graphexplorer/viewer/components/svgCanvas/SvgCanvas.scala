@@ -56,7 +56,7 @@ def SvgCanvas(
           svg.transform <-- transform,
           // "buttons" to initiate mouse actions
           child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildNewArrowButton)),
-          child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildArrowEndpointButton)),
+          children <-- singleSelection.map(_.toSeq.flatMap(viewerOps.buildArrowEndpointButton)),
           // visual feedback for ongoing mouse actions
           child.maybe <--
             mouseAction.signal.map:

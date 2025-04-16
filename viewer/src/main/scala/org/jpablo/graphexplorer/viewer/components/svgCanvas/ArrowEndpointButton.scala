@@ -16,13 +16,13 @@ import PathCommand.*
   * @param edge
   *   The EdgeElement the disk is associated with.
   * @param start
-  *   Whether this disk is for the start or end point (currently unused, assumes start).
+  *   Whether this disk is for the start point (true) or end point (false).
   * @return
   *   A reactive SVG group element containing the disk.
   */
 def ArrowEndpointButton(
     edge:    EdgeElement,
-    start:   Boolean, // TODO: Implement logic for end point (target)
+    start:   Boolean,
     svgMods: SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   // Define disk properties
@@ -74,7 +74,10 @@ def ArrowEndpointButton(
           val isValidForStart = start && distanceToStart < distanceToEnd
           val isValidForEnd   = !start && distanceToEnd < distanceToStart
 
-          (centerX, centerY, distanceToStart, isValidForStart || isValidForEnd)
+          // Use the appropriate distance based on whether we're looking for start or end point
+          val relevantDistance = if (start) distanceToStart else distanceToEnd
+
+          (centerX, centerY, relevantDistance, isValidForStart || isValidForEnd)
 
         markerDistances
           .filter(_._4) // Only consider markers that are valid for our target point
