@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label,
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowSourceOps}
+import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowSourceOps, MoveArrowTargetOps}
 import org.jpablo.graphexplorer.zoomLens
 
 case class ViewerState(
@@ -26,6 +26,7 @@ case class ViewerState(
       ExportOps,
       AddNewArrowOps,
       MoveArrowSourceOps,
+      MoveArrowTargetOps,
       ExtendSelectionOps,
       UIState,
       Persistence:
@@ -122,6 +123,12 @@ case class ViewerState(
     phases.fullGraphV.update: g =>
       val newGraph = g.moveArrowSource(arrowId, newSource)
 //      selection.set(ElementIds.from(newSource))
+      newGraph
+
+  def moveArrowTarget(arrowId: ArrowId, newTarget: NodeId) =
+    phases.fullGraphV.update: g =>
+      val newGraph = g.moveArrowTarget(arrowId, newTarget)
+//      selection.set(ElementIds.from(newTarget))
       newGraph
 
   // -------- Attribute management -----------

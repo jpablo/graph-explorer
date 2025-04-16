@@ -7,22 +7,22 @@ import org.jpablo.graphexplorer.viewer.components.selection.EdgeElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointButton, clientCoords}
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
-import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand.MoveTo
+import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand.{CurveTo, LineTo}
 import org.jpablo.graphexplorer.viewer.formats.svg.{PathCommand, SVGPathParser}
 import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowSourceAction
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowTargetAction
 import org.jpablo.graphexplorer.viewer.utils.UserActionRect
 
 /*
- * This trait contains the logic for handling mouse actions related to moving the start of an arrow in the graph.
+ * This trait contains the logic for handling mouse actions related to moving the target of an arrow in the graph.
  * It includes methods for handling mouse events, updating the arrow's position, and rendering the arrow.
  */
-trait MoveArrowSourceOps:
+trait MoveArrowTargetOps:
   this: ViewerState =>
 
-  def handleMoveArrowStartMouseUp(ev: dom.MouseEvent, lastActionValue: MouseAction.MoveArrowSourceAction): Unit =
+  def handleMoveArrowTargetMouseUp(ev: dom.MouseEvent, lastActionValue: MouseAction.MoveArrowTargetAction): Unit =
     val current = selection.now()
     val start   = lastActionValue.start
     selection.clear()
@@ -37,17 +37,17 @@ trait MoveArrowSourceOps:
 
     if current.size == 2 && !isMouseInsideSourceNode then
       pprint.log((current, start.elementId))
-      // move the arrow start point to the new position
-      (current - start.elementId).head.asNodeId.foreach(end => moveArrowSource(start.arrowId.get, end))
+      // move the arrow target point to the new position
+      (current - start.elementId).head.asNodeId.foreach(end => moveArrowTarget(start.arrowId.get, end))
 
-  def onMoveArrowSourceAction(action: MouseAction.MoveArrowSourceAction) =
+  def onMoveArrowTargetAction(action: MouseAction.MoveArrowTargetAction) =
     val start     = action.start
     val neighbors = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
 
     findClosestElementId(neighbors, "g.node") match
       case Some(endElementId) =>
         val ignore = (start, endElementId) match
-          case (e: EdgeElement, n: NodeId) => Arrow.fromArrowId(e.elementId).exists(_.source == n)
+          case (e: EdgeElement, n: NodeId) => Arrow.fromArrowId(e.elementId).exists(_.target == n)
           case _                           => false
         if !ignore then
           selection.set3(Set(start.elementId, endElementId))
@@ -55,8 +55,8 @@ trait MoveArrowSourceOps:
       case None =>
         selection.set(start.elementId)
 
-  def ArrowFromPointerToTarget(
-      action:    MouseAction.MoveArrowSourceAction,
+  def arrowFromSourceToPointer(
+      action:    MouseAction.MoveArrowTargetAction,
       rootGroup: dom.svg.G
   ): Option[ReactiveSvgElement[dom.svg.Path]] =
     if action.rect.isEmpty then
@@ -66,23 +66,32 @@ trait MoveArrowSourceOps:
       val pathData   = clonedPath.getAttribute("d")
       val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
 
-      def updateOrigin(commands: List[PathCommand]) =
+      def updateTarget(commands: List[PathCommand]) =
         commands match
-          case MoveTo(a, _ :: pt) :: ct => MoveTo(a, point.toTuple :: pt) :: ct
-          case other                    => other
+          case commands =>
+            // Find the last command to update the target point
+            val lastIndex = commands.size - 1
+            commands.zipWithIndex.map {
+              case (LineTo(a, pts), i) if i == lastIndex     => LineTo(a, pts.init :+ point.toTuple)
+              case (CurveTo(a, points), i) if i == lastIndex =>
+                // For CurveTo, we need to update the last point in the last triplet
+                val updatedPoints = points.init :+ (points.last._1, points.last._2, point.toTuple)
+                CurveTo(a, updatedPoints)
+              case (cmd, _) => cmd
+            }
 
-      val updatedPathData = SVGPathParser.parse(pathData).map(updateOrigin).map(PathCommand.toData).getOrElse(pathData)
+      val updatedPathData = SVGPathParser.parse(pathData).map(updateTarget).map(PathCommand.toData).getOrElse(pathData)
       clonedPath.setAttribute("d", updatedPathData)
       clonedPath.setAttribute("stroke", "#2c70ff")
       clonedPath.setAttribute("stroke-dasharray", "2 2")
       Some(foreignSvgElement(svg.path, clonedPath))
 
-  def buildArrowEndpointButton(edge: EdgeElement) =
+  def buildArrowTargetEndpointButton(edge: EdgeElement) =
     ArrowEndpointButton(
       edge,
-      start = true,
+      start = false,
       onMouseDown.stopPropagation.map(clientCoords) --> { (pos, _) =>
-        mouseAction.start(MoveArrowSourceAction(UserActionRect(start = pos, end = pos, shift = false), start = edge))
+        mouseAction.start(MoveArrowTargetAction(UserActionRect(start = pos, end = pos, shift = false), start = edge))
       },
       onMouseUp.stopPropagation --> mouseAction.inactive()
     )

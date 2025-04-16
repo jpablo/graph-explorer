@@ -13,6 +13,7 @@ enum MouseAction derives CanEqual:
   case ExtendSelectionAction(rect: UserActionRect)
   case AddNewArrowAction(rect: UserActionRect, start: SelectableElement)
   case MoveArrowSourceAction(rect: UserActionRect, start: SelectableElement)
+  case MoveArrowTargetAction(rect: UserActionRect, start: SelectableElement)
 
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 
@@ -35,3 +36,4 @@ class MouseActionVar(initial: MouseAction = Inactive):
       case ExtendSelectionAction(rect)        => ExtendSelectionAction(rect.update(end, shift))
       case AddNewArrowAction(rect, start)     => AddNewArrowAction(rect.update(end, shift), start)
       case MoveArrowSourceAction(rect, start) => MoveArrowSourceAction(rect.update(end, shift), start)
+      case MoveArrowTargetAction(rect, start) => MoveArrowTargetAction(rect.update(end, shift), start)

@@ -4,17 +4,12 @@ import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
-import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{
-  AddNewArrowAction,
-  ExtendSelectionAction,
-  Inactive,
-  MoveArrowSourceAction
-}
-import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowSourceOps}
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
+import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
@@ -22,7 +17,7 @@ import org.jpablo.graphexplorer.viewer.utils.BBox
 def SvgCanvas(
     rawSvg:      dom.svg.SVG,
     transform:   Signal[String],
-    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowSourceOps & ExtendSelectionOps,
+    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowSourceOps & MoveArrowTargetOps & ExtendSelectionOps,
     mouseAction: MouseActionVar
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
@@ -56,13 +51,22 @@ def SvgCanvas(
           svg.transform <-- transform,
           // "buttons" to initiate mouse actions
           child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildNewArrowButton)),
-          children <-- singleSelection.map(_.toSeq.flatMap(viewerOps.buildArrowEndpointButton)),
+          children <-- singleSelection.map {
+            _.toSeq.flatMap:
+              case edge: EdgeElement =>
+                Seq(
+                  viewerOps.buildArrowEndpointButton(edge),
+                  viewerOps.buildArrowTargetEndpointButton(edge)
+                )
+              case _ => Seq.empty
+          },
           // visual feedback for ongoing mouse actions
           child.maybe <--
             mouseAction.signal.map:
               case a: ExtendSelectionAction => None
               case a: AddNewArrowAction     => ArrowFromSourceToPointer(a, group.ref)
               case a: MoveArrowSourceAction => viewerOps.ArrowFromPointerToTarget(a, group.ref)
+              case a: MoveArrowTargetAction => viewerOps.arrowFromSourceToPointer(a, group.ref)
               case Inactive                 => None,
           // selection changes as a result of ongoing mouse actions
           mouseAction.signal --> { action =>
@@ -70,6 +74,7 @@ def SvgCanvas(
               case a: ExtendSelectionAction => viewerOps.onExtendSelectionAction(allSelectable)(a)
               case a: AddNewArrowAction     => viewerOps.onAddNewArrowAction(a)
               case a: MoveArrowSourceAction => viewerOps.onMoveArrowSourceAction(a)
+              case a: MoveArrowTargetAction => viewerOps.onMoveArrowTargetAction(a)
               case Inactive                 => ()
           }
         )
