@@ -81,7 +81,7 @@ def ArrowEndpointButton(
 
         markerDistances
           .filter(_._4) // Only consider markers that are valid for our target point
-          .sortBy(_._3) // Sort by distance
+          .sortBy(-_._3) // Sort by distance
           .headOption   // Get the closest one
           .map((cx, cy, _, _) => (cx, cy))
       }
