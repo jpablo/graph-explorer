@@ -4,19 +4,19 @@ import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.viewerGraphElementsToDotGraphElements
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType.digraph
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Id
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.defaultGroupAttributes
-import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithId}
+import org.jpablo.graphexplorer.viewer.models.ViewerNode.defaultNodeAttributes
 
 class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
 
-  val rootId = ViewerGraphElements.defaultRootId
-  val group0 = GroupId("cluster_0")
-  val group1 = GroupId("cluster_1")
+  val group0 = GroupId("0")
+  val group1 = GroupId("1")
 
-  val defaultNodeDotAttrs  = defaultNodeAttributes.toDotAttr
-  val defaultGroupAttrStmt = AttrStmt("graph", defaultGroupAttributes.toDotAttr)
+  val defaultNodeDotAttrs = defaultNodeAttributes.toDotAttr
+
+  def defaultGroupAttrStmt(gId: GroupId) = AttrStmt("graph", (defaultGroupAttributes + (Id -> gId.toSvg)).toDotAttr)
 
   val a = DotNodeId("a")
   val b = DotNodeId("b")
@@ -26,11 +26,10 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
   val y = DotNodeId("y")
   val z = DotNodeId("z")
 
-  extension (d: DotNodeId)
-    def nodeTuple: (NodeId, ViewerNode) =
-      nodeWithId(d.id)
-
   val shapeEgg = Attr("shape", "egg")
+  val labelZZ  = Attr("label", "ZZ")
+  def idAttr(a: DotNodeId, b: DotNodeId, seq: Int) =
+    Attr("id", Arrow(a.toNodeId, b.toNodeId, seq = seq).toSvg)
 
   val dotAST =
     DotAST(
@@ -42,11 +41,11 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
         SubGraph(
           List(
             AttrStmt("node", List(shapeEgg)),
-            NodeStmt(z, List(Attr("label", "ZZ"))),
+            NodeStmt(z, List(labelZZ)),
             EdgeStmt(List(a, b)),
-            SubGraph(List(NodeStmt(d)), Some("cluster_1"))
+            SubGraph(List(NodeStmt(d)), Some(group1.toDot))
           ),
-          Some("cluster_0")
+          Some(group0.toDot)
         ),
         EdgeStmt(List(x, a)),
         EdgeStmt(List(b, c))
@@ -69,21 +68,21 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
       List(
         SubGraph(
           List(
-            defaultGroupAttrStmt,
-            SubGraph(List(defaultGroupAttrStmt, NodeStmt(d, List(shapeEgg))), Some("cluster_1")),
-            NodeStmt(a, List(shapeEgg)),
-            NodeStmt(b, List(shapeEgg)),
-            NodeStmt(z, List(shapeEgg, Attr("label", "ZZ")))
+            defaultGroupAttrStmt(group0),
+            SubGraph(List(defaultGroupAttrStmt(group1), NodeStmt(d, List(shapeEgg, d.toAttr))), Some(group1.toDot)),
+            NodeStmt(a, List(shapeEgg, a.toAttr)),
+            NodeStmt(b, List(shapeEgg, b.toAttr)),
+            NodeStmt(z, List(shapeEgg, labelZZ, z.toAttr))
           ),
-          Some("cluster_0")
+          Some(group0.toDot)
         ),
-        NodeStmt(x),
-        NodeStmt(y),
-        NodeStmt(c),
-        EdgeStmt(List(x, y), List(Attr("id", "1"))),
-        EdgeStmt(List(a, b), List(Attr("id", "2"))), // This edge was originally in the subgraph but now at the top level
-        EdgeStmt(List(x, a), List(Attr("id", "3"))),
-        EdgeStmt(List(b, c), List(Attr("id", "4")))
+        NodeStmt(x, List(x.toAttr)),
+        NodeStmt(y, List(y.toAttr)),
+        NodeStmt(c, List(c.toAttr)),
+        EdgeStmt(List(x, y), List(idAttr(x, y, 1))),
+        EdgeStmt(List(a, b), List(idAttr(a, b, 2))), // This edge was originally in the subgraph but now at the top level
+        EdgeStmt(List(x, a), List(idAttr(x, a, 3))),
+        EdgeStmt(List(b, c), List(idAttr(b, c, 4)))
       )
 
     assertEquals(reconstructed, expected)

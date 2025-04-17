@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType.digraph
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Id, Label}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
@@ -19,9 +19,12 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
   val a = NodeId("a")
   val b = NodeId("b")
   val c = NodeId("c")
-
   val defaultNodeDotAttrs  = defaultNodeAttributes.toDotAttr
   val defaultGroupAttrStmt = AttrStmt("graph", defaultGroupAttributes.toDotAttr)
+
+  extension (nodeId: NodeId)
+    def toAttr = Attr("id", nodeId.toSvg)
+
 
   test("graphToDotAST should convert a ViewerGraph to a DotAST: two nodes and an arrow") {
     val graph =
@@ -33,9 +36,9 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
       DotAST(
         digraph.toString,
         List(
-          NodeStmt(DotNodeId("a"), defaultNodeDotAttrs),
-          NodeStmt(DotNodeId("b"), defaultNodeDotAttrs),
-          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("1"))))
+          NodeStmt(DotNodeId("a"), defaultNodeDotAttrs ++ List(a.toAttr)),
+          NodeStmt(DotNodeId("b"), defaultNodeDotAttrs ++ List(b.toAttr)),
+          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", "arrow:a->b:1")))
         ),
         Some("G")
       )
@@ -74,13 +77,16 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
         List(
           SubGraph(
             List(
-              AttrStmt("graph", (defaultGroupAttributes + (Label.attrId -> AttrValue("New Group"))).toDotAttr),
-              NodeStmt(DotNodeId("a"), defaultNodeDotAttrs)
+              AttrStmt(
+                "graph",
+                (defaultGroupAttributes + (Id.attrId -> AttrValue(newGroupId.toSvg)) + (Label.attrId -> AttrValue("New Group"))).toDotAttr
+              ),
+              NodeStmt(DotNodeId("a"), defaultNodeDotAttrs ++ List(a.toAttr))
             ),
-            Some(newGroupId.value)
+            Some(newGroupId.toDot)
           ),
-          NodeStmt(DotNodeId("b"), defaultNodeDotAttrs),
-          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("1"))))
+          NodeStmt(DotNodeId("b"), defaultNodeDotAttrs ++ List(b.toAttr)),
+          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("arrow:a->b:1"))))
         ),
         Some("G")
       )

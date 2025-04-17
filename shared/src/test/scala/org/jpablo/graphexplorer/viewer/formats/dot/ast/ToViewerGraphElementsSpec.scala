@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType.digraph
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Id, Shape}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.Arrow.arrow
@@ -14,8 +14,8 @@ import scala.collection.immutable.VectorMap
 class ToViewerGraphElementsSpec extends ScalaCheckSuite:
 
   val rootId = ViewerGraphElements.defaultRootId
-  val group0 = GroupId("cluster_0")
-  val group1 = GroupId("cluster_1")
+  val group0 = GroupId("0")
+  val group1 = GroupId("1")
 
   val defaultNodeDotAttrs  = defaultNodeAttributes.toDotAttr
   val defaultGroupAttrStmt = AttrStmt("graph", defaultGroupAttributes.toDotAttr)
@@ -29,6 +29,8 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
   val z = DotNodeId("z")
 
   val shapeEgg = Attributes.of(Shape -> Shape.egg)
+
+  def groupIdAttr(gId: GroupId) = Id -> gId.toSvg
 
   extension (d: DotNodeId)
     def nodeTuple(attrs: Attributes = Attributes.empty): (NodeId, ViewerNode) =
@@ -46,7 +48,7 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
         d.nodeTuple(shapeEgg),
         x.nodeTuple(),
         y.nodeTuple(),
-        c.nodeTuple(),
+        c.nodeTuple()
       )
     assertEquals(viewerGraphElements.nodes, expectedNodes)
   }
