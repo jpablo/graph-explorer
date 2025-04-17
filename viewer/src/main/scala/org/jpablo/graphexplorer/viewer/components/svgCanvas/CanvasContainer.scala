@@ -40,12 +40,13 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     onMouseMove.filter(leftButtonMoved).map(clientCoords) --> state.mouseAction.updateEndpoint.tupled,
     // 3. Any ongoing action end here
     onMouseUp.filter(leftButton) --> { ev =>
-      state.mouseAction.now() match
+      val mouseActionNow = state.mouseAction.now()
+      state.mouseAction.inactive()
+      mouseActionNow match
         case a: AddNewArrowAction       => state.handleAddNewArrowMouseUp(ev, a)
         case a: MoveArrowEndpointAction => state.handleMoveArrowStartMouseUp(ev, a)
         case a: ExtendSelectionAction   => ()
         case Inactive                   => ()
-      state.mouseAction.inactive()
     }
   )
 

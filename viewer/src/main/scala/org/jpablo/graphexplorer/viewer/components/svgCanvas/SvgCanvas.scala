@@ -7,9 +7,10 @@ import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
+import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
-import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
@@ -86,7 +87,7 @@ def SvgCanvas(
   ).amendThis { topLevelSvg =>
     val selectionGroups =
       selection.signal
-        .scanLeft(x => (x, x)):
+        .scanLeft(x => (ElementIds(), x)):
           case ((_, curr), next) => (curr, next)
         .map: (curr, next) =>
           val toUnselect = curr.filter(id => !next.contains(id))

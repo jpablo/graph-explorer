@@ -94,7 +94,7 @@ case class ViewerState(
 
       if sel.isEmpty then
         val (newGraph, newNodeId) = fullGraph.addNode(attributes = attributes)
-        selection.set(newNodeId)
+        selection.set2(newNodeId)
         newGraph
       else
         val selected = sel.head
@@ -112,7 +112,7 @@ case class ViewerState(
             val (newGraph, _) = fullGraph.addNode(attributes = attributes)
             newGraph
 
-  def addArrow(from: NodeId, to: NodeId) =
+  def addArrow(from: NodeId, to: NodeId)(using name: sourcecode.FullName) =
     phases.fullGraphV.update: g =>
       val (g2, _) = g.addArrow(from, to)
       selection.set(ElementIds.from(from))

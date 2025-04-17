@@ -30,9 +30,10 @@ import MouseAction.*
 class MouseActionVar(initial: MouseAction = Inactive):
 
   val sourceVar = SourceVar[MouseAction](initial = Success(initial))
-  export sourceVar.{now, signal}
 
-//  sourceVar.signal.foreach(e => pprint.log(e))(unsafeWindowOwner)
+  export sourceVar.now
+
+  val signal = sourceVar.signal.distinct
 
   def start(mouseAction: MouseAction): Unit =
     sourceVar.set(mouseAction)

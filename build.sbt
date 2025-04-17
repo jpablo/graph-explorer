@@ -40,6 +40,7 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "com.lihaoyi"                %%% "upickle"                  % "4.0.0",
       "com.lihaoyi"                %%% "pprint"                   % "0.9.0",
+      "com.lihaoyi"                %%% "sourcecode"               % "0.4.2",
       "com.softwaremill.quicklens" %%% "quicklens"                % "1.9.0",
       "org.scala-lang.modules"     %%% "scala-parser-combinators" % "2.4.0",
       "com.lihaoyi"                %%% "fastparse"                % "3.1.1",
@@ -64,7 +65,11 @@ lazy val viewer =
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
-      scalacOptions ++= Seq("-explain", "-Ycheck-all-patmat", "-Yimports:java.lang,scala,scala.Predef,org.scalajs,com.softwaremill.quicklens"),
+      scalacOptions ++= Seq(
+        "-explain",
+        "-Ycheck-all-patmat",
+        "-Yimports:java.lang,scala,scala.Predef,org.scalajs,com.softwaremill.quicklens"
+      ),
       Compile / mainClass      := Some("org.jpablo.graphexplorer.viewer.Viewer"),
       Test / parallelExecution := false,
       scalaJSLinkerConfig ~= {

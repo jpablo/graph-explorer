@@ -24,7 +24,7 @@ trait DiagramSelectionOps:
   object selection:
     val signal = selectionV.signal
       .distinct
-    //    .tapEach(s => if s.nonEmpty then dom.console.log(s"Selection: $s"))
+      // .tapEach(sel => println(s"[selection] $sel"))
 
     val editingElement = editingElementV.signal.distinct
 
@@ -55,15 +55,16 @@ trait DiagramSelectionOps:
 
     def toggle(ss: ElementId*): Unit = selectionV.update(ss.foldLeft(_)(_.toggle(_)))
 
-    def set(ss: ElementId*): Unit =
-      set3(ss.toSet)
-
-    def set(ss: Selection): Unit =
+    def set(ss: Selection)(using name: sourcecode.FullName): Unit =
       selectionV.set(ss)
 
     @targetName("setElementIds")
-    def set3(ss: Set[? <: ElementId]): Unit =
+    def set1(ss: Set[? <: ElementId])(using name: sourcecode.FullName): Unit =
       set(ElementIds(ss))
+
+    def set2(ss: ElementId*)(using name: sourcecode.FullName): Unit =
+      set1(ss.toSet)
+
 
     @targetName("addElementIds")
     def add(ss: Set[? <: ElementId]): Unit =
@@ -79,7 +80,8 @@ trait DiagramSelectionOps:
       val nodesToRemove = ss intersect current
       if nodesToRemove.nonEmpty then set(current -- nodesToRemove)
 
-    def clear(): Unit = set(ElementIds())
+    def clear()(using name: sourcecode.FullName): Unit =
+      set(ElementIds())
 
     def contains(id: ElementId) =
       signal.map(ids => id in ids)
@@ -130,20 +132,20 @@ trait DiagramSelectionOps:
 
     def selectAllVisibleNodes() =
       val visibleNodes = visibleGraphNow.nodeIds
-      set3(visibleNodes)
+      set1(visibleNodes)
 
     def selectAllVisibleArrows() =
-      set3(visibleGraphNow.arrowIds)
+      set1(visibleGraphNow.arrowIds)
 
     def selectAllVisibleGroups() =
-      set3(visibleGraphNow.groupIds)
+      set1(visibleGraphNow.groupIds)
 
     def selectAll() =
       val visibleGraph = visibleGraphNow
       val nodes        = visibleGraph.nodeIds
       val edges        = visibleGraph.arrowIds
       val groups       = visibleGraph.groupIds
-      set3(nodes ++ edges ++ groups)
+      set1(nodes ++ edges ++ groups)
 
     def deleteSelection() =
       phases.fullGraphV.update: fullGraph =>
@@ -180,7 +182,7 @@ trait DiagramSelectionOps:
             }
 
             // Select the newly created nodes
-            set3(newNodeIds)
+            set1(newNodeIds)
             newGraph
 
     // --- Attribute Resets ---
@@ -249,7 +251,7 @@ trait DiagramSelectionOps:
           if rect.shift then
             add(nodesInRect)
           else
-            set3(nodesInRect)
+            set1(nodesInRect)
         else if !rect.shift then
           clear()
 
@@ -276,6 +278,12 @@ trait DiagramSelectionOps:
         bbox.left > x + width ||
         bbox.bottom < y ||
         bbox.top > y + height)
+
+
+  def printSelectionToConsole(): Unit =
+    // Don't remove this line!! it IS the actual functionality
+    pprint.log(selection.now())
+    dom.console.log("Visible current selection to the console")
 
 end DiagramSelectionOps
 

@@ -310,6 +310,13 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Print the full diagram as JSON DOT AST to console for debugging")
     )
 
+    val printSelectionToConsole = Command(
+      "Print the current selection to the console",
+      state.printSelectionToConsole,
+      always,
+      description = Some("Print the current selection to console for debugging")
+    )
+
     val resetAttributes = Command(
       "Reset Attributes",
       () => state.selection.resetAttributes(), // Action to be implemented in ViewerState/SelectionHandler
@@ -412,7 +419,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     developer -> List(
       all.printVisibleGraphToConsole,
       all.printVisibleDOTtoConsole,
-      all.printVisibleJSONtoConsole
+      all.printVisibleJSONtoConsole,
+      all.printSelectionToConsole
     )
   )
 

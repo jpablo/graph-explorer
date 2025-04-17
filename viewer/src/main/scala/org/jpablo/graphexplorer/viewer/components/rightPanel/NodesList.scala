@@ -54,7 +54,7 @@ def NodesList(state: ViewerState): Div =
           title := "Select filtered nodes",
           "Select",
           onClick.preventDefault(_.sample(filteredGraph)) --> { graph =>
-            state.selection.set3(graph.nodeIds)
+            state.selection.set1(graph.nodeIds)
           }
         )
       )

@@ -18,7 +18,6 @@ trait AddNewArrowOps:
   def handleAddNewArrowMouseUp(ev: dom.MouseEvent, lastActionValue: AddNewArrowAction): Unit =
     val current = selection.now()
     val start   = lastActionValue.originator
-    selection.clear()
 
     // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
     val startBbox         = start.ref.getBoundingClientRect()
@@ -48,8 +47,8 @@ trait AddNewArrowOps:
     // Make sure only start or (start,end) nodes are selected when creating a new arrow
     // For now only allow a line selection into nodes
     findClosestElementId(elementsFromRectEnd, "g.node") match
-      case Some(endElementId) => selection.set3(Set(start.elementId, endElementId))
-      case None               => selection.set(start.elementId)
+      case Some(endElementId) => selection.set1(Set(start.elementId, endElementId))
+      case None               => selection.set2(start.elementId)
 
   def buildNewArrowControl(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
     selectedElem match

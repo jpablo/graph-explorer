@@ -85,10 +85,10 @@ trait MoveArrowEndpointOps:
             Arrow.fromArrowId(e.elementId).exists(a => if action.endpoint.isSource then a.source == n else a.target == n)
           case _ => false
         if !ignore then
-          selection.set3(Set(start.elementId, endElementId))
+          selection.set1(Set(start.elementId, endElementId))
 
       case None =>
-        selection.set(start.elementId)
+        selection.set2(start.elementId)
 
   // 4. Mouse is up, find the new endpoint
   def handleMoveArrowStartMouseUp(ev: dom.MouseEvent, action: MouseAction.MoveArrowEndpointAction): Unit =

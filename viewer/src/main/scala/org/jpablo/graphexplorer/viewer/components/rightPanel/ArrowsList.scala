@@ -69,7 +69,7 @@ def ArrowsList(state: ViewerState): Div =
               .toList
               .map(_.id)
               .toSet
-            state.selection.set3(filteredEdges)
+            state.selection.set1(filteredEdges)
           }
         )
       )
