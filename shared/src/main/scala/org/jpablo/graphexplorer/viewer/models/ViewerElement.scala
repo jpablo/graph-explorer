@@ -25,6 +25,10 @@ sealed trait ViewerElement:
 object ViewerElement:
   val idAttributeKey = Id.attrId
 
+// ------------------
+//      Nodes
+// ------------------
+
 case class ViewerNode private (
     override val id: NodeId,
     attributes:      Attributes = Attributes.empty,
@@ -49,7 +53,13 @@ object ViewerNode:
         case str: String => NodeId(str)
     nodeId -> nodeWithDefaults(nodeId, Attributes.of(attrs*))
 
-// ---- Edges ------
+// ------------------
+//      Arrows
+// ------------------
+
+enum ArrowEndpoint derives CanEqual:
+  case Source(nodeId: NodeId)
+  case Target(nodeId: NodeId)
 
 case class Arrow(
     source:     NodeId,
@@ -101,7 +111,9 @@ object Arrow:
 
 end Arrow
 
-// ---- groups ------
+// -----------------
+//     groups
+// -----------------
 
 case class ViewerGroup private (
     override val id: GroupId,

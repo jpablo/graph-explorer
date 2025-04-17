@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand.MoveTo
 import org.jpablo.graphexplorer.viewer.formats.svg.{PathCommand, SVGPathParser}
-import org.jpablo.graphexplorer.viewer.models.{Arrow, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowEndpoint, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowSourceAction
@@ -37,7 +37,7 @@ trait MoveArrowSourceOps:
 
     if current.size == 2 && !isMouseInsideSourceNode then
       // move the arrow start point to the new position
-      (current - start.elementId).head.asNodeId.foreach(end => moveArrowSource(start.arrowId.get, end))
+      (current - start.elementId).head.asNodeId.foreach(end => moveArrowEndpoint(start.arrowId.get, ArrowEndpoint.Source(end)))
 
   def onMoveArrowSourceAction(action: MouseAction.MoveArrowSourceAction) =
     val start     = action.start
