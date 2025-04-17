@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.EdgeElement
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointButton, clientCoords}
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointControl, clientCoords}
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand.*
@@ -23,18 +23,18 @@ trait MoveArrowSourceOps:
   this: ViewerState =>
 
   // 1. Create the UI control
-  def buildArrowEndpointButton(originator: EdgeElement, endpoint: ArrowEndpoint) =
-    ArrowEndpointButton(
+  def buildArrowEndpointControl(originator: EdgeElement, endpoint: ArrowEndpoint) =
+    ArrowEndpointControl(
       originator,
-      endpoint = endpoint,
+      endpoint,
       onMouseDown.stopPropagation.map(clientCoords) --> { (pos, _) =>
         mouseAction.start(MoveArrowEndpointAction(UserActionRect(start = pos, end = pos, shift = false), originator, endpoint))
       },
       onMouseUp.stopPropagation --> mouseAction.inactive()
     )
 
-  // 2. Draw dynamic arrow that follows the pointer
-  def ArrowFromPointerToTarget(
+  // 2. Draw a dynamic arrow that follows the pointer
+  def ArrowBetweenPointerAndEndpoint(
       action:    MouseAction.MoveArrowEndpointAction,
       rootGroup: dom.svg.G
   ): Option[ReactiveSvgElement[dom.svg.Path]] =
@@ -63,7 +63,11 @@ trait MoveArrowSourceOps:
                 CurveTo(a, updatedPoints)
               case (cmd, _) => cmd
 
-      val updatedPathData = SVGPathParser.parse(pathData).map(if action.endpoint.isSource then updateOrigin else updateTarget).map(PathCommand.toData).getOrElse(pathData)
+      val updatedPathData = SVGPathParser.parse(pathData)
+        .map(if action.endpoint.isSource then updateOrigin else updateTarget)
+        .map(PathCommand.toData)
+        .getOrElse(pathData)
+
       clonedPath.setAttribute("d", updatedPathData)
       clonedPath.setAttribute("stroke", "#2c70ff")
       clonedPath.setAttribute("stroke-dasharray", "2 2")

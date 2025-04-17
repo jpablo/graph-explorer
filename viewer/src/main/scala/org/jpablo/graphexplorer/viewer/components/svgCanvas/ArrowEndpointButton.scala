@@ -20,7 +20,7 @@ import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
   * @return
   *   A reactive SVG group element containing the disk.
   */
-def ArrowEndpointButton(
+def ArrowEndpointControl(
     edge:     EdgeElement,
     endpoint: ArrowEndpoint,
     svgMods:  SvgMods*

@@ -55,8 +55,8 @@ def SvgCanvas(
             _.toSeq.flatMap:
               case edge: EdgeElement =>
                 Seq(
-                  viewerOps.buildArrowEndpointButton(edge, ArrowEndpoint.source),
-                  viewerOps.buildArrowEndpointButton(edge, ArrowEndpoint.target)
+                  viewerOps.buildArrowEndpointControl(edge, ArrowEndpoint.source),
+                  viewerOps.buildArrowEndpointControl(edge, ArrowEndpoint.target)
                 )
               case _ => Seq.empty
           },
@@ -65,7 +65,7 @@ def SvgCanvas(
             mouseAction.signal.map:
               case a: ExtendSelectionAction   => None
               case a: AddNewArrowAction       => ArrowFromSourceToPointer(a, group.ref)
-              case a: MoveArrowEndpointAction => viewerOps.ArrowFromPointerToTarget(a, group.ref)
+              case a: MoveArrowEndpointAction => viewerOps.ArrowBetweenPointerAndEndpoint(a, group.ref)
               case Inactive                   => None,
           // selection changes as a result of ongoing mouse actions
           mouseAction.signal --> { action =>
