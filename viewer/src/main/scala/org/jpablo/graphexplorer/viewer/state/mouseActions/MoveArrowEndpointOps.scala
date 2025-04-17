@@ -19,7 +19,7 @@ import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
  * This trait contains the logic for handling mouse actions related to moving the start of an arrow in the graph.
  * It includes methods for handling mouse events, updating the arrow's position, and rendering the arrow.
  */
-trait MoveArrowSourceOps:
+trait MoveArrowEndpointOps:
   this: ViewerState =>
 
   // 1. Create the UI control

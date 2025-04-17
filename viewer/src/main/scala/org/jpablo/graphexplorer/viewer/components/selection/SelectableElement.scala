@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
+import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.models
@@ -34,7 +35,7 @@ sealed trait SelectableElement(val ref: dom.SVGGElement):
     ref.classList.add(selectedClass)
     val rect = ref.querySelector(s"rect.$selectionRectClass")
     if rect == null then
-      ref.appendChild(selectedRect())
+      ref.appendChild(SelectedRect().ref)
 
   /** Replaces the `<text>` elements with a `<textArea>` for inline editing. When the user presses Enter, it updates the label.
     */
@@ -102,30 +103,19 @@ sealed trait SelectableElement(val ref: dom.SVGGElement):
     fo.appendChild(input)
     (fo, input)
 
-  private def selectedRect() =
+  private def SelectedRect() =
     val bbox         = ref.getBBox()
-    val pixelPadding = 2
+    val pixelPadding = 1
     val paddingScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = pixelPadding)
     val svgPadding   = pixelPadding * paddingScale
     val strokeW      = 1.5 * paddingScale
-
-    val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect").asInstanceOf[dom.SVGRectElement]
-
-    val rectX  = bbox.x - svgPadding - strokeW
-    val rectY  = bbox.y - svgPadding - strokeW
-    val rectW  = bbox.width + ((svgPadding + strokeW) * 2)
-    val rectH  = bbox.height + ((svgPadding + strokeW) * 2)
-    val rScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = 5)
-
-    rect.setAttribute("x", rectX.toString)
-    rect.setAttribute("y", rectY.toString)
-    rect.setAttribute("width", rectW.toString)
-    rect.setAttribute("height", rectH.toString)
-    rect.setAttribute("stroke-width", strokeW.toString)
-    rect.setAttribute("rx", rScale.toString)
-    rect.setAttribute("ry", rScale.toString)
-    rect.classList.add(selectionRectClass)
-    rect
+    svg.rect(
+      svg.cls    := selectionRectClass,
+      svg.x      := (bbox.x - svgPadding - strokeW).toString,
+      svg.y      := (bbox.y - svgPadding - strokeW).toString,
+      svg.width  := (bbox.width + ((svgPadding + strokeW) * 2)).toString,
+      svg.height := (bbox.height + ((svgPadding + strokeW) * 2)).toString
+    )
 
 object SelectableElement:
 

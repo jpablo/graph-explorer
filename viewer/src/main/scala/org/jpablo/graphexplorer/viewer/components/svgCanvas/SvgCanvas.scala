@@ -17,7 +17,7 @@ import org.jpablo.graphexplorer.viewer.utils.BBox
 def SvgCanvas(
     rawSvg:      dom.svg.SVG,
     transform:   Signal[String],
-    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowSourceOps & ExtendSelectionOps,
+    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps,
     mouseAction: MouseActionVar
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
@@ -49,7 +49,7 @@ def SvgCanvas(
 
         Seq(
           svg.transform <-- transform,
-          // "buttons" to initiate mouse actions
+          // controls to initiate mouse actions
           child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildNewArrowControl)),
           children <-- singleSelection.map {
             _.toSeq.flatMap:

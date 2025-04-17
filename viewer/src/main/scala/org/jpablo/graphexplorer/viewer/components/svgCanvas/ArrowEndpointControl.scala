@@ -96,7 +96,7 @@ def ArrowEndpointControl(
   }
 
   // Calculate scaling factor based on the edge group's overall transform
-  val scale = SvgUtils.calculateSimpleScale(edge.ref0, w.toDouble, clientSize = 10)
+  val scale = SvgUtils.calculateSimpleScale(edge.ref0, w.toDouble, clientSize = 12)
 
   svg.g(
     svg.cls           := s"edge-endpoint-disk edge-endpoint-disk-${if (source) "source" else "target"}",

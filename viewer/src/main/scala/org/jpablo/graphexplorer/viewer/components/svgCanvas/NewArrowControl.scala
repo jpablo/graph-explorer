@@ -13,13 +13,6 @@ def NewArrowControl(
     getRankdir: () => Rankdir,
     svgMods:    SvgMods*
 ): Option[ReactiveSvgElement[dom.svg.G]] =
-  val arrowGroup =
-    svg.g(
-      svg.path(
-        svg.d := "M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z"
-      )
-    )
-
   val radius  = 8
   val centerX = 8
   val centerY = 8
@@ -47,9 +40,16 @@ def NewArrowControl(
         case RL => // Right to Left - show to the left, rotate 90 degrees
           (bbox.x - (w * scale) - (w * scale) / 4 - 1, bbox.y + bbox.height / 2 - (h * scale) / 2, 90)
 
+      val arrowGroup =
+        svg.g(
+          svg.path(
+            svg.d := "M8.5 4.5a.5.5 0 0 0-1 0v5.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293z"
+          )
+        )
+
       Some(
         svg.g(
-          svg.cls           := s"new-edge-button",
+          svg.cls           := s"new-arrow-control",
           svg.pointerEvents := "all",
           svg.circle(svg.r := radius.toString, svg.cx := centerX.toString, svg.cy := centerY.toString),
           arrowGroup,
