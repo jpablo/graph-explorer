@@ -26,7 +26,9 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // we need a way to move the focus here after certain events
     focus <-- state.canvasContainerFocus.signal.changes,
     // abort ongoing mouse actions when the focus is lost
-    onBlur --> state.mouseAction.inactive(),
+    // TODO: this makes the "ArrowFromSourceToPointer" disappear when the focus is lost.
+    // Perhaps the solution is to make sure the focus is not lost when clicking on the arrow?
+//    onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElem) => state.handleWheel(e, svgElem.ref.viewBox.baseVal)),
     // mouse related "actions"

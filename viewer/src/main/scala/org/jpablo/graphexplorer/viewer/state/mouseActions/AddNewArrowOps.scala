@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowControl
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
@@ -52,16 +52,22 @@ trait AddNewArrowOps:
       case None               => selection.set(start.elementId)
 
   def buildNewArrowControl(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
-    NewArrowControl(
-      selectedElem,
-      graphRankDir.observe().now,
-      onMouseDown.stopPropagation --> { ev =>
-        val pos = ClientPoint(ev.clientX, ev.clientY)
-        mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem))
+    selectedElem match
+      case elem: NodeElement =>
+        Some(
+          NewArrowControl(
+            elem,
+            graphRankDir.observe().now,
+            onMouseDown.stopPropagation --> { ev =>
+              val pos = ClientPoint(ev.clientX, ev.clientY)
+              mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem))
 
-      },
-      onMouseUp.stopPropagation --> { _ =>
-        mouseAction.inactive()
-        addNodeWithSmartConnection()
-      }
-    )
+            },
+            onMouseUp.stopPropagation --> { _ =>
+              mouseAction.inactive()
+              addNodeWithSmartConnection()
+            }
+          )
+        )
+      case other =>
+        None
