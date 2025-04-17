@@ -10,7 +10,7 @@ import org.scalajs.dom.{Element, FocusEvent, KeyValue}
 
 import scala.scalajs.js
 
-sealed trait SelectableElement(ref: dom.SVGGElement):
+sealed trait SelectableElement(val ref: dom.SVGGElement):
   def selectedClass: String
 
   protected val refTitle = ref.querySelector("title").textContent
@@ -22,7 +22,6 @@ sealed trait SelectableElement(ref: dom.SVGGElement):
   def arrowId: Option[models.ArrowId] = elementId match { case a: models.ArrowId => Some(a); case _ => None }
   def groupId: Option[models.GroupId] = elementId match { case g: models.GroupId => Some(g); case _ => None }
 
-  val get                = ref
   val selectionRectClass = "selected-border"
 
   def unselect(): Unit =
@@ -150,11 +149,11 @@ object SelectableElement:
 
 end SelectableElement
 
-case class NodeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
+case class NodeElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
   val selectedClass     = "selected"
   val elementId: NodeId = models.NodeId(refTitle)
 
-case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
+case class EdgeElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
   val selectedClass = "selected"
 
   private lazy val toArrowId: Option[ArrowId] =
@@ -166,7 +165,7 @@ case class EdgeElement(ref: dom.SVGGElement) extends SelectableElement(ref):
 
 end EdgeElement
 
-case class ClusterElement(ref: dom.SVGGElement) extends SelectableElement(ref):
+case class ClusterElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
   val selectedClass = "selected"
   val elementId     = models.GroupId(refTitle)
 

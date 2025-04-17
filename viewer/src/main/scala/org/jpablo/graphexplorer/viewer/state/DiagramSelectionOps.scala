@@ -267,7 +267,7 @@ trait DiagramSelectionOps:
       *      dragging 3. Uses a standard rectangle intersection test
       */
     def isNodeInRect(elem: SelectableElement, rect: UserActionRect): Boolean =
-      val bbox   = elem.get.getBoundingClientRect()
+      val bbox   = elem.ref.getBoundingClientRect()
       val x      = rect.start.x min rect.end.x
       val y      = rect.start.y min rect.end.y
       val width  = math.abs(rect.end.x - rect.start.x)

@@ -17,7 +17,7 @@ import org.jpablo.graphexplorer.viewer.utils.BBox
 def SvgCanvas(
     rawSvg:      dom.svg.SVG,
     transform:   Signal[String],
-    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowSourceOps & MoveArrowTargetOps & ExtendSelectionOps,
+    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowSourceOps & ExtendSelectionOps,
     mouseAction: MouseActionVar
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
@@ -55,27 +55,25 @@ def SvgCanvas(
             _.toSeq.flatMap:
               case edge: EdgeElement =>
                 Seq(
-                  viewerOps.buildArrowEndpointButton(edge),
-                  viewerOps.buildArrowTargetEndpointButton(edge)
+                  viewerOps.buildArrowEndpointButton(edge, ArrowEndpoint.source),
+                  viewerOps.buildArrowEndpointButton(edge, ArrowEndpoint.target)
                 )
               case _ => Seq.empty
           },
           // visual feedback for ongoing mouse actions
           child.maybe <--
             mouseAction.signal.map:
-              case a: ExtendSelectionAction => None
-              case a: AddNewArrowAction     => ArrowFromSourceToPointer(a, group.ref)
-              case a: MoveArrowSourceAction => viewerOps.ArrowFromPointerToTarget(a, group.ref)
-              case a: MoveArrowTargetAction => viewerOps.arrowFromSourceToPointer(a, group.ref)
-              case Inactive                 => None,
+              case a: ExtendSelectionAction   => None
+              case a: AddNewArrowAction       => ArrowFromSourceToPointer(a, group.ref)
+              case a: MoveArrowEndpointAction => viewerOps.ArrowFromPointerToTarget(a, group.ref)
+              case Inactive                   => None,
           // selection changes as a result of ongoing mouse actions
           mouseAction.signal --> { action =>
             action match
-              case a: ExtendSelectionAction => viewerOps.onExtendSelectionAction(allSelectable)(a)
-              case a: AddNewArrowAction     => viewerOps.onAddNewArrowAction(a)
-              case a: MoveArrowSourceAction => viewerOps.onMoveArrowSourceAction(a)
-              case a: MoveArrowTargetAction => viewerOps.onMoveArrowTargetAction(a)
-              case Inactive                 => ()
+              case a: ExtendSelectionAction   => viewerOps.onExtendSelectionAction(allSelectable)(a)
+              case a: AddNewArrowAction       => viewerOps.onAddNewArrowAction(a)
+              case a: MoveArrowEndpointAction => viewerOps.onMoveArrowSourceAction(a)
+              case Inactive                   => ()
           }
         )
   ).amendThis { topLevelSvg =>

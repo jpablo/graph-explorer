@@ -17,11 +17,11 @@ trait AddNewArrowOps:
 
   def handleAddNewArrowMouseUp(ev: dom.MouseEvent, lastActionValue: AddNewArrowAction): Unit =
     val current = selection.now()
-    val start   = lastActionValue.start
+    val start   = lastActionValue.originator
     selection.clear()
 
     // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
-    val startBbox         = start.get.getBoundingClientRect()
+    val startBbox         = start.ref.getBoundingClientRect()
     val mouseReleasePoint = (ev.clientX, ev.clientY)
     val isMouseInsideSourceNode =
       mouseReleasePoint._1 >= startBbox.left &&
@@ -37,7 +37,7 @@ trait AddNewArrowOps:
 
   def onAddNewArrowAction(action: AddNewArrowAction) =
     selectWithClosestNode(
-      start = action.start,
+      start = action.originator,
       elementsFromRectEnd = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
     )
 

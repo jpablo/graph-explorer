@@ -24,7 +24,7 @@ def ArrowFromSourceToPointer(
     None
   else
     val point     = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
-    val startBBox = action.start.get.getBBox()
+    val startBBox = action.originator.ref.getBBox()
     // Calculate center point
     val centerX = startBBox.x + startBBox.width / 2
     val centerY = startBBox.y + startBBox.height / 2

@@ -160,12 +160,12 @@ case class ViewerGraph(
     val (newGraph, arrow) = addNodeWithId(nodeId, targetGroup, attributes).addArrow(nodeId, target)
     (newGraph, nodeId, arrow.id)
 
-  def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpoint): ViewerGraph =
+  def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId): ViewerGraph =
     val arrow = arrows(arrowId)
     val newArrow =
       newEndpoint match
-        case ArrowEndpoint.Source(id) => arrow.copy(source = id)
-        case ArrowEndpoint.Target(id) => arrow.copy(target = id)
+        case ArrowEndpointId.SourceId(id) => arrow.copy(source = id)
+        case ArrowEndpointId.TargetId(id) => arrow.copy(target = id)
     modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId)
 
 //  lazy val toTrees: Tree[ViewerNode] =

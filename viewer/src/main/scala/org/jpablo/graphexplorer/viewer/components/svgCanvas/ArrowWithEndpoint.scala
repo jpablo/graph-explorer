@@ -8,13 +8,13 @@ import org.jpablo.graphexplorer.viewer.formats.svg.{PathCommand, SVGPathParser}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction
 
 def ArrowWithEndpoint(
-    action:    MouseAction.MoveArrowSourceAction,
+    action:    MouseAction.MoveArrowEndpointAction,
     rootGroup: dom.svg.G
 ): Option[ReactiveSvgElement[dom.svg.Path]] =
   if action.rect.isEmpty then
     None
   else
-    val clonedPath = action.start.get.querySelector("path").cloneNode().asInstanceOf[dom.svg.Path]
+    val clonedPath = action.originator.ref.querySelector("path").cloneNode().asInstanceOf[dom.svg.Path]
     val pathData   = clonedPath.getAttribute("d")
     val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
 

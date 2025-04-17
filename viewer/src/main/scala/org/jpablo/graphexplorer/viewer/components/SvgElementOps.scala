@@ -36,12 +36,12 @@ class SvgElementOps(val ref: dom.SVGSVGElement):
 
   private def buildSvgElement(elem: SelectableElement): (dom.svg.Element, BBox) =
     // Clone the element to avoid modifying the original
-    val e = DomApi.unsafeParseSvgString(elem.get.outerHTML)
+    val e = DomApi.unsafeParseSvgString(elem.ref.outerHTML)
     // Remove the selected border from the cloned element
     val selectedBorders = e.querySelectorAll(".selected-border")
     for (node <- selectedBorders) do
       node.parentNode.removeChild(node)
-    val bbox = elem.get.getBBox()
+    val bbox = elem.ref.getBBox()
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
   def toSVGTextWithIds(ids: ElementIds): String =

@@ -8,12 +8,16 @@ import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
 
 import scala.util.Success
 
+enum ArrowEndpoint derives CanEqual:
+  case source, target
+  
+  def isSource = this == source
+
 enum MouseAction derives CanEqual:
   case Inactive
   case ExtendSelectionAction(rect: UserActionRect)
-  case AddNewArrowAction(rect: UserActionRect, start: SelectableElement)
-  case MoveArrowSourceAction(rect: UserActionRect, start: SelectableElement)
-  case MoveArrowTargetAction(rect: UserActionRect, start: SelectableElement)
+  case AddNewArrowAction(rect: UserActionRect, originator: SelectableElement)
+  case MoveArrowEndpointAction(rect: UserActionRect, originator: SelectableElement, endpoint: ArrowEndpoint)
 
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 
@@ -32,8 +36,7 @@ class MouseActionVar(initial: MouseAction = Inactive):
 
   def updateEndpoint(end: ClientPoint, shift: Boolean): Unit =
     sourceVar.update:
-      case Inactive                           => Inactive
-      case ExtendSelectionAction(rect)        => ExtendSelectionAction(rect.update(end, shift))
-      case AddNewArrowAction(rect, start)     => AddNewArrowAction(rect.update(end, shift), start)
-      case MoveArrowSourceAction(rect, start) => MoveArrowSourceAction(rect.update(end, shift), start)
-      case MoveArrowTargetAction(rect, start) => MoveArrowTargetAction(rect.update(end, shift), start)
+      case Inactive                   => Inactive
+      case a: ExtendSelectionAction   => a.modify(_.rect).using(_.update(end, shift))
+      case a: AddNewArrowAction       => a.modify(_.rect).using(_.update(end, shift))
+      case a: MoveArrowEndpointAction => a.modify(_.rect).using(_.update(end, shift))

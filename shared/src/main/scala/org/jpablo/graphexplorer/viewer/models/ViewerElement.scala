@@ -57,9 +57,9 @@ object ViewerNode:
 //      Arrows
 // ------------------
 
-enum ArrowEndpoint derives CanEqual:
-  case Source(nodeId: NodeId)
-  case Target(nodeId: NodeId)
+enum ArrowEndpointId derives CanEqual:
+  case SourceId(nodeId: NodeId)
+  case TargetId(nodeId: NodeId)
 
 case class Arrow(
     source:     NodeId,

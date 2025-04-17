@@ -39,11 +39,10 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // 3. Any ongoing action end here
     onMouseUp.filter(leftButton) --> { ev =>
       state.mouseAction.now() match
-        case a: AddNewArrowAction     => state.handleAddNewArrowMouseUp(ev, a)
-        case a: MoveArrowSourceAction => state.handleMoveArrowStartMouseUp(ev, a)
-        case a: MoveArrowTargetAction => state.handleMoveArrowTargetMouseUp(ev, a)
-        case a: ExtendSelectionAction => ()
-        case Inactive                 => ()
+        case a: AddNewArrowAction       => state.handleAddNewArrowMouseUp(ev, a)
+        case a: MoveArrowEndpointAction => state.handleMoveArrowStartMouseUp(ev, a)
+        case a: ExtendSelectionAction   => ()
+        case Inactive                   => ()
       state.mouseAction.inactive()
     }
   )

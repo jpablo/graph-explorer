@@ -8,23 +8,24 @@ import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand
 import org.jpablo.graphexplorer.viewer.formats.svg.SVGPathParser
 import org.scalajs.dom
-
 import PathCommand.*
+import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
 
 /** Creates a small disk placed near the endpoint of an edge. Diameter: 8px, Border: 1px
   *
   * @param edge
   *   The EdgeElement the disk is associated with.
-  * @param start
+  * @param source
   *   Whether this disk is for the start point (true) or end point (false).
   * @return
   *   A reactive SVG group element containing the disk.
   */
 def ArrowEndpointButton(
-    edge:    EdgeElement,
-    start:   Boolean,
-    svgMods: SvgMods*
+    edge:     EdgeElement,
+    endpoint: ArrowEndpoint,
+    svgMods:  SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
+  val source = endpoint == ArrowEndpoint.source
   // Define disk properties
   val radius = 4 // Reduced radius for a smaller button
   val w      = radius * 2
@@ -32,7 +33,7 @@ def ArrowEndpointButton(
 
   // Find the main path element and parse its commands
   val svgPathOpt: Option[dom.svg.Path] =
-    Option(edge.ref.querySelector("path")).map(_.asInstanceOf[dom.svg.Path])
+    Option(edge.ref0.querySelector("path")).map(_.asInstanceOf[dom.svg.Path])
 
   val pathCommands = svgPathOpt
     .flatMap(p => Option(p.getAttribute("d")))
@@ -55,7 +56,7 @@ def ArrowEndpointButton(
   // Find potential marker elements (children excluding title and path)
   val markerTags = Set("circle", "ellipse", "polygon", "rect") // Common marker element types
   val potentialMarkers =
-    edge.ref.querySelectorAll(markerTags.mkString(",")).map(_.asInstanceOf[dom.SVGLocatable]).toSeq
+    edge.ref0.querySelectorAll(markerTags.mkString(",")).map(_.asInstanceOf[dom.SVGLocatable]).toSeq
 
   // Calculate the center of the appropriate marker based on its distance to start/end points
   val selectedMarkerCenterOpt: Option[(Double, Double)] =
@@ -71,34 +72,34 @@ def ArrowEndpointButton(
           val distanceToEnd   = math.sqrt(math.pow(centerX - endX, 2) + math.pow(centerY - endY, 2))
 
           // Only consider this marker if it's closer to our target point (start/end) than the opposite point
-          val isValidForStart = start && distanceToStart < distanceToEnd
-          val isValidForEnd   = !start && distanceToEnd < distanceToStart
+          val isValidForStart = source && distanceToStart < distanceToEnd
+          val isValidForEnd   = !source && distanceToEnd < distanceToStart
 
           // Use the appropriate distance based on whether we're looking for start or end point
-          val relevantDistance = if (start) distanceToStart else distanceToEnd
+          val relevantDistance = if (source) distanceToStart else distanceToEnd
 
           (centerX, centerY, relevantDistance, isValidForStart || isValidForEnd)
 
         markerDistances
-          .filter(_._4) // Only consider markers that are valid for our target point
+          .filter(_._4)  // Only consider markers that are valid for our target point
           .sortBy(-_._3) // Sort by distance
-          .headOption   // Get the closest one
+          .headOption    // Get the closest one
           .map((cx, cy, _, _) => (cx, cy))
       }
     yield markerCenter
 
   // Determine the translation coordinates: use marker center if found, else use path start/end point
-  val (trX, trY) = selectedMarkerCenterOpt.orElse(if start then startPointOpt else endPointOpt).getOrElse {
+  val (trX, trY) = selectedMarkerCenterOpt.orElse(if source then startPointOpt else endPointOpt).getOrElse {
     // Fallback to the overall bounding box center if path points are missing
-    val bbox = edge.ref.getBBox()
+    val bbox = edge.ref0.getBBox()
     (bbox.x + bbox.width / 2, bbox.y + bbox.height / 2)
   }
 
   // Calculate scaling factor based on the edge group's overall transform
-  val scale = SvgUtils.calculateSimpleScale(edge.ref, w.toDouble, clientSize = 10)
+  val scale = SvgUtils.calculateSimpleScale(edge.ref0, w.toDouble, clientSize = 10)
 
   svg.g(
-    svg.cls           := s"edge-endpoint-disk edge-endpoint-disk-${if (start) "source" else "target"}",
+    svg.cls           := s"edge-endpoint-disk edge-endpoint-disk-${if (source) "source" else "target"}",
     svg.pointerEvents := "all",                    // Keep interactive
     svg.transform     := s"translate($trX, $trY)", // Apply translation first
     svg.g(
