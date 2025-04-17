@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowEndpointId, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowEndpointAction
-import org.jpablo.graphexplorer.viewer.utils.UserActionRect
+import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
 
 /*
  * This trait contains the logic for handling mouse actions related to moving the start of an arrow in the graph.
@@ -28,7 +28,7 @@ trait MoveArrowSourceOps:
       originator,
       endpoint,
       onMouseDown.stopPropagation.map(clientCoords) --> { (pos, _) =>
-        mouseAction.start(MoveArrowEndpointAction(UserActionRect(start = pos, end = pos, shift = false), originator, endpoint))
+        mouseAction.start(MoveArrowEndpointAction(MouseActionRect(start = pos, end = pos, shift = false), originator, endpoint))
       },
       onMouseUp.stopPropagation --> mouseAction.inactive()
     )

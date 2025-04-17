@@ -3,12 +3,12 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowButton
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowControl
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.AddNewArrowAction
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
 
 import scala.scalajs.js
 
@@ -51,13 +51,13 @@ trait AddNewArrowOps:
       case Some(endElementId) => selection.set3(Set(start.elementId, endElementId))
       case None               => selection.set(start.elementId)
 
-  def buildNewArrowButton(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
-    NewArrowButton(
+  def buildNewArrowControl(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
+    NewArrowControl(
       selectedElem,
       graphRankDir.observe().now,
       onMouseDown.stopPropagation --> { ev =>
         val pos = ClientPoint(ev.clientX, ev.clientY)
-        mouseAction.start(AddNewArrowAction(UserActionRect(pos, pos, shift = false), selectedElem))
+        mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem))
 
       },
       onMouseUp.stopPropagation --> { _ =>

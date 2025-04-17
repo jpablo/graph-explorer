@@ -4,20 +4,20 @@ import com.raquo.airstream.state.SourceVar
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.Inactive
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, UserActionRect}
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
 
 import scala.util.Success
 
 enum ArrowEndpoint derives CanEqual:
   case source, target
-  
+
   def isSource = this == source
 
 enum MouseAction derives CanEqual:
   case Inactive
-  case ExtendSelectionAction(rect: UserActionRect)
-  case AddNewArrowAction(rect: UserActionRect, originator: SelectableElement)
-  case MoveArrowEndpointAction(rect: UserActionRect, originator: SelectableElement, endpoint: ArrowEndpoint)
+  case ExtendSelectionAction(rect: MouseActionRect)
+  case AddNewArrowAction(rect: MouseActionRect, originator: SelectableElement)
+  case MoveArrowEndpointAction(rect: MouseActionRect, originator: SelectableElement, endpoint: ArrowEndpoint)
 
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 

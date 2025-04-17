@@ -8,14 +8,14 @@ import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.scalajs.dom
-import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint, UserActionRect}
+import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint, MouseActionRect}
 
 extension (clientPoint: ClientPoint)
   def toSvgPoint(screenCtm: dom.SVGMatrix): SvgPoint =
     val DOMPoint = new DOMPoint(clientPoint.x, clientPoint.y).matrixTransform(screenCtm.inverse())
     SvgPoint(DOMPoint.x, DOMPoint.y)
 
-extension (rect: UserActionRect)
+extension (rect: MouseActionRect)
   def toSvgPair(screenCtm: dom.SVGMatrix): (SvgPoint, SvgPoint) =
     (rect.start.toSvgPoint(screenCtm), rect.end.toSvgPoint(screenCtm))
 

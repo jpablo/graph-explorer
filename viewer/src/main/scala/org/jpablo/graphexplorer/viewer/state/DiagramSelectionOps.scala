@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
-import org.jpablo.graphexplorer.viewer.utils.UserActionRect
+import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
 
 import scala.annotation.targetName
 import scala.scalajs.js
@@ -234,7 +234,7 @@ trait DiagramSelectionOps:
     // -----------
 
     def selectExtendSelectionOverlappingElements(
-        rect:                UserActionRect,
+        rect:                MouseActionRect,
         selectableElements:  Seq[SelectableElement],
         elementsFromRectEnd: js.Array[dom.Element]
     ) =
@@ -266,7 +266,7 @@ trait DiagramSelectionOps:
       *   1. Gets the element's bounding box in client coordinates 2. Normalizes the selection rect coordinates to handle any direction of
       *      dragging 3. Uses a standard rectangle intersection test
       */
-    def isNodeInRect(elem: SelectableElement, rect: UserActionRect): Boolean =
+    def isNodeInRect(elem: SelectableElement, rect: MouseActionRect): Boolean =
       val bbox   = elem.ref.getBoundingClientRect()
       val x      = rect.start.x min rect.end.x
       val y      = rect.start.y min rect.end.y

@@ -50,7 +50,7 @@ def SvgCanvas(
         Seq(
           svg.transform <-- transform,
           // "buttons" to initiate mouse actions
-          child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildNewArrowButton)),
+          child.maybe <-- singleSelection.map(_.flatMap(viewerOps.buildNewArrowControl)),
           children <-- singleSelection.map {
             _.toSeq.flatMap:
               case edge: EdgeElement =>

@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir.*
 
-def NewArrowButton(
+def NewArrowControl(
     elem:       SelectableElement,
     getRankdir: () => Rankdir,
     svgMods:    SvgMods*
