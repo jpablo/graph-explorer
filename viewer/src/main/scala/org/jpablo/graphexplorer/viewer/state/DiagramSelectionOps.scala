@@ -151,8 +151,9 @@ trait DiagramSelectionOps:
       phases.fullGraphV.update: fullGraph =>
         fullGraph.removeElements(now())
 
-    /** Duplicates the currently selected nodes. Creates new nodes with the same attributes as the selected nodes and places them in the
-      * same groups. The newly created nodes become the selected elements after duplication.
+    /** Duplicates the currently selected nodes and arrows. Creates new elements with the same attributes as the selected ones and places
+      * them in the same groups (for nodes). Arrows are duplicated connecting the corresponding (potentially new) nodes. The newly created
+      * elements become the selected elements after duplication.
       */
     def duplicateSelection() =
       phases.fullGraphV.update: fullGraph =>
@@ -160,30 +161,51 @@ trait DiagramSelectionOps:
         if s.isEmpty then
           fullGraph
         else
-          // Filter out any non-node elements (like edges)
-          val classified       = s.classify
-          val nodesToDuplicate = classified.nodes
-          if nodesToDuplicate.isEmpty then
-            fullGraph
-          else
-            // Create a new graph with the duplicated nodes
-            val (newGraph, newNodeIds) = nodesToDuplicate.foldLeft((fullGraph, Set.empty[NodeId])) {
-              case ((graph, newIds), originalId) =>
-                // Get the original node's attributes and group
-                val originalNode = graph.getNode(originalId).get // Look into this
-                val groupId      = graph.membership(originalId)
-                // Create a new node with a random ID
-                val (updatedGraph, newNodeId) = graph.addNode(groupId)
-                // Update the new node with the original node's attributes
-                val finalGraph =
-                  updatedGraph.updateAttributes(ElementIds.from(newNodeId), originalNode.attributes.toUpdates)
-                // Add the new node ID to our collection
-                (finalGraph, newIds + newNodeId)
+          val classified = s.classify
+
+          // 1. Duplicate Nodes and create a map from old NodeId to new NodeId
+          val (graphAfterNodes, newNodeIds, nodeIdMap) =
+            classified.nodes.foldLeft((fullGraph, Set.empty[NodeId], Map.empty[NodeId, NodeId])) {
+              case ((graph, newIds, idMap), originalId) =>
+                graph.getNode(originalId) match
+                  case None => (graph, newIds, idMap) // Should not happen if selection is consistent
+                  case Some(originalNode) =>
+                    val groupId = graph.membership(originalId)
+                    // Create a new node with a random ID
+                    val (updatedGraph, newNodeId) = graph.addNode(groupId)
+                    // Update the new node with the original node's attributes
+                    val finalGraph =
+                      updatedGraph.updateAttributes(ElementIds.from(newNodeId), originalNode.attributes.toUpdates)
+                    // Add the new node ID to our collection and map
+                    (finalGraph, newIds + newNodeId, idMap + (originalId -> newNodeId))
             }
 
-            // Select the newly created nodes
-            set1(newNodeIds)
-            newGraph
+          // 2. Duplicate Arrows, using the nodeIdMap to connect to new nodes if available
+          val (finalGraph, newArrowIds) =
+            classified.arrows.foldLeft((graphAfterNodes, Set.empty[ArrowId])) {
+              case ((graph, newIds), originalArrowId) =>
+                graph.arrows.get(originalArrowId) match
+                  case None => (graph, newIds) // Should not happen
+                  case Some(originalArrow) =>
+                    // Use the new node ID if the original endpoint was duplicated, otherwise use the original ID
+                    val newSourceId = nodeIdMap.getOrElse(originalArrow.source, originalArrow.source)
+                    val newTargetId = nodeIdMap.getOrElse(originalArrow.target, originalArrow.target)
+
+                    // Create the new arrow
+                    val (updatedGraph, newArrow) = graph.addArrow(newSourceId, newTargetId) // Renamed for clarity
+                    // Copy attributes
+                    val graphWithAttrs =
+                      updatedGraph.updateAttributes(ElementIds.from(newArrow.id), originalArrow.attributes.toUpdates) // Use newArrow.id
+
+                    (graphWithAttrs, newIds + newArrow.id) // Use newArrow.id
+            }
+
+          // 3. Select the newly created elements (nodes and arrows)
+          val allNewElementIds = newNodeIds ++ newArrowIds
+          if allNewElementIds.nonEmpty then
+            set1(allNewElementIds) // Assuming set1 takes Set[ElementId]
+
+          finalGraph // Return the final graph state
 
     // --- Attribute Resets ---
 
