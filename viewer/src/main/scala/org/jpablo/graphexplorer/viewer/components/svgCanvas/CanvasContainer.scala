@@ -31,7 +31,9 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
 //    onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElem) => state.handleWheel(e, svgElem.ref.viewBox.baseVal)),
-    // mouse-related "actions"
+    // -----------------------
+    // Mouse-related actions
+    // -----------------------
     // 1. Drawing a selecting rectangle starts here. Other actions start in their respective elements.
     onMouseDown.filter(leftButton).map(clientCoords) --> { (pos, shift) =>
       state.mouseAction.start(ExtendSelectionAction(MouseActionRect(pos, pos, shift)))

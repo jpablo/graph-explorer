@@ -9,14 +9,14 @@ import scala.scalajs.js
 import scala.scalajs.js.annotation.JSGlobal
 
 val details = htmlTag("details")
+val dialog  = htmlTag[HTMLDialogElement]("dialog")
 val summary = htmlTag("summary")
-val dialog = htmlTag[HTMLDialogElement]("dialog")
 
-val open = htmlAttr("open", BooleanAsAttrPresenceCodec)
-val dataTip = htmlAttr("data-tip", StringAsIsCodec)
-val dataTabId = htmlAttr("data-tab-id", StringAsIsCodec)
-val name = htmlAttr("name", StringAsIsCodec)
 val ariaLabel = htmlAttr("aria-label", StringAsIsCodec)
+val dataTabId = htmlAttr("data-tab-id", StringAsIsCodec)
+val dataTip   = htmlAttr("data-tip", StringAsIsCodec)
+val name      = htmlAttr("name", StringAsIsCodec)
+val open      = htmlAttr("open", BooleanAsAttrPresenceCodec)
 
 val autocomplete = htmlProp("autocomplete", StringAsIsCodec)
 
@@ -24,7 +24,8 @@ val gridColumn = styleProp("grid-column")
 
 extension (doc: dom.HTMLDocument)
   def elementsFromPoint(x: Double, y: Double): js.Array[dom.Element] =
-    doc.asInstanceOf[js.Dynamic]
+    doc
+      .asInstanceOf[js.Dynamic]
       .elementsFromPoint(x, y)
       .asInstanceOf[js.Array[dom.Element]]
 

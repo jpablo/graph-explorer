@@ -5,9 +5,6 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
-import upickle.default.writeJs
-
-import scala.scalajs.js.JSON
 
 trait VisibilityOps:
   this: ViewerState =>
@@ -20,7 +17,8 @@ trait VisibilityOps:
     val update = _hiddenElements.update
 
     val signal =
-      _hiddenElements.signal.tapEach(s => dom.console.debug("hiddenElementsV:", JSON.parse(writeJs(s).toString)))
+      _hiddenElements.signal
+//        .tapEach(s => dom.console.debug("hiddenElementsV:", JSON.parse(writeJs(s).toString)))
 
     def toggle(s: NodeId): Unit =
       _hiddenElements.update(_.toggle(s))

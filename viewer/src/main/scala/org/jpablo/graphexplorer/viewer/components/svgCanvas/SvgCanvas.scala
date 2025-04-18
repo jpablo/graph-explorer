@@ -12,6 +12,7 @@ import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
+import org.jpablo.graphexplorer.viewer.domUtils.querySelectorT
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 // rawSvg is the SVG element as it comes from DOT
@@ -24,8 +25,8 @@ def SvgCanvas(
   import viewerOps.selection
 
   val firstGroup: dom.svg.G =
-    val g0 = rawSvg.querySelector("g")
-    (if g0 == null then dom.document.createElement("g") else g0).asInstanceOf[dom.svg.G]
+    val g0 = rawSvg.querySelectorT("g").get
+    if g0 == null then dom.document.createElement("g").asInstanceOf[dom.svg.G] else g0
 
   // --------------------------------------------------------
   // The top level <svg> element

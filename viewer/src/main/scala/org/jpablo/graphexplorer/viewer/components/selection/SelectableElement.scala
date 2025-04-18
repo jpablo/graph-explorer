@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
-import org.scalajs.dom
+import org.jpablo.graphexplorer.viewer.domUtils.{querySelectorT, querySelectorAllT}
 import org.scalajs.dom.{Element, FocusEvent, KeyValue}
 
 import scala.scalajs.js
@@ -44,9 +44,9 @@ sealed trait SelectableElement(val ref: dom.SVGGElement):
       clearEditing: () => Unit,
       label:        String
   ): Unit =
-    val polygon      = ref.querySelector("polygon").asInstanceOf[dom.SVGPolygonElement]
+    val polygon      = ref.querySelectorT("polygon").get
     val groupBBox    = (if polygon == null then ref else polygon).getBBox()
-    val textElements = ref.querySelectorAll("text").toSeq.map(_.asInstanceOf[dom.SVGTextElement])
+    val textElements = ref.querySelectorAllT[dom.SVGTextElement]("text")
     val bBox =
       if textElements.isEmpty then
         BBox(groupBBox.x, groupBBox.y, groupBBox.width, groupBBox.height)
@@ -143,7 +143,7 @@ case class NodeElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
   val selectedClass = "selected"
   val elementId     = NodeId(refTitle)
 
-case class EdgeElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
+case class EdgeElement(private val ref0: dom.SVGGElement) extends SelectableElement(ref0):
   val selectedClass = "selected"
 
   private lazy val toArrowId: Option[ArrowId] =
