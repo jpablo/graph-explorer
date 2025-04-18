@@ -24,7 +24,7 @@ trait DiagramSelectionOps:
   object selection:
     val signal = selectionV.signal
       .distinct
-      // .tapEach(sel => println(s"[selection] $sel"))
+    // .tapEach(sel => println(s"[selection] $sel"))
 
     val editingElement = editingElementV.signal.distinct
 
@@ -64,7 +64,6 @@ trait DiagramSelectionOps:
 
     def set2(ss: ElementId*)(using name: sourcecode.FullName): Unit =
       set1(ss.toSet)
-
 
     @targetName("addElementIds")
     def add(ss: Set[? <: ElementId]): Unit =
@@ -151,61 +150,96 @@ trait DiagramSelectionOps:
       phases.fullGraphV.update: fullGraph =>
         fullGraph.removeElements(now())
 
-    /** Duplicates the currently selected nodes and arrows. Creates new elements with the same attributes as the selected ones and places
-      * them in the same groups (for nodes). Arrows are duplicated connecting the corresponding (potentially new) nodes. The newly created
-      * elements become the selected elements after duplication.
+    /** Duplicates the currently selected nodes, arrows, and groups. Creates new elements with the same attributes as the selected ones.
+      * Nodes are placed in the corresponding duplicated group if their original group was also selected. Arrows are duplicated connecting
+      * the corresponding (potentially new) nodes. The newly created elements become the selected elements after duplication.
       */
     def duplicateSelection() =
-      phases.fullGraphV.update: fullGraph =>
+      phases.fullGraphV.update: initialGraph =>
         val s: Selection = now()
         if s.isEmpty then
-          fullGraph
+          initialGraph
         else
           val classified = s.classify
 
-          // 1. Duplicate Nodes and create a map from old NodeId to new NodeId
+          // 1. Determine all elements to duplicate (selected + descendants of selected groups)
+          val selectedGroupIds = classified.groups
+          val descendantMembers =
+            if selectedGroupIds.nonEmpty then initialGraph.getAllChildren(selectedGroupIds) else Set.empty[GroupMemberId]
+          val descendantGroupIds = descendantMembers.collect { case id: GroupId => id }
+          val descendantNodeIds  = descendantMembers.collect { case id: NodeId => id }
+
+          val groupsToDuplicate = selectedGroupIds ++ descendantGroupIds
+          val nodesToDuplicate  = classified.nodes ++ descendantNodeIds
+
+          // 2. Duplicate Groups and create a map from old GroupId to new GroupId
+          val (graphAfterGroups, newGroupIds, groupIdMap) =
+            groupsToDuplicate.foldLeft((initialGraph, Set.empty[GroupId], Map.empty[GroupId, GroupId])) {
+              case ((currentGraph, createdGroupIds, groupMap), originalGroupId) =>
+                // Avoid re-duplicating if already processed (e.g., nested group)
+                if groupMap.contains(originalGroupId) then (currentGraph, createdGroupIds, groupMap)
+                else
+                  currentGraph.elements.groups.get(originalGroupId) match
+                    case None => (currentGraph, createdGroupIds, groupMap) // Should not happen for valid IDs
+                    case Some(originalGroup) =>
+                      val newGroupId            = GroupId(org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph.randomId())
+                      val newGroup              = ViewerGroup.group(newGroupId, originalGroup.attributes)
+                      val originalParentGroupId = currentGraph.membership(originalGroupId)
+                      // Use the map to find the NEW parent ID if the original parent was also duplicated
+                      val targetParentGroupId = originalParentGroupId.flatMap(groupMap.get).orElse(originalParentGroupId)
+
+                      val updatedElements = currentGraph.elements.copy(
+                        groups = currentGraph.elements.groups + (newGroupId -> newGroup),
+                        memberships = targetParentGroupId.fold(currentGraph.elements.memberships)(pId =>
+                          currentGraph.elements.memberships + (newGroupId -> pId)
+                        )
+                      )
+                      val graphWithNewGroup = currentGraph.copy(elements = updatedElements)
+                      (graphWithNewGroup, createdGroupIds + newGroupId, groupMap + (originalGroupId -> newGroupId))
+            }
+
+          // 3. Duplicate Nodes and create a map from old NodeId to new NodeId
           val (graphAfterNodes, newNodeIds, nodeIdMap) =
-            classified.nodes.foldLeft((fullGraph, Set.empty[NodeId], Map.empty[NodeId, NodeId])) {
-              case ((graph, newIds, idMap), originalId) =>
-                graph.getNode(originalId) match
-                  case None => (graph, newIds, idMap) // Should not happen if selection is consistent
-                  case Some(originalNode) =>
-                    val groupId = graph.membership(originalId)
-                    // Create a new node with a random ID
-                    val (updatedGraph, newNodeId) = graph.addNode(groupId)
-                    // Update the new node with the original node's attributes
-                    val finalGraph =
-                      updatedGraph.updateAttributes(ElementIds.from(newNodeId), originalNode.attributes.toUpdates)
-                    // Add the new node ID to our collection and map
-                    (finalGraph, newIds + newNodeId, idMap + (originalId -> newNodeId))
+            nodesToDuplicate.foldLeft((graphAfterGroups, Set.empty[NodeId], Map.empty[NodeId, NodeId])) {
+              case ((currentGraph, createdNodeIds, nodeMap), originalNodeId) =>
+                // Avoid re-duplicating if somehow processed twice (shouldn't happen with sets)
+                if nodeMap.contains(originalNodeId) then (currentGraph, createdNodeIds, nodeMap)
+                else
+                  currentGraph.getNode(originalNodeId) match
+                    case None => (currentGraph, createdNodeIds, nodeMap) // Should not happen for valid IDs
+                    case Some(originalNode) =>
+                      val originalParentGroupId = currentGraph.membership(originalNodeId)
+                      // Use the map to find the NEW parent ID if the original parent was also duplicated
+                      val targetGroupId                 = originalParentGroupId.flatMap(groupIdMap.get).orElse(originalParentGroupId)
+                      val (graphWithNewNode, newNodeId) = currentGraph.addNode(targetGroupId)
+                      val finalGraphForNode =
+                        graphWithNewNode.updateAttributes(ElementIds.from(newNodeId), originalNode.attributes.toUpdates)
+                      (finalGraphForNode, createdNodeIds + newNodeId, nodeMap + (originalNodeId -> newNodeId))
             }
 
-          // 2. Duplicate Arrows, using the nodeIdMap to connect to new nodes if available
+          // 4. Duplicate Arrows whose endpoints were both duplicated
           val (finalGraph, newArrowIds) =
-            classified.arrows.foldLeft((graphAfterNodes, Set.empty[ArrowId])) {
-              case ((graph, newIds), originalArrowId) =>
-                graph.arrows.get(originalArrowId) match
-                  case None => (graph, newIds) // Should not happen
-                  case Some(originalArrow) =>
-                    // Use the new node ID if the original endpoint was duplicated, otherwise use the original ID
-                    val newSourceId = nodeIdMap.getOrElse(originalArrow.source, originalArrow.source)
-                    val newTargetId = nodeIdMap.getOrElse(originalArrow.target, originalArrow.target)
-
-                    // Create the new arrow
-                    val (updatedGraph, newArrow) = graph.addArrow(newSourceId, newTargetId) // Renamed for clarity
-                    // Copy attributes
-                    val graphWithAttrs =
-                      updatedGraph.updateAttributes(ElementIds.from(newArrow.id), originalArrow.attributes.toUpdates) // Use newArrow.id
-
-                    (graphWithAttrs, newIds + newArrow.id) // Use newArrow.id
+            initialGraph.arrows.values.foldLeft((graphAfterNodes, Set.empty[ArrowId])) {
+              case ((currentGraph, createdArrowIds), originalArrow) =>
+                // Check if BOTH source and target nodes were duplicated
+                if nodeIdMap.contains(originalArrow.source) && nodeIdMap.contains(originalArrow.target) then
+                  val newSourceId                   = nodeIdMap(originalArrow.source)
+                  val newTargetId                   = nodeIdMap(originalArrow.target)
+                  val (graphWithNewArrow, newArrow) = currentGraph.addArrow(newSourceId, newTargetId)
+                  val graphWithAttrs =
+                    graphWithNewArrow.updateAttributes(ElementIds.from(newArrow.id), originalArrow.attributes.toUpdates)
+                  (graphWithAttrs, createdArrowIds + newArrow.id)
+                else
+                  // If endpoints weren't duplicated, skip this arrow
+                  (currentGraph, createdArrowIds)
             }
 
-          // 3. Select the newly created elements (nodes and arrows)
-          val allNewElementIds = newNodeIds ++ newArrowIds
+          // 5. Select the newly created elements
+          val allNewElementIds: Set[ElementId] = newGroupIds.map(id => id: ElementId) ++ newNodeIds ++ newArrowIds
           if allNewElementIds.nonEmpty then
-            set1(allNewElementIds) // Assuming set1 takes Set[ElementId]
+            set1(allNewElementIds)
 
-          finalGraph // Return the final graph state
+          finalGraph
 
     // --- Attribute Resets ---
 
@@ -300,7 +334,6 @@ trait DiagramSelectionOps:
         bbox.left > x + width ||
         bbox.bottom < y ||
         bbox.top > y + height)
-
 
   def printSelectionToConsole(): Unit =
     // Don't remove this line!! it IS the actual functionality

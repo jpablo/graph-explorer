@@ -156,7 +156,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val duplicate = Command(
       "Duplicate selection",
       state.selection.duplicateSelection,
-      and(not(singleGroupSelected), selectionNonEmpty),
+      selectionNonEmpty,
       shortcut = Some(Shortcut("d")),
       description = Some("Duplicate selected nodes")
     )
