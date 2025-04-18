@@ -72,19 +72,21 @@ def ArrowEndpointControl(
           val distanceToEnd   = math.sqrt(math.pow(centerX - endX, 2) + math.pow(centerY - endY, 2))
 
           // Only consider this marker if it's closer to our target point (start/end) than the opposite point
-          val isValidForStart = source && distanceToStart < distanceToEnd
-          val isValidForEnd   = !source && distanceToEnd < distanceToStart
+          // and if the distance is below a reasonable threshold to ensure it's actually at the endpoint
+          val threshold = 20.0 // Maximum distance to consider a marker valid
+          val isValidForStart = source && distanceToStart < distanceToEnd && distanceToStart < threshold
+          val isValidForEnd   = !source && distanceToEnd < distanceToStart && distanceToEnd < threshold
 
           // Use the appropriate distance based on whether we're looking for start or end point
           val relevantDistance = if (source) distanceToStart else distanceToEnd
 
-          (centerX, centerY, relevantDistance, isValidForStart || isValidForEnd)
+          (cx = centerX, cy = centerY, distance = relevantDistance, isValid = isValidForStart || isValidForEnd)
 
         markerDistances
-          .filter(_._4)  // Only consider markers that are valid for our target point
-          .sortBy(-_._3) // Sort by distance
+          .filter(_.isValid)  // Only consider markers that are valid for our target point
+          .sortBy(-_.distance)  // Sort by distance
           .headOption    // Get the closest one
-          .map((cx, cy, _, _) => (cx, cy))
+          .map(md => (md.cx, md.cy))
       }
     yield markerCenter
 
@@ -95,7 +97,7 @@ def ArrowEndpointControl(
     (bbox.x + bbox.width / 2, bbox.y + bbox.height / 2)
   }
 
-  // Calculate scaling factor based on the edge group's overall transform
+  // Calculate the scaling factor based on the edge group's overall transform
   val scale = SvgUtils.calculateSimpleScale(edge.ref0, w.toDouble, clientSize = 12)
 
   svg.g(

@@ -9,8 +9,18 @@ import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElem
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.AddNewArrowAction
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
+import org.scalajs.dom.DOMRect
 
 import scala.scalajs.js
+
+def pointInsideBox(
+    pt:   (x: Double, y: Double),
+    bbox: DOMRect
+): Boolean =
+  pt.x >= bbox.left &&
+    pt.x <= bbox.right &&
+    pt.y >= bbox.top &&
+    pt.y <= bbox.bottom
 
 trait AddNewArrowOps:
   this: ViewerState =>
@@ -20,15 +30,8 @@ trait AddNewArrowOps:
     val start   = lastActionValue.originator
 
     // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
-    val startBbox         = start.ref.getBoundingClientRect()
-    val mouseReleasePoint = (ev.clientX, ev.clientY)
-    val isMouseInsideSourceNode =
-      mouseReleasePoint._1 >= startBbox.left &&
-        mouseReleasePoint._1 <= startBbox.right &&
-        mouseReleasePoint._2 >= startBbox.top &&
-        mouseReleasePoint._2 <= startBbox.bottom
-
-    // Single selection and mouse released on the source node: add a self loop
+    val isMouseInsideSourceNode = pointInsideBox(pt = (ev.clientX, ev.clientY), bbox = start.ref.getBoundingClientRect())
+    // Single selection and mouse released on the source node: add a self-loop
     if current.size == 1 && isMouseInsideSourceNode then
       start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
     else if current.size == 2 then

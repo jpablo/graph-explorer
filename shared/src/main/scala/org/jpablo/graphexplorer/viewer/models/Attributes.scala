@@ -137,7 +137,7 @@ case class AttributeUpdates(statuses: Map[AttributeId, AttrValueWithStatus] = Ma
 
   def -(key: AttributeId) = AttributeUpdates(statuses - key)
 
-  def +(kv: (AttributeId, AttrValue)) = AttributeUpdates(statuses + (kv._1 -> AttrStatus.Single(kv._2)))
+  def +(kv: (attrId: AttributeId, value: AttrValue)) = AttributeUpdates(statuses + (kv.attrId -> AttrStatus.Single(kv.value)))
 
   @targetName("concatUpdates")
   def +(kv: (AttributeId, AttrValueWithStatus)) = AttributeUpdates(statuses + kv)

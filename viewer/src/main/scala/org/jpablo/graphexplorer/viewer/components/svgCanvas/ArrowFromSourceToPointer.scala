@@ -56,7 +56,7 @@ def ArrowFromSourceToPointer(
 
       // Filter to only consider intersections in the direction of the ray
       // and find the smallest positive t value (first intersection)
-      val candidates = Seq(
+      val candidates: Seq[(t: Double, ix: Double, iy: Double)] = Seq(
         if dx > 0 then (tRight, right, centerY + dy * tRight) else null,
         if dx < 0 then (tLeft, left, centerY + dy * tLeft) else null,
         if dy > 0 then (tBottom, centerX + dx * tBottom, bottom) else null,
@@ -64,7 +64,7 @@ def ArrowFromSourceToPointer(
       ).filter(_ != null)
 
       // Find the intersection with the smallest positive t value
-      val (_, ix, iy) = candidates.minBy(_._1)
+      val (_, ix, iy) = candidates.minBy(_.t)
 
       // Handle numerical precision issues by clamping to the bbox edges
       val clampedX = math.max(left, math.min(right, ix))

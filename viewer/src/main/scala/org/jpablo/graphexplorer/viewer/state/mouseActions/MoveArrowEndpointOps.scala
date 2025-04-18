@@ -86,6 +86,8 @@ trait MoveArrowEndpointOps:
           case _ => false
         if !ignore then
           selection.set1(Set(start.elementId, endElementId))
+        else
+          selection.set2(start.elementId)
 
       case None =>
         selection.set2(start.elementId)
@@ -96,13 +98,7 @@ trait MoveArrowEndpointOps:
     val originator   = action.originator
     selection.clear()
     // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
-    val startBbox         = originator.ref.getBoundingClientRect()
-    val mouseReleasePoint = (ev.clientX, ev.clientY)
-    val isMouseInsideSourceNode =
-      mouseReleasePoint._1 >= startBbox.left &&
-        mouseReleasePoint._1 <= startBbox.right &&
-        mouseReleasePoint._2 >= startBbox.top &&
-        mouseReleasePoint._2 <= startBbox.bottom
+    val isMouseInsideSourceNode = pointInsideBox((ev.clientX, ev.clientY), originator.ref.getBoundingClientRect())
 
     if selectionNow.size == 2 && !isMouseInsideSourceNode then
       // move the arrow endpoint to the new position

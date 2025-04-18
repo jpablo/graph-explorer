@@ -132,10 +132,10 @@ case class SubGraph(children: List[GraphElement], id: Option[String] = None)
       .collect:
         case AttrStmt(target, attrs) =>
           val targetEnum = AttributeTarget.valueOf(target.toLowerCase)
-          (targetEnum, attrs.map(attr => AttributeId(attr.id) -> attr.attrEq).toMap)
-      .groupBy(_._1)
+          (target = targetEnum, attrs = attrs.map(attr => AttributeId(attr.id) -> attr.attrEq).toMap)
+      .groupBy(_.target)
       .view
-      .mapValues(tuples => Attributes(tuples.flatMap(_._2).toMap))
+      .mapValues(tuples => Attributes(tuples.flatMap(_.attrs).toMap))
       .toMap
 
 object SubGraph:

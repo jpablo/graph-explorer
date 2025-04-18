@@ -31,16 +31,15 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
 //    onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElem) => state.handleWheel(e, svgElem.ref.viewBox.baseVal)),
-    // mouse related "actions"
+    // mouse-related "actions"
     // 1. Drawing a selecting rectangle starts here. Other actions start in their respective elements.
     onMouseDown.filter(leftButton).map(clientCoords) --> { (pos, shift) =>
       state.mouseAction.start(ExtendSelectionAction(MouseActionRect(pos, pos, shift)))
     },
-    // 2. Any ongoing action is updated here (i.e. mouse position)
+    // 2. Any ongoing action is updated here (i.e., mouse position)
     onMouseMove.filter(leftButtonMoved).map(clientCoords) --> state.mouseAction.updateEndpoint.tupled,
-    // 3. Any ongoing action end here
-    onMouseUp.filter(leftButton) --> { ev =>
-      val mouseActionNow = state.mouseAction.now()
+    // 3. Any ongoing action ends here
+    onMouseUp.filter(leftButton)(_.withCurrentValueOf(state.mouseAction.signal)) --> { (ev, mouseActionNow) =>
       state.mouseAction.inactive()
       mouseActionNow match
         case a: AddNewArrowAction       => state.handleAddNewArrowMouseUp(ev, a)

@@ -37,10 +37,11 @@ def ArrowsList(state: ViewerState): Div =
       sortDirectionVar.set(EdgeSortDirection.Ascending)
   }
 
-  def arrowEndpoints(arrow: Arrow): (String, String) =
-    val Seq(sourceNode, targetNode) = state.nodeById(Seq(arrow.source, arrow.target))
-    val sl                          = sourceNode.label.toString
-    val tl                          = targetNode.label.toString
+  def arrowEndpoints(arrow: Arrow): (source: String, target: String) =
+    val Seq(sourceNode, targetNode) =
+      state.nodeById(Seq(arrow.source, arrow.target))
+    val sl = sourceNode.label.toString
+    val tl = targetNode.label.toString
     (if sl.isBlank then arrow.source.toString else sl, if tl.isBlank then arrow.target.toString else tl)
 
   div(
@@ -148,40 +149,43 @@ def ArrowsList(state: ViewerState): Div =
                   .toList
 
                 // Pre-calculate endpoints for sorting
-                val edgesWithEndpoints = filteredEdges.map(arrow => (arrow, arrowEndpoints(arrow)))
+                val edgesWithEndpoints = filteredEdges.map(arrow => (arrow = arrow, labels = arrowEndpoints(arrow)))
 
                 val sortedEdges = sortColumn match
                   case EdgeSortColumn.Label =>
-                    val sorted = edgesWithEndpoints.sortBy(_._1.label.toString.toLowerCase)
-                    if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
-                  case EdgeSortColumn.Source =>
-                    val sorted = edgesWithEndpoints.sortBy(_._2._1.toLowerCase)
-                    if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
-                  case EdgeSortColumn.Target =>
-                    val sorted = edgesWithEndpoints.sortBy(_._2._2.toLowerCase)
+                    val sorted = edgesWithEndpoints.sortBy(_.arrow.label.toString.toLowerCase)
                     if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
 
-                sortedEdges.map: (arrow, labels) =>
-                  val (sourceLabel, targetLabel) = labels
-                  tr(
-                    cls := "whitespace-nowrap hover cursor-pointer",
-                    cls("font-bold") <-- state.isElementVisible(arrow.id),
-                    cls("bg-base-200") <-- state.selection.contains(arrow.id),
-                    td(cls := "truncate", arrow.label.toString),
-                    td(cls := "truncate", cls("selected") <-- state.selection.contains(arrow.source), sourceLabel),
-                    td("→"),
-                    td(cls := "truncate", cls("selected") <-- state.selection.contains(arrow.target), targetLabel),
-                    onMouseDown.preventDefault --> Observer.empty,
-                    onClick.map(_.shiftKey) --> state.selection.handleClickOnArrow(arrow),
-                    onDblClick
-                      .preventDefault
-                      .stopPropagation(_.sample(state.isElementVisible(arrow.id))) --> { visible =>
-                      if visible then
-                        state.hideNodes(arrow.endpoints.toSet)
-                      else
-                        state.showNodes(arrow.endpoints.toSet)
-                    }
-                  )
+                  case EdgeSortColumn.Source =>
+                    val sorted = edgesWithEndpoints.sortBy(_.labels.source.toLowerCase)
+                    if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
+
+                  case EdgeSortColumn.Target =>
+                    val sorted = edgesWithEndpoints.sortBy(_.labels.target.toLowerCase)
+                    if sortDirection == EdgeSortDirection.Descending then sorted.reverse else sorted
+
+                sortedEdges.map:
+                  case (arrow = arrow, labels = (sourceLabel, targetLabel)) =>
+                    tr(
+                      cls := "whitespace-nowrap hover cursor-pointer",
+                      cls("font-bold") <-- state.isElementVisible(arrow.id),
+                      cls("bg-base-200") <-- state.selection.contains(arrow.id),
+                      td(cls := "truncate", arrow.label.toString),
+                      td(cls := "truncate", cls("selected") <-- state.selection.contains(arrow.source), sourceLabel),
+                      td("→"),
+                      td(cls := "truncate", cls("selected") <-- state.selection.contains(arrow.target), targetLabel),
+                      onMouseDown.preventDefault --> Observer.empty,
+                      onClick.map(_.shiftKey) --> state.selection.handleClickOnArrow(arrow),
+                      onDblClick
+                        .preventDefault
+                        .stopPropagation(_.sample(state.isElementVisible(arrow.id))) --> { visible =>
+                        if visible then
+                          state.hideNodes(arrow.endpoints.toSet)
+                        else
+                          state.showNodes(arrow.endpoints.toSet)
+                      }
+                    )
+                  case _ => throw new IllegalStateException("How did we get here? This should never happen.")
         )
       )
     )

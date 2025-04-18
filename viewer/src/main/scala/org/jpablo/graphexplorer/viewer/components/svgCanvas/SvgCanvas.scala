@@ -51,7 +51,7 @@ def SvgCanvas(
         Seq(
           svg.transform <-- transform,
           // controls to initiate mouse actions
-          child.maybe <-- singleSelection.combineWith(mouseAction.signal).map { (elem, mouseAction) =>
+          child.maybe <-- singleSelection.combineWithFn(mouseAction.signal) { (elem, mouseAction) =>
             val showControl =
               mouseAction match
                 case Inactive             => true

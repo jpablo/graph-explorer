@@ -2,20 +2,22 @@ package org.jpablo.graphexplorer.viewer.formats.svg
 
 import scala.util.parsing.combinator.*
 
+type Coordinate = (x: Double, y: Double)
+
 enum PathCommand:
-  case MoveTo(absolute: Boolean, points: List[(Double, Double)])
+  case MoveTo(absolute: Boolean, points: List[Coordinate])
   case ClosePath()
-  case LineTo(absolute: Boolean, points: List[(Double, Double)])
+  case LineTo(absolute: Boolean, points: List[Coordinate])
   case HorizontalLineTo(absolute: Boolean, values: List[Double])
   case VerticalLineTo(absolute: Boolean, values: List[Double])
-  case CurveTo(absolute: Boolean, points: List[((Double, Double), (Double, Double), (Double, Double))])
-  case SmoothCurveTo(absolute: Boolean, points: List[((Double, Double), (Double, Double))])
-  case QuadraticBezierCurveTo(absolute: Boolean, points: List[((Double, Double), (Double, Double))])
-  case SmoothQuadraticBezierCurveTo(absolute: Boolean, points: List[(Double, Double)])
-  case EllipticalArc(absolute: Boolean, args: List[(Double, Double, Double, Boolean, Boolean, (Double, Double))])
+  case CurveTo(absolute: Boolean, points: List[(Coordinate, Coordinate, Coordinate)])
+  case SmoothCurveTo(absolute: Boolean, points: List[(Coordinate, Coordinate)])
+  case QuadraticBezierCurveTo(absolute: Boolean, points: List[(Coordinate, Coordinate)])
+  case SmoothQuadraticBezierCurveTo(absolute: Boolean, points: List[Coordinate])
+  case EllipticalArc(absolute: Boolean, args: List[(Double, Double, Double, Boolean, Boolean, Coordinate)])
 
   // Helper to format coordinate pairs
-  private def formatPair(p: (Double, Double)): String = s"${p._1},${p._2}"
+  private def formatPair(p: (x: Double, y: Double)): String = s"${p.x},${p.y}"
 
   // Convert a single command to its string representation
   def asString: String = this match
@@ -66,7 +68,7 @@ class SVGPathParser extends RegexParsers:
   // Coordinate parsers
   def coordinate: Parser[Double] = number
 
-  def coordinatePair: Parser[(Double, Double)] = coordinate ~ opt(comma) ~ coordinate ^^ {
+  def coordinatePair: Parser[Coordinate] = coordinate ~ opt(comma) ~ coordinate ^^ {
     case x ~ _ ~ y => (x, y)
   }
 
