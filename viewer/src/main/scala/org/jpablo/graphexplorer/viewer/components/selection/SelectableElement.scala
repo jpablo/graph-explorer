@@ -140,8 +140,8 @@ object SelectableElement:
 end SelectableElement
 
 case class NodeElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
-  val selectedClass     = "selected"
-  val elementId: NodeId = models.NodeId(refTitle)
+  val selectedClass = "selected"
+  val elementId     = NodeId(refTitle)
 
 case class EdgeElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
   val selectedClass = "selected"
@@ -151,13 +151,13 @@ case class EdgeElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
 
   // if parsing fails, use the title as the nodeId
   lazy val elementId: ArrowId =
-    toArrowId.getOrElse(models.ArrowId(refTitle))
+    toArrowId.getOrElse(ArrowId(refTitle))
 
 end EdgeElement
 
 case class ClusterElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
   val selectedClass = "selected"
-  val elementId     = models.GroupId(refTitle)
+  val elementId     = GroupId.fromSvg(svgIdAttr).getOrElse(GroupId(refTitle))
 
 // ------------------------------
 // dom.Element extensions

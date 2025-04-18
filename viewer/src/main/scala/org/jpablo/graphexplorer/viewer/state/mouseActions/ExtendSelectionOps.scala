@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 trait ExtendSelectionOps:
   this: ViewerState =>
 
-  def onExtendSelectionAction(selectableElements: Seq[SelectableElement])(action: MouseAction.ExtendSelectionAction) =
+  def onExtendSelectionAction(selectableElements: Seq[SelectableElement])(action: MouseAction.ExtendSelectionAction): Unit =
     selection.selectExtendSelectionOverlappingElements(
       rect = action.rect,
       selectableElements = selectableElements,
