@@ -46,6 +46,11 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
       "com.lihaoyi"                %%% "fastparse"                % "3.1.1",
       "org.scalameta"              %%% "munit"                    % "1.0.0" % Test,
       "org.scalameta"              %%% "munit-scalacheck"         % "1.0.0" % Test
+    ),
+    scalacOptions ++= Seq(
+      "-explain",
+      "-Ycheck-all-patmat",
+      "-Yimports:java.lang,scala,scala.Predef,com.softwaremill.quicklens"
     )
   ).jsSettings(
     // JS-specific settings

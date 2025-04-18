@@ -5,7 +5,6 @@ import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.storedString
 import org.jpablo.graphexplorer.viewer.state.{PersistedState, ProjectId}
 import upickle.default.*
-import com.softwaremill.quicklens.*
 
 case class ProjectInfo(
     id:           ProjectId,

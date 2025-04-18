@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.formats.dot.ast
 
-import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.{in, notIn}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotASTOps.{
   buildViewerGraphElements,

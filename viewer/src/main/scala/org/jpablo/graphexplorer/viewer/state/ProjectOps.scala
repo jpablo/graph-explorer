@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
-import com.softwaremill.quicklens.*
 
 /** Convenience wrapper around a Var[Project]
   */

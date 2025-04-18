@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId

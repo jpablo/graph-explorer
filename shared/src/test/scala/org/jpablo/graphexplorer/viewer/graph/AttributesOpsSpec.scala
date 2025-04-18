@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import com.softwaremill.quicklens.*
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.NodeStyle.{bold, dashed, filled}

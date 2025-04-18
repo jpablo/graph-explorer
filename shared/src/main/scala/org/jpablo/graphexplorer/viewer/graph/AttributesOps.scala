@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{fromSubAttributes, subAttributeIds}
 import org.jpablo.graphexplorer.viewer.extensions.in
