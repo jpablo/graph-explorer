@@ -319,7 +319,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val resetAttributes = Command(
       "Reset Attributes",
-      () => state.selection.resetAttributes(), // Action to be implemented in ViewerState/SelectionHandler
+      state.selection.resetAttributes, // Action to be implemented in ViewerState/SelectionHandler
       selectionNonEmpty,                       // Visible when selection is not empty
       shortcut = None,                         // No shortcut for now
       description = Some("Remove all attributes except 'label' from selected elements")
@@ -327,10 +327,18 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val resetLayout = Command(
       "Reset Layout",
-      () => state.selection.resetLayout(), // Action to be implemented in ViewerState/SelectionHandler
+      state.selection.resetLayout, // Action to be implemented in ViewerState/SelectionHandler
       selectionNonEmpty,                   // Visible when selection is not empty
       shortcut = None,                     // No shortcut for now
       description = Some("Reset the layout of the selected elements")
+    )
+
+    val reverseArrows = Command(
+      "Reverse Arrows",
+      state.selection.reverseArrows, // Action needs implementation in SelectionHandler
+      onlyArrowSelected,                      // Visible only when arrows are selected
+      shortcut = Some(Shortcut("r")),         // Shortcut 'r'
+      description = Some("Reverse the direction of the selected arrows")
     )
 
   object headers:
@@ -370,6 +378,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.zoomIntoGroup,
       all.copyAsSVG,
       all.editLabel,
+      all.reverseArrows,
       all.selectAll,
       all.selectAllNodes,
       all.selectAllArrows,

@@ -167,10 +167,34 @@ case class ViewerGraph(
         case ArrowEndpointId.TargetId(id) => arrow.copy(target = id)
     modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId)
 
+  /** Reverses the direction of the specified arrows.
+    *
+    * @param elementIds
+    *   The IDs of the elements to process. Only ArrowIds within this set will be reversed.
+    * @return
+    *   A new ViewerGraph with the specified arrows reversed.
+    */
+  def reverseArrows(elementIds: ElementIds): ViewerGraph =
+    val arrowIdsToReverse = elementIds.classify.arrows
+
+    arrowIdsToReverse.foldLeft(this): (currentGraph, arrowId) =>
+      currentGraph.arrows.get(arrowId) match
+        case None => currentGraph // Arrow not found, skip
+        case Some(originalArrow) =>
+          // 1. Remove the original arrow
+          val graphWithoutOriginal = currentGraph.modifyArrows.using(_ - arrowId)
+          // 2. Calculate the sequence number for the reversed arrow
+          val newSource = originalArrow.target
+          val newTarget = originalArrow.source
+          val newSeq    = graphWithoutOriginal.maxArrowSequence(newSource, newTarget) + 1
+          // 3. Create the reversed arrow
+          val reversedArrow = Arrow(newSource, newTarget, seq = newSeq, attributes = originalArrow.attributes)
+          // 4. Add the reversed arrow
+          graphWithoutOriginal.modifyArrows.using(_ + (reversedArrow.id -> reversedArrow))
+
 //  lazy val toTrees: Tree[ViewerNode] =
 //    val paths =
 //      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.label, ns)
-//    Tree.fromPaths(paths, ".")
 
   /** Creates a new subdiagram with all the symbols containing the given String.
     */

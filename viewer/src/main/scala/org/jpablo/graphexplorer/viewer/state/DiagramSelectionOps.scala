@@ -130,6 +130,9 @@ trait DiagramSelectionOps:
     def ungroup() =
       phases.fullGraphV.update(_.ungroupSelection(now()))
 
+    def reverseArrows() =
+      phases.fullGraphV.update(_.reverseArrows(now()))
+
     def selectAllVisibleNodes() =
       val visibleNodes = visibleGraphNow.nodeIds
       set1(visibleNodes)
