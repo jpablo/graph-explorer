@@ -20,6 +20,13 @@ sealed trait ElementId derives CanEqual, ReadWriter:
 
 sealed trait GroupMemberId extends ElementId derives ReadWriter
 
+object GroupMemberId:
+  def classify(ids: Set[GroupMemberId]): IdsByKind =
+    ids.foldLeft(IdsByKind()): (acc, eId) =>
+      eId match
+        case id: GroupId => acc.copy(groups = acc.groups + id)
+        case id: NodeId  => acc.copy(nodes = acc.nodes + id)
+
 case class GroupId(value: String) extends GroupMemberId derives CanEqual:
 
   override def toString: String = value
@@ -60,8 +67,7 @@ object NodeId:
   def fromSvg(idAttr: String): Option[NodeId] =
     idAttr match
       case nodeId(seq) => Some(NodeId(seq))
-      case _ => None
-
+      case _           => None
 
 object ArrowId:
   given ReadWriter[ArrowId] = stringKeyRW(readwriter[String].bimap[ArrowId](_.value, ArrowId(_)))

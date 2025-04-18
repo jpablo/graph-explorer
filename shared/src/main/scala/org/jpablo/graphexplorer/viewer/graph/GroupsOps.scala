@@ -81,14 +81,17 @@ trait GroupsOps:
     *   A set of all element IDs that are direct or indirect children of the specified groups
     */
   def getAllChildren(groupIds: Set[GroupId]): Set[GroupMemberId] =
-    // Get the direct children first
-    val directChildren = getDirectChildren(groupIds)
-
-    // Find which of the direct children are groups themselves
-    val childGroups = directChildren.collect { case memId if GroupId(memId.value) in groups => GroupId(memId.value) }
-
-    // Base case: no child groups, return just the direct children
-    if childGroups.isEmpty then directChildren
+    if groupIds.isEmpty then
+      Set.empty
     else
-      // Recursive case: combine direct children with all children of child groups
-      directChildren ++ getAllChildren(childGroups)
+      // Get the direct children first
+      val directChildren = getDirectChildren(groupIds)
+
+      // Find which of the direct children are groups themselves
+      val childGroups = directChildren.collect { case memId if GroupId(memId.value) in groups => GroupId(memId.value) }
+
+      // Base case: no child groups, return just the direct children
+      if childGroups.isEmpty then directChildren
+      else
+        // Recursive case: combine direct children with all children of child groups
+        directChildren ++ getAllChildren(childGroups)
