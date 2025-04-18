@@ -19,13 +19,6 @@ enum MouseAction derives CanEqual:
   case AddNewArrowAction(rect: MouseActionRect, originator: SelectableElement)
   case MoveArrowEndpointAction(rect: MouseActionRect, originator: SelectableElement, endpoint: ArrowEndpoint)
 
-  def rectOpt: Option[MouseActionRect] =
-    this match
-      case Inactive                         => None
-      case ExtendSelectionAction(r)         => Some(r)
-      case AddNewArrowAction(r, _)          => Some(r)
-      case MoveArrowEndpointAction(r, _, _) => Some(r)
-
 import MouseAction.*
 
 class MouseActionVar(initial: MouseAction = Inactive):

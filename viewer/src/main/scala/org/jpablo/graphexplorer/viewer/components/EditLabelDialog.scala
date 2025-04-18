@@ -23,7 +23,7 @@ def EditLabelDialog(state: ViewerState) =
   SimpleDialog(
     open = isOpen,
     children <-- control,
-    // Makes sure the focus is restored to CanvasContainer when dialog is closed
+    // Makes sure the focus is restored to CanvasContainer after the dialog is closed
     isOpen.signal.changes.filter(!_) --> state.canvasContainerFocus.set(true),
     onKeyDown.filter(ev => ev.key == KeyValue.Enter && ev.metaKey) --> isOpen.set(false)
   ).amend(idAttr := "edit-label-dialog")

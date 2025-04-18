@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components
 
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty}
+import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.{KeyValue, window}
@@ -42,6 +42,9 @@ object Command:
 
   def or(p: ElementIds => Boolean, q: ElementIds => Boolean)(selection: ElementIds): Boolean =
     p(selection) || q(selection)
+
+  def single(selection: ElementIds): Boolean =
+    selection.size == 1
 
 class RouterCommands(router: Router):
   import Command.always
@@ -101,7 +104,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val editLabel = Command(
       "Edit label",
       state.selection.editSelectedLabel,
-      singleNodeSelected,
+      single,
       Some(Shortcut(KeyValue.Enter)),
       description = Some("Edit the label of the selected element")
     )
@@ -438,7 +441,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
   val byShortcut: Map[Shortcut, Command] =
     byHeader.values.flatten
-      .collect { case c @ Command(_, _, _, Some(shortcut), _) => shortcut -> c }
+      .collect { case c @ Command(shortcut = Some(sh)) => sh -> c }
       .toMap
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =

@@ -25,9 +25,7 @@ trait DiagramSelectionOps:
   object selection:
     val signal = selectionV.signal
       .distinct
-    // .tapEach(sel => println(s"[selection] $sel"))
-
-    val editingElement = editingElementV.signal.distinct
+      // .tapEach(sel => println(s"[selection] $sel"))
 
     val _selectSuccessors         = selectRelated((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
     val _selectPredecessors       = selectRelated((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
