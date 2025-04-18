@@ -60,21 +60,16 @@ def SvgCanvas(
                 case _                    => false
             if showControl then elem.flatMap(viewerOps.buildNewArrowControl) else None
           },
-          children <-- singleSelection.map {
+          children <-- singleSelection.map:
             _.toSeq.flatMap:
-              case edge: EdgeElement =>
-                Seq(
-                  viewerOps.buildArrowEndpointControl(edge, ArrowEndpoint.source),
-                  viewerOps.buildArrowEndpointControl(edge, ArrowEndpoint.target)
-                )
-              case _ => Seq.empty
-          },
+              case edge: EdgeElement => Seq(ArrowEndpoint.source, ArrowEndpoint.target).map(viewerOps.buildArrowEndpointControl(edge, _))
+              case _                 => Seq.empty,
           // visual feedback for ongoing mouse actions
           child.maybe <--
             mouseAction.signal. /*tapEach(a => pprint.log(a)).*/ map:
               case a: ExtendSelectionAction   => None
               case a: AddNewArrowAction       => ArrowFromSourceToPointer(a, group.ref)
-              case a: MoveArrowEndpointAction => viewerOps.ArrowBetweenPointerAndEndpoint(a, group.ref)
+              case a: MoveArrowEndpointAction => ArrowBetweenPointerAndEndpoint(a, group.ref)
               case Inactive                   => None,
           // selection changes as a result of ongoing mouse actions
           mouseAction.signal --> { action =>

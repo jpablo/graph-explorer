@@ -11,6 +11,7 @@ enum ArrowEndpoint derives CanEqual:
   case source, target
 
   def isSource = this == source
+  def isTarget = this == target
 
 enum MouseAction derives CanEqual:
   case Inactive

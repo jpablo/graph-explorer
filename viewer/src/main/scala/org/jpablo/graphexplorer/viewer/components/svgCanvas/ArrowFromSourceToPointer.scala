@@ -30,6 +30,7 @@ def ArrowFromSourceToPointer(
     val centerY = startBBox.y + startBBox.height / 2
 
     // Check if target point is inside bounding box
+
     val isInside = point.x >= startBBox.x && point.x <= startBBox.x + startBBox.width &&
       point.y >= startBBox.y && point.y <= startBBox.y + startBBox.height
 
@@ -67,8 +68,8 @@ def ArrowFromSourceToPointer(
       val (_, ix, iy) = candidates.minBy(_.t)
 
       // Handle numerical precision issues by clamping to the bbox edges
-      val clampedX = math.max(left, math.min(right, ix))
-      val clampedY = math.max(top, math.min(bottom, iy))
+      val clampedX = left max (right min ix)
+      val clampedY = top max (bottom min iy)
 
       (clampedX, clampedY)
 
@@ -76,25 +77,7 @@ def ArrowFromSourceToPointer(
     Some(
       svg.g(
         svg.idAttr := "dragging-arrow-group",
-        // Define the arrowhead marker
-        svg.defs(
-          svg.marker(
-            svg.idAttr       := "arrowhead",
-            svg.viewBox      := "0 0 10 10",
-            svg.refX         := "9",
-            svg.refY         := "5",
-            svg.markerWidth  := "4", // Smaller size
-            svg.markerHeight := "4", // Smaller size
-            svg.orient       := "auto-start-reverse",
-            svg.path(
-              // Vee style path with concave base
-              svg.d      := "M 0 0 L 10 5 L 0 10 L 2 5 z",
-              svg.fill   := "#2c70ff", // Selected border blue
-              svg.stroke := "#2c70ff"  // Match the fill color
-            )
-          )
-        ),
-        // Draw the line with the arrowhead
+        svg.defs(arrowHeadMarker),
         svg.line(
           svg.idAttr      := "dragging-arrow-line",
           svg.x1          := x1.toString,
@@ -102,8 +85,7 @@ def ArrowFromSourceToPointer(
           svg.x2          := point.x.toString,
           svg.y2          := point.y.toString,
           svg.markerEnd   := "url(#arrowhead)",
-          svg.stroke      := "#2c70ff",     // Selected border blue
-          svg.strokeWidth := scale.toString // Thinner line to match smaller arrowhead
+          svg.strokeWidth := scale.toString // Thinner line to match a smaller arrowhead
         )
       )
     )

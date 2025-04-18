@@ -249,12 +249,14 @@ label[for ^= show-ns-kind-] {
       }
 
       #dragging-arrow-group {
-        stroke: black;
-        stroke-width: .75;
+        stroke: #2c70ff;
+        stroke-width: 1;
         pointer-events: none;
+        fill: #2c70ff;
 
         #dragging-arrow-line {
           stroke-dasharray: 2, 2;
+          stroke: #2c70ff;
         }
       }
 
