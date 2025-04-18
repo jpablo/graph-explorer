@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, Select
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.models.ElementIds
-import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps
+import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, UIState}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
@@ -19,7 +19,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.querySelectorT
 def SvgCanvas(
     rawSvg:      dom.svg.SVG,
     transform:   Signal[String],
-    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps,
+    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
     mouseAction: MouseActionVar
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
@@ -101,6 +101,10 @@ def SvgCanvas(
       selectionGroups --> { (toUnselect: Seq[SelectableElement], toSelect: Seq[SelectableElement]) =>
         toUnselect.foreach(_.unselect())
         toSelect.foreach(_.select())
+        // select/unselect modify the DOM directly, which seems to make the focus go to the
+        // document body. We need the focus back to the canvas container to process handle keys.
+        dom.window.requestAnimationFrame(_ => viewerOps.canvasContainerFocus.set(true))
+        ()
       }
     )
   }
