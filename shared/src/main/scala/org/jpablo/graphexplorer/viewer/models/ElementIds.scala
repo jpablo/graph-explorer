@@ -39,11 +39,9 @@ case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
   @targetName("removeSet")
   def --(that: Set[? <: ElementId]): ElementIds = ElementIds(upcast -- that)
 
-  def nodeIds  = ids.collect { case id: NodeId => id }
-  def arrowIds = ids.collect { case id: ArrowId => id }
-  def groupIds = ids.collect { case id: GroupId => id }
+  def nodeIds = classify.nodes
 
-  def memberIds: Set[GroupMemberId] = ids.collect { case id: (GroupId | NodeId) => id }
+  def memberIds: Set[GroupMemberId] = ids.collect { case id: GroupMemberId => id }
 
   def classify: IdsByKind =
     ids.foldLeft(IdsByKind()): (acc, eId) =>
