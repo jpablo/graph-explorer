@@ -172,6 +172,14 @@ trait DiagramSelectionOps:
           val groupsToDuplicate = selectedGroupIds ++ descendantGroupIds
           val nodesToDuplicate  = classified.nodes ++ descendantNodeIds
 
+          // Identify arrows internal to the duplicated nodes/groups
+          val internalArrowsToDuplicate = initialGraph.elements.arrows.values.filter { arrow =>
+            nodesToDuplicate.contains(arrow.source) && nodesToDuplicate.contains(arrow.target)
+          }.map(_.id).toSet
+
+          // Combine explicitly selected arrows and internal arrows
+          val allArrowsToDuplicate = classified.arrows ++ internalArrowsToDuplicate
+
           // 2. Duplicate Groups and create a map from old GroupId to new GroupId
           val (graphAfterGroups, newGroupIds, groupIdMap) =
             groupsToDuplicate.foldLeft((initialGraph, Set.empty[GroupId], Map.empty[GroupId, GroupId])) {
@@ -217,21 +225,31 @@ trait DiagramSelectionOps:
                       (finalGraphForNode, createdNodeIds + newNodeId, nodeMap + (originalNodeId -> newNodeId))
             }
 
-          // 4. Duplicate Arrows whose endpoints were both duplicated
+          // 4. Duplicate selected Arrows
           val (finalGraph, newArrowIds) =
-            initialGraph.arrows.values.foldLeft((graphAfterNodes, Set.empty[ArrowId])) {
-              case ((currentGraph, createdArrowIds), originalArrow) =>
-                // Check if BOTH source and target nodes were duplicated
-                if nodeIdMap.contains(originalArrow.source) && nodeIdMap.contains(originalArrow.target) then
-                  val newSourceId                   = nodeIdMap(originalArrow.source)
-                  val newTargetId                   = nodeIdMap(originalArrow.target)
-                  val (graphWithNewArrow, newArrow) = currentGraph.addArrow(newSourceId, newTargetId)
-                  val graphWithAttrs =
-                    graphWithNewArrow.updateAttributes(ElementIds.from(newArrow.id), originalArrow.attributes.toUpdates)
-                  (graphWithAttrs, createdArrowIds + newArrow.id)
-                else
-                  // If endpoints weren't duplicated, skip this arrow
-                  (currentGraph, createdArrowIds)
+            allArrowsToDuplicate.foldLeft((graphAfterNodes, Set.empty[ArrowId])) {
+              case ((currentGraph, createdArrowIds), originalArrowId) =>
+                // Correctly access the arrow using the elements.arrows map
+                initialGraph.elements.arrows.get(originalArrowId) match
+                  case None => // Should not happen for valid IDs
+                    (currentGraph, createdArrowIds)
+                  case Some(originalArrow) =>
+                    // Determine the endpoints for the new arrow.
+                    // Use the new node ID if the original node was duplicated, otherwise use the original node ID.
+                    val newSourceId = nodeIdMap.getOrElse(originalArrow.source, originalArrow.source)
+                    val newTargetId = nodeIdMap.getOrElse(originalArrow.target, originalArrow.target)
+
+                    // Check if the target nodes for the new arrow actually exist in the graph after node duplication
+                    // Correctly check node existence using elements.nodes.contains
+                    if currentGraph.elements.nodes.contains(newSourceId) && currentGraph.elements.nodes.contains(newTargetId) then
+                      val (graphWithNewArrow, newArrow) = currentGraph.addArrow(newSourceId, newTargetId)
+                      val graphWithAttrs =
+                        graphWithNewArrow.updateAttributes(ElementIds.from(newArrow.id), originalArrow.attributes.toUpdates)
+                      (graphWithAttrs, createdArrowIds + newArrow.id)
+                    else
+                      // If either endpoint doesn't exist (e.g., original node wasn't selected and doesn't exist anymore?), skip creating arrow.
+                      // This case might need further review depending on desired behavior when duplicating arrows connected to non-existent nodes.
+                      (currentGraph, createdArrowIds)
             }
 
           // 5. Select the newly created elements
