@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
-import org.jpablo.graphexplorer.viewer.models.ElementIds
+import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, UIState}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
@@ -54,8 +54,15 @@ def SvgCanvas(
         Seq(
           svg.transform <-- transform,
           // controls to initiate mouse actions
-          child.maybe <-- singleSelection.combineWithFn(mouseAction.signal) { (elem, mouseAction) =>
-            elem.flatMap(viewerOps.buildNewArrowControl(_, mouseAction))
+          children <-- singleSelection.combineWithFn(mouseAction.signal) { (elem, mouseAction) =>
+            for
+              e <- elem.toSeq
+              c1 = viewerOps.buildNewArrowControl(e, mouseAction, ArrowDirection.forward)
+              c2 = viewerOps.buildNewArrowControl(e, mouseAction, ArrowDirection.backward)
+              c <- c1 ++ c2
+            yield
+              c
+
           },
           children <-- singleSelection.map:
             _.toSeq.flatMap:

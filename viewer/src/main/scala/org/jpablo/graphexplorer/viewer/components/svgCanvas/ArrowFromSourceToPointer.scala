@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
+import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction
 
 /** Creates a reactive SVG arrow element when dragging to create a new edge.
@@ -73,18 +74,33 @@ def ArrowFromSourceToPointer(
 
       (clampedX, clampedY)
 
+    val arrowhead = "arrowhead"
+    val arrowtail = "arrowtail"
+
+    val markerAttr = action.direction match
+      case ArrowDirection.forward =>
+        Seq(
+          svg.markerStart := s"url(#$arrowtail)",
+          svg.markerEnd   := s"url(#$arrowhead)"
+        )
+      case ArrowDirection.backward =>
+        Seq(
+          svg.markerStart := s"url(#$arrowhead)",
+          svg.markerEnd   := s"url(#$arrowtail)"
+        )
+
     val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 3)
     Some(
       svg.g(
         svg.idAttr := "dragging-arrow-group",
-        svg.defs(arrowHeadMarker),
+        svg.defs(arrowHeadMarker(arrowhead), arrowTailMarker(arrowtail)),
         svg.line(
-          svg.idAttr      := "dragging-arrow-line",
-          svg.x1          := x1.toString,
-          svg.y1          := y1.toString,
-          svg.x2          := point.x.toString,
-          svg.y2          := point.y.toString,
-          svg.markerEnd   := "url(#arrowhead)",
+          svg.idAttr := "dragging-arrow-line",
+          svg.x1     := x1.toString,
+          svg.y1     := y1.toString,
+          svg.x2     := point.x.toString,
+          svg.y2     := point.y.toString,
+          markerAttr,
           svg.strokeWidth := scale.toString // Thinner line to match a smaller arrowhead
         )
       )

@@ -5,6 +5,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowControl
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
+import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{AddNewArrowAction, Inactive}
@@ -25,9 +26,9 @@ def pointInsideBox(
 trait AddNewArrowOps:
   this: ViewerState =>
 
-  def handleAddNewArrowMouseUp(ev: dom.MouseEvent, lastActionValue: AddNewArrowAction): Unit =
+  def handleAddNewArrowMouseUp(ev: dom.MouseEvent, action: AddNewArrowAction): Unit =
     val current = selection.now()
-    val start   = lastActionValue.originator
+    val start   = action.originator
 
     // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
     val isMouseInsideSourceNode = pointInsideBox(pt = (ev.clientX, ev.clientY), bbox = start.ref.getBoundingClientRect())
@@ -35,7 +36,10 @@ trait AddNewArrowOps:
     if current.size == 1 && isMouseInsideSourceNode then
       start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
     else if current.size == 2 then
-      (current - start.elementId).head.asNodeId.foreach(end => addArrow(start.nodeId.get, end))
+      (current - start.elementId).head.asNodeId.foreach: end =>
+        action.direction match
+          case ArrowDirection.forward  => addArrow(start.nodeId.get, end)
+          case ArrowDirection.backward => addArrow(end, start.nodeId.get)
 
   def onAddNewArrowAction(action: AddNewArrowAction) =
     selectWithClosestNode(
@@ -53,7 +57,11 @@ trait AddNewArrowOps:
       case Some(endElementId) => selection.set1(Set(start.elementId, endElementId))
       case None               => selection.set2(start.elementId)
 
-  def buildNewArrowControl(selectedElem: SelectableElement, currentAction: MouseAction): Option[ReactiveSvgElement[dom.svg.G]] =
+  def buildNewArrowControl(
+      selectedElem:  SelectableElement,
+      currentAction: MouseAction,
+      direction:     ArrowDirection
+  ): Option[ReactiveSvgElement[dom.svg.G]] =
     val showControl =
       currentAction match
         case Inactive             => true
@@ -66,14 +74,15 @@ trait AddNewArrowOps:
           NewArrowControl(
             elem,
             graphRankDir.observe().now,
+            direction,
             onMouseDown.stopPropagation --> { ev =>
               val pos = ClientPoint(ev.clientX, ev.clientY)
-              mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem))
+              mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem, direction))
 
             },
             onMouseUp.stopPropagation --> { _ =>
               mouseAction.inactive()
-              addNodeWithSmartConnection()
+              addNodeWithSmartConnection(direction = direction)
             }
           )
         )

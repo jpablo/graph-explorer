@@ -68,9 +68,6 @@ case class ViewerState(
   def allArrowIds(): Set[ArrowId] =
     fullGraph.observe().now().arrowIds
 
-  enum Direction derives CanEqual:
-    case From, To
-
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an edge. If the
     * selected element is a group/cluster, the new node will be added to that group. The new node will become the only selected element
     * after creation.
@@ -87,7 +84,7 @@ case class ViewerState(
     */
   def addNodeWithSmartConnection(
       attributes: Attributes = Attributes.empty,
-      direction:  Direction = Direction.From
+      direction:  ArrowDirection = ArrowDirection.forward
   ): Unit =
     phases.fullGraphV.update: fullGraph =>
       val sel = selection.now()
@@ -102,8 +99,8 @@ case class ViewerState(
         selected match
           case id: NodeId =>
             val (newGraph, _, _) = direction match
-              case Direction.From => fullGraph.addNodeAndArrowFrom(source = id, attributes = attributes)
-              case Direction.To   => fullGraph.addNodeAndArrowTo(target = id, attributes = attributes)
+              case ArrowDirection.forward  => fullGraph.addNodeAndArrowFrom(source = id, attributes = attributes)
+              case ArrowDirection.backward => fullGraph.addNodeAndArrowTo(target = id, attributes = attributes)
             newGraph
           case id: GroupId =>
             val (newGraph, _) = fullGraph.addNode(groupId = Some(id), attributes = attributes)

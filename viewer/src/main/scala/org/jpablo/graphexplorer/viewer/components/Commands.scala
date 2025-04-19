@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
-import org.jpablo.graphexplorer.viewer.models.ElementIds
+import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.{KeyValue, window}
 
@@ -95,7 +95,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val newBackwardsNode = Command(
       "New backwards node",
-      () => state.addNodeWithSmartConnection(direction = state.Direction.To),
+      () => state.addNodeWithSmartConnection(direction = ArrowDirection.backward),
       singleNodeSelected,
       Some(Shortcut("p")),
       Some("Add a new node without connections")

@@ -43,17 +43,23 @@ def ArrowBetweenPointerAndEndpoint(
       .map(PathCommand.toData)
       .getOrElse(pathData)
 
+    val arrowhead = "arrowhead"
+    val arrowtail = "arrowtail"
+
     val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 3)
+
     clonedPath.setAttribute("id", "dragging-arrow-line")
     clonedPath.setAttribute("d", updatedPathData)
     clonedPath.setAttribute("stroke-width", scale.toString)
     if action.endpoint.isTarget then
-      clonedPath.setAttribute("marker-end", "url(#arrowhead)")
+      clonedPath.setAttribute("marker-end", s"url(#$arrowhead)")
+    else
+      clonedPath.setAttribute("marker-start", s"url(#$arrowtail)")
 
     Some(
       svg.g(
         svg.idAttr := "dragging-arrow-group",
-        svg.defs(arrowHeadMarker),
+        svg.defs(arrowHeadMarker(arrowhead), arrowTailMarker(arrowtail)),
         foreignSvgElement(svg.path, clonedPath)
       )
     )

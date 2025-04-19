@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 import com.raquo.airstream.state.SourceVar
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
 
 import scala.util.Success
@@ -16,7 +17,7 @@ enum ArrowEndpoint derives CanEqual:
 enum MouseAction derives CanEqual:
   case Inactive
   case ExtendSelectionAction(rect: MouseActionRect)
-  case AddNewArrowAction(rect: MouseActionRect, originator: SelectableElement)
+  case AddNewArrowAction(rect: MouseActionRect, originator: SelectableElement, direction: ArrowDirection)
   case MoveArrowEndpointAction(rect: MouseActionRect, originator: SelectableElement, endpoint: ArrowEndpoint)
 
 import MouseAction.*

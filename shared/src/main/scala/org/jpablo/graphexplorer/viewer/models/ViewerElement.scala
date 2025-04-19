@@ -57,6 +57,11 @@ object ViewerNode:
 //      Arrows
 // ------------------
 
+enum ArrowDirection derives CanEqual:
+  case forward, backward
+
+  def isForward = this == forward
+
 enum ArrowEndpointId derives CanEqual:
   case SourceId(nodeId: NodeId)
   case TargetId(nodeId: NodeId)
