@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowControl
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.AddNewArrowAction
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{AddNewArrowAction, Inactive}
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
 import org.scalajs.dom.DOMRect
 
@@ -53,9 +53,15 @@ trait AddNewArrowOps:
       case Some(endElementId) => selection.set1(Set(start.elementId, endElementId))
       case None               => selection.set2(start.elementId)
 
-  def buildNewArrowControl(selectedElem: SelectableElement): Option[ReactiveSvgElement[dom.svg.G]] =
+  def buildNewArrowControl(selectedElem: SelectableElement, currentAction: MouseAction): Option[ReactiveSvgElement[dom.svg.G]] =
+    val showControl =
+      currentAction match
+        case Inactive             => true
+        case a: AddNewArrowAction => a.rect.isEmpty
+        case _                    => false
+
     selectedElem match
-      case elem: NodeElement =>
+      case elem: NodeElement if showControl =>
         Some(
           NewArrowControl(
             elem,
@@ -71,5 +77,4 @@ trait AddNewArrowOps:
             }
           )
         )
-      case other =>
-        None
+      case _ => None

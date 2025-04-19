@@ -35,7 +35,7 @@ def SvgCanvas(
   // TODO: Find a way to center the SVG content in the viewBox
   val magicX = 0.4
   val magicY = -0.4
-  val bbox    = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
+  val bbox   = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
 
   emptySvg(
     viewBox = bbox,
@@ -55,12 +55,7 @@ def SvgCanvas(
           svg.transform <-- transform,
           // controls to initiate mouse actions
           child.maybe <-- singleSelection.combineWithFn(mouseAction.signal) { (elem, mouseAction) =>
-            val showControl =
-              mouseAction match
-                case Inactive             => true
-                case a: AddNewArrowAction => a.rect.isEmpty
-                case _                    => false
-            if showControl then elem.flatMap(viewerOps.buildNewArrowControl) else None
+            elem.flatMap(viewerOps.buildNewArrowControl(_, mouseAction))
           },
           children <-- singleSelection.map:
             _.toSeq.flatMap:
@@ -68,8 +63,8 @@ def SvgCanvas(
               case _                 => Seq.empty,
           // visual feedback for ongoing mouse actions
           child.maybe <--
-            mouseAction.signal. /*tapEach(a => pprint.log(a)).*/ map:
-              case a: ExtendSelectionAction   => None
+            mouseAction.signal.map:
+              case _: ExtendSelectionAction   => None
               case a: AddNewArrowAction       => ArrowFromSourceToPointer(a, group.ref)
               case a: MoveArrowEndpointAction => ArrowBetweenPointerAndEndpoint(a, group.ref)
               case Inactive                   => None,
