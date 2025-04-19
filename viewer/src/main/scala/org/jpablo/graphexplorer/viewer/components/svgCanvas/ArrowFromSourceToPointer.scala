@@ -73,7 +73,7 @@ def ArrowFromSourceToPointer(
 
       (clampedX, clampedY)
 
-    val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 2)
+    val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 3)
     Some(
       svg.g(
         svg.idAttr := "dragging-arrow-group",

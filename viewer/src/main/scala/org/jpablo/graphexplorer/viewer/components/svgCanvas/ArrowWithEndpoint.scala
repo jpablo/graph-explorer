@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.arrowHeadMarker
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
+import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand.*
 import org.jpablo.graphexplorer.viewer.formats.svg.{PathCommand, SVGPathParser}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowEndpointAction
@@ -42,8 +43,10 @@ def ArrowBetweenPointerAndEndpoint(
       .map(PathCommand.toData)
       .getOrElse(pathData)
 
+    val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 3)
     clonedPath.setAttribute("id", "dragging-arrow-line")
     clonedPath.setAttribute("d", updatedPathData)
+    clonedPath.setAttribute("stroke-width", scale.toString)
     if action.endpoint.isTarget then
       clonedPath.setAttribute("marker-end", "url(#arrowhead)")
 
