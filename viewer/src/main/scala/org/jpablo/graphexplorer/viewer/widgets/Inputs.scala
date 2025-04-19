@@ -4,11 +4,10 @@ import org.jpablo.graphexplorer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveElement
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption}
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption, toRawText}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.color.ColorFormat
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
-import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -260,25 +259,17 @@ def InputWithValue(
     extra
   )
 
+val htmlRegex         = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
+def isHtml(s: String) = htmlRegex.matches(s)
+
+
 def TextAreaWithValue(
     row:      InputAttribute,
     default:  String = "",
     setFocus: Boolean = false
 ) =
-  val htmlRegex         = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
-  def isHtml(s: String) = htmlRegex.matches(s)
 
-  // Note .replaceAll operates on regexes, so we need to escape the backslashes
-  val rawText = row.inputVar
-    .bimap(
-      // DOT -> UI
-      getThis = dotText => TextUtils.unescape(dotText.getOrElse(default).toString)
-    )(
-      // UI -> DOT
-      getParent = uiText =>
-        val dotText = TextUtils.escape(uiText)
-        Single(AttrValue(if isHtml(uiText) then AttrEq(dotText, true) else dotText))
-    )
+  val rawText = toRawText(row.inputVar, default)
 
   textArea(
     cls         := "textarea textarea-xs min-h-[2rem] h-auto w-full p-1",
