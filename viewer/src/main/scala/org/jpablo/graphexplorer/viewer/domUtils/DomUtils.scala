@@ -69,8 +69,10 @@ object SvgUtils:
 
   /** Gets the x,y translation values from an SVG group element's transform, or (0,0) if none exists
     */
-  def getTranslate(g: dom.svg.G): SvgPoint =
-    if js.isUndefined(g.transform) then SvgPoint.origin
+  def getTranslate(g: dom.svg.G): SvgPoint = {
+    if js.isUndefined(g.transform) then
+      dom.console.warn("undefined!")
+      SvgPoint.origin
     else
       val transformList = g.transform.baseVal
       val transformPoints =
@@ -82,3 +84,4 @@ object SvgUtils:
         yield SvgPoint(transform.matrix.e, transform.matrix.f)
 
       transformPoints.headOption.getOrElse(SvgPoint.origin)
+  }

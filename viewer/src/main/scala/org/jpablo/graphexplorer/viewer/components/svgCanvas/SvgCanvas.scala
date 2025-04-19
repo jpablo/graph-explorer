@@ -25,15 +25,17 @@ def SvgCanvas(
   import viewerOps.selection
 
   val firstGroup: dom.svg.G =
-    val g0 = rawSvg.querySelectorT("g").get
-    if g0 == null then dom.document.createElement("g").asInstanceOf[dom.svg.G] else g0
+    rawSvg.querySelectorT("g").getOrElse(dom.document.createElement("g").asInstanceOf[dom.svg.G])
 
   // --------------------------------------------------------
   // The top level <svg> element
   // --------------------------------------------------------
   val viewBox = rawSvg.viewBox.baseVal
   val tr      = getTranslate(firstGroup)
-  val bbox    = BBox(viewBox.x - tr.x, viewBox.y - tr.y, viewBox.width, viewBox.height)
+  // TODO: Find a way to center the SVG content in the viewBox
+  val magicX = 0.4
+  val magicY = -0.4
+  val bbox    = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
 
   emptySvg(
     viewBox = bbox,
