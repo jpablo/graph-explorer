@@ -200,7 +200,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "Zoom into group",
       state.showOnlyGroup,
       singleGroupSelected,
-      description = Some("Show only this group and its members")
+      shortcut = Some(Shortcut("z")),
+      description = Some("Show only the selected group and its members")
     )
 
     val copyAsSVG = Command(
