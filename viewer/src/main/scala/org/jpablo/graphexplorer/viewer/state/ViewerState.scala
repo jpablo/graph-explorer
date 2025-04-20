@@ -47,12 +47,12 @@ case class ViewerState(
   val mouseAction = MouseActionVar()
 
   // 5. Render visible Dot to SVG
-  // Dot ~> SVGSVGElement
-  private val rawSVG: Signal[dom.SVGSVGElement] =
+  // Dot ~> dom.svg.SVG
+  private val rawSVG: Signal[dom.svg.SVG] =
     visibleDOT.flatMapSwitch(_.toSvg)
 
   // 6. SVG with extra elements: selection rect, etc.
-  lazy val finalSVG: Signal[ReactiveSvgElement[dom.SVGSVGElement]] =
+  lazy val finalSVG: Signal[ReactiveSvgElement[dom.svg.SVG]] =
     rawSVG.map: svg =>
       SvgCanvas(rawSvg = svg, transform = transform, viewerOps = this, mouseAction = mouseAction)
 

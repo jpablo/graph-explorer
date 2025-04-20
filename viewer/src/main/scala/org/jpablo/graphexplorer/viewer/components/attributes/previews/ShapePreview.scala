@@ -3,9 +3,8 @@ package org.jpablo.graphexplorer.viewer.components.attributes.previews
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
-import org.scalajs.dom.SVGSVGElement
 
-def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => ReactiveSvgElement[SVGSVGElement]] =
+def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => ReactiveSvgElement[dom.svg.SVG]] =
   shape match
     case Shape.box | Shape.rectangle | Shape.rect =>
       Some(() =>

@@ -3,13 +3,12 @@ package org.jpablo.graphexplorer.viewer.components.attributes.previews
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.BorderStyle
-import org.scalajs.dom.SVGSVGElement
 
 def BorderStylePreview(
     style:  BorderStyle,
     width:  Int = 100,
     height: Int = 20
-): Option[() => ReactiveSvgElement[SVGSVGElement]] =
+): Option[() => ReactiveSvgElement[dom.svg.SVG]] =
   style match
     case BorderStyle.solid =>
       Some(() =>

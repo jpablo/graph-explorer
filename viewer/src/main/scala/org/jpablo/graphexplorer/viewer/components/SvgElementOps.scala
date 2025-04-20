@@ -19,7 +19,7 @@ extension (rect: MouseActionRect)
   def toSvgPair(screenCtm: dom.SVGMatrix): (SvgPoint, SvgPoint) =
     (rect.start.toSvgPoint(screenCtm), rect.end.toSvgPoint(screenCtm))
 
-class SvgElementOps(val ref: dom.SVGSVGElement):
+class SvgElementOps(val ref: dom.svg.SVG):
 
   def size = (ref.width.baseVal.value, ref.height.baseVal.value)
 

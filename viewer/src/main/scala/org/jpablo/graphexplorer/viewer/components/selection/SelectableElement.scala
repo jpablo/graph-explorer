@@ -7,11 +7,11 @@ import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
 import org.jpablo.graphexplorer.viewer.domUtils.{querySelectorT, querySelectorAllT}
-import org.scalajs.dom.{Element, FocusEvent, KeyValue}
+import org.scalajs.dom.{FocusEvent, KeyValue}
 
 import scala.scalajs.js
 
-sealed trait SelectableElement(val ref: dom.SVGGElement):
+sealed trait SelectableElement(val ref: dom.svg.G):
   def selectedClass: String
 
   protected val refTitle = ref.querySelector("title").textContent
@@ -46,7 +46,7 @@ sealed trait SelectableElement(val ref: dom.SVGGElement):
   ): Unit =
     val polygon      = ref.querySelectorT("polygon").get
     val groupBBox    = (if polygon == null then ref else polygon).getBBox()
-    val textElements = ref.querySelectorAllT[dom.SVGTextElement]("text")
+    val textElements = ref.querySelectorAllT[dom.svg.Text]("text")
     val bBox =
       if textElements.isEmpty then
         BBox(groupBBox.x, groupBBox.y, groupBBox.width, groupBBox.height)
@@ -120,9 +120,9 @@ sealed trait SelectableElement(val ref: dom.SVGGElement):
 object SelectableElement:
 
   def fromDomElement(e: dom.Element): Option[SelectableElement] =
-    if isDiagramElement(e, "node") then Some(NodeElement(e.asInstanceOf[dom.SVGGElement]))
-    else if isDiagramElement(e, "edge") then Some(EdgeElement(e.asInstanceOf[dom.SVGGElement]))
-    else if isDiagramElement(e, "cluster") then Some(ClusterElement(e.asInstanceOf[dom.SVGGElement]))
+    if isDiagramElement(e, "node") then Some(NodeElement(e.asInstanceOf[dom.svg.G]))
+    else if isDiagramElement(e, "edge") then Some(EdgeElement(e.asInstanceOf[dom.svg.G]))
+    else if isDiagramElement(e, "cluster") then Some(ClusterElement(e.asInstanceOf[dom.svg.G]))
     else None
 
   def findAll(ref: dom.Element): Seq[SelectableElement] =
@@ -139,11 +139,11 @@ object SelectableElement:
 
 end SelectableElement
 
-case class NodeElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
+case class NodeElement(ref0: dom.svg.G) extends SelectableElement(ref0):
   val selectedClass = "selected"
   val elementId     = NodeId(refTitle)
 
-case class EdgeElement(private val ref0: dom.SVGGElement) extends SelectableElement(ref0):
+case class EdgeElement(private val ref0: dom.svg.G) extends SelectableElement(ref0):
   val selectedClass = "selected"
 
   private lazy val toArrowId: Option[ArrowId] =
@@ -155,7 +155,7 @@ case class EdgeElement(private val ref0: dom.SVGGElement) extends SelectableElem
 
 end EdgeElement
 
-case class ClusterElement(ref0: dom.SVGGElement) extends SelectableElement(ref0):
+case class ClusterElement(ref0: dom.svg.G) extends SelectableElement(ref0):
   val selectedClass = "selected"
   val elementId     = GroupId.fromSvg(svgIdAttr).getOrElse(GroupId(refTitle))
 
@@ -164,7 +164,7 @@ case class ClusterElement(ref0: dom.SVGGElement) extends SelectableElement(ref0)
 // ------------------------------
 
 extension (e: dom.Element)
-  def parentNodes: LazyList[Element] =
+  def parentNodes: LazyList[dom.Element] =
     e +: LazyList.unfold(e)(e => Option(e.parentNode.asInstanceOf[dom.Element]).map(e => (e, e)))
 
   def styleMap: Map[String, String] =

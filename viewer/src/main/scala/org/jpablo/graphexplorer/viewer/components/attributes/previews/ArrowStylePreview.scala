@@ -3,13 +3,12 @@ package org.jpablo.graphexplorer.viewer.components.attributes.previews
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.EdgeStyle
-import org.scalajs.dom.SVGSVGElement
 
 def ArrowStylePreview(
     style:  EdgeStyle,
     width:  Int = 100,
     height: Int = 20
-): Option[() => ReactiveSvgElement[SVGSVGElement]] =
+): Option[() => ReactiveSvgElement[dom.svg.SVG]] =
   style match
     case EdgeStyle.solid =>
       Some(() =>

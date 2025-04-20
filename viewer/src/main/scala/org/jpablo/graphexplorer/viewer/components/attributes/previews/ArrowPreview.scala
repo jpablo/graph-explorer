@@ -3,13 +3,12 @@ package org.jpablo.graphexplorer.viewer.components.attributes.previews
 import com.raquo.laminar.api.L.svg
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.ArrowType
-import org.scalajs.dom.SVGSVGElement
 
 def ArrowPreview(
     arrowType: ArrowType,
     width:     Int = 100,
     height:    Int = 20
-): Option[() => ReactiveSvgElement[SVGSVGElement]] =
+): Option[() => ReactiveSvgElement[dom.svg.SVG]] =
   arrowType match
     case ArrowType.normal =>
       Some(() =>
