@@ -119,23 +119,22 @@ sealed trait SelectableElement(val ref: dom.svg.G):
 
 object SelectableElement:
 
-  def fromDomElement(e: dom.Element): Option[SelectableElement] =
-    if isDiagramElement(e, "node") then Some(NodeElement(e.asInstanceOf[dom.svg.G]))
-    else if isDiagramElement(e, "edge") then Some(EdgeElement(e.asInstanceOf[dom.svg.G]))
-    else if isDiagramElement(e, "cluster") then Some(ClusterElement(e.asInstanceOf[dom.svg.G]))
+  def fromDomElement(e: dom.svg.G): Option[SelectableElement] =
+    if e.classList.contains("node") then Some(NodeElement(e))
+    else if e.classList.contains("edge") then Some(EdgeElement(e))
+    else if e.classList.contains("cluster") then Some(ClusterElement(e))
     else None
 
   def findAll(ref: dom.Element): Seq[SelectableElement] =
-    ref.querySelectorAll("g").flatMap(fromDomElement).toSeq
+    ref.querySelectorAllT[dom.svg.G]("g").flatMap(fromDomElement)
 
   def query(ref: dom.Element, elems: ElementIds): Seq[SelectableElement] =
     if elems.isEmpty then
       Seq.empty
     else
-      ref.querySelectorAll(elems.ids.map(id => s"g[id='${id.toSvg}']").mkString(",")).flatMap(fromDomElement).toSeq
-
-  private def isDiagramElement(e: dom.Element, cls: String) =
-    e.tagName == "g" && e.classList.contains(cls)
+      ref
+        .querySelectorAllT[dom.svg.G](elems.ids.map(id => s"g[id='${id.toSvg}']").mkString(","))
+        .flatMap(fromDomElement)
 
 end SelectableElement
 

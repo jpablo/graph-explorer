@@ -25,7 +25,7 @@ trait DiagramSelectionOps:
   object selection:
     val signal = selectionV.signal
       .distinct
-      // .tapEach(sel => println(s"[selection] $sel"))
+    // .tapEach(sel => println(s"[selection] $sel"))
 
     val _selectSuccessors         = selectRelated((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
     val _selectPredecessors       = selectRelated((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
@@ -372,6 +372,8 @@ object DiagramSelectionOps:
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
       .flatMap(element => Option(element.closest(selector)))
       .distinct
+      .collect:
+        case g: dom.svg.G => g
       .map(SelectableElement.fromDomElement)
       .collectFirst:
         case Some(elem) => elem.elementId
