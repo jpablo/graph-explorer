@@ -11,7 +11,7 @@ import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, UIState}
-import org.jpablo.graphexplorer.viewer.utils.BBox
+import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 // rawSvg is the SVG element as it comes from DOT
@@ -40,6 +40,7 @@ def SvgCanvas(
 
   emptySvg(viewBox = bbox, reactiveFirstGroup)
     .amendThis { topLevelSvg =>
+      println("[svgCanvas] ----------------")
       val selectionGroups =
         selection.signal
           .scanLeft(x => (ElementIds(), x)):
@@ -49,25 +50,47 @@ def SvgCanvas(
             val toSelect   = next.filter(id => !curr.contains(id))
             (SelectableElement.query(topLevelSvg.ref, toUnselect), SelectableElement.query(topLevelSvg.ref, toSelect))
 
-      val allSelectable =
-        SelectableElement.findAll(topLevelSvg.ref)
-
       val singleSelection =
         selection.signal.map: selected =>
           if selected.size == 1 then SelectableElement.query(topLevelSvg.ref, selected).headOption else None
+
+      val allSelectable =
+        SelectableElement.findAll(topLevelSvg.ref)
 
       val firstGroup: dom.svg.G =
         topLevelSvg.ref.querySelectorT("g").getOrElse(throw Exception("No <g> element found in the SVG"))
 
       Seq(
-        // controls to initiate mouse actions
-        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(firstGroup).tupled,
-        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(firstGroup).tupled,
+        mouseAction.signal.map(_.name).distinct --> { c => pprint.log(c) },
+        // --------------------------------------------------------
+        // Mouse events
+        // --------------------------------------------------------
+        // 1. Drawing a selecting rectangle starts here. Other actions start in their respective elements.
+        onMouseDown.filter(leftButton).map(clientCoords) --> { (pos, shift) =>
+          mouseAction.start(ExtendSelectionAction(MouseActionRect(pos, pos, shift)))
+        },
+        // 2. Any ongoing action is updated here (i.e., mouse position)
+        onMouseMove.filter(leftButtonMoved).map(clientCoords) --> mouseAction.updateEndpoint.tupled,
+        // 3. Any ongoing action ends here
+        onMouseUp.filter(leftButton)(_.withCurrentValueOf(mouseAction.signal)) --> { (ev, mouseActionNow) =>
+          mouseAction.inactive()
+          mouseActionNow match
+            case a: AddNewArrowAction       => viewerOps.handleAddNewArrowMouseUp(ev, a)
+            case a: MoveArrowEndpointAction => viewerOps.handleMoveArrowStartMouseUp(ev, a)
+            case a: ExtendSelectionAction   =>
+            case Inactive                   =>
+        },
+        // --------------------------------------------------------
+        // derived events
+        // --------------------------------------------------------
+        // selection rectangle
         child.maybe <--
           mouseAction.signal.map:
             case a: ExtendSelectionAction => Some(viewerOps.DrawSelectionRect(topLevelSvg.ref, a))
             case _                        => None,
-
+        // controls to initiate mouse actions
+        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(firstGroup).tupled,
+        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(firstGroup).tupled,
         // TODO: update the coordinates instead of recreating the arrow
         mouseAction.signal --> { action =>
           firstGroup.querySelectorAll("g#dragging-arrow-group").foreach(_.remove())
@@ -77,14 +100,12 @@ def SvgCanvas(
             case _                                             =>
         },
         // selection changes as a result of ongoing mouse actions
-        mouseAction.signal --> { action =>
-          action match
-            case a: ExtendSelectionAction   => viewerOps.onExtendSelectionAction(allSelectable)(a)
-            case a: AddNewArrowAction       => viewerOps.onAddNewArrowAction(a)
-            case a: MoveArrowEndpointAction => viewerOps.onMoveArrowSourceAction(a)
-            case Inactive                   =>
+        mouseAction.signal --> {
+          case a: ExtendSelectionAction   => viewerOps.onExtendSelectionAction(allSelectable)(a)
+          case a: AddNewArrowAction       => viewerOps.onAddNewArrowAction(a)
+          case a: MoveArrowEndpointAction => viewerOps.onMoveArrowSourceAction(a)
+          case Inactive                   =>
         },
-
         // --------------------------------------------------------
         //   synchronize svg elements with diagramSelection
         // --------------------------------------------------------

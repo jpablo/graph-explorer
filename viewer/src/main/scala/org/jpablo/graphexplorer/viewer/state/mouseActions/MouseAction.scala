@@ -20,6 +20,11 @@ enum MouseAction derives CanEqual:
   case AddNewArrowAction(rect: MouseActionRect, originator: SelectableElement, direction: ArrowDirection)
   case MoveArrowEndpointAction(rect: MouseActionRect, originator: SelectableElement, endpoint: ArrowEndpoint)
 
+  def name: String =
+    this match
+      case Inactive => "Inactive"
+      case other    => other.getClass.getSimpleName
+
 import MouseAction.*
 
 class MouseActionVar(initial: MouseAction = Inactive):

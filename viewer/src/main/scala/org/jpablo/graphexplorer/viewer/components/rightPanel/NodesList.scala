@@ -119,7 +119,7 @@ def NodesList(state: ViewerState): Div =
                     td(cls := "truncate", nodeId.toString),
                     td(cls := "truncate", node.label.toString),
                     onMouseDown.preventDefault --> Observer.empty,
-                    onClick.preventDefault.map(_.shiftKey) --> state.selection.handleClickOnNode(nodeId),
+                    onClick.preventDefault.map(_.shiftKey) --> state.selection.updateSelectionStatus(nodeId),
                     onDblClick
                       .preventDefault
                       .stopPropagation(_.sample(state.isElementVisible(nodeId))) --> { visible =>

@@ -297,7 +297,7 @@ trait DiagramSelectionOps:
       // Could involve removing attributes like pos, width, height, bb?
       println("resetLayout called for selection: " + now())
 
-    def handleClickOnNode(elementId: ElementId)(shiftKey: Boolean) =
+    def updateSelectionStatus(elementId: ElementId)(shiftKey: Boolean) =
       if shiftKey then
         toggle(elementId)
       else
@@ -315,10 +315,10 @@ trait DiagramSelectionOps:
         selectableElements:  Seq[SelectableElement],
         elementsFromRectEnd: js.Array[dom.Element]
     ) =
-      // This is meant to capture a single click.
       if rect.isEmpty then
+        // Equivalent to an onClick event
         findClosestElementId(elementsFromRectEnd) match
-          case Some(end) => handleClickOnNode(end)(rect.shift)
+          case Some(end) => updateSelectionStatus(end)(rect.shift)
           case None      => clear()
       else
         val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.elementId).toSet

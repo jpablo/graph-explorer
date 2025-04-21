@@ -3,9 +3,8 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.Commands
-import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
+import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
   *
@@ -31,24 +30,6 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
 //    onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
     onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElem) => state.handleWheel(e, svgElem.ref.viewBox.baseVal)),
-    // -----------------------
-    // Mouse-related actions
-    // -----------------------
-    // 1. Drawing a selecting rectangle starts here. Other actions start in their respective elements.
-    onMouseDown.filter(leftButton).map(clientCoords) --> { (pos, shift) =>
-      state.mouseAction.start(ExtendSelectionAction(MouseActionRect(pos, pos, shift)))
-    },
-    // 2. Any ongoing action is updated here (i.e., mouse position)
-    onMouseMove.filter(leftButtonMoved).map(clientCoords) --> state.mouseAction.updateEndpoint.tupled,
-    // 3. Any ongoing action ends here
-    onMouseUp.filter(leftButton)(_.withCurrentValueOf(state.mouseAction.signal)) --> { (ev, mouseActionNow) =>
-      state.mouseAction.inactive()
-      mouseActionNow match
-        case a: AddNewArrowAction       => state.handleAddNewArrowMouseUp(ev, a)
-        case a: MoveArrowEndpointAction => state.handleMoveArrowStartMouseUp(ev, a)
-        case a: ExtendSelectionAction   =>
-        case Inactive                   =>
-    }
   )
 
 extension (e: dom.MouseEvent)
