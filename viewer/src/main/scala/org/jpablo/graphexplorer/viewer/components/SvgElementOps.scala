@@ -2,13 +2,16 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.DomApi
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.SvgMods
+import org.jpablo.graphexplorer.viewer.components.SvgElementOps.emptySvg
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.scalajs.dom
-import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, SvgPoint, MouseActionRect}
+import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, MouseActionRect, SvgPoint}
 
 extension (clientPoint: ClientPoint)
   def toSvgPoint(screenCtm: dom.SVGMatrix): SvgPoint =
@@ -55,8 +58,19 @@ class SvgElementOps(val ref: dom.svg.SVG):
         val height = ((a.y + a.height) max (b.y + b.height)) - y
         BBox(x, y, width, height)
       )
-      val s = svgCanvas.emptySvg(bbox, svgs.map(foreignSvgElement))
+      val s = emptySvg(bbox, svgs.map(foreignSvgElement))
       s.ref.outerHTML
 
 object SvgElementOps:
   def empty = SvgElementOps(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()).ref)
+
+  /** Creates a standalone SVG element with the given viewBox
+   */
+  def emptySvg(viewBox: BBox, mods: SvgMods*): ReactiveSvgElement[dom.svg.SVG] =
+    svg.svg(
+      svg.xmlns      := "http://www.w3.org/2000/svg",
+      svg.xmlnsXlink := "http://www.w3.org/1999/xlink",
+      svg.viewBox    := s"${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}",
+      svg.cls        := "graphviz no-text-select",
+      mods
+    )
