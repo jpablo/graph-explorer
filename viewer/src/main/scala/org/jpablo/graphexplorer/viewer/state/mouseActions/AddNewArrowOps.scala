@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowControl
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowFromSourceToPointer, NewArrowControl}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
@@ -56,12 +56,13 @@ trait AddNewArrowOps:
       case Some(endElementId) => selection.set1(Set(start.elementId, endElementId))
       case None               => selection.set2(start.elementId)
 
+  val dirs = ArrowDirection.values.toSeq
+
   def handleNewArrowControls(parent: dom.svg.G)(elem: Option[SelectableElement], action: MouseAction): Unit =
     val controls =
       for
         elem <- elem.toSeq
-        dirs = ArrowDirection.values.toSeq
-        c <- dirs.flatMap(buildNewArrowControl(elem, action, _))
+        c    <- dirs.flatMap(buildNewArrowControl(elem, action, _))
       yield c
 
     if controls.nonEmpty then
@@ -70,12 +71,12 @@ trait AddNewArrowOps:
       parent.querySelectorAll("g.new-arrow-control").foreach(_.remove())
 
   def buildNewArrowControl(
-      selectedElem:  SelectableElement,
-      currentAction: MouseAction,
-      direction:     ArrowDirection
+      selectedElem: SelectableElement,
+      action:       MouseAction,
+      direction:    ArrowDirection
   ): Option[dom.svg.G] =
     val showControl =
-      currentAction match
+      action match
         case Inactive             => true
         case a: AddNewArrowAction => a.rect.isEmpty
         case _                    => false
@@ -104,3 +105,6 @@ trait AddNewArrowOps:
 
         Some(control)
       case _ => None
+
+  def addArrowFromSourceToPointer(rootGroup: dom.svg.G, action: AddNewArrowAction): Unit =
+    rootGroup.appendChild(ArrowFromSourceToPointer(action, rootGroup).ref)

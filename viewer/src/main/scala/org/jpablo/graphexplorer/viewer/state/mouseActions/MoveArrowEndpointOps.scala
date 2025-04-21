@@ -1,12 +1,12 @@
 package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
-import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointControl, clientCoords}
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowBetweenPointerAndEndpoint, ArrowEndpointControl, clientCoords}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowEndpointId, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowEndpointAction
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{Inactive, MoveArrowEndpointAction}
 import org.jpablo.graphexplorer.viewer.utils.{DomEvent, MouseActionRect}
 
 /*
@@ -18,9 +18,14 @@ trait MoveArrowEndpointOps:
 
   // 1. Create the UI control
   def handleArrowEndpointControl(parent: dom.svg.G)(elem: Option[SelectableElement], action: MouseAction): Unit =
+    val showControl =
+      action match
+        case Inactive                   => true
+        case a: MoveArrowEndpointAction => a.rect.isEmpty
+        case _                          => false
     val controls =
       elem.toArray.flatMap:
-        case edge: EdgeElement =>
+        case edge: EdgeElement if showControl =>
           for
             endpoint <- ArrowEndpoint.values
             elem = ArrowEndpointControl(edge, endpoint).ref
@@ -82,3 +87,6 @@ trait MoveArrowEndpointOps:
             case ArrowEndpoint.source => ArrowEndpointId.SourceId(endpointId)
             case ArrowEndpoint.target => ArrowEndpointId.TargetId(endpointId)
         )
+
+  def handleArrowBetweenPointerAndEndpoint(rootGroup: dom.svg.G, action: MoveArrowEndpointAction): Unit =
+    rootGroup.appendChild(ArrowBetweenPointerAndEndpoint(action, rootGroup).ref)

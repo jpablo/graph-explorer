@@ -36,74 +36,68 @@ def SvgCanvas(
   val magicY = -0.4
   val bbox   = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
 
-  emptySvg(
-    viewBox = bbox,
-    // -------------------------
-    // The top level <g> element
-    // -------------------------
-    foreignSvgElement(svg.g, firstGroup)
-      .amendThis: group =>
-        Seq(
-          svg.transform <-- transform,
-          // visual feedback for ongoing mouse actions
-          child.maybe <--
-            mouseAction.signal.map:
-              case _: ExtendSelectionAction   => None
-              case a: AddNewArrowAction       => if a.rect.isEmpty then None else Some(ArrowFromSourceToPointer(a, group.ref))
-              case a: MoveArrowEndpointAction => if a.rect.isEmpty then None else Some(ArrowBetweenPointerAndEndpoint(a, group.ref))
-              case Inactive                   => None
-        )
-  ).amendThis { topLevelSvg =>
-    val selectionGroups =
-      selection.signal
-        .scanLeft(x => (ElementIds(), x)):
-          case ((_, curr), next) => (curr, next)
-        .map: (curr, next) =>
-          val toUnselect = curr.filter(id => !next.contains(id))
-          val toSelect   = next.filter(id => !curr.contains(id))
-          (SelectableElement.query(topLevelSvg.ref, toUnselect), SelectableElement.query(topLevelSvg.ref, toSelect))
+  val reactiveFirstGroup = foreignSvgElement(svg.g, firstGroup).amend(svg.transform <-- transform)
 
-    val allSelectable =
-      SelectableElement.findAll(topLevelSvg.ref)
+  emptySvg(viewBox = bbox, reactiveFirstGroup)
+    .amendThis { topLevelSvg =>
+      val selectionGroups =
+        selection.signal
+          .scanLeft(x => (ElementIds(), x)):
+            case ((_, curr), next) => (curr, next)
+          .map: (curr, next) =>
+            val toUnselect = curr.filter(id => !next.contains(id))
+            val toSelect   = next.filter(id => !curr.contains(id))
+            (SelectableElement.query(topLevelSvg.ref, toUnselect), SelectableElement.query(topLevelSvg.ref, toSelect))
 
-    val singleSelection =
-      selection.signal.map: selected =>
-        if selected.size == 1 then SelectableElement.query(topLevelSvg.ref, selected).headOption else None
+      val allSelectable =
+        SelectableElement.findAll(topLevelSvg.ref)
 
-    val firstGroup: dom.svg.G =
-      topLevelSvg.ref.querySelectorT("g").getOrElse(throw Exception("No <g> element found in the SVG"))
+      val singleSelection =
+        selection.signal.map: selected =>
+          if selected.size == 1 then SelectableElement.query(topLevelSvg.ref, selected).headOption else None
 
-    Seq(
-      // controls to initiate mouse actions
-      singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(firstGroup).tupled,
-      singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(firstGroup).tupled,
-      child.maybe <--
-        mouseAction.signal.map:
-          case a: ExtendSelectionAction => Some(viewerOps.DrawSelectionRect(topLevelSvg.ref, a))
-          case _                        => None,
+      val firstGroup: dom.svg.G =
+        topLevelSvg.ref.querySelectorT("g").getOrElse(throw Exception("No <g> element found in the SVG"))
 
-      // selection changes as a result of ongoing mouse actions
-      mouseAction.signal --> { action =>
-        action match
-          case a: ExtendSelectionAction   => viewerOps.onExtendSelectionAction(allSelectable)(a)
-          case a: AddNewArrowAction       => viewerOps.onAddNewArrowAction(a)
-          case a: MoveArrowEndpointAction => viewerOps.onMoveArrowSourceAction(a)
-          case Inactive                   => ()
-      },
+      Seq(
+        // controls to initiate mouse actions
+        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(firstGroup).tupled,
+        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(firstGroup).tupled,
+        child.maybe <--
+          mouseAction.signal.map:
+            case a: ExtendSelectionAction => Some(viewerOps.DrawSelectionRect(topLevelSvg.ref, a))
+            case _                        => None,
 
-      // --------------------------------------------------------
-      //   synchronize svg elements with diagramSelection
-      // --------------------------------------------------------
-      selectionGroups --> { (toUnselect: Seq[SelectableElement], toSelect: Seq[SelectableElement]) =>
-        toUnselect.foreach(_.unselect())
-        toSelect.foreach(_.select())
-        // select/unselect modify the DOM directly, which seems to make the focus go to the
-        // document body. We need the focus back to the canvas container to process handle keys.
-        dom.window.requestAnimationFrame(_ => viewerOps.canvasContainerFocus.set(true))
-        ()
-      }
-    )
-  }
+        // TODO: update the coordinates instead of recreating the arrow
+        mouseAction.signal --> { action =>
+          firstGroup.querySelectorAll("g#dragging-arrow-group").foreach(_.remove())
+          action match
+            case a: AddNewArrowAction if !a.rect.isEmpty       => viewerOps.addArrowFromSourceToPointer(firstGroup, a)
+            case a: MoveArrowEndpointAction if !a.rect.isEmpty => viewerOps.handleArrowBetweenPointerAndEndpoint(firstGroup, a)
+            case _                                             =>
+        },
+        // selection changes as a result of ongoing mouse actions
+        mouseAction.signal --> { action =>
+          action match
+            case a: ExtendSelectionAction   => viewerOps.onExtendSelectionAction(allSelectable)(a)
+            case a: AddNewArrowAction       => viewerOps.onAddNewArrowAction(a)
+            case a: MoveArrowEndpointAction => viewerOps.onMoveArrowSourceAction(a)
+            case Inactive                   =>
+        },
+
+        // --------------------------------------------------------
+        //   synchronize svg elements with diagramSelection
+        // --------------------------------------------------------
+        selectionGroups --> { (toUnselect: Seq[SelectableElement], toSelect: Seq[SelectableElement]) =>
+          toUnselect.foreach(_.unselect())
+          toSelect.foreach(_.select())
+          // select/unselect modify the DOM directly, which seems to make the focus go to the
+          // document body. We need the focus back to the canvas container to process handle keys.
+          dom.window.requestAnimationFrame(_ => viewerOps.canvasContainerFocus.set(true))
+          ()
+        }
+      )
+    }
 end SvgCanvas
 
 /** Creates a standalone SVG element with the given viewBox
