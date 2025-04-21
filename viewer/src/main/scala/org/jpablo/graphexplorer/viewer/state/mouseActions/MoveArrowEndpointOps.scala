@@ -1,15 +1,13 @@
 package org.jpablo.graphexplorer.viewer.state.mouseActions
 
-import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.components.selection.EdgeElement
+import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowEndpointControl, clientCoords}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowEndpointId, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowEndpointAction
-import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
+import org.jpablo.graphexplorer.viewer.utils.{DomEvent, MouseActionRect}
 
 /*
  * This trait contains the logic for handling mouse actions related to moving the start of an arrow in the graph.
@@ -19,19 +17,34 @@ trait MoveArrowEndpointOps:
   this: ViewerState =>
 
   // 1. Create the UI control
-  def buildArrowEndpointControl(originator: EdgeElement, endpoint: ArrowEndpoint) =
-    ArrowEndpointControl(
-      originator,
-      endpoint,
-      onMouseDown.stopPropagation.map(clientCoords) --> { (pos, _) =>
-        mouseAction.start(MoveArrowEndpointAction(MouseActionRect(start = pos, end = pos, shift = false), originator, endpoint))
-      },
-      onMouseUp.stopPropagation --> mouseAction.inactive()
-    )
+  def handleArrowEndpointControl(parent: dom.svg.G)(elem: Option[SelectableElement], action: MouseAction): Unit =
+    val controls =
+      elem.toArray.flatMap:
+        case edge: EdgeElement =>
+          for
+            endpoint <- ArrowEndpoint.values
+            elem = ArrowEndpointControl(edge, endpoint).ref
+          yield
+            elem.addEventListener(
+              DomEvent.mousedown,
+              (ev: dom.MouseEvent) => {
+                ev.stopPropagation()
+                val pos = clientCoords(ev)._1
+                mouseAction.start(MoveArrowEndpointAction(MouseActionRect(start = pos, end = pos, shift = false), edge, endpoint))
+              }
+            )
+            elem.addEventListener(DomEvent.mouseup, (ev: dom.MouseEvent) => { ev.stopPropagation(); mouseAction.inactive() })
+            elem
+        case _ =>
+          Array.empty[dom.svg.G]
+
+    if controls.nonEmpty then
+      controls.foreach(parent.appendChild)
+    else
+      parent.querySelectorAll("g.edge-endpoint-disk").foreach(_.remove())
 
   // 2. Draw a dynamic arrow that follows the pointer
   // see: [[org.jpablo.graphexplorer.viewer.components.svgCanvas.ArrowBetweenPointerAndEndpoint]]
-
 
   // 3. Update the selection as the pointer is moving
   def onMoveArrowSourceAction(action: MouseAction.MoveArrowEndpointAction) =

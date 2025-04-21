@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
-import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, querySelectorT}
 import org.jpablo.graphexplorer.viewer.models.ElementIds
@@ -43,17 +43,8 @@ def SvgCanvas(
     // -------------------------
     foreignSvgElement(svg.g, firstGroup)
       .amendThis: group =>
-        val singleSelection =
-          selection.signal.map: selected =>
-            if selected.size == 1 then SelectableElement.query(group.ref, selected).headOption else None
-
         Seq(
           svg.transform <-- transform,
-          // controls to initiate mouse actions
-          children <-- singleSelection.map:
-            _.toSeq.flatMap:
-              case edge: EdgeElement => Seq(ArrowEndpoint.source, ArrowEndpoint.target).map(viewerOps.buildArrowEndpointControl(edge, _))
-              case _                 => Seq.empty,
           // visual feedback for ongoing mouse actions
           child.maybe <--
             mouseAction.signal.map:
@@ -85,6 +76,7 @@ def SvgCanvas(
     Seq(
       // controls to initiate mouse actions
       singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(firstGroup).tupled,
+      singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(firstGroup).tupled,
       child.maybe <--
         mouseAction.signal.map:
           case a: ExtendSelectionAction => Some(viewerOps.DrawSelectionRect(topLevelSvg.ref, a))
