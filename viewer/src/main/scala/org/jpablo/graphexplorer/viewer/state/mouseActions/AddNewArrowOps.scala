@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.NewArrowControl
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
@@ -9,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{AddNewArrowAction, Inactive}
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DomEvent, MouseActionRect}
 import org.scalajs.dom.DOMRect
 
 import scala.scalajs.js
@@ -57,11 +56,24 @@ trait AddNewArrowOps:
       case Some(endElementId) => selection.set1(Set(start.elementId, endElementId))
       case None               => selection.set2(start.elementId)
 
+  def handleNewArrowControls(parent: dom.svg.G)(elem: Option[SelectableElement], action: MouseAction): Unit =
+    val controls =
+      for
+        elem <- elem.toSeq
+        dirs = ArrowDirection.values.toSeq
+        c <- dirs.flatMap(buildNewArrowControl(elem, action, _))
+      yield c
+
+    if controls.nonEmpty then
+      controls.foreach(parent.appendChild)
+    else
+      parent.querySelectorAll("g.new-arrow-control").foreach(_.remove())
+
   def buildNewArrowControl(
       selectedElem:  SelectableElement,
       currentAction: MouseAction,
       direction:     ArrowDirection
-  ): Option[ReactiveSvgElement[dom.svg.G]] =
+  ): Option[dom.svg.G] =
     val showControl =
       currentAction match
         case Inactive             => true
@@ -70,20 +82,25 @@ trait AddNewArrowOps:
 
     selectedElem match
       case elem: NodeElement if showControl =>
-        Some(
-          NewArrowControl(
-            elem,
-            graphRankDir.observe().now,
-            direction,
-            onMouseDown.stopPropagation --> { ev =>
-              val pos = ClientPoint(ev.clientX, ev.clientY)
-              mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem, direction))
+        val control = NewArrowControl(elem, graphRankDir.observe().now, direction).ref
 
-            },
-            onMouseUp.stopPropagation --> { _ =>
-              mouseAction.inactive()
-              addNodeWithSmartConnection(direction = direction)
-            }
-          )
+        control.addEventListener(
+          DomEvent.mousedown,
+          (ev: dom.MouseEvent) => {
+            ev.stopPropagation()
+            val pos = ClientPoint(ev.clientX, ev.clientY)
+            mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem, direction))
+          }
         )
+
+        control.addEventListener(
+          DomEvent.mouseup,
+          (ev: dom.MouseEvent) => {
+            ev.stopPropagation()
+            mouseAction.inactive()
+            addNodeWithSmartConnection(direction = direction)
+          }
+        )
+
+        Some(control)
       case _ => None

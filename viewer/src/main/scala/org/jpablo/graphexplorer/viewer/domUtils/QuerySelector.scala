@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.domUtils
 
 /** A Match Type that maps a literal string type representing a tag name to the corresponding Scala.js DOM Element type.
   */
-type ElementTypeForSelector[S <: String] <: dom.Element = S match {
+type ElementTypeForSelector[S <: String] <: dom.Element = S match
   // HTML Elements
   case "a"        => dom.html.Anchor
   case "button"   => dom.html.Button
@@ -30,7 +30,6 @@ type ElementTypeForSelector[S <: String] <: dom.Element = S match {
   case "h4"    => dom.html.Heading
   case "h5"    => dom.html.Heading
   case "h6"    => dom.html.Heading
-
   // SVG Elements
   case "svg"      => dom.svg.SVG
   case "g"        => dom.svg.G
@@ -42,10 +41,9 @@ type ElementTypeForSelector[S <: String] <: dom.Element = S match {
   case "text"     => dom.svg.Text
   case "polygon"  => dom.svg.Polygon
   case "polyline" => dom.svg.Polyline
-
   // Fallback for unknown tags or more complex selectors (like "div.my-class")
   case _ => dom.Element
-}
+end ElementTypeForSelector
 
 // Extension method using transparent inline and the match type
 extension (node: dom.NodeSelector)
@@ -70,7 +68,7 @@ extension (node: dom.NodeSelector)
     // 1. Check at compile time if 'selectors' is a literal string
     inline scala.compiletime.constValueOpt[selectors.type] match
       case Some(_) => // Yes, it's a compile-time constant string
-        val resultOpt = Option(node.querySelector(selectors)) // Type is Option[dom.Element]
+        val resultOpt = Option(node.querySelector(selectors))
         // 2. Cast the result to the type inferred by ElementTypeForSelector.
         // The `transparent inline` ensures the method signature reflects this specific type.
         // The cast is safe *if* the DOM matches the selector's expected type.
