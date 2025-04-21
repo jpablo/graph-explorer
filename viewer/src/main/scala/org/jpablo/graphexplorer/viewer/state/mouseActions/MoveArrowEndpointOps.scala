@@ -87,5 +87,5 @@ trait MoveArrowEndpointOps:
             case ArrowEndpoint.target => ArrowEndpointId.TargetId(endpointId)
         )
 
-  def handleArrowBetweenPointerAndEndpoint(rootGroup: dom.svg.G, action: MoveArrowEndpointAction): Unit =
+  def addArrowBetweenPointerAndEndpoint(rootGroup: dom.svg.G, action: MoveArrowEndpointAction): Unit =
     rootGroup.appendChild(ArrowBetweenPointerAndEndpoint(action, rootGroup).ref)

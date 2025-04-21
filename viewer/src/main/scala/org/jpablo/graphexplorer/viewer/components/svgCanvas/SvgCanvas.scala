@@ -40,7 +40,6 @@ def SvgCanvas(
 
   emptySvg(viewBox = bbox, reactiveFirstGroup)
     .amendThis { topLevelSvg =>
-      println("[svgCanvas] ----------------")
       val selectionGroups =
         selection.signal
           .scanLeft(x => (ElementIds(), x)):
@@ -61,7 +60,7 @@ def SvgCanvas(
         topLevelSvg.ref.querySelectorT("g").getOrElse(throw Exception("No <g> element found in the SVG"))
 
       Seq(
-        mouseAction.signal.map(_.name).distinct --> { c => pprint.log(c) },
+        // mouseAction.signal.map(_.name).distinct --> { c => pprint.log(c) },
         // --------------------------------------------------------
         // Mouse events
         // --------------------------------------------------------
@@ -91,12 +90,13 @@ def SvgCanvas(
         // controls to initiate mouse actions
         singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(firstGroup).tupled,
         singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(firstGroup).tupled,
+        // dynamic arrow that follows the pointer
         mouseAction.signal --> { action =>
           // TODO: update the coordinates instead of recreating the arrow
           firstGroup.querySelectorAll("g#dragging-arrow-group").foreach(_.remove())
           action match
             case a: AddNewArrowAction if !a.rect.isEmpty       => viewerOps.addArrowFromSourceToPointer(firstGroup, a)
-            case a: MoveArrowEndpointAction if !a.rect.isEmpty => viewerOps.handleArrowBetweenPointerAndEndpoint(firstGroup, a)
+            case a: MoveArrowEndpointAction if !a.rect.isEmpty => viewerOps.addArrowBetweenPointerAndEndpoint(firstGroup, a)
             case _                                             =>
         },
         // selection changes as a result of ongoing mouse actions
