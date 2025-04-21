@@ -49,8 +49,8 @@ def SvgCanvas(
           child.maybe <--
             mouseAction.signal.map:
               case _: ExtendSelectionAction   => None
-              case a: AddNewArrowAction       => ArrowFromSourceToPointer(a, group.ref)
-              case a: MoveArrowEndpointAction => ArrowBetweenPointerAndEndpoint(a, group.ref)
+              case a: AddNewArrowAction       => if a.rect.isEmpty then None else Some(ArrowFromSourceToPointer(a, group.ref))
+              case a: MoveArrowEndpointAction => if a.rect.isEmpty then None else Some(ArrowBetweenPointerAndEndpoint(a, group.ref))
               case Inactive                   => None
         )
   ).amendThis { topLevelSvg =>

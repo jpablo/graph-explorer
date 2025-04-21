@@ -12,54 +12,49 @@ import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowE
 def ArrowBetweenPointerAndEndpoint(
     action:    MoveArrowEndpointAction,
     rootGroup: dom.svg.G
-): Option[ReactiveSvgElement[dom.svg.G]] =
-  if action.rect.isEmpty then
-    None
+): ReactiveSvgElement[dom.svg.G] =
+  val clonedPath = action.originator.ref.querySelector("path").cloneNode().asInstanceOf[dom.svg.Path]
+  val pathData   = clonedPath.getAttribute("d")
+  val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
+
+  def updateOrigin(commands: List[PathCommand]) =
+    commands match
+      case MoveTo(a, _ :: pt) :: ct => MoveTo(a, point.toTuple :: pt) :: ct
+      case other                    => other
+
+  def updateTarget(commands: List[PathCommand]) =
+    commands match
+      case commands =>
+        // Find the last command to update the target point
+        val lastIndex = commands.size - 1
+        commands.zipWithIndex.map:
+          case (LineTo(a, pts), i) if i == lastIndex     => LineTo(a, pts.init :+ point.toTuple)
+          case (CurveTo(a, points), i) if i == lastIndex =>
+            // For CurveTo, we need to update the last point in the last triplet
+            val updatedPoints = points.init :+ (points.last._1, points.last._2, point.toTuple)
+            CurveTo(a, updatedPoints)
+          case (cmd, _) => cmd
+
+  val updatedPathData = SVGPathParser.parse(pathData)
+    .map(if action.endpoint.isSource then updateOrigin else updateTarget)
+    .map(PathCommand.toData)
+    .getOrElse(pathData)
+
+  val arrowhead = "arrowhead"
+  val arrowtail = "arrowtail"
+
+  val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 3)
+
+  clonedPath.setAttribute("id", "dragging-arrow-line")
+  clonedPath.setAttribute("d", updatedPathData)
+  clonedPath.setAttribute("stroke-width", scale.toString)
+  if action.endpoint.isTarget then
+    clonedPath.setAttribute("marker-end", s"url(#$arrowhead)")
   else
-    val clonedPath = action.originator.ref.querySelector("path").cloneNode().asInstanceOf[dom.svg.Path]
-    val pathData   = clonedPath.getAttribute("d")
-    val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
+    clonedPath.setAttribute("marker-start", s"url(#$arrowtail)")
 
-    def updateOrigin(commands: List[PathCommand]) =
-      commands match
-        case MoveTo(a, _ :: pt) :: ct => MoveTo(a, point.toTuple :: pt) :: ct
-        case other                    => other
-
-    def updateTarget(commands: List[PathCommand]) =
-      commands match
-        case commands =>
-          // Find the last command to update the target point
-          val lastIndex = commands.size - 1
-          commands.zipWithIndex.map:
-            case (LineTo(a, pts), i) if i == lastIndex     => LineTo(a, pts.init :+ point.toTuple)
-            case (CurveTo(a, points), i) if i == lastIndex =>
-              // For CurveTo, we need to update the last point in the last triplet
-              val updatedPoints = points.init :+ (points.last._1, points.last._2, point.toTuple)
-              CurveTo(a, updatedPoints)
-            case (cmd, _) => cmd
-
-    val updatedPathData = SVGPathParser.parse(pathData)
-      .map(if action.endpoint.isSource then updateOrigin else updateTarget)
-      .map(PathCommand.toData)
-      .getOrElse(pathData)
-
-    val arrowhead = "arrowhead"
-    val arrowtail = "arrowtail"
-
-    val scale = SvgUtils.calculateSimpleScale(rootGroup, 1, clientSize = 3)
-
-    clonedPath.setAttribute("id", "dragging-arrow-line")
-    clonedPath.setAttribute("d", updatedPathData)
-    clonedPath.setAttribute("stroke-width", scale.toString)
-    if action.endpoint.isTarget then
-      clonedPath.setAttribute("marker-end", s"url(#$arrowhead)")
-    else
-      clonedPath.setAttribute("marker-start", s"url(#$arrowtail)")
-
-    Some(
-      svg.g(
-        svg.idAttr := "dragging-arrow-group",
-        svg.defs(arrowHeadMarker(arrowhead), arrowTailMarker(arrowtail)),
-        foreignSvgElement(svg.path, clonedPath)
-      )
-    )
+  svg.g(
+    svg.idAttr := "dragging-arrow-group",
+    svg.defs(arrowHeadMarker(arrowhead), arrowTailMarker(arrowtail)),
+    foreignSvgElement(svg.path, clonedPath)
+  )
