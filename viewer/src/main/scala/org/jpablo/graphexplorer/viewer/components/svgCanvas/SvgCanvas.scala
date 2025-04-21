@@ -72,9 +72,9 @@ def SvgCanvas(
         // 2. Any ongoing action is updated here (i.e., mouse position)
         onMouseMove.filter(leftButtonMoved).map(clientCoords) --> mouseAction.updateEndpoint.tupled,
         // 3. Any ongoing action ends here
-        onMouseUp.filter(leftButton)(_.withCurrentValueOf(mouseAction.signal)) --> { (ev, mouseActionNow) =>
+        onMouseUp.filter(leftButton)(_.withCurrentValueOf(mouseAction.signal)) --> { (ev, previousAction) =>
           mouseAction.inactive()
-          mouseActionNow match
+          previousAction match
             case a: AddNewArrowAction       => viewerOps.handleAddNewArrowMouseUp(ev, a)
             case a: MoveArrowEndpointAction => viewerOps.handleMoveArrowStartMouseUp(ev, a)
             case a: ExtendSelectionAction   =>
@@ -91,8 +91,8 @@ def SvgCanvas(
         // controls to initiate mouse actions
         singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(firstGroup).tupled,
         singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(firstGroup).tupled,
-        // TODO: update the coordinates instead of recreating the arrow
         mouseAction.signal --> { action =>
+          // TODO: update the coordinates instead of recreating the arrow
           firstGroup.querySelectorAll("g#dragging-arrow-group").foreach(_.remove())
           action match
             case a: AddNewArrowAction if !a.rect.isEmpty       => viewerOps.addArrowFromSourceToPointer(firstGroup, a)

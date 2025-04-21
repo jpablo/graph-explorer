@@ -116,7 +116,10 @@ case class ViewerState(
       g2
 
   def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId) =
-    phases.fullGraphV.update(_.moveArrowEndpoint(arrowId, newEndpoint))
+    phases.fullGraphV.update: g =>
+      val (g1, newArrowId) = g.moveArrowEndpoint(arrowId, newEndpoint)
+      selection.set(ElementIds.from(newArrowId))
+      g1
 
   // -------- Attribute management -----------
 

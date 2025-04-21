@@ -74,7 +74,6 @@ trait MoveArrowEndpointOps:
   def handleMoveArrowStartMouseUp(ev: dom.MouseEvent, action: MouseAction.MoveArrowEndpointAction): Unit =
     val selectionNow = selection.now()
     val originator   = action.originator
-    selection.clear()
     // Check if the mouse release point (not the selection rectangle) is inside the source node's bounding box
     val isMouseInsideSourceNode = pointInsideBox((ev.clientX, ev.clientY), originator.ref.getBoundingClientRect())
 

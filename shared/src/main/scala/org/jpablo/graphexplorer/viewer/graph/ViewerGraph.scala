@@ -159,13 +159,13 @@ case class ViewerGraph(
     val (newGraph, arrow) = addNodeWithId(nodeId, targetGroup, attributes).addArrow(nodeId, target)
     (newGraph, nodeId, arrow.id)
 
-  def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId): ViewerGraph =
+  def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId): (ViewerGraph, ArrowId) =
     val arrow = arrows(arrowId)
     val newArrow =
       newEndpoint match
         case ArrowEndpointId.SourceId(id) => arrow.copy(source = id)
         case ArrowEndpointId.TargetId(id) => arrow.copy(target = id)
-    modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId)
+    (modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId), newArrow.id)
 
   /** Reverses the direction of the specified arrows.
     *
