@@ -28,7 +28,8 @@ def EditLabelDialog(state: ViewerState) =
     placeholder := "Enter label text...",
     rows        := 3,                                   // Give it a bit more initial space
     controlled(value <-- modalText, onInput.mapToValue --> modalText),
-    focus <-- dialogIsOpen.signal.changes,
+//    onMountFocus,
+    focus <-- dialogIsOpen.signal.changes.tapEach(f => pprint.log(f, "dialogIsOpen")),
     // Handle Enter -> Save and Close
     // Shift+Enter -> Add a new line
     onKeyDown.filter(ev => ev.key == KeyValue.Enter && !ev.shiftKey) --> { ev =>
@@ -45,11 +46,9 @@ def EditLabelDialog(state: ViewerState) =
     open = dialogIsOpen,
     // --- Dialog Content ---
     div(
-      h3(cls := "font-bold text-md mb-2", "Edit Label"), // Add title
+      h3(cls := "font-bold text-md mb-2", "Edit Label"),
       textAreaElement,
-      div(cls := "flex justify-between items-center mt-2",
-        p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line")
-      )
+      div(cls := "flex justify-between items-center mt-2", p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line"))
     ),
     // --- State Synchronization ---
     // Update modalText when the dialog opens

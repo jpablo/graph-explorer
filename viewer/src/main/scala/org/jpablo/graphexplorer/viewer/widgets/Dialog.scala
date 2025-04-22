@@ -7,14 +7,18 @@ import org.jpablo.graphexplorer.viewer.domUtils.dialog
 import org.scalajs.dom.KeyValue
 
 def SimpleDialog(open: Var[Boolean], contents: Mods*) =
-  Dialog(
-    mods = cls("modal-open") <-- open.signal,
-    onKeyDown.filter(_.key == KeyValue.Escape) --> open.set(false),
-    tabIndex := 0,
-    focus <-- open.signal.changes
-  )(contents)(
-    action =
-      Button("close", onClick --> open.set(false)).tiny
+  div(
+    child(
+      Dialog(
+        mods = cls("modal-open"),
+        onKeyDown.filter(_.key == KeyValue.Escape) --> open.set(false),
+        tabIndex := 0,
+//        focus <-- open.signal.changes
+      )(contents)(
+        action =
+          Button("close", onClick --> open.set(false)).tiny
+      )
+    ) <-- open
   )
 
 def Dialog(mods: Mods*)(contents: Mods*)(action: Mods*) =

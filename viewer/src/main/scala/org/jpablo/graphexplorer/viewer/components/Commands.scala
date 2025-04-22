@@ -446,6 +446,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       .toMap
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
+    dom.console.log("Key pressed:", ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
+    dom.console.log("activeElement:", dom.document.activeElement)
     val sh = Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
     for cmd <- byShortcut.get(sh) do
       if ev.key == KeyValue.Enter then

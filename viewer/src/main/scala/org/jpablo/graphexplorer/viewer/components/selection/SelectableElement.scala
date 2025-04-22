@@ -1,15 +1,10 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
-import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
+import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, querySelectorAllT, querySelectorT}
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
-import org.jpablo.graphexplorer.viewer.domUtils.{querySelectorT, querySelectorAllT}
-import org.scalajs.dom.{FocusEvent, KeyValue}
-
-import scala.scalajs.js
 
 sealed trait SelectableElement(val ref: dom.svg.G):
   def selectedClass: String
@@ -36,58 +31,6 @@ sealed trait SelectableElement(val ref: dom.svg.G):
     val rect = ref.querySelector(s"rect.$selectionRectClass")
     if rect == null then
       ref.appendChild(SelectedRect().ref)
-
-  /** Replaces the `<text>` elements with a `<textArea>` for inline editing. When the user presses Enter, it updates the label.
-    */
-  def installEditor(
-      updateLabel:  (ElementId, String) => Unit,
-      clearEditing: () => Unit,
-      label:        String
-  ): Unit =
-    val polygon      = ref.querySelectorT("polygon").get
-    val groupBBox    = (if polygon == null then ref else polygon).getBBox()
-    val textElements = ref.querySelectorAllT[dom.svg.Text]("text")
-    val bBox =
-      if textElements.isEmpty then
-        BBox(groupBBox.x, groupBBox.y, groupBBox.width, groupBBox.height)
-      else
-        val textBBox = getUnionBBox(textElements.map(_.getBBox()))
-        BBox(groupBBox.x, textBBox.y, groupBBox.width, textBBox.height)
-
-    val (fo, input) = buildInputElement(bBox)
-
-    lazy val blurHandler: js.Function1[dom.FocusEvent, Unit] =
-      _ => restoreOriginalText()
-
-    def restoreOriginalText(): Unit =
-      input.removeEventListener("blur", blurHandler)
-      fo.remove()
-      textElements.foreach(te => ref.appendChild(te))
-      clearEditing()
-
-    input.value = TextUtils.unescape(label)
-
-    input.addEventListener("blur", blurHandler)
-
-    input.onkeydown = (event: dom.KeyboardEvent) => {
-      event.stopPropagation()
-      event.key match
-        case KeyValue.Enter if !event.shiftKey =>
-          event.preventDefault()
-          restoreOriginalText()
-          updateLabel(elementId, input.value)
-        case KeyValue.Escape =>
-          event.preventDefault()
-          input.blur()
-        case _ =>
-    }
-    // --------------------
-
-    textElements.foreach(_.remove())
-    ref.appendChild(fo)
-    // Focus the input element automatically, slightly delayed
-    dom.window.setTimeout(() => { input.focus(); input.select() }, 0)
-  end installEditor
 
   private def buildInputElement(bbox: BBox) =
     val xMargin = 2
