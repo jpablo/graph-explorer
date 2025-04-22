@@ -15,55 +15,44 @@ import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 // rawSvg is the SVG element as it comes from DOT
 def SvgCanvas(
-    rawSvg:      dom.svg.SVG,
+    rawSvg:      ReactiveSvgElement[dom.svg.SVG],
     transform:   Signal[String],
     viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
     mouseAction: MouseActionVar
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
 
-  val firstGroup: dom.svg.G =
-    rawSvg.querySelectorT("g").getOrElse(dom.document.createElement("g").asInstanceOf[dom.svg.G])
-
-  // --------------------------------------------------------
-  // The top level <svg> element
-  // --------------------------------------------------------
-  val viewBox = rawSvg.viewBox.baseVal
-  val tr      = getTranslate(firstGroup)
-  // TODO: Find a way to center the SVG content in the viewBox
-  val magicX = 0.4
+  val mainGroup = rawSvg.ref.querySelectorT("g").getOrElse(throw Exception("No <g> element found in the SVG"))
+  val tr        = getTranslate(mainGroup)
+  val magicX    = 0.4 // TODO: Find a better way to calculate this
   val magicY = -0.4
+  val viewBox   = rawSvg.ref.viewBox.baseVal
   val bbox   = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
 
-  rawSvg.setAttribute(svg.viewBox.name, s"${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}")
-  rawSvg.removeAttribute(svg.width.name)
-  rawSvg.removeAttribute(svg.height.name)
-  rawSvg.classList.add("graphviz")
+  val selectionGroups =
+    selection.signal
+      .scanLeft(x => (ElementIds(), x)):
+        case ((_, curr), next) => (curr, next)
+      .map: (curr, next) =>
+        val toUnselect = curr.filter(id => !next.contains(id))
+        val toSelect   = next.filter(id => !curr.contains(id))
+        (SelectableElement.query(rawSvg.ref, toUnselect), SelectableElement.query(rawSvg.ref, toSelect))
 
-  foreignSvgElement(svg.svg, rawSvg)
-    .amendThis { topLevelSvg =>
-      val selectionGroups =
-        selection.signal
-          .scanLeft(x => (ElementIds(), x)):
-            case ((_, curr), next) => (curr, next)
-          .map: (curr, next) =>
-            val toUnselect = curr.filter(id => !next.contains(id))
-            val toSelect   = next.filter(id => !curr.contains(id))
-            (SelectableElement.query(topLevelSvg.ref, toUnselect), SelectableElement.query(topLevelSvg.ref, toSelect))
+  val singleSelection =
+    selection.signal.map: selected =>
+      if selected.size == 1 then SelectableElement.query(rawSvg.ref, selected).headOption else None
 
-      val singleSelection =
-        selection.signal.map: selected =>
-          if selected.size == 1 then SelectableElement.query(topLevelSvg.ref, selected).headOption else None
+  val allSelectable =
+    SelectableElement.findAll(rawSvg.ref)
 
-      val allSelectable =
-        SelectableElement.findAll(topLevelSvg.ref)
-
-      val firstGroup: dom.svg.G =
-        topLevelSvg.ref.querySelectorT("g").getOrElse(throw Exception("No <g> element found in the SVG"))
-
+  rawSvg
+    .amend {
       Seq(
-        // mouseAction.signal.map(_.name).distinct --> { c => pprint.log(c) },
-        transform --> { tr => firstGroup.setAttribute(svg.transform.name, tr) },
+        svg.viewBox   := s"${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}",
+        svg.width     := null,
+        svg.height    := null,
+        svg.className := "graphviz",
+        transform --> { tr => mainGroup.setAttribute(svg.transform.name, tr) },
         // --------------------------------------------------------
         // Mouse events
         // --------------------------------------------------------
@@ -88,18 +77,18 @@ def SvgCanvas(
         // selection rectangle
         child.maybe <--
           mouseAction.signal.map:
-            case a: ExtendSelectionAction => Some(viewerOps.DrawSelectionRect(topLevelSvg.ref, a))
+            case a: ExtendSelectionAction => Some(viewerOps.DrawSelectionRect(rawSvg.ref.getScreenCTM(), a.rect))
             case _                        => None,
         // controls to initiate mouse actions
-        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(firstGroup).tupled,
-        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(firstGroup).tupled,
+        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(mainGroup).tupled,
+        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(mainGroup).tupled,
         // dynamic arrow that follows the pointer
         mouseAction.signal --> { action =>
           // TODO: update the coordinates instead of recreating the arrow
-          firstGroup.querySelectorAll("g#dragging-arrow-group").foreach(_.remove())
+          mainGroup.querySelectorAll("g#dragging-arrow-group").foreach(_.remove())
           action match
-            case a: AddNewArrowAction if !a.rect.isEmpty       => viewerOps.addArrowFromSourceToPointer(firstGroup, a)
-            case a: MoveArrowEndpointAction if !a.rect.isEmpty => viewerOps.addArrowBetweenPointerAndEndpoint(firstGroup, a)
+            case a: AddNewArrowAction if !a.rect.isEmpty       => viewerOps.addArrowFromSourceToPointer(mainGroup, a)
+            case a: MoveArrowEndpointAction if !a.rect.isEmpty => viewerOps.addArrowBetweenPointerAndEndpoint(mainGroup, a)
             case _                                             =>
         },
         // selection changes as a result of ongoing mouse actions

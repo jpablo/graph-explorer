@@ -126,12 +126,12 @@ private def projectCard(router: Router)(project: ProjectInfo) =
             div(
               cls := "w-full h-full p-4 flex items-center justify-center",
               child <-- svgSignal.map: svgElement =>
-                svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet")
+//                svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet")
                 div(
                   cls := "w-full h-full relative",
                   div(
                     cls := "absolute inset-0 w-full h-full",
-                    foreignSvgElement(svg.svg, svgElement)
+                    svgElement
                   )
                 )
               ,

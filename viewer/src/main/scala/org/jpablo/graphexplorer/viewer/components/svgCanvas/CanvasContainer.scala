@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.Commands
+import org.jpablo.graphexplorer.viewer.domUtils.{DomEvent, SvgUtils, querySelectorT}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 
@@ -21,7 +22,7 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     tabIndex := 0,
     state.fitDiagram.events --> state.resetView(),
     // the main canvas!!
-    child <-- state.finalSVG,
+    child.maybe <-- state.finalSVG,
     // we need a way to move the focus here after certain events
     focus <-- state.canvasContainerFocus.signal.changes,
     // abort ongoing mouse actions when the focus is lost
@@ -29,7 +30,9 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // Perhaps the solution is to make sure the focus is not lost when clicking on the arrow?
 //    onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
-    onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElem) => state.handleWheel(e, svgElem.ref.viewBox.baseVal)),
+    onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElemO) =>
+      svgElemO.map(s => state.handleWheel(e, s.ref.viewBox.baseVal))
+    )
   )
 
 extension (e: dom.MouseEvent)

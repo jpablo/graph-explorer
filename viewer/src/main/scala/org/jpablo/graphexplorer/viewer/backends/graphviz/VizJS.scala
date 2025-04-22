@@ -12,4 +12,4 @@ object VizJS extends js.Object:
 
 @js.native
 trait Viz extends js.Object:
-  def renderSVGElement(dot: String): org.scalajs.dom.SVGElement = js.native
+  def renderSVGElement(dot: String): dom.svg.SVG = js.native
