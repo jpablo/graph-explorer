@@ -41,6 +41,9 @@ def ToolbarNodesAttributesView(
       )
     )
 
+  val borderStyleRow = row(BorderStyle, InputType.menuWithExtra(3)).copy(options = borderStyleOptions)
+  val penWidthStyle  = row(PenWidth, range(start = Some(0.1), end = Some(4), step = Some(0.25)))
+
   def AttributesCard() =
     div(
       cls := "card card-border card-xs bg-base-100 shadow-sm w-48",
@@ -48,17 +51,18 @@ def ToolbarNodesAttributesView(
         cls := "card-body",
         VerticalAttributesView(
           id = "border-attributes",
-          rows = rows(
-            row(BorderStyle, InputType.menuWithExtra(3)).copy(options = borderStyleOptions),
-            row(PenWidth, range(start = Some(0.1), end = Some(4), step = Some(0.25)))
-          )
+          rows = rows(borderStyleRow, penWidthStyle)
         )
       )
     )
 
   val borderOptions =
     DropdownHeader(
-      "Border",
+      div(
+        cls := "flex gap-4 bg-base-100 rounded-md px-2",
+        child <-- borderStyleRow.selectedOption,
+        child <-- penWidthStyle.selectedOption
+      ),
       body = AttributesCard()
     )
 

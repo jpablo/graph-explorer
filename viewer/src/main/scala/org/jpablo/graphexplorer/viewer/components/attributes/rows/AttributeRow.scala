@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.rows
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveElement
+import com.raquo.laminar.nodes.ReactiveElement.Base
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
@@ -62,6 +63,15 @@ object AttributeRow:
 
     def combineDefaultBoolean: Signal[Boolean] =
       row.combineDefaultString.map(_ == true.toString)
+
+    def selectedOption: Signal[ReactiveElement.Base] =
+      row.combineDefaultString.map: attrValueStr =>
+        row.options
+          .find(_.value.toString == attrValueStr)
+          .flatMap(_.elem)
+          .map(_())
+          .orElse(row.missingRowOption.map(_(attrValueStr)))
+          .getOrElse(span(attrValueStr))
 
   case class RowOption(
       name:  String,

@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.Mods
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, RowOption, toRawText}
 import org.jpablo.graphexplorer.viewer.domUtils.autocomplete
 import org.jpablo.graphexplorer.viewer.color.ColorFormat
@@ -122,11 +121,6 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
   )
 
 def DropdownWithCurrentValue(row: InputAttribute, dir: MenuDirection, cardClass: Option[String] = None) =
-  val selectedOption: Signal[ReactiveElement.Base] =
-    row.combineDefaultString.map: attrValueStr =>
-      val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
-      selected.orElse(row.missingRowOption.map(_(attrValueStr))).getOrElse(span(attrValueStr))
-
   div(
     cls := s"menu dropdown dropdown-bottom p-0 m-0",
     // TailwindCSS classes seem to have issues with dynamic strings, so we add the cases we need here.
@@ -136,20 +130,12 @@ def DropdownWithCurrentValue(row: InputAttribute, dir: MenuDirection, cardClass:
     else
       Seq(
         // current value button
-        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs p-1 ml-1", child <-- selectedOption),
+        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs p-1 ml-1", child <-- row.selectedOption),
         PopupCard(row, row.options, cardClass)
       )
   )
 
 def DropdownForRow(row: InputAttribute) =
-  val selectedOption: Signal[ReactiveElement.Base] =
-    row.combineDefaultString.map: attrValueStr =>
-      val selected = row.options.find(o => o.value.toString == attrValueStr).flatMap(_.elem).map(_())
-      if selected.isEmpty then
-        pprint.log(attrValueStr)
-        pprint.log(row.options.map(o => o.value.toString))
-      selected.getOrElse(span("?"))
-
   Dropdown(
     title = emptyMod,
     options = Signal.fromValue(
@@ -163,7 +149,7 @@ def DropdownForRow(row: InputAttribute) =
       )
     ),
     onClickHandler = _ --> (attrValue => row.inputVar.set(attrValue)),
-    icon = child <-- selectedOption,
+    icon = child <-- row.selectedOption,
     menuCls = "items-center"
   ).amend(cls := "dropdown-center")
 
