@@ -58,6 +58,9 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
                   onChange.mapToValue --> selection
                 )
               ),
+              // -------------
+              // Defaults
+              // -------------
               child <-- selection.signal.map:
                 case "nodes"  => ToolbarNodesAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.node))
                 case "arrows" => ToolbarArrowsAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.edge))

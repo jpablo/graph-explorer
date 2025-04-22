@@ -50,9 +50,9 @@ def DiagramAttributesView(state: ViewerState) =
         graphTypeRow,
         Splines,
         Concentrate -> checkbox,
-        row(BgColor, InputType.menuWithExtra(lightRows7.length, MenuDirection.end))
+        row(BgColor, InputType.menuWithExtra(lightRows8.length, MenuDirection.end))
           .copy(
-            options = lightRows7 ++ colorOptions,
+            options = lightRows8 ++ colorOptions,
             hidden = builder.invalidLayout(BgColor)
           ),
         Pad     -> range(start = Some(0.0), end = Some(1.0), step = Some(0.05)),

@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.models.{AttrValueWithStatus, AttributeUpdates, Attributes}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.InputType
+import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 
 def ToolbarNodesAttributesView(
@@ -46,7 +46,7 @@ def ToolbarNodesAttributesView(
       row(CornerStyle, InputType.dropdown).copy(options = cornerStyleOptions),
       row(FillColor, InputType.currentValueWithSelector())
         .copy(
-          options = /*lightRows4 ++ */ colorOptions,
+          options = lightRows11 ++ colorOptions,
           hidden = builder.invalidLayout(FillColor),
           missingRowOption = Some(missingColorHandler)
         ),
@@ -58,7 +58,7 @@ def ToolbarNodesAttributesView(
         hidden = shapeIsPlainOrPlainText
       ),
       row(Color, InputType.currentValueWithSelector()).copy(
-        options = /*mediumRows4 ++ */ colorOptions,
+        options = mediumRows11 ++ colorOptions,
         hidden = shapeIsPlainOrPlainText,
         missingRowOption = Some(missingColorHandler)
       ),
@@ -67,8 +67,8 @@ def ToolbarNodesAttributesView(
         options = nodeLabelVerticalAlignOptions,
         hidden = labelRelatedHidden
       ),
-      row(FontColor, InputType.currentValueWithSelector()).copy(
-        options = /*mediumRows4 ++ */ colorOptions,
+      row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
+        options = mediumRows11 ++  colorOptions,
         hidden = labelRelatedHidden,
         missingRowOption = Some(missingColorHandler)
       ),

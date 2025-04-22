@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.{AttributeUpdates, Attributes}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.InputType
+import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
 
 def ToolbarArrowsAttributesView(
@@ -29,7 +29,7 @@ def ToolbarArrowsAttributesView(
     rows = rows(
       row(Color, InputType.currentValueWithSelector())
         .copy(
-          options = /*mediumRows4 ++ */ colorOptions,
+          options = mediumRows11 ++ colorOptions,
           missingRowOption = Some(missingColorHandler)
         ),
       row(EdgeStyle, InputType.dropdown).copy(options = arrowStyleOptions),
@@ -40,8 +40,8 @@ def ToolbarArrowsAttributesView(
       Constraint -> checkbox,
       // ---------- label stuff ------------
 //      labelRow,
-      row(FontColor, InputType.currentValueWithSelector()).copy(
-        options = /*mediumRows4 ++ */ colorOptions,
+      row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
+        options = mediumRows11 ++ colorOptions,
         hidden = labelRelatedHidden,
         missingRowOption = Some(missingColorHandler)
       ),

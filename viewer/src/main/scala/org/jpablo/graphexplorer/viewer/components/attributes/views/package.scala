@@ -48,13 +48,17 @@ package object views:
 
   private val colorNoneRow = rgbColorRowOption("none", RGB(0, 0, 0))
 
-  private val basic7 = List(red, yellow, green, blue, indigo, sky, slate)
   private val basic4 = List(red, yellow, green, blue)
+  private val basic7 = List(red, yellow, green, blue, indigo, sky, slate)
+  private val basic10 = List(red, yellow, green, blue, indigo, sky, slate, purple, pink, rose)
 
-  val mediumRows7 = colorNoneRow :: basic7.map(c => s"$c-500").map(twColorOptions)
-  val lightRows7  = colorNoneRow :: basic7.map(c => s"$c-200").map(twColorOptions)
-  val mediumRows4 = colorNoneRow :: basic4.map(c => s"$c-500").map(twColorOptions)
-  val lightRows4  = colorNoneRow :: basic4.map(c => s"$c-200").map(twColorOptions)
+  val lightRows5  = colorNoneRow :: basic4.map(c => s"$c-200").map(twColorOptions)
+  val lightRows8  = colorNoneRow :: basic7.map(c => s"$c-200").map(twColorOptions)
+  val lightRows11  = colorNoneRow :: basic10.map(c => s"$c-200").map(twColorOptions)
+  
+  val mediumRows5 = colorNoneRow :: basic4.map(c => s"$c-500").map(twColorOptions)
+  val mediumRows8 = colorNoneRow :: basic7.map(c => s"$c-500").map(twColorOptions)
+  val mediumRows11  = colorNoneRow :: basic10.map(c => s"$c-500").map(twColorOptions)
 
   val colorOptions = twColorOptions.values.toSeq
 
