@@ -74,11 +74,11 @@ def SvgCanvas(
         // derived events
         // --------------------------------------------------------
         // selection rectangle
-        viewerOps.DrawSelectionRect(rawSvg.ref.getScreenCTM),
+        viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),
         // controls to initiate mouse actions
         singleSelection.combineWith(mouseAction.signal) --> { (elem: Option[SelectableElement], action: MouseAction) =>
-          viewerOps.handleNewArrowControls(mainGroup)(elem, action)
-          viewerOps.handleArrowEndpointControl(mainGroup)(elem, action)
+          viewerOps.handleNewArrowControls(mainGroup, elem, action)
+          viewerOps.handleArrowEndpointControl(mainGroup, elem, action)
         },
         // dynamic arrow that follows the pointer
         mouseAction.signal --> { action =>

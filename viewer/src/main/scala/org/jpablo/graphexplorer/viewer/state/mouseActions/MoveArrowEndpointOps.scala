@@ -17,7 +17,7 @@ trait MoveArrowEndpointOps:
   this: ViewerState =>
 
   // 1. Create the UI control
-  def handleArrowEndpointControl(parent: dom.svg.G)(elem: Option[SelectableElement], action: MouseAction): Unit =
+  def handleArrowEndpointControl(parent: dom.svg.G, elem: Option[SelectableElement], action: MouseAction): Unit =
     val showControl =
       action match
         case Inactive                   => true

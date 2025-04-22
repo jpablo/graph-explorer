@@ -58,10 +58,10 @@ trait AddNewArrowOps:
 
   val dirs = ArrowDirection.values.toSeq
 
-  def handleNewArrowControls(parent: dom.svg.G)(elem: Option[SelectableElement], action: MouseAction): Unit =
+  def handleNewArrowControls(parent: dom.svg.G, selection: Option[SelectableElement], action: MouseAction): Unit =
     val controls =
       for
-        elem <- elem.toSeq
+        elem <- selection.toSeq
         c    <- dirs.flatMap(buildNewArrowControl(elem, action, _))
       yield c
 

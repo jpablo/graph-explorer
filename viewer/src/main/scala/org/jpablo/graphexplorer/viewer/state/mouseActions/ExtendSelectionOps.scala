@@ -31,7 +31,7 @@ trait ExtendSelectionOps:
     * @return
     *   Signal containing an optional SVG rect element. The rect is only present when there is an active selection action.
     */
-  def DrawSelectionRect(screenCtm: () => dom.SVGMatrix) =
+  def SelectionRect(screenCtm: () => dom.SVGMatrix) =
     val bbox =
       mouseAction.signal.map:
         case a: ExtendSelectionAction => Some(selectionRectBBox(screenCtm(), a.rect))
