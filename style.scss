@@ -64,16 +64,11 @@ label[for ^= show-ns-kind-] {
 
   @apply flex flex-row gap-3;
 
-
-  .fieldset {
+  > .fieldset {
     @apply flex py-0 gap-0 flex-nowrap;
 
     &:not(:last-child) {
       @apply pr-2 border-r border-base-300;
-    }
-
-    > * {
-      //@apply border;
     }
   }
 }
@@ -286,8 +281,7 @@ label[for ^= show-ns-kind-] {
     flex-shrink: 0;
 
     &.visible {
-      @apply visible flex flex-col /* h-full*/
-      ;
+      @apply visible flex flex-col /* h-full*/ ;
       width: 20rem;
     }
 

@@ -3,14 +3,14 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputAttribute
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, InputElement}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.number
 
 def HorizontalAttributesView(
-    rows:        Seq[AttributeRow],
-    extra:       Seq[AttributeRow] = Seq.empty
+    rows:  Seq[AttributeRow],
+    extra: Seq[AttributeRow] = Seq.empty
 ) =
   div(
     cls := "horizontal-attributes-view",
@@ -18,8 +18,16 @@ def HorizontalAttributesView(
   )
 
 private def buildFieldSets(rows: Seq[AttributeRow]) =
-  for row <- rows.collect { case ia: InputAttribute => ia } yield
-    child(fieldSet(cls := "fieldset", AttributesViewRow(row))) <-- row.hidden.not
+  for row <- rows
+  yield
+    child(
+      fieldSet(
+        cls := "fieldset",
+        row match
+          case ia: InputAttribute => AttributesViewRow(ia)
+          case ie: InputElement   => ie.element
+      )
+    ) <-- row.hidden.not
 
 private def AttributesViewRow(row: InputAttribute) =
   row.inputType match
@@ -34,10 +42,8 @@ private def AttributesViewRow(row: InputAttribute) =
         label(
           cls := "fieldset-label fieldset-input flex justify-between",
           inputLabel(row),
-          buildInputCell(row /*.copy(inputType = InputType.number(s, e, step))*/ )
-//            .amend(cls := "text-[.6rem] bg-base-200 input-ghost")
+          buildInputCell(row)
         )
-//        div(cls := "fieldset-input", buildInputCell(row))
       )
 
     case InputType.checkbox =>

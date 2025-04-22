@@ -47,23 +47,24 @@ def Menu[A](
     children <-- options.map: opts =>
       for
         entry <- opts
-      yield entry match
-        case MenuOption(elem, value, description, shortcut) =>
-          val nameMod = elem match
-            case m: Modifier.Base => m
-            case s: String        => span(s)
-          li(
-            a(
-              cls := "rounded-md",
-              cls := "flex justify-between",
-              title.maybe(description),
-              nameMod,
-              shortcut.map(_.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + "))),
-              onClickHandler(onClick.mapTo(value))
+      yield
+        entry match
+          case MenuOption(elem, value, description, shortcut) =>
+            val nameMod = elem match
+              case m: Modifier.Base => m
+              case s: String        => span(s)
+            li(
+              a(
+                cls := "rounded-md",
+                cls := "flex justify-between",
+                title.maybe(description),
+                nameMod,
+                shortcut.map(_.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + "))),
+                onClickHandler(onClick.mapTo(value))
+              )
             )
-          )
 
-        case Sep => li()
+          case Sep => li()
   )
 
 def popupCardMenuButton(row: InputAttribute, rowOption: RowOption) =
@@ -261,7 +262,6 @@ def InputWithValue(
 
 val htmlRegex         = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
 def isHtml(s: String) = htmlRegex.matches(s)
-
 
 def TextAreaWithValue(
     row:      InputAttribute,

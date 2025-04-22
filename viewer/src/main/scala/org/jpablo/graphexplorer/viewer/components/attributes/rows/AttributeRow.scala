@@ -8,7 +8,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.{AttrStatus, AttrValueWithStatus, AttributeId}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
-sealed trait AttributeRow
+sealed trait AttributeRow:
+  def hidden: Signal[Boolean]
 
 object AttributeRow:
   case class InputAttribute(
@@ -25,7 +26,7 @@ object AttributeRow:
       missingRowOption: Option[String => ReactiveElement.Base] = None
   ) extends AttributeRow
 
-  case class InputElement(element: ReactiveElement.Base) extends AttributeRow
+  case class InputElement(element: ReactiveElement.Base, hidden: Signal[Boolean] = Signal.fromValue(false)) extends AttributeRow
 
   def _combineDefault(row: InputAttribute): Signal[(AttrValueWithStatus, String)] =
     row.inputVar.signal.combineWith(row.default)

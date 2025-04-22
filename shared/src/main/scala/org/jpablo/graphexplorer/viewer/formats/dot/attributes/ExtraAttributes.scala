@@ -32,7 +32,7 @@ enum BorderStyle derives CanEqual:
   */
 object BorderStyle extends DotAttributeEnum[BorderStyle]:
   val default = solid
-  val label = "Border Style"
+  val label = "Style"
 
   override def valuesWithLabel = Array(
     ("Solid", solid),

@@ -28,7 +28,7 @@ def VerticalAttributesView(
 
 private def AttributesViewRow(attRow: AttributeRow) =
   attRow match
-    case elem: InputElement => Seq.empty
+    case _: InputElement => Seq.empty
     case row: InputAttribute =>
       row.inputType match
         case InputType.multiText(_) =>
