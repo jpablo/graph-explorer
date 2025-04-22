@@ -32,13 +32,13 @@ def ToolbarGroupAttributesView(
           hidden = builder.invalidLayout(FillColor),
           missingRowOption = Some(missingColorHandler)
         ),
-      row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
-      PenWidth -> InputType.number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       row(PenColor, InputType.currentValueWithSelector())
         .copy(
           options = mediumRows11 ++ colorOptions,
           missingRowOption = Some(missingColorHandler)
         ),
+      row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
+      PenWidth -> InputType.number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
       // ---------- label stuff ------------
 //      labelRow,
       row(ClusterLabelLoc, InputType.currentValueWithSelector()).copy(

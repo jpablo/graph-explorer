@@ -50,17 +50,17 @@ def ToolbarNodesAttributesView(
           hidden = builder.invalidLayout(FillColor),
           missingRowOption = Some(missingColorHandler)
         ),
+      row(Color, InputType.currentValueWithSelector()).copy(
+        options = mediumRows11 ++ colorOptions,
+        hidden = shapeIsPlainOrPlainText,
+        missingRowOption = Some(missingColorHandler)
+      ),
       row(BorderStyle, InputType.dropdown).copy(
         options = borderStyleOptions,
         hidden = shapeIsPlainOrPlainText
       ),
       row(PenWidth, number(start = Some(0.1), end = Some(4), step = Some(0.25))).copy(
         hidden = shapeIsPlainOrPlainText
-      ),
-      row(Color, InputType.currentValueWithSelector()).copy(
-        options = mediumRows11 ++ colorOptions,
-        hidden = shapeIsPlainOrPlainText,
-        missingRowOption = Some(missingColorHandler)
       ),
 //      labelRow,
       row(NodeLabelLoc, InputType.dropdown).copy(

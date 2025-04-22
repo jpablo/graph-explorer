@@ -60,7 +60,7 @@ object ClusterStyle extends DotAttributeEnum[ClusterStyle]:
 /** Border color
   */
 object Color extends DotAttributeSimple[String]:
-  val label                    = "Border Color"
+  val label                    = "Border"
   val default                  = "#000000"
   override val placeholderText = "Enter color here"
 
@@ -113,7 +113,7 @@ enum EdgeStyle derives CanEqual:
   case dashed, dotted, solid, bold, invis, tapered
 
 object FillColor extends DotAttributeSimple[String]:
-  val label                    = "Fill Color"
+  val label                    = "Fill"
   val none                     = "none"
   val default                  = "#d3d3d3" // default for nodes
   override val placeholderText = "Enter fill color here"
@@ -295,7 +295,7 @@ object Pad extends DotAttributeSimple[Double]:
   val default = 0.0555
 
 object PenColor extends DotAttributeSimple[String]:
-  val label                    = "Border Color"
+  val label                    = "Border"
   val default                  = "#000000" // default for nodes
   override val placeholderText = "Enter border color here"
 
