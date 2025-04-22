@@ -25,9 +25,9 @@ def SvgCanvas(
   val mainGroup = rawSvg.ref.querySelectorT("g").getOrElse(throw Exception("No <g> element found in the SVG"))
   val tr        = getTranslate(mainGroup)
   val magicX    = 0.4 // TODO: Find a better way to calculate this
-  val magicY = -0.4
+  val magicY    = -0.4
   val viewBox   = rawSvg.ref.viewBox.baseVal
-  val bbox   = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
+  val bbox      = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
 
   val selectionGroups =
     selection.signal
@@ -68,20 +68,18 @@ def SvgCanvas(
           previousAction match
             case a: AddNewArrowAction       => viewerOps.handleAddNewArrowMouseUp(ev, a)
             case a: MoveArrowEndpointAction => viewerOps.handleMoveArrowStartMouseUp(ev, a)
-            case a: ExtendSelectionAction   =>
-            case Inactive                   =>
+            case _                          =>
         },
         // --------------------------------------------------------
         // derived events
         // --------------------------------------------------------
         // selection rectangle
-        child.maybe <--
-          mouseAction.signal.map:
-            case a: ExtendSelectionAction => Some(viewerOps.DrawSelectionRect(rawSvg.ref.getScreenCTM(), a.rect))
-            case _                        => None,
+        viewerOps.DrawSelectionRect(rawSvg.ref.getScreenCTM),
         // controls to initiate mouse actions
-        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleNewArrowControls(mainGroup).tupled,
-        singleSelection.combineWith(mouseAction.signal) --> viewerOps.handleArrowEndpointControl(mainGroup).tupled,
+        singleSelection.combineWith(mouseAction.signal) --> { (elem: Option[SelectableElement], action: MouseAction) =>
+          viewerOps.handleNewArrowControls(mainGroup)(elem, action)
+          viewerOps.handleArrowEndpointControl(mainGroup)(elem, action)
+        },
         // dynamic arrow that follows the pointer
         mouseAction.signal --> { action =>
           // TODO: update the coordinates instead of recreating the arrow
@@ -96,7 +94,7 @@ def SvgCanvas(
           case a: ExtendSelectionAction   => viewerOps.onExtendSelectionAction(allSelectable)(a)
           case a: AddNewArrowAction       => viewerOps.onAddNewArrowAction(a)
           case a: MoveArrowEndpointAction => viewerOps.onMoveArrowSourceAction(a)
-          case Inactive                   =>
+          case _                          =>
         },
         // --------------------------------------------------------
         //   synchronize svg elements with diagramSelection

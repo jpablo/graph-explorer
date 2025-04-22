@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPair
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.ExtendSelectionAction
 import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
 
 trait ExtendSelectionOps:
@@ -30,17 +31,21 @@ trait ExtendSelectionOps:
     * @return
     *   Signal containing an optional SVG rect element. The rect is only present when there is an active selection action.
     */
-  def DrawSelectionRect(screenCtm: dom.SVGMatrix, rect: MouseActionRect) =
-    val rectCoords = selectionRectCoords(screenCtm, rect)
+  def DrawSelectionRect(screenCtm: () => dom.SVGMatrix) =
+    val bbox =
+      mouseAction.signal.map:
+        case a: ExtendSelectionAction => Some(selectionRectBBox(screenCtm(), a.rect))
+        case _                        => None
+
     svg.rect(
       svg.idAttr := "selection-rectangle",
-      svg.x      := rectCoords.x,
-      svg.y      := rectCoords.y,
-      svg.width  := rectCoords.width,
-      svg.height := rectCoords.height
+      svg.x <-- bbox.map(_.map(_.x).getOrElse("0")),
+      svg.y <-- bbox.map(_.map(_.y).getOrElse("0")),
+      svg.width <-- bbox.map(_.map(_.width).getOrElse("0")),
+      svg.height <-- bbox.map(_.map(_.height).getOrElse("0"))
     )
 
-  def selectionRectCoords(screenCtm: dom.SVGMatrix, rect: MouseActionRect) =
+  def selectionRectBBox(screenCtm: dom.SVGMatrix, rect: MouseActionRect) =
     val (start, end) = rect.toSvgPair(screenCtm)
     (
       x = (start.x min end.x).toString,

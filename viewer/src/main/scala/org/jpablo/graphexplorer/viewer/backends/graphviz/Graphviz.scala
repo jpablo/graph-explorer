@@ -6,8 +6,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 
 class Graphviz:
   private val instance =
-    val vizInst = VizJS.instance()
-    Signal.fromJsPromise(vizInst)
+    Signal.fromJsPromise(VizJS.instance())
 
   //      .recoverWith:
 //        case e: Throwable =>
