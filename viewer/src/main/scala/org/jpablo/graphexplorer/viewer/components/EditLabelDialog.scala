@@ -28,8 +28,7 @@ def EditLabelDialog(state: ViewerState) =
     placeholder := "Enter label text...",
     rows        := 3,                                   // Give it a bit more initial space
     controlled(value <-- modalText, onInput.mapToValue --> modalText),
-//    onMountFocus,
-    focus <-- dialogIsOpen.signal.changes.tapEach(f => pprint.log(f, "dialogIsOpen")),
+    onMountFocus,
     // Handle Enter -> Save and Close
     // Shift+Enter -> Add a new line
     onKeyDown.filter(ev => ev.key == KeyValue.Enter && !ev.shiftKey) --> { ev =>
