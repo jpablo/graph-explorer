@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPair
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
 
 trait ExtendSelectionOps:
   this: ViewerState =>
@@ -29,12 +30,21 @@ trait ExtendSelectionOps:
     * @return
     *   Signal containing an optional SVG rect element. The rect is only present when there is an active selection action.
     */
-  def DrawSelectionRect(topLevelSvgRef: dom.svg.SVG, action: MouseAction.ExtendSelectionAction) =
-    val (start, end) = action.rect.toSvgPair(topLevelSvgRef.getScreenCTM())
+  def DrawSelectionRect(topLevelSvgRef: dom.svg.G, rect: MouseActionRect) =
+    val rectCoords = selectionRectCoords(topLevelSvgRef, rect)
     svg.rect(
       svg.idAttr := "selection-rectangle",
-      svg.x      := (start.x min end.x).toString,
-      svg.y      := (start.y min end.y).toString,
-      svg.width  := math.abs(end.x - start.x).toString,
-      svg.height := math.abs(end.y - start.y).toString
+      svg.x      := rectCoords.x,
+      svg.y      := rectCoords.y,
+      svg.width  := rectCoords.width,
+      svg.height := rectCoords.height
+    )
+
+  def selectionRectCoords(topLevelSvgRef: dom.svg.G, rect: MouseActionRect) =
+    val (start, end) = rect.toSvgPair(topLevelSvgRef.getScreenCTM())
+    (
+      x = (start.x min end.x).toString,
+      y = (start.y min end.y).toString,
+      width = math.abs(end.x - start.x).toString,
+      height = math.abs(end.y - start.y).toString
     )

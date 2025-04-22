@@ -2,12 +2,12 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowBetweenPointerAndEndpoint, ArrowEndpointControl, clientCoords}
-import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
+import org.jpablo.graphexplorer.viewer.domUtils.{DomEvent, elementsFromPoint}
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowEndpointId, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{Inactive, MoveArrowEndpointAction}
-import org.jpablo.graphexplorer.viewer.utils.{DomEvent, MouseActionRect}
+import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
 
 /*
  * This trait contains the logic for handling mouse actions related to moving the start of an arrow in the graph.

@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.utils
+package org.jpablo.graphexplorer.viewer.domUtils
 
 object DomEvent:
   val abort = "abort"

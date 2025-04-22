@@ -15,6 +15,7 @@ import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
 import org.jpablo.graphexplorer.zoomLens
+import org.scalajs.dom.svg.SVG
 
 case class ViewerState(
     projectId:     ProjectId,
@@ -48,13 +49,14 @@ case class ViewerState(
 
   // 5. Render visible Dot to SVG
   // Dot ~> dom.svg.SVG
-  private val rawSVG: Signal[dom.svg.SVG] =
+  private val rawSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
     visibleDOT.flatMapSwitch(_.toSvg)
 
   // 6. SVG with extra elements: selection rect, etc.
-  lazy val finalSVG: Signal[ReactiveSvgElement[dom.svg.SVG]] =
-    rawSVG.map: svg =>
-      SvgCanvas(rawSvg = svg, transform = transform, viewerOps = this, mouseAction = mouseAction)
+  lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
+    rawSVG.map:
+      _.map: svg =>
+        SvgCanvas(rawSvg = svg, transform = transform, viewerOps = this, mouseAction = mouseAction)
 
   // -------- storage ------------
   restoreState()

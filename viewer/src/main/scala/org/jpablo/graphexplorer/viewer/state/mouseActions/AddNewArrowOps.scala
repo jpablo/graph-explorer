@@ -3,12 +3,12 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowFromSourceToPointer, NewArrowControl}
-import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
+import org.jpablo.graphexplorer.viewer.domUtils.{DomEvent, elementsFromPoint}
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{AddNewArrowAction, Inactive}
-import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DomEvent, MouseActionRect}
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}
 import org.scalajs.dom.DOMRect
 
 import scala.scalajs.js

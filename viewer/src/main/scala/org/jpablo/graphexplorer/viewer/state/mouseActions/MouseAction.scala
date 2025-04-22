@@ -16,7 +16,7 @@ enum ArrowEndpoint derives CanEqual:
 
 enum MouseAction derives CanEqual:
   case Inactive
-  case ExtendSelectionAction(rect: MouseActionRect)
+  case ExtendSelectionAction(rect: MouseActionRect, selectionRect: dom.svg.RectElement)
   case AddNewArrowAction(rect: MouseActionRect, originator: SelectableElement, direction: ArrowDirection)
   case MoveArrowEndpointAction(rect: MouseActionRect, originator: SelectableElement, endpoint: ArrowEndpoint)
 
@@ -33,7 +33,7 @@ class MouseActionVar(initial: MouseAction = Inactive):
 
   export sourceVar.now
 
-  val signal = sourceVar.signal.distinct
+  val signal = sourceVar.signal.distinct //.tapEach(s => pprint.log(s))
 
   def start(mouseAction: MouseAction): Unit =
     sourceVar.set(mouseAction)

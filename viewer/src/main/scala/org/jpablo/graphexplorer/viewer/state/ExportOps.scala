@@ -7,12 +7,10 @@ trait ExportOps:
   this: ViewerState =>
 
   def copyAsFullDiagramSVG(): Unit =
-    val html = finalSVG.map(_.ref.outerHTML).observe().now()
-    writeText(html)
+    finalSVG.foreach(_.foreach(s => writeText(s.ref.outerHTML)))
 
   def copySelectionAsSVG(): Unit =
-    val svgElem = finalSVG.observe().now()
-    writeText(SvgElementOps(svgElem.ref).toSVGTextWithIds(selection.now()))
+    finalSVG.foreach(_.foreach(s => writeText(SvgElementOps(s.ref).toSVGTextWithIds(selection.now()))))
 
   def copyAsDOT(): Unit =
     val dot = visibleDOT.observe().now()
