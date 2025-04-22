@@ -18,28 +18,22 @@ class RowBuilder(
     defaults: Option[Signal[Attributes]] = None
 ):
   type buildRowsInput = DotAttribute[?]
-    | String
     | AttributeRow
     | (DotAttribute[?], InputType)
 
   given CanEqual[buildRowsInput, buildRowsInput] = CanEqual.derived
 
   def rows(dotAttributes: buildRowsInput*): Seq[AttributeRow] =
-    dotAttributes
-      .filter:
-        case "" => false
-        case _  => true
-      .map:
-        case s: String         => AttributeHeader(s)
-        case row: AttributeRow => row
+    dotAttributes.map:
+      case row: AttributeRow => row
 
-        case dotAttr: (DotAttribute[?] | (DotAttribute[?], InputType)) =>
-          val (attr, inputType) =
-            dotAttr match
-              case attr: DotAttributeEnum[?]              => (attr, InputType.select)
-              case attr: DotAttributeSimple[?]            => (attr, InputType.text)
-              case (attr: DotAttribute[?], it: InputType) => (attr, it)
-          row(attr, inputType)
+      case dotAttr: (DotAttribute[?] | (DotAttribute[?], InputType)) =>
+        val (attr, inputType) =
+          dotAttr match
+            case attr: DotAttributeEnum[?]              => (attr, InputType.select)
+            case attr: DotAttributeSimple[?]            => (attr, InputType.text)
+            case (attr: DotAttribute[?], it: InputType) => (attr, it)
+        row(attr, inputType)
 
   def invalidLayout(attr: DotAttribute[?]): Signal[Boolean] =
     layout.map(_ notIn attr.validLayouts)

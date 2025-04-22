@@ -11,8 +11,6 @@ import org.jpablo.graphexplorer.viewer.widgets.InputType
 sealed trait AttributeRow
 
 object AttributeRow:
-  case class AttributeHeader(title: String) extends AttributeRow
-
   case class InputAttribute(
       attrId:           AttributeId,
       label:            String,
@@ -26,6 +24,8 @@ object AttributeRow:
       singleRow:        Boolean = false,
       missingRowOption: Option[String => ReactiveElement.Base] = None
   ) extends AttributeRow
+
+  case class InputElement(element: ReactiveElement.Base) extends AttributeRow
 
   def _combineDefault(row: InputAttribute): Signal[(AttrValueWithStatus, String)] =
     row.inputVar.signal.combineWith(row.default)

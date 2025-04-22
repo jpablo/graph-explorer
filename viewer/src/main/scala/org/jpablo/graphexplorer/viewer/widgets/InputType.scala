@@ -13,3 +13,4 @@ enum InputType derives CanEqual:
   case range(start: Option[Double] = None, end: Option[Double] = None, step: Option[Double] = None)
   case menuWithExtra(initial: Int, dir: MenuDirection = MenuDirection.start, cardClass: Option[String] = None)
   case currentValueWithSelector(dir: MenuDirection = MenuDirection.start, cardClass: Option[String] = None)
+  case borderPanel

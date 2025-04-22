@@ -34,7 +34,6 @@ def DiagramAttributesView(state: ViewerState) =
     div(cls := "attributes-title flex-none", h2("Diagram")),
     VerticalAttributesView(
       id = "root-graph-attributes",
-      showHeaders = false,
       rows = rows(
         labelRow,
         row(RootGraphLabelLoc, InputType.menuWithExtra(4)).copy(
