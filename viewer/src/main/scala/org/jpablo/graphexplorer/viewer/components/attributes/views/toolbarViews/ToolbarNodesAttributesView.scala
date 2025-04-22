@@ -3,13 +3,14 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.syntaxSignalOfBoolean
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.models.{AttrValueWithStatus, AttributeUpdates, Attributes}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
+import org.jpablo.graphexplorer.viewer.widgets.{DropdownHeader, InputType, MenuDirection}
 
 def ToolbarNodesAttributesView(
     state:    ViewerState,
@@ -40,6 +41,27 @@ def ToolbarNodesAttributesView(
       )
     )
 
+  def AttributesCard() =
+    div(
+      cls := "card card-border card-xs bg-base-100 shadow-sm w-48",
+      div(
+        cls := "card-body",
+        VerticalAttributesView(
+          id = "border-attributes",
+          rows = rows(
+            row(BorderStyle, InputType.menuWithExtra(3)).copy(options = borderStyleOptions),
+            row(PenWidth, range(start = Some(0.1), end = Some(4), step = Some(0.25)))
+          )
+        )
+      )
+    )
+
+  val borderOptions =
+    DropdownHeader(
+      "Border",
+      body = AttributesCard()
+    )
+
   HorizontalAttributesView(
     rows = rows(
       shapeRow,
@@ -55,20 +77,13 @@ def ToolbarNodesAttributesView(
         hidden = shapeIsPlainOrPlainText,
         missingRowOption = Some(missingColorHandler)
       ),
-      row(BorderStyle, InputType.dropdown).copy(
-        options = borderStyleOptions,
-        hidden = shapeIsPlainOrPlainText
-      ),
-      row(PenWidth, number(start = Some(0.1), end = Some(4), step = Some(0.25))).copy(
-        hidden = shapeIsPlainOrPlainText
-      ),
-//      labelRow,
+      InputElement(borderOptions, hidden = shapeIsPlainOrPlainText),
       row(NodeLabelLoc, InputType.dropdown).copy(
         options = nodeLabelVerticalAlignOptions,
         hidden = labelRelatedHidden
       ),
       row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
-        options = mediumRows11 ++  colorOptions,
+        options = mediumRows11 ++ colorOptions,
         hidden = labelRelatedHidden,
         missingRowOption = Some(missingColorHandler)
       ),
