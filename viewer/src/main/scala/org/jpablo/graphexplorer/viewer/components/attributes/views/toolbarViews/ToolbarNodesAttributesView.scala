@@ -59,7 +59,7 @@ def ToolbarNodesAttributesView(
       InputElement(
         VerticalCardWithPreview(
           builder,
-          id = "border-attributes",
+          id = "nodes-border-attributes",
           row(BorderStyle, InputType.menuWithExtra(3)).copy(options = borderStyleOptions),
           row(PenWidth, range(start = Some(0.1), end = Some(4), step = Some(0.25)))
         ),
@@ -77,7 +77,7 @@ def ToolbarNodesAttributesView(
       InputElement(
         VerticalCardWithPreview(
           builder,
-          id = "font-attributes",
+          id = "nodes-font-attributes",
           row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
           row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
         ),
