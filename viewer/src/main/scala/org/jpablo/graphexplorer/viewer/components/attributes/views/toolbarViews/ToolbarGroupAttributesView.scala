@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.syntaxSignalOfBoolean
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
@@ -37,15 +38,20 @@ def ToolbarGroupAttributesView(
           options = mediumRows11 ++ colorOptions,
           missingRowOption = Some(missingColorHandler)
         ),
-      row(BorderStyle, InputType.dropdown).copy(options = borderStyleOptions),
-      PenWidth -> InputType.number(start = Some(0.0), end = Some(10.0), step = Some(0.1)),
+      InputElement(
+        VerticalCardWithPreview(
+          builder,
+          id = "group-border-attributes",
+          row(EdgeStyle, InputType.menuWithExtra(borderStyleOptions.length)).copy(options = borderStyleOptions),
+          row(PenWidth, InputType.range(start = Some(0.0), end = Some(10.0), step = Some(0.1)))
+        )
+      ),
       // ---------- label stuff ------------
-//      labelRow,
-      row(ClusterLabelLoc, InputType.currentValueWithSelector()).copy(
+      row(ClusterLabelLoc, InputType.dropdown).copy(
         options = clusterVerticalAlignmentOptions,
         hidden = labelRelatedHidden
       ),
-      row(LabelJust, InputType.currentValueWithSelector()).copy(
+      row(LabelJust, InputType.dropdown).copy(
         options = horizontalAlignmentOptions,
         hidden = labelRelatedHidden
       ),
@@ -54,10 +60,15 @@ def ToolbarGroupAttributesView(
         hidden = labelRelatedHidden,
         missingRowOption = Some(missingColorHandler)
       ),
-      row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
-      row(FontSize, InputType.number(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
-    ),
-    extra = rows(
+      InputElement(
+        VerticalCardWithPreview(
+          builder,
+          id = "group-font-attributes",
+          row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
+          row(FontSize, InputType.range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
+        ),
+        hidden = labelRelatedHidden
+      ),
       InvisibleStyle -> checkbox
     )
   )
