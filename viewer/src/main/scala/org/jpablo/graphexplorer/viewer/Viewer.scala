@@ -31,6 +31,6 @@ object Viewer:
     val errors  = new EventBus[String]
     AirstreamError.registerUnhandledErrorCallback(ex => errors.emit(ex.getMessage))
     windowEvents(_.onError).foreach(e => errors.emit(e.message))(unsafeWindowOwner)
-    document.addEventListener("focusin", e => dom.console.debug(e.target, "focusin"))
-    document.addEventListener("focusout", e => dom.console.debug(e.target, "focusout"))
+    document.addEventListener("focusin", e => dom.console.debug("focusin:", e.target))
+    document.addEventListener("focusout", e => dom.console.debug("focusout:", e.target))
     errors

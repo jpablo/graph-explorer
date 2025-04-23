@@ -53,5 +53,8 @@ def EditLabelDialog(state: ViewerState) =
     // Update modalText when the dialog opens
     state.editingElementV.signal.map(_.fold("")(elementLabelVar(_).now())) --> modalText,
     // Makes sure the focus is restored to CanvasContainer after the dialog is closed
-    dialogIsOpen.signal.changes.filter(!_) --> state.canvasContainerFocus.set(true)
+    dialogIsOpen.signal --> { open =>
+      if !open then
+        state.canvasContainerFocus.emit(true)
+    }
   ).amend(idAttr := "edit-label-dialog")

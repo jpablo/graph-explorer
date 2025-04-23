@@ -29,14 +29,15 @@ def SvgCanvas(
   val viewBox   = rawSvg.ref.viewBox.baseVal
   val bbox      = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
 
-  val selectionGroups =
-    selection.signal
-      .scanLeft(x => (ElementIds(), x)):
-        case ((_, curr), next) => (curr, next)
-      .map: (curr, next) =>
-        val toUnselect = curr.filter(id => !next.contains(id))
-        val toSelect   = next.filter(id => !curr.contains(id))
-        (SelectableElement.query(rawSvg.ref, toUnselect), SelectableElement.query(rawSvg.ref, toSelect))
+  val selectionElementChanges =
+    selection.selectionChanges
+      .dropWhile: groups =>
+        groups.toSelect.isEmpty && groups.toUnselect.isEmpty
+      .map: groups =>
+        (
+          toUnselect = SelectableElement.query(rawSvg.ref, groups.toUnselect),
+          toSelect = SelectableElement.query(rawSvg.ref, groups.toSelect)
+        )
 
   val singleSelection =
     selection.signal.map: selected =>
@@ -99,13 +100,13 @@ def SvgCanvas(
         // --------------------------------------------------------
         //   synchronize svg elements with diagramSelection
         // --------------------------------------------------------
-        selectionGroups --> { (toUnselect: Seq[SelectableElement], toSelect: Seq[SelectableElement]) =>
-          toUnselect.foreach(_.unselect())
-          toSelect.foreach(_.select())
+        selectionElementChanges --> { groups =>
+          // This should only happen when the selection groups are non-empty (see dropWhile above)
+          groups.toUnselect.foreach(_.unselect())
+          groups.toSelect.foreach(_.select())
           // select/unselect modify the DOM directly, which seems to make the focus go to the
           // document body. We need the focus back to the canvas container to process handle keys.
-          dom.window.requestAnimationFrame(_ => viewerOps.canvasContainerFocus.set(true))
-          ()
+          dom.window.requestAnimationFrame(_ => viewerOps.canvasContainerFocus.emit(true))
         }
       )
     }

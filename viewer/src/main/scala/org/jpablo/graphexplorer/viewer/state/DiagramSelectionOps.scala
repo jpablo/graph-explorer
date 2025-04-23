@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.extensions.in
@@ -26,6 +27,31 @@ trait DiagramSelectionOps:
     val signal = selectionV.signal
       .distinct
     // .tapEach(sel => println(s"[selection] $sel"))
+
+//    val selectionDiffs: EventStream[(toUnselect: ElementIds, toSelect: ElementIds)] =
+//      selection.signal.changes
+//        .scanLeft((ElementIds(), now())):
+//          case ((_, curr), next) => (curr, next)
+//        .map: (curr, next) =>
+//          (
+//            toUnselect = curr.filter(id => !next.contains(id)),
+//            toSelect = next.filter(id => !curr.contains(id))
+//          )
+//        .tapEach: groups =>
+//          dom.console.warn(s"[selection] selectionDiffs")
+//          pprint.log(groups)
+
+    val selectionChanges: EventStream[(toUnselect: ElementIds, toSelect: ElementIds)] =
+      selection.signal
+        .scanLeft(curr => (ElementIds(), curr)):
+          case ((_, curr), next) => (curr, next)
+        .map: (curr, next) =>
+          (
+            toUnselect = curr.filter(id => !next.contains(id)),
+            toSelect = next.filter(id => !curr.contains(id))
+          )
+        .distinct
+        .changes
 
     val _selectSuccessors         = selectRelated((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
     val _selectPredecessors       = selectRelated((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))

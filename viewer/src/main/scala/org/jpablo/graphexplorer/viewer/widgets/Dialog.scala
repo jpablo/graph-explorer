@@ -11,9 +11,9 @@ def SimpleDialog(open: Var[Boolean], contents: Mods*) =
     child(
       Dialog(
         mods = cls("modal-open"),
-        onKeyDown.filter(_.key == KeyValue.Escape) --> open.set(false),
-        tabIndex := 0,
-//        focus <-- open.signal.changes
+        // useCapture to prevent the Escape key to reach DaisyUI
+        onKeyDown.useCapture.filter(_.key == KeyValue.Escape) --> open.set(false),
+        tabIndex := 0
       )(contents)(
         action =
           Button("close", onClick --> open.set(false)).tiny
