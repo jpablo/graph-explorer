@@ -26,20 +26,7 @@ trait DiagramSelectionOps:
   object selection:
     val signal = selectionV.signal
       .distinct
-    // .tapEach(sel => println(s"[selection] $sel"))
-
-//    val selectionDiffs: EventStream[(toUnselect: ElementIds, toSelect: ElementIds)] =
-//      selection.signal.changes
-//        .scanLeft((ElementIds(), now())):
-//          case ((_, curr), next) => (curr, next)
-//        .map: (curr, next) =>
-//          (
-//            toUnselect = curr.filter(id => !next.contains(id)),
-//            toSelect = next.filter(id => !curr.contains(id))
-//          )
-//        .tapEach: groups =>
-//          dom.console.warn(s"[selection] selectionDiffs")
-//          pprint.log(groups)
+//     .tapEach(sel => println(s"[selection] $sel"))
 
     val selectionChanges: EventStream[(toUnselect: ElementIds, toSelect: ElementIds)] =
       selection.signal

@@ -29,23 +29,27 @@ def SvgCanvas(
   val viewBox   = rawSvg.ref.viewBox.baseVal
   val bbox      = BBox(viewBox.x - tr.x + magicX, viewBox.y - tr.y + magicY, viewBox.width, viewBox.height)
 
+  def queryElements(elems: ElementIds) =
+    SelectableElement.query(rawSvg.ref, elems)
+
   val selectionElementChanges =
     selection.selectionChanges
       .dropWhile: groups =>
         groups.toSelect.isEmpty && groups.toUnselect.isEmpty
       .map: groups =>
         (
-          toUnselect = SelectableElement.query(rawSvg.ref, groups.toUnselect),
-          toSelect = SelectableElement.query(rawSvg.ref, groups.toSelect)
+          toUnselect = queryElements(groups.toUnselect),
+          toSelect = queryElements(groups.toSelect)
         )
 
   val singleSelection =
     selection.signal.map: selected =>
-      if selected.size == 1 then SelectableElement.query(rawSvg.ref, selected).headOption else None
+      if selected.size == 1 then queryElements(selected).headOption else None
 
   val allSelectable =
     SelectableElement.findAll(rawSvg.ref)
 
+  // render all selected elements the first time
   rawSvg
     .amend {
       Seq(
@@ -74,14 +78,17 @@ def SvgCanvas(
         // --------------------------------------------------------
         // derived events
         // --------------------------------------------------------
-        // selection rectangle
-        viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),
-        // controls to initiate mouse actions
+        // controls to initiate mouse actions:
+        // a) new arrow controls
+        // b) arrow endpoint controls
+        // c) for the "selection" action, the whole canvas is the "control"
         singleSelection.combineWith(mouseAction.signal) --> { (elem: Option[SelectableElement], action: MouseAction) =>
           viewerOps.handleNewArrowControls(mainGroup, elem, action)
           viewerOps.handleArrowEndpointControl(mainGroup, elem, action)
         },
-        // dynamic arrow that follows the pointer
+        // UI elements reflecting the current mouse action
+        viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),
+        // dynamic arrow that follows the pointer when creating a new arrow or moving an arrow endpoint
         mouseAction.signal --> { action =>
           // TODO: update the coordinates instead of recreating the arrow
           mainGroup.querySelectorAll("g#dragging-arrow-group").foreach(_.remove())
@@ -90,7 +97,7 @@ def SvgCanvas(
             case a: MoveArrowEndpointAction if !a.rect.isEmpty => viewerOps.addArrowBetweenPointerAndEndpoint(mainGroup, a)
             case _                                             =>
         },
-        // selection changes as a result of ongoing mouse actions
+        // Updates selection as a result of ongoing mouse actions
         mouseAction.signal --> {
           case a: ExtendSelectionAction   => viewerOps.onExtendSelectionAction(allSelectable)(a)
           case a: AddNewArrowAction       => viewerOps.onAddNewArrowAction(a)
@@ -100,6 +107,12 @@ def SvgCanvas(
         // --------------------------------------------------------
         //   synchronize svg elements with diagramSelection
         // --------------------------------------------------------
+        // After mounting we just render the already selected elements
+        // this happens when the diagram is changed and the selection is not empty
+        onMountCallback: _ =>
+          queryElements(selection.now()).foreach(_.select()),
+        // subsequent selection changes don't trigger onMountCallback, so we can be more
+        // precise and only select/unselect the elements that actually changed
         selectionElementChanges --> { groups =>
           // This should only happen when the selection groups are non-empty (see dropWhile above)
           groups.toUnselect.foreach(_.unselect())
