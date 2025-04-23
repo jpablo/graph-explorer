@@ -64,6 +64,11 @@ object AttributeRow:
     def combineDefaultBoolean: Signal[Boolean] =
       row.combineDefaultString.map(_ == true.toString)
 
+    /*
+     * This method is used to determine if the current value of the attribute is
+     * one of the options in the list. If it is, it returns the corresponding
+     * element. If not, it returns a span with the current value.
+     */
     def selectedOption: Signal[ReactiveElement.Base] =
       row.combineDefaultString.map: attrValueStr =>
         row.options

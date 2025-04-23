@@ -2,10 +2,45 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, InputElement}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
+
+def VerticalCardWithPreview(builder: RowBuilder, id: String, iAttrs: InputAttribute*) =
+  DropdownHeader(
+    div(
+      cls := "flex gap-4 bg-base-100 rounded-md px-3",
+      iAttrs.map(ia => child <-- ia.selectedOption)
+    ),
+    body =
+      div(
+        cls := "card card-border card-xs bg-base-100 shadow-sm w-48",
+        div(
+          cls := "card-body",
+          VerticalAttributesView(
+            id = id,
+            rows = builder.rows(iAttrs*)
+          )
+        )
+      )
+  )
+
+def VerticalCardWithButton(id: String, title: String, iars: Seq[AttributeRow]) =
+  DropdownHeader(
+    title,
+    body =
+      div(
+        cls := "card card-border card-xs bg-base-100 shadow-sm w-48",
+        div(
+          cls := "card-body",
+          VerticalAttributesView(
+            id = id,
+            rows = iars
+          )
+        )
+      )
+  )
 
 def VerticalAttributesView(
     id:    String,

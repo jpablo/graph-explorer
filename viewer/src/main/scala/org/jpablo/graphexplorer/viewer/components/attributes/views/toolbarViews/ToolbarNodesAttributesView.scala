@@ -10,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.models.{AttrValueWithStatus, AttributeUpdates, Attributes}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
-import org.jpablo.graphexplorer.viewer.widgets.{DropdownHeader, InputType, MenuDirection}
+import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 
 def ToolbarNodesAttributesView(
     state:    ViewerState,
@@ -41,31 +41,6 @@ def ToolbarNodesAttributesView(
       )
     )
 
-  val borderStyleRow = row(BorderStyle, InputType.menuWithExtra(3)).copy(options = borderStyleOptions)
-  val penWidthStyle  = row(PenWidth, range(start = Some(0.1), end = Some(4), step = Some(0.25)))
-
-  def AttributesCard() =
-    div(
-      cls := "card card-border card-xs bg-base-100 shadow-sm w-48",
-      div(
-        cls := "card-body",
-        VerticalAttributesView(
-          id = "border-attributes",
-          rows = rows(borderStyleRow, penWidthStyle)
-        )
-      )
-    )
-
-  val borderOptions =
-    DropdownHeader(
-      div(
-        cls := "flex gap-4 bg-base-100 rounded-md px-2",
-        child <-- borderStyleRow.selectedOption,
-        child <-- penWidthStyle.selectedOption
-      ),
-      body = AttributesCard()
-    )
-
   HorizontalAttributesView(
     rows = rows(
       shapeRow,
@@ -81,7 +56,15 @@ def ToolbarNodesAttributesView(
         hidden = shapeIsPlainOrPlainText,
         missingRowOption = Some(missingColorHandler)
       ),
-      InputElement(borderOptions, hidden = shapeIsPlainOrPlainText),
+      InputElement(
+        VerticalCardWithPreview(
+          builder,
+          id = "border-attributes",
+          row(BorderStyle, InputType.menuWithExtra(3)).copy(options = borderStyleOptions),
+          row(PenWidth, range(start = Some(0.1), end = Some(4), step = Some(0.25)))
+        ),
+        hidden = shapeIsPlainOrPlainText
+      ),
       row(NodeLabelLoc, InputType.dropdown).copy(
         options = nodeLabelVerticalAlignOptions,
         hidden = labelRelatedHidden
@@ -91,16 +74,29 @@ def ToolbarNodesAttributesView(
         hidden = labelRelatedHidden,
         missingRowOption = Some(missingColorHandler)
       ),
-      row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
-      row(FontSize, number(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
-    ),
-    extra = rows(
-      InvisibleStyle -> checkbox,
-      XLabel,
-      sidesRow,
-      Regular     -> checkbox,
-      Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
-      Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
-      URL
+      InputElement(
+        VerticalCardWithPreview(
+          builder,
+          id = "font-attributes",
+          row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
+          row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
+        ),
+        hidden = shapeIsPlainOrPlainText
+      ),
+      InputElement(
+        VerticalCardWithButton(
+          id = "extra-node-attributes",
+          "extra",
+          rows(
+            InvisibleStyle -> checkbox,
+            row(XLabel, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
+            sidesRow,
+            Regular     -> checkbox,
+            Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
+            Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
+            row(URL, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
+          )
+        )
+      )
     )
   )

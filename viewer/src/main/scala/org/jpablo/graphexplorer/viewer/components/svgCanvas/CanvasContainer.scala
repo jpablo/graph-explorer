@@ -24,7 +24,7 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // the main canvas!!
     child.maybe <-- state.finalSVG,
     // we need a way to move the focus here after certain events
-//    focus <-- state.canvasContainerFocus.signal.changes.tapEach(f => pprint.log(f, "canvasContainerFocus")),
+    focus <-- state.canvasContainerFocus.signal.changes.tapEach(f => pprint.log(f, "canvasContainerFocus")),
     // abort ongoing mouse actions when the focus is lost
     // TODO: this makes the "ArrowFromSourceToPointer" disappear when the focus is lost.
     // Perhaps the solution is to make sure the focus is not lost when clicking on the arrow?
