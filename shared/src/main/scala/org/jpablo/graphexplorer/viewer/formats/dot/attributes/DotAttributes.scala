@@ -26,7 +26,7 @@ object ArrowType:
   )
 
 object ArrowHead extends DotAttributeEnum[ArrowType]:
-  val default                  = ArrowType.normal // default for dir=forward
+  val default                  = ArrowType.vee
   val label                    = "Arrow head"
   def values: Array[ArrowType] = ArrowType.values
 
@@ -353,7 +353,7 @@ enum Shape derives CanEqual:
     assembly, signature, insulator, ribosite, rnastab, proteasesite, proteinstab, rarrow, larrow, lpromoter, rpromoter
 
 object Shape extends DotAttributeEnum[Shape]:
-  val default = ellipse
+  val default = box
   val label   = "Shape"
 
   val basicShapes      = List(box, ellipse, circle, diamond)
@@ -404,7 +404,7 @@ object Shape extends DotAttributeEnum[Shape]:
   )
 
 object Sides extends DotAttributeSimple[Int]:
-  val default = 4
+  val default = 5
   val label   = "Sides"
   // only show when Shape.polygon is selected
 
