@@ -13,6 +13,7 @@ import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.scalajs.dom.MouseEvent
 import org.jpablo.graphexplorer.viewer.utils.intersperse
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.*
+import com.raquo.laminar.api.features.unitArrows
 
 enum MenuEntry[+A] derives CanEqual:
   case MenuOption(
@@ -289,10 +290,7 @@ def InputLabelWithResetButton(row: InputAttribute): Div =
           cls   := "ml-[1px] w-4 h-4",
           title := s"reset ${row.label}",
           i(cls := "bi bi-x text-[.6rem] text-base-content/50"),
-          onClick --> { e =>
-            dom.console.log("onClick")
-            row.inputVar.set(Missing)
-          }
+          onClick --> row.inputVar.set(Missing)
         ).circle.ghost.tiny
       ) <-- row.isChanged
     )
