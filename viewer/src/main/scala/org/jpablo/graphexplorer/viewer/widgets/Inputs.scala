@@ -276,6 +276,28 @@ def Checked(row: InputAttribute) =
     )
   )
 
+def InputLabelWithResetButton(row: InputAttribute): Div =
+  val multipleValues = row.inputVar.signal.map(_ == Multiple)
+  div(
+    cls := "flex items-center justify-start text-nowrap",
+    div(cls("font-bold") <-- row.isChanged, row.label),
+    div(
+      cls("w-6 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
+      child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,
+      child(
+        Button(
+          cls   := "ml-[1px] w-4 h-4",
+          title := s"reset ${row.label}",
+          i(cls := "bi bi-x text-[.6rem] text-base-content/50"),
+          onClick --> { e =>
+            dom.console.log("onClick")
+            row.inputVar.set(Missing)
+          }
+        ).circle.ghost.tiny
+      ) <-- row.isChanged
+    )
+  )
+
 def Search(mods: Mods*): Input =
   input(
     tpe := InputType.search.toString,

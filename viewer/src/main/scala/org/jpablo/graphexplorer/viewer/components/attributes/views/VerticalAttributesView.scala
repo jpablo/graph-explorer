@@ -1,10 +1,8 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, InputElement}
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def VerticalCardWithPreview(builder: RowBuilder, id: String, iAttrs: InputAttribute*) =
@@ -68,7 +66,7 @@ private def AttributesViewRow(attRow: AttributeRow) =
       row.inputType match
         case InputType.multiText(_) =>
           Seq(
-            label(cls := "fieldset-label", inputLabel(row)),
+            label(cls := "fieldset-label", InputLabelWithResetButton(row)),
             div(cls   := "fieldset-input", buildInputCell(row))
           )
 
@@ -76,7 +74,7 @@ private def AttributesViewRow(attRow: AttributeRow) =
           Seq(
             label(
               cls := "fieldset-label fieldset-input flex justify-between",
-              inputLabel(row),
+              InputLabelWithResetButton(row),
               buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
                 .amend(cls := "w-16 text-[.6rem] input-ghost")
             ),
@@ -100,27 +98,15 @@ private def AttributesViewRow(attRow: AttributeRow) =
             Seq(
               label(
                 cls := "fieldset-label fieldset-input flex justify-between",
-                inputLabel(row),
+                InputLabelWithResetButton(row),
                 buildInputCell(row).amend(cls := "w-40")
               )
             )
           else
             Seq(
-              label(cls := "fieldset-label", inputLabel(row)),
+              label(cls := "fieldset-label", InputLabelWithResetButton(row)),
               div(cls   := "fieldset-input", buildInputCell(row))
             )
-
-private def inputLabel(row: InputAttribute): Div =
-  val multipleValues = row.inputVar.signal.map(_ == Multiple)
-  div(
-    cls := "flex items-center justify-start",
-    div(cls("font-bold") <-- row.isChanged, row.label),
-    div(
-      cls("w-6 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
-      child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,
-      child(a(title := s"reset ${row.label}", onClick --> row.inputVar.set(Missing), i(cls := "bi bi-x")).tiny) <-- row.isChanged
-    )
-  )
 
 def buildFieldSets(rows: Seq[AttributeRow]) =
   for

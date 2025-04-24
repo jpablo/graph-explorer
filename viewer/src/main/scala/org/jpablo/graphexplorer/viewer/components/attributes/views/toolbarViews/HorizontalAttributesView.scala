@@ -1,10 +1,8 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, InputElement}
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Missing, Multiple}
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.number
 
@@ -30,7 +28,7 @@ private def AttributesViewRow(row: InputAttribute) =
   row.inputType match
     case InputType.multiText(_) =>
       Seq(
-        label(cls := "fieldset-label", inputLabel(row)),
+        label(cls := "fieldset-label", InputLabelWithResetButton(row)),
         div(cls   := "fieldset-input", buildInputCell(row))
       )
 
@@ -38,7 +36,7 @@ private def AttributesViewRow(row: InputAttribute) =
       Seq(
         label(
           cls := "fieldset-label fieldset-input flex justify-between",
-          inputLabel(row),
+          InputLabelWithResetButton(row),
           buildInputCell(row)
         )
       )
@@ -57,34 +55,15 @@ private def AttributesViewRow(row: InputAttribute) =
         Seq(
           label(
             cls := "fieldset-label fieldset-input flex justify-between",
-            inputLabel(row),
+            InputLabelWithResetButton(row),
             buildInputCell(row).amend(cls := "w-40")
           )
         )
       else
         Seq(
-          label(cls := "fieldset-label", inputLabel(row)),
+          label(cls := "fieldset-label", InputLabelWithResetButton(row)),
           div(cls   := "fieldset-input", buildInputCell(row))
         )
-
-private def inputLabel(row: InputAttribute): Div =
-  val multipleValues = row.inputVar.signal.map(_ == Multiple)
-  div(
-    cls := "flex items-center justify-start text-nowrap",
-    div(cls("font-bold") <-- row.isChanged, row.label),
-    div(
-      cls("w-3 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
-      child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,
-      child(
-        a(
-          cls   := "btn btn-xs btn-circle btn-ghost ml-[1px] w-4 h-4",
-          title := s"reset ${row.label}",
-          i(cls := "bi bi-x text-[.6rem] text-base-content/50"),
-          onClick --> row.inputVar.set(Missing)
-        )
-      ) <-- row.isChanged
-    )
-  )
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
