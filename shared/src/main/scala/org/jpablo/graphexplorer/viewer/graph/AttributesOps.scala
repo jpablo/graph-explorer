@@ -4,18 +4,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.
 import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{fromSubAttributes, subAttributeIds}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
-  ArrowTail,
-  ArrowType,
-  Dir,
-  DirType,
-  GraphType,
-  NodeStyle,
-  Overlap,
-  Sides,
-  Size,
-  Style
-}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, ArrowType, Dir, DirType, GraphType, NodeStyle, Overlap, Shape, Sides, Size, Style}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
@@ -169,13 +158,17 @@ trait AttributesOps:
       case AttributeTarget.edge  => this.modify(_.elements.defaultArrowAttributes)
 
   val defaultNodeTheme =
-    Attributes.of(Sides -> 5)
+    Attributes.of(Sides -> 5, Shape -> Shape.box)
 
   val defaultEdgeTheme: Attributes =
     val dir = tpe match
       case GraphType.graph   => DirType.none
       case GraphType.digraph => DirType.both
-    Attributes.of(Dir -> dir, ArrowTail -> ArrowType.none)
+    Attributes.of(
+      Dir       -> dir,
+      ArrowHead -> ArrowType.vee,
+      ArrowTail -> ArrowType.none
+    )
 
   def setDefaultTheme: ViewerGraph =
     modifyDefaultAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
