@@ -1,8 +1,6 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 import sbt.Test
 
-val graphExplorerVersion = "0.3.0"
-
 val scala3Version     = "3.6.4"
 val scalametaVersion  = "4.8.2"
 val zioPreludeVersion = "1.0.0-RC16"
@@ -13,7 +11,6 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
 ThisBuild / organization := "org.jpablo"
 ThisBuild / scalaVersion := scala3Version
-//ThisBuild / version := graphExplorerVersion
 ThisBuild / semanticdbVersion := scalametaVersion
 ThisBuild / scalacOptions ++= // Scala 3.x options
   Seq(
@@ -63,8 +60,7 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
 lazy val viewer =
   project
     .in(file("viewer"))
-    .enablePlugins(ScalaJSPlugin)
-    .enablePlugins(BuildInfoPlugin)
+    .enablePlugins(ScalaJSPlugin, DynVerPlugin, BuildInfoPlugin)
     .dependsOn(shared.js)
 //    .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
     .settings(
