@@ -26,7 +26,16 @@ trait Persistence:
     project.hiddenElements
       .signal
       .combineWithFn(project.name.signal, sourceText.signal, rightPanelVisible.signal, rightPanelTabIndex.signal, leftPanelVisible.signal)(
-        PersistedState.apply
+        (hidden, name, source, rightVisible, tabIndex, leftVisible) =>
+          PersistedState(
+            hiddenElements = hidden,
+            projectName = name,
+            source = source,
+            rightPanelVisible = rightVisible,
+            sideBarTabIndex = tabIndex,
+            leftPanelVisible = leftVisible,
+            schemaVersion = PersistedState.currentSchemaVersion // Always save with the current version
+          )
       )
       .distinct
       .foreach(persistedState.set)
@@ -38,10 +47,12 @@ case class PersistedState(
     source:            String = "",
     rightPanelVisible: Boolean = true,
     sideBarTabIndex:   Int = 0,
-    leftPanelVisible:  Boolean = true
+    leftPanelVisible:  Boolean = true,
+    schemaVersion:     Int = PersistedState.currentSchemaVersion // Add default for loading potentially older states
 ) derives ReadWriter
 
 object PersistedState:
+  val currentSchemaVersion = 1 // Define the current version
   val minimalGraphText = "digraph G {\n}"
   val empty =
     PersistedState(
@@ -50,5 +61,6 @@ object PersistedState:
       source = minimalGraphText,
       rightPanelVisible = true,
       sideBarTabIndex = 0,
-      leftPanelVisible = true
+      leftPanelVisible = true,
+      schemaVersion = currentSchemaVersion // Use current version for new/empty state
     )
