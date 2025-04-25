@@ -9,24 +9,30 @@ def AboutDialog(isOpen: Var[Boolean]): HtmlElement =
   SimpleDialog(
     isOpen,
     div(
-      cls := "p-6 space-y-3", // Add padding and vertical spacing
-      h3(cls := "text-xl font-semibold text-gray-900", "About Graph Explorer"), // Style title
-      div( // Group info paragraphs
-        p(cls := "text-sm text-gray-700",
-          span(cls := "font-medium text-gray-600", "Version: "), // Style label
-          BuildInfo.version
-        ),
-        p(cls := "text-sm text-gray-700",
-          span(cls := "font-medium text-gray-600", "Scala Version: "), // Style label
-          BuildInfo.scalaVersion
-        ),
-        p(cls := "text-sm text-gray-700",
-          span(cls := "font-medium text-gray-600", "Build date: "), // Style label
-          new Date(BuildInfo.builtAtString).toUTCString()
+      cls := "space-y-4",
+      h3(cls := "text-xl font-semibold text-gray-900", "Graph Explorer"),
+      table(
+        cls := "w-full text-sm",
+        tbody(
+          tr(
+            td(cls := "font-bold text-gray-600 py-1 pr-2", "Version:"),
+            td(cls := "text-gray-700 py-1", BuildInfo.version)
+          ),
+          tr(
+            td(cls := "font-bold text-gray-600 py-1 pr-2", "Scala Version:"),
+            td(cls := "text-gray-700 py-1", BuildInfo.scalaVersion)
+          ),
+          tr(
+            td(cls := "font-bold text-gray-600 py-1 pr-2", "Build date:"),
+            td(cls := "text-gray-700 py-1", new Date(BuildInfo.builtAtString).toUTCString())
+          )
         )
       ),
-      p(cls := "text-xs text-gray-500 pt-2", // Style copyright, add padding top
-        "© 2025 Juan Pablo Romero"
+      p(cls := "text-xs text-gray-500 pt-2",
+        "© 2025 Juan Pablo Romero & contributors.",
+      ),
+      p( cls := "text-xs text-gray-500",
+        "Crafted with ❤️ in Northern California"
       )
     )
   )

@@ -176,7 +176,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       CommandsPanel(state, commands)
     ),
     div(
-      cls := "navbar-end gap-2",
+      cls := "navbar-end gap-0",
       // ---------- Undo/Redo ----------
       div(
         cls := "join",
