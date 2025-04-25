@@ -24,6 +24,7 @@ def TopLevel(
       RightPanel(state).render(),
       RightToolbar(state),
       HelpDialog(state.helpDialogOpen, commands),
+      AboutDialog(state.aboutDialogOpen),
       EditLabelDialog(state),
     )
   )

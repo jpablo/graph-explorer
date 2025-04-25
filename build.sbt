@@ -9,12 +9,11 @@ val laminarVersion    = "17.2.1"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
-ThisBuild / organization := "org.jpablo"
-ThisBuild / scalaVersion := scala3Version
+ThisBuild / organization      := "org.jpablo"
+ThisBuild / scalaVersion      := scala3Version
 ThisBuild / semanticdbVersion := scalametaVersion
 ThisBuild / scalacOptions ++= // Scala 3.x options
   Seq(
-//    "-Ykind-projector:underscores",
     "-Wsafe-init",
     "-language:implicitConversions",
     "-language:experimental.namedTuples",
@@ -30,10 +29,13 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
 
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
+  .enablePlugins(ScalaJSPlugin, DynVerPlugin, BuildInfoPlugin)
   .in(file("shared"))
   .settings(
     name                     := "shared",
     Test / parallelExecution := false,
+    buildInfoKeys            := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage         := "buildinfo",
     libraryDependencies ++= Seq(
       "com.lihaoyi"                %%% "upickle"                  % "4.0.0",
       "com.lihaoyi"                %%% "pprint"                   % "0.9.0",
@@ -66,6 +68,7 @@ lazy val viewer =
     .settings(
       name                            := "viewer",
       scalaJSUseMainModuleInitializer := true,
+      buildInfoOptions ++= Seq(BuildInfoOption.BuildTime, BuildInfoOption.ToMap),
       scalacOptions ++= Seq(
         "-explain",
         "-Ycheck-all-patmat",

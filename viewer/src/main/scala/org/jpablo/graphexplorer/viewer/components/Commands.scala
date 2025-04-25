@@ -293,6 +293,13 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Open the keyboard shortcuts help dialog")
     )
 
+    val openAboutDialog = Command( // Add command to open AboutDialog
+      "About",
+      () => state.aboutDialogOpen.set(true),
+      always,
+      description = Some("Show application information")
+    )
+
     val printVisibleGraphToConsole = Command(
       "Print visible graph to the console",
       state.printVisibleGraphToConsole,
@@ -427,7 +434,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     ),
     application -> List(
       routerCmds.navigateHome,
-      all.helpKeyboardShortcuts
+      all.helpKeyboardShortcuts,
+      all.openAboutDialog
     ),
     developer -> List(
       all.printVisibleGraphToConsole,

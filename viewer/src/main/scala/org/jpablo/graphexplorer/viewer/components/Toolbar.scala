@@ -11,7 +11,7 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
 
-def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
+def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState): HtmlElement =
   import commands.{all, routerCmds, sections}
 
   val hiddenNodesIsEmpty =
@@ -128,7 +128,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           all.selectAllArrows,
           all.selectAllGroups,
           all.selectGroupMembers,
-//        Sep,
           all.selectAllSuccessors,
           all.selectDirectSuccessors,
           all.selectAllPredecessors,
@@ -150,7 +149,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           all.zoomIntoGroup,
           all.editLabel,
           all.resetAttributes,
-//        Sep,
           all.rootsOnly,
           all.hideAllNodes,
           all.showAllSuccessors,
@@ -198,6 +196,11 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         span(cls := "bi bi-question-circle"),
         onClick --> all.helpKeyboardShortcuts.action()
       ).tiny.ghost.toTooltip(all.helpKeyboardShortcuts.labelWithShortcut, "tooltip-left"),
+      Button(
+        cls := "text-base",
+        span(cls := "bi bi-info-circle"),
+        onClick --> all.openAboutDialog.action()
+      ).tiny.ghost.toTooltip(all.openAboutDialog.labelWithShortcut, "tooltip-left"),
       a(
         cls    := "text-base",
         cls    := "btn btn-xs btn-ghost",

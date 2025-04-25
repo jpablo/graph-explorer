@@ -9,3 +9,4 @@ trait UIState:
   val helpDialogOpen       = Var(false)
   val leftPanelVisible     = Var(true)
   val canvasContainerFocus = EventBus[Boolean]()
+  val aboutDialogOpen      = Var(false)
