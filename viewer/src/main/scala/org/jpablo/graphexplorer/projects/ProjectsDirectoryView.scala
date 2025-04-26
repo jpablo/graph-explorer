@@ -27,7 +27,11 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
     idAttr := "projects-view",
     div(
       cls := "navbar bg-base-100",
-      div(cls := "flex-1", a(cls := "btn btn-ghost text-xl", "Graph Explorer")),
+      div(
+        cls := "flex-1 flex items-center gap-2 ml-2",
+        img(src := "/favicon.svg", cls := "h-6 w-6"),
+        a(cls := "btn btn-ghost text-xl pl-1", "Graph Explorer")
+      ),
       div(
         cls := "flex-none",
         a(

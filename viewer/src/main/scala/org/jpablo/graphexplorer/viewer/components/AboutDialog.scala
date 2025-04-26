@@ -10,7 +10,12 @@ def AboutDialog(isOpen: Var[Boolean]): HtmlElement =
     isOpen,
     div(
       cls := "space-y-4",
-      h3(cls := "text-xl font-semibold text-gray-900", "Graph Explorer"),
+      // Wrap title and icon in a flex container
+      div(
+        cls := "flex items-center gap-2",
+        img(src := "/favicon.svg", cls := "h-6 w-6"), // Added favicon
+        h3(cls := "text-xl font-semibold text-gray-900", "Graph Explorer")
+      ),
       table(
         cls := "w-full text-sm",
         tbody(
