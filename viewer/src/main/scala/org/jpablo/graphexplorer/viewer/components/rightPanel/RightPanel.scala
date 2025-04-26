@@ -27,7 +27,7 @@ class RightPanel(state: ViewerState):
   def render() =
     div(
       idAttr := "right-panel",
-      cls <-- state.rightPanelVisible.signal.map(if _ then "visible" else "not-visible"),
+      cls <-- state.rightPanelTabIndex.signal.map(i => if i >= 0 then "visible" else "not-visible"),
       cls("floating card card-xs") <-- isFloating,
       cls("transition-all duration-200") <-- useTransition,
       div(

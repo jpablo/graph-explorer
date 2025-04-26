@@ -78,7 +78,8 @@ class InternalPhases(
     // -------------------------------
     labelS = "[versionedText -> sourceText]", // b -> a
     toS = (st, vt) => vt.value,
-    updateS = (st, vt, st1) => st != vt.value
+    updateS = (st, vt, st1) => st != vt.value,
+    level = Level.None
   )
 
   // -------------------------------
@@ -156,6 +157,7 @@ class InternalPhases(
           .removeElements(hiddenNodes)
           .setDefaultTheme
       }
+    .distinct
     .tapEach(_ => resetView())
 
   // -------------------------------

@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.projects
 
-import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.storedString
 import org.jpablo.graphexplorer.viewer.state.{PersistedState, ProjectId}
@@ -16,7 +15,7 @@ case class ProjectInfo(
 case class ProjectsDirectory(projects: List[ProjectInfo] = Nil) derives ReadWriter
 
 object ProjectStorage:
-  given owner: Owner = OneTimeOwner(() => ())
+  given owner: Owner = unsafeWindowOwner
 
   private val directoryStorage =
     storedString("graph-explorer.projects", write(ProjectsDirectory()))
@@ -40,13 +39,14 @@ object ProjectStorage:
     val projectStorage = storedString(projectKey(id), initial)
     // Initialize storage ~> PersistedStage
     val projectStateVar =
-      try Var(read[PersistedState](projectStorage.signal.observe.now()))
+      try
+        Var(read[PersistedState](projectStorage.signal.observe.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
           Var(PersistedState.empty)
     // synchronize PersistedStage ~> storage
-    projectStateVar.signal.foreach: state =>
+    projectStateVar.signal.distinct.changes.foreach: state =>
       // update project entry
       projectStorage.set(write(state))
       // update all directory fields

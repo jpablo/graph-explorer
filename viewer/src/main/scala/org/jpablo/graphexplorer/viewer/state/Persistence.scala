@@ -13,54 +13,52 @@ trait Persistence:
 
   def restoreState() =
     val restoredState = persistedState.now()
-    // Restore ViewerState <~ PersistedStage (which comes from local storage)
     project.hiddenElements.set(restoredState.hiddenElements)
     Var.set(
       project.name       -> restoredState.projectName,
       sourceText         -> restoredState.source,
-      rightPanelVisible  -> restoredState.rightPanelVisible,
-      rightPanelTabIndex -> restoredState.sideBarTabIndex,
+      rightPanelTabIndex -> restoredState.rightPanelTabIndex,
       leftPanelVisible   -> restoredState.leftPanelVisible
     )
     // synchronize ViewerState ~> PersistedStage
     project.hiddenElements
-      .signal
-      .combineWithFn(project.name.signal, sourceText.signal, rightPanelVisible.signal, rightPanelTabIndex.signal, leftPanelVisible.signal)(
-        (hidden, name, source, rightVisible, tabIndex, leftVisible) =>
-          PersistedState(
-            hiddenElements = hidden,
-            projectName = name,
-            source = source,
-            rightPanelVisible = rightVisible,
-            sideBarTabIndex = tabIndex,
-            leftPanelVisible = leftVisible,
-            schemaVersion = PersistedState.currentSchemaVersion // Always save with the current version
-          )
+      .signal.changes.distinct
+      .combineWithFn(
+        project.name.signal.changes.distinct,
+        sourceText.signal.changes.distinct,
+        rightPanelTabIndex.signal.changes.distinct,
+        leftPanelVisible.signal.changes.distinct
+      )((hidden, name, source, tabIndex, leftVisible) =>
+        PersistedState(
+          hiddenElements = hidden,
+          projectName = name,
+          source = source,
+          rightPanelTabIndex = tabIndex,
+          leftPanelVisible = leftVisible,
+          schemaVersion = PersistedState.currentSchemaVersion // Always save with the current version
+        )
       )
       .distinct
       .foreach(persistedState.set)
   end restoreState
 
 case class PersistedState(
-    hiddenElements:    HiddenElements = ElementIds(),
-    projectName:       String = "",
-    source:            String = "",
-    rightPanelVisible: Boolean = true,
-    sideBarTabIndex:   Int = 0,
-    leftPanelVisible:  Boolean = true,
-    schemaVersion:     Int = PersistedState.currentSchemaVersion // Add default for loading potentially older states
+    hiddenElements:     HiddenElements = ElementIds(),
+    projectName:        String = "",
+    source:             String = "",
+    rightPanelVisible:  Boolean = false,
+    rightPanelTabIndex: Int = 0,
+    leftPanelVisible:   Boolean = true,
+    schemaVersion:      Int = PersistedState.currentSchemaVersion // Add default for loading potentially older states
 ) derives ReadWriter
 
 object PersistedState:
   val currentSchemaVersion = 1 // Define the current version
-  val minimalGraphText = "digraph G {\n}"
+  val minimalGraphText     = "digraph G {\n}"
   val empty =
     PersistedState(
       hiddenElements = ElementIds(),
       projectName = "Untitled",
       source = minimalGraphText,
-      rightPanelVisible = true,
-      sideBarTabIndex = 0,
-      leftPanelVisible = true,
       schemaVersion = currentSchemaVersion // Use current version for new/empty state
     )

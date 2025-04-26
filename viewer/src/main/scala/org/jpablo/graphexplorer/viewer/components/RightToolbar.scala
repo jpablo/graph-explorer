@@ -26,9 +26,5 @@ def RightToolbar(state: ViewerState) =
             onClick --> state.rightPanelTabIndex.update: j =>
               if idx == j then -1 else idx
           )
-        ),
-    state.rightPanelTabIndex.signal --> { idx =>
-      if idx == -1 then state.rightPanelVisible.set(false)
-      else state.rightPanelVisible.set(true)
-    }
+        )
   )
