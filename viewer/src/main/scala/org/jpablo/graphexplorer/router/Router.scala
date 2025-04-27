@@ -1,6 +1,8 @@
 package org.jpablo.graphexplorer.router
 
 import com.raquo.laminar.api.L.*
+import scala.scalajs.js
+
 import Router.diagrams
 
 enum Route derives CanEqual:
@@ -8,6 +10,7 @@ enum Route derives CanEqual:
   case ProjectDetail(uuid: String)
 
 class Router:
+  given Owner = unsafeWindowOwner
 
   private val currentRouteV = Var(now())
 
@@ -16,9 +19,15 @@ class Router:
   private def now(): Route =
     parsePath(dom.window.location.pathname)
 
+  // 📊 Hook GA after the router is initialized:
+  currentRoute.foreach: route =>
+    val path = buildPath(route)
+    // call the gtag function
+    js.Dynamic.global.gtag("event", "page_view", js.Dictionary("page_path" -> path))
+
   // 1. popstate fires when the user clicks back/forward or we pushState
   windowEvents(_.onPopState)
-    .foreach(_ => currentRouteV.set(now()))(unsafeWindowOwner)
+    .foreach(_ => currentRouteV.set(now()))
 
   def navigateTo(route: Route): Unit =
     val path = buildPath(route)
