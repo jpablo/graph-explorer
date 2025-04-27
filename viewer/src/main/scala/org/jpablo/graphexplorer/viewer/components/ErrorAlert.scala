@@ -20,9 +20,5 @@ def ErrorAlert(errors: EventBus[String]): HtmlElement =
     cls := "absolute bottom-4 right-4 z-50",
     child.maybe <-- latestError.signal.map:
       _.map: errorMsg =>
-        div(
-          role := "alert",
-          cls  := "alert alert-error shadow-lg",
-          span(errorMsg)
-        )
+        div(role := "alert", cls := "alert alert-error shadow-lg", span(errorMsg))
   )

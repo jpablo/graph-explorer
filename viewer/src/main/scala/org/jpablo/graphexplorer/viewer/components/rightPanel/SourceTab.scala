@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 def SourceTab(state: ViewerState) =
   div(
     idAttr := "source-tab",
+    cls("border-error border") <-- state.editorError.signal.map(_.isDefined),
     div(
       cls := "m-2 flex-none",
       a(
@@ -24,5 +25,8 @@ def SourceTab(state: ViewerState) =
         idAttr      := "nodes-source",
         placeholder := "DOT source"
       )
-    )
+    ),
+    child.maybe <-- state.editorError.signal.map:
+      _.map: msg =>
+        div(role := "alert", cls := "m-1 mt-2 p-1 rounded-md flex-none alert alert-error text-sm", span(msg))
   )

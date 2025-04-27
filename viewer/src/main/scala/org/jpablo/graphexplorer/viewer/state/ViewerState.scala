@@ -39,6 +39,7 @@ case class ViewerState(
   val redoEvent: EventBus[Unit]        = EventBus()
   val editorError: Var[Option[String]] = Var(None)
 
+  // open the sources panel if there is an editor error
   editorError.signal.changes.filter(_.isDefined)
     .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
 

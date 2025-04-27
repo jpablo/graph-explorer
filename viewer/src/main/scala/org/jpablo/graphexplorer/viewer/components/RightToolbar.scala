@@ -11,8 +11,8 @@ def RightToolbar(state: ViewerState) =
     idAttr := "right-toolbar",
     List(
       diagramAttributes -> ("bi-sliders", "Diagram"),
-      elements -> ("bi-list-ul", "Elements"),
-      sources -> ("bi-code-square", "Source")
+      elements          -> ("bi-list-ul", "Elements"),
+      sources           -> ("bi-code-square", "Source")
     ).map:
       case (section, (icon, text)) =>
         Tooltip(
@@ -21,7 +21,10 @@ def RightToolbar(state: ViewerState) =
           span(
             cls := "cursor-pointer p-1.5 hover:bg-base-300 rounded-lg",
             cls("bg-base-300") <-- state.isSectionActive(section),
-            i(cls := s"bi $icon"),
+            i(
+              cls := icon,
+              cls("text-error") <-- state.editorError.signal.map(_.isDefined && section == sources)
+            ),
             onClick --> state.rightPanelActiveSection.update: curr =>
               if curr == section then none else section
           )

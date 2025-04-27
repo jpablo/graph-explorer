@@ -276,7 +276,7 @@ label[for ^= show-ns-kind-] {
     @apply border-base-300 border print:hidden;
 
     &.floating {
-      @apply absolute right-11 top-17 bg-base-100;
+      @apply absolute right-11 top-2 bg-base-100;
     }
 
     flex-shrink: 0;
