@@ -25,7 +25,7 @@ object Viewer:
 
           case Route.ProjectDetail(id) =>
             val state = ViewerState(ProjectId(id), window.navigator.clipboard.writeText, errors)
-            TopLevel(state, router, Commands(state, routerCmds))
+            TopLevel(state, router, Commands(state, routerCmds), errors)
       )
 
     render(document.querySelector("#app"), app)
