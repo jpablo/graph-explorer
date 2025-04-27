@@ -31,17 +31,14 @@ class SvgElementOps(val ref: dom.svg.SVG):
 
   // ------------------
 
-  private def selectableElements =
-    SelectableElement.findAll(ref)
-
-//  def select(ids: Set[models.NodeId]): Unit =
+  //  def select(ids: Set[models.NodeId]): Unit =
 //    for elem <- selectableElements if elem.elementId in ids do elem.select()
 
   private def buildSvgElement(elem: SelectableElement): (dom.svg.Element, BBox) =
     // Clone the element to avoid modifying the original
     val e = DomApi.unsafeParseSvgString(elem.ref.outerHTML)
     // Remove the selected border from the cloned element
-    val selectedBorders = e.querySelectorAll(".selected-border")
+    val selectedBorders = e.querySelectorAll("." + elem.selectionRectClass)
     for (node <- selectedBorders) do
       node.parentNode.removeChild(node)
     val bbox = elem.ref.getBBox()
@@ -65,7 +62,7 @@ object SvgElementOps:
   def empty = SvgElementOps(svg.svg(svg.width := "0px", svg.height := "0px", svg.g()).ref)
 
   /** Creates a standalone SVG element with the given viewBox
-   */
+    */
   def emptySvg(viewBox: BBox, mods: SvgMods*): ReactiveSvgElement[dom.svg.SVG] =
     svg.svg(
       svg.xmlns      := "http://www.w3.org/2000/svg",

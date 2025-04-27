@@ -32,32 +32,14 @@ sealed trait SelectableElement(val ref: dom.svg.G):
     if rect == null then
       ref.appendChild(SelectedRect().ref)
 
-  private def buildInputElement(bbox: BBox) =
-    val xMargin = 2
-    val fo      = dom.document.createElementNS("http://www.w3.org/2000/svg", "foreignObject")
-    fo.setAttribute("x", (bbox.x + xMargin).toString) // Center approximately
-    fo.setAttribute("y", bbox.y.toString)             // Adjust for input height
-    fo.setAttribute("width", (bbox.width - 2 * xMargin).toString)
-    fo.setAttribute("height", bbox.height.toString)
-    fo.classList.add("editable-text-fo") // Add class for easier selection/removal
-
-    val input = dom.document.createElement("textarea").asInstanceOf[dom.html.TextArea]
-    input.classList.add("inline-input")
-    fo.appendChild(input)
-    (fo, input)
-
   private def SelectedRect() =
-    val bbox         = ref.getBBox()
-    val pixelPadding = 1
-    val paddingScale = SvgUtils.calculateSimpleScale(ref, svgSize = 1, clientSize = pixelPadding)
-    val svgPadding   = pixelPadding * paddingScale
-    val strokeW      = 1.5 * paddingScale
+    val bbox = ref.getBBox()
     svg.rect(
       svg.cls    := selectionRectClass,
-      svg.x      := (bbox.x - svgPadding - strokeW).toString,
-      svg.y      := (bbox.y - svgPadding - strokeW).toString,
-      svg.width  := (bbox.width + ((svgPadding + strokeW) * 2)).toString,
-      svg.height := (bbox.height + ((svgPadding + strokeW) * 2)).toString
+      svg.x      := bbox.x.toString,
+      svg.y      := bbox.y.toString,
+      svg.width  := bbox.width.toString,
+      svg.height := bbox.height.toString
     )
 
 object SelectableElement:
