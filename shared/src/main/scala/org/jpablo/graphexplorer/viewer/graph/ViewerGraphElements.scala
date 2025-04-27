@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.models.*
 
+import scala.annotation.tailrec
 import scala.collection.immutable.VectorMap
 
 case class ViewerGraphElements(
@@ -29,3 +30,13 @@ case class ViewerGraphElements(
 object ViewerGraphElements:
   val defaultRootId = GroupId("G")
   val minimal       = ViewerGraphElements()
+
+  @tailrec
+  def ancestorGroups(
+      memberships: Map[GroupMemberId, GroupId],
+      currentId:   GroupMemberId,
+      ancestors:   List[GroupId]
+  ): List[GroupId] =
+    memberships.get(currentId) match
+      case Some(parentId) => ancestorGroups(memberships, parentId, parentId :: ancestors)
+      case None           => ancestors

@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotASTOps.{
 }
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes as attr
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.ancestorGroups
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.Arrow.nextArrow
@@ -225,39 +226,29 @@ object DotASTOps:
     val defaultNodeAttrs  = attrsByTarget.getOrElse(AttributeTarget.node, Attributes.empty)
 
     // Helper to find all ancestor groups and combine their node attributes
-    def getInheritedNodeAttributes(memberId: GroupMemberId): Attributes = {
-      @tailrec
-      def findAncestorGroups(currentId: GroupMemberId, ancestors: List[GroupId]): List[GroupId] =
-        allMemberships.get(currentId) match
-          case Some(parentId) => findAncestorGroups(parentId, parentId :: ancestors)
-          case None           => ancestors
-
-      val ancestorGroups = findAncestorGroups(memberId, Nil) // List from closest to farthest
-
+    def inheritedAttributes(memberId: GroupMemberId): Attributes =
+      // List from closest to farthest
+      val ancestors = ancestorGroups(allMemberships, memberId, Nil)
       // Start with root defaults, then apply ancestor defaults from farthest to closest
-      ancestorGroups.reverse.foldLeft(defaultNodeAttrs): (accAttrs, groupId) =>
+      ancestors.reverse.foldLeft(defaultNodeAttrs): (accAttrs, groupId) =>
         val groupNodeSpecificAttrs = groupAttrs.get(groupId).flatMap(_.get(AttributeTarget.node)).getOrElse(Attributes.empty)
         accAttrs ++ groupNodeSpecificAttrs // Closer group attributes override farther ones
-    }
 
     // Calculate final attributes for explicit nodes, filtering out those matching root defaults
     val finalNodesMap = VectorMap.from(
       rawNodes.map: node =>
-        val inheritedAttrs = getInheritedNodeAttributes(node.id)
-        val finalAttrs     = inheritedAttrs ++ node.attributes
-        val filteredAttrs  = finalAttrs.filter((attrId, attrValue) => !defaultNodeAttrs.get(attrId).contains(attrValue))
-        node.id -> nodeNoDefaults(node.id, filteredAttrs)
+        val finalAttrs = inheritedAttributes(node.id) ++ node.attributes
+        node.id -> nodeNoDefaults(node.id, finalAttrs.filterNot(defaultNodeAttrs.contains))
     )
     // Create implicit nodes with their inherited attributes, filtering out those matching root defaults
     val implicitNodesMap = VectorMap.from(
       implicitNodeIds.map: nId =>
-        val inheritedAttrs = getInheritedNodeAttributes(nId)
-        val filteredAttrs  = inheritedAttrs.filter((attrId, attrValue) => !defaultNodeAttrs.get(attrId).contains(attrValue))
-        nId -> nodeNoDefaults(nId, filteredAttrs)
+        nId -> nodeNoDefaults(nId, inheritedAttributes(nId).filterNot(defaultNodeAttrs.contains))
     )
 
     ViewerGraphElements(
-      nodes = finalNodesMap ++ implicitNodesMap,
+      // explicit nodes take precedence over implicit ones
+      nodes = implicitNodesMap ++ finalNodesMap,
       arrows = arrowsMap,
       memberships = allMemberships,
       groups = groups.map(g => g.id -> g).toMap,
