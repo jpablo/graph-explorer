@@ -5,6 +5,8 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import upickle.default.*
 
+import scala.util.Try
+
 trait Persistence:
   this: ViewerState =>
 
@@ -15,10 +17,10 @@ trait Persistence:
     val restoredState = persistedState.now()
     project.hiddenElements.set(restoredState.hiddenElements)
     Var.set(
-      project.name       -> restoredState.projectName,
-      sourceText         -> restoredState.source,
-      rightPanelTabIndex -> restoredState.rightPanelTabIndex,
-      leftPanelVisible   -> restoredState.leftPanelVisible
+      project.name            -> restoredState.projectName,
+      sourceText              -> restoredState.source,
+      leftPanelVisible        -> restoredState.leftPanelVisible,
+      rightPanelActiveSection -> Try(RightPanelSection.fromOrdinal(restoredState.rightPanelTabIndex)).getOrElse(RightPanelSection.none)
     )
     // synchronize ViewerState ~> PersistedStage
     project.hiddenElements
@@ -26,14 +28,14 @@ trait Persistence:
       .combineWithFn(
         project.name.signal.changes.distinct,
         sourceText.signal.changes.distinct,
-        rightPanelTabIndex.signal.changes.distinct,
+        rightPanelActiveSection.signal.changes.distinct,
         leftPanelVisible.signal.changes.distinct
       )((hidden, name, source, tabIndex, leftVisible) =>
         PersistedState(
           hiddenElements = hidden,
           projectName = name,
           source = source,
-          rightPanelTabIndex = tabIndex,
+          rightPanelTabIndex = tabIndex.ordinal,
           leftPanelVisible = leftVisible,
           schemaVersion = PersistedState.currentSchemaVersion // Always save with the current version
         )

@@ -10,8 +10,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 def TopLevel(
     state:    ViewerState,
     router:   Router,
-    commands: Commands,
-    errors:   EventBus[String]
+    commands: Commands
 ): Div =
   div(
     idAttr := "top-level",
@@ -27,6 +26,6 @@ def TopLevel(
       HelpDialog(state.helpDialogOpen, commands),
       AboutDialog(state.aboutDialogOpen),
       EditLabelDialog(state),
-      ErrorAlert(errors)
+      ErrorAlert(state.errorBus)
     )
   )

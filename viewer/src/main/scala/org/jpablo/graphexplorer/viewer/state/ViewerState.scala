@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.Signal
-import com.raquo.airstream.ownership.OneTimeOwner
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
@@ -20,7 +19,7 @@ import org.scalajs.dom.svg.SVG
 case class ViewerState(
     projectId:     ProjectId,
     writeText:     String => Any = _ => (),
-    errors:        EventBus[String] = EventBus(),
+    errorBus:      EventBus[String] = EventBus(),
     initialSource: String = ""
 ) extends SvgTransformOps,
       DiagramSelectionOps,
@@ -31,15 +30,19 @@ case class ViewerState(
       ExtendSelectionOps,
       UIState,
       Persistence:
-  given owner: Owner = OneTimeOwner(() => ())
+  given owner: Owner = unsafeWindowOwner
 
   lazy val project =
     ProjectOps(Var(Project(projectId)))
 
-  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView, errors)
+  val undoEvent: EventBus[Unit]        = EventBus()
+  val redoEvent: EventBus[Unit]        = EventBus()
+  val editorError: Var[Option[String]] = Var(None)
 
-  val undoEvent: EventBus[Unit] = EventBus()
-  val redoEvent: EventBus[Unit] = EventBus()
+  editorError.signal.changes.filter(_.isDefined)
+    .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
+
+  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView, editorError)
 
   val sourceText                  = phases.sourceText
   val fullGraph                   = phases.fullGraph

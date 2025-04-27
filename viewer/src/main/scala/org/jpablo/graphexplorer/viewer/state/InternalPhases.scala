@@ -44,7 +44,7 @@ class InternalPhases(
     initialSource: String,
     hiddenNodes:   Signal[HiddenElements],
     resetView:     () => Unit,
-    errors:        EventBus[String] = EventBus()
+    editorError:   Var[Option[String]]
 )(using Owner):
 
   // three types of Vars:
@@ -97,10 +97,11 @@ class InternalPhases(
       val newAST =
         DotText(vt.value).parseAST match
           case Failure(f) =>
-            errors.emit(f.getMessage)
+            editorError.set(Option(f.getMessage))
             // consider creating a new AST with the error message
             DotAST.empty
           case Success(asts) =>
+            editorError.set(None)
             asts.headOption.getOrElse(DotAST.empty)
 
       Versioned[DotAST](newAST, vt.version, vt.origin)
