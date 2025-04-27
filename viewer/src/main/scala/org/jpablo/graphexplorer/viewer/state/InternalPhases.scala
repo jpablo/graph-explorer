@@ -155,7 +155,7 @@ class InternalPhases(
         fullGraph
           .removeUnsupportedFeatures
           .removeElements(hiddenNodes)
-          .setDefaultTheme
+          .withDefaultTheme
       }
     .distinct
     .tapEach(_ => resetView())

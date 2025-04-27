@@ -4,7 +4,20 @@ import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.
 import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{fromSubAttributes, subAttributeIds}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, ArrowType, Dir, DirType, GraphType, NodeStyle, Overlap, Shape, Sides, Size, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  ArrowHead,
+  ArrowTail,
+  ArrowType,
+  Dir,
+  DirType,
+  GraphType,
+  NodeStyle,
+  Overlap,
+  Shape,
+  Sides,
+  Size,
+  Style
+}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
@@ -170,9 +183,11 @@ trait AttributesOps:
       ArrowTail -> ArrowType.none
     )
 
-  def setDefaultTheme: ViewerGraph =
-    modifyDefaultAttributes(AttributeTarget.node).using(_ ++ defaultNodeTheme)
-      .modifyDefaultAttributes(AttributeTarget.edge).using(_ ++ defaultEdgeTheme)
+  // This is called on an existing Graph, not necessarily on a new one.
+  // This means we can't override the existing attributes, but we can add the defaults to them.
+  def withDefaultTheme: ViewerGraph =
+    modifyDefaultAttributes(AttributeTarget.node).using(defaultNodeTheme ++ _)
+      .modifyDefaultAttributes(AttributeTarget.edge).using(defaultEdgeTheme ++ _)
 
 object AttributesOps:
 

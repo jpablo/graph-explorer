@@ -29,7 +29,8 @@ class AttributesOpsSpec extends FunSuite:
       ViewerGraphElements(
         nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
         arrows = Map(arrow.id -> arrow),
-        groups = Map(groupId -> group(groupId, Attributes.of(Label -> "Cluster 1")))
+        groups = Map(groupId -> group(groupId, Attributes.of(Label -> "Cluster 1"))),
+        defaultNodeAttributes = Attributes.of(Shape -> Shape.square)
       )
     )
 
@@ -119,7 +120,7 @@ class AttributesOpsSpec extends FunSuite:
       .modifyDefaultAttributes(AttributeTarget.node).using(_ + (BoldStyle.attrId -> trueAttr))
 
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).update
-    val updates          =  AttributeUpdates.of(BorderStyle -> BorderStyle.dashed)
+    val updates          = AttributeUpdates.of(BorderStyle -> BorderStyle.dashed)
 
     val graph1 = updateAttributes(graph0, updates)
 
@@ -248,27 +249,35 @@ class AttributesOpsSpec extends FunSuite:
     )
   }
 
-  test("setDefaultTheme should set default theme for nodes and edges") {
+  test("withDefaultTheme should set default theme for nodes and edges but not override existing attributes") {
     val graph = createTestGraph()
+    // sanity check: the test graph should have a Shape attribute that is NOT the default
+    // (so that we can verify that it is not overridden)
+    val existingShape = graph.getDefaultAttributes(AttributeTarget.node).get(Shape.attrId)
+    val defaultShape  = graph.defaultNodeTheme.get(Shape.attrId)
+    assert(existingShape.isDefined)
+    assert(defaultShape.isDefined)
+    assertNotEquals(existingShape, defaultShape, "Existing node shape attribute should not be the default")
 
-    // Apply the method
-    val result = graph.setDefaultTheme
+    val graphWithTheme = graph.withDefaultTheme
+    val newShape       = graphWithTheme.getDefaultAttributes(AttributeTarget.node).get(Shape.attrId)
+    assertEquals(existingShape, newShape, "Existing node shape attribute should not be overridden")
 
     // Verify the default theme is set
     assertEquals(
-      result.getDefaultAttributes(AttributeTarget.node).get(Sides.attrId),
+      graphWithTheme.getDefaultAttributes(AttributeTarget.node).get(Sides.attrId),
       Some(AttrValue("5")),
       "Default node theme should be set"
     )
 
     assertEquals(
-      result.getDefaultAttributes(AttributeTarget.edge).get(Dir.attrId),
+      graphWithTheme.getDefaultAttributes(AttributeTarget.edge).get(Dir.attrId),
       Some(AttrValue(DirType.both.toString)),
       "Default edge theme should be set"
     )
 
     assertEquals(
-      result.getDefaultAttributes(AttributeTarget.edge).get(ArrowTail.attrId),
+      graphWithTheme.getDefaultAttributes(AttributeTarget.edge).get(ArrowTail.attrId),
       Some(AttrValue(ArrowType.none.toString)),
       "Default edge theme should be set"
     )
