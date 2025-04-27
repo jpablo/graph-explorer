@@ -11,6 +11,8 @@ import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
 
+import scala.util.{Failure, Success}
+
 case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
 
 def syncVars[S, T](
@@ -41,7 +43,8 @@ end syncVars
 class InternalPhases(
     initialSource: String,
     hiddenNodes:   Signal[HiddenElements],
-    resetView:     () => Unit
+    resetView:     () => Unit,
+    errors:        EventBus[String] = EventBus()
 )(using Owner):
 
   // three types of Vars:
@@ -91,7 +94,15 @@ class InternalPhases(
     // -------------------------------
     labelT = "[versionedText -> sourceAST]", // b -> c
     toT = { (vt, ast) =>
-      val newAST = DotText(vt.value).parseAST.headOption.getOrElse(DotAST.empty)
+      val newAST =
+        DotText(vt.value).parseAST match
+          case Failure(f) =>
+            errors.emit(f.getMessage)
+            // consider creating a new AST with the error message
+            DotAST.empty
+          case Success(asts) =>
+            asts.headOption.getOrElse(DotAST.empty)
+
       Versioned[DotAST](newAST, vt.version, vt.origin)
     },
     updateT = (vt, ast, ast1) => ast.value != ast1.value && ast1.origin == ChangeOrigin.CodeMirror,
@@ -158,7 +169,7 @@ class InternalPhases(
           .withDefaultTheme
       }
     .distinct
-    .tapEach(_ => resetView())
+      .tapEach(_ => resetView())
 
   // -------------------------------
   // rendering:

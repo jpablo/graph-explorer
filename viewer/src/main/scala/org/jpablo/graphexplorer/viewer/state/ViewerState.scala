@@ -20,6 +20,7 @@ import org.scalajs.dom.svg.SVG
 case class ViewerState(
     projectId:     ProjectId,
     writeText:     String => Any = _ => (),
+    errors:        EventBus[String] = EventBus(),
     initialSource: String = ""
 ) extends SvgTransformOps,
       DiagramSelectionOps,
@@ -35,7 +36,7 @@ case class ViewerState(
   lazy val project =
     ProjectOps(Var(Project(projectId)))
 
-  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView)
+  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView, errors)
 
   val undoEvent: EventBus[Unit] = EventBus()
   val redoEvent: EventBus[Unit] = EventBus()

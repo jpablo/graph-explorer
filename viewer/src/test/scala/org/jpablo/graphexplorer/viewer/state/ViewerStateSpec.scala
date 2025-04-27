@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.models.ElementIds
 
 class ViewerStateSpec extends FunSuite:
   test("addNodeWithSmartConnection should add a node to the graph") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    val viewerState = ViewerState(ProjectId("test"), _ => ())
     // sanity check
     assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
     assertEquals(viewerState.selection.size(), 0)
@@ -24,7 +24,7 @@ class ViewerStateSpec extends FunSuite:
   }
 
   test("two consecutive addNodeWithSmartConnection should add two nodes and one arrow to the graph") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    val viewerState = ViewerState(ProjectId("test"), _ => ())
     // Initial state check
     assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
 
@@ -39,7 +39,7 @@ class ViewerStateSpec extends FunSuite:
   }
 
   test("addArrow should add an arrow to the graph") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    val viewerState = ViewerState(ProjectId("test"), _ => ())
 
     // Initial state check
     assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
@@ -57,7 +57,7 @@ class ViewerStateSpec extends FunSuite:
   }
 
   test("rootTargetAttributesUpdates should update root attributes for the specified target") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    val viewerState = ViewerState(ProjectId("test"), _ => ())
 
     // Initial state check
     assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
@@ -105,7 +105,7 @@ class ViewerStateSpec extends FunSuite:
   }
 
   test("elementAttributes should update attributes for specific elements") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    val viewerState = ViewerState(ProjectId("test"), _ => ())
 
     // Initial state check
     assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)

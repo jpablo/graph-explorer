@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
 
 class InternalPhasesSpec extends FunSuite:
   test("Sanity check") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    val viewerState = ViewerState(ProjectId("test"), _ => ())
     given Owner = viewerState.owner
 
     assertEquals(viewerState.phases.fullGraphV.now(), ViewerGraph.minimal)
@@ -28,7 +28,7 @@ class InternalPhasesSpec extends FunSuite:
   }
 
   test("Updating the source text should update the graph") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    val viewerState = ViewerState(ProjectId("test"), _ => ())
     given Owner = viewerState.owner
 
     val newSource =
@@ -47,7 +47,7 @@ class InternalPhasesSpec extends FunSuite:
   }
 
   test("Updating the graph should trigger an update to the source text") {
-    val viewerState = ViewerState(ProjectId("test"), _ => (), "")
+    val viewerState = ViewerState(ProjectId("test"), _ => ())
     given Owner = viewerState.owner
 
     // Initial state check

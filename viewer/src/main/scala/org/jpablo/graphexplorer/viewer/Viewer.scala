@@ -24,16 +24,19 @@ object Viewer:
             ProjectsDirectoryView(router, routerCmds)
 
           case Route.ProjectDetail(id) =>
-            val state = ViewerState(ProjectId(id), window.navigator.clipboard.writeText)
+            val state = ViewerState(ProjectId(id), window.navigator.clipboard.writeText, errors)
             TopLevel(state, router, Commands(state, routerCmds))
       )
 
     render(document.querySelector("#app"), app)
 
   private def setupErrorHandling(): EventBus[String] =
-    val errors = new EventBus[String]
+    given Owner = unsafeWindowOwner
+    val errors  = new EventBus[String]
     AirstreamError.registerUnhandledErrorCallback(ex => errors.emit(ex.getMessage))
-    windowEvents(_.onError).foreach(e => errors.emit(e.message))(unsafeWindowOwner)
+    windowEvents(_.onError).foreach(e => errors.emit(e.message))
+    errors.events.foreach(e => dom.console.error("Error:", e))
+    // debug focus events
     document.addEventListener("focusin", e => dom.console.debug("focusin:", e.target))
     document.addEventListener("focusout", e => dom.console.debug("focusout:", e.target))
     errors

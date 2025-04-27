@@ -24,6 +24,7 @@ def SimpleDialog(open: Var[Boolean], contents: Mods*) =
 def Dialog(mods: Mods*)(contents: Mods*)(action: Mods*) =
   dialog(
     cls := "modal",
+    onMountFocus,
     mods,
     div(
       cls := "modal-box",

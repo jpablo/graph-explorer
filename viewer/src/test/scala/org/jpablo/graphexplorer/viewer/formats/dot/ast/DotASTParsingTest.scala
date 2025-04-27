@@ -3,8 +3,7 @@ package org.jpablo.graphexplorer.viewer.formats.dot.ast
 import munit.ScalaCheckSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType.digraph
-//import upickle.default.*
-
+import scala.util.Success
 import scala.scalajs.js.Dynamic.global as g
 
 class DotASTParsingTest extends ScalaCheckSuite:
@@ -13,7 +12,7 @@ class DotASTParsingTest extends ScalaCheckSuite:
   test("parse subgroup"):
     val sample: String = fs.readFileSync("viewer/src/test/resources/styles.dot", "utf8").asInstanceOf[String]
     val ast = DotText(sample).parseAST
-    assertEquals(ast, expected)
+    assertEquals(ast, Success(expected))
 
 
   def expected =

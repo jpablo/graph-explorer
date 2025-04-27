@@ -5,26 +5,18 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 
-import scala.util.{Failure, Success}
+import scala.util.{Success, Try}
 
 case class DotText(value: String):
 
   override def toString: String =
     value
 
-  // TODO: handle errors
-  def parseAST: List[DotAST] =
-    if value.isEmpty then List.empty
+  def parseAST: Try[List[DotAST]] =
+    if value.isEmpty then
+      Success(Nil)
     else
-      DotParserT.parse(value) match
-        case Failure(exception) =>
-          dom.console.error(s"<== after DotParserT.parse")
-          pprint.log(exception)
-          dom.console.error(value)
-          List.empty
-        case Success(asts) =>
-//          dom.console.debug(s"<== after DotParserT.parse: $asts")
-          asts
+      DotParserT.parse(value)
 
   def toSvg: Signal[Option[ReactiveSvgElement[dom.svg.SVG]]] =
     DotText.gvInstance.renderToSvg(this)

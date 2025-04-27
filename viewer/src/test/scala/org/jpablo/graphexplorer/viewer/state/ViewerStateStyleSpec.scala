@@ -71,7 +71,7 @@ class ViewerStateStyleSpec extends FunSuite:
         .flatten
 
   test("[Defaults] InvisibleStyle=true") {
-    val state           = ViewerState(ProjectId("test"), _ => (), "")
+    val state           = ViewerState(ProjectId("test"), _ => ())
     val defaultUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val defaultControls = NodeStyleControls(state, defaultUpdates)
 
@@ -86,7 +86,7 @@ class ViewerStateStyleSpec extends FunSuite:
   }
 
   test("[Defaults] borderStyle=dashed,InvisibleStyle=true -> borderStyle=dotted -> InvisibleStyle=false -> borderStyle=solid") {
-    val state           = ViewerState(ProjectId("test"), _ => (), "")
+    val state           = ViewerState(ProjectId("test"), _ => ())
     val defaultUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val defaultControls = NodeStyleControls(state, defaultUpdates)
 
@@ -109,7 +109,7 @@ class ViewerStateStyleSpec extends FunSuite:
   }
 
   test("[Defaults] borderStyle=dashed,InvisibleStyle=true -> borderStyle=x") {
-    val state           = ViewerState(ProjectId("test"), _ => (), "")
+    val state           = ViewerState(ProjectId("test"), _ => ())
     val defaultUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
     val defaultControls = NodeStyleControls(state, defaultUpdates)
 
@@ -124,7 +124,7 @@ class ViewerStateStyleSpec extends FunSuite:
   }
 
   test("Empty defaults, verify that element is false") {
-    val state = ViewerState(ProjectId("test"), _ => (), "")
+    val state = ViewerState(ProjectId("test"), _ => ())
     state.addNodeWithSmartConnection()
 
     val defaultUpdates = state.defaultAttributesUpdates(AttributeTarget.node)
@@ -146,7 +146,7 @@ class ViewerStateStyleSpec extends FunSuite:
   }
 
   test("[Defaults] InvisibleStyle=true [element] invisible should be true") {
-    val state = ViewerState(ProjectId("test"), _ => (), "")
+    val state = ViewerState(ProjectId("test"), _ => ())
     state.addNodeWithSmartConnection()
 
     val defaultUpdates = state.defaultAttributesUpdates(AttributeTarget.node)
@@ -164,7 +164,7 @@ class ViewerStateStyleSpec extends FunSuite:
   }
 
   test("[Defaults] InvisibleStyle=true [element] InvisibleStyle=false and then InvisibleStyle=true") {
-    val state = ViewerState(ProjectId("test"), _ => (), "")
+    val state = ViewerState(ProjectId("test"), _ => ())
     state.addNodeWithSmartConnection()
 
     val defaultUpdates  = state.defaultAttributesUpdates(AttributeTarget.node)
@@ -202,7 +202,7 @@ class ViewerStateStyleSpec extends FunSuite:
   }
 
   test("[Defaults] InvisibleStyle=true [element] borderStyle=dotted") {
-    val state = ViewerState(ProjectId("test"), _ => (), "")
+    val state = ViewerState(ProjectId("test"), _ => ())
     state.addNodeWithSmartConnection()
 
     val defaultUpdates = state.defaultAttributesUpdates(AttributeTarget.node)
