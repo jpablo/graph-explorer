@@ -86,6 +86,9 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def filterKeys(p: AttributeId => Boolean): Attributes =
     Attributes(values.view.filterKeys(p).toMap)
 
+  def filter(p: (AttributeId, AttrValue) => Boolean): Attributes =
+    Attributes(values.filter(p.tupled))
+
   def getAs[A, B <: DotAttribute[A]](b: B): A =
     get(b.attrId)
       .flatMap(v => b.fromString(v.toString))

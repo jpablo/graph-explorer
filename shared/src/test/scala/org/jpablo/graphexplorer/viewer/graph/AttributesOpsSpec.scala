@@ -223,7 +223,7 @@ class AttributesOpsSpec extends FunSuite:
     // Test for node attributes
     assertEquals(
       graph.getDefaultAttributes(AttributeTarget.node),
-      Attributes.empty,
+      Attributes.of(Shape -> Shape.square),
       "Should return root node attributes"
     )
 

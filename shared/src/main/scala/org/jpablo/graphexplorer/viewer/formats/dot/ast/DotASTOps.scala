@@ -240,15 +240,20 @@ object DotASTOps:
         accAttrs ++ groupNodeSpecificAttrs // Closer group attributes override farther ones
     }
 
-    // Calculate final attributes for explicit nodes
+    // Calculate final attributes for explicit nodes, filtering out those matching root defaults
     val finalNodesMap = VectorMap.from(
       rawNodes.map: node =>
-        // Node-specific attributes take the highest precedence
-        node.id -> nodeNoDefaults(node.id, getInheritedNodeAttributes(node.id) ++ node.attributes)
+        val inheritedAttrs = getInheritedNodeAttributes(node.id)
+        val finalAttrs     = inheritedAttrs ++ node.attributes
+        val filteredAttrs  = finalAttrs.filter((attrId, attrValue) => !defaultNodeAttrs.get(attrId).contains(attrValue))
+        node.id -> nodeNoDefaults(node.id, filteredAttrs)
     )
-    // Create implicit nodes with their inherited attributes
+    // Create implicit nodes with their inherited attributes, filtering out those matching root defaults
     val implicitNodesMap = VectorMap.from(
-      implicitNodeIds.map(nId => nId -> nodeNoDefaults(nId, getInheritedNodeAttributes(nId)))
+      implicitNodeIds.map: nId =>
+        val inheritedAttrs = getInheritedNodeAttributes(nId)
+        val filteredAttrs  = inheritedAttrs.filter((attrId, attrValue) => !defaultNodeAttrs.get(attrId).contains(attrValue))
+        nId -> nodeNoDefaults(nId, filteredAttrs)
     )
 
     ViewerGraphElements(
@@ -257,7 +262,7 @@ object DotASTOps:
       memberships = allMemberships,
       groups = groups.map(g => g.id -> g).toMap,
       graphAttributes = attributes.filterKeys(_ in graphAttrIds),
-      defaultNodeAttributes = defaultNodeAttrs, // These were already used as the base for inheritance
+      defaultNodeAttributes = defaultNodeAttrs,
       defaultArrowAttributes = defaultArrowAttrs,
       defaultGroupAttributes = attributes.filterKeys(_ notIn graphAttrIds)
     )

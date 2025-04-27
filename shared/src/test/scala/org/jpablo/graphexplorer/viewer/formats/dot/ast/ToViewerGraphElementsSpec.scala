@@ -100,6 +100,7 @@ class ToViewerGraphElementsSpec extends ScalaCheckSuite:
     DotAST(
       digraph.toString,
       List(
+        AttrStmt("node", List(Attr("shape", AttrValue("trapezium")))),
         NodeStmt(a),
         NodeStmt(b),
         EdgeStmt(List(x, y)),
