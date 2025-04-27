@@ -29,7 +29,7 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
 
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
-  .enablePlugins(ScalaJSPlugin, DynVerPlugin, BuildInfoPlugin)
+  .enablePlugins(DynVerPlugin, BuildInfoPlugin)
   .in(file("shared"))
   .settings(
     name                     := "shared",
@@ -50,7 +50,8 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
       "-explain",
       "-Ycheck-all-patmat",
       "-Yimports:java.lang,scala,scala.Predef,com.softwaremill.quicklens"
-    )
+    ),
+    testFrameworks := Seq(new TestFramework("munit.Framework"))
   ).jsSettings(
     // JS-specific settings
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },

@@ -113,9 +113,9 @@ enum EdgeStyle derives CanEqual:
   case dashed, dotted, solid, bold, invis, tapered
 
 object FillColor extends DotAttributeSimple[String]:
-  val label                    = "Fill"
-  val none                     = "none"
-  val default                  = "#d3d3d3" // default for nodes
+  val label   = "Fill"
+  val none    = "none"
+  val default = none // default for nodes
   override val placeholderText = "Enter fill color here"
 
 object FixedSize:

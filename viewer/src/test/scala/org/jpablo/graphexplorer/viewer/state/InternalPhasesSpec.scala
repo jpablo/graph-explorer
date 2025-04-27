@@ -14,9 +14,13 @@ class InternalPhasesSpec extends FunSuite:
 
     val visibleDot =
       """|digraph "G" {
-         |    node [sides="5"];
+         |    node [
+         |        sides="5",
+         |        shape="box"
+         |    ];
          |    edge [
          |        dir="both",
+         |        arrowhead="vee",
          |        arrowtail="none"
          |    ];
          |}""".stripMargin
