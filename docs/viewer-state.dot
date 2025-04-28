@@ -2,7 +2,7 @@ digraph "G" {
     graph [
         nodesep="0.5",
         rankdir="TB",
-        label="Data Flow",
+        label="Phases",
         pad=".1",
         labelloc="t",
         ranksep=".5",
@@ -11,10 +11,9 @@ digraph "G" {
         splines="spline"
     ];
     node [
-        shape="polygon",
         style="filled",
-        fillcolor="#f6eeee",
-        peripheries="1"
+        peripheries="1",
+        fillcolor="#f6eeee"
     ];
     edge [
         decorate="false",
@@ -24,23 +23,20 @@ digraph "G" {
         label="fullGraphV *",
         fillcolor="#cfee96"
     ];
-    "versionedText" [fillcolor="#fdefaa"];
-    "versionedFullGraphV" [fillcolor="#fdefaa"];
-    "visibleDOT"
-    "visibleAST"
-    "sourceText"
-    "svgDiagramElement"
-    "sourceAST"
-    "visibleGraph"
-
-    "sourceText" -> "versionedText" [dir="both"];
-    "versionedText" -> "sourceAST" [dir="both"];
-    "sourceAST" -> "versionedFullGraphV" [dir="both"];
+    "versionedText";
+    "versionedFullGraphV";
+    "visibleDOT";
+    "visibleAST";
+    "sourceText";
+    "svgDiagramElement";
+    "sourceAST";
+    "visibleGraph";
     "versionedFullGraphV" -> "fullGraphV" [dir="both"];
-
+    "sourceText" -> "versionedText" [dir="both"];
+    "sourceAST" -> "versionedFullGraphV" [dir="both"];
+    "visibleAST" -> "visibleDOT";
     "fullGraphV" -> "visibleGraph";
     "visibleGraph" -> "visibleAST";
-    "visibleAST" -> "visibleDOT";
-
     "visibleDOT" -> "svgDiagramElement";
+    "versionedText" -> "sourceAST" [dir="both"];
 }

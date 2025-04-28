@@ -1,0 +1,74 @@
+digraph "Twelve_colors" {
+    graph [
+        normalize="0",
+        label="Twelve colors. Neato layout",
+        labelloc="b",
+        layout="neato",
+        start="regular",
+        fontname="Arial"
+    ];
+    node [
+        style="filled",
+        color="#00000088",
+        shape="circle",
+        width="1.5",
+        fontname="Helvetica,Arial,sans-serif"
+    ];
+    edge [
+        len="2",
+        penwidth="1.5",
+        arrowhead="open"
+    ];
+    "cyan" [fillcolor="cyan"];
+    "springgreen" [fillcolor="springgreen"];
+    "orange" [fillcolor="orange"];
+    "blue" [
+        fillcolor="blue",
+        fontcolor="white"
+    ];
+    "white" [fillcolor="white"];
+    "yellow" [fillcolor="yellow"];
+    "deeppink" [
+        fillcolor="deeppink",
+        fontcolor="white"
+    ];
+    "deepskyblue" [fillcolor="deepskyblue"];
+    "red" [
+        fillcolor="red",
+        fontcolor="white"
+    ];
+    "green" [
+        fillcolor="green",
+        fontcolor="white"
+    ];
+    "yellowgreen" [fillcolor="yellowgreen"];
+    "magenta" [
+        fillcolor="magenta",
+        fontcolor="white"
+    ];
+    "purple" [
+        fillcolor="purple",
+        fontcolor="white"
+    ];
+    "magenta" -> "deeppink" [color="magenta"];
+    "green" -> "yellow" [color="green"];
+    "red" -> "white" [color="red"];
+    "red" -> "magenta" [color="red"];
+    "green" -> "springgreen" [color="green"];
+    "red" -> "yellow" [color="red"];
+    "blue" -> "cyan" [color="blue"];
+    "green" -> "yellowgreen" [color="green"];
+    "red" -> "orange" [color="red"];
+    "blue" -> "deepskyblue" [color="blue"];
+    "blue" -> "white" [color="blue"];
+    "blue" -> "magenta" [color="blue"];
+    "cyan" -> "springgreen" [color="cyan"];
+    "yellow" -> "orange" [color="yellow"];
+    "magenta" -> "purple" [color="magenta"];
+    "blue" -> "purple" [color="blue"];
+    "green" -> "cyan" [color="green"];
+    "green" -> "white" [color="green"];
+    "cyan" -> "deepskyblue" [color="cyan"];
+    "yellow" -> "yellowgreen" [color="yellow"];
+    "red" -> "deeppink" [color="red"];
+}

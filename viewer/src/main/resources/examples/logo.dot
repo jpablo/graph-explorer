@@ -1,0 +1,58 @@
+digraph "G" {
+    graph [
+        nodesep="0.42",
+        bgcolor="#cad5e2",
+        rankdir="LR",
+        pad="0.1",
+        layout="dot"
+    ];
+    node [
+        style="filled",
+        shape="circle"
+    ];
+    edge [arrowhead="vee"];
+    "b" [
+        label="",
+        penwidth="7",
+        fillcolor="#4E79A7",
+        shape="circle"
+    ];
+    "e" [
+        label="",
+        penwidth="7",
+        fillcolor="#E15759",
+        shape="circle"
+    ];
+    "g" [
+        label="",
+        penwidth="7",
+        fillcolor="#00bc7d",
+        shape="circle"
+    ];
+    "h" [
+        label="",
+        penwidth="7",
+        fillcolor="#EDC948",
+        shape="circle"
+    ];
+    "b" -> "h" [
+        style="solid",
+        penwidth="7",
+        arrowhead="none",
+        constraint="false"
+    ];
+    "b" -> "g" [
+        style="solid",
+        penwidth="7",
+        arrowhead="none",
+        constraint="false"
+    ];
+    "h" -> "e" [
+        style="solid",
+        penwidth="7",
+        arrowhead="none",
+        constraint="false"
+    ];
+    "b" -> "e" [style="invis"];
+    "h" -> "g" [style="invis"];
+}

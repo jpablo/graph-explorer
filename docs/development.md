@@ -56,4 +56,4 @@ You will need an HTTP server, such as `python3 -m http.server 8000`, to open the
 
 [License](./LICENSE)
 
-Copyright 2023 Juan Pablo Romero and the graph-explorer contributors.
+Copyright 2025 Juan Pablo Romero and the graph-explorer contributors.
