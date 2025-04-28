@@ -142,13 +142,13 @@ object StyleSubAttributes:
     val fillColor = attrs.get(FillColor.attrId)
     val fill      = attrs.get(FillStyle.attrId)
 
-    if color.isDefined && fillColor.isEmpty && fill.isDefined then
+    if color.isDefined && fillColor.isEmpty && fill.exists(_.isTrue) then
       // This case accounts for this DOT rule:
       // - color controls the border color
       // - fillcolor controls the fill color
       // - When style="filled" and only color is specified, the fill color defaults to the same value as the border color
       color.map(_.toString != FillColor.none)
-    else if fill.isDefined then
+    else if fill.exists(_.isTrue) then
       Some(true)
     else
       fillColor.map(_.toString != FillColor.none)
