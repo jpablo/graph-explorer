@@ -24,7 +24,13 @@ object Viewer:
             ProjectsDirectoryView(router, routerCmds)
 
           case Route.ProjectDetail(id) =>
-            val state = ViewerState(ProjectId(id), window.navigator.clipboard.writeText, errors)
+            val state =
+              ViewerState(
+                projectId = ProjectId(id),
+                writeText = window.navigator.clipboard.writeText,
+                setDocumentAttribute = dom.document.documentElement.setAttribute,
+                errorBus = errors
+              )
             TopLevel(state, router, Commands(state, routerCmds))
       )
 

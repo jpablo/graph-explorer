@@ -17,10 +17,11 @@ import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
 
 case class ViewerState(
-    projectId:     ProjectId,
-    writeText:     String => Any = _ => (),
-    errorBus:      EventBus[String] = EventBus(),
-    initialSource: String = ""
+    projectId:            ProjectId,
+    writeText:            String => Any = _ => (),
+    setDocumentAttribute: (String, String) => Unit = (_, _) => (),
+    errorBus:             EventBus[String] = EventBus(),
+    initialSource:        String = ""
 ) extends SvgTransformOps,
       DiagramSelectionOps,
       VisibilityOps,
@@ -171,6 +172,6 @@ case class ViewerState(
   lazy val currentTheme: Var[String] = Var("light")
 
   currentTheme.signal.foreach: themeName =>
-    dom.document.documentElement.setAttribute("data-theme", themeName)
+    setDocumentAttribute("data-theme", themeName)
 
 end ViewerState
