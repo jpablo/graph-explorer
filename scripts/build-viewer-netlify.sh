@@ -16,6 +16,9 @@ chmod +x cs
 export PATH="$PATH:/opt/buildhome/.local/share/coursier/bin"
 stc --ignoredLibs node @codemirror/view @codemirror/lang-javascript @viz-js/viz @codemirror/commands jsdom @viz-js/lang-dot codemirror
 
+
+git fetch --force --unshallow --tags || git fetch --force --depth=10000 --tags
+
 # -- build viewer
 
 sbt "viewer/fullLinkJS"
