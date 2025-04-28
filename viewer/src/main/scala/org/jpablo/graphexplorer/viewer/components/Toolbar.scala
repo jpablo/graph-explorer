@@ -43,7 +43,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           case cmd: Command =>
             MenuOption(
               elem = cmd.shortLabel,
-              value = cmd.action,
+              value = () => cmd.execute(),
               description = Some(cmd.description.getOrElse(cmd.shortLabel)),
               shortcut = cmd.shortcut.map(_.toList)
             )
@@ -68,7 +68,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         cls := "breadcrumbs text-md py-0",
         ul(
           li(
-            a(cls := "text-xs", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.action())
+            a(cls := "text-xs", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.execute())
           ),
           li(
             cls := "text-sm",
@@ -77,7 +77,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
               cls   := "btn btn-xs btn-circle btn-ghost ml-[1px] w-4 h-4",
               title := "Change title",
               i(cls := "text-[.6rem] text-base-content/50").pencilIcon,
-              onClick --> all.changeProjectName.action()
+              onClick --> all.changeProjectName.execute()
             )
           )
         )
@@ -92,7 +92,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         Button(
           cls := "join-item btn-ghost",
           child <-- defaultShapePreview.map(icon => span(icon)),
-          onClick --> all.newNode.action()
+          onClick --> all.newNode.execute()
         ).tiny.toTooltip(all.newNode.labelWithShortcut),
         // --- extra options ---
         Dropdown(
@@ -109,7 +109,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         all.showAll.shortLabel,
         cls := "btn-soft btn-primary",
         disabled <-- hiddenNodesIsEmpty,
-        onClick --> all.showAll.action()
+        onClick --> all.showAll.execute()
       ).tiny.toTooltip(all.showAll.labelWithShortcut),
       // -------- actions --------
       Dropdown(
@@ -183,23 +183,23 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         Button(
           cls := "text-base join-item",
           span(cls := "bi bi-arrow-counterclockwise"),
-          onClick --> all.undo.action()
+          onClick --> all.undo.execute()
         ).tiny.ghost.toTooltip(all.undo.labelWithShortcut),
         Button(
           cls := "text-base join-item",
           span(cls := "bi bi-arrow-clockwise"),
-          onClick --> all.redo.action()
+          onClick --> all.redo.execute()
         ).tiny.ghost.toTooltip(all.redo.labelWithShortcut)
       ),
       Button(
         cls := "text-base",
         span(cls := "bi bi-question-circle"),
-        onClick --> all.helpKeyboardShortcuts.action()
+        onClick --> all.helpKeyboardShortcuts.execute()
       ).tiny.ghost.toTooltip(all.helpKeyboardShortcuts.labelWithShortcut, "tooltip-left"),
       Button(
         cls := "text-base",
         span(cls := "bi bi-info-circle"),
-        onClick --> all.openAboutDialog.action()
+        onClick --> all.openAboutDialog.execute()
       ).tiny.ghost.toTooltip(all.openAboutDialog.labelWithShortcut, "tooltip-left"),
       a(
         cls    := "text-base",

@@ -71,7 +71,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                 cmd.shortcut.map(_.toList.map(s => kbd(cls := "kbd kbd-sm opacity-60", s)).intersperse(span(" + ")))
               ),
               onMouseDown.stopPropagation.preventDefault --> { _ =>
-                cmd.action()
+                cmd.execute()
                 focusSearch.emit(true)
               }
             )
@@ -120,7 +120,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
                   e.preventDefault()
                   val idx = highlightedIndex.now()
                   if idx >= 0 && idx < cmdCount then
-                    visibleCmds(idx).action()
+                    visibleCmds(idx).execute()
                     focusSearch.emit(false)
                     highlightedIndex.set(-1)
                 case KeyValue.Escape =>

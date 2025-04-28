@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpt
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.{KeyValue, window}
+import scala.scalajs.js
 
 import scala.collection.immutable.VectorMap
 
@@ -19,16 +20,6 @@ case class Shortcut(
   def toList: List[String] =
     List((key, true), (KeyValue.Shift, shift), (KeyValue.Meta, meta), (KeyValue.Alt, alt), (KeyValue.Control, ctrl))
       .collect { case (str, true) => str }
-
-case class Command(
-    shortLabel:  String,
-    action:      () => Unit,
-    isVisible:   ElementIds => Boolean = _.nonEmpty,
-    shortcut:    Option[Shortcut] = None,
-    description: Option[String] = None
-):
-  def labelWithShortcut =
-    description.getOrElse(shortLabel) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
 
 object Command:
   val always = (_: Any) => true
@@ -45,6 +36,27 @@ object Command:
 
   def single(selection: ElementIds): Boolean =
     selection.size == 1
+end Command
+
+case class Command(
+    shortLabel:  String,
+    private val action: () => Unit,
+    isVisible:   ElementIds => Boolean = selectionNonEmpty,
+    shortcut:    Option[Shortcut] = None,
+    description: Option[String] = None
+):
+  def labelWithShortcut =
+    description.getOrElse(shortLabel) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
+
+  def execute(): Unit =
+    // Log to GA
+    val commandIdentifier = description.getOrElse(shortLabel)
+    js.Dynamic.global.gtag("event", "command_executed", js.Dictionary(
+      "command_label" -> commandIdentifier,
+      "event_category" -> "Command",
+      "event_label" -> commandIdentifier
+    ))
+    action()
 
 class RouterCommands(router: Router):
   import Command.always
@@ -460,4 +472,4 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     for cmd <- byShortcut.get(sh) do
       if ev.key == KeyValue.Enter then
         ev.preventDefault()
-      cmd.action()
+      cmd.execute()

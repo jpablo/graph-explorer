@@ -11,7 +11,7 @@ def ZoomToolbar(commands: Commands) =
     idAttr := "zoom-toolbar",
     cls    := "floating-toolbar",
     // ---------- zoom ----------
-    Button(span().dashIcon, onClick --> commands.all.zoomOut.action()).tiny.ghost,
-    Button(commands.all.fit.shortLabel, onClick --> commands.all.fit.action()).tiny.ghost,
-    Button(span().plusIcon, onClick --> commands.all.zoomIn.action()).tiny.ghost
+    Button(span().dashIcon, onClick --> commands.all.zoomOut.execute()).tiny.ghost,
+    Button(commands.all.fit.shortLabel, onClick --> commands.all.fit.execute()).tiny.ghost,
+    Button(span().plusIcon, onClick --> commands.all.zoomIn.execute()).tiny.ghost
   )

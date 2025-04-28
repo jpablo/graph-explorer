@@ -89,7 +89,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
             cls := "h-8",
             span().plusCircleIcon,
             "Create Project",
-            onClick --> routerCmds.createProject.action()
+            onClick --> routerCmds.createProject.execute()
           ).primary.small
         )
       ),
