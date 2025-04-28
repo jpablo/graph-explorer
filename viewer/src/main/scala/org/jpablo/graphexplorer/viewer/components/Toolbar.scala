@@ -172,8 +172,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             state.showAll()
             state.sourceText.set(source)
           }
-      ).amend(cls := "hidden lg:inline-flex"),
-      CommandsPanel(state, commands).amend(cls := "hidden lg:inline-flex")
+      ).amend(cls := "hidden lg:block"),
+      CommandsPanel(state, commands).amend(cls := "hidden lg:block")
     ),
     div(
       cls := "navbar-end gap-0",
