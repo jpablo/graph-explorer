@@ -34,7 +34,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
             ),
             button(
               cls   := "btn btn-ghost btn-xs",
-              title := "Create Project",
+              title := "Create Diagram",
               span().plusCircleIcon,
               onClick --> commands.routerCmds.createProject.execute()
             )

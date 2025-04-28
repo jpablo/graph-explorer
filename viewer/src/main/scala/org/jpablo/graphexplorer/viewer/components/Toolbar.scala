@@ -49,6 +49,47 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             )
           case _ => Sep
 
+  val daisyThemes = Seq(
+    "light",
+    "dark",
+    "cupcake",
+    "bumblebee",
+    "emerald",
+    "corporate",
+    "synthwave",
+    "retro",
+    "cyberpunk",
+    "valentine",
+    "halloween",
+    "garden",
+    "forest",
+    "aqua",
+    "lofi",
+    "pastel",
+    "fantasy",
+    "wireframe",
+    "black",
+    "luxury",
+    "dracula",
+    "cmyk",
+    "autumn",
+    "business",
+    "acid",
+    "lemonade",
+    "night",
+    "coffee",
+    "winter",
+    "dim",
+    "nord",
+    "sunset",
+    "caramellatte",
+    "abyss",
+    "silk"
+  )
+
+  val themeOptions: Seq[MenuEntry[String]] =
+    daisyThemes.map(theme => MenuOption(theme, theme, None, None))
+
   div(
     idAttr := "toolbar",
     cls    := "navbar",
@@ -172,7 +213,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             state.showAll()
             state.sourceText.set(source)
           }
-      ).amend(cls := "hidden lg:block"),
+      ).amend(cls                              := "hidden lg:block"),
       CommandsPanel(state, commands).amend(cls := "hidden lg:block")
     ),
     div(
@@ -207,6 +248,14 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
         target := "_blank",
         span(cls := "bi bi-github")
+      ),
+      // -------- Theme Selector --------
+      Select(
+        placeholderText = Some(s"Select theme"),
+        options = themeOptions.collect { case r: MenuOption[String] => (r.value, r.value) },
+        onChange.mapToValue --> state.currentTheme,
+        value <-- state.currentTheme,
+        cls := "w-24"
       )
     )
   )

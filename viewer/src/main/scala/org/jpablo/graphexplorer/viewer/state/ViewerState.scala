@@ -167,4 +167,10 @@ case class ViewerState(
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
     phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
 
+  // Theme management
+  lazy val currentTheme: Var[String] = Var("light")
+
+  currentTheme.signal.foreach: themeName =>
+    dom.document.documentElement.setAttribute("data-theme", themeName)
+
 end ViewerState

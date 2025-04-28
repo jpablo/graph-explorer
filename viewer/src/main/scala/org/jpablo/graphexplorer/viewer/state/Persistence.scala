@@ -20,7 +20,8 @@ trait Persistence:
       project.name            -> restoredState.projectName,
       sourceText              -> restoredState.source,
       leftPanelVisible        -> restoredState.leftPanelVisible,
-      rightPanelActiveSection -> Try(RightPanelSection.fromOrdinal(restoredState.rightPanelTabIndex)).getOrElse(RightPanelSection.none)
+      rightPanelActiveSection -> Try(RightPanelSection.fromOrdinal(restoredState.rightPanelTabIndex)).getOrElse(RightPanelSection.none),
+      currentTheme            -> restoredState.currentTheme
     )
     // synchronize ViewerState ~> PersistedStage
     project.hiddenElements
@@ -29,15 +30,17 @@ trait Persistence:
         project.name.signal.changes.distinct,
         sourceText.signal.changes.distinct,
         rightPanelActiveSection.signal.changes.distinct,
-        leftPanelVisible.signal.changes.distinct
-      )((hidden, name, source, tabIndex, leftVisible) =>
+        leftPanelVisible.signal.changes.distinct,
+        currentTheme.signal.changes.distinct
+      )((hidden, name, source, tabIndex, leftVisible, currentTheme) =>
         PersistedState(
           hiddenElements = hidden,
           projectName = name,
           source = source,
           rightPanelTabIndex = tabIndex.ordinal,
           leftPanelVisible = leftVisible,
-          schemaVersion = PersistedState.currentSchemaVersion // Always save with the current version
+          schemaVersion = PersistedState.currentSchemaVersion, // Always save with the current version
+          currentTheme = currentTheme
         )
       )
       .distinct
@@ -51,7 +54,8 @@ case class PersistedState(
     rightPanelVisible:  Boolean = false,
     rightPanelTabIndex: Int = 0,
     leftPanelVisible:   Boolean = true,
-    schemaVersion:      Int = PersistedState.currentSchemaVersion // Add default for loading potentially older states
+    schemaVersion:      Int = PersistedState.currentSchemaVersion, // Add default for loading potentially older states,
+    currentTheme:       String = "light"                           // Default theme
 ) derives ReadWriter
 
 object PersistedState:
