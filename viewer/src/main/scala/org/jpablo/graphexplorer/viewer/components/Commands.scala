@@ -51,11 +51,12 @@ case class Command(
   def execute(): Unit =
     // Log to GA
     val commandIdentifier = description.getOrElse(shortLabel)
-    js.Dynamic.global.gtag("event", "command_executed", js.Dictionary(
+    val p = js.Dynamic.literal(
       "command_label" -> commandIdentifier,
       "event_category" -> "Command",
       "event_label" -> commandIdentifier
-    ))
+    )
+    js.Dynamic.global.gtag("event", "command_executed", p)
     action()
 
 class RouterCommands(router: Router):
