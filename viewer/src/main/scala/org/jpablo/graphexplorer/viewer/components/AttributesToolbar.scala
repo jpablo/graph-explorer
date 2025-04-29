@@ -48,15 +48,11 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
             val selection = Var("nodes")
             div(
               cls := "flex flex-row gap-2",
-              Tooltip(
-                text = "Defaults",
-                cls := "tooltip-top",
-                Select(
-                  placeholderText = None,
-                  options = Seq("Nodes", "Arrows", "Groups").map(label => label -> label.toLowerCase),
-                  cls := "w-22 no-outline",
-                  onChange.mapToValue --> selection
-                )
+              Select(
+                placeholderText = None,
+                options = Seq("Nodes", "Arrows", "Groups").map(label => s"$label defaults" -> label.toLowerCase),
+                cls := "w-32 no-outline",
+                onChange.mapToValue --> selection
               ),
               // -------------
               // Defaults
