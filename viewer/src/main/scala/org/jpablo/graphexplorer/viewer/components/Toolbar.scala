@@ -18,7 +18,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     state.hiddenElements.signal.map(_.isEmpty)
 
   def shapePreview(shape: Shape) =
-    ShapePreview(shape, 20).get()
+    ShapePreview(shape, 16).get()
 
   val defaultShapePreview =
     state.nodeShape.map(shapePreview)
@@ -84,7 +84,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     "synthwave",
     "valentine",
     "winter",
-    "wireframe",
+    "wireframe"
   )
 
   val themeOptions: Seq[MenuEntry[String]] =
@@ -129,9 +129,10 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cls := "navbar-center gap-2",
       // ---
       div(
-        cls := "join flex-nowrap",
+        cls := "flex-nowrap",
         Button(
-          cls := "join-item btn-ghost",
+          cls := "gap-1 pl-1",
+          i(cls := "bi bi-plus"),
           child <-- defaultShapePreview.map(icon => span(icon)),
           onClick --> all.newNode.execute()
         ).tiny.toTooltip(all.newNode.labelWithShortcut),
@@ -145,13 +146,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           menuCls = "items-center"
         ).amend(cls := "dropdown-center ml-[-1px]")
       ),
-      // -------- show all --------
-      Button(
-        all.showAll.shortLabel,
-        cls := "btn-soft btn-primary",
-        disabled <-- hiddenNodesIsEmpty,
-        onClick --> all.showAll.execute()
-      ).tiny.toTooltip(all.showAll.labelWithShortcut),
       // -------- actions --------
       Dropdown(
         title = span("Add"),
@@ -183,6 +177,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           all.ungroup,
           all.moveToGroup,
           all.hideSelection,
+          all.showAll,
           all.keep,
           all.delete,
           all.duplicate,
@@ -213,7 +208,14 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             state.showAll()
             state.sourceText.set(source)
           }
-      ).amend(cls                              := "hidden lg:block"),
+      ).amend(cls := "hidden lg:block"),
+      // -------- show all --------
+      Button(
+        all.showAll.shortLabel,
+        cls := "btn-soft btn-primary",
+        disabled <-- hiddenNodesIsEmpty,
+        onClick --> all.showAll.execute()
+      ).tiny.toTooltip(all.showAll.labelWithShortcut),
       CommandsPanel(state, commands).amend(cls := "hidden lg:block")
     ),
     div(
