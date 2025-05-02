@@ -27,9 +27,9 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expanded = edgeToViewerArrows(edgeStmt)(using new DefaultSequenceGenerator)
     val expected =
       List(
-        Arrow(a, b, Attributes.empty, 1),
-        Arrow(b, c, Attributes.empty, 2),
-        Arrow(c, d, Attributes.empty, 3)
+        Arrow(a, b, Attributes.empty, seq = 1),
+        Arrow(b, c, Attributes.empty, seq = 2),
+        Arrow(c, d, Attributes.empty, seq = 3)
       )
     assertEquals(expanded, expected)
   }
@@ -46,8 +46,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expanded = edgeToViewerArrows(edgeStmt)(using new DefaultSequenceGenerator)
     val expected =
       List(
-        Arrow(a, b, Attributes.of(Id -> "1"), 1),
-        Arrow(a, c, Attributes.of(Id -> "1"), 2)
+        Arrow(a, b, Attributes.of(Id -> "1"), seq = 1),
+        Arrow(a, c, Attributes.of(Id -> "1"), seq = 2)
       )
     // Flaky test
     assertEquals(expanded, expected)
@@ -65,8 +65,8 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expanded = edgeToViewerArrows(edgeStmt)(using new DefaultSequenceGenerator)
     val expected =
       List(
-        Arrow(a, c, Attributes.of(Id -> "1"), 1),
-        Arrow(b, c, Attributes.of(Id -> "1"), 2)
+        Arrow(a, c, Attributes.of(Id -> "1"), seq = 1),
+        Arrow(b, c, Attributes.of(Id -> "1"), seq = 2)
       )
     // TODO: Flaky test
     assertEquals(expanded, expected)
@@ -84,10 +84,10 @@ class EdgeStmtSpec extends ScalaCheckSuite {
     val expanded = edgeToViewerArrows(edgeStmt)(using new DefaultSequenceGenerator)
     val expected =
       List(
-        Arrow(a, c, Attributes.of(Id -> "1"), 1),
-        Arrow(a, d, Attributes.of(Id -> "1"), 2),
-        Arrow(b, c, Attributes.of(Id -> "1"), 3),
-        Arrow(b, d, Attributes.of(Id -> "1"), 4)
+        Arrow(a, c, Attributes.of(Id -> "1"), seq = 1),
+        Arrow(a, d, Attributes.of(Id -> "1"), seq = 2),
+        Arrow(b, c, Attributes.of(Id -> "1"), seq = 3),
+        Arrow(b, d, Attributes.of(Id -> "1"), seq = 4)
       )
     assertEquals(expanded, expected)
   }

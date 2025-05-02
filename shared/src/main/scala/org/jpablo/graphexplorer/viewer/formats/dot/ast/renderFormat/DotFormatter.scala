@@ -17,7 +17,7 @@ class DotFormatter(ast: DotAST, keepInternal: Boolean = false, paddingSize: Int 
     *   A string representation of the DotAST in DOT format.
     */
   def render(): String =
-    val graphId = ast.id.map(id => s" ${formatNodeId(id)}").getOrElse(" G")
+    val graphId = ast.id.map(id => s" \"$id\"").getOrElse(" G")
     val body = ast.children
       .map(elem => renderGraphElement(elem, 1))
       .filter(_.nonEmpty)
@@ -37,7 +37,9 @@ class DotFormatter(ast: DotAST, keepInternal: Boolean = false, paddingSize: Int 
       case AttrEq(value, false) => s""""$value""""
       case value                => s""""$value""""
 
-  private def formatNodeId(id: String): String = s""""$id""""
+  private def formatNodeId(id: DotNodeId): String =
+    val port = id.port.map(p => s":\"${p.id}\"").getOrElse("")
+    s"\"${id.id}\"$port"
 
   private def formatKeyValue(key: String, value: AttrValue): String =
     s"$key=${formatValue(value)}"
@@ -69,16 +71,17 @@ class DotFormatter(ast: DotAST, keepInternal: Boolean = false, paddingSize: Int 
 
       case NodeStmt(nodeId, attrs) =>
         if attrs.isEmpty then
-          s"$pad${formatNodeId(nodeId.id)}"
+          s"$pad${formatNodeId(nodeId)}"
         else
-          s"$pad${formatNodeId(nodeId.id)}${renderAttributes(attrs, level)};"
+          s"$pad${formatNodeId(nodeId)}${renderAttributes(attrs, level)};"
 
       case EdgeStmt(edgeList, attrs) =>
         val edgeOp = if ast.tpe == digraph.toString then "->" else "--"
-        val edges = edgeList.map {
-          case n: DotNodeId => formatNodeId(n.id)
-          case s: SubGraph  => renderSubgraph(s, level)
-        }.mkString(s" $edgeOp ")
+        val edges = edgeList
+          .map:
+            case n: DotNodeId => formatNodeId(n)
+            case s: SubGraph  => renderSubgraph(s, level)
+          .mkString(s" $edgeOp ")
         s"$pad$edges${renderAttributes(attrs, level)};"
 
       case StmtSep() => ""

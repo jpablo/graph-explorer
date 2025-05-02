@@ -33,8 +33,8 @@ private def arrowToEdge(arrow: Arrow): EdgeStmt =
   // <g id="edge:1" class="edge"><title>a->b</title>...</g>
   EdgeStmt(
     edge_list = List(
-      DotNodeId(arrow.source.value),
-      DotNodeId(arrow.target.value)
+      DotNodeId(arrow.source.value, arrow.sourcePort.map(Port.apply)),
+      DotNodeId(arrow.target.value, arrow.targetPort.map(Port.apply))
     ),
     attr_list = (arrow.attributes.values + svgIdAttr).map((id, value) => Attr(id.value, value)).toList
   )

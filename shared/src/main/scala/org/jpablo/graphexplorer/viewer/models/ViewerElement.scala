@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.models
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ClusterLabelLoc, Id, Label, LabelJust}
-import org.jpablo.graphexplorer.viewer.models.Arrow.titleIdSeparator
+import org.jpablo.graphexplorer.viewer.models.Arrow.{sequenceSeparator, titleIdSeparator}
 import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
 import upickle.default.*
 
@@ -70,12 +70,16 @@ case class Arrow(
     source:     NodeId,
     target:     NodeId,
     attributes: Attributes = Attributes.empty,
+    sourcePort: Option[String] = None,
+    targetPort: Option[String] = None,
     seq:        Int = 1
 ) extends ViewerElement:
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
   override val id: ArrowId =
-    ArrowId(s"${source.value}$titleIdSeparator${target.value}:$seq")
+    val sp = sourcePort.map(":" + _).getOrElse("")
+    val tp = targetPort.map(":" + _).getOrElse("")
+    ArrowId(s"${source.value}$sp$titleIdSeparator${target.value}$tp$sequenceSeparator$seq")
 
   def toSvg: String = s"arrow:$id"
 
@@ -86,21 +90,33 @@ object Arrow:
 
   given SequenceGenerator = new DefaultSequenceGenerator()
 
-  val titleIdSeparator = "->"
+  val titleIdSeparator  = "->"
+  val sequenceSeparator = "/"
 
-  def nextArrow(t: (String, String), attrs: Attributes = Attributes.empty)(using seq: SequenceGenerator): Arrow =
-    arrow(t, attrs, seq.nextSequence())
+  def nextArrow(
+      t:          (String, String),
+      attrs:      Attributes = Attributes.empty,
+      sourcePort: Option[String] = None,
+      targetPort: Option[String] = None
+  )(using seq: SequenceGenerator): Arrow =
+    arrow(t, attrs, sourcePort, targetPort, seq.nextSequence())
 
-  def arrow(t: (String, String), attrs: Attributes = Attributes.empty, seq: Int): Arrow =
-    new Arrow(NodeId(t._1), NodeId(t._2), attrs, seq)
+  def arrow(
+      t:          (String, String),
+      attrs:      Attributes = Attributes.empty,
+      sourcePort: Option[String] = None,
+      targetPort: Option[String] = None,
+      seq:        Int
+  ): Arrow =
+    new Arrow(NodeId(t._1), NodeId(t._2), attrs, sourcePort, targetPort, seq)
 
   def arrow(s: NodeId, t: NodeId) =
     val a = Arrow(s, t)
     a.id -> a
 
   // example:
-  // A->B:1
-  val edgeTitlePattern = raw"(.+)$titleIdSeparator(.+):(\d+)".r
+  // A->B/1
+  private val edgeTitlePattern = raw"(.+)$titleIdSeparator(.+)$sequenceSeparator(\d+)".r
 
   def fromArrowId(arrowId: ArrowId): Option[Arrow] =
     arrowId.value match

@@ -188,7 +188,7 @@ case class ViewerGraph(
           val newTarget = originalArrow.source
           val newSeq    = graphWithoutOriginal.maxArrowSequence(newSource, newTarget) + 1
           // 3. Create the reversed arrow
-          val reversedArrow = Arrow(newSource, newTarget, seq = newSeq, attributes = originalArrow.attributes)
+          val reversedArrow = Arrow(newSource, newTarget, attributes = originalArrow.attributes, seq = newSeq)
           // 4. Add the reversed arrow
           graphWithoutOriginal.modifyArrows.using(_ + (reversedArrow.id -> reversedArrow))
 

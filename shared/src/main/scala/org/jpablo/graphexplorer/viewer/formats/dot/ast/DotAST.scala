@@ -30,10 +30,6 @@ object Location:
 @key("type")
 sealed trait GraphElement derives ReadWriter:
   lazy val allNodesIds: List[String] = this.findAllViewerNodes.keys.toList.map(_.value)
-  def nodeId = this match
-    case NodeStmt(node_id, _) => Some(node_id.id)
-    case SubGraph(_, id)      => id
-    case _                    => None
 
 object GraphElement:
 

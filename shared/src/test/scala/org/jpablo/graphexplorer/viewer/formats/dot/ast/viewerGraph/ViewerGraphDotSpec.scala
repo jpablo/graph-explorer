@@ -38,7 +38,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
         List(
           NodeStmt(DotNodeId("a"), defaultNodeDotAttrs ++ List(a.toAttr)),
           NodeStmt(DotNodeId("b"), defaultNodeDotAttrs ++ List(b.toAttr)),
-          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", "arrow:a->b:1")))
+          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", "arrow:a->b/1")))
         ),
         Some("G")
       )
@@ -86,7 +86,7 @@ class ViewerGraphDotSpec extends ScalaCheckSuite:
             Some(newGroupId.toDot)
           ),
           NodeStmt(DotNodeId("b"), defaultNodeDotAttrs ++ List(b.toAttr)),
-          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("arrow:a->b:1"))))
+          EdgeStmt(List(DotNodeId("a"), DotNodeId("b")), List(Attr("id", AttrValue("arrow:a->b/1"))))
         ),
         Some("G")
       )

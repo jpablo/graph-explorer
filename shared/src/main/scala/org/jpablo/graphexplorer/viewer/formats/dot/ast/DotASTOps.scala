@@ -174,15 +174,16 @@ object DotASTOps:
         case List(SubGraph(_, _)) => Nil
 
         // (2) a -> b =>  a -> b
-        case List(DotNodeId(a, _), DotNodeId(b, _)) => List(nextArrow(a -> b, attrs))
+        case List(DotNodeId(a, pa), DotNodeId(b, pb)) =>
+          List(nextArrow(a -> b, attrs, pa.map(_.id), pb.map(_.id)))
 
         // (3) a -> {x y ...}  =>  a -> x, a -> y, ...
-        case List(DotNodeId(a, _), sub @ SubGraph(_, _)) =>
-          sub.allNodesIds.map(x => nextArrow(a -> x, attrs))
+        case List(DotNodeId(a, pa), sub @ SubGraph(_, _)) =>
+          sub.allNodesIds.map(x => nextArrow(a -> x, attrs, sourcePort = pa.map(_.id)))
 
         // (4) {x y ...} -> a  =>  x -> a, y -> a, ...
-        case List(sub @ SubGraph(_, _), DotNodeId(a, _)) =>
-          sub.allNodesIds.map(x => nextArrow(x -> a, attrs))
+        case List(sub @ SubGraph(_, _), DotNodeId(a, pa)) =>
+          sub.allNodesIds.map(x => nextArrow(x -> a, attrs, targetPort = pa.map(_.id)))
 
         // (5) {x y ...} -> {a b ...}  =>  x -> a, x -> b, y -> a, y -> b, ...
         case List(sub1 @ SubGraph(_, _), sub2 @ SubGraph(_, _)) =>

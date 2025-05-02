@@ -44,6 +44,9 @@ case class ArrowId(value: String) extends ElementId:
 
   def toSvg: String = s"arrow:$value"
 
+object ArrowId:
+  given ReadWriter[ArrowId] = stringKeyRW(readwriter[String].bimap[ArrowId](_.value, ArrowId(_)))
+
 object GroupId:
   val clusterId = raw"cluster_(.+)".r
 
@@ -68,6 +71,3 @@ object NodeId:
     idAttr match
       case nodeId(seq) => Some(NodeId(seq))
       case _           => None
-
-object ArrowId:
-  given ReadWriter[ArrowId] = stringKeyRW(readwriter[String].bimap[ArrowId](_.value, ArrowId(_)))
