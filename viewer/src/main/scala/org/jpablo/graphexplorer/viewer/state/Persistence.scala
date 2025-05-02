@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.models.ElementIds
@@ -10,61 +11,83 @@ import scala.util.Try
 trait Persistence:
   this: ViewerState =>
 
-  private val persistedState: Var[PersistedState] =
+  private val persistedDiagramState: Var[PersistedDiagramState] =
     ProjectStorage.loadProjectPersistedState(projectId)
 
+  private val viewerSettings: Var[ViewerSettings] =
+    ProjectStorage.loadViewerSettings()
+
   def restoreState() =
-    val restoredState = persistedState.now()
-    project.hiddenElements.set(restoredState.hiddenElements)
+    val restoredDiagramState   = persistedDiagramState.now()
+    val restoredViewerSettings = viewerSettings.now()
+
+    project.hiddenElements.set(restoredDiagramState.hiddenElements)
+
     Var.set(
-      project.name            -> restoredState.projectName,
-      sourceText              -> restoredState.source,
-      leftPanelVisible        -> restoredState.leftPanelVisible,
-      rightPanelActiveSection -> Try(RightPanelSection.fromOrdinal(restoredState.rightPanelTabIndex)).getOrElse(RightPanelSection.none),
-      currentTheme            -> restoredState.currentTheme
+      project.name -> restoredDiagramState.projectName,
+      sourceText   -> restoredDiagramState.source,
+      // app settings
+      leftPanelVisible -> restoredViewerSettings.leftPanelVisible,
+      rightPanelActiveSection -> Try(RightPanelSection.fromOrdinal(restoredViewerSettings.rightPanelTabIndex)).getOrElse(
+        RightPanelSection.none
+      ),
+      currentTheme -> restoredViewerSettings.currentTheme
     )
-    // synchronize ViewerState ~> PersistedStage
-    project.hiddenElements
-      .signal.changes.distinct
-      .combineWithFn(
-        project.name.signal.changes.distinct,
-        sourceText.signal.changes.distinct,
-        rightPanelActiveSection.signal.changes.distinct,
-        leftPanelVisible.signal.changes.distinct,
-        currentTheme.signal.changes.distinct
-      )((hidden, name, source, tabIndex, leftVisible, currentTheme) =>
-        PersistedState(
-          hiddenElements = hidden,
-          projectName = name,
-          source = source,
-          rightPanelTabIndex = tabIndex.ordinal,
-          leftPanelVisible = leftVisible,
-          schemaVersion = PersistedState.currentSchemaVersion, // Always save with the current version
-          currentTheme = currentTheme
-        )
+    // synchronize ViewerState ~> PersistedState
+    EventStream.combineWithFn(
+      project.hiddenElements.signal.changes.distinct,
+      project.name.signal.changes.distinct,
+      sourceText.signal.changes.distinct
+    )((hidden, name, source) =>
+      PersistedDiagramState(
+        hiddenElements = hidden,
+        projectName = name,
+        source = source
       )
+    )
       .distinct
-      .foreach(persistedState.set)
+      .foreach(persistedDiagramState.set)
+
+    // synchronize ViewerState ~> ViewerSettings
+    EventStream.combineWithFn(
+      leftPanelVisible.signal.changes.distinct,
+      rightPanelActiveSection.signal.changes.distinct,
+      currentTheme.signal.changes.distinct
+    )((leftVisible, tabIndex, theme) =>
+      ViewerSettings(
+        leftPanelVisible = leftVisible,
+        rightPanelTabIndex = tabIndex.ordinal,
+        currentTheme = theme,
+        schemaVersion = ViewerSettings.currentSchemaVersion // Always save with the current version
+      )
+    )
+      .distinct
+      .foreach(viewerSettings.set)
   end restoreState
 
-case class PersistedState(
-    hiddenElements:     HiddenElements = ElementIds(),
-    projectName:        String = "",
-    source:             String = "",
-    rightPanelVisible:  Boolean = false,
-    rightPanelTabIndex: Int = 0,
-    leftPanelVisible:   Boolean = true,
-    schemaVersion:      Int = PersistedState.currentSchemaVersion, // Add default for loading potentially older states,
-    currentTheme:       String = "light"                           // Default theme
+case class PersistedDiagramState(
+    hiddenElements: HiddenElements = ElementIds(),
+    projectName:    String = "",
+    source:         String = ""
 ) derives ReadWriter
 
-object PersistedState:
-  val currentSchemaVersion = 1 // Define the current version
-  val minimalGraphText     = "digraph G {\n}"
+object PersistedDiagramState:
+  val minimalGraphText = "digraph G {\n}"
   val empty =
-    PersistedState(
+    PersistedDiagramState(
       hiddenElements = ElementIds(),
       projectName = "Untitled",
-      source = minimalGraphText,
-      schemaVersion = currentSchemaVersion // Use current version for new/empty state
+      source = minimalGraphText
     )
+
+case class ViewerSettings(
+    leftPanelVisible:   Boolean = true,
+    rightPanelTabIndex: Int = 0,
+    currentTheme:       Option[String] = None,
+    schemaVersion:      Int = ViewerSettings.currentSchemaVersion // Add default for loading potentially older states
+) derives ReadWriter
+
+// Add a default empty state for ViewerSettings
+object ViewerSettings:
+  val currentSchemaVersion = 1 // Define the current version
+  val empty                = ViewerSettings()

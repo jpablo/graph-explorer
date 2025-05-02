@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.projects
 
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.storedString
-import org.jpablo.graphexplorer.viewer.state.{PersistedState, ProjectId}
+import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, ViewerSettings}
 import upickle.default.*
 
 case class ProjectInfo(
@@ -20,6 +20,9 @@ object ProjectStorage:
   private val directoryStorage =
     storedString("graph-explorer.projects", write(ProjectsDirectory()))
 
+  private val settingsStorage =
+    storedString("graph-explorer.settings", write(ViewerSettings.empty))
+
   val directory: Signal[ProjectsDirectory] =
     directoryStorage.signal.map(read[ProjectsDirectory](_))
 
@@ -34,17 +37,17 @@ object ProjectStorage:
     * @return
     *   A `Var` containing the `PersistedState` of the project.
     */
-  def loadProjectPersistedState(id: ProjectId): Var[PersistedState] =
-    val initial = write(PersistedState.empty)
+  def loadProjectPersistedState(id: ProjectId): Var[PersistedDiagramState] =
+    val initial = write(PersistedDiagramState.empty)
     val projectStorage = storedString(projectKey(id), initial)
     // Initialize storage ~> PersistedStage
     val projectStateVar =
       try
-        Var(read[PersistedState](projectStorage.signal.observe.now()))
+        Var(read[PersistedDiagramState](projectStorage.signal.observe.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
-          Var(PersistedState.empty)
+          Var(PersistedDiagramState.empty)
     // synchronize PersistedStage ~> storage
     projectStateVar.signal.distinct.changes.foreach: state =>
       // update project entry
@@ -54,6 +57,28 @@ object ProjectStorage:
         dir.modify(_.projects.eachWhere(_.id == id))
           .using(_.copy(lastModified = System.currentTimeMillis(), name = state.projectName))
     projectStateVar
+
+  /** Retrieves the persisted viewer settings.
+    *
+    * This function initializes the settings from local storage. It ensures that any changes to the settings are
+    * persisted back to local storage.
+    *
+    * @return A `Var` containing the `ViewerSettings`.
+    */
+  def loadViewerSettings(): Var[ViewerSettings] =
+    // Initialize storage ~> ViewerSettings Var
+    val settingsVar =
+      try
+        Var(read[ViewerSettings](settingsStorage.signal.observe.now()))
+      catch
+        case e: Throwable =>
+          dom.console.error(s"Error reading viewer settings: $e")
+          Var(ViewerSettings.empty)
+    // synchronize ViewerSettings Var ~> storage
+    settingsVar.signal.distinct.changes.foreach: settings =>
+      settingsStorage.set(write(settings))
+    settingsVar
+  end loadViewerSettings
 
   def createProjectDirectoryEntry(name: String): ProjectId =
     val now = System.currentTimeMillis()
@@ -72,10 +97,10 @@ object ProjectStorage:
     * @return A Signal containing the project's content as a String.
     */
   def getProjectContent(id: ProjectId): Signal[String] =
-    val projectStorage = storedString(projectKey(id), write(PersistedState.empty))
+    val projectStorage = storedString(projectKey(id), write(PersistedDiagramState.empty))
     projectStorage.signal.map: stateStr =>
       try
-        read[PersistedState](stateStr).source
+        read[PersistedDiagramState](stateStr).source
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")

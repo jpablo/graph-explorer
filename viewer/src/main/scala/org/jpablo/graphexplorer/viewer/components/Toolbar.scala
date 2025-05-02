@@ -255,8 +255,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       Select(
         placeholderText = Some(s"Select theme"),
         options = themeOptions.collect { case r: MenuOption[String] => (r.value, r.value) },
-        onChange.mapToValue --> state.currentTheme,
-        value <-- state.currentTheme,
+        onChange.mapToValue --> { theme => state.currentTheme.set(Some(theme)) },
+        value <-- state.currentTheme.signal.map(_.getOrElse("light")),
         cls := "w-24"
       )
     )

@@ -51,7 +51,7 @@ class InternalPhasesSpec extends FunSuite:
     given Owner = viewerState.owner
 
     // Initial state check
-    assertEquals(viewerState.sourceText.now(), PersistedState.minimalGraphText)
+    assertEquals(viewerState.sourceText.now(), PersistedDiagramState.minimalGraphText)
     assertEquals(viewerState.fullGraph.now(), ViewerGraph.minimal)
 
     // Update the graph by adding a node
