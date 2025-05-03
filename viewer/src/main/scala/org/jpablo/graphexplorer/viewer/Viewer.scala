@@ -18,6 +18,7 @@ object Viewer:
     val routerCmds = RouterCommands(router)
 
     var lastRightPanelSection = RightPanelSection.none
+    var lastLeftPanelVisible = true
 
     val app =
       div(
@@ -32,13 +33,19 @@ object Viewer:
                 writeText = window.navigator.clipboard.writeText,
                 setDocumentAttribute = dom.document.documentElement.setAttribute,
                 errorBus = errors,
-                initialRightPanelSection = lastRightPanelSection
+                initialRightPanelSection = lastRightPanelSection,
+                initialLeftPanelVisible = lastLeftPanelVisible
               )
 
             // A bit hacky: we need to keep track of the last right panel section selected,
             // otherwise there's a noticeable transition none => something when switching diagrams
             state.rightPanelActiveSection.signal.changes.distinct.foreach { section =>
               lastRightPanelSection = section
+            }(state.owner)
+            
+            // Similarly track the left panel visibility state between diagrams
+            state.leftPanelVisible.signal.changes.distinct.foreach { visible =>
+              lastLeftPanelVisible = visible
             }(state.owner)
 
             TopLevel(state, router, Commands(state, routerCmds))

@@ -22,7 +22,8 @@ case class ViewerState(
     setDocumentAttribute:     (String, String) => Unit = (_, _) => (),
     errorBus:                 EventBus[String] = EventBus(),
     initialSource:            String = "",
-    initialRightPanelSection: RightPanelSection = RightPanelSection.none
+    initialRightPanelSection: RightPanelSection = RightPanelSection.none,
+    initialLeftPanelVisible:  Boolean = true
 ) extends SvgTransformOps,
       DiagramSelectionOps,
       VisibilityOps,

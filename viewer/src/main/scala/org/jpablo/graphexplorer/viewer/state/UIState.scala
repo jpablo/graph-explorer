@@ -14,9 +14,10 @@ enum RightPanelSection(idx: Int) derives CanEqual:
 
 trait UIState:
   val initialRightPanelSection: RightPanelSection
+  val initialLeftPanelVisible: Boolean
   val rightPanelActiveSection = Var(initialRightPanelSection)
   val helpDialogOpen          = Var(false)
-  val leftPanelVisible        = Var(true)
+  val leftPanelVisible        = Var(initialLeftPanelVisible)
   val canvasContainerFocus    = EventBus[Boolean]()
   val aboutDialogOpen         = Var(false)
 
