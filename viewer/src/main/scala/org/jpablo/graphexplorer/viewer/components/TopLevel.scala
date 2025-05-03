@@ -21,7 +21,7 @@ def TopLevel(
       LeftPanel(state, router, commands),
       CanvasContainer(state, commands),
       ZoomToolbar(commands),
-      RightPanel(state).render(),
+      RightPanel(state),
       RightToolbar(state),
       HelpDialog(state.helpDialogOpen, commands),
       AboutDialog(state.aboutDialogOpen),

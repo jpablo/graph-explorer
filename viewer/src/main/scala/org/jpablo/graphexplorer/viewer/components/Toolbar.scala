@@ -11,7 +11,7 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
 
-def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState): HtmlElement =
+def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState): Div =
   import commands.{all, routerCmds, sections}
 
   val hiddenNodesIsEmpty =
