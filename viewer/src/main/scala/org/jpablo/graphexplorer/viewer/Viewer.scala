@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.projects.ProjectsDirectoryView
 import org.jpablo.graphexplorer.router
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel}
-import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window}
 import scala.scalajs.js.Date
 
@@ -16,6 +16,8 @@ object Viewer:
     val errors     = setupErrorHandling()
     val router     = Router()
     val routerCmds = RouterCommands(router)
+
+    var lastRightPanelSection = RightPanelSection.none
 
     val app =
       div(
@@ -29,8 +31,16 @@ object Viewer:
                 projectId = ProjectId(id),
                 writeText = window.navigator.clipboard.writeText,
                 setDocumentAttribute = dom.document.documentElement.setAttribute,
-                errorBus = errors
+                errorBus = errors,
+                initialRightPanelSection = lastRightPanelSection
               )
+
+            // A bit hacky: we need to keep track of the last right panel section selected,
+            // otherwise there's a noticeable transition none => something when switching diagrams
+            state.rightPanelActiveSection.signal.changes.distinct.foreach { section =>
+              lastRightPanelSection = section
+            }(state.owner)
+
             TopLevel(state, router, Commands(state, routerCmds))
       )
 

@@ -10,10 +10,11 @@ enum RightPanelSection(idx: Int) derives CanEqual:
   case elements          extends RightPanelSection(1)
   case sources           extends RightPanelSection(2)
 
-  def isVisible   = this != none
+  def isVisible = this != none
 
 trait UIState:
-  val rightPanelActiveSection = Var(RightPanelSection.none)
+  val initialRightPanelSection: RightPanelSection
+  val rightPanelActiveSection = Var(initialRightPanelSection)
   val helpDialogOpen          = Var(false)
   val leftPanelVisible        = Var(true)
   val canvasContainerFocus    = EventBus[Boolean]()

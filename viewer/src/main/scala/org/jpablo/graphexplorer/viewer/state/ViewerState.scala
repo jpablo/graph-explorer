@@ -17,11 +17,12 @@ import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
 
 case class ViewerState(
-    projectId:            ProjectId,
-    writeText:            String => Any = _ => (),
-    setDocumentAttribute: (String, String) => Unit = (_, _) => (),
-    errorBus:             EventBus[String] = EventBus(),
-    initialSource:        String = ""
+    projectId:                ProjectId,
+    writeText:                String => Any = _ => (),
+    setDocumentAttribute:     (String, String) => Unit = (_, _) => (),
+    errorBus:                 EventBus[String] = EventBus(),
+    initialSource:            String = "",
+    initialRightPanelSection: RightPanelSection = RightPanelSection.none
 ) extends SvgTransformOps,
       DiagramSelectionOps,
       VisibilityOps,
@@ -173,7 +174,6 @@ case class ViewerState(
 
   currentTheme.signal.foreach: themeName =>
     themeName.foreach: name =>
-      pprint.log(themeName)
       setDocumentAttribute("data-theme", name)
 
 end ViewerState
