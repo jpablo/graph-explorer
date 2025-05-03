@@ -7,12 +7,14 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.SimpleDialog
+import org.jpablo.graphexplorer.viewer.widgets.{Button, Dialog, tiny, primary}
 import org.scalajs.dom.KeyValue
 
 def EditLabelDialog(state: ViewerState) =
   val dialogIsOpen =
     state.editingElementV.zoomLazy(_.isDefined)((elem, open) => if open then elem else None)
+
+  val modalText: Var[String] = Var("")
 
   def elementLabelVar(elementId: ElementId): Var[String] =
     val attrUpdates = state.elementAttributesUpdates(ElementIds(Set(elementId)))
@@ -21,7 +23,9 @@ def EditLabelDialog(state: ViewerState) =
   def closeDialog() =
     state.editingElementV.set(None)
 
-  val modalText: Var[String] = Var("")
+  def saveAndClose(): Unit =
+    state.editingElementV.now().foreach(elementLabelVar(_).set(modalText.now()))
+    closeDialog()
 
   val textAreaElement = textArea(
     cls         := "textarea textarea-bordered w-full", // Added border for visibility
@@ -29,32 +33,46 @@ def EditLabelDialog(state: ViewerState) =
     rows        := 3,                                   // Give it a bit more initial space
     controlled(value <-- modalText, onInput.mapToValue --> modalText),
     onMountFocus,
-    // Handle Enter -> Save and Close
+    // Enter -> Save and Close
     // Shift+Enter -> Add a new line
-    onKeyDown.filter(ev => ev.key == KeyValue.Enter && !ev.shiftKey) --> { ev =>
-      ev.preventDefault()
-      val curValue = modalText.now()
-      state.editingElementV.now().foreach(elementLabelVar(_).set(curValue))
-      closeDialog()
-    },
-    // Handle Escape -> Close without saving
+    onKeyDown.filter(ev => ev.key == KeyValue.Enter && !ev.shiftKey).preventDefault --> saveAndClose(),
+    // Escape -> Close without saving
     onKeyDown.filter(_.key == KeyValue.Escape) --> closeDialog()
   )
 
-  SimpleDialog(
-    open = dialogIsOpen,
-    // --- Dialog Content ---
-    div(
-      h3(cls := "font-bold text-md mb-2", "Edit Label"),
-      textAreaElement,
-      div(cls := "flex justify-between items-center mt-2", p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line"))
-    ),
-    // --- State Synchronization ---
-    // Update modalText when the dialog opens
-    state.editingElementV.signal.map(_.fold("")(elementLabelVar(_).now())) --> modalText,
-    // Makes sure the focus is restored to CanvasContainer after the dialog is closed
-    dialogIsOpen.signal --> { open =>
-      if !open then
-        state.canvasContainerFocus.emit(true)
-    }
-  ).amend(idAttr := "edit-label-dialog")
+  div(
+    idAttr := "edit-label-dialog",
+    child(
+      Dialog(
+        mods = cls("modal-open"),
+        // useCapture to prevent the Escape key to reach DaisyUI
+        onKeyDown.useCapture.filter(_.key == KeyValue.Escape) --> dialogIsOpen.set(false),
+        tabIndex := 0
+      )(
+        // --- contents ---
+        div(
+          h3(cls := "font-bold text-md mb-2", "Edit Label"),
+          textAreaElement,
+          div(
+            cls := "flex justify-between items-center mt-2",
+            p(cls := "text-xs text-gray-500", "Press Shift+Enter to add a new line")
+          )
+        ),
+        // --- State Synchronization ---
+        // Update modalText when the dialog opens
+        state.editingElementV.signal.map(_.fold("")(elementLabelVar(_).now())) --> modalText,
+        // Makes sure the focus is restored to CanvasContainer after the dialog is closed
+        dialogIsOpen.signal --> { open =>
+          if !open then
+            state.canvasContainerFocus.emit(true)
+        }
+      )(
+        // --- actions ---
+        div(
+          cls := "flex justify-end gap-2 mt-2", // Added gap and margin-top
+          Button("Cancel", onClick --> closeDialog()).tiny,
+          Button("Ok", onClick --> saveAndClose()).tiny.primary
+        )
+      )
+    ) <-- dialogIsOpen
+  )
