@@ -19,7 +19,7 @@ import org.scalajs.dom.svg.SVG
 case class ViewerState(
     projectId:                ProjectId,
     writeText:                String => Any = _ => (),
-    setDocumentAttribute:     (String, String) => Unit = (_, _) => (),
+    setTheme:                 String => Unit = _ => (),
     errorBus:                 EventBus[String] = EventBus(),
     initialSource:            String = "",
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
@@ -174,7 +174,6 @@ case class ViewerState(
   lazy val currentTheme: Var[Option[String]] = Var(None)
 
   currentTheme.signal.foreach: themeName =>
-    themeName.foreach: name =>
-      setDocumentAttribute("data-theme", name)
+    themeName.foreach(setTheme)
 
 end ViewerState

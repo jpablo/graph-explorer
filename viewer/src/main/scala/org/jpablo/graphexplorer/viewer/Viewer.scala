@@ -2,23 +2,31 @@ package org.jpablo.graphexplorer.viewer
 
 import buildinfo.BuildInfo
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.projects.ProjectsDirectoryView
+import org.jpablo.graphexplorer.projects.{ProjectStorage, ProjectsDirectoryView}
 import org.jpablo.graphexplorer.router
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel}
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window}
+
 import scala.scalajs.js.Date
 
 object Viewer:
 
   def main(args: Array[String]): Unit =
+    given Owner    = unsafeWindowOwner
     val errors     = setupErrorHandling()
     val router     = Router()
     val routerCmds = RouterCommands(router)
 
     var lastRightPanelSection = RightPanelSection.none
-    var lastLeftPanelVisible = true
+    var lastLeftPanelVisible  = true
+
+    def setTheme(theme: String): Unit =
+      dom.document.documentElement.setAttribute("data-theme", theme)
+
+    val viewerSettings = ProjectStorage.loadViewerSettings()
+    viewerSettings.now().currentTheme.foreach(setTheme)
 
     val app =
       div(
@@ -31,31 +39,24 @@ object Viewer:
               ViewerState(
                 projectId = ProjectId(id),
                 writeText = window.navigator.clipboard.writeText,
-                setDocumentAttribute = dom.document.documentElement.setAttribute,
+                setTheme = setTheme,
                 errorBus = errors,
                 initialRightPanelSection = lastRightPanelSection,
                 initialLeftPanelVisible = lastLeftPanelVisible
               )
-
             // A bit hacky: we need to keep track of the last right panel section selected,
             // otherwise there's a noticeable transition none => something when switching diagrams
-            state.rightPanelActiveSection.signal.changes.distinct.foreach { section =>
-              lastRightPanelSection = section
-            }(state.owner)
-            
+            state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)
             // Similarly track the left panel visibility state between diagrams
-            state.leftPanelVisible.signal.changes.distinct.foreach { visible =>
-              lastLeftPanelVisible = visible
-            }(state.owner)
+            state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)
 
             TopLevel(state, router, Commands(state, routerCmds))
       )
 
     render(document.querySelector("#app"), app)
 
-  private def setupErrorHandling(): EventBus[String] =
-    given Owner = unsafeWindowOwner
-    val errors  = EventBus[String]()
+  private def setupErrorHandling()(using Owner): EventBus[String] =
+    val errors = EventBus[String]()
     AirstreamError.registerUnhandledErrorCallback(ex => errors.emit(ex.getMessage))
     windowEvents(_.onError).foreach(e => errors.emit(e.message))
     errors.events.foreach(e => dom.console.error("Error:", e))
