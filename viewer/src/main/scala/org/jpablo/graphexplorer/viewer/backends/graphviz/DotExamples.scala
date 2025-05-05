@@ -4,8 +4,10 @@ import scala.collection.immutable.VectorMap
 
 object DotExamples:
 
+  val emptyGraph = "/examples/empty-graph.dot"
+  
   val examples = VectorMap(
-    "Empty Graph"          -> "/examples/empty-graph.dot",
+    "Empty Graph"          -> emptyGraph,
     "Finite State Machine" -> "/examples/finite-state-machine.dot",
     "Groups"               -> "/examples/groups.dot",
     // Fixme:

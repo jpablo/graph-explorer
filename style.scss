@@ -9,7 +9,7 @@ label[for ^= show-ns-kind-] {
 }
 
 #projects-view {
-  @apply bg-base-200 min-h-screen;
+  @apply bg-base-100 min-h-screen;
 
   .navbar {
   }
@@ -21,7 +21,29 @@ label[for ^= show-ns-kind-] {
       @apply w-full grid grid-cols-[repeat(auto-fit,minmax(24rem,1fr))] gap-6 px-6;
 
       .project-card {
-        @apply bg-base-100 shadow w-full border border-base-300 max-w-xl;
+        @apply bg-base-100 w-full border border-base-300 max-w-xl;
+
+        svg {
+          background-color: var(--color-base-200);
+          background-image: radial-gradient(circle, var(--color-base-300) .5px, transparent .5px);
+          background-size: 5px 5px;
+        }
+
+      }
+    }
+
+    #examples-grid {
+      @apply px-6 mt-8;
+
+      .example-card {
+        @apply  bg-base-100 border border-base-300;
+
+        svg {
+          background-color: var(--color-base-200);
+          background-image: radial-gradient(circle, var(--color-base-300) .5px, transparent .5px);
+          background-size: 5px 5px;
+        }
+
       }
     }
   }

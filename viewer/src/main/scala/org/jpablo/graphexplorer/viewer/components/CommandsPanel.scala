@@ -24,7 +24,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
   // Reset highlighted index when selection changes
   state.selection.signal.foreach(_ => highlightedIndex.set(-1))
 
-  def shouldShowCommand(term: String, selection: Selection)(cmd: Command) =
+  def shouldShowCommand(term: String, selection: Selection)(cmd: Command[?]) =
     cmd.shortLabel.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
 
   // Global key handler for Cmd+K
@@ -35,7 +35,7 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
     e.preventDefault()
     focusSearch.emit(true)
 
-  def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command]] =
+  def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command[?]]] =
     commands.byHeader.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
 
   val rows: Signal[Seq[LI]] =

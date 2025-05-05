@@ -12,7 +12,7 @@ trait Persistence:
   this: ViewerState =>
 
   private val persistedDiagramState: Var[PersistedDiagramState] =
-    ProjectStorage.loadProjectPersistedState(projectId)
+    ProjectStorage.loadProjectPersistedState(projectId, initialSource)
 
   private val viewerSettings: Var[ViewerSettings] =
     ProjectStorage.loadViewerSettings()
@@ -73,11 +73,14 @@ case class PersistedDiagramState(
 
 object PersistedDiagramState:
   val minimalGraphText = "digraph G {\n}"
-  val empty =
+
+  val empty = minimal()
+
+  def minimal(source: Option[String] = None) =
     PersistedDiagramState(
       hiddenElements = ElementIds(),
       projectName = "Untitled",
-      source = minimalGraphText
+      source = source.getOrElse(minimalGraphText)
     )
 
 case class ViewerSettings(

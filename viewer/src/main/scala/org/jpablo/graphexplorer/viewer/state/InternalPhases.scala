@@ -41,7 +41,7 @@ def syncVars[S, T](
 end syncVars
 
 class InternalPhases(
-    initialSource: String,
+    initialSource: Option[String] = None,
     hiddenNodes:   Signal[HiddenElements],
     resetView:     () => Unit,
     editorError:   Var[Option[String]]
@@ -153,7 +153,7 @@ class InternalPhases(
   // Start the process
   // -------------------------------
 
-  sourceText.set(initialSource)
+  sourceText.set(initialSource.getOrElse(""))
 
   // -------------------------------
   // fullGraphV --> visibleGraph

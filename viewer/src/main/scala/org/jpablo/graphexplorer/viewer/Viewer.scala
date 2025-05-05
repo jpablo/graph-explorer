@@ -34,13 +34,14 @@ object Viewer:
           case Route.Home =>
             ProjectsDirectoryView(router, routerCmds)
 
-          case Route.ProjectDetail(id) =>
+          case Route.ProjectDetail(id, source) =>
             val state =
               ViewerState(
                 projectId = ProjectId(id),
                 writeText = window.navigator.clipboard.writeText,
                 setTheme = setTheme,
                 errorBus = errors,
+                initialSource = source,
                 initialRightPanelSection = lastRightPanelSection,
                 initialLeftPanelVisible = lastLeftPanelVisible
               )

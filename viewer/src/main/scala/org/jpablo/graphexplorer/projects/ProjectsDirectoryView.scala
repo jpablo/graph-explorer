@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.RouterCommands
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 
 import scala.compiletime.asMatchable
 import scala.scalajs.js
@@ -30,7 +31,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
       div(
         cls := "flex-1 flex items-center gap-2 ml-2",
         img(src := "/favicon.svg", cls := "h-6 w-6"),
-        a(cls := "btn btn-ghost text-xl pl-1", "Graph Explorer")
+        a(cls   := "btn btn-ghost text-xl pl-1", "Graph Explorer")
       ),
       div(
         cls := "flex-none",
@@ -112,9 +113,71 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
                   case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
               sorted.map(projectCard(router))
         }
+      ),
+
+      // -------- Examples Section --------
+      div(
+        idAttr := "examples-grid",
+        // Title
+        h1(
+          cls := "text-2xl font-bold gap-2 flex mb-4", // Add margin bottom
+          span().fileCodeIcon, // Using existing icon
+          "Examples"
+        ),
+        // Examples grid
+        div(
+          cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4", // Re-use grid style
+          children <-- Signal.fromValue(
+            DotExamples.examples.filterNot(_._2 == DotExamples.emptyGraph).toSeq.map { case (name, source) =>
+              exampleCard(router, routerCmds, name, source)
+            }
+          )
+        )
       )
     )
   )
+
+private def exampleCard(router: Router, routerCmds: RouterCommands, name: String, source: String) = {
+
+  div(
+    cls := "example-card card card-compact",
+    figure(
+      div(
+        cls := "w-full h-32 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",
+        // --- Generate SVG preview ---
+        child <--
+          FetchStream.get(source)
+            .flatMapSwitch: str =>
+              DotText(str).toSvg.map((_, str))
+            .map: (svgSignal, str) =>
+              div(
+                cls := "w-full h-full p-1 flex items-center justify-center",
+                svgSignal.map: svgElement =>
+                  div(
+                    cls := "w-full h-full relative",
+                    div(
+                      cls := "absolute inset-0 w-full h-full",
+                      svgElement.amend(
+                        svg.width               := "100%",
+                        svg.height              := "100%",
+                        svg.preserveAspectRatio := "xMidYMid meet"
+                      )
+                    )
+                  ),
+                title := "Click to create a new diagram with this example (copied to clipboard)",
+                onClick --> routerCmds.createProject.execute(Some(Some(str)))
+              )
+      )
+    ),
+    div(
+      cls := "card-body p-2",
+      h2(
+        cls := "card-title text-sm justify-center",
+        name
+      )
+    )
+  )
+}
 
 private def projectCard(router: Router)(project: ProjectInfo) =
   div(
@@ -128,17 +191,20 @@ private def projectCard(router: Router)(project: ProjectInfo) =
           .map(content => DotText(content).toSvg)
           .map: svgSignal =>
             div(
-              cls := "w-full h-full p-4 flex items-center justify-center",
+              cls := "w-full h-full p-1 flex items-center justify-center",
               child <-- svgSignal.map: svgElement =>
-//                svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet")
                 div(
                   cls := "w-full h-full relative",
                   div(
                     cls := "absolute inset-0 w-full h-full",
-                    svgElement
+                    svgElement.map:
+                      _.amend(
+                        svg.width               := "100%",
+                        svg.height              := "100%",
+                        svg.preserveAspectRatio := "xMidYMid meet"
+                      )
                   )
-                )
-              ,
+                ),
               onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
             )
       )

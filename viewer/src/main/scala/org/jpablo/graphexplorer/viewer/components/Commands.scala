@@ -38,36 +38,57 @@ object Command:
     selection.size == 1
 end Command
 
-case class Command(
-    shortLabel:  String,
-    private val action: () => Unit,
-    isVisible:   ElementIds => Boolean = selectionNonEmpty,
-    shortcut:    Option[Shortcut] = None,
-    description: Option[String] = None
+/** Wrapper to allow actions of zero or one argument
+  */
+enum CmdAction[-A]:
+  private case NoArg(f: () => Unit)
+  private case OneArg(f: A => Unit)
+
+  def execute(a: Option[A]): Unit =
+    (this, a) match
+      case (NoArg(f), _)        => f()
+      case (OneArg(f), Some(v)) => f(v)
+      case _                    => throw new IllegalArgumentException("argument required")
+
+object CmdAction:
+  given Conversion[() => Unit, CmdAction[Nothing]] = NoArg(_)
+  given [A] => Conversion[A => Unit, CmdAction[A]] = OneArg(_)
+
+case class Command[-A](
+    shortLabel:         String,
+    private val action: CmdAction[A],
+    isVisible:          ElementIds => Boolean = selectionNonEmpty,
+    shortcut:           Option[Shortcut] = None,
+    description:        Option[String] = None
 ):
   def labelWithShortcut =
     description.getOrElse(shortLabel) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
 
-  def execute(): Unit =
+  def execute(arg: Option[A] = None): Unit =
     // Log to GA
     val commandIdentifier = description.getOrElse(shortLabel)
     val p = js.Dynamic.literal(
-      "command_label" -> commandIdentifier,
+      "command_label"  -> commandIdentifier,
       "event_category" -> "Command",
-      "event_label" -> commandIdentifier
+      "event_label"    -> commandIdentifier
     )
     js.Dynamic.global.gtag("event", "command_executed", p)
-    action()
+    action.execute(arg)
 
 class RouterCommands(router: Router):
   import Command.always
 
-  private def createProjectAndNavigate() =
+  private def createProjectAndNavigate(source: Option[String] = None) =
     val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
-    router.navigateTo(Route.ProjectDetail(id.value))
+    router.navigateTo(Route.ProjectDetail(id.value, source))
 
   val createProject =
-    Command("Create new Project", createProjectAndNavigate, always, description = Some("Create a new project and navigate to it"))
+    Command(
+      "Create new Project",
+      (source: Option[String]) => createProjectAndNavigate(source),
+      always,
+      description = Some("Create a new project and navigate to it")
+    )
 
   val navigateHome =
     Command("Navigate home", () => router.navigateTo(Route.Home), always, description = Some("Navigate to the home page"))
@@ -116,7 +137,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val editLabel = Command(
       "Edit label",
-      state.selection.editSelectedLabel,
+      () => state.selection.editSelectedLabel(),
       single,
       Some(Shortcut(KeyValue.Enter)),
       description = Some("Edit the label of the selected element")
@@ -124,7 +145,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val selectAll = Command(
       "Select all",
-      state.selection.selectAll,
+      () => state.selection.selectAll(),
       always,
       Some(Shortcut("a")),
       description = Some("Select all visible elements (nodes, arrows, and groups)")
@@ -132,31 +153,31 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val selectAllNodes = Command(
       "Select all nodes",
-      state.selection.selectAllVisibleNodes,
+      () => state.selection.selectAllVisibleNodes(),
       always,
       description = Some("Select all visible nodes")
     )
 
     val selectAllArrows = Command(
       "Select all arrows",
-      state.selection.selectAllVisibleArrows,
+      () => state.selection.selectAllVisibleArrows(),
       always,
       description = Some("Select all visible arrows")
     )
 
     val selectAllGroups = Command(
       "Select all groups",
-      state.selection.selectAllVisibleGroups,
+      () => state.selection.selectAllVisibleGroups(),
       always,
       description = Some("Select all visible groups")
     )
 
     val hideSelection =
-      Command("Hide selection", state.selection.hide, shortcut = Some(Shortcut("h")), description = Some("Hide selected nodes"))
+      Command("Hide selection", () => state.selection.hide(), shortcut = Some(Shortcut("h")), description = Some("Hide selected nodes"))
 
     val keep = Command(
       "Keep selection",
-      state.hideNonSelectedNodes,
+      () => state.hideNonSelectedNodes(),
       and(not(singleGroupSelected), selectionNonEmpty),
       Some(Shortcut("k")),
       description = Some("Hide all nodes except selected")
@@ -164,14 +185,14 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val delete = Command(
       "Delete selection",
-      state.selection.deleteSelection,
+      () => state.selection.deleteSelection(),
       shortcut = Some(Shortcut(KeyValue.Backspace)),
       description = Some("Delete selected nodes")
     )
 
     val duplicate = Command(
       "Duplicate selection",
-      state.selection.duplicateSelection,
+      () => state.selection.duplicateSelection(),
       selectionNonEmpty,
       shortcut = Some(Shortcut("d")),
       description = Some("Duplicate selected nodes")
@@ -179,7 +200,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val group = Command(
       "Group",
-      state.selection.group,
+      () => state.selection.group(),
       and(not(onlyArrowSelected), selectionNonEmpty),
       shortcut = Some(Shortcut("g")),
       description = Some("Add selected nodes into a new group")
@@ -194,16 +215,16 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val ungroup = Command(
       "Ungroup",
-      state.selection.ungroup,
+      () => state.selection.ungroup(),
       shortcut = Some(Shortcut("u")),
       description = Some("Remove selected nodes from their current group")
     )
 
-    val clearSelection = Command("Clear selection", state.selection.clear, shortcut = Some(Shortcut(KeyValue.Escape)))
+    val clearSelection = Command("Clear selection", () => state.selection.clear(), shortcut = Some(Shortcut(KeyValue.Escape)))
 
     val selectGroupMembers = Command(
       "Select group members",
-      state.selection.selectGroupMembers,
+      () => state.selection.selectGroupMembers(),
       singleGroupSelected,
       shortcut = Some(Shortcut("m")),
       description = Some("Select all nodes that are members of the selected group")
@@ -211,7 +232,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val zoomIntoGroup = Command(
       "Zoom into group",
-      state.showOnlyGroup,
+      () => state.showOnlyGroup(),
       singleGroupSelected,
       shortcut = Some(Shortcut("z")),
       description = Some("Show only the selected group and its members")
@@ -219,66 +240,67 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val copyAsSVG = Command(
       "Copy selection as SVG",
-      state.copySelectionAsSVG,
+      () => state.copySelectionAsSVG(),
       shortcut = Some(Shortcut("c")),
       description = Some("Copy the selected nodes as SVG to the clipboard")
     )
 
     val showAllSuccessors = Command(
       "Show all successors",
-      state.showAllSuccessors,
+      () => state.showAllSuccessors(),
       description = Some("Show all successors of the selected nodes")
     )
 
     val showDirectSuccessors = Command(
       "Show direct successors",
-      state.showDirectSuccessors,
+      () => state.showDirectSuccessors(),
       description = Some("Show direct successors of the selected nodes")
     )
 
     val selectAllSuccessors = Command(
       "Select all successors",
-      state.selection.selectSuccessors,
+      () => state.selection.selectSuccessors(),
       description = Some("Select all successors of the selected nodes")
     )
 
     val selectDirectSuccessors = Command(
       "Select direct successors",
-      state.selection.selectDirectSuccessors,
+      () => state.selection.selectDirectSuccessors(),
       description = Some("Select direct successors of the selected nodes")
     )
 
     val showAllPredecessors = Command(
       "Show all predecessors",
-      state.showAllPredecessors,
+      () => state.showAllPredecessors(),
       description = Some("Show all predecessors of the selected nodes")
     )
 
     val showDirectPredecessors = Command(
       "Show direct predecessors",
-      state.showDirectPredecessors,
+      () => state.showDirectPredecessors(),
       description = Some("Show direct predecessors of the selected nodes")
     )
 
     val selectAllPredecessors = Command(
       "Select all predecessors",
-      state.selection.selectPredecessors,
+      () => state.selection.selectPredecessors(),
       description = Some("Select all predecessors of the selected nodes")
     )
 
     val selectDirectPredecessors = Command(
       "Select direct predecessors",
-      state.selection.selectDirectPredecessors,
+      () => state.selection.selectDirectPredecessors(),
       description = Some("Select direct predecessors of the selected nodes")
     )
 
-    val rootsOnly    = Command("Show roots only", state.keepRootsOnly, always, description = Some("A root is a node without predecessors"))
-    val showAll      = Command("Show all", state.showAll, always, description = Some("Show all elements"))
-    val hideAllNodes = Command("Hide all", state.hideAllNodes, always, description = Some("Hide all nodes"))
+    val rootsOnly =
+      Command("Show roots only", () => state.keepRootsOnly(), always, description = Some("A root is a node without predecessors"))
+    val showAll      = Command("Show all", () => state.showAll(), always, description = Some("Show all elements"))
+    val hideAllNodes = Command("Hide all", () => state.hideAllNodes(), always, description = Some("Hide all nodes"))
 
     val changeProjectName = Command(
       "Change project name",
-      changeProjectNameAction,
+      () => changeProjectNameAction(),
       always,
       description = Some("Change the name of the current project")
     )
@@ -286,18 +308,20 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val exportAsSVG =
       Command(
         "Copy full diagram as SVG",
-        state.copyAsFullDiagramSVG,
+        () => state.copyAsFullDiagramSVG(),
         always,
         description = Some("Copy the full diagram as SVG to the clipboard")
       )
 
-    val exportAsDOT  = Command("as DOT", state.copyAsDOT, always, description = Some("Copy the full diagram as DOT to the clipboard"))
-    val exportAsJSON = Command("as JSON", state.copyAsJSON, always, description = Some("Copy the full diagram as JSON to the clipboard"))
-    val zoomOut      = Command("Zoom out", state.zoomOut, always, description = Some("Zoom out the diagram"))
-    val fit          = Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen"))
-    val zoomIn       = Command("Zoom in", state.zoomIn, always, description = Some("Zoom in the diagram"))
-    val undo         = Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action"))
-    val redo         = Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
+    val exportAsDOT =
+      Command("as DOT", () => state.copyAsDOT(), always, description = Some("Copy the full diagram as DOT to the clipboard"))
+    val exportAsJSON =
+      Command("as JSON", () => state.copyAsJSON(), always, description = Some("Copy the full diagram as JSON to the clipboard"))
+    val zoomOut = Command("Zoom out", () => state.zoomOut(), always, description = Some("Zoom out the diagram"))
+    val fit     = Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen"))
+    val zoomIn  = Command("Zoom in", () => state.zoomIn(), always, description = Some("Zoom in the diagram"))
+    val undo    = Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action"))
+    val redo    = Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
 
     val helpKeyboardShortcuts = Command(
       "Help - Keyboard Shortcuts",
@@ -315,35 +339,35 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val printVisibleGraphToConsole = Command(
       "Print visible graph to the console",
-      state.printVisibleGraphToConsole,
+      () => state.printVisibleGraphToConsole(),
       always,
       description = Some("Print the visible graph to the browser console for debugging")
     )
 
     val printVisibleDOTtoConsole = Command(
       "Print visible DOT to the console",
-      state.printVisibleDOTtoConsole,
+      () => state.printVisibleDOTtoConsole(),
       always,
       description = Some("Print the visible DOT to the browser console for debugging")
     )
 
     val printVisibleJSONtoConsole = Command(
       "Print JSON DOT AST to the console",
-      state.printVisibleJSONtoConsole,
+      () => state.printVisibleJSONtoConsole(),
       always,
       description = Some("Print the full diagram as JSON DOT AST to console for debugging")
     )
 
     val printSelectionToConsole = Command(
       "Print the current selection to the console",
-      state.printSelectionToConsole,
+      () => state.printSelectionToConsole(),
       always,
       description = Some("Print the current selection to console for debugging")
     )
 
     val resetAttributes = Command(
       "Reset Attributes",
-      state.selection.resetAttributes, // Action to be implemented in ViewerState/SelectionHandler
+      () => state.selection.resetAttributes(), // Action to be implemented in ViewerState/SelectionHandler
       selectionNonEmpty,                       // Visible when selection is not empty
       shortcut = None,                         // No shortcut for now
       description = Some("Remove all attributes except 'label' from selected elements")
@@ -351,7 +375,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val resetLayout = Command(
       "Reset Layout",
-      state.selection.resetLayout, // Action to be implemented in ViewerState/SelectionHandler
+      () => state.selection.resetLayout(), // Action to be implemented in ViewerState/SelectionHandler
       selectionNonEmpty,                   // Visible when selection is not empty
       shortcut = None,                     // No shortcut for now
       description = Some("Reset the layout of the selected elements")
@@ -359,9 +383,9 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val reverseArrows = Command(
       "Reverse Arrows",
-      state.selection.reverseArrows, // Action needs implementation in SelectionHandler
-      onlyArrowSelected,                      // Visible only when arrows are selected
-      shortcut = Some(Shortcut("r")),         // Shortcut 'r'
+      () => state.selection.reverseArrows(), // Action needs implementation in SelectionHandler
+      onlyArrowSelected,                     // Visible only when arrows are selected
+      shortcut = Some(Shortcut("r")),        // Shortcut 'r'
       description = Some("Reverse the direction of the selected arrows")
     )
 
@@ -380,7 +404,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
   import headers.*
 
-  val byHeader: VectorMap[String, List[Command]] = VectorMap(
+  val byHeader: VectorMap[String, List[Command[?]]] = VectorMap(
     common -> List(
       all.newNode,
       all.newBackwardsNode,
@@ -461,7 +485,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   object sections:
     val exportAs = byHeader(headers.exportAs)
 
-  val byShortcut: Map[Shortcut, Command] =
+  val byShortcut: Map[Shortcut, Command[?]] =
     byHeader.values.flatten
       .collect { case c @ Command(shortcut = Some(sh)) => sh -> c }
       .toMap

@@ -33,14 +33,14 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           shortcut = None
         )
 
-  def filteredMenu(cmds: Command | Sep.type*) =
+  def filteredMenu(cmds: Command[?] | Sep.type*) =
     state.selection.signal.map: selection =>
       cmds
         .filter:
-          case cmd: Command => cmd.isVisible(selection)
+          case cmd: Command[?] => cmd.isVisible(selection)
           case _            => true
         .map:
-          case cmd: Command =>
+          case cmd: Command[?] =>
             MenuOption(
               elem = cmd.shortLabel,
               value = () => cmd.execute(),

@@ -21,7 +21,7 @@ case class ViewerState(
     writeText:                String => Any = _ => (),
     setTheme:                 String => Unit = _ => (),
     errorBus:                 EventBus[String] = EventBus(),
-    initialSource:            String = "",
+    initialSource:            Option[String] = None,
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
     initialLeftPanelVisible:  Boolean = true
 ) extends SvgTransformOps,

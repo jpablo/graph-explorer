@@ -7,7 +7,7 @@ import Router.diagrams
 
 enum Route derives CanEqual:
   case Home
-  case ProjectDetail(uuid: String)
+  case ProjectDetail(uuid: String, source: Option[String] = None)
 
 class Router:
   given Owner = unsafeWindowOwner
@@ -33,18 +33,18 @@ class Router:
     val path = buildPath(route)
     // 2. update the URL bar without reload
     dom.window.history.pushState(null, "", path)
-    currentRouteV.set(now())
+    currentRouteV.set(route)
 
   private def parsePath(path: String): Route =
     // strip leading slash, split on '/'
     path.stripPrefix("/").split("/").filter(_.nonEmpty).toList match
-      case `diagrams` :: id :: Nil => Route.ProjectDetail(id)
+      case `diagrams` :: id :: Nil => Route.ProjectDetail(id) // TODO: extract any document from the queryString
       case _                       => Route.Home
 
   private def buildPath(route: Route): String =
     route match
       case Route.Home              => "/"
-      case Route.ProjectDetail(id) => s"/$diagrams/$id"
+      case Route.ProjectDetail(id, _) => s"/$diagrams/$id"
 
 object Router:
   val diagrams = "diagrams"

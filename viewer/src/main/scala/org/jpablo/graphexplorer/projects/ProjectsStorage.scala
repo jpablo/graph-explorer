@@ -28,18 +28,18 @@ object ProjectStorage:
 
   /** Retrieves the persisted state of a project identified by the given `ProjectId`.
     *
-    * This function initializes the state from the local storage. It ensures that any changes to the state are persisted
-    * back to the local storage. It also updates the project's entry in the directory with the latest modification time
-    * and project name.
+    * This function initializes the state from the local storage. It ensures that any changes to the state are persisted back to the local
+    * storage. It also updates the project's entry in the directory with the latest modification time and project name.
     *
     * @param id
     *   The project's id.
     * @return
     *   A `Var` containing the `PersistedState` of the project.
     */
-  def loadProjectPersistedState(id: ProjectId): Var[PersistedDiagramState] =
-    val initial = write(PersistedDiagramState.empty)
-    val projectStorage = storedString(projectKey(id), initial)
+  def loadProjectPersistedState(id: ProjectId, initialSource: Option[String]): Var[PersistedDiagramState] =
+    val initialState   = PersistedDiagramState.minimal(initialSource)
+    val initialString  = write(initialState)
+    val projectStorage = storedString(projectKey(id), initialString)
     // Initialize storage ~> PersistedStage
     val projectStateVar =
       try
@@ -47,7 +47,7 @@ object ProjectStorage:
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
-          Var(PersistedDiagramState.empty)
+          Var(initialState)
     // synchronize PersistedStage ~> storage
     projectStateVar.signal.distinct.changes.foreach: state =>
       // update project entry
@@ -60,10 +60,11 @@ object ProjectStorage:
 
   /** Retrieves the persisted viewer settings.
     *
-    * This function initializes the settings from local storage. It ensures that any changes to the settings are
-    * persisted back to local storage.
+    * This function initializes the settings from local storage. It ensures that any changes to the settings are persisted back to local
+    * storage.
     *
-    * @return A `Var` containing the `ViewerSettings`.
+    * @return
+    *   A `Var` containing the `ViewerSettings`.
     */
   def loadViewerSettings(): Var[ViewerSettings] =
     // Initialize storage ~> ViewerSettings Var
@@ -81,7 +82,7 @@ object ProjectStorage:
   end loadViewerSettings
 
   def createProjectDirectoryEntry(name: String): ProjectId =
-    val now = System.currentTimeMillis()
+    val now         = System.currentTimeMillis()
     val projectInfo = ProjectInfo(ProjectId.random, name, lastModified = now, createdAt = now)
     updateDirectory(_.modify(_.projects).using(projectInfo :: _))
     projectInfo.id
@@ -93,8 +94,10 @@ object ProjectStorage:
 
   /** Retrieves the content of a project identified by the given `ProjectId`.
     *
-    * @param id The project's id.
-    * @return A Signal containing the project's content as a String.
+    * @param id
+    *   The project's id.
+    * @return
+    *   A Signal containing the project's content as a String.
     */
   def getProjectContent(id: ProjectId): Signal[String] =
     val projectStorage = storedString(projectKey(id), write(PersistedDiagramState.empty))
@@ -104,7 +107,7 @@ object ProjectStorage:
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
-          "digraph G { }"
+          "digraph G { b }"
 
   // ----------------- Private methods -----------------
 
