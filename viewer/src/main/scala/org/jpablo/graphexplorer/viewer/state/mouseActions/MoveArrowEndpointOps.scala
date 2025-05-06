@@ -28,7 +28,7 @@ trait MoveArrowEndpointOps:
         case edge: EdgeElement if showControl =>
           for
             endpoint <- ArrowEndpoint.values
-            elem = ArrowEndpointControl(edge, endpoint).ref
+            elem = ArrowEndpointControl(edge, endpoint, clientSize).ref
           yield
             elem.addEventListener(
               DomEvent.mousedown,

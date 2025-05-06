@@ -7,8 +7,9 @@ import org.jpablo.graphexplorer.viewer.components.selection.EdgeElement
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand
 import org.jpablo.graphexplorer.viewer.formats.svg.SVGPathParser
-import org.jpablo.graphexplorer.viewer.domUtils.{querySelectorT, querySelectorAllT}
+import org.jpablo.graphexplorer.viewer.domUtils.{querySelectorAllT, querySelectorT}
 import PathCommand.*
+import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
 
 /** Creates a small disk placed near the endpoint of an edge. Diameter: 8px, Border: 1px
@@ -21,9 +22,10 @@ import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
   *   A reactive SVG group element containing the disk.
   */
 def ArrowEndpointControl(
-    edge:     EdgeElement,
-    endpoint: ArrowEndpoint,
-    svgMods:  SvgMods*
+    edge:       EdgeElement,
+    endpoint:   ArrowEndpoint,
+    clientSize: ClientSize,
+    svgMods:    SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   val isSource = endpoint == ArrowEndpoint.source
   // Define disk properties
@@ -96,8 +98,12 @@ def ArrowEndpointControl(
     (bbox.x + bbox.width / 2, bbox.y + bbox.height / 2)
   }
 
+  val currentClientSize = clientSize match
+    case ClientSize.Small => 24.0
+    case ClientSize.Normal => 12.0
+
   // Calculate the scaling factor based on the edge group's overall transform
-  val scale = SvgUtils.calculateSimpleScale(edge.ref, w.toDouble, clientSize = 12)
+  val scale = SvgUtils.calculateSimpleScale(edge.ref, w.toDouble, clientSize = currentClientSize)
 
   svg.g(
     svg.cls           := s"edge-endpoint-disk edge-endpoint-disk-${if (isSource) "source" else "target"}",
