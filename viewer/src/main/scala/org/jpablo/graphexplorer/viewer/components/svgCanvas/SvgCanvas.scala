@@ -6,14 +6,13 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, querySelectorT}
-import org.jpablo.graphexplorer.viewer.models.ElementIds
+import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
 import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, UIState}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
 
 import scala.scalajs.js
-import org.jpablo.graphexplorer.viewer.models.ElementId
 //import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 

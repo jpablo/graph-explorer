@@ -8,11 +8,13 @@ import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir.*
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
+import org.jpablo.graphexplorer.viewer.models.ClientSize
 
 def NewArrowControl(
     elem:       NodeElement,
     getRankdir: () => Rankdir,
     direction:  ArrowDirection,
+    clientSize: ClientSize,
     svgMods:    SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   val radius  = 8
@@ -24,7 +26,12 @@ def NewArrowControl(
   val w = radius * 2
   val h = radius * 2
 
-  val scale = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = 16)
+  // Determine clientSize based on viewport width
+  val currentClientSize = clientSize match
+    case ClientSize.Small => 32.0
+    case ClientSize.Normal => 16.0
+
+  val scale = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = currentClientSize)
 
   // Get the rankdir value from graph attributes
   val rankdir = getRankdir()

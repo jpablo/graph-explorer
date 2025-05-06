@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel}
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window}
+import org.jpablo.graphexplorer.viewer.models.ClientSize
 
 import scala.scalajs.js.Date
 
@@ -28,6 +29,10 @@ object Viewer:
     val viewerSettings = ProjectStorage.loadViewerSettings()
     viewerSettings.now().currentTheme.foreach(setTheme)
 
+    // Determine ClientSize based on viewport width
+    val mediaQueryList = window.matchMedia("(max-width: 768px)")
+    val clientSize = if (mediaQueryList.matches) ClientSize.Small else ClientSize.Normal
+
     val app =
       div(
         child <-- router.currentRoute.map:
@@ -43,7 +48,8 @@ object Viewer:
                 errorBus = errors,
                 initialSource = source,
                 initialRightPanelSection = lastRightPanelSection,
-                initialLeftPanelVisible = lastLeftPanelVisible
+                initialLeftPanelVisible = lastLeftPanelVisible,
+                clientSize = clientSize
               )
             // A bit hacky: we need to keep track of the last right panel section selected,
             // otherwise there's a noticeable transition none => something when switching diagrams

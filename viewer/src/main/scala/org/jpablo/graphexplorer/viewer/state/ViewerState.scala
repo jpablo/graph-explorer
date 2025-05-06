@@ -10,8 +10,9 @@ import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label, Layout, Rankdir, Shape}
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
-import org.jpablo.graphexplorer.viewer.models
+import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
 import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
@@ -23,7 +24,8 @@ case class ViewerState(
     errorBus:                 EventBus[String] = EventBus(),
     initialSource:            Option[String] = None,
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
-    initialLeftPanelVisible:  Boolean = true
+    initialLeftPanelVisible:  Boolean = false,
+    clientSize:               ClientSize = Normal
 ) extends SvgTransformOps,
       DiagramSelectionOps,
       VisibilityOps,

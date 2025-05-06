@@ -83,7 +83,7 @@ trait AddNewArrowOps:
 
     selectedElem match
       case elem: NodeElement if showControl =>
-        val control = NewArrowControl(elem, graphRankDir.observe().now, direction).ref
+        val control = NewArrowControl(elem, graphRankDir.observe().now, direction, clientSize).ref
 
         control.addEventListener(
           DomEvent.mousedown,
