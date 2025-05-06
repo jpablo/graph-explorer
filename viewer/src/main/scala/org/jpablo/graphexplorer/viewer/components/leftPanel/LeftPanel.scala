@@ -5,6 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Commands
+import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 
@@ -36,7 +37,7 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
               cls   := "btn btn-ghost btn-xs",
               title := "Create Diagram",
               span().plusCircleIcon,
-              onClick --> commands.routerCmds.createProject.execute()
+              onClick --> commands.routerCmds.createProject.execute(Some(Some(minimalGraphText)))
             )
           )
         ),

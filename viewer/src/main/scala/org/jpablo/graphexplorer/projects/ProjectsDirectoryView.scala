@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
+import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 
 import scala.compiletime.asMatchable
 import scala.scalajs.js
@@ -90,7 +91,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
             cls := "h-8",
             span().plusCircleIcon,
             "Create Diagram",
-            onClick --> routerCmds.createProject.execute()
+            onClick --> routerCmds.createProject.execute(Some(Some(minimalGraphText)))
           ).primary.small
         )
       ),
