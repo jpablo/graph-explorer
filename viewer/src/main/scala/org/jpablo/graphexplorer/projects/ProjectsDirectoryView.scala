@@ -60,7 +60,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
         ),
         // right side
         div(
-          cls := "flex gap-2",
+          cls := "flex flex-wrap md:flex-nowrap justify-end items-center gap-2", // Wrap on small, no-wrap on medium+
           // Search input
           label(
             cls := "input input-sm",
