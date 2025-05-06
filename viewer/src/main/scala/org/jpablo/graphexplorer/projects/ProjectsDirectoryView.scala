@@ -121,13 +121,13 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
         idAttr := "examples-grid",
         // Title
         h1(
-          cls := "text-2xl font-bold gap-2 flex mb-4", // Add margin bottom
-          span().fileCodeIcon, // Using existing icon
+          cls := "text-2xl font-bold gap-2 flex mb-4",
+          span().folderIcon,
           "Examples"
         ),
         // Examples grid
         div(
-          cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4", // Re-use grid style
+          cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4",
           children <-- Signal.fromValue(
             DotExamples.examples.filterNot(_._2 == DotExamples.emptyGraph).toSeq.map { case (name, source) =>
               exampleCard(router, routerCmds, name, source)
