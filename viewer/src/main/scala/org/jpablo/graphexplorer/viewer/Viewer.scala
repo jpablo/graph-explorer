@@ -20,7 +20,7 @@ object Viewer:
     val routerCmds = RouterCommands(router)
 
     var lastRightPanelSection = RightPanelSection.none
-    var lastLeftPanelVisible  = true
+    var lastLeftPanelVisible  = false
 
     def setTheme(theme: String): Unit =
       dom.document.documentElement.setAttribute("data-theme", theme)
