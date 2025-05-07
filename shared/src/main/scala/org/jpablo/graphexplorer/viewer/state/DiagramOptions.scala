@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.{NodeId, ViewerKind}
 import upickle.default.*
 

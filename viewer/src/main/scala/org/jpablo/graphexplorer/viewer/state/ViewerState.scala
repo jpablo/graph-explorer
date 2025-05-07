@@ -4,7 +4,6 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.components.*
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
@@ -72,13 +71,13 @@ case class ViewerState(
   restoreState()
 
   def nodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
-    ids.flatMap(fullGraph.observe().now().getNode)
+    ids.flatMap(fullGraph.observe.now().getNode)
 
   def allNodeIds(): Set[NodeId] =
-    fullGraph.observe().now().nodeIds
+    fullGraph.observe.now().nodeIds
 
   def allArrowIds(): Set[ArrowId] =
-    fullGraph.observe().now().arrowIds
+    fullGraph.observe.now().arrowIds
 
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an edge. If the
     * selected element is a group/cluster, the new node will be added to that group. The new node will become the only selected element

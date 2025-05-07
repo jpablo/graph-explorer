@@ -24,7 +24,7 @@ class InternalPhasesSpec extends FunSuite:
          |        arrowtail="none"
          |    ];
          |}""".stripMargin
-    assertEquals(viewerState.visibleDOT.observe().now().value, visibleDot)
+    assertEquals(viewerState.visibleDOT.observe.now().value, visibleDot)
   }
 
   test("Updating the source text should update the graph") {

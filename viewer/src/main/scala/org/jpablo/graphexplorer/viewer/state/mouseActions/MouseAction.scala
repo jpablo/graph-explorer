@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import com.raquo.airstream.state.SourceVar
-import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, MouseActionRect}

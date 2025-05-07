@@ -10,7 +10,6 @@ import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 
-import scala.compiletime.asMatchable
 import scala.scalajs.js
 
 enum SortOption derives CanEqual:

@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.I
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.{AttrValueWithStatus, AttributeUpdates, Attributes}
+import org.jpablo.graphexplorer.viewer.models.{AttributeUpdates, Attributes}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}

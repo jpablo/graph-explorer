@@ -1,9 +1,7 @@
 package org.jpablo.graphexplorer.viewer.widgets
 
-import com.raquo.laminar.api.L.*
-
 enum MenuDirection derives CanEqual:
-  case start, end //, center, top, bottom, left, right
+  case start, end // , center, top, bottom, left, right
 
 enum InputType derives CanEqual:
   case select, dropdown, text, color, checkbox, radio, file, hidden, password, submit, reset, button, image,

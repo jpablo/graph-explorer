@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.RightPanelSection.*
-import org.jpablo.graphexplorer.viewer.state.{RightPanelSection, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 def RightToolbar(state: ViewerState) =

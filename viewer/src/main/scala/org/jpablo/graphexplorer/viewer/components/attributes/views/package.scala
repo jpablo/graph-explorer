@@ -1,8 +1,8 @@
 package org.jpablo.graphexplorer.viewer.components.attributes
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.color
 import org.jpablo.graphexplorer.viewer.color.ColorFormat.{RGB, toHex}
+import org.jpablo.graphexplorer.viewer.color.TailWindColors.ColorName.*
 import org.jpablo.graphexplorer.viewer.color.{ColorFormat, TailWindColors}
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.RowOption
@@ -11,8 +11,6 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
-import org.jpablo.graphexplorer.viewer.color.TailWindColors.ColorName
-import org.jpablo.graphexplorer.viewer.color.TailWindColors.ColorName.*
 
 import scala.collection.immutable.VectorMap
 
@@ -55,7 +53,7 @@ package object views:
   val lightRows5  = colorNoneRow :: basic4.map(c => s"$c-200").map(twColorOptions)
   val lightRows8  = colorNoneRow :: basic7.map(c => s"$c-200").map(twColorOptions)
   val lightRows11  = colorNoneRow :: basic10.map(c => s"$c-200").map(twColorOptions)
-  
+
   val mediumRows5 = colorNoneRow :: basic4.map(c => s"$c-500").map(twColorOptions)
   val mediumRows8 = colorNoneRow :: basic7.map(c => s"$c-500").map(twColorOptions)
   val mediumRows11  = colorNoneRow :: basic10.map(c => s"$c-500").map(twColorOptions)

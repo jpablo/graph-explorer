@@ -4,7 +4,6 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.NodeId
 
 import scala.collection.mutable.ArrayBuffer
-import scala.compiletime.asMatchable
 import scala.util.matching.Regex
 
 case class CSV(rows: Array[Array[String]]):

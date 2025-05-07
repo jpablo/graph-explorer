@@ -1,10 +1,8 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 import sbt.Test
 
-val scala3Version     = "3.6.4"
+val scala3Version     = "3.7.0"
 val scalametaVersion  = "4.8.2"
-val zioPreludeVersion = "1.0.0-RC16"
-val zioVersion        = "2.1.1"
 val laminarVersion    = "17.2.1"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
@@ -16,8 +14,6 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
   Seq(
     "-Wsafe-init",
     "-language:implicitConversions",
-    "-language:experimental.namedTuples",
-    "-language:experimental.betterFors",
     "-language:experimental.pureFunctions",
     "-language:strictEquality",
 //    "-language:experimental.captureChecking",

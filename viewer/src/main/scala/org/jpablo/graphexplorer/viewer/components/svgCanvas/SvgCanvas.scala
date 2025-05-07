@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
-import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, querySelectorT}
+import org.jpablo.graphexplorer.viewer.domUtils.querySelectorT
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*

@@ -8,7 +8,6 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphToDotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.logging.*
-import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
 
 import scala.util.{Failure, Success}

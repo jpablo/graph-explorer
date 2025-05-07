@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.domUtils.{SvgUtils, querySelectorAllT, querySelectorT}
+import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.BBox

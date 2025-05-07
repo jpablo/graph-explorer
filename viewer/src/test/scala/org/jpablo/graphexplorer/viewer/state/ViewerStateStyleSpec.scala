@@ -29,21 +29,21 @@ class ViewerStateStyleSpec extends FunSuite:
     val borderRow    = builder.row(BorderStyle, checkbox)
 
     def resetInvisibleIsVisible: Boolean =
-      invisibleRow.isChanged.observe().now()
+      invisibleRow.isChanged.observe.now()
 
     def setInvisible(value: Option[Boolean]): Unit =
       invisibleRow.inputVar.set:
         value.fold(Missing)(b => Single(AttrValue(b.toString)))
 
     def getInvisible: Boolean =
-      invisibleRow.combineDefaultBoolean.observe().now()
+      invisibleRow.combineDefaultBoolean.observe.now()
 
     def setBorder(value: Option[BorderStyle]): Unit =
       borderRow.inputVar.set:
         value.fold(Missing)(b => Single(AttrValue(b.toString)))
 
     def getBorder: BorderStyle =
-      BorderStyle.valueOf(borderRow.combineDefaultString.observe().now())
+      BorderStyle.valueOf(borderRow.combineDefaultString.observe.now())
 
   // TestRows + helper methods to inspect element and root attributes and AST styles
   case class NodeStyleControls(
@@ -53,7 +53,7 @@ class ViewerStateStyleSpec extends FunSuite:
   ) extends TestRows(updates, defaults, state.owner):
 
     def graph: ViewerGraph = state.fullGraph.now()
-    def ast: DotAST        = state.phases.visibleAST.observe().now()
+    def ast: DotAST        = state.phases.visibleAST.observe.now()
 
     def getNodeDefaultAttrs: Attributes =
       graph.getDefaultAttributes(AttributeTarget.node)

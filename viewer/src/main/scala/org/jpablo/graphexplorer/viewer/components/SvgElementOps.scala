@@ -8,10 +8,9 @@ import org.jpablo.graphexplorer.viewer.components.SvgElementOps.emptySvg
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.ElementIds
-import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, MouseActionRect, SvgPoint}
+import org.scalajs.dom
 
 extension (clientPoint: ClientPoint)
   def toSvgPoint(screenCtm: dom.SVGMatrix): SvgPoint =

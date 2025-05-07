@@ -5,7 +5,6 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ClusterLabelLoc, Id, Label, LabelJust}
 import org.jpablo.graphexplorer.viewer.models.Arrow.{sequenceSeparator, titleIdSeparator}
 import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
-import upickle.default.*
 
 type ViewerKind = Option[String]
 

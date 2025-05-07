@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.viewer.models
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, AttrValue}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.DotAttribute
-import upickle.default.*
 
 import scala.annotation.targetName
 

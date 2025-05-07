@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.Commands
-import org.jpablo.graphexplorer.viewer.domUtils.{DomEvent, SvgUtils, querySelectorT}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 

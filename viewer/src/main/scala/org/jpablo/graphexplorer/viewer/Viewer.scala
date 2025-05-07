@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer
 import buildinfo.BuildInfo
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.projects.{ProjectStorage, ProjectsDirectoryView}
-import org.jpablo.graphexplorer.router
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel}
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, RightPanelSection, ViewerState}

@@ -3,8 +3,6 @@ package org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*
 
-import scala.compiletime.asMatchable
-
 sealed trait ElementId derives CanEqual, ReadWriter:
   def value: String
 

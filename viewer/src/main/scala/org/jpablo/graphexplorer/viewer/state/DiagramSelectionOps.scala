@@ -101,7 +101,7 @@ trait DiagramSelectionOps:
       project.hiddenElements.update(_ ++ selection.now())
 
     private def fullGraphNow: ViewerGraph = phases.fullGraph.now()
-    def visibleGraphNow: ViewerGraph      = phases.visibleGraph.observe().now()
+    def visibleGraphNow: ViewerGraph      = phases.visibleGraph.observe.now()
 
     def selectGroupMembers() =
       val s          = now()
