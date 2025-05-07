@@ -14,7 +14,7 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 def AttributesToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
   div(
     idAttr := "selection-toolbar",
-    cls    := "navbar bg-base-200/75",
+    cls    := "navbar",
     child <--
       Signal.combine(
         state.selection.signal,

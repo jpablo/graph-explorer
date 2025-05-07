@@ -107,6 +107,10 @@ label[for ^= show-ns-kind-] {
   @apply text-[.6rem] input-ghost p-0 ml-1 mt-0.5 h-[1.25rem] w-6;
 }
 
+.popup-card {
+  @apply  bg-base-100 z-1 w-86 max-h-100 overflow-y-auto shadow-md border border-base-200;
+}
+
 #edit-label-dialog {
   .modal-box {
     @apply p-3 w-96;

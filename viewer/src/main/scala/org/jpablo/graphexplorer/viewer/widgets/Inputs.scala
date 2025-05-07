@@ -79,7 +79,7 @@ def popupCardMenuButton(row: InputAttribute, rowOption: RowOption) =
 def PopupCard(row: InputAttribute, options: Seq[AttributeRow.RowOption], cardClass: Option[String] = None) =
   div(
     tabIndex := 0,
-    cls      := "dropdown-content card card-xs bg-base-100 z-1 w-82 max-h-100 overflow-y-auto shadow-md border border-base-200",
+    cls      := "dropdown-content card card-xs popup-card",
     // extra style
     cardClass.map(cc => cls := cc),
     div(
