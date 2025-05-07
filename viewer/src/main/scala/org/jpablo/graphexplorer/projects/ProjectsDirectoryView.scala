@@ -8,6 +8,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
+import org.jpablo.graphexplorer.viewer.state.InternalPhases.processDotText
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 
 import scala.scalajs.js
@@ -129,7 +130,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
           cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4",
           children <-- Signal.fromValue(
             DotExamples.examples.filterNot(_._2 == DotExamples.emptyGraph).toSeq.map { case (name, source) =>
-              exampleCard(router, routerCmds, name, source)
+              exampleCard(routerCmds, name, source)
             }
           )
         )
@@ -137,7 +138,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
     )
   )
 
-private def exampleCard(router: Router, routerCmds: RouterCommands, name: String, source: String) = {
+private def exampleCard(routerCmds: RouterCommands, name: String, source: String) = {
 
   div(
     cls := "example-card card card-compact",
@@ -148,7 +149,7 @@ private def exampleCard(router: Router, routerCmds: RouterCommands, name: String
         child <--
           FetchStream.get(source)
             .flatMapSwitch: str =>
-              DotText(str).toSvg.map((_, str))
+              processDotText(DotText(str)).map((_, str))
             .map: (svgSignal, str) =>
               div(
                 cls := "w-full h-full p-1 flex items-center justify-center",
@@ -186,9 +187,9 @@ private def projectCard(router: Router)(project: ProjectInfo) =
       // Preview SVG
       div(
         cls := "w-full h-48 overflow-hidden bg-base-200 mb-4 flex items-center justify-center cursor-pointer",
-        child <-- ProjectStorage
-          .getProjectContent(project.id)
-          .map(content => DotText(content).toSvg)
+        child <-- ProjectStorage.getProjectContent(project.id)
+          .map: str =>
+            processDotText(DotText(str))
           .map: svgSignal =>
             div(
               cls := "w-full h-full p-1 flex items-center justify-center",

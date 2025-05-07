@@ -3,14 +3,16 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphToDotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
+import org.scalajs.dom.svg.SVG
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
 
@@ -183,3 +185,14 @@ class InternalPhases(
       .map(ast => withLog("[visibleAST -> visibleDOT]", level = Level.None)(DotText(ast.render(keepInternal = true))))
 
 end InternalPhases
+
+object InternalPhases:
+  def processDotText(dot: DotText): Signal[Option[ReactiveSvgElement[SVG]]] =
+    val dotText =
+      for
+        asts <- dot.parseAST
+        ast  <- Try(asts.head)
+        graph = ast.toViewerGraph.removeUnsupportedFeatures.withDefaultTheme
+      yield DotText(graphToDotAST(graph).render())
+
+    Signal.fromTry(dotText).flatMapSwitch(_.toSvg)
