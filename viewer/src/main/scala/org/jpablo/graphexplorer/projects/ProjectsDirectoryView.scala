@@ -186,7 +186,7 @@ private def projectCard(router: Router)(project: ProjectInfo) =
     figure(
       // Preview SVG
       div(
-        cls := "w-full h-48 overflow-hidden bg-base-200 mb-4 flex items-center justify-center cursor-pointer",
+        cls := "w-full h-48 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",
         child <-- ProjectStorage.getProjectContent(project.id)
           .map: str =>
             processDotText(DotText(str))
@@ -211,7 +211,7 @@ private def projectCard(router: Router)(project: ProjectInfo) =
       )
     ),
     div(
-      cls := "card-body p-4",
+      cls := "card-body p-3 pt-2",
 
       // Header with title and delete button
       div(
