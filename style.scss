@@ -388,7 +388,7 @@ label[for ^= show-ns-kind-] {
   }
 
   #right-toolbar {
-    @apply flex flex-col m-1 gap-3 mt-2;
+    @apply flex flex-col m-1 gap-3 mt-2 print:hidden;
   }
 }
 
