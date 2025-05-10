@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.syntaxSignalOfBoolean
+import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
@@ -11,9 +12,12 @@ import org.jpablo.graphexplorer.viewer.models.{AttributeUpdates, Attributes}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
+import org.jpablo.graphexplorer.viewer.widgets.{Button, ghost, tiny}
+import com.raquo.laminar.api.features.unitArrows
 
 def ToolbarNodesAttributesView(
     state:    ViewerState,
+    commands: Commands,
     updates:  Var[AttributeUpdates],
     defaults: Option[Signal[Attributes]] = None
 ) =
@@ -43,6 +47,13 @@ def ToolbarNodesAttributesView(
 
   HorizontalAttributesView(
     rows = rows(
+      InputElement(
+        Button(
+          title := "Reset attributes",
+          span(cls := "bi bi-x-lg"),
+          onClick --> commands.all.resetAttributes.execute()
+        ).tiny.ghost
+      ).copy(hidden = Signal.fromValue(defaults.isEmpty)),
       shapeRow,
       row(CornerStyle, InputType.dropdown).copy(options = cornerStyleOptions),
       row(FillColor, InputType.currentValueWithSelector())
@@ -95,10 +106,10 @@ def ToolbarNodesAttributesView(
             Regular     -> checkbox,
             Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
             Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
-            FixedSize -> checkbox,
-            Width -> range(start = Some(Width.min), end = Some(5), step = Some(.1)),
-            Height -> range(start = Some(Height.min), end = Some(5), step = Some(.1)),
-            row(URL, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
+            FixedSize   -> checkbox,
+            Width       -> range(start = Some(Width.min), end = Some(5), step = Some(.1)),
+            Height      -> range(start = Some(Height.min), end = Some(5), step = Some(.1)),
+            row(URL, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty)))
           )
         )
       )

@@ -26,6 +26,7 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
           case (true, false, false) =>
             ToolbarArrowsAttributesView(
               state,
+              commands,
               updates = state.elementAttributesUpdates(ElementIds(arrowIds)),
               defaults = Some(state.defaults(AttributeTarget.edge))
             )
@@ -33,13 +34,15 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
           case (false, true, false) =>
             ToolbarNodesAttributesView(
               state,
+              commands,
               updates = state.elementAttributesUpdates(ElementIds(nodeIds)),
               defaults = Some(state.defaults(AttributeTarget.node))
             )
 
           case (false, false, true) =>
             ToolbarGroupAttributesView(
-              state = state,
+              state,
+              commands,
               updates = state.elementAttributesUpdates(ElementIds(clusterIds)),
               defaults = Some(state.defaults(AttributeTarget.graph))
             )
@@ -58,10 +61,12 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
               // Defaults
               // -------------
               child <-- selection.signal.map:
-                case "nodes"  => ToolbarNodesAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.node))
-                case "arrows" => ToolbarArrowsAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.edge))
-                case "groups" => ToolbarGroupAttributesView(state, updates = state.defaultAttributesUpdates(AttributeTarget.graph))
-                case _        => div("No selection")
+                case "nodes" => ToolbarNodesAttributesView(state, commands, updates = state.defaultAttributesUpdates(AttributeTarget.node))
+                case "arrows" =>
+                  ToolbarArrowsAttributesView(state, commands, updates = state.defaultAttributesUpdates(AttributeTarget.edge))
+                case "groups" =>
+                  ToolbarGroupAttributesView(state, commands, updates = state.defaultAttributesUpdates(AttributeTarget.graph))
+                case _ => div("No selection")
             )
 
           case _ =>

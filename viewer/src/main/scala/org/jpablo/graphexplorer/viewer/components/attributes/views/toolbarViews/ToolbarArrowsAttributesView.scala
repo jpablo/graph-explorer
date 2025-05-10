@@ -2,7 +2,9 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
+import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.syntaxSignalOfBoolean
+import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
@@ -11,9 +13,13 @@ import org.jpablo.graphexplorer.viewer.models.{AttributeUpdates, Attributes}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
+import org.jpablo.graphexplorer.viewer.widgets.{Button, ghost, tiny}
+import com.raquo.laminar.api.features.unitArrows
+
 
 def ToolbarArrowsAttributesView(
     state:    ViewerState,
+    commands: Commands,
     updates:  Var[AttributeUpdates],
     defaults: Option[Signal[Attributes]] = None
 ) =
@@ -28,6 +34,13 @@ def ToolbarArrowsAttributesView(
 
   HorizontalAttributesView(
     rows = rows(
+      InputElement(
+        Button(
+          title := "Reset attributes",
+          span(cls := "bi bi-x-lg"),
+          onClick --> commands.all.resetAttributes.execute()
+        ).tiny.ghost
+      ).copy(hidden = Signal.fromValue(defaults.isEmpty)),
       row(Color, InputType.currentValueWithSelector())
         .copy(
           options = mediumRows11 ++ colorOptions,
@@ -69,7 +82,7 @@ def ToolbarArrowsAttributesView(
             row(XLabel, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
             row(URL, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
             TailPort -> InputType.select,
-            HeadPort -> InputType.select,
+            HeadPort -> InputType.select
           )
         )
       )
