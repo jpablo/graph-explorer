@@ -59,17 +59,19 @@ def ToolbarArrowsAttributesView(
           row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
         )
       ),
+      // --- Advanced or extra attributes ---
       InputElement(
         VerticalCardWithButton(
           id = "extra-arrow-attributes",
           "extra",
           rows(
-            Decorate   -> checkbox,
+            Decorate -> checkbox,
             row(XLabel, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
             row(URL, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
+            TailPort -> InputType.select,
+            HeadPort -> InputType.select,
           )
         )
       )
-
     )
   )

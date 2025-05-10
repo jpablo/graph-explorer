@@ -173,6 +173,34 @@ object Height extends DotAttributeSimple[Double]:
   val min     = 0.02
   def label   = "height"
 
+enum CompassPoint derives CanEqual:
+  case n, ne, e, se, s, sw, w, nw, c
+
+object CompassPoint:
+  val valuesWithLabel = Array(
+    ("North", n),
+    ("North East", CompassPoint.ne),
+    ("East", e),
+    ("South East", se),
+    ("South", s),
+    ("South West", sw),
+    ("West", w),
+    ("North West", nw),
+    ("Center", c)
+  )
+
+object HeadPort extends DotAttributeEnum[CompassPoint]:
+  def label: String               = "Head Port"
+  def default: CompassPoint       = CompassPoint.c
+  def values: Array[CompassPoint] = CompassPoint.values
+  override val valuesWithLabel    = CompassPoint.valuesWithLabel
+
+object TailPort extends DotAttributeEnum[CompassPoint]:
+  def label: String               = "Tail Port"
+  def default: CompassPoint       = CompassPoint.c
+  def values: Array[CompassPoint] = CompassPoint.values
+  override val valuesWithLabel    = CompassPoint.valuesWithLabel
+
 object Id extends DotAttributeSimple[String]:
   val label   = "Id"
   val default = ""
