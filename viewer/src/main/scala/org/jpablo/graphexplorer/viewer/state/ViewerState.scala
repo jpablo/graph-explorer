@@ -47,7 +47,7 @@ case class ViewerState(
   editorError.signal.changes.filter(_.isDefined)
     .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
 
-  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView, editorError)
+  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView, autoFit.now, editorError)
 
   val sourceText                  = phases.sourceText
   val fullGraph                   = phases.fullGraph

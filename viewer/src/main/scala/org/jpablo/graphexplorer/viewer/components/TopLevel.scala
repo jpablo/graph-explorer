@@ -20,7 +20,7 @@ def TopLevel(
       cls := "flex flex-1 overflow-y-auto relative",
       LeftPanel(state, router, commands),
       CanvasContainer(state, commands),
-      ZoomToolbar(commands),
+      ZoomToolbar(state, commands),
       RightPanel(state),
       RightToolbar(state),
       HelpDialog(state.helpDialogOpen, commands),

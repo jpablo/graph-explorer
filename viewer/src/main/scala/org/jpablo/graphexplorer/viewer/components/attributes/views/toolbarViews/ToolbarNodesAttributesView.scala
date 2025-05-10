@@ -83,6 +83,7 @@ def ToolbarNodesAttributesView(
         ),
         hidden = shapeIsPlainOrPlainText
       ),
+      // --- Advanced or extra attributes ---
       InputElement(
         VerticalCardWithButton(
           id = "extra-node-attributes",
@@ -94,6 +95,9 @@ def ToolbarNodesAttributesView(
             Regular     -> checkbox,
             Orientation -> range(start = Some(0), end = Some(360), step = Some(1)),
             Peripheries -> number(start = Some(1), end = Some(10), step = Some(1)),
+            FixedSize -> checkbox,
+            Width -> range(start = Some(Width.min), end = Some(5), step = Some(.1)),
+            Height -> range(start = Some(Height.min), end = Some(5), step = Some(.1)),
             row(URL, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
           )
         )

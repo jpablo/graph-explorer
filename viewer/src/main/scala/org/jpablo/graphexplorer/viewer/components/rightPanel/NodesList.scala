@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
-import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckbox, Search}
+import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckboxFormControl, Search}
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
 
@@ -42,7 +42,7 @@ def NodesList(state: ViewerState): Div =
     idAttr := "nodes-list",
     form(
       idAttr := "right-panel-controls",
-      Join(LabeledCheckbox(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveVar)),
+      Join(LabeledCheckboxFormControl(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveVar)),
       div(
         cls := "flex gap-2",
         Search(

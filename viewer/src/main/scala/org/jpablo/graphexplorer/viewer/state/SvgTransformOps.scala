@@ -8,13 +8,16 @@ import org.jpablo.graphexplorer.viewer.utils.SvgPoint
 trait SvgTransformOps:
   this: ViewerState =>
 
-  val translateXY = Var(SvgPoint.origin)
+  private val translateXY = Var(SvgPoint.origin)
+  private val zoomValue   = Var(1.0)
+  private val minZoom     = 0.05
 
-  val zoomValue = Var(1.0)
-
-  val minZoom = 0.05
+  val autoFit = Var(false)
 
   val fitDiagram = EventBus[Unit]()
+
+  def autoFitToggle() =
+    autoFit.update(!_)
 
   def zoomOut() =
     zoomValue.update(_ * .9 max minZoom)

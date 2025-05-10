@@ -303,7 +303,7 @@ def Search(mods: Mods*): Input =
     mods
   )
 
-def LabeledCheckbox(
+def LabeledCheckboxFormControl(
     id:         String,
     labelStr:   String,
     isChecked:  Var[Boolean],

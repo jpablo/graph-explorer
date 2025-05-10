@@ -135,7 +135,7 @@ label[for ^= show-ns-kind-] {
   position: relative;
 
   .floating-toolbar {
-    @apply shadow-md bg-base-100/90 rounded-box flex items-center gap-2 p-1.5 absolute z-10 print:hidden border border-base-300;
+    @apply shadow-md bg-base-100 rounded-box flex items-center gap-2 p-1.5 absolute z-10 print:hidden border border-base-300;
   }
 
   #toolbar, #selection-toolbar {

@@ -319,6 +319,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       Command("as JSON", () => state.copyAsJSON(), always, description = Some("Copy the full diagram as JSON to the clipboard"))
     val zoomOut = Command("Zoom out", () => state.zoomOut(), always, description = Some("Zoom out the diagram"))
     val fit     = Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen"))
+    val autoFit = Command("Auto fit", () => state.autoFitToggle(), always, description = Some("Zoom in the diagram"))
     val zoomIn  = Command("Zoom in", () => state.zoomIn(), always, description = Some("Zoom in the diagram"))
     val undo    = Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action"))
     val redo    = Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))

@@ -45,6 +45,7 @@ class InternalPhases(
     initialSource: Option[String] = None,
     hiddenNodes:   Signal[HiddenElements],
     resetView:     () => Unit,
+    autoFit:       () => Boolean,
     editorError:   Var[Option[String]]
 )(using Owner):
 
@@ -171,7 +172,7 @@ class InternalPhases(
           .withDefaultTheme
       }
     .distinct
-      .tapEach(_ => resetView())
+      .tapEach(_ => if autoFit() then resetView())
 
   // -------------------------------
   // rendering:

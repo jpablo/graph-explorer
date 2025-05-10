@@ -51,7 +51,7 @@ def VerticalAttributesView(
   div(
     idAttr := id,
     cls    := "attributes-view",
-    LabeledCheckbox(id + "extra-visible", "extra", extraVisible).amend(
+    LabeledCheckboxFormControl(id + "extra-visible", "extra", extraVisible).amend(
       cls           := "flex justify-end mr-2",
       cls("hidden") := extra.isEmpty
     ),

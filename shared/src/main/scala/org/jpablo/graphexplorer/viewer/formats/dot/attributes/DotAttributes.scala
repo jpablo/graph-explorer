@@ -22,8 +22,9 @@ enum ArrowType derives CanEqual:
     halfvee
 
 object ArrowType:
-  val synonyms = Map(
-  )
+  val synonyms =
+    Map(
+    )
 
 object ArrowHead extends DotAttributeEnum[ArrowType]:
   val default                  = ArrowType.vee
@@ -113,13 +114,14 @@ enum EdgeStyle derives CanEqual:
   case dashed, dotted, solid, bold, invis, tapered
 
 object FillColor extends DotAttributeSimple[String]:
-  val label   = "Fill"
-  val none    = "none"
-  val default = none // default for nodes
+  val label                    = "Fill"
+  val none                     = "none"
+  val default                  = none // default for nodes
   override val placeholderText = "Enter fill color here"
 
-object FixedSize:
+object FixedSize extends DotAttributeSimple[Boolean]:
   val default = false
+  def label   = "Fixed size"
 
 object FontColor extends DotAttributeSimple[String]:
   val label                    = "Font Color"
@@ -162,8 +164,14 @@ trait GroupLabelLocT extends DotAttributeEnum[GroupLabelLoc]:
     ("Bottom", b)
   )
 
-object Height:
+/** [[https://graphviz.org/docs/attrs/height]]
+  *
+  * In inches.
+  */
+object Height extends DotAttributeSimple[Double]:
   val default = 0.5
+  val min     = 0.02
+  def label   = "height"
 
 object Id extends DotAttributeSimple[String]:
   val label   = "Id"
@@ -450,8 +458,10 @@ object Weight extends DotAttributeSimple[Double]:
   val default                  = 1.0
   override val placeholderText = "Enter weight here"
 
-object Width:
+object Width extends DotAttributeSimple[Double]:
   val default = 0.75
+  val min     = 0.01
+  def label   = "Width"
 
 object XLabel extends DotAttributeSimple[String]:
   val label                    = "External label"
