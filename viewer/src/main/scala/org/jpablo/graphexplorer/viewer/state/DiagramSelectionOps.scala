@@ -289,14 +289,13 @@ trait DiagramSelectionOps:
       if s.nonEmpty then
         phases.fullGraphV.update: initialGraph =>
           s.ids.foldLeft(initialGraph): (currentGraph, elementId) =>
-            val currentAttrs = currentGraph.getAttributesById(elementId)
-            // Use toDotAttr to check emptiness - returns List[Attr]
-            if currentAttrs.toDotAttr.isEmpty then
+            val currentAttrs = currentGraph.getAttributesById(elementId).toDotAttr
+            if currentAttrs.isEmpty then
               // No attributes to remove
               currentGraph
             else
               // Get keys as Strings from toDotAttr, compare with Label.attrId.value
-              val keysToRemove = currentAttrs.toDotAttr.map(_.id).toSet - Label.attrId.value
+              val keysToRemove = currentAttrs.map(_.id).toSet - Label.attrId.value
               if keysToRemove.isEmpty then
                 // Only label attribute was present (or attrs were empty), nothing to remove
                 currentGraph

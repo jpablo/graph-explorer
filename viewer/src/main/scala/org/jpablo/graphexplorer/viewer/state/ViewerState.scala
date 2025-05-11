@@ -171,6 +171,10 @@ case class ViewerState(
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
     phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
 
+  def resetDefaultAttributes(target: AttributeTarget): Unit =
+    phases.fullGraphV.update: graph =>
+      graph.modifyDefaultAttributes(target).setTo(Attributes.empty)
+
   // Theme management
   lazy val currentTheme: Var[Option[String]] = Var(None)
 

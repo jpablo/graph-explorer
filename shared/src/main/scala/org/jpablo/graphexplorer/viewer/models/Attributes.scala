@@ -73,6 +73,8 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def +(kv:  (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
   def +(kv:  AttributePair): Attributes            = Attributes(values + kv.toTuple)
 
+  export values.isEmpty
+
   def contains(key: AttributeId): Boolean =
     values.contains(key)
 

@@ -16,6 +16,7 @@ object Icons:
 
   extension (elem: HtmlElement)
     def barChartStepsIcon        = elem.amend(cls := "bi bi-bar-chart-steps")
+    def bigXIcon                 = elem.amend(cls := "bi bi-x-lg")
     def circleIcon               = elem.amend(cls := "bi bi-circle")
     def diamondIcon              = elem.amend(cls := "bi bi-diamond")
     def biSquareIcon             = elem.amend(cls := "bi bi-square")

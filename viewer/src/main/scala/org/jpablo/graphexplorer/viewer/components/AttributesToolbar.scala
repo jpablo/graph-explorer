@@ -11,7 +11,8 @@ import org.jpablo.graphexplorer.viewer.models.{ElementIds, IdsByKind}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 
-def AttributesToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
+def AttributesToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) = {
+  import commands.all
   div(
     idAttr := "selection-toolbar",
     cls    := "navbar",
@@ -26,7 +27,7 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
           case (true, false, false) =>
             ToolbarArrowsAttributesView(
               state,
-              commands,
+              all.resetSelectionAttributes,
               updates = state.elementAttributesUpdates(ElementIds(arrowIds)),
               defaults = Some(state.defaults(AttributeTarget.edge))
             )
@@ -34,7 +35,7 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
           case (false, true, false) =>
             ToolbarNodesAttributesView(
               state,
-              commands,
+              all.resetSelectionAttributes,
               updates = state.elementAttributesUpdates(ElementIds(nodeIds)),
               defaults = Some(state.defaults(AttributeTarget.node))
             )
@@ -42,7 +43,7 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
           case (false, false, true) =>
             ToolbarGroupAttributesView(
               state,
-              commands,
+              all.resetSelectionAttributes,
               updates = state.elementAttributesUpdates(ElementIds(clusterIds)),
               defaults = Some(state.defaults(AttributeTarget.graph))
             )
@@ -61,11 +62,24 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
               // Defaults
               // -------------
               child <-- selection.signal.map:
-                case "nodes" => ToolbarNodesAttributesView(state, commands, updates = state.defaultAttributesUpdates(AttributeTarget.node))
+                case "nodes" =>
+                  ToolbarNodesAttributesView(
+                    state,
+                    all.resetDefaultNodeAttributes,
+                    updates = state.defaultAttributesUpdates(AttributeTarget.node)
+                  )
                 case "arrows" =>
-                  ToolbarArrowsAttributesView(state, commands, updates = state.defaultAttributesUpdates(AttributeTarget.edge))
+                  ToolbarArrowsAttributesView(
+                    state,
+                    all.resetDefaultArrowAttributes,
+                    updates = state.defaultAttributesUpdates(AttributeTarget.edge)
+                  )
                 case "groups" =>
-                  ToolbarGroupAttributesView(state, commands, updates = state.defaultAttributesUpdates(AttributeTarget.graph))
+                  ToolbarGroupAttributesView(
+                    state,
+                    all.resetDefaultGroupAttributes,
+                    updates = state.defaultAttributesUpdates(AttributeTarget.graph)
+                  )
                 case _ => div("No selection")
             )
 
@@ -91,3 +105,4 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
               )
             )
   )
+}

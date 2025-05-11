@@ -3,11 +3,12 @@ package org.jpablo.graphexplorer.viewer.components
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.{KeyValue, window}
-import scala.scalajs.js
 
+import scala.scalajs.js
 import scala.collection.immutable.VectorMap
 
 case class Shortcut(
@@ -366,7 +367,28 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Print the current selection to console for debugging")
     )
 
-    val resetAttributes = Command(
+    val resetDefaultNodeAttributes = Command(
+      "Reset default node attributes",
+      () => state.resetDefaultAttributes(AttributeTarget.node),
+      always,
+      description = Some("Reset default node attributes to the original values")
+    )
+
+    val resetDefaultArrowAttributes = Command(
+      "Reset default arrow attributes",
+      () => state.resetDefaultAttributes(AttributeTarget.edge),
+      always,
+      description = Some("Reset default arrow attributes to the original values")
+    )
+
+    val resetDefaultGroupAttributes = Command(
+      "Reset default group attributes",
+      () => state.resetDefaultAttributes(AttributeTarget.graph),
+      always,
+      description = Some("Reset default group attributes to the original values")
+    )
+
+    val resetSelectionAttributes = Command(
       "Reset Attributes",
       () => state.selection.resetAttributes(), // Action to be implemented in ViewerState/SelectionHandler
       selectionNonEmpty,                       // Visible when selection is not empty
@@ -418,6 +440,9 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.newBackwardsNode,
       all.changeProjectName,
       all.moveToGroup,
+      all.resetDefaultArrowAttributes,
+      all.resetDefaultNodeAttributes,
+      all.resetDefaultGroupAttributes,
       routerCmds.createProject,
       routerCmds.navigateHome
     ),
@@ -428,7 +453,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.duplicate,
       all.group,
       all.ungroup,
-      all.resetAttributes,
+      all.resetSelectionAttributes,
       all.clearSelection,
       all.selectGroupMembers,
       all.zoomIntoGroup,
