@@ -383,11 +383,18 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     )
 
     val reverseArrows = Command(
-      "Reverse Arrows",
+      "Reverse Arrows direction",
       () => state.selection.reverseArrows(), // Action needs implementation in SelectionHandler
       onlyArrowSelected,                     // Visible only when arrows are selected
-      shortcut = Some(Shortcut("r")),        // Shortcut 'r'
       description = Some("Reverse the direction of the selected arrows")
+    )
+
+    val reverseArrowsStyle = Command(
+      "Reverse Arrows Head/Tail Style",
+      () => state.selection.reverseArrowsStyle(), // Action needs implementation in SelectionHandler
+      onlyArrowSelected,                          // Visible only when arrows are selected
+      shortcut = Some(Shortcut("r")),             // Shortcut 'r'
+      description = Some("Reverse the Head/Tail *Style* of the selected arrows")
     )
 
   object headers:
@@ -428,6 +435,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.copyAsSVG,
       all.editLabel,
       all.reverseArrows,
+      all.reverseArrowsStyle,
       all.selectAll,
       all.selectAllNodes,
       all.selectAllArrows,

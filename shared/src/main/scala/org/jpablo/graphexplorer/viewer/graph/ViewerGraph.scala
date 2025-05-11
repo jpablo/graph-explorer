@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, DotAttribute, GraphType}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
@@ -167,6 +167,52 @@ case class ViewerGraph(
         case ArrowEndpointId.TargetId(id) => arrow.copy(target = id)
     (modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId), newArrow.id)
 
+  def effectiveAttributeValue[A](
+      dotAttribute: DotAttribute[A],
+      attrs:        Attributes,
+      defaults:     Option[Attributes] = None
+  ): A =
+    val value    = attrs.get(dotAttribute.attrId)
+    val defValue = defaults.flatMap(_.get(dotAttribute.attrId))
+    value
+      .orElse(defValue)
+      .flatMap(attrVal => dotAttribute.fromString(attrVal.toString))
+      .getOrElse(dotAttribute.default)
+
+  /** Reverses the arrow styles for the specified arrow elements in the graph. The method updates the attributes of the arrows, swapping the
+    * styles of their head and tail based on their effective values, while considering the default attributes of the graph.
+    *
+    * @param elementIds
+    *   The IDs of the elements to process. Only ArrowIds within this set will have their head and tail attributes reversed.
+    * @return
+    *   A new ViewerGraph instance with the specified arrow styles reversed.
+    */
+  def reverseArrowsStyle(elementIds: ElementIds): ViewerGraph =
+    elementIds.classify.arrows.foldLeft(this): (currentGraph, arrowId) =>
+      currentGraph.arrows.get(arrowId) match
+        case None => currentGraph
+        case Some(ogArrow) =>
+          val graphDefaultAttributes = currentGraph.elements.defaultArrowAttributes
+
+          val effectiveHead = effectiveAttributeValue(ArrowHead, ogArrow.attributes, Some(graphDefaultAttributes))
+          val effectiveTail = effectiveAttributeValue(ArrowTail, ogArrow.attributes, Some(graphDefaultAttributes))
+
+          val defaultHeadIfOmitted = effectiveAttributeValue(ArrowHead, graphDefaultAttributes)
+          val defaultTailIfOmitted = effectiveAttributeValue(ArrowTail, graphDefaultAttributes)
+
+          var updatedAttributes = ogArrow.attributes
+
+          if effectiveTail == defaultHeadIfOmitted then
+            updatedAttributes -= ArrowHead.attrId
+          else
+            updatedAttributes += (ArrowHead -> effectiveTail)
+
+          if effectiveHead == defaultTailIfOmitted then
+            updatedAttributes -= ArrowTail.attrId
+          else
+            updatedAttributes += (ArrowTail -> effectiveHead)
+          currentGraph.modifyArrows.using(_ + (arrowId -> ogArrow.copy(attributes = updatedAttributes)))
+
   /** Reverses the direction of the specified arrows.
     *
     * @param elementIds
@@ -179,7 +225,7 @@ case class ViewerGraph(
 
     arrowIdsToReverse.foldLeft(this): (currentGraph, arrowId) =>
       currentGraph.arrows.get(arrowId) match
-        case None => currentGraph // Arrow not found, skip
+        case None                => currentGraph // Arrow not found, skip
         case Some(originalArrow) =>
           // 1. Remove the original arrow
           val graphWithoutOriginal = currentGraph.modifyArrows.using(_ - arrowId)

@@ -141,6 +141,9 @@ trait DiagramSelectionOps:
     def ungroup() =
       phases.fullGraphV.update(_.ungroupSelection(now()))
 
+    def reverseArrowsStyle() =
+      phases.fullGraphV.update(_.reverseArrowsStyle(now()))
+
     def reverseArrows() =
       phases.fullGraphV.update(_.reverseArrows(now()))
 

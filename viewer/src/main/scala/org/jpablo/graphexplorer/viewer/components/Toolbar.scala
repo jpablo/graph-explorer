@@ -182,6 +182,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           all.delete,
           all.duplicate,
           all.reverseArrows,
+          all.reverseArrowsStyle,
           all.zoomIntoGroup,
           all.editLabel,
           all.resetAttributes,
