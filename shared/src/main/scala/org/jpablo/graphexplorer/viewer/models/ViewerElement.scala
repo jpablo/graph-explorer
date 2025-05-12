@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.models
 
 import com.softwaremill.quicklens.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ClusterLabelLoc, Id, Label, LabelJust}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, ClusterLabelLoc, Id, Label, LabelJust}
 import org.jpablo.graphexplorer.viewer.models.Arrow.{sequenceSeparator, titleIdSeparator}
 import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
 
@@ -146,7 +146,8 @@ object ViewerGroup:
     Attributes.of(
       Label           -> "",
       ClusterLabelLoc -> ClusterLabelLoc.default,
-      LabelJust       -> LabelJust.default
+      LabelJust       -> LabelJust.default,
+      Cluster         -> true
     )
 
   def group(
