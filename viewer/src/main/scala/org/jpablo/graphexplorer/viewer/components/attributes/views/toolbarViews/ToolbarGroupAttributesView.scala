@@ -83,6 +83,7 @@ def ToolbarGroupAttributesView(
         hidden = labelRelatedHidden
       ),
       InvisibleStyle -> checkbox,
-      row(Cluster, checkbox, hidden = Some(noDefaults))
+      row(Cluster, checkbox, hidden = Some(noDefaults)),
+      row(Rank, InputType.select, hidden = Some(noDefaults))
     )
   )

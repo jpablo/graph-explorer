@@ -377,6 +377,24 @@ object RankSep extends DotAttributeSimple[Double]:
   override val validLayouts    = Set(Layout.dot, Layout.twopi)
   override val placeholderText = "Enter rank separation here"
 
+enum RankType derives CanEqual:
+  case none, same, min, source, max, sink
+
+object Rank extends DotAttributeEnum[RankType]:
+  def label: String           = "Rank"
+  def default: RankType       = RankType.none
+  def values: Array[RankType] = RankType.values
+
+  override def valuesWithLabel: Array[(String, RankType)] =
+    Array(
+      ("None", RankType.none),
+      ("Same", RankType.same),
+      ("Minimum", RankType.min),
+      ("Source", RankType.source),
+      ("Maximum", RankType.max),
+      ("Sink", RankType.sink)
+    )
+
 object Regular extends DotAttributeSimple[Boolean]:
   val default = false
   val label   = "Regular"
