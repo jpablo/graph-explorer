@@ -28,6 +28,7 @@ def ToolbarGroupAttributesView(
 
   val labelRow           = row(Label, InputType.multiText(), onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
+  val noDefaults         = Signal.fromValue(defaults.isEmpty)
 
   HorizontalAttributesView(
     rows = rows(
@@ -81,6 +82,7 @@ def ToolbarGroupAttributesView(
         ),
         hidden = labelRelatedHidden
       ),
-      InvisibleStyle -> checkbox
+      InvisibleStyle -> checkbox,
+      row(Cluster, checkbox, hidden = Some(noDefaults))
     )
   )

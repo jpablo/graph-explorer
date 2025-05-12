@@ -29,7 +29,7 @@ case class GroupId(value: String) extends GroupMemberId derives CanEqual:
 
   override def toString: String = value
 
-  def toDot: String = s"cluster_$value"
+  def toDot: String = s"$value"
   def toSvg: String = s"group:$value"
 
 case class NodeId(value: String) extends GroupMemberId:
@@ -48,9 +48,9 @@ object ArrowId:
 object GroupId:
   val clusterId = raw"cluster_(.+)".r
 
-  def fromDot(cluster: String): GroupId = cluster match
-    case clusterId(id) => GroupId(id)
-    case _             => GroupId(cluster)
+  def fromDot(cluster: String): (GroupId, Boolean) = cluster match
+    case clusterId(id) => GroupId(id)      -> true
+    case _             => GroupId(cluster) -> false
 
   val groupId = raw"group:(.+)".r
 

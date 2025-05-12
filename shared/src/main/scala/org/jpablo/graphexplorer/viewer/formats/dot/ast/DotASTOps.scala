@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotASTOps.{
 }
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.renderFormat.DotFormatter
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes as attr
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Cluster
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.ancestorGroups
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -149,9 +150,13 @@ end extension
 object DotASTOps:
 
   def subGraphToViewerGroup(sub: SubGraph): ViewerGroup =
+    val (gId, clusterName) = sub.id.map(GroupId.fromDot).getOrElse(GroupId(SubGraph.randomId()) -> false)
+
+    val attrs      = sub.collectAttributesByTarget.getOrElse(AttributeTarget.graph, Attributes.empty)
+    val hasCluster = attrs.get(Cluster).getOrElse(AttrValue(clusterName.toString))
     group(
-      groupId = sub.id.map(GroupId.fromDot).getOrElse(GroupId(SubGraph.randomId())),
-      attributes = sub.collectAttributesByTarget.getOrElse(AttributeTarget.graph, Attributes.empty)
+      groupId = gId,
+      attributes = attrs + (Cluster.attrId -> hasCluster)
     )
 
   def nodeToViewerNode(stmt: NodeStmt): ViewerNode =

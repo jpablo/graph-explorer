@@ -31,6 +31,8 @@ def ToolbarArrowsAttributesView(
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
+  val noDefaults = Signal.fromValue(defaults.isEmpty)
+
   HorizontalAttributesView(
     rows = rows(
       InputElement(
@@ -78,8 +80,8 @@ def ToolbarArrowsAttributesView(
           "extra",
           rows(
             Decorate -> checkbox,
-            row(XLabel, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
-            row(URL, InputType.text, hidden = Some(Signal.fromValue(defaults.isEmpty))),
+            row(XLabel, InputType.text, hidden = Some(noDefaults)),
+            row(URL, InputType.text, hidden = Some(noDefaults)),
             TailPort -> InputType.select,
             HeadPort -> InputType.select
           )

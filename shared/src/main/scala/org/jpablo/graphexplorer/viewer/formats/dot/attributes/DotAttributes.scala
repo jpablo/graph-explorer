@@ -46,6 +46,11 @@ object BgColor extends DotAttributeSimple[String]:
   val default                  = "#ffffff"
   override val placeholderText = "Enter background color here"
 
+object Cluster extends DotAttributeEnum[Boolean]:
+  def label: String          = "Cluster"
+  def default: Boolean       = false
+  def values: Array[Boolean] = Array(true, false)
+
 object ClusterLabelLoc extends GroupLabelLocT:
   import GroupLabelLoc.*
   def default = t
