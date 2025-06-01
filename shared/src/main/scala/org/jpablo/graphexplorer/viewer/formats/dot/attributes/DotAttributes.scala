@@ -404,7 +404,8 @@ object RootGraphLabelLoc extends GroupLabelLocT:
   def default = b
 
 enum Shape derives CanEqual:
-  case box, polygon, ellipse, oval, circle, point, egg, triangle, plaintext, plain, diamond, trapezium, parallelogram,
+  case box, polygon, ellipse, oval, circle, point,
+    egg, triangle, plaintext, plain, record, diamond, trapezium, parallelogram,
     house, pentagon, hexagon, septagon, octagon, doublecircle, doubleoctagon, tripleoctagon, invtriangle, invtrapezium,
     invhouse, Mdiamond, Msquare, Mcircle, Mrecord, rect, rectangle, square, star, underline, cylinder, note, tab,
     folder, box3d, none,

@@ -23,7 +23,7 @@ object Viewer:
     var lastLeftPanelVisible  = false
 
     def setTheme(theme: String): Unit =
-      dom.document.documentElement.setAttribute("data-theme", theme)
+      document.documentElement.setAttribute("data-theme", theme)
 
     val viewerSettings = ProjectStorage.loadViewerSettings()
     viewerSettings.now().currentTheme.foreach(setTheme)

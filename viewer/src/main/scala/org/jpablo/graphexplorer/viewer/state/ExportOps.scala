@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps
+import org.jpablo.graphexplorer.viewer.graph.ExportViewerGraphElements
 import upickle.default.*
 
 trait ExportOps:
@@ -24,6 +25,12 @@ trait ExportOps:
     val graph = visibleGraph.observe.now()
     // Don't remove this line!! it IS the actual functionality
     pprint.log(graph, showFieldNames = true)
+    dom.console.log("Visible graph printed to the console")
+
+  def printVisibleGraphJsonToConsole(): Unit =
+    val graph = visibleGraph.observe.now()
+    // Don't remove this line!! it IS the actual functionality
+    dom.console.log(write(ExportViewerGraphElements.fromViewerGraphElements(graph.elements), indent = 2))
     dom.console.log("Visible graph printed to the console")
 
   def printVisibleDOTtoConsole(): Unit =

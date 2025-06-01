@@ -1,9 +1,9 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 import sbt.Test
 
-val scala3Version     = "3.7.0"
-val scalametaVersion  = "4.8.2"
-val laminarVersion    = "17.2.1"
+val scala3Version    = "3.7.0"
+val scalametaVersion = "4.8.2"
+val laminarVersion   = "17.2.1"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
@@ -33,14 +33,15 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
     buildInfoKeys            := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage         := "buildinfo",
     libraryDependencies ++= Seq(
-      "com.lihaoyi"                %%% "upickle"                  % "4.0.0",
-      "com.lihaoyi"                %%% "pprint"                   % "0.9.0",
-      "com.lihaoyi"                %%% "sourcecode"               % "0.4.2",
-      "com.softwaremill.quicklens" %%% "quicklens"                % "1.9.0",
-      "org.scala-lang.modules"     %%% "scala-parser-combinators" % "2.4.0",
-      "com.lihaoyi"                %%% "fastparse"                % "3.1.1",
-      "org.scalameta"              %%% "munit"                    % "1.0.0" % Test,
-      "org.scalameta"              %%% "munit-scalacheck"         % "1.0.0" % Test
+      "com.lihaoyi"                %%% "upickle"                        % "4.2.1",
+      "com.lihaoyi"                %%% "upickle-implicits-named-tuples" % "4.2.1",
+      "com.lihaoyi"                %%% "pprint"                         % "0.9.0",
+      "com.lihaoyi"                %%% "sourcecode"                     % "0.4.2",
+      "com.softwaremill.quicklens" %%% "quicklens"                      % "1.9.0",
+      "org.scala-lang.modules"     %%% "scala-parser-combinators"       % "2.4.0",
+      "com.lihaoyi"                %%% "fastparse"                      % "3.1.1",
+      "org.scalameta"              %%% "munit"                          % "1.0.0" % Test,
+      "org.scalameta"              %%% "munit-scalacheck"               % "1.0.0" % Test
     ),
     scalacOptions ++= Seq(
       "-explain",
@@ -89,7 +90,7 @@ lazy val viewer =
         "com.softwaremill.macwire"     %%% "macros"      % "2.6.4" % "provided",
         "io.laminext"                  %%% "fetch"       % "0.17.0",
         "org.scala-js"                 %%% "scalajs-dom" % "2.8.0",
-        "com.lihaoyi"                  %%% "upickle"     % "4.0.0",
+        "com.lihaoyi"                  %%% "upickle"     % "4.2.1",
         "com.lihaoyi"                  %%% "pprint"      % "0.9.0",
         "com.softwaremill.magnolia1_3" %%% "magnolia"    % "1.3.8",
 //        "com.github.sbt"             %%% "dynver"           % "5.1.0",

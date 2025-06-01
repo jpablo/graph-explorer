@@ -346,6 +346,13 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Print the visible graph to the browser console for debugging")
     )
 
+    val printVisibleGraphJsonToConsole = Command(
+      "Print visible graph as json to the console",
+      () => state.printVisibleGraphJsonToConsole(),
+      always,
+      description = Some("Print the visible graph as json to the browser console for debugging")
+    )
+
     val printVisibleDOTtoConsole = Command(
       "Print visible DOT to the console",
       () => state.printVisibleDOTtoConsole(),
@@ -510,6 +517,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     ),
     developer -> List(
       all.printVisibleGraphToConsole,
+      all.printVisibleGraphJsonToConsole,
       all.printVisibleDOTtoConsole,
       all.printVisibleJSONtoConsole,
       all.printSelectionToConsole

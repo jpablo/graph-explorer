@@ -1202,3 +1202,4 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
           )
         )
       )
+    case record => None

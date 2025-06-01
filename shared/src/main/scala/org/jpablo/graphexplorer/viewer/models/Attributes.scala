@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.models
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, AttrValue}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.DotAttribute
-
+import upickle.default.*
 import scala.annotation.targetName
 
 // -------------------
@@ -59,6 +59,9 @@ type AttrValueWithStatus = AttrStatus[AttrValue]
 case class AttributeId(value: String) extends AnyVal:
   override def toString: String = value
 
+object AttributeId:
+  given ReadWriter[AttributeId] = stringKeyRW(readwriter[String].bimap(_.value, AttributeId(_)))
+
 // -------------------
 // --- Attributes ---
 // -------------------
@@ -105,6 +108,10 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
     AttributeUpdates(values.transform((_, v) => AttrStatus.Single(v)))
 
 object Attributes:
+
+  given ReadWriter[Attributes] =
+    stringKeyRW(readwriter[Map[AttributeId, AttrValue]].bimap(_.values, Attributes(_)))
+
   val empty = Attributes(Map.empty)
 
   def of(values: AttributePair*) =

@@ -48,6 +48,8 @@ object ArrowId:
 object GroupId:
   val clusterId = raw"cluster_(.+)".r
 
+  given ReadWriter[GroupId] = readwriter[String].bimap[GroupId](_.value, GroupId(_))
+
   def fromDot(cluster: String): (GroupId, Boolean) = cluster match
     case clusterId(id) => GroupId(id)      -> true
     case _             => GroupId(cluster) -> false
