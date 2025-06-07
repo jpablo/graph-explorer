@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "graph-explorer-metals": {
+      "url": "http://localhost:60013/sse"
+    }
+  }
+}

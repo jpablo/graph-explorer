@@ -404,13 +404,92 @@ object RootGraphLabelLoc extends GroupLabelLocT:
   def default = b
 
 enum Shape derives CanEqual:
-  case box, polygon, ellipse, oval, circle, point,
-    egg, triangle, plaintext, plain, record, diamond, trapezium, parallelogram,
-    house, pentagon, hexagon, septagon, octagon, doublecircle, doubleoctagon, tripleoctagon, invtriangle, invtrapezium,
-    invhouse, Mdiamond, Msquare, Mcircle, Mrecord, rect, rectangle, square, star, underline, cylinder, note, tab,
-    folder, box3d, none,
-    component, promoter, cds, terminator, utr, primersite, restrictionsite, fivepoverhang, threepoverhang, noverhang,
-    assembly, signature, insulator, ribosite, rnastab, proteasesite, proteinstab, rarrow, larrow, lpromoter, rpromoter
+  // Basic common shapes
+  case box
+  case rectangle
+  case rect
+  case square
+  case circle
+  case ellipse
+  case oval
+  case point
+  case none
+
+  // Polygons
+  case polygon
+  case triangle
+  case diamond
+  case pentagon
+  case hexagon
+  case septagon
+  case octagon
+  case star
+
+  // Inverted shapes
+  case invtriangle
+  case invtrapezium
+  case invhouse
+
+  // Quadrilaterals
+  case trapezium
+  case parallelogram
+  case house
+
+  // Multi/compound shapes
+  case doublecircle
+  case doubleoctagon
+  case tripleoctagon
+
+  // Modified shapes (M-prefixed)
+  case Mdiamond
+  case Msquare
+  case Mcircle
+  case Mrecord
+
+  // Text and records
+  case plaintext
+  case plain
+  case record
+  case underline
+
+  // 3D and container shapes
+  case box3d
+  case cylinder
+  case note
+  case tab
+  case folder
+
+  // Arrows
+  case rarrow
+  case larrow
+
+  // Component/system shapes
+  case component
+  case egg
+  case signature
+  case assembly
+
+  // Biological/genetic elements
+  case promoter
+  case lpromoter
+  case rpromoter
+  case cds
+  case terminator
+  case utr
+  case insulator
+  case ribosite
+  case rnastab
+  case proteasesite
+  case proteinstab
+
+  // Molecular biology sites
+  case primersite
+  case restrictionsite
+  case fivepoverhang
+  case threepoverhang
+  case noverhang
+
+
 
 object Shape extends DotAttributeEnum[Shape]:
   val default = box

@@ -63,8 +63,8 @@ package object views:
   val shapesOptions =
     Shape.valuesWithLabel
       .filterNot((_, s) => s in Shape.synonyms).toSeq
-      .map: (label, style) =>
-        RowOption(label, Single(AttrValue(style.toString)), ShapePreview(style, 20, 20))
+      .map: (label, shape) =>
+        RowOption(label, Single(AttrValue(shape.toString)), ShapePreview(shape, 20, 20))
 
   val borderStyleOptions =
     BorderStyle.valuesWithLabel

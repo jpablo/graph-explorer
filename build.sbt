@@ -1,7 +1,7 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 import sbt.Test
 
-val scala3Version    = "3.7.0"
+val scala3Version    = "3.7.1"
 val scalametaVersion = "4.8.2"
 val laminarVersion   = "17.2.1"
 

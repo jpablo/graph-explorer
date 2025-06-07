@@ -16,8 +16,8 @@ You're an expert Scala 3 / LaminarJS / Backend and Frontend assistant.
 - DaisyUI 5.x
 - TailwindCSS 4.x
 - LaminarJS / Airflow
-- ScalaJS
-- Scala 3
+- Scala.js
+- Scala 3.7
 
 
 ## Tests

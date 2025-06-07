@@ -31,7 +31,8 @@ def ToolbarNodesAttributesView(
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
-  val shapeRow          = row(Shape, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = shapesOptions)
+  val shapeRow = row(Shape, InputType.currentValueWithSelector(cardClass = Some("narrow-card")))
+    .copy(options = shapesOptions)
   val shapeIsNotPolygon = shapeRow.inputVar.signal.map(_.exists(_.toString != Shape.polygon.toString))
   val shapeIsPlainOrPlainText = shapeRow.inputVar.signal.map(_.exists { shape =>
     shape.toString == Shape.plain.toString || shape.toString == Shape.plaintext.toString
