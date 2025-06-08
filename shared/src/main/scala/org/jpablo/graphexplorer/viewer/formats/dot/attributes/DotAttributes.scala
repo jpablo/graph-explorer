@@ -417,12 +417,13 @@ enum Shape derives CanEqual:
 
   // Polygons
   case polygon
-  case triangle
-  case diamond
   case pentagon
   case hexagon
   case septagon
   case octagon
+  
+  case triangle
+  case diamond
   case star
 
   // Inverted shapes

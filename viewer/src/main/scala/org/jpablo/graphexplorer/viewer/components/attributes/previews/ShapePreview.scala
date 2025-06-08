@@ -12,8 +12,8 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
           svg.width   := w.toString,
           svg.height  := h.toString,
           svg.viewBox := "0 0 24 16",
-          svg.path(
-            svg.d := "M22 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"
+          svg.polygon(
+            svg.points := "2,2 22,2 22,14 2,14 2,2"
           )
         )
       )
@@ -23,24 +23,9 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "44 -587 47 47",
+          svg.viewBox := "0 0 24 24",
           svg.polygon(
-            svg.points := "90.81,-586.94 44.24,-586.94 44.24,-540.37 90.81,-540.37 90.81,-586.94"
-          )
-        )
-      )
-
-    case Shape.ellipse | Shape.oval =>
-      Some(() =>
-        svg.svg(
-          svg.width   := w.toString,
-          svg.height  := h.toString,
-          svg.viewBox := "328 -42 55 37",
-          svg.ellipse(
-            svg.cx := "355.52",
-            svg.cy := "-23.65",
-            svg.rx := "27",
-            svg.ry := "18"
+            svg.points := "2,2 22,2 22,22 2,22 2,2"
           )
         )
       )
@@ -50,12 +35,68 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "619 -48 49 49",
+          svg.viewBox := "0 0 24 24", // Normalized viewBox
+          svg.ellipse( // Graphviz uses ellipse for circle
+            svg.cx    := "12",        // Center X in 24x24
+            svg.cy    := "12",        // Center Y in 24x24
+            svg.rx    := "11",        // Radius (24/2 - 1 for padding)
+            svg.ry    := "11"         // Radius (24/2 - 1 for padding)
+          )
+        )
+      )
+
+    case Shape.ellipse | Shape.oval =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "0 0 24 16", // Normalized viewBox
           svg.ellipse(
-            svg.cx := "643.52",
-            svg.cy := "-23.65",
-            svg.rx := "23.65",
-            svg.ry := "23.65"
+            svg.cx := "12", // Center X in 24x16
+            svg.cy := "8",  // Center Y in 24x16
+            svg.rx := "11", // Radius X (24/2 - 1 for padding)
+            svg.ry := "7"   // Radius Y (16/2 - 1 for padding)
+          )
+        )
+      )
+
+    case Shape.point =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "0 0 24 24",
+          svg.circle(
+            svg.cx := "12",
+            svg.cy := "12",
+            svg.r  := "3" // Small radius for a point
+          )
+        )
+      )
+
+    case Shape.none =>
+      None
+
+    case Shape.polygon | Shape.pentagon | Shape.hexagon | Shape.septagon | Shape.octagon =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "0 0 24 25",
+          svg.polygon(
+            svg.points := "23.73,9.11 11.95,0 0.19,9.11 4.68,23.81 19.23,23.81 23.73,9.11"
+          )
+        )
+      )
+
+    case Shape.triangle =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "0 0 24 16", // Normalized viewBox
+          svg.polygon(
+            svg.points := "12,2 22,14 2,14 12,2" // Points for triangle in 24x16
           )
         )
       )
@@ -65,25 +106,21 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "597 -150 93 37",
+          svg.viewBox := "0 0 24 16", // Normalized viewBox
           svg.polygon(
-            svg.points := "643.52,-149.65 597.3,-131.65 643.52,-113.65 689.75,-131.65 643.52,-149.65"
+            svg.points := "12,2 2,8 12,14 22,8 12,2" // Points for diamond in 24x16
           )
         )
       )
 
-    case Shape.triangle =>
+    case Shape.star =>
       Some(() =>
         svg.svg(
-          svg.width  := w.toString,
-          svg.height := h.toString,
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "166 -607 91 87",
           svg.polygon(
-            svg.points := {
-              val centerX = w / 2
-              val topY    = 2
-              val bottomY = h - 2
-              s"$centerX,$topY ${w - 2},$bottomY 2,$bottomY"
-            }
+            svg.points := "256.06,-573.65 222.04,-573.65 211.52,-606.01 201.01,-573.65 166.98,-573.65 194.51,-553.65 184,-521.29 211.52,-541.29 239.05,-521.29 228.54,-553.65 256.06,-573.65"
           )
         )
       )
@@ -93,118 +130,45 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "425 -373 149 61",
+          svg.viewBox := "0 0 24 16", // Normalized viewBox
           svg.polygon(
-            svg.points := "499.52,-312.65 573.59,-372.65 425.46,-372.65 499.52,-312.65"
+            svg.points := "12,14 22,2 2,2 12,14" // Points for inverted triangle in 24x16
           )
         )
       )
 
-    case Shape.polygon | Shape.pentagon | Shape.hexagon | Shape.septagon | Shape.octagon =>
+    case Shape.invtrapezium => // Bottom base shorter than top base
       Some(() =>
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "177 -88 89 80",
+          svg.viewBox := "0 0 24 16", // Normalized viewBox
           svg.polygon(
-            svg.points := "265.07,-57.18 221.38,-87.37 177.7,-57.18 194.38,-8.34 248.38,-8.34 265.07,-57.18"
+            svg.points := "2,2 22,2 19,14 5,14 2,2"
           )
         )
       )
 
-    case Shape.doublecircle =>
-      Some(() =>
-        svg.svg(
-          svg.width  := w.toString,
-          svg.height := h.toString,
-          svg.g(
-            svg.circle(
-              svg.cx := (w / 2).toString,
-              svg.cy := (h / 2).toString,
-              svg.r  := (Math.min(w, h) / 2 - 2).toString
-            ),
-            svg.circle(
-              svg.cx := (w / 2).toString,
-              svg.cy := (h / 2).toString,
-              svg.r  := (Math.min(w, h) / 2 - 6).toString
-            )
-          )
-        )
-      )
-
-    case Shape.doubleoctagon | Shape.tripleoctagon =>
-      val rings = if shape == Shape.doubleoctagon then 2 else 3
-      Some(() =>
-        svg.svg(
-          svg.width  := w.toString,
-          svg.height := h.toString,
-          svg.g(
-            (0 until rings).map { i =>
-              val padding = i * 4
-              svg.polygon(
-                svg.points := {
-                  val centerX = w / 2
-                  val centerY = h / 2
-                  val radius  = Math.min(w, h) / 2 - 2 - padding
-                  val points = (0 until 8).map { j =>
-                    val angle = j * 2 * Math.PI / 8
-                    val x     = centerX + radius * Math.cos(angle)
-                    val y     = centerY + radius * Math.sin(angle)
-                    s"${x.round},${y.round}"
-                  }
-                  points.mkString(" ")
-                }
-              )
-            }
-          )
-        )
-      )
-
-    case Shape.point =>
-      Some(() =>
-        svg.svg(
-          svg.width  := w.toString,
-          svg.height := h.toString,
-          svg.circle(
-            svg.cx := (w / 2).toString,
-            svg.cy := (h / 2).toString,
-            svg.r  := "3"
-          )
-        )
-      )
-
-    case Shape.egg =>
+    case Shape.invhouse =>
       Some(() =>
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "38 -150 60 37",
+          svg.viewBox := "745 -367 85 42",
           svg.polygon(
-            svg.points := "70.18,-113.7 71.94,-113.8 73.69,-113.95 75.41,-114.14 77.09,-114.39 78.74,-114.68 80.34,-115.02 81.89,-115.4 83.38,-115.83 84.81,-116.3 86.16,-116.81 87.45,-117.37 88.66,-117.96 89.79,-118.59 90.83,-119.26 91.79,-119.96 92.65,-120.69 93.43,-121.45 94.11,-122.25 94.7,-123.06 95.19,-123.9 95.59,-124.76 95.9,-125.64 96.11,-126.54 96.23,-127.45 96.27,-128.37 96.21,-129.3 96.07,-130.24 95.85,-131.18 95.55,-132.12 95.18,-133.07 94.73,-134 94.21,-134.93 93.63,-135.86 92.99,-136.77 92.29,-137.66 91.54,-138.54 90.74,-139.41 89.89,-140.25 89.01,-141.06 88.08,-141.85 87.12,-142.62 86.13,-143.35 85.11,-144.05 84.07,-144.71 83,-145.35 81.92,-145.94 80.82,-146.49 79.7,-147.01 78.57,-147.48 77.43,-147.91 76.29,-148.29 75.13,-148.63 73.97,-148.92 72.8,-149.16 71.63,-149.36 70.46,-149.51 69.29,-149.6 68.11,-149.65 66.94,-149.65 65.76,-149.6 64.59,-149.51 63.41,-149.36 62.24,-149.16 61.08,-148.92 59.92,-148.63 58.76,-148.29 57.61,-147.91 56.48,-147.48 55.35,-147.01 54.23,-146.49 53.13,-145.94 52.05,-145.35 50.98,-144.71 49.94,-144.05 48.92,-143.35 47.93,-142.62 46.97,-141.85 46.04,-141.06 45.15,-140.25 44.31,-139.41 43.51,-138.54 42.75,-137.66 42.06,-136.77 41.41,-135.86 40.83,-134.93 40.32,-134 39.87,-133.07 39.49,-132.12 39.19,-131.18 38.97,-130.24 38.83,-129.3 38.78,-128.37 38.81,-127.45 38.94,-126.54 39.15,-125.64 39.46,-124.76 39.85,-123.9 40.35,-123.06 40.94,-122.25 41.62,-121.45 42.39,-120.69 43.26,-119.96 44.22,-119.26 45.26,-118.59 46.39,-117.96 47.6,-117.37 48.88,-116.81 50.24,-116.3 51.67,-115.83 53.16,-115.4 54.71,-115.02 56.31,-114.68 57.96,-114.39 59.64,-114.14 61.36,-113.95 63.1,-113.8 64.86,-113.7 66.64,-113.65 68.41,-113.65 70.18,-113.7"
+            svg.points := "745.88,-341.13 787.52,-325.58 829.17,-341.13 829.13,-366.29 745.92,-366.29 745.88,-341.13"
           )
         )
       )
 
-    case Shape.trapezium =>
+    case Shape.trapezium => // Top base shorter than bottom base
       Some(() =>
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "736 -159 103 55",
+          svg.viewBox := "0 0 24 16", // Normalized viewBox
           svg.polygon(
-            svg.points := "817.28,-158.65 757.77,-158.65 736.58,-104.65 838.47,-104.65 817.28,-158.65"
-          )
-        )
-      )
-
-    case Shape.invtrapezium =>
-      Some(() =>
-        svg.svg(
-          svg.width   := w.toString,
-          svg.height  := h.toString,
-          svg.viewBox := "581 -375 124 55",
-          svg.polygon(
-            svg.points := "607.42,-320.65 679.63,-320.65 705.34,-374.65 581.71,-374.65 607.42,-320.65"
+            svg.points := "5,2 19,2 22,14 2,14 5,2"
           )
         )
       )
@@ -233,14 +197,154 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         )
       )
 
-    case Shape.invhouse =>
+    case Shape.doublecircle =>
       Some(() =>
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "745 -367 85 42",
+          svg.viewBox := "0 0 24 24", // Normalized viewBox
+          svg.g(
+            svg.circle(
+              svg.cx := "12",
+              svg.cy := "12",
+              svg.r  := "11" // Outer circle (24/2 - 1)
+            ),
+            svg.circle(
+              svg.cx := "12",
+              svg.cy := "12",
+              svg.r  := "8" // Inner circle (11 - 3 for spacing)
+            )
+          )
+        )
+      )
+
+    case Shape.doubleoctagon | Shape.tripleoctagon =>
+      val rings = if shape == Shape.doubleoctagon then 2 else 3
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "0 0 24 24", // Normalized viewBox
+          svg.g(
+            (0 until rings).map { i =>
+              val centerX     = 12.0
+              val centerY     = 12.0
+              val ringSpacing = 2.0          // Spacing between octagon rings in viewBox units
+              val baseRadius  = 11.0         // Max radius (24/2 - 1) for the outermost ring
+              val radius      = baseRadius - (i * ringSpacing)
+              val sides       = 8
+              val angleOffset = -Math.PI / 2 // Point-up orientation
+
+              svg.polygon(
+                svg.points := {
+                  (0 until sides).map { j =>
+                    val angle = angleOffset + j * 2 * Math.PI / sides
+                    val x     = centerX + radius * Math.cos(angle)
+                    val y     = centerY + radius * Math.sin(angle)
+                    s"${(x * 10).round / 10.0},${(y * 10).round / 10.0}"
+                  }.mkString(" ")
+                }
+              )
+            }
+          )
+        )
+      )
+
+    case Shape.Mdiamond =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "14 -474 107 37",
+          svg.g(
+            svg.polygon(
+              svg.points := "67.52,-473.65 14.21,-455.65 67.52,-437.65 120.84,-455.65 67.52,-473.65"
+            ),
+            svg.polyline(
+              svg.points := "25.58,-459.49 25.58,-451.81"
+            ),
+            svg.polyline(
+              svg.points := "56.15,-441.49 78.89,-441.49"
+            ),
+            svg.polyline(
+              svg.points := "109.47,-451.81 109.47,-459.49"
+            ),
+            svg.polyline(
+              svg.points := "78.89,-469.81 56.15,-469.81"
+            )
+          )
+        )
+      )
+
+    case Shape.Msquare =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "184 -484 55 56",
+          svg.g(
+            svg.polygon(
+              svg.points := "238.98,-483.11 184.07,-483.11 184.07,-428.2 238.98,-428.2 238.98,-483.11"
+            ),
+            svg.polyline(
+              svg.points := "196.07,-483.11 184.07,-471.11"
+            ),
+            svg.polyline(
+              svg.points := "184.07,-440.2 196.07,-428.2"
+            ),
+            svg.polyline(
+              svg.points := "226.98,-428.2 238.98,-440.2"
+            ),
+            svg.polyline(
+              svg.points := "238.98,-471.11 226.98,-483.11"
+            )
+          )
+        )
+      )
+
+    case Shape.Mcircle =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "326 -485 60 60",
+          svg.g(
+            svg.ellipse(
+              svg.cx := "355.52",
+              svg.cy := "-455.65",
+              svg.rx := "28.66",
+              svg.ry := "28.66"
+            ),
+            svg.polyline(
+              svg.points := "374.48,-477.15 336.57,-477.15"
+            ),
+            svg.polyline(
+              svg.points := "374.48,-434.16 336.57,-434.16"
+            )
+          )
+        )
+      )
+
+    case Shape.Mrecord =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "472 -474 55 37",
+          svg.path(
+            svg.d := "M484.52,-437.65C484.52,-437.65 514.52,-437.65 514.52,-437.65 520.52,-437.65 526.52,-443.65 526.52,-449.65 526.52,-449.65 526.52,-461.65 526.52,-461.65 526.52,-467.65 520.52,-473.65 514.52,-473.65 514.52,-473.65 484.52,-473.65 484.52,-473.65 478.52,-473.65 472.52,-467.65 472.52,-461.65 472.52,-461.65 472.52,-449.65 472.52,-449.65 472.52,-443.65 478.52,-437.65 484.52,-437.65"
+          )
+        )
+      )
+
+    case Shape.egg =>
+      Some(() =>
+        svg.svg(
+          svg.width   := w.toString,
+          svg.height  := h.toString,
+          svg.viewBox := "38 -150 60 37",
           svg.polygon(
-            svg.points := "745.88,-341.13 787.52,-325.58 829.17,-341.13 829.13,-366.29 745.92,-366.29 745.88,-341.13"
+            svg.points := "70.18,-113.7 71.94,-113.8 75.41,-114.14 78.74,-114.68 81.89,-115.4 84.81,-116.3 87.45,-117.37 89.79,-118.59 91.79,-119.96 93.43,-121.45 94.7,-123.06 95.59,-124.76 96.11,-126.54 96.27,-128.37 96.07,-130.24 95.55,-132.12 94.73,-134 93.63,-135.86 92.29,-137.66 90.74,-139.41 89.01,-141.06 87.12,-142.62 85.11,-144.05 83,-145.35 80.82,-146.49 78.57,-147.48 76.29,-148.29 73.97,-148.92 71.63,-149.36 69.29,-149.6 66.94,-149.65 64.59,-149.51 62.24,-149.16 59.92,-148.63 57.61,-147.91 55.35,-147.01 53.13,-145.94 50.98,-144.71 48.92,-143.35 46.97,-141.85 45.15,-140.25 43.51,-138.54 42.06,-136.77 40.83,-134.93 39.87,-133.07 39.19,-131.18 38.83,-129.3 38.81,-127.45 39.15,-125.64 39.85,-123.9 40.94,-122.25 42.39,-120.69 44.22,-119.26 46.39,-117.96 48.88,-116.81 51.67,-115.83 54.71,-115.02 57.96,-114.39 61.36,-113.95 64.86,-113.7 68.41,-113.65"
           )
         )
       )
@@ -721,108 +825,6 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         )
       )
 
-    case Shape.star =>
-      Some(() =>
-        svg.svg(
-          svg.width   := w.toString,
-          svg.height  := h.toString,
-          svg.viewBox := "166 -607 91 87",
-          svg.polygon(
-            svg.points := "256.06,-573.65 222.04,-573.65 211.52,-606.01 201.01,-573.65 166.98,-573.65 194.51,-553.65 184,-521.29 211.52,-541.29 239.05,-521.29 228.54,-553.65 256.06,-573.65"
-          )
-        )
-      )
-
-    case Shape.Mdiamond =>
-      Some(() =>
-        svg.svg(
-          svg.width   := w.toString,
-          svg.height  := h.toString,
-          svg.viewBox := "14 -474 107 37",
-          svg.g(
-            svg.polygon(
-              svg.points := "67.52,-473.65 14.21,-455.65 67.52,-437.65 120.84,-455.65 67.52,-473.65"
-            ),
-            svg.polyline(
-              svg.points := "25.58,-459.49 25.58,-451.81"
-            ),
-            svg.polyline(
-              svg.points := "56.15,-441.49 78.89,-441.49"
-            ),
-            svg.polyline(
-              svg.points := "109.47,-451.81 109.47,-459.49"
-            ),
-            svg.polyline(
-              svg.points := "78.89,-469.81 56.15,-469.81"
-            )
-          )
-        )
-      )
-
-    case Shape.Msquare =>
-      Some(() =>
-        svg.svg(
-          svg.width   := w.toString,
-          svg.height  := h.toString,
-          svg.viewBox := "184 -484 55 56",
-          svg.g(
-            svg.polygon(
-              svg.points := "238.98,-483.11 184.07,-483.11 184.07,-428.2 238.98,-428.2 238.98,-483.11"
-            ),
-            svg.polyline(
-              svg.points := "196.07,-483.11 184.07,-471.11"
-            ),
-            svg.polyline(
-              svg.points := "184.07,-440.2 196.07,-428.2"
-            ),
-            svg.polyline(
-              svg.points := "226.98,-428.2 238.98,-440.2"
-            ),
-            svg.polyline(
-              svg.points := "238.98,-471.11 226.98,-483.11"
-            )
-          )
-        )
-      )
-
-    case Shape.Mcircle =>
-      Some(() =>
-        svg.svg(
-          svg.width   := w.toString,
-          svg.height  := h.toString,
-          svg.viewBox := "326 -485 60 60",
-          svg.g(
-            svg.ellipse(
-              svg.cx := "355.52",
-              svg.cy := "-455.65",
-              svg.rx := "28.66",
-              svg.ry := "28.66"
-            ),
-            svg.polyline(
-              svg.points := "374.48,-477.15 336.57,-477.15"
-            ),
-            svg.polyline(
-              svg.points := "374.48,-434.16 336.57,-434.16"
-            )
-          )
-        )
-      )
-
-    case Shape.Mrecord =>
-      Some(() =>
-        svg.svg(
-          svg.width   := w.toString,
-          svg.height  := h.toString,
-          svg.viewBox := "472 -474 55 37",
-          svg.path(
-            svg.d := "M484.52,-437.65C484.52,-437.65 514.52,-437.65 514.52,-437.65 520.52,-437.65 526.52,-443.65 526.52,-449.65 526.52,-449.65 526.52,-461.65 526.52,-461.65 526.52,-467.65 520.52,-473.65 514.52,-473.65 514.52,-473.65 484.52,-473.65 484.52,-473.65 478.52,-473.65 472.52,-467.65 472.52,-461.65 472.52,-461.65 472.52,-449.65 472.52,-449.65 472.52,-443.65 478.52,-437.65 484.52,-437.65"
-          )
-        )
-      )
-
-    case Shape.none =>
-      None
-
     case Shape.plain =>
       Some(() =>
         svg.svg(
@@ -871,25 +873,17 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         )
       )
 
-    case Shape.underline =>
+    case Shape.underline => // Similar to box, but with an underline
       Some(() =>
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "338 -586 55 37",
+          svg.viewBox := "0 0 24 16",
           svg.g(
-            svg.polygon(
-              svg.points := "392.38,-585.24 338.38,-585.24 338.38,-549.24 392.38,-549.24 392.38,-585.24",
-              svg.stroke := "none"
-            ),
-            svg.polyline(
-              svg.points := "338.38,-549.24 392.38,-549.24"
-            ),
             svg.text(
-              svg.x          := "365.38",
-              svg.y          := "-563.64",
-              svg.fontFamily := "Times,serif",
-              svg.fontSize   := "18.00",
+              svg.x          := "12",
+              svg.y          := "8",      // Adjusted for viewBox
+              svg.dy         := "-0.5em", // Move text up a bit
               svg.textAnchor := "middle",
               "u"
             )
