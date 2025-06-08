@@ -28,7 +28,7 @@ object ArrowType:
 
 object ArrowHead extends DotAttributeEnum[ArrowType]:
   val default                  = ArrowType.vee
-  val label                    = "Arrow head"
+  val label                    = "Head"
   def values: Array[ArrowType] = ArrowType.values
 
 object ArrowSize extends DotAttributeSimple[Double]:
@@ -38,7 +38,7 @@ object ArrowSize extends DotAttributeSimple[Double]:
 
 object ArrowTail extends DotAttributeEnum[ArrowType]:
   val default                  = ArrowType.none // default for dir=forward
-  val label                    = "Arrow tail"
+  val label                    = "Tail"
   def values: Array[ArrowType] = ArrowType.values
 
 object BgColor extends DotAttributeSimple[String]:
@@ -421,7 +421,7 @@ enum Shape derives CanEqual:
   case hexagon
   case septagon
   case octagon
-  
+
   case triangle
   case diamond
   case star

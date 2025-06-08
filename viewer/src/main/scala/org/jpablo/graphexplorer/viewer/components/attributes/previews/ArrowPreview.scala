@@ -15,20 +15,19 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 55 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.x1  := "0",
+              svg.y1  := "10",
+              svg.x2  := "40",
+              svg.y2  := "10"
             ),
             svg.polygon(
+              svg.cls    := "arrow-preview",
               svg.points := "40,5 50,10 40,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
+              svg.style  := "fill: currentColor;"
             )
           )
         )
@@ -39,20 +38,19 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 55 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.x1  := "0",
+              svg.y1  := "10",
+              svg.x2  := "40",
+              svg.y2  := "10"
             ),
             svg.polygon(
+              svg.cls    := "arrow-preview",
               svg.points := "50,5 40,10 50,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
+              svg.style  := "fill: currentColor;"
             )
           )
         )
@@ -66,19 +64,18 @@ def ArrowPreview(
           svg.viewBox := "0 0 50 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.x1  := "0",
+              svg.y1  := "10",
+              svg.x2  := "40",
+              svg.y2  := "10"
             ),
             svg.circle(
-              svg.cx     := "45",
-              svg.cy     := "10",
-              svg.r      := "4",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
+              svg.cls   := "arrow-preview",
+              svg.cx    := "40",
+              svg.cy    := "10",
+              svg.r     := "6",
+              svg.style := "fill: currentColor;"
             )
           )
         )
@@ -89,22 +86,23 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 55 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.x1  := "0",
+              svg.y1  := "10",
+              svg.x2  := "40",
+              svg.y2  := "10"
             ),
             svg.circle(
-              svg.cx     := "45",
-              svg.cy     := "10",
-              svg.r      := "4",
-              svg.stroke := "currentColor",
-              svg.fill   := "none"
+              svg.cls         := "arrow-preview",
+              svg.cx          := "45",
+              svg.cy          := "10",
+              svg.r           := "6",
+              svg.stroke      := "currentColor",
+              svg.strokeWidth := "3",
+              svg.fill        := "none"
             )
           )
         )
@@ -117,12 +115,11 @@ def ArrowPreview(
           svg.height  := height.toString,
           svg.viewBox := "0 0 50 20",
           svg.line(
-            svg.x1          := "0",
-            svg.y1          := "10",
-            svg.x2          := "50",
-            svg.y2          := "10",
-            svg.stroke      := "currentColor",
-            svg.strokeWidth := "2"
+            svg.cls := "arrow-preview",
+            svg.x1  := "0",
+            svg.y1  := "10",
+            svg.x2  := "50",
+            svg.y2  := "10"
           )
         )
       )
@@ -135,20 +132,20 @@ def ArrowPreview(
           svg.viewBox := "0 0 50 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls    := "arrow-preview",
+              svg.x1     := "0",
+              svg.y1     := "10",
+              svg.x2     := "40",
+              svg.y2     := "10",
+              svg.stroke := "currentColor"
             ),
             svg.line(
-              svg.x1          := "40",
-              svg.y1          := "5",
-              svg.x2          := "40",
-              svg.y2          := "15",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls    := "arrow-preview",
+              svg.x1     := "40",
+              svg.y1     := "5",
+              svg.x2     := "40",
+              svg.y2     := "15",
+              svg.stroke := "currentColor"
             )
           )
         )
@@ -159,20 +156,21 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 52 20",
           svg.g(
             svg.line(
+              svg.cls         := "arrow-preview",
               svg.x1          := "0",
               svg.y1          := "10",
               svg.x2          := "40",
               svg.y2          := "10",
               svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.strokeWidth := "3"
             ),
             svg.polygon(
+              svg.cls    := "arrow-preview",
               svg.points := "40,5 50,10 40,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "none"
+              svg.style  := "fill: none; stroke-width: 1px;"
             )
           )
         )
@@ -183,20 +181,20 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 55 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "35",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls    := "arrow-preview",
+              svg.x1     := "0",
+              svg.y1     := "10",
+              svg.x2     := "35",
+              svg.y2     := "10",
+              svg.stroke := "currentColor"
             ),
             svg.polygon(
+              svg.cls    := "arrow-preview",
               svg.points := "35,10 42,5 49,10 42,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
+              svg.style  := "fill: currentColor;"
             )
           )
         )
@@ -207,20 +205,19 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 55 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "35",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.x1  := "0",
+              svg.y1  := "10",
+              svg.x2  := "35",
+              svg.y2  := "10"
             ),
             svg.polygon(
+              svg.cls    := "arrow-preview",
               svg.points := "35,10 42,5 49,10 42,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "none"
+              svg.style  := "fill: none; stroke-width: 1.5px;"
             )
           )
         )
@@ -234,17 +231,17 @@ def ArrowPreview(
           svg.viewBox := "0 0 50 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "40",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.x1  := "0",
+              svg.y1  := "10",
+              svg.x2  := "40",
+              svg.y2  := "10"
             ),
             svg.polygon(
+              svg.cls    := "arrow-preview",
               svg.points := "50,5 40,10 50,15",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
+//              svg.stroke := "currentColor",
+//              svg.fill   := "currentColor"
             )
           )
         )
@@ -258,20 +255,19 @@ def ArrowPreview(
           svg.viewBox := "0 0 50 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "35",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.x1  := "0",
+              svg.y1  := "10",
+              svg.x2  := "35",
+              svg.y2  := "10"
             ),
             svg.rect(
+              svg.cls    := "arrow-preview",
               svg.x      := "35",
               svg.y      := "5",
               svg.width  := "10",
               svg.height := "10",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
+              svg.style  := "fill: currentColor"
             )
           )
         )
@@ -282,23 +278,22 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 55 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "35",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.x1  := "0",
+              svg.y1  := "10",
+              svg.x2  := "35",
+              svg.y2  := "10"
             ),
             svg.rect(
+              svg.cls    := "arrow-preview",
               svg.x      := "35",
               svg.y      := "5",
               svg.width  := "10",
               svg.height := "10",
-              svg.stroke := "currentColor",
-              svg.fill   := "none"
+              svg.style  := "stroke-width: 1.5px;"
             )
           )
         )
@@ -309,15 +304,15 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 55 20",
           svg.g(
             svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "46",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls   := "arrow-preview",
+              svg.x1    := "0",
+              svg.y1    := "10",
+              svg.x2    := "46",
+              svg.y2    := "10",
+              svg.style := "stroke-width: 1.5px;"
             ),
             svg.polygon(
               svg.points := "50,10 45,5 47,10 45,10 45,10 50,10",
@@ -333,20 +328,16 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "60 -23 30 10",
           svg.g(
-            svg.line(
-              svg.x1          := "0",
-              svg.y1          := "10",
-              svg.x2          := "46",
-              svg.y2          := "10",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+            svg.path(
+              svg.cls := "arrow-preview",
+              svg.d   := "M54.4,-18C61.97,-18 70.38,-18 88,-18"
             ),
             svg.polygon(
-              svg.points := "50,10 40,5 46,10 40,10 40,10 40,10 46,10 40,15 50,10",
-              svg.stroke := "currentColor",
-              svg.fill   := "currentColor"
+              svg.fill   := "black",
+              svg.stroke := "black",
+              svg.points := "88.4,-18 78.4,-22.5 84.62,-18 78.4,-18 78.4,-18 78.4,-18 84.62,-18 78.4,-13.5 88.4,-18"
             )
           )
         )
@@ -357,19 +348,16 @@ def ArrowPreview(
         svg.svg(
           svg.width   := width.toString,
           svg.height  := height.toString,
-          svg.viewBox := "0 0 50 20",
+          svg.viewBox := "0 0 55 20",
           svg.g(
             svg.path(
-              svg.d           := "M0,10 C15,10 25,10 48,10",
-              svg.fill        := "none",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls := "arrow-preview",
+              svg.d   := "M0,10 C15,10 25,10 48,10"
             ),
             svg.path(
-              svg.d           := "M42,5 C48,5 48,15 42,15",
-              svg.fill        := "none",
-              svg.stroke      := "currentColor",
-              svg.strokeWidth := "2"
+              svg.cls   := "arrow-preview",
+              svg.d     := "M42,5 C48,5 48,15 42,15",
+              svg.style := "stroke-width: 1px;"
             )
           )
         )
