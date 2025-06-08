@@ -89,6 +89,15 @@ label[for ^= show-ns-kind-] {
   > .fieldset {
     @apply flex py-0 gap-0 flex-nowrap;
 
+    svg {
+      path, ellipse, polygon, polyline, rect {
+        fill: none;
+        stroke: currentColor;
+        vector-effect: non-scaling-stroke;
+        stroke-width: 1px;
+      }
+    }
+
     &:not(:last-child) {
       @apply pr-2 border-r border-base-300;
     }

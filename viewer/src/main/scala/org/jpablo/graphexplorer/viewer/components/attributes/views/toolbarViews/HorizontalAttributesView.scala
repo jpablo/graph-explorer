@@ -67,11 +67,11 @@ private def AttributesViewRow(row: InputAttribute) =
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match
-    case InputType.menuWithExtra(initial, dir, cardClass)   => MenuWithExtraDropdown(row, initial, dir, cardClass)
-    case InputType.currentValueWithSelector(dir, cardClass) => DropdownWithCurrentValue(row, dir, cardClass)
-    case InputType.dropdown                                 => DropdownForRow(row)
-    case InputType.select                                   => SelectWithValue(row).amend(cls := "ml-1")
-    case InputType.checkbox                                 => Checked(row)
-    case InputType.multiText(setFocus)                      => TextAreaWithValue(row, setFocus = setFocus)
-    case _: number                                          => InputWithValue(row).amend(cls := "horizontal-attribute-input no-outline")
-    case _                                                  => InputWithValue(row)
+    case InputType.menuWithExtra(initial, dir, cardClass)         => MenuWithExtraDropdown(row, initial, dir, cardClass)
+    case InputType.currentValueWithSelector(dir, cardClass, open) => DropdownWithCurrentValue(row, dir, cardClass, open)
+    case InputType.dropdown                                       => DropdownForRow(row)
+    case InputType.select                                         => SelectWithValue(row).amend(cls := "ml-1")
+    case InputType.checkbox                                       => Checked(row)
+    case InputType.multiText(setFocus)                            => TextAreaWithValue(row, setFocus = setFocus)
+    case _: number => InputWithValue(row).amend(cls := "horizontal-attribute-input no-outline")
+    case _         => InputWithValue(row)

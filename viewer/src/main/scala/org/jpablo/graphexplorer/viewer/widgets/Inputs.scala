@@ -121,9 +121,10 @@ def MenuWithExtraDropdown(row: InputAttribute, initial: Int, dir: MenuDirection,
     )
   )
 
-def DropdownWithCurrentValue(row: InputAttribute, dir: MenuDirection, cardClass: Option[String] = None) =
+def DropdownWithCurrentValue(row: InputAttribute, dir: MenuDirection, cardClass: Option[String] = None, open: Boolean = false) =
   div(
     cls := s"menu dropdown dropdown-bottom p-0 m-0",
+    cls("dropdown-open") := open,
     // TailwindCSS classes seem to have issues with dynamic strings, so we add the cases we need here.
     cls("dropdown-start") := dir == MenuDirection.start,
     cls("dropdown-end")   := dir == MenuDirection.end,
