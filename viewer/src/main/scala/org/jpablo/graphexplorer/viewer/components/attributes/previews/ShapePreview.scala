@@ -82,9 +82,9 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "0 0 24 25",
+          svg.viewBox := "0 0 24 22",
           svg.polygon(
-            svg.points := "23.73,9.11 11.95,0 0.19,9.11 4.68,23.81 19.23,23.81 23.73,9.11"
+            svg.points := "23.41,8.29 12,0 0.59,8.29 4.95,21.71 19.05,21.71"
           )
         )
       )
@@ -190,9 +190,9 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "179 -262 65 42",
+          svg.viewBox := "-0.5 0 25 16",
           svg.polygon(
-            svg.points := "243.67,-246.18 211.52,-261.72 179.38,-246.18 179.41,-221.02 243.64,-221.02 243.67,-246.18"
+            svg.points := "23.85,5.92 12,0 0.15,5.92 0.16,15.52 23.84,15.52 23.85,5.92"
           )
         )
       )
@@ -255,23 +255,13 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "14 -474 107 37",
+          svg.viewBox := "0 0 24 16",
           svg.g(
-            svg.polygon(
-              svg.points := "67.52,-473.65 14.21,-455.65 67.52,-437.65 120.84,-455.65 67.52,-473.65"
-            ),
-            svg.polyline(
-              svg.points := "25.58,-459.49 25.58,-451.81"
-            ),
-            svg.polyline(
-              svg.points := "56.15,-441.49 78.89,-441.49"
-            ),
-            svg.polyline(
-              svg.points := "109.47,-451.81 109.47,-459.49"
-            ),
-            svg.polyline(
-              svg.points := "78.89,-469.81 56.15,-469.81"
-            )
+            svg.polygon(svg.points  := "11.84,0.55 0,7.45 11.84,14.36 23.68,7.45 11.84,0.55"),
+            svg.polyline(svg.points := "4.13,4.91 4.13,10"),
+            svg.polyline(svg.points := "7.74,12.18 15.94,12.18"),
+            svg.polyline(svg.points := "19.55,10 19.55,4.91"),
+            svg.polyline(svg.points := "15.94,2.64 7.74,2.64")
           )
         )
       )
@@ -281,22 +271,22 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "184 -484 55 56",
+          svg.viewBox := "0 0 24 25",
           svg.g(
             svg.polygon(
-              svg.points := "238.98,-483.11 184.07,-483.11 184.07,-428.2 238.98,-428.2 238.98,-483.11"
+              svg.points := "24,0.39 0,0.39 0,24.39 24,24.39 24,0.39"
             ),
             svg.polyline(
-              svg.points := "196.07,-483.11 184.07,-471.11"
+              svg.points := "5.24,0.39 0,5.63"
             ),
             svg.polyline(
-              svg.points := "184.07,-440.2 196.07,-428.2"
+              svg.points := "0,19.15 5.24,24.39"
             ),
             svg.polyline(
-              svg.points := "226.98,-428.2 238.98,-440.2"
+              svg.points := "18.76,24.39 24,19.15"
             ),
             svg.polyline(
-              svg.points := "238.98,-471.11 226.98,-483.11"
+              svg.points := "24,5.63 18.76,0.39"
             )
           )
         )
@@ -330,9 +320,9 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "472 -474 55 37",
+          svg.viewBox := "0 0 20 16",
           svg.path(
-            svg.d := "M484.52,-437.65C484.52,-437.65 514.52,-437.65 514.52,-437.65 520.52,-437.65 526.52,-443.65 526.52,-449.65 526.52,-449.65 526.52,-461.65 526.52,-461.65 526.52,-467.65 520.52,-473.65 514.52,-473.65 514.52,-473.65 484.52,-473.65 484.52,-473.65 478.52,-473.65 472.52,-467.65 472.52,-461.65 472.52,-461.65 472.52,-449.65 472.52,-449.65 472.52,-443.65 478.52,-437.65 484.52,-437.65"
+            svg.d := "M5.24,15.89C5.24,15.89 13.96,15.89 13.96,15.89 16.58,15.89 18.76,13.71 18.76,11.09 18.76,11.09 18.76,5.51 18.76,5.51 18.76,2.89 16.58,0.71 13.96,0.71 13.96,0.71 5.24,0.71 5.24,0.71 2.62,0.71 0.44,2.89 0.44,5.51 0.44,5.51 0.44,11.09 0.44,11.09 0.44,13.71 2.62,15.89 5.24,15.89"
           )
         )
       )
@@ -834,16 +824,15 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
           svg.g(
             svg.polygon(
               svg.points := "521.38,-142.44 497.38,-142.44 497.38,-128.04 521.38,-128.04 521.38,-142.44",
-              svg.stroke := "none",
-              svg.fill   := "lightgrey"
+              svg.style  := "stroke:none;fill:lightgrey"
             ),
             svg.text(
               svg.x          := "509.38",
-              svg.y          := "-132.64",
+              svg.y          := "-131",
               svg.fontFamily := "Times,serif",
-              svg.fontSize   := "10.00",
+              svg.fontSize   := "13.00",
               svg.textAnchor := "middle",
-              "plain"
+              "abc"
             )
           )
         )
@@ -854,20 +843,19 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "336 -153 58 36",
+          svg.viewBox := "0 0 24 14",
           svg.g(
             svg.polygon(
-              svg.points := "394.38,-153.24 336.39,-153.24 336.39,-117.24 394.38,-117.24 394.38,-153.24",
-              svg.stroke := "none",
-              svg.fill   := "lightgrey"
+              svg.points := "24,0 0,0 0,15 24,15 24,0",
+              svg.style  := "stroke:none;fill:lightgrey"
             ),
             svg.text(
-              svg.x          := "365.38",
-              svg.y          := "-132.64",
+              svg.x          := "12",
+              svg.y          := "10",
               svg.fontFamily := "Times,serif",
-              svg.fontSize   := "10.00",
+              svg.fontSize   := "7",
               svg.textAnchor := "middle",
-              "plaintext"
+              "abc"
             )
           )
         )
@@ -878,14 +866,22 @@ def ShapePreview(shape: Shape, w: Int = 100, h: Int = 20): Option[() => Reactive
         svg.svg(
           svg.width   := w.toString,
           svg.height  := h.toString,
-          svg.viewBox := "0 0 24 16",
+          svg.viewBox := "338 -586 55 37",
           svg.g(
+            svg.polygon(
+              svg.points := "392.38,-585.24 338.38,-585.24 338.38,-549.24 392.38,-549.24 392.38,-585.24",
+              svg.style  := "stroke:none;fill:lightgrey"
+            ),
+            svg.polyline(
+              svg.points := "338.38,-549.24 392.38,-549.24"
+            ),
             svg.text(
-              svg.x          := "12",
-              svg.y          := "8",      // Adjusted for viewBox
-              svg.dy         := "-0.5em", // Move text up a bit
+              svg.x          := "365.38",
+              svg.y          := "-560.64",
+              svg.fontFamily := "Times,serif",
+              svg.fontSize   := "18.00",
               svg.textAnchor := "middle",
-              "u"
+              "abc"
             )
           )
         )
