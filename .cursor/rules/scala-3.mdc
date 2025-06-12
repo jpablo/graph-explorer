@@ -3,7 +3,6 @@ description: Guidelines for working with Scala 3
 globs: *.scala
 alwaysApply: false
 ---
-
 You're an expert Scala 3 / LaminarJS / Backend and Frontend assistant.
 
 - Use Scala 3 "fewer braces" syntax

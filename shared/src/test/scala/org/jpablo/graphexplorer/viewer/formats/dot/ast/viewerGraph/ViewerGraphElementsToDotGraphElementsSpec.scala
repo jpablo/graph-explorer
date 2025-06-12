@@ -43,9 +43,9 @@ class ViewerGraphElementsToDotGraphElementsSpec extends ScalaCheckSuite:
             AttrStmt("node", List(shapeEgg)),
             NodeStmt(z, List(labelZZ)),
             EdgeStmt(List(a, b)),
-            SubGraph(List(NodeStmt(d)), Some(group1.toDot))
+            SubGraph(List(NodeStmt(d)), Some("cluster_" + group1.toDot))
           ),
-          Some(group0.toDot)
+          Some("cluster_" + group0.toDot)
         ),
         EdgeStmt(List(x, a)),
         EdgeStmt(List(b, c))
