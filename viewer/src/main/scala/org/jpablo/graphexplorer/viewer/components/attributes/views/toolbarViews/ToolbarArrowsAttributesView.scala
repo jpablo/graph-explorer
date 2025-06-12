@@ -55,8 +55,8 @@ def ToolbarArrowsAttributesView(
           row(PenWidth, range(start = Some(0.0), end = Some(10.0), step = Some(0.1)))
         )
       ),
-      row(ArrowHead, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions),
       row(ArrowTail, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions),
+      row(ArrowHead, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions),
       ArrowSize  -> InputType.number(start = Some(0), end = Some(5), step = Some(0.1)),
       Constraint -> checkbox,
       // ---------- label stuff ------------
