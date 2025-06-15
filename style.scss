@@ -92,6 +92,13 @@ label[for ^= show-ns-kind-] {
     svg {
       path, ellipse, polygon, polyline, rect, line {
 
+        &.node-preview {
+          fill: none;
+          vector-effect: non-scaling-stroke;
+          stroke-width: 1px;
+          stroke: currentColor;
+        }
+
         &.arrow-preview {
           vector-effect: non-scaling-stroke;
           stroke-width: 1px;
