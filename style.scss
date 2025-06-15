@@ -74,6 +74,26 @@ label[for ^= show-ns-kind-] {
   }
 }
 
+svg {
+  path, ellipse, polygon, polyline, rect, line {
+
+    &.node-preview {
+      fill: none;
+      vector-effect: non-scaling-stroke;
+      stroke-width: 1px;
+      stroke: currentColor;
+    }
+
+    &.arrow-preview {
+      vector-effect: non-scaling-stroke;
+      stroke-width: 1px;
+      stroke: currentColor;
+    }
+  }
+}
+
+
+
 .menu-with-extra-dropdown {
   @apply w-full;
 
@@ -88,24 +108,6 @@ label[for ^= show-ns-kind-] {
 
   > .fieldset {
     @apply flex py-0 gap-0 flex-nowrap;
-
-    svg {
-      path, ellipse, polygon, polyline, rect, line {
-
-        &.node-preview {
-          fill: none;
-          vector-effect: non-scaling-stroke;
-          stroke-width: 1px;
-          stroke: currentColor;
-        }
-
-        &.arrow-preview {
-          vector-effect: non-scaling-stroke;
-          stroke-width: 1px;
-          stroke: currentColor;
-        }
-      }
-    }
 
     &:not(:last-child) {
       @apply pr-2 border-r border-base-300;
