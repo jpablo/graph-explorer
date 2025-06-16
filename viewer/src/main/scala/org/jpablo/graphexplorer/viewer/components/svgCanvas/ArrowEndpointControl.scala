@@ -41,6 +41,22 @@ def ArrowEndpointControl(
     .flatMap(d => SVGPathParser.parse(d).toOption)
     .getOrElse(Nil)
 
+  // Find potential marker elements (children excluding title and path)
+  val markerTags = Set("circle", "ellipse", "polygon", "rect") // Common marker element types
+  val potentialMarkers =
+    edge.ref.querySelectorAllT[dom.SVGLocatable](markerTags.mkString(","))
+
+  val edgeBBox = edge.ref.getBBox()
+
+  val currentClientSize = clientSize match
+    case ClientSize.Small  => 24.0
+    case ClientSize.Normal => 12.0
+
+  // Calculate the scaling factor based on the edge group's overall transform
+  val scale = SvgUtils.calculateSimpleScale(edge.ref, w.toDouble, clientSize = currentClientSize)
+
+  // ------------
+
   // Extract the start and end points from path commands
   val (startPointOpt, endPointOpt) =
     val firstPoint = pathCommands.collectFirst { case MoveTo(_, points) => points.headOption }.flatten
@@ -53,11 +69,6 @@ def ArrowEndpointControl(
       case EllipticalArc(_, args)               => args.lastOption.map(_._6)
       case _                                    => None
     (firstPoint, lastPoint)
-
-  // Find potential marker elements (children excluding title and path)
-  val markerTags = Set("circle", "ellipse", "polygon", "rect") // Common marker element types
-  val potentialMarkers =
-    edge.ref.querySelectorAllT[dom.SVGLocatable](markerTags.mkString(","))
 
   // Calculate the center of the appropriate marker based on its distance to start/end points
   val selectedMarkerCenterOpt: Option[(Double, Double)] =
@@ -94,16 +105,8 @@ def ArrowEndpointControl(
   // Determine the translation coordinates: use marker center if found, else use path start/end point
   val (trX, trY) = selectedMarkerCenterOpt.orElse(if isSource then startPointOpt else endPointOpt).getOrElse {
     // Fallback to the overall bounding box center if path points are missing
-    val bbox = edge.ref.getBBox()
-    (bbox.x + bbox.width / 2, bbox.y + bbox.height / 2)
+    (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
   }
-
-  val currentClientSize = clientSize match
-    case ClientSize.Small => 24.0
-    case ClientSize.Normal => 12.0
-
-  // Calculate the scaling factor based on the edge group's overall transform
-  val scale = SvgUtils.calculateSimpleScale(edge.ref, w.toDouble, clientSize = currentClientSize)
 
   svg.g(
     svg.cls           := s"edge-endpoint-disk edge-endpoint-disk-${if (isSource) "source" else "target"}",
