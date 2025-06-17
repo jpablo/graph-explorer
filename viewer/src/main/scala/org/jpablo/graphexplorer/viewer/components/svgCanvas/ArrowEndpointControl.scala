@@ -11,6 +11,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.{querySelectorAllT, querySelecto
 import PathCommand.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
+import org.jpablo.graphexplorer.viewer.utils.{DistanceUtils, SvgPointExtractor}
 
 /** Creates a small disk placed near the endpoint of an edge. Diameter: 8px, Border: 1px
   *
@@ -46,11 +47,12 @@ def ArrowEndpointControl(
     .flatMap(d => SVGPathParser.parse(d).toOption)
     .getOrElse(Nil)
 
-  // Find potential marker elements (children excluding title and path)
-  val markerTags = Set("circle", "ellipse", "polygon", "rect") // Common marker element types
-  val potentialMarkers =
-    edge.ref.querySelectorAllT[dom.SVGLocatable](markerTags.mkString(","))
-
+  // Query all SVG elements that can contain coordinate points
+  val svgElements = edge.ref.querySelectorAllT[dom.svg.Element]("path, polygon, polyline")
+  
+  // Extract all coordinate points from these elements
+  val allPoints = svgElements.flatMap(SvgPointExtractor.extractPoints)
+  
   val edgeBBox = edge.ref.getBBox()
 
   val currentClientSize = clientSize match
@@ -60,9 +62,7 @@ def ArrowEndpointControl(
   // Calculate the scaling factor based on the edge group's overall transform
   val scale = SvgUtils.calculateSimpleScale(edge.ref, w.toDouble, clientSize = currentClientSize)
 
-  // ------------
-
-  // Extract the start and end points from path commands
+  // Extract the start and end points from path commands for fallback
   val (startPointOpt, endPointOpt) =
     val firstPoint = pathCommands.collectFirst { case MoveTo(_, points) => points.headOption }.flatten
     val lastPoint = pathCommands.lastOption.flatMap:
@@ -75,42 +75,28 @@ def ArrowEndpointControl(
       case _                                    => None
     (firstPoint, lastPoint)
 
-  // Calculate the center of the appropriate marker based on its distance to start/end points
-  val selectedMarkerCenterOpt: Option[(Double, Double)] =
-    for
-      (startX, startY) <- startPointOpt
-      (endX, endY)     <- endPointOpt
-      markerCenter <- {
-        val markerDistances = potentialMarkers.map: elem =>
-          val bbox            = elem.getBBox()
-          val centerX         = bbox.x + bbox.width / 2.0
-          val centerY         = bbox.y + bbox.height / 2.0
-          val distanceToStart = math.sqrt(math.pow(centerX - startX, 2) + math.pow(centerY - startY, 2))
-          val distanceToEnd   = math.sqrt(math.pow(centerX - endX, 2) + math.pow(centerY - endY, 2))
-
-          // Only consider this marker if it's closer to our target point (start/end) than the opposite point
-          // and if the distance is below a reasonable threshold to ensure it's actually at the endpoint
-          val threshold       = 20.0 // Maximum distance to consider a marker valid
-          val isValidForStart = isSource && distanceToStart < distanceToEnd && distanceToStart < threshold
-          val isValidForEnd   = !isSource && distanceToEnd < distanceToStart && distanceToEnd < threshold
-
-          // Use the appropriate distance based on whether we're looking for start or end point
-          val relevantDistance = if (isSource) distanceToStart else distanceToEnd
-
-          (cx = centerX, cy = centerY, distance = relevantDistance, isValid = isValidForStart || isValidForEnd)
-
-        markerDistances
-          .filter(_.isValid)  // Only consider markers that are valid for our target point
-          .sortBy(_.distance) // Sort by distance
-          .headOption         // Get the closest one
-          .map(md => (md.cx, md.cy))
+  // Determine the translation coordinates based on endpointElement or fallback logic
+  val (trX, trY) = endpointElement match {
+    case Some(elem) =>
+      // Use point-based positioning: find the closest point to the endpoint node's bounding box center
+      val endpointNodeCenter = DistanceUtils.boundingBoxCenter(elem.ref.getBBox())
+      val threshold = 50.0 // Maximum distance to consider a point valid (configurable)
+      
+      DistanceUtils.findClosestPointWithinThreshold(endpointNodeCenter, allPoints, threshold) match {
+        case Some(closestPoint) => closestPoint
+        case None =>
+          // Fallback to path start/end points if no points are within threshold
+          (if isSource then startPointOpt else endPointOpt).getOrElse {
+            // Final fallback to edge bounding box center
+            (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
+          }
       }
-    yield markerCenter
-
-  // Determine the translation coordinates: use marker center if found, else use path start/end point
-  val (trX, trY) = selectedMarkerCenterOpt.orElse(if isSource then startPointOpt else endPointOpt).getOrElse {
-        // Fallback to the overall bounding box center if path points are missing
+    case None =>
+      // Legacy fallback when no endpointElement is provided
+      (if isSource then startPointOpt else endPointOpt).getOrElse {
+        // Final fallback to edge bounding box center
         (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
+      }
   }
 
   svg.g(
