@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
-import org.jpablo.graphexplorer.viewer.components.selection.EdgeElement
+import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand
 import org.jpablo.graphexplorer.viewer.formats.svg.SVGPathParser
@@ -16,16 +16,21 @@ import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
   *
   * @param edge
   *   The EdgeElement the disk is associated with.
-  * @param source
-  *   Whether this disk is for the start point (true) or end point (false).
+  * @param endpoint
+  *   Whether this disk is for the source or target endpoint.
+  * @param clientSize
+  *   The client size for scaling calculations.
+  * @param endpointElement
+  *   Optional SelectableElement for the source/target node to use for positioning.
   * @return
   *   A reactive SVG group element containing the disk.
   */
 def ArrowEndpointControl(
-    edge:       EdgeElement,
-    endpoint:   ArrowEndpoint,
-    clientSize: ClientSize,
-    svgMods:    SvgMods*
+    edge:            EdgeElement,
+    endpoint:        ArrowEndpoint,
+    clientSize:      ClientSize,
+    endpointElement: Option[SelectableElement] = None,
+    svgMods:         SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   val isSource = endpoint == ArrowEndpoint.source
   // Define disk properties
@@ -104,8 +109,8 @@ def ArrowEndpointControl(
 
   // Determine the translation coordinates: use marker center if found, else use path start/end point
   val (trX, trY) = selectedMarkerCenterOpt.orElse(if isSource then startPointOpt else endPointOpt).getOrElse {
-    // Fallback to the overall bounding box center if path points are missing
-    (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
+        // Fallback to the overall bounding box center if path points are missing
+        (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
   }
 
   svg.g(
@@ -114,14 +119,7 @@ def ArrowEndpointControl(
     svg.transform     := s"translate($trX, $trY)", // Apply translation first
     svg.g(
       svg.transform := s"scale($scale)",
-      svg.circle(
-        // cx/cy are 0 because translation handles positioning
-        svg.r           := radius.toString,
-        svg.fill        := "white",
-        svg.stroke      := "blue",
-        svg.strokeWidth := "1" // Use scale-independent stroke width if desired via vector-effect?
-        // svg.vectorEffect := "non-scaling-stroke" // Might need this
-      )
+      svg.circle(svg.r := radius.toString)
     ),
     svgMods
   )

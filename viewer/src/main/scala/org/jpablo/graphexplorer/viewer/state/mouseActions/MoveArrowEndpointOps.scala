@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state.mouseActions
 
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
+import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowBetweenPointerAndEndpoint, ArrowEndpointControl, clientCoords}
 import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowEndpointId, NodeId}
@@ -26,20 +27,35 @@ trait MoveArrowEndpointOps:
     val controls =
       elem.toArray.flatMap:
         case edge: EdgeElement if showControl =>
-          for
-            endpoint <- ArrowEndpoint.values
-            elem = ArrowEndpointControl(edge, endpoint, clientSize).ref
-          yield
-            elem.addEventListener(
-              DomEvent.mousedown,
-              (ev: dom.MouseEvent) => {
-                ev.stopPropagation()
-                val pos = clientCoords(ev)._1
-                mouseAction.start(MoveArrowEndpointAction(MouseActionRect(start = pos, end = pos, shift = false), edge, endpoint))
-              }
-            )
-            elem.addEventListener(DomEvent.mouseup, (ev: dom.MouseEvent) => { ev.stopPropagation(); mouseAction.inactive() })
-            elem
+          Arrow.fromArrowId(edge.elementId) match {
+            case Some(arrow) =>
+              // Convert NodeIds to SelectableElements
+              val nodeIds = Set(arrow.source, arrow.target)
+              val elementIds = ElementIds(nodeIds)
+              val selectableElements = SelectableElement.query(parent, elementIds)
+              val nodeElementsMap = selectableElements.collect { 
+                case ne if ne.nodeId.isDefined => ne.nodeId.get -> ne 
+              }.toMap
+              
+              for
+                endpoint <- ArrowEndpoint.values
+                endpointNodeId = if (endpoint == ArrowEndpoint.source) arrow.source else arrow.target
+                endpointElement = nodeElementsMap.get(endpointNodeId)
+                elem = ArrowEndpointControl(edge, endpoint, clientSize, endpointElement).ref
+              yield
+                elem.addEventListener(
+                  DomEvent.mousedown,
+                  (ev: dom.MouseEvent) => {
+                    ev.stopPropagation()
+                    val pos = clientCoords(ev)._1
+                    mouseAction.start(MoveArrowEndpointAction(MouseActionRect(start = pos, end = pos, shift = false), edge, endpoint))
+                  }
+                )
+                elem.addEventListener(DomEvent.mouseup, (ev: dom.MouseEvent) => { ev.stopPropagation(); mouseAction.inactive() })
+                elem
+            case None => 
+              Array.empty[dom.svg.G]
+          }
         case _ =>
           Array.empty[dom.svg.G]
 
