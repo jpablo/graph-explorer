@@ -3,6 +3,12 @@ package org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.utils.Utils.randomUUIDSafe
 import upickle.default.*
 
+/** Base trait for identifying graph elements (nodes, arrows, groups).
+  *
+  * Provides type-safe element identification with conversion between core values
+  * and SVG attribute formats. Each element type has a specific prefix when
+  * serialized to SVG (e.g., "node:id", "arrow:id", "group:id").
+  */
 sealed trait ElementId derives CanEqual, ReadWriter:
   def value: String
 

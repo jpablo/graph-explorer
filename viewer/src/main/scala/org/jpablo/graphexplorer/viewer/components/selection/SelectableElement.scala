@@ -6,6 +6,13 @@ import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
 
+/** Base trait for interactive graph elements in the SVG canvas.
+  *
+  * Provides selection functionality, element identification, and DOM manipulation
+  * for nodes, edges, and clusters in the graph visualization.
+  *
+  * @param ref The underlying SVG group element
+  */
 sealed trait SelectableElement(val ref: dom.svg.G):
   def selectedClass: String
 

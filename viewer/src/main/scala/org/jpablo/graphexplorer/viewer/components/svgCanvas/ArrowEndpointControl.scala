@@ -45,15 +45,14 @@ def ArrowEndpointControl(
 
   // Get translation coordinates from precise position data
   val (trX, trY) = {
-    edge.elementId.asArrowId
-      .flatMap(arrowId => edgePositions.get(arrowId.value))
+    edgePositions
+      .get(edge.elementId.value)
       .map { arrowPos =>
         val point = if isSource then arrowPos.startPoint else arrowPos.endPoint
-        (point.x, point.y)
+        (point.x, -point.y) // Flip Y coordinate: Graphviz uses upward Y, SVG uses downward Y
       }
       .getOrElse {
-        pprint.log(s"No position data for edge: ${edge.elementId}")
-        (0.0, 0.0)
+        (0.0, 0.0) // Fallback if no position data available
       }
   }
 
