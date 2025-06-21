@@ -40,8 +40,8 @@ object Graph:
     subgraphs.foreach(obj.updateDynamic("subgraphs")(_))
     obj.asInstanceOf[Graph]
 
-  def getEdgePos(graph: Graph): Map[String, String] =
-    val edgePositions = scala.collection.mutable.Map[String, String]()
+  def getEdgePos(graph: Graph): Map[String, ArrowPosition] =
+    val edgePositions = scala.collection.mutable.Map[String, ArrowPosition]()
     
     // Create a map from _gvid to name for node lookup
     val nodeMap = graph.objects.map { objects =>
@@ -52,18 +52,20 @@ object Graph:
     graph.edges.foreach { edges =>
       edges.foreach { edge =>
         edge.pos.foreach { pos =>
-          // Convert numeric gvids to names if possible
-          val tailName = edge.tail match {
-            case i: Int => nodeMap.getOrElse(i, i.toString)
-            case s: String => s
+          ArrowPositionParser.parse(pos).foreach { arrowPos =>
+            // Convert numeric gvids to names if possible
+            val tailName = edge.tail match {
+              case i: Int => nodeMap.getOrElse(i, i.toString)
+              case s: String => s
+            }
+            val headName = edge.head match {
+              case i: Int => nodeMap.getOrElse(i, i.toString) 
+              case s: String => s
+            }
+            
+            val edgeId = edge.id.getOrElse(s"$tailName->$headName")
+            edgePositions(edgeId) = arrowPos
           }
-          val headName = edge.head match {
-            case i: Int => nodeMap.getOrElse(i, i.toString) 
-            case s: String => s
-          }
-          
-          val edgeId = edge.id.getOrElse(s"$tailName->$headName")
-          edgePositions(edgeId) = pos
         }
       }
     }
@@ -146,6 +148,54 @@ trait GraphObject extends js.Object:
   val _gvid: js.UndefOr[Int]    = js.native
   val name: js.UndefOr[String]  = js.native
   val pos: js.UndefOr[String]   = js.native
+
+case class Point(x: Double, y: Double)
+
+case class ArrowPosition(
+  startPoint: Point,
+  endPoint: Point,
+  controlPoints: List[Point]
+)
+
+object ArrowPositionParser:
+  def parse(posString: String): Option[ArrowPosition] =
+    val coords = posString.trim.split("\\s+").toList
+    if coords.length < 2 then None
+    else
+      var startPoint: Option[Point] = None
+      var endPoint: Option[Point] = None
+      val controlPoints = scala.collection.mutable.ListBuffer[Point]()
+      
+      coords.foreach { coord =>
+        if coord.startsWith("s,") then
+          startPoint = parseCoordinate(coord.drop(2))
+        else if coord.startsWith("e,") then
+          endPoint = parseCoordinate(coord.drop(2))
+        else
+          parseCoordinate(coord).foreach(controlPoints += _)
+      }
+      
+      // If start is missing, take first control point
+      if startPoint.isEmpty && controlPoints.nonEmpty then
+        startPoint = Some(controlPoints.head)
+        controlPoints.remove(0)
+      
+      // If end is missing, take first remaining control point
+      if endPoint.isEmpty && controlPoints.nonEmpty then
+        endPoint = Some(controlPoints.head)
+        controlPoints.remove(0)
+      
+      // Both start and end are required
+      (startPoint, endPoint) match
+        case (Some(start), Some(end)) => Some(ArrowPosition(start, end, controlPoints.toList))
+        case _ => None
+  
+  private def parseCoordinate(coord: String): Option[Point] =
+    coord.split(",") match
+      case Array(x, y) =>
+        try Some(Point(x.toDouble, y.toDouble))
+        catch case _: NumberFormatException => None
+      case _ => None
 
 object ImageSize:
   def apply(name: String, width: js.Any, height: js.Any): ImageSize =

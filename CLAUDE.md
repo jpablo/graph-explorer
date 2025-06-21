@@ -83,3 +83,4 @@ The application uses **Laminar's reactive streams** with **QuickLens** for immut
 - The application persists state to **localStorage** and integrates with browser **Clipboard API**
 - **Canvas and SVG** are used extensively for graph rendering and interactions
 - Try to use the metals mcp instead of sbt commands if possible
+- When calling sbt, try to use sbt -client for faster execution

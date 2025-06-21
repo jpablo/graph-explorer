@@ -28,5 +28,5 @@ class Graphviz:
       dom.console.log(result.output)
       val graph: Graph = js.JSON.parse(dotJson).asInstanceOf[Graph]
       dom.console.log(graph)
-      println(Graph.getEdgePos(graph))
+      pprint.log(Graph.getEdgePos(graph))
       parseSVG(svgText))
