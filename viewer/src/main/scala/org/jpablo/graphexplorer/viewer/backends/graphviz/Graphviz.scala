@@ -32,7 +32,5 @@ class Graphviz:
       val dotJson: String = result.output("json0")
 //      dom.console.log(result.output)
       val graph: Graph = js.JSON.parse(dotJson).asInstanceOf[Graph]
-//      dom.console.log(graph)
       val edgePos = Graph.getEdgePos(graph)
-//      pprint.log(edgePos)
       SvgWithPositions(parseSVG(svgText), edgePos))
