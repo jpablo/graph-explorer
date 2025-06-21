@@ -81,19 +81,19 @@ class GraphSpec extends FunSuite:
     assertEquals(edgePositions.size, 3)
 
     // Arrow 1: explicit start and end with box arrowtail
-    val arrow1 = edgePositions("arrow:a->b/1")
+    val arrow1 = edgePositions("a->b/1")
     assertEquals(arrow1.startPoint, Point(48.41, 6.3984))
     assertEquals(arrow1.endPoint, Point(89.687, 5.5202))
     assertEquals(arrow1.controlPoints, List(Point(58.505, 5.081), Point(65.01, 4.504), Point(71.952, 4.3568), Point(78.68, 4.6392)))
 
     // Arrow 2: no markers, all control points (no special glyphs)
-    val arrow2 = edgePositions("arrow:a->b/2")
+    val arrow2 = edgePositions("a->b/2")
     assertEquals(arrow2.startPoint, Point(54.403, 18))
     assertEquals(arrow2.endPoint, Point(65.541, 18))
     assertEquals(arrow2.controlPoints, List(Point(78.48, 18), Point(89.616, 18)))
 
     // Arrow 3: explicit start only with odot arrowtail
-    val arrow3 = edgePositions("arrow:a->b/3")
+    val arrow3 = edgePositions("a->b/3")
     assertEquals(arrow3.startPoint, Point(48.41, 29.602))
     assertEquals(arrow3.endPoint, Point(57.228, 30.8))
     assertEquals(arrow3.controlPoints, List(Point(67.713, 31.83), Point(79.464, 31.723), Point(89.687, 30.48)))

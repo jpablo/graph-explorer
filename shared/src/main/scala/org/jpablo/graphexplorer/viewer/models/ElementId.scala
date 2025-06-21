@@ -45,6 +45,13 @@ case class ArrowId(value: String) extends ElementId:
 object ArrowId:
   given ReadWriter[ArrowId] = stringKeyRW(readwriter[String].bimap[ArrowId](_.value, ArrowId(_)))
 
+  val arrowId = raw"arrow:(.+)".r
+
+  def fromSvg(idAttr: String): Option[ArrowId] =
+    idAttr match
+      case arrowId(seq) => Some(ArrowId(seq))
+      case _            => None
+
 object GroupId:
   val clusterId = raw"cluster_(.+)".r
 

@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
 import scala.scalajs.js
+import org.jpablo.graphexplorer.viewer.models.ArrowId
 
 
 @js.native
@@ -63,7 +64,12 @@ object Graph:
               case s: String => s
             }
             
-            val edgeId = edge.id.getOrElse(s"$tailName->$headName")
+            val edgeId = edge.id.toOption match {
+              case Some(id) => 
+                // Try to parse as arrow ID with prefix, fall back to raw ID
+                ArrowId.fromSvg(id).map(_.value).getOrElse(id)
+              case None => s"$tailName->$headName"
+            }
             edgePositions(edgeId) = arrowPos
           }
         }
