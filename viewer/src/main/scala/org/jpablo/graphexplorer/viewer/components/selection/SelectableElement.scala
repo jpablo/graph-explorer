@@ -8,10 +8,11 @@ import org.jpablo.graphexplorer.viewer.utils.BBox
 
 /** Base trait for interactive graph elements in the SVG canvas.
   *
-  * Provides selection functionality, element identification, and DOM manipulation
-  * for nodes, edges, and clusters in the graph visualization.
+  * Provides selection functionality, element identification, and DOM manipulation for nodes, edges, and clusters in the graph
+  * visualization.
   *
-  * @param ref The underlying SVG group element
+  * @param ref
+  *   The underlying SVG group element
   */
 sealed trait SelectableElement(val ref: dom.svg.G):
   def selectedClass: String
@@ -83,6 +84,16 @@ case class EdgeElement(private val ref0: dom.svg.G) extends SelectableElement(re
   // if parsing fails, use the title as the nodeId
   lazy val elementId: ArrowId =
     toArrowId.getOrElse(ArrowId(refTitle))
+
+  private def selectElements() = ref.querySelectorAll("path, line, polygon, polyline, ellipse")
+
+  override def select(): Unit =
+    ref.classList.add(selectedClass)
+    selectElements().foreach(_.classList.add("selected-arrow"))
+
+  override def unselect(): Unit =
+    ref.classList.remove(selectedClass)
+    selectElements().foreach(_.classList.remove("selected-arrow"))
 
 end EdgeElement
 

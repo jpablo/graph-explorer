@@ -93,7 +93,6 @@ svg {
 }
 
 
-
 .menu-with-extra-dropdown {
   @apply w-full;
 
@@ -310,6 +309,51 @@ svg {
             stroke-width: 2px;
             stroke: #2c70ff;
             vector-effect: non-scaling-stroke;
+            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
+          }
+        }
+
+        .selected-arrow {
+          stroke: #2c70ff !important;
+          //stroke-width: 2px !important;
+          //vector-effect: non-scaling-stroke;
+          filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
+
+          animation: combinedPulse 2s infinite alternate ease-in-out;
+          /* For dash offset animation */
+          //stroke-dasharray: 5 1; /* Approximate length of your path, adjust as needed */
+          //stroke-dashoffset: 0; /* Start at 0 */
+          //animation: dashFlow 30s infinite linear; /* linear for consistent flow */
+
+        }
+
+        //@keyframes dashFlow {
+        //  0% {
+        //    stroke-dashoffset: 200; /* Start with the "dash" completely offset */
+        //  }
+        //  100% {
+        //    stroke-dashoffset: 0; /* Move the dash completely across */
+        //  }
+        //}
+
+        @keyframes combinedPulse {
+          0% {
+            opacity: 0.8;
+            stroke: #2c70ff;
+            //stroke-width: 2px;
+            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
+          }
+          50% {
+            opacity: 1; /* Fully opaque */
+            stroke: #f800ff; /* Brighter blue */
+            //stroke-width: 3px; /* Slightly thicker */
+            filter: drop-shadow(0px 4px 10px rgba(44, 112, 255, 0.7)); /* Larger, more intense, blue-tinted shadow */
+          }
+          100% {
+            opacity: 0.8;
+            stroke: #ff2c96;
+            //stroke-width: 2px;
+            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
           }
         }
 
@@ -332,7 +376,8 @@ svg {
     flex-shrink: 0;
 
     &.visible {
-      @apply visible flex flex-col /* h-full*/ ;
+      @apply visible flex flex-col /* h-full*/
+      ;
       width: 20rem;
     }
 
