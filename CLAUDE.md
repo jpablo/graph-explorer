@@ -4,11 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Graph Explorer is a web-based visual graph exploration tool for DOT (Graphviz) diagrams built with Scala.js, Laminar, and modern web technologies. The project uses a modular architecture with shared cross-compiled code and a frontend viewer module.
+Graph Explorer is a web-based visual graph exploration tool for DOT (Graphviz) diagrams built with Scala.js, Laminar, and modern web technologies. The project uses a modular architecture with shared cross-compiled code and a frontend viewer
+module.
 
 ## Build Commands
 
 ### Development Setup (requires two terminals)
+
 ```bash
 # Terminal 1: Scala.js compilation with hot reload
 sbt "~viewer/fastLinkJS"
@@ -18,17 +20,20 @@ npm run dev
 ```
 
 ### First-time Setup
+
 ```bash
 npm install
 ```
 
 ### Production Build
+
 ```bash
 sbt "viewer/fullLinkJS"
 npm run build
 ```
 
 ### Testing
+
 ```bash
 sbt test
 ```
@@ -77,3 +82,4 @@ The application uses **Laminar's reactive streams** with **QuickLens** for immut
 - **Hot reloading** works for both Scala.js changes (via sbt) and CSS/asset changes (via Vite)
 - The application persists state to **localStorage** and integrates with browser **Clipboard API**
 - **Canvas and SVG** are used extensively for graph rendering and interactions
+- Try to use the metals mcp instead of sbt commands if possible

@@ -2,9 +2,11 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{Graph, VizJS}
+import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 
-//import scala.scalajs.js
+import scala.scalajs.js
 
 class Graphviz:
   private val instance =
@@ -19,14 +21,12 @@ class Graphviz:
 
   def renderToSvg(dot: DotText): Signal[Option[ReactiveSvgElement[dom.svg.SVG]]] =
     instance.map(_.map: viz =>
-//      dom.console.log(viz)
-//      dom.console.log(viz.graphvizVersion)
 //      dom.console.log(viz.formats)
-//      dom.console.log(viz.engines)
-//      dom.console.log("renderString")
-//      dom.console.log(viz.renderString(dot.value))
-//      val result = viz.renderFormats(dot.value, viz.formats)
-//      dom.console.log("renderFormats")
-//      dom.console.log(js.JSON.stringify(result.output))
-//      dom.console.log(result.errors)
-      foreignSvgElement(svg.svg, viz.renderSVGElement(dot.value)))
+      val result  = viz.renderFormats(dot.value, js.Array(/*"xdot_json", "dot_json", "json", */"json0", "svg"))
+      val svgText = result.output("svg")
+      val dotJson: String = result.output("json0")
+      dom.console.log(result.output)
+      val graph: Graph = js.JSON.parse(dotJson).asInstanceOf[Graph]
+      dom.console.log(graph)
+      println(Graph.getEdgePos(graph))
+      parseSVG(svgText))
