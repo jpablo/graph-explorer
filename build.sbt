@@ -106,7 +106,7 @@ lazy val viewer =
         "org.scalablytyped" %%% "codemirror__view"            % "6.34.1-7b155b",
         "org.scalablytyped" %%% "jsdom"                       % "21.1.7-a2354f",
         "org.scalablytyped" %%% "viz-js__lang-dot"            % "1.0.4-def35e",
-        "org.scalablytyped" %%% "viz-js__viz"                 % "3.3.0-d43b8d"
+        "org.scalablytyped" %%% "viz-js__viz"                 % "3.13.0-c9123d"
       ),
       excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat_sjs1")
       // https://www.scala-js.org/doc/project/js-environments.html
