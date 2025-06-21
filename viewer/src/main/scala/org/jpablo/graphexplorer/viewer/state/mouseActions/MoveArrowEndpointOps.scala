@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElem
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{Inactive, MoveArrowEndpointAction}
 import org.jpablo.graphexplorer.viewer.utils.{DomEvent, MouseActionRect}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.ArrowPosition
 
 /*
  * This trait contains the logic for handling mouse actions related to moving the start of an arrow in the graph.
@@ -18,7 +19,7 @@ trait MoveArrowEndpointOps:
   this: ViewerState =>
 
   // 1. Create the UI control
-  def handleArrowEndpointControl(parent: dom.svg.G, elem: Option[SelectableElement], action: MouseAction): Unit =
+  def handleArrowEndpointControl(parent: dom.svg.G, elem: Option[SelectableElement], action: MouseAction, edgePositions: Map[String, ArrowPosition]): Unit =
     val showControl =
       action match
         case Inactive                   => true
@@ -41,7 +42,7 @@ trait MoveArrowEndpointOps:
                 endpoint <- ArrowEndpoint.values
                 endpointNodeId = if (endpoint == ArrowEndpoint.source) arrow.source else arrow.target
                 endpointElement = nodeElementsMap.get(endpointNodeId)
-                elem = ArrowEndpointControl(edge, endpoint, clientSize, endpointElement).ref
+                elem = ArrowEndpointControl(edge, endpoint, clientSize, endpointElement, edgePositions).ref
               yield
                 elem.addEventListener(
                   DomEvent.mousedown,

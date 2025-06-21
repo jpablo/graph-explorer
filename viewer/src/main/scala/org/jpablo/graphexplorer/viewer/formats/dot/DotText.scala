@@ -1,8 +1,7 @@
 package org.jpablo.graphexplorer.viewer.formats.dot
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.DotAST
 
 import scala.util.{Success, Try}
@@ -18,7 +17,7 @@ case class DotText(value: String):
     else
       DotParserT.parse(value)
 
-  def toSvg: Signal[Option[ReactiveSvgElement[dom.svg.SVG]]] =
+  def toSvg: Signal[Option[SvgWithPositions]] =
     DotText.gvInstance.renderToSvg(this)
 
 object DotText:

@@ -12,6 +12,7 @@ import PathCommand.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
 import org.jpablo.graphexplorer.viewer.utils.{DistanceUtils, SvgPointExtractor}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.ArrowPosition
 
 /** Creates a small disk placed near the endpoint of an edge. Diameter: 8px, Border: 1px
   *
@@ -31,6 +32,7 @@ def ArrowEndpointControl(
     endpoint:        ArrowEndpoint,
     clientSize:      ClientSize,
     endpointElement: Option[SelectableElement] = None,
+    edgePositions:   Map[String, ArrowPosition] = Map.empty,
     svgMods:         SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   val isSource = endpoint == ArrowEndpoint.source
@@ -75,28 +77,40 @@ def ArrowEndpointControl(
       case _                                    => None
     (firstPoint, lastPoint)
 
-  // Determine the translation coordinates based on endpointElement or fallback logic
-  val (trX, trY) = endpointElement match {
-    case Some(elem) =>
-      // Use point-based positioning: find the closest point to the endpoint node's bounding box center
-      val endpointNodeCenter = DistanceUtils.boundingBoxCenter(elem.ref.getBBox())
-      val threshold = 50.0 // Maximum distance to consider a point valid (configurable)
+  // Determine the translation coordinates using precise position data or fallback logic
+  val (trX, trY) = {
+    // First try to use precise position data from Graphviz
+    edge.elementId.asArrowId.flatMap(arrowId => edgePositions.get(arrowId.value)) match {
+      case Some(arrowPos) =>
+        // Use precise start/end point from Graphviz position data
+        val point = if isSource then arrowPos.startPoint else arrowPos.endPoint
+        (point.x, point.y)
       
-      DistanceUtils.findClosestPointWithinThreshold(endpointNodeCenter, allPoints, threshold) match {
-        case Some(closestPoint) => closestPoint
-        case None =>
-          // Fallback to path start/end points if no points are within threshold
-          (if isSource then startPointOpt else endPointOpt).getOrElse {
-            // Final fallback to edge bounding box center
-            (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
-          }
-      }
-    case None =>
-      // Legacy fallback when no endpointElement is provided
-      (if isSource then startPointOpt else endPointOpt).getOrElse {
-        // Final fallback to edge bounding box center
-        (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
-      }
+      case None =>
+        // Fallback to previous logic when position data is not available
+        endpointElement match {
+          case Some(elem) =>
+            // Use point-based positioning: find the closest point to the endpoint node's bounding box center
+            val endpointNodeCenter = DistanceUtils.boundingBoxCenter(elem.ref.getBBox())
+            val threshold = 50.0 // Maximum distance to consider a point valid (configurable)
+            
+            DistanceUtils.findClosestPointWithinThreshold(endpointNodeCenter, allPoints, threshold) match {
+              case Some(closestPoint) => closestPoint
+              case None =>
+                // Fallback to path start/end points if no points are within threshold
+                (if isSource then startPointOpt else endPointOpt).getOrElse {
+                  // Final fallback to edge bounding box center
+                  (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
+                }
+            }
+          case None =>
+            // Legacy fallback when no endpointElement is provided
+            (if isSource then startPointOpt else endPointOpt).getOrElse {
+              // Final fallback to edge bounding box center
+              (edgeBBox.x + edgeBBox.width / 2, edgeBBox.y + edgeBBox.height / 2)
+            }
+        }
+    }
   }
 
   svg.g(

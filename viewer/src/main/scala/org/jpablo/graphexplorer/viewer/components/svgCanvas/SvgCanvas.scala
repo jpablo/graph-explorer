@@ -15,14 +15,16 @@ import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
 import scala.scalajs.js
 //import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.ArrowPosition
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 // rawSvg is the SVG element as it comes from DOT
 def SvgCanvas(
-    rawSvg:      ReactiveSvgElement[dom.svg.SVG],
-    transform:   Signal[String],
-    viewerOps:   DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
-    mouseAction: MouseActionVar
+    rawSvg:        ReactiveSvgElement[dom.svg.SVG],
+    transform:     Signal[String],
+    viewerOps:     DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
+    mouseAction:   MouseActionVar,
+    edgePositions: Map[String, ArrowPosition]
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
 
@@ -125,7 +127,7 @@ def SvgCanvas(
         // c) for the "selection" action, the whole canvas is the "control"
         singleSelection.combineWith(mouseAction.signal) --> { (elem: Option[SelectableElement], action: MouseAction) =>
           viewerOps.handleNewArrowControls(mainGroup, elem, action)
-          viewerOps.handleArrowEndpointControl(mainGroup, elem, action)
+          viewerOps.handleArrowEndpointControl(mainGroup, elem, action, edgePositions)
         },
         // UI elements reflecting the current mouse action
         viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),

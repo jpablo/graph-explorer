@@ -196,4 +196,4 @@ object InternalPhases:
         graph = ast.toViewerGraph.removeUnsupportedFeatures.withDefaultTheme
       yield DotText(graphToDotAST(graph).render())
 
-    Signal.fromTry(dotText).flatMapSwitch(_.toSvg)
+    Signal.fromTry(dotText).flatMapSwitch(_.toSvg).map(_.map(_.svg))

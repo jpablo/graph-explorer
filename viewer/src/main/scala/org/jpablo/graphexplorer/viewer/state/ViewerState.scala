@@ -5,6 +5,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
+import org.jpablo.graphexplorer.viewer.backends.graphviz.{SvgWithPositions, vizjs}
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label, Layout, Rankdir, Shape}
@@ -56,16 +57,24 @@ case class ViewerState(
 
   val mouseAction = MouseActionVar()
 
-  // 5. Render visible Dot to SVG
-  // Dot ~> dom.svg.SVG
-  private val rawSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
+  // 5. Render visible Dot to SVG with position data
+  // Dot ~> SvgWithPositions
+  private val svgWithPositions: Signal[Option[SvgWithPositions]] =
     visibleDOT.flatMapSwitch(_.toSvg)
+
+  // Extract just the SVG for compatibility
+  private val rawSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
+    svgWithPositions.map(_.map(_.svg))
+
+  // Extract edge positions for use in components
+  private val edgePositions: Signal[Map[String, vizjs.ArrowPosition]] =
+    svgWithPositions.map(_.map(_.edgePositions).getOrElse(Map.empty))
 
   // 6. SVG with extra elements: selection rect, etc.
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
-    rawSVG.map:
-      _.map: svg =>
-        SvgCanvas(rawSvg = svg, transform = transform, viewerOps = this, mouseAction = mouseAction)
+    rawSVG.combineWith(edgePositions).map: (svgOpt, positions) =>
+      svgOpt.map: svg =>
+        SvgCanvas(rawSvg = svg, transform = transform, viewerOps = this, mouseAction = mouseAction, edgePositions = positions)
 
   // -------- storage ------------
   restoreState()
