@@ -84,3 +84,4 @@ The application uses **Laminar's reactive streams** with **QuickLens** for immut
 - **Canvas and SVG** are used extensively for graph rendering and interactions
 - Try to use the metals mcp instead of sbt commands if possible
 - When calling sbt, try to use sbt -client for faster execution
+- Remember to use the metals mcp server when appropriate
