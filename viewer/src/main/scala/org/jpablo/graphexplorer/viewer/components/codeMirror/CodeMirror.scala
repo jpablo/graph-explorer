@@ -14,6 +14,8 @@ import typings.codemirrorCommands.mod.indentWithTab
 import typings.codemirrorCommands.mod.{redo, undo}
 
 def CodeMirror(state: ViewerState, mods: Mods*) =
+  // Create a local EventBus for debouncing text updates
+  val textUpdates = new EventBus[String]
 
   lazy val extensions =
     js.Array[Any](
@@ -24,13 +26,23 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
     )
 
   def updateSource(update: ViewUpdate): Unit =
-    if update.docChanged && state.sourceText.now() != update.state.doc.toString then
-      state.sourceText.set(update.state.doc.toString)
+    if update.docChanged then
+      val newText = update.state.doc.toString
+      if state.sourceText.now() != newText then
+        textUpdates.emit(newText)
 
   div(
     mods,
     onMountCallback: ctx =>
       import ctx.owner
+      
+      // Set up debounced stream that updates the state
+      textUpdates.events
+//        .debounce(100) // TODO: Make this configurable or dynamic.
+        .foreach { text =>
+          state.sourceText.set(text)
+        }
+      
       // Editor -> source
       val editorView = codemirror.EditorView(
         EditorViewConfig()
@@ -46,7 +58,7 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
         redo(Dispatch(editorView.dispatch, editorView.state))
 
       // Source -> editor
-      for newSource <- state.sourceText.signal do
+      for newSource <- state.sourceText.signal.distinct do
         val existingSource = editorView.state.doc.toString
         if newSource != existingSource then
           editorView.dispatch(

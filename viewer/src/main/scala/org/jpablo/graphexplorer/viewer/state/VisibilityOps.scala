@@ -16,9 +16,7 @@ trait VisibilityOps:
 
     val update = _hiddenElements.update
 
-    val signal =
-      _hiddenElements.signal
-//        .tapEach(s => dom.console.debug("hiddenElementsV:", JSON.parse(writeJs(s).toString)))
+    val signal = _hiddenElements.signal
 
     def toggle(s: NodeId): Unit =
       _hiddenElements.update(_.toggle(s))
@@ -50,10 +48,10 @@ trait VisibilityOps:
     hiddenElements.remove(ids)
 
   def keepRootsOnly() =
-    hiddenElements.update(_ ++ (phases.fullGraph.now().nodeIds -- phases.fullGraph.now().roots))
+    hiddenElements.update(_ ++ (fullGraphNow().nodeIds -- fullGraphNow().roots))
 
   def hideAllNodes() =
-    hiddenElements.update(_ ++ phases.fullGraph.now().nodeIds)
+    hiddenElements.update(_ ++ fullGraphNow().nodeIds)
 
   def hideNonSelectedNodes() =
     updateHiddenFromSelection((h, sel, g) => h ++ (g.nodeIds -- sel.nodeIds))
@@ -71,4 +69,4 @@ trait VisibilityOps:
     updateHiddenFromSelection((h, sel, g) => h -- g.directPredecessorsGraph(sel.nodeIds).nodeIds)
 
   private def updateHiddenFromSelection(f: (HiddenElements, ElementIds, ViewerGraph) => HiddenElements) =
-    hiddenElements.update(f(_, selection.now(), phases.fullGraph.now()))
+    hiddenElements.update(f(_, selection.now(), fullGraphNow()))

@@ -5,9 +5,8 @@ import upickle.default.*
 
 /** Base trait for identifying graph elements (nodes, arrows, groups).
   *
-  * Provides type-safe element identification with conversion between core values
-  * and SVG attribute formats. Each element type has a specific prefix when
-  * serialized to SVG (e.g., "node:id", "arrow:id", "group:id").
+  * Provides type-safe element identification with conversion between core values and SVG attribute formats. Each element type has a
+  * specific prefix when serialized to SVG (e.g., "node:id", "arrow:id", "group:id").
   */
 sealed trait ElementId derives CanEqual, ReadWriter:
   def value: String
@@ -59,13 +58,16 @@ object ArrowId:
       case _            => None
 
 object GroupId:
-  val clusterId = raw"cluster_(.+)".r
+  val clusterId = raw"cluster(.+)".r
 
   given ReadWriter[GroupId] = readwriter[String].bimap[GroupId](_.value, GroupId(_))
 
   def fromDot(cluster: String): (GroupId, Boolean) = cluster match
-    case clusterId(id) => GroupId(id)      -> true
-    case _             => GroupId(cluster) -> false
+    case clusterId(id) =>
+      // Drop leading underscore if present (e.g., cluster_0 -> 0, not _0)
+      val cleanId = if (id.startsWith("_")) id.drop(1) else id
+      GroupId(cleanId) -> true
+    case _ => GroupId(cluster) -> false
 
   val groupId = raw"group:(.+)".r
 

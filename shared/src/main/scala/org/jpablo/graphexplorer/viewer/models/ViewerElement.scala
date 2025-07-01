@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Cluster, ClusterLabelLoc, Id, Label, LabelJust}
 import org.jpablo.graphexplorer.viewer.models.Arrow.{sequenceSeparator, titleIdSeparator}
 import org.jpablo.graphexplorer.viewer.models.ViewerElement.idAttributeKey
+import upickle.default.*
 
 type ViewerKind = Option[String]
 
@@ -32,7 +33,7 @@ case class ViewerNode private (
     override val id: NodeId,
     attributes:      Attributes = Attributes.empty,
     kind:            ViewerKind = None
-) extends ViewerElement:
+) extends ViewerElement derives ReadWriter:
   def modifyAttrs = this.modify(_.attributes)
 
 object ViewerNode:
@@ -72,7 +73,9 @@ case class Arrow(
     sourcePort: Option[String] = None,
     targetPort: Option[String] = None,
     seq:        Int = 1
-) extends ViewerElement:
+) extends ViewerElement derives ReadWriter:
+
+  def modifyAttrs = this.modify(_.attributes)
 
   // Re-create the string used by graphviz in the `<title>` element of the SVG.
   override val id: ArrowId =
@@ -138,7 +141,7 @@ end Arrow
 case class ViewerGroup private (
     override val id: GroupId,
     attributes:      Attributes = Attributes.empty
-) extends ViewerElement derives CanEqual:
+) extends ViewerElement derives CanEqual, ReadWriter:
   def modifyAttrs = this.modify(_.attributes)
 
 object ViewerGroup:

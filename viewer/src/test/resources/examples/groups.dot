@@ -1,0 +1,60 @@
+digraph "G" {
+    graph [fontname="Helvetica,Arial,sans-serif"];
+    node [
+        fontname="Helvetica,Arial,sans-serif",
+        shape="ellipse"
+    ];
+    edge [fontname="Helvetica,Arial,sans-serif"];
+    subgraph cluster_0 {
+        graph [
+            style="filled",
+            label="process #1",
+            color="lightgrey",
+            labelloc="t",
+            labeljust="c"
+        ];
+        "a0" [
+            style="filled",
+            color="white"
+        ];
+        "a1" [
+            style="filled",
+            color="white"
+        ];
+        "a2" [
+            style="filled",
+            color="white"
+        ];
+        "a3" [
+            style="filled",
+            color="white"
+        ];
+    }
+    subgraph cluster_1 {
+        graph [
+            label="process #2",
+            color="blue",
+            labelloc="t",
+            labeljust="c"
+        ];
+        "b0" [style="filled"];
+        "b1" [style="filled"];
+        "b2" [style="filled"];
+        "b3" [style="filled"];
+    }
+    "start" [shape="Mdiamond"];
+    "end" [shape="Msquare"];
+    "b2" -> "b3";
+    "b3" -> "end";
+    "b1" -> "b2";
+    "a0" -> "a1";
+    "a3" -> "a0";
+    "start" -> "b0";
+    "a1" -> "b3";
+    "start" -> "a0";
+    "a2" -> "a3";
+    "a1" -> "a2";
+    "b0" -> "b1";
+    "a3" -> "end";
+    "b2" -> "a3";
+}

@@ -24,10 +24,6 @@ trait ExtendSelectionOps:
 
   /** Creates a reactive SVG rectangle element representing the selection box when dragging.
     *
-    * @param action
-    *   Signal containing the current selection rectangle state
-    * @param topLevelSVG
-    *   The SVG element that contains the selection
     * @return
     *   Signal containing an optional SVG rect element. The rect is only present when there is an active selection action.
     */

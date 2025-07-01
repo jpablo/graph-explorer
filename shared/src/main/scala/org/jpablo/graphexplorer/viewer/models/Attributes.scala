@@ -3,7 +3,9 @@ package org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{Attr, AttrValue}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.DotAttribute
 import upickle.default.*
+
 import scala.annotation.targetName
+import scala.language.implicitConversions
 
 // -------------------
 // --- AttrStatus ---
@@ -71,10 +73,13 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   @targetName("concatValues")
   def ++(other: Map[AttributeId, AttrValue]): Attributes = Attributes(values ++ other)
   def --(other: Set[AttributeId]): Attributes            = Attributes(values -- other)
+  @targetName("removeAttributes")
+  def --(other: Set[DotAttribute[?]]): Attributes = Attributes(values -- other.map(_.attrId))
 
-  def -(key: AttributeId): Attributes              = Attributes(values - key)
-  def +(kv:  (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
-  def +(kv:  AttributePair): Attributes            = Attributes(values + kv.toTuple)
+  def -(key:  AttributeId): Attributes              = Attributes(values - key)
+  def -(attr: DotAttribute[?]): Attributes          = Attributes(values - attr.attrId)
+  def +(kv:   (AttributeId, AttrValue)): Attributes = Attributes(values + kv)
+  def +(kv:   AttributePair): Attributes            = Attributes(values + kv.toTuple)
 
   export values.isEmpty
 
@@ -84,7 +89,8 @@ case class Attributes(values: Map[AttributeId, AttrValue]) extends AnyVal:
   def toDotAttr: List[Attr] =
     values.map((k, v) => Attr(k.value, v)).toList
 
-  def get(key:  AttributeId): Option[AttrValue]     = values.get(key)
+  def get(key: AttributeId): Option[AttrValue] = values.get(key)
+
   def get(attr: DotAttribute[?]): Option[AttrValue] = values.get(attr.attrId)
 
   def contains(attrId: AttributeId, attrValue: AttrValue): Boolean =
@@ -142,14 +148,14 @@ object Attributes:
   *   When used as a write model, this map contains *instructions* to update the attributes of selected elements.
   */
 case class AttributeUpdates(statuses: Map[AttributeId, AttrValueWithStatus] = Map.empty):
-  def applyUpdates(attrs: Attributes): Attributes =
+  def applyTo(attrs: Attributes): Attributes =
     Attributes(
       statuses.foldLeft(attrs.values):
-        case (acc, (attrId, status)) =>
+        case (attrs, (attrId, status)) =>
           status match
-            case AttrStatus.Single(v) => acc + (attrId -> v)
-            case AttrStatus.Multiple  => acc
-            case AttrStatus.Missing   => acc - attrId
+            case AttrStatus.Single(v) => attrs + (attrId -> v)
+            case AttrStatus.Multiple  => attrs
+            case AttrStatus.Missing   => attrs - attrId
     )
 
   def -(key: AttributeId) = AttributeUpdates(statuses - key)

@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps
-import org.jpablo.graphexplorer.viewer.graph.ExportViewerGraphElements
 import upickle.default.*
 
 trait ExportOps:
@@ -18,8 +17,8 @@ trait ExportOps:
     writeText(dot.value)
 
   def copyAsJSON(): Unit =
-    val ast = phases.visibleAST.observe.now()
-    writeText(writeJs(ast).toString)
+    val graph = visibleGraph.observe.now()
+    writeText(write(graph.elements))
 
   def printVisibleGraphToConsole(): Unit =
     val graph = visibleGraph.observe.now()
@@ -30,7 +29,7 @@ trait ExportOps:
   def printVisibleGraphJsonToConsole(): Unit =
     val graph = visibleGraph.observe.now()
     // Don't remove this line!! it IS the actual functionality
-    dom.console.log(write(ExportViewerGraphElements.fromViewerGraphElements(graph.elements), indent = 2))
+    dom.console.log(write(graph.elements, indent = 2))
     dom.console.log("Visible graph printed to the console")
 
   def printVisibleDOTtoConsole(): Unit =
@@ -39,8 +38,9 @@ trait ExportOps:
     dom.console.log(dotText.value)
     dom.console.log("Visible DOT printed to the console")
 
-  def printVisibleJSONtoConsole(): Unit =
-    val ast = phases.visibleAST.observe.now()
+  def printVisibleSimpleGraphJSONtoConsole(): Unit =
+    // TODO: to implement this we need to keep the SimpleGraph in the ViewerState
+    val graph = phases.simpleGraph.observe.now()
     // Don't remove this line!! it IS the actual functionality
-    dom.console.log(write(ast, indent = 2))
-    dom.console.log("Visible JSON DOT AST printed to the console")
+    dom.console.log(scalajs.js.JSON.parse(write(graph)))
+    dom.console.log("Visible JSON VizJS Graph printed to the console")

@@ -1,0 +1,21 @@
+digraph "G" {
+  graph [
+    label="\na\nb",
+    lp="27,20.8",
+    lheight="0.47",
+    lwidth="0.10"
+  ];
+  "b" [
+    _gvid="0",
+    label="b"
+  ];
+  "a" [
+    _gvid="1",
+    label="a"
+  ];
+  "a" -> "b" [
+    _gvid="0",
+    pos="e,27,78.01 27,130.25 27,118.56 27,102.79 27,89.218",
+    label="f"
+  ];
+}

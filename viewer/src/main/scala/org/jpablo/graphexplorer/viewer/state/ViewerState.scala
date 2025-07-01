@@ -4,12 +4,13 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
+import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.graph.AttributesOps
+import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph}
+import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
@@ -18,13 +19,15 @@ import org.scalajs.dom.svg.SVG
 
 case class ViewerState(
     projectId:                ProjectId,
+    graphviz:                 Graphviz,
     writeText:                String => Any = _ => (),
     setTheme:                 String => Unit = _ => (),
     errorBus:                 EventBus[String] = EventBus(),
     initialSource:            Option[String] = None,
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
     initialLeftPanelVisible:  Boolean = false,
-    clientSize:               ClientSize = Normal
+    clientSize:               ClientSize = Normal,
+    logLevel:                 Level = Level.None
 ) extends SvgTransformOps,
       DiagramSelectionOps,
       VisibilityOps,
@@ -47,37 +50,62 @@ case class ViewerState(
   editorError.signal.changes.filter(_.isDefined)
     .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
 
-  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView, autoFit.now, editorError)
+  // persisted source can be overridden by passing a non-empty initialSource
+  val source = initialSource.getOrElse(persistedDiagramState.now().source)
 
-  val sourceText                  = phases.sourceText
-  val fullGraph                   = phases.fullGraph
-  protected[state] val visibleDOT = phases.visibleDOT
-  val visibleGraph                = phases.visibleGraph
+  val phases = InternalPhases(
+    graphviz = graphviz,
+    initialSource = if source.isEmpty then None else Some(source),
+    hiddenNodes = project.hiddenElements.signal,
+    resetView = resetView,
+    autoFit = autoFit.now,
+    editorError = editorError,
+    logLevel = logLevel
+  )
+
+  val sourceText      = phases.sourceText
+  val fullGraph       = phases.fullGraph
+  def fullGraphNow()  = phases.fullGraph.observe.now()
+  val visibleDOT      = phases.visibleDOT
+  def visibleDOTNow() = phases.visibleDOT.observe.now()
+  val visibleGraph    = phases.visibleGraph
 
   val mouseAction = MouseActionVar()
 
   // 5. Render visible Dot to SVG with position data
-  // Dot ~> SvgWithPositions
+  // visibleDOT ~> SvgWithPositions
   private val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    visibleDOT.flatMapSwitch(_.toSvg)
+    visibleDOT.map: dotText =>
+      graphviz
+        .textToSvg(dotText)
+        .toOption
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.
+  // svgWithPositions ~> finalSVG
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
     svgWithPositions.map(_.map: svgWithPos =>
-      SvgCanvas(rawSvg = svgWithPos.svg, transform = transform, viewerOps = this, mouseAction = mouseAction, edgePositions = svgWithPos.edgePositions))
+      withLog("5. [visibleDOT -> SVG]", level = phases.logLevel) {
+        SvgCanvas(
+          rawSvg = svgWithPos.svg,
+          transform = transform,
+          viewerOps = this,
+          mouseAction = mouseAction,
+          edgePositions = svgWithPos.edgePositions
+        )
+      })
 
   // -------- storage ------------
-  restoreState()
+  initializePersistence()
 
   def nodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
     ids.flatMap(fullGraph.observe.now().getNode)
 
   def allNodeIds(): Set[NodeId] =
-    fullGraph.observe.now().nodeIds
+    fullGraphNow().nodeIds
 
   def allArrowIds(): Set[ArrowId] =
-    fullGraph.observe.now().arrowIds
+    fullGraphNow().arrowIds
 
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an edge. If the
     * selected element is a group/cluster, the new node will be added to that group. The new node will become the only selected element
@@ -98,27 +126,11 @@ case class ViewerState(
       direction:  ArrowDirection = ArrowDirection.forward
   ): Unit =
     phases.fullGraphV.update: fullGraph =>
-      val sel = selection.now()
-
-      if sel.isEmpty then
-        val (newGraph, newNodeId) = fullGraph.addNode(attributes = attributes)
-        selection.set2(newNodeId)
-        newGraph
-      else
-        val selected = sel.head
-        // Only proceed if selected ID is a valid node in the graph
-        selected match
-          case id: NodeId =>
-            val (newGraph, _, _) = direction match
-              case ArrowDirection.forward  => fullGraph.addNodeAndArrowFrom(source = id, attributes = attributes)
-              case ArrowDirection.backward => fullGraph.addNodeAndArrowTo(target = id, attributes = attributes)
-            newGraph
-          case id: GroupId =>
-            val (newGraph, _) = fullGraph.addNode(groupId = Some(id), attributes = attributes)
-            newGraph
-          case _: ArrowId =>
-            val (newGraph, _) = fullGraph.addNode(attributes = attributes)
-            newGraph
+      val sel                      = selection.now()
+      val selectedElementId        = if sel.isEmpty then None else Some(sel.head)
+      val (newGraph, newNodeId, _) = fullGraph.addNodeWithSmartConnection(selectedElementId, attributes, direction)
+      selection.set2(newNodeId)
+      newGraph
 
   def addArrow(from: NodeId, to: NodeId)(using name: sourcecode.FullName) =
     phases.fullGraphV.update: g =>

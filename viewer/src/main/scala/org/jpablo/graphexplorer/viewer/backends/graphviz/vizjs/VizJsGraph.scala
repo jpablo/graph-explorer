@@ -1,7 +1,17 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, ArrowPositionParser}
+
 import scala.scalajs.js
 import org.jpablo.graphexplorer.viewer.models.ArrowId
+
+// https://viz-js.com/api/
+
+// This is an alternative input type for the Viz.render methods
+// TODO: Verify that the Graph type matches the expected structure
+// The "schema" for this is implicitly defined by this file:
+// https://github.com/mdaines/viz-js/blob/06d372e9ec650a485f5e6f94030d75f75e796fdd/packages/viz/src/wrapper.mjs
+// it traverse the graph and uses lower level functions in the graphviz c library (via WebAssembly)
 
 @js.native
 trait Graph extends js.Object:
@@ -45,7 +55,11 @@ object Graph:
 
     // Create a map from _gvid to name for node lookup
     val nodeMap = graph.objects.map { objects =>
-      objects.map(obj => obj._gvid.get -> obj.name.getOrElse("unknown")).toMap
+      objects.flatMap { obj =>
+        if (obj != null && !js.isUndefined(obj)) {
+          obj._gvid.toOption.map(_ -> obj.name.getOrElse("unknown"))
+        } else None
+      }.toMap
     }.getOrElse(Map.empty)
 
     // Collect from main graph edges
@@ -105,6 +119,7 @@ trait Edge extends js.Object:
   val attributes: js.UndefOr[Attributes] = js.native
   val pos: js.UndefOr[String]            = js.native
   val id: js.UndefOr[String]             = js.native
+  val _gvid: js.UndefOr[Int]             = js.native
 
 object Edge:
   def apply(tail: String, head: String, attributes: js.UndefOr[Attributes] = js.undefined): Edge =
@@ -154,53 +169,8 @@ trait GraphObject extends js.Object:
   val name: js.UndefOr[String] = js.native
   val pos: js.UndefOr[String]  = js.native
 
-case class Point(x: Double, y: Double)
 
-case class ArrowPosition(
-    startPoint:    Point,
-    endPoint:      Point,
-    controlPoints: List[Point]
-)
 
-object ArrowPositionParser:
-  def parse(posString: String): Option[ArrowPosition] =
-    val coords = posString.trim.split("\\s+").toList
-    if coords.length < 2 then None
-    else
-      var startPoint: Option[Point] = None
-      var endPoint: Option[Point]   = None
-      val controlPoints             = scala.collection.mutable.ListBuffer[Point]()
-
-      coords.foreach { coord =>
-        if coord.startsWith("s,") then
-          startPoint = parseCoordinate(coord.drop(2))
-        else if coord.startsWith("e,") then
-          endPoint = parseCoordinate(coord.drop(2))
-        else
-          parseCoordinate(coord).foreach(controlPoints += _)
-      }
-
-      // If start is missing, take first control point
-      if startPoint.isEmpty && controlPoints.nonEmpty then
-        startPoint = Some(controlPoints.head)
-        controlPoints.remove(0)
-
-      // If end is missing, take LAST control point (paths end at the last coordinate)
-      if endPoint.isEmpty && controlPoints.nonEmpty then
-        endPoint = Some(controlPoints.last)
-        controlPoints.remove(controlPoints.length - 1)
-
-      // Both start and end are required
-      (startPoint, endPoint) match
-        case (Some(start), Some(end)) => Some(ArrowPosition(start, end, controlPoints.toList))
-        case _                        => None
-
-  private def parseCoordinate(coord: String): Option[Point] =
-    coord.split(",") match
-      case Array(x, y) =>
-        try Some(Point(x.toDouble, y.toDouble))
-        catch case _: NumberFormatException => None
-      case _ => None
 
 object ImageSize:
   def apply(name: String, width: js.Any, height: js.Any): ImageSize =

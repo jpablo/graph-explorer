@@ -1,0 +1,174 @@
+graph "G" {
+  graph [
+    fontname="Helvetica,Arial,sans-serif",
+    label="\na\nb\nc",
+    lp="169.73,29.2",
+    lheight="0.70",
+    lwidth="0.10",
+    layout="neato"
+  ];
+  subgraph "%1" {
+    graph [
+      label="a",
+      _gvid="0",
+      cluster="false",
+      fontname="Helvetica,Arial,sans-serif"
+    ];
+    "course" [
+      _gvid="1",
+      label="\N",
+      shape="box",
+      fontname="Helvetica,Arial,sans-serif"
+    ];
+    "institute" [
+      _gvid="2",
+      label="\N",
+      shape="box",
+      fontname="Helvetica,Arial,sans-serif"
+    ];
+    "student" [
+      _gvid="3",
+      label="\N",
+      shape="box",
+      fontname="Helvetica,Arial,sans-serif"
+    ];
+  }
+  "name0" [
+    _gvid="4",
+    label="name",
+    shape="ellipse",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "name1" [
+    _gvid="5",
+    label="name",
+    shape="ellipse",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "name2" [
+    _gvid="6",
+    label="name",
+    shape="ellipse",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "code" [
+    _gvid="7",
+    label="\N",
+    shape="ellipse",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "grade" [
+    _gvid="8",
+    label="\N",
+    shape="ellipse",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "number" [
+    _gvid="9",
+    label="\N",
+    shape="ellipse",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "C-I" [
+    _gvid="10",
+    label="\N",
+    shape="diamond",
+    fontname="Helvetica,Arial,sans-serif",
+    color="lightgrey",
+    style="filled"
+  ];
+  "S-C" [
+    _gvid="11",
+    label="\N",
+    shape="diamond",
+    fontname="Helvetica,Arial,sans-serif",
+    color="lightgrey",
+    style="filled"
+  ];
+  "S-I" [
+    _gvid="12",
+    label="\N",
+    shape="diamond",
+    fontname="Helvetica,Arial,sans-serif",
+    color="lightgrey",
+    style="filled"
+  ];
+  "name1" -- "S-I" [
+    _gvid="3",
+    pos="249.16,286.06 253.03,272.45 258.26,254.1 261.95,241.14",
+    label="1",
+    fontname="Helvetica,Arial,sans-serif",
+    len="1.00"
+  ];
+  "S-C" -- "name0" [
+    _gvid="10",
+    pos="139.65,200.35 132.94,211.68 123.52,227.6 116.25,239.87",
+    label="n",
+    fontname="Helvetica,Arial,sans-serif",
+    len="1.00"
+  ];
+  "name2" -- "number" [
+    _gvid="6",
+    pos="213.24,132.84 206.35,122.3 197.74,109.14 190.94,98.74",
+    label="",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "C-I" -- "name1" [
+    _gvid="9",
+    pos="188.18,315.26 196.07,313.73 204.86,312.01 213.09,310.41",
+    label="1",
+    fontname="Helvetica,Arial,sans-serif",
+    len="1.00"
+  ];
+  "name2" -- "S-C" [
+    _gvid="7",
+    pos="196.98,164.03 187.17,168.46 176.4,173.33 167.47,177.36",
+    label="m",
+    fontname="Helvetica,Arial,sans-serif",
+    len="1.00"
+  ];
+  "name1" -- "institute" [
+    _gvid="2",
+    pos="260.19,322.72 267.03,330.42 274.92,339.31 281.57,346.8",
+    label="",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "name0" -- "C-I" [
+    _gvid="1",
+    pos="122.38,276.45 131.8,286.59 143.28,298.93 151.63,307.91",
+    label="n",
+    fontname="Helvetica,Arial,sans-serif",
+    len="1.00"
+  ];
+  "code" -- "name0" [
+    _gvid="8",
+    pos="54.194,237.66 61.827,240.72 70.262,244.1 78.047,247.23",
+    label="",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "name2" -- "grade" [
+    _gvid="5",
+    pos="253.86,145.1 261.13,143.54 268.97,141.85 276.34,140.27",
+    label="",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "S-I" -- "name2" [
+    _gvid="11",
+    pos="258.72,211.37 252.15,199.56 242.67,182.52 235.49,169.59",
+    label="n",
+    fontname="Helvetica,Arial,sans-serif",
+    len="1.00"
+  ];
+  "course" -- "name0" [
+    _gvid="0",
+    pos="65.374,300.99 72.508,293.36 81.06,284.22 88.425,276.34",
+    label="",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+  "name2" -- "student" [
+    _gvid="4",
+    pos="232.56,133.13 237.29,121.36 243.42,106.09 248.13,94.352",
+    label="",
+    fontname="Helvetica,Arial,sans-serif"
+  ];
+}

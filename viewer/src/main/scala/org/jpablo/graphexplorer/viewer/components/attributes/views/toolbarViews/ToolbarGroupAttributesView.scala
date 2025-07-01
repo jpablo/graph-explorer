@@ -55,7 +55,7 @@ def ToolbarGroupAttributesView(
         VerticalCardWithPreview(
           builder,
           id = "group-border-attributes",
-          row(EdgeStyle, InputType.menuWithExtra(borderStyleOptions.length)).copy(options = borderStyleOptions),
+          row(BorderStyle, InputType.menuWithExtra(borderStyleOptions.length)).copy(options = borderStyleOptions),
           row(PenWidth, InputType.range(start = Some(0.0), end = Some(10.0), step = Some(0.1)))
         )
       ),

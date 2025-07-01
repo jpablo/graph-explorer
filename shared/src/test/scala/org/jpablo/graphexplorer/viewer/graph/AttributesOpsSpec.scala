@@ -19,8 +19,16 @@ class AttributesOpsSpec extends FunSuite:
   val a                   = NodeId("a")
   val b                   = NodeId("b")
   val c                   = NodeId("c")
-  val groupId             = GroupId("cluster_1")
+  val groupId             = GroupId("1")
   val trueAttr: AttrValue = AttrValue(true.toString)
+
+  val testVizViewerGraphElements =
+    val arrow = Arrow(a, b)
+    VizViewerGraphElements(
+      nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
+      arrows = Map(arrow.id -> arrow),
+      groups = Map(groupId -> group(groupId, Attributes.of(Label -> "Cluster 1")))
+    )
 
   // Helper method to create a basic graph for testing
   def createTestGraph(): ViewerGraph =
@@ -41,7 +49,7 @@ class AttributesOpsSpec extends FunSuite:
       .using(_ + (Size.attrId -> AttrValue("10,10")))
 
     // Apply the method
-    val result = graph.removeUnsupportedFeatures
+    val result = graph.withoutUnsupportedFeatures
 
     // Verify the 'size' attribute is removed
     assertEquals(
@@ -55,8 +63,9 @@ class AttributesOpsSpec extends FunSuite:
     // Create a graph with a style attribute
 
     val styleValue = AttrValue(Seq(filled, bold, dashed).mkString(","))
-    val graph = createTestGraph()
-      .modifyNodes.setTo(
+    val elements = testVizViewerGraphElements
+      .modify(_.nodes)
+      .setTo(
         VectorMap(
           a -> nodeWithDefaults(a, Attributes(Map(NodeStyle.attrId -> styleValue))),
           b -> nodeWithDefaults(b),
@@ -65,10 +74,10 @@ class AttributesOpsSpec extends FunSuite:
       )
 
     // We need to create a new graph with the expanded elements to test it
-    val result = graph.modifyElements.setTo(graph.expandStyleAttributes)
+    val result = elements.expandStyleAttributes
 
     // Verify the style attribute is expanded using getNode
-    val nodeAttrs = result.getNode(a).get.attributes
+    val nodeAttrs = result.nodes(a).attributes
 
     // The original style attribute should be removed
     assertEquals(nodeAttrs.get(NodeStyle), None, "The style attribute should be removed")
@@ -93,9 +102,8 @@ class AttributesOpsSpec extends FunSuite:
         g.modifyAttrs.using(_ ++ Attributes.of(FillStyle -> true))
       }
 
-    val elems1 = graph.combineStyleAttributes
     // We need to create a new graph with the combined elements to test it
-    val modifiedGraph = graph.modifyElements.setTo(elems1)
+    val modifiedGraph = graph.modifyElements.setTo(graph.elements.combineStyleAttributes)
 
     // Verify the sub-attributes are combined using getNode
     val nodeAttrs = modifiedGraph.getNode(a).get.attributes
@@ -109,30 +117,41 @@ class AttributesOpsSpec extends FunSuite:
     assertEquals(nodeAttrs.get(NodeStyle), Some(AttrValue("filled,bold,dashed")), "style attribute should contain the combined values")
 
     val groupAttrs = modifiedGraph.groups(groupId).attributes
-    val expected   = ViewerGroup.defaultGroupAttributes ++ Attributes.of(Style -> Style.filled, Label -> "Cluster 1")
+    val expected =
+      ViewerGroup.defaultGroupAttributes ++ Attributes.of(
+        Style -> Style.filled,
+        Label -> "Cluster 1"
+      )
     assertEquals(groupAttrs, expected)
   }
 
-  test("combineStyleAttributes should use rootGroup.nodeAttrs as defaults for nodes.attributes") {
+  test("combineStyleAttributes should simulate style inheritance") {
     // Create a graph with sub-attributes
     val graph0 = ViewerGraph.minimal
       .addNodeWithId(a)
-      .modifyDefaultAttributes(AttributeTarget.node).using(_ + (BoldStyle.attrId -> trueAttr))
+      .modifyDefaultAttributes(AttributeTarget.node).using(_ + (CornerStyle -> CornerStyle.rounded))
 
+    // update node a
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).update
-    val updates          = AttributeUpdates.of(BorderStyle -> BorderStyle.dashed)
+    val graph1           = updateAttributes(graph0, AttributeUpdates.of(BorderStyle -> BorderStyle.dashed))
 
-    val graph1 = updateAttributes(graph0, updates)
-
+    import upickle.default.*
+    pprint.log(write(graph0.elements, indent = 2))
+    pprint.log(write(graph1.elements, indent = 2))
     // ------------------------------------------------------------------
     // We need to create a new graph with the combined elements to test it
-    val graph2 = graph1.modifyElements.setTo(graph1.combineStyleAttributes)
+    val elements = graph1.elements.combineStyleAttributes
+    pprint.log(write(elements, indent = 2))
     // ------------------------------------------------------------------
 
     assertEquals(
-      obtained = graph2.getNode(a).get.attributes.get(NodeStyle).get.toString,
-      expected = "bold,dashed",
-      "style attribute should contain the combined values"
+      obtained = elements.defaultNodeAttributes.get(NodeStyle).get.toString,
+      expected = "rounded"
+    )
+    // we need to copy the global style into the element style to avoid overriding it.
+    assertEquals(
+      obtained = elements.nodes(a).attributes.get(NodeStyle).get.toString,
+      expected = "rounded,dashed"
     )
   }
 

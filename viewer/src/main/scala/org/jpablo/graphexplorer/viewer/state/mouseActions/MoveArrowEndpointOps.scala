@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElem
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{Inactive, MoveArrowEndpointAction}
 import org.jpablo.graphexplorer.viewer.utils.{DomEvent, MouseActionRect}
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.ArrowPosition
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.ArrowPosition
 
 /*
  * This trait contains the logic for handling mouse actions related to moving the start of an arrow in the graph.

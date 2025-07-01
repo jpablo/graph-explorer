@@ -1,23 +1,8 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes
-import org.jpablo.graphexplorer.viewer.components.attributes.styleSubAttributes.StyleSubAttributes.{fromSubAttributes, subAttributeIds}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
-  ArrowHead,
-  ArrowTail,
-  ArrowType,
-  Dir,
-  DirType,
-  GraphType,
-  NodeStyle,
-  Overlap,
-  Shape,
-  Sides,
-  Size,
-  Style
-}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
@@ -25,69 +10,8 @@ import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
 trait AttributesOps:
   this: ViewerGraph =>
 
-  lazy val removeUnsupportedFeatures: ViewerGraph =
+  def withoutUnsupportedFeatures: ViewerGraph =
     this.modifyAll(_.elements.graphAttributes, _.elements.defaultGroupAttributes).using(_ - Size.attrId - Overlap.attrId)
-
-  /** Expands the "style" attribute into its sub-attributes (fill, bold, invisible, border, corner)
-    */
-  def expandStyleAttributes: ViewerGraphElements =
-    elements
-      .copy(
-        nodes = nodes.transform((_, n) => n.modifyAttrs.using(expandElementAttributes)),
-        groups = groups.transform((_, g) => g.modifyAttrs.using(expandElementAttributes))
-      ).modifyAll(
-        _.graphAttributes,
-        _.defaultNodeAttributes,
-        _.defaultArrowAttributes,
-        _.defaultGroupAttributes
-      ).using(expandElementAttributes)
-
-  // DOT -> ViewerGraph
-  // style="..." -> [fillStyle, boldStyle, invisibleStyle, borderStyle, cornerStyle]
-  private def expandElementAttributes(attrs: Attributes): Attributes =
-    attrs.get(NodeStyle.attrId).fold(attrs): styleAttr =>
-      // replace the "style" attribute with its sub-attributes (fill, bold, etc.)
-      attrs - NodeStyle.attrId ++ StyleSubAttributes.parse(styleAttr).withDefaults.toAttributes
-
-  /** Combines the style sub-attributes into a single "style" attribute.
-    */
-  def combineStyleAttributes: ViewerGraphElements =
-    elements
-      .copy(
-        nodes = nodes.transform { (_, n) =>
-          n.modifyAttrs.using(combineElementAttributes(_, defaults = Some(elements.defaultNodeAttributes)))
-        },
-        groups = groups.transform { (_, g) =>
-          g.modifyAttrs.using(combineElementAttributes(_, defaults = Some(elements.defaultGroupAttributes)))
-        }
-      ).modifyAll(
-        _.graphAttributes,
-        _.defaultNodeAttributes,
-        _.defaultArrowAttributes,
-        _.defaultGroupAttributes
-      ).using(combineElementAttributes(_))
-
-  // ViewerGraph -> DOT
-  // Replace the sub-attributes with the combined "style" attribute
-  // [fillStyle, boldStyle, invisibleStyle, borderStyle, cornerStyle] -> style="..."
-  private def combineElementAttributes(
-      attrs:    Attributes,
-      defaults: Option[Attributes] = None
-  ): Attributes =
-    val localSubAttrs = fromSubAttributes(attrs)
-
-    val styleStringO =
-      defaults match
-        case None =>
-          val styleString = localSubAttrs.toStyleStringSimple
-          if styleString.isEmpty then None else Some(styleString)
-        case Some(globalAttrs) =>
-          localSubAttrs.toStyleCombined(fromSubAttributes(globalAttrs))
-
-    val filteredAttrs = attrs -- subAttributeIds
-    styleStringO match
-      case None        => filteredAttrs // remove the style attribute
-      case Some(style) => filteredAttrs + (Style.attrId -> AttrValue(style))
 
   /** Updates attributes for a set of nodes and arrows.
     *
@@ -103,12 +27,12 @@ trait AttributesOps:
 
     val updatedArrows = arrows.view
       .filterKeys(classified.arrows)
-      .mapValues(_.modify(_.attributes).using(selectionAttrs.applyUpdates))
+      .mapValues(_.modify(_.attributes).using(selectionAttrs.applyTo))
       .toMap
 
     val updatedClusters = groups.view
       .filterKeys(classified.groups)
-      .mapValues(_.modifyAttrs.using(selectionAttrs.applyUpdates))
+      .mapValues(_.modifyAttrs.using(attrs => AttributesOps.normalizeFill(selectionAttrs.applyTo(attrs))))
       .toMap
 
     val nodeIdsToUpdate = classified.nodes ++
@@ -117,7 +41,7 @@ trait AttributesOps:
     val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
       nodes.updated(
         id,
-        nodes.getOrElse(id, nodeWithDefaults(id)).modifyAttrs.using(selectionAttrs.applyUpdates)
+        nodes.getOrElse(id, nodeWithDefaults(id)).modifyAttrs.using(attrs => AttributesOps.normalizeFill(selectionAttrs.applyTo(attrs)))
       )
 
     modifyElements.using(
@@ -128,34 +52,33 @@ trait AttributesOps:
       )
     )
 
-  // Used to combine the attributes of multiple selected elements (say two nodes)
-  private def mergeAttributeUpdates[K <: ElementId, V <: ViewerElement](
-      elementIds: ElementIds,
-      elements:   Map[K, V]
-  ): Map[AttributeId, AttrValueWithStatus] =
-    elements.foldLeft(Map.empty[AttributeId, AttrValueWithStatus]):
-      case (acc, (nodeId, attributable)) if nodeId in elementIds =>
-        val nodeIdAcc =
-          // replace attribute values with Single / Multiple (if they are already in the accumulator and they are different)
-          attributable.attributes.values.transform: (attrId, v) =>
-            if (attrId in acc) && !acc(attrId).is(v) then Multiple else Single(v)
-        acc ++ nodeIdAcc
-      case (acc, _) => acc
-
   def getAttributesById(id: ElementId): Attributes =
     id match
       case id: ArrowId => arrows.get(id).fold(Attributes.empty)(_.attributes)
       case id: GroupId => groups.get(id).fold(Attributes.empty)(_.attributes)
       case id: NodeId  => nodes.get(id).fold(Attributes.empty)(_.attributes)
 
-  def getAttributesUpdatesById(ids: ElementIds): AttributeUpdates =
+  /** Computes the attribute updates for a set of element IDs.
+    *
+    * This method aggregates the attributes from the provided element IDs, identifying conflicts where multiple elements have different
+    * values for the same attribute. The resulting `AttributeUpdates` object can indicate whether an attribute has a single value or
+    * multiple conflicting values.
+    *
+    * @param elementIds
+    *   the set of element IDs for which to compute attribute updates
+    * @return
+    *   an `AttributeUpdates` instance encapsulating the aggregated attribute updates for the specified element IDs
+    */
+  def getAttributesUpdatesById[K <: ElementId](elementIds: ElementIds): AttributeUpdates =
     AttributeUpdates(
-      ids.ids.headOption
-        .map:
-          case _: ArrowId => mergeAttributeUpdates(ids, arrows)
-          case _: GroupId => mergeAttributeUpdates(ids, groups)
-          case _: NodeId  => mergeAttributeUpdates(ids, nodes)
-        .getOrElse(Map.empty)
+      elementIds.ids.foldLeft(Map.empty[AttributeId, AttrValueWithStatus]): (attrs, elementId) =>
+        val elemAttrs =
+          getAttributesById(elementId)
+            .values
+            .transform: (attrId, v) =>
+              if (attrId in attrs) && !attrs(attrId).is(v) then Multiple else Single(v)
+
+        attrs ++ elemAttrs
     )
 
   def getDefaultAttributes(target: AttributeTarget): Attributes =
@@ -189,20 +112,60 @@ trait AttributesOps:
     modifyDefaultAttributes(AttributeTarget.node).using(defaultNodeTheme ++ _)
       .modifyDefaultAttributes(AttributeTarget.edge).using(defaultEdgeTheme ++ _)
 
+  /** Resets all attributes except 'label' from the specified elements.
+    *
+    * @return
+    *   Updated ViewerGraph with attributes reset (keeping only 'label')
+    */
+  def resetAttributes(selection: ElementIds): ViewerGraph =
+
+    val keepAttributes = Set(Label.attrId.value, Cluster.attrId.value)
+
+    selection.ids.foldLeft(this): (currentGraph, elementId) =>
+      val currentAttrs = currentGraph.getAttributesById(elementId).toDotAttr
+      if currentAttrs.isEmpty then
+        // No attributes to remove
+        currentGraph
+      else
+        // Get keys as Strings from toDotAttr, compare with Label.attrId.value
+        val keysToRemove = currentAttrs.map(_.id).toSet -- keepAttributes
+        if keysToRemove.isEmpty then
+          // Only label attribute was present (or attrs were empty), nothing to remove
+          currentGraph
+        else
+          // Convert keys back to AttributeId for the update
+          val updateForThisElement = AttributeUpdates.remove(keysToRemove.map(AttributeId(_)))
+          // updateAttributes returns a *new* graph, so use it in the next fold step
+          currentGraph.updateAttributes(ElementIds.from(elementId), updateForThisElement)
+
 object AttributesOps:
+  // Normalization helper available to both the trait and this companion
+  private[graph] def normalizeFill(attrs: Attributes): Attributes =
+    val fc = attrs.get(FillColor)
+    fc match
+      case Some(v) if v.toString == FillColor.none => attrs + (FillStyle.attrId -> AttrValue(false.toString))
+      case Some(_)                                  => attrs + (FillStyle.attrId -> AttrValue(true.toString))
+      case None                                     => attrs
 
   /** Lens for accessing and updating the main graph attributes */
   def diagramAttributesUpdates: Lens[ViewerGraph, AttributeUpdates] =
     Lens(
       get = graph => graph.elements.graphAttributes.toUpdates,
-      update = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyUpdates)
+      update = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyTo)
     )
 
   /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
   def defaultAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributeUpdates] =
     Lens(
       get = graph => graph.getDefaultAttributes(target).toUpdates,
-      update = (graph, updates) => graph.modifyDefaultAttributes(target).using(updates.applyUpdates)
+      update = (graph, updates) =>
+        graph.modifyDefaultAttributes(target).using { attrs =>
+          val applied = updates.applyTo(attrs)
+          target match
+            case AttributeTarget.node  => normalizeFill(applied)
+            case AttributeTarget.graph => normalizeFill(applied)
+            case AttributeTarget.edge  => applied
+        }
     )
 
   /** Bundle functions for updating attributes of specific elements */

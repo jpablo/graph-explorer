@@ -17,13 +17,13 @@ class RowBuilder(
     layout:   Signal[Layout],
     defaults: Option[Signal[Attributes]] = None
 ):
-  type buildRowsInput = DotAttribute[?]
+  private type BuildRowsInput = DotAttribute[?]
     | AttributeRow
     | (DotAttribute[?], InputType)
 
-  given CanEqual[buildRowsInput, buildRowsInput] = CanEqual.derived
+  given CanEqual[BuildRowsInput, BuildRowsInput] = CanEqual.derived
 
-  def rows(dotAttributes: buildRowsInput*): Seq[AttributeRow] =
+  def rows(dotAttributes: BuildRowsInput*): Seq[AttributeRow] =
     dotAttributes.map:
       case row: AttributeRow => row
 

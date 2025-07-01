@@ -360,11 +360,11 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Print the visible DOT to the browser console for debugging")
     )
 
-    val printVisibleJSONtoConsole = Command(
-      "Print JSON DOT AST to the console",
-      () => state.printVisibleJSONtoConsole(),
+    val printVisibleSimpleGraphJSONtoConsole = Command(
+      "Print Visible Simple Graph Json to the console",
+      () => state.printVisibleSimpleGraphJSONtoConsole(),
       always,
-      description = Some("Print the full diagram as JSON DOT AST to console for debugging")
+      description = Some("Print the full diagram as VizJS Graph JSON to console for debugging")
     )
 
     val printSelectionToConsole = Command(
@@ -519,7 +519,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.printVisibleGraphToConsole,
       all.printVisibleGraphJsonToConsole,
       all.printVisibleDOTtoConsole,
-      all.printVisibleJSONtoConsole,
+      all.printVisibleSimpleGraphJSONtoConsole,
       all.printSelectionToConsole
     )
   )

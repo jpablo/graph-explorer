@@ -1,0 +1,21 @@
+digraph G {
+    // 1. Establish a NEW global default for all nodes.
+    // By default, every node should now be filled and rounded.
+    node [style="filled,rounded", shape=box, fillcolor=lightblue];
+
+    // 2. Node 'n1' has its 'style' attribute MISSING.
+    // It will INHERIT the new default we just set.
+    n1 [label="n1: Inherits Default"];
+
+    // 3. Node 'n2' has 'style=""'.
+    // This is an ACTIVE RESET command. It will IGNORE the 'filled,rounded'
+    // default and revert to a node's most primitive form.
+    n2 [label="n2: Resets to Primitive", style=""];
+
+    // 4. Node 'n3' has 'style="solid"'.
+    // This is often thought of as "the default style". Let's see.
+    // This explicitly sets the style, overriding the 'filled,rounded' default.
+    n3 [label="n3: Explicitly 'solid'", style="solid"];
+
+    n1 -> n2 -> n3;
+}

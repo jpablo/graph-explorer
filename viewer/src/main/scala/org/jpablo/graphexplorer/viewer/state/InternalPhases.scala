@@ -4,158 +4,97 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.SimpleGraph
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphToDotAST
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 import org.jpablo.graphexplorer.viewer.logging.*
-import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
+import org.jpablo.graphexplorer.viewer.models.ElementIds
+import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
 import org.scalajs.dom.svg.SVG
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
-case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
-
-def syncVars[S, T](
-    source:  Var[S],
-    target:  Var[T],
-    labelT:  String = "",
-    toT:     (S, T) => T,
-    updateT: (S, T, T) => Boolean,
-    labelS:  String = "",
-    toS:     (S, T) => S,
-    updateS: (S, T, S) => Boolean,
-    level:   Level = Level.None
-)(using Owner): Unit =
-  // source -> target
-  for s <- source.signal do
-    val t  = target.now()
-    val t1 = toT(s, t)
-    if updateT(s, t, t1) then
-      withLog(labelT, level = level)(target.set(t1))
-  // target -> source
-  for t <- target.signal do
-    val s  = source.now()
-    val s1 = toS(s, t)
-    if updateS(s, t, s1) then
-      withLog(labelS, level = level)(source.set(s1))
-end syncVars
+// Unified state containing both representations
+case class GraphState(
+    text:        String,
+    viewerGraph: ViewerGraph,
+    lastOrigin:  ChangeOrigin
+) derives CanEqual
 
 class InternalPhases(
+    graphviz:      Graphviz,
     initialSource: Option[String] = None,
     hiddenNodes:   Signal[HiddenElements],
-    resetView:     () => Unit,
-    autoFit:       () => Boolean,
-    editorError:   Var[Option[String]]
+    resetView:     () => Unit = () => (),
+    autoFit:       () => Boolean = () => false,
+    editorError:   Var[Option[String]] = Var(None),
+    val logLevel:  Level = Level.None
 )(using Owner):
 
-  // three types of Vars:
-  // (a) updated outside of SourceFlow (either by CodeMirror or the UI)
-  // (b) updates linked to a var of type (a)
-  // (c) updates coming from both directions
+  simpleLog(s"InternalPhases: Initializing with $initialSource", logLevel)
 
-  // updated by CodeMirror (a)
-  val sourceText: Var[String] = Var("")
-  // (b)
-  private val versionedText = Var(Versioned("", 0, ChangeOrigin.CodeMirror))
+  // Initialize with the provided source or a minimal graph
+  private val initialText  = initialSource.getOrElse("""digraph "G" {}""")
+  private val initialGraph = parseTextToGraph(initialText)
 
-  // (c)
-  private val sourceAST: Var[Versioned[DotAST]] = Var(Versioned(DotAST.empty, 0, ChangeOrigin.CodeMirror))
+  // Single unified state
+  private val state = Var(GraphState(
+    text = initialText,
+    viewerGraph = initialGraph,
+    lastOrigin = ChangeOrigin.CodeMirror
+  ))
 
-  // (b)
-  private val versionedFullGraphV = Var(Versioned(ViewerGraph.minimal, 0, ChangeOrigin.CodeMirror))
+  // Public interface: sourceText as a Var that delegates to the unified state
+  val sourceText: Var[String] =
+    state.zoomLazy((currentState: GraphState) =>
+      withLog("1b. [sourceText <- GraphState]", level = logLevel) {
+        // GraphState is the source of truth; update unconditionally
+        currentState.text
+      }
+    )((currentState: GraphState, newText: String) =>
+      withLog("1a. [sourceText -> GraphState]", level = logLevel) {
+        // New source of truth: incoming text
+        if newText != currentState.text then
+          GraphState(
+            text = newText,
+            viewerGraph = parseTextToGraph(newText),
+            lastOrigin = ChangeOrigin.CodeMirror
+          )
+        else
+          currentState
+      }
+    ).distinct // TODO: consider using distinctByRef
 
-  // updated by the UI (a)
-  val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.minimal)
+  // Public interface: fullGraphV as a Var that delegates to the unified state
+  val fullGraphV: Var[ViewerGraph] =
+    state.zoomLazy((currentState: GraphState) =>
+      withLog("2a. [GraphState -> fullGraphV: ViewerGraph]", level = logLevel) {
+        // GraphState is the source of truth; update unconditionally
+        currentState.viewerGraph
+      }
+    )((currentState: GraphState, newGraph: ViewerGraph) =>
+      withLog("2b. [GraphState <- fullGraphV: ViewerGraph]", level = logLevel) {
+        // New source of truth: incoming graph
+        if newGraph != currentState.viewerGraph then
+          GraphState(
+            text = viewerGraphToText(newGraph, omitInternal = true),
+            viewerGraph = newGraph,
+            lastOrigin = ChangeOrigin.Graph
+          )
+        else
+          currentState
+      }
+    ).distinct // TODO: consider using distinctByRef
 
-  val fullGraph = fullGraphV.signal
+  val fullGraph = fullGraphV.signal.distinct
 
-  // -------------------------------
-  // sourceText <-> versionedText
-  // -------------------------------
-  syncVars(
-    source = sourceText,
-    target = versionedText,
-    // -------------------------------
-    labelT = "[sourceText -> versionedText]", // a -> b
-    toT = (st, vt) => Versioned[String](st, vt.version + 1, ChangeOrigin.CodeMirror),
-    updateT = (st, vt, vt1) => st != vt.value,
-    // -------------------------------
-    labelS = "[versionedText -> sourceText]", // b -> a
-    toS = (st, vt) => vt.value,
-    updateS = (st, vt, st1) => st != vt.value,
-    level = Level.None
-  )
-
-  // -------------------------------
-  // versionedText <-> sourceAST
-  // -------------------------------
-  syncVars[Versioned[String], Versioned[DotAST]](
-    source = versionedText,
-    target = sourceAST,
-    // -------------------------------
-    labelT = "[versionedText -> sourceAST]", // b -> c
-    toT = { (vt, ast) =>
-      val newAST =
-        DotText(vt.value).parseAST match
-          case Failure(f) =>
-            editorError.set(Option(f.getMessage))
-            // consider creating a new AST with the error message
-            DotAST.empty
-          case Success(asts) =>
-            editorError.set(None)
-            asts.headOption.getOrElse(DotAST.empty)
-
-      Versioned[DotAST](newAST, vt.version, vt.origin)
-    },
-    updateT = (vt, ast, ast1) => ast.value != ast1.value && ast1.origin == ChangeOrigin.CodeMirror,
-    // -------------------------------
-    labelS = "[sourceAST -> versionedText]", // c -> b
-    toS = { (vt, ast) =>
-      val newSource = ast.value.optimize.render(keepInternal = false)
-      Versioned[String](newSource, ast.version, ast.origin)
-    },
-    updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
-    level = Level.None
-  )
-
-  // -------------------------------
-  // sourceAST <-> versionedFullGraphV
-  // -------------------------------
-  syncVars(
-    source = sourceAST,
-    target = versionedFullGraphV,
-    // -------------------------------
-    labelT = "[sourceAST -> versionedFullGraphV]", // c -> b
-    toT = (ast: Versioned[DotAST], vg) => Versioned[ViewerGraph](ast.value.toViewerGraph, ast.version, ast.origin),
-    updateT = (ast, vg, vg1) => vg.value != vg1.value && ast.origin == ChangeOrigin.CodeMirror,
-    // -------------------------------
-    labelS = "[versionedFullGraphV -> sourceAST]", // b -> c
-    toS = (ast, vg) => Versioned[DotAST](graphToDotAST(vg.value), vg.version, vg.origin),
-    updateS = (ast, vg, ast1) => ast.value != ast1.value && vg.origin == ChangeOrigin.Graph
-  )
-
-  // -------------------------------
-  // versionedFullGraphV <-> fullGraphV
-  // -------------------------------
-  syncVars(
-    source = versionedFullGraphV,
-    target = fullGraphV,
-    // -------------------------------
-    labelT = "[versionedFullGraphV -> fullGraphV]", // b -> a
-    toT = (vg, g) => vg.value,
-    updateT = (vg, g, g1) => g != g1,
-    // -------------------------------
-    labelS = "[fullGraphV -> versionedFullGraphV]", // a -> b
-    toS = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
-    updateS = (vg, g, vg1) => vg.value != g
-  )
-
-  // -------------------------------
-  // Start the process
-  // -------------------------------
-
-  sourceText.set(initialSource.getOrElse(""))
+  val simpleGraph: Signal[SimpleGraph] =
+    state.signal.flatMapSwitch { currentState =>
+      Signal.fromTry(graphviz.textToSimpleGraph(currentState.text))
+    }
 
   // -------------------------------
   // fullGraphV --> visibleGraph
@@ -165,35 +104,52 @@ class InternalPhases(
     */
   val visibleGraph: Signal[ViewerGraph] =
     fullGraphV.signal.combineWithFn(hiddenNodes): (fullGraph: ViewerGraph, hiddenNodes) =>
-      withLog("[fullGraphV -> visibleGraph]") {
-        fullGraph
-          .removeUnsupportedFeatures
-          .removeElements(hiddenNodes)
-          .withDefaultTheme
+      withLog("3. [fullGraphV -> visibleGraph]", level = logLevel) {
+        fullGraph.toVisibleGraph(hiddenNodes)
       }
     .distinct
       .tapEach(_ => if autoFit() then resetView())
 
   // -------------------------------
   // rendering:
-  // visibleGraph -> visibleAST -> visibleDOT
+  // visibleGraph -> visibleDOT
   // -------------------------------
-  val visibleAST: Signal[DotAST] =
-    visibleGraph.map(graph => withLog("[visibleGraph -> visibleAST]")(graphToDotAST(graph)))
-
   val visibleDOT: Signal[DotText] =
-    visibleAST
-      .map(ast => withLog("[visibleAST -> visibleDOT]", level = Level.None)(DotText(ast.render(keepInternal = true))))
+    visibleGraph.map { graph =>
+      withLog("4. [visibleGraph -> visibleDOT]", level = logLevel) {
+        DotText(viewerGraphToText(graph, omitInternal = false))
+      }
+    }
+
+  /** Parses DOT text into a ViewerGraph. Returns a minimal graph on error.
+    */
+  private def parseTextToGraph(dotText: String): ViewerGraph =
+    // Safety check: don't process empty or whitespace-only strings
+    if dotText.trim.isEmpty then
+      ViewerGraph.minimalWithDirected
+    else
+      graphviz.textToSimpleGraph(dotText) match
+        case Success(simpleGraph) =>
+          editorError.set(None)
+          // simpleGraph has no node/arrow defaults! (all attributes are "flattened")
+          simplegraph.toViewerGraph(simpleGraph)
+
+        case Failure(f) =>
+          dom.console.error(s"Error parsing DotText to ViewerGraph: ${f.getMessage}")
+          editorError.set(Option(f.getMessage))
+          ViewerGraph.minimalWithDirected
 
 end InternalPhases
 
 object InternalPhases:
-  def processDotText(dot: DotText): Signal[Option[ReactiveSvgElement[SVG]]] =
-    val dotText =
-      for
-        asts <- dot.parseAST
-        ast  <- Try(asts.head)
-        graph = ast.toViewerGraph.removeUnsupportedFeatures.withDefaultTheme
-      yield DotText(graphToDotAST(graph).render())
 
-    Signal.fromTry(dotText).flatMapSwitch(_.toSvg).map(_.map(_.svg))
+  def processDotText(graphviz: Graphviz, dot: DotText): Signal[ReactiveSvgElement[SVG]] =
+    Signal.fromTry:
+      for
+        simpleGraph <- graphviz.textToSimpleGraph(dot.value)
+        viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
+        dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
+        svg <- graphviz.textToSvg(DotText(dotText0))
+      yield svg.svg
+
+end InternalPhases

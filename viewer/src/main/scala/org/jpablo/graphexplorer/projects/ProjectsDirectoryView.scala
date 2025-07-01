@@ -8,7 +8,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
-import org.jpablo.graphexplorer.viewer.state.InternalPhases.processDotText
+import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.state.InternalPhases
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 
 import scala.scalajs.js
@@ -21,7 +22,7 @@ enum SortOption derives CanEqual:
     case Title        => "Title"
     case CreationDate => "Creation Date"
 
-def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
+def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: RouterCommands) =
   val sortOptionVar = Var[SortOption](SortOption.CreationDate)
   val searchTermVar = Var("")
 
@@ -112,7 +113,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
                   case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
                   case SortOption.Title        => filteredProjects.sortBy(_.name.toLowerCase)
                   case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
-              sorted.map(projectCard(router))
+              sorted.map(projectCard(graphviz, router))
         }
       ),
 
@@ -130,7 +131,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
           cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4",
           children <-- Signal.fromValue(
             DotExamples.examples.filterNot(_._2 == DotExamples.emptyGraph).toSeq.map { case (name, source) =>
-              exampleCard(routerCmds, name, source)
+              exampleCard(graphviz, routerCmds, name, source)
             }
           )
         )
@@ -138,7 +139,7 @@ def ProjectsDirectoryView(router: Router, routerCmds: RouterCommands) =
     )
   )
 
-private def exampleCard(routerCmds: RouterCommands, name: String, source: String) = {
+private def exampleCard(graphviz: Graphviz, routerCmds: RouterCommands, name: String, source: String) = {
 
   div(
     cls := "example-card card card-compact",
@@ -149,22 +150,21 @@ private def exampleCard(routerCmds: RouterCommands, name: String, source: String
         child <--
           FetchStream.get(source)
             .flatMapSwitch: str =>
-              processDotText(DotText(str)).map((_, str))
-            .map: (svgSignal, str) =>
+              InternalPhases.processDotText(graphviz, DotText(str)).map((_, str))
+            .map: (svgElement, str) =>
               div(
                 cls := "w-full h-full p-1 flex items-center justify-center",
-                svgSignal.map: svgElement =>
+                div(
+                  cls := "w-full h-full relative",
                   div(
-                    cls := "w-full h-full relative",
-                    div(
-                      cls := "absolute inset-0 w-full h-full",
-                      svgElement.amend(
-                        svg.width               := "100%",
-                        svg.height              := "100%",
-                        svg.preserveAspectRatio := "xMidYMid meet"
-                      )
+                    cls := "absolute inset-0 w-full h-full",
+                    svgElement.amend(
+                      svg.width               := "100%",
+                      svg.height              := "100%",
+                      svg.preserveAspectRatio := "xMidYMid meet"
                     )
-                  ),
+                  )
+                ),
                 title := "Click to create a new diagram with this example (copied to clipboard)",
                 onClick --> routerCmds.createProject.execute(Some(Some(str)))
               )
@@ -180,7 +180,7 @@ private def exampleCard(routerCmds: RouterCommands, name: String, source: String
   )
 }
 
-private def projectCard(router: Router)(project: ProjectInfo) =
+private def projectCard(graphviz: Graphviz, router: Router)(project: ProjectInfo) =
   div(
     cls := "project-card card",
     figure(
@@ -189,7 +189,7 @@ private def projectCard(router: Router)(project: ProjectInfo) =
         cls := "w-full h-48 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",
         child <-- ProjectStorage.getProjectContent(project.id)
           .map: str =>
-            processDotText(DotText(str))
+            InternalPhases.processDotText(graphviz, DotText(str))
           .map: svgSignal =>
             div(
               cls := "w-full h-full p-1 flex items-center justify-center",
@@ -198,12 +198,11 @@ private def projectCard(router: Router)(project: ProjectInfo) =
                   cls := "w-full h-full relative",
                   div(
                     cls := "absolute inset-0 w-full h-full",
-                    svgElement.map:
-                      _.amend(
-                        svg.width               := "100%",
-                        svg.height              := "100%",
-                        svg.preserveAspectRatio := "xMidYMid meet"
-                      )
+                    svgElement.amend(
+                      svg.width               := "100%",
+                      svg.height              := "100%",
+                      svg.preserveAspectRatio := "xMidYMid meet"
+                    )
                   )
                 ),
               onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))

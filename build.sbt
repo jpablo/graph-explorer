@@ -20,7 +20,8 @@ ThisBuild / scalacOptions ++= // Scala 3.x options
     "-source:future",
     "-deprecation",
     "-Wunused:imports",
-    "-Xfatal-warnings"
+    "-Xfatal-warnings",
+    "-preview"
   )
 
 lazy val shared = crossProject(JSPlatform, JVMPlatform)

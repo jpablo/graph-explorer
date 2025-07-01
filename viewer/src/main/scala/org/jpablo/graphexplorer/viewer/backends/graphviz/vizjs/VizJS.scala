@@ -7,6 +7,7 @@ import scala.scalajs.js
 import scala.scalajs.js.annotation.*
 
 // https://github.com/mdaines/viz-js
+// https://viz-js.com/api/
 
 @js.native
 @JSImport("@viz-js/viz", JSImport.Namespace)

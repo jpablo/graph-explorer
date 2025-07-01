@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePreview
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
@@ -10,6 +11,7 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
+import org.scalajs.dom.svg.SVG
 
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState): Div =
   import commands.{all, routerCmds, sections}
@@ -17,8 +19,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
   val hiddenNodesIsEmpty =
     state.hiddenElements.signal.map(_.isEmpty)
 
-  def shapePreview(shape: Shape) =
-    ShapePreview(shape, 16).get()
+  def shapePreview(shape: Shape): ReactiveSvgElement[SVG] | String =
+    ShapePreview(shape, 16).map(_()).getOrElse(shape.toString)
 
   val defaultShapePreview =
     state.nodeShape.map(shapePreview)
@@ -38,7 +40,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       cmds
         .filter:
           case cmd: Command[?] => cmd.isVisible(selection)
-          case _            => true
+          case _               => true
         .map:
           case cmd: Command[?] =>
             MenuOption(
@@ -133,7 +135,10 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         Button(
           cls := "gap-1 pl-1",
           i(cls := "bi bi-plus"),
-          child <-- defaultShapePreview.map(icon => span(icon)),
+          child <-- defaultShapePreview.map:
+            case svg: ReactiveSvgElement[SVG] => span(svg)
+            case str: String                  => span(str)
+          ,
           onClick --> all.newNode.execute()
         ).tiny.toTooltip(all.newNode.labelWithShortcut),
         // --- extra options ---

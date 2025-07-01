@@ -121,7 +121,8 @@ enum EdgeStyle derives CanEqual:
 object FillColor extends DotAttributeSimple[String]:
   val label                    = "Fill"
   val none                     = "none"
-  val default                  = none // default for nodes
+  val default                  = none        // default for nodes
+  val filledDefault            = "lightgrey" // default for nodes with style="filled"
   override val placeholderText = "Enter fill color here"
 
 object FixedSize extends DotAttributeSimple[Boolean]:
@@ -148,6 +149,9 @@ object FontSize extends DotAttributeSimple[Double]:
 enum GraphType derives CanEqual:
   case graph, digraph
 
+  def isDirected: Boolean =
+    this == digraph
+
 object GraphType extends DotAttributeEnum[GraphType]:
   val default = digraph
   val label   = "Graph Type"
@@ -155,6 +159,9 @@ object GraphType extends DotAttributeEnum[GraphType]:
     ("Undirected graph", graph),
     ("Directed graph", digraph)
   )
+
+  def fromBoolean(isDirected: Boolean): GraphType =
+    if isDirected then digraph else graph
 
 enum GroupLabelLoc:
   case t, b
@@ -489,8 +496,6 @@ enum Shape derives CanEqual:
   case fivepoverhang
   case threepoverhang
   case noverhang
-
-
 
 object Shape extends DotAttributeEnum[Shape]:
   val default = box

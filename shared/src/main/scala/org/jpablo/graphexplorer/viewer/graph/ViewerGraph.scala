@@ -5,27 +5,38 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowT
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
+import org.jpablo.graphexplorer.viewer.state.HiddenElements
 
 import scala.annotation.tailrec
 
 /** Represents a graph that can be visualized in the viewer.
   */
 case class ViewerGraph(
-    elements: ViewerGraphElements = ViewerGraphElements.minimal,
-    id:       String = ViewerGraphElements.defaultRootId.value,
-    tpe:      GraphType = GraphType.default,
-    counter:  Int = 0
+    elements:     ViewerGraphElements = ViewerGraphElements.minimal,
+    id:           String = ViewerGraphElements.defaultRootId.value,
+    tpe:          GraphType = GraphType.default,
+    nodeCounter:  Int = 0,
+    groupCounter: Int = 0
 ) extends AttributesOps, TraversalOps, GroupsOps derives CanEqual:
 
   // --- mutable stuff ----
-  private var nodeCounter = counter
+  private var _nodeCounter  = nodeCounter
+  private var _groupCounter = groupCounter
 
   private def nextNodeId(): NodeId =
     @tailrec
     def nextAvailable(): NodeId =
-      nodeCounter += 1
-      val id = NodeId(numberToLetterId(nodeCounter))
+      _nodeCounter += 1
+      val id = NodeId(numberToLetterId(_nodeCounter))
       if id in nodes then nextAvailable() else id
+    nextAvailable()
+
+  private[graph] def nextGroupId(): GroupId =
+    @tailrec
+    def nextAvailable(): GroupId =
+      _groupCounter += 1
+      val id = GroupId(s"g${_groupCounter}")
+      if id in groups then nextAvailable() else id
     nextAvailable()
   // --- end mutable stuff ----
 
@@ -66,6 +77,12 @@ case class ViewerGraph(
   def roots: Set[NodeId] =
     nodeIds -- arrowsSet.map(_.target)
 
+  def toVisibleGraph(hiddenNodes: HiddenElements = ElementIds()) =
+    this
+      .withoutUnsupportedFeatures
+      .removeElements(hiddenNodes)
+      .withDefaultTheme
+
   /** Creates a diagram containing the given symbols and the arrows between them.
     *
     * It ignores groups and memberships.
@@ -84,31 +101,36 @@ case class ViewerGraph(
   def removeElements(elementIds: ElementIds): ViewerGraph =
     val classified       = elementIds.classify
     val groupIdsToRemove = classified.groups
+    val nodeIdsToRemove  = classified.nodes
+    val arrowIdsToRemove = classified.arrows
 
     val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
       // case 1: remove a nested group
       if elementId.asGroupId.exists(_ in groupIdsToRemove) then
         None
-      // case 2: remove a node from a group
+      // case 2: remove a node that is being deleted
+      else if elementId.asNodeId.exists(_ in nodeIdsToRemove) then
+        None
+      // case 3: remove a node from a group
       else if groupId in groupIdsToRemove then
         // If group is deleted, add element to group's container if it exists
         memberships.get(groupId).map(containerId => elementId -> containerId)
       else
         Some(elementId -> groupId) // Keep unchanged
 
-    val nodeIdsToRemove  = classified.nodes
-    val arrowIdsToRemove = classified.arrows
-
     val updatedArrows = arrows.filterNot { (arrowId, arrow) =>
       (arrowId in arrowIdsToRemove) || (arrow.source in nodeIdsToRemove) || (arrow.target in nodeIdsToRemove)
     }
 
-    modifyElements.using(_.copy(
+    val graphWithRemovedElements = modifyElements.using(_.copy(
       nodes = nodes -- nodeIdsToRemove,
       arrows = updatedArrows,
       memberships = updatedMemberships,
       groups = groups -- groupIdsToRemove
     ))
+
+    // Clean up any empty groups that may have resulted from the removal
+    graphWithRemovedElements.removeEmptyGroups()
 
   private def maxArrowSequence(source: NodeId, target: NodeId): Int =
     val seqs = arrows.values
@@ -238,6 +260,44 @@ case class ViewerGraph(
           // 4. Add the reversed arrow
           graphWithoutOriginal.modifyArrows.using(_ + (reversedArrow.id -> reversedArrow))
 
+  /** Smart connection behavior for adding nodes.
+    *
+    * @param selectedElementId
+    *   The currently selected element ID (optional)
+    * @param attributes
+    *   Attributes for the new node
+    * @param direction
+    *   Direction for arrow creation when connecting to a node
+    * @return
+    *   A tuple of (updated graph, new node ID, optional arrow ID)
+    */
+  def addNodeWithSmartConnection(
+      selectedElementId: Option[ElementId],
+      attributes:        Attributes,
+      direction:         ArrowDirection
+  ): (ViewerGraph, NodeId, Option[ArrowId]) =
+    selectedElementId match
+      case None =>
+        // No selection: just add a standalone node
+        val (newGraph, newNodeId) = addNode(attributes = attributes)
+        (newGraph, newNodeId, None)
+      case Some(selected) =>
+        selected match
+          case id: NodeId =>
+            // Selected node: add new node and connect with arrow
+            val (newGraph, newNodeId, arrowId) = direction match
+              case ArrowDirection.forward  => addNodeAndArrowFrom(source = id, attributes = attributes)
+              case ArrowDirection.backward => addNodeAndArrowTo(target = id, attributes = attributes)
+            (newGraph, newNodeId, Some(arrowId))
+          case id: GroupId =>
+            // Selected group: add node to that group
+            val (newGraph, newNodeId) = addNode(groupId = Some(id), attributes = attributes)
+            (newGraph, newNodeId, None)
+          case _: ArrowId =>
+            // Selected arrow: just add standalone node
+            val (newGraph, newNodeId) = addNode(attributes = attributes)
+            (newGraph, newNodeId, None)
+
 //  lazy val toTrees: Tree[ViewerNode] =
 //    val paths =
 //      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.label, ns)
@@ -251,6 +311,119 @@ case class ViewerGraph(
   def filterArrowsBy(p: Arrow => Boolean) =
     arrowsSet.filter(p)
 
+  /** Duplicates the currently selected nodes, arrows, and groups. Creates new elements with the same attributes as the selected ones. Nodes
+    * are placed in the corresponding duplicated group if their original group was also selected. Arrows are duplicated connecting the
+    * corresponding (potentially new) nodes. The newly created elements become the selected elements after duplication.
+    */
+  def duplicateSelection(classified: IdsByKind) =
+
+    // 1. Determine all elements to duplicate (selected + descendants of selected groups)
+    val descendantMembers = getAllChildren(classified.groups)
+    val descendants       = GroupMemberId.classify(descendantMembers)
+    val groupsToDuplicate = classified.groups ++ descendants.groups
+    val nodesToDuplicate  = classified.nodes ++ descendants.nodes
+    val internalArrowsToDuplicate = arrows
+      .values.filter(a => (a.source in nodesToDuplicate) && (a.target in nodesToDuplicate)).map(_.id).toSet
+    val allArrowsToDuplicate = classified.arrows ++ internalArrowsToDuplicate
+
+    // 2. Duplicate Groups
+    val (graphAfterGroups, newGroupIds, groupIdMap) =
+      groupsToDuplicate.foldLeft((this, Set.empty[GroupId], Map.empty[GroupId, GroupId])) {
+        case (acc @ (currentGraph, createdGroupIds, groupMap), ogGroupId) =>
+          if ogGroupId in groupMap then
+            acc // Already duplicated (nested)
+          else
+            currentGraph.groups.get(ogGroupId) match
+              case None => acc // Should not happen
+              case Some(ogGroup) =>
+                val (newGraph, newGroupId) = duplicateSingleGroup(currentGraph, ogGroup, groupMap)
+                (newGraph, createdGroupIds + newGroupId, groupMap + (ogGroupId -> newGroupId))
+      }
+    // 3. Duplicate Nodes
+    val (graphAfterNodes, newNodeIds, nodeIdMap) =
+      nodesToDuplicate.foldLeft((graphAfterGroups, Set.empty[NodeId], Map.empty[NodeId, NodeId])) {
+        case (acc @ (currentGraph, createdNodeIds, nodeMap), ogNodeId) =>
+          // Node map check likely redundant due to using Set, but safe
+          if ogNodeId in nodeMap then
+            acc
+          else
+            currentGraph.getNode(ogNodeId) match
+              case None => acc // Should not happen
+              case Some(ogNode) =>
+                val (newGraph, newNodeId) = duplicateSingleNode(currentGraph, ogNode, groupIdMap)
+                (newGraph, createdNodeIds + newNodeId, nodeMap + (ogNodeId -> newNodeId))
+      }
+    // 4. Duplicate Arrows
+    val (finalGraph, newArrowIds) =
+      allArrowsToDuplicate.foldLeft((graphAfterNodes, Set.empty[ArrowId])) {
+        case (acc @ (currentGraph, createdArrowIds), ogArrowId) =>
+          elements.arrows.get(ogArrowId) match
+            case None => acc // Should not happen
+            case Some(ogArrow) =>
+              duplicateSingleArrow(currentGraph, ogArrow, nodeIdMap) match
+                case Some((newGraph, newArrowId)) => (newGraph, createdArrowIds + newArrowId)
+                case None                         => acc
+      }
+    // 5. Select the newly created elements
+    val allNewElementIds = newGroupIds.map(id => id: ElementId) ++ newNodeIds ++ newArrowIds
+
+    (finalGraph, allNewElementIds)
+  end duplicateSelection
+
+  private def duplicateSingleGroup(
+      graph:      ViewerGraph,
+      group:      ViewerGroup,
+      groupIdMap: Map[GroupId, GroupId] // Needed to find the *new* parent
+  ): (ViewerGraph, GroupId) =
+    val newGroupId = graph.nextGroupId()
+    // Filter out layout-specific attributes that shouldn't be copied
+    val filteredAttributes = group.attributes.filterKeys(attrId =>
+      !Set("_gvid", "width", "pos", "height", "lp", "lwidth", "lheight").contains(attrId.value)
+    )
+    val newGroup        = ViewerGroup.group(newGroupId, filteredAttributes)
+    val ogParentGroupId = graph.membership(group.id)
+    // Use the map to find the NEW parent ID if the original parent was also duplicated
+    val targetParentGroupId = ogParentGroupId.flatMap(groupIdMap.get).orElse(ogParentGroupId)
+    val updatedGraph =
+      graph
+        .modify(_.elements.groups).using(_ + (newGroupId -> newGroup))
+        .modify(_.elements.memberships).using(mbs => targetParentGroupId.fold(mbs)(pId => mbs + (newGroupId -> pId)))
+
+    (updatedGraph, newGroupId)
+
+  private def duplicateSingleNode(
+      graph:      ViewerGraph,
+      node:       ViewerNode,
+      groupIdMap: Map[GroupId, GroupId] // Needed to find the *new* parent group
+  ): (ViewerGraph, NodeId) =
+    val ogParentGroupId = graph.membership(node.id)
+    // Use the map to find the NEW parent ID if the original parent group was also duplicated
+    val targetGroupId         = ogParentGroupId.flatMap(groupIdMap.get).orElse(ogParentGroupId)
+    val (newGraph, newNodeId) = graph.addNode(targetGroupId)
+    // Filter out layout-specific attributes that shouldn't be copied
+    val filteredAttributes = node.attributes.filterKeys(attrId =>
+      !Set("_gvid", "width", "pos", "height").contains(attrId.value)
+    )
+    val finalGraphForNode = newGraph.updateAttributes(ElementIds.from(newNodeId), filteredAttributes.toUpdates)
+    (finalGraphForNode, newNodeId)
+
+  private def duplicateSingleArrow(
+      graph:     ViewerGraph,
+      arrow:     Arrow,
+      nodeIdMap: Map[NodeId, NodeId] // Needed to find the *new* endpoints
+  ): Option[(ViewerGraph, ArrowId)] =
+    // Determine the endpoints for the new arrow.
+    // Use the new node ID if the original node was duplicated, otherwise use the original node ID.
+    val newSourceId = nodeIdMap.getOrElse(arrow.source, arrow.source)
+    val newTargetId = nodeIdMap.getOrElse(arrow.target, arrow.target)
+    // Check if the target nodes for the new arrow actually exist in the graph
+    if (newSourceId in graph.elements.nodes) && (newTargetId in graph.elements.nodes) then
+      val (newGraph, newArrow) = graph.addArrow(newSourceId, newTargetId)
+      val graphWithAttrs       = newGraph.updateAttributes(ElementIds.from(newArrow.id), arrow.attributes.toUpdates)
+      Some((graphWithAttrs, newArrow.id))
+    else
+      None
+
 //  def toCSV: CSV =
 //    CSV(
 //      arrows
@@ -260,6 +433,18 @@ case class ViewerGraph(
 end ViewerGraph
 
 object ViewerGraph:
+
+  /** omitInternal = true is useful when showing the text to the user. omitInternal = false is needed when suing the DOT text to render the
+    * graph.
+    * @param graph
+    *   the ViewerGraph to convert to text
+    * @param omitInternal
+    *   whether to omit internal attributes and elements
+    * @return
+    *   the DOT text representation of the graph
+    */
+  def viewerGraphToText(graph: ViewerGraph, omitInternal: Boolean): String =
+    viewerGraphElementsToText(graph.elements.combineStyleAttributes, graph.id, graph.tpe, omitInternal)
 
   private def numberToLetterId(n: Int): String =
     if n <= 0 then throw IllegalArgumentException("Node ID number must be positive")
@@ -280,6 +465,9 @@ object ViewerGraph:
     )
 
   val minimal: ViewerGraph = ViewerGraph()
+
+  val minimalWithDirected =
+    ViewerGraph(ViewerGraphElements(graphAttributes = Attributes.of("directed" -> "true")))
 
   case class Summary(
       nodes:  Int,
