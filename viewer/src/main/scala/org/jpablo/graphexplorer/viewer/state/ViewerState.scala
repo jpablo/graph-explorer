@@ -4,13 +4,12 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
-import org.jpablo.graphexplorer.viewer.backends.graphviz.{SvgWithPositions, vizjs}
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label, Layout, Rankdir, Shape}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.graph.AttributesOps
-import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
@@ -63,18 +62,10 @@ case class ViewerState(
     visibleDOT.flatMapSwitch(_.toSvg)
 
   // Extract just the SVG for compatibility
-  private val rawSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
-    svgWithPositions.map(_.map(_.svg))
-
-  // Extract edge positions for use in components
-  private val edgePositions: Signal[Map[String, vizjs.ArrowPosition]] =
-    svgWithPositions.map(_.map(_.edgePositions).getOrElse(Map.empty))
-
   // 6. SVG with extra elements: selection rect, etc.
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
-    rawSVG.combineWith(edgePositions).map: (svgOpt, positions) =>
-      svgOpt.map: svg =>
-        SvgCanvas(rawSvg = svg, transform = transform, viewerOps = this, mouseAction = mouseAction, edgePositions = positions)
+    svgWithPositions.map(_.map: svgWithPos =>
+      SvgCanvas(rawSvg = svgWithPos.svg, transform = transform, viewerOps = this, mouseAction = mouseAction, edgePositions = svgWithPos.edgePositions))
 
   // -------- storage ------------
   restoreState()
