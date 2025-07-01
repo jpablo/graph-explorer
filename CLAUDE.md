@@ -85,3 +85,20 @@ The application uses **Laminar's reactive streams** with **QuickLens** for immut
 - Try to use the metals mcp instead of sbt commands if possible
 - When calling sbt, try to use sbt -client for faster execution
 - Remember to use the metals mcp server when appropriate
+- to get a precise list of sbt projects (modules) use `sbt projects`
+
+## Testing Strategy
+
+- **MUnit** is used for unit testing with ScalaCheck for property-based testing
+- Test files use the `*Spec` suffix convention
+- When running tests in the "shared" module, prefer the JVM version: `sbt --client "sharedJVM/testOnly <TestName>"`
+- Tests are located in `shared/src/test/scala/` and `viewer/src/test/scala/` directories
+- Use `sbt test` to run all tests or `sbt <module>/test` for specific modules
+
+## Code Style Guidelines
+
+- Use **Scala 3 "fewer braces" syntax** consistently
+- Prefer **Laminar constructs** over direct DOM manipulation
+- Follow **functional programming** patterns with immutable data structures
+- Use **QuickLens** for state modifications with lens-based updates
+- Maintain **strict type safety** with Scala 3's strict equality

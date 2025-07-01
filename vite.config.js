@@ -5,7 +5,11 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
     // base: "/abc",
     server: {
-        https: false
+        https: false,
+        watch: {
+            ignored: ['**/.claude-trace/**', '**/node_modules/**'],
+            usePolling: false
+        }
     },
     root: '.',
     publicDir: 'viewer/src/main/resources',

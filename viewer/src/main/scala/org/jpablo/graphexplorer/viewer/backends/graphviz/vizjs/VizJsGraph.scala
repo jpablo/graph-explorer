@@ -3,6 +3,14 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 import scala.scalajs.js
 import org.jpablo.graphexplorer.viewer.models.ArrowId
 
+// https://viz-js.com/api/
+
+// This is an alternative input type for the Viz.render methods
+// TODO: Verify that the Graph type matches the expected structure
+// The "schema" for this is implicitly defined by this file:
+// https://github.com/mdaines/viz-js/blob/06d372e9ec650a485f5e6f94030d75f75e796fdd/packages/viz/src/wrapper.mjs
+// it traverse the graph and uses lower level functions in the graphviz c library (via WebAssembly)
+
 @js.native
 trait Graph extends js.Object:
   val name: js.UndefOr[String]                   = js.native
@@ -45,7 +53,11 @@ object Graph:
 
     // Create a map from _gvid to name for node lookup
     val nodeMap = graph.objects.map { objects =>
-      objects.map(obj => obj._gvid.get -> obj.name.getOrElse("unknown")).toMap
+      objects.flatMap { obj =>
+        if (obj != null && !js.isUndefined(obj)) {
+          obj._gvid.toOption.map(_ -> obj.name.getOrElse("unknown"))
+        } else None
+      }.toMap
     }.getOrElse(Map.empty)
 
     // Collect from main graph edges
@@ -105,6 +117,7 @@ trait Edge extends js.Object:
   val attributes: js.UndefOr[Attributes] = js.native
   val pos: js.UndefOr[String]            = js.native
   val id: js.UndefOr[String]             = js.native
+  val _gvid: js.UndefOr[Int]             = js.native
 
 object Edge:
   def apply(tail: String, head: String, attributes: js.UndefOr[Attributes] = js.undefined): Edge =

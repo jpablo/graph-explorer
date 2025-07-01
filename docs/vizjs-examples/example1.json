@@ -1,0 +1,155 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,258,134",
+  "bgcolor": "#ffc9c9",
+  "label": "",
+  "rankdir": "LR",
+  "splines": "line",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "g5294cce8",
+      "bb": "74,8,250,126",
+      "bgcolor": "#ffc9c9",
+      "cluster": "true",
+      "id": "group:g5294cce8",
+      "label": "group 1",
+      "labeljust": "c",
+      "labelloc": "t",
+      "lheight": "0.23",
+      "lp": "162,113.6",
+      "lwidth": "0.60",
+      "rankdir": "LR",
+      "splines": "line",
+      "_gvid": 0,
+      "subgraphs": [
+        1,
+        2
+      ],
+      "nodes": [
+        3,
+        4
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "name": "g863fd476",
+      "bb": "172,16,242,93",
+      "bgcolor": "#ffc9c9",
+      "cluster": "true",
+      "id": "group:g863fd476",
+      "label": "group 2",
+      "labeljust": "c",
+      "labelloc": "t",
+      "lheight": "0.23",
+      "lp": "207,80.6",
+      "lwidth": "0.60",
+      "rankdir": "LR",
+      "splines": "line",
+      "_gvid": 1,
+      "nodes": [
+        3
+      ]
+    },
+    {
+      "name": "geca09c80",
+      "bb": "82,16,152,93",
+      "bgcolor": "#ffc9c9",
+      "cluster": "true",
+      "id": "group:geca09c80",
+      "label": "group 3",
+      "labeljust": "c",
+      "labelloc": "t",
+      "lheight": "0.23",
+      "lp": "117,80.6",
+      "lwidth": "0.60",
+      "rankdir": "LR",
+      "splines": "line",
+      "_gvid": 2,
+      "nodes": [
+        4
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "c",
+      "height": "0.5",
+      "id": "node:c",
+      "label": "c",
+      "pos": "207,42",
+      "shape": "box",
+      "sides": "5",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "b",
+      "fillcolor": "#b9f8cf",
+      "height": "0.5",
+      "id": "node:b",
+      "label": "b",
+      "pos": "117,42",
+      "shape": "box",
+      "sides": "5",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "a",
+      "height": "0.5",
+      "id": "node:a",
+      "label": "a",
+      "pos": "27,42",
+      "shape": "ellipse",
+      "sides": "5",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 1,
+      "tail": 5,
+      "head": 4,
+      "arrowhead": "vee",
+      "arrowtail": "box",
+      "dir": "both",
+      "id": "arrow:a->b/1",
+      "pos": "s,48.41,30.398 e,89.687,29.52 58.505,29.081 65.01,28.504 71.952,28.357 78.68,28.639"
+    },
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 4,
+      "arrowhead": "none",
+      "arrowtail": "none",
+      "dir": "both",
+      "id": "arrow:a->b/2",
+      "pos": "54.403,42 65.541,42 78.48,42 89.616,42"
+    },
+    {
+      "_gvid": 3,
+      "tail": 5,
+      "head": 4,
+      "arrowhead": "none",
+      "arrowtail": "odot",
+      "dir": "both",
+      "id": "arrow:a->b/3",
+      "pos": "s,48.41,53.602 57.228,54.8 67.713,55.83 79.464,55.723 89.687,54.48"
+    },
+    {
+      "_gvid": 0,
+      "tail": 4,
+      "head": 3,
+      "arrowhead": "vee",
+      "arrowtail": "none",
+      "dir": "both",
+      "id": "arrow:b->c/4",
+      "pos": "e,179.62,42 144.4,42 151.97,42 160.38,42 168.48,42"
+    }
+  ]
+}

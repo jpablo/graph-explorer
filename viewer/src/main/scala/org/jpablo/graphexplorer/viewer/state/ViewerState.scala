@@ -4,12 +4,12 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
+import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.graph.AttributesOps
+import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
@@ -18,6 +18,7 @@ import org.scalajs.dom.svg.SVG
 
 case class ViewerState(
     projectId:                ProjectId,
+    graphviz:                 Graphviz,
     writeText:                String => Any = _ => (),
     setTheme:                 String => Unit = _ => (),
     errorBus:                 EventBus[String] = EventBus(),
@@ -47,7 +48,7 @@ case class ViewerState(
   editorError.signal.changes.filter(_.isDefined)
     .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
 
-  protected[state] val phases = InternalPhases(initialSource, project.hiddenElements.signal, resetView, autoFit.now, editorError)
+  val phases = InternalPhases(graphviz, initialSource, project.hiddenElements.signal, resetView, autoFit.now, editorError)
 
   val sourceText                  = phases.sourceText
   val fullGraph                   = phases.fullGraph
@@ -57,21 +58,34 @@ case class ViewerState(
   val mouseAction = MouseActionVar()
 
   // 5. Render visible Dot to SVG with position data
-  // Dot ~> SvgWithPositions
+  // visibleDOT ~> SvgWithPositions
   private val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    visibleDOT.flatMapSwitch(_.toSvg)
+    visibleDOT.map: dotText =>
+      graphviz
+        .renderToSvg(dotText)
+        .toOption
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.
+  // svgWithPositions ~> finalSVG
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
     svgWithPositions.map(_.map: svgWithPos =>
-      SvgCanvas(rawSvg = svgWithPos.svg, transform = transform, viewerOps = this, mouseAction = mouseAction, edgePositions = svgWithPos.edgePositions))
+      SvgCanvas(
+        rawSvg = svgWithPos.svg,
+        transform = transform,
+        viewerOps = this,
+        mouseAction = mouseAction,
+        edgePositions = svgWithPos.edgePositions
+      ))
 
   // -------- storage ------------
   restoreState()
 
   def nodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
     ids.flatMap(fullGraph.observe.now().getNode)
+
+  def fullGraphNow(): ViewerGraph =
+    fullGraph.observe.now()
 
   def allNodeIds(): Set[NodeId] =
     fullGraph.observe.now().nodeIds

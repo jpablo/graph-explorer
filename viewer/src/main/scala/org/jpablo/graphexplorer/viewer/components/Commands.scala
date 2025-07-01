@@ -364,7 +364,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "Print JSON DOT AST to the console",
       () => state.printVisibleJSONtoConsole(),
       always,
-      description = Some("Print the full diagram as JSON DOT AST to console for debugging")
+      description = Some("Print the full diagram as VizJS Graph JSON to console for debugging")
     )
 
     val printSelectionToConsole = Command(

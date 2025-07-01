@@ -4,19 +4,20 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphConverter
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.viewerGraph.graphToDotAST
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
 import org.scalajs.dom.svg.SVG
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
 
-def syncVars[S, T](
+def synchronize[S, T](
     source:  Var[S],
     target:  Var[T],
     labelT:  String = "",
@@ -39,9 +40,10 @@ def syncVars[S, T](
     val s1 = toS(s, t)
     if updateS(s, t, s1) then
       withLog(labelS, level = level)(source.set(s1))
-end syncVars
+end synchronize
 
 class InternalPhases(
+    graphviz:      Graphviz,
     initialSource: Option[String] = None,
     hiddenNodes:   Signal[HiddenElements],
     resetView:     () => Unit,
@@ -55,12 +57,9 @@ class InternalPhases(
   // (c) updates coming from both directions
 
   // updated by CodeMirror (a)
-  val sourceText: Var[String] = Var("")
+  val sourceText: Var[String] = Var(initialSource.getOrElse("""digraph "G" {}"""))
   // (b)
-  private val versionedText = Var(Versioned("", 0, ChangeOrigin.CodeMirror))
-
-  // (c)
-  private val sourceAST: Var[Versioned[DotAST]] = Var(Versioned(DotAST.empty, 0, ChangeOrigin.CodeMirror))
+  private val versionedText = Var(Versioned(sourceText.now(), 0, ChangeOrigin.CodeMirror))
 
   // (b)
   private val versionedFullGraphV = Var(Versioned(ViewerGraph.minimal, 0, ChangeOrigin.CodeMirror))
@@ -73,7 +72,7 @@ class InternalPhases(
   // -------------------------------
   // sourceText <-> versionedText
   // -------------------------------
-  syncVars(
+  synchronize[String, Versioned[String]](
     source = sourceText,
     target = versionedText,
     // -------------------------------
@@ -88,57 +87,50 @@ class InternalPhases(
   )
 
   // -------------------------------
-  // versionedText <-> sourceAST
+  // versionedText <-> versionedFullGraphV
   // -------------------------------
-  syncVars[Versioned[String], Versioned[DotAST]](
+  synchronize[Versioned[String], Versioned[ViewerGraph]](
     source = versionedText,
-    target = sourceAST,
+    target = versionedFullGraphV,
     // -------------------------------
-    labelT = "[versionedText -> sourceAST]", // b -> c
-    toT = { (vt, ast) =>
-      val newAST =
-        DotText(vt.value).parseAST match
-          case Failure(f) =>
-            editorError.set(Option(f.getMessage))
-            // consider creating a new AST with the error message
-            DotAST.empty
-          case Success(asts) =>
-            editorError.set(None)
-            asts.headOption.getOrElse(DotAST.empty)
+    labelT = "[versionedText -> versionedFullGraphV]", // b -> c
+    toT = { (vt, _) =>
+      // Safety check: don't process empty or whitespace-only strings
+      if (vt.value.trim.isEmpty) then {
+        Versioned(ViewerGraph.minimal, vt.version, vt.origin)
+      } else {
 
-      Versioned[DotAST](newAST, vt.version, vt.origin)
+        graphviz.renderToJsonGraph(vt.value) match
+          case Success(graph) =>
+            editorError.set(None)
+            val elements    = SimpleGraphConverter.toViewerGraphElements(graph)
+            val graphTpe    = if graph.directed then GraphType.digraph else GraphType.graph
+            val viewerGraph = ViewerGraph(elements.expandStyleAttributes, id = graph.name, tpe = graphTpe)
+            Versioned[ViewerGraph](viewerGraph, vt.version, vt.origin)
+
+          case Failure(f) =>
+            dom.console.error(s"Error parsing DotText to ViewerGraph: ${f.getMessage}")
+            editorError.set(Option(f.getMessage))
+            Versioned(ViewerGraph.minimal, vt.version, ChangeOrigin.CodeMirror)
+
+      }
     },
     updateT = (vt, ast, ast1) => ast.value != ast1.value && ast1.origin == ChangeOrigin.CodeMirror,
     // -------------------------------
-    labelS = "[sourceAST -> versionedText]", // c -> b
-    toS = { (vt, ast) =>
-      val newSource = ast.value.optimize.render(keepInternal = false)
-      Versioned[String](newSource, ast.version, ast.origin)
+    labelS = "[versionedFullGraphV -> versionedText]", // c -> b
+    toS = { (vt, vg: Versioned[ViewerGraph]) =>
+      val graph     = SimpleGraphConverter.fromViewerGraphElements(vg.value.elements.combineStyleAttributes)
+      val dotString = SimpleGraphConverter.graphToDotString(graph)
+      Versioned[String](dotString, vg.version, vg.origin)
     },
     updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
     level = Level.None
   )
 
   // -------------------------------
-  // sourceAST <-> versionedFullGraphV
-  // -------------------------------
-  syncVars(
-    source = sourceAST,
-    target = versionedFullGraphV,
-    // -------------------------------
-    labelT = "[sourceAST -> versionedFullGraphV]", // c -> b
-    toT = (ast: Versioned[DotAST], vg) => Versioned[ViewerGraph](ast.value.toViewerGraph, ast.version, ast.origin),
-    updateT = (ast, vg, vg1) => vg.value != vg1.value && ast.origin == ChangeOrigin.CodeMirror,
-    // -------------------------------
-    labelS = "[versionedFullGraphV -> sourceAST]", // b -> c
-    toS = (ast, vg) => Versioned[DotAST](graphToDotAST(vg.value), vg.version, vg.origin),
-    updateS = (ast, vg, ast1) => ast.value != ast1.value && vg.origin == ChangeOrigin.Graph
-  )
-
-  // -------------------------------
   // versionedFullGraphV <-> fullGraphV
   // -------------------------------
-  syncVars(
+  synchronize[Versioned[ViewerGraph], ViewerGraph](
     source = versionedFullGraphV,
     target = fullGraphV,
     // -------------------------------
@@ -155,7 +147,7 @@ class InternalPhases(
   // Start the process
   // -------------------------------
 
-  sourceText.set(initialSource.getOrElse(""))
+//  sourceText.set(initialSource.getOrElse("""digraph "G" {}"""))
 
   // -------------------------------
   // fullGraphV --> visibleGraph
@@ -176,24 +168,28 @@ class InternalPhases(
 
   // -------------------------------
   // rendering:
-  // visibleGraph -> visibleAST -> visibleDOT
+  // visibleGraph -> visibleDOT
   // -------------------------------
-  val visibleAST: Signal[DotAST] =
-    visibleGraph.map(graph => withLog("[visibleGraph -> visibleAST]")(graphToDotAST(graph)))
-
   val visibleDOT: Signal[DotText] =
-    visibleAST
-      .map(ast => withLog("[visibleAST -> visibleDOT]", level = Level.None)(DotText(ast.render(keepInternal = true))))
+    visibleGraph.map { graph =>
+      withLog("[visibleGraph -> visibleDOT]", level = Level.None) {
+        // Note: `viewerGraphElementsToDotString` discards default attributes.
+        DotText(SimpleGraphConverter.viewerGraphElementsToDotString(graph.elements.combineStyleAttributes))
+      }
+    }
 
 end InternalPhases
 
 object InternalPhases:
-  def processDotText(dot: DotText): Signal[Option[ReactiveSvgElement[SVG]]] =
+
+  def processDotText(graphviz: Graphviz, dot: DotText): Signal[Option[ReactiveSvgElement[SVG]]] =
+    val graph: ViewerGraph = ???
+    val dotText0           = DotText(SimpleGraphConverter.viewerGraphElementsToDotString(graph.elements))
     val dotText =
       for
-        asts <- dot.parseAST
-        ast  <- Try(asts.head)
-        graph = ast.toViewerGraph.removeUnsupportedFeatures.withDefaultTheme
-      yield DotText(graphToDotAST(graph).render())
+        svg <- graphviz.renderToSvg(dotText0)
+      yield svg.svg
 
-    Signal.fromTry(dotText).flatMapSwitch(_.toSvg).map(_.map(_.svg))
+    Signal.fromTry(dotText).map(Some(_))
+
+end InternalPhases

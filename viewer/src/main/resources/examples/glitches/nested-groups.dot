@@ -1,0 +1,62 @@
+digraph "G" {
+    graph [
+        rankdir="LR",
+        bgcolor="#ffc9c9",
+        splines="line"
+    ];
+    node [
+        label="\N",
+        shape="box",
+        sides="5"
+    ];
+    edge [
+        arrowhead="vee",
+        arrowtail="none",
+        dir="both"
+    ];
+    subgraph g5294cce8 {
+        graph [
+            label="group 1",
+            cluster="true",
+            labelloc="t",
+            labeljust="c"
+        ];
+        subgraph g863fd476 {
+            graph [
+                label="group 2",
+                cluster="true",
+                labelloc="t",
+                labeljust="c"
+            ];
+            "c" [label="c"];
+        }
+        subgraph geca09c80 {
+            graph [
+                label="group 3",
+                cluster="true",
+                labelloc="t",
+                labeljust="c"
+            ];
+            "b" [
+                style="filled",
+                label="b",
+                fillcolor="#b9f8cf"
+            ];
+        }
+    }
+    "a" [
+        label="a",
+        shape="ellipse",
+        width="0.75"
+    ];
+    "a" -> "b" [arrowtail="box"];
+    "a" -> "b" [
+        arrowhead="none",
+        arrowtail="none"
+    ];
+    "a" -> "b" [
+        arrowtail="odot",
+        arrowhead="none"
+    ];
+    "b" -> "c";
+}

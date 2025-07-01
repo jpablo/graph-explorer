@@ -1,9 +1,10 @@
-package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
+package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
 
 import munit.FunSuite
-import scala.scalajs.js.JSON
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{ArrowPositionParser, Point}
+import upickle.default.*
 
-class GraphSpec extends FunSuite:
+class SimpleGraphSpec extends FunSuite:
 
   val sampleJson = """{
   "name": "G",
@@ -75,8 +76,8 @@ class GraphSpec extends FunSuite:
 }"""
 
   test("getEdgePos should extract edge positions from graph JSON with three arrow variants") {
-    val graph: Graph  = JSON.parse(sampleJson).asInstanceOf[Graph]
-    val edgePositions = Graph.getEdgePos(graph)
+    val graph         = read[SimpleGraph](sampleJson)
+    val edgePositions = SimpleGraphConverter.getEdgePos(graph)
 
     assertEquals(edgePositions.size, 3)
 
@@ -100,20 +101,26 @@ class GraphSpec extends FunSuite:
   }
 
   test("getEdgePos should handle empty edges") {
-    val emptyGraph: Graph = JSON.parse("""{"name": "empty", "edges": []}""").asInstanceOf[Graph]
-    val edgePositions     = Graph.getEdgePos(emptyGraph)
+    val emptyGraph    = read[SimpleGraph]("""{"name": "empty", "edges": []}""")
+    val edgePositions = SimpleGraphConverter.getEdgePos(emptyGraph)
 
     assertEquals(edgePositions.size, 0)
   }
 
   test("getEdgePos should create fallback edge ID when no id provided") {
     val graphWithoutId = """{
+      "name": "test",
+      "directed": true,
+      "strict": false,
+      "bb": "0,0,100,100",
+      "_subgraph_cnt": 0,
       "objects": [
-        {"_gvid": 0, "name": "nodeA"},
-        {"_gvid": 1, "name": "nodeB"}
+        {"_gvid": 0, "name": "nodeA", "label": "\\N"},
+        {"_gvid": 1, "name": "nodeB", "label": "\\N"}
       ],
       "edges": [
         {
+          "_gvid": 0,
           "tail": 0,
           "head": 1,
           "pos": "10.0,20.0 30.0,40.0"
@@ -121,8 +128,8 @@ class GraphSpec extends FunSuite:
       ]
     }"""
 
-    val graph: Graph  = JSON.parse(graphWithoutId).asInstanceOf[Graph]
-    val edgePositions = Graph.getEdgePos(graph)
+    val graph = read[SimpleGraph](graphWithoutId)
+    val edgePositions = SimpleGraphConverter.getEdgePos(graph)
 
     assertEquals(edgePositions.size, 1)
     val arrowPos = edgePositions("nodeA->nodeB")
