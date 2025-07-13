@@ -38,8 +38,8 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """digraph "SimpleGraph" {
-  "a" [label="Node A"];
-  "b" [label="Node B"];
+  "a" [id="node:a", label="Node A"];
+  "b" [id="node:b", label="Node B"];
   "a" -> "b" [label="connection"];
 }"""
 
@@ -78,7 +78,7 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """digraph "G" {
-  "test" [label="Test Node", shape="ellipse", fontsize="12"];
+  "test" [id="node:test", label="Test Node", shape="ellipse", fontsize="12"];
 }"""
 
     assertEquals(result, expected)
@@ -102,7 +102,7 @@ class GraphToDotSpec extends FunSuite:
     val result = SimpleGraphConverter.graphToDotString(graph)
     val expected =
       """|digraph "G" {
-         |  "test" [label="test", height="0.8", width="1.5", fixedsize="true"];
+         |  "test" [id="node:test", label="test", height="0.8", width="1.5", fixedsize="true"];
          |}""".stripMargin
 
     assertEquals(result, expected)
@@ -123,7 +123,7 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """digraph "G" {
-  "html" [label=<<b>Bold Label</b>>];
+  "html" [id="node:html", label=<<b>Bold Label</b>>];
 }"""
 
     assertEquals(result, expected)
@@ -177,10 +177,10 @@ class GraphToDotSpec extends FunSuite:
     val expected = """digraph "G" {
   subgraph "cluster_1" {
     graph [label="Group 1"];
-    "a" [label="A"];
-    "b" [label="B"];
+    "a" [id="node:a", label="A"];
+    "b" [id="node:b", label="B"];
   }
-  "c" [label="C"];
+  "c" [id="node:c", label="C"];
   "a" -> "b" [label="internal"];
   "b" -> "c" [label="external"];
 }"""
@@ -232,13 +232,13 @@ class GraphToDotSpec extends FunSuite:
     val expected = """digraph "G" {
   subgraph "cluster_outer" {
     graph [label="Outer Group"];
-    "a" [label="a"];
+    "a" [id="node:a", label="a"];
   }
   subgraph "cluster_inner" {
     graph [label="Inner Group"];
-    "b" [label="b"];
+    "b" [id="node:b", label="b"];
   }
-  "c" [label="c"];
+  "c" [id="node:c", label="c"];
 }"""
 
     assertEquals(result, expected)
@@ -270,8 +270,8 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """graph "G" {
-  "a" [label="a"];
-  "b" [label="b"];
+  "a" [id="node:a", label="a"];
+  "b" [id="node:b", label="b"];
   "a" -- "b";
 }"""
 
@@ -306,8 +306,8 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """digraph "G" {
-  "a" [label="a"];
-  "b" [label="b"];
+  "a" [id="node:a", label="a"];
+  "b" [id="node:b", label="b"];
   "a":"out" -> "b":"in";
 }"""
 
@@ -341,8 +341,8 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """digraph "G" {
-  "nodeA" [label="nodeA"];
-  "nodeB" [label="nodeB"];
+  "nodeA" [id="node:nodeA", label="nodeA"];
+  "nodeB" [id="node:nodeB", label="nodeB"];
   "nodeA" -> "nodeB";
 }"""
 
@@ -363,7 +363,7 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """digraph "G" {
-  "single" [label="Single Attr"];
+  "single" [id="node:single", label="Single Attr"];
 }"""
 
     assertEquals(result, expected)
@@ -423,10 +423,10 @@ class GraphToDotSpec extends FunSuite:
   graph [rankdir="LR"];
   subgraph "cluster_process" {
     graph [label="Process", style="filled"];
-    "b" [label="Middle", shape="box"];
+    "b" [id="node:b", label="Middle", shape="box"];
   }
-  "a" [label="Start", shape="ellipse"];
-  "c" [label="End"];
+  "a" [id="node:a", label="Start", shape="ellipse"];
+  "c" [id="node:c", label="End"];
   "a" -> "b" [label="first", color="red"];
   "b" -> "c" [label="second"];
 }"""
@@ -625,6 +625,7 @@ class GraphToDotSpec extends FunSuite:
         |                cluster="true"
         |            ];
         |            "c" [
+        |                id="node:c",
         |                label="c",
         |                pos="51,42",
         |                height="0.5",
@@ -640,6 +641,7 @@ class GraphToDotSpec extends FunSuite:
         |                cluster="true"
         |            ];
         |            "b" [
+        |                id="node:b",
         |                label="b",
         |                pos="51,126.8",
         |                height="0.5",
@@ -648,6 +650,7 @@ class GraphToDotSpec extends FunSuite:
         |        }
         |    }
         |    "a" [
+        |        id="node:a",
         |        label="a",
         |        pos="51,236.4",
         |        height="0.5",
@@ -672,6 +675,7 @@ class GraphToDotSpec extends FunSuite:
     val expected =
       """digraph "G" {
         |    "task_menu" [
+        |        id="node:task_menu", 
         |        label=<
         |              <table border="1" cellborder="0" cellspacing="1">
         |              <tr><td align="left"><b>Task 1</b></td></tr>
@@ -685,6 +689,7 @@ class GraphToDotSpec extends FunSuite:
         |        shape="plaintext"
         |    ];
         |    "task_ingredients" [
+        |        id="node:task_ingredients", 
         |        label="\N", 
         |        pos="53.879,18", 
         |        height="0.5", 

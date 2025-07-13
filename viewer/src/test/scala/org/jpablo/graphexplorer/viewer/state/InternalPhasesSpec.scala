@@ -96,7 +96,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
       val expectedSource =
         s"""digraph "$graphId" {
-           |  "$nodeId" [label="", pos="0,0", height="0.5", width="0.75"];
+           |  "$nodeId" [id="node:$nodeId", label="", pos="0,0", height="0.5", width="0.75"];
            |}""".stripMargin
 
       assertEquals(viewerState.sourceText.now(), expectedSource, "Source text should be updated to reflect the new node")
