@@ -64,7 +64,7 @@ class InternalPhases(
 
   // updated by CodeMirror (a)
   simpleLog("InternalPhases: Initializing", logLevel)
-  
+
   val sourceText: Var[String] = Var(initialSource.getOrElse("""digraph "G" {}"""))
   // (b)
   private val versionedText = Var(Versioned(sourceText.now(), 0, ChangeOrigin.CodeMirror))
@@ -74,6 +74,8 @@ class InternalPhases(
 
   // updated by the UI (a)
   val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.minimalWithDirected)
+
+  // Note: It is critical that the initial values of the Vars above are the same. Otherwise, superfluous updates will be triggered.
 
   val fullGraph = fullGraphV.signal
 
