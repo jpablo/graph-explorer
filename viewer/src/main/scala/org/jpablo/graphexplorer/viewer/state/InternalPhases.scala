@@ -182,14 +182,12 @@ end InternalPhases
 
 object InternalPhases:
 
-  def processDotText(graphviz: Graphviz, dot: DotText): Signal[Option[ReactiveSvgElement[SVG]]] =
-    val graph: ViewerGraph = ???
-    val dotText0           = DotText(SimpleGraphConverter.viewerGraphElementsToDotString(graph.elements))
-    val dotText =
+  def processDotText(graphviz: Graphviz, dot: DotText): Signal[ReactiveSvgElement[SVG]] =
+    Signal.fromTry:
       for
-        svg <- graphviz.renderToSvg(dotText0)
+        graph <- graphviz.renderToJsonGraph(dot.value)
+        dotText0 = SimpleGraphConverter.graphToDotString(graph)
+        svg <- graphviz.renderToSvg(DotText(dotText0))
       yield svg.svg
-
-    Signal.fromTry(dotText).map(Some(_))
 
 end InternalPhases

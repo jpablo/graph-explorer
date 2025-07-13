@@ -151,21 +151,20 @@ private def exampleCard(graphviz: Graphviz, routerCmds: RouterCommands, name: St
           FetchStream.get(source)
             .flatMapSwitch: str =>
               InternalPhases.processDotText(graphviz, DotText(str)).map((_, str))
-            .map: (svgSignal, str) =>
+            .map: (svgElement, str) =>
               div(
                 cls := "w-full h-full p-1 flex items-center justify-center",
-                svgSignal.map: svgElement =>
+                div(
+                  cls := "w-full h-full relative",
                   div(
-                    cls := "w-full h-full relative",
-                    div(
-                      cls := "absolute inset-0 w-full h-full",
-                      svgElement.amend(
-                        svg.width               := "100%",
-                        svg.height              := "100%",
-                        svg.preserveAspectRatio := "xMidYMid meet"
-                      )
+                    cls := "absolute inset-0 w-full h-full",
+                    svgElement.amend(
+                      svg.width               := "100%",
+                      svg.height              := "100%",
+                      svg.preserveAspectRatio := "xMidYMid meet"
                     )
-                  ),
+                  )
+                ),
                 title := "Click to create a new diagram with this example (copied to clipboard)",
                 onClick --> routerCmds.createProject.execute(Some(Some(str)))
               )
@@ -199,12 +198,11 @@ private def projectCard(graphviz: Graphviz, router: Router)(project: ProjectInfo
                   cls := "w-full h-full relative",
                   div(
                     cls := "absolute inset-0 w-full h-full",
-                    svgElement.map:
-                      _.amend(
-                        svg.width               := "100%",
-                        svg.height              := "100%",
-                        svg.preserveAspectRatio := "xMidYMid meet"
-                      )
+                    svgElement.amend(
+                      svg.width               := "100%",
+                      svg.height              := "100%",
+                      svg.preserveAspectRatio := "xMidYMid meet"
+                    )
                   )
                 ),
               onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
