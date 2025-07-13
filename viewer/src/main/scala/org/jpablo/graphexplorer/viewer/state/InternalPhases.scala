@@ -33,13 +33,13 @@ def synchronize[S, T](
     val t  = target.now()
     val t1 = toT(s, t)
     if updateT(s, t, t1) then
-      withLog(labelT, level = level)(target.set(t1))
+      withLog(labelT, level = level)({ target.set(t1); t1 })
   // target -> source
   for t <- target.signal do
     val s  = source.now()
     val s1 = toS(s, t)
     if updateS(s, t, s1) then
-      withLog(labelS, level = level)(source.set(s1))
+      withLog(labelS, level = level)({ source.set(s1); s1 })
 end synchronize
 
 class InternalPhases(
@@ -76,14 +76,14 @@ class InternalPhases(
     source = sourceText,
     target = versionedText,
     // -------------------------------
-    labelT = "[sourceText -> versionedText]", // a -> b
+    labelT = "1a. [sourceText -> versionedText]", // a -> b
     toT = (st, vt) => Versioned[String](st, vt.version + 1, ChangeOrigin.CodeMirror),
     updateT = (st, vt, vt1) => st != vt.value,
     // -------------------------------
-    labelS = "[versionedText -> sourceText]", // b -> a
+    labelS = "1b. [sourceText <- versionedText]", // b -> a
     toS = (st, vt) => vt.value,
     updateS = (st, vt, st1) => st != vt.value,
-    level = Level.None
+    level = Level.Info
   )
 
   // -------------------------------
@@ -93,7 +93,7 @@ class InternalPhases(
     source = versionedText,
     target = versionedFullGraphV,
     // -------------------------------
-    labelT = "[versionedText -> versionedFullGraphV]", // b -> c
+    labelT = "2a. [versionedText -> versionedFullGraphV]", // b -> c
     toT = { (vt, _) =>
       // Safety check: don't process empty or whitespace-only strings
       if (vt.value.trim.isEmpty) then {
@@ -117,14 +117,14 @@ class InternalPhases(
     },
     updateT = (vt, ast, ast1) => ast.value != ast1.value && ast1.origin == ChangeOrigin.CodeMirror,
     // -------------------------------
-    labelS = "[versionedFullGraphV -> versionedText]", // c -> b
+    labelS = "2b. [versionedText <- versionedFullGraphV]", // c -> b
     toS = { (vt, vg: Versioned[ViewerGraph]) =>
       val graph     = SimpleGraphConverter.fromViewerGraphElements(vg.value.elements.combineStyleAttributes)
       val dotString = SimpleGraphConverter.graphToDotString(graph)
       Versioned[String](dotString, vg.version, vg.origin)
     },
     updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
-    level = Level.None
+    level = Level.Info
   )
 
   // -------------------------------
@@ -134,13 +134,14 @@ class InternalPhases(
     source = versionedFullGraphV,
     target = fullGraphV,
     // -------------------------------
-    labelT = "[versionedFullGraphV -> fullGraphV]", // b -> a
+    labelT = "3a. [versionedFullGraphV -> fullGraphV]", // b -> a
     toT = (vg, g) => vg.value,
     updateT = (vg, g, g1) => g != g1,
     // -------------------------------
-    labelS = "[fullGraphV -> versionedFullGraphV]", // a -> b
+    labelS = "3b. [versionedFullGraphV <- fullGraphV]", // a -> b
     toS = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
-    updateS = (vg, g, vg1) => vg.value != g
+    updateS = (vg, g, vg1) => vg.value != g,
+    level = Level.Info
   )
 
   // -------------------------------
@@ -157,7 +158,7 @@ class InternalPhases(
     */
   val visibleGraph: Signal[ViewerGraph] =
     fullGraphV.signal.combineWithFn(hiddenNodes): (fullGraph: ViewerGraph, hiddenNodes) =>
-      withLog("[fullGraphV -> visibleGraph]") {
+      withLog("4. [fullGraphV -> visibleGraph]") {
         fullGraph
           .removeUnsupportedFeatures
           .removeElements(hiddenNodes)
@@ -172,7 +173,7 @@ class InternalPhases(
   // -------------------------------
   val visibleDOT: Signal[DotText] =
     visibleGraph.map { graph =>
-      withLog("[visibleGraph -> visibleDOT]", level = Level.None) {
+      withLog("5. [visibleGraph -> visibleDOT]", level = Level.Info) {
         // Note: `viewerGraphElementsToDotString` discards default attributes.
         DotText(SimpleGraphConverter.viewerGraphElementsToDotString(graph.elements.combineStyleAttributes))
       }

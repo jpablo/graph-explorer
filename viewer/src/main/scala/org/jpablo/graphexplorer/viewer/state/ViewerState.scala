@@ -10,6 +10,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph}
+import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
@@ -70,13 +71,15 @@ case class ViewerState(
   // svgWithPositions ~> finalSVG
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
     svgWithPositions.map(_.map: svgWithPos =>
-      SvgCanvas(
-        rawSvg = svgWithPos.svg,
-        transform = transform,
-        viewerOps = this,
-        mouseAction = mouseAction,
-        edgePositions = svgWithPos.edgePositions
-      ))
+      withLog("6. [visibleDOT -> SVG]", level = Level.Info) {
+        SvgCanvas(
+          rawSvg = svgWithPos.svg,
+          transform = transform,
+          viewerOps = this,
+          mouseAction = mouseAction,
+          edgePositions = svgWithPos.edgePositions
+        )
+      })
 
   // -------- storage ------------
   restoreState()
