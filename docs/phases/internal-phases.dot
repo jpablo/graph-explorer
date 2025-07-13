@@ -1,0 +1,85 @@
+digraph "G" {
+    "a" [
+        shape="plaintext",
+        label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">sourceText</td></tr>
+                <tr><td align="center" border="1" sides="t">Var[String]</td></tr>
+            </table>
+        >,
+        fillcolor="#fff085",
+        style="filled"
+    ];
+    "b" [
+        shape="plaintext",
+        label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">versionedText</td></tr>
+                <tr><td align="center" border="1" sides="t">Versioned[String]</td></tr>
+            </table>
+        >,
+        fillcolor="#fff085",
+        style="filled"
+    ];
+    "c" [
+        shape="plaintext",
+        label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">versionedFullGraphV</td></tr>
+                <tr><td align="center" border="1" sides="t">Versioned[ViewerGraph]</td></tr>
+            </table>
+        >,
+        fillcolor="#fff085",
+        style="filled"
+    ];
+    "d" [
+        shape="plaintext",
+        label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">fullGraphV</td></tr>
+                <tr><td align="center" border="1" sides="t">ViewerGraph</td></tr>
+            </table>
+        >,
+        fillcolor="#fff085",
+        style="filled"
+    ];
+    "e" [
+        shape="plaintext",
+        label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">visibleGraph</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[ViewerGraph]</td></tr>
+            </table>
+        >,
+        fillcolor="#b8e6fe",
+        style="filled"
+    ];
+    "f" [
+        shape="plaintext",
+        label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">visibleDOT</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[DotText]</td></tr>
+            </table>
+        >,
+        fillcolor="#b8e6fe",
+        style="filled"
+    ];
+    "g" [
+        shape="plaintext",
+        label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">finalSVG</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[SVG]</td></tr>
+            </table>
+        >,
+        fillcolor="#b8e6fe",
+        style="filled"
+    ];
+    "a" -> "b" [arrowtail="vee"];
+    "f" -> "g";
+    "e" -> "f";
+    "c" -> "d" [arrowtail="vee"];
+    "b" -> "c" [arrowtail="vee"];
+    "d" -> "e";
+}
