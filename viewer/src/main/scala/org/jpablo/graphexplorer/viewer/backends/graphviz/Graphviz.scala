@@ -20,7 +20,11 @@ case class SvgWithPositions(
 class Graphviz(viz: Viz):
   def renderToJsonGraph(dotText: String): Try[SimpleGraph] =
     Try {
-      val result  = viz.renderFormats(dotText, js.Array("json0"))
+      val result = viz.renderFormats(dotText, js.Array("json0"))
+//      dom.console.group("Graphviz.renderToJsonGraph")
+//      dom.console.log(dotText)
+//      dom.console.log(result)
+//      dom.console.groupEnd()
       val dotJson = result.output("json0")
 //      dom.console.log(js.JSON.parse(dotJson))
       read[SimpleGraph](dotJson) // upickle default reads the JSON string into a SimpleGraph instance
@@ -30,13 +34,20 @@ class Graphviz(viz: Viz):
 
   def renderToSvg(dot: DotText): Try[SvgWithPositions] =
     Try {
-      val result       = viz.renderFormats(dot.value, js.Array("canon", "dot", "xdot", "json0", "json", "svg", "dot_json"))
-      val result_svg   = result.output("svg")
-      val result_json0 = result.output("json0")
-      val graph        = read[SimpleGraph](result_json0) // upickle default reads the JSON string into a SimpleGraph instance
-      //      val graph        = js.JSON.parse(result_json0).asInstanceOf[SimpleGraph]
-      val edgePos = SimpleGraphConverter.getEdgePos(graph)
-      SvgWithPositions(parseSVG(result_svg), edgePos)
+      // all formats js.Array("canon", "dot", "xdot", "json0", "json", "svg", "dot_json")
+      val result = viz.renderFormats(dot.value, js.Array("svg", "json0"))
+      if result.status == "success" then
+        val result_svg   = result.output("svg")
+        val result_json0 = result.output("json0")
+        val graph        = read[SimpleGraph](result_json0)
+        val edgePos      = SimpleGraphConverter.getEdgePos(graph)
+        SvgWithPositions(parseSVG(result_svg), edgePos)
+      else
+        dom.console.group("Graphviz.renderToSvg")
+        dom.console.error(dot.value)
+        dom.console.error(result)
+        dom.console.groupEnd()
+        throw new Exception(s"Graphviz rendering failed: ${result.status} - ${result.errors}")
     }
 
 object Graphviz:

@@ -4,7 +4,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphObject.{Cluster, Node}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
-
+import upickle.default.*
 import scala.collection.immutable.VectorMap
 
 class GraphToDotSpec extends FunSuite:
@@ -109,7 +109,7 @@ class GraphToDotSpec extends FunSuite:
   }
 
   test("graphToDotString should handle HTML-like labels") {
-    // Note: SimpleGraph doesn't have special HTML label handling - it treats all labels as strings
+    // HTML labels should be formatted with <> notation instead of quotes
     val node = SimpleGraphNode(
       _gvid = 0,
       name = "html",
@@ -123,7 +123,7 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """digraph "G" {
-  "html" [label="<b>Bold Label</b>"];
+  "html" [label=<<b>Bold Label</b>>];
 }"""
 
     assertEquals(result, expected)
@@ -660,5 +660,21 @@ class GraphToDotSpec extends FunSuite:
     val result = SimpleGraphConverter.graphToDotString(graph)
 
     assertEquals(result, expected)
+  }
 
+  test("GraphDoTotSpec should handle html labels") {
+    val jsonGraph =
+      """{"name":"G","objects":[{"_gvid":0,"name":"task_menu","label":"\n<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">\n<tr><td align=\"left\"><b>Task 1</b></td></tr>\n<tr><td align=\"left\">Choose Menu</td></tr>\n<tr><td align=\"left\"><font color=\"darkgreen\">done</font></td></tr>\n</table>","pos":"53.879,110.2","height":"1.0611","width":"1.4189","shape":"plaintext"},{"_gvid":1,"name":"task_ingredients","label":"\\N","pos":"53.879,18","height":"0.5","width":"1.4966","shape":"plaintext"}],"edges":[{"_gvid":0,"tail":0,"head":1,"pos":"e,53.879,35.809 53.879,72.252 53.879,63.852 53.879,55.061 53.879,47.099"}]}"""
+    val graph = read[SimpleGraph](jsonGraph)
+
+    val result = SimpleGraphConverter.graphToDotString(graph)
+
+    // Verify that HTML labels are properly formatted with <> notation
+    assert(result.contains("label=<"))
+    assert(result.contains("<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">"))
+    assert(result.contains("<b>Task 1</b>"))
+    assert(result.contains("<font color=\"darkgreen\">done</font>"))
+    
+    // Verify non-HTML labels are still quoted
+    assert(result.contains("label=\"\\N\""))
   }

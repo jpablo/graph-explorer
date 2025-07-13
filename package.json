@@ -16,7 +16,7 @@
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.8.2",
     "@viz-js/lang-dot": "^1.0.4",
-    "@viz-js/viz": "3.13.0",
+    "@viz-js/viz": "^3.14.0",
     "codemirror": "^6.0.1",
     "dot-parser": "file:./dot-parser",
     "jsdom": "^24.1.0",

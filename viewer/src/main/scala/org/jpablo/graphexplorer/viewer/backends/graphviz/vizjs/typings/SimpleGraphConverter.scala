@@ -675,8 +675,20 @@ object SimpleGraphConverter:
     // Helper function for padding - use 4 spaces for complex graphs, 2 for simple
     def padding(level: Int): String = if (hasNestedSubgraphs) "    " * level else "  " * level
 
+    // Helper to detect if a string contains HTML-like content
+    def isHtmlLabel(value: String): Boolean = 
+      value.contains("<") && value.contains(">") && 
+      (value.contains("<table") || value.contains("<b>") || value.contains("<i>") || 
+       value.contains("<font") || value.contains("<br") || value.contains("<hr") ||
+       value.contains("<td") || value.contains("<tr") || value.contains("</"))
+    
     // Helper to format a single attribute value
     def formatValue(value: String): String = s""""$value""""
+    
+    // Helper to format a label value - HTML labels use <> notation, others use quotes
+    def formatLabelValue(value: String): String = 
+      if (isHtmlLabel(value)) s"<$value>"
+      else s""""$value""""
 
     // Helper to collect attributes from case class
     def collectNodeAttributes(node: SimpleGraphNode, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
@@ -829,7 +841,8 @@ object SimpleGraphConverter:
       if (attrs.isEmpty) ""
       else {
         val formattedAttrs = attrs.map { case (key, value) =>
-          s"$key=${formatValue(value)}"
+          if (key == "label") s"$key=${formatLabelValue(value)}"
+          else s"$key=${formatValue(value)}"
         }
         s" [${formattedAttrs.mkString(", ")}]"
       }
@@ -839,7 +852,8 @@ object SimpleGraphConverter:
       if (attrs.isEmpty) ""
       else if (hasNestedSubgraphs) {
         val formattedAttrs = attrs.map { case (key, value) =>
-          s"${padding(level + 1)}$key=${formatValue(value)}"
+          if (key == "label") s"${padding(level + 1)}$key=${formatLabelValue(value)}"
+          else s"${padding(level + 1)}$key=${formatValue(value)}"
         }
         s" [\n${formattedAttrs.mkString(",\n")}\n${padding(level)}]"
       } else {
