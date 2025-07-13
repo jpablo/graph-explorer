@@ -2,25 +2,19 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.ownership.Owner
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.AttributeId
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class InternalPhasesSpec extends FunSuite with TestHelpers:
 
-  // Graphviz adds a default directed attribute
-  val minimalWithDirected =
-    ViewerGraph.minimal.modify(_.elements.graphAttributes).using(_ + (AttributeId("directed") -> AttrValue("true")))
-
   test("Sanity check"):
     withGraphviz { graphviz =>
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
       given Owner     = viewerState.owner
 
-      assertEquals(viewerState.phases.fullGraphV.now(), minimalWithDirected)
+      assertEquals(viewerState.phases.fullGraphV.now(), ViewerGraph.minimalWithDirected)
 
       val visibleDot =
         """|digraph "G" {
@@ -39,7 +33,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
       viewerState.sourceText.set(newSource)
 
-      val graph = viewerState.fullGraph.now()
+      val graph = viewerState.fullGraphNow()
 
       // Check that we have exactly one node with id "a"
       assertEquals(graph.nodes.size, 1, "Should have exactly one node")
@@ -79,8 +73,8 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       // Initial state check
       assertEquals(viewerState.sourceText.now(), PersistedDiagramState.minimalGraphText)
 
-      val fullGraph = viewerState.fullGraph.now()
-      assertEquals(fullGraph, minimalWithDirected)
+      val fullGraph = viewerState.fullGraphNow()
+      assertEquals(fullGraph, ViewerGraph.minimalWithDirected)
 
       // Update the graph by adding a node
       viewerState.addNodeWithSmartConnection()

@@ -53,6 +53,7 @@ case class ViewerState(
 
   val sourceText                  = phases.sourceText
   val fullGraph                   = phases.fullGraph
+  def fullGraphNow()              = phases.fullGraph.observe.now()
   protected[state] val visibleDOT = phases.visibleDOT
   val visibleGraph                = phases.visibleGraph
 
@@ -87,14 +88,11 @@ case class ViewerState(
   def nodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
     ids.flatMap(fullGraph.observe.now().getNode)
 
-  def fullGraphNow(): ViewerGraph =
-    fullGraph.observe.now()
-
   def allNodeIds(): Set[NodeId] =
-    fullGraph.observe.now().nodeIds
+    fullGraphNow().nodeIds
 
   def allArrowIds(): Set[ArrowId] =
-    fullGraph.observe.now().arrowIds
+    fullGraphNow().arrowIds
 
   /** Adds a new node to the graph. If there is a currently selected node, the new node will be connected to it with an edge. If the
     * selected element is a group/cluster, the new node will be added to that group. The new node will become the only selected element

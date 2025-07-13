@@ -18,7 +18,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     withGraphviz { graphviz =>
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
       // sanity check
-      assertEquals(viewerState.fullGraph.now(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
       assertEquals(viewerState.selection.size(), 0)
 
       viewerState.addNodeWithSmartConnection()
@@ -35,7 +35,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     withGraphviz { graphviz =>
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
       // Initial state check
-      assertEquals(viewerState.fullGraph.now(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
 
       viewerState.addNodeWithSmartConnection()
       // new node added and is currently selected
@@ -52,7 +52,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
 
       // Initial state check
-      assertEquals(viewerState.fullGraph.now(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
 
       viewerState.addNodeWithSmartConnection()
       // clear selection to add just a node
@@ -71,7 +71,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
 
       // Initial state check
-      assertEquals(viewerState.fullGraph.now(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
 
       val graphUpdates = viewerState.defaultAttributesUpdates(AttributeTarget.graph)
 
@@ -79,7 +79,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       graphUpdates.update(_ + (Color.attrId -> AttrValue("blue")))
 
       // Verify the updates are applied
-      val updatedGraph = viewerState.fullGraph.now()
+      val updatedGraph = viewerState.fullGraphNow()
       assertEquals(
         updatedGraph.getDefaultAttributes(AttributeTarget.graph).get(Color.attrId),
         Some(AttrValue("blue")),
@@ -93,7 +93,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       nodeUpdates.update(_ + (Shape.attrId -> AttrValue("box")))
 
       // Verify the updates are applied
-      val updatedGraph2 = viewerState.fullGraph.now()
+      val updatedGraph2 = viewerState.fullGraphNow()
       assertEquals(
         updatedGraph2.getDefaultAttributes(AttributeTarget.node).get(Shape.attrId),
         Some(AttrValue("box")),
@@ -107,7 +107,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       edgeUpdates.update(_ + (Style.attrId -> AttrValue("dashed")))
 
       // Verify the updates are applied
-      val updatedGraph3 = viewerState.fullGraph.now()
+      val updatedGraph3 = viewerState.fullGraphNow()
       assertEquals(
         updatedGraph3.getDefaultAttributes(AttributeTarget.edge).get(Style.attrId),
         Some(AttrValue("dashed")),
@@ -120,7 +120,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
 
       // Initial state check
-      assertEquals(viewerState.fullGraph.now(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
 
       // Add two nodes to the graph
       viewerState.addNodeWithSmartConnection()
@@ -138,7 +138,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       nodeUpdates.update(_ + (Color.attrId -> AttrValue("red")))
 
       // Verify node attributes are updated
-      val updatedGraph = viewerState.fullGraph.now()
+      val updatedGraph = viewerState.fullGraphNow()
       assertEquals(
         updatedGraph.getAttributesById(nodeA).get(Color.attrId),
         Some(AttrValue("red")),
@@ -150,7 +150,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       arrowUpdates.update(_ + (Style.attrId -> AttrValue("dotted")))
 
       // Verify arrow attributes are updated
-      val updatedGraph2 = viewerState.fullGraph.now()
+      val updatedGraph2 = viewerState.fullGraphNow()
       assertEquals(
         updatedGraph2.getAttributesById(arrowId).get(Style.attrId),
         Some(AttrValue("dotted")),
@@ -162,7 +162,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       multiUpdates.update(_ + (Shape.attrId -> AttrValue("box")))
 
       // Verify multiple elements are updated
-      val updatedGraph3 = viewerState.fullGraph.now()
+      val updatedGraph3 = viewerState.fullGraphNow()
       assertEquals(
         updatedGraph3.getAttributesById(nodeA).get(Shape.attrId),
         Some(AttrValue("box")),

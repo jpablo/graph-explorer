@@ -153,7 +153,7 @@ class SimpleGraphConverterInverseIntegrationSpec extends FunSuite with TestHelpe
 
     withGraphviz { graphviz =>
       // Get expected elements from DOT parsing
-      val expected = ViewerState(ProjectId("test"), graphviz, initialSource = Some(simpleDot)).fullGraph.now().elements
+      val expected = ViewerState(ProjectId("test"), graphviz, initialSource = Some(simpleDot)).fullGraphNow().elements
 
       graphviz.renderToJsonGraph(simpleDot).foreach { originalGraph =>
         // Convert original graph to ViewerGraphElements

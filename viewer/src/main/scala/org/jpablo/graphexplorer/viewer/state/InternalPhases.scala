@@ -66,18 +66,19 @@ class InternalPhases(
   simpleLog("InternalPhases: Initializing", logLevel)
 
   val sourceText: Var[String] = Var(initialSource.getOrElse("""digraph "G" {}"""))
+
+  // Note: It is critical that the initial values below are the same. Otherwise, superfluous updates will be triggered.
+
   // (b)
   private val versionedText = Var(Versioned(sourceText.now(), 0, ChangeOrigin.CodeMirror))
 
   // (b)
-  private val versionedFullGraphV = Var(Versioned(ViewerGraph.minimalWithDirected, 0, ChangeOrigin.CodeMirror))
+  private val versionedFullGraphV = Var(dotToVersionedGraph(versionedText.now()))
 
   // updated by the UI (a)
-  val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.minimalWithDirected)
+  val fullGraphV: Var[ViewerGraph] = Var(versionedFullGraphV.now().value)
 
-  // Note: It is critical that the initial values of the Vars above are the same. Otherwise, superfluous updates will be triggered.
-
-  val fullGraph = fullGraphV.signal
+  val fullGraph = fullGraphV.signal.distinct
 
   // -------------------------------
   // sourceText <-> versionedText
@@ -104,31 +105,11 @@ class InternalPhases(
     target = versionedFullGraphV,
     // -------------------------------
     labelT = "2a. [versionedText -> versionedFullGraphV]", // b -> c
-    toT = { (vt, _) =>
-      // Safety check: don't process empty or whitespace-only strings
-      if (vt.value.trim.isEmpty) then {
-        Versioned(ViewerGraph.minimal, vt.version, vt.origin)
-      } else {
-
-        graphviz.renderToJsonGraph(vt.value) match
-          case Success(graph) =>
-            editorError.set(None)
-            val elements    = SimpleGraphConverter.toViewerGraphElements(graph)
-            val graphTpe    = if graph.directed then GraphType.digraph else GraphType.graph
-            val viewerGraph = ViewerGraph(elements.expandStyleAttributes, id = graph.name, tpe = graphTpe)
-            Versioned[ViewerGraph](viewerGraph, vt.version, vt.origin)
-
-          case Failure(f) =>
-            dom.console.error(s"Error parsing DotText to ViewerGraph: ${f.getMessage}")
-            editorError.set(Option(f.getMessage))
-            Versioned(ViewerGraph.minimal, vt.version, ChangeOrigin.CodeMirror)
-
-      }
-    },
-    updateT = (vt, vg, vg1) => vg.value != vg1.value && vg1.origin == ChangeOrigin.CodeMirror,
+    toT = (vt, _) => dotToVersionedGraph(vt),
+    updateT = (_, vg, vg1) => vg.value != vg1.value && vg1.origin == ChangeOrigin.CodeMirror,
     // -------------------------------
     labelS = "2b. [versionedText <- versionedFullGraphV]", // c -> b
-    toS = { (vt, vg: Versioned[ViewerGraph]) =>
+    toS = { (_, vg: Versioned[ViewerGraph]) =>
       val graph     = SimpleGraphConverter.fromViewerGraphElements(vg.value.elements.combineStyleAttributes)
       val dotString = SimpleGraphConverter.graphToDotString(graph)
       Versioned[String](dotString, vg.version, vg.origin)
@@ -188,6 +169,26 @@ class InternalPhases(
         DotText(SimpleGraphConverter.viewerGraphElementsToDotString(graph.elements.combineStyleAttributes))
       }
     }
+
+  private def dotToVersionedGraph(versionedText: Versioned[String]) = {
+    val Versioned(dotText, version, origin) = versionedText
+    // Safety check: don't process empty or whitespace-only strings
+    if dotText.trim.isEmpty then
+      Versioned(ViewerGraph.minimalWithDirected, version, origin)
+    else
+      graphviz.renderToJsonGraph(dotText) match
+        case Success(graph) =>
+          editorError.set(None)
+          val elements    = SimpleGraphConverter.toViewerGraphElements(graph)
+          val graphTpe    = if graph.directed then GraphType.digraph else GraphType.graph
+          val viewerGraph = ViewerGraph(elements.expandStyleAttributes, id = graph.name, tpe = graphTpe)
+          Versioned[ViewerGraph](viewerGraph, version, origin)
+
+        case Failure(f) =>
+          dom.console.error(s"Error parsing DotText to ViewerGraph: ${f.getMessage}")
+          editorError.set(Option(f.getMessage))
+          Versioned(ViewerGraph.minimalWithDirected, version, ChangeOrigin.CodeMirror)
+  }
 
 end InternalPhases
 

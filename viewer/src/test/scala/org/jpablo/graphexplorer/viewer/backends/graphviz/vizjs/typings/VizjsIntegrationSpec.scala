@@ -30,7 +30,7 @@ class VizjsIntegrationSpec extends FunSuite with TestHelpers:
 
       val state = ViewerState(ProjectId("test"), graphviz, initialSource = Some(simpleDot))
 
-      val expected = state.fullGraph.now().elements
+      val expected = state.fullGraphNow().elements
 
       graphviz.renderToJsonGraph(simpleDot).foreach { graph =>
 
@@ -87,7 +87,7 @@ class VizjsIntegrationSpec extends FunSuite with TestHelpers:
 
       val state = ViewerState(ProjectId("test"), graphviz, initialSource = Some(minimalDot))
 
-      val expected = state.fullGraph.now().elements
+      val expected = state.fullGraphNow().elements
 
       graphviz.renderToJsonGraph(minimalDot).foreach { graph =>
         val elements = SimpleGraphConverter.toViewerGraphElements(graph)
@@ -114,7 +114,7 @@ class VizjsIntegrationSpec extends FunSuite with TestHelpers:
 
       val state = ViewerState(ProjectId("test"), graphviz, initialSource = Some(complexDot))
 
-      val expected = state.fullGraph.now().elements
+      val expected = state.fullGraphNow().elements
 
       graphviz.renderToJsonGraph(complexDot).foreach { graph =>
         val elements = SimpleGraphConverter.toViewerGraphElements(graph)

@@ -100,8 +100,7 @@ trait DiagramSelectionOps:
     def hide() =
       project.hiddenElements.update(_ ++ selection.now())
 
-    private def fullGraphNow: ViewerGraph = phases.fullGraph.now()
-    def visibleGraphNow: ViewerGraph      = phases.visibleGraph.observe.now()
+    private def visibleGraphNow(): ViewerGraph = phases.visibleGraph.observe.now()
 
     def selectGroupMembers() =
       val s          = now()
@@ -110,7 +109,7 @@ trait DiagramSelectionOps:
       // If we have clusters/groups in the selection, find their members
       if classified.groups.nonEmpty then
         val groupIds          = classified.groups
-        val fullGraphSnapshot = fullGraphNow
+        val fullGraphSnapshot = fullGraphNow()
 
         // Get all node ids that are members of the selected groups
         val memberNodeIds = fullGraphSnapshot.getAllChildren(groupIds)
@@ -119,16 +118,16 @@ trait DiagramSelectionOps:
         set(s ++ memberNodeIds)
 
     def selectSuccessors() =
-      _selectSuccessors(fullGraphNow, hiddenElements.now())
+      _selectSuccessors(fullGraphNow(), hiddenElements.now())
 
     def selectPredecessors() =
-      _selectPredecessors(fullGraphNow, hiddenElements.now())
+      _selectPredecessors(fullGraphNow(), hiddenElements.now())
 
     def selectDirectSuccessors() =
-      _selectDirectSuccessors(fullGraphNow, hiddenElements.now())
+      _selectDirectSuccessors(fullGraphNow(), hiddenElements.now())
 
     def selectDirectPredecessors() =
-      _selectDirectPredecessors(fullGraphNow, hiddenElements.now())
+      _selectDirectPredecessors(fullGraphNow(), hiddenElements.now())
 
     def addToGroup() =
       val classified = now().classify
@@ -148,17 +147,17 @@ trait DiagramSelectionOps:
       phases.fullGraphV.update(_.reverseArrows(now()))
 
     def selectAllVisibleNodes() =
-      val visibleNodes = visibleGraphNow.nodeIds
+      val visibleNodes = visibleGraphNow().nodeIds
       set1(visibleNodes)
 
     def selectAllVisibleArrows() =
-      set1(visibleGraphNow.arrowIds)
+      set1(visibleGraphNow().arrowIds)
 
     def selectAllVisibleGroups() =
-      set1(visibleGraphNow.groupIds)
+      set1(visibleGraphNow().groupIds)
 
     def selectAll() =
-      val visibleGraph = visibleGraphNow
+      val visibleGraph = visibleGraphNow()
       val nodes        = visibleGraph.nodeIds
       val edges        = visibleGraph.arrowIds
       val groups       = visibleGraph.groupIds
