@@ -281,6 +281,9 @@ object ViewerGraph:
 
   val minimal: ViewerGraph = ViewerGraph()
 
+  val minimalWithDirected =
+    ViewerGraph(ViewerGraphElements(graphAttributes = Attributes.of("directed" -> "true")))
+
   case class Summary(
       nodes:  Int,
       arrows: Int,

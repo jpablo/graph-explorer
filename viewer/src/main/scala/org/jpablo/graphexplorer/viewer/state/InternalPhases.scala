@@ -34,12 +34,16 @@ def synchronize[S, T](
     val t1 = toT(s, t)
     if updateT(s, t, t1) then
       withLog(labelT, level = level)({ target.set(t1); t1 })
+    else if level != Level.None then
+      dom.console.warn(s"Skipping update: $labelT, source: $s, target: $t")
   // target -> source
   for t <- target.signal do
     val s  = source.now()
     val s1 = toS(s, t)
     if updateS(s, t, s1) then
       withLog(labelS, level = level)({ source.set(s1); s1 })
+    else if level != Level.None then
+      dom.console.warn(s"Skipping update: $labelS, source: $s, target: $t")
 end synchronize
 
 class InternalPhases(
@@ -51,21 +55,25 @@ class InternalPhases(
     editorError:   Var[Option[String]]
 )(using Owner):
 
+  val logLevel = Level.None
+
   // three types of Vars:
   // (a) updated outside of SourceFlow (either by CodeMirror or the UI)
   // (b) updates linked to a var of type (a)
   // (c) updates coming from both directions
 
   // updated by CodeMirror (a)
+  simpleLog("InternalPhases: Initializing", logLevel)
+  
   val sourceText: Var[String] = Var(initialSource.getOrElse("""digraph "G" {}"""))
   // (b)
   private val versionedText = Var(Versioned(sourceText.now(), 0, ChangeOrigin.CodeMirror))
 
   // (b)
-  private val versionedFullGraphV = Var(Versioned(ViewerGraph.minimal, 0, ChangeOrigin.CodeMirror))
+  private val versionedFullGraphV = Var(Versioned(ViewerGraph.minimalWithDirected, 0, ChangeOrigin.CodeMirror))
 
   // updated by the UI (a)
-  val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.minimal)
+  val fullGraphV: Var[ViewerGraph] = Var(ViewerGraph.minimalWithDirected)
 
   val fullGraph = fullGraphV.signal
 
@@ -83,7 +91,7 @@ class InternalPhases(
     labelS = "1b. [sourceText <- versionedText]", // b -> a
     toS = (st, vt) => vt.value,
     updateS = (st, vt, st1) => st != vt.value,
-    level = Level.Info
+    level = logLevel
   )
 
   // -------------------------------
@@ -115,7 +123,7 @@ class InternalPhases(
 
       }
     },
-    updateT = (vt, ast, ast1) => ast.value != ast1.value && ast1.origin == ChangeOrigin.CodeMirror,
+    updateT = (vt, vg, vg1) => vg.value != vg1.value && vg1.origin == ChangeOrigin.CodeMirror,
     // -------------------------------
     labelS = "2b. [versionedText <- versionedFullGraphV]", // c -> b
     toS = { (vt, vg: Versioned[ViewerGraph]) =>
@@ -124,7 +132,7 @@ class InternalPhases(
       Versioned[String](dotString, vg.version, vg.origin)
     },
     updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
-    level = Level.Info
+    level = logLevel
   )
 
   // -------------------------------
@@ -141,7 +149,7 @@ class InternalPhases(
     labelS = "3b. [versionedFullGraphV <- fullGraphV]", // a -> b
     toS = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
     updateS = (vg, g, vg1) => vg.value != g,
-    level = Level.Info
+    level = logLevel
   )
 
   // -------------------------------
@@ -158,7 +166,7 @@ class InternalPhases(
     */
   val visibleGraph: Signal[ViewerGraph] =
     fullGraphV.signal.combineWithFn(hiddenNodes): (fullGraph: ViewerGraph, hiddenNodes) =>
-      withLog("4. [fullGraphV -> visibleGraph]") {
+      withLog("4. [fullGraphV -> visibleGraph]", level = logLevel) {
         fullGraph
           .removeUnsupportedFeatures
           .removeElements(hiddenNodes)
@@ -173,7 +181,7 @@ class InternalPhases(
   // -------------------------------
   val visibleDOT: Signal[DotText] =
     visibleGraph.map { graph =>
-      withLog("5. [visibleGraph -> visibleDOT]", level = Level.Info) {
+      withLog("5. [visibleGraph -> visibleDOT]", level = logLevel) {
         // Note: `viewerGraphElementsToDotString` discards default attributes.
         DotText(SimpleGraphConverter.viewerGraphElementsToDotString(graph.elements.combineStyleAttributes))
       }
