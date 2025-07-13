@@ -89,11 +89,11 @@ class InternalPhases(
     // -------------------------------
     labelT = "1a. [sourceText -> versionedText]", // a -> b
     toT = (st, vt) => Versioned[String](st, vt.version + 1, ChangeOrigin.CodeMirror),
-    updateT = (st, vt, vt1) => st != vt.value,
+    updateT = (st, vt, _) => st != vt.value,
     // -------------------------------
     labelS = "1b. [sourceText <- versionedText]", // b -> a
-    toS = (st, vt) => vt.value,
-    updateS = (st, vt, st1) => st != vt.value,
+    toS = (_, vt) => vt.value,
+    updateS = (st, vt, _) => st != vt.value,
     level = logLevel
   )
 
@@ -109,7 +109,7 @@ class InternalPhases(
     updateT = (_, vg, vg1) => vg.value != vg1.value && vg1.origin == ChangeOrigin.CodeMirror,
     // -------------------------------
     labelS = "2b. [versionedText <- versionedFullGraphV]", // c -> b
-    toS = { (_, vg: Versioned[ViewerGraph]) =>
+    toS = { (_, vg) =>
       val graph     = SimpleGraphConverter.fromViewerGraphElements(vg.value.elements.combineStyleAttributes)
       val dotString = SimpleGraphConverter.graphToDotString(graph)
       Versioned[String](dotString, vg.version, vg.origin)
@@ -126,20 +126,14 @@ class InternalPhases(
     target = fullGraphV,
     // -------------------------------
     labelT = "3a. [versionedFullGraphV -> fullGraphV]", // b -> a
-    toT = (vg, g) => vg.value,
-    updateT = (vg, g, g1) => g != g1,
+    toT = (vg, _) => vg.value,
+    updateT = (_, g, g1) => g != g1,
     // -------------------------------
     labelS = "3b. [versionedFullGraphV <- fullGraphV]", // a -> b
     toS = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
-    updateS = (vg, g, vg1) => vg.value != g,
+    updateS = (vg, g, _) => vg.value != g,
     level = logLevel
   )
-
-  // -------------------------------
-  // Start the process
-  // -------------------------------
-
-//  sourceText.set(initialSource.getOrElse("""digraph "G" {}"""))
 
   // -------------------------------
   // fullGraphV --> visibleGraph
@@ -170,6 +164,13 @@ class InternalPhases(
       }
     }
 
+  /** Converts a versioned DOT graph string into a versioned `ViewerGraph` representation. If the provided DOT string is empty or contains
+    * only whitespace, it defaults to a minimal directed graph. If parsing the DOT string fails, it logs the error and returns a minimal
+    * directed graph as fallback.
+    *
+    * @param versionedText
+    *   A `Versioned[String]` instance containing the DOT graph string, version information, and origin metadata.
+    */
   private def dotToVersionedGraph(versionedText: Versioned[String]) = {
     val Versioned(dotText, version, origin) = versionedText
     // Safety check: don't process empty or whitespace-only strings
