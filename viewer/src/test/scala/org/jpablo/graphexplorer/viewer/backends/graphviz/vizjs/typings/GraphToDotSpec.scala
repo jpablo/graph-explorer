@@ -669,12 +669,30 @@ class GraphToDotSpec extends FunSuite:
 
     val result = SimpleGraphConverter.graphToDotString(graph)
 
-    // Verify that HTML labels are properly formatted with <> notation
-    assert(result.contains("label=<"))
-    assert(result.contains("<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">"))
-    assert(result.contains("<b>Task 1</b>"))
-    assert(result.contains("<font color=\"darkgreen\">done</font>"))
-    
-    // Verify non-HTML labels are still quoted
-    assert(result.contains("label=\"\\N\""))
+    val expected =
+      """digraph "G" {
+        |    "task_menu" [
+        |        label=<
+        |              <table border="1" cellborder="0" cellspacing="1">
+        |              <tr><td align="left"><b>Task 1</b></td></tr>
+        |              <tr><td align="left">Choose Menu</td></tr>
+        |              <tr><td align="left"><font color="darkgreen">done</font></td></tr>
+        |              </table>
+        |        >, 
+        |        pos="53.879,110.2", 
+        |        height="1.0611", 
+        |        width="1.4189", 
+        |        shape="plaintext"
+        |    ];
+        |    "task_ingredients" [
+        |        label="\N", 
+        |        pos="53.879,18", 
+        |        height="0.5", 
+        |        width="1.4966", 
+        |        shape="plaintext"
+        |    ];
+        |    "task_menu" -> "task_ingredients";
+        |}""".stripMargin
+
+    assertEquals(result, expected)
   }
