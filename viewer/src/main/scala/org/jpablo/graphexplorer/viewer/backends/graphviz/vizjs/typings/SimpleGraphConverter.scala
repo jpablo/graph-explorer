@@ -402,7 +402,7 @@ object SimpleGraphConverter:
         tail = tailGvid,
         head = headGvid,
         pos = getAttr("pos"),
-        id = getAttr("id"),
+        id = getAttr("id").orElse(Some(arrow.id.toSvg)),
         label = getAttr("label"),
         fontname = getAttr("fontname"),
         fontsize = getAttr("fontsize"),
@@ -703,6 +703,7 @@ object SimpleGraphConverter:
     // Helper to collect attributes from case class
     def collectNodeAttributes(node: SimpleGraphNode, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
       val attrs = mutable.ListBuffer[(String, String)]()
+      if (!excludeKeys.contains("id")) attrs += "id" -> node.id  // Add the semantic node ID
       if (!excludeKeys.contains("label")) attrs += "label" -> node.label
       node.pos.foreach(v => if (!excludeKeys.contains("pos")) attrs += "pos" -> v)
       node.height.foreach(v => if (!excludeKeys.contains("height")) attrs += "height" -> v)

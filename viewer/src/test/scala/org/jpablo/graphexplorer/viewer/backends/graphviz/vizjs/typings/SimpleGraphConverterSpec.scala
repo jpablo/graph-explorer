@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{SimpleGraph, SimpleGraphConverter}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import upickle.default.*
 
 class SimpleGraphConverterSpec extends FunSuite:
@@ -246,4 +247,41 @@ class SimpleGraphConverterSpec extends FunSuite:
     val arrow = elements.arrows.values.head
     assertEquals(arrow.source, NodeId("first"))
     assertEquals(arrow.target, NodeId("second"))
+  }
+
+  test("SimpleGraphConverter should preserve edge IDs in DOT output") {
+    import scala.collection.immutable.VectorMap
+
+    // Create a simple graph with edges
+    val nodeA  = NodeId("a")
+    val nodeB  = NodeId("b")
+    val arrow1 = Arrow(nodeA, nodeB, seq = 1)
+    val arrow2 = Arrow(nodeA, nodeB, seq = 2)
+
+    val elements = ViewerGraphElements(
+      nodes = VectorMap(
+        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes.empty),
+        nodeB -> ViewerNode.nodeNoDefaults(nodeB, Attributes.empty)
+      ),
+      arrows = Map(
+        arrow1.id -> arrow1,
+        arrow2.id -> arrow2
+      ),
+      memberships = VectorMap.empty,
+      groups = Map.empty,
+      graphAttributes = Attributes.empty,
+      defaultNodeAttributes = Attributes.empty,
+      defaultArrowAttributes = Attributes.empty,
+      defaultGroupAttributes = Attributes.empty
+    )
+
+    // Convert to DOT string
+    val dotString = SimpleGraphConverter.viewerGraphElementsToDotString(elements)
+
+    // Verify that edge IDs are included in the DOT output with "arrow:" prefix
+    assert(dotString.contains("""id="arrow:a->b/1""""), s"DOT should contain edge ID 'arrow:a->b/1', but got:\n$dotString")
+    assert(dotString.contains("""id="arrow:a->b/2""""), s"DOT should contain edge ID 'arrow:a->b/2', but got:\n$dotString")
+
+    // Verify the overall structure
+    assert(dotString.contains(""""a" -> "b""""), "DOT should contain edge from a to b")
   }
