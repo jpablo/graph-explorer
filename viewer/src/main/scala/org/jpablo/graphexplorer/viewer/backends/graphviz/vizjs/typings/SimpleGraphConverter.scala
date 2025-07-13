@@ -666,28 +666,38 @@ object SimpleGraphConverter:
   def graphToDotString(graph: SimpleGraph): String =
     val lines = mutable.ListBuffer[String]()
 
-    // Detect if this is a complex graph with nested subgraphs
-    val hasNestedSubgraphs = graph.objects.exists(_.exists {
-      case SimpleGraphObject.Cluster(cluster) => cluster.subgraphs.isDefined && cluster.subgraphs.get.nonEmpty
-      case _ => false
-    })
-
-    // Helper function for padding - use 4 spaces for complex graphs, 2 for simple
-    def padding(level: Int): String = if (hasNestedSubgraphs) "    " * level else "  " * level
-
     // Helper to detect if a string contains HTML-like content
     def isHtmlLabel(value: String): Boolean = 
       value.contains("<") && value.contains(">") && 
       (value.contains("<table") || value.contains("<b>") || value.contains("<i>") || 
        value.contains("<font") || value.contains("<br") || value.contains("<hr") ||
        value.contains("<td") || value.contains("<tr") || value.contains("</"))
+
+    // Detect if this is a complex graph with nested subgraphs or has HTML labels
+    val hasNestedSubgraphs = graph.objects.exists(_.exists {
+      case SimpleGraphObject.Cluster(cluster) => cluster.subgraphs.isDefined && cluster.subgraphs.get.nonEmpty
+      case _ => false
+    })
+    
+    // Check if any node has HTML labels with multi-line content
+    val hasComplexHtmlLabels = graph.objects.exists(_.exists {
+      case SimpleGraphObject.Node(node) => isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
+      case _ => false
+    })
+
+    // Helper function for padding - use 4 spaces for complex graphs or graphs with multi-line HTML labels, 2 for simple
+    def padding(level: Int): String = if (hasNestedSubgraphs || hasComplexHtmlLabels) "    " * level else "  " * level
     
     // Helper to format a single attribute value
     def formatValue(value: String): String = s""""$value""""
     
     // Helper to format a label value - HTML labels use <> notation, others use quotes
     def formatLabelValue(value: String): String = 
-      if (isHtmlLabel(value)) s"<$value>"
+      if (isHtmlLabel(value)) {
+        // Remove leading/trailing whitespace and format HTML labels
+        val trimmed = value.trim
+        s"<$trimmed>"
+      }
       else s""""$value""""
 
     // Helper to collect attributes from case class
@@ -848,14 +858,28 @@ object SimpleGraphConverter:
       }
 
     // Helper to format attributes in multi-line format for complex cases
-    def formatAttributesMultiLine(attrs: List[(String, String)], level: Int): String =
+    def formatAttributesMultiLine(attrs: List[(String, String)], level: Int, forceMultiLine: Boolean = false): String =
       if (attrs.isEmpty) ""
-      else if (hasNestedSubgraphs) {
-        val formattedAttrs = attrs.map { case (key, value) =>
-          if (key == "label") s"${padding(level + 1)}$key=${formatLabelValue(value)}"
-          else s"${padding(level + 1)}$key=${formatValue(value)}"
+      else if (forceMultiLine || hasNestedSubgraphs || hasComplexHtmlLabels || attrs.exists { case (k, v) => k == "label" && isHtmlLabel(v) && v.trim.split("\n").length > 1 }) {
+        val formattedAttrs = attrs.zipWithIndex.map { case ((key, value), idx) =>
+          val isLast = idx == attrs.length - 1
+          // Complex graphs with nested subgraphs use comma without space, HTML labels use comma with space
+          val comma = if (isLast) "" else if (hasNestedSubgraphs && !hasComplexHtmlLabels) "," else ", "
+          
+          if (key == "label" && isHtmlLabel(value) && value.trim.split("\n").length > 1) {
+            // Special formatting for multi-line HTML labels - each line of HTML on its own line
+            val lines = value.trim.split("\n").map(_.trim).filter(_.nonEmpty)
+            // Use extra indentation for HTML content
+            val htmlPadding = if (hasComplexHtmlLabels) "              " else s"${padding(level + 2)}"
+            val htmlLines = lines.map(line => s"$htmlPadding$line").mkString("\n")
+            s"${padding(level + 1)}$key=<\n$htmlLines\n${padding(level + 1)}>$comma"
+          } else if (key == "label") {
+            s"${padding(level + 1)}$key=${formatLabelValue(value)}$comma"
+          } else {
+            s"${padding(level + 1)}$key=${formatValue(value)}$comma"
+          }
         }
-        s" [\n${formattedAttrs.mkString(",\n")}\n${padding(level)}]"
+        s" [\n${formattedAttrs.mkString("\n")}\n${padding(level)}]"
       } else {
         formatAttributes(attrs)
       }
@@ -885,7 +909,7 @@ object SimpleGraphConverter:
       val clusterAttrs = collectClusterAttributes(cluster)
       if (clusterAttrs.nonEmpty) {
         val attrFormatting = if (hasNestedSubgraphs) 
-          formatAttributesMultiLine(clusterAttrs, level + 1)
+          formatAttributesMultiLine(clusterAttrs, level + 1, false)
         else 
           formatAttributes(clusterAttrs)
         lines += s"${padding(level + 1)}graph$attrFormatting;"
@@ -924,8 +948,9 @@ object SimpleGraphConverter:
             case SimpleGraphObject.Node(node) if node._gvid == nodeGvid => node
           }).foreach { node =>
             val nodeAttrs = collectNodeAttributes(node)
-            val attrFormatting = if (hasNestedSubgraphs) 
-              formatAttributesMultiLine(nodeAttrs, level + 1)
+            val hasMultiLineHtmlLabel = isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
+            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels) 
+              formatAttributesMultiLine(nodeAttrs, level + 1, hasComplexHtmlLabels)
             else 
               formatAttributes(nodeAttrs)
             lines += s"""${padding(level + 1)}"${node.name}"$attrFormatting;"""
@@ -963,8 +988,9 @@ object SimpleGraphConverter:
         case SimpleGraphObject.Node(node) =>
           if (!clusterNodeGvids.contains(node._gvid.toDouble)) {
             val nodeAttrs = collectNodeAttributes(node)
-            val attrFormatting = if (hasNestedSubgraphs) 
-              formatAttributesMultiLine(nodeAttrs, 1)
+            val hasMultiLineHtmlLabel = isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
+            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels) 
+              formatAttributesMultiLine(nodeAttrs, 1, hasComplexHtmlLabels)
             else 
               formatAttributes(nodeAttrs)
             lines += s"""${padding(1)}"${node.name}"$attrFormatting;"""
