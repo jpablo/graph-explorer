@@ -45,5 +45,5 @@ trait ExportOps:
     val graph = visibleGraph.observe.now()
     val ast = SimpleGraphConverter.fromViewerGraphElements(graph.elements)
     // Don't remove this line!! it IS the actual functionality
-    dom.console.log(ast)
+    dom.console.log(scalajs.js.JSON.parse(write(ast)))
     dom.console.log("Visible JSON VizJS Graph printed to the console")

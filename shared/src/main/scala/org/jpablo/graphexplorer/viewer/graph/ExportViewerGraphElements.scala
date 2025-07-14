@@ -9,10 +9,11 @@ import upickle.default.*
   * Useful for exporting the graph structure without the full details of the nodes and arrows.
   */
 case class ExportViewerGraphElements(
-    nodes:       Iterable[ExportViewerNode] = Iterable.empty,
-    arrows:      Iterable[ExportArrow] = Iterable.empty,
-    memberships: Map[String, GroupId] = Map.empty,
-    groups:      Iterable[GroupId] = Iterable.empty
+    nodes:           Iterable[ExportViewerNode] = Iterable.empty,
+    arrows:          Iterable[ExportArrow] = Iterable.empty,
+    memberships:     Map[String, GroupId] = Map.empty,
+    groups:          Iterable[GroupId] = Iterable.empty,
+    graphAttributes: Attributes = Attributes.empty
 ) derives ReadWriter
 
 object ExportViewerGraphElements:
@@ -27,5 +28,6 @@ object ExportViewerGraphElements:
       nodes = elems.nodes.values.map(n => ExportViewerNode(n.id, n.attributes)),
       arrows = elems.arrows.values.map(a => ExportArrow(a.source, a.target, a.attributes)),
       memberships = elems.memberships.map((k, v) => k.value -> v),
-      groups = elems.groups.keys
+      groups = elems.groups.keys,
+      graphAttributes = elems.graphAttributes
     )
