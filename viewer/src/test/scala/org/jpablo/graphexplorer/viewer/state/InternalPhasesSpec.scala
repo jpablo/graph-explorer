@@ -86,6 +86,9 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       // Verify that the source text was updated to reflect the new node
       val updatedGraph = viewerState.fullGraphNow()
 
+//      pprint.log(updatedGraph)
+//      pprint.log(viewerState.sourceText.now())
+
       // The node count in the graph should match what we expect
       assertEquals(updatedGraph.nodes.size, 1, "Graph should have exactly one node")
 
@@ -94,8 +97,22 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
       val expectedSource =
         s"""digraph "$graphId" {
-           |  "$nodeId" [id="node:$nodeId", label="", pos="0,0", height="0.5", width="0.75"];
+           |  "$nodeId" [label=""];
            |}""".stripMargin
 
       assertEquals(viewerState.sourceText.now(), expectedSource, "Source text should be updated to reflect the new node")
+    }
+
+  test("Updating the source text should update the graph"):
+    withGraphviz { graphviz =>
+      val initialSource =
+        """|digraph "G" {
+           |    "a" [label="A", other="value"];
+           |}""".stripMargin
+
+      val phases = new InternalPhases(graphviz, Some(initialSource), hiddenNodes = Val(ElementIds()))
+
+//      pprint.log(phases.sourceText.now())
+//      pprint.log(phases.fullGraphV.now())
+
     }

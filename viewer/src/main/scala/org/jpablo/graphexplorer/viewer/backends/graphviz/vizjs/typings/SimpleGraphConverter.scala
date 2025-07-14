@@ -663,7 +663,7 @@ object SimpleGraphConverter:
       elements.groups.size.toDouble
     )
 
-  def graphToDotString(graph: SimpleGraph): String =
+  def graphToDotString(graph: SimpleGraph, omitInternal: Boolean = false): String =
     val lines = mutable.ListBuffer[String]()
 
     // Helper to detect if a string contains HTML-like content
@@ -703,37 +703,40 @@ object SimpleGraphConverter:
     // Helper to collect attributes from case class
     def collectNodeAttributes(node: SimpleGraphNode, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
       val attrs = mutable.ListBuffer[(String, String)]()
-      if (!excludeKeys.contains("id")) attrs += "id" -> s"node:${node.name}"  // Add the semantic node ID
-      if (!excludeKeys.contains("label")) attrs += "label" -> node.label
-      node.pos.foreach(v => if (!excludeKeys.contains("pos")) attrs += "pos" -> v)
-      node.height.foreach(v => if (!excludeKeys.contains("height")) attrs += "height" -> v)
-      node.width.foreach(v => if (!excludeKeys.contains("width")) attrs += "width" -> v)
-      node.shape.foreach(v => if (!excludeKeys.contains("shape")) attrs += "shape" -> v)
-      node.fontname.foreach(v => if (!excludeKeys.contains("fontname")) attrs += "fontname" -> v)
-      node.fontsize.foreach(v => if (!excludeKeys.contains("fontsize")) attrs += "fontsize" -> v)
-      node.fontcolor.foreach(v => if (!excludeKeys.contains("fontcolor")) attrs += "fontcolor" -> v)
-      node.color.foreach(v => if (!excludeKeys.contains("color")) attrs += "color" -> v)
-      node.fillcolor.foreach(v => if (!excludeKeys.contains("fillcolor")) attrs += "fillcolor" -> v)
-      node.style.foreach(v => if (!excludeKeys.contains("style")) attrs += "style" -> v)
-      node.penwidth.foreach(v => if (!excludeKeys.contains("penwidth")) attrs += "penwidth" -> v)
-      node.rects.foreach(v => if (!excludeKeys.contains("rects")) attrs += "rects" -> v)
-      node.sides.foreach(v => if (!excludeKeys.contains("sides")) attrs += "sides" -> v)
-      node.peripheries.foreach(v => if (!excludeKeys.contains("peripheries")) attrs += "peripheries" -> v)
-      node.fixedsize.foreach(v => if (!excludeKeys.contains("fixedsize")) attrs += "fixedsize" -> v)
-      node.regular.foreach(v => if (!excludeKeys.contains("regular")) attrs += "regular" -> v)
-      node.orientation.foreach(v => if (!excludeKeys.contains("orientation")) attrs += "orientation" -> v)
-      node.URL.foreach(v => if (!excludeKeys.contains("URL")) attrs += "URL" -> v)
-      node.area.foreach(v => if (!excludeKeys.contains("area")) attrs += "area" -> v)
-      node.`class`.foreach(v => if (!excludeKeys.contains("class")) attrs += "class" -> v)
-      node.colorscheme.foreach(v => if (!excludeKeys.contains("colorscheme")) attrs += "colorscheme" -> v)
-      node.target.foreach(v => if (!excludeKeys.contains("target")) attrs += "target" -> v)
-      node.tooltip.foreach(v => if (!excludeKeys.contains("tooltip")) attrs += "tooltip" -> v)
-      node.vertices.foreach(v => if (!excludeKeys.contains("vertices")) attrs += "vertices" -> v)
-      node.image.foreach(v => if (!excludeKeys.contains("image")) attrs += "image" -> v)
-      node.imagepath.foreach(v => if (!excludeKeys.contains("imagepath")) attrs += "imagepath" -> v)
-      node.imagepos.foreach(v => if (!excludeKeys.contains("imagepos")) attrs += "imagepos" -> v)
-      node.margin.foreach(v => if (!excludeKeys.contains("margin")) attrs += "margin" -> v)
-      node.nojustify.foreach(v => if (!excludeKeys.contains("nojustify")) attrs += "nojustify" -> v)
+      val internalAttrs = if (omitInternal) Set("id", "pos", "height", "width") else Set.empty[String]
+      val allExcludeKeys = excludeKeys ++ internalAttrs
+      
+      if (!allExcludeKeys.contains("id")) attrs += "id" -> s"node:${node.name}"  // Add the semantic node ID
+      if (!allExcludeKeys.contains("label")) attrs += "label" -> node.label
+      node.pos.foreach(v => if (!allExcludeKeys.contains("pos")) attrs += "pos" -> v)
+      node.height.foreach(v => if (!allExcludeKeys.contains("height")) attrs += "height" -> v)
+      node.width.foreach(v => if (!allExcludeKeys.contains("width")) attrs += "width" -> v)
+      node.shape.foreach(v => if (!allExcludeKeys.contains("shape")) attrs += "shape" -> v)
+      node.fontname.foreach(v => if (!allExcludeKeys.contains("fontname")) attrs += "fontname" -> v)
+      node.fontsize.foreach(v => if (!allExcludeKeys.contains("fontsize")) attrs += "fontsize" -> v)
+      node.fontcolor.foreach(v => if (!allExcludeKeys.contains("fontcolor")) attrs += "fontcolor" -> v)
+      node.color.foreach(v => if (!allExcludeKeys.contains("color")) attrs += "color" -> v)
+      node.fillcolor.foreach(v => if (!allExcludeKeys.contains("fillcolor")) attrs += "fillcolor" -> v)
+      node.style.foreach(v => if (!allExcludeKeys.contains("style")) attrs += "style" -> v)
+      node.penwidth.foreach(v => if (!allExcludeKeys.contains("penwidth")) attrs += "penwidth" -> v)
+      node.rects.foreach(v => if (!allExcludeKeys.contains("rects")) attrs += "rects" -> v)
+      node.sides.foreach(v => if (!allExcludeKeys.contains("sides")) attrs += "sides" -> v)
+      node.peripheries.foreach(v => if (!allExcludeKeys.contains("peripheries")) attrs += "peripheries" -> v)
+      node.fixedsize.foreach(v => if (!allExcludeKeys.contains("fixedsize")) attrs += "fixedsize" -> v)
+      node.regular.foreach(v => if (!allExcludeKeys.contains("regular")) attrs += "regular" -> v)
+      node.orientation.foreach(v => if (!allExcludeKeys.contains("orientation")) attrs += "orientation" -> v)
+      node.URL.foreach(v => if (!allExcludeKeys.contains("URL")) attrs += "URL" -> v)
+      node.area.foreach(v => if (!allExcludeKeys.contains("area")) attrs += "area" -> v)
+      node.`class`.foreach(v => if (!allExcludeKeys.contains("class")) attrs += "class" -> v)
+      node.colorscheme.foreach(v => if (!allExcludeKeys.contains("colorscheme")) attrs += "colorscheme" -> v)
+      node.target.foreach(v => if (!allExcludeKeys.contains("target")) attrs += "target" -> v)
+      node.tooltip.foreach(v => if (!allExcludeKeys.contains("tooltip")) attrs += "tooltip" -> v)
+      node.vertices.foreach(v => if (!allExcludeKeys.contains("vertices")) attrs += "vertices" -> v)
+      node.image.foreach(v => if (!allExcludeKeys.contains("image")) attrs += "image" -> v)
+      node.imagepath.foreach(v => if (!allExcludeKeys.contains("imagepath")) attrs += "imagepath" -> v)
+      node.imagepos.foreach(v => if (!allExcludeKeys.contains("imagepos")) attrs += "imagepos" -> v)
+      node.margin.foreach(v => if (!allExcludeKeys.contains("margin")) attrs += "margin" -> v)
+      node.nojustify.foreach(v => if (!allExcludeKeys.contains("nojustify")) attrs += "nojustify" -> v)
       attrs.toList
 
     def collectClusterAttributes(cluster: SimpleGraphCluster, excludeKeys: Set[String] = Set.empty): List[(String, String)] =

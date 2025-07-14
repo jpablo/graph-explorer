@@ -111,7 +111,7 @@ class InternalPhases(
     labelS = "2b. [versionedText <- versionedFullGraphV]", // c -> b
     toS = { (_, vg) =>
       val graph     = SimpleGraphConverter.fromViewerGraphElements(vg.value.elements.combineStyleAttributes)
-      val dotString = SimpleGraphConverter.graphToDotString(graph)
+      val dotString = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
       Versioned[String](dotString, vg.origin)
     },
     updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
