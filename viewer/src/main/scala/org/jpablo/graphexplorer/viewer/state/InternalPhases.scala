@@ -10,12 +10,12 @@ import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.logging.*
-import org.jpablo.graphexplorer.viewer.utils.{ChangeOrigin, Version}
+import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
 import org.scalajs.dom.svg.SVG
 
 import scala.util.{Failure, Success}
 
-case class Versioned[A](value: A, version: Version, origin: ChangeOrigin)
+case class Versioned[A](value: A, origin: ChangeOrigin)
 
 def synchronize[S, T](
     source:  Var[S],
@@ -55,22 +55,22 @@ class InternalPhases(
     editorError:   Var[Option[String]]
 )(using Owner):
 
-  val logLevel = Level.None
+  val logLevel = Level.Info
 
   // three types of Vars:
-  // (a) updated outside of SourceFlow (either by CodeMirror or the UI)
+  // (a) updated outside InternalPhases (either by CodeMirror or the UI)
   // (b) updates linked to a var of type (a)
   // (c) updates coming from both directions
 
   // updated by CodeMirror (a)
-  simpleLog("InternalPhases: Initializing", logLevel)
+  simpleLog(s"InternalPhases: Initializing with $initialSource", logLevel)
 
   val sourceText: Var[String] = Var(initialSource.getOrElse("""digraph "G" {}"""))
 
   // Note: It is critical that the initial values below are the same. Otherwise, superfluous updates will be triggered.
 
   // (b)
-  private val versionedText = Var(Versioned(sourceText.now(), 0, ChangeOrigin.CodeMirror))
+  private val versionedText = Var(Versioned(sourceText.now(), ChangeOrigin.CodeMirror))
 
   // (b)
   private val versionedFullGraphV = Var(dotToVersionedGraph(versionedText.now()))
@@ -88,7 +88,7 @@ class InternalPhases(
     target = versionedText,
     // -------------------------------
     labelT = "1a. [sourceText -> versionedText]", // a -> b
-    toT = (st, vt) => Versioned[String](st, vt.version + 1, ChangeOrigin.CodeMirror),
+    toT = (st, _) => Versioned[String](st, ChangeOrigin.CodeMirror),
     updateT = (st, vt, _) => st != vt.value,
     // -------------------------------
     labelS = "1b. [sourceText <- versionedText]", // b -> a
@@ -112,7 +112,7 @@ class InternalPhases(
     toS = { (_, vg) =>
       val graph     = SimpleGraphConverter.fromViewerGraphElements(vg.value.elements.combineStyleAttributes)
       val dotString = SimpleGraphConverter.graphToDotString(graph)
-      Versioned[String](dotString, vg.version, vg.origin)
+      Versioned[String](dotString, vg.origin)
     },
     updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
     level = logLevel
@@ -130,7 +130,7 @@ class InternalPhases(
     updateT = (_, g, g1) => g != g1,
     // -------------------------------
     labelS = "3b. [versionedFullGraphV <- fullGraphV]", // a -> b
-    toS = (vg, g) => Versioned[ViewerGraph](g, vg.version + 1, ChangeOrigin.Graph),
+    toS = (vg, g) => Versioned[ViewerGraph](g, ChangeOrigin.Graph),
     updateS = (vg, g, _) => vg.value != g,
     level = logLevel
   )
@@ -172,10 +172,10 @@ class InternalPhases(
     *   A `Versioned[String]` instance containing the DOT graph string, version information, and origin metadata.
     */
   private def dotToVersionedGraph(versionedText: Versioned[String]) = {
-    val Versioned(dotText, version, origin) = versionedText
+    val Versioned(dotText, origin) = versionedText
     // Safety check: don't process empty or whitespace-only strings
     if dotText.trim.isEmpty then
-      Versioned(ViewerGraph.minimalWithDirected, version, origin)
+      Versioned(ViewerGraph.minimalWithDirected, origin)
     else
       graphviz.renderToJsonGraph(dotText) match
         case Success(graph) =>
@@ -183,12 +183,12 @@ class InternalPhases(
           val elements    = SimpleGraphConverter.toViewerGraphElements(graph)
           val graphTpe    = if graph.directed then GraphType.digraph else GraphType.graph
           val viewerGraph = ViewerGraph(elements.expandStyleAttributes, id = graph.name, tpe = graphTpe)
-          Versioned[ViewerGraph](viewerGraph, version, origin)
+          Versioned[ViewerGraph](viewerGraph, origin)
 
         case Failure(f) =>
           dom.console.error(s"Error parsing DotText to ViewerGraph: ${f.getMessage}")
           editorError.set(Option(f.getMessage))
-          Versioned(ViewerGraph.minimalWithDirected, version, ChangeOrigin.CodeMirror)
+          Versioned(ViewerGraph.minimalWithDirected, ChangeOrigin.CodeMirror)
   }
 
 end InternalPhases
