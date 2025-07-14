@@ -50,12 +50,12 @@ class InternalPhases(
     graphviz:      Graphviz,
     initialSource: Option[String] = None,
     hiddenNodes:   Signal[HiddenElements],
-    resetView:     () => Unit,
-    autoFit:       () => Boolean,
-    editorError:   Var[Option[String]]
+    resetView:     () => Unit = () => (),
+    autoFit:       () => Boolean = () => false,
+    editorError:   Var[Option[String]] = Var(None)
 )(using Owner):
 
-  val logLevel = Level.Info
+  val logLevel = Level.None
 
   // three types of Vars:
   // (a) updated outside InternalPhases (either by CodeMirror or the UI)

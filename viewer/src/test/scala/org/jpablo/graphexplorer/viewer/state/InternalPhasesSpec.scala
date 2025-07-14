@@ -1,39 +1,43 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.ownership.Owner
+import com.raquo.airstream.state.Val
+import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class InternalPhasesSpec extends FunSuite with TestHelpers:
 
+  given Owner = unsafeWindowOwner
+
   test("Sanity check"):
     withGraphviz { graphviz =>
-      val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
-      given Owner     = viewerState.owner
+      val phases = new InternalPhases(graphviz = graphviz, hiddenNodes = Val(ElementIds()))
 
-      assertEquals(viewerState.phases.fullGraphV.now(), ViewerGraph.minimalWithDirected)
+      assertEquals(phases.fullGraphV.now(), ViewerGraph.minimalWithDirected)
 
       val visibleDot =
         """|digraph "G" {
          |}""".stripMargin
-      assertEquals(viewerState.visibleDOT.observe.now().value, visibleDot)
+      assertEquals(phases.visibleDOT.observe.now().value, visibleDot)
     }
 
   test("Updating the source text should update the graph"):
     withGraphviz { graphviz =>
-      val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
+      val phases = new InternalPhases(graphviz = graphviz, hiddenNodes = Val(ElementIds()))
 
       val newSource =
         """|digraph "G" {
          |    "a" [label="A", other="value"];
          |}""".stripMargin
 
-      viewerState.sourceText.set(newSource)
+      phases.sourceText.set(newSource)
 
-      val graph = viewerState.fullGraphNow()
+      val graph = phases.fullGraphV.now()
 
       // Check that we have exactly one node with id "a"
       assertEquals(graph.nodes.size, 1, "Should have exactly one node")
