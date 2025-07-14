@@ -35,7 +35,7 @@ def synchronize[S, T](
     if updateT(s, t, t1) then
       withLog(labelT, level = level)({ target.set(t1); t1 })
     else if level != Level.None then
-      dom.console.warn(s"Skipping update: $labelT, source: $s, target: $t")
+      dom.console.info(s"Skipping update: $labelT, source: $s, target: $t")
   // target -> source
   for t <- target.signal do
     val s  = source.now()
@@ -43,7 +43,7 @@ def synchronize[S, T](
     if updateS(s, t, s1) then
       withLog(labelS, level = level)({ source.set(s1); s1 })
     else if level != Level.None then
-      dom.console.warn(s"Skipping update: $labelS, source: $s, target: $t")
+      dom.console.info(s"Skipping update: $labelS, source: $s, target: $t")
 end synchronize
 
 class InternalPhases(
@@ -55,7 +55,7 @@ class InternalPhases(
     editorError:   Var[Option[String]] = Var(None)
 )(using Owner):
 
-  val logLevel = Level.None
+  val logLevel = Level.Info
 
   // three types of Vars:
   // (a) updated outside InternalPhases (either by CodeMirror or the UI)

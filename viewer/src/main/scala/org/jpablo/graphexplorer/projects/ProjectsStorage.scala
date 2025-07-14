@@ -38,25 +38,25 @@ object ProjectStorage:
     */
   def loadProjectPersistedState(id: ProjectId, initialSource: Option[String]): Var[PersistedDiagramState] =
     val initialState   = PersistedDiagramState.minimal(initialSource)
-    val initialString  = write(initialState)
-    val projectStorage = storedString(projectKey(id), initialString)
-    // Initialize storage ~> PersistedStage
-    val projectStateVar =
+    val projectStorage = storedString(projectKey(id), initial = write(initialState))
+    // Initialize storage ~> PersistedDiagramState
+    val persistedDiagramState: Var[PersistedDiagramState] =
       try
         Var(read[PersistedDiagramState](projectStorage.signal.observe.now()))
       catch
         case e: Throwable =>
-          dom.console.error(s"Error reading state: $e")
+          dom.console.error(s"Error reading state: $e, defaulting to initial state")
           Var(initialState)
-    // synchronize PersistedStage ~> storage
-    projectStateVar.signal.distinct.changes.foreach: state =>
+    // synchronize PersistedDiagramState ~> storage
+    persistedDiagramState.signal.distinct.changes.foreach: state =>
+      pprint.log(state)
       // update project entry
       projectStorage.set(write(state))
       // update all directory fields
       updateDirectory: dir =>
         dir.modify(_.projects.eachWhere(_.id == id))
           .using(_.copy(lastModified = System.currentTimeMillis(), name = state.projectName))
-    projectStateVar
+    persistedDiagramState
 
   /** Retrieves the persisted viewer settings.
     *
@@ -68,7 +68,7 @@ object ProjectStorage:
     */
   def loadViewerSettings(): Var[ViewerSettings] =
     // Initialize storage ~> ViewerSettings Var
-    val settingsVar =
+    val viewerSettings =
       try
         Var(read[ViewerSettings](settingsStorage.signal.observe.now()))
       catch
@@ -76,10 +76,9 @@ object ProjectStorage:
           dom.console.error(s"Error reading viewer settings: $e")
           Var(ViewerSettings.empty)
     // synchronize ViewerSettings Var ~> storage
-    settingsVar.signal.distinct.changes.foreach: settings =>
+    viewerSettings.signal.distinct.changes.foreach: settings =>
       settingsStorage.set(write(settings))
-    settingsVar
-  end loadViewerSettings
+    viewerSettings
 
   def createProjectDirectoryEntry(name: String): ProjectId =
     val now         = System.currentTimeMillis()
