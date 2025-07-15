@@ -26,17 +26,20 @@ object ProjectStorage:
   val directory: Signal[ProjectsDirectory] =
     directoryStorage.signal.map(read[ProjectsDirectory](_))
 
-  /** Retrieves the persisted state of a project identified by the given `ProjectId`.
+  /** Creates a reactive persistence layer for a project identified by the given `ProjectId`.
     *
-    * This function initializes the state from the local storage. It ensures that any changes to the state are persisted back to the local
-    * storage. It also updates the project's entry in the directory with the latest modification time and project name.
+    * This function initializes the state from local storage and sets up bidirectional synchronization
+    * between the returned Var and storage. Any changes to the Var are automatically persisted,
+    * and the project's directory entry is updated with the latest modification time and name.
     *
     * @param id
     *   The project's id.
+    * @param initialSource
+    *   Optional source to use if no persisted state exists.
     * @return
-    *   A `Var` containing the `PersistedState` of the project.
+    *   A reactive `Var` containing the `PersistedDiagramState` with automatic persistence.
     */
-  def loadProjectPersistedState(id: ProjectId, initialSource: Option[String]): Var[PersistedDiagramState] =
+  def createProjectPersistence(id: ProjectId, initialSource: Option[String]): Var[PersistedDiagramState] =
     val initialState   = PersistedDiagramState.minimal(initialSource)
     val projectStorage = storedString(projectKey(id), initial = write(initialState))
     // Initialize storage ~> PersistedDiagramState

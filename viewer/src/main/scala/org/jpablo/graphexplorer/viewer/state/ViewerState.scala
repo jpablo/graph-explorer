@@ -93,7 +93,7 @@ case class ViewerState(
       })
 
   // -------- storage ------------
-  restoreState()
+  initializePersistence()
 
   def nodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
     ids.flatMap(fullGraph.observe.now().getNode)

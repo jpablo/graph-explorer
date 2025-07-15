@@ -12,18 +12,18 @@ trait Persistence:
   this: ViewerState =>
 
   protected val persistedDiagramState: Var[PersistedDiagramState] =
-    ProjectStorage.loadProjectPersistedState(projectId, initialSource)
+    ProjectStorage.createProjectPersistence(projectId, initialSource)
 
   private val viewerSettings: Var[ViewerSettings] =
     ProjectStorage.loadViewerSettings()
 
-  def restoreState() =
+  /** Restores the persisted state values to the current ViewerState. */
+  private def restorePersistedState(): Unit =
     val restoredDiagramState   = persistedDiagramState.now()
     val restoredViewerSettings = viewerSettings.now()
 
     project.hiddenElements.set(restoredDiagramState.hiddenElements)
 
-    // Note: the stored source text is used already in InternalPhases
     Var.set(
       project.name -> restoredDiagramState.projectName,
       // app settings
@@ -33,6 +33,9 @@ trait Persistence:
       ),
       currentTheme -> restoredViewerSettings.currentTheme
     )
+
+  /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
+  private def setupStateSynchronization(): Unit =
     // synchronize ViewerState ~> PersistedState
     Signal
       .combine(project.hiddenElements.signal, project.name.signal, sourceText.signal)
@@ -53,12 +56,15 @@ trait Persistence:
             leftPanelVisible = leftVisible,
             rightPanelTabIndex = tabIndex.ordinal,
             currentTheme = theme,
-            schemaVersion = ViewerSettings.currentSchemaVersion // Always save with the current version
+            schemaVersion = ViewerSettings.currentSchemaVersion
           )
         )
       )
 
-  end restoreState
+  /** Initializes persistence by restoring state and setting up synchronization. */
+  def initializePersistence(): Unit =
+    restorePersistedState()
+    setupStateSynchronization()
 
 case class PersistedDiagramState(
     hiddenElements: HiddenElements = ElementIds(),
