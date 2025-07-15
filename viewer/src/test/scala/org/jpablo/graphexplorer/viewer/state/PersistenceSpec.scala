@@ -13,23 +13,28 @@ class PersistenceSpec extends FunSuite with TestHelpers:
   val minimalWithDirected =
     ViewerGraph.minimal.modify(_.elements.graphAttributes).using(_ + (AttributeId("directed") -> AttrValue("true")))
 
-  TestSetup.setupMockStorage()
+  override def munitFixtures = List(mockStorageFixture())
 
-  test("Sanity check"):
+  test("Sanity check") {
     withGraphviz { graphviz =>
 
       val viewerState = ViewerState(ProjectId("test"), graphviz)
       // sanity check
       assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
 
-//      viewerState.addNodeWithSmartConnection()
-//
-//      // After this the recently added node is selected, so
-//      assertEquals(viewerState.selection.size(), 1)
-//
-//      // ---- verify ---
-//      assertEquals(viewerState.allNodeIds().size, 1)
-//      assertEquals(viewerState.allArrowIds().size, 0)
+      dom.console.log(dom.window.localStorage.length)
 
-      assertEquals(1, 1)
+      viewerState.addNodeWithSmartConnection()
+
+      dom.console.log(dom.window.localStorage.key(0))
+      dom.console.log(dom.window.localStorage.key(1))
+
+      // After this the recently added node is selected, so
+      assertEquals(viewerState.selection.size(), 1)
+
+      // ---- verify ---
+      assertEquals(viewerState.allNodeIds().size, 1)
+      assertEquals(viewerState.allArrowIds().size, 0)
+
     }
+  }
