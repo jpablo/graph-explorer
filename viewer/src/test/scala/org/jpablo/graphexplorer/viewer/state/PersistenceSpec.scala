@@ -15,26 +15,38 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
-  test("Sanity check") {
+  def storedProjectKey(projectId: ProjectId): String =
+    s"[StoredString]graph-explorer.project.${projectId.value}"
+
+  test("Adding a node with smart connection should store the project in localStorage") {
     withGraphviz { graphviz =>
 
-      val viewerState = ViewerState(ProjectId("test"), graphviz)
+      val projectName = "my project"
+      val projectId   = ProjectId("test")
+      val viewerState = ViewerState(projectId, graphviz)
       // sanity check
       assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
 
-      dom.console.log(dom.window.localStorage.length)
+      assertEquals(dom.window.localStorage.length, 0)
 
+      viewerState.project.name.set(projectName)
       viewerState.addNodeWithSmartConnection()
 
-      dom.console.log(dom.window.localStorage.key(0))
-      dom.console.log(dom.window.localStorage.key(1))
+      assertEquals(
+        obtained = dom.window.localStorage.length,
+        expected = 2,
+        "Should have two items in localStorage: one for the project and one for the graph explorer version"
+      )
 
-      // After this the recently added node is selected, so
-      assertEquals(viewerState.selection.size(), 1)
+      val storedProjectStr = dom.window.localStorage.getItem(storedProjectKey(projectId))
+
+      assertEquals(
+        storedProjectStr,
+        s"""{"projectName":"$projectName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}"}"""
+      )
 
       // ---- verify ---
       assertEquals(viewerState.allNodeIds().size, 1)
       assertEquals(viewerState.allArrowIds().size, 0)
-
     }
   }
