@@ -4,21 +4,20 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Color, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{AttributeId, ElementIds}
+import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class ViewerStateSpec extends FunSuite with TestHelpers:
-  // Graphviz adds a default directed attribute
-  val minimalWithDirected =
-    ViewerGraph.minimal.modify(_.elements.graphAttributes).using(_ + (AttributeId("directed") -> AttrValue("true")))
+
+  override def munitFixtures = List(mockStorageFixture())
 
   test("addNodeWithSmartConnection should add a node to the graph"):
     withGraphviz { graphviz =>
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
       // sanity check
-      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), ViewerGraph.minimalWithDirected)
       assertEquals(viewerState.selection.size(), 0)
 
       viewerState.addNodeWithSmartConnection()
@@ -35,7 +34,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     withGraphviz { graphviz =>
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
       // Initial state check
-      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), ViewerGraph.minimalWithDirected)
 
       viewerState.addNodeWithSmartConnection()
       // new node added and is currently selected
@@ -52,7 +51,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
 
       // Initial state check
-      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), ViewerGraph.minimalWithDirected)
 
       viewerState.addNodeWithSmartConnection()
       // clear selection to add just a node
@@ -71,7 +70,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
 
       // Initial state check
-      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), ViewerGraph.minimalWithDirected)
 
       val graphUpdates = viewerState.defaultAttributesUpdates(AttributeTarget.graph)
 
@@ -120,7 +119,7 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
 
       // Initial state check
-      assertEquals(viewerState.fullGraphNow(), minimalWithDirected)
+      assertEquals(viewerState.fullGraphNow(), ViewerGraph.minimalWithDirected)
 
       // Add two nodes to the graph
       viewerState.addNodeWithSmartConnection()

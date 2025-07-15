@@ -12,6 +12,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class InternalPhasesSpec extends FunSuite with TestHelpers:
 
+  override def munitFixtures = List(mockStorageFixture())
+
   given Owner = unsafeWindowOwner
 
   test("Sanity check"):
