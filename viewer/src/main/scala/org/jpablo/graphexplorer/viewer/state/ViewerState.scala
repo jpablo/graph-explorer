@@ -49,7 +49,17 @@ case class ViewerState(
   editorError.signal.changes.filter(_.isDefined)
     .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
 
-  val phases = InternalPhases(graphviz, initialSource, project.hiddenElements.signal, resetView, autoFit.now, editorError)
+  // persisted source can be overridden by passing a non-empty initialSource
+  val source = initialSource.getOrElse(persistedDiagramState.now().source)
+
+  val phases = InternalPhases(
+    graphviz = graphviz,
+    initialSource = if source.isEmpty then None else Some(source),
+    hiddenNodes = project.hiddenElements.signal,
+    resetView = resetView,
+    autoFit = autoFit.now,
+    editorError = editorError
+  )
 
   val sourceText                  = phases.sourceText
   val fullGraph                   = phases.fullGraph

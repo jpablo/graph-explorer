@@ -55,7 +55,7 @@ class InternalPhases(
     editorError:   Var[Option[String]] = Var(None)
 )(using Owner):
 
-  val logLevel = Level.Info
+  val logLevel = Level.None
 
   // three types of Vars:
   // (a) updated outside InternalPhases (either by CodeMirror or the UI)

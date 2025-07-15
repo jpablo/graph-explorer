@@ -47,9 +47,9 @@ object ProjectStorage:
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e, defaulting to initial state")
           Var(initialState)
+
     // synchronize PersistedDiagramState ~> storage
     persistedDiagramState.signal.distinct.changes.foreach: state =>
-      pprint.log(state)
       // update project entry
       projectStorage.set(write(state))
       // update all directory fields
