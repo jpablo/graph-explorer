@@ -3,11 +3,11 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.ArrowPosition
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.ArrowPosition
 
 /** Creates a small disk placed near the endpoint of an edge. Diameter: 8px, Border: 1px
   *

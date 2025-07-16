@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{ArrowPositionParser, Point}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{ArrowPositionParser, Point}
 import upickle.default.*
 
 class SimpleGraphSpec extends FunSuite:

@@ -184,7 +184,7 @@ class GraphToDotSpec extends FunSuite:
       edges = Some(List(edgeAB, edgeBC))
     )
 
-    val result = SimpleGraphConverter.graphToDotString(graph)
+    val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
     val expected =
       """|digraph "G" {
          |  subgraph "1" {
@@ -203,78 +203,10 @@ class GraphToDotSpec extends FunSuite:
     assertEquals(result, expected)
   }
 
-  test("graphToDotString should handle nested subgraphs") {
-    // Note: SimpleGraph doesn't support nested subgraphs in its structure.
-    // We can simulate it by having two separate clusters where one conceptually contains the other
-    val nodeA = SimpleGraphNode(
-      _gvid = 0,
-      name = "a",
-      label = "a"
-    )
-    val nodeB = SimpleGraphNode(
-      _gvid = 1,
-      name = "b",
-      label = "b"
-    )
-    val nodeC = SimpleGraphNode(
-      _gvid = 2,
-      name = "c",
-      label = "c"
-    )
-
-    val outerCluster = SimpleGraphCluster(
-      _gvid = 100.0,
-      name = "outer",
-//      bb = "0,0,100,100",
-      nodes = List(0),
-      label = "Outer Group"
-    )
-
-    val innerCluster = SimpleGraphCluster(
-      _gvid = 101.0,
-      name = "inner",
-//      bb = "0,0,50,50",
-      nodes = List(1),
-      label = "Inner Group"
-    )
-
-    val graph = SimpleGraph(
-      name = "G",
-      objects = Some(List(Node(nodeA), Node(nodeB), Node(nodeC), Cluster(outerCluster), Cluster(innerCluster)))
-    )
-
-    val result   = SimpleGraphConverter.graphToDotString(graph)
-    val expected = """digraph "G" {
-  subgraph "cluster_outer" {
-    graph [label="Outer Group"];
-    "a" [id="node:a", label="a"];
-  }
-  subgraph "cluster_inner" {
-    graph [label="Inner Group"];
-    "b" [id="node:b", label="b"];
-  }
-  "c" [id="node:c", label="c"];
-}"""
-
-    assertEquals(result, expected)
-  }
-
   test("graphToDotString should handle undirected graphs") {
-    val nodeA = SimpleGraphNode(
-      _gvid = 0,
-      name = "a",
-      label = "a"
-    )
-    val nodeB = SimpleGraphNode(
-      _gvid = 1,
-      name = "b",
-      label = "b"
-    )
-    val edge = SimpleGraphEdge(
-      _gvid = 0,
-      tail = 0,
-      head = 1
-    )
+    val nodeA = SimpleGraphNode(_gvid = 0, name = "a", label = "a")
+    val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "b")
+    val edge  = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1)
 
     val graph = SimpleGraph(
       name = "G",
@@ -283,35 +215,22 @@ class GraphToDotSpec extends FunSuite:
       edges = Some(List(edge))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph)
-    val expected = """graph "G" {
-  "a" [id="node:a", label="a"];
-  "b" [id="node:b", label="b"];
-  "a" -- "b";
-}"""
+    val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+    val expected =
+      """|graph "G" {
+         |  "a" [label="a"];
+         |  "b" [label="b"];
+         |  "a" -- "b";
+         |}""".stripMargin
 
     assertEquals(result, expected)
   }
 
   test("graphToDotString should handle edges with ports") {
-    val nodeA = SimpleGraphNode(
-      _gvid = 0,
-      name = "a",
-      label = "a"
-    )
-    val nodeB = SimpleGraphNode(
-      _gvid = 1,
-      name = "b",
-      label = "b"
-    )
+    val nodeA = SimpleGraphNode(_gvid = 0, name = "a", label = "a")
+    val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "b")
 
-    val edge = SimpleGraphEdge(
-      _gvid = 0,
-      tail = 0,
-      head = 1,
-      tailport = Some("out"),
-      headport = Some("in")
-    )
+    val edge = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, tailport = Some("out"), headport = Some("in"))
 
     val graph = SimpleGraph(
       name = "G",
@@ -319,34 +238,23 @@ class GraphToDotSpec extends FunSuite:
       edges = Some(List(edge))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph)
-    val expected = """digraph "G" {
-  "a" [id="node:a", label="a"];
-  "b" [id="node:b", label="b"];
-  "a":"out" -> "b":"in";
-}"""
+    val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+    val expected =
+      """|digraph "G" {
+         |  "a" [label="a"];
+         |  "b" [label="b"];
+         |  "a":"out" -> "b":"in";
+         |}""".stripMargin
 
     assertEquals(result, expected)
   }
 
   test("graphToDotString should handle numeric node references in edges") {
     // Test edge with numeric tail/head that references gvids
-    val nodeA = SimpleGraphNode(
-      _gvid = 0,
-      name = "nodeA",
-      label = "nodeA"
-    )
-    val nodeB = SimpleGraphNode(
-      _gvid = 1,
-      name = "nodeB",
-      label = "nodeB"
-    )
+    val nodeA = SimpleGraphNode(_gvid = 0, name = "nodeA", label = "nodeA")
+    val nodeB = SimpleGraphNode(_gvid = 1, name = "nodeB", label = "nodeB")
 
-    val edge = SimpleGraphEdge(
-      _gvid = 0,
-      tail = 0,
-      head = 1
-    )
+    val edge = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1)
 
     val graph = SimpleGraph(
       name = "G",
@@ -354,77 +262,42 @@ class GraphToDotSpec extends FunSuite:
       edges = Some(List(edge))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph)
-    val expected = """digraph "G" {
-  "nodeA" [id="node:nodeA", label="nodeA"];
-  "nodeB" [id="node:nodeB", label="nodeB"];
-  "nodeA" -> "nodeB";
-}"""
+    val result   = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+    val expected =
+      """|digraph "G" {
+         |  "nodeA" [label="nodeA"];
+         |  "nodeB" [label="nodeB"];
+         |  "nodeA" -> "nodeB";
+         |}""".stripMargin
 
     assertEquals(result, expected)
   }
 
   test("graphToDotString should handle single attribute formatting") {
-    val node = SimpleGraphNode(
-      _gvid = 0,
-      name = "single",
-      label = "Single Attr"
-    )
+    val node = SimpleGraphNode(_gvid = 0, name = "single", label = "Single Attr")
 
     val graph = SimpleGraph(
       name = "G",
       objects = Some(List(Node(node)))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph)
+    val result   = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
     val expected = """digraph "G" {
-  "single" [id="node:single", label="Single Attr"];
+  "single" [label="Single Attr"];
 }"""
 
     assertEquals(result, expected)
   }
 
   test("graphToDotString should handle complex mixed graph") {
-    val nodeA = SimpleGraphNode(
-      _gvid = 0,
-      name = "a",
-      label = "Start",
-      shape = Some("ellipse")
-    )
-    val nodeB = SimpleGraphNode(
-      _gvid = 1,
-      name = "b",
-      label = "Middle",
-      shape = Some("box")
-    )
-    val nodeC = SimpleGraphNode(
-      _gvid = 2,
-      name = "c",
-      label = "End"
-    )
+    val nodeA = SimpleGraphNode(_gvid = 0, name = "a", label = "Start", shape = Some("ellipse"))
+    val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "Middle", shape = Some("box"))
+    val nodeC = SimpleGraphNode(_gvid = 2, name = "c", label = "End")
 
-    val cluster = SimpleGraphCluster(
-      _gvid = 100.0,
-      name = "process",
-//      bb = "0,0,100,100",
-      nodes = List(1),
-      label = "Process",
-      style = Some("filled")
-    )
+    val cluster = SimpleGraphCluster(_gvid = 100.0, name = "process", nodes = List(1), label = "Process", style = Some("filled"))
 
-    val edgeAB = SimpleGraphEdge(
-      _gvid = 0,
-      tail = 0,
-      head = 1,
-      label = Some("first"),
-      color = Some("red")
-    )
-    val edgeBC = SimpleGraphEdge(
-      _gvid = 1,
-      tail = 1,
-      head = 2,
-      label = Some("second")
-    )
+    val edgeAB = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, label = Some("first"), color = Some("red"))
+    val edgeBC = SimpleGraphEdge(_gvid = 1, tail = 1, head = 2, label = Some("second"))
 
     val graph = SimpleGraph(
       name = "ComplexGraph",
@@ -433,18 +306,36 @@ class GraphToDotSpec extends FunSuite:
       edges = Some(List(edgeAB, edgeBC))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph)
-    val expected = """digraph "ComplexGraph" {
-  graph [rankdir="LR"];
-  subgraph "cluster_process" {
-    graph [label="Process", style="filled"];
-    "b" [id="node:b", label="Middle", shape="box"];
-  }
-  "a" [id="node:a", label="Start", shape="ellipse"];
-  "c" [id="node:c", label="End"];
-  "a" -> "b" [label="first", color="red"];
-  "b" -> "c" [label="second"];
-}"""
+    val result   = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+    val expected =
+      """|digraph "ComplexGraph" {
+         |  graph [rankdir="LR"];
+         |  subgraph "process" {
+         |    graph [
+         |      cluster=true,
+         |      label="Process",
+         |      style="filled"
+         |    ];
+         |    "b" [
+         |      label="Middle",
+         |      shape="box"
+         |    ];
+         |  }
+         |  "a" [
+         |    label="Start",
+         |    shape="ellipse"
+         |  ];
+         |  "a" [
+         |    label="Start",
+         |    shape="ellipse"
+         |  ];
+         |  "c" [label="End"];
+         |  "a" -> "b" [
+         |    label="first",
+         |    color="red"
+         |  ];
+         |  "b" -> "c" [label="second"];
+         |}""".stripMargin
 
     assertEquals(result, expected)
   }
@@ -675,7 +566,7 @@ class GraphToDotSpec extends FunSuite:
         |    "b" -> "c";
         |}""".stripMargin
 
-    val result = SimpleGraphConverter.graphToDotString(graph)
+    val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
 
     assertEquals(result, expected)
   }

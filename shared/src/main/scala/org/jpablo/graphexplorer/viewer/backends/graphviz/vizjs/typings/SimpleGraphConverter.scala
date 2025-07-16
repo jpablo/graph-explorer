@@ -1,13 +1,12 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
 
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{ArrowPosition, ArrowPositionParser}
-
-import scala.collection.mutable
-import scala.collection.immutable.VectorMap
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
-import org.jpablo.graphexplorer.viewer.models.{Attributes as ViewerAttributes, *}
-import org.jpablo.graphexplorer.viewer.models.ViewerGroup.defaultGroupAttributes
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
+import org.jpablo.graphexplorer.viewer.models.ViewerGroup.defaultGroupAttributes
+import org.jpablo.graphexplorer.viewer.models.{Attributes as ViewerAttributes, *}
+
+import scala.collection.immutable.VectorMap
+import scala.collection.mutable
 
 object SimpleGraphConverter:
 
@@ -701,12 +700,13 @@ object SimpleGraphConverter:
       else s""""$value""""
 
     // Helper to collect attributes from case class
-    def collectNodeAttributes(node: SimpleGraphNode, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
+    def collectNodeAttributes(node: SimpleGraphNode, excludeKeys: Set[String] = Set.empty, insideCluster: Boolean = false): List[(String, String)] =
       val attrs = mutable.ListBuffer[(String, String)]()
       val internalAttrs = if (omitInternal) Set("id", "pos", "height", "width") else Set.empty[String]
       val allExcludeKeys = excludeKeys ++ internalAttrs
       
-      if (!allExcludeKeys.contains("id")) attrs += "id" -> s"node:${node.name}"  // Add the semantic node ID
+      // Only add id for nodes that are not inside clusters
+      if (!allExcludeKeys.contains("id") && !insideCluster) attrs += "id" -> s"node:${node.name}"
       if (!allExcludeKeys.contains("label")) attrs += "label" -> node.label
       node.pos.foreach(v => if (!allExcludeKeys.contains("pos")) attrs += "pos" -> v)
       node.height.foreach(v => if (!allExcludeKeys.contains("height")) attrs += "height" -> v)
@@ -741,7 +741,8 @@ object SimpleGraphConverter:
 
     def collectClusterAttributes(cluster: SimpleGraphCluster, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
       val attrs = mutable.ListBuffer[(String, String)]()
-      if (!excludeKeys.contains("label")) attrs += "label" -> cluster.label
+      // Only add label if it's different from the cluster name
+      if (!excludeKeys.contains("label") && cluster.label != cluster.name) attrs += "label" -> cluster.label
       cluster.fontname.foreach(v => if (!excludeKeys.contains("fontname")) attrs += "fontname" -> v)
       cluster.color.foreach(v => if (!excludeKeys.contains("color")) attrs += "color" -> v)
       cluster.bgcolor.foreach(v => if (!excludeKeys.contains("bgcolor")) attrs += "bgcolor" -> v)
@@ -755,7 +756,10 @@ object SimpleGraphConverter:
       cluster.normalize.foreach(v => if (!excludeKeys.contains("normalize")) attrs += "normalize" -> v)
       cluster.start.foreach(v => if (!excludeKeys.contains("start")) attrs += "start" -> v)
       cluster.overlap.foreach(v => if (!excludeKeys.contains("overlap")) attrs += "overlap" -> v)
-      cluster.cluster.foreach(v => if (!excludeKeys.contains("cluster")) attrs += "cluster" -> v)
+      // Add cluster attribute - use provided value or default to "true"
+      if (!excludeKeys.contains("cluster")) {
+        attrs += "cluster" -> cluster.cluster.getOrElse("true")
+      }
       cluster.rankdir.foreach(v => if (!excludeKeys.contains("rankdir")) attrs += "rankdir" -> v)
       cluster.splines.foreach(v => if (!excludeKeys.contains("splines")) attrs += "splines" -> v)
       cluster.target.foreach(v => if (!excludeKeys.contains("target")) attrs += "target" -> v)
@@ -909,13 +913,14 @@ object SimpleGraphConverter:
       if (processedClusters.contains(cluster._gvid)) return
       processedClusters += cluster._gvid
       
-      // For complex graphs, don't add "cluster_" prefix
-      val subgraphName = if (hasNestedSubgraphs) cluster.name else s"cluster_${cluster.name}"
+      // Use cluster name as-is without any prefix
+      val subgraphName = cluster.name
       lines += s"""${padding(level)}subgraph "$subgraphName" {"""
 
       val clusterAttrs = collectClusterAttributes(cluster)
       if (clusterAttrs.nonEmpty) {
-        val attrFormatting = if (hasNestedSubgraphs) 
+        // Use multi-line formatting for clusters with multiple attributes or nested subgraphs
+        val attrFormatting = if (hasNestedSubgraphs || clusterAttrs.length > 1) 
           formatAttributesMultiLine(clusterAttrs, level + 1, false)
         else 
           formatAttributes(clusterAttrs)
@@ -954,7 +959,7 @@ object SimpleGraphConverter:
           graph.objects.flatMap(_.collectFirst {
             case SimpleGraphObject.Node(node) if node._gvid == nodeGvid => node
           }).foreach { node =>
-            val nodeAttrs = collectNodeAttributes(node)
+            val nodeAttrs = collectNodeAttributes(node, insideCluster = true)
             val hasMultiLineHtmlLabel = isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
             val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels) 
               formatAttributesMultiLine(nodeAttrs, level + 1, hasComplexHtmlLabels)

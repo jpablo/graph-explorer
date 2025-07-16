@@ -1,8 +1,8 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz
 
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{SimpleGraph, SimpleGraphConverter}
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{ArrowPosition, Viz, VizJS}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{SimpleGraph, SimpleGraphConverter, ArrowPosition}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{Viz, VizJS}
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import upickle.default.*
