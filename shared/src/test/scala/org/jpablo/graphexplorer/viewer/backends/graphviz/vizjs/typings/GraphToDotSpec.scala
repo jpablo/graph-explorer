@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.*
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphObject.{Cluster, Node}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import upickle.default.*
+
 import scala.collection.immutable.VectorMap
 
 class GraphToDotSpec extends FunSuite:

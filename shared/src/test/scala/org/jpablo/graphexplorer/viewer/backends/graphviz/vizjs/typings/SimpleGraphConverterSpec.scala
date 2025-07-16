@@ -2,8 +2,8 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
 
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{SimpleGraph, SimpleGraphConverter}
-import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
+import org.jpablo.graphexplorer.viewer.models.*
 import upickle.default.*
 
 class SimpleGraphConverterSpec extends FunSuite:
