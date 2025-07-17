@@ -291,31 +291,38 @@ class SimpleGraphConverterSpec extends FunSuite:
     import scala.collection.immutable.VectorMap
 
     // Create a graph with a group/cluster
-    val nodeA = NodeId("a")
-    val groupId = GroupId("cluster_0")
-    
+    val nodeA   = NodeId("a")
+    val groupId = GroupId("first_group")
+
     val elements = ViewerGraphElements(
       nodes = VectorMap(
-        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes(VectorMap(
-          AttributeId("label") -> AttrValue("a"),
-          AttributeId("pos") -> AttrValue("43,58.8"),
-          AttributeId("height") -> AttrValue("0.5"),
-          AttributeId("width") -> AttrValue("0.75")
-        )))
+        nodeA -> ViewerNode.nodeNoDefaults(
+          nodeA,
+          Attributes(VectorMap(
+            AttributeId("label")  -> AttrValue("a"),
+            AttributeId("pos")    -> AttrValue("43,58.8"),
+            AttributeId("height") -> AttrValue("0.5"),
+            AttributeId("width")  -> AttrValue("0.75")
+          ))
+        )
       ),
       arrows = Map.empty,
       memberships = VectorMap(nodeA -> groupId),
       groups = Map(
-        groupId -> ViewerGroup.group(groupId, Attributes(VectorMap(
-          AttributeId("label") -> AttrValue("A title"),
-          AttributeId("lheight") -> AttrValue("0.23"),
-          AttributeId("lp") -> AttrValue("43,97.2"),
-          AttributeId("lwidth") -> AttrValue("0.49"),
-          AttributeId("cluster") -> AttrValue("true")
-        )))
+        groupId -> ViewerGroup.group(
+          groupId,
+          Attributes(VectorMap(
+            AttributeId("label")   -> AttrValue("A title"),
+            AttributeId("lheight") -> AttrValue("0.23"),
+            AttributeId("lp")      -> AttrValue("43,97.2"),
+            AttributeId("lwidth")  -> AttrValue("0.49"),
+            AttributeId("cluster") -> AttrValue("true")
+          ))
+        )
       ),
       graphAttributes = Attributes(VectorMap(
-        AttributeId("label") -> AttrValue("A title")
+        AttributeId("label")   -> AttrValue("A title"),
+        AttributeId("rankdir") -> AttrValue("LR")
       )),
       defaultNodeAttributes = Attributes.empty,
       defaultArrowAttributes = Attributes.empty,
@@ -325,10 +332,30 @@ class SimpleGraphConverterSpec extends FunSuite:
     // Convert to DOT string
     val dotString = SimpleGraphConverter.viewerGraphElementsToDotString(elements)
 
-    // Verify that the subgraph includes the group ID
-    assert(dotString.contains("""id="group:cluster_0""""), s"DOT should contain group ID 'group:cluster_0', but got:\n$dotString")
-    
-    // Verify the overall structure
-    assert(dotString.contains("""subgraph "cluster_0""""), "DOT should contain subgraph cluster_0")
-    assert(dotString.contains(""""a""""), "DOT should contain node a")
+    val expected =
+      """|digraph "G" {
+         |  graph [
+         |    label="A title",
+         |    rankdir="LR"
+         |  ];
+         |  subgraph "first_group" {
+         |    graph [
+         |      id="group:first_group",
+         |      label="A title",
+         |      lheight="0.23",
+         |      lp="43,97.2",
+         |      lwidth="0.49",
+         |      cluster="true"
+         |    ];
+         |    "a" [
+         |      id="node:a",
+         |      label="a",
+         |      pos="43,58.8",
+         |      height="0.5",
+         |      width="0.75"
+         |    ];
+         |  }
+         |}""".stripMargin
+
+    assertNoDiff(dotString, expected)
   }
