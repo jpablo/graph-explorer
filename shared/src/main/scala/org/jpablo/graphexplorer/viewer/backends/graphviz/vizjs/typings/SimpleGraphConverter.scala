@@ -741,6 +741,11 @@ object SimpleGraphConverter:
 
     def collectClusterAttributes(cluster: SimpleGraphCluster, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
       val attrs = mutable.ListBuffer[(String, String)]()
+      val internalAttrs = if (omitInternal) Set("id") else Set.empty[String]
+      val allExcludeKeys = excludeKeys ++ internalAttrs
+      
+      // Add id attribute unless excluded by omitInternal setting
+      if (!allExcludeKeys.contains("id")) attrs += "id" -> s"group:${cluster.name}"
       
       // Only add label if it's different from the cluster name
       if (!excludeKeys.contains("label") && cluster.label != cluster.name) attrs += "label" -> cluster.label

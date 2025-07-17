@@ -4,6 +4,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{SimpleGraph, SimpleGraphConverter}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import upickle.default.*
 
 class SimpleGraphConverterSpec extends FunSuite:
@@ -284,4 +285,50 @@ class SimpleGraphConverterSpec extends FunSuite:
 
     // Verify the overall structure
     assert(dotString.contains(""""a" -> "b""""), "DOT should contain edge from a to b")
+  }
+
+  test("SimpleGraphConverter should include group IDs in DOT output") {
+    import scala.collection.immutable.VectorMap
+
+    // Create a graph with a group/cluster
+    val nodeA = NodeId("a")
+    val groupId = GroupId("cluster_0")
+    
+    val elements = ViewerGraphElements(
+      nodes = VectorMap(
+        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes(VectorMap(
+          AttributeId("label") -> AttrValue("a"),
+          AttributeId("pos") -> AttrValue("43,58.8"),
+          AttributeId("height") -> AttrValue("0.5"),
+          AttributeId("width") -> AttrValue("0.75")
+        )))
+      ),
+      arrows = Map.empty,
+      memberships = VectorMap(nodeA -> groupId),
+      groups = Map(
+        groupId -> ViewerGroup.group(groupId, Attributes(VectorMap(
+          AttributeId("label") -> AttrValue("A title"),
+          AttributeId("lheight") -> AttrValue("0.23"),
+          AttributeId("lp") -> AttrValue("43,97.2"),
+          AttributeId("lwidth") -> AttrValue("0.49"),
+          AttributeId("cluster") -> AttrValue("true")
+        )))
+      ),
+      graphAttributes = Attributes(VectorMap(
+        AttributeId("label") -> AttrValue("A title")
+      )),
+      defaultNodeAttributes = Attributes.empty,
+      defaultArrowAttributes = Attributes.empty,
+      defaultGroupAttributes = Attributes.empty
+    )
+
+    // Convert to DOT string
+    val dotString = SimpleGraphConverter.viewerGraphElementsToDotString(elements)
+
+    // Verify that the subgraph includes the group ID
+    assert(dotString.contains("""id="group:cluster_0""""), s"DOT should contain group ID 'group:cluster_0', but got:\n$dotString")
+    
+    // Verify the overall structure
+    assert(dotString.contains("""subgraph "cluster_0""""), "DOT should contain subgraph cluster_0")
+    assert(dotString.contains(""""a""""), "DOT should contain node a")
   }
