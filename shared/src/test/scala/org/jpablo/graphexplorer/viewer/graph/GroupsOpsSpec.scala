@@ -120,12 +120,15 @@ class GroupsOpsSpec extends FunSuite:
     // Ungroup selection
     val updatedGraph = graphWithNestedGroup.ungroupSelection(ElementIds.from(a, b))
 
-    // Verify nodes were moved to parent group
+    // Verify nodes were moved to parent group and empty nested group was removed
     assertEquals(
       updatedGraph.memberships,
-      Map[GroupMemberId, GroupId](a -> parentGroupId, b -> parentGroupId, c -> parentGroupId, nestedGroupId -> parentGroupId),
-      "Nodes a, b should be moved to parent group"
+      Map[GroupMemberId, GroupId](a -> parentGroupId, b -> parentGroupId, c -> parentGroupId),
+      "Nodes a, b should be moved to parent group and empty nested group should be removed"
     )
+    
+    // Verify the empty nested group was removed
+    assert(!updatedGraph.groups.contains(nestedGroupId), "Empty nested group should be automatically removed")
   }
 
   test("getDirectChildren should return direct children of a group") {
@@ -177,4 +180,168 @@ class GroupsOpsSpec extends FunSuite:
 
     // Verify all children
     assertEquals(allChildren, Set(a, b, c, nestedGroupId))
+  }
+
+  test("getEmptyGroups should identify groups with no children") {
+    // Create a graph with nodes
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    
+    // Create a group with nodes
+    val graphWithGroup = graph.moveToNewGroup("Group with nodes", a, b)
+    val groupWithNodes = graphWithGroup.membership(a).get
+    
+    // Manually create an empty group
+    val emptyGroupId = GroupId("empty_group")
+    val emptyGroup = group(emptyGroupId, Attributes.of(Label -> "Empty Group"))
+    val graphWithEmptyGroup = graphWithGroup.modifyElements.using(_.copy(
+      groups = graphWithGroup.groups + (emptyGroupId -> emptyGroup)
+    ))
+    
+    // Test getEmptyGroups
+    val emptyGroups = graphWithEmptyGroup.getEmptyGroups()
+    
+    assertEquals(emptyGroups, Set(emptyGroupId), "Only the empty group should be identified as empty")
+    assert(!emptyGroups.contains(groupWithNodes), "Group with nodes should not be considered empty")
+  }
+
+  test("removeEmptyGroups should remove groups with no children") {
+    // Create a graph with nodes
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    
+    // Create a group with nodes
+    val graphWithGroup = graph.moveToNewGroup("Group with nodes", a, b)
+    val groupWithNodes = graphWithGroup.membership(a).get
+    
+    // Manually create an empty group
+    val emptyGroupId = GroupId("empty_group")
+    val emptyGroup = group(emptyGroupId, Attributes.of(Label -> "Empty Group"))
+    val graphWithEmptyGroup = graphWithGroup.modifyElements.using(_.copy(
+      groups = graphWithGroup.groups + (emptyGroupId -> emptyGroup)
+    ))
+    
+    // Remove empty groups
+    val cleanedGraph = graphWithEmptyGroup.removeEmptyGroups()
+    
+    // Verify empty group was removed
+    assert(!cleanedGraph.groups.contains(emptyGroupId), "Empty group should be removed")
+    assert(cleanedGraph.groups.contains(groupWithNodes), "Group with nodes should remain")
+    assertEquals(cleanedGraph.memberships, graphWithGroup.memberships, "Memberships should remain unchanged")
+  }
+
+  test("removeEmptyGroups should recursively remove empty groups") {
+    // Create a graph with nodes
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a))))
+    
+    // Create a nested structure: parent -> child -> node a
+    val graphWithChild = graph.moveToNewGroup("Child Group", a)
+    val childGroupId = graphWithChild.membership(a).get
+    
+    val graphWithParent = graphWithChild.moveToNewGroup("Parent Group", childGroupId)
+    val parentGroupId = graphWithParent.membership(childGroupId).get
+    
+    // Verify initial structure
+    assertEquals(graphWithParent.memberships, Map[GroupMemberId, GroupId](
+      a -> childGroupId,
+      childGroupId -> parentGroupId
+    ))
+    
+    // Remove node a, which should make child group empty, which should then make parent group empty
+    val graphAfterRemoval = graphWithParent.removeElements(ElementIds.from(a))
+    
+    // Verify both empty groups were removed
+    assert(!graphAfterRemoval.groups.contains(childGroupId), "Child group should be removed after node removal")
+    assert(!graphAfterRemoval.groups.contains(parentGroupId), "Parent group should be removed after child group removal")
+    assertEquals(graphAfterRemoval.memberships, Map.empty[GroupMemberId, GroupId], "All memberships should be removed")
+  }
+
+  test("removeElements should automatically clean up empty groups") {
+    // Create a graph with a group containing one node
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b))))
+    val graphWithGroup = graph.moveToNewGroup("Single Node Group", a)
+    val groupId = graphWithGroup.membership(a).get
+    
+    // Verify initial state
+    assert(graphWithGroup.groups.contains(groupId), "Group should exist initially")
+    assertEquals(graphWithGroup.memberships(a), groupId, "Node should be in the group")
+    
+    // Remove the node
+    val updatedGraph = graphWithGroup.removeElements(ElementIds.from(a))
+    
+    // Verify the group was automatically removed
+    assert(!updatedGraph.groups.contains(groupId), "Empty group should be automatically removed")
+    assert(!updatedGraph.nodes.contains(a), "Node should be removed")
+    assert(!updatedGraph.memberships.contains(a), "Node membership should be removed")
+    assertEquals(updatedGraph.nodes, Map(b -> nodeWithId(b)._2), "Other nodes should remain")
+  }
+
+  test("ungroupSelection should automatically clean up empty groups") {
+    // Create a nested group structure where ungrouping will leave a group empty
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b))))
+    
+    // Create parent group with both nodes
+    val graphWithParent = graph.moveToNewGroup("Parent Group", a, b)
+    val parentGroupId = graphWithParent.membership(a).get
+    
+    // Create child group with only node a
+    val graphWithChild = graphWithParent.moveToNewGroup("Child Group", a)
+    val childGroupId = graphWithChild.membership(a).get
+    
+    // Verify initial state
+    assertEquals(graphWithChild.memberships, Map[GroupMemberId, GroupId](
+      a -> childGroupId,
+      b -> parentGroupId,
+      childGroupId -> parentGroupId
+    ))
+    
+    // Ungroup node a, which should leave child group empty
+    val updatedGraph = graphWithChild.ungroupSelection(ElementIds.from(a))
+    
+    // Verify the empty child group was automatically removed
+    assert(!updatedGraph.groups.contains(childGroupId), "Empty child group should be automatically removed")
+    assertEquals(updatedGraph.memberships, Map[GroupMemberId, GroupId](
+      a -> parentGroupId,
+      b -> parentGroupId
+    ), "Node a should be moved to parent group and child group should be removed")
+  }
+
+  test("moveToNewGroup should create nested structure when moving nodes within a group") {
+    // Create a group with one node, then move that node to a new group
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b))))
+    val graphWithGroup = graph.moveToNewGroup("Original Group", a)
+    val originalGroupId = graphWithGroup.membership(a).get
+    
+    // Move node to a new group, which should create a nested structure
+    val updatedGraph = graphWithGroup.moveToNewGroup("New Group", a)
+    val newGroupId = updatedGraph.membership(a).get
+    
+    // Verify the new group is nested within the original group
+    assertEquals(updatedGraph.memberships(newGroupId), originalGroupId, "New group should be nested in original group")
+    assertEquals(updatedGraph.memberships(a), newGroupId, "Node should be in the new group")
+    
+    // Verify original group now contains the new group instead of the node
+    assertEquals(updatedGraph.getDirectChildren(Set(originalGroupId)), Set[GroupMemberId](newGroupId), "Original group should contain the new group")
+  }
+
+  test("moveToNewGroup should clean up empty groups when moving all nodes from different groups") {
+    // Create two separate groups with one node each
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graphWithGroupA = graph.moveToNewGroup("Group A", a)
+    val groupAId = graphWithGroupA.membership(a).get
+    
+    val graphWithGroupB = graphWithGroupA.moveToNewGroup("Group B", b) 
+    val groupBId = graphWithGroupB.membership(b).get
+    
+    // Move both nodes to a new group at root level, which should leave original groups empty
+    val updatedGraph = graphWithGroupB.moveToNewGroup("Combined Group", a, b)
+    val combinedGroupId = updatedGraph.membership(a).get
+    
+    // Verify original groups were removed since they became empty
+    assert(!updatedGraph.groups.contains(groupAId), "Group A should be removed after moving its only node")
+    assert(!updatedGraph.groups.contains(groupBId), "Group B should be removed after moving its only node") 
+    
+    // Verify new group exists at root level and contains both nodes
+    assert(updatedGraph.groups.contains(combinedGroupId), "Combined group should exist")
+    assertEquals(updatedGraph.membership(combinedGroupId), None, "Combined group should be at root level")
+    assertEquals(updatedGraph.memberships(a), combinedGroupId, "Node a should be in combined group")
+    assertEquals(updatedGraph.memberships(b), combinedGroupId, "Node b should be in combined group")
   }

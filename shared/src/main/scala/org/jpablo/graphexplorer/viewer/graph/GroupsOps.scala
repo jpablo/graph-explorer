@@ -45,13 +45,16 @@ trait GroupsOps:
         else None // No single common parent (or elements had no parents)
 
       val updated = memberships ++ memberIds.map(_ -> groupId)
-      modifyElements.using(
+      val graphWithNewGroup = modifyElements.using(
         _.copy(
           groups = groups + (groupId -> newGroup),
           // Add the new group to the common parent if it's not the root
           memberships = commonParentId.fold(updated)(pId => updated + (groupId -> pId))
         )
       )
+      
+      // Clean up any empty groups that may have resulted from moving elements
+      graphWithNewGroup.removeEmptyGroups()
 
   def ungroupSelection(elementIds: ElementIds): ViewerGraph =
     // For each id, find its current group (parent) and that group's parent (grandparent)
@@ -64,7 +67,11 @@ trait GroupsOps:
           membership(parent).fold(acc - element): grandParent =>
             // Remove current membership and add to grandparent if not root
             acc + (element -> grandParent)
-    modifyMemberships.setTo(newMemberships)
+    
+    val graphWithUpdatedMemberships = modifyMemberships.setTo(newMemberships)
+    
+    // Clean up any empty groups that may have resulted from the ungrouping
+    graphWithUpdatedMemberships.removeEmptyGroups()
 
   def getDirectChildren(groupIds: Set[GroupId]): Set[GroupMemberId] =
     memberships.collect { case (memId, gId) if gId in groupIds => memId }.toSet
@@ -95,3 +102,34 @@ trait GroupsOps:
       else
         // Recursive case: combine direct children with all children of child groups
         directChildren ++ getAllChildren(childGroups)
+
+  /** Returns all groups that have no children (neither nodes nor subgroups).
+    * Note: Root-level elements (those without any parent group) are not considered as having a parent,
+    * so groups are only considered empty if they exist but have no direct children.
+    *
+    * @return A set of GroupIds that are empty
+    */
+  def getEmptyGroups(): Set[GroupId] =
+    groups.keySet.filter(groupId => getDirectChildren(Set(groupId)).isEmpty)
+
+  /** Recursively removes all empty groups and their memberships.
+    * This method will keep removing empty groups until no more empty groups remain,
+    * as removing a group might make its parent group empty.
+    *
+    * @return Updated ViewerGraph with all empty groups removed
+    */
+  def removeEmptyGroups(): ViewerGraph =
+    val emptyGroups = getEmptyGroups()
+    if emptyGroups.isEmpty then
+      this
+    else
+      // Remove empty groups and their memberships, then recurse
+      val updatedMemberships = memberships.filterNot((elementId, _) => 
+        elementId.asGroupId.exists(_ in emptyGroups)
+      )
+      val updatedGraph = modifyElements.using(_.copy(
+        groups = groups -- emptyGroups,
+        memberships = updatedMemberships
+      ))
+      // Recurse in case removing groups made other groups empty
+      updatedGraph.removeEmptyGroups()

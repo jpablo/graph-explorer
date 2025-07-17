@@ -105,12 +105,15 @@ case class ViewerGraph(
       (arrowId in arrowIdsToRemove) || (arrow.source in nodeIdsToRemove) || (arrow.target in nodeIdsToRemove)
     }
 
-    modifyElements.using(_.copy(
+    val graphWithRemovedElements = modifyElements.using(_.copy(
       nodes = nodes -- nodeIdsToRemove,
       arrows = updatedArrows,
       memberships = updatedMemberships,
       groups = groups -- groupIdsToRemove
     ))
+
+    // Clean up any empty groups that may have resulted from the removal
+    graphWithRemovedElements.removeEmptyGroups()
 
   private def maxArrowSequence(source: NodeId, target: NodeId): Int =
     val seqs = arrows.values
