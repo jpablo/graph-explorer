@@ -10,15 +10,39 @@ import scala.collection.immutable.VectorMap
 
 class GroupsOpsSpec extends FunSuite:
 
-  val rootId = ViewerGraphElements.defaultRootId
+  val rootId    = ViewerGraphElements.defaultRootId
   val rootGroup = group(rootId)
 
-  val g = rootId
+  val g            = rootId
   val initialGroup = groupWithId(g)
 
   val a = NodeId("a")
   val b = NodeId("b")
   val c = NodeId("c")
+
+  test("moveToNewGroup (without name) should create a new group with elements") {
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    // sanity check
+    assert(graph.groups == Map.empty)
+    assert(graph.memberships.isEmpty)
+
+    // Move elements to a new group with a label
+    val updatedGraph = graph.moveToNewGroup(ElementIds.from(a))
+
+    val newGroupId = updatedGraph.membership(a).get
+    val newGroup =
+      newGroupId -> group(newGroupId, Attributes.of(Label -> ""))
+
+    val expected =
+      ViewerGraph.minimal.modifyElements.using(
+        _.copy(
+          nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
+          memberships = VectorMap(a -> newGroupId),
+          groups = Map(newGroup)
+        )
+      )
+    assertEquals(updatedGraph, expected, "The graph should be updated with the new group and memberships")
+  }
 
   test("moveToNewGroup should create a new group and add elements to it") {
     val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
@@ -36,9 +60,9 @@ class GroupsOpsSpec extends FunSuite:
     val expected =
       ViewerGraph.minimal.modifyElements.using(
         _.copy(
-          nodes       = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
+          nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
           memberships = VectorMap(a -> newGroupId, b -> newGroupId),
-          groups      = Map(newGroup)
+          groups = Map(newGroup)
         )
       )
     assertEquals(updatedGraph, expected, "The graph should be updated with the new group and memberships")
@@ -64,9 +88,9 @@ class GroupsOpsSpec extends FunSuite:
 
   test("moveToGroup should move nodes to an existing group") {
     // Create a graph with nodes and a group
-    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph          = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     val graphWithGroup = graph.moveToNewGroup("Group 1", c)
-    val groupId = graphWithGroup.membership(c).get
+    val groupId        = graphWithGroup.membership(c).get
 
     // Move nodes to the existing group
     val updatedGraph = graphWithGroup.moveToGroup(groupId, Seq(a, b))
@@ -85,7 +109,7 @@ class GroupsOpsSpec extends FunSuite:
     val parentGroupId = graph.membership(a).get
 
     val graphWithNestedGroup = graph.moveToNewGroup("Nested Group", a, b)
-    val nestedGroupId = graphWithNestedGroup.membership(a).get
+    val nestedGroupId        = graphWithNestedGroup.membership(a).get
 
     assertEquals(
       graphWithNestedGroup.memberships,
@@ -106,12 +130,12 @@ class GroupsOpsSpec extends FunSuite:
 
   test("getDirectChildren should return direct children of a group") {
     // Create a nested group structure
-    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph                = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     val graphWithParentGroup = graph.moveToNewGroup("Parent Group", a, b, c)
-    val parentGroupId = graphWithParentGroup.membership(a).get
+    val parentGroupId        = graphWithParentGroup.membership(a).get
 
     val graphWithNestedGroup = graphWithParentGroup.moveToNewGroup("Nested Group", a, b)
-    val nestedGroupId = graphWithNestedGroup.membership(a).get
+    val nestedGroupId        = graphWithNestedGroup.membership(a).get
 
     // Get direct children of parent group
     val parentGroupChildren = graphWithNestedGroup.getDirectChildren(Set(parentGroupId))
@@ -126,7 +150,7 @@ class GroupsOpsSpec extends FunSuite:
 
   test("getDirectChildren should include elements without explicit membership when root group is specified") {
     // Create a graph with some nodes in groups and some not
-    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph        = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     val updatedGraph = graph.moveToNewGroup("Group 1", a, b)
 
     // Get direct children of root group
@@ -141,12 +165,12 @@ class GroupsOpsSpec extends FunSuite:
 
   test("getAllChildren should return all nested children of a group") {
     // Create a nested group structure
-    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    val graph                = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
     val graphWithParentGroup = graph.moveToNewGroup("Parent Group", a, b, c)
-    val parentGroupId = graphWithParentGroup.membership(a).get
+    val parentGroupId        = graphWithParentGroup.membership(a).get
 
     val graphWithNestedGroup = graphWithParentGroup.moveToNewGroup("Nested Group", a, b)
-    val nestedGroupId = graphWithNestedGroup.membership(a).get
+    val nestedGroupId        = graphWithNestedGroup.membership(a).get
 
     // Get all children of parent group
     val allChildren = graphWithNestedGroup.getAllChildren(Set(parentGroupId))
