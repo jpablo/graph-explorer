@@ -963,8 +963,8 @@ object SimpleGraphConverter:
           }).foreach { node =>
             val nodeAttrs = collectNodeAttributes(node, insideCluster = true)
             val hasMultiLineHtmlLabel = isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
-            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 2) 
-              formatAttributesMultiLine(nodeAttrs, level + 1, hasComplexHtmlLabels || nodeAttrs.length > 2)
+            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1) 
+              formatAttributesMultiLine(nodeAttrs, level + 1, hasComplexHtmlLabels || nodeAttrs.length > 1)
             else 
               formatAttributes(nodeAttrs)
             lines += s"""${padding(level + 1)}"${node.name}"$attrFormatting;"""
@@ -1003,8 +1003,8 @@ object SimpleGraphConverter:
           if (!clusterNodeGvids.contains(node._gvid.toDouble)) {
             val nodeAttrs = collectNodeAttributes(node)
             val hasMultiLineHtmlLabel = isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
-            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 2) 
-              formatAttributesMultiLine(nodeAttrs, 1, hasComplexHtmlLabels || nodeAttrs.length > 2)
+            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1) 
+              formatAttributesMultiLine(nodeAttrs, 1, hasComplexHtmlLabels || nodeAttrs.length > 1)
             else 
               formatAttributes(nodeAttrs)
             lines += s"""${padding(1)}"${node.name}"$attrFormatting;"""
@@ -1030,8 +1030,8 @@ object SimpleGraphConverter:
         val tailPort = edge.tailport.map(p => s""":\"$p\"""").getOrElse("")
         val headPort = edge.headport.map(p => s""":\"$p\"""").getOrElse("")
 
-        val attrFormatting = if (hasNestedSubgraphs || hasComplexHtmlLabels || edgeAttrs.length > 2) 
-          formatAttributesMultiLine(edgeAttrs, 1, hasComplexHtmlLabels || edgeAttrs.length > 2)
+        val attrFormatting = if (hasNestedSubgraphs || hasComplexHtmlLabels || edgeAttrs.length > 1) 
+          formatAttributesMultiLine(edgeAttrs, 1, hasComplexHtmlLabels || edgeAttrs.length > 1)
         else 
           formatAttributes(edgeAttrs)
 
