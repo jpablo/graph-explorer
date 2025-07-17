@@ -59,6 +59,14 @@ object SimpleGraphConverter:
     def toAttributesFromCluster(cluster: SimpleGraphCluster, exclude: Set[String] = Set.empty): ViewerAttributes =
       val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
       
+      // Define attributes that are only valid at the graph level, not in subgraphs
+      val graphOnlyAttributes = Set(
+        "rankdir", "layout", "nodesep", "ranksep", "pad", "ratio",
+        "dpi", "fontpath", "landscape", "size", "rotate", "center",
+        "pagedir", "viewport", "outputorder", "compound", "remincross",
+        "searchsize", "showboxes", "imagepath", "concentrate"
+      )
+      
       if (!exclude.contains("_gvid")) attrs += AttributeId("_gvid") -> AttrValue(cluster._gvid.toString)
       if (!exclude.contains("name")) attrs += AttributeId("name") -> AttrValue(cluster.name)
       if (!exclude.contains("label")) attrs += AttributeId("label") -> AttrValue(cluster.label)
@@ -73,12 +81,14 @@ object SimpleGraphConverter:
       cluster.lheight.foreach(v => if (!exclude.contains("lheight")) attrs += AttributeId("lheight") -> AttrValue(v))
       cluster.lp.foreach(v => if (!exclude.contains("lp")) attrs += AttributeId("lp") -> AttrValue(v))
       cluster.lwidth.foreach(v => if (!exclude.contains("lwidth")) attrs += AttributeId("lwidth") -> AttrValue(v))
-      cluster.layout.foreach(v => if (!exclude.contains("layout")) attrs += AttributeId("layout") -> AttrValue(v))
+      // Skip layout - it's a graph-only attribute
+      cluster.layout.foreach(v => if (!exclude.contains("layout") && !graphOnlyAttributes.contains("layout")) attrs += AttributeId("layout") -> AttrValue(v))
       cluster.normalize.foreach(v => if (!exclude.contains("normalize")) attrs += AttributeId("normalize") -> AttrValue(v))
       cluster.start.foreach(v => if (!exclude.contains("start")) attrs += AttributeId("start") -> AttrValue(v))
       cluster.overlap.foreach(v => if (!exclude.contains("overlap")) attrs += AttributeId("overlap") -> AttrValue(v))
       cluster.cluster.foreach(v => if (!exclude.contains("cluster")) attrs += AttributeId("cluster") -> AttrValue(v))
-      cluster.rankdir.foreach(v => if (!exclude.contains("rankdir")) attrs += AttributeId("rankdir") -> AttrValue(v))
+      // Skip rankdir - it's a graph-only attribute
+      cluster.rankdir.foreach(v => if (!exclude.contains("rankdir") && !graphOnlyAttributes.contains("rankdir")) attrs += AttributeId("rankdir") -> AttrValue(v))
       cluster.splines.foreach(v => if (!exclude.contains("splines")) attrs += AttributeId("splines") -> AttrValue(v))
       cluster.target.foreach(v => if (!exclude.contains("target")) attrs += AttributeId("target") -> AttrValue(v))
       cluster.tooltip.foreach(v => if (!exclude.contains("tooltip")) attrs += AttributeId("tooltip") -> AttrValue(v))

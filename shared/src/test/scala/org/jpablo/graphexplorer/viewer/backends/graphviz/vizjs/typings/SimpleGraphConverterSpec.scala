@@ -359,3 +359,49 @@ class SimpleGraphConverterSpec extends FunSuite:
 
     assertNoDiff(dotString, expected)
   }
+
+
+  test("round-trip conversion should not propagate rankdir to subgraphs") {
+    // Simulate the bug scenario: viz.js returns a SimpleGraph with rankdir on a cluster
+    val graphJson = """{
+      "name": "G",
+      "directed": true,
+      "label": "Diagram",
+      "rankdir": "LR",
+      "objects": [
+        {
+          "_gvid": 1.0,
+          "name": "gdd30b2d0",
+          "label": "A title",
+          "style": "filled",
+          "cluster": "true",
+          "rankdir": "LR",
+          "nodes": [0]
+        },
+        {
+          "_gvid": 0,
+          "name": "a",
+          "label": "a",
+          "fillcolor": "#bedbff",
+          "style": "filled"
+        }
+      ]
+    }"""
+
+    val graph = read[SimpleGraph](graphJson)
+    val elements = SimpleGraphConverter.toViewerGraphElements(graph)
+    
+    // Verify the main graph has rankdir
+    assertEquals(elements.graphAttributes.values(AttributeId("rankdir")), AttrValue("LR"))
+    
+    // Verify the subgraph does NOT have rankdir after conversion
+    val groupId = GroupId("gdd30b2d0")
+    val subgroupAttrs = elements.groups(groupId).attributes
+    assert(!subgroupAttrs.values.contains(AttributeId("rankdir")), 
+      "Subgraph should not have rankdir attribute after conversion from SimpleGraph")
+    
+    // Verify other subgraph attributes are preserved
+    assertEquals(subgroupAttrs.values(AttributeId("label")), AttrValue("A title"))
+    assertEquals(subgroupAttrs.values(AttributeId("style")), AttrValue("filled"))
+    assertEquals(subgroupAttrs.values(AttributeId("cluster")), AttrValue("true"))
+  }

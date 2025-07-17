@@ -167,7 +167,7 @@ case class SimpleGraph(
     directed: Boolean = true,
 //    strict:        Boolean = false,
 //    bb:            String = "",
-//    _subgraph_cnt: Double = 0.0,
+//    _subgraph_cnt: Int = 0.0,
     objects: Option[List[SimpleGraphObject]] = None,
     edges:   Option[List[SimpleGraphEdge]] = None,
     // Optional root graph properties
