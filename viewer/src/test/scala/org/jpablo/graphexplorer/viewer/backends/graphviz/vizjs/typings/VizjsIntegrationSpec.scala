@@ -299,14 +299,23 @@ class VizjsIntegrationSpec extends FunSuite with TestHelpers:
 
       val triedGraph = graphviz.renderToJsonGraph(emptyGroup)
 //      pprint.log(triedGraph)
-      triedGraph.map { graph =>
-        pprint.log(graph)
-        import upickle.default.*
-        println(write(graph))
+      triedGraph.foreach { graph =>
         val elements = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
-        println(elements)
+        val expected =
+          """|digraph "G" {
+             |  graph [label=""];
+             |  subgraph "g387cb920" {
+             |    graph [
+             |      label="",
+             |      cluster="true"
+             |    ];
+             |  }
+             |  "a" [label="a"];
+             |}""".stripMargin
 
-      }.get
+        assertNoDiff(elements, expected)
+
+      }
     }
 
   test("SimpleGraphConverter should handle two groups"):

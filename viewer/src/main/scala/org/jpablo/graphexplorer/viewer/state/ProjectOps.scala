@@ -24,8 +24,8 @@ case class ProjectOps(project: Var[Project])(using Owner):
       .zoomLazy(_.page.hiddenElements)((p, s) => p.modify(_.page.hiddenElements).setTo(s))
       .distinct
 
-  hiddenElements.signal.foreach: hidden =>
-    dom.console.debug(s"hidden elements changed: $hidden")
+//  hiddenElements.signal.foreach: hidden =>
+//    dom.console.debug(s"hidden elements changed: $hidden")
 
   val basePaths: Signal[List[String]] =
     project.signal.map(_.projectSettings.basePaths).distinct
