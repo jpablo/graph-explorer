@@ -84,20 +84,22 @@ case class ViewerGraph(
   def removeElements(elementIds: ElementIds): ViewerGraph =
     val classified       = elementIds.classify
     val groupIdsToRemove = classified.groups
+    val nodeIdsToRemove  = classified.nodes
+    val arrowIdsToRemove = classified.arrows
 
     val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
       // case 1: remove a nested group
       if elementId.asGroupId.exists(_ in groupIdsToRemove) then
         None
-      // case 2: remove a node from a group
+      // case 2: remove a node that is being deleted
+      else if elementId.asNodeId.exists(_ in nodeIdsToRemove) then
+        None
+      // case 3: remove a node from a group
       else if groupId in groupIdsToRemove then
         // If group is deleted, add element to group's container if it exists
         memberships.get(groupId).map(containerId => elementId -> containerId)
       else
         Some(elementId -> groupId) // Keep unchanged
-
-    val nodeIdsToRemove  = classified.nodes
-    val arrowIdsToRemove = classified.arrows
 
     val updatedArrows = arrows.filterNot { (arrowId, arrow) =>
       (arrowId in arrowIdsToRemove) || (arrow.source in nodeIdsToRemove) || (arrow.target in nodeIdsToRemove)

@@ -181,7 +181,10 @@ class GraphToDotSpec extends FunSuite:
       """|digraph "G" {
          |  graph [label=""];
          |  subgraph "g387cb920" {
-         |    graph [cluster="true"];
+         |    graph [
+         |      id="group:g387cb920",
+         |      cluster="true"
+         |    ];
          |    "a" [
          |      id="node:a",
          |      label="a"
@@ -539,6 +542,7 @@ class GraphToDotSpec extends FunSuite:
         |    graph [label=""];
         |    subgraph "g5294cce8" {
         |        graph [
+        |            id="group:g5294cce8",
         |            label="group 1",
         |            lheight="0.23",
         |            lp="51,198",
@@ -547,6 +551,7 @@ class GraphToDotSpec extends FunSuite:
         |        ];
         |        subgraph "g863fd476" {
         |            graph [
+        |                id="group:g863fd476",
         |                label="group 2",
         |                lheight="0.23",
         |                lp="51,80.4",
@@ -563,6 +568,7 @@ class GraphToDotSpec extends FunSuite:
         |        }
         |        subgraph "geca09c80" {
         |            graph [
+        |                id="group:geca09c80",
         |                label="group 3",
         |                lheight="0.23",
         |                lp="51,165.2",

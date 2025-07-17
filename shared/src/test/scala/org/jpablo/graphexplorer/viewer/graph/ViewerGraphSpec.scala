@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.ScalaCheckSuite
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphConverter
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Style
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
@@ -107,6 +108,63 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val updated = graph.removeElements(ElementIds.from(arrowId1))
 
     assertEquals(updated, expected)
+  }
+
+  test("removeElements should clean up memberships when removing nodes from groups") {
+    // Reproduce the scenario from the DOT state:
+    // digraph "G" {
+    //   subgraph "gdd30b2d0" {
+    //     "a" [label="a"];
+    //     "b" [label=""];
+    //   }
+    //   "a" -> "b";
+    // }
+    
+    val groupId = GroupId("gdd30b2d0")
+    val aNode = NodeId("a")
+    val bNode = NodeId("b")
+    
+    val elements = ViewerGraphElements(
+      nodes = VectorMap(
+        nodeWithId(aNode, "label" -> "a"),
+        nodeWithId(bNode, "label" -> "")
+      ),
+      arrows = Map(
+        ArrowId("a->b:0") -> Arrow(aNode, bNode)
+      ),
+      groups = Map(
+        groupId -> group(groupId, Attributes.of(
+          "label" -> "A title",
+          "lheight" -> "0.23",
+          "lp" -> "43,169.2",
+          "lwidth" -> "0.49",
+          "cluster" -> "true"
+        ))
+      ),
+      memberships = Map(
+        aNode -> groupId,
+        bNode -> groupId
+      ),
+      graphAttributes = Attributes.of("label" -> "A title")
+    )
+    
+    val graph = ViewerGraph(elements)
+    
+    // Try to remove node "b" - this should not cause NoSuchElementException
+    val updatedGraph = graph.removeElements(ElementIds.from(bNode))
+    
+    // Verify the node was removed
+    assert(!updatedGraph.nodes.contains(bNode))
+    
+    // Verify the arrow was also removed (since it referenced the removed node)
+    assertEquals(updatedGraph.arrows.size, 0)
+    
+    // Verify membership was cleaned up
+    assert(!updatedGraph.memberships.contains(bNode))
+    
+    // This should not throw NoSuchElementException when converting to SimpleGraph
+    val simpleGraph = SimpleGraphConverter.fromViewerGraphElements(updatedGraph.elements)
+    assert(simpleGraph != null)
   }
 
 end ViewerGraphSpec
