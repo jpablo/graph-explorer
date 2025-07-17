@@ -50,13 +50,13 @@ case class SimpleGraphNode(
 /** Represents a logical grouping of nodes and edges, often rendered as a bounding box.
   */
 case class SimpleGraphCluster(
-    _gvid: Double,
+    _gvid: Int,
     name:  String,
 //    bb:        String,
-    nodes:     List[Double],
+    nodes:     Option[List[Int]] = None,
     label:     String,
-    edges:     Option[List[Double]] = None,
-    subgraphs: Option[List[Double]] = None,
+    edges:     Option[List[Int]] = None,
+    subgraphs: Option[List[Int]] = None,
     // Optional styling and layout properties
     fontname:  Option[String] = None,
     color:     Option[String] = None,
@@ -150,8 +150,8 @@ object SimpleGraphObject:
       },
       { jsValue =>
         // Distinguish between node and cluster based on the presence of specific fields
-        // Clusters have a 'nodes' field, while nodes don't
-        if jsValue.obj.contains("nodes") then
+        // Clusters have a 'nodes' field, while nodes don't. Same for 'cluster' field.
+        if jsValue.obj.contains("nodes") || jsValue.obj.contains("cluster") then
           Cluster(read[SimpleGraphCluster](jsValue))
         else
           Node(read[SimpleGraphNode](jsValue))

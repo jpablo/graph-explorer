@@ -200,7 +200,7 @@ class GraphToDotSpec extends FunSuite:
     val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "B")
     val nodeC = SimpleGraphNode(_gvid = 2, name = "c", label = "C")
 
-    val cluster = SimpleGraphCluster(_gvid = 3, name = "1", nodes = List(0, 1), label = "Group 1")
+    val cluster = SimpleGraphCluster(_gvid = 3, name = "1", nodes = Some(List(0, 1)), label = "Group 1")
 
     val edgeAB = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, label = Some("internal"))
     val edgeBC = SimpleGraphEdge(_gvid = 1, tail = 1, head = 2, label = Some("external"))
@@ -321,7 +321,7 @@ class GraphToDotSpec extends FunSuite:
     val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "Middle", shape = Some("box"))
     val nodeC = SimpleGraphNode(_gvid = 2, name = "c", label = "End")
 
-    val cluster = SimpleGraphCluster(_gvid = 100.0, name = "process", nodes = List(1), label = "Process", style = Some("filled"))
+    val cluster = SimpleGraphCluster(_gvid = 100, name = "process", nodes = Some(List(1)), label = "Process", style = Some("filled"))
 
     val edgeAB = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, label = Some("first"), color = Some("red"))
     val edgeBC = SimpleGraphEdge(_gvid = 1, tail = 1, head = 2, label = Some("second"))
@@ -473,7 +473,7 @@ class GraphToDotSpec extends FunSuite:
         Cluster(SimpleGraphCluster(
           _gvid = 0,
           name = "g5294cce8",
-          nodes = List(3, 4),
+          nodes = Some(List(3, 4)),
           label = "group 1",
           edges = Some(List(0)),
           subgraphs = Some(List(1, 2)),
@@ -485,7 +485,7 @@ class GraphToDotSpec extends FunSuite:
         Cluster(SimpleGraphCluster(
           _gvid = 1,
           name = "g863fd476",
-          nodes = List(3),
+          nodes = Some(List(3)),
           label = "group 2",
           lheight = Some("0.23"),
           lp = Some("51,80.4"),
@@ -495,7 +495,7 @@ class GraphToDotSpec extends FunSuite:
         Cluster(SimpleGraphCluster(
           _gvid = 2,
           name = "geca09c80",
-          nodes = List(4),
+          nodes = Some(List(4)),
           label = "group 3",
           lheight = Some("0.23"),
           lp = Some("51,165.2"),

@@ -158,7 +158,7 @@ object SimpleGraphConverter:
 
     // Separate nodes and clusters from objects array
     val rawNodes    = mutable.Map[NodeId, ViewerAttributes]()
-    val rawClusters = mutable.Map[GroupId, (ViewerAttributes, List[Double])]()
+    val rawClusters = mutable.Map[GroupId, (ViewerAttributes, List[Int])]()
 
     graph.objects.foreach { objectsList =>
       objectsList.foreach {
@@ -171,7 +171,7 @@ object SimpleGraphConverter:
         case SimpleGraphObject.Cluster(cluster) =>
           val groupId   = GroupId(cluster.name)
           val attrs     = toAttributesFromCluster(cluster, Set("name", "nodes", "edges", "subgraphs"))
-          val nodeGvids = cluster.nodes
+          val nodeGvids = cluster.nodes.getOrElse(List.empty)
           rawClusters(groupId) = (attrs, nodeGvids)
       }
     }
@@ -200,7 +200,7 @@ object SimpleGraphConverter:
             subgraphs.exists { subgraphGvid =>
               graph.objects.exists(_.exists {
                 case SimpleGraphObject.Cluster(subCluster) =>
-                  subCluster._gvid == subgraphGvid && subCluster.nodes.contains(gvid)
+                  subCluster._gvid == subgraphGvid && subCluster.nodes.getOrElse(List.empty).contains(gvid)
                 case _ => false
               })
             }
@@ -340,7 +340,7 @@ object SimpleGraphConverter:
       )
 
     // Helper to convert ViewerAttributes to SimpleGraphCluster
-    def attributesToCluster(groupId: GroupId, attrs: ViewerAttributes, defaultGvid: Double, nodeGvids: List[Double], edgeGvids: Option[List[Double]] = None, subgraphGvids: Option[List[Double]] = None): SimpleGraphCluster =
+    def attributesToCluster(groupId: GroupId, attrs: ViewerAttributes, defaultGvid: Int, nodeGvids: List[Int], edgeGvids: Option[List[Int]] = None, subgraphGvids: Option[List[Int]] = None): SimpleGraphCluster =
       def getAttr(key: String): Option[String] = 
         attrs.values.get(AttributeId(key)).map(_.toString)
       
@@ -355,13 +355,13 @@ object SimpleGraphConverter:
       }
       
       // Preserve original _gvid if present in attributes
-      val gvid = getAttr("_gvid").map(_.toDouble).getOrElse(defaultGvid)
+      val gvid = getAttr("_gvid").map(_.toInt).getOrElse(defaultGvid)
       
       SimpleGraphCluster(
         _gvid = gvid,
         name = groupId.value,
 //        bb = getAttr("bb").getOrElse("0,0,100,100"),
-        nodes = nodeGvids,
+        nodes = Some(nodeGvids),
         label = getAttrNonDefault("label").getOrElse(groupId.value),
         edges = edgeGvids,
         subgraphs = subgraphGvids,
@@ -552,14 +552,14 @@ object SimpleGraphConverter:
     }
     
     // If no explicit gvids, start from 0; otherwise start high to avoid conflicts
-    var nextClusterGvid = if (hasExplicitClusterGvids) 1000.0 else 0.0
+    var nextClusterGvid = if (hasExplicitClusterGvids) 1000 else 0
     
     // Build a map of all direct node memberships (including through nested groups)
-    val allNodeMemberships = mutable.Map[GroupId, mutable.Set[Double]]()
+    val allNodeMemberships = mutable.Map[GroupId, mutable.Set[Int]]()
     
-    def collectAllNodeGvids(groupId: GroupId): Set[Double] = {
+    def collectAllNodeGvids(groupId: GroupId): Set[Int] = {
       val directNodes = groupMemberships.getOrElse(groupId, mutable.Set.empty)
-        .map(nodeId => nodeIdToGvid(nodeId).toDouble).toSet
+        .map(nodeId => nodeIdToGvid(nodeId)).toSet
       
       val nestedNodes = groupToSubgroups.getOrElse(groupId, mutable.Set.empty)
         .flatMap(childGroupId => collectAllNodeGvids(childGroupId)).toSet
@@ -580,7 +580,7 @@ object SimpleGraphConverter:
         subgroups.toList.map { subgroupId =>
           elements.groups(subgroupId).attributes.values
             .get(AttributeId("_gvid"))
-            .map(_.toString.toDouble)
+            .map(_.toString.toInt)
             .getOrElse {
               val id = nextClusterGvid
               nextClusterGvid += 1
@@ -593,17 +593,17 @@ object SimpleGraphConverter:
       // Reconstruct edge references based on which edges connect nodes in this cluster
       val nodeGvidSet = memberGvids.toSet
       val clusterEdges = elements.arrows.values.collect {
-        case arrow if nodeGvidSet.contains(nodeIdToGvid(arrow.source).toDouble) && 
-                     nodeGvidSet.contains(nodeIdToGvid(arrow.target).toDouble) =>
+        case arrow if nodeGvidSet.contains(nodeIdToGvid(arrow.source)) &&
+                     nodeGvidSet.contains(nodeIdToGvid(arrow.target)) =>
           arrow.attributes.values.get(AttributeId("_gvid"))
-            .map(_.toString.toDouble)
-            .getOrElse(arrow.seq.toDouble)
+            .map(_.toString.toInt)
+            .getOrElse(arrow.seq)
       }.toList.sorted
       
       val edgeGvids = if (clusterEdges.nonEmpty) Some(clusterEdges) else None
       
       val defaultGvid = group.attributes.values.get(AttributeId("_gvid"))
-        .map(_.toString.toDouble)
+        .map(_.toString.toInt)
         .getOrElse {
           val id = nextClusterGvid
           nextClusterGvid += 1
@@ -659,7 +659,7 @@ object SimpleGraphConverter:
       "G",
       if (allObjects.nonEmpty) Some(allObjects) else None,
       if (edgeObjects.nonEmpty) Some(edgeObjects) else None,
-      elements.groups.size.toDouble
+      elements.groups.size
     )
 
   def graphToDotString(graph: SimpleGraph, omitInternal: Boolean = false): String =
@@ -911,7 +911,7 @@ object SimpleGraphConverter:
     }
 
     // Helper to process clusters recursively with proper nesting
-    def processCluster(cluster: SimpleGraphCluster, level: Int, processedClusters: scala.collection.mutable.Set[Double]): Unit = {
+    def processCluster(cluster: SimpleGraphCluster, level: Int, processedClusters: scala.collection.mutable.Set[Int]): Unit = {
       if (processedClusters.contains(cluster._gvid)) return
       processedClusters += cluster._gvid
       
@@ -942,14 +942,14 @@ object SimpleGraphConverter:
       }
 
       // Add nodes that belong only to this cluster (not in any sub-clusters)
-      cluster.nodes.foreach { nodeGvid =>
+      cluster.nodes.getOrElse(List.empty).foreach { nodeGvid =>
         // Check if this node is in any of the nested subgraphs
         val isInSubCluster = cluster.subgraphs.exists { subgraphGvids =>
           subgraphGvids.exists { subgraphGvid =>
             graph.objects.exists { objectsList =>
               objectsList.exists {
                 case SimpleGraphObject.Cluster(subCluster) if subCluster._gvid == subgraphGvid =>
-                  subCluster.nodes.contains(nodeGvid)
+                  subCluster.nodes.getOrElse(List.empty).contains(nodeGvid)
                 case _ => false
               }
             }
@@ -976,10 +976,10 @@ object SimpleGraphConverter:
     }
 
     // Process top-level clusters (those not referenced in any subgraphs field)
-    val processedClusters = scala.collection.mutable.Set[Double]()
+    val processedClusters = scala.collection.mutable.Set[Int]()
     val referencedSubgraphs = graph.objects.map(_.collect {
       case SimpleGraphObject.Cluster(cluster) => cluster.subgraphs.getOrElse(List.empty)
-    }.flatten.toSet).getOrElse(Set.empty[Double])
+    }.flatten.toSet).getOrElse(Set.empty[Int])
 
     graph.objects.foreach { objectsList =>
       objectsList.foreach {
@@ -994,13 +994,13 @@ object SimpleGraphConverter:
 
     // Add standalone nodes (not in clusters)
     val clusterNodeGvids = graph.objects.map(_.collect {
-      case SimpleGraphObject.Cluster(cluster) => cluster.nodes.toSet
-    }.flatten.toSet).getOrElse(Set.empty[Double])
+      case SimpleGraphObject.Cluster(cluster) => cluster.nodes.getOrElse(List.empty).toSet
+    }.flatten.toSet).getOrElse(Set.empty[Int])
 
     graph.objects.foreach { objectsList =>
       objectsList.foreach {
         case SimpleGraphObject.Node(node) =>
-          if (!clusterNodeGvids.contains(node._gvid.toDouble)) {
+          if (!clusterNodeGvids.contains(node._gvid)) {
             val nodeAttrs = collectNodeAttributes(node)
             val hasMultiLineHtmlLabel = isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
             val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1) 

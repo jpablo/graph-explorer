@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphConverter
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{SimpleGraph, SimpleGraphConverter}
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps
 import org.jpablo.graphexplorer.viewer.graph.ExportViewerGraphElements
 import upickle.default.*

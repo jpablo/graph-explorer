@@ -111,7 +111,7 @@ class InternalPhases(
     labelS = "2b. [versionedText <- versionedFullGraphV]", // c -> b
     toS = { (_, vg) =>
       val graph     = SimpleGraphConverter.fromViewerGraphElements(vg.value.elements.combineStyleAttributes)
-      val dotString = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+      val dotString = SimpleGraphConverter.graphToDotString(graph, true)
       Versioned[String](dotString, vg.origin)
     },
     updateS = (vt, ast, vt1) => vt1.value != vt.value && ast.origin == ChangeOrigin.Graph,
@@ -199,7 +199,7 @@ object InternalPhases:
     Signal.fromTry:
       for
         graph <- graphviz.renderToJsonGraph(dot.value)
-        dotText0 = SimpleGraphConverter.graphToDotString(graph)
+        dotText0 = SimpleGraphConverter.graphToDotString(graph, false)
         svg <- graphviz.renderToSvg(DotText(dotText0))
       yield svg.svg
 

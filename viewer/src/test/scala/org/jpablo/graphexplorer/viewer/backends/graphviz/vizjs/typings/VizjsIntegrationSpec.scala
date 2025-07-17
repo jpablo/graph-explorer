@@ -286,6 +286,29 @@ class VizjsIntegrationSpec extends FunSuite with TestHelpers:
       }
     }
 
+  test("SimpleGraphConverter should handle empty groups"):
+    withGraphviz { graphviz =>
+      val emptyGroup =
+        """|digraph "G" {
+           |  graph [label=""];
+           |  subgraph "g387cb920" {
+           |    graph [cluster="true"];
+           |  }
+           |  "a" [label="a"];
+           |}""".stripMargin
+
+      val triedGraph = graphviz.renderToJsonGraph(emptyGroup)
+//      pprint.log(triedGraph)
+      triedGraph.map { graph =>
+        pprint.log(graph)
+        import upickle.default.*
+        println(write(graph))
+        val elements = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+        println(elements)
+
+      }.get
+    }
+
   test("SimpleGraphConverter should handle two groups"):
     withGraphviz { graphviz =>
       val nestedDOT =
