@@ -78,9 +78,15 @@ class GraphToDotSpec extends FunSuite:
     )
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
-    val expected = """digraph "G" {
-  "test" [id="node:test", label="Test Node", shape="ellipse", fontsize="12"];
-}"""
+    val expected =
+      """|digraph "G" {
+         |  "test" [
+         |    id="node:test",
+         |    label="Test Node",
+         |    shape="ellipse",
+         |    fontsize="12"
+         |  ];
+         |}""".stripMargin
 
     assertEquals(result, expected)
   }
@@ -103,7 +109,13 @@ class GraphToDotSpec extends FunSuite:
     val result = SimpleGraphConverter.graphToDotString(graph)
     val expected =
       """|digraph "G" {
-         |  "test" [id="node:test", label="test", height="0.8", width="1.5", fixedsize="true"];
+         |  "test" [
+         |    id="node:test",
+         |    label="test",
+         |    height="0.8",
+         |    width="1.5",
+         |    fixedsize="true"
+         |  ];
          |}""".stripMargin
 
     assertEquals(result, expected)
@@ -322,10 +334,6 @@ class GraphToDotSpec extends FunSuite:
          |      shape="box"
          |    ];
          |  }
-         |  "a" [
-         |    label="Start",
-         |    shape="ellipse"
-         |  ];
          |  "a" [
          |    label="Start",
          |    shape="ellipse"

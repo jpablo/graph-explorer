@@ -741,8 +741,10 @@ object SimpleGraphConverter:
 
     def collectClusterAttributes(cluster: SimpleGraphCluster, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
       val attrs = mutable.ListBuffer[(String, String)]()
+      
       // Only add label if it's different from the cluster name
       if (!excludeKeys.contains("label") && cluster.label != cluster.name) attrs += "label" -> cluster.label
+      
       cluster.fontname.foreach(v => if (!excludeKeys.contains("fontname")) attrs += "fontname" -> v)
       cluster.color.foreach(v => if (!excludeKeys.contains("color")) attrs += "color" -> v)
       cluster.bgcolor.foreach(v => if (!excludeKeys.contains("bgcolor")) attrs += "bgcolor" -> v)
@@ -920,8 +922,8 @@ object SimpleGraphConverter:
       val clusterAttrs = collectClusterAttributes(cluster)
       if (clusterAttrs.nonEmpty) {
         // Use multi-line formatting for clusters with multiple attributes or nested subgraphs
-        val attrFormatting = if (hasNestedSubgraphs || clusterAttrs.length > 1) 
-          formatAttributesMultiLine(clusterAttrs, level + 1, false)
+        val attrFormatting = if (hasNestedSubgraphs || hasComplexHtmlLabels || clusterAttrs.length > 1) 
+          formatAttributesMultiLine(clusterAttrs, level + 1, clusterAttrs.length > 1)
         else 
           formatAttributes(clusterAttrs)
         lines += s"${padding(level + 1)}graph$attrFormatting;"
@@ -961,8 +963,8 @@ object SimpleGraphConverter:
           }).foreach { node =>
             val nodeAttrs = collectNodeAttributes(node, insideCluster = true)
             val hasMultiLineHtmlLabel = isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
-            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels) 
-              formatAttributesMultiLine(nodeAttrs, level + 1, hasComplexHtmlLabels)
+            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 2) 
+              formatAttributesMultiLine(nodeAttrs, level + 1, hasComplexHtmlLabels || nodeAttrs.length > 2)
             else 
               formatAttributes(nodeAttrs)
             lines += s"""${padding(level + 1)}"${node.name}"$attrFormatting;"""
@@ -1001,8 +1003,8 @@ object SimpleGraphConverter:
           if (!clusterNodeGvids.contains(node._gvid.toDouble)) {
             val nodeAttrs = collectNodeAttributes(node)
             val hasMultiLineHtmlLabel = isHtmlLabel(node.label) && node.label.trim.split("\n").length > 1
-            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels) 
-              formatAttributesMultiLine(nodeAttrs, 1, hasComplexHtmlLabels)
+            val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 2) 
+              formatAttributesMultiLine(nodeAttrs, 1, hasComplexHtmlLabels || nodeAttrs.length > 2)
             else 
               formatAttributes(nodeAttrs)
             lines += s"""${padding(1)}"${node.name}"$attrFormatting;"""
@@ -1028,7 +1030,12 @@ object SimpleGraphConverter:
         val tailPort = edge.tailport.map(p => s""":\"$p\"""").getOrElse("")
         val headPort = edge.headport.map(p => s""":\"$p\"""").getOrElse("")
 
-        lines += s"""${padding(1)}"$tailName"$tailPort $edgeOp "$headName"$headPort${formatAttributes(edgeAttrs)};"""
+        val attrFormatting = if (hasNestedSubgraphs || hasComplexHtmlLabels || edgeAttrs.length > 2) 
+          formatAttributesMultiLine(edgeAttrs, 1, hasComplexHtmlLabels || edgeAttrs.length > 2)
+        else 
+          formatAttributes(edgeAttrs)
+
+        lines += s"""${padding(1)}"$tailName"$tailPort $edgeOp "$headName"$headPort$attrFormatting;"""
       }
     }
 
