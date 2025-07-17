@@ -912,8 +912,8 @@ object SimpleGraphConverter:
     // Add graph attributes
     val graphAttrs = collectGraphAttributes(graph)
     if (graphAttrs.nonEmpty) {
-      // Use multi-line formatting for graphs with many attributes
-      val attrFormatting = if (graphAttrs.length > 3) 
+      // Use multi-line formatting for graphs with multiple attributes
+      val attrFormatting = if (graphAttrs.length > 1) 
         formatAttributesMultiLine(graphAttrs, 1, true)
       else 
         formatAttributes(graphAttrs)

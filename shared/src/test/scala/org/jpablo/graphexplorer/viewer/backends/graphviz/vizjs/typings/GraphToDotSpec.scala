@@ -64,7 +64,11 @@ class GraphToDotSpec extends FunSuite:
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
     val expected = """digraph "AttributedGraph" {
-  graph [rankdir="LR", bgcolor="white", splines="ortho"];
+  graph [
+    rankdir="LR",
+    bgcolor="white",
+    splines="ortho"
+  ];
 }"""
 
     assertEquals(result, expected)
