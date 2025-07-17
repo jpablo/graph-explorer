@@ -876,8 +876,8 @@ object SimpleGraphConverter:
       else if (forceMultiLine || hasNestedSubgraphs || hasComplexHtmlLabels || attrs.exists { case (k, v) => k == "label" && isHtmlLabel(v) && v.trim.split("\n").length > 1 }) {
         val formattedAttrs = attrs.zipWithIndex.map { case ((key, value), idx) =>
           val isLast = idx == attrs.length - 1
-          // Complex graphs with nested subgraphs use comma without space, HTML labels use comma with space
-          val comma = if (isLast) "" else if (hasNestedSubgraphs && !hasComplexHtmlLabels) "," else ", "
+          // HTML labels use comma with space, others use comma without space
+          val comma = if (isLast) "" else if (hasComplexHtmlLabels) ", " else ","
           
           if (key == "label" && isHtmlLabel(value) && value.trim.split("\n").length > 1) {
             // Special formatting for multi-line HTML labels - each line of HTML on its own line

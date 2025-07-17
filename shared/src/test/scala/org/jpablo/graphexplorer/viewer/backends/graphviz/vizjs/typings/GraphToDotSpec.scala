@@ -202,9 +202,9 @@ class GraphToDotSpec extends FunSuite:
       """|digraph "G" {
          |  subgraph "1" {
          |    graph [
-         |        label="Group 1",
-         |        cluster="true"
-         |     ];
+         |      label="Group 1",
+         |      cluster="true"
+         |    ];
          |    "a" [label="A"];
          |    "b" [label="B"];
          |  }
@@ -325,9 +325,9 @@ class GraphToDotSpec extends FunSuite:
          |  graph [rankdir="LR"];
          |  subgraph "process" {
          |    graph [
-         |      cluster=true,
          |      label="Process",
-         |      style="filled"
+         |      style="filled",
+         |      cluster="true"
          |    ];
          |    "b" [
          |      label="Middle",
