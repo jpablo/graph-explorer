@@ -38,11 +38,18 @@ class GraphToDotSpec extends FunSuite:
     )
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
-    val expected = """digraph "SimpleGraph" {
-  "a" [id="node:a", label="Node A"];
-  "b" [id="node:b", label="Node B"];
-  "a" -> "b" [label="connection"];
-}"""
+    val expected =
+    """|digraph "SimpleGraph" {
+       |  "a" [
+       |    id="node:a",
+       |    label="Node A"
+       |  ];
+       |  "b" [
+       |    id="node:b",
+       |    label="Node B"
+       |  ];
+       |  "a" -> "b" [label="connection"];
+       |}""".stripMargin
 
     assertEquals(result, expected)
   }
@@ -135,9 +142,13 @@ class GraphToDotSpec extends FunSuite:
     )
 
     val result   = SimpleGraphConverter.graphToDotString(graph)
-    val expected = """digraph "G" {
-  "html" [id="node:html", label=<<b>Bold Label</b>>];
-}"""
+    val expected =
+      """|digraph "G" {
+         |  "html" [
+         |    id="node:html",
+         |    label=<<b>Bold Label</b>>
+         |  ];
+         |}""".stripMargin
 
     assertEquals(result, expected)
   }
@@ -171,7 +182,10 @@ class GraphToDotSpec extends FunSuite:
          |  graph [label=""];
          |  subgraph "g387cb920" {
          |    graph [cluster="true"];
-         |    "a" [label="a"];
+         |    "a" [
+         |      id="node:a",
+         |      label="a"
+         |    ];
          |  }
          |}""".stripMargin
 
@@ -452,7 +466,7 @@ class GraphToDotSpec extends FunSuite:
     }
   }
 
-  test("graphToDotString should handle complex graph with multiple clusters and edges".ignore) {
+  test("graphToDotString should handle complex graph with multiple clusters and edges") {
     val graph = SimpleGraph(
       name = "G",
       objects = Some(List(

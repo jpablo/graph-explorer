@@ -705,8 +705,8 @@ object SimpleGraphConverter:
       val internalAttrs = if (omitInternal) Set("id", "pos", "height", "width") else Set.empty[String]
       val allExcludeKeys = excludeKeys ++ internalAttrs
       
-      // Only add id for nodes that are not inside clusters
-      if (!allExcludeKeys.contains("id") && !insideCluster) attrs += "id" -> s"node:${node.name}"
+      // Add id attribute unless excluded by omitInternal setting
+      if (!allExcludeKeys.contains("id")) attrs += "id" -> s"node:${node.name}"
       if (!allExcludeKeys.contains("label")) attrs += "label" -> node.label
       node.pos.foreach(v => if (!allExcludeKeys.contains("pos")) attrs += "pos" -> v)
       node.height.foreach(v => if (!allExcludeKeys.contains("height")) attrs += "height" -> v)
