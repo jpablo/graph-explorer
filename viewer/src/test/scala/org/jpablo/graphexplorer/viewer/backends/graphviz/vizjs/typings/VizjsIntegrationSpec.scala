@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphConverter
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
@@ -596,5 +597,39 @@ class VizjsIntegrationSpec extends FunSuite with TestHelpers:
 
         // Verify memberships
         assertEquals(elements.memberships, expectedGraphElements.memberships, "Memberships should match exactly")
+      }
+    }
+
+  test("renderToSvg should generate SVG with correct element IDs for interactive functionality"):
+    withGraphviz { graphviz =>
+      // Test DOT with nodes, groups, and arrows to verify ID preservation
+      val testDot =
+        """digraph "G" {
+          |  "nodeA" [id="node:nodeA", label="Node A"];
+          |  "nodeB" [id="node:nodeB", label="Node B"];
+          |  subgraph "cluster1" {
+          |    graph [id="group:cluster1", label="Group 1"];
+          |    "nodeC" [id="node:nodeC", label="Node C"];
+          |  }
+          |  "nodeA" -> "nodeB" [id="arrow:nodeA->nodeB/0", label="edge1"];
+          |}""".stripMargin
+      
+      graphviz.renderToSvg(DotText(testDot)).foreach { svgWithPos =>
+        val svgContent = svgWithPos.svg.ref.outerHTML
+
+        // Verify node IDs are in the expected ElementId format
+        assert(svgContent.contains("id=\"node:nodeA\""), "SVG should contain node:nodeA ID")
+        assert(svgContent.contains("id=\"node:nodeB\""), "SVG should contain node:nodeB ID") 
+        assert(svgContent.contains("id=\"node:nodeC\""), "SVG should contain node:nodeC ID")
+
+        // Verify group ID is in the expected ElementId format  
+        assert(svgContent.contains("id=\"group:cluster1\""), "SVG should contain group:cluster1 ID")
+
+        // Verify arrow ID is preserved
+        assert(svgContent.contains("id=\"arrow:nodeA->nodeB/0\""), "SVG should contain arrow:nodeA->nodeB/0 ID")
+
+        // Ensure no generic IDs like "node1", "clust1", etc. are present
+        assert(!svgContent.contains("id=\"node1\""), "SVG should not contain generic node1 ID")
+        assert(!svgContent.contains("id=\"clust1\""), "SVG should not contain generic clust1 ID")
       }
     }
