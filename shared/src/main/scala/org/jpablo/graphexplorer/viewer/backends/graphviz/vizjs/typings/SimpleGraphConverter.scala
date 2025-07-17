@@ -10,8 +10,8 @@ import scala.collection.mutable
 
 object SimpleGraphConverter:
 
-  def viewerGraphElementsToDotString(elements: ViewerGraphElements): String =
-    graphToDotString(fromViewerGraphElements(elements))
+  def viewerGraphElementsToDotString(elements: ViewerGraphElements, omitInternal: Boolean = false): String =
+    graphToDotString(fromViewerGraphElements(elements), omitInternal)
 
   def toViewerGraphElements(graph: SimpleGraph): ViewerGraphElements =
     import org.jpablo.graphexplorer.viewer.models.{Attributes as ViewerAttributes, *}
@@ -912,7 +912,12 @@ object SimpleGraphConverter:
     // Add graph attributes
     val graphAttrs = collectGraphAttributes(graph)
     if (graphAttrs.nonEmpty) {
-      lines += s"${padding(1)}graph${formatAttributes(graphAttrs)};"
+      // Use multi-line formatting for graphs with many attributes
+      val attrFormatting = if (graphAttrs.length > 3) 
+        formatAttributesMultiLine(graphAttrs, 1, true)
+      else 
+        formatAttributes(graphAttrs)
+      lines += s"${padding(1)}graph$attrFormatting;"
     }
 
     // Helper to process clusters recursively with proper nesting

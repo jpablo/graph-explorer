@@ -160,7 +160,7 @@ class InternalPhases(
     visibleGraph.map { graph =>
       withLog("5. [visibleGraph -> visibleDOT]", level = logLevel) {
         // Note: `viewerGraphElementsToDotString` discards default attributes.
-        DotText(SimpleGraphConverter.viewerGraphElementsToDotString(graph.elements.combineStyleAttributes))
+        DotText(SimpleGraphConverter.viewerGraphElementsToDotString(graph.elements.combineStyleAttributes, false))
       }
     }
 
