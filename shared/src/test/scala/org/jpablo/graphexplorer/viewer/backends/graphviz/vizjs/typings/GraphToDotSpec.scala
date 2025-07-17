@@ -600,6 +600,88 @@ class GraphToDotSpec extends FunSuite:
     assertEquals(result, expected)
   }
 
+  test("graphToDotString should filter internal attributes when omitInternal=true") {
+    // Create a graph with both internal and non-internal attributes
+    val nodeA = SimpleGraphNode(
+      _gvid = 0, 
+      name = "a", 
+      label = "Node A",
+      pos = Some("10,20"),           // Internal attribute
+      height = Some("0.5"),          // Internal attribute  
+      width = Some("0.75"),          // Internal attribute
+      shape = Some("box")            // Not internal
+    )
+    
+    val cluster = SimpleGraphCluster(
+      _gvid = 1,
+      name = "cluster1", 
+      nodes = Some(List(0)),
+      label = "Group 1",
+      lheight = Some("0.23"),        // Internal attribute
+      lp = Some("15,25"),            // Internal attribute  
+      lwidth = Some("0.60"),         // Internal attribute
+      style = Some("filled")         // Not internal
+    )
+    
+    val edge = SimpleGraphEdge(
+      _gvid = 0,
+      tail = 0,
+      head = 0,
+      label = Some("self-loop"),
+      id = Some("arrow:a->a/0")      // Internal attribute for edges
+    )
+    
+    val graph = SimpleGraph(
+      name = "TestGraph",
+      objects = Some(List(Node(nodeA), Cluster(cluster))),
+      edges = Some(List(edge))
+    )
+
+    // Test with omitInternal = false (should include internal attributes)
+    val withInternal = SimpleGraphConverter.graphToDotString(graph, omitInternal = false)
+    
+    // Test with omitInternal = true (should exclude internal attributes)
+    val withoutInternal = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+    
+    // Verify internal node attributes are present when omitInternal = false
+    assert(withInternal.contains("id=\"node:a\""), "Node ID should be present when omitInternal = false")
+    assert(withInternal.contains("pos=\"10,20\""), "Node pos should be present when omitInternal = false")
+    assert(withInternal.contains("height=\"0.5\""), "Node height should be present when omitInternal = false")
+    assert(withInternal.contains("width=\"0.75\""), "Node width should be present when omitInternal = false")
+    
+    // Verify internal cluster attributes are present when omitInternal = false
+    assert(withInternal.contains("id=\"group:cluster1\""), "Cluster ID should be present when omitInternal = false")
+    assert(withInternal.contains("lheight=\"0.23\""), "Cluster lheight should be present when omitInternal = false")
+    assert(withInternal.contains("lp=\"15,25\""), "Cluster lp should be present when omitInternal = false")
+    assert(withInternal.contains("lwidth=\"0.60\""), "Cluster lwidth should be present when omitInternal = false")
+    
+    // Verify internal edge attributes are present when omitInternal = false
+    assert(withInternal.contains("id=\"arrow:a->a/0\""), "Edge ID should be present when omitInternal = false")
+    
+    // Verify internal node attributes are filtered when omitInternal = true
+    assert(!withoutInternal.contains("id=\"node:a\""), "Node ID should be filtered when omitInternal = true")
+    assert(!withoutInternal.contains("pos=\"10,20\""), "Node pos should be filtered when omitInternal = true")
+    assert(!withoutInternal.contains("height=\"0.5\""), "Node height should be filtered when omitInternal = true")
+    assert(!withoutInternal.contains("width=\"0.75\""), "Node width should be filtered when omitInternal = true")
+    
+    // Verify internal cluster attributes are filtered when omitInternal = true
+    assert(!withoutInternal.contains("id=\"group:cluster1\""), "Cluster ID should be filtered when omitInternal = true")
+    assert(!withoutInternal.contains("lheight=\"0.23\""), "Cluster lheight should be filtered when omitInternal = true")
+    assert(!withoutInternal.contains("lp=\"15,25\""), "Cluster lp should be filtered when omitInternal = true")
+    assert(!withoutInternal.contains("lwidth=\"0.60\""), "Cluster lwidth should be filtered when omitInternal = true")
+    
+    // Verify internal edge attributes are filtered when omitInternal = true
+    assert(!withoutInternal.contains("id=\"arrow:a->a/0\""), "Edge ID should be filtered when omitInternal = true")
+    
+    // Verify non-internal attributes are preserved in both cases
+    assert(withInternal.contains("shape=\"box\""), "Node shape should be preserved when omitInternal = false")
+    assert(withoutInternal.contains("shape=\"box\""), "Node shape should be preserved when omitInternal = true")
+    assert(withInternal.contains("style=\"filled\""), "Cluster style should be preserved when omitInternal = false")
+    assert(withoutInternal.contains("style=\"filled\""), "Cluster style should be preserved when omitInternal = true")
+    assert(withInternal.contains("label=\"self-loop\""), "Edge label should be preserved when omitInternal = false")
+    assert(withoutInternal.contains("label=\"self-loop\""), "Edge label should be preserved when omitInternal = true")
+  }
+
   test("GraphDoTotSpec should handle html labels") {
     val jsonGraph =
       """{"name":"G","objects":[{"_gvid":0,"name":"task_menu","label":"\n<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">\n<tr><td align=\"left\"><b>Task 1</b></td></tr>\n<tr><td align=\"left\">Choose Menu</td></tr>\n<tr><td align=\"left\"><font color=\"darkgreen\">done</font></td></tr>\n</table>","pos":"53.879,110.2","height":"1.0611","width":"1.4189","shape":"plaintext"},{"_gvid":1,"name":"task_ingredients","label":"\\N","pos":"53.879,18","height":"0.5","width":"1.4966","shape":"plaintext"}],"edges":[{"_gvid":0,"tail":0,"head":1,"pos":"e,53.879,35.809 53.879,72.252 53.879,63.852 53.879,55.061 53.879,47.099"}]}"""

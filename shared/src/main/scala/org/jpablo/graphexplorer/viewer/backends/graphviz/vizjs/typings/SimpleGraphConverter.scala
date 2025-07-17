@@ -741,7 +741,7 @@ object SimpleGraphConverter:
 
     def collectClusterAttributes(cluster: SimpleGraphCluster, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
       val attrs = mutable.ListBuffer[(String, String)]()
-      val internalAttrs = if (omitInternal) Set("id") else Set.empty[String]
+      val internalAttrs = if (omitInternal) Set("id", "lheight", "lp", "lwidth") else Set.empty[String]
       val allExcludeKeys = excludeKeys ++ internalAttrs
       
       // Add id attribute unless excluded by omitInternal setting
@@ -750,30 +750,30 @@ object SimpleGraphConverter:
       // Only add label if it's different from the cluster name
       if (!excludeKeys.contains("label") && cluster.label != cluster.name) attrs += "label" -> cluster.label
       
-      cluster.fontname.foreach(v => if (!excludeKeys.contains("fontname")) attrs += "fontname" -> v)
-      cluster.color.foreach(v => if (!excludeKeys.contains("color")) attrs += "color" -> v)
-      cluster.bgcolor.foreach(v => if (!excludeKeys.contains("bgcolor")) attrs += "bgcolor" -> v)
-      cluster.style.foreach(v => if (!excludeKeys.contains("style")) attrs += "style" -> v)
-      cluster.labeljust.foreach(v => if (!excludeKeys.contains("labeljust")) attrs += "labeljust" -> v)
-      cluster.labelloc.foreach(v => if (!excludeKeys.contains("labelloc")) attrs += "labelloc" -> v)
-      cluster.lheight.foreach(v => if (!excludeKeys.contains("lheight")) attrs += "lheight" -> v)
-      cluster.lp.foreach(v => if (!excludeKeys.contains("lp")) attrs += "lp" -> v)
-      cluster.lwidth.foreach(v => if (!excludeKeys.contains("lwidth")) attrs += "lwidth" -> v)
-      cluster.layout.foreach(v => if (!excludeKeys.contains("layout")) attrs += "layout" -> v)
-      cluster.normalize.foreach(v => if (!excludeKeys.contains("normalize")) attrs += "normalize" -> v)
-      cluster.start.foreach(v => if (!excludeKeys.contains("start")) attrs += "start" -> v)
-      cluster.overlap.foreach(v => if (!excludeKeys.contains("overlap")) attrs += "overlap" -> v)
+      cluster.fontname.foreach(v => if (!allExcludeKeys.contains("fontname")) attrs += "fontname" -> v)
+      cluster.color.foreach(v => if (!allExcludeKeys.contains("color")) attrs += "color" -> v)
+      cluster.bgcolor.foreach(v => if (!allExcludeKeys.contains("bgcolor")) attrs += "bgcolor" -> v)
+      cluster.style.foreach(v => if (!allExcludeKeys.contains("style")) attrs += "style" -> v)
+      cluster.labeljust.foreach(v => if (!allExcludeKeys.contains("labeljust")) attrs += "labeljust" -> v)
+      cluster.labelloc.foreach(v => if (!allExcludeKeys.contains("labelloc")) attrs += "labelloc" -> v)
+      cluster.lheight.foreach(v => if (!allExcludeKeys.contains("lheight")) attrs += "lheight" -> v)
+      cluster.lp.foreach(v => if (!allExcludeKeys.contains("lp")) attrs += "lp" -> v)
+      cluster.lwidth.foreach(v => if (!allExcludeKeys.contains("lwidth")) attrs += "lwidth" -> v)
+      cluster.layout.foreach(v => if (!allExcludeKeys.contains("layout")) attrs += "layout" -> v)
+      cluster.normalize.foreach(v => if (!allExcludeKeys.contains("normalize")) attrs += "normalize" -> v)
+      cluster.start.foreach(v => if (!allExcludeKeys.contains("start")) attrs += "start" -> v)
+      cluster.overlap.foreach(v => if (!allExcludeKeys.contains("overlap")) attrs += "overlap" -> v)
       // Add cluster attribute - use provided value or default to "true"
-      if (!excludeKeys.contains("cluster")) {
+      if (!allExcludeKeys.contains("cluster")) {
         attrs += "cluster" -> cluster.cluster.getOrElse("true")
       }
-      cluster.rankdir.foreach(v => if (!excludeKeys.contains("rankdir")) attrs += "rankdir" -> v)
-      cluster.splines.foreach(v => if (!excludeKeys.contains("splines")) attrs += "splines" -> v)
-      cluster.target.foreach(v => if (!excludeKeys.contains("target")) attrs += "target" -> v)
-      cluster.tooltip.foreach(v => if (!excludeKeys.contains("tooltip")) attrs += "tooltip" -> v)
-      cluster.URL.foreach(v => if (!excludeKeys.contains("URL")) attrs += "URL" -> v)
-      cluster.`class`.foreach(v => if (!excludeKeys.contains("class")) attrs += "class" -> v)
-      cluster.colorscheme.foreach(v => if (!excludeKeys.contains("colorscheme")) attrs += "colorscheme" -> v)
+      cluster.rankdir.foreach(v => if (!allExcludeKeys.contains("rankdir")) attrs += "rankdir" -> v)
+      cluster.splines.foreach(v => if (!allExcludeKeys.contains("splines")) attrs += "splines" -> v)
+      cluster.target.foreach(v => if (!allExcludeKeys.contains("target")) attrs += "target" -> v)
+      cluster.tooltip.foreach(v => if (!allExcludeKeys.contains("tooltip")) attrs += "tooltip" -> v)
+      cluster.URL.foreach(v => if (!allExcludeKeys.contains("URL")) attrs += "URL" -> v)
+      cluster.`class`.foreach(v => if (!allExcludeKeys.contains("class")) attrs += "class" -> v)
+      cluster.colorscheme.foreach(v => if (!allExcludeKeys.contains("colorscheme")) attrs += "colorscheme" -> v)
       attrs.toList
 
     def collectGraphAttributes(graph: SimpleGraph, excludeKeys: Set[String] = Set.empty): List[(String, String)] =
