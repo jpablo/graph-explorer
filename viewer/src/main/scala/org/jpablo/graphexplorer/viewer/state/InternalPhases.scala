@@ -171,7 +171,7 @@ class InternalPhases(
     * @param versionedText
     *   A `Versioned[String]` instance containing the DOT graph string, version information, and origin metadata.
     */
-  private def dotToVersionedGraph(versionedText: Versioned[String]) = {
+  private def dotToVersionedGraph(versionedText: Versioned[String]) =
     val Versioned(dotText, origin) = versionedText
     // Safety check: don't process empty or whitespace-only strings
     if dotText.trim.isEmpty then
@@ -189,7 +189,6 @@ class InternalPhases(
           dom.console.error(s"Error parsing DotText to ViewerGraph: ${f.getMessage}")
           editorError.set(Option(f.getMessage))
           Versioned(ViewerGraph.minimalWithDirected, ChangeOrigin.CodeMirror)
-  }
 
 end InternalPhases
 
