@@ -762,3 +762,36 @@ class SimpleGraphConverterSpec extends FunSuite:
 
     assertNoDiff(dotString, expected)
   }
+
+  test("graph should preserve layout and start attributes as top-level attributes") {
+    // Create a SimpleGraph with layout and start attributes at the top level
+    val simpleGraphJson = """{
+      "name": "TestGraph",
+      "directed": true,
+      "layout": "neato",
+      "start": "42",
+      "objects": [
+        {
+          "_gvid": 0,
+          "name": "node1",
+          "label": "Node 1"
+        }
+      ]
+    }"""
+
+    val simpleGraph = read[SimpleGraph](simpleGraphJson)
+    val viewerElements = SimpleGraphConverter.toViewerGraphElements(simpleGraph)
+
+    // Check that the graph attributes include layout and start
+    val layoutAttr = viewerElements.graphAttributes.values.get(AttributeId("layout"))
+    val startAttr = viewerElements.graphAttributes.values.get(AttributeId("start"))
+    
+    assertEquals(layoutAttr, Some(AttrValue("neato")), "Layout attribute should be preserved in graph attributes")
+    assertEquals(startAttr, Some(AttrValue("42")), "Start attribute should be preserved in graph attributes")
+    
+    // Convert back to DOT and check if attributes are preserved
+    val dotString = SimpleGraphConverter.viewerGraphElementsToDotString(viewerElements)
+    
+    assert(dotString.contains("layout=\"neato\""), s"DOT should contain layout attribute, but got:\n$dotString")
+    assert(dotString.contains("start=\"42\""), s"DOT should contain start attribute, but got:\n$dotString")
+  }
