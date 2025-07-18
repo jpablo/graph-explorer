@@ -20,6 +20,7 @@ trait DiagramSelectionOps:
   this: ViewerState =>
 
   private val selectionV: Var[Selection] = Var(ElementIds())
+  private val selectionOptimizer = new SelectionOptimizer()
 
   val editingElementV = Var[Option[ElementId]](None)
 
@@ -165,7 +166,9 @@ trait DiagramSelectionOps:
 
     def deleteSelection() =
       phases.fullGraphV.update: fullGraph =>
-        fullGraph.removeElements(now())
+        val selectedElements = now()
+        selectionOptimizer.invalidateCache(selectedElements.ids.toSet)
+        fullGraph.removeElements(selectedElements)
 
     /** Duplicates the currently selected nodes, arrows, and groups. Creates new elements with the same attributes as the selected ones.
       * Nodes are placed in the corresponding duplicated group if their original group was also selected. Arrows are duplicated connecting
@@ -177,6 +180,8 @@ trait DiagramSelectionOps:
         if currentSelection.isEmpty then
           graph
         else
+          // Clear cache since we're about to add new elements
+          selectionOptimizer.clearCache()
           val classified = currentSelection.classify
 
           // 1. Determine all elements to duplicate (selected + descendants of selected groups)
@@ -324,6 +329,9 @@ trait DiagramSelectionOps:
       else
         set(ElementIds.from(nodeId))
 
+
+    val useOptimizedSelection = false   
+
     def selectExtendSelectionOverlappingElements(
         rect:                MouseActionRect,
         selectableElements:  Seq[SelectableElement],
@@ -334,6 +342,22 @@ trait DiagramSelectionOps:
         findClosestElementId(elementsFromRectEnd) match
           case Some(end) => updateSelectionStatus(end)(rect.shift)
           case None      => clear()
+      else if useOptimizedSelection then
+        // Throttle updates to improve performance during drag operations
+        if selectionOptimizer.shouldUpdateSelection() then
+          selectionOptimizer.measurePerformance("selection-update"):
+            // Use optimized selection with spatial indexing
+            selectionOptimizer.buildSpatialIndex(selectableElements)
+            val elementsInRect = selectionOptimizer.findElementsInRect(selectableElements, rect)
+            val nodesInRect = elementsInRect.map(_.elementId).toSet
+            
+            if nodesInRect.nonEmpty then
+              if rect.shift then
+                add(nodesInRect)
+              else
+                set1(nodesInRect)
+            else if !rect.shift then
+              clear()
       else
         val nodesInRect = selectableElements.filter(isNodeInRect(_, rect)).map(_.elementId).toSet
         if nodesInRect.nonEmpty then
@@ -372,6 +396,13 @@ trait DiagramSelectionOps:
     // Don't remove this line!! it IS the actual functionality
     pprint.log(selection.now())
     dom.console.log("Visible current selection to the console")
+  
+  def printSelectionPerformanceStats(): Unit =
+    val stats = selectionOptimizer.getPerformanceStats()
+    dom.console.log("Selection Performance Stats:")
+    stats.foreach { case (operation, (avg, max, count)) =>
+      dom.console.log(s"  $operation: avg=${avg}ms, max=${max}ms, count=$count")
+    }
 
 end DiagramSelectionOps
 
