@@ -73,8 +73,13 @@ object SimpleGraphConverter:
 //      if (!exclude.contains("bb")) attrs += AttributeId("bb") -> AttrValue(cluster.bb)
       
       cluster.fontname.foreach(v => if (!exclude.contains("fontname")) attrs += AttributeId("fontname") -> AttrValue(v))
+      cluster.fontsize.foreach(v => if (!exclude.contains("fontsize")) attrs += AttributeId("fontsize") -> AttrValue(v))
+      cluster.fontcolor.foreach(v => if (!exclude.contains("fontcolor")) attrs += AttributeId("fontcolor") -> AttrValue(v))
       cluster.color.foreach(v => if (!exclude.contains("color")) attrs += AttributeId("color") -> AttrValue(v))
+      cluster.pencolor.foreach(v => if (!exclude.contains("pencolor")) attrs += AttributeId("pencolor") -> AttrValue(v))
+      cluster.penwidth.foreach(v => if (!exclude.contains("penwidth")) attrs += AttributeId("penwidth") -> AttrValue(v))
       cluster.bgcolor.foreach(v => if (!exclude.contains("bgcolor")) attrs += AttributeId("bgcolor") -> AttrValue(v))
+      cluster.fillcolor.foreach(v => if (!exclude.contains("fillcolor")) attrs += AttributeId("fillcolor") -> AttrValue(v))
       cluster.style.foreach(v => if (!exclude.contains("style")) attrs += AttributeId("style") -> AttrValue(v))
       cluster.labeljust.foreach(v => if (!exclude.contains("labeljust")) attrs += AttributeId("labeljust") -> AttrValue(v))
       cluster.labelloc.foreach(v => if (!exclude.contains("labelloc")) attrs += AttributeId("labelloc") -> AttrValue(v))
@@ -379,8 +384,13 @@ object SimpleGraphConverter:
         edges = edgeGvids,
         subgraphs = subgraphGvids,
         fontname = getAttr("fontname"),
+        fontsize = getAttr("fontsize"),
+        fontcolor = getAttr("fontcolor"),
         color = getAttr("color"),
+        pencolor = getAttr("pencolor"),
+        penwidth = getAttr("penwidth"),
         bgcolor = getAttr("bgcolor"),
+        fillcolor = getAttr("fillcolor"),
         style = getAttr("style"),
         labeljust = getAttrNonDefault("labeljust"),
         labelloc = getAttrNonDefault("labelloc"),
@@ -767,8 +777,13 @@ object SimpleGraphConverter:
       }
       
       cluster.fontname.foreach(v => if (!allExcludeKeys.contains("fontname")) attrs += "fontname" -> v)
+      cluster.fontsize.foreach(v => if (!allExcludeKeys.contains("fontsize")) attrs += "fontsize" -> v)
+      cluster.fontcolor.foreach(v => if (!allExcludeKeys.contains("fontcolor")) attrs += "fontcolor" -> v)
       cluster.color.foreach(v => if (!allExcludeKeys.contains("color")) attrs += "color" -> v)
+      cluster.pencolor.foreach(v => if (!allExcludeKeys.contains("pencolor")) attrs += "pencolor" -> v)
+      cluster.penwidth.foreach(v => if (!allExcludeKeys.contains("penwidth")) attrs += "penwidth" -> v)
       cluster.bgcolor.foreach(v => if (!allExcludeKeys.contains("bgcolor")) attrs += "bgcolor" -> v)
+      cluster.fillcolor.foreach(v => if (!allExcludeKeys.contains("fillcolor")) attrs += "fillcolor" -> v)
       cluster.style.foreach(v => if (!allExcludeKeys.contains("style")) attrs += "style" -> v)
       cluster.labeljust.foreach(v => if (!allExcludeKeys.contains("labeljust")) attrs += "labeljust" -> v)
       cluster.labelloc.foreach(v => if (!allExcludeKeys.contains("labelloc")) attrs += "labelloc" -> v)

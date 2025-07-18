@@ -519,3 +519,163 @@ class SimpleGraphConverterSpec extends FunSuite:
 
     assertNoDiff(dotString, expected)
   }
+
+  test("groups should preserve fillcolor attribute in round-trip conversion") {
+    import scala.collection.immutable.VectorMap
+
+    // Create a graph with a group that has fillcolor
+    val nodeB = NodeId("b")
+    val groupId = GroupId("g0f6ceed0")
+
+    val elements = ViewerGraphElements(
+      nodes = VectorMap(
+        nodeB -> ViewerNode.nodeNoDefaults(
+          nodeB, 
+          Attributes(VectorMap(
+            AttributeId("label") -> AttrValue("b"),
+            AttributeId("fillcolor") -> AttrValue("#ffc9c9"),
+            AttributeId("style") -> AttrValue("filled")
+          ))
+        )
+      ),
+      arrows = Map.empty,
+      memberships = VectorMap(nodeB -> groupId),
+      groups = Map(
+        groupId -> ViewerGroup.group(
+          groupId, 
+          Attributes(VectorMap(
+            AttributeId("label") -> AttrValue("G1"),
+            AttributeId("fillcolor") -> AttrValue("fff085"),
+            AttributeId("style") -> AttrValue("filled"),
+            AttributeId("cluster") -> AttrValue("true")
+          ))
+        )
+      ),
+      graphAttributes = Attributes(VectorMap(
+        AttributeId("label") -> AttrValue(""),
+        AttributeId("rankdir") -> AttrValue("LR")
+      )),
+      defaultNodeAttributes = Attributes.empty,
+      defaultArrowAttributes = Attributes.empty,
+      defaultGroupAttributes = Attributes.empty
+    )
+
+    // Convert to SimpleGraph
+    val simpleGraph = SimpleGraphConverter.fromViewerGraphElements(elements)
+    
+    // Convert back to DOT string
+    val dotString = SimpleGraphConverter.graphToDotString(simpleGraph)
+
+    // Verify that the subgraph has fillcolor attribute
+    assert(dotString.contains("""fillcolor="fff085""""), s"DOT should contain fillcolor attribute, but got:\n$dotString")
+    
+    // Verify the full structure
+    val expected =
+      """|digraph "G" {
+         |  graph [
+         |    label="",
+         |    rankdir="LR"
+         |  ];
+         |  subgraph "g0f6ceed0" {
+         |    graph [
+         |      id="group:g0f6ceed0",
+         |      label="G1",
+         |      fillcolor="fff085",
+         |      style="filled",
+         |      cluster="true"
+         |    ];
+         |    "b" [
+         |      id="node:b",
+         |      label="b",
+         |      pos="0,0",
+         |      height="0.5",
+         |      width="0.75",
+         |      fillcolor="#ffc9c9",
+         |      style="filled"
+         |    ];
+         |  }
+         |}""".stripMargin
+
+    assertNoDiff(dotString, expected)
+  }
+
+  test("groups should preserve pencolor, penwidth and fontsize attributes in round-trip conversion") {
+    import scala.collection.immutable.VectorMap
+
+    // Create a graph with a group that has pencolor, penwidth and fontsize
+    val nodeC = NodeId("c")
+    val groupId = GroupId("g123456")
+
+    val elements = ViewerGraphElements(
+      nodes = VectorMap(
+        nodeC -> ViewerNode.nodeNoDefaults(
+          nodeC, 
+          Attributes(VectorMap(
+            AttributeId("label") -> AttrValue("c")
+          ))
+        )
+      ),
+      arrows = Map.empty,
+      memberships = VectorMap(nodeC -> groupId),
+      groups = Map(
+        groupId -> ViewerGroup.group(
+          groupId, 
+          Attributes(VectorMap(
+            AttributeId("label") -> AttrValue("Styled Group"),
+            AttributeId("pencolor") -> AttrValue("red"),
+            AttributeId("penwidth") -> AttrValue("3"),
+            AttributeId("fontsize") -> AttrValue("20"),
+            AttributeId("style") -> AttrValue("rounded"),
+            AttributeId("cluster") -> AttrValue("true")
+          ))
+        )
+      ),
+      graphAttributes = Attributes(VectorMap(
+        AttributeId("label") -> AttrValue("Test Graph"),
+        AttributeId("rankdir") -> AttrValue("TB")
+      )),
+      defaultNodeAttributes = Attributes.empty,
+      defaultArrowAttributes = Attributes.empty,
+      defaultGroupAttributes = Attributes.empty
+    )
+
+    // Convert to SimpleGraph
+    val simpleGraph = SimpleGraphConverter.fromViewerGraphElements(elements)
+    
+    // Convert back to DOT string
+    val dotString = SimpleGraphConverter.graphToDotString(simpleGraph)
+
+    // Verify that the subgraph has all the style attributes
+    assert(dotString.contains("""pencolor="red""""), s"DOT should contain pencolor attribute, but got:\n$dotString")
+    assert(dotString.contains("""penwidth="3""""), s"DOT should contain penwidth attribute, but got:\n$dotString")
+    assert(dotString.contains("""fontsize="20""""), s"DOT should contain fontsize attribute, but got:\n$dotString")
+    
+    // Verify the full structure
+    val expected =
+      """|digraph "G" {
+         |  graph [
+         |    label="Test Graph",
+         |    rankdir="TB"
+         |  ];
+         |  subgraph "g123456" {
+         |    graph [
+         |      id="group:g123456",
+         |      label="Styled Group",
+         |      fontsize="20",
+         |      pencolor="red",
+         |      penwidth="3",
+         |      style="rounded",
+         |      cluster="true"
+         |    ];
+         |    "c" [
+         |      id="node:c",
+         |      label="c",
+         |      pos="0,0",
+         |      height="0.5",
+         |      width="0.75"
+         |    ];
+         |  }
+         |}""".stripMargin
+
+    assertNoDiff(dotString, expected)
+  }

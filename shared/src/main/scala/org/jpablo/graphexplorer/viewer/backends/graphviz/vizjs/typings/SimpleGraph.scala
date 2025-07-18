@@ -59,8 +59,13 @@ case class SimpleGraphCluster(
     subgraphs: Option[List[Int]] = None,
     // Optional styling and layout properties
     fontname:  Option[String] = None,
+    fontsize:  Option[String] = None,
+    fontcolor: Option[String] = None,
     color:     Option[String] = None,
+    pencolor:  Option[String] = None,
+    penwidth:  Option[String] = None,
     bgcolor:   Option[String] = None,
+    fillcolor: Option[String] = None,
     style:     Option[String] = None,
     labeljust: Option[String] = None, // 'c' | 'l' | 'r'
     labelloc:  Option[String] = None, // 't' | 'b' | 'c'
