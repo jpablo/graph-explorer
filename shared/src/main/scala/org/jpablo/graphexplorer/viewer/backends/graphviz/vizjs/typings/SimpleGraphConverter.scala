@@ -372,7 +372,10 @@ object SimpleGraphConverter:
         name = groupId.value,
 //        bb = getAttr("bb").getOrElse("0,0,100,100"),
         nodes = Some(nodeGvids),
-        label = getAttrNonDefault("label").getOrElse(groupId.value),
+        label = getAttr("label") match {
+          case Some("") => "" // Preserve explicit empty labels to prevent inheritance
+          case other => getAttrNonDefault("label").getOrElse(groupId.value) // Use existing logic for other cases
+        },
         edges = edgeGvids,
         subgraphs = subgraphGvids,
         fontname = getAttr("fontname"),
@@ -757,8 +760,11 @@ object SimpleGraphConverter:
       // Add id attribute unless excluded by omitInternal setting
       if (!allExcludeKeys.contains("id")) attrs += "id" -> s"group:${cluster.name}"
       
-      // Only add label if it's different from the cluster name
-      if (!excludeKeys.contains("label") && cluster.label != cluster.name) attrs += "label" -> cluster.label
+      // Add label attribute to prevent inheritance from top-level graph
+      // Always include if label is empty (to prevent inheritance) or if it's different from the cluster name
+      if (!excludeKeys.contains("label") && (cluster.label.isEmpty || cluster.label != cluster.name)) {
+        attrs += "label" -> cluster.label
+      }
       
       cluster.fontname.foreach(v => if (!allExcludeKeys.contains("fontname")) attrs += "fontname" -> v)
       cluster.color.foreach(v => if (!allExcludeKeys.contains("color")) attrs += "color" -> v)

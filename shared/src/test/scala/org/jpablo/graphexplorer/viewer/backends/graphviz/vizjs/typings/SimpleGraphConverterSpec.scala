@@ -405,3 +405,117 @@ class SimpleGraphConverterSpec extends FunSuite:
     assertEquals(subgroupAttrs.values(AttributeId("style")), AttrValue("filled"))
     assertEquals(subgroupAttrs.values(AttributeId("cluster")), AttrValue("true"))
   }
+
+  test("groups with empty labels should have explicit empty label in DOT output") {
+    import scala.collection.immutable.VectorMap
+
+    // Create a graph with a group that has an empty label
+    val nodeA = NodeId("a")
+    val groupId = GroupId("g9c2b161c")
+
+    val elements = ViewerGraphElements(
+      nodes = VectorMap(
+        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes(VectorMap(AttributeId("label") -> AttrValue("a"))))
+      ),
+      arrows = Map.empty,
+      memberships = VectorMap(nodeA -> groupId),
+      groups = Map(
+        groupId -> ViewerGroup.group(groupId, Attributes(VectorMap(AttributeId("label") -> AttrValue("")))) // Empty label
+      ),
+      graphAttributes = Attributes(VectorMap(
+        AttributeId("label") -> AttrValue("Diagram"),
+        AttributeId("rankdir") -> AttrValue("LR")
+      )),
+      defaultNodeAttributes = Attributes.empty,
+      defaultArrowAttributes = Attributes.empty,
+      defaultGroupAttributes = Attributes.empty
+    )
+
+    // Convert to DOT string
+    val dotString = SimpleGraphConverter.viewerGraphElementsToDotString(elements)
+
+    // Verify that the subgraph has an explicit empty label to prevent inheritance
+    assert(dotString.contains("""label="""""), s"DOT should contain explicit empty label, but got:\n$dotString")
+    
+    // Verify the full structure contains the empty label
+    val expected =
+      """|digraph "G" {
+         |  graph [
+         |    label="Diagram",
+         |    rankdir="LR"
+         |  ];
+         |  subgraph "g9c2b161c" {
+         |    graph [
+         |      id="group:g9c2b161c",
+         |      label="",
+         |      cluster="true"
+         |    ];
+         |    "a" [
+         |      id="node:a",
+         |      label="a",
+         |      pos="0,0",
+         |      height="0.5",
+         |      width="0.75"
+         |    ];
+         |  }
+         |}""".stripMargin
+
+    assertNoDiff(dotString, expected)
+  }
+
+  test("groups with non-empty labels should include their label in DOT output") {
+    import scala.collection.immutable.VectorMap
+
+    // Create a graph with a group that has a non-empty label
+    val nodeA = NodeId("a")
+    val groupId = GroupId("g9c2b161c")
+
+    val elements = ViewerGraphElements(
+      nodes = VectorMap(
+        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes(VectorMap(AttributeId("label") -> AttrValue("a"))))
+      ),
+      arrows = Map.empty,
+      memberships = VectorMap(nodeA -> groupId),
+      groups = Map(
+        groupId -> ViewerGroup.group(groupId, Attributes(VectorMap(AttributeId("label") -> AttrValue("Custom Group Label"))))
+      ),
+      graphAttributes = Attributes(VectorMap(
+        AttributeId("label") -> AttrValue("Diagram"),
+        AttributeId("rankdir") -> AttrValue("LR")
+      )),
+      defaultNodeAttributes = Attributes.empty,
+      defaultArrowAttributes = Attributes.empty,
+      defaultGroupAttributes = Attributes.empty
+    )
+
+    // Convert to DOT string
+    val dotString = SimpleGraphConverter.viewerGraphElementsToDotString(elements)
+
+    // Verify that the subgraph has its custom label
+    assert(dotString.contains("""label="Custom Group Label""""), s"DOT should contain custom label, but got:\n$dotString")
+    
+    // Verify the full structure
+    val expected =
+      """|digraph "G" {
+         |  graph [
+         |    label="Diagram",
+         |    rankdir="LR"
+         |  ];
+         |  subgraph "g9c2b161c" {
+         |    graph [
+         |      id="group:g9c2b161c",
+         |      label="Custom Group Label",
+         |      cluster="true"
+         |    ];
+         |    "a" [
+         |      id="node:a",
+         |      label="a",
+         |      pos="0,0",
+         |      height="0.5",
+         |      width="0.75"
+         |    ];
+         |  }
+         |}""".stripMargin
+
+    assertNoDiff(dotString, expected)
+  }
