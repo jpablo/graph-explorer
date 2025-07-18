@@ -679,3 +679,86 @@ class SimpleGraphConverterSpec extends FunSuite:
 
     assertNoDiff(dotString, expected)
   }
+
+  test("nested groups should generate proper DOT hierarchy") {
+    import scala.collection.immutable.VectorMap
+
+    // Create a graph with nested groups: G1 contains innerGroup which contains node b
+    val nodeB = NodeId("b")
+    val outerGroupId = GroupId("g0f6ceed0")
+    val innerGroupId = GroupId("gacd87035")
+
+    val elements = ViewerGraphElements(
+      nodes = VectorMap(
+        nodeB -> ViewerNode.nodeNoDefaults(
+          nodeB, 
+          Attributes(VectorMap(
+            AttributeId("label") -> AttrValue("b")
+          ))
+        )
+      ),
+      arrows = Map.empty,
+      memberships = VectorMap(
+        nodeB -> innerGroupId,         // b belongs to innerGroup
+        innerGroupId -> outerGroupId   // innerGroup belongs to G1
+      ),
+      groups = Map(
+        outerGroupId -> ViewerGroup.group(
+          outerGroupId, 
+          Attributes(VectorMap(
+            AttributeId("label") -> AttrValue("G1"),
+            AttributeId("cluster") -> AttrValue("true")
+          ))
+        ),
+        innerGroupId -> ViewerGroup.group(
+          innerGroupId, 
+          Attributes(VectorMap(
+            AttributeId("label") -> AttrValue(""),
+            AttributeId("cluster") -> AttrValue("true")
+          ))
+        )
+      ),
+      graphAttributes = Attributes(VectorMap(
+        AttributeId("label") -> AttrValue(""),
+        AttributeId("rankdir") -> AttrValue("LR")
+      )),
+      defaultNodeAttributes = Attributes.empty,
+      defaultArrowAttributes = Attributes.empty,
+      defaultGroupAttributes = Attributes.empty
+    )
+
+    // Convert to DOT string
+    val dotString = SimpleGraphConverter.viewerGraphElementsToDotString(elements)
+
+    // Verify that innerGroup is nested inside G1, not a sibling
+    val expected =
+      """|digraph "G" {
+         |    graph [
+         |        label="",
+         |        rankdir="LR"
+         |    ];
+         |    subgraph "g0f6ceed0" {
+         |        graph [
+         |            id="group:g0f6ceed0",
+         |            label="G1",
+         |            cluster="true"
+         |        ];
+         |        subgraph "gacd87035" {
+         |            graph [
+         |                id="group:gacd87035",
+         |                label="",
+         |                cluster="true"
+         |            ];
+         |            "b" [
+         |                id="node:b",
+         |                label="b",
+         |                pos="0,0",
+         |                height="0.5",
+         |                width="0.75"
+         |            ];
+         |        }
+         |    }
+         |}""".stripMargin
+
+    assertNoDiff(dotString, expected)
+  }

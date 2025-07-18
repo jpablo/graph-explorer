@@ -577,6 +577,19 @@ object SimpleGraphConverter:
     // If no explicit gvids, start from 0; otherwise start high to avoid conflicts
     var nextClusterGvid = if (hasExplicitClusterGvids) 1000 else 0
     
+    // Pre-assign gvids to all clusters to ensure consistent references
+    val clusterGvids = mutable.Map[GroupId, Int]()
+    elements.groups.foreach { case (groupId, group) =>
+      val gvid = group.attributes.values.get(AttributeId("_gvid"))
+        .map(_.toString.toInt)
+        .getOrElse {
+          val id = nextClusterGvid
+          nextClusterGvid += 1
+          id
+        }
+      clusterGvids(groupId) = gvid
+    }
+    
     // Build a map of all direct node memberships (including through nested groups)
     val allNodeMemberships = mutable.Map[GroupId, mutable.Set[Int]]()
     
@@ -596,28 +609,22 @@ object SimpleGraphConverter:
     }
     
     val clusterObjects = elements.groups.map { case (groupId, group) =>
-      // Get all node gvids for this cluster (including nested)
-      val memberGvids = allNodeMemberships.getOrElse(groupId, mutable.Set.empty).toList.sorted
+      // Get only DIRECT node gvids for this cluster (NOT including nested)
+      val memberGvids = groupMemberships.getOrElse(groupId, mutable.Set.empty)
+        .map(nodeId => nodeIdToGvid(nodeId)).toList.sorted
       
       val subgraphGvids = groupToSubgroups.get(groupId).map { subgroups =>
         subgroups.toList.map { subgroupId =>
-          elements.groups(subgroupId).attributes.values
-            .get(AttributeId("_gvid"))
-            .map(_.toString.toInt)
-            .getOrElse {
-              val id = nextClusterGvid
-              nextClusterGvid += 1
-              id
-            }
+          clusterGvids(subgroupId)
         }.sorted
       }
       
       // Find edge gvids for this cluster 
-      // Reconstruct edge references based on which edges connect nodes in this cluster
-      val nodeGvidSet = memberGvids.toSet
+      // Reconstruct edge references based on which edges connect nodes that are DIRECTLY in this cluster
+      val directNodeGvidSet = memberGvids.toSet
       val clusterEdges = elements.arrows.values.collect {
-        case arrow if nodeGvidSet.contains(nodeIdToGvid(arrow.source)) &&
-                     nodeGvidSet.contains(nodeIdToGvid(arrow.target)) =>
+        case arrow if directNodeGvidSet.contains(nodeIdToGvid(arrow.source)) &&
+                     directNodeGvidSet.contains(nodeIdToGvid(arrow.target)) =>
           arrow.attributes.values.get(AttributeId("_gvid"))
             .map(_.toString.toInt)
             .getOrElse(arrow.seq)
@@ -625,13 +632,7 @@ object SimpleGraphConverter:
       
       val edgeGvids = if (clusterEdges.nonEmpty) Some(clusterEdges) else None
       
-      val defaultGvid = group.attributes.values.get(AttributeId("_gvid"))
-        .map(_.toString.toInt)
-        .getOrElse {
-          val id = nextClusterGvid
-          nextClusterGvid += 1
-          id
-        }
+      val defaultGvid = clusterGvids(groupId)
       
       attributesToCluster(
         groupId, 
