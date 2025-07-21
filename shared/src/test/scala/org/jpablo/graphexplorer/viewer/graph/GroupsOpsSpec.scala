@@ -345,3 +345,22 @@ class GroupsOpsSpec extends FunSuite:
     assertEquals(updatedGraph.memberships(a), combinedGroupId, "Node a should be in combined group")
     assertEquals(updatedGraph.memberships(b), combinedGroupId, "Node b should be in combined group")
   }
+
+  test("moveToNewGroup should generate sequential group IDs (g1, g2, g3, etc.)") {
+    val graph = ViewerGraph(ViewerGraphElements(nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c))))
+    
+    // Create first group - should get ID "g1"
+    val graph1 = graph.moveToNewGroup(ElementIds.from(a), "First Group")
+    val groupId1 = graph1.membership(a).get
+    assertEquals(groupId1.value, "g1", "First group should have ID 'g1'")
+    
+    // Create second group - should get ID "g2" 
+    val graph2 = graph1.moveToNewGroup(ElementIds.from(b), "Second Group")
+    val groupId2 = graph2.membership(b).get
+    assertEquals(groupId2.value, "g2", "Second group should have ID 'g2'")
+    
+    // Create third group - should get ID "g3"
+    val graph3 = graph2.moveToNewGroup(ElementIds.from(c), "Third Group")
+    val groupId3 = graph3.membership(c).get
+    assertEquals(groupId3.value, "g3", "Third group should have ID 'g3'")
+  }

@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.SubGraph
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, DotAttribute, GraphType}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
@@ -12,21 +11,31 @@ import scala.annotation.tailrec
 /** Represents a graph that can be visualized in the viewer.
   */
 case class ViewerGraph(
-    elements: ViewerGraphElements = ViewerGraphElements.minimal,
-    id:       String = ViewerGraphElements.defaultRootId.value,
-    tpe:      GraphType = GraphType.default,
-    counter:  Int = 0
+    elements:     ViewerGraphElements = ViewerGraphElements.minimal,
+    id:           String = ViewerGraphElements.defaultRootId.value,
+    tpe:          GraphType = GraphType.default,
+    nodeCounter:  Int = 0,
+    groupCounter: Int = 0
 ) extends AttributesOps, TraversalOps, GroupsOps derives CanEqual:
 
   // --- mutable stuff ----
-  private var nodeCounter = counter
+  private var _nodeCounter  = nodeCounter
+  private var _groupCounter = groupCounter
 
   private def nextNodeId(): NodeId =
     @tailrec
     def nextAvailable(): NodeId =
-      nodeCounter += 1
-      val id = NodeId(numberToLetterId(nodeCounter))
+      _nodeCounter += 1
+      val id = NodeId(numberToLetterId(_nodeCounter))
       if id in nodes then nextAvailable() else id
+    nextAvailable()
+
+  private[graph] def nextGroupId(): GroupId =
+    @tailrec
+    def nextAvailable(): GroupId =
+      _groupCounter += 1
+      val id = GroupId(s"g${_groupCounter}")
+      if id in groups then nextAvailable() else id
     nextAvailable()
   // --- end mutable stuff ----
 
@@ -321,9 +330,9 @@ case class ViewerGraph(
       group:      ViewerGroup,
       groupIdMap: Map[GroupId, GroupId] // Needed to find the *new* parent
   ): (ViewerGraph, GroupId) =
-    val newGroupId      = GroupId(SubGraph.randomId())
+    val newGroupId = graph.nextGroupId()
     // Filter out layout-specific attributes that shouldn't be copied
-    val filteredAttributes = group.attributes.filterKeys(attrId => 
+    val filteredAttributes = group.attributes.filterKeys(attrId =>
       !Set("_gvid", "width", "pos", "height", "lp", "lwidth", "lheight").contains(attrId.value)
     )
     val newGroup        = ViewerGroup.group(newGroupId, filteredAttributes)
@@ -347,7 +356,7 @@ case class ViewerGraph(
     val targetGroupId         = ogParentGroupId.flatMap(groupIdMap.get).orElse(ogParentGroupId)
     val (newGraph, newNodeId) = graph.addNode(targetGroupId)
     // Filter out layout-specific attributes that shouldn't be copied
-    val filteredAttributes = node.attributes.filterKeys(attrId => 
+    val filteredAttributes = node.attributes.filterKeys(attrId =>
       !Set("_gvid", "width", "pos", "height").contains(attrId.value)
     )
     val finalGraphForNode = newGraph.updateAttributes(ElementIds.from(newNodeId), filteredAttributes.toUpdates)
