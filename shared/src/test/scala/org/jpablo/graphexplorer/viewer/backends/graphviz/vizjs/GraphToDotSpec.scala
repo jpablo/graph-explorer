@@ -16,30 +16,29 @@ class GraphToDotSpec extends FunSuite:
 
     assertEquals(
       result,
-      """digraph "G" {
-}"""
+      """|digraph "G" {
+         |}""".stripMargin
     )
   }
 
   test("graphToDotString should handle simple graph with nodes and edges") {
-    val nodeA = SimpleGraphNode(_gvid = 0, name = "a", label = "Node A")
-    val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "Node B")
-    val edge = SimpleGraphEdge(
-      _gvid = 0,
-      tail = 0,
-      head = 1,
-      label = Some("connection")
-    )
-
     val graph = SimpleGraph(
       name = "SimpleGraph",
-      objects = Some(List(Node(nodeA), Node(nodeB))),
-      edges = Some(List(edge))
+      objects = Some(List(
+        Node(SimpleGraphNode(_gvid = 0, name = "a", label = "Node A")),
+        Node(SimpleGraphNode(_gvid = 1, name = "b", label = "Node B"))
+      )),
+      edges = Some(List(SimpleGraphEdge(
+        _gvid = 0,
+        tail = 0,
+        head = 1,
+        label = Some("connection")
+      )))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph)
+    val result = SimpleGraphConverter.graphToDotString(graph)
     val expected =
-    """|digraph "SimpleGraph" {
+      """|digraph "SimpleGraph" {
        |  "a" [
        |    id="node:a",
        |    label="Node A"
@@ -75,20 +74,18 @@ class GraphToDotSpec extends FunSuite:
   }
 
   test("graphToDotString should handle nodes with attributes") {
-    val node = SimpleGraphNode(
-      _gvid = 0,
-      name = "test",
-      label = "Test Node",
-      shape = Some("ellipse"),
-      fontsize = Some("12")
-    )
-
     val graph = SimpleGraph(
       name = "G",
-      objects = Some(List(Node(node)))
+      objects = Some(List(Node(SimpleGraphNode(
+        _gvid = 0,
+        name = "test",
+        label = "Test Node",
+        shape = Some("ellipse"),
+        fontsize = Some("12")
+      ))))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph)
+    val result = SimpleGraphConverter.graphToDotString(graph)
     val expected =
       """|digraph "G" {
          |  "test" [
@@ -103,18 +100,16 @@ class GraphToDotSpec extends FunSuite:
   }
 
   test("graphToDotString should handle boolean and numeric attributes") {
-    val node = SimpleGraphNode(
-      _gvid = 0,
-      name = "test",
-      height = Some("0.8"),
-      width = Some("1.5"),
-      label = "test",
-      fixedsize = Some("true")
-    )
-
     val graph = SimpleGraph(
       name = "G",
-      objects = Some(List(Node(node)))
+      objects = Some(List(Node(SimpleGraphNode(
+        _gvid = 0,
+        name = "test",
+        height = Some("0.8"),
+        width = Some("1.5"),
+        label = "test",
+        fixedsize = Some("true")
+      ))))
     )
 
     val result = SimpleGraphConverter.graphToDotString(graph)
@@ -134,18 +129,16 @@ class GraphToDotSpec extends FunSuite:
 
   test("graphToDotString should handle HTML-like labels") {
     // HTML labels should be formatted with <> notation instead of quotes
-    val node = SimpleGraphNode(
-      _gvid = 0,
-      name = "html",
-      label = "<b>Bold Label</b>"
-    )
-
     val graph = SimpleGraph(
       name = "G",
-      objects = Some(List(Node(node)))
+      objects = Some(List(Node(SimpleGraphNode(
+        _gvid = 0,
+        name = "html",
+        label = "<b>Bold Label</b>"
+      ))))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph)
+    val result = SimpleGraphConverter.graphToDotString(graph)
     val expected =
       """|digraph "G" {
          |  "html" [
@@ -203,19 +196,18 @@ class GraphToDotSpec extends FunSuite:
   }
 
   test("graphToDotString should handle subgraphs") {
-    val nodeA = SimpleGraphNode(_gvid = 0, name = "a", label = "A")
-    val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "B")
-    val nodeC = SimpleGraphNode(_gvid = 2, name = "c", label = "C")
-
-    val cluster = SimpleGraphCluster(_gvid = 3, name = "1", nodes = Some(List(0, 1)), label = "Group 1")
-
-    val edgeAB = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, label = Some("internal"))
-    val edgeBC = SimpleGraphEdge(_gvid = 1, tail = 1, head = 2, label = Some("external"))
-
     val graph = SimpleGraph(
       name = "G",
-      objects = Some(List(Node(nodeA), Node(nodeB), Node(nodeC), Cluster(cluster))),
-      edges = Some(List(edgeAB, edgeBC))
+      objects = Some(List(
+        Node(SimpleGraphNode(_gvid = 0, name = "a", label = "A")),
+        Node(SimpleGraphNode(_gvid = 1, name = "b", label = "B")),
+        Node(SimpleGraphNode(_gvid = 2, name = "c", label = "C")),
+        Cluster(SimpleGraphCluster(_gvid = 3, name = "1", nodes = Some(List(0, 1)), label = "Group 1"))
+      )),
+      edges = Some(List(
+        SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, label = Some("internal")),
+        SimpleGraphEdge(_gvid = 1, tail = 1, head = 2, label = Some("external"))
+      ))
     )
 
     val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
@@ -238,15 +230,14 @@ class GraphToDotSpec extends FunSuite:
   }
 
   test("graphToDotString should handle undirected graphs") {
-    val nodeA = SimpleGraphNode(_gvid = 0, name = "a", label = "a")
-    val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "b")
-    val edge  = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1)
-
     val graph = SimpleGraph(
       name = "G",
       directed = false,
-      objects = Some(List(Node(nodeA), Node(nodeB))),
-      edges = Some(List(edge))
+      objects = Some(List(
+        Node(SimpleGraphNode(_gvid = 0, name = "a", label = "a")),
+        Node(SimpleGraphNode(_gvid = 1, name = "b", label = "b"))
+      )),
+      edges = Some(List(SimpleGraphEdge(_gvid = 0, tail = 0, head = 1)))
     )
 
     val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
@@ -261,15 +252,15 @@ class GraphToDotSpec extends FunSuite:
   }
 
   test("graphToDotString should handle edges with ports") {
-    val nodeA = SimpleGraphNode(_gvid = 0, name = "a", label = "a")
-    val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "b")
-
-    val edge = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, tailport = Some("out"), headport = Some("in"))
-
     val graph = SimpleGraph(
       name = "G",
-      objects = Some(List(Node(nodeA), Node(nodeB))),
-      edges = Some(List(edge))
+      objects = Some(List(
+        Node(SimpleGraphNode(_gvid = 0, name = "a", label = "a")),
+        Node(SimpleGraphNode(_gvid = 1, name = "b", label = "b"))
+      )),
+      edges = Some(List(
+        SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, tailport = Some("out"), headport = Some("in"))
+      ))
     )
 
     val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
@@ -285,18 +276,16 @@ class GraphToDotSpec extends FunSuite:
 
   test("graphToDotString should handle numeric node references in edges") {
     // Test edge with numeric tail/head that references gvids
-    val nodeA = SimpleGraphNode(_gvid = 0, name = "nodeA", label = "nodeA")
-    val nodeB = SimpleGraphNode(_gvid = 1, name = "nodeB", label = "nodeB")
-
-    val edge = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1)
-
     val graph = SimpleGraph(
       name = "G",
-      objects = Some(List(Node(nodeA), Node(nodeB))),
-      edges = Some(List(edge))
+      objects = Some(List(
+        Node(SimpleGraphNode(_gvid = 0, name = "nodeA", label = "nodeA")),
+        Node(SimpleGraphNode(_gvid = 1, name = "nodeB", label = "nodeB"))
+      )),
+      edges = Some(List(SimpleGraphEdge(_gvid = 0, tail = 0, head = 1)))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+    val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
     val expected =
       """|digraph "G" {
          |  "nodeA" [label="nodeA"];
@@ -324,23 +313,22 @@ class GraphToDotSpec extends FunSuite:
   }
 
   test("graphToDotString should handle complex mixed graph") {
-    val nodeA = SimpleGraphNode(_gvid = 0, name = "a", label = "Start", shape = Some("ellipse"))
-    val nodeB = SimpleGraphNode(_gvid = 1, name = "b", label = "Middle", shape = Some("box"))
-    val nodeC = SimpleGraphNode(_gvid = 2, name = "c", label = "End")
-
-    val cluster = SimpleGraphCluster(_gvid = 100, name = "process", nodes = Some(List(1)), label = "Process", style = Some("filled"))
-
-    val edgeAB = SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, label = Some("first"), color = Some("red"))
-    val edgeBC = SimpleGraphEdge(_gvid = 1, tail = 1, head = 2, label = Some("second"))
-
     val graph = SimpleGraph(
       name = "ComplexGraph",
       rankdir = Some("LR"),
-      objects = Some(List(Node(nodeA), Node(nodeB), Node(nodeC), Cluster(cluster))),
-      edges = Some(List(edgeAB, edgeBC))
+      objects = Some(List(
+        Node(SimpleGraphNode(_gvid = 0, name = "a", label = "Start", shape = Some("ellipse"))),
+        Node(SimpleGraphNode(_gvid = 1, name = "b", label = "Middle", shape = Some("box"))),
+        Node(SimpleGraphNode(_gvid = 2, name = "c", label = "End")),
+        Cluster(SimpleGraphCluster(_gvid = 100, name = "process", nodes = Some(List(1)), label = "Process", style = Some("filled")))
+      )),
+      edges = Some(List(
+        SimpleGraphEdge(_gvid = 0, tail = 0, head = 1, label = Some("first"), color = Some("red")),
+        SimpleGraphEdge(_gvid = 1, tail = 1, head = 2, label = Some("second"))
+      ))
     )
 
-    val result   = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
+    val result = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
     val expected =
       """|digraph "ComplexGraph" {
          |  graph [rankdir="LR"];
@@ -607,34 +595,34 @@ class GraphToDotSpec extends FunSuite:
   test("graphToDotString should filter internal attributes when omitInternal=true") {
     // Create a graph with both internal and non-internal attributes
     val nodeA = SimpleGraphNode(
-      _gvid = 0, 
-      name = "a", 
+      _gvid = 0,
+      name = "a",
       label = "Node A",
-      pos = Some("10,20"),           // Internal attribute
-      height = Some("0.5"),          // Internal attribute  
-      width = Some("0.75"),          // Internal attribute
-      shape = Some("box")            // Not internal
+      pos = Some("10,20"),  // Internal attribute
+      height = Some("0.5"), // Internal attribute
+      width = Some("0.75"), // Internal attribute
+      shape = Some("box")   // Not internal
     )
-    
+
     val cluster = SimpleGraphCluster(
       _gvid = 1,
-      name = "cluster1", 
+      name = "cluster1",
       nodes = Some(List(0)),
       label = "Group 1",
-      lheight = Some("0.23"),        // Internal attribute
-      lp = Some("15,25"),            // Internal attribute  
-      lwidth = Some("0.60"),         // Internal attribute
-      style = Some("filled")         // Not internal
+      lheight = Some("0.23"), // Internal attribute
+      lp = Some("15,25"),     // Internal attribute
+      lwidth = Some("0.60"),  // Internal attribute
+      style = Some("filled")  // Not internal
     )
-    
+
     val edge = SimpleGraphEdge(
       _gvid = 0,
       tail = 0,
       head = 0,
       label = Some("self-loop"),
-      id = Some("arrow:a->a/0")      // Internal attribute for edges
+      id = Some("arrow:a->a/0") // Internal attribute for edges
     )
-    
+
     val graph = SimpleGraph(
       name = "TestGraph",
       objects = Some(List(Node(nodeA), Cluster(cluster))),
@@ -643,40 +631,40 @@ class GraphToDotSpec extends FunSuite:
 
     // Test with omitInternal = false (should include internal attributes)
     val withInternal = SimpleGraphConverter.graphToDotString(graph, omitInternal = false)
-    
+
     // Test with omitInternal = true (should exclude internal attributes)
     val withoutInternal = SimpleGraphConverter.graphToDotString(graph, omitInternal = true)
-    
+
     // Verify internal node attributes are present when omitInternal = false
     assert(withInternal.contains("id=\"node:a\""), "Node ID should be present when omitInternal = false")
     assert(withInternal.contains("pos=\"10,20\""), "Node pos should be present when omitInternal = false")
     assert(withInternal.contains("height=\"0.5\""), "Node height should be present when omitInternal = false")
     assert(withInternal.contains("width=\"0.75\""), "Node width should be present when omitInternal = false")
-    
+
     // Verify internal cluster attributes are present when omitInternal = false
     assert(withInternal.contains("id=\"group:cluster1\""), "Cluster ID should be present when omitInternal = false")
     assert(withInternal.contains("lheight=\"0.23\""), "Cluster lheight should be present when omitInternal = false")
     assert(withInternal.contains("lp=\"15,25\""), "Cluster lp should be present when omitInternal = false")
     assert(withInternal.contains("lwidth=\"0.60\""), "Cluster lwidth should be present when omitInternal = false")
-    
+
     // Verify internal edge attributes are present when omitInternal = false
     assert(withInternal.contains("id=\"arrow:a->a/0\""), "Edge ID should be present when omitInternal = false")
-    
+
     // Verify internal node attributes are filtered when omitInternal = true
     assert(!withoutInternal.contains("id=\"node:a\""), "Node ID should be filtered when omitInternal = true")
     assert(!withoutInternal.contains("pos=\"10,20\""), "Node pos should be filtered when omitInternal = true")
     assert(!withoutInternal.contains("height=\"0.5\""), "Node height should be filtered when omitInternal = true")
     assert(!withoutInternal.contains("width=\"0.75\""), "Node width should be filtered when omitInternal = true")
-    
+
     // Verify internal cluster attributes are filtered when omitInternal = true
     assert(!withoutInternal.contains("id=\"group:cluster1\""), "Cluster ID should be filtered when omitInternal = true")
     assert(!withoutInternal.contains("lheight=\"0.23\""), "Cluster lheight should be filtered when omitInternal = true")
     assert(!withoutInternal.contains("lp=\"15,25\""), "Cluster lp should be filtered when omitInternal = true")
     assert(!withoutInternal.contains("lwidth=\"0.60\""), "Cluster lwidth should be filtered when omitInternal = true")
-    
+
     // Verify internal edge attributes are filtered when omitInternal = true
     assert(!withoutInternal.contains("id=\"arrow:a->a/0\""), "Edge ID should be filtered when omitInternal = true")
-    
+
     // Verify non-internal attributes are preserved in both cases
     assert(withInternal.contains("shape=\"box\""), "Node shape should be preserved when omitInternal = false")
     assert(withoutInternal.contains("shape=\"box\""), "Node shape should be preserved when omitInternal = true")
