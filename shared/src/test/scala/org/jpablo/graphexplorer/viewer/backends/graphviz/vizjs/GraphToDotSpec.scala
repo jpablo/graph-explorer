@@ -1,8 +1,8 @@
-package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
+package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.*
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphObject.{Cluster, Node}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.*
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.SimpleGraphObject.{Cluster, Node}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import upickle.default.*
 

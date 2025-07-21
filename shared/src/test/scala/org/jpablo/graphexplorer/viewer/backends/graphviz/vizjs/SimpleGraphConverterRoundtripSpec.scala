@@ -1,7 +1,7 @@
-package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
+package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{SimpleGraph, SimpleGraphConverter}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{SimpleGraph, SimpleGraphConverter}
 import upickle.default.*
 
 class SimpleGraphConverterRoundtripSpec extends FunSuite:

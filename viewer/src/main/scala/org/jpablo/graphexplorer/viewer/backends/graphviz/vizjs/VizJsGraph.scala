@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.{ArrowPosition, ArrowPositionParser}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{ArrowPosition, ArrowPositionParser}
 
 import scala.scalajs.js
 import org.jpablo.graphexplorer.viewer.models.ArrowId

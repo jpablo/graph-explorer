@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
+package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements

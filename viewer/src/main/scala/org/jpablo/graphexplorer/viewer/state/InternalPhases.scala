@@ -5,7 +5,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphConverter
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.SimpleGraphConverter
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph

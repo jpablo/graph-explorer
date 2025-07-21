@@ -1,4 +1,4 @@
-package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
+package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
 case class Point(x: Double, y: Double)
 

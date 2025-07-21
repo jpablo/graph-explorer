@@ -1,11 +1,11 @@
-package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
+package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
 import com.raquo.airstream.ownership.Owner
 import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphConverter
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.SimpleGraphConverter
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}

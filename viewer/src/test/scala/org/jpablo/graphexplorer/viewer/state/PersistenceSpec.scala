@@ -15,6 +15,7 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
   override def munitFixtures = List(mockStorageFixture())
 
+
   def storedProjectKey(projectId: ProjectId): String =
     s"[StoredString]graph-explorer.project.${projectId.value}"
 

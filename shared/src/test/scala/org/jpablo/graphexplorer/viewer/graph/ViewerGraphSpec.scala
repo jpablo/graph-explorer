@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.ScalaCheckSuite
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphConverter
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.SimpleGraphConverter
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Style
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group

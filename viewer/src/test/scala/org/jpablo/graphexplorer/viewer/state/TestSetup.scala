@@ -12,6 +12,10 @@ object TestSetup {
         
         if (typeof window.localStorage === 'undefined') {
           var storage = {};
+
+          window.getStorage = function() {
+            return storage;
+          };
           
           window.localStorage = {
             getItem: function(key) {

@@ -15,7 +15,7 @@ import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
 import scala.scalajs.js
 //import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.ArrowPosition
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.ArrowPosition
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
 // rawSvg is the SVG element as it comes from DOT

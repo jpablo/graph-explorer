@@ -1,7 +1,7 @@
-package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings
+package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.typings.SimpleGraphConverter
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.SimpleGraphConverter
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
@@ -11,6 +11,8 @@ import scala.collection.immutable.VectorMap
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class SimpleGraphConverterInverseIntegrationSpec extends FunSuite with TestHelpers:
+
+  override def munitFixtures = List(mockStorageFixture())
 
   test("fromViewerGraphElements should create valid SimpleGraph structure") {
     // Create test ViewerGraphElements
