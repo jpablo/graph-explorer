@@ -11,7 +11,7 @@ import scala.collection.immutable.VectorMap
 
 class ViewerGraphSpec extends ScalaCheckSuite:
 
-  val rootId = ViewerGraphElements.defaultRootId
+  val rootId    = ViewerGraphElements.defaultRootId
   val rootGroup = group(rootId)
 
   val a = NodeId("a")
@@ -25,7 +25,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val expected =
       ViewerGraph(
         ViewerGraphElements(
-          nodes  = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
+          nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
           arrows = Map(arrow.id -> Arrow(a, b))
         )
       )
@@ -39,16 +39,15 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val arrow = Arrow(a, b)
     val graph =
       ViewerGraph(
-        ViewerGraphElements
-          (
-          nodes  = VectorMap(nodeWithId(a), nodeWithId(b)),
+        ViewerGraphElements(
+          nodes = VectorMap(nodeWithId(a), nodeWithId(b)),
           arrows = Map(arrow.id -> arrow)
         )
       )
     val expected =
       ViewerGraph(
         ViewerGraphElements(
-          nodes  = VectorMap(nodeWithId(a), nodeWithId(b)),
+          nodes = VectorMap(nodeWithId(a), nodeWithId(b)),
           arrows = Map(arrow.id -> Arrow(a, b, Attributes.of(Style -> Style.dashed)))
         )
       )
@@ -100,7 +99,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     val expected =
       ViewerGraph(
         ViewerGraphElements(
-          nodes  = VectorMap(nodeWithId(a), nodeWithId(b)),
+          nodes = VectorMap(nodeWithId(a), nodeWithId(b)),
           arrows = Map(arrowId2 -> Arrow(a, b, seq = 1))
         )
       )
@@ -119,11 +118,11 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     //   }
     //   "a" -> "b";
     // }
-    
+
     val groupId = GroupId("gdd30b2d0")
-    val aNode = NodeId("a")
-    val bNode = NodeId("b")
-    
+    val aNode   = NodeId("a")
+    val bNode   = NodeId("b")
+
     val elements = ViewerGraphElements(
       nodes = VectorMap(
         nodeWithId(aNode, "label" -> "a"),
@@ -133,13 +132,16 @@ class ViewerGraphSpec extends ScalaCheckSuite:
         ArrowId("a->b:0") -> Arrow(aNode, bNode)
       ),
       groups = Map(
-        groupId -> group(groupId, Attributes.of(
-          "label" -> "A title",
-          "lheight" -> "0.23",
-          "lp" -> "43,169.2",
-          "lwidth" -> "0.49",
-          "cluster" -> "true"
-        ))
+        groupId -> group(
+          groupId,
+          Attributes.of(
+            "label"   -> "A title",
+            "lheight" -> "0.23",
+            "lp"      -> "43,169.2",
+            "lwidth"  -> "0.49",
+            "cluster" -> "true"
+          )
+        )
       ),
       memberships = Map(
         aNode -> groupId,
@@ -147,24 +149,60 @@ class ViewerGraphSpec extends ScalaCheckSuite:
       ),
       graphAttributes = Attributes.of("label" -> "A title")
     )
-    
+
     val graph = ViewerGraph(elements)
-    
+
     // Try to remove node "b" - this should not cause NoSuchElementException
     val updatedGraph = graph.removeElements(ElementIds.from(bNode))
-    
+
     // Verify the node was removed
     assert(!updatedGraph.nodes.contains(bNode))
-    
+
     // Verify the arrow was also removed (since it referenced the removed node)
     assertEquals(updatedGraph.arrows.size, 0)
-    
+
     // Verify membership was cleaned up
     assert(!updatedGraph.memberships.contains(bNode))
-    
+
     // This should not throw NoSuchElementException when converting to SimpleGraph
     val simpleGraph = SimpleGraphConverter.fromViewerGraphElements(updatedGraph.elements)
     assert(simpleGraph != null)
+  }
+
+  test("duplicateSelection should duplicate a single node with its attributes") {
+    // Initial graph: digraph "G" { graph [label=""]; "a" [label="a"]; }
+    val aNode = NodeId("a")
+    val initialGraph = ViewerGraph(ViewerGraphElements(
+      nodes = VectorMap(
+        nodeWithId(aNode, "label" -> "a")
+      ),
+      graphAttributes = Attributes.of("label" -> "")
+    ))
+
+    // Select node "a" for duplication
+    val selectedIds = IdsByKind(nodes = Set(aNode))
+
+    // Duplicate the selection
+    val (resultGraph, newElementIds) = initialGraph.duplicateSelection(selectedIds)
+
+    // Verify the result
+    assertEquals(resultGraph.nodes.size, 2)
+
+    // The original node should still exist
+    assert(resultGraph.nodes.contains(aNode))
+    assertEquals(resultGraph.nodes(aNode).label.toString, "a")
+
+    // There should be exactly one new node
+    val newNodeIds = newElementIds.collect { case id: NodeId => id }
+    assertEquals(newNodeIds.size, 1)
+
+    // The new node should be "b" (based on numberToLetterId logic: 1 -> a, 2 -> b)
+    val newNodeId = newNodeIds.head
+    assertEquals(newNodeId.value, "b")
+
+    // The new node should have the same attributes as the original
+    assert(resultGraph.nodes.contains(newNodeId))
+    assertEquals(resultGraph.nodes(newNodeId).label.toString, "a")
   }
 
 end ViewerGraphSpec
