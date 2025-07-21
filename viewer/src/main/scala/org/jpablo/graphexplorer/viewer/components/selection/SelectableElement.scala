@@ -59,7 +59,7 @@ object SelectableElement:
     else None
 
   def findAll(ref: dom.Element): Seq[SelectableElement] =
-    ref.querySelectorAllT[dom.svg.G]("g").flatMap(fromDomElement)
+    ref.querySelectorAllT("g").flatMap(fromDomElement)
 
   def query(ref: dom.Element, elems: ElementIds): Seq[SelectableElement] =
     if elems.isEmpty then
@@ -85,15 +85,11 @@ case class EdgeElement(private val ref0: dom.svg.G) extends SelectableElement(re
   lazy val elementId: ArrowId =
     toArrowId.getOrElse(ArrowId(refTitle))
 
-  private def selectElements() = ref.querySelectorAll("path, line, polygon, polyline, ellipse")
-
   override def select(): Unit =
     ref.classList.add(selectedClass)
-    selectElements().foreach(_.classList.add("selected-arrow"))
 
   override def unselect(): Unit =
     ref.classList.remove(selectedClass)
-    selectElements().foreach(_.classList.remove("selected-arrow"))
 
 end EdgeElement
 
