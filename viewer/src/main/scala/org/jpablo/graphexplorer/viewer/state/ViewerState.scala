@@ -124,26 +124,10 @@ case class ViewerState(
   ): Unit =
     phases.fullGraphV.update: fullGraph =>
       val sel = selection.now()
-
-      if sel.isEmpty then
-        val (newGraph, newNodeId) = fullGraph.addNode(attributes = attributes)
-        selection.set2(newNodeId)
-        newGraph
-      else
-        val selected = sel.head
-        // Only proceed if selected ID is a valid node in the graph
-        selected match
-          case id: NodeId =>
-            val (newGraph, _, _) = direction match
-              case ArrowDirection.forward  => fullGraph.addNodeAndArrowFrom(source = id, attributes = attributes)
-              case ArrowDirection.backward => fullGraph.addNodeAndArrowTo(target = id, attributes = attributes)
-            newGraph
-          case id: GroupId =>
-            val (newGraph, _) = fullGraph.addNode(groupId = Some(id), attributes = attributes)
-            newGraph
-          case _: ArrowId =>
-            val (newGraph, _) = fullGraph.addNode(attributes = attributes)
-            newGraph
+      val selectedElementId = if sel.isEmpty then None else Some(sel.head)
+      val (newGraph, newNodeId, _) = fullGraph.addNodeWithSmartConnection(selectedElementId, attributes, direction)
+      selection.set2(newNodeId)
+      newGraph
 
   def addArrow(from: NodeId, to: NodeId)(using name: sourcecode.FullName) =
     phases.fullGraphV.update: g =>

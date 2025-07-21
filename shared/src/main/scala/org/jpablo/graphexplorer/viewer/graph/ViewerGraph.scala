@@ -253,6 +253,40 @@ case class ViewerGraph(
           // 4. Add the reversed arrow
           graphWithoutOriginal.modifyArrows.using(_ + (reversedArrow.id -> reversedArrow))
 
+  /** Smart connection behavior for adding nodes.
+    *
+    * @param selectedElementId The currently selected element ID (optional)
+    * @param attributes Attributes for the new node
+    * @param direction Direction for arrow creation when connecting to a node
+    * @return A tuple of (updated graph, new node ID, optional arrow ID)
+    */
+  def addNodeWithSmartConnection(
+      selectedElementId: Option[ElementId],
+      attributes: Attributes,
+      direction: ArrowDirection
+  ): (ViewerGraph, NodeId, Option[ArrowId]) =
+    selectedElementId match
+      case None =>
+        // No selection: just add a standalone node
+        val (newGraph, newNodeId) = addNode(attributes = attributes)
+        (newGraph, newNodeId, None)
+      case Some(selected) =>
+        selected match
+          case id: NodeId =>
+            // Selected node: add new node and connect with arrow
+            val (newGraph, newNodeId, arrowId) = direction match
+              case ArrowDirection.forward  => addNodeAndArrowFrom(source = id, attributes = attributes)
+              case ArrowDirection.backward => addNodeAndArrowTo(target = id, attributes = attributes)
+            (newGraph, newNodeId, Some(arrowId))
+          case id: GroupId =>
+            // Selected group: add node to that group
+            val (newGraph, newNodeId) = addNode(groupId = Some(id), attributes = attributes)
+            (newGraph, newNodeId, None)
+          case _: ArrowId =>
+            // Selected arrow: just add standalone node
+            val (newGraph, newNodeId) = addNode(attributes = attributes)
+            (newGraph, newNodeId, None)
+
 //  lazy val toTrees: Tree[ViewerNode] =
 //    val paths =
 //      for ns <- nodes.toList yield (ns.id.toString.split("/").init.toList, ns.label, ns)
