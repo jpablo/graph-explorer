@@ -322,7 +322,11 @@ case class ViewerGraph(
       groupIdMap: Map[GroupId, GroupId] // Needed to find the *new* parent
   ): (ViewerGraph, GroupId) =
     val newGroupId      = GroupId(SubGraph.randomId())
-    val newGroup        = ViewerGroup.group(newGroupId, group.attributes)
+    // Filter out layout-specific attributes that shouldn't be copied
+    val filteredAttributes = group.attributes.filterKeys(attrId => 
+      !Set("_gvid", "width", "pos", "height", "lp", "lwidth", "lheight").contains(attrId.value)
+    )
+    val newGroup        = ViewerGroup.group(newGroupId, filteredAttributes)
     val ogParentGroupId = graph.membership(group.id)
     // Use the map to find the NEW parent ID if the original parent was also duplicated
     val targetParentGroupId = ogParentGroupId.flatMap(groupIdMap.get).orElse(ogParentGroupId)
@@ -342,7 +346,11 @@ case class ViewerGraph(
     // Use the map to find the NEW parent ID if the original parent group was also duplicated
     val targetGroupId         = ogParentGroupId.flatMap(groupIdMap.get).orElse(ogParentGroupId)
     val (newGraph, newNodeId) = graph.addNode(targetGroupId)
-    val finalGraphForNode     = newGraph.updateAttributes(ElementIds.from(newNodeId), node.attributes.toUpdates)
+    // Filter out layout-specific attributes that shouldn't be copied
+    val filteredAttributes = node.attributes.filterKeys(attrId => 
+      !Set("_gvid", "width", "pos", "height").contains(attrId.value)
+    )
+    val finalGraphForNode = newGraph.updateAttributes(ElementIds.from(newNodeId), filteredAttributes.toUpdates)
     (finalGraphForNode, newNodeId)
 
   private def duplicateSingleArrow(

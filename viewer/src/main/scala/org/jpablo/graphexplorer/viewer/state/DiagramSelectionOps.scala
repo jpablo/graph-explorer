@@ -176,8 +176,7 @@ trait DiagramSelectionOps:
         if currentSelection.isEmpty then
           graph
         else
-          val (newGraph, newElements) =
-            graph.duplicateSelection(currentSelection.classify)
+          val (newGraph, newElements) = graph.duplicateSelection(currentSelection.classify)
           if newElements.nonEmpty then
             set1(newElements)
           newGraph
