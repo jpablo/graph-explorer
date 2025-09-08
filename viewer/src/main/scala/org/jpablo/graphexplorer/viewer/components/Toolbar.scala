@@ -262,12 +262,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         target := "_blank",
         span(cls := "bi bi-github")
       ),
-      // -------- Settings: Prompt label before adding node --------
-      LabeledCheckboxFormControl(
-        id = "prompt-label-before-add",
-        labelStr = "Label before add",
-        isChecked = state.promptLabelBeforeNewNode
-      ),
       // -------- Theme Selector --------
       Select(
         placeholderText = Some(s"Select theme"),
