@@ -23,6 +23,7 @@ case class ViewerState(
     writeText:                String => Any = _ => (),
     setTheme:                 String => Unit = _ => (),
     errorBus:                 EventBus[String] = EventBus(),
+    infoBus:                  EventBus[String] = EventBus(),
     initialSource:            Option[String] = None,
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
     initialLeftPanelVisible:  Boolean = false,

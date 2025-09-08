@@ -10,6 +10,7 @@ import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window, URLSearchParams}
 import org.jpablo.graphexplorer.viewer.models.ClientSize
+import org.jpablo.graphexplorer.viewer.utils.ShareUrl
 
 import scala.scalajs.js.Date
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,6 +20,7 @@ object Viewer:
   def main(args: Array[String]): Unit =
     given Owner    = unsafeWindowOwner
     val errors     = setupErrorHandling()
+    val infos      = EventBus[String]()
     val router     = Router()
     val routerCmds = RouterCommands(router)
 
@@ -41,6 +43,17 @@ object Viewer:
       .map(Level.fromString)
       .getOrElse(Level.None)
 
+    // If a share URL (?dot=...) is present, resolve it immediately:
+    val sharedDot = ShareUrl.readDotParam()
+    sharedDot.foreach: dot =>
+      ProjectStorage.findProjectByExactSource(dot) match
+        case Some(existingId) =>
+          router.navigateTo(Route.ProjectDetail(existingId.value))
+        case None =>
+          // Create a new project initialized with the provided DOT
+          val newId = ProjectStorage.createProjectDirectoryEntry("Untitled")
+          router.navigateTo(Route.ProjectDetail(newId.value, Some(dot)))
+
     Graphviz.build().foreach: (graphviz: Graphviz) =>
       dom.console.log("Graphviz (viz.js) initialized:", graphviz)
       printBanner()
@@ -60,6 +73,7 @@ object Viewer:
                   writeText = window.navigator.clipboard.writeText,
                   setTheme = setTheme,
                   errorBus = errors,
+                  infoBus = infos,
                   initialSource = source,
                   initialRightPanelSection = lastRightPanelSection,
                   initialLeftPanelVisible = lastLeftPanelVisible,

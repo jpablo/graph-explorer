@@ -247,6 +247,11 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       ).tiny.ghost.toTooltip(all.helpKeyboardShortcuts.labelWithShortcut, "tooltip-left"),
       Button(
         cls := "text-base",
+        span(cls := "bi bi-link-45deg"),
+        onClick --> all.copyShareURL.execute()
+      ).tiny.ghost.toTooltip(all.copyShareURL.labelWithShortcut, "tooltip-bottom"),
+      Button(
+        cls := "text-base",
         span(cls := "bi bi-info-circle"),
         onClick --> all.openAboutDialog.execute()
       ).tiny.ghost.toTooltip(all.openAboutDialog.labelWithShortcut, "tooltip-left"),

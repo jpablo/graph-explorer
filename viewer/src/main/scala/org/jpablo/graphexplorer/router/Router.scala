@@ -1,6 +1,9 @@
 package org.jpablo.graphexplorer.router
 
 import com.raquo.laminar.api.L.*
+import org.scalajs.dom
+import org.scalajs.dom.URLSearchParams
+import org.jpablo.graphexplorer.viewer.utils.ShareUrl
 import scala.scalajs.js
 
 import Router.diagrams
@@ -37,8 +40,11 @@ class Router:
 
   private def parsePath(path: String): Route =
     // strip leading slash, split on '/'
+    val queryParams = new URLSearchParams(dom.window.location.search)
+    val sourceOpt   = ShareUrl.readDotParam()
+
     path.stripPrefix("/").split("/").filter(_.nonEmpty).toList match
-      case `diagrams` :: id :: Nil => Route.ProjectDetail(id) // TODO: extract any document from the queryString
+      case `diagrams` :: id :: Nil => Route.ProjectDetail(id, sourceOpt)
       case _                       => Route.Home
 
   private def buildPath(route: Route): String =

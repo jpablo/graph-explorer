@@ -7,6 +7,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.{KeyValue, window}
+import org.scalajs.dom
 
 import scala.scalajs.js
 import scala.collection.immutable.VectorMap
@@ -318,6 +319,19 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       Command("as DOT", () => state.copyAsDOT(), always, description = Some("Copy the full diagram as DOT to the clipboard"))
     val exportAsJSON =
       Command("as JSON", () => state.copyAsJSON(), always, description = Some("Copy the full diagram as JSON to the clipboard"))
+
+    val copyShareURL = Command(
+      "Share URL",
+      () => {
+        val dot  = state.sourceText.now()
+        val url  = org.jpablo.graphexplorer.viewer.utils.ShareUrl.buildForProject(state.projectId, dot)
+        state.writeText(url)
+        dom.console.info("Share URL copied to clipboard", url)
+        state.infoBus.emit("Link copied to clipboard")
+      },
+      always,
+      description = Some("Copy a URL to this diagram (local only)")
+    )
     val zoomOut = Command("Zoom out", () => state.zoomOut(), always, description = Some("Zoom out the diagram"))
     val fit     = Command("Fit", () => state.fitDiagram.emit(()), always, description = Some("Fit the diagram to the screen"))
     val autoFit = Command("Auto fit", () => state.autoFitToggle(), always, description = Some("Zoom in the diagram"))
@@ -499,7 +513,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.copyAsSVG,
       all.exportAsSVG,
       all.exportAsDOT,
-      all.exportAsJSON
+      all.exportAsJSON,
+      all.copyShareURL
     ),
     zoom -> List(
       all.zoomOut,

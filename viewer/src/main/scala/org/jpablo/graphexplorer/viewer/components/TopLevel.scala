@@ -25,6 +25,7 @@ def TopLevel(
       RightToolbar(state),
       HelpDialog(state.helpDialogOpen, commands),
       AboutDialog(state.aboutDialogOpen),
+      InfoAlert(state.infoBus),
       EditLabelDialog(state),
       ErrorAlert(state.errorBus)
     )

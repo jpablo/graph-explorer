@@ -121,4 +121,16 @@ object ProjectStorage:
   private def projectKey(id: ProjectId): String =
     s"graph-explorer.project.${id.value}"
 
+  /** Find a project whose persisted source exactly matches the given DOT text. */
+  def findProjectByExactSource(dot: String): Option[ProjectId] =
+    val dir = read[ProjectsDirectory](directoryStorage.signal.observe.now())
+    dir.projects.collectFirst(Function.unlift { info =>
+      val projectStorage = storedString(projectKey(info.id), write(PersistedDiagramState.empty))
+      try
+        val state = read[PersistedDiagramState](projectStorage.signal.observe.now())
+        if state.source == dot then Some(info.id) else None
+      catch
+        case _: Throwable => None
+    })
+
 end ProjectStorage
