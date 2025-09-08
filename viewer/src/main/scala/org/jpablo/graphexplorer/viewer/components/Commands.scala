@@ -127,11 +127,17 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
   object all:
     val newNode =
-      Command("New node", () => state.addNodeWithSmartConnection(), always, Some(Shortcut("n")), Some("Add a new node"))
+      Command(
+        "New node",
+        () => state.createNodeMaybePrompt(),
+        always,
+        Some(Shortcut("n")),
+        Some("Add a new node")
+      )
 
     val newBackwardsNode = Command(
       "New backwards node",
-      () => state.addNodeWithSmartConnection(direction = ArrowDirection.backward),
+      () => state.createNodeMaybePrompt(direction = ArrowDirection.backward),
       singleNodeSelected,
       Some(Shortcut("p")),
       Some("Add a new node without connections")
@@ -552,6 +558,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     dom.console.debug("activeElement:", dom.document.activeElement)
     val sh = Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
     for cmd <- byShortcut.get(sh) do
-      if ev.key == KeyValue.Enter then
-        ev.preventDefault()
+      // Prevent default for all handled shortcuts so the pressed key
+      // does not leak into newly-focused inputs (e.g. New Node label dialog)
+      ev.preventDefault()
+      ev.stopPropagation()
       cmd.execute()

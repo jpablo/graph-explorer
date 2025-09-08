@@ -27,6 +27,7 @@ def TopLevel(
       AboutDialog(state.aboutDialogOpen),
       InfoAlert(state.infoBus),
       EditLabelDialog(state),
+      NewNodeLabelDialog(state),
       ErrorAlert(state.errorBus)
     )
   )

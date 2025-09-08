@@ -31,7 +31,8 @@ trait Persistence:
       rightPanelActiveSection -> Try(RightPanelSection.fromOrdinal(restoredViewerSettings.rightPanelTabIndex)).getOrElse(
         RightPanelSection.none
       ),
-      currentTheme -> restoredViewerSettings.currentTheme
+      currentTheme -> restoredViewerSettings.currentTheme,
+      promptLabelBeforeNewNode -> restoredViewerSettings.promptLabelBeforeNewNode
     )
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
@@ -47,15 +48,16 @@ trait Persistence:
         )
 
     // synchronize ViewerState ~> ViewerSettings
-    Signal.combine(leftPanelVisible.signal, rightPanelActiveSection.signal, currentTheme.signal)
+    Signal.combine(leftPanelVisible.signal, rightPanelActiveSection.signal, currentTheme.signal, promptLabelBeforeNewNode.signal)
       .changes
       .distinct
-      .foreach((leftVisible, tabIndex, theme) =>
+      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode) =>
         viewerSettings.set(
           ViewerSettings(
             leftPanelVisible = leftVisible,
             rightPanelTabIndex = tabIndex.ordinal,
             currentTheme = theme,
+            promptLabelBeforeNewNode = promptBeforeNewNode,
             schemaVersion = ViewerSettings.currentSchemaVersion
           )
         )
@@ -88,10 +90,11 @@ case class ViewerSettings(
     leftPanelVisible:   Boolean = true,
     rightPanelTabIndex: Int = 0,
     currentTheme:       Option[String] = None,
+    promptLabelBeforeNewNode: Boolean = true,
     schemaVersion:      Int = ViewerSettings.currentSchemaVersion // Add default for loading potentially older states
 ) derives ReadWriter
 
 // Add a default empty state for ViewerSettings
 object ViewerSettings:
-  val currentSchemaVersion = 1 // Define the current version
+  val currentSchemaVersion = 2 // Define the current version
   val empty                = ViewerSettings()

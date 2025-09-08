@@ -98,7 +98,7 @@ trait AddNewArrowOps:
           (ev: dom.MouseEvent) => {
             ev.stopPropagation()
             mouseAction.inactive()
-            addNodeWithSmartConnection(direction = direction)
+            createNodeMaybePrompt(direction = direction)
           }
         )
 

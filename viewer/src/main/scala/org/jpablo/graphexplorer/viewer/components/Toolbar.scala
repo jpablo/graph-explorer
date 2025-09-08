@@ -30,7 +30,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       .map: shape =>
         MenuOption(
           elem = shapePreview(shape),
-          value = () => state.addNodeWithSmartConnection(Attributes.of(Shape -> shape)),
+          value = () => state.createNodeMaybePrompt(Attributes.of(Shape -> shape)),
           description = None,
           shortcut = None
         )
@@ -261,6 +261,12 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
         target := "_blank",
         span(cls := "bi bi-github")
+      ),
+      // -------- Settings: Prompt label before adding node --------
+      LabeledCheckboxFormControl(
+        id = "prompt-label-before-add",
+        labelStr = "Label before add",
+        isChecked = state.promptLabelBeforeNewNode
       ),
       // -------- Theme Selector --------
       Select(

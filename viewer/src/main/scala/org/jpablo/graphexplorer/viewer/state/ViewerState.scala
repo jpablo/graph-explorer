@@ -96,6 +96,24 @@ case class ViewerState(
         )
       })
 
+  // ------------- App settings -------------
+  // If true, prompt for label before creating a new node (default: true)
+  val promptLabelBeforeNewNode: Var[Boolean] = Var(true)
+
+  // ------------- New node flow -------------
+  case class PendingNewNode(attributes: Attributes, direction: ArrowDirection)
+  val pendingNewNodeV: Var[Option[PendingNewNode]] = Var(None)
+
+  /** Creates a new node, optionally prompting for the label before creation based on settings. */
+  def createNodeMaybePrompt(
+      attributes: Attributes = Attributes.empty,
+      direction:  ArrowDirection = ArrowDirection.forward
+  ): Unit =
+    if promptLabelBeforeNewNode.now() then
+      pendingNewNodeV.set(Some(PendingNewNode(attributes, direction)))
+    else
+      addNodeWithSmartConnection(attributes, direction)
+
   // -------- storage ------------
   initializePersistence()
 
