@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Shape}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Shape, Rankdir}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
 import scala.collection.immutable.VectorMap
@@ -31,7 +31,14 @@ trait CombineNodesOps:
         this  // Some nodes not found, return unchanged
       else
         val newNodeId = nextNodeId()
-        val recordLabel = createRecordLabel(nodesToCombine)
+
+        // Get the graph's rankdir to determine optimal record orientation
+        val rankdir = elements.graphAttributes.values
+          .get(Rankdir.attrId)
+          .flatMap(attr => Rankdir.values.find(_.toString == attr.toString))
+          .getOrElse(Rankdir.TB)
+
+        val recordLabel = createRecordLabel(nodesToCombine, rankdir)
 
         // Get the group membership of the original nodes (they all have the same)
         val groupMembership = memberships.get(nodesToCombine.head.id)
@@ -92,10 +99,12 @@ trait CombineNodesOps:
         )
 
   /** Creates a record label string from a sequence of nodes.
-    * Format: "<f0> Label1 | <f1> Label2 | <f2> Label3"
+    * For space optimization, uses opposite orientation from graph:
+    * - TB/BT graphs: wraps in {} for vertical stacking (saves horizontal space)
+    * - LR/RL graphs: no wrapping for horizontal stacking (saves vertical space)
     */
-  private def createRecordLabel(nodes: Seq[ViewerNode]): String =
-    nodes.zipWithIndex.map { case (node, idx) =>
+  private def createRecordLabel(nodes: Seq[ViewerNode], rankdir: Rankdir): String =
+    val fields = nodes.zipWithIndex.map { case (node, idx) =>
       val label = node.label.toString
       // Escape special characters in labels for record format
       val escapedLabel = label
@@ -106,6 +115,12 @@ trait CombineNodesOps:
         .replace("}", "\\}")
       s"<f$idx> $escapedLabel"
     }.mkString(" | ")
+
+    // For TB/BT graphs, wrap in {} to force vertical stacking
+    // For LR/RL graphs, keep horizontal (default behavior)
+    rankdir match
+      case Rankdir.TB | Rankdir.BT => s"{$fields}"
+      case Rankdir.LR | Rankdir.RL => fields
 
   /** Checks if a node is a record node (has shape=record or shape=Mrecord). */
   def isRecordNode(nodeId: NodeId): Boolean =
@@ -191,11 +206,19 @@ trait CombineNodesOps:
             )
 
   /** Parses a record label to extract individual field labels.
-    * Input format: "<f0> Label1 | <f1> Label2 | <f2> Label3"
+    * Handles both formats:
+    * - Vertical: "{<f0> Label1 | <f1> Label2 | <f2> Label3}"
+    * - Horizontal: "<f0> Label1 | <f1> Label2 | <f2> Label3"
     * Returns: Seq("Label1", "Label2", "Label3")
     */
   private def parseRecordLabel(recordLabel: String): Seq[String] =
-    recordLabel.split(" \\| ").toSeq.map { field =>
+    // Remove outer curly braces if present (vertical format)
+    val cleanLabel = if recordLabel.startsWith("{") && recordLabel.endsWith("}") then
+      recordLabel.substring(1, recordLabel.length - 1)
+    else
+      recordLabel
+
+    cleanLabel.split(" \\| ").toSeq.map { field =>
       // Remove port identifier (e.g., "<f0> ")
       val labelPart = field.replaceFirst("^<f\\d+>\\s*", "")
       // Unescape special characters
