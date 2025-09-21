@@ -17,13 +17,13 @@ case class ViewerGraph(
     tpe:          GraphType = GraphType.default,
     nodeCounter:  Int = 0,
     groupCounter: Int = 0
-) extends AttributesOps, TraversalOps, GroupsOps derives CanEqual:
+) extends AttributesOps, TraversalOps, GroupsOps, CombineNodesOps derives CanEqual:
 
   // --- mutable stuff ----
   private var _nodeCounter  = nodeCounter
   private var _groupCounter = groupCounter
 
-  private def nextNodeId(): NodeId =
+  private[graph] def nextNodeId(): NodeId =
     @tailrec
     def nextAvailable(): NodeId =
       _nodeCounter += 1

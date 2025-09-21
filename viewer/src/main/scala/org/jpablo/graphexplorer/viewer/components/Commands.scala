@@ -125,6 +125,10 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   private def singleElementSelected(selection: ElementIds): Boolean =
     selection.size == 1
 
+  private def canCombineNodesVisible(selection: ElementIds): Boolean =
+    val classified = selection.classify
+    classified.nodes.size >= 2 && classified.arrows.isEmpty && classified.groups.isEmpty
+
   object all:
     val newNode =
       Command(
@@ -229,6 +233,14 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     )
 
     val clearSelection = Command("Clear selection", () => state.selection.clear(), shortcut = Some(Shortcut(KeyValue.Escape)))
+
+    val combineIntoRecord = Command(
+      "Combine into Record",
+      () => state.selection.combineIntoRecord(),
+      canCombineNodesVisible,
+      shortcut = Some(Shortcut("b")),
+      description = Some("Combine selected nodes into a record node")
+    )
 
     val selectGroupMembers = Command(
       "Select group members",
@@ -480,6 +492,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.duplicate,
       all.group,
       all.ungroup,
+      all.combineIntoRecord,
       all.resetSelectionAttributes,
       all.clearSelection,
       all.selectGroupMembers,

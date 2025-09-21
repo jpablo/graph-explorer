@@ -138,6 +138,18 @@ trait DiagramSelectionOps:
     def ungroup() =
       phases.fullGraphV.update(_.ungroupSelection(now()))
 
+    def combineIntoRecord() =
+      val currentSelection = now()
+      if currentSelection.nodeIds.nonEmpty then
+        phases.fullGraphV.update { graph =>
+          val newGraph = graph.combineIntoRecord(currentSelection.nodeIds)
+          // Select the newly created record node (it should be the newest node)
+          val newNodeIds = newGraph.nodeIds -- graph.nodeIds
+          if newNodeIds.nonEmpty then
+            set1(newNodeIds)
+          newGraph
+        }
+
     def reverseArrowsStyle() =
       phases.fullGraphV.update(_.reverseArrowsStyle(now()))
 
