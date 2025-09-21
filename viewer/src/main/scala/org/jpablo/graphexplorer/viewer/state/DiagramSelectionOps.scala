@@ -150,6 +150,22 @@ trait DiagramSelectionOps:
           newGraph
         }
 
+    def splitRecord() =
+      val currentSelection = now()
+      if currentSelection.nodeIds.size == 1 then
+        val nodeId = currentSelection.nodeIds.head
+        phases.fullGraphV.update { graph =>
+          if graph.isRecordNode(nodeId) then
+            val newGraph = graph.splitRecordNode(nodeId)
+            // Select the newly created nodes
+            val newNodeIds = newGraph.nodeIds -- graph.nodeIds
+            if newNodeIds.nonEmpty then
+              set1(newNodeIds)
+            newGraph
+          else
+            graph
+        }
+
     def reverseArrowsStyle() =
       phases.fullGraphV.update(_.reverseArrowsStyle(now()))
 

@@ -129,6 +129,11 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val classified = selection.classify
     classified.nodes.size >= 2 && classified.arrows.isEmpty && classified.groups.isEmpty
 
+  private def canSplitRecordVisible(selection: ElementIds): Boolean =
+    val classified = selection.classify
+    classified.nodes.size == 1 && classified.arrows.isEmpty && classified.groups.isEmpty &&
+      state.fullGraphNow().isRecordNode(classified.nodes.head)
+
   object all:
     val newNode =
       Command(
@@ -240,6 +245,14 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       canCombineNodesVisible,
       shortcut = Some(Shortcut("b")),
       description = Some("Combine selected nodes into a record node")
+    )
+
+    val splitRecord = Command(
+      "Split Record",
+      () => state.selection.splitRecord(),
+      canSplitRecordVisible,
+      shortcut = Some(Shortcut("b", shift = true)),
+      description = Some("Split record node into individual nodes")
     )
 
     val selectGroupMembers = Command(
@@ -493,6 +506,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.group,
       all.ungroup,
       all.combineIntoRecord,
+      all.splitRecord,
       all.resetSelectionAttributes,
       all.clearSelection,
       all.selectGroupMembers,

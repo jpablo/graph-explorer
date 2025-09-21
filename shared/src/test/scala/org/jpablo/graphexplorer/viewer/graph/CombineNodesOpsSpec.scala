@@ -125,6 +125,98 @@ class CombineNodesOpsSpec extends FunSuite:
       a.targetPort.contains("f1")
     ), "Should have self-edge record:f0 -> record:f1")
 
+  test("isRecordNode detects record nodes"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(Shape -> Shape.record, Label -> "<f0> Test")),
+          b -> ViewerNode.nodeWithDefaults(b, Attributes.of(Label -> "Normal node"))
+        )
+      )
+    )
+
+    assert(graph.isRecordNode(a), "Node with record shape should be detected")
+    assert(!graph.isRecordNode(b), "Node without record shape should not be detected")
+
+  test("splitRecordNode splits record back to individual nodes"):
+    // First create a record node by combining
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(Label -> "Node A")),
+          b -> ViewerNode.nodeWithDefaults(b, Attributes.of(Label -> "Node B")),
+          c -> ViewerNode.nodeWithDefaults(c, Attributes.of(Label -> "Node C"))
+        )
+      ),
+      nodeCounter = 3
+    )
+
+    val combined = graph.combineIntoRecord(Set(a, b))
+    val recordNodeId = (combined.nodeIds -- Set(c)).head
+
+    // Now split it back
+    val split = combined.splitRecordNode(recordNodeId)
+
+    // Should have 3 nodes again (2 new ones + node c)
+    assertEquals(split.nodeIds.size, 3)
+    assert(!split.nodeIds.contains(recordNodeId), "Record node should be removed")
+    assert(split.nodeIds.contains(c), "Node c should remain")
+
+    // Check that the new nodes have the correct labels
+    val newNodes = split.nodes.values.filter(n => !Set(c).contains(n.id))
+    val labels = newNodes.map(_.label.toString).toSet
+    assert(labels.contains("Node A"), "Should have node with label 'Node A'")
+    assert(labels.contains("Node B"), "Should have node with label 'Node B'")
+
+  test("splitRecordNode preserves edges correctly"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(Label -> "A")),
+          b -> ViewerNode.nodeWithDefaults(b, Attributes.of(Label -> "B")),
+          x -> ViewerNode.nodeWithDefaults(x),
+          y -> ViewerNode.nodeWithDefaults(y)
+        ),
+        arrows = VectorMap(
+          Arrow.arrow(x, a),
+          Arrow.arrow(a, y),
+          Arrow.arrow(x, b),
+          Arrow.arrow(a, b)
+        )
+      ),
+      nodeCounter = 4
+    )
+
+    // Combine a and b
+    val combined = graph.combineIntoRecord(Set(a, b))
+    val recordNodeId = (combined.nodeIds -- Set(x, y)).head
+
+    // Split back
+    val split = combined.splitRecordNode(recordNodeId)
+
+    // Should have 4 arrows still
+    assertEquals(split.arrows.size, 4)
+
+    // All arrows should not have ports anymore
+    split.arrows.values.foreach { arrow =>
+      assert(arrow.sourcePort.isEmpty, s"Arrow ${arrow.id} should not have source port")
+      assert(arrow.targetPort.isEmpty, s"Arrow ${arrow.id} should not have target port")
+    }
+
+    // Check connectivity is preserved (though node IDs will be different)
+    val newNodeIds = split.nodeIds -- Set(x, y)
+    assert(newNodeIds.size == 2, "Should have 2 new nodes")
+
+    // Should have arrows from x to both new nodes
+    val arrowsFromX = split.arrows.values.filter(_.source == x)
+    assertEquals(arrowsFromX.size, 2, "Should have 2 arrows from x")
+
+    // Should have an arrow between the new nodes
+    val arrowsBetweenNew = split.arrows.values.filter(a =>
+      newNodeIds.contains(a.source) && newNodeIds.contains(a.target)
+    )
+    assert(arrowsBetweenNew.nonEmpty, "Should have arrow between the split nodes")
+
   test("combineIntoRecord preserves group membership"):
     val groupId = GroupId("g1")
     val graph = ViewerGraph(
