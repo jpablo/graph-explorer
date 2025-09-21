@@ -166,6 +166,12 @@ trait DiagramSelectionOps:
             graph
         }
 
+    def transposeRecord() =
+      val currentSelection = now()
+      if currentSelection.nodeIds.size == 1 then
+        val nodeId = currentSelection.nodeIds.head
+        phases.fullGraphV.update(_.transposeRecord(nodeId))
+
     def reverseArrowsStyle() =
       phases.fullGraphV.update(_.reverseArrowsStyle(now()))
 

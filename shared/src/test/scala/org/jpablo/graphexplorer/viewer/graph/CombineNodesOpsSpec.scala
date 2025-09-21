@@ -235,3 +235,70 @@ class CombineNodesOpsSpec extends FunSuite:
     // The new record node should be in the same group
     val recordNodeId = (result.nodeIds -- Set.empty[NodeId]).head
     assertEquals(result.memberships.get(recordNodeId), Some(groupId), "Record node should be in same group")
+
+  test("transposeRecord toggles between horizontal and vertical"):
+    // Create a horizontal record node
+    val horizontalLabel = "<f0> Node A | <f1> Node B"
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(
+            Shape -> Shape.record,
+            Label -> horizontalLabel
+          ))
+        )
+      )
+    )
+
+    // First transpose: horizontal to vertical
+    val transposed1 = graph.transposeRecord(a)
+    val label1 = transposed1.getNode(a).get.label.toString
+    assertEquals(label1, s"{$horizontalLabel}", "Should wrap in curly braces for vertical")
+
+    // Second transpose: vertical back to horizontal
+    val transposed2 = transposed1.transposeRecord(a)
+    val label2 = transposed2.getNode(a).get.label.toString
+    assertEquals(label2, horizontalLabel, "Should remove curly braces for horizontal")
+
+  test("transposeRecord does nothing for non-record nodes"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(Label -> "Regular Node"))
+        )
+      )
+    )
+
+    val result = graph.transposeRecord(a)
+    assertEquals(result, graph, "Non-record node should not be modified")
+
+  test("transposeRecord preserves edges and attributes"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(
+            Shape -> Shape.record,
+            Label -> "<f0> A | <f1> B"
+          ) ++ Attributes.of("color" -> "blue")),
+          x -> ViewerNode.nodeWithDefaults(x),
+          y -> ViewerNode.nodeWithDefaults(y)
+        ),
+        arrows = VectorMap(
+          ArrowId("x->a") -> Arrow(NodeId("x"), NodeId("a"), targetPort = Some("f0")),
+          ArrowId("a->y") -> Arrow(NodeId("a"), NodeId("y"), sourcePort = Some("f1"))
+        )
+      )
+    )
+
+    val transposed = graph.transposeRecord(a)
+
+    // Check that edges are preserved
+    assertEquals(transposed.arrows.size, 2, "Arrows should be preserved")
+    val arrowToRecord = transposed.arrows.values.find(_.target == a).get
+    assertEquals(arrowToRecord.targetPort, Some("f0"), "Target port should be preserved")
+    val arrowFromRecord = transposed.arrows.values.find(_.source == a).get
+    assertEquals(arrowFromRecord.sourcePort, Some("f1"), "Source port should be preserved")
+
+    // Check that other attributes are preserved
+    val transposedNode = transposed.getNode(a).get
+    assertEquals(transposedNode.attributes.values.get(AttributeId("color")).map(_.toString), Some("blue"), "Color attribute should be preserved")

@@ -188,6 +188,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           all.duplicate,
           all.combineIntoRecord,
           all.splitRecord,
+          all.transposeRecord,
           all.reverseArrows,
           all.reverseArrowsStyle,
           all.zoomIntoGroup,

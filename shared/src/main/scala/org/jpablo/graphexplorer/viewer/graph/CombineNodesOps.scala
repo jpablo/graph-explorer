@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Shape, Rankdir}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
@@ -229,3 +230,38 @@ trait CombineNodesOps:
         .replace("\\{", "{")
         .replace("\\}", "}")
     }.filter(_.nonEmpty)
+
+  /** Transposes a record node between horizontal and vertical orientations.
+    * Toggles between wrapped (vertical) and unwrapped (horizontal) formats.
+    *
+    * @param nodeId ID of the record node to transpose
+    * @return Updated ViewerGraph with the record transposed
+    */
+  def transposeRecord(nodeId: NodeId): ViewerGraph =
+    if !isRecordNode(nodeId) then
+      this  // Return unchanged if not a record node
+    else
+      getNode(nodeId) match
+        case None => this  // Node not found
+        case Some(recordNode) =>
+          val currentLabel = recordNode.label.toString
+
+          // Toggle between vertical (with {}) and horizontal (without {})
+          val newLabel = if currentLabel.startsWith("{") && currentLabel.endsWith("}") then
+            // Currently vertical, make horizontal
+            currentLabel.substring(1, currentLabel.length - 1)
+          else
+            // Currently horizontal, make vertical
+            s"{$currentLabel}"
+
+          // Update the node with the new label
+          val updatedNode = ViewerNode.nodeNoDefaults(
+            recordNode.id,
+            recordNode.attributes + (Label.attrId -> AttrValue(newLabel))
+          )
+
+          copy(
+            elements = elements.copy(
+              nodes = nodes.updated(nodeId, updatedNode)
+            )
+          )

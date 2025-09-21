@@ -255,6 +255,14 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Split record node into individual nodes")
     )
 
+    val transposeRecord = Command(
+      "Transpose Record",
+      () => state.selection.transposeRecord(),
+      canSplitRecordVisible,  // Same visibility condition as split
+      shortcut = Some(Shortcut("t")),
+      description = Some("Toggle record node between horizontal and vertical orientation")
+    )
+
     val selectGroupMembers = Command(
       "Select group members",
       () => state.selection.selectGroupMembers(),
@@ -507,6 +515,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.ungroup,
       all.combineIntoRecord,
       all.splitRecord,
+      all.transposeRecord,
       all.resetSelectionAttributes,
       all.clearSelection,
       all.selectGroupMembers,
