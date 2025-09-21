@@ -133,7 +133,7 @@ trait DiagramSelectionOps:
         phases.fullGraphV.update(_.moveToGroup(groupNodeId, classified.nodes.toSeq))
 
     def group() =
-      phases.fullGraphV.update(_.moveToNewGroup(now()))
+      createGroupMaybePrompt(now())
 
     def ungroup() =
       phases.fullGraphV.update(_.ungroupSelection(now()))

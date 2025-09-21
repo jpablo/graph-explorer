@@ -28,6 +28,7 @@ def TopLevel(
       InfoAlert(state.infoBus),
       EditLabelDialog(state),
       NewNodeLabelDialog(state),
+      NewGroupLabelDialog(state),
       ErrorAlert(state.errorBus)
     )
   )

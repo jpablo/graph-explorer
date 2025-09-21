@@ -104,10 +104,7 @@ def viewerGraphElementsToText(
       val value = attrValue.toString
       if (!allExcludeKeys.contains(key) && key != "id") {
         // Special handling for label attribute to prevent inheritance
-        if (
-          key == "label" && !excludeKeys.contains("label") &&
-          (value.isEmpty || value != group.id.value)
-        ) {
+        if (key == "label" && !excludeKeys.contains("label")) {
           attrs += key -> value
         } else if (key == "cluster") {
           // Always include cluster attribute (like the original SimpleGraphToText)

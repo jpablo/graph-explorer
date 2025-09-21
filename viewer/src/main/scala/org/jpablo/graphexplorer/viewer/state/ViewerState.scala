@@ -100,9 +100,16 @@ case class ViewerState(
   // If true, prompt for label before creating a new node (default: true)
   val promptLabelBeforeNewNode: Var[Boolean] = Var(true)
 
+  // If true, prompt for label before creating a new group (default: true)
+  val promptLabelBeforeNewGroup: Var[Boolean] = Var(true)
+
   // ------------- New node flow -------------
   case class PendingNewNode(attributes: Attributes, direction: ArrowDirection)
   val pendingNewNodeV: Var[Option[PendingNewNode]] = Var(None)
+
+  // ------------- New group flow -------------
+  case class PendingNewGroup(elementIds: ElementIds)
+  val pendingNewGroupV: Var[Option[PendingNewGroup]] = Var(None)
 
   /** Creates a new node, optionally prompting for the label before creation based on settings. */
   def createNodeMaybePrompt(
@@ -113,6 +120,23 @@ case class ViewerState(
       pendingNewNodeV.set(Some(PendingNewNode(attributes, direction)))
     else
       addNodeWithSmartConnection(attributes, direction)
+
+  /** Creates a new group from the current selection, optionally prompting for the label before creation based on settings. */
+  def createGroupMaybePrompt(elementIds: ElementIds): Unit =
+    if promptLabelBeforeNewGroup.now() then
+      pendingNewGroupV.set(Some(PendingNewGroup(elementIds)))
+    else
+      createGroupWithLabel(elementIds, "")
+
+  /** Creates a new group with the specified elements and label. */
+  def createGroupWithLabel(elementIds: ElementIds, label: String): Unit =
+    phases.fullGraphV.update(_.moveToNewGroup(elementIds, label))
+    // Select the newly created group
+    val updatedGraph = fullGraphNow()
+    val memberIds = elementIds.memberIds
+    memberIds.headOption.flatMap(updatedGraph.membership).foreach { groupId =>
+      selection.set(ElementIds.from(groupId))
+    }
 
   // -------- storage ------------
   initializePersistence()
