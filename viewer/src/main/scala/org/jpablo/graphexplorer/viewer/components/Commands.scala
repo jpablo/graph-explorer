@@ -263,6 +263,30 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Toggle record node between horizontal and vertical orientation")
     )
 
+    val extractFirstCell = Command(
+      "Extract First Cell",
+      () => state.selection.extractFirstRecordCell(),
+      canSplitRecordVisible,
+      shortcut = Some(Shortcut("e")),
+      description = Some("Extract the first cell from a record node")
+    )
+
+    val extractLastCell = Command(
+      "Extract Last Cell",
+      () => state.selection.extractLastRecordCell(),
+      canSplitRecordVisible,
+      shortcut = Some(Shortcut("e", shift = true)),
+      description = Some("Extract the last cell from a record node")
+    )
+
+    val selectWholeRecord = Command(
+      "Select Whole Record",
+      () => state.selection.selectWholeRecord(),
+      sel => sel.ids.exists(_.isRecordCellId),
+      shortcut = Some(Shortcut("w")),
+      description = Some("Select the entire record node instead of just the cell")
+    )
+
     val selectGroupMembers = Command(
       "Select group members",
       () => state.selection.selectGroupMembers(),
@@ -516,6 +540,9 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.combineIntoRecord,
       all.splitRecord,
       all.transposeRecord,
+      all.extractFirstCell,
+      all.extractLastCell,
+      all.selectWholeRecord,
       all.resetSelectionAttributes,
       all.clearSelection,
       all.selectGroupMembers,

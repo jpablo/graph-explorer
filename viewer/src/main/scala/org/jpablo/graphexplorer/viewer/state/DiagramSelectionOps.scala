@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, NodeElement, RecordCellElement}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
@@ -172,6 +172,60 @@ trait DiagramSelectionOps:
         val nodeId = currentSelection.nodeIds.head
         phases.fullGraphV.update(_.transposeRecord(nodeId))
 
+    def extractFirstRecordCell() =
+      val currentSelection = now()
+      if currentSelection.nodeIds.size == 1 then
+        val nodeId = currentSelection.nodeIds.head
+        phases.fullGraphV.update { graph =>
+          if graph.isRecordNode(nodeId) then
+            val newGraph = graph.extractRecordCell(nodeId, "f0")
+            // Select the newly created node
+            val newNodeIds = newGraph.nodeIds -- graph.nodeIds
+            if newNodeIds.nonEmpty then
+              set1(newNodeIds)
+            newGraph
+          else
+            graph
+        }
+
+    def selectWholeRecord() =
+      val currentSelection = now()
+      val newSelection = currentSelection.ids.map {
+        case RecordCellId(nodeId, _) => nodeId
+        case other                   => other
+      }
+      set1(newSelection)
+
+    def extractLastRecordCell() =
+      val currentSelection = now()
+      if currentSelection.nodeIds.size == 1 then
+        val nodeId = currentSelection.nodeIds.head
+        phases.fullGraphV.update { graph =>
+          if graph.isRecordNode(nodeId) then
+            graph.getNode(nodeId) match
+              case Some(node) =>
+                val label = node.label.toString
+                // Parse label to determine number of fields
+                val cleanLabel = if label.startsWith("{") && label.endsWith("}") then
+                  label.substring(1, label.length - 1)
+                else
+                  label
+                val fieldCount = cleanLabel.split(" \\| ").length
+                if fieldCount > 0 then
+                  val lastPort = s"f${fieldCount - 1}"
+                  val newGraph = graph.extractRecordCell(nodeId, lastPort)
+                  // Select the newly created node
+                  val newNodeIds = newGraph.nodeIds -- graph.nodeIds
+                  if newNodeIds.nonEmpty then
+                    set1(newNodeIds)
+                  newGraph
+                else
+                  graph
+              case None => graph
+          else
+            graph
+        }
+
     def reverseArrowsStyle() =
       phases.fullGraphV.update(_.reverseArrowsStyle(now()))
 
@@ -243,11 +297,12 @@ trait DiagramSelectionOps:
     def selectExtendSelectionOverlappingElements(
         rect:                MouseActionRect,
         selectableElements:  Seq[SelectableElement],
-        elementsFromRectEnd: js.Array[dom.Element]
+        elementsFromRectEnd: js.Array[dom.Element],
+        mouseEvent:          Option[dom.MouseEvent] = None
     ) =
       if rect.isEmpty then
         // Equivalent to an onClick event
-        findClosestElementId(elementsFromRectEnd) match
+        findClosestElementId(elementsFromRectEnd, mouseEvent = mouseEvent) match
           case Some(end) => updateSelectionStatus(end)(rect.shift)
           case None      => clear()
       else
@@ -292,11 +347,13 @@ trait DiagramSelectionOps:
 end DiagramSelectionOps
 
 object DiagramSelectionOps:
-  /** Finds the node ID at the given selection rectangle's end point
+  /** Finds the element ID at the given selection rectangle's end point.
+    * For record nodes, detects which cell was clicked and returns a RecordCellId.
     */
   def findClosestElementId(
       elements: js.Array[dom.Element],
-      selector: String = "g.node, g.edge, g.cluster"
+      selector: String = "g.node, g.edge, g.cluster",
+      mouseEvent: Option[dom.MouseEvent] = None
   ): Option[ElementId] =
     elements
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
@@ -304,8 +361,19 @@ object DiagramSelectionOps:
       .distinct
       .collect:
         case g: dom.svg.G => g
-      .map(SelectableElement.fromDomElement)
-      .collectFirst:
-        case Some(elem) => elem.elementId
+      .map { g =>
+        SelectableElement.fromDomElement(g) match
+          case Some(nodeElem: NodeElement) if nodeElem.isRecordNode && mouseEvent.isDefined =>
+            // For record nodes, determine which cell was clicked
+            val event = mouseEvent.get
+            nodeElem.getCellAtPosition(event.clientX, event.clientY) match
+              case Some(cellPort) => RecordCellElement(g, nodeElem.elementId.asInstanceOf[NodeId], cellPort)
+              case None           => nodeElem
+          case Some(elem) => elem
+          case None       => null
+      }
+      .filter(_ != null)
+      .map(_.elementId)
+      .headOption
 
 end DiagramSelectionOps

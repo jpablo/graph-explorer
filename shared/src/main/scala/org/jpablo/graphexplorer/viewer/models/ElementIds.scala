@@ -8,7 +8,8 @@ import scala.annotation.targetName
 case class IdsByKind(
     groups: Set[GroupId] = Set.empty,
     nodes:  Set[NodeId] = Set.empty,
-    arrows: Set[ArrowId] = Set.empty
+    arrows: Set[ArrowId] = Set.empty,
+    cells:  Set[RecordCellId] = Set.empty
 )
 
 case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
@@ -46,9 +47,10 @@ case class ElementIds(ids: Set[? <: ElementId] = Set.empty) extends AnyVal:
   def classify: IdsByKind =
     ids.foldLeft(IdsByKind()): (acc, eId) =>
       eId match
-        case id: GroupId => acc.copy(groups = acc.groups + id)
-        case id: NodeId  => acc.copy(nodes = acc.nodes + id)
-        case id: ArrowId => acc.copy(arrows = acc.arrows + id)
+        case id: GroupId      => acc.copy(groups = acc.groups + id)
+        case id: NodeId       => acc.copy(nodes = acc.nodes + id)
+        case id: ArrowId      => acc.copy(arrows = acc.arrows + id)
+        case id: RecordCellId => acc.copy(cells = acc.cells + id)
 
 object ElementIds:
   def from(ids: ElementId*): ElementIds = ElementIds(ids.toSet)

@@ -21,7 +21,7 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
         state.selection.signal,
         state.fullGraph.map(_.summary).distinct
       ).map: (selectedNodes, summary) =>
-        val IdsByKind(clusterIds, nodeIds, arrowIds) = selectedNodes.classify
+        val IdsByKind(clusterIds, nodeIds, arrowIds, cellIds) = selectedNodes.classify
 
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
           case (true, false, false) =>

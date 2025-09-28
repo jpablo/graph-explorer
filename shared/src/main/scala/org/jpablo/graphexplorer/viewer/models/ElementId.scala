@@ -14,10 +14,12 @@ sealed trait ElementId derives CanEqual, ReadWriter:
   def isGroupId: Boolean = this match { case _: GroupId => true; case _ => false }
   def isNodeId: Boolean  = this match { case _: NodeId => true; case _ => false }
   def isArrowId: Boolean = this match { case _: ArrowId => true; case _ => false }
+  def isRecordCellId: Boolean = this match { case _: RecordCellId => true; case _ => false }
 
   def asNodeId: Option[NodeId]   = this match { case id: NodeId => Some(id); case _ => None }
   def asArrowId: Option[ArrowId] = this match { case id: ArrowId => Some(id); case _ => None }
   def asGroupId: Option[GroupId] = this match { case id: GroupId => Some(id); case _ => None }
+  def asRecordCellId: Option[RecordCellId] = this match { case id: RecordCellId => Some(id); case _ => None }
 
   def toSvg: String
 
@@ -46,6 +48,13 @@ case class ArrowId(value: String) extends ElementId:
   override def toString: String = value
 
   def toSvg: String = s"arrow:$value"
+
+case class RecordCellId(nodeId: NodeId, port: String) extends ElementId:
+  override def toString: String = s"${nodeId.value}:$port"
+
+  def value: String = toString
+
+  def toSvg: String = s"cell:${nodeId.value}:$port"
 
 object ArrowId:
   given ReadWriter[ArrowId] = stringKeyRW(readwriter[String].bimap[ArrowId](_.value, ArrowId(_)))
@@ -86,3 +95,16 @@ object NodeId:
     idAttr match
       case nodeId(seq) => Some(NodeId(seq))
       case _           => None
+
+object RecordCellId:
+  given ReadWriter[RecordCellId] = readwriter[ujson.Value].bimap[RecordCellId](
+    cell => ujson.Obj("nodeId" -> cell.nodeId.value, "port" -> cell.port),
+    json => RecordCellId(NodeId(json("nodeId").str), json("port").str)
+  )
+
+  val cellId = raw"cell:([^:]+):(.+)".r
+
+  def fromSvg(idAttr: String): Option[RecordCellId] =
+    idAttr match
+      case cellId(nodeId, port) => Some(RecordCellId(NodeId(nodeId), port))
+      case _                    => None

@@ -302,3 +302,81 @@ class CombineNodesOpsSpec extends FunSuite:
     // Check that other attributes are preserved
     val transposedNode = transposed.getNode(a).get
     assertEquals(transposedNode.attributes.values.get(AttributeId("color")).map(_.toString), Some("blue"), "Color attribute should be preserved")
+
+  test("extractRecordCell extracts first cell and preserves edges"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(
+            Shape -> Shape.record,
+            Label -> "<f0> First | <f1> Second | <f2> Third"
+          )),
+          x -> ViewerNode.nodeWithDefaults(x),
+          y -> ViewerNode.nodeWithDefaults(y)
+        ),
+        arrows = VectorMap(
+          ArrowId("x->a:f0") -> Arrow(NodeId("x"), NodeId("a"), targetPort = Some("f0")),
+          ArrowId("a:f0->y") -> Arrow(NodeId("a"), NodeId("y"), sourcePort = Some("f0"))
+        )
+      ),
+      nodeCounter = 3
+    )
+
+    val extracted = graph.extractRecordCell(a, "f0")
+
+    // Should have 4 nodes now (original record with 2 fields + extracted node + x + y)
+    assertEquals(extracted.nodeIds.size, 4)
+
+    // Check the record node now has 2 fields with reindexed ports
+    val recordNode = extracted.getNode(a).get
+    val recordLabel = recordNode.label.toString
+    assert(recordLabel.contains("<f0> Second"), "Second field should be f0 now")
+    assert(recordLabel.contains("<f1> Third"), "Third field should be f1 now")
+    assert(!recordLabel.contains("First"), "First field should be extracted")
+
+    // Check edges are remapped correctly
+    val newNodeId = (extracted.nodeIds -- graph.nodeIds).head
+    val arrowToExtracted = extracted.arrows.values.find(_.target == newNodeId)
+    assert(arrowToExtracted.isDefined, "Should have arrow to extracted node")
+    assertEquals(arrowToExtracted.get.source, x, "Arrow should come from x")
+
+    val arrowFromExtracted = extracted.arrows.values.find(_.source == newNodeId)
+    assert(arrowFromExtracted.isDefined, "Should have arrow from extracted node")
+    assertEquals(arrowFromExtracted.get.target, y, "Arrow should go to y")
+
+  test("extractRecordCell converts to regular node when only one field remains"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(
+            Shape -> Shape.record,
+            Label -> "<f0> First | <f1> Second"
+          ))
+        )
+      ),
+      nodeCounter = 1
+    )
+
+    val extracted = graph.extractRecordCell(a, "f0")
+
+    // Check the original node is no longer a record
+    val remainingNode = extracted.getNode(a).get
+    assert(!extracted.isRecordNode(a), "Should no longer be a record node")
+    assertEquals(remainingNode.label.toString, "Second", "Should have only Second as label")
+
+  test("canExtractRecordCell validates port index"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(
+            Shape -> Shape.record,
+            Label -> "<f0> First | <f1> Second"
+          ))
+        )
+      )
+    )
+
+    assert(graph.canExtractRecordCell(a, "f0"), "Should be able to extract f0")
+    assert(graph.canExtractRecordCell(a, "f1"), "Should be able to extract f1")
+    assert(!graph.canExtractRecordCell(a, "f2"), "Should not be able to extract f2 (doesn't exist)")
+    assert(!graph.canExtractRecordCell(a, "invalid"), "Should not be able to extract invalid port")

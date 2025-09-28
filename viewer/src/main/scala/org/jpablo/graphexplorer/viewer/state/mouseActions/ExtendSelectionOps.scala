@@ -12,10 +12,21 @@ trait ExtendSelectionOps:
   this: ViewerState =>
 
   def onExtendSelectionAction(selectableElements: Seq[SelectableElement])(action: MouseAction.ExtendSelectionAction): Unit =
+    // Create a synthetic mouse event for cell detection when it's a click (not a drag)
+    val mouseEvent = if action.rect.isEmpty then
+      val evt = new dom.MouseEvent("click", new dom.MouseEventInit {
+        clientX = action.rect.end.x
+        clientY = action.rect.end.y
+      })
+      Some(evt)
+    else
+      None
+
     selection.selectExtendSelectionOverlappingElements(
       rect = action.rect,
       selectableElements = selectableElements,
-      elementsFromRectEnd = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
+      elementsFromRectEnd = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y),
+      mouseEvent = mouseEvent
     )
 
   // --------------------------------------------------------

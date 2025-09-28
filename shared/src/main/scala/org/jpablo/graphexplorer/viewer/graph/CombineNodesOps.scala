@@ -265,3 +265,124 @@ trait CombineNodesOps:
               nodes = nodes.updated(nodeId, updatedNode)
             )
           )
+
+  /** Checks if a record cell can be extracted (node is a record with the specified port).
+    *
+    * @param nodeId ID of the record node
+    * @param port Port identifier (e.g., "f0", "f1")
+    * @return true if the cell can be extracted
+    */
+  def canExtractRecordCell(nodeId: NodeId, port: String): Boolean =
+    isRecordNode(nodeId) && getNode(nodeId).exists { node =>
+      val label = node.label.toString
+      val fields = parseRecordLabel(label)
+      fields.nonEmpty && port.startsWith("f") &&
+        port.drop(1).toIntOption.exists(idx => idx >= 0 && idx < fields.size)
+    }
+
+  /** Extracts a specific cell from a record node into a standalone node.
+    * Preserves all edges connected to that cell's port.
+    *
+    * @param nodeId ID of the record node
+    * @param port Port identifier (e.g., "f0", "f1")
+    * @return Updated ViewerGraph with the cell extracted as a new node
+    */
+  def extractRecordCell(nodeId: NodeId, port: String): ViewerGraph =
+    if !canExtractRecordCell(nodeId, port) then
+      this  // Return unchanged if cell cannot be extracted
+    else
+      getNode(nodeId) match
+        case None => this
+        case Some(recordNode) =>
+          val label = recordNode.label.toString
+          val fields = parseRecordLabel(label)
+          val portIndex = port.drop(1).toInt
+
+          if portIndex < 0 || portIndex >= fields.size then
+            this  // Invalid port index
+          else
+            val extractedLabel = fields(portIndex)
+            val newNodeId = nextNodeId()
+
+            // Create the new standalone node
+            val newNode = nodeWithDefaults(newNodeId, Attributes.of(Label -> extractedLabel))
+
+            // Get the group membership of the record node
+            val groupMembership = memberships.get(nodeId)
+
+            // Remove the extracted field from the record label
+            val remainingFields = fields.zipWithIndex.filter(_._2 != portIndex)
+
+            if remainingFields.size < 2 then
+              // If only one field remains, convert to regular node
+              val remainingLabel = remainingFields.headOption.map(_._1).getOrElse("")
+              val updatedNode = ViewerNode.nodeNoDefaults(
+                recordNode.id,
+                recordNode.attributes - Shape.attrId + (Label.attrId -> AttrValue(remainingLabel))
+              )
+
+              // Remap edges from the port to the new node, remove ports from remaining node
+              val remappedArrows = arrows.map { case (arrowId, arrow) =>
+                val newArrow = (arrow.source, arrow.sourcePort, arrow.target, arrow.targetPort) match
+                  case (`nodeId`, Some(`port`), target, targetPort) =>
+                    arrow.copy(source = newNodeId, sourcePort = None)
+                  case (source, sourcePort, `nodeId`, Some(`port`)) =>
+                    arrow.copy(target = newNodeId, targetPort = None)
+                  case (`nodeId`, Some(otherPort), target, targetPort) =>
+                    arrow.copy(sourcePort = None)
+                  case (source, sourcePort, `nodeId`, Some(otherPort)) =>
+                    arrow.copy(targetPort = None)
+                  case _ => arrow
+                newArrow.id -> newArrow
+              }
+
+              copy(
+                elements = elements.copy(
+                  nodes = nodes.updated(nodeId, updatedNode) + (newNodeId -> newNode),
+                  arrows = VectorMap.from(remappedArrows),
+                  memberships = memberships ++ groupMembership.map(g => newNodeId -> g)
+                )
+              )
+            else
+              // Update the record with reindexed ports
+              val reindexedFields = remainingFields.map(_._1).zipWithIndex.map { case (fieldLabel, idx) =>
+                s"<f$idx> $fieldLabel"
+              }.mkString(" | ")
+
+              val wrappedLabel = if label.startsWith("{") && label.endsWith("}") then
+                s"{$reindexedFields}"
+              else
+                reindexedFields
+
+              val updatedNode = ViewerNode.nodeNoDefaults(
+                recordNode.id,
+                recordNode.attributes + (Label.attrId -> AttrValue(wrappedLabel))
+              )
+
+              // Create port remapping for remaining fields
+              val portRemap: Map[String, String] = remainingFields.zipWithIndex.map {
+                case ((_, oldIdx), newIdx) => s"f$oldIdx" -> s"f$newIdx"
+              }.toMap
+
+              // Remap edges
+              val remappedArrows = arrows.map { case (arrowId, arrow) =>
+                val newArrow = (arrow.source, arrow.sourcePort, arrow.target, arrow.targetPort) match
+                  case (`nodeId`, Some(`port`), target, targetPort) =>
+                    arrow.copy(source = newNodeId, sourcePort = None)
+                  case (source, sourcePort, `nodeId`, Some(`port`)) =>
+                    arrow.copy(target = newNodeId, targetPort = None)
+                  case (`nodeId`, Some(oldPort), target, targetPort) if portRemap.contains(oldPort) =>
+                    arrow.copy(sourcePort = Some(portRemap(oldPort)))
+                  case (source, sourcePort, `nodeId`, Some(oldPort)) if portRemap.contains(oldPort) =>
+                    arrow.copy(targetPort = Some(portRemap(oldPort)))
+                  case _ => arrow
+                newArrow.id -> newArrow
+              }
+
+              copy(
+                elements = elements.copy(
+                  nodes = nodes.updated(nodeId, updatedNode) + (newNodeId -> newNode),
+                  arrows = VectorMap.from(remappedArrows),
+                  memberships = memberships ++ groupMembership.map(g => newNodeId -> g)
+                )
+              )

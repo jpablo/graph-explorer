@@ -75,6 +75,49 @@ case class NodeElement(ref0: dom.svg.G) extends SelectableElement(ref0):
   val selectedClass = "selected"
   val elementId     = NodeId(refTitle)
 
+  /** Checks if this node is a record node by looking for polygon shape and port indicators */
+  def isRecordNode: Boolean =
+    // Record nodes have polygon elements and labels with ports (e.g., "<f0>")
+    val polygons = ref.querySelectorAll("polygon")
+    val text = ref.querySelector("text")
+    polygons.length > 0 && text != null && text.textContent.contains("<f")
+
+  /** Calculates which cell of a record node was clicked based on mouse position */
+  def getCellAtPosition(clientX: Double, clientY: Double): Option[String] =
+    if !isRecordNode then None
+    else
+      // Parse the text content to count fields
+      val text = ref.querySelector("text")
+      if text == null then None
+      else
+        val content = text.textContent
+        // Count fields by counting port markers
+        val fieldCount = "<f\\d+>".r.findAllIn(content).length
+        if fieldCount == 0 then None
+        else
+          // Get the bounding box of the node
+          val bbox = ref.getBoundingClientRect()
+
+          // Determine if record is vertical or horizontal based on label format
+          val isVertical = content.contains("{") && content.contains("}")
+
+          if isVertical then
+            // For vertical records, divide height by field count
+            val cellHeight = bbox.height / fieldCount
+            val relativeY = clientY - bbox.top
+            val cellIndex = Math.floor(relativeY / cellHeight).toInt
+            if cellIndex >= 0 && cellIndex < fieldCount then
+              Some(s"f$cellIndex")
+            else None
+          else
+            // For horizontal records, divide width by field count
+            val cellWidth = bbox.width / fieldCount
+            val relativeX = clientX - bbox.left
+            val cellIndex = Math.floor(relativeX / cellWidth).toInt
+            if cellIndex >= 0 && cellIndex < fieldCount then
+              Some(s"f$cellIndex")
+            else None
+
 case class EdgeElement(private val ref0: dom.svg.G) extends SelectableElement(ref0):
   val selectedClass = "selected"
 
@@ -96,6 +139,61 @@ end EdgeElement
 case class ClusterElement(ref0: dom.svg.G) extends SelectableElement(ref0):
   val selectedClass = "selected"
   val elementId     = GroupId.fromSvg(svgIdAttr).getOrElse(GroupId(refTitle))
+
+case class RecordCellElement(ref0: dom.svg.G, recordNodeId: NodeId, port: String) extends SelectableElement(ref0):
+  val selectedClass = "selected"
+  val elementId     = RecordCellId(recordNodeId, port)
+
+  override def select(): Unit =
+    ref.classList.add(selectedClass)
+    // Add visual indicator for the specific cell
+    val cellRect = getCellBoundingBox()
+    cellRect.foreach { bbox =>
+      val rect = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect").asInstanceOf[dom.svg.RectElement]
+      rect.classList.add(selectionRectClass)
+      rect.classList.add("cell-selection")
+      rect.setAttribute("x", bbox.x.toString)
+      rect.setAttribute("y", bbox.y.toString)
+      rect.setAttribute("width", bbox.width.toString)
+      rect.setAttribute("height", bbox.height.toString)
+      ref.appendChild(rect)
+    }
+
+  override def unselect(): Unit =
+    ref.classList.remove(selectedClass)
+    val rects = ref.querySelectorAll(s"rect.$selectionRectClass.cell-selection")
+    for i <- 0 until rects.length do
+      rects(i).remove()
+
+  private def getCellBoundingBox(): Option[BBox] =
+    val text = ref.querySelector("text")
+    if text == null then None
+    else
+      val content = text.textContent
+      val fieldCount = "<f\\d+>".r.findAllIn(content).length
+      val portIndex = port.drop(1).toIntOption.getOrElse(0)
+
+      if fieldCount == 0 || portIndex >= fieldCount then None
+      else
+        val bbox = ref.getBBox()
+        val isVertical = content.contains("{") && content.contains("}")
+
+        if isVertical then
+          val cellHeight = bbox.height / fieldCount
+          Some(BBox(
+            x = bbox.x,
+            y = bbox.y + (portIndex * cellHeight),
+            width = bbox.width,
+            height = cellHeight
+          ))
+        else
+          val cellWidth = bbox.width / fieldCount
+          Some(BBox(
+            x = bbox.x + (portIndex * cellWidth),
+            y = bbox.y,
+            width = cellWidth,
+            height = bbox.height
+          ))
 
 // ------------------------------
 // dom.Element extensions

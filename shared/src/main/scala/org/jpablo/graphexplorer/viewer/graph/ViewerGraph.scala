@@ -293,6 +293,28 @@ case class ViewerGraph(
             // Selected group: add node to that group
             val (newGraph, newNodeId) = addNode(groupId = Some(id), attributes = attributes)
             (newGraph, newNodeId, None)
+          case RecordCellId(nodeId, port) =>
+            // Selected record cell: add new node and connect with arrow from that specific port
+            val (newGraph, newNodeId, arrowId) = direction match
+              case ArrowDirection.forward =>
+                val (graph1, newId) = addNode(attributes = attributes)
+                val arrow = Arrow(nodeId, newId, sourcePort = Some(port))
+                val graph2 = graph1.copy(
+                  elements = graph1.elements.copy(
+                    arrows = graph1.arrows + (arrow.id -> arrow)
+                  )
+                )
+                (graph2, newId, arrow.id)
+              case ArrowDirection.backward =>
+                val (graph1, newId) = addNode(attributes = attributes)
+                val arrow = Arrow(newId, nodeId, targetPort = Some(port))
+                val graph2 = graph1.copy(
+                  elements = graph1.elements.copy(
+                    arrows = graph1.arrows + (arrow.id -> arrow)
+                  )
+                )
+                (graph2, newId, arrow.id)
+            (newGraph, newNodeId, Some(arrowId))
           case _: ArrowId =>
             // Selected arrow: just add standalone node
             val (newGraph, newNodeId) = addNode(attributes = attributes)

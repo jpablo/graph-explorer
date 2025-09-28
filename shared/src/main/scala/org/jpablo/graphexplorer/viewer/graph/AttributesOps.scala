@@ -54,9 +54,10 @@ trait AttributesOps:
 
   def getAttributesById(id: ElementId): Attributes =
     id match
-      case id: ArrowId => arrows.get(id).fold(Attributes.empty)(_.attributes)
-      case id: GroupId => groups.get(id).fold(Attributes.empty)(_.attributes)
-      case id: NodeId  => nodes.get(id).fold(Attributes.empty)(_.attributes)
+      case id: ArrowId      => arrows.get(id).fold(Attributes.empty)(_.attributes)
+      case id: GroupId      => groups.get(id).fold(Attributes.empty)(_.attributes)
+      case id: NodeId       => nodes.get(id).fold(Attributes.empty)(_.attributes)
+      case id: RecordCellId => Attributes.empty  // Record cells don't have their own attributes
 
   /** Computes the attribute updates for a set of element IDs.
     *
