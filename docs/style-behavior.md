@@ -29,9 +29,9 @@ Internal attribute names used in code:
   - Result: no `style` attribute remains; only sub‑attributes exist.
 
 - Viewer → DOT (export)
-  - `ViewerGraphElements.combineStyleAttributes` merges sub‑attributes into `style` and simulates inheritance:
-    - Local (element) sub‑attributes are merged with defaults to produce a single `style` value for each element.
-    - Default attributes (e.g., `node [ ... ]`) also get a `style` if non‑empty.
+  - `ViewerGraphElements.combineStyleAttributes` merges sub-attributes into `style` and simulates inheritance:
+    - Local (element) sub-attributes are merged with defaults to produce a single `style` value for each element.
+    - Default attributes (e.g., `node [ ... ]`) also get a `style` if non-empty.
   - Invariants/assertions:
     - An element must not have `fillcolor` present unless `FillStyle=true`. Violations assert during combine.
 
@@ -39,7 +39,7 @@ Internal attribute names used in code:
 - To keep the model coherent without pushing logic to export, we normalize at attribute update time:
   - When `fillcolor` is set to a concrete color (not `none`) → also set `FillStyle=true`.
   - When `fillcolor` is set to `none` → set `FillStyle=false`.
-  - This normalization runs for both element updates and default (node/graph) updates.
+  - This normalization currently runs in element/group update paths (`updateAttributes`). There is no dedicated default‑attributes update lens; when defaults are set programmatically, callers should ensure consistency if they touch fill.
   - Note: If only `FillStyle` is toggled without changing `fillcolor`, we do not re‑write `fillcolor`. The UI should co‑edit both when necessary to keep the invariant. If not, the combine step will assert if it encounters `fillcolor` with `FillStyle=false`.
 
 **Global vs. Local Precedence**
@@ -57,7 +57,7 @@ Key point about Graphviz behavior:
 
 **Examples**
 
-1) Default fill only (user selects a fill color globally)
+1) Default fill only (defaults specify a fill)
 
 Internal defaults (after normalization):
 - `defaultNodeAttributes`: `FillColor="#ffc9c9"`, `FillStyle=true`, plus other defaults (e.g., `shape`, `sides`).
@@ -76,7 +76,7 @@ digraph "G" {
 ```
 Node `a` inherits `filled` from the defaults and renders filled.
 
-2) Default filled, element explicitly unfilled
+2) Default filled, element explicitly unfilled (element resets)
 
 Internal (element): `FillStyle=false` (UI should also set `fillcolor=none`).
 
@@ -126,11 +126,11 @@ Order within `style` is deterministic from our combiner (`filled`, `bold`, `corn
   - Turning OFF must also set `FillColor="none"` to keep the invariant. If an element has `FillColor != none` with `FillStyle=false`, combine asserts.
   - Turning ON without choosing a color leaves `FillColor` unchanged (core does not synthesize a color). The element will be filled using its current `FillColor` if any, otherwise it inherits/defaults.
 - Apply updates through the lenses so normalization runs:
-  - Per element: `elementAttributesUpdates(...).update(...)` with `AttributeUpdates.of(FillColor -> "...")`.
-  - Defaults: `defaultAttributesUpdates(AttributeTarget.node).update(...)`.
+  - Per element/group: use `elementAttributesUpdates(...).update(...)` with `AttributeUpdates.of(FillColor -> "...")`.
+  - Defaults are typically set by theme or programmatically (e.g., `withDefaultTheme`); there is no dedicated default‑attributes lens at present.
 - For resets, prefer removing element sub‑attributes (or setting `style=""` in DOT) rather than relying on omission, since DOT merges are not implicit.
 
 **References in Code**
 - Expand/import: `VizViewerGraphElements.expandStyleAttributes`, `StyleSubAttributes.fromStyleString`, `StyleSubAttributes.removeIncorrectCombos`.
 - Combine/export: `ViewerGraphElements.combineStyleAttributes`, `StyleSubAttributes.toStyleStrings`.
-- Normalization at updates: `AttributesOps.normalizeFill` (applied from `updateAttributes` and `defaultAttributesUpdates`).
+- Normalization at updates: `AttributesOps.normalizeFill` (applied via `updateAttributes`).

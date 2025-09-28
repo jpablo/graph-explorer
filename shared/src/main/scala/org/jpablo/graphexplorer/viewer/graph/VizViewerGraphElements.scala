@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.removeIncorrectCombos
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{EdgeStyle, FillStyle, NodeStyle}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{EdgeStyle, NodeStyle, Style}
 import org.jpablo.graphexplorer.viewer.graph.VizViewerGraphElements.expandElementStyleAttributes
 import org.jpablo.graphexplorer.viewer.models.*
 import upickle.default.*
@@ -46,7 +46,7 @@ case class VizViewerGraphElements(
    */
   def expandAndExtractDefaultAttributes: ViewerGraphElements =
     expandStyleAttributes
-      .extractDefaultAttributes
+      .toViewerGraphElements
 
   def toViewerGraphElements: ViewerGraphElements =
     ViewerGraphElements(
@@ -73,79 +73,6 @@ case class VizViewerGraphElements(
         graphAttributes = expandElementStyleAttributes(graphAttributes)
       )
 
-  /** Extracts default attributes from the graph elements, including nodes, arrows, and groups. Identifies common attributes across all
-    * elements of the same type and removes those attributes from individual elements, moving them to the respective default attribute
-    * categories. Attributes specific to individual elements or excluded by predefined rules will not be considered as defaults.
-    *
-    * @return
-    *   A `ViewerGraphElements` instance containing:
-    *   - Nodes, arrows, and groups with non-default attributes.
-    *   - Extracted default attributes for nodes, arrows, and groups.
-    *   - Unmodified graph attributes and membership mappings.
-    */
-  private[graph] def extractDefaultAttributes: ViewerGraphElements =
-    import org.jpablo.graphexplorer.viewer.models.*
-
-    // Helper function to find attributes that appear on ALL elements with the same value
-    def findCommonAttributes(attributesList: Seq[Attributes], excludeFromDefaults: Set[String] = Set.empty): Attributes =
-      if attributesList.isEmpty || attributesList.size == 1 then
-        // Don't extract defaults if there's only one element or no elements
-        Attributes.empty
-      else
-        // Get the first element's attributes as candidates
-        val firstAttrs = attributesList.head.values
-        // Filter to only include attributes that appear on ALL elements with the same value
-        // and exclude element-specific attributes that should never be defaults
-        val commonAttrs = firstAttrs.filter: (attrId, attrValue) =>
-          !excludeFromDefaults.contains(attrId.value) &&
-            attributesList.forall(_.values.get(attrId).contains(attrValue))
-        Attributes(VectorMap.from(commonAttrs))
-
-    def removeAttributes(attrs: Attributes, toRemove: Set[AttributeId]): Attributes =
-      Attributes(attrs.values -- toRemove)
-
-    // Extract default attributes for nodes
-    val nodeAttributesList  = nodes.values.map(_.attributes).toSeq
-    val nodeExclusions      = Set("_gvid", "name", "pos", "height", "width", "label") // Element-specific + theme attributes
-    val defaultNodeAttrs    = findCommonAttributes(nodeAttributesList, nodeExclusions)
-    val defaultNodeAttrKeys = defaultNodeAttrs.values.keySet - FillStyle.attrId
-
-    // Remove default attributes from individual nodes
-    val nodesWithoutDefaults = nodes.transform: (_, node) =>
-      node.modifyAttrs.using(attrs => removeAttributes(attrs, defaultNodeAttrKeys))
-
-    // Extract default attributes for arrows
-    val arrowAttributesList  = arrows.values.map(_.attributes).toSeq
-    val arrowExclusions      = Set("_gvid", "pos", "lp", "label")
-    val defaultArrowAttrs    = findCommonAttributes(arrowAttributesList, arrowExclusions)
-    val defaultArrowAttrKeys = defaultArrowAttrs.values.keySet - FillStyle.attrId
-
-    // Remove default attributes from individual arrows
-    val arrowsWithoutDefaults = arrows.transform: (_, arrow) =>
-      arrow.copy(attributes = removeAttributes(arrow.attributes, defaultArrowAttrKeys))
-
-    // Extract default attributes for groups
-    val groupAttributesList  = groups.values.map(_.attributes).toSeq
-    val groupExclusions      = Set("_gvid", "name", "cluster", "lp", "lheight", "lwidth", "label", "rank") // Element-specific attributes
-    val defaultGroupAttrs    = findCommonAttributes(groupAttributesList, groupExclusions)
-    val defaultGroupAttrKeys = defaultGroupAttrs.values.keySet - FillStyle.attrId
-
-    // Remove default attributes from individual groups
-    val groupsWithoutDefaults = groups.transform: (_, group) =>
-      group.modifyAttrs.using(attrs => removeAttributes(attrs, defaultGroupAttrKeys))
-
-    ViewerGraphElements(
-      nodes = nodesWithoutDefaults,
-      arrows = arrowsWithoutDefaults,
-      memberships = memberships,
-      groups = groupsWithoutDefaults,
-      graphAttributes = graphAttributes,
-      defaultNodeAttributes = defaultNodeAttrs,
-      defaultArrowAttributes = defaultArrowAttrs,
-      defaultGroupAttributes = defaultGroupAttrs
-    )
-
-  end extractDefaultAttributes
 
 object VizViewerGraphElements:
 
@@ -169,8 +96,6 @@ object VizViewerGraphElements:
     *   a new set of attributes where the "style" attribute, if present, is replaced with its sub-attributes
     */
   private def expandElementStyleAttributes(attrs: Attributes): Attributes =
-    import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Style
-
     // At this point there should be no sub-attributes in the attributes map.
     StyleSubAttributes.subAttributeIds.foreach(attrId => assert(attrs.get(attrId).isEmpty))
 

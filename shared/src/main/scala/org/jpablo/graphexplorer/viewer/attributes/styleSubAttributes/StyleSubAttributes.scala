@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import StyleSubAttributes.missing
+import scala.collection.mutable.ArrayBuffer
 
 /** Provides "virtual" attributes that correspond to sub-attributes of the "style" attribute.
   *
@@ -66,7 +67,6 @@ case class StyleSubAttributes(
     */
   def toStyleStringNoDefaults: Option[String] =
     // ASSUME: no defaults
-    import scala.collection.mutable.ArrayBuffer
     if this == missing then
       None
     else
@@ -84,68 +84,26 @@ case class StyleSubAttributes(
       assert(str.nonEmpty)
       if str.isEmpty then None else Some(str)
 
-  def toStyleStrings(defaults: StyleSubAttributes): Option[String] =
-    import scala.collection.mutable.ArrayBuffer
-    if this == missing then
-      None
+  def toStyleStrings: Option[String] =
+    // Simplified: emit only explicit, non-default tokens.
+    if this == missing then None
     else
-      // Treat "missing" defaults as the canonical defaults (false/normal/solid)
-      val effDefaults = if defaults == missing then StyleSubAttributes.default else defaults
       val parts = ArrayBuffer.empty[String]
+      if fill.is(true) then parts += FillStyle.filled
+      if bold.is(true) then parts += BoldStyle.bold
+      if invisible.is(true) then parts += InvisibleStyle.invis
 
-      (fill, effDefaults.fill) match
-        // explicit element false overrides default true
-        case (Single(false), _) =>
-        case (Single(true),  _) => parts += FillStyle.filled
-        case (_,              Single(true)) => parts += FillStyle.filled
-        case _ =>
+      corner match
+        case Single(c) if c != CornerStyle.default => parts += c.toString
+        case _                                     =>
 
-      (bold, effDefaults.bold) match
-        case (Single(true), _) => parts += BoldStyle.bold
-        case (_, Single(true)) => parts += BoldStyle.bold
-        case (_, _)            =>
+      border match
+        case Single(b) if b != BorderStyle.default => parts += b.toString
+        case _                                     =>
 
-      (invisible, effDefaults.invisible) match
-        // explicit element false overrides default true
-        case (Single(false), _) =>
-        case (Single(true),  _) => parts += InvisibleStyle.invis
-        case (_,              Single(true)) => parts += InvisibleStyle.invis
-        case _ =>
+      if parts.isEmpty then None else Some(parts.mkString(","))
 
-      (corner, effDefaults.corner) match
-        case (Single(e), _) if e != CornerStyle.default => parts += e.toString
-        case (_, Single(d)) if d != CornerStyle.default => parts += d.toString
-        case (_, _)                                     =>
-
-      (border, effDefaults.border) match
-        case (Single(e), _) if e != BorderStyle.default => parts += e.toString
-        case (_, Single(d)) if d != BorderStyle.default => parts += d.toString
-        case (_, _)                                     =>
-
-      // If the element explicitly sets borderstyle=solid (default) while defaults carry
-      // any non-trivial style (e.g., filled or rounded), emit "solid" to ensure DOT
-      // replacement resets inherited defaults (filled/rounded) on this element.
-      val elementSetsSolid = border match
-        case Single(b) if b == BorderStyle.default => true
-        case _                                     => false
-
-      val defaultsHaveStyle =
-        effDefaults.fill.is(true) ||
-          effDefaults.bold.is(true) ||
-          effDefaults.invisible.is(true) ||
-          (effDefaults.corner match
-            case Single(c) if c != CornerStyle.default => true
-            case _                                     => false
-          ) ||
-          (effDefaults.border match
-            case Single(b) if b != BorderStyle.default => true
-            case _                                     => false
-          )
-
-      if parts.isEmpty && elementSetsSolid && defaultsHaveStyle then
-        Some(BorderStyle.default.toString)
-      else
-        Some(parts.mkString(","))
+  
 
 object StyleSubAttributes:
 

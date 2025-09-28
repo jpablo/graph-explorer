@@ -1,6 +1,5 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
-import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
@@ -10,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.I
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
-import org.jpablo.graphexplorer.viewer.models.{AttributeUpdates, Attributes}
+import org.jpablo.graphexplorer.viewer.models.AttributeUpdates
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.Icons.bigXIcon
 import org.jpablo.graphexplorer.viewer.widgets.InputType.*
@@ -19,19 +18,16 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 def ToolbarArrowsAttributesView(
     state:           ViewerState,
     resetAttributes: Command[Nothing],
-    updates:         Var[AttributeUpdates],
-    defaults:        Option[Signal[Attributes]] = None
+    updates:         Var[AttributeUpdates]
 ) =
   val multiSelection = state.selection.signal.map(_.size != 1)
 
-  val builder = RowBuilder(updates, state.graphLayout, defaults)
+  val builder = RowBuilder(updates, state.graphLayout)
   import builder.{row, rows}
 
   val labelRow = row(Label, InputType.multiText(), onReset = Some("")).copy(hidden = multiSelection)
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
-
-  val noDefaults = Signal.fromValue(defaults.isEmpty)
 
   HorizontalAttributesView(
     rows = rows(
@@ -80,8 +76,8 @@ def ToolbarArrowsAttributesView(
           "extra",
           rows(
             Decorate -> checkbox,
-            row(XLabel, InputType.text, hidden = Some(noDefaults)),
-            row(URL, InputType.text, hidden = Some(noDefaults)),
+            row(XLabel, InputType.text),
+            row(URL, InputType.text),
             TailPort -> InputType.select,
             HeadPort -> InputType.select
           )

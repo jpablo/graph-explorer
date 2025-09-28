@@ -64,10 +64,9 @@ trait AddNewArrowOps:
         c    <- dirs.flatMap(buildNewArrowControl(elem, action, _))
       yield c
 
-    if controls.nonEmpty then
-      controls.foreach(parent.appendChild)
-    else
-      parent.querySelectorAll("g.new-arrow-control").foreach(_.remove())
+    // Always clear previous controls to avoid duplicates lingering after selection changes
+    parent.querySelectorAll("g.new-arrow-control").foreach(_.remove())
+    controls.foreach(parent.appendChild)
 
   def buildNewArrowControl(
       selectedElem: SelectableElement,

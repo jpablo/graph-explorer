@@ -6,6 +6,7 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePreview
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.minimal.defaultNodeTheme
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -22,8 +23,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
   def shapePreview(shape: Shape): ReactiveSvgElement[SVG] | String =
     ShapePreview(shape, 16).map(_()).getOrElse(shape.toString)
 
-  val defaultShapePreview =
-    state.nodeShape.map(shapePreview)
+  val defaultShapePreview: ReactiveSvgElement[SVG] | String = 
+    shapePreview((defaultNodeTheme.getAs(Shape): Shape))
 
   val shapePreviews: Seq[MenuEntry[() => Unit]] =
     Seq(Shape.box, Shape.circle, Shape.ellipse, Shape.diamond, Shape.star)
@@ -135,7 +136,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         Button(
           cls := "gap-1 pl-1",
           i(cls := "bi bi-plus"),
-          child <-- defaultShapePreview.map:
+          defaultShapePreview match
             case svg: ReactiveSvgElement[SVG] => span(svg)
             case str: String                  => span(str)
           ,

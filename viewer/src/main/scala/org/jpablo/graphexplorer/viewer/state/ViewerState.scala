@@ -7,7 +7,6 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph}
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
@@ -207,28 +206,15 @@ case class ViewerState(
   def graphAttributes: Signal[Attributes] =
     fullGraph.map(_.elements.graphAttributes)
 
-  def nodeShape: Signal[Shape] =
-    defaults(AttributeTarget.node).map(_.getAs(Shape))
-
   def updateLabel(elementId: ElementId, label: String): Unit =
     elementAttributesUpdates(ElementIds.from(elementId)).set:
       AttributeUpdates.of(Label -> TextUtils.escape(label))
 
-  def defaults(target: AttributeTarget): Signal[Attributes] =
-    fullGraph.map(_.getDefaultAttributes(target))
-
   def diagramAttributesUpdates: Var[AttributeUpdates] =
     phases.fullGraphV.zoomLens(AttributesOps.diagramAttributesUpdates)
 
-  def defaultAttributesUpdates(target: AttributeTarget): Var[AttributeUpdates] =
-    phases.fullGraphV.zoomLens(AttributesOps.defaultAttributesUpdates(target))
-
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
     phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
-
-  def resetDefaultAttributes(target: AttributeTarget): Unit =
-    phases.fullGraphV.update: graph =>
-      graph.modifyDefaultAttributes(target).setTo(Attributes.empty)
 
   // Theme management
   lazy val currentTheme: Var[Option[String]] = Var(None)

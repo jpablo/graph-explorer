@@ -74,10 +74,7 @@ class ViewerGraphToTextSpec extends FunSuite:
       graphAttributes = Attributes(VectorMap(
         AttributeId("label")   -> AttrValue("A title"),
         AttributeId("rankdir") -> AttrValue("LR")
-      )),
-      defaultNodeAttributes = Attributes.empty,
-      defaultArrowAttributes = Attributes.empty,
-      defaultGroupAttributes = Attributes.empty
+      ))
     )
 
     // Convert to DOT string
@@ -130,10 +127,7 @@ class ViewerGraphToTextSpec extends FunSuite:
       graphAttributes = Attributes(VectorMap(
         AttributeId("label")   -> AttrValue("Diagram"),
         AttributeId("rankdir") -> AttrValue("LR")
-      )),
-      defaultNodeAttributes = Attributes.empty,
-      defaultArrowAttributes = Attributes.empty,
-      defaultGroupAttributes = Attributes.empty
+      ))
     )
 
     // Convert to DOT string
@@ -184,10 +178,7 @@ class ViewerGraphToTextSpec extends FunSuite:
       graphAttributes = Attributes(VectorMap(
         AttributeId("label")   -> AttrValue("Diagram"),
         AttributeId("rankdir") -> AttrValue("LR")
-      )),
-      defaultNodeAttributes = Attributes.empty,
-      defaultArrowAttributes = Attributes.empty,
-      defaultGroupAttributes = Attributes.empty
+      ))
     )
 
     // Convert to DOT string
@@ -260,10 +251,7 @@ class ViewerGraphToTextSpec extends FunSuite:
       graphAttributes = Attributes(VectorMap(
         AttributeId("label")   -> AttrValue(""),
         AttributeId("rankdir") -> AttrValue("LR")
-      )),
-      defaultNodeAttributes = Attributes.empty,
-      defaultArrowAttributes = Attributes.empty,
-      defaultGroupAttributes = Attributes.empty
+      ))
     )
 
     // Convert to DOT string
@@ -360,7 +348,7 @@ class ViewerGraphToTextSpec extends FunSuite:
          |    graph [label=""];
          |    node [
          |        sides="5",
-         |        shape="circle"
+         |        shape="box"
          |    ];
          |    edge [
          |        dir="both",
@@ -381,12 +369,14 @@ class ViewerGraphToTextSpec extends FunSuite:
          |            ];
          |            "c" [
          |                id="node:c",
-         |                label="c"
+         |                label="c",
+         |                shape="circle"
          |            ];
          |        }
          |    }
          |    "b" [
-         |        id="node:b"
+         |        id="node:b",
+         |        shape="circle"
          |    ];
          |    "b" -> "c" [
          |        id="arrow:b->c/0",
@@ -906,9 +896,6 @@ class ViewerGraphToTextSpec extends FunSuite:
 
     val simpleGraph  = read[SimpleGraph](json)
     val visibleGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
-
-    // Sanity check: default node theme should be present in this case
-    assertEquals(visibleGraph.elements.defaultNodeAttributes, visibleGraph.defaultNodeTheme)
 
     val dotString = viewerGraphElementsToText(visibleGraph.elements, omitInternal = false)
 

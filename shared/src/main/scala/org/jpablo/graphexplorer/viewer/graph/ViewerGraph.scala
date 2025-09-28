@@ -191,13 +191,10 @@ case class ViewerGraph(
 
   def effectiveAttributeValue[A](
       dotAttribute: DotAttribute[A],
-      attrs:        Attributes,
-      defaults:     Option[Attributes] = None
+      attrs:        Attributes
   ): A =
-    val value    = attrs.get(dotAttribute.attrId)
-    val defValue = defaults.flatMap(_.get(dotAttribute.attrId))
+    val value = attrs.get(dotAttribute)
     value
-      .orElse(defValue)
       .flatMap(attrVal => dotAttribute.fromString(attrVal.toString))
       .getOrElse(dotAttribute.default)
 
@@ -214,13 +211,12 @@ case class ViewerGraph(
       currentGraph.arrows.get(arrowId) match
         case None => currentGraph
         case Some(ogArrow) =>
-          val graphDefaultAttributes = currentGraph.elements.defaultArrowAttributes
 
-          val effectiveHead = effectiveAttributeValue(ArrowHead, ogArrow.attributes, Some(graphDefaultAttributes))
-          val effectiveTail = effectiveAttributeValue(ArrowTail, ogArrow.attributes, Some(graphDefaultAttributes))
+          val effectiveHead = ogArrow.attributes.getAs(ArrowHead)
+          val effectiveTail = ogArrow.attributes.getAs(ArrowTail)
 
-          val defaultHeadIfOmitted = effectiveAttributeValue(ArrowHead, graphDefaultAttributes)
-          val defaultTailIfOmitted = effectiveAttributeValue(ArrowTail, graphDefaultAttributes)
+          val defaultHeadIfOmitted = defaultEdgeTheme.getAs(ArrowHead)
+          val defaultTailIfOmitted = defaultEdgeTheme.getAs(ArrowTail)
 
           var updatedAttributes = ogArrow.attributes
 

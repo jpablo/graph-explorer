@@ -38,20 +38,23 @@ class InternalPhases(
 
   // Initialize with the provided source or a minimal graph
   private val initialText  = initialSource.getOrElse("""digraph "G" {}""")
-  private val initialGraph = parseTextToGraph(initialText)
+  private val initialViewerGraph: ViewerGraph = parseTextToGraph(initialText)
 
   // Single unified state
-  private val state = Var(GraphState(
-    text = initialText,
-    viewerGraph = initialGraph,
-    lastOrigin = ChangeOrigin.CodeMirror
-  ))
+  private val state = Var(
+    GraphState(
+      text = initialText,
+      viewerGraph = initialViewerGraph,
+      lastOrigin = ChangeOrigin.CodeMirror
+    )
+  )
 
   // Public interface: sourceText as a Var that delegates to the unified state
   val sourceText: Var[String] =
     state.zoomLazy((currentState: GraphState) =>
       withLog("1b. [sourceText <- GraphState]", level = logLevel) {
         // GraphState is the source of truth; update unconditionally
+        // Used to update CodeMirror.
         currentState.text
       }
     )((currentState: GraphState, newText: String) =>

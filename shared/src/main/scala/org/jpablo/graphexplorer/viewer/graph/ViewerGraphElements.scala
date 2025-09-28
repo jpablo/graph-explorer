@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.{fromExpandedAttributes, subAttributeIds}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Style, FillStyle, FillColor}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{FillColor, Style}
 import org.jpablo.graphexplorer.viewer.models.*
 import upickle.default.*
 
@@ -26,10 +26,10 @@ case class ViewerGraphElements(
     groups:      Map[GroupId, ViewerGroup] = Map.empty,
     //
     graphAttributes: Attributes = Attributes.empty,
-    // Deprecated: attributes will be inlined in nodes and arrows for now.
+    // Global style
     defaultNodeAttributes:  Attributes = Attributes.empty,
     defaultArrowAttributes: Attributes = Attributes.empty,
-    defaultGroupAttributes: Attributes = Attributes.empty
+//    defaultGroupAttributes: Attributes = Attributes.empty
 ) derives ReadWriter
 
 object ViewerGraphElements:
@@ -64,30 +64,48 @@ object ViewerGraphElements:
       *   digraph "G" { node[shape=rectangle, style="rounded"] "a" [style="dashed,rounded"]; }
       */
     def combineStyleAttributes: ViewerGraphElements =
-      val nodeDefaultSubAttrs  = fromExpandedAttributes(elements.defaultNodeAttributes)
-      val arrowDefaultSubAttrs = fromExpandedAttributes(elements.defaultArrowAttributes)
-      val groupDefaultSubAttrs = fromExpandedAttributes(elements.defaultGroupAttributes)
-      val graphSubAttrs        = fromExpandedAttributes(elements.graphAttributes)
-      elements
-        .copy(
-          nodes = elements.nodes.transform { (_, n) => n.modifyAttrs.using(combineAttributes(_, nodeDefaultSubAttrs)) },
-          arrows = elements.arrows.transform { (_, a) => a.modifyAttrs.using(combineAttributes(_, arrowDefaultSubAttrs)) },
-          groups = elements.groups.transform { (_, g) => g.modifyAttrs.using(combineAttributes(_, groupDefaultSubAttrs)) },
-          graphAttributes = combineAttributes(elements.graphAttributes, graphSubAttrs),
-          defaultNodeAttributes = combineDefaultAttributes(elements.defaultNodeAttributes, nodeDefaultSubAttrs),
-          defaultArrowAttributes = combineDefaultAttributes(elements.defaultArrowAttributes, arrowDefaultSubAttrs),
-          defaultGroupAttributes = combineDefaultAttributes(elements.defaultGroupAttributes, groupDefaultSubAttrs)
-        )
+      // Extract defaults for style sub-attributes so elements can inherit them
+      val nodeDefaultsSubAttrs  = fromExpandedAttributes(elements.defaultNodeAttributes)
+      val arrowDefaultsSubAttrs = fromExpandedAttributes(elements.defaultArrowAttributes)
+      val graphSubAttrs         = fromExpandedAttributes(elements.graphAttributes)
+
+      elements.copy(
+        nodes = elements.nodes.transform { (_, n) => n.modifyAttrs.using(attrs => combineAttributes(attrs, nodeDefaultsSubAttrs)) },
+        arrows = elements.arrows.transform { (_, a) => a.modifyAttrs.using(attrs => combineAttributes(attrs, arrowDefaultsSubAttrs)) },
+        groups = elements.groups.transform { (_, g) => g.modifyAttrs.using(combineAttributes) },
+        graphAttributes = combineAttributes(elements.graphAttributes),
+        defaultNodeAttributes  = combineDefaultAttributes(elements.defaultNodeAttributes, nodeDefaultsSubAttrs),
+        defaultArrowAttributes = combineDefaultAttributes(elements.defaultArrowAttributes, arrowDefaultsSubAttrs)
+      )
+
+  private def combineAttributes(expandedAttrs: Attributes): Attributes =
+    // Collapse only the element’s own sub-attributes into style (no inheritance)
+    addStyle(expandedAttrs, fromExpandedAttributes(expandedAttrs).toStyleStrings)
 
   private def combineAttributes(expandedAttrs: Attributes, defaults: StyleSubAttributes): Attributes =
-    // Forbid invalid expanded state on elements: fillcolor present without style=filled.
-    val hasFillColor = expandedAttrs.get(FillColor).isDefined
-    val isFilled     = expandedAttrs.get(FillStyle).exists(_.isTrue)
-    assert(!(hasFillColor && !isFilled),
+    // Merge element sub-attributes with defaults to simulate inheritance for DOT export
+    val elementSubAttrs  = fromExpandedAttributes(expandedAttrs)
+    val effectiveSubAttr = elementSubAttrs.combine(defaults)
+
+    // Forbid invalid expanded state: an explicit fillcolor without an effective filled style
+    val hasFillColor   = expandedAttrs.get(FillColor).isDefined
+    val effectiveFilled = effectiveSubAttr.fill.is(true)
+    assert(!(hasFillColor && !effectiveFilled),
       s"Invalid attributes: 'fillcolor' present without 'filled' style in element: ${expandedAttrs.values}")
 
-    // Allow defaults (including filled) to participate in style combination to simulate inheritance.
-    addStyle(expandedAttrs, fromExpandedAttributes(expandedAttrs).toStyleStrings(defaults))
+    // If the element has no explicit style sub-attributes, do not emit a style
+    // attribute here. Rely on defaults in the `node [...]` block instead.
+    // This avoids redundantly outputting style="filled" on elements that
+    // simply inherit the default filled style.
+    val elementHasExplicitStyle = elementSubAttrs != StyleSubAttributes.missing
+    val styleForElement =
+      if elementHasExplicitStyle then
+        // Use effective (element + defaults) to simulate inheritance when emitting DOT.
+        // If no tokens result but the element had explicit style sub-attributes, emit an explicit reset: style="".
+        effectiveSubAttr.toStyleStrings.orElse(Some(""))
+      else None
+
+    addStyle(expandedAttrs, styleForElement)
 
   private def combineDefaultAttributes(expandedAttrs: Attributes, subAttrs: StyleSubAttributes): Attributes =
     // Emit default style (including filled) when present, so node [style="filled"] can be output.

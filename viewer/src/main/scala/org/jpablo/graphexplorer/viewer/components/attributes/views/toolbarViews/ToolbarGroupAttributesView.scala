@@ -2,33 +2,30 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.Command
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputElement
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.{AttributeUpdates, Attributes}
+import org.jpablo.graphexplorer.viewer.models.AttributeUpdates
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{InputType, MenuDirection}
-import org.jpablo.graphexplorer.viewer.widgets.InputType.checkbox
-import org.jpablo.graphexplorer.viewer.widgets.{Button, ghost, tiny}
 import org.jpablo.graphexplorer.viewer.widgets.Icons.bigXIcon
-import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.graphexplorer.viewer.widgets.InputType.checkbox
+import org.jpablo.graphexplorer.viewer.widgets.*
 
 def ToolbarGroupAttributesView(
     state:           ViewerState,
     resetAttributes: Command[Nothing],
-    updates:         Var[AttributeUpdates],
-    defaults:        Option[Signal[Attributes]] = None
+    updates:         Var[AttributeUpdates]
 ) =
   val multiSelection = state.selection.signal.map(_.size != 1)
-  val builder        = RowBuilder(updates, state.graphLayout, defaults)
+  val builder        = RowBuilder(updates, state.graphLayout)
   import builder.{row, rows}
 
   val labelRow           = row(Label, InputType.multiText(), onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
-  val noDefaults         = Signal.fromValue(defaults.isEmpty)
 
   HorizontalAttributesView(
     rows = rows(
@@ -83,7 +80,7 @@ def ToolbarGroupAttributesView(
         hidden = labelRelatedHidden
       ),
       InvisibleStyle -> checkbox,
-      row(Cluster, checkbox, hidden = Some(noDefaults)),
-      row(Rank, InputType.select, hidden = Some(noDefaults))
+      row(Cluster, checkbox),
+      row(Rank, InputType.select)
     )
   )

@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.{Multiple, Single}
@@ -11,7 +11,7 @@ trait AttributesOps:
   this: ViewerGraph =>
 
   def withoutUnsupportedFeatures: ViewerGraph =
-    this.modifyAll(_.elements.graphAttributes, _.elements.defaultGroupAttributes).using(_ - Size.attrId - Overlap.attrId)
+    this.modify(_.elements.graphAttributes).using(_ - Size.attrId - Overlap.attrId)
 
   /** Updates attributes for a set of nodes and arrows.
     *
@@ -81,18 +81,6 @@ trait AttributesOps:
         attrs ++ elemAttrs
     )
 
-  def getDefaultAttributes(target: AttributeTarget): Attributes =
-    target match
-      case AttributeTarget.graph => elements.defaultGroupAttributes
-      case AttributeTarget.node  => elements.defaultNodeAttributes
-      case AttributeTarget.edge  => elements.defaultArrowAttributes
-
-  def modifyDefaultAttributes(target: AttributeTarget) =
-    target match
-      case AttributeTarget.graph => this.modify(_.elements.defaultGroupAttributes)
-      case AttributeTarget.node  => this.modify(_.elements.defaultNodeAttributes)
-      case AttributeTarget.edge  => this.modify(_.elements.defaultArrowAttributes)
-
   val defaultNodeTheme =
     Attributes.of(Sides -> 5, Shape -> Shape.box)
 
@@ -106,11 +94,10 @@ trait AttributesOps:
       ArrowTail -> ArrowType.none
     )
 
-  // This is called on an existing Graph, not necessarily on a new one.
-  // This means we can't override the existing attributes, but we can add the defaults to them.
   def withDefaultTheme: ViewerGraph =
-    modifyDefaultAttributes(AttributeTarget.node).using(defaultNodeTheme ++ _)
-      .modifyDefaultAttributes(AttributeTarget.edge).using(defaultEdgeTheme ++ _)
+    this
+      .modify(_.elements.defaultNodeAttributes).setTo(defaultNodeTheme)
+      .modify(_.elements.defaultArrowAttributes).setTo(defaultEdgeTheme)
 
   /** Resets all attributes except 'label' from the specified elements.
     *
@@ -144,28 +131,14 @@ object AttributesOps:
     val fc = attrs.get(FillColor)
     fc match
       case Some(v) if v.toString == FillColor.none => attrs + (FillStyle.attrId -> AttrValue(false.toString))
-      case Some(_)                                  => attrs + (FillStyle.attrId -> AttrValue(true.toString))
-      case None                                     => attrs
+      case Some(_)                                 => attrs + (FillStyle.attrId -> AttrValue(true.toString))
+      case None                                    => attrs
 
   /** Lens for accessing and updating the main graph attributes */
   def diagramAttributesUpdates: Lens[ViewerGraph, AttributeUpdates] =
     Lens(
       get = graph => graph.elements.graphAttributes.toUpdates,
       update = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyTo)
-    )
-
-  /** Bundle functions for updating root attributes of a specific root target (graph, node, edge) */
-  def defaultAttributesUpdates(target: AttributeTarget): Lens[ViewerGraph, AttributeUpdates] =
-    Lens(
-      get = graph => graph.getDefaultAttributes(target).toUpdates,
-      update = (graph, updates) =>
-        graph.modifyDefaultAttributes(target).using { attrs =>
-          val applied = updates.applyTo(attrs)
-          target match
-            case AttributeTarget.node  => normalizeFill(applied)
-            case AttributeTarget.graph => normalizeFill(applied)
-            case AttributeTarget.edge  => applied
-        }
     )
 
   /** Bundle functions for updating attributes of specific elements */

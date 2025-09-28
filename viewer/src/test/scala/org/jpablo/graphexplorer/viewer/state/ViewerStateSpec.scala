@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, Color, Shape}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.ElementIds
@@ -63,55 +63,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       // ---- verify ---
       assertEquals(viewerState.allNodeIds().size, 2)
       assertEquals(viewerState.allArrowIds().size, 1)
-    }
-
-  test("rootTargetAttributesUpdates should update root attributes for the specified target"):
-    withGraphviz { graphviz =>
-      val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
-
-      // Initial state check
-      assertEquals(viewerState.fullGraphNow(), ViewerGraph.minimal)
-
-      val graphUpdates = viewerState.defaultAttributesUpdates(AttributeTarget.graph)
-
-      // Update graph attributes
-      graphUpdates.update(_ + (Color.attrId -> AttrValue("blue")))
-
-      // Verify the updates are applied
-      val updatedGraph = viewerState.fullGraphNow()
-      assertEquals(
-        updatedGraph.getDefaultAttributes(AttributeTarget.graph).get(Color.attrId),
-        Some(AttrValue("blue")),
-        "Root graph attributes should be updated"
-      )
-
-      // Get the AttributesUpdates for node target
-      val nodeUpdates = viewerState.defaultAttributesUpdates(AttributeTarget.node)
-
-      // Update node attributes
-      nodeUpdates.update(_ + (Shape.attrId -> AttrValue("box")))
-
-      // Verify the updates are applied
-      val updatedGraph2 = viewerState.fullGraphNow()
-      assertEquals(
-        updatedGraph2.getDefaultAttributes(AttributeTarget.node).get(Shape.attrId),
-        Some(AttrValue("box")),
-        "Root node attributes should be updated"
-      )
-
-      // Get the AttributesUpdates for edge target
-      val edgeUpdates = viewerState.defaultAttributesUpdates(AttributeTarget.edge)
-
-      // Update edge attributes
-      edgeUpdates.update(_ + (BorderStyle.attrId -> AttrValue("dashed")))
-
-      // Verify the updates are applied
-      val updatedGraph3 = viewerState.fullGraphNow()
-      assertEquals(
-        updatedGraph3.getDefaultAttributes(AttributeTarget.edge).get(BorderStyle),
-        Some(AttrValue("dashed")),
-        "Root edge attributes should be updated"
-      )
     }
 
   test("elementAttributes should update attributes for specific elements"):

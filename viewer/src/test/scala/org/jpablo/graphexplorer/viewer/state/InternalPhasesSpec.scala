@@ -354,16 +354,19 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
            |  "n1" [
            |    id="node:n1",
            |    label="n1: Inherits Default",
+           |    shape="box",
            |    fillcolor="lightblue",
            |    style="filled,rounded"
            |  ];
            |  "n2" [
            |    id="node:n2",
-           |    label="n2: Resets to Primitive"
+           |    label="n2: Resets to Primitive",
+           |    shape="box"
            |  ];
            |  "n3" [
            |    id="node:n3",
            |    label="n3: Explicitly 'solid'",
+           |    shape="box",
            |    style=""
            |  ];
            |  "n1" -> "n2" [id="arrow:n1->n2/0"];

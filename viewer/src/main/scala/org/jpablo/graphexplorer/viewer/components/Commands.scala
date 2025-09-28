@@ -3,7 +3,6 @@ package org.jpablo.graphexplorer.viewer.components
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom.{KeyValue, window}
@@ -74,7 +73,9 @@ case class Command[-A](
       "event_category" -> "Command",
       "event_label"    -> commandIdentifier
     )
-    js.Dynamic.global.gtag("event", "command_executed", p)
+    val gtag = js.Dynamic.global.selectDynamic("gtag")
+    if js.typeOf(gtag) == "function" then
+      js.Dynamic.global.gtag("event", "command_executed", p)
     action.execute(arg)
 
 class RouterCommands(router: Router):
@@ -427,27 +428,6 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Print the current selection to console for debugging")
     )
 
-    val resetDefaultNodeAttributes = Command(
-      "Reset default node attributes",
-      () => state.resetDefaultAttributes(AttributeTarget.node),
-      always,
-      description = Some("Reset default node attributes to the original values")
-    )
-
-    val resetDefaultArrowAttributes = Command(
-      "Reset default arrow attributes",
-      () => state.resetDefaultAttributes(AttributeTarget.edge),
-      always,
-      description = Some("Reset default arrow attributes to the original values")
-    )
-
-    val resetDefaultGroupAttributes = Command(
-      "Reset default group attributes",
-      () => state.resetDefaultAttributes(AttributeTarget.graph),
-      always,
-      description = Some("Reset default group attributes to the original values")
-    )
-
     val resetSelectionAttributes = Command(
       "Reset Attributes",
       () => state.selection.resetAttributes(), // Action to be implemented in ViewerState/SelectionHandler
@@ -500,9 +480,6 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.newBackwardsNode,
       all.changeProjectName,
       all.moveToGroup,
-      all.resetDefaultArrowAttributes,
-      all.resetDefaultNodeAttributes,
-      all.resetDefaultGroupAttributes,
       routerCmds.createProject,
       routerCmds.navigateHome
     ),

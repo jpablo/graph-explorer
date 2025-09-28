@@ -6,10 +6,33 @@ import org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews.
   ToolbarGroupAttributesView,
   ToolbarNodesAttributesView
 }
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttributeTarget
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, IdsByKind}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
+
+enum ElementKind derives CanEqual:
+  case Nodes, Edges, Groups
+
+  def id: String =
+    this match
+      case Nodes  => "nodes"
+      case Edges  => "edges"
+      case Groups => "groups"
+
+  def label: String =
+    this match
+      case Nodes  => "Nodes"
+      case Edges  => "Arrows"
+      case Groups => "Groups"
+
+object ElementKind:
+  def fromId(id: String): Option[ElementKind] =
+    id match
+      case "nodes"  => Some(ElementKind.Nodes)
+      case "edges"  => Some(ElementKind.Edges)
+      case "groups" => Some(ElementKind.Groups)
+      case _        => None
 
 def AttributesToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) = {
   import commands.all
@@ -19,8 +42,8 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
     child <--
       Signal.combine(
         state.selection.signal,
-        state.fullGraph.map(_.summary).distinct
-      ).map: (selectedNodes, summary) =>
+        state.visibleGraph.distinct
+      ).map: (selectedNodes, visibleGraph) =>
         val IdsByKind(clusterIds, nodeIds, arrowIds) = selectedNodes.classify
 
         (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
@@ -28,66 +51,54 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
             ToolbarArrowsAttributesView(
               state,
               all.resetSelectionAttributes,
-              updates = state.elementAttributesUpdates(ElementIds(arrowIds)),
-              defaults = Some(state.defaults(AttributeTarget.edge))
+              updates = state.elementAttributesUpdates(ElementIds(arrowIds))
             )
 
           case (false, true, false) =>
             ToolbarNodesAttributesView(
               state,
               all.resetSelectionAttributes,
-              updates = state.elementAttributesUpdates(ElementIds(nodeIds)),
-              defaults = Some(state.defaults(AttributeTarget.node))
+              updates = state.elementAttributesUpdates(ElementIds(nodeIds))
             )
 
           case (false, false, true) =>
             ToolbarGroupAttributesView(
               state,
               all.resetSelectionAttributes,
-              updates = state.elementAttributesUpdates(ElementIds(clusterIds)),
-              defaults = Some(state.defaults(AttributeTarget.graph))
+              updates = state.elementAttributesUpdates(ElementIds(clusterIds))
             )
 
           case (false, false, false) =>
-            val selection = Var("nodes")
+            val visibleNodeIds  = visibleGraph.nodeIds
+            val visibleArrowIds = visibleGraph.arrowIds
+            val visibleGroupIds = visibleGraph.groupIds - ViewerGraphElements.defaultRootId
+            val groupCount      = visibleGroupIds.size
             div(
               cls := "flex flex-row gap-2",
               Select(
-                placeholderText = None,
-                options = Seq("Nodes", "Arrows", "Groups").map(label => s"$label defaults" -> label.toLowerCase),
-                cls := "w-32 no-outline",
-                onChange.mapToValue --> selection
-              ),
-              // -------------
-              // Defaults
-              // -------------
-              child <-- selection.signal.map:
-                case "nodes" =>
-                  ToolbarNodesAttributesView(
-                    state,
-                    all.resetDefaultNodeAttributes,
-                    updates = state.defaultAttributesUpdates(AttributeTarget.node)
-                  )
-                case "arrows" =>
-                  ToolbarArrowsAttributesView(
-                    state,
-                    all.resetDefaultArrowAttributes,
-                    updates = state.defaultAttributesUpdates(AttributeTarget.edge)
-                  )
-                case "groups" =>
-                  ToolbarGroupAttributesView(
-                    state,
-                    all.resetDefaultGroupAttributes,
-                    updates = state.defaultAttributesUpdates(AttributeTarget.graph)
-                  )
-                case _ => div("No selection")
+                placeholderText = Some("Select by kind"),
+                options = List(
+                  (ElementKind.Nodes, visibleNodeIds.size),
+                  (ElementKind.Edges, visibleArrowIds.size),
+                  (ElementKind.Groups, groupCount)
+                ).collect {
+                  case (kind, count) if count > 0 => s"${kind.label} ($count)" -> kind.id
+                },
+                onChange.mapToValue --> { value =>
+                  ElementKind.fromId(value) match
+                    case Some(ElementKind.Nodes)  => state.selection.set1(visibleNodeIds)
+                    case Some(ElementKind.Edges)  => state.selection.set1(visibleArrowIds)
+                    case Some(ElementKind.Groups) => state.selection.set1(visibleGroupIds)
+                    case None                     => ()
+                }
+              )
             )
 
           case _ =>
             val elementTypes = Map(
-              "edges"    -> (ElementIds(arrowIds), "Arrows"),
-              "nodes"    -> (ElementIds(nodeIds), "Nodes"),
-              "clusters" -> (ElementIds(clusterIds), "Clusters")
+              ElementKind.Edges  -> (ElementIds(arrowIds), ElementKind.Edges.label),
+              ElementKind.Nodes  -> (ElementIds(nodeIds), ElementKind.Nodes.label),
+              ElementKind.Groups -> (ElementIds(clusterIds), ElementKind.Groups.label)
             )
 
             div(
@@ -96,11 +107,12 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
                 placeholderText = Some(s"Filter ${selectedNodes.size} objects"),
                 options = elementTypes
                   .collect:
-                    case (key, (ids, description)) if ids.nonEmpty => s"$description (${ids.size})" -> key
+                    case (kind, (ids, _)) if ids.nonEmpty => s"${kind.label} (${ids.size})" -> kind.id
                   .toList,
                 onChange.mapToValue --> { value =>
-                  for (ids, _) <- elementTypes.get(value) do
-                    state.selection.set(ids)
+                  ElementKind.fromId(value).foreach: kind =>
+                    for (ids, _) <- elementTypes.get(kind) do
+                      state.selection.set(ids)
                 }
               )
             )

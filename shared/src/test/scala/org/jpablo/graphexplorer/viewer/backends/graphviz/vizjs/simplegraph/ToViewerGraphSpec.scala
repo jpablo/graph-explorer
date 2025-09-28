@@ -219,6 +219,7 @@ class ToViewerGraphSpec extends FunSuite:
          |      "attributes": {
          |        "_gvid": "0",
          |        "label": "n1: Inherits Default",
+         |        "shape": "box",
          |        "fillcolor": "lightblue",
          |        "fillstyle": "true",
          |        "cornerstyle": "rounded"
@@ -229,7 +230,8 @@ class ToViewerGraphSpec extends FunSuite:
          |      "id": "n2",
          |      "attributes": {
          |        "_gvid": "1",
-         |        "label": "n2: Resets to Primitive"
+         |        "label": "n2: Resets to Primitive",
+         |        "shape": "box"
          |      }
          |    },
          |    "n3": {
@@ -238,6 +240,7 @@ class ToViewerGraphSpec extends FunSuite:
          |      "attributes": {
          |        "_gvid": "2",
          |        "label": "n3: Explicitly 'solid'",
+         |        "shape": "box",
          |        "borderstyle": "solid"
          |      }
          |    }
@@ -260,9 +263,6 @@ class ToViewerGraphSpec extends FunSuite:
          |        "_gvid": "1"
          |      }
          |    }
-         |  },
-         |  "defaultNodeAttributes": {
-         |    "shape": "box"
          |  }
          |}""".stripMargin
 

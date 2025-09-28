@@ -1,9 +1,9 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrValue, AttributeTarget}
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.NodeStyle.{bold, dashed, filled}
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.NodeStyle.{bold, dashed, filled}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.{defaultNodeAttributes, nodeWithDefaults, nodeWithId}
@@ -37,16 +37,13 @@ class AttributesOpsSpec extends FunSuite:
       ViewerGraphElements(
         nodes = VectorMap(nodeWithId(a), nodeWithId(b), nodeWithId(c)),
         arrows = Map(arrow.id -> arrow),
-        groups = Map(groupId -> group(groupId, Attributes.of(Label -> "Cluster 1"))),
-        defaultNodeAttributes = Attributes.of(Shape -> Shape.square)
+        groups = Map(groupId -> group(groupId, Attributes.of(Label -> "Cluster 1")))
       )
     )
 
   test("removeUnsupportedFeatures should remove 'size' attribute from root graph") {
     // Create a graph with a 'size' attribute
     val graph = createTestGraph()
-      .modifyDefaultAttributes(AttributeTarget.graph)
-      .using(_ + (Size.attrId -> AttrValue("10,10")))
 
     // Apply the method
     val result = graph.withoutUnsupportedFeatures
@@ -125,15 +122,14 @@ class AttributesOpsSpec extends FunSuite:
     assertEquals(groupAttrs, expected)
   }
 
-  test("combineStyleAttributes should simulate style inheritance") {
+  test("combineStyleAttributes should combine sub-attributes") {
     // Create a graph with sub-attributes
     val graph0 = ViewerGraph.minimal
       .addNodeWithId(a)
-      .modifyDefaultAttributes(AttributeTarget.node).using(_ + (CornerStyle -> CornerStyle.rounded))
 
     // update node a
     val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).update
-    val graph1           = updateAttributes(graph0, AttributeUpdates.of(BorderStyle -> BorderStyle.dashed))
+    val graph1 = updateAttributes(graph0, AttributeUpdates.of(CornerStyle -> CornerStyle.rounded, BorderStyle -> BorderStyle.dashed))
 
     import upickle.default.*
     pprint.log(write(graph0.elements, indent = 2))
@@ -144,10 +140,6 @@ class AttributesOpsSpec extends FunSuite:
     pprint.log(write(elements, indent = 2))
     // ------------------------------------------------------------------
 
-    assertEquals(
-      obtained = elements.defaultNodeAttributes.get(NodeStyle).get.toString,
-      expected = "rounded"
-    )
     // we need to copy the global style into the element style to avoid overriding it.
     assertEquals(
       obtained = elements.nodes(a).attributes.get(NodeStyle).get.toString,
@@ -230,74 +222,5 @@ class AttributesOpsSpec extends FunSuite:
       result.statuses(Shape.attrId),
       AttrStatus.Single(AttrValue(Shape.box.toString)),
       "Node shape attribute should be returned"
-    )
-  }
-
-  test("getRootAttributes should return attributes for the specified target") {
-    val graph = createTestGraph()
-
-    // Test for graph attributes
-    assertEquals(graph.getDefaultAttributes(AttributeTarget.graph), Attributes.empty, "Should return root graph attributes")
-
-    // Test for node attributes
-    assertEquals(
-      graph.getDefaultAttributes(AttributeTarget.node),
-      Attributes.of(Shape -> Shape.square),
-      "Should return root node attributes"
-    )
-
-    // Test for edge attributes
-    assertEquals(
-      graph.getDefaultAttributes(AttributeTarget.edge),
-      Attributes.empty,
-      "Should return root edge attributes"
-    )
-  }
-
-  test("updateDefaultAttributes should update attributes for the specified target") {
-    val graph = createTestGraph()
-
-    // Apply the method for graph attributes
-    val result = graph.modifyDefaultAttributes(AttributeTarget.graph).using(_ + (Color.attrId -> AttrValue("purple")))
-
-    // Verify the attributes are updated
-    assertEquals(
-      result.getDefaultAttributes(AttributeTarget.graph).get(Color.attrId),
-      Some(AttrValue("purple")),
-      "Root graph attributes should be updated"
-    )
-  }
-
-  test("withDefaultTheme should set default theme for nodes and edges but not override existing attributes") {
-    val graph = createTestGraph()
-    // sanity check: the test graph should have a Shape attribute that is NOT the default
-    // (so that we can verify that it is not overridden)
-    val existingShape = graph.getDefaultAttributes(AttributeTarget.node).get(Shape.attrId)
-    val defaultShape  = graph.defaultNodeTheme.get(Shape.attrId)
-    assert(existingShape.isDefined)
-    assert(defaultShape.isDefined)
-    assertNotEquals(existingShape, defaultShape, "Existing node shape attribute should not be the default")
-
-    val graphWithTheme = graph.withDefaultTheme
-    val newShape       = graphWithTheme.getDefaultAttributes(AttributeTarget.node).get(Shape.attrId)
-    assertEquals(existingShape, newShape, "Existing node shape attribute should not be overridden")
-
-    // Verify the default theme is set
-    assertEquals(
-      graphWithTheme.getDefaultAttributes(AttributeTarget.node).get(Sides.attrId),
-      Some(AttrValue("5")),
-      "Default node theme should be set"
-    )
-
-    assertEquals(
-      graphWithTheme.getDefaultAttributes(AttributeTarget.edge).get(Dir.attrId),
-      Some(AttrValue(DirType.both.toString)),
-      "Default edge theme should be set"
-    )
-
-    assertEquals(
-      graphWithTheme.getDefaultAttributes(AttributeTarget.edge).get(ArrowTail.attrId),
-      Some(AttrValue(ArrowType.none.toString)),
-      "Default edge theme should be set"
     )
   }

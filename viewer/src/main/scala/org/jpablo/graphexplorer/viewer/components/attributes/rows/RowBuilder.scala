@@ -9,13 +9,12 @@ import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{DotAttribute, DotAttributeEnum, DotAttributeSimple, Layout}
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
-import org.jpablo.graphexplorer.viewer.models.{AttributeId, AttributeUpdates, Attributes, AttrValueWithStatus}
+import org.jpablo.graphexplorer.viewer.models.{AttributeId, AttributeUpdates, AttrValueWithStatus}
 import org.jpablo.graphexplorer.viewer.widgets.InputType
 
 class RowBuilder(
     updates:  Var[AttributeUpdates],
-    layout:   Signal[Layout],
-    defaults: Option[Signal[Attributes]] = None
+    layout:   Signal[Layout]
 ):
   private type BuildRowsInput = DotAttribute[?]
     | AttributeRow
@@ -49,17 +48,11 @@ class RowBuilder(
     inputRow(
       attr = attr -> inputType,
       inputVar = simpleInputVar(attr.attrId, updates, onReset),
-      default = defaultValue(attr.attrId, attr.default.toString),
+      default = Signal.fromValue(attr.default.toString),
       label = label,
       placeholder = placeholder,
       hidden = hidden.orElse(Some(invalidLayout(attr)))
     )
-
-  // uses the global default if present, otherwise uses the (hardcoded) default value.
-  def defaultValue(attrId: AttributeId, default: String): Signal[String] =
-    defaults
-      .map(_.map(_.get(attrId).map(_.toString).getOrElse(default)))
-      .getOrElse(Signal.fromValue(default))
 
 object RowBuilder:
 

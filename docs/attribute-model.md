@@ -1,142 +1,105 @@
 # Graph Explorer Attribute Model
 
-This document explains how Graph Explorer translates DOT’s multi‑scope attribute inheritance into a simpler, two‑level model composed of:
+This document explains how Graph Explorer represents DOT attributes in a simpler model and how it converts between DOT and the internal structures.
 
-- Global defaults per element kind (graph/node/edge/group)
-- Local per‑element overrides
-
-It also points to the key functions, files, and tests that implement and validate this behavior.
+- Global defaults currently exist for nodes and edges (arrows).
+- Per‑element attributes exist for nodes, edges, and groups.
+- Style is expanded into sub‑attributes internally and recombined on export.
 
 ## Overview
 
-1) DOT → Graphviz (flattened): Graphviz parses DOT and returns a structure where inheritance is already applied — no `node[...]`/`edge[...]` default scopes remain.
-- viewer/backends/graphviz/Graphviz.scala:14
-- viewer/state/InternalPhases.scala:131
-- viewer/state/InternalPhases.scala:134 (note about “no node/arrow defaults”)
+1) DOT → Graphviz (flattened)
+   - Graphviz parses DOT and returns a flattened structure — no `node[...]`/`edge[...]` default scopes remain.
+   - See: viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:116
 
-2) Flattened → Two‑Level: The app reconstructs a single global defaults set per element kind by scanning element attributes, extracting common values, and leaving only true overrides on elements.
-- shared/graph/VizViewerGraphElements.scala:31 (pipeline)
-- shared/graph/VizViewerGraphElements.scala:71 (extract defaults)
-- Resulting structure: `ViewerGraphElements` (global defaults + local overrides)
-  - shared/graph/ViewerGraphElements.scala:12
+2) Flattened → Internal model
+   - We expand `style` into sub‑attributes but do not auto‑extract common attributes into global defaults at this time.
+   - See: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/VizViewerGraphElements.scala
+   - The result is `ViewerGraphElements` with per‑element attributes and optional default node/edge attributes (when set by theme or code).
+   - See: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElements.scala
 
-3) Two‑Level → DOT: When emitting DOT, style sub‑attributes are recombined into a `style` string and global defaults are printed via `node[...]` / `edge[...]` sections.
-- shared/graph/ViewerGraphElements.scala:54 (combine style)
-- shared/graph/ViewerGraphElementsToText.scala:210, 221, 231 (graph/node/edge blocks)
+3) Internal → DOT
+   - Before emitting DOT, style sub‑attributes are recombined into a single `style` string, simulating inheritance by merging defaults and locals.
+   - DOT text is then generated including graph attributes, optional `node[...]`/`edge[...]` default blocks, and elements.
+   - See: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraph.scala:443 and shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElementsToText.scala
 
 ## Data Flow (Pipeline)
 
 DOT text
  → Graphviz JSON (flattened, no defaults)
-   - viewer/backends/graphviz/Graphviz.scala:14
+   - viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala
  → SimpleGraph → VizViewerGraphElements
-   - shared/backends/.../ToViewerGraph.scala:26
+   - shared/src/main/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/vizjs/simplegraph/ToViewerGraph.scala
  → Expand style sub‑attributes (filled/bold/invis/border/corner)
-   - shared/graph/VizViewerGraphElements.scala:52
- → Extract defaults and strip them from elements
-   - shared/graph/VizViewerGraphElements.scala:71
+   - shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/VizViewerGraphElements.scala
  → ViewerGraph (two‑level) for UI + edits
-   - shared/backends/.../ToViewerGraph.scala:10
- → Recombine style + emit DOT (with node/edge defaults)
-   - shared/graph/ViewerGraphElements.scala:54
-   - shared/graph/ViewerGraphElementsToText.scala
+   - shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraph.scala
+ → Recombine style + emit DOT (with optional node/edge defaults)
+   - shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElements.scala
+   - shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElementsToText.scala
 
-## Global vs Local (Two‑Level)
+## Global vs Local
 
-- Global defaults (per kind):
+- Global defaults
   - `elements.defaultNodeAttributes`
   - `elements.defaultArrowAttributes`
-  - `elements.defaultGroupAttributes`
-  - shared/graph/ViewerGraphElements.scala:28
+  - Note: there is no `elements.defaultGroupAttributes` field; groups use per‑element attributes only. A constant baseline exists for groups when constructing them; it is not a global default block.
+  - See: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElements.scala and shared/src/main/scala/org/jpablo/graphexplorer/viewer/models/ViewerElement.scala
 
-- Local overrides (per element):
+- Local per‑element attributes
   - `ViewerNode.attributes`, `Arrow.attributes`, `ViewerGroup.attributes`
-  - shared/models/ViewerElement.scala:21
+  - See: shared/src/main/scala/org/jpablo/graphexplorer/viewer/models/ViewerElement.scala
 
-- Access/update APIs (wired to UI):
-  - Get defaults by target (graph/node/edge): shared/graph/AttributesOps.scala:84
-  - Modify defaults by target: shared/graph/AttributesOps.scala:90
-  - Lenses used by ViewerState for updates:
-    - Diagram (graph) attrs: shared/graph/AttributesOps.scala:144
-    - Default attrs by target: shared/graph/AttributesOps.scala:151
-    - Element attrs by selection: shared/graph/AttributesOps.scala:158
-  - ViewerState integration:
-    - defaults + update vars: viewer/state/ViewerState.scala:174, 177, 180, 183
+- Access/update APIs (UI wiring)
+  - Diagram (graph) attributes lens: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/AttributesOps.scala
+  - Element attributes lens (by selection): shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/AttributesOps.scala
+  - There is no dedicated “default attributes” lens at present; defaults are typically set by theme (`withDefaultTheme`) or code paths.
+  - ViewerState integrates these lenses: viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala
 
-## How Defaults Are Extracted
+## Style Expansion and Consistency
 
-- Expand `style` into sub‑attributes (virtual):
-  - `StyleSubAttributes` parses and expands: shared/attributes/styleSubAttributes/StyleSubAttributes.scala
-  - Applied to nodes/edges/groups/graph: shared/graph/VizViewerGraphElements.scala:52
-
-- Find common attributes across all elements of the same kind, excluding element‑specific/layout keys:
-  - Core: shared/graph/VizViewerGraphElements.scala:74
-  - Node exclusions: `_gvid`, `name`, `pos`, `height`, `width`, `label` (94)
-  - Edge exclusions: `_gvid`, `pos`, `lp`, `label` (104)
-  - Group exclusions: `_gvid`, `name`, `cluster`, `lp`, `lheight`, `lwidth`, `label`, `rank` (114)
-  - Skip extraction when there are 0/1 elements (76)
-  - Strip found defaults from elements; store into `default*Attributes` (122)
-
-- Style consistency cleanup:
-  - Remove `fillcolor` if `filled` isn’t set, to match Graphviz behavior: shared/attributes/styleSubAttributes/StyleSubAttributes.scala:196
+- `StyleSubAttributes` expands and contracts style:
+  - Expansion on import: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/VizViewerGraphElements.scala
+  - Recombination on export: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElements.scala
+- Consistency cleanup: remove `fillcolor` if `filled` isn’t effectively set (to mirror Graphviz behavior):
+  - shared/src/main/scala/org/jpablo/graphexplorer/viewer/attributes/styleSubAttributes/StyleSubAttributes.scala
 
 ## Reading Effective Values
 
-- Resolution order: local override → global defaults (kind) → DOT hardcoded default.
-  - shared/graph/ViewerGraph.scala:202 (`effectiveAttributeValue`)
+- Generic resolver `effectiveAttributeValue` returns from the provided attributes or the DOT default for that attribute.
+- Global defaults (node/edge) are merged into style only at DOT export time via `combineStyleAttributes`; there is no general “effective value” merge across all attributes.
+- See: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraph.scala
 
-## Back to DOT
+## DOT Emission
 
-- Recombine style sub‑attributes using defaults (`combineStyleAttributes`):
-  - shared/graph/ViewerGraphElements.scala:54–79
-- Emit graph attributes, then `node[...]` and `edge[...]` defaults, then elements:
-  - shared/graph/ViewerGraphElementsToText.scala:210 (graph), 221 (node), 231 (edge)
-- Groups (clusters) carry attributes under `subgraph` with `graph [...]` block; label handling avoids accidental inheritance.
-  - shared/graph/ViewerGraphElementsToText.scala
+- Recombine style sub‑attributes (defaults + locals):
+  - shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElements.scala
+- Emit `graph [...]`, optional `node [...]` and `edge [...]` default blocks, groups as `subgraph` with `graph [...]`, then elements:
+  - shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElementsToText.scala
 
 ## Special Handling
 
 - Theme defaults for visible graphs (non‑destructive):
-  - Node/edge defaults added without overriding existing defaults: shared/graph/AttributesOps.scala:96, 111
-  - Applied in `toVisibleGraph(...)`: shared/graph/ViewerGraph.scala:164
-
-- Cluster attribute normalization during conversion (preserve/force cluster=true/false):
-  - shared/backends/.../ToViewerGraph.scala:220
+  - Set via `withDefaultTheme`; applied in `toVisibleGraph(...)`.
+  - See: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/AttributesOps.scala and shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraph.scala
 
 ## Key Files & Functions
 
-- Parse + flatten: viewer/backends/graphviz/Graphviz.scala:14
-- Bridge to ViewerGraph: shared/backends/.../ToViewerGraph.scala:10, 26
-- Style expansion: shared/graph/VizViewerGraphElements.scala:52
-- Defaults extraction: shared/graph/VizViewerGraphElements.scala:71
-- Two‑level structure: shared/graph/ViewerGraphElements.scala:12
-- Effective value resolution: shared/graph/ViewerGraph.scala:202
-- Recombine style + output DOT: shared/graph/ViewerGraphElements.scala:54; shared/graph/ViewerGraphElementsToText.scala
-- UI wiring (lenses/signals): viewer/state/ViewerState.scala:174–184; shared/graph/AttributesOps.scala:144–162
+- Parse + flatten: viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala
+- Bridge to ViewerGraph: shared/src/main/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/vizjs/simplegraph/ToViewerGraph.scala
+- Style expansion: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/VizViewerGraphElements.scala
+- Two‑level structure: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElements.scala
+- Effective value resolution: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraph.scala
+- Recombine style + output DOT: shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElements.scala; shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/ViewerGraphElementsToText.scala
+- UI wiring (lenses/signals): viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala; shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/AttributesOps.scala
 
 ## Tests (Behavior Coverage)
 
-- Default extraction from flattened input:
-  - shared/test/.../graph/VizViewerGraphElements2Spec.scala
-
-- Style expansion & recombination:
-  - shared/test/.../graph/AttributesOpsSpec.scala:62 (expand)
-  - shared/test/.../graph/CombineStyleAttributesSpec.scala (combine cases)
-
-- Separation of defaults vs local overrides:
-  - shared/test/.../graph/AttributesOpsSpec.scala:129
-
-- ViewerState updates for defaults/elements:
-  - viewer/test/.../state/ViewerStateSpec.scala:75, 136
-
-- DOT output shows node/edge default blocks and group handling:
-  - shared/test/.../vizjs/ViewerGraphToTextSpec.scala (multiple tests)
-
-- Cluster attribute normalization (conversion):
-  - shared/test/.../vizjs/SimpleGraphConverterClusterAttributeSpec.scala
+- Style expansion: shared/src/test/scala/org/jpablo/graphexplorer/viewer/graph/VizViewerGraphElementsSpec.scala
+- Style recombination and invariants: shared/src/test/scala/org/jpablo/graphexplorer/viewer/graph/CombineStyleAttributesSpec.scala
+- DOT output formatting (defaults, groups, elements): shared/src/test/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/vizjs/ViewerGraphToTextSpec.scala
 
 ## Notes
 
-- Graphviz’s JSON is the “flattened truth”. Graph Explorer reconstructs a clean global‑defaults + local‑overrides model for editing and for a consistent UI.
-- The app does not attempt to preserve nested default scopes from DOT; it intentionally chooses a single set of defaults per element kind.
-
+- Graphviz’s JSON is the flattened truth. Graph Explorer expands style for editing and recombines it at export.
+- Nested default scopes from DOT are not preserved; the app chooses a single optional set of defaults per element kind (node/edge) when present.
