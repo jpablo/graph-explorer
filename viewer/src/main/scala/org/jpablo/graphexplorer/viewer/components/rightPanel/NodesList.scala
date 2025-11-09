@@ -8,10 +8,23 @@ import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.{HiddenElements, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckboxFormControl, Search}
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
+import org.jpablo.graphexplorer.viewer.domUtils.open
+import scala.scalajs.js
 
 def NodesList(state: ViewerState): Div =
   val onlyActiveVar = Var(false)
   val filterVar     = Var("")
+  // Keep a reference to the root container to control <details> expansion
+  var containerEl: Option[dom.Element] = None
+
+  def setAllDetailsOpen(value: Boolean): Unit =
+    containerEl.foreach: root =>
+      val nodes = root.querySelectorAll("details")
+      var i     = 0
+      while i < nodes.length do
+        // Use dynamic access to set the 'open' property on <details> elements
+        nodes(i).asInstanceOf[js.Dynamic].updateDynamic("open")(value)
+        i += 1
 
   def nodeMatches(graph: ViewerGraph, nodeId: NodeId, filter: String): Boolean =
     val f = filter.trim.toLowerCase
@@ -99,6 +112,8 @@ def NodesList(state: ViewerState): Div =
         Some(
           li(
             detailsTag(
+              // Expanded by default using DomUtils.open attribute
+              open := true,
               summaryTag(
                 cls := "hover cursor-pointer truncate",
                 cls("bg-base-200") <-- state.selection.contains(groupId),
@@ -147,6 +162,11 @@ def NodesList(state: ViewerState): Div =
 
   div(
     idAttr := "nodes-list",
+    onMountCallback { ctx =>
+      containerEl = Some(ctx.thisNode.ref)
+      // Expand all groups by default on mount
+      setAllDetailsOpen(true)
+    },
     form(
       idAttr := "right-panel-controls",
       Join(LabeledCheckboxFormControl(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveVar)),
@@ -156,6 +176,18 @@ def NodesList(state: ViewerState): Div =
           placeholder := "filter",
           controlled(value <-- filterVar, onInput.mapToValue --> filterVar)
         ).smallInput,
+        button(
+          cls   := "btn btn-xs",
+          title := "Expand all groups",
+          "Expand",
+          onClick.preventDefault.mapTo(()) --> { _ => setAllDetailsOpen(true) }
+        ),
+        button(
+          cls   := "btn btn-xs",
+          title := "Collapse all groups",
+          "Collapse",
+          onClick.preventDefault.mapTo(()) --> { _ => setAllDetailsOpen(false) }
+        ),
         button(
           cls   := "btn btn-xs",
           title := "Select filtered nodes",
@@ -175,6 +207,10 @@ def NodesList(state: ViewerState): Div =
     ),
     div(
       idAttr := "right-panel-contents",
+      // Auto-expand groups when the listing re-renders due to filters or graph changes
+      state.fullGraph.changes.mapTo(()) --> { _ => setAllDetailsOpen(true) },
+      filterVar.signal.changes.mapTo(()) --> { _ => setAllDetailsOpen(true) },
+      onlyActiveVar.signal.changes.mapTo(()) --> { _ => setAllDetailsOpen(true) },
       ul(
         cls := "menu menu-xs menu-compact",
         children <-- state.fullGraph.combineWithFn(
