@@ -296,12 +296,14 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val showDirectSuccessors = Command(
       "Show direct successors",
       () => state.showDirectSuccessors(),
+      shortcut = Some(Shortcut("+")),
       description = Some("Show direct successors of the selected nodes")
     )
 
     val hideSuccessorsRecursive = Command(
       "Hide successors (recursive)",
       () => state.hideSuccessors(recursive = true),
+      shortcut = Some(Shortcut("-")),
       description = Some("Hide outgoing arrows; hide successors that lose all incoming arrows, recursively")
     )
 
@@ -576,9 +578,27 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val exportAs = byHeader(headers.exportAs)
 
   val byShortcut: Map[Shortcut, Command[?]] =
-    byHeader.values.flatten
+    val pairs = byHeader.values.flatten
       .collect { case c @ Command(shortcut = Some(sh)) => sh -> c }
-      .toMap
+      .toList
+    // Add robust aliases for '+' and '-' across layouts
+    val withAliases = pairs.flatMap { case (sh, c) =>
+      sh.key match
+        case "+" =>
+          List(
+            sh -> c,
+            sh.copy(shift = !sh.shift) -> c,     // tolerate shift flag mismatch
+            sh.copy(key = "=", shift = true) -> c // Shift+'=' often yields '+'
+          )
+        case "-" =>
+          List(
+            sh -> c,
+            sh.copy(shift = !sh.shift) -> c,     // tolerate shift flag mismatch
+            sh.copy(key = "_", shift = true) -> c // Shift+'-' yields '_'
+          )
+        case _ => List(sh -> c)
+    }
+    withAliases.toMap
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
     dom.console.debug("Key pressed:", ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
