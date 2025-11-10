@@ -63,10 +63,16 @@ trait VisibilityOps:
     }
 
   def showDirectSuccessors() =
-    updateHiddenFromSelection { (h, sel, g) =>
-      val sub = g.directSuccessorsGraph(sel.nodeIds)
-      h -- sub.nodeIds -- sub.arrowIds
-    }
+    val g   = fullGraphNow()
+    val sel = selection.now()
+    val h0  = hiddenElements.now()
+    val sub = g.directSuccessorsGraph(sel.nodeIds)
+    val newlyShownNodes = sub.nodeIds intersect h0.nodeIds
+    // Unhide nodes and connecting arrows for the direct successors
+    hiddenElements.update(_ -- sub.nodeIds -- sub.arrowIds)
+    // If we actually revealed new nodes, select them to allow stepwise expansion
+    if newlyShownNodes.nonEmpty then
+      selection.set1(newlyShownNodes)
 
   def showAllPredecessors() =
     updateHiddenFromSelection { (h, sel, g) =>
