@@ -1,0 +1,27 @@
+digraph "G" {
+  graph [label=""];
+  subgraph "g2" {
+    graph [
+      label="ViewerGraphElements",
+      cluster="true"
+    ];
+    "d" [label="combineStyleAttributes"];
+  }
+  subgraph "g5" {
+    graph [
+      label="ViewerGraph",
+      cluster="true"
+    ];
+    "e" [label="viewerGraphToText"];
+  }
+  subgraph "g6" {
+    graph [
+      label="viewer.graph",
+      cluster="true"
+    ];
+    "p" [label="viewerGraphElementsToText"];
+  }
+  "e" -> "p";
+  "e":"s" -> "d" [constraint="true"];
+}
+

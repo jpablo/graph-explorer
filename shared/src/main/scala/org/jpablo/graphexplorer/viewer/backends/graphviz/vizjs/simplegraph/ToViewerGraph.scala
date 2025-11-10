@@ -339,10 +339,9 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
         val sourceName = gvidToNodeId.getOrElse(edge.tail, edge.tail.toString)
         val targetName = gvidToNodeId.getOrElse(edge.head, edge.head.toString)
         val seq        = edge._gvid
-        val arrowId    = ArrowId(s"$sourceName->$targetName/$seq")
         val attrs      = toAttributesFromEdge(edge, Set("tail", "head", "headport", "tailport"))
 
-        arrowId -> Arrow(
+        val arrow = Arrow(
           source = NodeId(sourceName),
           target = NodeId(targetName),
           seq = seq,
@@ -350,6 +349,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
           sourcePort = edge.tailport,
           targetPort = edge.headport
         )
+        arrow.id -> arrow
       }.toMap
     case None =>
       Map.empty[ArrowId, Arrow]
