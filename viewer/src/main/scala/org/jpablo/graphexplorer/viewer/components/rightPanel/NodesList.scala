@@ -9,22 +9,13 @@ import org.jpablo.graphexplorer.viewer.state.{HiddenElements, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckboxFormControl, Search}
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
 import org.jpablo.graphexplorer.viewer.domUtils.open
-import scala.scalajs.js
 
 def NodesList(state: ViewerState): Div =
   val onlyActiveVar = Var(false)
   val filterVar     = Var("")
-  // Keep a reference to the root container to control <details> expansion
-  var containerEl: Option[dom.Element] = None
-
-  def setAllDetailsOpen(value: Boolean): Unit =
-    containerEl.foreach: root =>
-      val nodes = root.querySelectorAll("details")
-      var i     = 0
-      while i < nodes.length do
-        // Use dynamic access to set the 'open' property on <details> elements
-        nodes(i).asInstanceOf[js.Dynamic].updateDynamic("open")(value)
-        i += 1
+  val expandOverrideV = Var[Option[Boolean]](Some(true)) // expanded by default
+  val expandedGroupsV = Var(Set.empty[GroupId])
+  val knownGroupsV    = Var(Set.empty[GroupId])
 
   def nodeMatches(graph: ViewerGraph, nodeId: NodeId, filter: String): Boolean =
     val f = filter.trim.toLowerCase
@@ -112,8 +103,10 @@ def NodesList(state: ViewerState): Div =
         Some(
           li(
             detailsTag(
-              // Expanded by default using DomUtils.open attribute
-              open := true,
+              open <-- expandOverrideV.signal.combineWith(expandedGroupsV.signal).map {
+                case (Some(value), _) => value
+                case (None, set)      => set.contains(groupId)
+              },
               summaryTag(
                 cls := "hover cursor-pointer truncate",
                 cls("bg-base-200") <-- state.selection.contains(groupId),
@@ -121,7 +114,11 @@ def NodesList(state: ViewerState): Div =
                 title := groupId.toString,
                 groupLabel(graph, groupId),
                 onMouseDown.preventDefault --> Observer.empty,
-                onClick.map(_.shiftKey) --> state.selection.updateSelectionStatus(groupId),
+                onClick.preventDefault --> { e =>
+                  state.selection.updateSelectionStatus(groupId)(e.shiftKey)
+                  expandOverrideV.set(None)
+                  expandedGroupsV.update(set => if set.contains(groupId) then set - groupId else set + groupId)
+                },
                 onDblClick.stopPropagation(_.sample(state.fullGraph.combineWith(state.hiddenElements.signal))) --> {
                   case (g, hiddenNodes) =>
                     val nodes = descendantNodeIds(g, groupId)
@@ -162,10 +159,13 @@ def NodesList(state: ViewerState): Div =
 
   div(
     idAttr := "nodes-list",
-    onMountCallback { ctx =>
-      containerEl = Some(ctx.thisNode.ref)
-      // Expand all groups by default on mount
-      setAllDetailsOpen(true)
+    // Track known groups (initial + updates) and default new ones to expanded
+    state.fullGraph --> { g =>
+      val currentGroups = g.groupIds - ViewerGraphElements.defaultRootId
+      val prev          = knownGroupsV.now()
+      val newlyAdded    = currentGroups -- prev
+      knownGroupsV.set(currentGroups)
+      expandedGroupsV.update(set => (set intersect currentGroups) ++ newlyAdded)
     },
     form(
       idAttr := "right-panel-controls",
@@ -180,13 +180,13 @@ def NodesList(state: ViewerState): Div =
           cls   := "btn btn-xs",
           title := "Expand all groups",
           "Expand",
-          onClick.preventDefault.mapTo(()) --> { _ => setAllDetailsOpen(true) }
+          onClick.preventDefault.mapTo(()) --> { _ => expandOverrideV.set(Some(true)) }
         ),
         button(
           cls   := "btn btn-xs",
           title := "Collapse all groups",
           "Collapse",
-          onClick.preventDefault.mapTo(()) --> { _ => setAllDetailsOpen(false) }
+          onClick.preventDefault.mapTo(()) --> { _ => expandOverrideV.set(Some(false)) }
         ),
         button(
           cls   := "btn btn-xs",
@@ -207,10 +207,6 @@ def NodesList(state: ViewerState): Div =
     ),
     div(
       idAttr := "right-panel-contents",
-      // Auto-expand groups when the listing re-renders due to filters or graph changes
-      state.fullGraph.changes.mapTo(()) --> { _ => setAllDetailsOpen(true) },
-      filterVar.signal.changes.mapTo(()) --> { _ => setAllDetailsOpen(true) },
-      onlyActiveVar.signal.changes.mapTo(()) --> { _ => setAllDetailsOpen(true) },
       ul(
         cls := "menu menu-xs menu-compact",
         children <-- state.fullGraph.combineWithFn(
