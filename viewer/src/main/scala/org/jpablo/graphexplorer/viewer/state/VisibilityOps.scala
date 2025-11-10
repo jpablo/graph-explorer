@@ -5,6 +5,7 @@ import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowId, ElementId, ElementIds, NodeId}
+import org.scalajs.dom
 
 trait VisibilityOps:
   this: ViewerState =>
@@ -52,6 +53,26 @@ trait VisibilityOps:
 
   def hideAllNodes() =
     hiddenElements.update(_ ++ fullGraphNow().nodeIds)
+
+  /** Permanently delete all elements that are currently hidden.
+    * Deletes hidden nodes, arrows, and groups from the full graph and clears the hidden set.
+    * Also removes any deleted elements from the current selection.
+    */
+  def deleteHiddenElements(): Unit =
+    val hidden = hiddenElements.now()
+    if hidden.isEmpty then
+      infoBus.emit("No hidden elements to delete")
+    else
+      val kinds    = hidden.classify
+      val summary  = s"Delete hidden: ${kinds.nodes.size} nodes, ${kinds.arrows.size} arrows, ${kinds.groups.size} groups. Continue?"
+      val proceed  = dom.window.confirm(summary)
+      if proceed then
+        // Remove hidden elements from graph
+        phases.fullGraphV.update(_.removeElements(hidden))
+        // Clear hidden state and selection references to removed elements
+        hiddenElements.clear()
+        selection.remove(hidden)
+        infoBus.emit("Hidden elements deleted")
 
   def hideNonSelectedNodes() =
     updateHiddenFromSelection((h, sel, g) => h ++ (g.nodeIds -- sel.nodeIds))

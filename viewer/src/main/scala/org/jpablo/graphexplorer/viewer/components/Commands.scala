@@ -354,6 +354,13 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val showAll      = Command("Show all", () => state.showAll(), always, description = Some("Show all elements"))
     val hideAllNodes = Command("Hide all", () => state.hideAllNodes(), always, description = Some("Hide all nodes"))
 
+    val deleteHiddenElements = Command(
+      "Delete hidden elements",
+      () => state.deleteHiddenElements(),
+      always,
+      description = Some("Delete all currently hidden nodes, arrows, and groups")
+    )
+
     val changeProjectName = Command(
       "Change project name",
       () => changeProjectNameAction(),
@@ -538,7 +545,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     view -> List(
       all.rootsOnly,
       all.showAll,
-      all.hideAllNodes
+      all.hideAllNodes,
+      all.deleteHiddenElements
     ),
     document -> List(
       all.changeProjectName,
