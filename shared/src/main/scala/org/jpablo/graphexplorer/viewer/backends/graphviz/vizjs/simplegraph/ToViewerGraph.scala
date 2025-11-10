@@ -1,7 +1,80 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
+  Area,
+  ArrowHead,
+  ArrowSize,
+  ArrowTail,
+  BgColor,
+  Class,
+  Cluster,
+  ClusterLabelLoc,
+  Color,
+  ColorScheme,
+  Constraint,
+  Dir,
+  FillColor,
+  FixedSize,
+  FontColor,
+  FontName,
+  FontSize,
+  ForceLabels,
+  GraphType,
+  HeadPort,
+  Height,
+  Id,
+  Image,
+  ImagePath,
+  ImagePos,
+  Label,
+  LabelDistance,
+  LabelFloat,
+  LabelFontColor,
+  LabelFontName,
+  LabelJust,
+  Layer,
+  Layout,
+  Len,
+  LHeight,
+  Lp,
+  LWidth,
+  Normalize,
+  NodeSep,
+  Orientation,
+  Overlap,
+  Pad,
+  PenColor,
+  PenWidth,
+  Peripheries,
+  Pos,
+  Rank,
+  Rankdir,
+  RankSep,
+  Ratio,
+  Rects,
+  Regular,
+  RootGraphLabelLoc,
+  SameHead,
+  SameTail,
+  Shape,
+  ShowBoxes,
+  Sides,
+  Splines,
+  Start,
+  Style,
+  TailClip,
+  TailLp,
+  TailPort,
+  TailTarget,
+  TailTooltip,
+  TailURL,
+  Target,
+  Tooltip,
+  URL,
+  Vertices,
+  Width
+}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, VizViewerGraphElements}
 
 import scala.collection.immutable.VectorMap
@@ -45,35 +118,35 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     if (!exclude.contains("_gvid")) attrs += AttributeId("_gvid") -> AttrValue(node._gvid.toString)
     if (!exclude.contains("name")) attrs += AttributeId("name")   -> AttrValue(node.name)
     // Skip \N labels as they are the default (node name)
-    if (!exclude.contains("label") && node.label != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(node.label))
+    if (!exclude.contains(Label.attrId.value) && node.label != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(node.label))
 
-    node.pos.foreach(v => if (!exclude.contains("pos")) attrs += AttributeId("pos") -> AttrValue(v))
-    node.height.foreach(v => if (!exclude.contains("height")) attrs += AttributeId("height") -> AttrValue(v))
-    node.width.foreach(v => if (!exclude.contains("width")) attrs += AttributeId("width") -> AttrValue(v))
-    node.shape.foreach(v => if (!exclude.contains("shape")) attrs += AttributeId("shape") -> AttrValue(v))
-    node.fontname.foreach(v => if (!exclude.contains("fontname")) attrs += AttributeId("fontname") -> AttrValue(v))
-    node.fontsize.foreach(v => if (!exclude.contains("fontsize")) attrs += AttributeId("fontsize") -> AttrValue(v))
-    node.fontcolor.foreach(v => if (!exclude.contains("fontcolor")) attrs += AttributeId("fontcolor") -> AttrValue(v))
-    node.color.foreach(v => if (!exclude.contains("color")) attrs += AttributeId("color") -> AttrValue(v))
-    node.fillcolor.foreach(v => if (!exclude.contains("fillcolor")) attrs += AttributeId("fillcolor") -> AttrValue(v))
-    node.style.foreach(v => if (!exclude.contains("style")) attrs += AttributeId("style") -> AttrValue(v))
-    node.penwidth.foreach(v => if (!exclude.contains("penwidth")) attrs += AttributeId("penwidth") -> AttrValue(v))
-    node.rects.foreach(v => if (!exclude.contains("rects")) attrs += AttributeId("rects") -> AttrValue(v))
-    node.sides.foreach(v => if (!exclude.contains("sides")) attrs += AttributeId("sides") -> AttrValue(v))
-    node.peripheries.foreach(v => if (!exclude.contains("peripheries")) attrs += AttributeId("peripheries") -> AttrValue(v))
-    node.fixedsize.foreach(v => if (!exclude.contains("fixedsize")) attrs += AttributeId("fixedsize") -> AttrValue(v))
-    node.regular.foreach(v => if (!exclude.contains("regular")) attrs += AttributeId("regular") -> AttrValue(v))
-    node.orientation.foreach(v => if (!exclude.contains("orientation")) attrs += AttributeId("orientation") -> AttrValue(v))
-    node.URL.foreach(v => if (!exclude.contains("URL")) attrs += AttributeId("URL") -> AttrValue(v))
-    node.area.foreach(v => if (!exclude.contains("area")) attrs += AttributeId("area") -> AttrValue(v))
-    node.`class`.foreach(v => if (!exclude.contains("class")) attrs += AttributeId("class") -> AttrValue(v))
-    node.colorscheme.foreach(v => if (!exclude.contains("colorscheme")) attrs += AttributeId("colorscheme") -> AttrValue(v))
-    node.target.foreach(v => if (!exclude.contains("target")) attrs += AttributeId("target") -> AttrValue(v))
-    node.tooltip.foreach(v => if (!exclude.contains("tooltip")) attrs += AttributeId("tooltip") -> AttrValue(v))
-    node.vertices.foreach(v => if (!exclude.contains("vertices")) attrs += AttributeId("vertices") -> AttrValue(v))
-    node.image.foreach(v => if (!exclude.contains("image")) attrs += AttributeId("image") -> AttrValue(v))
-    node.imagepath.foreach(v => if (!exclude.contains("imagepath")) attrs += AttributeId("imagepath") -> AttrValue(v))
-    node.imagepos.foreach(v => if (!exclude.contains("imagepos")) attrs += AttributeId("imagepos") -> AttrValue(v))
+    node.pos.foreach(v => if (!exclude.contains(Pos.attrId.value)) attrs += Pos.attrId -> AttrValue(v))
+    node.height.foreach(v => if (!exclude.contains(Height.attrId.value)) attrs += Height.attrId -> AttrValue(v))
+    node.width.foreach(v => if (!exclude.contains(Width.attrId.value)) attrs += Width.attrId -> AttrValue(v))
+    node.shape.foreach(v => if (!exclude.contains(Shape.attrId.value)) attrs += Shape.attrId -> AttrValue(v))
+    node.fontname.foreach(v => if (!exclude.contains(FontName.attrId.value)) attrs += FontName.attrId -> AttrValue(v))
+    node.fontsize.foreach(v => if (!exclude.contains(FontSize.attrId.value)) attrs += FontSize.attrId -> AttrValue(v))
+    node.fontcolor.foreach(v => if (!exclude.contains(FontColor.attrId.value)) attrs += FontColor.attrId -> AttrValue(v))
+    node.color.foreach(v => if (!exclude.contains(Color.attrId.value)) attrs += Color.attrId -> AttrValue(v))
+    node.fillcolor.foreach(v => if (!exclude.contains(FillColor.attrId.value)) attrs += FillColor.attrId -> AttrValue(v))
+    node.style.foreach(v => if (!exclude.contains(Style.attrId.value)) attrs += Style.attrId -> AttrValue(v))
+    node.penwidth.foreach(v => if (!exclude.contains(PenWidth.attrId.value)) attrs += PenWidth.attrId -> AttrValue(v))
+    node.rects.foreach(v => if (!exclude.contains(Rects.attrId.value)) attrs += Rects.attrId -> AttrValue(v))
+    node.sides.foreach(v => if (!exclude.contains(Sides.attrId.value)) attrs += Sides.attrId -> AttrValue(v))
+    node.peripheries.foreach(v => if (!exclude.contains(Peripheries.attrId.value)) attrs += Peripheries.attrId -> AttrValue(v))
+    node.fixedsize.foreach(v => if (!exclude.contains(FixedSize.attrId.value)) attrs += FixedSize.attrId -> AttrValue(v))
+    node.regular.foreach(v => if (!exclude.contains(Regular.attrId.value)) attrs += Regular.attrId -> AttrValue(v))
+    node.orientation.foreach(v => if (!exclude.contains(Orientation.attrId.value)) attrs += Orientation.attrId -> AttrValue(v))
+    node.URL.foreach(v => if (!exclude.contains(URL.attrId.value)) attrs += URL.attrId -> AttrValue(v))
+    node.area.foreach(v => if (!exclude.contains(Area.attrId.value)) attrs += Area.attrId -> AttrValue(v))
+    node.`class`.foreach(v => if (!exclude.contains(Class.attrId.value)) attrs += Class.attrId -> AttrValue(v))
+    node.colorscheme.foreach(v => if (!exclude.contains(ColorScheme.attrId.value)) attrs += ColorScheme.attrId -> AttrValue(v))
+    node.target.foreach(v => if (!exclude.contains(Target.attrId.value)) attrs += Target.attrId -> AttrValue(v))
+    node.tooltip.foreach(v => if (!exclude.contains(Tooltip.attrId.value)) attrs += Tooltip.attrId -> AttrValue(v))
+    node.vertices.foreach(v => if (!exclude.contains(Vertices.attrId.value)) attrs += Vertices.attrId -> AttrValue(v))
+    node.image.foreach(v => if (!exclude.contains(Image.attrId.value)) attrs += Image.attrId -> AttrValue(v))
+    node.imagepath.foreach(v => if (!exclude.contains(ImagePath.attrId.value)) attrs += ImagePath.attrId -> AttrValue(v))
+    node.imagepos.foreach(v => if (!exclude.contains(ImagePos.attrId.value)) attrs += ImagePos.attrId -> AttrValue(v))
     node.margin.foreach(v => if (!exclude.contains("margin")) attrs += AttributeId("margin") -> AttrValue(v))
     node.nojustify.foreach(v => if (!exclude.contains("nojustify")) attrs += AttributeId("nojustify") -> AttrValue(v))
 
@@ -111,44 +184,44 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     if (!exclude.contains("name")) attrs += AttributeId("name")   -> AttrValue(cluster.name)
     // Skip \N labels as they are the default
     cluster.label.foreach(v =>
-      if (!exclude.contains("label") && v != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v))
+      if (!exclude.contains(Label.attrId.value) && v != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v))
     )
 //      if (!exclude.contains("bb")) attrs += AttributeId("bb") -> AttrValue(cluster.bb)
 
-    cluster.fontname.foreach(v => if (!exclude.contains("fontname")) attrs += AttributeId("fontname") -> AttrValue(v))
-    cluster.fontsize.foreach(v => if (!exclude.contains("fontsize")) attrs += AttributeId("fontsize") -> AttrValue(v))
-    cluster.fontcolor.foreach(v => if (!exclude.contains("fontcolor")) attrs += AttributeId("fontcolor") -> AttrValue(v))
-    cluster.color.foreach(v => if (!exclude.contains("color")) attrs += AttributeId("color") -> AttrValue(v))
-    cluster.pencolor.foreach(v => if (!exclude.contains("pencolor")) attrs += AttributeId("pencolor") -> AttrValue(v))
-    cluster.penwidth.foreach(v => if (!exclude.contains("penwidth")) attrs += AttributeId("penwidth") -> AttrValue(v))
-    cluster.bgcolor.foreach(v => if (!exclude.contains("bgcolor")) attrs += AttributeId("bgcolor") -> AttrValue(v))
-    cluster.fillcolor.foreach(v => if (!exclude.contains("fillcolor")) attrs += AttributeId("fillcolor") -> AttrValue(v))
-    cluster.style.foreach(v => if (!exclude.contains("style")) attrs += AttributeId("style") -> AttrValue(v))
-    cluster.labeljust.foreach(v => if (!exclude.contains("labeljust")) attrs += AttributeId("labeljust") -> AttrValue(v))
-    cluster.labelloc.foreach(v => if (!exclude.contains("labelloc")) attrs += AttributeId("labelloc") -> AttrValue(v))
-    cluster.lheight.foreach(v => if (!exclude.contains("lheight")) attrs += AttributeId("lheight") -> AttrValue(v))
-    cluster.lp.foreach(v => if (!exclude.contains("lp")) attrs += AttributeId("lp") -> AttrValue(v))
-    cluster.lwidth.foreach(v => if (!exclude.contains("lwidth")) attrs += AttributeId("lwidth") -> AttrValue(v))
+    cluster.fontname.foreach(v => if (!exclude.contains(FontName.attrId.value)) attrs += FontName.attrId -> AttrValue(v))
+    cluster.fontsize.foreach(v => if (!exclude.contains(FontSize.attrId.value)) attrs += FontSize.attrId -> AttrValue(v))
+    cluster.fontcolor.foreach(v => if (!exclude.contains(FontColor.attrId.value)) attrs += FontColor.attrId -> AttrValue(v))
+    cluster.color.foreach(v => if (!exclude.contains(Color.attrId.value)) attrs += Color.attrId -> AttrValue(v))
+    cluster.pencolor.foreach(v => if (!exclude.contains(PenColor.attrId.value)) attrs += PenColor.attrId -> AttrValue(v))
+    cluster.penwidth.foreach(v => if (!exclude.contains(PenWidth.attrId.value)) attrs += PenWidth.attrId -> AttrValue(v))
+    cluster.bgcolor.foreach(v => if (!exclude.contains(BgColor.attrId.value)) attrs += BgColor.attrId -> AttrValue(v))
+    cluster.fillcolor.foreach(v => if (!exclude.contains(FillColor.attrId.value)) attrs += FillColor.attrId -> AttrValue(v))
+    cluster.style.foreach(v => if (!exclude.contains(Style.attrId.value)) attrs += Style.attrId -> AttrValue(v))
+    cluster.labeljust.foreach(v => if (!exclude.contains(LabelJust.attrId.value)) attrs += LabelJust.attrId -> AttrValue(v))
+    cluster.labelloc.foreach(v => if (!exclude.contains(ClusterLabelLoc.attrId.value)) attrs += ClusterLabelLoc.attrId -> AttrValue(v))
+    cluster.lheight.foreach(v => if (!exclude.contains(LHeight.attrId.value)) attrs += LHeight.attrId -> AttrValue(v))
+    cluster.lp.foreach(v => if (!exclude.contains(Lp.attrId.value)) attrs += Lp.attrId -> AttrValue(v))
+    cluster.lwidth.foreach(v => if (!exclude.contains(LWidth.attrId.value)) attrs += LWidth.attrId -> AttrValue(v))
     // Skip layout - it's a graph-only attribute
     cluster.layout.foreach(v =>
-      if (!exclude.contains("layout") && !graphOnlyAttributes.contains("layout")) attrs += AttributeId("layout") -> AttrValue(v)
+      if (!exclude.contains(Layout.attrId.value) && !graphOnlyAttributes.contains(Layout.attrId.value)) attrs += Layout.attrId -> AttrValue(v)
     )
-    cluster.normalize.foreach(v => if (!exclude.contains("normalize")) attrs += AttributeId("normalize") -> AttrValue(v))
-    cluster.start.foreach(v => if (!exclude.contains("start")) attrs += AttributeId("start") -> AttrValue(v))
-    cluster.overlap.foreach(v => if (!exclude.contains("overlap")) attrs += AttributeId("overlap") -> AttrValue(v))
-    cluster.cluster.foreach(v => if (!exclude.contains("cluster")) attrs += AttributeId("cluster") -> AttrValue(v))
+    cluster.normalize.foreach(v => if (!exclude.contains(Normalize.attrId.value)) attrs += Normalize.attrId -> AttrValue(v))
+    cluster.start.foreach(v => if (!exclude.contains(Start.attrId.value)) attrs += Start.attrId -> AttrValue(v))
+    cluster.overlap.foreach(v => if (!exclude.contains(Overlap.attrId.value)) attrs += Overlap.attrId -> AttrValue(v))
+    cluster.cluster.foreach(v => if (!exclude.contains(Cluster.attrId.value)) attrs += Cluster.attrId -> AttrValue(v))
     // Skip rankdir - it's a graph-only attribute
     cluster.rankdir.foreach(v =>
-      if (!exclude.contains("rankdir") && !graphOnlyAttributes.contains("rankdir")) attrs += AttributeId("rankdir") -> AttrValue(v)
+      if (!exclude.contains(Rankdir.attrId.value) && !graphOnlyAttributes.contains(Rankdir.attrId.value)) attrs += Rankdir.attrId -> AttrValue(v)
     )
-    cluster.splines.foreach(v => if (!exclude.contains("splines")) attrs += AttributeId("splines") -> AttrValue(v))
-    cluster.target.foreach(v => if (!exclude.contains("target")) attrs += AttributeId("target") -> AttrValue(v))
-    cluster.tooltip.foreach(v => if (!exclude.contains("tooltip")) attrs += AttributeId("tooltip") -> AttrValue(v))
-    cluster.URL.foreach(v => if (!exclude.contains("URL")) attrs += AttributeId("URL") -> AttrValue(v))
-    cluster.`class`.foreach(v => if (!exclude.contains("class")) attrs += AttributeId("class") -> AttrValue(v))
-    cluster.colorscheme.foreach(v => if (!exclude.contains("colorscheme")) attrs += AttributeId("colorscheme") -> AttrValue(v))
+    cluster.splines.foreach(v => if (!exclude.contains(Splines.attrId.value)) attrs += Splines.attrId -> AttrValue(v))
+    cluster.target.foreach(v => if (!exclude.contains(Target.attrId.value)) attrs += Target.attrId -> AttrValue(v))
+    cluster.tooltip.foreach(v => if (!exclude.contains(Tooltip.attrId.value)) attrs += Tooltip.attrId -> AttrValue(v))
+    cluster.URL.foreach(v => if (!exclude.contains(URL.attrId.value)) attrs += URL.attrId -> AttrValue(v))
+    cluster.`class`.foreach(v => if (!exclude.contains(Class.attrId.value)) attrs += Class.attrId -> AttrValue(v))
+    cluster.colorscheme.foreach(v => if (!exclude.contains(ColorScheme.attrId.value)) attrs += ColorScheme.attrId -> AttrValue(v))
     // Add rank attribute for clusters/subgraphs
-    cluster.rank.foreach(v => if (!exclude.contains("rank")) attrs += AttributeId("rank") -> AttrValue(v))
+    cluster.rank.foreach(v => if (!exclude.contains(Rank.attrId.value)) attrs += Rank.attrId -> AttrValue(v))
 
     Attributes(VectorMap.from(attrs.toSeq))
 
@@ -161,24 +234,24 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
 //      if (!exclude.contains("bb")) attrs += AttributeId("bb") -> AttrValue(graph.bb)
 //      if (!exclude.contains("_subgraph_cnt")) attrs += AttributeId("_subgraph_cnt") -> AttrValue(graph._subgraph_cnt.toString)
 
-    simpleGraph.fontname.foreach(v => if (!exclude.contains("fontname")) attrs += AttributeId("fontname") -> AttrValue(v))
-    simpleGraph.fontsize.foreach(v => if (!exclude.contains("fontsize")) attrs += AttributeId("fontsize") -> AttrValue(v))
-    simpleGraph.label.foreach(v => if (!exclude.contains("label")) attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v)))
-    simpleGraph.labelloc.foreach(v => if (!exclude.contains("labelloc")) attrs += AttributeId("labelloc") -> AttrValue(v))
-    simpleGraph.lp.foreach(v => if (!exclude.contains("lp")) attrs += AttributeId("lp") -> AttrValue(v))
-    simpleGraph.lheight.foreach(v => if (!exclude.contains("lheight")) attrs += AttributeId("lheight") -> AttrValue(v))
-    simpleGraph.lwidth.foreach(v => if (!exclude.contains("lwidth")) attrs += AttributeId("lwidth") -> AttrValue(v))
-    simpleGraph.rankdir.foreach(v => if (!exclude.contains("rankdir")) attrs += AttributeId("rankdir") -> AttrValue(v))
-    simpleGraph.layout.foreach(v => if (!exclude.contains("layout")) attrs += AttributeId("layout") -> AttrValue(v))
-    simpleGraph.bgcolor.foreach(v => if (!exclude.contains("bgcolor")) attrs += AttributeId("bgcolor") -> AttrValue(v))
-    simpleGraph.nodesep.foreach(v => if (!exclude.contains("nodesep")) attrs += AttributeId("nodesep") -> AttrValue(v))
-    simpleGraph.pad.foreach(v => if (!exclude.contains("pad")) attrs += AttributeId("pad") -> AttrValue(v))
-    simpleGraph.ranksep.foreach(v => if (!exclude.contains("ranksep")) attrs += AttributeId("ranksep") -> AttrValue(v))
-    simpleGraph.ratio.foreach(v => if (!exclude.contains("ratio")) attrs += AttributeId("ratio") -> AttrValue(v))
-    simpleGraph.splines.foreach(v => if (!exclude.contains("splines")) attrs += AttributeId("splines") -> AttrValue(v))
-    simpleGraph.overlap.foreach(v => if (!exclude.contains("overlap")) attrs += AttributeId("overlap") -> AttrValue(v))
-    simpleGraph.normalize.foreach(v => if (!exclude.contains("normalize")) attrs += AttributeId("normalize") -> AttrValue(v))
-    simpleGraph.start.foreach(v => if (!exclude.contains("start")) attrs += AttributeId("start") -> AttrValue(v))
+    simpleGraph.fontname.foreach(v => if (!exclude.contains(FontName.attrId.value)) attrs += FontName.attrId -> AttrValue(v))
+    simpleGraph.fontsize.foreach(v => if (!exclude.contains(FontSize.attrId.value)) attrs += FontSize.attrId -> AttrValue(v))
+    simpleGraph.label.foreach(v => if (!exclude.contains(Label.attrId.value)) attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v)))
+    simpleGraph.labelloc.foreach(v => if (!exclude.contains(RootGraphLabelLoc.attrId.value)) attrs += RootGraphLabelLoc.attrId -> AttrValue(v))
+    simpleGraph.lp.foreach(v => if (!exclude.contains(Lp.attrId.value)) attrs += Lp.attrId -> AttrValue(v))
+    simpleGraph.lheight.foreach(v => if (!exclude.contains(LHeight.attrId.value)) attrs += LHeight.attrId -> AttrValue(v))
+    simpleGraph.lwidth.foreach(v => if (!exclude.contains(LWidth.attrId.value)) attrs += LWidth.attrId -> AttrValue(v))
+    simpleGraph.rankdir.foreach(v => if (!exclude.contains(Rankdir.attrId.value)) attrs += Rankdir.attrId -> AttrValue(v))
+    simpleGraph.layout.foreach(v => if (!exclude.contains(Layout.attrId.value)) attrs += Layout.attrId -> AttrValue(v))
+    simpleGraph.bgcolor.foreach(v => if (!exclude.contains(BgColor.attrId.value)) attrs += BgColor.attrId -> AttrValue(v))
+    simpleGraph.nodesep.foreach(v => if (!exclude.contains(NodeSep.attrId.value)) attrs += NodeSep.attrId -> AttrValue(v))
+    simpleGraph.pad.foreach(v => if (!exclude.contains(Pad.attrId.value)) attrs += Pad.attrId -> AttrValue(v))
+    simpleGraph.ranksep.foreach(v => if (!exclude.contains(RankSep.attrId.value)) attrs += RankSep.attrId -> AttrValue(v))
+    simpleGraph.ratio.foreach(v => if (!exclude.contains(Ratio.attrId.value)) attrs += Ratio.attrId -> AttrValue(v))
+    simpleGraph.splines.foreach(v => if (!exclude.contains(Splines.attrId.value)) attrs += Splines.attrId -> AttrValue(v))
+    simpleGraph.overlap.foreach(v => if (!exclude.contains(Overlap.attrId.value)) attrs += Overlap.attrId -> AttrValue(v))
+    simpleGraph.normalize.foreach(v => if (!exclude.contains(Normalize.attrId.value)) attrs += Normalize.attrId -> AttrValue(v))
+    simpleGraph.start.foreach(v => if (!exclude.contains(Start.attrId.value)) attrs += Start.attrId -> AttrValue(v))
 
     Attributes(VectorMap.from(attrs.toSeq))
 
@@ -189,45 +262,45 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     if (!exclude.contains("tail")) attrs += AttributeId("tail")   -> AttrValue(edge.tail.toString)
     if (!exclude.contains("head")) attrs += AttributeId("head")   -> AttrValue(edge.head.toString)
 
-    edge.pos.foreach(v => if (!exclude.contains("pos")) attrs += AttributeId("pos") -> AttrValue(v))
-    edge.id.foreach(v => if (!exclude.contains("id")) attrs += AttributeId("id") -> AttrValue(v))
+    edge.pos.foreach(v => if (!exclude.contains(Pos.attrId.value)) attrs += Pos.attrId -> AttrValue(v))
+    edge.id.foreach(v => if (!exclude.contains(Id.attrId.value)) attrs += Id.attrId -> AttrValue(v))
     // Skip \N labels as they are the default
     edge.label.foreach(v =>
-      if (!exclude.contains("label") && v != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v))
+      if (!exclude.contains(Label.attrId.value) && v != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v))
     )
-    edge.fontname.foreach(v => if (!exclude.contains("fontname")) attrs += AttributeId("fontname") -> AttrValue(v))
-    edge.fontsize.foreach(v => if (!exclude.contains("fontsize")) attrs += AttributeId("fontsize") -> AttrValue(v))
-    edge.color.foreach(v => if (!exclude.contains("color")) attrs += AttributeId("color") -> AttrValue(v))
-    edge.penwidth.foreach(v => if (!exclude.contains("penwidth")) attrs += AttributeId("penwidth") -> AttrValue(v))
-    edge.style.foreach(v => if (!exclude.contains("style")) attrs += AttributeId("style") -> AttrValue(v))
-    edge.lp.foreach(v => if (!exclude.contains("lp")) attrs += AttributeId("lp") -> AttrValue(v))
-    edge.len.foreach(v => if (!exclude.contains("len")) attrs += AttributeId("len") -> AttrValue(v))
-    edge.constraint.foreach(v => if (!exclude.contains("constraint")) attrs += AttributeId("constraint") -> AttrValue(v))
-    edge.forcelabels.foreach(v => if (!exclude.contains("forcelabels")) attrs += AttributeId("forcelabels") -> AttrValue(v))
-    edge.headport.foreach(v => if (!exclude.contains("headport")) attrs += AttributeId("headport") -> AttrValue(v))
-    edge.tailport.foreach(v => if (!exclude.contains("tailport")) attrs += AttributeId("tailport") -> AttrValue(v))
-    edge.arrowhead.foreach(v => if (!exclude.contains("arrowhead")) attrs += AttributeId("arrowhead") -> AttrValue(v))
-    edge.arrowtail.foreach(v => if (!exclude.contains("arrowtail")) attrs += AttributeId("arrowtail") -> AttrValue(v))
-    edge.arrowsize.foreach(v => if (!exclude.contains("arrowsize")) attrs += AttributeId("arrowsize") -> AttrValue(v))
-    edge.dir.foreach(v => if (!exclude.contains("dir")) attrs += AttributeId("dir") -> AttrValue(v))
-    edge.`class`.foreach(v => if (!exclude.contains("class")) attrs += AttributeId("class") -> AttrValue(v))
-    edge.colorscheme.foreach(v => if (!exclude.contains("colorscheme")) attrs += AttributeId("colorscheme") -> AttrValue(v))
-    edge.layer.foreach(v => if (!exclude.contains("layer")) attrs += AttributeId("layer") -> AttrValue(v))
+    edge.fontname.foreach(v => if (!exclude.contains(FontName.attrId.value)) attrs += FontName.attrId -> AttrValue(v))
+    edge.fontsize.foreach(v => if (!exclude.contains(FontSize.attrId.value)) attrs += FontSize.attrId -> AttrValue(v))
+    edge.color.foreach(v => if (!exclude.contains(Color.attrId.value)) attrs += Color.attrId -> AttrValue(v))
+    edge.penwidth.foreach(v => if (!exclude.contains(PenWidth.attrId.value)) attrs += PenWidth.attrId -> AttrValue(v))
+    edge.style.foreach(v => if (!exclude.contains(Style.attrId.value)) attrs += Style.attrId -> AttrValue(v))
+    edge.lp.foreach(v => if (!exclude.contains(Lp.attrId.value)) attrs += Lp.attrId -> AttrValue(v))
+    edge.len.foreach(v => if (!exclude.contains(Len.attrId.value)) attrs += Len.attrId -> AttrValue(v))
+    edge.constraint.foreach(v => if (!exclude.contains(Constraint.attrId.value)) attrs += Constraint.attrId -> AttrValue(v))
+    edge.forcelabels.foreach(v => if (!exclude.contains(ForceLabels.attrId.value)) attrs += ForceLabels.attrId -> AttrValue(v))
+    edge.headport.foreach(v => if (!exclude.contains(HeadPort.attrId.value)) attrs += HeadPort.attrId -> AttrValue(v))
+    edge.tailport.foreach(v => if (!exclude.contains(TailPort.attrId.value)) attrs += TailPort.attrId -> AttrValue(v))
+    edge.arrowhead.foreach(v => if (!exclude.contains(ArrowHead.attrId.value)) attrs += ArrowHead.attrId -> AttrValue(v))
+    edge.arrowtail.foreach(v => if (!exclude.contains(ArrowTail.attrId.value)) attrs += ArrowTail.attrId -> AttrValue(v))
+    edge.arrowsize.foreach(v => if (!exclude.contains(ArrowSize.attrId.value)) attrs += ArrowSize.attrId -> AttrValue(v))
+    edge.dir.foreach(v => if (!exclude.contains(Dir.attrId.value)) attrs += Dir.attrId -> AttrValue(v))
+    edge.`class`.foreach(v => if (!exclude.contains(Class.attrId.value)) attrs += Class.attrId -> AttrValue(v))
+    edge.colorscheme.foreach(v => if (!exclude.contains(ColorScheme.attrId.value)) attrs += ColorScheme.attrId -> AttrValue(v))
+    edge.layer.foreach(v => if (!exclude.contains(Layer.attrId.value)) attrs += Layer.attrId -> AttrValue(v))
     edge.nojustify.foreach(v => if (!exclude.contains("nojustify")) attrs += AttributeId("nojustify") -> AttrValue(v))
-    edge.samehead.foreach(v => if (!exclude.contains("samehead")) attrs += AttributeId("samehead") -> AttrValue(v))
-    edge.sametail.foreach(v => if (!exclude.contains("sametail")) attrs += AttributeId("sametail") -> AttrValue(v))
-    edge.showboxes.foreach(v => if (!exclude.contains("showboxes")) attrs += AttributeId("showboxes") -> AttrValue(v))
-    edge.tail_lp.foreach(v => if (!exclude.contains("tail_lp")) attrs += AttributeId("tail_lp") -> AttrValue(v))
-    edge.tailclip.foreach(v => if (!exclude.contains("tailclip")) attrs += AttributeId("tailclip") -> AttrValue(v))
-    edge.target.foreach(v => if (!exclude.contains("target")) attrs += AttributeId("target") -> AttrValue(v))
-    edge.tooltip.foreach(v => if (!exclude.contains("tooltip")) attrs += AttributeId("tooltip") -> AttrValue(v))
-    edge.labeldistance.foreach(v => if (!exclude.contains("labeldistance")) attrs += AttributeId("labeldistance") -> AttrValue(v))
-    edge.labelfloat.foreach(v => if (!exclude.contains("labelfloat")) attrs += AttributeId("labelfloat") -> AttrValue(v))
-    edge.labelfontcolor.foreach(v => if (!exclude.contains("labelfontcolor")) attrs += AttributeId("labelfontcolor") -> AttrValue(v))
-    edge.labelfontname.foreach(v => if (!exclude.contains("labelfontname")) attrs += AttributeId("labelfontname") -> AttrValue(v))
-    edge.tailtarget.foreach(v => if (!exclude.contains("tailtarget")) attrs += AttributeId("tailtarget") -> AttrValue(v))
-    edge.tailtooltip.foreach(v => if (!exclude.contains("tailtooltip")) attrs += AttributeId("tailtooltip") -> AttrValue(v))
-    edge.tailURL.foreach(v => if (!exclude.contains("tailURL")) attrs += AttributeId("tailURL") -> AttrValue(v))
+    edge.samehead.foreach(v => if (!exclude.contains(SameHead.attrId.value)) attrs += SameHead.attrId -> AttrValue(v))
+    edge.sametail.foreach(v => if (!exclude.contains(SameTail.attrId.value)) attrs += SameTail.attrId -> AttrValue(v))
+    edge.showboxes.foreach(v => if (!exclude.contains(ShowBoxes.attrId.value)) attrs += ShowBoxes.attrId -> AttrValue(v))
+    edge.tail_lp.foreach(v => if (!exclude.contains(TailLp.attrId.value)) attrs += TailLp.attrId -> AttrValue(v))
+    edge.tailclip.foreach(v => if (!exclude.contains(TailClip.attrId.value)) attrs += TailClip.attrId -> AttrValue(v))
+    edge.target.foreach(v => if (!exclude.contains(Target.attrId.value)) attrs += Target.attrId -> AttrValue(v))
+    edge.tooltip.foreach(v => if (!exclude.contains(Tooltip.attrId.value)) attrs += Tooltip.attrId -> AttrValue(v))
+    edge.labeldistance.foreach(v => if (!exclude.contains(LabelDistance.attrId.value)) attrs += LabelDistance.attrId -> AttrValue(v))
+    edge.labelfloat.foreach(v => if (!exclude.contains(LabelFloat.attrId.value)) attrs += LabelFloat.attrId -> AttrValue(v))
+    edge.labelfontcolor.foreach(v => if (!exclude.contains(LabelFontColor.attrId.value)) attrs += LabelFontColor.attrId -> AttrValue(v))
+    edge.labelfontname.foreach(v => if (!exclude.contains(LabelFontName.attrId.value)) attrs += LabelFontName.attrId -> AttrValue(v))
+    edge.tailtarget.foreach(v => if (!exclude.contains(TailTarget.attrId.value)) attrs += TailTarget.attrId -> AttrValue(v))
+    edge.tailtooltip.foreach(v => if (!exclude.contains(TailTooltip.attrId.value)) attrs += TailTooltip.attrId -> AttrValue(v))
+    edge.tailURL.foreach(v => if (!exclude.contains(TailURL.attrId.value)) attrs += TailURL.attrId -> AttrValue(v))
 
     Attributes(VectorMap.from(attrs.toSeq))
 
@@ -266,11 +339,11 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     // - If already present, preserve it
     // - If missing and was originally a cluster, set to "true"
     // - If missing and was not originally a cluster, set to "false"
-    val updatedAttrs = if attrs.values.contains(AttributeId("cluster")) then {
+    val updatedAttrs = if attrs.values.contains(Cluster.attrId) then {
       attrs
     } else {
       val defaultValue  = if wasCluster then "true" else "false"
-      val updatedValues = attrs.values + (AttributeId("cluster") -> AttrValue(defaultValue))
+      val updatedValues = attrs.values + (Cluster.attrId -> AttrValue(defaultValue))
       Attributes(updatedValues)
     }
     groupsBuilder(groupId) = ViewerGroup.group(groupId, updatedAttrs)

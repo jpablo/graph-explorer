@@ -612,3 +612,171 @@ object Xlp extends DotAttributeSimple[Double]:
 
 object ZCoord:
   val default = 0.0
+
+// Position and Layout Attributes
+
+object Pos extends DotAttributeSimple[String]:
+  val label   = "Position"
+  val default = ""
+  override val placeholderText = "Enter position (x,y)"
+
+object Lp extends DotAttributeSimple[String]:
+  val label   = "Label Position"
+  val default = ""
+  override val placeholderText = "Enter label position (x,y)"
+
+object LHeight extends DotAttributeSimple[Double]:
+  val label   = "Label Height"
+  val default = 0.0
+
+object LWidth extends DotAttributeSimple[Double]:
+  val label   = "Label Width"
+  val default = 0.0
+
+// Visual and Styling Attributes
+
+object Class extends DotAttributeSimple[String]:
+  val label                    = "CSS Class"
+  val default                  = ""
+  override val placeholderText = "Enter CSS class name"
+
+object ColorScheme extends DotAttributeSimple[String]:
+  val label                    = "Color Scheme"
+  val default                  = ""
+  override val placeholderText = "Enter color scheme"
+
+object Target extends DotAttributeSimple[String]:
+  val label                    = "URL Target"
+  val default                  = ""
+  override val placeholderText = "Enter target window name"
+
+object Tooltip extends DotAttributeSimple[String]:
+  val label                    = "Tooltip"
+  val default                  = ""
+  override val placeholderText = "Enter tooltip text"
+
+// Image Attributes
+
+object Image extends DotAttributeSimple[String]:
+  val label                    = "Image"
+  val default                  = ""
+  override val placeholderText = "Enter image file path"
+
+object ImagePath extends DotAttributeSimple[String]:
+  val label                    = "Image Path"
+  val default                  = ""
+  override val placeholderText = "Enter image search path"
+
+object ImagePos extends DotAttributeSimple[String]:
+  val label   = "Image Position"
+  val default = "mc"
+  override val placeholderText = "Enter image position (e.g., mc, tl, br)"
+
+// Geometry Attributes
+
+object Rects extends DotAttributeSimple[String]:
+  val label   = "Rectangles"
+  val default = ""
+  override val placeholderText = "Record field rectangles (write only)"
+
+object Area extends DotAttributeSimple[Double]:
+  val label   = "Area"
+  val default = 1.0
+
+object Vertices extends DotAttributeSimple[String]:
+  val label   = "Vertices"
+  val default = ""
+  override val placeholderText = "Polygon vertex coordinates"
+
+// Text and Label Attributes
+
+object LabelDistance extends DotAttributeSimple[Double]:
+  val label   = "Label Distance"
+  val default = 1.0
+
+object LabelFloat extends DotAttributeSimple[Boolean]:
+  val label   = "Label Float"
+  val default = false
+
+object LabelFontColor extends DotAttributeSimple[String]:
+  val label                    = "Label Font Color"
+  val default                  = "#000000"
+  override val placeholderText = "Enter label font color"
+
+object LabelFontName extends DotAttributeSimple[String]:
+  val label                    = "Label Font Name"
+  val default                  = "Times-Roman"
+  override val placeholderText = "Enter label font name"
+
+// Layout Algorithm Attributes
+
+object Normalize extends DotAttributeSimple[Boolean]:
+  val label   = "Normalize"
+  val default = false
+
+object Start extends DotAttributeSimple[String]:
+  val label                    = "Start"
+  val default                  = ""
+  override val placeholderText = "Random seed for layout"
+
+object Ratio extends DotAttributeSimple[String]:
+  val label                    = "Aspect Ratio"
+  val default                  = ""
+  override val placeholderText = "Enter aspect ratio or 'fill', 'compress', 'auto'"
+
+// Edge-specific Attributes
+
+object Len extends DotAttributeSimple[Double]:
+  val label   = "Length"
+  val default = 1.0
+
+object ForceLabels extends DotAttributeSimple[Boolean]:
+  val label   = "Force Labels"
+  val default = true
+
+object Layer extends DotAttributeSimple[String]:
+  val label                    = "Layer"
+  val default                  = ""
+  override val placeholderText = "Enter layer name or range"
+
+object SameHead extends DotAttributeSimple[String]:
+  val label                    = "Same Head"
+  val default                  = ""
+  override val placeholderText = "Group edges with same head"
+
+object SameTail extends DotAttributeSimple[String]:
+  val label                    = "Same Tail"
+  val default                  = ""
+  override val placeholderText = "Group edges with same tail"
+
+object TailClip extends DotAttributeSimple[Boolean]:
+  val label   = "Tail Clip"
+  val default = true
+
+object TailTarget extends DotAttributeSimple[String]:
+  val label                    = "Tail Target"
+  val default                  = ""
+  override val placeholderText = "Target for tail URL"
+
+object TailTooltip extends DotAttributeSimple[String]:
+  val label                    = "Tail Tooltip"
+  val default                  = ""
+  override val placeholderText = "Tooltip for edge tail"
+
+object TailURL extends DotAttributeSimple[String]:
+  override val attrId          = AttributeId("tailURL")
+  val label                    = "Tail URL"
+  val default                  = ""
+  override val placeholderText = "URL for edge tail"
+
+// Debug Attributes
+
+object ShowBoxes extends DotAttributeSimple[Int]:
+  val label   = "Show Boxes"
+  val default = 0
+
+object TailLp extends DotAttributeSimple[String]:
+  override val attrId          = AttributeId("tail_lp")
+  val label                    = "Tail Label Position"
+  val default                  = ""
+  override val placeholderText = "Tail label position (x,y)"
