@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.graph
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.removeIncorrectCombos
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{EdgeStyle, NodeStyle, Style}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements.nodeMapRW
 import org.jpablo.graphexplorer.viewer.graph.VizViewerGraphElements.expandElementStyleAttributes
 import org.jpablo.graphexplorer.viewer.models.*
 import upickle.default.*
@@ -75,12 +76,6 @@ case class VizViewerGraphElements(
 
 
 object VizViewerGraphElements:
-
-  implicit val nodeMapRW: ReadWriter[VectorMap[NodeId, ViewerNode]] =
-    readwriter[Map[String, ViewerNode]].bimap[VectorMap[NodeId, ViewerNode]](
-      _.map { case (k, v) => k.value -> v },
-      map => VectorMap.from(map.map { case (k, v) => NodeId(k) -> v })
-    )
 
   val defaultRootId = GroupId("G")
   val minimal       = VizViewerGraphElements()
