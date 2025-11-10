@@ -299,6 +299,18 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Show direct successors of the selected nodes")
     )
 
+    val hideSuccessorsRecursive = Command(
+      "Hide successors (recursive)",
+      () => state.hideSuccessors(recursive = true),
+      description = Some("Hide outgoing arrows; hide successors that lose all incoming arrows, recursively")
+    )
+
+    val hideSuccessorLayer = Command(
+      "Hide successor layer",
+      () => state.hideSuccessors(recursive = false),
+      description = Some("Hide outgoing arrows; hide successors that lose all incoming arrows (one layer)")
+    )
+
     val selectAllSuccessors = Command(
       "Select all successors",
       () => state.selection.selectSuccessors(),
@@ -508,6 +520,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 //      all.resetLayout
     ),
     successors -> List(
+      all.hideSuccessorsRecursive,
+      all.hideSuccessorLayer,
       all.showAllSuccessors,
       all.showDirectSuccessors,
       all.selectAllSuccessors,

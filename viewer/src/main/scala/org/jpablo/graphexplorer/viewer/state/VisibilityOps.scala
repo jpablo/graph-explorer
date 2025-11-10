@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowId, ElementId, ElementIds, NodeId}
 
 trait VisibilityOps:
   this: ViewerState =>
@@ -57,16 +57,86 @@ trait VisibilityOps:
     updateHiddenFromSelection((h, sel, g) => h ++ (g.nodeIds -- sel.nodeIds))
 
   def showAllSuccessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- g.allSuccessorsGraph(sel.nodeIds).nodeIds)
+    updateHiddenFromSelection { (h, sel, g) =>
+      val sub = g.allSuccessorsGraph(sel.nodeIds)
+      h -- sub.nodeIds -- sub.arrowIds
+    }
 
   def showDirectSuccessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- g.directSuccessorsGraph(sel.nodeIds).nodeIds)
+    updateHiddenFromSelection { (h, sel, g) =>
+      val sub = g.directSuccessorsGraph(sel.nodeIds)
+      h -- sub.nodeIds -- sub.arrowIds
+    }
 
   def showAllPredecessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- g.allPredecessorsGraph(sel.nodeIds).nodeIds)
+    updateHiddenFromSelection { (h, sel, g) =>
+      val sub = g.allPredecessorsGraph(sel.nodeIds)
+      h -- sub.nodeIds -- sub.arrowIds
+    }
 
   def showDirectPredecessors() =
-    updateHiddenFromSelection((h, sel, g) => h -- g.directPredecessorsGraph(sel.nodeIds).nodeIds)
+    updateHiddenFromSelection { (h, sel, g) =>
+      val sub = g.directPredecessorsGraph(sel.nodeIds)
+      h -- sub.nodeIds -- sub.arrowIds
+    }
+
+  /** Hide successors of the currently selected nodes.
+    *
+    * Semantics:
+    *  - Hide all visible outgoing arrows from the selected nodes A -> B.
+    *  - If a target node B loses all remaining incoming visible arrows, hide B as well.
+    *  - If `recursive` is true, repeat the process from each newly hidden node B.
+    *
+    * This supports layer-by-layer contraction with reachability preserved from other visible sources.
+    */
+  def hideSuccessors(recursive: Boolean = true): Unit =
+    val selNodes = selection.now().nodeIds
+    if selNodes.isEmpty then return
+
+    // Snapshot current visible graph based on hidden elements
+    val full = fullGraphNow()
+    val hiddenNow = hiddenElements.now()
+    val hiddenNodeIds  = hiddenNow.nodeIds
+    val hiddenArrowIds = hiddenNow.classify.arrows
+
+    // Visible nodes and arrows
+    val visibleNodes: Set[NodeId] = full.nodeIds -- hiddenNodeIds
+    val visibleArrows = full.arrows.values
+      .filter(a => !(hiddenArrowIds.contains(a.id)) && visibleNodes.contains(a.source) && visibleNodes.contains(a.target))
+      .toVector
+
+    // Build adjacency in terms of arrows (we work with arrows to support multi-edges and selective hiding)
+    val outgoingBySource: Map[NodeId, Vector[Arrow]] =
+      visibleArrows.groupBy(_.source).withDefaultValue(Vector.empty)
+    val incomingByTarget: Map[NodeId, Vector[Arrow]] =
+      visibleArrows.groupBy(_.target).withDefaultValue(Vector.empty)
+
+    import scala.collection.mutable
+    val queue               = mutable.Queue.from(selNodes.intersect(visibleNodes))
+    val processed           = mutable.Set.empty[NodeId]
+    val newlyHiddenArrows   = mutable.Set.empty[ArrowId]
+    val newlyHiddenNodes    = mutable.Set.empty[NodeId]
+
+    while queue.nonEmpty do
+      val src = queue.dequeue()
+      if !processed(src) then
+        processed += src
+        // Hide all visible outgoing arrows from src
+        val outs = outgoingBySource(src).filterNot(a => newlyHiddenArrows(a.id))
+        if outs.nonEmpty then
+          newlyHiddenArrows ++= outs.map(_.id)
+
+          // For each target, check if any other incoming arrows remain visible
+          outs.foreach: a =>
+            val tgt = a.target
+            if tgt != src && !newlyHiddenNodes(tgt) then
+              val remainingIncoming = incomingByTarget(tgt).filterNot(in => newlyHiddenArrows(in.id))
+              if remainingIncoming.isEmpty then
+                newlyHiddenNodes += tgt
+                if recursive then queue.enqueue(tgt)
+
+    if newlyHiddenArrows.nonEmpty || newlyHiddenNodes.nonEmpty then
+      hiddenElements.update(_ ++ newlyHiddenArrows.toSet ++ newlyHiddenNodes.toSet)
 
   private def updateHiddenFromSelection(f: (HiddenElements, ElementIds, ViewerGraph) => HiddenElements) =
     hiddenElements.update(f(_, selection.now(), fullGraphNow()))
