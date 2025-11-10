@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, VizViewerGraphElements}
 
 import scala.collection.immutable.VectorMap
@@ -45,7 +45,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     if (!exclude.contains("_gvid")) attrs += AttributeId("_gvid") -> AttrValue(node._gvid.toString)
     if (!exclude.contains("name")) attrs += AttributeId("name")   -> AttrValue(node.name)
     // Skip \N labels as they are the default (node name)
-    if (!exclude.contains("label") && node.label != "\\N") attrs += AttributeId("label") -> AttrValue(sanitizeSingleLabel(node.label))
+    if (!exclude.contains("label") && node.label != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(node.label))
 
     node.pos.foreach(v => if (!exclude.contains("pos")) attrs += AttributeId("pos") -> AttrValue(v))
     node.height.foreach(v => if (!exclude.contains("height")) attrs += AttributeId("height") -> AttrValue(v))
@@ -111,7 +111,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     if (!exclude.contains("name")) attrs += AttributeId("name")   -> AttrValue(cluster.name)
     // Skip \N labels as they are the default
     cluster.label.foreach(v =>
-      if (!exclude.contains("label") && v != "\\N") attrs += AttributeId("label") -> AttrValue(sanitizeSingleLabel(v))
+      if (!exclude.contains("label") && v != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v))
     )
 //      if (!exclude.contains("bb")) attrs += AttributeId("bb") -> AttrValue(cluster.bb)
 
@@ -163,7 +163,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
 
     simpleGraph.fontname.foreach(v => if (!exclude.contains("fontname")) attrs += AttributeId("fontname") -> AttrValue(v))
     simpleGraph.fontsize.foreach(v => if (!exclude.contains("fontsize")) attrs += AttributeId("fontsize") -> AttrValue(v))
-    simpleGraph.label.foreach(v => if (!exclude.contains("label")) attrs += AttributeId("label") -> AttrValue(sanitizeSingleLabel(v)))
+    simpleGraph.label.foreach(v => if (!exclude.contains("label")) attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v)))
     simpleGraph.labelloc.foreach(v => if (!exclude.contains("labelloc")) attrs += AttributeId("labelloc") -> AttrValue(v))
     simpleGraph.lp.foreach(v => if (!exclude.contains("lp")) attrs += AttributeId("lp") -> AttrValue(v))
     simpleGraph.lheight.foreach(v => if (!exclude.contains("lheight")) attrs += AttributeId("lheight") -> AttrValue(v))
@@ -193,7 +193,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     edge.id.foreach(v => if (!exclude.contains("id")) attrs += AttributeId("id") -> AttrValue(v))
     // Skip \N labels as they are the default
     edge.label.foreach(v =>
-      if (!exclude.contains("label") && v != "\\N") attrs += AttributeId("label") -> AttrValue(sanitizeSingleLabel(v))
+      if (!exclude.contains("label") && v != "\\N") attrs += Label.attrId -> AttrValue(sanitizeSingleLabel(v))
     )
     edge.fontname.foreach(v => if (!exclude.contains("fontname")) attrs += AttributeId("fontname") -> AttrValue(v))
     edge.fontsize.foreach(v => if (!exclude.contains("fontsize")) attrs += AttributeId("fontsize") -> AttrValue(v))

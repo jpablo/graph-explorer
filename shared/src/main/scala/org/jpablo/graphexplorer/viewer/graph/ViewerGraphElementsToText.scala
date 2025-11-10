@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.GraphType
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.{Arrow, GroupId, NodeId, ViewerGroup, ViewerNode, Attributes as ViewerAttributes}
 
@@ -35,7 +35,7 @@ def viewerGraphElementsToText(
 
   // Check if any node has HTML labels with multi-line content
   val hasComplexHtmlLabels = elements.nodes.exists { case (_, node) =>
-    node.attributes.values.get(AttributeId("label"))
+    node.attributes.values.get(Label.attrId)
       .map(_.toString)
       .exists(label => isHtmlLabel(label) && label.trim.split("\n").length > 1)
   }
@@ -283,7 +283,7 @@ def viewerGraphElementsToText(
     sortedClusterNodes.foreach { nodeId =>
       val node      = elements.nodes(nodeId)
       val nodeAttrs = collectNodeAttributes(node, insideCluster = true)
-      val hasMultiLineHtmlLabel = node.attributes.values.get(AttributeId("label"))
+      val hasMultiLineHtmlLabel = node.attributes.values.get(Label.attrId)
         .map(_.toString)
         .exists(label => isHtmlLabel(label) && label.trim.split("\n").length > 1)
       val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1)
@@ -323,7 +323,7 @@ def viewerGraphElementsToText(
   elements.nodes.foreach { case (nodeId, node) =>
     if (!clusterNodeIds.contains(nodeId)) {
       val nodeAttrs = collectNodeAttributes(node)
-      val hasMultiLineHtmlLabel = node.attributes.values.get(AttributeId("label"))
+      val hasMultiLineHtmlLabel = node.attributes.values.get(Label.attrId)
         .map(_.toString)
         .exists(label => isHtmlLabel(label) && label.trim.split("\n").length > 1)
       val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1)

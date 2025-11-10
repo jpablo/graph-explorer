@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.SimpleGraph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraphElements, viewerGraphElementsToText}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -50,7 +51,7 @@ class ViewerGraphToTextSpec extends FunSuite:
         nodeA -> ViewerNode.nodeNoDefaults(
           nodeA,
           Attributes(VectorMap(
-            AttributeId("label")  -> AttrValue("a"),
+            Label.attrId  -> AttrValue("a"),
             AttributeId("pos")    -> AttrValue("43,58.8"),
             AttributeId("height") -> AttrValue("0.5"),
             AttributeId("width")  -> AttrValue("0.75")
@@ -63,7 +64,7 @@ class ViewerGraphToTextSpec extends FunSuite:
         groupId -> ViewerGroup.group(
           groupId,
           Attributes(VectorMap(
-            AttributeId("label")   -> AttrValue("A title"),
+            Label.attrId   -> AttrValue("A title"),
             AttributeId("lheight") -> AttrValue("0.23"),
             AttributeId("lp")      -> AttrValue("43,97.2"),
             AttributeId("lwidth")  -> AttrValue("0.49"),
@@ -72,7 +73,7 @@ class ViewerGraphToTextSpec extends FunSuite:
         )
       ),
       graphAttributes = Attributes(VectorMap(
-        AttributeId("label")   -> AttrValue("A title"),
+        Label.attrId   -> AttrValue("A title"),
         AttributeId("rankdir") -> AttrValue("LR")
       ))
     )
@@ -117,15 +118,15 @@ class ViewerGraphToTextSpec extends FunSuite:
 
     val elements = ViewerGraphElements(
       nodes = VectorMap(
-        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes(VectorMap(AttributeId("label") -> AttrValue("a"))))
+        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes(VectorMap(Label.attrId -> AttrValue("a"))))
       ),
       arrows = Map.empty,
       memberships = VectorMap(nodeA -> groupId),
       groups = Map(
-        groupId -> ViewerGroup.group(groupId, Attributes(VectorMap(AttributeId("label") -> AttrValue("")))) // Empty label
+        groupId -> ViewerGroup.group(groupId, Attributes(VectorMap(Label.attrId -> AttrValue("")))) // Empty label
       ),
       graphAttributes = Attributes(VectorMap(
-        AttributeId("label")   -> AttrValue("Diagram"),
+        Label.attrId   -> AttrValue("Diagram"),
         AttributeId("rankdir") -> AttrValue("LR")
       ))
     )
@@ -168,15 +169,15 @@ class ViewerGraphToTextSpec extends FunSuite:
 
     val elements = ViewerGraphElements(
       nodes = VectorMap(
-        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes(VectorMap(AttributeId("label") -> AttrValue("a"))))
+        nodeA -> ViewerNode.nodeNoDefaults(nodeA, Attributes(VectorMap(Label.attrId -> AttrValue("a"))))
       ),
       arrows = Map.empty,
       memberships = VectorMap(nodeA -> groupId),
       groups = Map(
-        groupId -> ViewerGroup.group(groupId, Attributes(VectorMap(AttributeId("label") -> AttrValue("Custom Group Label"))))
+        groupId -> ViewerGroup.group(groupId, Attributes(VectorMap(Label.attrId -> AttrValue("Custom Group Label"))))
       ),
       graphAttributes = Attributes(VectorMap(
-        AttributeId("label")   -> AttrValue("Diagram"),
+        Label.attrId   -> AttrValue("Diagram"),
         AttributeId("rankdir") -> AttrValue("LR")
       ))
     )
@@ -223,7 +224,7 @@ class ViewerGraphToTextSpec extends FunSuite:
         nodeB -> ViewerNode.nodeNoDefaults(
           nodeB,
           Attributes(VectorMap(
-            AttributeId("label") -> AttrValue("b")
+            Label.attrId -> AttrValue("b")
           ))
         )
       ),
@@ -236,20 +237,20 @@ class ViewerGraphToTextSpec extends FunSuite:
         outerGroupId -> ViewerGroup.group(
           outerGroupId,
           Attributes(VectorMap(
-            AttributeId("label")   -> AttrValue("G1"),
+            Label.attrId   -> AttrValue("G1"),
             AttributeId("cluster") -> AttrValue("true")
           ))
         ),
         innerGroupId -> ViewerGroup.group(
           innerGroupId,
           Attributes(VectorMap(
-            AttributeId("label")   -> AttrValue(""),
+            Label.attrId   -> AttrValue(""),
             AttributeId("cluster") -> AttrValue("true")
           ))
         )
       ),
       graphAttributes = Attributes(VectorMap(
-        AttributeId("label")   -> AttrValue(""),
+        Label.attrId   -> AttrValue(""),
         AttributeId("rankdir") -> AttrValue("LR")
       ))
     )

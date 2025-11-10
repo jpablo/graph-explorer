@@ -6,7 +6,7 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.fromExpandedAttributes
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId}
@@ -399,7 +399,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
       // Check attributes that should be preserved from the DOT parsing
       assertEquals(
-        nodeA.attributes.get(org.jpablo.graphexplorer.viewer.models.AttributeId("label")).map(_.value),
+        nodeA.attributes.get(Label.attrId).map(_.value),
         Some("A"),
         "Node should have label 'A'"
       )

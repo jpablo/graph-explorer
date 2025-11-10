@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.ScalaCheckSuite
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Style
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Style}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerGroup.group
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithId
@@ -278,7 +278,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     // The group should remain unchanged with its _gvid
     assert(resultGraph.groups.contains(groupId))
     val groupAttrs = resultGraph.groups(groupId).attributes
-    assertEquals(groupAttrs.values(AttributeId("label")).toString, "")
+    assertEquals(groupAttrs.values(Label.attrId).toString, "")
     assertEquals(groupAttrs.values(AttributeId("cluster")).toString, "true")
     assertEquals(groupAttrs.values(AttributeId("_gvid")).toString, "789")
   }
@@ -317,7 +317,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     assert(!newNode.attributes.contains(AttributeId("height")))
 
     // Verify that other attributes are copied
-    assertEquals(newNode.attributes.get(AttributeId("label")).map(_.toString), Some("a"))
+    assertEquals(newNode.attributes.get(Label.attrId).map(_.toString), Some("a"))
     assertEquals(newNode.attributes.get(AttributeId("color")).map(_.toString), Some("red"))
   }
 
@@ -369,7 +369,7 @@ class ViewerGraphSpec extends ScalaCheckSuite:
     assert(!newGroup.attributes.contains(AttributeId("lheight")))
 
     // Verify that other attributes are copied (plus the defaults)
-    assertEquals(newGroup.attributes.get(AttributeId("label")).map(_.toString), Some("My Group"))
+    assertEquals(newGroup.attributes.get(Label.attrId).map(_.toString), Some("My Group"))
     assertEquals(newGroup.attributes.get(AttributeId("style")).map(_.toString), Some("filled"))
     assertEquals(newGroup.attributes.get(AttributeId("fillcolor")).map(_.toString), Some("lightblue"))
   }

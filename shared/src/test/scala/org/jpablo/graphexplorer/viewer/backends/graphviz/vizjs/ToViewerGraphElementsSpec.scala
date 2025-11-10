@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.SimpleGraph
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Rank, RankType}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Rank, RankType}
 import org.jpablo.graphexplorer.viewer.models.*
 import upickle.default.*
 
@@ -45,7 +45,7 @@ class ToViewerGraphElementsSpec extends FunSuite:
 
     // Check that node attributes contain the expected values
     assertEquals(nodeA.attributes.get(AttributeId("shape")).map(_.value), Some("ellipse"))
-    assertEquals(nodeA.attributes.get(AttributeId("label")).map(_.value), Some("a"))
+    assertEquals(nodeA.attributes.get(Label.attrId).map(_.value), Some("a"))
     assertEquals(nodeB.attributes.get(AttributeId("shape")).map(_.value), Some("box"))
     assertEquals(nodeB.attributes.get(AttributeId("fillcolor")).map(_.value), Some("#b9f8cf"))
     assertEquals(nodeB.attributes.get(AttributeId("style")).map(_.value), Some("filled"))
@@ -244,7 +244,7 @@ class ToViewerGraphElementsSpec extends FunSuite:
     )
 
     // Verify other subgraph attributes are preserved
-    assertEquals(subgroupAttrs.values(AttributeId("label")), AttrValue("A title"))
+    assertEquals(subgroupAttrs.values(Label.attrId), AttrValue("A title"))
     assertEquals(subgroupAttrs.values(AttributeId("style")), AttrValue("filled"))
     assertEquals(subgroupAttrs.values(AttributeId("cluster")), AttrValue("true"))
   }
