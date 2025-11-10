@@ -577,33 +577,23 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   object sections:
     val exportAs = byHeader(headers.exportAs)
 
+  // Normalize shortcut matching to reduce layout-specific hacks:
+  //  - Letters: compare case-insensitively by lowercasing the key, but keep `shift` to allow distinct bindings (e.g., b vs B).
+  //  - Single non-alphanumeric symbols (e.g., '+', '-', '.', ','): ignore `shift` in matching, since key already encodes the symbol.
+  private def normalizeShortcut(sh: Shortcut): Shortcut =
+    val keyLower = if sh.key.length == 1 && sh.key.head.isLetter then sh.key.toLowerCase else sh.key
+    val isSymbol = sh.key.length == 1 && !sh.key.head.isLetterOrDigit
+    if isSymbol then sh.copy(key = keyLower, shift = false) else sh.copy(key = keyLower)
+
   val byShortcut: Map[Shortcut, Command[?]] =
-    val pairs = byHeader.values.flatten
-      .collect { case c @ Command(shortcut = Some(sh)) => sh -> c }
-      .toList
-    // Add robust aliases for '+' and '-' across layouts
-    val withAliases = pairs.flatMap { case (sh, c) =>
-      sh.key match
-        case "+" =>
-          List(
-            sh -> c,
-            sh.copy(shift = !sh.shift) -> c,     // tolerate shift flag mismatch
-            sh.copy(key = "=", shift = true) -> c // Shift+'=' often yields '+'
-          )
-        case "-" =>
-          List(
-            sh -> c,
-            sh.copy(shift = !sh.shift) -> c,     // tolerate shift flag mismatch
-            sh.copy(key = "_", shift = true) -> c // Shift+'-' yields '_'
-          )
-        case _ => List(sh -> c)
-    }
-    withAliases.toMap
+    byHeader.values.flatten
+      .collect { case c @ Command(shortcut = Some(sh)) => normalizeShortcut(sh) -> c }
+      .toMap
 
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
-    dom.console.debug("Key pressed:", ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
+    dom.console.debug("Key pressed:", ev.key, ev.code, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
     dom.console.debug("activeElement:", dom.document.activeElement)
-    val sh = Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
+    val sh = normalizeShortcut(Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey))
     for cmd <- byShortcut.get(sh) do
       // Prevent default for all handled shortcuts so the pressed key
       // does not leak into newly-focused inputs (e.g. New Node label dialog)
