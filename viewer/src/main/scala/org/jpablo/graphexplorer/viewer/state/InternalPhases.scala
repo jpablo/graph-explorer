@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import com.raquo.airstream.core.Signal
+import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
@@ -50,19 +50,45 @@ class InternalPhases(
     case DiagramFormat.Mermaid => mermaidBackend
 
   // Initialize with the provided source or a minimal graph
-  private val initialText  = initialSource.getOrElse("""digraph "G" {}""")
+  private val initialText   = initialSource.getOrElse("""digraph "G" {}""")
   private val initialFormat = DiagramFormat.detect(initialText)
-  private val initialViewerGraph: ViewerGraph = parseTextToGraph(initialText, initialFormat)
 
-  // Single unified state
+  // Single unified state - starts with minimal graph, will be updated async
   private val state = Var(
     GraphState(
       text = initialText,
-      viewerGraph = initialViewerGraph,
+      viewerGraph = ViewerGraph.minimalWithDirected,
       format = initialFormat,
       lastOrigin = ChangeOrigin.CodeMirror
     )
   )
+
+  // Bus for text changes that need async parsing
+  private val textChangeBus = EventBus[(String, DiagramFormat, ChangeOrigin)]()
+
+  // Trigger initial async parsing (must be after textChangeBus is defined)
+  parseTextToGraphAsync(initialText, initialFormat)
+
+  // Handle async parsing results
+  textChangeBus.events
+    .flatMapSwitch { case (text, format, origin) =>
+      EventStream.fromFuture(
+        backendFor(format).textToGraph(text).transform {
+          case Success(graph) =>
+            editorError.set(None)
+            Success((text, graph, format, origin))
+          case Failure(f) =>
+            dom.console.error(s"Error parsing ${format.displayName} to ViewerGraph: ${f.getMessage}")
+            editorError.set(Option(f.getMessage))
+            Success((text, ViewerGraph.minimalWithDirected, format, origin))
+        }
+      )
+    }
+    .foreach { case (text, graph, format, origin) =>
+      // Only update if text hasn't changed since we started parsing
+      if state.now().text == text then
+        state.set(GraphState(text, graph, format, origin))
+    }
 
   // Public interface: sourceText as a Var that delegates to the unified state
   val sourceText: Var[String] =
@@ -77,9 +103,12 @@ class InternalPhases(
         // New source of truth: incoming text
         if newText != currentState.text then
           val newFormat = DiagramFormat.detect(newText)
+          // Trigger async parsing
+          textChangeBus.writer.onNext((newText, newFormat, ChangeOrigin.CodeMirror))
+          // Return state with updated text but keep old graph until async completes
           GraphState(
             text = newText,
-            viewerGraph = parseTextToGraph(newText, newFormat),
+            viewerGraph = currentState.viewerGraph,
             format = newFormat,
             lastOrigin = ChangeOrigin.CodeMirror
           )
@@ -153,24 +182,10 @@ class InternalPhases(
       case DiagramFormat.DOT     => GraphvizSelectionStrategy
       case DiagramFormat.Mermaid => MermaidSelectionStrategy
 
-  /** Parses text into a ViewerGraph using the appropriate backend.
-    * Returns a minimal graph on error.
-    */
-  private def parseTextToGraph(text: String, format: DiagramFormat): ViewerGraph =
-    // Safety check: don't process empty or whitespace-only strings
-    if text.trim.isEmpty then
-      ViewerGraph.minimalWithDirected
-    else
-      val backend = backendFor(format)
-      backend.textToGraph(text) match
-        case Success(viewerGraph) =>
-          editorError.set(None)
-          viewerGraph
-
-        case Failure(f) =>
-          dom.console.error(s"Error parsing ${format.displayName} to ViewerGraph: ${f.getMessage}")
-          editorError.set(Option(f.getMessage))
-          ViewerGraph.minimalWithDirected
+  /** Triggers async parsing of text into a ViewerGraph. */
+  private def parseTextToGraphAsync(text: String, format: DiagramFormat): Unit =
+    if text.trim.nonEmpty then
+      textChangeBus.writer.onNext((text, format, ChangeOrigin.CodeMirror))
 
 end InternalPhases
 

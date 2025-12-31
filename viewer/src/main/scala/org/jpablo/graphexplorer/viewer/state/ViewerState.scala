@@ -85,12 +85,16 @@ case class ViewerState(
   // 5. Render visible content to SVG with position data
   // For DOT: visibleDOT ~> SvgWithPositions
   // For Mermaid: sourceText ~> SvgWithPositions (Mermaid doesn't support hidden elements yet)
+  // Uses flatMapSwitch to handle async backend rendering
   private val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    phases.currentFormat.combineWith(visibleDOT, sourceText.signal).map:
-      case (DiagramFormat.DOT, dotText, _) =>
-        graphvizBackend.textToSvg(dotText.value).toOption
-      case (DiagramFormat.Mermaid, _, mermaidText) =>
-        mermaidBackend.textToSvg(mermaidText).toOption
+    phases.currentFormat
+      .combineWith(visibleDOT, sourceText.signal)
+      .flatMapSwitch:
+        case (DiagramFormat.DOT, dotText, _) =>
+          Signal.fromFuture(graphvizBackend.textToSvg(dotText.value).map(Some(_)).recover { case _ => None })
+        case (DiagramFormat.Mermaid, _, mermaidText) =>
+          Signal.fromFuture(mermaidBackend.textToSvg(mermaidText).map(Some(_)).recover { case _ => None })
+      .map(_.flatten) // Flatten Option[Option[SvgWithPositions]] to Option[SvgWithPositions]
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.
