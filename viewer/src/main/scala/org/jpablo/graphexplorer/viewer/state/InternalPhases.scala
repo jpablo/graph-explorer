@@ -191,13 +191,41 @@ end InternalPhases
 
 object InternalPhases:
 
-  def processDotText(graphviz: Graphviz, dot: DotText): Signal[ReactiveSvgElement[SVG]] =
-    Signal.fromTry:
-      for
-        simpleGraph <- graphviz.textToSimpleGraph(dot.value)
-        viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
-        dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
-        svg <- graphviz.textToSvg(DotText(dotText0))
-      yield svg.svg
+  /** Process diagram text (DOT or Mermaid) and return an SVG element.
+    * Used for generating thumbnails on the library page.
+    */
+  def processDotText(graphviz: Graphviz, dot: DotText)(using ExecutionContext): Signal[ReactiveSvgElement[SVG]] =
+    val format = DiagramFormat.detect(dot.value)
+    format match
+      case DiagramFormat.DOT =>
+        // DOT format - use Graphviz (synchronous)
+        Signal.fromTry:
+          for
+            simpleGraph <- graphviz.textToSimpleGraph(dot.value)
+            viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
+            dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
+            svg <- graphviz.textToSvg(DotText(dotText0))
+          yield svg.svg
+
+      case DiagramFormat.Mermaid =>
+        // Mermaid format - use MermaidBackend (asynchronous)
+        val mermaidBackend = MermaidBackend()
+        Signal
+          .fromFuture(mermaidBackend.textToSvg(dot.value).map(_.svg))
+          .map(_.getOrElse(emptySvg))
+
+  /** Empty SVG placeholder for when rendering fails */
+  private def emptySvg: ReactiveSvgElement[SVG] =
+    import com.raquo.laminar.api.L.svg.*
+    svg(
+      width  := "100",
+      height := "100",
+      text(
+        x          := "50",
+        y          := "50",
+        textAnchor := "middle",
+        "No preview"
+      )
+    )
 
 end InternalPhases

@@ -13,6 +13,7 @@ import org.jpablo.graphexplorer.viewer.state.InternalPhases
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 
 import scala.scalajs.js
+import scala.concurrent.ExecutionContext.Implicits.global
 
 enum SortOption derives CanEqual:
   case LastModified, Title, CreationDate
