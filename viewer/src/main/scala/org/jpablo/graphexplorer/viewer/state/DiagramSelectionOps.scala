@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
@@ -292,10 +292,15 @@ trait DiagramSelectionOps:
 end DiagramSelectionOps
 
 object DiagramSelectionOps:
-  /** Finds the node ID at the given selection rectangle's end point
+  /** Finds the node ID at the given selection rectangle's end point.
+    *
+    * @param elements The elements to search in
+    * @param strategy The selection strategy for extracting element IDs
+    * @param selector CSS selector for selectable elements (defaults to strategy's allSelector)
     */
   def findClosestElementId(
       elements: js.Array[dom.Element],
+      strategy: SelectableElementStrategy = GraphvizSelectionStrategy,
       selector: String = "g.node, g.edge, g.cluster"
   ): Option[ElementId] =
     elements
@@ -304,7 +309,7 @@ object DiagramSelectionOps:
       .distinct
       .collect:
         case g: dom.svg.G => g
-      .map(SelectableElement.fromDomElement)
+      .map(SelectableElement.fromDomElement(_, strategy))
       .collectFirst:
         case Some(elem) => elem.elementId
 

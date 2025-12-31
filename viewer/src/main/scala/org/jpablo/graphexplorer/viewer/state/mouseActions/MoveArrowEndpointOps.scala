@@ -73,14 +73,14 @@ trait MoveArrowEndpointOps:
     val start     = action.originator
     val neighbors = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
 
-    findClosestElementId(neighbors, "g.node") match
-      case Some(endElementId) =>
-        val ignore = (start, endElementId) match
+    findClosestElementId(neighbors, selector = "g.node") match
+      case Some(targetElementId) =>
+        val ignore = (start, targetElementId) match
           case (e: EdgeElement, n: NodeId) =>
             Arrow.fromArrowId(e.elementId).exists(a => if action.endpoint.isSource then a.source == n else a.target == n)
           case _ => false
         if !ignore then
-          selection.set1(Set(start.elementId, endElementId))
+          selection.set1(Set(start.elementId, targetElementId))
         else
           selection.set2(start.elementId)
 

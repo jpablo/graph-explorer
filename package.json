@@ -20,7 +20,8 @@
     "codemirror": "6.0.1",
     "dot-parser": "file:./dot-parser",
     "jsdom": "24.1.0",
-    "uuid": "^11.0.3"
+    "uuid": "^11.0.3",
+    "mermaid": "^10.9.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.14",

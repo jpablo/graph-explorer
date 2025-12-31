@@ -4,7 +4,9 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
+import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, GraphvizBackend, SvgWithPositions}
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
@@ -15,6 +17,8 @@ import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
 import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom.svg.SVG
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 case class ViewerState(
     projectId:                ProjectId,
@@ -69,31 +73,41 @@ case class ViewerState(
   val visibleDOT      = phases.visibleDOT
   def visibleDOTNow() = phases.visibleDOT.observe.now()
   val visibleGraph    = phases.visibleGraph
+  val currentFormat   = phases.currentFormat
+  val selectionStrategy = phases.selectionStrategy
 
   val mouseAction = MouseActionVar()
 
-  // 5. Render visible Dot to SVG with position data
-  // visibleDOT ~> SvgWithPositions
+  // Backends for rendering
+  private val graphvizBackend = GraphvizBackend(graphviz)
+  private lazy val mermaidBackend = MermaidBackend()
+
+  // 5. Render visible content to SVG with position data
+  // For DOT: visibleDOT ~> SvgWithPositions
+  // For Mermaid: sourceText ~> SvgWithPositions (Mermaid doesn't support hidden elements yet)
   private val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    visibleDOT.map: dotText =>
-      graphviz
-        .textToSvg(dotText)
-        .toOption
+    phases.currentFormat.combineWith(visibleDOT, sourceText.signal).map:
+      case (DiagramFormat.DOT, dotText, _) =>
+        graphvizBackend.textToSvg(dotText.value).toOption
+      case (DiagramFormat.Mermaid, _, mermaidText) =>
+        mermaidBackend.textToSvg(mermaidText).toOption
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.
   // svgWithPositions ~> finalSVG
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
-    svgWithPositions.map(_.map: svgWithPos =>
-      withLog("5. [visibleDOT -> SVG]", level = phases.logLevel) {
-        SvgCanvas(
-          rawSvg = svgWithPos.svg,
-          transform = transform,
-          viewerOps = this,
-          mouseAction = mouseAction,
-          edgePositions = svgWithPos.edgePositions
-        )
-      })
+    svgWithPositions.combineWith(selectionStrategy).map: (svgOpt, strategy) =>
+      svgOpt.map: svgWithPos =>
+        withLog("5. [visibleDOT -> SVG]", level = phases.logLevel) {
+          SvgCanvas(
+            rawSvg = svgWithPos.svg,
+            transform = transform,
+            viewerOps = this,
+            mouseAction = mouseAction,
+            edgePositions = svgWithPos.edgePositions,
+            strategy = strategy
+          )
+        }
 
   // ------------- App settings -------------
   // If true, prompt for label before creating a new node (default: true)
