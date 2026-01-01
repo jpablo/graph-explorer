@@ -7,15 +7,13 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.scalajs.js
+import java.util.concurrent.atomic.AtomicInteger
 
 /** DiagramBackend implementation for Mermaid diagrams.
   *
   * This backend uses the Mermaid.js library to parse and render flowchart diagrams.
   */
 class MermaidBackend(using ExecutionContext) extends DiagramBackend:
-  // Generate unique IDs for rendering
-  private var renderCounter = 0
-
   // Initialize Mermaid with sensible defaults
   MermaidJS.initialize(
     MermaidConfig(
@@ -31,8 +29,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     parseMermaid(text).map(toViewerGraph)
 
   override def textToSvg(text: String): Future[SvgWithPositions] =
-    renderCounter += 1
-    val renderId = s"mermaid-render-$renderCounter"
+    val renderId = MermaidBackend.nextRenderId()
     renderMermaid(renderId, text).map { svgString =>
       val svg = parseSVG(svgString)
       // For now, return empty edge positions
@@ -118,4 +115,10 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     }.toList
 
 object MermaidBackend:
+  private val renderCounter = new AtomicInteger(0)
+
+  def nextRenderId(): String =
+    val id = renderCounter.incrementAndGet()
+    s"mermaid-render-$id"
+
   def apply()(using ExecutionContext): MermaidBackend = new MermaidBackend()

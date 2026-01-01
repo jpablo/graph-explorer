@@ -214,9 +214,6 @@ class InternalPhases(
 end InternalPhases
 
 object InternalPhases:
-  // Cache for Mermaid SVG strings (not elements, since elements can only be mounted once)
-  private val mermaidSvgStringCache = scala.collection.mutable.Map[Int, Var[Option[String]]]()
-
   /** Process diagram text (DOT or Mermaid) and return an SVG element.
     * Used for generating thumbnails on the library page.
     */
@@ -235,28 +232,11 @@ object InternalPhases:
 
       case DiagramFormat.Mermaid =>
         // Mermaid format - use MermaidBackend (asynchronous)
-        // Cache the SVG string (not the element) so we can create fresh elements each time.
-        // This is necessary because: 1) Mermaid rendering is async, 2) Laminar elements can
-        // only be mounted once, and 3) SPA navigation causes signal re-subscriptions that would
-        // otherwise restart the render and lose the result.
-        val cacheKey = dot.value.hashCode
-        val svgStringVar = mermaidSvgStringCache.getOrElseUpdate(
-          cacheKey,
-          {
-            val result = Var[Option[String]](None)
-            val mermaidBackend = MermaidBackend()
-            mermaidBackend.textToSvg(dot.value).foreach { svgWithPos =>
-              val svgString = svgWithPos.svg.ref.outerHTML
-              result.set(Some(svgString))
-            }
-            result
-          }
-        )
-        // Create a fresh element from the cached string each time
-        svgStringVar.signal.map {
-          case Some(svgString) => parseSVG(svgString)
-          case None            => emptySvg
-        }
+        // Render to a string, then parse into a fresh element so SPA re-mounts don't reuse DOM nodes
+        val backend = MermaidBackend()
+        Signal
+          .fromFuture(backend.textToSvg(dot.value).map(_.svg.ref.outerHTML))
+          .map(_.fold(emptySvg)(parseSVG))
 
   /** Empty SVG placeholder for when rendering fails */
   private def emptySvg: ReactiveSvgElement[SVG] =
