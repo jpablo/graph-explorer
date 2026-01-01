@@ -131,16 +131,26 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
         div(
           cls := "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4",
           children <-- Signal.fromValue(
-            DotExamples.examples.filterNot(_._2 == DotExamples.emptyGraph).toSeq.map { case (name, source) =>
-              exampleCard(graphviz, routerCmds, name, source)
-            }
+            DotExamples.examples
+              .filterNot { case (_, example) =>
+                example == DotExamples.emptyGraph || example == DotExamples.emptyMermaidGraph
+              }
+              .toSeq
+              .map { case (name, example) =>
+                exampleCard(graphviz, routerCmds, name, example)
+              }
           )
         )
       )
     )
   )
 
-private def exampleCard(graphviz: Graphviz, routerCmds: RouterCommands, name: String, source: String) = {
+private def exampleCard(
+    graphviz:   Graphviz,
+    routerCmds: RouterCommands,
+    name:       String,
+    example:    DotExamples.ExampleSource
+) = {
 
   div(
     cls := "example-card card card-compact",
@@ -149,7 +159,7 @@ private def exampleCard(graphviz: Graphviz, routerCmds: RouterCommands, name: St
         cls := "w-full h-32 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",
         // --- Generate SVG preview ---
         child <--
-          FetchStream.get(source)
+          FetchStream.get(example.path)
             .flatMapSwitch: str =>
               InternalPhases.processDotText(graphviz, DotText(str)).map((_, str))
             .map: (svgElement, str) =>

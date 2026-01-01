@@ -53,6 +53,7 @@ class InternalPhases(
   // Initialize with the provided source or a minimal graph
   private val initialText   = initialSource.getOrElse("""digraph "G" {}""")
   private val initialFormat = DiagramFormat.detect(initialText)
+  val formatSelection       = Var(initialFormat)
 
   // Parse initial text synchronously for DOT, async for Mermaid
   private val initialViewerGraph: ViewerGraph =
@@ -80,7 +81,7 @@ class InternalPhases(
 
   // Trigger initial async parsing for Mermaid
   if initialFormat == DiagramFormat.Mermaid then
-    parseTextToGraphAsync(initialText, initialFormat)
+    parseTextToGraphAsync(initialText, initialFormat, ChangeOrigin.CodeMirror)
 
   // Handle async parsing results (primarily for Mermaid)
   textChangeBus.events
@@ -98,8 +99,8 @@ class InternalPhases(
       )
     }
     .foreach { case (text, graph, format, origin) =>
-      // Only update if text hasn't changed since we started parsing
-      if state.now().text == text then
+      // Only update if text and selected format haven't changed since we started parsing
+      if state.now().text == text && formatSelection.now() == format then
         state.set(GraphState(text, graph, format, origin))
     }
 
@@ -115,26 +116,12 @@ class InternalPhases(
       withLog("1a. [sourceText -> GraphState]", level = logLevel) {
         // New source of truth: incoming text
         if newText != currentState.text then
-          val newFormat = DiagramFormat.detect(newText)
-          val newGraph = newFormat match
-            case DiagramFormat.DOT =>
-              // DOT is synchronous - parse immediately
-              graphviz.textToSimpleGraph(newText) match
-                case Success(sg) =>
-                  editorError.set(None)
-                  simplegraph.toViewerGraph(sg)
-                case Failure(f) =>
-                  editorError.set(Option(f.getMessage))
-                  currentState.viewerGraph
-            case DiagramFormat.Mermaid =>
-              // Mermaid is async - trigger parsing and keep old graph for now
-              textChangeBus.writer.onNext((newText, newFormat, ChangeOrigin.CodeMirror))
-              currentState.viewerGraph
-          GraphState(
-            text = newText,
-            viewerGraph = newGraph,
-            format = newFormat,
-            lastOrigin = ChangeOrigin.CodeMirror
+          val selectedFormat = formatSelection.now()
+          buildGraphStateFromText(
+            currentState = currentState,
+            newText = newText,
+            format = selectedFormat,
+            origin = ChangeOrigin.CodeMirror
           )
         else
           currentState
@@ -207,9 +194,47 @@ class InternalPhases(
       case DiagramFormat.Mermaid => MermaidSelectionStrategy
 
   /** Triggers async parsing of text into a ViewerGraph. */
-  private def parseTextToGraphAsync(text: String, format: DiagramFormat): Unit =
+  private def parseTextToGraphAsync(text: String, format: DiagramFormat, origin: ChangeOrigin): Unit =
     if text.trim.nonEmpty then
-      textChangeBus.writer.onNext((text, format, ChangeOrigin.CodeMirror))
+      textChangeBus.writer.onNext((text, format, origin))
+
+  /** Build a new GraphState based on the provided text and format. */
+  private def buildGraphStateFromText(
+      currentState: GraphState,
+      newText:      String,
+      format:       DiagramFormat,
+      origin:       ChangeOrigin
+  ): GraphState =
+    format match
+      case DiagramFormat.DOT =>
+        graphviz.textToSimpleGraph(newText) match
+          case Success(sg) =>
+            editorError.set(None)
+            GraphState(
+              text = newText,
+              viewerGraph = simplegraph.toViewerGraph(sg),
+              format = format,
+              lastOrigin = origin
+            )
+          case Failure(f) =>
+            editorError.set(Option(f.getMessage))
+            currentState.copy(text = newText, format = format, lastOrigin = origin)
+      case DiagramFormat.Mermaid =>
+        parseTextToGraphAsync(newText, format, origin)
+        currentState.copy(text = newText, format = format, lastOrigin = origin)
+
+  // Re-parse the current text when the user switches the selected format.
+  formatSelection.signal.changes.foreach: newFormat =>
+    val currentState = state.now()
+    if currentState.format != newFormat then
+      state.set(
+        buildGraphStateFromText(
+          currentState = currentState,
+          newText = currentState.text,
+          format = newFormat,
+          origin = currentState.lastOrigin
+        )
+      )
 
 end InternalPhases
 

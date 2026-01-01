@@ -74,7 +74,10 @@ case class ViewerState(
   def visibleDOTNow() = phases.visibleDOT.observe.now()
   val visibleGraph    = phases.visibleGraph
   val currentFormat   = phases.currentFormat
+  val formatSelection = phases.formatSelection
   val selectionStrategy = phases.selectionStrategy
+  def setDiagramFormat(format: DiagramFormat): Unit =
+    formatSelection.set(format)
 
   val mouseAction = MouseActionVar()
 

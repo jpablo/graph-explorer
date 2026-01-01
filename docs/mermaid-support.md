@@ -4,19 +4,13 @@ Graph Explorer now supports [Mermaid](https://mermaid.js.org/) flowchart diagram
 
 ## Quick Start
 
-Simply paste or type Mermaid syntax in the editor. The format is auto-detected based on the first line:
+- Pick the diagram format from the dropdown beside "Documentation" (MermaidJS or Graphviz/DOT). The selection drives parsing—no auto-detection while you type.
+- Paste or type your diagram source; the editor placeholder updates to match the chosen format.
+- When loading a saved/shared diagram, the app preselects a format using simple heuristics (below). Switch manually if it guesses wrong.
 
-```mermaid
-graph LR
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Process]
-    B -->|No| D[End]
-    C --> D
-```
+## Initial Format Heuristics
 
-## Format Auto-Detection
-
-The application automatically detects whether input is Mermaid or DOT based on text patterns:
+We still infer an initial format on load using these patterns:
 
 | Pattern | Format |
 |---------|--------|
