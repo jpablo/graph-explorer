@@ -215,6 +215,7 @@ private def exampleCard(
             )
           case true =>
             div(
+              cls := "w-full h-full",
               child <--
                 FetchStream
                   .get(example.path)

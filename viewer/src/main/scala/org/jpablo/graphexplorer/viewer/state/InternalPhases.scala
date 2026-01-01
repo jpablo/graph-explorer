@@ -249,72 +249,111 @@ object InternalPhases:
       telemetryContext: Seq[(String, Any)] = Nil
   )(using ExecutionContext): Signal[ReactiveSvgElement[SVG]] =
     val format = DiagramFormat.detect(dot.value)
-    format match
-      case DiagramFormat.DOT =>
-        // DOT format - use Graphviz (synchronous)
-        val startedAt = Telemetry.nowMs()
-
-        val sgStartedAt = Telemetry.nowMs()
-        val simpleGraphTry = graphviz.textToSimpleGraph(dot.value)
+    ThumbnailSvgCache.get(format, dot.value) match
+      case Some(proto) =>
         Telemetry.log(
-          "thumb.dot.textToSimpleGraph",
+          "thumb.cache.hit",
           (telemetryContext ++ Seq(
-            "dtMs" -> (Telemetry.nowMs() - sgStartedAt),
-            "ok"   -> simpleGraphTry.isSuccess
+            "format"    -> format.toString,
+            "cacheSize" -> ThumbnailSvgCache.size
+          ))*
+        )
+        Signal.fromValue(ThumbnailSvgCache.cloneSvg(proto))
+
+      case None =>
+        Telemetry.log(
+          "thumb.cache.miss",
+          (telemetryContext ++ Seq(
+            "format"    -> format.toString,
+            "cacheSize" -> ThumbnailSvgCache.size
           ))*
         )
 
-        val resultTry =
-          for
-            simpleGraph <- simpleGraphTry
-            viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
-            dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
-            svgStartedAt = Telemetry.nowMs()
-            svgTry       = graphviz.textToSvg(DotText(dotText0))
-            _ = Telemetry.log(
-              "thumb.dot.textToSvg",
+        format match
+          case DiagramFormat.DOT =>
+            // DOT format - use Graphviz (synchronous)
+            val startedAt = Telemetry.nowMs()
+
+            val sgStartedAt     = Telemetry.nowMs()
+            val simpleGraphTry  = graphviz.textToSimpleGraph(dot.value)
+            Telemetry.log(
+              "thumb.dot.textToSimpleGraph",
               (telemetryContext ++ Seq(
-                "dtMs" -> (Telemetry.nowMs() - svgStartedAt),
-                "ok"   -> svgTry.isSuccess
+                "dtMs" -> (Telemetry.nowMs() - sgStartedAt),
+                "ok"   -> simpleGraphTry.isSuccess
               ))*
             )
-            svg <- svgTry
-          yield svg.svg
 
-        Telemetry.log(
-          "thumb.dot.total",
-          (telemetryContext ++ Seq(
-            "dtMs" -> (Telemetry.nowMs() - startedAt),
-            "ok"   -> resultTry.isSuccess
-          ))*
-        )
-
-        Signal.fromTry(resultTry)
-
-      case DiagramFormat.Mermaid =>
-        // Mermaid format - use MermaidBackend (asynchronous)
-        // Render to a string, then parse into a fresh element so SPA re-mounts don't reuse DOM nodes
-        val startedAt = Telemetry.nowMs()
-        Telemetry.log(
-          "thumb.mermaid.start",
-          (telemetryContext ++ Seq("sourceChars" -> dot.value.length))*
-        )
-        val backend = MermaidBackend()
-        Signal
-          .fromFuture(backend.textToSvg(dot.value).map(_.svg.ref.outerHTML): scala.concurrent.Future[String])
-          .map: (svgHtmlOpt: Option[String]) =>
-            svgHtmlOpt match
-              case Some(svgHtml) =>
-                Telemetry.log(
-                  "thumb.mermaid.done",
+            val resultTry =
+              for
+                simpleGraph <- simpleGraphTry
+                viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
+                dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
+                svgStartedAt = Telemetry.nowMs()
+                svgTry       = graphviz.textToSvg(DotText(dotText0))
+                _ = Telemetry.log(
+                  "thumb.dot.textToSvg",
                   (telemetryContext ++ Seq(
-                    "dtMs" -> (Telemetry.nowMs() - startedAt),
-                    "ok"   -> true
+                    "dtMs" -> (Telemetry.nowMs() - svgStartedAt),
+                    "ok"   -> svgTry.isSuccess
                   ))*
                 )
-                parseSVG(svgHtml)
-              case None =>
-                emptySvg
+                svg <- svgTry
+              yield svg.svg.ref
+
+            Telemetry.log(
+              "thumb.dot.total",
+              (telemetryContext ++ Seq(
+                "dtMs" -> (Telemetry.nowMs() - startedAt),
+                "ok"   -> resultTry.isSuccess
+              ))*
+            )
+
+            resultTry.foreach: proto =>
+              ThumbnailSvgCache.put(format, dot.value, proto)
+              Telemetry.log(
+                "thumb.cache.store",
+                (telemetryContext ++ Seq(
+                  "format"    -> format.toString,
+                  "cacheSize" -> ThumbnailSvgCache.size
+                ))*
+              )
+
+            Signal.fromTry(resultTry).map(ThumbnailSvgCache.cloneSvg)
+
+          case DiagramFormat.Mermaid =>
+            // Mermaid format - use MermaidBackend (asynchronous)
+            // Render to a string, then parse into a fresh element so SPA re-mounts don't reuse DOM nodes
+            val startedAt = Telemetry.nowMs()
+            Telemetry.log(
+              "thumb.mermaid.start",
+              (telemetryContext ++ Seq("sourceChars" -> dot.value.length))*
+            )
+            val backend = MermaidBackend()
+            Signal
+              .fromFuture(backend.textToSvg(dot.value).map(_.svg.ref.outerHTML): scala.concurrent.Future[String])
+              .map: (svgHtmlOpt: Option[String]) =>
+                svgHtmlOpt match
+                  case Some(svgHtml) =>
+                    Telemetry.log(
+                      "thumb.mermaid.done",
+                      (telemetryContext ++ Seq(
+                        "dtMs" -> (Telemetry.nowMs() - startedAt),
+                        "ok"   -> true
+                      ))*
+                    )
+                    val proto = parseSVG(svgHtml).ref
+                    ThumbnailSvgCache.put(format, dot.value, proto)
+                    Telemetry.log(
+                      "thumb.cache.store",
+                      (telemetryContext ++ Seq(
+                        "format"    -> format.toString,
+                        "cacheSize" -> ThumbnailSvgCache.size
+                      ))*
+                    )
+                    ThumbnailSvgCache.cloneSvg(proto)
+                  case None =>
+                    emptySvg
 
   /** Empty SVG placeholder for when rendering fails */
   private def emptySvg: ReactiveSvgElement[SVG] =
