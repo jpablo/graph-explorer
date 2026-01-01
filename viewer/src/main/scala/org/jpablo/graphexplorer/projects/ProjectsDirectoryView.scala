@@ -133,7 +133,7 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
           children <-- Signal.fromValue(
             DotExamples.examples
               .filterNot { case (_, example) =>
-                example == DotExamples.emptyGraph || example == DotExamples.emptyMermaidGraph
+                example.path == DotExamples.emptyGraph.path || example.path == DotExamples.emptyMermaidGraph.path
               }
               .toSeq
               .map { case (name, example) =>
