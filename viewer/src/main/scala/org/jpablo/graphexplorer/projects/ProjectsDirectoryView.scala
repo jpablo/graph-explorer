@@ -11,6 +11,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.state.InternalPhases
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
+import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 
 import scala.scalajs.js
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -29,6 +30,17 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
 
   div(
     idAttr := "projects-view",
+    onMountCallback: _ =>
+      val t0 = Telemetry.nowMs()
+      val navDtMs = Telemetry.consumeNavigationStartMs("/")
+      Telemetry.log(
+        "home.mount",
+        "dtSinceNavMs" -> navDtMs.getOrElse(-1.0)
+      )
+      dom.window.requestAnimationFrame(_ => Telemetry.log("home.raf1", "dtSinceMountMs" -> (Telemetry.nowMs() - t0)))
+    ,
+    onUnmountCallback: _ =>
+      Telemetry.log("home.unmount"),
     div(
       cls := "navbar bg-base-100",
       div(
@@ -108,13 +120,20 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
 
           ProjectStorage.directory
             .combineWithFn(debouncedSearch, sortOptionVar.signal): (directory, searchTerm, sortOption) =>
-              val filteredProjects = directory.projects.filter(_.name.toLowerCase.contains(searchTerm.toLowerCase))
-              val sorted =
-                sortOption match
-                  case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
-                  case SortOption.Title        => filteredProjects.sortBy(_.name.toLowerCase)
-                  case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
-              sorted.map(projectCard(graphviz, router))
+              Telemetry.time(
+                "home.projects.computeCards",
+                "projectsTotal" -> directory.projects.size,
+                "searchLen"     -> searchTerm.length,
+                "sort"          -> sortOption.toString
+              ):
+                val filteredProjects = directory.projects.filter(_.name.toLowerCase.contains(searchTerm.toLowerCase))
+                val sorted =
+                  sortOption match
+                    case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
+                    case SortOption.Title        => filteredProjects.sortBy(_.name.toLowerCase)
+                    case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
+                Telemetry.log("home.projects.cardsReady", "projectsShown" -> sorted.size)
+                sorted.map(projectCard(graphviz, router))
         }
       ),
 
@@ -152,33 +171,83 @@ private def exampleCard(
     example:    DotExamples.ExampleSource
 ) = {
 
+  val previewEnabled = Var(false)
+  var observerOpt: Option[js.Dynamic] = None
+
+  def enablePreview(): Unit =
+    if !previewEnabled.now() then
+      Telemetry.log("home.exampleThumb.visible", "example" -> name, "path" -> example.path)
+      previewEnabled.set(true)
+
   div(
     cls := "example-card card card-compact",
     figure(
       div(
         cls := "w-full h-32 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",
-        // --- Generate SVG preview ---
-        child <--
-          FetchStream.get(example.path)
-            .flatMapSwitch: str =>
-              InternalPhases.processDotText(graphviz, DotText(str)).map((_, str))
-            .map: (svgElement, str) =>
-              div(
-                cls := "w-full h-full p-1 flex items-center justify-center",
-                div(
-                  cls := "w-full h-full relative",
-                  div(
-                    cls := "absolute inset-0 w-full h-full",
-                    svgElement.amend(
-                      svg.width               := "100%",
-                      svg.height              := "100%",
-                      svg.preserveAspectRatio := "xMidYMid meet"
+        onMountCallback: ctx =>
+          val ioCtor = js.Dynamic.global.selectDynamic("IntersectionObserver")
+          if js.typeOf(ioCtor) == "function" then
+            var obs: js.Dynamic = null
+            obs = js.Dynamic.newInstance(ioCtor)(
+              (entries: js.Array[js.Dynamic], _: js.Dynamic) =>
+                val entry0 = entries(0)
+                if entry0 != null && entry0.selectDynamic("isIntersecting").asInstanceOf[Boolean] then
+                  enablePreview()
+                  if obs != null then obs.disconnect()
+            )
+            obs.observe(ctx.thisNode.ref)
+            observerOpt = Some(obs)
+          else
+            enablePreview()
+        ,
+        onUnmountCallback: _ =>
+          observerOpt.foreach(_.disconnect())
+          observerOpt = None
+        ,
+        // --- Generate SVG preview (lazy) ---
+        child <-- previewEnabled.signal.map:
+          case false =>
+            div(
+              cls := "w-full h-full p-1 flex items-center justify-center text-base-content/40 text-xs",
+              "Loading preview…",
+              title := "Click to create a new diagram with this example (copied to clipboard)",
+              onClick.flatMap(_ => FetchStream.get(example.path)) --> (str => routerCmds.createProject.execute(Some(Some(str))))
+            )
+          case true =>
+            div(
+              child <--
+                FetchStream
+                  .get(example.path)
+                  .flatMapSwitch: str =>
+                    Telemetry.log("home.exampleThumb.start", "example" -> name, "path" -> example.path, "sourceChars" -> str.length)
+                    InternalPhases
+                      .processDotText(
+                        graphviz,
+                        DotText(str),
+                        telemetryContext = Seq(
+                          "example" -> name,
+                          "path"    -> example.path
+                        )
+                      )
+                      .map((_, str))
+                  .map: (svgElement, str) =>
+                    div(
+                      cls := "w-full h-full p-1 flex items-center justify-center",
+                      div(
+                        cls := "w-full h-full relative",
+                        div(
+                          cls := "absolute inset-0 w-full h-full",
+                          svgElement.amend(
+                            svg.width               := "100%",
+                            svg.height              := "100%",
+                            svg.preserveAspectRatio := "xMidYMid meet"
+                          )
+                        )
+                      ),
+                      title := "Click to create a new diagram with this example (copied to clipboard)",
+                      onClick --> routerCmds.createProject.execute(Some(Some(str)))
                     )
-                  )
-                ),
-                title := "Click to create a new diagram with this example (copied to clipboard)",
-                onClick --> routerCmds.createProject.execute(Some(Some(str)))
-              )
+            )
       )
     ),
     div(
@@ -192,30 +261,81 @@ private def exampleCard(
 }
 
 private def projectCard(graphviz: Graphviz, router: Router)(project: ProjectInfo) =
+  val previewEnabled = Var(false)
+  var observerOpt: Option[js.Dynamic] = None
+
+  def enablePreview(): Unit =
+    if !previewEnabled.now() then
+      Telemetry.log("home.thumb.visible", "projectId" -> project.id.value, "name" -> project.name)
+      previewEnabled.set(true)
+
   div(
     cls := "project-card card",
     figure(
       // Preview SVG
       div(
         cls := "w-full h-48 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",
-        child <-- ProjectStorage.getProjectContent(project.id).distinct
-          .flatMapSwitch: str =>
-            InternalPhases.processDotText(graphviz, DotText(str))
-          .map: svgElement =>
-            div(
-              cls := "w-full h-full p-1 flex items-center justify-center",
+        onMountCallback: ctx =>
+          val ioCtor = js.Dynamic.global.selectDynamic("IntersectionObserver")
+          if js.typeOf(ioCtor) == "function" then
+            var obs: js.Dynamic = null
+            obs = js.Dynamic.newInstance(ioCtor)(
+              (entries: js.Array[js.Dynamic], _: js.Dynamic) =>
+                val entry0 = entries(0)
+                if entry0 != null && entry0.selectDynamic("isIntersecting").asInstanceOf[Boolean] then
+                  enablePreview()
+                  if obs != null then obs.disconnect()
+            )
+            obs.observe(ctx.thisNode.ref)
+            observerOpt = Some(obs)
+          else
+            enablePreview()
+        ,
+        onUnmountCallback: _ =>
+          observerOpt.foreach(_.disconnect())
+          observerOpt = None
+        ,
+        child <-- previewEnabled.signal.flatMapSwitch:
+          case false =>
+            Signal.fromValue(
               div(
-                cls := "w-full h-full relative",
-                div(
-                  cls := "absolute inset-0 w-full h-full",
-                  svgElement.amend(
-                    svg.width               := "100%",
-                    svg.height              := "100%",
-                    svg.preserveAspectRatio := "xMidYMid meet"
+                cls := "w-full h-full p-1 flex items-center justify-center text-base-content/40 text-xs",
+                "Loading preview…"
+              )
+            )
+          case true =>
+            ProjectStorage.getProjectContent(project.id).distinct
+              .flatMapSwitch: str =>
+                Telemetry.log(
+                  "home.thumb.start",
+                  "projectId"   -> project.id.value,
+                  "name"        -> project.name,
+                  "sourceChars" -> str.length
+                )
+                InternalPhases.processDotText(
+                  graphviz,
+                  DotText(str),
+                  telemetryContext = Seq(
+                    "projectId" -> project.id.value,
+                    "name"      -> project.name
                   )
                 )
-              )
-            ),
+              .map: svgElement =>
+                div(
+                  cls := "w-full h-full p-1 flex items-center justify-center",
+                  div(
+                    cls := "w-full h-full relative",
+                    div(
+                      cls := "absolute inset-0 w-full h-full",
+                      svgElement.amend(
+                        svg.width               := "100%",
+                        svg.height              := "100%",
+                        svg.preserveAspectRatio := "xMidYMid meet"
+                      )
+                    )
+                  )
+                )
+        ,
         onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
       )
     ),

@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.router
 import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 import org.jpablo.graphexplorer.viewer.utils.ShareUrl
+import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import scala.scalajs.js
 
 import Router.diagrams
@@ -33,6 +34,7 @@ class Router:
   // 📊 Hook GA after the router is initialized:
   currentRoute.foreach: route =>
     val path = buildPath(route)
+    Telemetry.log("router.routeChanged", "path" -> path, "route" -> route.toString)
     // call the gtag function if available (avoid ReferenceError in tests / SSR)
     val gtag = js.Dynamic.global.selectDynamic("gtag")
     if js.typeOf(gtag) == "function" then
@@ -45,6 +47,7 @@ class Router:
 
   def navigateTo(route: Route): Unit =
     val path = buildPath(route)
+    Telemetry.markNavigationStart(path)
     // 2. update the URL bar without reload
     if hasWindow && js.typeOf(js.Dynamic.global.window.selectDynamic("history")) != "undefined" &&
       js.typeOf(js.Dynamic.global.window.history.selectDynamic("pushState")) == "function"

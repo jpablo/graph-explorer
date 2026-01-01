@@ -17,6 +17,7 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
+import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.scalajs.dom.svg.SVG
 
 import scala.concurrent.ExecutionContext
@@ -242,26 +243,78 @@ object InternalPhases:
   /** Process diagram text (DOT or Mermaid) and return an SVG element.
     * Used for generating thumbnails on the library page.
     */
-  def processDotText(graphviz: Graphviz, dot: DotText)(using ExecutionContext): Signal[ReactiveSvgElement[SVG]] =
+  def processDotText(
+      graphviz:          Graphviz,
+      dot:              DotText,
+      telemetryContext: Seq[(String, Any)] = Nil
+  )(using ExecutionContext): Signal[ReactiveSvgElement[SVG]] =
     val format = DiagramFormat.detect(dot.value)
     format match
       case DiagramFormat.DOT =>
         // DOT format - use Graphviz (synchronous)
-        Signal.fromTry:
+        val startedAt = Telemetry.nowMs()
+
+        val sgStartedAt = Telemetry.nowMs()
+        val simpleGraphTry = graphviz.textToSimpleGraph(dot.value)
+        Telemetry.log(
+          "thumb.dot.textToSimpleGraph",
+          (telemetryContext ++ Seq(
+            "dtMs" -> (Telemetry.nowMs() - sgStartedAt),
+            "ok"   -> simpleGraphTry.isSuccess
+          ))*
+        )
+
+        val resultTry =
           for
-            simpleGraph <- graphviz.textToSimpleGraph(dot.value)
+            simpleGraph <- simpleGraphTry
             viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
             dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
-            svg <- graphviz.textToSvg(DotText(dotText0))
+            svgStartedAt = Telemetry.nowMs()
+            svgTry       = graphviz.textToSvg(DotText(dotText0))
+            _ = Telemetry.log(
+              "thumb.dot.textToSvg",
+              (telemetryContext ++ Seq(
+                "dtMs" -> (Telemetry.nowMs() - svgStartedAt),
+                "ok"   -> svgTry.isSuccess
+              ))*
+            )
+            svg <- svgTry
           yield svg.svg
+
+        Telemetry.log(
+          "thumb.dot.total",
+          (telemetryContext ++ Seq(
+            "dtMs" -> (Telemetry.nowMs() - startedAt),
+            "ok"   -> resultTry.isSuccess
+          ))*
+        )
+
+        Signal.fromTry(resultTry)
 
       case DiagramFormat.Mermaid =>
         // Mermaid format - use MermaidBackend (asynchronous)
         // Render to a string, then parse into a fresh element so SPA re-mounts don't reuse DOM nodes
+        val startedAt = Telemetry.nowMs()
+        Telemetry.log(
+          "thumb.mermaid.start",
+          (telemetryContext ++ Seq("sourceChars" -> dot.value.length))*
+        )
         val backend = MermaidBackend()
         Signal
-          .fromFuture(backend.textToSvg(dot.value).map(_.svg.ref.outerHTML))
-          .map(_.fold(emptySvg)(parseSVG))
+          .fromFuture(backend.textToSvg(dot.value).map(_.svg.ref.outerHTML): scala.concurrent.Future[String])
+          .map: (svgHtmlOpt: Option[String]) =>
+            svgHtmlOpt match
+              case Some(svgHtml) =>
+                Telemetry.log(
+                  "thumb.mermaid.done",
+                  (telemetryContext ++ Seq(
+                    "dtMs" -> (Telemetry.nowMs() - startedAt),
+                    "ok"   -> true
+                  ))*
+                )
+                parseSVG(svgHtml)
+              case None =>
+                emptySvg
 
   /** Empty SVG placeholder for when rendering fails */
   private def emptySvg: ReactiveSvgElement[SVG] =
