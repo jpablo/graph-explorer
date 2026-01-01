@@ -53,23 +53,35 @@ class InternalPhases(
   private val initialText   = initialSource.getOrElse("""digraph "G" {}""")
   private val initialFormat = DiagramFormat.detect(initialText)
 
-  // Single unified state - starts with minimal graph, will be updated async
+  // Parse initial text synchronously for DOT, async for Mermaid
+  private val initialViewerGraph: ViewerGraph =
+    if initialFormat == DiagramFormat.DOT then
+      // DOT is synchronous via Graphviz
+      graphviz.textToSimpleGraph(initialText) match
+        case Success(sg) => simplegraph.toViewerGraph(sg)
+        case Failure(_)  => ViewerGraph.minimalWithDirected
+    else
+      // Mermaid is async - start with minimal, update later
+      ViewerGraph.minimalWithDirected
+
+  // Single unified state
   private val state = Var(
     GraphState(
       text = initialText,
-      viewerGraph = ViewerGraph.minimalWithDirected,
+      viewerGraph = initialViewerGraph,
       format = initialFormat,
       lastOrigin = ChangeOrigin.CodeMirror
     )
   )
 
-  // Bus for text changes that need async parsing
+  // Bus for text changes that need async parsing (Mermaid only)
   private val textChangeBus = EventBus[(String, DiagramFormat, ChangeOrigin)]()
 
-  // Trigger initial async parsing (must be after textChangeBus is defined)
-  parseTextToGraphAsync(initialText, initialFormat)
+  // Trigger initial async parsing for Mermaid
+  if initialFormat == DiagramFormat.Mermaid then
+    parseTextToGraphAsync(initialText, initialFormat)
 
-  // Handle async parsing results
+  // Handle async parsing results (primarily for Mermaid)
   textChangeBus.events
     .flatMapSwitch { case (text, format, origin) =>
       EventStream.fromFuture(
@@ -103,12 +115,23 @@ class InternalPhases(
         // New source of truth: incoming text
         if newText != currentState.text then
           val newFormat = DiagramFormat.detect(newText)
-          // Trigger async parsing
-          textChangeBus.writer.onNext((newText, newFormat, ChangeOrigin.CodeMirror))
-          // Return state with updated text but keep old graph until async completes
+          val newGraph = newFormat match
+            case DiagramFormat.DOT =>
+              // DOT is synchronous - parse immediately
+              graphviz.textToSimpleGraph(newText) match
+                case Success(sg) =>
+                  editorError.set(None)
+                  simplegraph.toViewerGraph(sg)
+                case Failure(f) =>
+                  editorError.set(Option(f.getMessage))
+                  currentState.viewerGraph
+            case DiagramFormat.Mermaid =>
+              // Mermaid is async - trigger parsing and keep old graph for now
+              textChangeBus.writer.onNext((newText, newFormat, ChangeOrigin.CodeMirror))
+              currentState.viewerGraph
           GraphState(
             text = newText,
-            viewerGraph = currentState.viewerGraph,
+            viewerGraph = newGraph,
             format = newFormat,
             lastOrigin = ChangeOrigin.CodeMirror
           )

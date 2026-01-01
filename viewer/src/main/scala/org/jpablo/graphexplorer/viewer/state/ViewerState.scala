@@ -5,7 +5,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, GraphvizBackend, SvgWithPositions}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
@@ -79,22 +79,21 @@ case class ViewerState(
   val mouseAction = MouseActionVar()
 
   // Backends for rendering
-  private val graphvizBackend = GraphvizBackend(graphviz)
   private lazy val mermaidBackend = MermaidBackend()
 
   // 5. Render visible content to SVG with position data
-  // For DOT: visibleDOT ~> SvgWithPositions
-  // For Mermaid: sourceText ~> SvgWithPositions (Mermaid doesn't support hidden elements yet)
-  // Uses flatMapSwitch to handle async backend rendering
+  // For DOT: visibleDOT ~> SvgWithPositions (synchronous)
+  // For Mermaid: sourceText ~> SvgWithPositions (asynchronous)
   private val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    phases.currentFormat
-      .combineWith(visibleDOT, sourceText.signal)
-      .flatMapSwitch:
-        case (DiagramFormat.DOT, dotText, _) =>
-          Signal.fromFuture(graphvizBackend.textToSvg(dotText.value).map(Some(_)).recover { case _ => None })
-        case (DiagramFormat.Mermaid, _, mermaidText) =>
-          Signal.fromFuture(mermaidBackend.textToSvg(mermaidText).map(Some(_)).recover { case _ => None })
-      .map(_.flatten) // Flatten Option[Option[SvgWithPositions]] to Option[SvgWithPositions]
+    phases.currentFormat.flatMapSwitch:
+      case DiagramFormat.DOT =>
+        // DOT/Graphviz is synchronous - use map directly
+        visibleDOT.map(dotText => graphviz.textToSvg(dotText).toOption)
+      case DiagramFormat.Mermaid =>
+        // Mermaid is async - use Signal.fromFuture
+        sourceText.signal.flatMapSwitch: mermaidText =>
+          val futureResult = mermaidBackend.textToSvg(mermaidText).map(Some(_)).recover { case _ => None }
+          Signal.fromFuture(futureResult).map(_.flatten)
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.
