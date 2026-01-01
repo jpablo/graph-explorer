@@ -188,26 +188,25 @@ private def projectCard(graphviz: Graphviz, router: Router)(project: ProjectInfo
       // Preview SVG
       div(
         cls := "w-full h-48 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",
-        child <-- ProjectStorage.getProjectContent(project.id)
-          .map: str =>
+        child <-- ProjectStorage.getProjectContent(project.id).distinct
+          .flatMapSwitch: str =>
             InternalPhases.processDotText(graphviz, DotText(str))
-          .map: svgSignal =>
+          .map: svgElement =>
             div(
               cls := "w-full h-full p-1 flex items-center justify-center",
-              child <-- svgSignal.map: svgElement =>
+              div(
+                cls := "w-full h-full relative",
                 div(
-                  cls := "w-full h-full relative",
-                  div(
-                    cls := "absolute inset-0 w-full h-full",
-                    svgElement.amend(
-                      svg.width               := "100%",
-                      svg.height              := "100%",
-                      svg.preserveAspectRatio := "xMidYMid meet"
-                    )
+                  cls := "absolute inset-0 w-full h-full",
+                  svgElement.amend(
+                    svg.width               := "100%",
+                    svg.height              := "100%",
+                    svg.preserveAspectRatio := "xMidYMid meet"
                   )
-                ),
-              onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
-            )
+                )
+              )
+            ),
+        onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
       )
     ),
     div(
