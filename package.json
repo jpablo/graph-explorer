@@ -20,20 +20,20 @@
     "codemirror": "6.0.1",
     "dot-parser": "file:./dot-parser",
     "jsdom": "24.1.0",
-    "uuid": "^11.0.3",
-    "mermaid": "^10.9.0"
+    "mermaid": "^10.9.0",
+    "uuid": "^11.0.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.0.14",
+    "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.16",
-    "@tailwindcss/vite": "^4.0.14",
+    "@tailwindcss/vite": "^4.1.18",
     "autoprefixer": "^10.4.19",
-    "daisyui": "5.0.22",
+    "daisyui": "^5.5.14",
     "postcss": "^8.4.31",
     "rollup": "^4.24.2",
     "sass": "^1.58.3",
-    "tailwindcss": "^4.0.14",
+    "tailwindcss": "^4.1.18",
     "typescript": "4.9.5",
-    "vite": "6.2.6"
+    "vite": "^7.3.0"
   }
 }
