@@ -1,0 +1,50 @@
+flowchart TB
+    subgraph Client Layer
+        Web[Web Browser]
+        Mobile[Mobile App]
+        CLI[CLI Tool]
+    end
+
+    subgraph API Gateway
+        Gateway[API Gateway]
+        Auth[Authentication]
+        RateLimit[Rate Limiter]
+    end
+
+    subgraph Services
+        Users[User Service]
+        Products[Product Service]
+        Orders[Order Service]
+        Payments[Payment Service]
+        Notifications[Notification Service]
+    end
+
+    subgraph Data Layer
+        UserDB[(User DB)]
+        ProductDB[(Product DB)]
+        OrderDB[(Order DB)]
+        Cache[(Redis Cache)]
+        Queue[Message Queue]
+    end
+
+    Web --> Gateway
+    Mobile --> Gateway
+    CLI --> Gateway
+
+    Gateway --> Auth
+    Gateway --> RateLimit
+    Auth --> Cache
+
+    Gateway --> Users
+    Gateway --> Products
+    Gateway --> Orders
+
+    Users --> UserDB
+    Products --> ProductDB
+    Products --> Cache
+    Orders --> OrderDB
+    Orders --> Payments
+    Orders --> Queue
+
+    Queue --> Notifications
+    Payments --> Queue

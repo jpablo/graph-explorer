@@ -16,8 +16,10 @@ object DotExamples:
     "HTML"            -> "/examples/html.dot",
     // Fix performance when selecting
     // "Network Map"      -> "/examples/glitches/network-map.dot",
-    "sbt dependencies" -> "/examples/sbt-project-dependencies.dot",
-    "Logo"             -> "/examples/logo.dot",
-    "Colors"           -> "/examples/neato/colors.dot",
-    "Twelve Colors"    -> "/examples/neato/twelve-colors.dot"
+    "sbt dependencies"        -> "/examples/sbt-project-dependencies.dot",
+    "Logo"                    -> "/examples/logo.dot",
+    "Colors"                  -> "/examples/neato/colors.dot",
+    "Twelve Colors"           -> "/examples/neato/twelve-colors.dot",
+    // Mermaid examples
+    "Mermaid: Microservices"  -> "/examples/mermaid-microservices.mmd"
   )
