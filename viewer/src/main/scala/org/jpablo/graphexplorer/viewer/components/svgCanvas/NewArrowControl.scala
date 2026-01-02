@@ -9,6 +9,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir.*
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.models.ClientSize
+import scala.scalajs.js
 
 def NewArrowControl(
     elem:       NodeElement,
@@ -21,7 +22,7 @@ def NewArrowControl(
   val centerX = 8
   val centerY = 8
 
-  val bbox = elem.ref.getBBox()
+  val bbox = elem.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
   // Original width and height of the icon
   val w = radius * 2
   val h = radius * 2
@@ -31,7 +32,7 @@ def NewArrowControl(
     case ClientSize.Small => 32.0
     case ClientSize.Normal => 16.0
 
-  val scale = SvgUtils.calculateSimpleScale(elem.ref, w.toDouble, clientSize = currentClientSize)
+  val scale = SvgUtils.calculateSimpleScale(elem.ref.asInstanceOf[dom.svg.Locatable], w.toDouble, clientSize = currentClientSize)
 
   // Get the rankdir value from graph attributes
   val rankdir = getRankdir()

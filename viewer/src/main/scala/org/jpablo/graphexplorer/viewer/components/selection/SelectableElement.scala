@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
+import scala.scalajs.js
 
 /** Base trait for interactive graph elements in the SVG canvas.
   *
@@ -16,7 +17,7 @@ import org.jpablo.graphexplorer.viewer.utils.BBox
   * @param strategy
   *   The strategy for extracting element IDs from the SVG
   */
-sealed trait SelectableElement(val ref: dom.svg.G, val strategy: SelectableElementStrategy):
+sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: SelectableElementStrategy):
   def selectedClass: String
 
   protected lazy val refTitle: String =
@@ -45,7 +46,7 @@ sealed trait SelectableElement(val ref: dom.svg.G, val strategy: SelectableEleme
       ref.appendChild(SelectedRect().ref)
 
   private def SelectedRect() =
-    val bbox = ref.getBBox()
+    val bbox = ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
     svg.rect(
       svg.cls    := selectionRectClass,
       svg.x      := bbox.x.toString,
@@ -57,19 +58,28 @@ sealed trait SelectableElement(val ref: dom.svg.G, val strategy: SelectableEleme
 object SelectableElement:
 
   /** Create a SelectableElement from a DOM element using the specified strategy. */
-  def fromDomElement(e: dom.svg.G, strategy: SelectableElementStrategy): Option[SelectableElement] =
-    if strategy.isNode(e) then Some(NodeElement(e, strategy))
-    else if strategy.isEdge(e) then Some(EdgeElement(e, strategy))
-    else if strategy.isCluster(e) then Some(ClusterElement(e, strategy))
+  def fromDomElement(e: dom.Element, strategy: SelectableElementStrategy): Option[SelectableElement] =
+    if strategy.isNode(e) then
+      e match
+        case g: dom.svg.G => Some(NodeElement(g, strategy))
+        case _            => None
+    else if strategy.isEdge(e) then
+      e match
+        case se: dom.svg.Element => Some(EdgeElement(se, strategy))
+        case _                   => None
+    else if strategy.isCluster(e) then
+      e match
+        case g: dom.svg.G => Some(ClusterElement(g, strategy))
+        case _            => None
     else None
 
   /** Create a SelectableElement from a DOM element using the default Graphviz strategy. */
-  def fromDomElement(e: dom.svg.G): Option[SelectableElement] =
+  def fromDomElement(e: dom.Element): Option[SelectableElement] =
     fromDomElement(e, GraphvizSelectionStrategy)
 
   /** Find all selectable elements in a container using the specified strategy. */
   def findAll(ref: dom.Element, strategy: SelectableElementStrategy): Seq[SelectableElement] =
-    ref.querySelectorAllT[dom.svg.G](strategy.allSelector).flatMap(fromDomElement(_, strategy))
+    ref.querySelectorAllT[dom.Element](strategy.allSelector).flatMap(fromDomElement(_, strategy))
 
   /** Find all selectable elements in a container using the default Graphviz strategy. */
   def findAll(ref: dom.Element): Seq[SelectableElement] =
@@ -80,9 +90,11 @@ object SelectableElement:
     if elems.isEmpty then
       Seq.empty
     else
-      ref
-        .querySelectorAllT[dom.svg.G](elems.ids.map(id => s"g[id='${id.toSvg}']").mkString(","))
-        .flatMap(fromDomElement(_, strategy))
+      strategy.idSelectorFor(elems) match
+        case Some(selector) =>
+          ref.querySelectorAllT[dom.Element](selector).flatMap(fromDomElement(_, strategy))
+        case None =>
+          findAll(ref, strategy).filter(elem => elems.contains(elem.elementId))
 
   /** Query specific elements by ID using the default Graphviz strategy. */
   def query(ref: dom.Element, elems: ElementIds): Seq[SelectableElement] =
@@ -95,7 +107,7 @@ case class NodeElement(ref0: dom.svg.G, strat: SelectableElementStrategy = Graph
   val selectedClass = "selected"
   lazy val elementId: NodeId = strat.extractNodeId(ref)
 
-case class EdgeElement(ref0: dom.svg.G, strat: SelectableElementStrategy = GraphvizSelectionStrategy)
+case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy = GraphvizSelectionStrategy)
     extends SelectableElement(ref0, strat):
   val selectedClass = "selected"
 

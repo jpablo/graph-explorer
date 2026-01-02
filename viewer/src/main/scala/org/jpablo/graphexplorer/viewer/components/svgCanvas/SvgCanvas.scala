@@ -105,7 +105,11 @@ def SvgCanvas(
         // --------------------------------------------------------
         // 1. Drawing a selecting rectangle (OR dbl-click) starts here. Other actions start in their respective elements.
         onMouseDown.filter(leftButton).map(ev => (ev, clientCoords(ev))) --> { case (ev, (pos, shift)) =>
-          val handled = handleDoubleClick(ev, js.Date.now(), findClosestElementId(js.Array(ev.target.asInstanceOf[dom.Element]), strategy))
+          val handled = handleDoubleClick(
+            ev,
+            js.Date.now(),
+            findClosestElementId(js.Array(ev.target.asInstanceOf[dom.Element]), strategy = strategy)
+          )
           if !handled then
             mouseAction.start(ExtendSelectionAction(MouseActionRect(pos, pos, shift)))
         },

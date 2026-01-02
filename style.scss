@@ -300,30 +300,34 @@ svg {
         }
       }
 
+      svg.graphviz {
+        .selected-border {
+          fill: rgba(255, 165, 0, 0.15);
+          stroke-width: 2px;
+          stroke: #2c70ff;
+          vector-effect: non-scaling-stroke;
+          filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
+        }
+
+        .edge.selected,
+        .edgePath.selected {
+          path, line, polygon, polyline, ellipse {
+            stroke: #2c70ff !important;
+
+            // TODO: these two lines add significant lag when the number of edges is medium/large (say ~ 200 edges)
+            //filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
+            //animation: combinedPulse 2s infinite alternate ease-in-out;
+          }
+        }
+
+        path.flowchart-link.selected,
+        path.edgePath.selected {
+          stroke: #2c70ff !important;
+        }
+      }
+
       g#graph0 {
         transform-origin: 50% -50%;
-
-        g {
-          .selected-border {
-            fill: rgba(255, 165, 0, 0.15);
-            stroke-width: 2px;
-            stroke: #2c70ff;
-            vector-effect: non-scaling-stroke;
-            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
-          }
-
-          &.edge.selected {
-            path, line, polygon, polyline, ellipse {
-              stroke: #2c70ff !important;
-
-              // TODO: these two lines add significant lag when the number of edges is medium/large (say ~ 200 edges)
-              //filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
-              //animation: combinedPulse 2s infinite alternate ease-in-out;
-
-            }
-          }
-
-        }
 
 
         //@keyframes dashFlow {
@@ -495,4 +499,3 @@ svg.plantuml {
     }
   }
 }
-

@@ -247,7 +247,7 @@ trait DiagramSelectionOps:
     ) =
       if rect.isEmpty then
         // Equivalent to an onClick event
-        findClosestElementId(elementsFromRectEnd) match
+        findClosestElementId(elementsFromRectEnd, strategy = selectionStrategy.observe.now()) match
           case Some(end) => updateSelectionStatus(end)(rect.shift)
           case None      => clear()
       else
@@ -301,14 +301,15 @@ object DiagramSelectionOps:
   def findClosestElementId(
       elements: js.Array[dom.Element],
       strategy: SelectableElementStrategy = GraphvizSelectionStrategy,
-      selector: String = "g.node, g.edge, g.cluster"
+      selector: Option[String] = None
   ): Option[ElementId] =
+    val effectiveSelector = selector.getOrElse(strategy.allSelector)
     elements
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-      .flatMap(element => Option(element.closest(selector)))
+      .flatMap(element => Option(element.closest(effectiveSelector)))
       .distinct
       .collect:
-        case g: dom.svg.G => g
+        case e: dom.Element => e
       .map(SelectableElement.fromDomElement(_, strategy))
       .collectFirst:
         case Some(elem) => elem.elementId

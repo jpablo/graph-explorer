@@ -33,7 +33,7 @@ trait MoveArrowEndpointOps:
               // Convert NodeIds to SelectableElements
               val nodeIds = Set(arrow.source, arrow.target)
               val elementIds = ElementIds(nodeIds)
-              val selectableElements = SelectableElement.query(parent, elementIds)
+              val selectableElements = SelectableElement.query(parent, elementIds, selectionStrategy.observe.now())
               val nodeElementsMap = selectableElements.collect { 
                 case ne if ne.nodeId.isDefined => ne.nodeId.get -> ne 
               }.toMap
@@ -73,7 +73,8 @@ trait MoveArrowEndpointOps:
     val start     = action.originator
     val neighbors = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
 
-    findClosestElementId(neighbors, selector = "g.node") match
+    val strategy = selectionStrategy.observe.now()
+    findClosestElementId(neighbors, strategy = strategy, selector = Some(strategy.nodeSelector)) match
       case Some(targetElementId) =>
         val ignore = (start, targetElementId) match
           case (e: EdgeElement, n: NodeId) =>

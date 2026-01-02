@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction
+import scala.scalajs.js
 
 /** Creates a reactive SVG arrow element when dragging to create a new edge.
   *
@@ -22,7 +23,7 @@ def ArrowFromSourceToPointer(
     rootGroup: dom.svg.G
 ): ReactiveSvgElement[dom.svg.G] =
   val point     = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
-  val startBBox = action.originator.ref.getBBox()
+  val startBBox = action.originator.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
   // Calculate center point
   val centerX = startBBox.x + startBBox.width / 2
   val centerY = startBBox.y + startBBox.height / 2
@@ -66,8 +67,8 @@ def ArrowFromSourceToPointer(
     val (_, ix, iy) = candidates.minBy(_.t)
 
     // Handle numerical precision issues by clamping to the bbox edges
-    val clampedX = left max (right min ix)
-    val clampedY = top max (bottom min iy)
+    val clampedX = left.max(right.min(ix))
+    val clampedY = top.max(bottom.min(iy))
 
     (clampedX, clampedY)
 

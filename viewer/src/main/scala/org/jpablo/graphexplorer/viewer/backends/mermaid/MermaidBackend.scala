@@ -2,11 +2,14 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
+import org.jpablo.graphexplorer.viewer.components.selection.MermaidSelectionStrategy
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.scalajs.js
+import org.scalajs.dom
 import java.util.concurrent.atomic.AtomicInteger
 
 /** DiagramBackend implementation for Mermaid diagrams.
@@ -32,9 +35,8 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     val renderId = MermaidBackend.nextRenderId()
     renderMermaid(renderId, text).map { svgString =>
       val svg = parseSVG(svgString)
-      // For now, return empty edge positions
-      // TODO: Extract edge positions from SVG path elements
-      SvgWithPositions(svg, Map.empty)
+      val edgePositions = extractEdgePositions(svg.ref)
+      SvgWithPositions(svg, edgePositions)
     }
 
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future.
@@ -76,6 +78,33 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     )
 
     promise.future
+
+  private def extractEdgePositions(svg: dom.svg.SVG): Map[String, ArrowPosition] =
+    val nodeList = svg.querySelectorAll(MermaidSelectionStrategy.edgeSelector)
+    val positions = scala.collection.mutable.Map[String, ArrowPosition]()
+
+    for i <- 0 until nodeList.length do
+      val elem = nodeList.item(i).asInstanceOf[dom.Element]
+      val pathOpt = elem match
+        case path: dom.svg.Path => Some(path)
+        case _ =>
+          Option(elem.querySelector("path")).collect { case p: dom.svg.Path => p }
+
+      pathOpt.foreach { path =>
+        try
+          val total = path.getTotalLength()
+          val start = path.getPointAtLength(0)
+          val end = path.getPointAtLength(total)
+          val startPoint = Point(start.x, -start.y)
+          val endPoint = Point(end.x, -end.y)
+          val arrowId = MermaidSelectionStrategy.extractArrowId(path).value
+          positions.update(arrowId, ArrowPosition(startPoint, endPoint, controlPoints = Nil))
+        catch
+          case _: Throwable =>
+            ()
+      }
+
+    positions.toMap
 
   /** Convert Mermaid JS vertices to Scala model. */
   private def convertVertices(jsVertices: js.Dictionary[MermaidVertexJS]): Map[String, MermaidVertex] =

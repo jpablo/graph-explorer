@@ -51,7 +51,8 @@ trait AddNewArrowOps:
   ) =
     // Make sure only start or (start,end) nodes are selected when creating a new arrow
     // For now only allow a line selection into nodes
-    findClosestElementId(elementsFromRectEnd, selector = "g.node") match
+    val strategy = selectionStrategy.observe.now()
+    findClosestElementId(elementsFromRectEnd, strategy = strategy, selector = Some(strategy.nodeSelector)) match
       case Some(elementId) => selection.set1(Set(start.elementId, elementId))
       case None               => selection.set2(start.elementId)
 
