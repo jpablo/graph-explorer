@@ -62,7 +62,7 @@ trait AddNewArrowOps:
     val controls =
       for
         elem <- selection.toSeq
-        c    <- dirs.flatMap(buildNewArrowControl(elem, action, _))
+        c    <- dirs.flatMap(buildNewArrowControl(parent, elem, action, _))
       yield c
 
     // Always clear previous controls to avoid duplicates lingering after selection changes
@@ -70,6 +70,7 @@ trait AddNewArrowOps:
     controls.foreach(parent.appendChild)
 
   def buildNewArrowControl(
+      parent:       dom.svg.G,
       selectedElem: SelectableElement,
       action:       MouseAction,
       direction:    ArrowDirection
@@ -82,7 +83,7 @@ trait AddNewArrowOps:
 
     selectedElem match
       case elem: NodeElement if showControl =>
-        val control = NewArrowControl(elem, graphRankDir.observe.now, direction, clientSize).ref
+        val control = NewArrowControl(elem, graphRankDir.observe.now, direction, clientSize, parent.getScreenCTM()).ref
 
         control.addEventListener(
           DomEvent.mousedown,

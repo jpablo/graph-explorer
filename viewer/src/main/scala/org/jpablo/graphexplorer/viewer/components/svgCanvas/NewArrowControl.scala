@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.NodeElement
-import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
+import org.jpablo.graphexplorer.viewer.domUtils.{DOMPoint, SvgUtils}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir.*
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
@@ -16,13 +16,24 @@ def NewArrowControl(
     getRankdir: () => Rankdir,
     direction:  ArrowDirection,
     clientSize: ClientSize,
+    screenCtm:  dom.SVGMatrix | Null,
     svgMods:    SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   val radius  = 8
   val centerX = 8
   val centerY = 8
 
-  val bbox = elem.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+  val fallbackBBox = elem.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+  val rect         = elem.ref.getBoundingClientRect()
+  val rootCtm      = if screenCtm != null then screenCtm else elem.ref.getScreenCTM()
+  val (bboxX, bboxY, bboxWidth, bboxHeight) =
+    if rootCtm != null then
+      val inv        = rootCtm.inverse()
+      val topLeft    = new DOMPoint(rect.left, rect.top).matrixTransform(inv)
+      val bottomRight = new DOMPoint(rect.right, rect.bottom).matrixTransform(inv)
+      (topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y)
+    else
+      (fallbackBBox.x, fallbackBBox.y, fallbackBBox.width, fallbackBBox.height)
   // Original width and height of the icon
   val w = radius * 2
   val h = radius * 2
@@ -40,14 +51,14 @@ def NewArrowControl(
   // Calculate scaled dimensions and node center
   val scaledW     = w * scale
   val scaledH     = h * scale
-  val nodeCenterX = bbox.x + bbox.width / 2
-  val nodeCenterY = bbox.y + bbox.height / 2
+  val nodeCenterX = bboxX + bboxWidth / 2
+  val nodeCenterY = bboxY + bboxHeight / 2
 
   // Pre-calculate potential positions
-  val posAbove = (nodeCenterX - scaledW / 2, bbox.y - scaledH - scaledH / 4 - 1)
-  val posBelow = (nodeCenterX - scaledW / 2, bbox.y + bbox.height + scaledH / 4 + 1)
-  val posLeft  = (bbox.x - scaledW - scaledW / 4 - 1, nodeCenterY - scaledH / 2)
-  val posRight = (bbox.x + bbox.width + scaledW / 4 + 1, nodeCenterY - scaledH / 2)
+  val posAbove = (nodeCenterX - scaledW / 2, bboxY - scaledH - scaledH / 4 - 1)
+  val posBelow = (nodeCenterX - scaledW / 2, bboxY + bboxHeight + scaledH / 4 + 1)
+  val posLeft  = (bboxX - scaledW - scaledW / 4 - 1, nodeCenterY - scaledH / 2)
+  val posRight = (bboxX + bboxWidth + scaledW / 4 + 1, nodeCenterY - scaledH / 2)
 
   // Determine position based on rankdir and direction
   val (trX, trY) = (rankdir, direction) match
