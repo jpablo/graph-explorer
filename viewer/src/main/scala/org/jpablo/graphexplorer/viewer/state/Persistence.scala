@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
 import org.jpablo.graphexplorer.projects.ProjectStorage
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import upickle.default.*
 
@@ -23,6 +24,9 @@ trait Persistence:
     val restoredViewerSettings = viewerSettings.now()
 
     project.hiddenElements.set(restoredDiagramState.hiddenElements)
+    restoredDiagramState.format
+      .flatMap(format => Try(DiagramFormat.valueOf(format)).toOption)
+      .foreach(formatSelection.set)
 
     Var.set(
       project.name -> restoredDiagramState.projectName,
@@ -39,12 +43,17 @@ trait Persistence:
   private def setupStateSynchronization(): Unit =
     // synchronize ViewerState ~> PersistedState
     Signal
-      .combine(project.hiddenElements.signal, project.name.signal, sourceText.signal)
+      .combine(project.hiddenElements.signal, project.name.signal, sourceText.signal, formatSelection.signal)
       .changes
       .distinct
-      .foreach: (hidden, name, source) =>
+      .foreach: (hidden, name, source, format) =>
         persistedDiagramState.set(
-          PersistedDiagramState(hidden, name, source)
+          PersistedDiagramState(
+            hiddenElements = hidden,
+            projectName = name,
+            source = source,
+            format = Some(format.toString)
+          )
         )
 
     // synchronize ViewerState ~> ViewerSettings
@@ -71,7 +80,8 @@ trait Persistence:
 case class PersistedDiagramState(
     hiddenElements: HiddenElements = ElementIds(),
     projectName:    String = "",
-    source:         String = ""
+    source:         String = "",
+    format:         Option[String] = None
 ) derives ReadWriter
 
 object PersistedDiagramState:
@@ -83,7 +93,8 @@ object PersistedDiagramState:
     PersistedDiagramState(
       hiddenElements = ElementIds(),
       projectName = "Untitled",
-      source = source.getOrElse(minimalGraphText)
+      source = source.getOrElse(minimalGraphText),
+      format = None
     )
 
 case class ViewerSettings(

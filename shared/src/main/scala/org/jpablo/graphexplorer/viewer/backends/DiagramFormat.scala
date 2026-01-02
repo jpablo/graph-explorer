@@ -21,7 +21,14 @@ object DiagramFormat:
   def detect(text: String): DiagramFormat =
     val trimmed = text.trim.toLowerCase
     if isMermaid(trimmed) then Mermaid
-    else DOT
+    else
+      val firstContent = trimmed.linesIterator
+        .map(_.trim)
+        .dropWhile(line => line.isEmpty || (line.startsWith("%%") && !line.startsWith("%%{")))
+        .nextOption()
+        .getOrElse("")
+      if isMermaid(firstContent) then Mermaid
+      else DOT
 
   private def isMermaid(text: String): Boolean =
     // Mermaid flowchart patterns
