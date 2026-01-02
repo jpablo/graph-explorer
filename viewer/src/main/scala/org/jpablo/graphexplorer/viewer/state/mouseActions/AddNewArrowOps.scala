@@ -83,7 +83,8 @@ trait AddNewArrowOps:
 
     selectedElem match
       case elem: NodeElement if showControl =>
-        val control = NewArrowControl(elem, graphRankDir.observe.now, direction, clientSize, parent.getScreenCTM()).ref
+        val parentCtm = Option(parent.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
+        val control = NewArrowControl(elem, graphRankDir.observe.now, direction, clientSize, screenCtm = parentCtm).ref
 
         control.addEventListener(
           DomEvent.mousedown,

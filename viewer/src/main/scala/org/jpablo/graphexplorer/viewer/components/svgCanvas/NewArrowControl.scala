@@ -16,7 +16,7 @@ def NewArrowControl(
     getRankdir: () => Rankdir,
     direction:  ArrowDirection,
     clientSize: ClientSize,
-    screenCtm:  dom.SVGMatrix | Null,
+    screenCtm:  Option[dom.SVGMatrix] = None,
     svgMods:    SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   val radius  = 8
@@ -24,16 +24,26 @@ def NewArrowControl(
   val centerY = 8
 
   val fallbackBBox = elem.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
-  val rect         = elem.ref.getBoundingClientRect()
-  val rootCtm      = if screenCtm != null then screenCtm else elem.ref.getScreenCTM()
+  val elemCtm      = Option(elem.ref.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
+  val rootCtm      = screenCtm.orElse(elemCtm)
   val (bboxX, bboxY, bboxWidth, bboxHeight) =
-    if rootCtm != null then
-      val inv        = rootCtm.inverse()
-      val topLeft    = new DOMPoint(rect.left, rect.top).matrixTransform(inv)
-      val bottomRight = new DOMPoint(rect.right, rect.bottom).matrixTransform(inv)
-      (topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y)
-    else
-      (fallbackBBox.x, fallbackBBox.y, fallbackBBox.width, fallbackBBox.height)
+    (rootCtm, elemCtm) match
+      case (Some(rootMatrix), Some(elemMatrix)) =>
+        val inv = rootMatrix.inverse()
+        def toParent(x: Double, y: Double): DOMPoint =
+          new DOMPoint(x, y).matrixTransform(elemMatrix).matrixTransform(inv)
+
+        val p1   = toParent(fallbackBBox.x, fallbackBBox.y)
+        val p2   = toParent(fallbackBBox.x + fallbackBBox.width, fallbackBBox.y)
+        val p3   = toParent(fallbackBBox.x, fallbackBBox.y + fallbackBBox.height)
+        val p4   = toParent(fallbackBBox.x + fallbackBBox.width, fallbackBBox.y + fallbackBBox.height)
+        val minX = List(p1.x, p2.x, p3.x, p4.x).min
+        val minY = List(p1.y, p2.y, p3.y, p4.y).min
+        val maxX = List(p1.x, p2.x, p3.x, p4.x).max
+        val maxY = List(p1.y, p2.y, p3.y, p4.y).max
+        (minX, minY, maxX - minX, maxY - minY)
+      case _ =>
+        (fallbackBBox.x, fallbackBBox.y, fallbackBBox.width, fallbackBBox.height)
   // Original width and height of the icon
   val w = radius * 2
   val h = radius * 2
