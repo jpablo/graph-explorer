@@ -14,6 +14,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionSt
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
+import org.jpablo.graphexplorer.viewer.backends.mermaid.viewerGraphToMermaidText
 import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
@@ -156,8 +157,11 @@ class InternalPhases(
         // New source of truth: incoming graph
         // Note: This keeps the current format since the graph was modified in-place
         if newGraph != currentState.viewerGraph then
+          val serializedText = currentState.format match
+            case DiagramFormat.DOT     => viewerGraphToText(newGraph, omitInternal = true)
+            case DiagramFormat.Mermaid => viewerGraphToMermaidText(newGraph)
           GraphState(
-            text = viewerGraphToText(newGraph, omitInternal = true),
+            text = serializedText,
             viewerGraph = newGraph,
             format = currentState.format, // Preserve format when graph is edited
             lastOrigin = ChangeOrigin.Graph
