@@ -47,16 +47,19 @@ trait RenderResult extends js.Object:
 @js.native
 trait Diagram extends js.Object:
   /** The parser object containing the parsed data. */
-  val parser: DiagramParser = js.native
+  val parser: js.UndefOr[DiagramParser] = js.native
 
   /** The type of diagram (e.g., "flowchart"). */
   val `type`: String = js.native
+
+  /** Diagram database containing parsed elements. */
+  val db: js.UndefOr[DiagramYY] = js.native
 
 /** The diagram parser object. */
 @js.native
 trait DiagramParser extends js.Object:
   /** The yy object containing parsed vertices, edges, etc. */
-  val yy: DiagramYY = js.native
+  val yy: js.UndefOr[DiagramYY] = js.native
 
 /** The yy object with methods to access parsed diagram elements.
   *
@@ -110,12 +113,14 @@ object MermaidConfig:
       startOnLoad: Boolean = false,
       securityLevel: String = "loose",
       theme: String = "default",
+      suppressErrors: Boolean = false,
       flowchart: js.UndefOr[FlowchartConfig] = js.undefined
   ): js.Object =
     val obj = js.Dynamic.literal(
       startOnLoad = startOnLoad,
       securityLevel = securityLevel,
-      theme = theme
+      theme = theme,
+      suppressErrors = suppressErrors
     )
     flowchart.foreach(fc => obj.updateDynamic("flowchart")(fc))
     obj.asInstanceOf[js.Object]

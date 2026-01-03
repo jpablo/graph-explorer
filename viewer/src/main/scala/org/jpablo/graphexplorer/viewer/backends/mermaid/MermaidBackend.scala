@@ -17,14 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger
   * This backend uses the Mermaid.js library to parse and render flowchart diagrams.
   */
 class MermaidBackend(using ExecutionContext) extends DiagramBackend:
-  // Initialize Mermaid with sensible defaults
-  MermaidJS.initialize(
-    MermaidConfig(
-      startOnLoad = false,
-      securityLevel = "loose",
-      theme = "default"
-    )
-  )
+  // Ensure Mermaid is initialized (only happens once)
+  MermaidBackend.ensureInitialized()
 
   override def format: DiagramFormat = DiagramFormat.Mermaid
 
@@ -40,29 +34,115 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     }
 
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future.
+    * Falls back to SVG-based parsing if getDiagramFromText fails (e.g., during HMR).
     */
   private def parseMermaid(text: String): Future[MermaidGraph] =
     val promise = Promise[MermaidGraph]()
+    var completed = false
+
+    dom.console.info(s"[mermaid] getDiagramFromText start len=${text.length}")
+    js.timers.setTimeout(2000) {
+      if !completed then
+        dom.console.warn("[mermaid] getDiagramFromText still pending after 2s")
+    }
 
     MermaidJS.mermaidAPI
       .getDiagramFromText(text)
-      .`then`(
+      .`then`[Unit](
         { diagram =>
           try
-            val yy        = diagram.parser.yy
+            val yy =
+              diagram.parser.toOption
+                .flatMap(parser => parser.yy.toOption)
+                .orElse(diagram.db.toOption)
+                .getOrElse(throw new Exception("Mermaid parser database missing"))
             val vertices  = convertVertices(yy.getVertices())
             val edges     = convertEdges(yy.getEdges())
             val subgraphs = convertSubgraphs(yy.getSubGraphs())
             val direction = yy.getDirection().toOption
 
+            dom.console.info(
+              s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} dir=${direction.getOrElse("")}"
+            )
+            completed = true
             promise.success(MermaidGraph(vertices, edges, subgraphs, direction))
-          catch case e: Throwable => promise.failure(e)
+            ()
+          catch case e: Throwable =>
+            promise.failure(e)
+            ()
         },
-        (error: Any) =>
-          promise.failure(new Exception(s"Mermaid parsing failed: $error"))
+        { (error: Any) =>
+          completed = true
+          val errorStr = error.toString
+          // If we get "already registered" error (HMR issue), try fallback via render
+          if errorStr.contains("already registered") then
+            dom.console.info("[mermaid] getDiagramFromText failed with registration error, trying render fallback")
+            parseMermaidViaSvg(text).onComplete {
+              case scala.util.Success(graph) => promise.success(graph)
+              case scala.util.Failure(e)     => promise.failure(e)
+            }
+          else
+            promise.failure(new Exception(s"Mermaid parsing failed: $error"))
+          ()
+        }
       )
 
     promise.future
+
+  /** Fallback: render to SVG and parse the SVG to extract graph structure.
+    * Less accurate but works around HMR diagram registration issues.
+    */
+  private def parseMermaidViaSvg(text: String): Future[MermaidGraph] =
+    val renderId = MermaidBackend.nextRenderId()
+    renderMermaid(renderId, text).map { svgString =>
+      val svg = parseSVG(svgString)
+      extractGraphFromSvg(svg.ref)
+    }
+
+  /** Extract graph structure from rendered SVG. */
+  private def extractGraphFromSvg(svg: dom.svg.SVG): MermaidGraph =
+    import MermaidSelectionStrategy.*
+
+    // Extract nodes
+    val nodeElements = svg.querySelectorAll(nodeSelector)
+    val vertices: Map[String, MermaidVertex] = (0 until nodeElements.length).map { i =>
+      val elem = nodeElements.item(i).asInstanceOf[dom.Element]
+      val nodeId = extractNodeId(elem)
+      val labelElem = elem.querySelector("span.nodeLabel, foreignObject span, text")
+      val label = Option(labelElem).map(_.textContent).getOrElse(nodeId.value)
+      nodeId.value -> MermaidVertex(
+        id = nodeId.value,
+        text = label,
+        labelType = None,
+        domId = Some(elem.id),
+        styles = Nil,
+        classes = Nil,
+        shape = None
+      )
+    }.toMap
+
+    // Extract edges from arrow IDs (format: "source->target" or "source--target")
+    val edgeElements = svg.querySelectorAll(edgeSelector)
+    val edges: List[MermaidEdge] = (0 until edgeElements.length).flatMap { i =>
+      val elem = edgeElements.item(i).asInstanceOf[dom.Element]
+      val arrowId = extractArrowId(elem)
+      if arrowId.value.contains("->") || arrowId.value.contains("--") then
+        val parts = arrowId.value.split("->|--")
+        if parts.length >= 2 then
+          Some(MermaidEdge(
+            start = parts(0).trim,
+            end = parts(1).trim,
+            edgeType = None,
+            text = None,
+            labelType = None,
+            stroke = None
+          ))
+        else None
+      else None
+    }.toList
+
+    dom.console.info(s"[mermaid] SVG fallback parsed vertices=${vertices.size} edges=${edges.size}")
+    MermaidGraph(vertices, edges, subgraphs = Nil, direction = None)
 
   /** Render Mermaid text to SVG asynchronously.
     */
@@ -97,7 +177,12 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
           val end = path.getPointAtLength(total)
           val startPoint = Point(start.x, -start.y)
           val endPoint = Point(end.x, -end.y)
-          val arrowId = MermaidSelectionStrategy.extractArrowId(path).value
+          val idSource =
+            elem match
+              case p: dom.svg.Path =>
+                Option(p.parentNode).collect { case parent: dom.Element => parent }.getOrElse(p)
+              case _ => elem
+          val arrowId = MermaidSelectionStrategy.extractArrowId(idSource).value
           positions.update(arrowId, ArrowPosition(startPoint, endPoint, controlPoints = Nil))
         catch
           case _: Throwable =>
@@ -145,6 +230,30 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
 object MermaidBackend:
   private val renderCounter = new AtomicInteger(0)
+
+  // Check initialization flag from window object to survive HMR
+  private val windowDyn = dom.window.asInstanceOf[js.Dynamic]
+
+  private def isInitialized: Boolean =
+    !js.isUndefined(windowDyn.__mermaidInitialized) &&
+      windowDyn.__mermaidInitialized.asInstanceOf[Boolean]
+
+  private def setInitialized(): Unit =
+    windowDyn.__mermaidInitialized = true
+
+  /** Initialize Mermaid.js only once, regardless of HMR reloads or multiple MermaidBackend instances. */
+  private[mermaid] def ensureInitialized(): Unit =
+    if !isInitialized then
+      MermaidJS.initialize(
+        MermaidConfig(
+          startOnLoad = false,
+          securityLevel = "loose",
+          theme = "default",
+          suppressErrors = true
+        )
+      )
+      setInitialized()
+      dom.console.info("[mermaid] Mermaid.js initialized")
 
   def nextRenderId(): String =
     val id = renderCounter.incrementAndGet()
