@@ -107,11 +107,6 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
   private def dataAttr(e: dom.Element, name: String): Option[String] =
     Option(e.getAttribute(name)).filter(_.nonEmpty)
 
-  private def edgeIdSource(e: dom.Element): dom.Element =
-    e match
-      case g: dom.svg.G => Option(g.querySelector("path")).getOrElse(g)
-      case _            => e
-
   override def extractNodeId(e: dom.Element): NodeId =
     dataAttr(e, "data-id")
       .orElse(dataAttr(e, "data-node-id"))
@@ -129,27 +124,41 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
       }
 
   override def extractArrowId(e: dom.Element): ArrowId =
-    val edgeElem = edgeIdSource(e)
-    val svgId = edgeElem.id
-    val seqFromId =
-      svgId match
-        case mermaidEdgeIdPattern(_, _, idx) => Some(idx.toInt + 1)
-        case _                               => None
-    val source = classPrefixed(edgeElem, "LS-")
-    val target = classPrefixed(edgeElem, "LE-")
-
-    (source, target) match
-      case (Some(s), Some(t)) =>
-        val seq = seqFromId.getOrElse(1)
-        ArrowId(s"$s${Arrow.titleIdSeparator}$t${Arrow.sequenceSeparator}$seq")
-      case _ =>
+    def arrowIdFromElement(edgeElem: dom.Element): Option[ArrowId] =
+      val svgId = edgeElem.id
+      val seqFromId =
         svgId match
-          case mermaidEdgeIdPattern(source, target, idx) =>
-            ArrowId(s"$source${Arrow.titleIdSeparator}$target${Arrow.sequenceSeparator}${idx.toInt + 1}")
-          case _ =>
-            val title = edgeElem.querySelector("title")
-            if title != null then ArrowId(title.textContent)
-            else ArrowId(s"edge-${edgeElem.hashCode}")
+          case mermaidEdgeIdPattern(_, _, idx) => Some(idx.toInt + 1)
+          case _                               => None
+      val source = classPrefixed(edgeElem, "LS-")
+      val target = classPrefixed(edgeElem, "LE-")
+
+      (source, target) match
+        case (Some(s), Some(t)) =>
+          val seq = seqFromId.getOrElse(1)
+          Some(ArrowId(s"$s${Arrow.titleIdSeparator}$t${Arrow.sequenceSeparator}$seq"))
+        case _ =>
+          svgId match
+            case mermaidEdgeIdPattern(source, target, idx) =>
+              Some(ArrowId(s"$source${Arrow.titleIdSeparator}$target${Arrow.sequenceSeparator}${idx.toInt + 1}"))
+            case _ => None
+
+    val candidates =
+      e match
+        case g: dom.svg.G =>
+          Seq(Some(g), Option(g.querySelector("path")).map(_.asInstanceOf[dom.Element])).flatten
+        case _ =>
+          Seq(Some(e), Option(e.querySelector("path")).map(_.asInstanceOf[dom.Element])).flatten
+
+    candidates.view
+      .flatMap(arrowIdFromElement)
+      .headOption
+      .getOrElse {
+        val titleOpt = candidates.iterator
+          .flatMap(elem => Option(elem.querySelector("title")).map(_.textContent))
+          .find(_.nonEmpty)
+        titleOpt.map(ArrowId(_)).getOrElse(ArrowId(s"edge-${e.hashCode}"))
+      }
 
   override def extractGroupId(e: dom.Element): GroupId =
     dataAttr(e, "data-id")

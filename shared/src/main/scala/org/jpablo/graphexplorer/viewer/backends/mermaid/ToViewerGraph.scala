@@ -33,15 +33,14 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
     )
 
   // Convert edges to arrows
-  // Track edge counts between node pairs for sequence numbers
+  // Mermaid assigns edge DOM ids using a per-(source,target) sequence counter.
   val edgeCounts = scala.collection.mutable.Map[(String, String), Int]().withDefaultValue(0)
 
   val arrows: Map[ArrowId, Arrow] =
-    mermaidGraph.edges.zipWithIndex.map { case (edge, index) =>
+    mermaidGraph.edges.map { edge =>
       val sourceId = NodeId(edge.start)
       val targetId = NodeId(edge.end)
 
-      // Increment edge count for this pair
       val key = (edge.start, edge.end)
       edgeCounts(key) += 1
       val seq = edgeCounts(key)
