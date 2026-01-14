@@ -6,6 +6,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{Arro
 import org.jpablo.graphexplorer.viewer.components.selection.MermaidSelectionStrategy
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models.Arrow
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.scalajs.js
@@ -121,24 +122,22 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       )
     }.toMap
 
-    // Extract edges from arrow IDs (format: "source->target" or "source--target")
+    // Extract edges from arrow IDs (format: "source->target/seq" or "source--target/seq")
+    // Use Arrow.fromArrowId to properly parse the ArrowId format and extract source/target
     val edgeElements = svg.querySelectorAll(edgeSelector)
     val edges: List[MermaidEdge] = (0 until edgeElements.length).flatMap { i =>
       val elem = edgeElements.item(i).asInstanceOf[dom.Element]
       val arrowId = extractArrowId(elem)
-      if arrowId.value.contains("->") || arrowId.value.contains("--") then
-        val parts = arrowId.value.split("->|--")
-        if parts.length >= 2 then
-          Some(MermaidEdge(
-            start = parts(0).trim,
-            end = parts(1).trim,
-            edgeType = None,
-            text = None,
-            labelType = None,
-            stroke = None
-          ))
-        else None
-      else None
+      Arrow.fromArrowId(arrowId).map { arrow =>
+        MermaidEdge(
+          start = arrow.source.value,
+          end = arrow.target.value,
+          edgeType = None,
+          text = None,
+          labelType = None,
+          stroke = None
+        )
+      }
     }.toList
 
     dom.console.info(s"[mermaid] SVG fallback parsed vertices=${vertices.size} edges=${edges.size}")
