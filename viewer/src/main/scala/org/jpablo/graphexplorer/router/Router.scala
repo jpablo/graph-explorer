@@ -36,9 +36,11 @@ class Router:
     val path = buildPath(route)
     Telemetry.log("router.routeChanged", "path" -> path, "route" -> route.toString)
     // call the gtag function if available (avoid ReferenceError in tests / SSR)
-    val gtag = js.Dynamic.global.selectDynamic("gtag")
-    if js.typeOf(gtag) == "function" then
-      js.Dynamic.global.gtag("event", "page_view", js.Dictionary("page_path" -> path))
+    try
+      val gtag = js.Dynamic.global.selectDynamic("gtag")
+      if js.typeOf(gtag) == "function" then
+        gtag("event", "page_view", js.Dictionary("page_path" -> path))
+    catch case _: Throwable => () // ignore in test/SSR environments
 
   // 1. popstate fires when the user clicks back/forward or we pushState
   if hasWindow && js.typeOf(js.Dynamic.global.window.selectDynamic("addEventListener")) == "function" then

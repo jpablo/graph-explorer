@@ -17,13 +17,13 @@ case class ProjectsDirectory(projects: List[ProjectInfo] = Nil) derives ReadWrit
 object ProjectStorage:
   given owner: Owner = unsafeWindowOwner
 
-  private val directoryStorage =
+  private lazy val directoryStorage =
     storedString("graph-explorer.projects", write(ProjectsDirectory()))
 
-  private val settingsStorage =
+  private lazy val settingsStorage =
     storedString("graph-explorer.settings", write(ViewerSettings.empty))
 
-  val directory: Signal[ProjectsDirectory] =
+  lazy val directory: Signal[ProjectsDirectory] =
     directoryStorage.signal.map(read[ProjectsDirectory](_))
 
   /** Creates a reactive persistence layer for a project identified by the given `ProjectId`.

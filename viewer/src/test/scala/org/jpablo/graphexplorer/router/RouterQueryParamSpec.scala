@@ -6,9 +6,11 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import org.scalajs.dom
 import scala.scalajs.js
 import scala.concurrent.Promise
-import org.jpablo.graphexplorer.viewer.utils.ShareUrl
+import org.jpablo.graphexplorer.viewer.utils.{ShareUrl, TestHelpers}
 
-class RouterQueryParamSpec extends FunSuite:
+class RouterQueryParamSpec extends FunSuite with TestHelpers:
+
+  override def munitFixtures = List(mockStorageFixture())
 
   test("Router picks up ?dot= param for ProjectDetail") {
     // Minimal window/location/history stub for tests

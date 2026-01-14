@@ -37,7 +37,7 @@ class PersistenceSpec extends FunSuite with TestHelpers:
 
       assertEquals(
         storedProjectStr,
-        s"""{"projectName":"$projectName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}"}"""
+        s"""{"projectName":"$projectName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}","format":"DOT"}"""
       )
 
       // ---- verify ---
