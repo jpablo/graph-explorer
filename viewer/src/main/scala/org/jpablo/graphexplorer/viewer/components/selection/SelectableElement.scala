@@ -119,9 +119,6 @@ case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy =
 
   lazy val elementId: ArrowId = strat.extractArrowId(ref)
 
-  // Store original marker-end for restoration
-  private var originalMarkerEnd: Option[String] = None
-
   override def select(): Unit =
     ref.classList.add(selectedClass)
     // For Mermaid paths with marker-end, create a selected-state marker
@@ -142,44 +139,49 @@ case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy =
       case path: dom.svg.Path =>
         val markerEnd = Option(path.getAttribute("marker-end")).filter(_.nonEmpty)
         markerEnd.foreach { url =>
+          // Extract marker ID from url(#markerId)
+          val markerId = url.stripPrefix("url(#").stripSuffix(")")
+
           if selected then {
-            originalMarkerEnd = Some(url)
-            // Extract marker ID from url(#markerId)
-            val markerId = url.stripPrefix("url(#").stripSuffix(")")
-            val selectedMarkerId = s"$markerId-selected"
+            // Skip if already using a selected marker
+            if !markerId.endsWith("-selected") then {
+              val selectedMarkerId = s"$markerId-selected"
 
-            // Find the SVG root and the original marker
-            val svgRoot = path.ownerSVGElement
-            if svgRoot != null then {
-              val originalMarker = svgRoot.querySelector(s"#${CSSGlobal.escape(markerId)}")
+              // Find the SVG root and the original marker
+              val svgRoot = path.ownerSVGElement
+              if svgRoot != null then {
+                val originalMarker = svgRoot.querySelector(s"#${CSSGlobal.escape(markerId)}")
 
-              if originalMarker != null then {
-                // Use the marker's parent (could be <defs> or <g> in Mermaid)
-                val markerParent = originalMarker.parentNode
-                if markerParent != null then {
-                  // Check if selected marker already exists in the SVG
-                  val existingSelected = svgRoot.querySelector(s"#${CSSGlobal.escape(selectedMarkerId)}")
-                  if existingSelected == null then {
-                    // Clone marker and style for selection
-                    val clonedMarker = originalMarker.cloneNode(true).asInstanceOf[dom.Element]
-                    clonedMarker.setAttribute("id", selectedMarkerId)
-                    // Style the path inside the marker with selection color
-                    val markerPath = clonedMarker.querySelector("path")
-                    if markerPath != null then {
-                      markerPath.setAttribute("fill", "#2c70ff")
-                      markerPath.setAttribute("stroke", "#2c70ff")
+                if originalMarker != null then {
+                  // Use the marker's parent (could be <defs> or <g> in Mermaid)
+                  val markerParent = originalMarker.parentNode
+                  if markerParent != null then {
+                    // Check if selected marker already exists in the SVG
+                    val existingSelected = svgRoot.querySelector(s"#${CSSGlobal.escape(selectedMarkerId)}")
+                    if existingSelected == null then {
+                      // Clone marker and style for selection
+                      val clonedMarker = originalMarker.cloneNode(true).asInstanceOf[dom.Element]
+                      clonedMarker.setAttribute("id", selectedMarkerId)
+                      // Style the path inside the marker with selection color
+                      val markerPath = clonedMarker.querySelector("path")
+                      if markerPath != null then {
+                        markerPath.setAttribute("fill", "#2c70ff")
+                        markerPath.setAttribute("stroke", "#2c70ff")
+                      }
+                      markerParent.appendChild(clonedMarker)
                     }
-                    markerParent.appendChild(clonedMarker)
+                    // Point to selected marker
+                    path.setAttribute("marker-end", s"url(#$selectedMarkerId)")
                   }
-                  // Point to selected marker
-                  path.setAttribute("marker-end", s"url(#$selectedMarkerId)")
                 }
               }
             }
           } else {
-            // Restore original marker
-            originalMarkerEnd.foreach(url => path.setAttribute("marker-end", url))
-            originalMarkerEnd = None
+            // Restore original marker by removing "-selected" suffix if present
+            if markerId.endsWith("-selected") then {
+              val originalMarkerId = markerId.stripSuffix("-selected")
+              path.setAttribute("marker-end", s"url(#$originalMarkerId)")
+            }
           }
         }
       case _ => ()
