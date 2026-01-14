@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Shape, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -11,8 +11,9 @@ import org.jpablo.graphexplorer.viewer.models.*
 def viewerGraphToMermaidText(graph: ViewerGraph): String =
   val lines = StringBuilder()
 
-  // Default to TD (top-down) direction
-  lines.append("flowchart TD\n")
+  // Get direction from graph attributes, default to TB (top-to-bottom)
+  val direction = graph.elements.graphAttributes.getAs(Rankdir).toString
+  lines.append(s"flowchart $direction\n")
 
   // Get the root group ID to filter it out
   val rootGroupId = GroupId(ViewerGraphElements.defaultRootId.value)
