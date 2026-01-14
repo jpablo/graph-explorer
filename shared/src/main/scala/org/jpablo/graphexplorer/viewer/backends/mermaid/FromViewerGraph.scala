@@ -11,6 +11,19 @@ import org.jpablo.graphexplorer.viewer.models.*
 def viewerGraphToMermaidText(graph: ViewerGraph): String =
   val lines = StringBuilder()
 
+  // Get title from graph attributes (Label attribute)
+  val titleOpt = graph.elements.graphAttributes.values
+    .get(Label.attrId)
+    .map(_.toString)
+    .filter(_.nonEmpty)
+
+  // Add front matter with title if present
+  titleOpt.foreach { title =>
+    lines.append("---\n")
+    lines.append(s"title: $title\n")
+    lines.append("---\n")
+  }
+
   // Get direction from graph attributes, default to TB (top-to-bottom)
   val direction = graph.elements.graphAttributes.getAs(Rankdir).toString
   lines.append(s"flowchart $direction\n")

@@ -79,6 +79,12 @@ trait DiagramYY extends js.Object:
   /** Get the current direction (TB, BT, LR, RL). */
   def getDirection(): js.UndefOr[String] = js.native
 
+  /** Get the diagram title from front matter. */
+  def getDiagramTitle(): js.UndefOr[String] = js.native
+
+  /** Get the accessible title (alternative method for title). */
+  def getAccTitle(): js.UndefOr[String] = js.native
+
 /** A vertex (node) as returned by Mermaid's parser. */
 @js.native
 trait MermaidVertexJS extends js.Object:

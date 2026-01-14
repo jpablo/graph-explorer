@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label, Shape, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -78,12 +78,17 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
   val missingNodes = arrows.values.flatMap(_.endpoints).filterNot(nodes.contains)
   val allNodes = nodes ++ missingNodes.map(nid => nid -> ViewerNode.nodeNoDefaults(nid, Attributes.empty))
 
+  // Build graph attributes from direction and title
+  val graphAttrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
+  mermaidGraph.direction.foreach(d => graphAttrs += Rankdir.attrId -> AttrValue(d))
+  mermaidGraph.title.foreach(t => graphAttrs += Label.attrId -> AttrValue(t))
+
   ViewerGraphElements(
     nodes = allNodes,
     arrows = arrows,
     memberships = memberships,
     groups = groups,
-    graphAttributes = Attributes.empty
+    graphAttributes = Attributes(VectorMap.from(graphAttrs.toSeq))
   )
 
 /** Converts a MermaidVertex to Attributes. */
