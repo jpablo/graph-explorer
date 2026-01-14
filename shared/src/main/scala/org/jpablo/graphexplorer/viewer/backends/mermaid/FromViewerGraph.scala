@@ -17,13 +17,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   // Get the root group ID to filter it out
   val rootGroupId = GroupId(ViewerGraphElements.defaultRootId.value)
 
-  // Build a map of node IDs to their group memberships (excluding root)
-  val nodeToGroup: Map[NodeId, GroupId] = graph.memberships.collect {
-    case (nodeId: NodeId, groupId) if groupId != rootGroupId => nodeId -> groupId
-  }
-
-  // Get nodes that are in subgraphs
-  val nodesInSubgraphs = nodeToGroup.keySet
+  val connectedNodeIds = graph.arrows.values.flatMap(_.endpoints).toSet
 
   // Serialize subgraphs (groups, excluding root)
   val subgraphNodes = scala.collection.mutable.Set[NodeId]()
@@ -54,8 +48,10 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   // Serialize nodes not in any subgraph
   graph.nodes.foreach { case (nodeId, node) =>
     if !subgraphNodes.contains(nodeId) then
-      val nodeLine = serializeNode(nodeId, node)
-      lines.append(s"  $nodeLine\n")
+      val shouldEmitNode = shouldEmitStandaloneNode(nodeId, node, connectedNodeIds)
+      if shouldEmitNode then
+        val nodeLine = serializeNode(nodeId, node)
+        lines.append(s"  $nodeLine\n")
   }
 
   // Serialize edges
@@ -68,17 +64,18 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
 
 /** Serialize a node with its shape and label. */
 private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
-  val label = node.label.toString match
-    case s if s.nonEmpty => s
-    case _               => nodeId.value
-
+  val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
+
+  val label = labelOpt.getOrElse(nodeId.value)
   val (openBracket, closeBracket) = shapeOpt.map(dotShapeToMermaid).getOrElse(("[", "]"))
 
-  // Escape label for Mermaid (quotes need special handling)
-  val escapedLabel = escapeMermaidLabel(label)
-
-  s"${nodeId.value}$openBracket$escapedLabel$closeBracket"
+  if shapeOpt.isEmpty && label == nodeId.value then
+    nodeId.value
+  else
+    // Escape label for Mermaid (quotes need special handling)
+    val escapedLabel = escapeMermaidLabel(label)
+    s"${nodeId.value}$openBracket$escapedLabel$closeBracket"
 
 /** Serialize an edge with its style and label. */
 private def serializeEdge(arrow: Arrow): String =
@@ -116,6 +113,14 @@ private def dotStyleToMermaidArrow(styleOpt: Option[String]): String =
     case Some("bold")   => "==>"
     case Some("dotted") => "-.->"
     case _              => "-->"
+
+private def shouldEmitStandaloneNode(nodeId: NodeId, node: ViewerNode, connectedNodeIds: Set[NodeId]): Boolean =
+  val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
+  val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
+  val hasExplicitLabel = labelOpt.exists(_ != nodeId.value)
+  val hasShape = shapeOpt.nonEmpty
+
+  !connectedNodeIds.contains(nodeId) || hasExplicitLabel || hasShape
 
 /** Escape special characters in Mermaid labels. */
 private def escapeMermaidLabel(label: String): String =

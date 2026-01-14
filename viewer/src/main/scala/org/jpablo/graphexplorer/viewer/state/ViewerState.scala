@@ -79,6 +79,18 @@ case class ViewerState(
   def setDiagramFormat(format: DiagramFormat): Unit =
     formatSelection.set(format)
 
+  private def elementExists(graph: ViewerGraph, id: ElementId): Boolean =
+    id match
+      case nodeId: NodeId   => graph.nodes.contains(nodeId)
+      case groupId: GroupId => graph.groups.contains(groupId)
+      case arrowId: ArrowId => graph.arrows.contains(arrowId)
+
+  fullGraph.changes.foreach { graph =>
+    val staleSelection = selection.now().filter(id => !elementExists(graph, id))
+    if staleSelection.nonEmpty then
+      selection.remove(staleSelection)
+  }
+
   val mouseAction = MouseActionVar()
 
   // Backends for rendering
