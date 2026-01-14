@@ -249,7 +249,8 @@ object MermaidBackend:
           startOnLoad = false,
           securityLevel = "loose",
           theme = "default",
-          suppressErrors = true
+          suppressErrors = true,
+          flowchart = FlowchartConfig(useMaxWidth = false)
         )
       )
       setInitialized()
