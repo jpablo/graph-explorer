@@ -177,12 +177,9 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
           val end = path.getPointAtLength(total)
           val startPoint = Point(start.x, -start.y)
           val endPoint = Point(end.x, -end.y)
-          val idSource =
-            elem match
-              case p: dom.svg.Path =>
-                Option(p.parentNode).collect { case parent: dom.Element => parent }.getOrElse(p)
-              case _ => elem
-          val arrowId = MermaidSelectionStrategy.extractArrowId(idSource).value
+          // For Mermaid, the path element itself has the LS-/LE- classes needed for ID extraction.
+          // Using the parent (edgePaths group) doesn't work because it lacks those classes.
+          val arrowId = MermaidSelectionStrategy.extractArrowId(path).value
           positions.update(arrowId, ArrowPosition(startPoint, endPoint, controlPoints = Nil))
         catch
           case _: Throwable =>
