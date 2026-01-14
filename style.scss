@@ -324,6 +324,11 @@ svg {
         stroke: #2c70ff !important;
       }
 
+      // Make Mermaid edge label backgrounds semi-transparent so arrows remain visible
+      .edgeLabel span.edgeLabel {
+        background-color: rgba(232, 232, 232, 0.7) !important;
+      }
+
       g#graph0 {
         transform-origin: 50% -50%;
 
