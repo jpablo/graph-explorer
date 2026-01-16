@@ -16,6 +16,7 @@ import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
 import org.jpablo.graphexplorer.zoomLens
+import org.scalajs.dom
 import org.scalajs.dom.svg.SVG
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -106,9 +107,16 @@ case class ViewerState(
         visibleDOT.map(dotText => graphviz.textToSvg(dotText).toOption)
       case DiagramFormat.Mermaid =>
         // Mermaid is async - use Signal.fromFuture
+        // Validate text before rendering to prevent sending DOT text to Mermaid
         sourceText.signal.flatMapSwitch: mermaidText =>
-          val futureResult = mermaidBackend.textToSvg(mermaidText).map(Some(_)).recover { case _ => None }
-          Signal.fromFuture(futureResult).map(_.flatten)
+          if mermaidText.trim.isEmpty then
+            Signal.fromValue(None)
+          else if DiagramFormat.detect(mermaidText) != DiagramFormat.Mermaid then
+            dom.console.warn(s"[mermaid] Skipping render: text appears to be ${DiagramFormat.detect(mermaidText)} format, not Mermaid")
+            Signal.fromValue(None)
+          else
+            val futureResult = mermaidBackend.textToSvg(mermaidText).map(Some(_)).recover { case _ => None }
+            Signal.fromFuture(futureResult).map(_.flatten)
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.

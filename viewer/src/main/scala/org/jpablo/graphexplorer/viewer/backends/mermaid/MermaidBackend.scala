@@ -28,9 +28,11 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
   override def textToSvg(text: String): Future[SvgWithPositions] =
     val renderId = MermaidBackend.nextRenderId()
+    dom.console.info(s"[mermaid] textToSvg start id=$renderId len=${text.length}")
     renderMermaid(renderId, text).map { svgString =>
       val svg = parseSVG(svgString)
       val edgePositions = extractEdgePositions(svg.ref)
+      dom.console.info(s"[mermaid] textToSvg complete id=$renderId edges=${edgePositions.size}")
       SvgWithPositions(svg, edgePositions)
     }
 
