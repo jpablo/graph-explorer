@@ -95,18 +95,38 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
     promise.future
 
+  /** Parse title and direction from Mermaid source text.
+    * Extracts from YAML front matter (---\ntitle: X\n---) and flowchart declaration.
+    * Note: Uses JavaScript-compatible regex (no (?s) or (?m) flags).
+    */
+  private def parseMermaidMetadata(text: String): (Option[String], Option[String]) =
+    // Extract title from YAML front matter (use [\s\S] instead of . with (?s) flag)
+    val titlePattern = """---\s*\n[\s\S]*?title:\s*(.+?)\s*\n[\s\S]*?---""".r
+    val title = titlePattern.findFirstMatchIn(text).map(_.group(1).trim)
+
+    // Extract direction from flowchart/graph declaration (match after newline or start)
+    val directionPattern = """(?:^|\n)(?:flowchart|graph)\s+(TB|BT|LR|RL|TD)""".r
+    val direction = directionPattern.findFirstMatchIn(text).map(_.group(1))
+
+    (title, direction)
+
   /** Fallback: render to SVG and parse the SVG to extract graph structure.
     * Less accurate but works around HMR diagram registration issues.
     */
   private def parseMermaidViaSvg(text: String): Future[MermaidGraph] =
     val renderId = MermaidBackend.nextRenderId()
+    val (title, direction) = parseMermaidMetadata(text)
     renderMermaid(renderId, text).map { svgString =>
       val svg = parseSVG(svgString)
-      extractGraphFromSvg(svg.ref)
+      extractGraphFromSvg(svg.ref, title, direction)
     }
 
   /** Extract graph structure from rendered SVG. */
-  private def extractGraphFromSvg(svg: dom.svg.SVG): MermaidGraph =
+  private def extractGraphFromSvg(
+      svg: dom.svg.SVG,
+      title: Option[String] = None,
+      direction: Option[String] = None
+  ): MermaidGraph =
     import MermaidSelectionStrategy.*
 
     // Extract nodes
@@ -145,8 +165,8 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       }
     }.toList
 
-    dom.console.info(s"[mermaid] SVG fallback parsed vertices=${vertices.size} edges=${edges.size}")
-    MermaidGraph(vertices, edges, subgraphs = Nil, direction = None)
+    dom.console.info(s"[mermaid] SVG fallback parsed vertices=${vertices.size} edges=${edges.size} title=${title.getOrElse("")}")
+    MermaidGraph(vertices, edges, subgraphs = Nil, direction = direction, title = title)
 
   /** Render Mermaid text to SVG asynchronously.
     */
