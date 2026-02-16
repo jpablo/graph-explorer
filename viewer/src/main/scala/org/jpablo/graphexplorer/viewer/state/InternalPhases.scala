@@ -22,7 +22,6 @@ import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.scalajs.dom.svg.SVG
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
 
 // Unified state containing both representations
 case class GraphState(
@@ -39,18 +38,13 @@ class InternalPhases(
     resetView:     () => Unit = () => (),
     autoFit:       () => Boolean = () => false,
     editorError:   Var[Option[String]] = Var(None),
+    backendFor:    Option[DiagramFormat => DiagramBackend] = None,
+    serializeGraph: (ViewerGraph, DiagramFormat) => String = InternalPhases.defaultSerializeGraph,
     val logLevel:  Level = Level.None
 )(using Owner, ExecutionContext):
 
   simpleLog(s"InternalPhases: Initializing with $initialSource", logLevel)
-
-  // Backends for different diagram formats
-  private val graphvizBackend = GraphvizBackend(graphviz)
-  private lazy val mermaidBackend = MermaidBackend()
-
-  private def backendFor(format: DiagramFormat): DiagramBackend = format match
-    case DiagramFormat.DOT     => graphvizBackend
-    case DiagramFormat.Mermaid => mermaidBackend
+  private val resolveBackend = backendFor.getOrElse(InternalPhases.defaultBackendFor(graphviz))
 
   // Initialize with the provided source or a minimal graph
   private val initialText   = initialSource.getOrElse("""digraph "G" {}""")
@@ -70,33 +64,47 @@ class InternalPhases(
     )
   )
 
+  private case class ParseRequest(id: Long, text: String, format: DiagramFormat, origin: ChangeOrigin)
+  private case class ParseResult(request: ParseRequest, value: Either[Throwable, ViewerGraph])
+
   // Bus for text changes that need async parsing
-  private val textChangeBus = EventBus[(String, DiagramFormat, ChangeOrigin)]()
+  private val textChangeBus = EventBus[ParseRequest]()
+  private var parseRequestSeq: Long = 0L
+  private var latestParseRequestId: Long = 0L
+
+  private def nextParseRequest(text: String, format: DiagramFormat, origin: ChangeOrigin): ParseRequest =
+    parseRequestSeq += 1
+    val request = ParseRequest(parseRequestSeq, text, format, origin)
+    latestParseRequestId = request.id
+    request
+
+  private def isCurrentRequest(request: ParseRequest): Boolean =
+    request.id == latestParseRequestId
 
   // Handle async parsing results
   textChangeBus.events
-    .flatMapSwitch { case (text, format, origin) =>
-      val parseFuture =
-        backendFor(format).textToGraph(text).transform {
-          case Success(graph) =>
+    .flatMapSwitch: request =>
+      EventStream.fromFuture {
+        resolveBackend(request.format).textToGraph(request.text)
+          .map(graph => ParseResult(request, Right(graph)))
+          .recover { case f => ParseResult(request, Left(f)) }
+      }
+    .foreach: parseResult =>
+      val request = parseResult.request
+      // Only commit if the request is still current and the user didn't change text/format since it started.
+      if isCurrentRequest(request) && state.now().text == request.text && formatSelection.now() == request.format then
+        parseResult.value match
+          case Right(graph) =>
             editorError.set(None)
-            Success((text, graph, format, origin))
-          case Failure(f) =>
-            simpleLog(s"Error parsing ${format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
+            simpleLog(
+              s"[${request.format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=${request.origin}",
+              logLevel
+            )
+            state.set(GraphState(request.text, graph, request.format, request.origin))
+          case Left(f) =>
+            simpleLog(s"Error parsing ${request.format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
             editorError.set(Option(f.getMessage))
-            Success((text, ViewerGraph.minimalWithDirected, format, origin))
-        }
-      EventStream.fromFuture(parseFuture)
-    }
-    .foreach { case (text, graph, format, origin) =>
-      // Only update if text and selected format haven't changed since we started parsing
-      if state.now().text == text && formatSelection.now() == format then
-        simpleLog(
-          s"[${format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=$origin",
-          logLevel
-        )
-        state.set(GraphState(text, graph, format, origin))
-    }
+            state.set(GraphState(request.text, ViewerGraph.minimalWithDirected, request.format, request.origin))
 
   // Trigger initial async parsing (must be after subscription is set up)
   parseTextToGraphAsync(initialText, initialFormat, ChangeOrigin.CodeMirror)
@@ -133,9 +141,7 @@ class InternalPhases(
         // New source of truth: incoming graph
         // Note: This keeps the current format since the graph was modified in-place
         if newGraph != currentState.viewerGraph then
-          val serializedText = currentState.format match
-            case DiagramFormat.DOT     => viewerGraphToText(newGraph, omitInternal = true)
-            case DiagramFormat.Mermaid => viewerGraphToMermaidText(newGraph)
+          val serializedText = serializeGraph(newGraph, currentState.format)
           GraphState(
             text = serializedText,
             viewerGraph = newGraph,
@@ -193,7 +199,7 @@ class InternalPhases(
   private def parseTextToGraphAsync(text: String, format: DiagramFormat, origin: ChangeOrigin): Unit =
     if text.trim.nonEmpty then
       simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
-      textChangeBus.writer.onNext((text, format, origin))
+      textChangeBus.writer.onNext(nextParseRequest(text, format, origin))
 
   // Re-parse the current text when the user switches the selected format.
   formatSelection.signal.changes.foreach: newFormat =>
@@ -205,6 +211,19 @@ class InternalPhases(
 end InternalPhases
 
 object InternalPhases:
+  def defaultBackendFor(graphviz: Graphviz)(using ExecutionContext): DiagramFormat => DiagramBackend =
+    val graphvizBackend = GraphvizBackend(graphviz)
+    lazy val mermaidBackend = MermaidBackend()
+    format =>
+      format match
+        case DiagramFormat.DOT     => graphvizBackend
+        case DiagramFormat.Mermaid => mermaidBackend
+
+  def defaultSerializeGraph(graph: ViewerGraph, format: DiagramFormat): String =
+    format match
+      case DiagramFormat.DOT     => viewerGraphToText(graph, omitInternal = true)
+      case DiagramFormat.Mermaid => viewerGraphToMermaidText(graph)
+
   /** Process diagram text (DOT or Mermaid) and return an SVG element.
     * Used for generating thumbnails on the library page.
     */
