@@ -45,7 +45,7 @@ This document provides an exhaustive comparison of features supported by the DOT
 
 | Feature | DOT Parse | DOT Serialize | Mermaid Parse | Mermaid Serialize |
 |---------|:---------:|:-------------:|:-------------:|:-----------------:|
-| Direction (rankdir) | ✅ TB/LR/BT/RL | ✅ | ✅ (direction) | ❌ (hardcoded TD) |
+| Direction (rankdir) | ✅ TB/LR/BT/RL | ✅ | ✅ (direction) | ✅ (defaults to TB) |
 | Layout engine | ✅ (8 engines) | ✅ | ❌ | ❌ |
 | Node separation | ✅ | ✅ | ❌ | ❌ |
 | Rank separation | ✅ | ✅ | ❌ | ❌ |
@@ -91,9 +91,9 @@ The following table shows how shapes are mapped between Mermaid and DOT formats:
 |---------------|-----------|----------------|
 | rect / rectangle | box | `[text]` |
 | round / rounded | box | `(text)` |
-| stadium | box | `([text])` |
+| stadium | box | `([text])` * |
 | circle | circle | `((text))` |
-| ellipse | ellipse | `([text])` |
+| ellipse | ellipse | `([text])` * |
 | diamond / rhombus | diamond | `{text}` |
 | hexagon | hexagon | `{{text}}` |
 | parallelogram | parallelogram | `[/text/]` |
@@ -101,6 +101,8 @@ The following table shows how shapes are mapped between Mermaid and DOT formats:
 | trapezoid-alt | invtrapezium | `[\text/]` |
 | cylinder / database | cylinder | `[(text)]` |
 | doublecircle | doublecircle | `(((text)))` |
+
+\* Stadium and ellipse both serialize to `([text])`. On re-parse, `([text])` is interpreted as ellipse, so stadium does not roundtrip correctly.
 
 ---
 
@@ -129,20 +131,19 @@ The following table shows how shapes are mapped between Mermaid and DOT formats:
 
 ### High Priority
 
-1. **No direction control** - Serialization hardcodes `flowchart TD`; should respect graph direction
-2. **No nested subgraphs** - Only flat subgraph structure supported
+1. **No nested subgraphs** - Only flat subgraph structure supported
 
 ### Medium Priority
 
-3. **No color support** - Fill color, border color, font color not serialized
-4. **No font attributes** - Font name and size ignored during serialization
-5. **No CSS class serialization** - Classes are parsed but not output
+2. **No color support** - Fill color, border color, font color not serialized
+3. **No font attributes** - Font name and size ignored during serialization
+4. **No CSS class serialization** - Classes are parsed but not output
 
 ### Lower Priority
 
-6. **Limited edge customization** - No arrow head/tail type support
-7. **No port support** - Edge connection points not supported
-8. **No URL/tooltip support** - Interactive attributes not available
+5. **Limited edge customization** - No arrow head/tail type support
+6. **No port support** - Edge connection points not supported
+7. **No URL/tooltip support** - Interactive attributes not available
 
 ---
 
