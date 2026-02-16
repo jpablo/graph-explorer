@@ -122,7 +122,7 @@ class VisibilityOpsSpec extends FunSuite with TestHelpers:
     }
 
   test("hideSuccessorsRecursive handles edges with source ports (e:\"s\" -> d)"):
-    withGraphviz { graphviz =>
+    withGraphvizAsync { graphviz =>
       val dot =
         """
           |digraph "G" {
@@ -155,11 +155,13 @@ class VisibilityOpsSpec extends FunSuite with TestHelpers:
 
       val st = ViewerState(ProjectId("test"), graphviz, _ => (), initialSource = Some(dot))
 
-      st.selection.set1(Set(NodeId("e")))
-      st.hideSuccessors(recursive = true)
+      afterMicrotasks {
+        st.selection.set1(Set(NodeId("e")))
+        st.hideSuccessors(recursive = true)
 
-      val hidden = st.hiddenElements.now().classify
-      // Before the fix this would fail: only p was being hidden
-      assert(hidden.nodes.contains(NodeId("d")), "Node d should be hidden when only reachable through e:s->d")
-      assert(hidden.nodes.contains(NodeId("p")), "Node p should be hidden (direct successor)")
+        val hidden = st.hiddenElements.now().classify
+        // Before the fix this would fail: only p was being hidden
+        assert(hidden.nodes.contains(NodeId("d")), "Node d should be hidden when only reachable through e:s->d")
+        assert(hidden.nodes.contains(NodeId("p")), "Node p should be hidden (direct successor)")
+      }
     }
