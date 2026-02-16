@@ -122,7 +122,7 @@ case class ViewerState(
   // 6. SVG with extra elements: selection rect, etc.
   // svgWithPositions ~> finalSVG
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
-    svgWithPositions.combineWith(selectionStrategy).map: (svgOpt, strategy) =>
+    svgWithPositions.combineWith(selectionStrategy).map { case (svgOpt, strategy) =>
       svgOpt.map: svgWithPos =>
         withLog("5. [visibleDOT -> SVG]", level = phases.logLevel) {
           SvgCanvas(
@@ -134,6 +134,7 @@ case class ViewerState(
             strategy = strategy
           )
         }
+    }
 
   // ------------- App settings -------------
   // If true, prompt for label before creating a new node (default: true)

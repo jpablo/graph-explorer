@@ -49,7 +49,15 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
     ref.classList.add(selectedClass)
     val rect = ref.querySelector(s"rect.$selectionRectClass")
     if rect == null then
-      ref.appendChild(SelectedRect().ref)
+      val newRect = SelectedRect().ref
+      // Mermaid nodes render text inside foreignObject (within g.label).
+      // Appending the rect after foreignObject hides the HTML text content.
+      // Insert before the label group so text renders on top of the highlight.
+      val labelGroup = ref.querySelector("g.label")
+      if labelGroup != null then
+        ref.insertBefore(newRect, labelGroup)
+      else
+        ref.appendChild(newRect)
 
   private def SelectedRect() =
     val bbox = ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
