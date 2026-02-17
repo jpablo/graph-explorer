@@ -54,60 +54,71 @@ class InternalPhases(
   // Start with minimal graph; async parsing will populate it
   private val initialViewerGraph: ViewerGraph = ViewerGraph.minimalWithDirected
 
-  // Single unified state
-  private val state = Var(
-    GraphState(
-      text = initialText,
-      viewerGraph = initialViewerGraph,
-      format = initialFormat,
-      lastOrigin = ChangeOrigin.CodeMirror
-    )
+  private val initialTransition = InternalPhasesMachine.initialize(
+    initialText = initialText,
+    initialFormat = initialFormat,
+    initialGraph = initialViewerGraph,
+    initialOrigin = ChangeOrigin.CodeMirror
   )
+  private var machineState = initialTransition.state
 
-  private case class ParseRequest(id: Long, text: String, format: DiagramFormat, origin: ChangeOrigin)
-  private case class ParseResult(request: ParseRequest, value: Either[Throwable, ViewerGraph])
+  // Single unified state
+  private val state = Var(machineState.snapshot)
 
   // Bus for text changes that need async parsing
-  private val textChangeBus = EventBus[ParseRequest]()
-  private var parseRequestSeq: Long = 0L
-  private var latestParseRequestId: Long = 0L
+  private val textChangeBus = EventBus[InternalPhasesMachine.ParseRequest]()
 
-  private def nextParseRequest(text: String, format: DiagramFormat, origin: ChangeOrigin): ParseRequest =
-    parseRequestSeq += 1
-    val request = ParseRequest(parseRequestSeq, text, format, origin)
-    latestParseRequestId = request.id
-    request
+  private def applyEvent(event: InternalPhasesMachine.Event): InternalPhasesMachine.Transition =
+    val transition = InternalPhasesMachine.reduce(
+      state = machineState,
+      event = event,
+      serializeGraph = serializeGraph
+    )
+    machineState = transition.state
+    transition
 
-  private def isCurrentRequest(request: ParseRequest): Boolean =
-    request.id == latestParseRequestId
+  private def runEffects(effects: List[InternalPhasesMachine.Effect]): Unit =
+    effects.foreach {
+      case InternalPhasesMachine.Effect.StartParse(request) =>
+        simpleLog(s"[${request.format.displayName}] parseTextToGraphAsync len=${request.text.length} origin=${request.origin}", logLevel)
+        textChangeBus.writer.onNext(request)
+      case InternalPhasesMachine.Effect.SetEditorError(error) =>
+        editorError.set(error)
+    }
 
   // Handle async parsing results
   textChangeBus.events
     .flatMapSwitch: request =>
       EventStream.fromFuture {
         resolveBackend(request.format).textToGraph(request.text)
-          .map(graph => ParseResult(request, Right(graph)))
-          .recover { case f => ParseResult(request, Left(f)) }
+          .map(graph => request -> Right(graph))
+          .recover { case f => request -> Left(f) }
       }
-    .foreach: parseResult =>
-      val request = parseResult.request
-      // Only commit if the request is still current and the user didn't change text/format since it started.
-      if isCurrentRequest(request) && state.now().text == request.text && formatSelection.now() == request.format then
-        parseResult.value match
+    .foreach: (request, result) =>
+      val beforeSnapshot = machineState.snapshot
+      val transition = applyEvent(
+        InternalPhasesMachine.Event.ParseCompleted(
+          request = request,
+          result = result,
+          selectedFormat = formatSelection.now()
+        )
+      )
+      runEffects(transition.effects)
+      val afterSnapshot = machineState.snapshot
+      if beforeSnapshot != afterSnapshot then
+        result match
           case Right(graph) =>
-            editorError.set(None)
             simpleLog(
               s"[${request.format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=${request.origin}",
               logLevel
             )
-            state.set(GraphState(request.text, graph, request.format, request.origin))
           case Left(f) =>
             simpleLog(s"Error parsing ${request.format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
-            editorError.set(Option(f.getMessage))
-            state.set(GraphState(request.text, ViewerGraph.minimalWithDirected, request.format, request.origin))
+      if afterSnapshot != state.now() then
+        state.set(afterSnapshot)
 
   // Trigger initial async parsing (must be after subscription is set up)
-  parseTextToGraphAsync(initialText, initialFormat, ChangeOrigin.CodeMirror)
+  runEffects(initialTransition.effects)
 
   // Public interface: sourceText as a Var that delegates to the unified state
   val sourceText: Var[String] =
@@ -117,15 +128,16 @@ class InternalPhases(
         // Used to update CodeMirror.
         currentState.text
       }
-    )((currentState: GraphState, newText: String) =>
+    )((_: GraphState, newText: String) =>
       withLog("1a. [sourceText -> GraphState]", level = logLevel) {
-        // New source of truth: incoming text
-        if newText != currentState.text then
-          val selectedFormat = formatSelection.now()
-          parseTextToGraphAsync(newText, selectedFormat, ChangeOrigin.CodeMirror)
-          currentState.copy(text = newText, format = selectedFormat, lastOrigin = ChangeOrigin.CodeMirror)
-        else
-          currentState
+        val transition = applyEvent(
+          InternalPhasesMachine.Event.SourceEdited(
+            newText = newText,
+            selectedFormat = formatSelection.now()
+          )
+        )
+        runEffects(transition.effects)
+        transition.state.snapshot
       }
     ).distinct // TODO: consider using distinctByRef
 
@@ -136,20 +148,11 @@ class InternalPhases(
         // GraphState is the source of truth; update unconditionally
         currentState.viewerGraph
       }
-    )((currentState: GraphState, newGraph: ViewerGraph) =>
+    )((_: GraphState, newGraph: ViewerGraph) =>
       withLog("2b. [GraphState <- fullGraphV: ViewerGraph]", level = logLevel) {
-        // New source of truth: incoming graph
-        // Note: This keeps the current format since the graph was modified in-place
-        if newGraph != currentState.viewerGraph then
-          val serializedText = serializeGraph(newGraph, currentState.format)
-          GraphState(
-            text = serializedText,
-            viewerGraph = newGraph,
-            format = currentState.format, // Preserve format when graph is edited
-            lastOrigin = ChangeOrigin.Graph
-          )
-        else
-          currentState
+        val transition = applyEvent(InternalPhasesMachine.Event.GraphEdited(newGraph = newGraph))
+        runEffects(transition.effects)
+        transition.state.snapshot
       }
     ).distinct // TODO: consider using distinctByRef
 
@@ -195,18 +198,13 @@ class InternalPhases(
       case DiagramFormat.DOT     => GraphvizSelectionStrategy
       case DiagramFormat.Mermaid => MermaidSelectionStrategy
 
-  /** Triggers async parsing of text into a ViewerGraph. */
-  private def parseTextToGraphAsync(text: String, format: DiagramFormat, origin: ChangeOrigin): Unit =
-    if text.trim.nonEmpty then
-      simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
-      textChangeBus.writer.onNext(nextParseRequest(text, format, origin))
-
   // Re-parse the current text when the user switches the selected format.
   formatSelection.signal.changes.foreach: newFormat =>
-    val currentState = state.now()
-    if currentState.format != newFormat then
-      state.set(currentState.copy(format = newFormat))
-      parseTextToGraphAsync(currentState.text, newFormat, currentState.lastOrigin)
+    val transition = applyEvent(InternalPhasesMachine.Event.FormatChanged(newFormat))
+    runEffects(transition.effects)
+    val nextSnapshot = transition.state.snapshot
+    if nextSnapshot != state.now() then
+      state.set(nextSnapshot)
 
 end InternalPhases
 
