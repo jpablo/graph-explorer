@@ -69,12 +69,14 @@ class InternalPhases(
   private val textChangeBus = EventBus[InternalPhasesMachine.ParseRequest]()
 
   private def applyEvent(event: InternalPhasesMachine.Event): InternalPhasesMachine.Transition =
+    val before = machineState
     val transition = InternalPhasesMachine.reduce(
-      state = machineState,
+      state = before,
       event = event,
       serializeGraph = serializeGraph
     )
     machineState = transition.state
+    simpleLog(InternalPhasesMachine.describeTransition(before, event, transition), Level.Info)
     transition
 
   private def runEffects(effects: List[InternalPhasesMachine.Effect]): Unit =

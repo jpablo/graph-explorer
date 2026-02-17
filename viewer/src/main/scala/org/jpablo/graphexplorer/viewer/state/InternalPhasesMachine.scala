@@ -34,6 +34,18 @@ object InternalPhasesMachine:
       effects: List[Effect]
   )
 
+  def describeTransition(
+      before:     State,
+      event:      Event,
+      transition: Transition
+  ): String =
+    val after              = transition.state
+    val parseBefore        = parseStateLabel(before.inFlightParse)
+    val parseAfter         = parseStateLabel(after.inFlightParse)
+    val snapshotChanged    = before.snapshot != after.snapshot
+    val effectsDescription = transition.effects.map(effectLabel).mkString("[", ", ", "]")
+    s"transition event=${eventLabel(event)} parse=$parseBefore->$parseAfter snapshotChanged=$snapshotChanged effects=$effectsDescription"
+
   def initialize(
       initialText:    String,
       initialFormat:  DiagramFormat,
@@ -157,5 +169,28 @@ object InternalPhasesMachine:
       )
     else
       Transition(state.copy(inFlightParse = None), Nil)
+
+  private def parseStateLabel(parse: Option[ParseRequest]): String =
+    parse match
+      case None          => "Idle"
+      case Some(request) => s"InFlight#${request.id}"
+
+  private def eventLabel(event: Event): String =
+    event match
+      case Event.SourceEdited(_, selectedFormat) =>
+        s"SourceEdited(format=$selectedFormat)"
+      case Event.GraphEdited(_) =>
+        "GraphEdited"
+      case Event.FormatChanged(newFormat) =>
+        s"FormatChanged(new=$newFormat)"
+      case Event.ParseCompleted(request, result, selectedFormat) =>
+        val resultLabel = if result.isRight then "success" else "failure"
+        s"ParseCompleted(id=${request.id}, result=$resultLabel, selected=$selectedFormat, requestFormat=${request.format})"
+
+  private def effectLabel(effect: Effect): String =
+    effect match
+      case Effect.StartParse(request) => s"StartParse#${request.id}:${request.format}"
+      case Effect.SetEditorError(None) => "SetEditorError(None)"
+      case Effect.SetEditorError(Some(_)) => "SetEditorError(Some)"
 
 end InternalPhasesMachine
