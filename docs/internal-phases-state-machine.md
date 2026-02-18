@@ -2,7 +2,35 @@
 
 This is the canonical document for how the new reducer-based `InternalPhases` works.
 
-## 1) General Idea (High Level)
+## 1) Problem This Solves (Explicitly)
+
+`InternalPhases` has to coordinate:
+
+- immediate UI writes (`sourceText`, `fullGraphV`, format selection)
+- asynchronous parsing (backend futures)
+- parse responses that can arrive out of order
+
+Without a strict transition model, this creates fragile behavior:
+
+- stale parse responses overwriting newer user edits
+- editor error state reflecting old parse failures
+- transition logic spread across callbacks and setters
+- hard-to-test race conditions
+
+This reducer/state-machine design solves that by making transitions explicit and centralized:
+
+- every state change goes through typed events + pure reducer logic
+- parse effects are explicit (`StartParse`, `SetEditorError`)
+- parse completion is accepted only when it matches the current in-flight request and current text/format
+- impossible transition paths are reduced by type structure (`State.Idle` vs `State.InFlight`, `UiEvent` vs `ParseEvent`)
+
+Practical outcome:
+
+- deterministic behavior under async races
+- easier focused testing of transitions/invariants
+- clearer ownership of side effects
+
+## 2) General Idea (High Level)
 
 `InternalPhases` has one hard problem:
 
@@ -12,8 +40,8 @@ This is the canonical document for how the new reducer-based `InternalPhases` wo
 
 The state machine extraction makes that predictable:
 
-1. turn input into an `Event`
-2. run one pure function: `reduce(state, event)`
+1. turn input into a typed event (`UiEvent` or `ParseEvent`)
+2. run one pure reducer function (`reduce(...)`)
 3. get:
    - a new `State`
    - a list of `Effect`s to run (`StartParse`, `SetEditorError`)
@@ -23,7 +51,7 @@ The state machine extraction makes that predictable:
 
 ## 2) Visual Model
 
-### 2.1 State Machine (States + Events)
+### 3.1 State Machine (States + Events)
 
 ```mermaid
 flowchart LR
@@ -36,11 +64,11 @@ flowchart LR
   IDLE -->|"SourceEdited then StartParse new id"| INFLIGHT
   IDLE -->|"FormatChanged then StartParse new id"| INFLIGHT
 
-  INFLIGHT -->|"ParseCompleted current success then clear editor error"| IDLE
-  INFLIGHT -->|"ParseCompleted current failure then set editor error and fallback graph"| IDLE
+  INFLIGHT -->|"ParseSucceeded current then clear editor error"| IDLE
+  INFLIGHT -->|"ParseFailed current then set editor error and fallback graph"| IDLE
 
-  INFLIGHT -->|"ParseCompleted stale ignored"| INFLIGHT
-  IDLE -->|"ParseCompleted ignored"| IDLE
+  INFLIGHT -->|"ParseSucceeded or ParseFailed stale ignored"| INFLIGHT
+  IDLE -->|"Parse completion ignored at orchestrator layer"| IDLE
 
   INFLIGHT -->|"GraphEdited new graph serialize text"| IDLE
   IDLE -->|"GraphEdited same graph no op"| IDLE
@@ -48,7 +76,7 @@ flowchart LR
   IDLE -->|"SourceEdited same text no op"| IDLE
 ```
 
-### 2.2 Code Element Fit (Reducer + Orchestration)
+### 3.2 Code Element Fit (Reducer + Orchestration)
 
 ```mermaid
 flowchart LR
@@ -59,17 +87,20 @@ flowchart LR
   end
 
   subgraph ORCH["InternalPhases.scala (orchestrator)"]
-    AE["applyEvent(event)"]
+    AUE["applyUiEvent(event)"]
+    APE["applyParseEvent(event)"]
     RE["runEffects(effects)"]
-    BS["textChangeBus: EventBus[ParseRequest]"]
+    BS["textChangeBus: EventBus[InFlightRequest]"]
     SV["state: Var[GraphState]"]
     EE["editorError: Var[Option[String]]"]
   end
 
   subgraph REDUCER["InternalPhasesMachine.scala (pure)"]
-    RED["reduce(state, event, serializeGraph)"]
-    MS["machineState: State with snapshot inFlightParse nextRequestId"]
-    EV["Event: SourceEdited GraphEdited FormatChanged ParseCompleted"]
+    REDUI["reduce(state, uiEvent, serializeGraph)"]
+    REDPARSE["reduce(inFlightState, parseEvent)"]
+    MS["machineState: State ADT: Idle or InFlight"]
+    UEV["UiEvent: SourceEdited GraphEdited FormatChanged"]
+    PEV["ParseEvent: ParseSucceeded ParseFailed"]
     FX["Effect: StartParse SetEditorError"]
   end
 
@@ -78,51 +109,62 @@ flowchart LR
     MER["MermaidBackend"]
   end
 
-  ST --> AE
-  FG --> AE
-  FS --> AE
+  ST --> AUE
+  FG --> AUE
+  FS --> AUE
 
-  AE --> EV
-  EV --> RED
-  MS --> RED
-  RED --> MS
-  RED --> FX
+  AUE --> UEV
+  UEV --> REDUI
+  MS --> REDUI
+  REDUI --> MS
+  REDUI --> FX
   FX --> RE
 
   RE -->|"StartParse(request)"| BS
   BS -->|"resolveBackend(format).textToGraph(text)"| DOT
   BS -->|"resolveBackend(format).textToGraph(text)"| MER
-  DOT -->|"Future result -> ParseCompleted"| AE
-  MER -->|"Future result -> ParseCompleted"| AE
+  DOT -->|"Future result"| APE
+  MER -->|"Future result"| APE
+  APE --> PEV
+  PEV --> REDPARSE
+  MS --> REDPARSE
+  REDPARSE --> MS
+  REDPARSE --> FX
 
   RE -->|"SetEditorError(...)"| EE
   MS -->|"snapshot"| SV
 ```
 
-## 3) Detailed Model
+## 4) Detailed Model
 
-### 3.1 State
+### 4.1 State
 
 `State` in `InternalPhasesMachine` is a sealed ADT:
 
 - `State.Idle(snapshot, nextRequestId)`
 - `State.InFlight(snapshot, request, nextRequestId)`
 
-### 3.2 Events
+### 4.2 Events
+
+`UiEvent`:
 
 - `SourceEdited(newText, selectedFormat)`
 - `GraphEdited(newGraph)`
 - `FormatChanged(newFormat)`
-- `ParseCompleted(request, result, selectedFormat)`
 
-### 3.3 Effects
+`ParseEvent`:
+
+- `ParseSucceeded(request, graph, selectedFormat)`
+- `ParseFailed(request, error, selectedFormat)`
+
+### 4.3 Effects
 
 - `StartParse(request)`
 - `SetEditorError(error)`
 
 The reducer emits effects; `InternalPhases.scala` executes them.
 
-## 4) End-to-End Flows
+## 5) End-to-End Flows
 
 ### Flow A: User edits text
 
@@ -130,8 +172,8 @@ The reducer emits effects; `InternalPhases.scala` executes them.
 2. Reducer updates snapshot text/format/origin.
 3. Reducer emits `StartParse(requestId = N)`.
 4. Orchestrator calls backend parse.
-5. Backend completion emits `ParseCompleted(...)`.
-6. Reducer accepts only if request is still current.
+5. Backend completion is converted to `ParseSucceeded` or `ParseFailed`.
+6. Parse reducer accepts only if request is still current.
 
 Result: latest parse wins, stale parse is ignored.
 
@@ -148,9 +190,9 @@ Result: latest parse wins, stale parse is ignored.
 2. Reducer updates snapshot format.
 3. Reducer emits `StartParse` for current text/new format.
 
-## 5) Stale Parse Guard
+## 6) Stale Parse Guard
 
-`ParseCompleted` is applied only if all match:
+`ParseSucceeded` / `ParseFailed` are applied only if all match:
 
 1. `state.request.id == request.id`
 2. `state.snapshot.text == request.text`
@@ -158,7 +200,7 @@ Result: latest parse wins, stale parse is ignored.
 
 Otherwise completion is ignored.
 
-## 6) Where to Read the Code
+## 7) Where to Read the Code
 
 - reducer: `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachine.scala`
 - orchestrator: `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala`
@@ -169,7 +211,7 @@ Tests:
 - phase tests with fake backends: `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala`
 - compatibility tests: `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesSpec.scala`
 
-## 7) Tradeoff
+## 8) Tradeoff
 
 Cost:
 
@@ -182,8 +224,8 @@ Benefit:
 - deterministic async behavior
 - easier focused tests
 
-## 8) Suggested Follow-Up Cleanup
+## 9) Suggested Follow-Up Cleanup
 
 1. Rename `snapshot` -> `graphState` in reducer `State`.
-2. Add short scaladoc per `Event` case.
+2. Add short scaladoc per `UiEvent` and `ParseEvent` case.
 3. Add one inline comment in reducer where stale parse completion is intentionally ignored.
