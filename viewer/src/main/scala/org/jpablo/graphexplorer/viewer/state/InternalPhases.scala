@@ -66,9 +66,9 @@ class InternalPhases(
   private val state = Var(machineState.snapshot)
 
   // Bus for text changes that need async parsing
-  private val textChangeBus = EventBus[InternalPhasesMachine.ParseRequest]()
+  private val textChangeBus = EventBus[InternalPhasesMachine.InFlightRequest]()
 
-  private def applyEvent(event: InternalPhasesMachine.Event): InternalPhasesMachine.Transition =
+  private def applyUiEvent(event: InternalPhasesMachine.UiEvent): InternalPhasesMachine.Transition[InternalPhasesMachine.State] =
     val before = machineState
     val transition = InternalPhasesMachine.reduce(
       state = before,
@@ -76,7 +76,16 @@ class InternalPhases(
       serializeGraph = serializeGraph
     )
     machineState = transition.state
-    simpleLog(InternalPhasesMachine.describeTransition(before, event, transition), Level.Info)
+    simpleLog(InternalPhasesMachine.describeTransition(before, event, transition), logLevel)
+    transition
+
+  private def applyParseEvent(
+      before: InternalPhasesMachine.State.InFlight,
+      event:  InternalPhasesMachine.ParseEvent
+  ): InternalPhasesMachine.Transition[InternalPhasesMachine.State] =
+    val transition = InternalPhasesMachine.reduce(before, event)
+    machineState = transition.state
+    simpleLog(InternalPhasesMachine.describeTransition(before, event, transition), logLevel)
     transition
 
   private def runEffects(effects: List[InternalPhasesMachine.Effect]): Unit =
@@ -97,27 +106,42 @@ class InternalPhases(
           .recover { case f => request -> Left(f) }
       }
     .foreach: (request, result) =>
-      val beforeSnapshot = machineState.snapshot
-      val transition = applyEvent(
-        InternalPhasesMachine.Event.ParseCompleted(
-          request = request,
-          result = result,
-          selectedFormat = formatSelection.now()
-        )
-      )
-      runEffects(transition.effects)
-      val afterSnapshot = machineState.snapshot
-      if beforeSnapshot != afterSnapshot then
-        result match
-          case Right(graph) =>
-            simpleLog(
-              s"[${request.format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=${request.origin}",
-              logLevel
-            )
-          case Left(f) =>
-            simpleLog(s"Error parsing ${request.format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
-      if afterSnapshot != state.now() then
-        state.set(afterSnapshot)
+      machineState match
+        case inFlight: InternalPhasesMachine.State.InFlight =>
+          val beforeSnapshot = inFlight.snapshot
+          val parseEvent = result match
+            case Right(graph) =>
+              InternalPhasesMachine.ParseEvent.ParseSucceeded(
+                request = request,
+                graph = graph,
+                selectedFormat = formatSelection.now()
+              )
+            case Left(f) =>
+              InternalPhasesMachine.ParseEvent.ParseFailed(
+                request = request,
+                error = f,
+                selectedFormat = formatSelection.now()
+              )
+
+          val transition = applyParseEvent(inFlight, parseEvent)
+          runEffects(transition.effects)
+
+          val afterSnapshot = machineState.snapshot
+          if beforeSnapshot != afterSnapshot then
+            result match
+              case Right(graph) =>
+                simpleLog(
+                  s"[${request.format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=${request.origin}",
+                  logLevel
+                )
+              case Left(f) =>
+                simpleLog(s"Error parsing ${request.format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
+
+          if afterSnapshot != state.now() then
+            state.set(afterSnapshot)
+
+        case _: InternalPhasesMachine.State.Idle =>
+          simpleLog(s"[${request.format.displayName}] ignoring parse completion while machine is Idle", logLevel)
 
   // Trigger initial async parsing (must be after subscription is set up)
   runEffects(initialTransition.effects)
@@ -132,8 +156,8 @@ class InternalPhases(
       }
     )((_: GraphState, newText: String) =>
       withLog("1a. [sourceText -> GraphState]", level = logLevel) {
-        val transition = applyEvent(
-          InternalPhasesMachine.Event.SourceEdited(
+        val transition = applyUiEvent(
+          InternalPhasesMachine.UiEvent.SourceEdited(
             newText = newText,
             selectedFormat = formatSelection.now()
           )
@@ -152,7 +176,7 @@ class InternalPhases(
       }
     )((_: GraphState, newGraph: ViewerGraph) =>
       withLog("2b. [GraphState <- fullGraphV: ViewerGraph]", level = logLevel) {
-        val transition = applyEvent(InternalPhasesMachine.Event.GraphEdited(newGraph = newGraph))
+        val transition = applyUiEvent(InternalPhasesMachine.UiEvent.GraphEdited(newGraph = newGraph))
         runEffects(transition.effects)
         transition.state.snapshot
       }
@@ -202,7 +226,7 @@ class InternalPhases(
 
   // Re-parse the current text when the user switches the selected format.
   formatSelection.signal.changes.foreach: newFormat =>
-    val transition = applyEvent(InternalPhasesMachine.Event.FormatChanged(newFormat))
+    val transition = applyUiEvent(InternalPhasesMachine.UiEvent.FormatChanged(newFormat))
     runEffects(transition.effects)
     val nextSnapshot = transition.state.snapshot
     if nextSnapshot != state.now() then

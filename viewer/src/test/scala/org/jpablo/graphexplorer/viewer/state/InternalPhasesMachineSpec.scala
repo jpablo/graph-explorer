@@ -24,7 +24,9 @@ class InternalPhasesMachineSpec extends FunSuite:
       initialOrigin = ChangeOrigin.CodeMirror
     )
 
-    val request = transition.state.inFlightParse.getOrElse(fail("expected in-flight parse request"))
+    val request = transition.state match
+      case inFlight: InternalPhasesMachine.State.InFlight => inFlight.request
+      case _: InternalPhasesMachine.State.Idle             => fail("expected in-flight parse request")
     assertEquals(request.id, 1L)
     assertEquals(request.format, DiagramFormat.DOT)
     assertEquals(transition.effects, List(InternalPhasesMachine.Effect.StartParse(request)))
@@ -39,19 +41,25 @@ class InternalPhasesMachineSpec extends FunSuite:
 
     val editedTransition = InternalPhasesMachine.reduce(
       state = initialized,
-      event = InternalPhasesMachine.Event.SourceEdited("""digraph "G" { "a"; }""", DiagramFormat.DOT),
+      event = InternalPhasesMachine.UiEvent.SourceEdited("""digraph "G" { "a"; }""", DiagramFormat.DOT),
       serializeGraph = InternalPhases.defaultSerializeGraph
     )
 
-    val staleRequest = initialized.inFlightParse.getOrElse(fail("expected stale request"))
+    val staleRequest = initialized match
+      case inFlight: InternalPhasesMachine.State.InFlight => inFlight.request
+      case _: InternalPhasesMachine.State.Idle            => fail("expected stale request")
+
+    val editedInFlight = editedTransition.state match
+      case inFlight: InternalPhasesMachine.State.InFlight => inFlight
+      case _: InternalPhasesMachine.State.Idle            => fail("expected in-flight state after source edit")
+
     val staleResultTransition = InternalPhasesMachine.reduce(
-      state = editedTransition.state,
-      event = InternalPhasesMachine.Event.ParseCompleted(
+      state = editedInFlight,
+      event = InternalPhasesMachine.ParseEvent.ParseFailed(
         request = staleRequest,
-        result = Left(new RuntimeException("stale")),
+        error = new RuntimeException("stale"),
         selectedFormat = DiagramFormat.DOT
-      ),
-      serializeGraph = InternalPhases.defaultSerializeGraph
+      )
     )
 
     assertEquals(staleResultTransition.state, editedTransition.state)
@@ -65,15 +73,17 @@ class InternalPhasesMachineSpec extends FunSuite:
       initialOrigin = ChangeOrigin.CodeMirror
     ).state
 
-    val request = initialized.inFlightParse.getOrElse(fail("expected in-flight request"))
+    val inFlightState = initialized match
+      case inFlight: InternalPhasesMachine.State.InFlight => inFlight
+      case _: InternalPhasesMachine.State.Idle            => fail("expected in-flight request")
+
     val failureTransition = InternalPhasesMachine.reduce(
-      state = initialized,
-      event = InternalPhasesMachine.Event.ParseCompleted(
-        request = request,
-        result = Left(new RuntimeException("boom")),
+      state = inFlightState,
+      event = InternalPhasesMachine.ParseEvent.ParseFailed(
+        request = inFlightState.request,
+        error = new RuntimeException("boom"),
         selectedFormat = DiagramFormat.DOT
-      ),
-      serializeGraph = InternalPhases.defaultSerializeGraph
+      )
     )
 
     assertEquals(failureTransition.state.snapshot.viewerGraph, ViewerGraph.minimalWithDirected)
@@ -89,12 +99,11 @@ class InternalPhasesMachineSpec extends FunSuite:
 
     val transition = InternalPhasesMachine.reduce(
       state = initialized,
-      event = InternalPhasesMachine.Event.GraphEdited(graphWithOneNode),
+      event = InternalPhasesMachine.UiEvent.GraphEdited(graphWithOneNode),
       serializeGraph = (graph, format) => s"${format.toString}:${graph.nodes.size}"
     )
 
     assertEquals(transition.state.snapshot.text, "DOT:1")
     assertEquals(transition.state.snapshot.lastOrigin, ChangeOrigin.Graph)
-    assertEquals(transition.state.inFlightParse, None)
+    assert(transition.state.isInstanceOf[InternalPhasesMachine.State.Idle], "Graph edit should end in Idle state")
     assertEquals(transition.effects, Nil)
-

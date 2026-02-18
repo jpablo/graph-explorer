@@ -27,9 +27,9 @@ The state machine extraction makes that predictable:
 
 ```mermaid
 flowchart LR
-  START((start)) --> INFLIGHT["InFlight: inFlightParse = Some ParseRequest"]
+  START((start)) --> INFLIGHT["State.InFlight: snapshot request nextRequestId"]
 
-  IDLE["Idle: inFlightParse = None"]
+  IDLE["State.Idle: snapshot nextRequestId"]
 
   INFLIGHT -->|"SourceEdited then StartParse new id"| INFLIGHT
   INFLIGHT -->|"FormatChanged then StartParse new id"| INFLIGHT
@@ -103,11 +103,10 @@ flowchart LR
 
 ### 3.1 State
 
-`State` in `InternalPhasesMachine`:
+`State` in `InternalPhasesMachine` is a sealed ADT:
 
-- `snapshot: GraphState`
-- `inFlightParse: Option[ParseRequest]`
-- `nextRequestId: Long`
+- `State.Idle(snapshot, nextRequestId)`
+- `State.InFlight(snapshot, request, nextRequestId)`
 
 ### 3.2 Events
 
@@ -153,8 +152,8 @@ Result: latest parse wins, stale parse is ignored.
 
 `ParseCompleted` is applied only if all match:
 
-1. `inFlightParse.id == request.id`
-2. `snapshot.text == request.text`
+1. `state.request.id == request.id`
+2. `state.snapshot.text == request.text`
 3. `selectedFormat == request.format`
 
 Otherwise completion is ignored.
