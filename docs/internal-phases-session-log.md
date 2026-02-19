@@ -77,3 +77,27 @@ Evidence:
 Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: PH2 (optional)`
+
+## 2026-02-19 (PH2 optional: fold-only UI dispatch)
+
+Summary:
+
+- Removed duplicate transition pre-computation from the UI dispatch path in `InternalPhases`.
+- UI writes now enqueue `MachineInput.Ui` directly, keeping transition evaluation exclusively in the `scanLeft` fold.
+- Re-ran the InternalPhases machine/phase/baseline suites to verify no behavior change.
+
+Evidence:
+
+- Code change:
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala`
+  - `dispatchUiEvent` now emits input to `inputBus` and returns the current snapshot; it no longer calls `InternalPhasesMachine.step` directly.
+- Command:
+  - `sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"`
+- Result:
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed.
+  - `InternalPhasesSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: PH2 (optional)`

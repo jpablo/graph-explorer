@@ -90,13 +90,8 @@ class InternalPhases(
   private val textChangeBus = EventBus[InternalPhasesMachine.InFlightRequest]()
 
   private def dispatchUiEvent(event: InternalPhasesMachine.UiEvent): GraphState =
-    val transition = InternalPhasesMachine.step(
-      state = transitions.observe.now().state,
-      input = InternalPhasesMachine.MachineInput.Ui(event),
-      serializeGraph = serializeGraph
-    )
     inputBus.writer.onNext(InternalPhasesMachine.MachineInput.Ui(event))
-    transition.state.snapshot
+    state.now()
 
   private def runEffects(effects: List[InternalPhasesMachine.Effect]): Unit =
     effects.foreach {
