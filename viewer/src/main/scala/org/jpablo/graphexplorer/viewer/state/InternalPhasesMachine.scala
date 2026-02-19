@@ -34,6 +34,10 @@ object InternalPhasesMachine:
     case ParseSucceeded(request: InFlightRequest, graph: ViewerGraph, selectedFormat: DiagramFormat)
     case ParseFailed(request: InFlightRequest, error: Throwable, selectedFormat: DiagramFormat)
 
+  enum MachineInput:
+    case Ui(event: UiEvent)
+    case Parse(event: ParseEvent)
+
   case class Transition[+S <: State](
       state:   S,
       effects: List[Effect]
@@ -101,6 +105,19 @@ object InternalPhasesMachine:
           val nextSnapshot = state.snapshot.copy(format = newFormat)
           val nextState    = toIdle(state, nextSnapshot)
           scheduleParseIfNeeded(nextState, nextSnapshot.text, newFormat, nextSnapshot.lastOrigin)
+
+  def step(
+      state:          State,
+      input:          MachineInput,
+      serializeGraph: (ViewerGraph, DiagramFormat) => String
+  ): Transition[State] =
+    input match
+      case MachineInput.Ui(event) =>
+        reduce(state, event, serializeGraph)
+      case MachineInput.Parse(event) =>
+        state match
+          case inFlight: State.InFlight => reduce(inFlight, event)
+          case _: State.Idle            => Transition(state, Nil)
 
   // Parse results can only be reduced from InFlight state.
   def reduce(state: State.InFlight, event: ParseEvent): Transition[State] =

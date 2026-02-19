@@ -50,3 +50,30 @@ Evidence:
 Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: PH0-T3`
+
+## 2026-02-19 (PH1 event-fold refactor)
+
+Summary:
+
+- Completed PH0 remaining verification tasks (`PH0-T3`, `PH0-T4`, `PH0-T5`) from the green baseline run.
+- Implemented PH1 functional refactor core:
+  - Added `MachineInput` envelope and pure total `step` transition in `InternalPhasesMachine`.
+  - Replaced imperative orchestration updates in `InternalPhases` with `inputBus.events.scanLeft(initialTransition)`.
+  - Centralized effect execution under transition stream handling and fed parse completions back as `MachineInput.Parse`.
+
+Evidence:
+
+- Code changes:
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachine.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala`
+  - `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala`
+- Command:
+  - `sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"`
+- Result:
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed.
+  - `InternalPhasesSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: PH2 (optional)`

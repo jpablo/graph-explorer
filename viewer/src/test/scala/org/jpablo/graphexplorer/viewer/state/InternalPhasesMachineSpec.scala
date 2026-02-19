@@ -65,6 +65,62 @@ class InternalPhasesMachineSpec extends FunSuite:
     assertEquals(staleResultTransition.state, editedTransition.state)
     assertEquals(staleResultTransition.effects, Nil)
 
+  test("step delegates ui events to reduce"):
+    val initialized = InternalPhasesMachine.initialize(
+      initialText = """digraph "G" {}""",
+      initialFormat = DiagramFormat.DOT,
+      initialGraph = ViewerGraph.minimalWithDirected,
+      initialOrigin = ChangeOrigin.CodeMirror
+    ).state
+
+    val uiEvent = InternalPhasesMachine.UiEvent.SourceEdited("""digraph "G" { "a"; }""", DiagramFormat.DOT)
+    val viaStep = InternalPhasesMachine.step(
+      state = initialized,
+      input = InternalPhasesMachine.MachineInput.Ui(uiEvent),
+      serializeGraph = InternalPhases.defaultSerializeGraph
+    )
+    val direct = InternalPhasesMachine.reduce(
+      state = initialized,
+      event = uiEvent,
+      serializeGraph = InternalPhases.defaultSerializeGraph
+    )
+
+    assertEquals(viaStep, direct)
+
+  test("step ignores parse events while idle"):
+    val initialized = InternalPhasesMachine.initialize(
+      initialText = """digraph "G" {}""",
+      initialFormat = DiagramFormat.DOT,
+      initialGraph = ViewerGraph.minimalWithDirected,
+      initialOrigin = ChangeOrigin.CodeMirror
+    ).state
+
+    val staleRequest = initialized match
+      case inFlight: InternalPhasesMachine.State.InFlight => inFlight.request
+      case _: InternalPhasesMachine.State.Idle            => fail("expected in-flight request")
+
+    val idleState = InternalPhasesMachine.initialize(
+      initialText = "",
+      initialFormat = DiagramFormat.DOT,
+      initialGraph = ViewerGraph.minimalWithDirected,
+      initialOrigin = ChangeOrigin.CodeMirror
+    ).state
+
+    val transition = InternalPhasesMachine.step(
+      state = idleState,
+      input = InternalPhasesMachine.MachineInput.Parse(
+        InternalPhasesMachine.ParseEvent.ParseFailed(
+          request = staleRequest,
+          error = new RuntimeException("ignored"),
+          selectedFormat = DiagramFormat.DOT
+        )
+      ),
+      serializeGraph = InternalPhases.defaultSerializeGraph
+    )
+
+    assertEquals(transition.state, idleState)
+    assertEquals(transition.effects, Nil)
+
   test("current parse failure emits editor error and fallback graph"):
     val initialized = InternalPhasesMachine.initialize(
       initialText = """digraph "G" {}""",
