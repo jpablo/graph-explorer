@@ -135,6 +135,25 @@ class InternalPhases(
   // Trigger initial async parsing (must be after subscription is set up)
   runEffects(initialTransition.effects)
 
+  val sourceTextS: Signal[String] =
+    state.signal.map(_.text).distinct
+
+  val sourceTextWriter: Observer[String] = Observer[String]: newText =>
+    dispatchUiEvent(
+      InternalPhasesMachine.UiEvent.SourceEdited(
+        newText = newText,
+        selectedFormat = formatSelection.now()
+      )
+    )
+    ()
+
+  val fullGraphS: Signal[ViewerGraph] =
+    state.signal.map(_.viewerGraph).distinct
+
+  val fullGraphWriter: Observer[ViewerGraph] = Observer[ViewerGraph]: newGraph =>
+    dispatchUiEvent(InternalPhasesMachine.UiEvent.GraphEdited(newGraph = newGraph))
+    ()
+
   // Public interface: sourceText as a Var that delegates to the unified state
   val sourceText: Var[String] =
     state.zoomLazy((currentState: GraphState) =>
@@ -145,12 +164,8 @@ class InternalPhases(
       }
     )((_: GraphState, newText: String) =>
       withLog("1a. [sourceText -> GraphState]", level = logLevel) {
-        dispatchUiEvent(
-          InternalPhasesMachine.UiEvent.SourceEdited(
-            newText = newText,
-            selectedFormat = formatSelection.now()
-          )
-        )
+        sourceTextWriter.onNext(newText)
+        state.now()
       }
     ).distinct // TODO: consider using distinctByRef
 
@@ -163,11 +178,12 @@ class InternalPhases(
       }
     )((_: GraphState, newGraph: ViewerGraph) =>
       withLog("2b. [GraphState <- fullGraphV: ViewerGraph]", level = logLevel) {
-        dispatchUiEvent(InternalPhasesMachine.UiEvent.GraphEdited(newGraph = newGraph))
+        fullGraphWriter.onNext(newGraph)
+        state.now()
       }
     ).distinct // TODO: consider using distinctByRef
 
-  val fullGraph = fullGraphV.signal.distinct
+  val fullGraph = fullGraphS
 
   val simpleGraph: Signal[SimpleGraph] =
     state.signal.flatMapSwitch { currentState =>

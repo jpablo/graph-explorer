@@ -78,6 +78,31 @@ Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: PH2 (optional)`
 
+## 2026-02-19 (PH2 optional: explicit ports compatibility)
+
+Summary:
+
+- Added explicit read/write ports in `InternalPhases`:
+  - `sourceTextS` / `sourceTextWriter`
+  - `fullGraphS` / `fullGraphWriter`
+- Kept existing `sourceText` and `fullGraphV` `Var` APIs for compatibility, but routed their writes through the new observers.
+- Re-ran InternalPhases suites to validate behavior did not regress.
+
+Evidence:
+
+- Code change:
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala`
+- Command:
+  - `sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"`
+- Result:
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed.
+  - `InternalPhasesSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: PH2 (optional)`
+
 ## 2026-02-19 (PH2 optional: fold-only UI dispatch)
 
 Summary:
