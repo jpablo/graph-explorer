@@ -35,6 +35,8 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
       if pending.nonEmpty then pending.dequeue()
       else throw new IllegalStateException(s"No pending parse request for backend $format")
 
+    def pendingCount: Int = pending.size
+
   private def graphWithOneNode: ViewerGraph =
     val (graph, _, _) = ViewerGraph.minimalWithDirected.addNodeWithSmartConnection(
       selectedElementId = None,
@@ -77,6 +79,32 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
       afterMicrotasks {
         assertEquals(editorError.now(), None)
         assertEquals(phases.sourceText.now(), """digraph "G" { "a"; }""")
+        assertEquals(phases.fullGraphV.now().nodes.size, 1)
+      }
+    }
+
+  test("single source edit schedules one parse request through fold"):
+    withGraphvizAsync { graphviz =>
+      val dotBackend     = new ControlledBackend(DiagramFormat.DOT)
+      val mermaidBackend = new ControlledBackend(DiagramFormat.Mermaid)
+      val phases = InternalPhases(
+        graphviz = graphviz,
+        hiddenNodes = Val(ElementIds()),
+        backendFor = Some(backendResolver(dotBackend, mermaidBackend))
+      )
+
+      val (_, initialPromise) = dotBackend.popRequest()
+      initialPromise.success(ViewerGraph.minimalWithDirected)
+
+      phases.sourceText.set("""digraph "G" { "a"; }""")
+      assertEquals(dotBackend.pendingCount, 1)
+
+      val (_, parsePromise) = dotBackend.popRequest()
+      assertEquals(dotBackend.pendingCount, 0)
+      parsePromise.success(graphWithOneNode)
+
+      afterMicrotasks {
+        assertEquals(dotBackend.pendingCount, 0)
         assertEquals(phases.fullGraphV.now().nodes.size, 1)
       }
     }

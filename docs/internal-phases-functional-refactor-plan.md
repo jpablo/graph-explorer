@@ -1,8 +1,20 @@
 # InternalPhases Functional Refactor Plan
 
-## Problem
+## Implementation Status (2026-02-19)
 
-`InternalPhases` currently mixes:
+- Phase 0 safety-net tasks: complete (machine + phase + baseline InternalPhases suites green).
+- Phase 1 core refactor: complete.
+  - `MachineInput` + pure `step(...)` added in `InternalPhasesMachine`.
+  - `InternalPhases` orchestration now uses `inputBus.events.scanLeft(initialTransition)`.
+  - effects execute from one interpreter boundary (`transitions.changes.foreach(runEffects)`).
+  - parse feedback re-enters via `MachineInput.Parse`.
+- Phase 2 optional hardening: in progress.
+  - explicit read/write ports added (`sourceTextS` / `sourceTextWriter`, `fullGraphS` / `fullGraphWriter`).
+  - compatibility `Var` APIs retained (`sourceText`, `fullGraphV`).
+
+## Problem (Original)
+
+`InternalPhases` previously mixed:
 
 1. Pure machine transitions (`InternalPhasesMachine.reduce`)
 2. Mutable orchestration state (`machineState`)

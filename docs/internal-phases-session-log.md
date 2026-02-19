@@ -103,6 +103,31 @@ Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: PH2 (optional)`
 
+## 2026-02-19 (PH2 optional: docs alignment + duplicate-parse guard)
+
+Summary:
+
+- Updated architecture docs to match the current fold-driven runtime model (`inputBus + scanLeft + transitions.changes`).
+- Added a new phase-level integration guard that asserts one source edit schedules exactly one parse request.
+- Re-ran InternalPhases machine/phase/baseline suites after the test and doc updates.
+
+Evidence:
+
+- Code/docs changes:
+  - `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala`
+  - `docs/internal-phases-dataflow.md`
+  - `docs/internal-phases-functional-refactor-plan.md`
+- Command:
+  - `sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"`
+- Result:
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed (including `single source edit schedules one parse request through fold`).
+  - `InternalPhasesSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: PH2 (optional)`
+
 ## 2026-02-19 (PH2 optional: fold-only UI dispatch)
 
 Summary:

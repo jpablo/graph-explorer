@@ -2,7 +2,7 @@
 
 Last updated: 2026-02-19
 
-Current track: Phase 1 (`functional core`)
+Current track: Phase 2 (`optional hardening`)
 
 Resume from: `PH2 (optional)`
 
@@ -28,6 +28,8 @@ Resume from: `PH2 (optional)`
 | PH1-T3 | Centralize effect interpreter and parse feedback loop | done | Effects executed from one interpreter boundary | `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:131`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:127` | local run 2026-02-19 | `transitions.changes.foreach(runEffects)` is the single effect interpreter; parse completions feed back via `MachineInput.Parse` |
 | PH2-T1 | Remove duplicate UI transition pre-computation (fold is only transition path) | done | UI writes dispatch to input bus without local preview reduce | `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:93` | local run 2026-02-19 | `dispatchUiEvent` now only enqueues `MachineInput.Ui` and returns current snapshot |
 | PH2-T2 | Add explicit read/write ports while preserving existing `Var` API | done | `Signal` + `Observer` ports exposed for text/graph with compatibility retained | `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:141`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:144`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:153`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:156` | local run 2026-02-19 | Added `sourceTextS`/`sourceTextWriter` and `fullGraphS`/`fullGraphWriter`; existing `sourceText`/`fullGraphV` now delegate through writers |
+| PH2-T3 | Align architecture docs with fold-driven orchestrator | done | `internal-phases-dataflow.md` and refactor plan reflect current runtime design | `docs/internal-phases-dataflow.md`, `docs/internal-phases-functional-refactor-plan.md` | local update 2026-02-19 | Replaced outdated `machineState/applyUiEvent` flow description with `inputBus + scanLeft + transitions.changes` model |
+| PH2-T4 | Add integration guard against duplicate parse scheduling per source edit | done | Phase test proves one source edit yields one parse request through fold path | `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:86` | local run 2026-02-19 | New test: `single source edit schedules one parse request through fold` |
 
 ## Update Protocol (Session-Safe)
 
