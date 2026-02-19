@@ -68,7 +68,7 @@ trait VisibilityOps:
       val proceed  = dom.window.confirm(summary)
       if proceed then
         // Remove hidden elements from graph
-        phases.fullGraphV.update(_.removeElements(hidden))
+        phases.updateFullGraph(_.removeElements(hidden))
         // Clear hidden state and selection references to removed elements
         hiddenElements.clear()
         selection.remove(hidden)

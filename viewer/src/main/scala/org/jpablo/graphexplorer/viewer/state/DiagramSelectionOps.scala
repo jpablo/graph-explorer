@@ -130,18 +130,18 @@ trait DiagramSelectionOps:
     def addToGroup() =
       val classified = now().classify
       for groupNodeId <- classified.groups.headOption do
-        phases.fullGraphV.update(_.moveToGroup(groupNodeId, classified.nodes.toSeq))
+        phases.updateFullGraph(_.moveToGroup(groupNodeId, classified.nodes.toSeq))
 
     def group() =
       createGroupMaybePrompt(now())
 
     def ungroup() =
-      phases.fullGraphV.update(_.ungroupSelection(now()))
+      phases.updateFullGraph(_.ungroupSelection(now()))
 
     def combineIntoRecord() =
       val currentSelection = now()
       if currentSelection.nodeIds.nonEmpty then
-        phases.fullGraphV.update { graph =>
+        phases.updateFullGraph { graph =>
           val newGraph = graph.combineIntoRecord(currentSelection.nodeIds)
           // Select the newly created record node (it should be the newest node)
           val newNodeIds = newGraph.nodeIds -- graph.nodeIds
@@ -154,7 +154,7 @@ trait DiagramSelectionOps:
       val currentSelection = now()
       if currentSelection.nodeIds.size == 1 then
         val nodeId = currentSelection.nodeIds.head
-        phases.fullGraphV.update { graph =>
+        phases.updateFullGraph { graph =>
           if graph.isRecordNode(nodeId) then
             val newGraph = graph.splitRecordNode(nodeId)
             // Select the newly created nodes
@@ -170,13 +170,13 @@ trait DiagramSelectionOps:
       val currentSelection = now()
       if currentSelection.nodeIds.size == 1 then
         val nodeId = currentSelection.nodeIds.head
-        phases.fullGraphV.update(_.transposeRecord(nodeId))
+        phases.updateFullGraph(_.transposeRecord(nodeId))
 
     def reverseArrowsStyle() =
-      phases.fullGraphV.update(_.reverseArrowsStyle(now()))
+      phases.updateFullGraph(_.reverseArrowsStyle(now()))
 
     def reverseArrows() =
-      phases.fullGraphV.update(_.reverseArrows(now()))
+      phases.updateFullGraph(_.reverseArrows(now()))
 
     def selectAllVisibleNodes() =
       val visibleNodes = visibleGraphNow().nodeIds
@@ -196,14 +196,14 @@ trait DiagramSelectionOps:
       set1(nodes ++ edges ++ groups)
 
     def deleteSelection() =
-      phases.fullGraphV.update(_.removeElements(now()))
+      phases.updateFullGraph(_.removeElements(now()))
 
     /** Duplicates the currently selected nodes, arrows, and groups. Creates new elements with the same attributes as the selected ones.
       * Nodes are placed in the corresponding duplicated group if their original group was also selected. Arrows are duplicated connecting
       * the corresponding (potentially new) nodes. The newly created elements become the selected elements after duplication.
       */
     def duplicateSelection() =
-      phases.fullGraphV.update: graph =>
+      phases.updateFullGraph: graph =>
         val currentSelection = now()
         if currentSelection.isEmpty then
           graph
@@ -218,7 +218,7 @@ trait DiagramSelectionOps:
     def resetAttributes(): Unit =
       val selection = now()
       if selection.nonEmpty then
-        phases.fullGraphV.update(_.resetAttributes(selection))
+        phases.updateFullGraph(_.resetAttributes(selection))
 
     /** Resets the layout-related attributes for the selected elements. Placeholder implementation.
       */

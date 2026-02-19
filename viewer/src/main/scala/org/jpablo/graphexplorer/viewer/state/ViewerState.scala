@@ -69,6 +69,7 @@ case class ViewerState(
   )
 
   val sourceText      = phases.sourceText
+  val sourceTextWriter = phases.sourceTextWriter
   val fullGraph       = phases.fullGraph
   def fullGraphNow()  = phases.fullGraph.observe.now()
   val visibleDOT      = phases.visibleDOT
@@ -170,7 +171,7 @@ case class ViewerState(
 
   /** Creates a new group with the specified elements and label. */
   def createGroupWithLabel(elementIds: ElementIds, label: String): Unit =
-    phases.fullGraphV.update(_.moveToNewGroup(elementIds, label))
+    phases.updateFullGraph(_.moveToNewGroup(elementIds, label))
     // Select the newly created group
     val updatedGraph = fullGraphNow()
     val memberIds = elementIds.memberIds
@@ -208,7 +209,7 @@ case class ViewerState(
       attributes: Attributes = Attributes.empty,
       direction:  ArrowDirection = ArrowDirection.forward
   ): Unit =
-    phases.fullGraphV.update: fullGraph =>
+    phases.updateFullGraph: fullGraph =>
       val sel                      = selection.now()
       val selectedElementId        = if sel.isEmpty then None else Some(sel.head)
       val (newGraph, newNodeId, _) = fullGraph.addNodeWithSmartConnection(selectedElementId, attributes, direction)
@@ -216,13 +217,13 @@ case class ViewerState(
       newGraph
 
   def addArrow(from: NodeId, to: NodeId)(using name: sourcecode.FullName) =
-    phases.fullGraphV.update: g =>
+    phases.updateFullGraph: g =>
       val (g2, _) = g.addArrow(from, to)
       selection.set(ElementIds.from(from))
       g2
 
   def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId) =
-    phases.fullGraphV.update: g =>
+    phases.updateFullGraph: g =>
       val (g1, newArrowId) = g.moveArrowEndpoint(arrowId, newEndpoint)
       selection.set(ElementIds.from(newArrowId))
       g1

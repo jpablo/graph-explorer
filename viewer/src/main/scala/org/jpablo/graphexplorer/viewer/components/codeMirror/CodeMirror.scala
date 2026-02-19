@@ -40,7 +40,7 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
       textUpdates.events
 //        .debounce(100) // TODO: Make this configurable or dynamic.
         .foreach { text =>
-          state.sourceText.set(text)
+          state.sourceTextWriter.onNext(text)
         }
       
       // Editor -> source

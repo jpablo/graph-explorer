@@ -10,6 +10,7 @@
   - parse feedback re-enters via `MachineInput.Parse`.
 - Phase 2 optional hardening: in progress.
   - explicit read/write ports added (`sourceTextS` / `sourceTextWriter`, `fullGraphS` / `fullGraphWriter`).
+  - direct internal write callsites migrated to explicit writer/update ports (`sourceTextWriter`, `updateFullGraph`).
   - compatibility `Var` APIs retained (`sourceText`, `fullGraphV`).
 
 ## Problem (Original)

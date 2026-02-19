@@ -218,7 +218,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             case (example, source) =>
               state.showAll()
               state.setDiagramFormat(example.format)
-              state.sourceText.set(source)
+              state.sourceTextWriter.onNext(source)
           }
       ).amend(cls := "hidden lg:block"),
       // -------- show all --------

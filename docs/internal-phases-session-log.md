@@ -151,3 +151,31 @@ Evidence:
 Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: PH2 (optional)`
+
+## 2026-02-19 (PH2 optional: direct write-callsite migration)
+
+Summary:
+
+- Migrated direct text writes in UI components to `sourceTextWriter`.
+- Introduced explicit graph write API in `InternalPhases` (`setFullGraph`, `updateFullGraph`) and migrated direct `fullGraphV.update(...)` callsites in state ops.
+- Kept compatibility `fullGraphV` lens-based callsites (`zoomLazy` / `zoomLens`) unchanged for now.
+
+Evidence:
+
+- Code changes:
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/components/codeMirror/CodeMirror.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/components/Toolbar.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/DiagramSelectionOps.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/VisibilityOps.scala`
+- Command:
+  - `sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"`
+- Result:
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed.
+  - `InternalPhasesSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: PH2-T6`

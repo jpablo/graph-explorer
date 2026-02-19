@@ -154,6 +154,12 @@ class InternalPhases(
     dispatchUiEvent(InternalPhasesMachine.UiEvent.GraphEdited(newGraph = newGraph))
     ()
 
+  def setFullGraph(newGraph: ViewerGraph): Unit =
+    fullGraphWriter.onNext(newGraph)
+
+  def updateFullGraph(f: ViewerGraph => ViewerGraph): Unit =
+    setFullGraph(f(state.now().viewerGraph))
+
   // Public interface: sourceText as a Var that delegates to the unified state
   val sourceText: Var[String] =
     state.zoomLazy((currentState: GraphState) =>
