@@ -60,22 +60,22 @@ class InternalPhases(
     initialGraph = initialViewerGraph,
     initialOrigin = ChangeOrigin.CodeMirror
   )
-  private var machineState = initialTransition.state
+  private val machineState = Var(initialTransition.state)
 
   // Single unified state
-  private val state = Var(machineState.snapshot)
+  private val state = Var(machineState.now().snapshot)
 
   // Bus for text changes that need async parsing
   private val textChangeBus = EventBus[InternalPhasesMachine.InFlightRequest]()
 
   private def applyUiEvent(event: InternalPhasesMachine.UiEvent): InternalPhasesMachine.Transition[InternalPhasesMachine.State] =
-    val before = machineState
+    val before = machineState.now()
     val transition = InternalPhasesMachine.reduce(
       state = before,
       event = event,
       serializeGraph = serializeGraph
     )
-    machineState = transition.state
+    machineState.set(transition.state)
     simpleLog(InternalPhasesMachine.describeTransition(before, event, transition), logLevel)
     transition
 
@@ -84,7 +84,7 @@ class InternalPhases(
       event:  InternalPhasesMachine.ParseEvent
   ): InternalPhasesMachine.Transition[InternalPhasesMachine.State] =
     val transition = InternalPhasesMachine.reduce(before, event)
-    machineState = transition.state
+    machineState.set(transition.state)
     simpleLog(InternalPhasesMachine.describeTransition(before, event, transition), logLevel)
     transition
 
@@ -106,7 +106,7 @@ class InternalPhases(
           .recover { case f => request -> Left(f) }
       }
     .foreach: (request, result) =>
-      machineState match
+      machineState.now() match
         case inFlight: InternalPhasesMachine.State.InFlight =>
           val beforeSnapshot = inFlight.snapshot
           val parseEvent = result match
@@ -126,7 +126,7 @@ class InternalPhases(
           val transition = applyParseEvent(inFlight, parseEvent)
           runEffects(transition.effects)
 
-          val afterSnapshot = machineState.snapshot
+          val afterSnapshot = transition.state.snapshot
           if beforeSnapshot != afterSnapshot then
             result match
               case Right(graph) =>
