@@ -3,9 +3,12 @@
 ```mermaid
 flowchart TD
     %% External inputs
-    CM["CodeMirror text edits"]
-    GUI["Canvas graph edits"]
-    FMT["Format selector"]
+    subgraph INPUTS["External inputs"]
+        direction LR
+        CM["CodeMirror text edits"]
+        GUI["Canvas graph edits"]
+        FMT["Format selector"]
+    end
 
     %% Public Vars
     ST["sourceText: Var[String]"]
