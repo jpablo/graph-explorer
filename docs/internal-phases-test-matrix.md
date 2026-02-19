@@ -1,0 +1,30 @@
+# InternalPhases Test Matrix
+
+Purpose: map invariants to concrete tests and current verification status.
+
+Last updated: 2026-02-19
+
+## Invariant Coverage
+
+| Invariant ID | Invariant | Test(s) | Status | Notes |
+|---|---|---|---|---|
+| INV-01 | Non-empty initialize schedules parse request | `InternalPhasesMachineSpec` `initialize schedules parse request for non-empty text` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala:19`) | pass | Pure reducer-level |
+| INV-02 | Stale parse completion does not change machine state | `InternalPhasesMachineSpec` `stale parse completion is ignored` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala:34`) | pass | Pure reducer-level |
+| INV-03 | Stale parse completion does not overwrite latest orchestrator snapshot/error | `InternalPhasesPhaseSpec` `stale parse failure does not overwrite state or editorError` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:52`) | fail | Current failure at `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:80` |
+| INV-04 | Current parse failure applies fallback graph + editor error | `InternalPhasesMachineSpec` `current parse failure emits editor error and fallback graph` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala:68`), `InternalPhasesPhaseSpec` `latest parse failure sets editorError and fallback graph` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:84`) | machine: pass, phase: not yet verified in latest run | Phase suite aborted by INV-03 failure |
+| INV-05 | Graph edit serializes text and clears in-flight parse at machine level | `InternalPhasesMachineSpec` `graph edit updates text via serializer and clears in-flight parse` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala:92`) | pass | Pure reducer-level |
+| INV-06 | Graph edit uses injected serializer at orchestrator boundary | `InternalPhasesPhaseSpec` `graph updates use injected serializer for current format` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:135`) | not yet verified in latest run | Phase suite aborted by INV-03 failure |
+| INV-07 | Format switch reparses current text using selected backend | `InternalPhasesPhaseSpec` `format switch reparses current text using selected backend` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:109`) | not yet verified in latest run | Phase suite aborted by INV-03 failure |
+| INV-08 | Baseline end-to-end internal phases behavior remains stable | `InternalPhasesSpec` sanity and DOT roundtrip checks (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesSpec.scala:23`) | not yet verified in latest run | Not executed due earlier failure |
+
+## Last Verification Command
+
+```bash
+sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"
+```
+
+Result summary:
+
+- `InternalPhasesMachineSpec`: passed
+- `InternalPhasesPhaseSpec`: failed at `InternalPhasesPhaseSpec.scala:80`
+- `InternalPhasesSpec`: not reached (suite run terminated after failure)
