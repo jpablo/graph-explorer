@@ -179,3 +179,26 @@ Evidence:
 Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: PH2-T6`
+
+## 2026-02-19 (PH2-T6 closeout validation)
+
+Summary:
+
+- Completed closeout validation by running full test and production build commands.
+- Resolved a stale mermaid unit-test expectation that blocked `sbt test` (`flowchart TD` -> `flowchart TB`).
+- Confirmed InternalPhases refactor checkpoints remain green after the migration and validation sweep.
+
+Evidence:
+
+- Code change:
+  - `shared/src/test/scala/org/jpablo/graphexplorer/viewer/backends/mermaid/FromViewerGraphSpec.scala`
+- Commands:
+  - `sbt test`
+  - `npm run build`
+- Result:
+  - `sbt test` passed.
+  - `npm run build` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: Optional follow-up: migrate lens-based compatibility writes`

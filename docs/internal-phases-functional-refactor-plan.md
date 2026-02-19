@@ -12,6 +12,7 @@
   - explicit read/write ports added (`sourceTextS` / `sourceTextWriter`, `fullGraphS` / `fullGraphWriter`).
   - direct internal write callsites migrated to explicit writer/update ports (`sourceTextWriter`, `updateFullGraph`).
   - compatibility `Var` APIs retained (`sourceText`, `fullGraphV`).
+  - closeout validation completed: `sbt test` and `npm run build` are green.
 
 ## Problem (Original)
 

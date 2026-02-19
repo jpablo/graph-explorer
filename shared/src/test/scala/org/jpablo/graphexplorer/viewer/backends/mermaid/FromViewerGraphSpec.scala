@@ -20,7 +20,7 @@ class FromViewerGraphSpec extends FunSuite:
 
     val result = viewerGraphToMermaidText(graph)
 
-    assert(result.contains("flowchart TD"), s"Should start with flowchart TD, got: $result")
+    assert(result.contains("flowchart TB"), s"Should start with flowchart TB, got: $result")
     assert(result.contains("A[Hello]"), s"Should contain node A with label Hello, got: $result")
 
   test("viewerGraphToMermaidText should serialize an edge"):

@@ -20,14 +20,14 @@ Last updated: 2026-02-19
 | INV-10 | `step` ignores parse input when machine is idle | `InternalPhasesMachineSpec` `step ignores parse events while idle` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala:90`) | pass | Added in PH1-T1 |
 | INV-11 | Single source edit emits one parse request through folded orchestrator path | `InternalPhasesPhaseSpec` `single source edit schedules one parse request through fold` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:86`) | pass | Added in PH2-T4 to guard against double-reduce regressions |
 
-## Last Verification Command
+## Last Verification Commands
 
 ```bash
-sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"
+sbt test
+npm run build
 ```
 
 Result summary:
 
-- `InternalPhasesMachineSpec`: passed
-- `InternalPhasesPhaseSpec`: passed
-- `InternalPhasesSpec`: passed
+- `sbt test`: passed (all suites green, including `FromViewerGraphSpec` after expectation update to `flowchart TB`)
+- `npm run build`: passed
