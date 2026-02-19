@@ -97,29 +97,38 @@ sequenceDiagram
     participant UI as UI
     participant IP as InternalPhases
     participant M as InternalPhasesMachine
+    participant Q as textChangeBus handler
     participant B as DiagramBackend
     participant EE as editorError Var
+    participant CV as SvgCanvas UI
 
     alt Text edit path
         UI->>IP: sourceText.set newText
         IP->>M: reduce UiEvent.SourceEdited
         M-->>IP: Transition + Effect StartParse request1
-        IP->>B: textToGraph request1
+        IP->>Q: enqueue request1
+        Q->>B: textToGraph request1
 
         UI->>IP: sourceText.set newerText
         IP->>M: reduce UiEvent.SourceEdited
         M-->>IP: Transition + Effect StartParse request2
-        IP->>B: textToGraph request2
+        IP->>Q: enqueue request2
+        Q->>B: textToGraph request2
 
-        B-->>IP: request1 result old
-        IP->>M: reduce ParseEvent with request1
+        B-->>Q: future completed for request1
+        Q-->>IP: parse callback request1
+        IP->>M: reduce ParseEvent.ParseSucceeded or ParseFailed request1
         M-->>IP: Transition no-op stale
 
-        B-->>IP: request2 result current
-        IP->>M: reduce ParseEvent with request2
-        M-->>IP: Transition + Effect SetEditorError None
-        IP->>EE: set None
+        B-->>Q: future completed for request2
+        Q-->>IP: parse callback request2
+        IP->>M: reduce ParseEvent.ParseSucceeded or ParseFailed request2
+        M-->>IP: Transition + optional SetEditorError effect
+        IP->>EE: apply SetEditorError if emitted
         IP->>IP: state.set machineState.snapshot
+        IP-->>CV: state/fullGraph/currentFormat signals emit
+        CV->>CV: recompute visibleGraph visibleDOT svgWithPositions finalSVG
+        CV->>CV: mount or update rendered SVG
     end
 
     alt Graph edit path from canvas UI
@@ -127,13 +136,26 @@ sequenceDiagram
         IP->>M: reduce UiEvent.GraphEdited
         M-->>IP: Transition no parse effect
         IP->>IP: state.set machineState.snapshot
+        IP-->>CV: state/fullGraph/currentFormat signals emit
+        CV->>CV: recompute visibleGraph visibleDOT svgWithPositions finalSVG
+        CV->>CV: mount or update rendered SVG
     end
 
     alt Format change path from UI
         UI->>IP: formatSelection.set Mermaid
         IP->>M: reduce UiEvent.FormatChanged
         M-->>IP: Transition + Effect StartParse requestN
-        IP->>B: textToGraph requestN
+        IP->>Q: enqueue requestN
+        Q->>B: textToGraph requestN
+        B-->>Q: future completed for requestN
+        Q-->>IP: parse callback requestN
+        IP->>M: reduce ParseEvent.ParseSucceeded or ParseFailed requestN
+        M-->>IP: Transition + optional SetEditorError effect
+        IP->>EE: apply SetEditorError if emitted
+        IP->>IP: state.set machineState.snapshot
+        IP-->>CV: state/fullGraph/currentFormat signals emit
+        CV->>CV: recompute visibleGraph visibleDOT svgWithPositions finalSVG
+        CV->>CV: mount or update rendered SVG
     end
 ```
 
