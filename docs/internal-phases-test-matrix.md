@@ -15,7 +15,7 @@ Last updated: 2026-02-19
 | INV-05 | Graph edit serializes text and clears in-flight parse at machine level | `InternalPhasesMachineSpec` `graph edit updates text via serializer and clears in-flight parse` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala:92`) | pass | Pure reducer-level |
 | INV-06 | Graph edit uses injected serializer at orchestrator boundary | `InternalPhasesPhaseSpec` `graph updates use injected serializer for current format` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:163`) | pass | Verified in latest three-suite run |
 | INV-07 | Format switch reparses current text using selected backend | `InternalPhasesPhaseSpec` `format switch reparses current text using selected backend` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:137`) | pass | Verified in latest three-suite run |
-| INV-08 | Baseline end-to-end internal phases behavior remains stable | `InternalPhasesSpec` sanity and DOT roundtrip checks (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesSpec.scala:23`) | pass | Re-verified after fold-only UI dispatch, explicit ports, and direct-write callsite migration in latest three-suite run |
+| INV-08 | Baseline end-to-end internal phases behavior remains stable | `InternalPhasesSpec` sanity and DOT roundtrip checks (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesSpec.scala:23`) | pass | Re-verified after fold-only UI dispatch, explicit ports, direct-write callsite migration, and compatibility write-path migration |
 | INV-09 | `step` delegates UI machine input semantics to existing UI reducer | `InternalPhasesMachineSpec` `step delegates ui events to reduce` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala:68`) | pass | Added in PH1-T1 |
 | INV-10 | `step` ignores parse input when machine is idle | `InternalPhasesMachineSpec` `step ignores parse events while idle` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesMachineSpec.scala:90`) | pass | Added in PH1-T1 |
 | INV-11 | Single source edit emits one parse request through folded orchestrator path | `InternalPhasesPhaseSpec` `single source edit schedules one parse request through fold` (`viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala:86`) | pass | Added in PH2-T4 to guard against double-reduce regressions |
@@ -23,11 +23,10 @@ Last updated: 2026-02-19
 ## Last Verification Commands
 
 ```bash
-sbt test
-npm run build
+sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec org.jpablo.graphexplorer.viewer.state.ViewerStateSpec"
 ```
 
 Result summary:
 
-- `sbt test`: passed (all suites green, including `FromViewerGraphSpec` after expectation update to `flowchart TB`)
-- `npm run build`: passed
+- Targeted InternalPhases + ViewerState suites: passed (`23` tests, `0` failed)
+- This run validates compatibility write-path migration in `ViewerState` without changing public attribute-edit callsites

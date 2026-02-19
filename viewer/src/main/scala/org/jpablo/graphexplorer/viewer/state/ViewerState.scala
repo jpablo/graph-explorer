@@ -15,7 +15,6 @@ import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
-import org.jpablo.graphexplorer.zoomLens
 import org.scalajs.dom
 import org.scalajs.dom.svg.SVG
 
@@ -237,7 +236,9 @@ case class ViewerState(
   // --- top level attributes ---
 
   def graphType: Var[GraphType] =
-    phases.fullGraphV.zoomLazy(_.tpe)((g, tpe) => g.copy(tpe = tpe))
+    phases.fullGraphV.zoomLazy(_.tpe): (_: ViewerGraph, tpe: GraphType) =>
+      phases.updateFullGraph(_.copy(tpe = tpe))
+      fullGraphNow()
 
   def graphLayout: Signal[Layout] =
     graphAttributes.map(_.getAs(Layout))
@@ -253,10 +254,15 @@ case class ViewerState(
       AttributeUpdates.of(Label -> TextUtils.escape(label))
 
   def diagramAttributesUpdates: Var[AttributeUpdates] =
-    phases.fullGraphV.zoomLens(AttributesOps.diagramAttributesUpdates)
+    phases.fullGraphV.zoomLazy(AttributesOps.diagramAttributesUpdates.get): (_: ViewerGraph, updates: AttributeUpdates) =>
+      phases.updateFullGraph(graph => AttributesOps.diagramAttributesUpdates.update(graph, updates))
+      fullGraphNow()
 
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
-    phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
+    val lens = AttributesOps.elementAttributesUpdates(elementIds)
+    phases.fullGraphV.zoomLazy(lens.get): (_: ViewerGraph, updates: AttributeUpdates) =>
+      phases.updateFullGraph(graph => lens.update(graph, updates))
+      fullGraphNow()
 
   // Theme management
   lazy val currentTheme: Var[Option[String]] = Var(None)

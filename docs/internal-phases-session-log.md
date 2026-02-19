@@ -202,3 +202,27 @@ Evidence:
 Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: Optional follow-up: migrate lens-based compatibility writes`
+
+## 2026-02-19 (PH2-T7 optional follow-up: compatibility write-path migration)
+
+Summary:
+
+- Migrated remaining `ViewerState` compatibility var writes off `zoomLens` and onto explicit `updateFullGraph` ports.
+- Kept public `Var` APIs (`graphType`, `diagramAttributesUpdates`, `elementAttributesUpdates`) intact for callsite compatibility.
+- Re-ran InternalPhases baseline suites plus `ViewerStateSpec` to verify no behavior regressions.
+
+Evidence:
+
+- Code change:
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala`
+- Command:
+  - `sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec org.jpablo.graphexplorer.viewer.state.ViewerStateSpec"`
+- Result:
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed.
+  - `InternalPhasesSpec` passed.
+  - `ViewerStateSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: No pending InternalPhases refactor tasks (track complete as of PH2-T7)`
