@@ -23,10 +23,12 @@ Last updated: 2026-02-19
 ## Last Verification Commands
 
 ```bash
-sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec org.jpablo.graphexplorer.viewer.state.ViewerStateSpec"
+sbt test
+npm run build
 ```
 
 Result summary:
 
-- Targeted InternalPhases + ViewerState suites: passed (`23` tests, `0` failed)
-- This run validates compatibility write-path migration in `ViewerState` without changing public attribute-edit callsites
+- `sbt test`: passed
+- `npm run build`: passed
+- Re-validation executed after PH2-T7 migration commit (`126ef9eb`)
