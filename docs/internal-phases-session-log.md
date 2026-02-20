@@ -227,6 +227,29 @@ Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: No pending InternalPhases refactor tasks (track complete as of PH2-T7)`
 
+## 2026-02-19 (PH2-T7 readability follow-up)
+
+Summary:
+
+- Extracted `zoomViaFullGraphUpdate` helper in `ViewerState` to reduce duplication in compatibility vars.
+- Kept write semantics unchanged: all compatibility writes still route through `phases.updateFullGraph`.
+
+Evidence:
+
+- Code change:
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala`
+- Command:
+  - `sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.ViewerStateSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"`
+- Result:
+  - `ViewerStateSpec` passed.
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed.
+  - `InternalPhasesSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: No pending InternalPhases refactor tasks (track complete as of PH2-T7)`
+
 ## 2026-02-19 (PH2-T7 post-merge closeout revalidation)
 
 Summary:

@@ -23,12 +23,10 @@ Last updated: 2026-02-19
 ## Last Verification Commands
 
 ```bash
-sbt test
-npm run build
+sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.ViewerStateSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"
 ```
 
 Result summary:
 
-- `sbt test`: passed
-- `npm run build`: passed
-- Re-validation executed after PH2-T7 migration commit (`126ef9eb`)
+- Targeted InternalPhases + ViewerState suites: passed (`23` tests, `0` failed)
+- Run performed after extracting `zoomViaFullGraphUpdate` helper in `ViewerState` (readability-only, same explicit write boundary)

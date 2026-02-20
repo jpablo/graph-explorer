@@ -233,12 +233,18 @@ case class ViewerState(
   // For changes that don't impact the layout we can update the SVG directly
   // instead of re-rendering the whole diagram
 
+  private def zoomViaFullGraphUpdate[A](
+      get: ViewerGraph => A,
+      set: (ViewerGraph, A) => ViewerGraph
+  ): Var[A] =
+    phases.fullGraphV.zoomLazy(get): (_: ViewerGraph, value: A) =>
+      phases.updateFullGraph(graph => set(graph, value))
+      fullGraphNow()
+
   // --- top level attributes ---
 
   def graphType: Var[GraphType] =
-    phases.fullGraphV.zoomLazy(_.tpe): (_: ViewerGraph, tpe: GraphType) =>
-      phases.updateFullGraph(_.copy(tpe = tpe))
-      fullGraphNow()
+    zoomViaFullGraphUpdate(_.tpe, (graph, tpe) => graph.copy(tpe = tpe))
 
   def graphLayout: Signal[Layout] =
     graphAttributes.map(_.getAs(Layout))
@@ -254,15 +260,14 @@ case class ViewerState(
       AttributeUpdates.of(Label -> TextUtils.escape(label))
 
   def diagramAttributesUpdates: Var[AttributeUpdates] =
-    phases.fullGraphV.zoomLazy(AttributesOps.diagramAttributesUpdates.get): (_: ViewerGraph, updates: AttributeUpdates) =>
-      phases.updateFullGraph(graph => AttributesOps.diagramAttributesUpdates.update(graph, updates))
-      fullGraphNow()
+    zoomViaFullGraphUpdate(
+      AttributesOps.diagramAttributesUpdates.get,
+      AttributesOps.diagramAttributesUpdates.update
+    )
 
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
     val lens = AttributesOps.elementAttributesUpdates(elementIds)
-    phases.fullGraphV.zoomLazy(lens.get): (_: ViewerGraph, updates: AttributeUpdates) =>
-      phases.updateFullGraph(graph => lens.update(graph, updates))
-      fullGraphNow()
+    zoomViaFullGraphUpdate(lens.get, lens.update)
 
   // Theme management
   lazy val currentTheme: Var[Option[String]] = Var(None)
