@@ -133,17 +133,3 @@ object AttributesOps:
       case Some(v) if v.toString == FillColor.none => attrs + (FillStyle.attrId -> AttrValue(false.toString))
       case Some(_)                                 => attrs + (FillStyle.attrId -> AttrValue(true.toString))
       case None                                    => attrs
-
-  /** Lens for accessing and updating the main graph attributes */
-  def diagramAttributesUpdates: Lens[ViewerGraph, AttributeUpdates] =
-    Lens(
-      get = graph => graph.elements.graphAttributes.toUpdates,
-      update = (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyTo)
-    )
-
-  /** Bundle functions for updating attributes of specific elements */
-  def elementAttributesUpdates(elementIds: ElementIds): Lens[ViewerGraph, AttributeUpdates] =
-    Lens(
-      get = graph => graph.getAttributesUpdatesById(elementIds),
-      update = (graph, updates) => graph.updateAttributes(elementIds, updates)
-    )

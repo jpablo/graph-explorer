@@ -227,6 +227,33 @@ Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: No pending InternalPhases refactor tasks (track complete as of PH2-T7)`
 
+## 2026-02-19 (PH2-T7 cleanup: remove remaining AttributesOps lens helpers)
+
+Summary:
+
+- Removed `AttributesOps.diagramAttributesUpdates` and `AttributesOps.elementAttributesUpdates`.
+- Inlined equivalent get/update functions at `ViewerState` callsites while keeping explicit `updateFullGraph` write boundary.
+- Updated `AttributesOpsSpec` to use `ViewerGraph.updateAttributes` directly instead of the removed helper.
+
+Evidence:
+
+- Code changes:
+  - `shared/src/main/scala/org/jpablo/graphexplorer/viewer/graph/AttributesOps.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala`
+  - `shared/src/test/scala/org/jpablo/graphexplorer/viewer/graph/AttributesOpsSpec.scala`
+- Command:
+  - `sbt "sharedJVM/testOnly org.jpablo.graphexplorer.viewer.graph.AttributesOpsSpec" "viewer/testOnly org.jpablo.graphexplorer.viewer.state.ViewerStateSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"`
+- Result:
+  - `AttributesOpsSpec` passed.
+  - `ViewerStateSpec` passed.
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed.
+  - `InternalPhasesSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: No pending InternalPhases refactor tasks (track complete as of PH2-T7)`
+
 ## 2026-02-19 (PH2-T7 readability follow-up)
 
 Summary:

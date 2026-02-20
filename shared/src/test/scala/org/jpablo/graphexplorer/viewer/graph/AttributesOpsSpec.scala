@@ -128,8 +128,7 @@ class AttributesOpsSpec extends FunSuite:
       .addNodeWithId(a)
 
     // update node a
-    val updateAttributes = AttributesOps.elementAttributesUpdates(ElementIds.from(a)).update
-    val graph1 = updateAttributes(graph0, AttributeUpdates.of(CornerStyle -> CornerStyle.rounded, BorderStyle -> BorderStyle.dashed))
+    val graph1 = graph0.updateAttributes(ElementIds.from(a), AttributeUpdates.of(CornerStyle -> CornerStyle.rounded, BorderStyle -> BorderStyle.dashed))
 
     import upickle.default.*
     pprint.log(write(graph0.elements, indent = 2))

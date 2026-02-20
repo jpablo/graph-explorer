@@ -23,10 +23,11 @@ Last updated: 2026-02-19
 ## Last Verification Commands
 
 ```bash
-sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.ViewerStateSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"
+sbt "sharedJVM/testOnly org.jpablo.graphexplorer.viewer.graph.AttributesOpsSpec" "viewer/testOnly org.jpablo.graphexplorer.viewer.state.ViewerStateSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"
 ```
 
 Result summary:
 
-- Targeted InternalPhases + ViewerState suites: passed (`23` tests, `0` failed)
-- Run performed after extracting `zoomViaFullGraphUpdate` helper in `ViewerState` (readability-only, same explicit write boundary)
+- `AttributesOpsSpec`: passed (`8` tests)
+- InternalPhases + ViewerState targeted suites: passed (`23` tests)
+- Run performed after inlining get/update functions and removing `AttributesOps.diagramAttributesUpdates` + `AttributesOps.elementAttributesUpdates`

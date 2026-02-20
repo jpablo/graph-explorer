@@ -10,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph}
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
@@ -261,13 +261,15 @@ case class ViewerState(
 
   def diagramAttributesUpdates: Var[AttributeUpdates] =
     zoomViaFullGraphUpdate(
-      AttributesOps.diagramAttributesUpdates.get,
-      AttributesOps.diagramAttributesUpdates.update
+      _.elements.graphAttributes.toUpdates,
+      (graph, updates) => graph.modify(_.elements.graphAttributes).using(updates.applyTo)
     )
 
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
-    val lens = AttributesOps.elementAttributesUpdates(elementIds)
-    zoomViaFullGraphUpdate(lens.get, lens.update)
+    zoomViaFullGraphUpdate(
+      _.getAttributesUpdatesById(elementIds),
+      (graph, updates) => graph.updateAttributes(elementIds, updates)
+    )
 
   // Theme management
   lazy val currentTheme: Var[Option[String]] = Var(None)
