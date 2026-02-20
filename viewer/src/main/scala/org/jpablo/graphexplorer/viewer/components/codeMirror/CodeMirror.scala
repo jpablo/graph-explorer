@@ -28,7 +28,7 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
   def updateSource(update: ViewUpdate): Unit =
     if update.docChanged then
       val newText = update.state.doc.toString
-      if state.sourceText.now() != newText then
+      if state.sourceTextNow() != newText then
         textUpdates.emit(newText)
 
   div(
@@ -46,7 +46,7 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
       // Editor -> source
       val editorView = codemirror.EditorView(
         EditorViewConfig()
-          .setDoc(state.sourceText.now())
+          .setDoc(state.sourceTextNow())
           .setParent(ctx.thisNode.ref)
           .setExtensions(extensions)
       )
@@ -58,7 +58,7 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
         redo(Dispatch(editorView.dispatch, editorView.state))
 
       // Source -> editor
-      for newSource <- state.sourceText.signal.distinct do
+      for newSource <- state.sourceTextS.distinct do
         val existingSource = editorView.state.doc.toString
         if newSource != existingSource then
           editorView.dispatch(

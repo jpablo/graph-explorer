@@ -397,7 +397,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
            |    "a" [label="A", other="value"];
            |}""".stripMargin
 
-      phases.sourceText.set(newSource)
+      phases.sourceTextWriter.onNext(newSource)
 
       afterMicrotasks {
         val graph = phases.fullGraphV.now()
@@ -429,7 +429,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       val viewerState = ViewerState(ProjectId("test"), graphviz, _ => ())
 
       // Initial state check - text is set synchronously
-      assertEquals(viewerState.sourceText.now(), PersistedDiagramState.minimalGraphText)
+      assertEquals(viewerState.sourceTextNow(), PersistedDiagramState.minimalGraphText)
 
       afterMicrotasks {
         val fullGraph = viewerState.fullGraphNow()
@@ -452,6 +452,6 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |  "$nodeId" [label=""];
              |}""".stripMargin
 
-        assertEquals(viewerState.sourceText.now(), expectedSource, "Source text should be updated to reflect the new node")
+        assertEquals(viewerState.sourceTextNow(), expectedSource, "Source text should be updated to reflect the new node")
       }
     }

@@ -37,7 +37,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
           |  ];
           |}""".stripMargin
 
-      phases.sourceText.set(dotWithLeadingNewline)
+      phases.sourceTextWriter.onNext(dotWithLeadingNewline)
 
       afterMicrotasks {
         val graph = phases.fullGraphV.now()
@@ -65,7 +65,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
           |  "a" [label="normal\nlabel"];
           |}""".stripMargin
 
-      phases.sourceText.set(normalDot)
+      phases.sourceTextWriter.onNext(normalDot)
 
       afterMicrotasks {
         val graph = phases.fullGraphV.now()
@@ -89,7 +89,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
           |  "a" [label="\n\n\ntest"];
           |}""".stripMargin
 
-      phases.sourceText.set(multipleNewlines)
+      phases.sourceTextWriter.onNext(multipleNewlines)
 
       afterMicrotasks {
         val graph = phases.fullGraphV.now()

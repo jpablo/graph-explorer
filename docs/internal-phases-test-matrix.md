@@ -2,7 +2,7 @@
 
 Purpose: map invariants to concrete tests and current verification status.
 
-Last updated: 2026-02-19
+Last updated: 2026-02-20
 
 ## Invariant Coverage
 
@@ -23,11 +23,10 @@ Last updated: 2026-02-19
 ## Last Verification Commands
 
 ```bash
-sbt "sharedJVM/testOnly org.jpablo.graphexplorer.viewer.graph.AttributesOpsSpec" "viewer/testOnly org.jpablo.graphexplorer.viewer.state.ViewerStateSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec"
+sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec org.jpablo.graphexplorer.viewer.state.SanitizationTest org.jpablo.graphexplorer.viewer.state.ViewerStateSpec"
 ```
 
 Result summary:
 
-- `AttributesOpsSpec`: passed (`8` tests)
-- InternalPhases + ViewerState targeted suites: passed (`23` tests)
-- Run performed after inlining get/update functions and removing `AttributesOps.diagramAttributesUpdates` + `AttributesOps.elementAttributesUpdates`
+- InternalPhases + ViewerState targeted suites: passed (`26` tests, `0` failed)
+- Run performed after removing `sourceText: Var` compatibility and migrating callsites/tests to `sourceTextS` + `sourceTextWriter`

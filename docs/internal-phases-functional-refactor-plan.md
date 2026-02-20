@@ -11,8 +11,9 @@
 - Phase 2 optional hardening: complete.
   - explicit read/write ports added (`sourceTextS` / `sourceTextWriter`, `fullGraphS` / `fullGraphWriter`).
   - direct internal write callsites migrated to explicit writer/update ports (`sourceTextWriter`, `updateFullGraph`).
+  - compatibility `sourceText` var removed; runtime callsites now consume explicit text read/write ports.
   - remaining compatibility var writes in `ViewerState` now route through explicit `updateFullGraph` port (no `zoomLens` write path).
-  - compatibility `Var` APIs retained (`sourceText`, `fullGraphV`).
+  - compatibility `Var` API retained only for `fullGraphV`.
   - closeout validation completed: `sbt test` and `npm run build` are green.
 
 ## Problem (Original)

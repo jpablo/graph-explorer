@@ -67,7 +67,8 @@ case class ViewerState(
     logLevel = logLevel
   )
 
-  val sourceText      = phases.sourceText
+  val sourceTextS      = phases.sourceTextS
+  def sourceTextNow()  = phases.sourceTextNow()
   val sourceTextWriter = phases.sourceTextWriter
   val fullGraph       = phases.fullGraph
   def fullGraphNow()  = phases.fullGraph.observe.now()
@@ -99,7 +100,7 @@ case class ViewerState(
 
   // 5. Render visible content to SVG with position data
   // For DOT: visibleDOT ~> SvgWithPositions (synchronous)
-  // For Mermaid: sourceText ~> SvgWithPositions (asynchronous)
+  // For Mermaid: sourceTextS ~> SvgWithPositions (asynchronous)
   private val svgWithPositions: Signal[Option[SvgWithPositions]] =
     phases.currentFormat.flatMapSwitch:
       case DiagramFormat.DOT =>
@@ -108,7 +109,7 @@ case class ViewerState(
       case DiagramFormat.Mermaid =>
         // Mermaid is async - use Signal.fromFuture
         // Validate text before rendering to prevent sending DOT text to Mermaid
-        sourceText.signal.flatMapSwitch: mermaidText =>
+        sourceTextS.flatMapSwitch: mermaidText =>
           if mermaidText.trim.isEmpty then
             Signal.fromValue(None)
           else if DiagramFormat.detect(mermaidText) != DiagramFormat.Mermaid then

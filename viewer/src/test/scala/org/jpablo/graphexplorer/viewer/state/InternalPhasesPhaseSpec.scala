@@ -67,10 +67,10 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
       val (_, initialPromise) = dotBackend.popRequest()
       initialPromise.success(ViewerGraph.minimalWithDirected)
 
-      phases.sourceText.set("""digraph "G" { broken }""")
+      phases.sourceTextWriter.onNext("""digraph "G" { broken }""")
       val (_, stalePromise) = dotBackend.popRequest()
 
-      phases.sourceText.set("""digraph "G" { "a"; }""")
+      phases.sourceTextWriter.onNext("""digraph "G" { "a"; }""")
       val (_, currentPromise) = dotBackend.popRequest()
 
       currentPromise.success(graphWithOneNode)
@@ -78,7 +78,7 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
 
       afterMicrotasks {
         assertEquals(editorError.now(), None)
-        assertEquals(phases.sourceText.now(), """digraph "G" { "a"; }""")
+        assertEquals(phases.sourceTextNow(), """digraph "G" { "a"; }""")
         assertEquals(phases.fullGraphV.now().nodes.size, 1)
       }
     }
@@ -96,7 +96,7 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
       val (_, initialPromise) = dotBackend.popRequest()
       initialPromise.success(ViewerGraph.minimalWithDirected)
 
-      phases.sourceText.set("""digraph "G" { "a"; }""")
+      phases.sourceTextWriter.onNext("""digraph "G" { "a"; }""")
       assertEquals(dotBackend.pendingCount, 1)
 
       val (_, parsePromise) = dotBackend.popRequest()
@@ -124,7 +124,7 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
       val (_, initialPromise) = dotBackend.popRequest()
       initialPromise.success(ViewerGraph.minimalWithDirected)
 
-      phases.sourceText.set("""digraph "G" { still broken }""")
+      phases.sourceTextWriter.onNext("""digraph "G" { still broken }""")
       val (_, failingPromise) = dotBackend.popRequest()
       failingPromise.failure(new RuntimeException("boom"))
 
@@ -177,6 +177,6 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
       phases.fullGraphV.set(graphWithOneNode)
 
       afterMicrotasks {
-        assertEquals(phases.sourceText.now(), "SERIALIZED:DOT:1")
+        assertEquals(phases.sourceTextNow(), "SERIALIZED:DOT:1")
       }
     }

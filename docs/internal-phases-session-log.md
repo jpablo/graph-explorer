@@ -227,6 +227,40 @@ Resume pointer:
 
 - `docs/internal-phases-progress.md` -> `Resume from: No pending InternalPhases refactor tasks (track complete as of PH2-T7)`
 
+## 2026-02-20 (PH2-T8 cleanup: remove `sourceText` compatibility var)
+
+Summary:
+
+- Removed `sourceText: Var[String]` compatibility adapter from `InternalPhases`.
+- Migrated runtime callsites to explicit ports:
+  - reads via `sourceTextS` / `sourceTextNow()`
+  - writes via `sourceTextWriter`
+- Updated phase/viewer/sanitization tests to use the explicit text ports.
+
+Evidence:
+
+- Code changes:
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/components/codeMirror/CodeMirror.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/components/Commands.scala`
+  - `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/Persistence.scala`
+  - `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesPhaseSpec.scala`
+  - `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/InternalPhasesSpec.scala`
+  - `viewer/src/test/scala/org/jpablo/graphexplorer/viewer/state/SanitizationTest.scala`
+- Command:
+  - `sbt "viewer/testOnly org.jpablo.graphexplorer.viewer.state.InternalPhasesMachineSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesPhaseSpec org.jpablo.graphexplorer.viewer.state.InternalPhasesSpec org.jpablo.graphexplorer.viewer.state.SanitizationTest org.jpablo.graphexplorer.viewer.state.ViewerStateSpec"`
+- Result:
+  - `InternalPhasesMachineSpec` passed.
+  - `InternalPhasesPhaseSpec` passed.
+  - `InternalPhasesSpec` passed.
+  - `SanitizationTest` passed.
+  - `ViewerStateSpec` passed.
+
+Resume pointer:
+
+- `docs/internal-phases-progress.md` -> `Resume from: No pending InternalPhases refactor tasks (track complete as of PH2-T7)`
+
 ## 2026-02-19 (PH2-T7 cleanup: remove remaining AttributesOps lens helpers)
 
 Summary:

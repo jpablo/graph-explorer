@@ -43,7 +43,7 @@ trait Persistence:
   private def setupStateSynchronization(): Unit =
     // synchronize ViewerState ~> PersistedState
     Signal
-      .combine(project.hiddenElements.signal, project.name.signal, sourceText.signal, formatSelection.signal)
+      .combine(project.hiddenElements.signal, project.name.signal, sourceTextS, formatSelection.signal)
       .changes
       .distinct
       .foreach: (hidden, name, source, format) =>

@@ -384,7 +384,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val copyShareURL = Command(
       "Share URL",
       () => {
-        val dot  = state.sourceText.now()
+        val dot  = state.sourceTextNow()
         val url  = org.jpablo.graphexplorer.viewer.utils.ShareUrl.buildForProject(state.projectId, dot)
         state.writeText(url)
         dom.console.info("Share URL copied to clipboard", url)

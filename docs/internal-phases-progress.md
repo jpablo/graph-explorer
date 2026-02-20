@@ -1,6 +1,6 @@
 # InternalPhases Refactor Progress
 
-Last updated: 2026-02-19
+Last updated: 2026-02-20
 
 Current track: Phase 2 (`optional hardening`) complete
 
@@ -33,6 +33,7 @@ Resume from: `No pending InternalPhases refactor tasks (track complete as of PH2
 | PH2-T5 | Migrate direct internal write callsites to explicit writer/update ports | done | UI text writes use `sourceTextWriter` and direct graph updates use explicit `updateFullGraph` API | `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/components/codeMirror/CodeMirror.scala:43`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/components/Toolbar.scala:221`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:159`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala:174`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/DiagramSelectionOps.scala:133`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/VisibilityOps.scala:71` | local run 2026-02-19 | Complex lens-based callsites (`zoomLazy`/`zoomLens`) intentionally kept on compatibility var for now |
 | PH2-T6 | Broader closeout validation (`sbt test`, `npm run build`) | done | Full repo tests/build green after functional-boundary migration | `build.sbt`, `package.json` | local run 2026-02-19 | `sbt test` and `npm run build` both pass; re-validated after PH2-T7 on commit `126ef9eb` |
 | PH2-T7 | Migrate remaining compatibility var writes off `zoomLens` onto explicit graph update port | done | `graphType`, `diagramAttributesUpdates`, and `elementAttributesUpdates` writes dispatch through `updateFullGraph` | `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala:247`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala:262`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala:268` | local run 2026-02-19 | Compatibility var API retained; removed `zoomLens` usage in `ViewerState` while preserving callsites. Follow-up cleanup extracted `zoomViaFullGraphUpdate` and removed `AttributesOps.diagramAttributesUpdates` / `AttributesOps.elementAttributesUpdates` by inlining get/update functions at callsites. |
+| PH2-T8 | Remove `sourceText` compatibility `Var` and migrate callsites to explicit text ports | done | No runtime/test callsites depend on `sourceText: Var`; reads use `sourceTextS` / `sourceTextNow()`, writes use `sourceTextWriter` | `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/InternalPhases.scala:138`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/ViewerState.scala:70`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/components/codeMirror/CodeMirror.scala:31`, `viewer/src/main/scala/org/jpablo/graphexplorer/viewer/state/Persistence.scala:46` | local run 2026-02-20 | Migrated InternalPhases/ViewerState/components/tests off compatibility text var while keeping explicit port architecture |
 
 ## Update Protocol (Session-Safe)
 

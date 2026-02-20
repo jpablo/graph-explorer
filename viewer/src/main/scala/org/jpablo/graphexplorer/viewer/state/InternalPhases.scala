@@ -138,6 +138,9 @@ class InternalPhases(
   val sourceTextS: Signal[String] =
     state.signal.map(_.text).distinct
 
+  def sourceTextNow(): String =
+    state.now().text
+
   val sourceTextWriter: Observer[String] = Observer[String]: newText =>
     dispatchUiEvent(
       InternalPhasesMachine.UiEvent.SourceEdited(
@@ -159,21 +162,6 @@ class InternalPhases(
 
   def updateFullGraph(f: ViewerGraph => ViewerGraph): Unit =
     setFullGraph(f(state.now().viewerGraph))
-
-  // Public interface: sourceText as a Var that delegates to the unified state
-  val sourceText: Var[String] =
-    state.zoomLazy((currentState: GraphState) =>
-      withLog("1b. [sourceText <- GraphState]", level = logLevel) {
-        // GraphState is the source of truth; update unconditionally
-        // Used to update CodeMirror.
-        currentState.text
-      }
-    )((_: GraphState, newText: String) =>
-      withLog("1a. [sourceText -> GraphState]", level = logLevel) {
-        sourceTextWriter.onNext(newText)
-        state.now()
-      }
-    ).distinct // TODO: consider using distinctByRef
 
   // Public interface: fullGraphV as a Var that delegates to the unified state
   val fullGraphV: Var[ViewerGraph] =
