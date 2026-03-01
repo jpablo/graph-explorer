@@ -6,12 +6,12 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{Arro
 import org.jpablo.graphexplorer.viewer.components.selection.MermaidSelectionStrategy
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.Arrow
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.scalajs.js
 import org.scalajs.dom
 import java.util.concurrent.atomic.AtomicInteger
+import scala.util.Try
 
 /** DiagramBackend implementation for Mermaid diagrams.
   *
@@ -24,21 +24,23 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
   override def format: DiagramFormat = DiagramFormat.Mermaid
 
   override def textToGraph(text: String): Future[ViewerGraph] =
-    parseMermaid(text).map(toViewerGraph)
-
-  override def textToSvg(text: String): Future[SvgWithPositions] =
-    val renderId = MermaidBackend.nextRenderId()
-    dom.console.info(s"[mermaid] textToSvg start id=$renderId len=${text.length}")
-    renderMermaid(renderId, text).map { svgString =>
-      val svg = parseSVG(svgString)
-      val edgePositions = extractEdgePositions(svg.ref)
-      dom.console.info(s"[mermaid] textToSvg complete id=$renderId edges=${edgePositions.size}")
-      SvgWithPositions(svg, edgePositions)
+    MermaidBackend.enqueue {
+      parseMermaid(text).map(toViewerGraph)
     }
 
-  /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future.
-    * Falls back to SVG-based parsing if getDiagramFromText fails (e.g., during HMR).
-    */
+  override def textToSvg(text: String): Future[SvgWithPositions] =
+    MermaidBackend.enqueue {
+      val renderId = MermaidBackend.nextRenderId()
+      dom.console.info(s"[mermaid] textToSvg start id=$renderId len=${text.length}")
+      renderMermaid(renderId, text).map { svgString =>
+        val svg = parseSVG(svgString)
+        val edgePositions = extractEdgePositions(svg.ref)
+        dom.console.info(s"[mermaid] textToSvg complete id=$renderId edges=${edgePositions.size}")
+        SvgWithPositions(svg, edgePositions)
+      }
+    }
+
+  /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future. */
   private def parseMermaid(text: String): Future[MermaidGraph] =
     val promise = Promise[MermaidGraph]()
     var completed = false
@@ -80,94 +82,12 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         },
         { (error: Any) =>
           completed = true
-          val errorStr = error.toString
-          // If we get "already registered" error (HMR issue), try fallback via render
-          if errorStr.contains("already registered") then
-            dom.console.info("[mermaid] getDiagramFromText failed with registration error, trying render fallback")
-            parseMermaidViaSvg(text).onComplete {
-              case scala.util.Success(graph) => promise.success(graph)
-              case scala.util.Failure(e)     => promise.failure(e)
-            }
-          else
-            promise.failure(new Exception(s"Mermaid parsing failed: $error"))
+          promise.failure(new Exception(s"Mermaid parsing failed: $error"))
           ()
         }
       )
 
     promise.future
-
-  /** Parse title and direction from Mermaid source text.
-    * Extracts from YAML front matter (---\ntitle: X\n---) and flowchart declaration.
-    * Note: Uses JavaScript-compatible regex (no (?s) or (?m) flags).
-    */
-  private def parseMermaidMetadata(text: String): (Option[String], Option[String]) =
-    // Extract title from YAML front matter (use [\s\S] instead of . with (?s) flag)
-    val titlePattern = """---\s*\n[\s\S]*?title:\s*(.+?)\s*\n[\s\S]*?---""".r
-    val title = titlePattern.findFirstMatchIn(text).map(_.group(1).trim)
-
-    // Extract direction from flowchart/graph declaration (match after newline or start)
-    val directionPattern = """(?:^|\n)(?:flowchart|graph)\s+(TB|BT|LR|RL|TD)""".r
-    val direction = directionPattern.findFirstMatchIn(text).map(_.group(1))
-
-    (title, direction)
-
-  /** Fallback: render to SVG and parse the SVG to extract graph structure.
-    * Less accurate but works around HMR diagram registration issues.
-    */
-  private def parseMermaidViaSvg(text: String): Future[MermaidGraph] =
-    val renderId = MermaidBackend.nextRenderId()
-    val (title, direction) = parseMermaidMetadata(text)
-    renderMermaid(renderId, text).map { svgString =>
-      val svg = parseSVG(svgString)
-      extractGraphFromSvg(svg.ref, title, direction)
-    }
-
-  /** Extract graph structure from rendered SVG. */
-  private def extractGraphFromSvg(
-      svg: dom.svg.SVG,
-      title: Option[String] = None,
-      direction: Option[String] = None
-  ): MermaidGraph =
-    import MermaidSelectionStrategy.*
-
-    // Extract nodes
-    val nodeElements = svg.querySelectorAll(nodeSelector)
-    val vertices: Map[String, MermaidVertex] = (0 until nodeElements.length).map { i =>
-      val elem = nodeElements.item(i).asInstanceOf[dom.Element]
-      val nodeId = extractNodeId(elem)
-      val labelElem = elem.querySelector("span.nodeLabel, foreignObject span, text")
-      val label = Option(labelElem).map(_.textContent).getOrElse(nodeId.value)
-      nodeId.value -> MermaidVertex(
-        id = nodeId.value,
-        text = label,
-        labelType = None,
-        domId = Some(elem.id),
-        styles = Nil,
-        classes = Nil,
-        shape = None
-      )
-    }.toMap
-
-    // Extract edges from arrow IDs (format: "source->target/seq" or "source--target/seq")
-    // Use Arrow.fromArrowId to properly parse the ArrowId format and extract source/target
-    val edgeElements = svg.querySelectorAll(edgeSelector)
-    val edges: List[MermaidEdge] = (0 until edgeElements.length).flatMap { i =>
-      val elem = edgeElements.item(i).asInstanceOf[dom.Element]
-      val arrowId = extractArrowId(elem)
-      Arrow.fromArrowId(arrowId).map { arrow =>
-        MermaidEdge(
-          start = arrow.source.value,
-          end = arrow.target.value,
-          edgeType = None,
-          text = None,
-          labelType = None,
-          stroke = None
-        )
-      }
-    }.toList
-
-    dom.console.info(s"[mermaid] SVG fallback parsed vertices=${vertices.size} edges=${edges.size} title=${title.getOrElse("")}")
-    MermaidGraph(vertices, edges, subgraphs = Nil, direction = direction, title = title)
 
   /** Render Mermaid text to SVG asynchronously.
     */
@@ -258,6 +178,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
 object MermaidBackend:
   private val renderCounter = new AtomicInteger(0)
+  private var operationChain: Future[Unit] = Future.successful(())
 
   // Check initialization flag from window object to survive HMR
   private val windowDyn = dom.window.asInstanceOf[js.Dynamic]
@@ -283,6 +204,14 @@ object MermaidBackend:
       )
       setInitialized()
       dom.console.info("[mermaid] Mermaid.js initialized")
+
+  /** Serialize Mermaid operations so parse/render don't race during lazy diagram registration. */
+  private def enqueue[A](op: => Future[A])(using ExecutionContext): Future[A] = synchronized {
+    val previous = operationChain.recover { case _ => () }
+    val next = previous.flatMap(_ => Try(op).fold(Future.failed, identity))
+    operationChain = next.map(_ => ()).recover { case _ => () }
+    next
+  }
 
   def nextRenderId(): String =
     val id = renderCounter.incrementAndGet()
