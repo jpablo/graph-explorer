@@ -73,6 +73,24 @@ For Mermaid nodes, conversion currently stores raw CSS in `Style` and class name
 Relevant code:
 - `shared/src/main/scala/org/jpablo/graphexplorer/viewer/backends/mermaid/ToViewerGraph.scala`
 
+## Mermaid Flattening API Investigation
+
+Question explored:
+- Does Mermaid already expose a Graphviz-like flatten API that returns effective per-element styles?
+
+Finding:
+- In the version used by this repo (`mermaid@10.9.5`), Mermaid does not expose a public flatten/normalize API for effective styles.
+- Public API surface is parse/render oriented (`parse`, `render`, `getDiagramFromText`, config helpers).
+- Flowchart DB surfaces layered inputs (`getVertices`, `getEdges`, `getClasses`) where:
+  - node inline styles are stored as raw style arrays
+  - class assignments are stored separately on nodes
+  - class definitions are stored separately (`classes`)
+  - classDefs are rendered as CSS rules at render time
+
+Conclusion:
+- Mermaid leaves style composition to renderer/CSS application; it does not return a flat effective-style graph model.
+- GE must compute effective styles in the Mermaid import/read path if toolbar parity is required.
+
 ## Attribute Parity Gaps
 
 ### 1. Read-side parity gap (primary issue)

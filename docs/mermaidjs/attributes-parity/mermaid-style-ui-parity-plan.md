@@ -27,8 +27,8 @@ Make Mermaid diagrams first-class in the attributes toolbar:
 ## Tracking Snapshot
 
 Current track: `Phase 0`  
-Current focus: `MP0-T1`  
-Resume from: `MP0-T1 - design Mermaid style resolution model and precedence`
+Current focus: `MP0-T2`  
+Resume from: `MP0-T2 - extend Mermaid parsing to capture flattening inputs`
 
 ## Design Principle (confirmed)
 
@@ -38,11 +38,16 @@ Resume from: `MP0-T1 - design Mermaid style resolution model and precedence`
 - DOT already follows this policy; Mermaid parity will follow the same policy.
 - Higher-level semantics (for example, Mermaid `classDef`) are future semantic-layer candidates, not GE-core concerns today.
 
+## Confirmed Constraint
+
+- Mermaid (`10.9.5` in this repo) does not provide a public flatten/effective-style API comparable to the Graphviz simplegraph flattening flow.
+- Therefore, `MP0-T2` + `MP1-T1` must implement app-side style flattening from Mermaid layered inputs (`classDef`/class assignment/inline style).
+
 ## Task Board
 
 | ID | Task | Status | Dependencies | Acceptance Criteria | Evidence | Notes |
 |---|---|---|---|---|---|---|
-| MP0-T1 | Define Mermaid effective-style precedence and flattening rules | todo | none | Rules doc merged and reflected in implementation notes | pending | Include node/edge/group precedence and conflict resolution |
+| MP0-T1 | Define Mermaid effective-style precedence and flattening rules | done | none | Rules doc merged and reflected in implementation notes | `docs/mermaidjs/attributes-parity/mermaid-effective-style-rules.md` | Includes node/edge/group precedence and conflict resolution |
 | MP0-T2 | Extend Mermaid parsing to capture fields needed for flattening | todo | MP0-T1 | Parser exposes enough style/default/class data to compute effective styles | pending | Capture for computation; not as GE-core semantic model |
 | MP0-T3 | Add CSS declaration parser utility (`k:v` list -> normalized map) | todo | MP0-T1 | Utility handles whitespace, repeated keys, malformed fragments safely | pending | Shared utility with unit tests |
 | MP0-T4 | Add baseline tests for effective-style inputs | todo | MP0-T2, MP0-T3 | Tests cover inline style, class styles/text styles, default styles | pending | New `shared` mermaid tests |
@@ -111,6 +116,8 @@ Resume from: `MP0-T1 - design Mermaid style resolution model and precedence`
 |---|---|---|---|---|
 | 2026-03-01 | Created initial parity findings and this execution plan | MP0-T1 (planned) | Analysis-only; no code changes yet for parity implementation | MP0-T1 |
 | 2026-03-01 | Codified flatten-first policy (DOT-aligned) across findings/plan/mapping docs; clarified future semantic-layer direction | MP0-T1 (policy definition) | Docs review | MP0-T1 |
+| 2026-03-01 | Defined formal Mermaid effective-style precedence and flattening spec (`MP0-T1`) | MP0-T1 | Docs review | MP0-T2 |
+| 2026-03-01 | Verified Mermaid API surface lacks built-in flatten/effective-style export; documented as implementation constraint | MP0-T2 (clarification) | Local Mermaid API/code inspection | MP0-T2 |
 
 ## Open Questions
 
