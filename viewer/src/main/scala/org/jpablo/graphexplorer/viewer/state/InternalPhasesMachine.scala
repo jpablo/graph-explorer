@@ -6,6 +6,12 @@ import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
 
 object InternalPhasesMachine:
 
+  /** A snapshot of a parse request that has been dispatched to a backend but
+    * whose result has not yet arrived. The monotonic `id` lets the stale-parse
+    * guard (`isCurrentParse`) discard completions that no longer match the
+    * latest request, while `text`, `format`, and `origin` capture the exact
+    * inputs so the completion can be validated against the current state.
+    */
   final case class InFlightRequest private[InternalPhasesMachine] (
       id:     Long,
       text:   String,
