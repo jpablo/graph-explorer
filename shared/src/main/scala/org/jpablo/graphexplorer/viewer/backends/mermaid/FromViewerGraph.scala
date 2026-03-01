@@ -28,6 +28,14 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   val direction = graph.elements.graphAttributes.getAs(Rankdir).toString
   lines.append(s"flowchart $direction\n")
 
+  // Emit classDef lines from graph attributes
+  val classDefPrefix = "mermaid_classDef_"
+  graph.elements.graphAttributes.values.foreach { case (attrId, attrValue) =>
+    if attrId.value.startsWith(classDefPrefix) then
+      val className = attrId.value.stripPrefix(classDefPrefix)
+      lines.append(s"  classDef $className ${attrValue.toString}\n")
+  }
+
   // Get the root group ID to filter it out
   val rootGroupId = GroupId(ViewerGraphElements.defaultRootId.value)
 
@@ -74,22 +82,31 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
     lines.append(s"  $edgeLine\n")
   }
 
+  // Emit inline style directives for nodes with CSS in their Style attribute
+  graph.nodes.foreach { case (nodeId, node) =>
+    node.attributes.values.get(Style.attrId).map(_.toString).filter(_.contains(":")).foreach { css =>
+      lines.append(s"  style ${nodeId.value} $css\n")
+    }
+  }
+
   lines.toString
 
 /** Serialize a node with its shape and label. */
 private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
   val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
+  val classOpt = node.attributes.values.get(AttributeId("mermaid_class")).map(_.toString).filter(_.nonEmpty)
 
   val label = labelOpt.getOrElse(nodeId.value)
   val (openBracket, closeBracket) = shapeOpt.map(dotShapeToMermaid).getOrElse(("[", "]"))
+  val classSuffix = classOpt.map(c => s":::$c").getOrElse("")
 
   if shapeOpt.isEmpty && label == nodeId.value then
-    nodeId.value
+    s"${nodeId.value}$classSuffix"
   else
     // Escape label for Mermaid (quotes need special handling)
     val escapedLabel = escapeMermaidLabel(label)
-    s"${nodeId.value}$openBracket$escapedLabel$closeBracket"
+    s"${nodeId.value}$openBracket$escapedLabel$closeBracket$classSuffix"
 
 /** Serialize an edge with its style and label. */
 private def serializeEdge(arrow: Arrow): String =
@@ -133,8 +150,10 @@ private def shouldEmitStandaloneNode(nodeId: NodeId, node: ViewerNode, connected
   val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
   val hasExplicitLabel = labelOpt.exists(_ != nodeId.value)
   val hasShape = shapeOpt.nonEmpty
+  val hasClass = node.attributes.values.contains(AttributeId("mermaid_class"))
+  val hasCssStyle = node.attributes.values.get(Style.attrId).exists(_.toString.contains(":"))
 
-  !connectedNodeIds.contains(nodeId) || hasExplicitLabel || hasShape
+  !connectedNodeIds.contains(nodeId) || hasExplicitLabel || hasShape || hasClass || hasCssStyle
 
 /** Escape special characters in Mermaid labels. */
 private def escapeMermaidLabel(label: String): String =

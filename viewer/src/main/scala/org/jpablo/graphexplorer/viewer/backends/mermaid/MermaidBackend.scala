@@ -62,16 +62,17 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
             val vertices  = convertVertices(yy.getVertices())
             val edges     = convertEdges(yy.getEdges())
             val subgraphs = convertSubgraphs(yy.getSubGraphs())
+            val classDefs = convertClassDefs(yy.getClasses())
             val direction = yy.getDirection().toOption
             // Try getDiagramTitle first, fallback to getAccTitle
             val title = yy.getDiagramTitle().toOption.filter(_.nonEmpty)
               .orElse(yy.getAccTitle().toOption.filter(_.nonEmpty))
 
             dom.console.info(
-              s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} dir=${direction.getOrElse("")} title=${title.getOrElse("")}"
+              s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} classDefs=${classDefs.size} dir=${direction.getOrElse("")} title=${title.getOrElse("")}"
             )
             completed = true
-            promise.success(MermaidGraph(vertices, edges, subgraphs, direction, title))
+            promise.success(MermaidGraph(vertices, edges, subgraphs, direction, title, classDefs))
             ()
           catch case e: Throwable =>
             promise.failure(e)
@@ -248,6 +249,12 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         nodes = s.nodes.toOption.map(_.toList).getOrElse(Nil)
       )
     }.toList
+
+  /** Convert Mermaid JS class definitions to Scala model. */
+  private def convertClassDefs(jsClasses: js.Dictionary[MermaidClassDefJS]): Map[String, List[String]] =
+    jsClasses.collect { case (id, cd) if id != "default" =>
+      id -> cd.styles.toOption.map(_.toList).getOrElse(Nil)
+    }.toMap
 
 object MermaidBackend:
   private val renderCounter = new AtomicInteger(0)

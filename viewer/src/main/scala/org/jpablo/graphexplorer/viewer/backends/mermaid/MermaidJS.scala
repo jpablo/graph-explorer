@@ -85,6 +85,9 @@ trait DiagramYY extends js.Object:
   /** Get the accessible title (alternative method for title). */
   def getAccTitle(): js.UndefOr[String] = js.native
 
+  /** Get all class definitions (classDef) in the diagram. */
+  def getClasses(): js.Dictionary[MermaidClassDefJS] = js.native
+
 /** A vertex (node) as returned by Mermaid's parser. */
 @js.native
 trait MermaidVertexJS extends js.Object:
@@ -105,6 +108,13 @@ trait MermaidEdgeJS extends js.Object:
   val text: js.UndefOr[String]      = js.native
   val labelType: js.UndefOr[String] = js.native
   val stroke: js.UndefOr[String]    = js.native // "normal", "dotted", "thick"
+
+/** A class definition (classDef) as returned by Mermaid's parser. */
+@js.native
+trait MermaidClassDefJS extends js.Object:
+  val id: String                              = js.native
+  val styles: js.UndefOr[js.Array[String]]    = js.native
+  val textStyles: js.UndefOr[js.Array[String]] = js.native
 
 /** A subgraph as returned by Mermaid's parser. */
 @js.native

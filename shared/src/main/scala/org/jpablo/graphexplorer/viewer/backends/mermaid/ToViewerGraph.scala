@@ -78,10 +78,13 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
   val missingNodes = arrows.values.flatMap(_.endpoints).filterNot(nodes.contains)
   val allNodes = nodes ++ missingNodes.map(nid => nid -> ViewerNode.nodeNoDefaults(nid, Attributes.empty))
 
-  // Build graph attributes from direction and title
+  // Build graph attributes from direction, title, and classDefs
   val graphAttrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
   mermaidGraph.direction.foreach(d => graphAttrs += Rankdir.attrId -> AttrValue(d))
   mermaidGraph.title.foreach(t => graphAttrs += Label.attrId -> AttrValue(t))
+  mermaidGraph.classDefs.foreach { case (name, styles) =>
+    graphAttrs += AttributeId(s"mermaid_classDef_$name") -> AttrValue(styles.mkString(","))
+  }
 
   ViewerGraphElements(
     nodes = allNodes,
@@ -111,7 +114,7 @@ private def vertexToAttributes(vertex: MermaidVertex): Attributes =
   if vertex.styles.nonEmpty then attrs += Style.attrId -> AttrValue(vertex.styles.mkString(","))
 
   // Store classes as a custom attribute
-  if vertex.classes.nonEmpty then attrs += AttributeId("class") -> AttrValue(vertex.classes.mkString(" "))
+  if vertex.classes.nonEmpty then attrs += AttributeId("mermaid_class") -> AttrValue(vertex.classes.mkString(" "))
 
   Attributes(VectorMap.from(attrs.toSeq))
 

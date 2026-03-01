@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Shape, Style}
 
 import scala.collection.immutable.VectorMap
@@ -136,3 +137,149 @@ class FromViewerGraphSpec extends FunSuite:
     val result = viewerGraphToMermaidText(graph)
 
     assert(result.contains("-.->"), s"Should use dashed arrow, got: $result")
+
+  test("viewerGraphToMermaidText should emit classDef lines from graph attributes"):
+    val nodeId = NodeId("A")
+    val node = ViewerNode.nodeWithDefaults(nodeId)
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeId -> node),
+        graphAttributes = Attributes(VectorMap(
+          AttributeId("mermaid_classDef_green") -> AttrValue("fill:#9f6,stroke:#333"),
+          AttributeId("mermaid_classDef_red")   -> AttrValue("fill:#f66,stroke:#900")
+        ))
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("classDef green fill:#9f6,stroke:#333"), s"Should contain classDef green, got: $result")
+    assert(result.contains("classDef red fill:#f66,stroke:#900"), s"Should contain classDef red, got: $result")
+
+  test("viewerGraphToMermaidText should append :::className on nodes with mermaid_class"):
+    val nodeId = NodeId("A")
+    val node = ViewerNode.nodeNoDefaults(
+      nodeId,
+      Attributes(VectorMap(
+        Label.attrId -> AttrValue("Hello"),
+        AttributeId("mermaid_class") -> AttrValue("green")
+      ))
+    )
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeId -> node)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("A[Hello]:::green"), s"Should append :::green to node, got: $result")
+
+  test("viewerGraphToMermaidText should emit inline style directive for CSS styles"):
+    val nodeId = NodeId("A")
+    val node = ViewerNode.nodeNoDefaults(
+      nodeId,
+      Attributes(VectorMap(
+        Style.attrId -> AttrValue("fill:#f9f,stroke:#333,stroke-width:4px")
+      ))
+    )
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeId -> node)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("style A fill:#f9f,stroke:#333,stroke-width:4px"), s"Should emit style directive, got: $result")
+
+  test("viewerGraphToMermaidText should not emit style directive for DOT-style values"):
+    val nodeId = NodeId("A")
+    val node = ViewerNode.nodeNoDefaults(
+      nodeId,
+      Attributes(VectorMap(
+        Style.attrId -> AttrValue("dashed")
+      ))
+    )
+    val nodeB = NodeId("B")
+    val arrow = Arrow(nodeId, nodeB, Attributes.of(Style -> Style.dashed))
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(
+          nodeId -> node,
+          nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+        ),
+        arrows = Map(arrow.id -> arrow)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(!result.contains("style A"), s"Should not emit style directive for DOT-style 'dashed', got: $result")
+
+  test("viewerGraphToMermaidText should emit connected node with mermaid_class as standalone"):
+    val nodeA = NodeId("A")
+    val nodeB = NodeId("B")
+    val nodes = VectorMap(
+      nodeA -> ViewerNode.nodeNoDefaults(
+        nodeA,
+        Attributes(VectorMap(AttributeId("mermaid_class") -> AttrValue("green")))
+      ),
+      nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+    )
+    val arrow = Arrow(nodeA, nodeB)
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = nodes,
+        arrows = Map(arrow.id -> arrow)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("A:::green"), s"Should emit node A with :::green even though connected, got: $result")
+    assert(result.contains("A --> B"), s"Should also contain edge, got: $result")
+
+  test("viewerGraphToMermaidText should emit connected node with CSS style as standalone"):
+    val nodeA = NodeId("A")
+    val nodeB = NodeId("B")
+    val nodes = VectorMap(
+      nodeA -> ViewerNode.nodeNoDefaults(
+        nodeA,
+        Attributes(VectorMap(Style.attrId -> AttrValue("fill:#f9f,stroke:#333")))
+      ),
+      nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+    )
+    val arrow = Arrow(nodeA, nodeB)
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = nodes,
+        arrows = Map(arrow.id -> arrow)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("style A fill:#f9f,stroke:#333"), s"Should emit style directive for connected node, got: $result")
+
+  test("round-trip: MermaidGraph with styles → ViewerGraph → Mermaid text preserves styles"):
+    val mg = MermaidGraph(
+      vertices = Map(
+        "A" -> MermaidVertex(id = "A", text = "Start", classes = List("highlight")),
+        "B" -> MermaidVertex(id = "B", text = "End", styles = List("fill:#f9f", "stroke:#333")),
+        "C" -> MermaidVertex(id = "C", text = "C")
+      ),
+      edges = List(MermaidEdge(start = "A", end = "B"), MermaidEdge(start = "B", end = "C")),
+      direction = Some("LR"),
+      classDefs = Map("highlight" -> List("fill:#9f6", "stroke:#333"))
+    )
+
+    val vg = toViewerGraph(mg)
+    val result = viewerGraphToMermaidText(vg)
+
+    assert(result.contains("flowchart LR"), s"Should preserve direction, got: $result")
+    assert(result.contains("classDef highlight fill:#9f6,stroke:#333"), s"Should emit classDef, got: $result")
+    assert(result.contains("A[Start]:::highlight"), s"Should emit :::highlight on node A, got: $result")
+    assert(result.contains("style B fill:#f9f,stroke:#333"), s"Should emit inline style for B, got: $result")
+    assert(result.contains("A --> B"), s"Should contain edge A → B, got: $result")
+    assert(result.contains("B --> C"), s"Should contain edge B → C, got: $result")

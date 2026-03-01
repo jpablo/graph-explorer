@@ -84,5 +84,6 @@ case class MermaidGraph(
     edges:     List[MermaidEdge] = Nil,
     subgraphs: List[MermaidSubgraph] = Nil,
     direction: Option[String] = None,
-    title:     Option[String] = None
+    title:     Option[String] = None,
+    classDefs: Map[String, List[String]] = Map.empty
 ) derives ReadWriter
