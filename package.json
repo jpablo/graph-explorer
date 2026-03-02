@@ -20,7 +20,7 @@
     "codemirror": "6.0.1",
     "dot-parser": "file:./dot-parser",
     "jsdom": "24.1.0",
-    "mermaid": "^10.9.0",
+    "mermaid": "^11.12.0",
     "uuid": "^11.0.3"
   },
   "devDependencies": {
