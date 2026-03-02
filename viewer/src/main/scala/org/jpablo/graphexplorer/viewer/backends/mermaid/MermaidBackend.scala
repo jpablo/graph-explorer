@@ -62,19 +62,33 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
                 .orElse(diagram.db.toOption)
                 .getOrElse(throw new Exception("Mermaid parser database missing"))
             val vertices  = convertVertices(yy.getVertices())
-            val edges     = convertEdges(yy.getEdges())
+            val jsEdges   = yy.getEdges()
+            val edges     = convertEdges(jsEdges)
             val subgraphs = convertSubgraphs(yy.getSubGraphs())
             val classDefs = convertClassDefs(yy.getClasses())
+            val defaultEdgeStyle = jsEdges.defaultStyle.toOption.map(_.toList).getOrElse(Nil)
+            val defaultEdgeInterpolate = jsEdges.defaultInterpolate.toOption
             val direction = yy.getDirection().toOption
             // Try getDiagramTitle first, fallback to getAccTitle
             val title = yy.getDiagramTitle().toOption.filter(_.nonEmpty)
               .orElse(yy.getAccTitle().toOption.filter(_.nonEmpty))
 
             dom.console.info(
-              s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} classDefs=${classDefs.size} dir=${direction.getOrElse("")} title=${title.getOrElse("")}"
+              s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} classDefs=${classDefs.size} defaultEdgeStyle=${defaultEdgeStyle.nonEmpty} dir=${direction.getOrElse("")} title=${title.getOrElse("")}"
             )
             completed = true
-            promise.success(MermaidGraph(vertices, edges, subgraphs, direction, title, classDefs))
+            promise.success(
+              MermaidGraph(
+                vertices = vertices,
+                edges = edges,
+                subgraphs = subgraphs,
+                direction = direction,
+                title = title,
+                classDefs = classDefs,
+                defaultEdgeStyle = defaultEdgeStyle,
+                defaultEdgeInterpolate = defaultEdgeInterpolate
+              )
+            )
             ()
           catch case e: Throwable =>
             promise.failure(e)
@@ -148,7 +162,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     }.toMap
 
   /** Convert Mermaid JS edges to Scala model. */
-  private def convertEdges(jsEdges: js.Array[MermaidEdgeJS]): List[MermaidEdge] =
+  private def convertEdges(jsEdges: MermaidEdgesJS): List[MermaidEdge] =
     jsEdges.map { e =>
       MermaidEdge(
         start = e.start,
@@ -156,7 +170,9 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         edgeType = e.`type`.toOption,
         text = e.text.toOption.filter(_.nonEmpty),
         labelType = e.labelType.toOption,
-        stroke = e.stroke.toOption
+        stroke = e.stroke.toOption,
+        styles = e.style.toOption.map(_.toList).getOrElse(Nil),
+        interpolate = e.interpolate.toOption
       )
     }.toList
 
@@ -171,9 +187,12 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     }.toList
 
   /** Convert Mermaid JS class definitions to Scala model. */
-  private def convertClassDefs(jsClasses: js.Dictionary[MermaidClassDefJS]): Map[String, List[String]] =
-    jsClasses.collect { case (id, cd) if id != "default" =>
-      id -> cd.styles.toOption.map(_.toList).getOrElse(Nil)
+  private def convertClassDefs(jsClasses: js.Dictionary[MermaidClassDefJS]): Map[String, MermaidClassDef] =
+    jsClasses.map { case (id, cd) =>
+      id -> MermaidClassDef(
+        styles = cd.styles.toOption.map(_.toList).getOrElse(Nil),
+        textStyles = cd.textStyles.toOption.map(_.toList).getOrElse(Nil)
+      )
     }.toMap
 
 object MermaidBackend:

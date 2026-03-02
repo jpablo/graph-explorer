@@ -50,7 +50,9 @@ case class MermaidEdge(
     edgeType:  Option[String] = None,
     text:      Option[String] = None,
     labelType: Option[String] = None,
-    stroke:    Option[String] = None
+    stroke:    Option[String] = None,
+    styles:    List[String] = Nil,
+    interpolate: Option[String] = None
 ) derives ReadWriter
 
 /** Represents a subgraph (group) in a Mermaid flowchart.
@@ -66,6 +68,16 @@ case class MermaidSubgraph(
     id:    String,
     title: Option[String] = None,
     nodes: List[String] = Nil
+) derives ReadWriter
+
+/** Represents Mermaid classDef declarations.
+  *
+  * Mermaid keeps shape styles and text styles separately in its internal DB. We preserve both so effective-style
+  * resolution can compose them later without reparsing Mermaid internals.
+  */
+case class MermaidClassDef(
+    styles:     List[String] = Nil,
+    textStyles: List[String] = Nil
 ) derives ReadWriter
 
 /** Represents a parsed Mermaid flowchart diagram.
@@ -85,5 +97,7 @@ case class MermaidGraph(
     subgraphs: List[MermaidSubgraph] = Nil,
     direction: Option[String] = None,
     title:     Option[String] = None,
-    classDefs: Map[String, List[String]] = Map.empty
+    classDefs: Map[String, MermaidClassDef] = Map.empty,
+    defaultEdgeStyle: List[String] = Nil,
+    defaultEdgeInterpolate: Option[String] = None
 ) derives ReadWriter

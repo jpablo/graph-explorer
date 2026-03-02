@@ -71,7 +71,7 @@ trait DiagramYY extends js.Object:
   def getVertices(): js.Dictionary[MermaidVertexJS] = js.native
 
   /** Get all edges (links) in the diagram. */
-  def getEdges(): js.Array[MermaidEdgeJS] = js.native
+  def getEdges(): MermaidEdgesJS = js.native
 
   /** Get all subgraphs in the diagram. */
   def getSubGraphs(): js.Array[MermaidSubgraphJS] = js.native
@@ -108,6 +108,18 @@ trait MermaidEdgeJS extends js.Object:
   val text: js.UndefOr[String]      = js.native
   val labelType: js.UndefOr[String] = js.native
   val stroke: js.UndefOr[String]    = js.native // "normal", "dotted", "thick"
+  val style: js.UndefOr[js.Array[String]] = js.native
+  val interpolate: js.UndefOr[String]     = js.native
+
+/** Mermaid flowchart edges collection.
+  *
+  * Mermaid stores per-edge entries in an array and default link style/interpolate as additional properties on that
+  * array object.
+  */
+@js.native
+trait MermaidEdgesJS extends js.Array[MermaidEdgeJS]:
+  val defaultStyle: js.UndefOr[js.Array[String]] = js.native
+  val defaultInterpolate: js.UndefOr[String]     = js.native
 
 /** A class definition (classDef) as returned by Mermaid's parser. */
 @js.native

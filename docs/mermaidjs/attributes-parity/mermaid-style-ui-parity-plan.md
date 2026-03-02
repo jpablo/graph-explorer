@@ -26,9 +26,9 @@ Make Mermaid diagrams first-class in the attributes toolbar:
 
 ## Tracking Snapshot
 
-Current track: `Phase 0`  
-Current focus: `MP0-T2`  
-Resume from: `MP0-T2 - extend Mermaid parsing to capture flattening inputs`
+Current track: `Phase 1`  
+Current focus: `MP1-T5`  
+Resume from: `MP1-T5 - manual verification pass for node toolbar parity`
 
 ## Design Principle (confirmed)
 
@@ -48,13 +48,13 @@ Resume from: `MP0-T2 - extend Mermaid parsing to capture flattening inputs`
 | ID | Task | Status | Dependencies | Acceptance Criteria | Evidence | Notes |
 |---|---|---|---|---|---|---|
 | MP0-T1 | Define Mermaid effective-style precedence and flattening rules | done | none | Rules doc merged and reflected in implementation notes | `docs/mermaidjs/attributes-parity/mermaid-effective-style-rules.md` | Includes node/edge/group precedence and conflict resolution |
-| MP0-T2 | Extend Mermaid parsing to capture fields needed for flattening | todo | MP0-T1 | Parser exposes enough style/default/class data to compute effective styles | pending | Capture for computation; not as GE-core semantic model |
-| MP0-T3 | Add CSS declaration parser utility (`k:v` list -> normalized map) | todo | MP0-T1 | Utility handles whitespace, repeated keys, malformed fragments safely | pending | Shared utility with unit tests |
-| MP0-T4 | Add baseline tests for effective-style inputs | todo | MP0-T2, MP0-T3 | Tests cover inline style, class styles/text styles, default styles | pending | New `shared` mermaid tests |
-| MP1-T1 | Implement node effective-style resolver with precedence | todo | MP0-T4 | Resolver output deterministic and documented precedence | pending | Precedence target: default classDef < classDefs < inline |
-| MP1-T2 | Map resolved node style to toolbar attributes | todo | MP1-T1 | Selected Mermaid node populates fill/border/font fields | pending | Fixes screenshot symptom |
-| MP1-T3 | Integrate resolver into toolbar read path for Mermaid mode | todo | MP1-T2 | `elementAttributesUpdates` returns normalized statuses in Mermaid mode | pending | Prefer format-aware bridge over global behavior change |
-| MP1-T4 | Add node parity tests (selection -> toolbar updates) | todo | MP1-T3 | Tests assert expected `AttributeUpdates` for styled nodes | pending | Include class-only, inline-only, mixed precedence |
+| MP0-T2 | Extend Mermaid parsing to capture fields needed for flattening | done | MP0-T1 | Parser exposes enough style/default/class data to compute effective styles | `MermaidGraph.scala`, `MermaidJS.scala`, `MermaidBackend.scala`, `ToViewerGraph.scala` | Preserves `classDef default`, `textStyles`, and linkStyle defaults as mermaid-specific attrs |
+| MP0-T3 | Add CSS declaration parser utility (`k:v` list -> normalized map) | done | MP0-T1 | Utility handles whitespace, repeated keys, malformed fragments safely | `MermaidStyleDeclarations.scala`, `MermaidStyleDeclarationsSpec.scala` | Shared utility with unit tests |
+| MP0-T4 | Add baseline tests for effective-style inputs | done | MP0-T2, MP0-T3 | Tests cover inline style, class styles/text styles, default styles | `ToViewerGraphSpec.scala`, `FromViewerGraphSpec.scala`, `MermaidStyleDeclarationsSpec.scala` | Baseline input-capture coverage in `shared` tests |
+| MP1-T1 | Implement node effective-style resolver with precedence | done | MP0-T4 | Resolver output deterministic and documented precedence | `AttributesOps.scala`, `MermaidStyleDeclarations.scala` | Applies default classDef < classDefs < inline precedence with explicit-attr override protection |
+| MP1-T2 | Map resolved node style to toolbar attributes | done | MP1-T1 | Selected Mermaid node populates fill/border/font fields | `AttributesOps.scala` | Maps Mermaid CSS into `FillColor`, `Color`, `PenWidth`, `FontColor`, `FontName`, `FontSize` |
+| MP1-T3 | Integrate resolver into toolbar read path for Mermaid mode | done | MP1-T2 | `elementAttributesUpdates` returns normalized statuses in Mermaid mode | `AttributesOps.getAttributesUpdatesById` | Resolver is applied in the shared attribute read path |
+| MP1-T4 | Add node parity tests (selection -> toolbar updates) | done | MP1-T3 | Tests assert expected `AttributeUpdates` for styled nodes | `AttributesOpsSpec.scala` | Added precedence and explicit-override test coverage |
 | MP1-T5 | Manual verification pass for node toolbar parity | todo | MP1-T4 | Visual verification on sample Mermaid diagrams | pending | Use microservices + minimal reproducer |
 | MP2-T1 | Capture edge style metadata needed for parity (`linkStyle`, defaults) | todo | MP0-T2 | Edge model carries style directives required for read/write parity | pending | Mermaid edges may expose style arrays + defaultStyle |
 | MP2-T2 | Implement edge effective-style resolver and toolbar mapping | todo | MP2-T1 | Arrow toolbar reflects Mermaid edge color/style/width where representable | pending | Includes dotted/thick + width/color parsing |
@@ -118,6 +118,8 @@ Resume from: `MP0-T2 - extend Mermaid parsing to capture flattening inputs`
 | 2026-03-01 | Codified flatten-first policy (DOT-aligned) across findings/plan/mapping docs; clarified future semantic-layer direction | MP0-T1 (policy definition) | Docs review | MP0-T1 |
 | 2026-03-01 | Defined formal Mermaid effective-style precedence and flattening spec (`MP0-T1`) | MP0-T1 | Docs review | MP0-T2 |
 | 2026-03-01 | Verified Mermaid API surface lacks built-in flatten/effective-style export; documented as implementation constraint | MP0-T2 (clarification) | Local Mermaid API/code inspection | MP0-T2 |
+| 2026-03-01 | Implemented style-input capture and parser utility for Mermaid flattening; added baseline tests and validated compile/test | MP0-T2, MP0-T3, MP0-T4 | `sharedJVM/testOnly ...MermaidStyleDeclarationsSpec ...ToViewerGraphSpec ...FromViewerGraphSpec`; `viewer/compile` | MP1-T1 |
+| 2026-03-01 | Implemented Mermaid node effective-style resolver and toolbar mapping; integrated into attribute read path with tests | MP1-T1, MP1-T2, MP1-T3, MP1-T4 | `sharedJVM/testOnly ...AttributesOpsSpec ...MermaidStyleDeclarationsSpec ...ToViewerGraphSpec ...FromViewerGraphSpec`; `viewer/compile` | MP1-T5 |
 
 ## Open Questions
 

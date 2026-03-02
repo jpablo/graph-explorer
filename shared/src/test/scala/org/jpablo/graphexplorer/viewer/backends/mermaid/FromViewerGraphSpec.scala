@@ -271,7 +271,7 @@ class FromViewerGraphSpec extends FunSuite:
       ),
       edges = List(MermaidEdge(start = "A", end = "B"), MermaidEdge(start = "B", end = "C")),
       direction = Some("LR"),
-      classDefs = Map("highlight" -> List("fill:#9f6", "stroke:#333"))
+      classDefs = Map("highlight" -> MermaidClassDef(styles = List("fill:#9f6", "stroke:#333")))
     )
 
     val vg = toViewerGraph(mg)

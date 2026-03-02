@@ -223,3 +223,64 @@ class AttributesOpsSpec extends FunSuite:
       "Node shape attribute should be returned"
     )
   }
+
+  test("getAttributesUpdatesById should resolve Mermaid node effective styles with precedence") {
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> nodeWithDefaults(
+            a,
+            Attributes(
+              VectorMap(
+                Style.attrId -> AttrValue("stroke:#444,stroke-width:4px,fill:#fcc,font-size:20px"),
+                AttributeId("mermaid_class") -> AttrValue("pink")
+              )
+            )
+          )
+        ),
+        graphAttributes = Attributes(
+          VectorMap(
+            AttributeId("mermaid_classDef_default") -> AttrValue("fill:#aaa,color:#111,font-size:12px"),
+            AttributeId("mermaid_classDef_pink") -> AttrValue("fill:#f9f,stroke:#222,color:#eee,font-family:Verdana,font-size:18px")
+          )
+        )
+      )
+    )
+
+    val result = graph.getAttributesUpdatesById(ElementIds.from(a))
+
+    assertEquals(result.statuses(FillColor.attrId), AttrStatus.Single(AttrValue("#fcc")))
+    assertEquals(result.statuses(Color.attrId), AttrStatus.Single(AttrValue("#444")))
+    assertEquals(result.statuses(PenWidth.attrId), AttrStatus.Single(AttrValue("4")))
+    assertEquals(result.statuses(FontColor.attrId), AttrStatus.Single(AttrValue("#eee")))
+    assertEquals(result.statuses(FontName.attrId), AttrStatus.Single(AttrValue("Verdana")))
+    assertEquals(result.statuses(FontSize.attrId), AttrStatus.Single(AttrValue("20")))
+  }
+
+  test("getAttributesUpdatesById should not override explicit node attributes when Mermaid-derived values exist") {
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> nodeWithDefaults(
+            a,
+            Attributes(
+              VectorMap(
+                FillColor.attrId -> AttrValue("#0af"),
+                Style.attrId -> AttrValue("fill:#fcc"),
+                AttributeId("mermaid_class") -> AttrValue("pink")
+              )
+            )
+          )
+        ),
+        graphAttributes = Attributes(
+          VectorMap(
+            AttributeId("mermaid_classDef_pink") -> AttrValue("fill:#f9f")
+          )
+        )
+      )
+    )
+
+    val result = graph.getAttributesUpdatesById(ElementIds.from(a))
+
+    assertEquals(result.statuses(FillColor.attrId), AttrStatus.Single(AttrValue("#0af")))
+  }

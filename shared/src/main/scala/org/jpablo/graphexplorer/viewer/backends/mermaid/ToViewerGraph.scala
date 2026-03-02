@@ -82,9 +82,17 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
   val graphAttrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
   mermaidGraph.direction.foreach(d => graphAttrs += Rankdir.attrId -> AttrValue(d))
   mermaidGraph.title.foreach(t => graphAttrs += Label.attrId -> AttrValue(t))
-  mermaidGraph.classDefs.foreach { case (name, styles) =>
-    graphAttrs += AttributeId(s"mermaid_classDef_$name") -> AttrValue(styles.mkString(","))
+  mermaidGraph.classDefs.foreach { case (name, classDef) =>
+    if classDef.styles.nonEmpty then
+      graphAttrs += AttributeId(s"mermaid_classDef_$name") -> AttrValue(classDef.styles.mkString(","))
+    if classDef.textStyles.nonEmpty then
+      graphAttrs += AttributeId(s"mermaid_classDefText_$name") -> AttrValue(classDef.textStyles.mkString(","))
   }
+  if mermaidGraph.defaultEdgeStyle.nonEmpty then
+    graphAttrs += AttributeId("mermaid_linkStyle_default") -> AttrValue(mermaidGraph.defaultEdgeStyle.mkString(","))
+  mermaidGraph.defaultEdgeInterpolate.foreach(v =>
+    graphAttrs += AttributeId("mermaid_linkInterpolate_default") -> AttrValue(v)
+  )
 
   ViewerGraphElements(
     nodes = allNodes,
@@ -134,6 +142,8 @@ private def edgeToAttributes(edge: MermaidEdge): Attributes =
 
   // Store edge type as custom attribute
   edge.edgeType.foreach(v => attrs += AttributeId("mermaid_edgeType") -> AttrValue(v))
+  if edge.styles.nonEmpty then attrs += AttributeId("mermaid_edgeStyle") -> AttrValue(edge.styles.mkString(","))
+  edge.interpolate.foreach(v => attrs += AttributeId("mermaid_edgeInterpolate") -> AttrValue(v))
 
   Attributes(VectorMap.from(attrs.toSeq))
 
