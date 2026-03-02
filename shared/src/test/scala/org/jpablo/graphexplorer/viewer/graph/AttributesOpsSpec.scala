@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.viewer.backends.mermaid.{MermaidClassDef, MermaidClassDefFallback, MermaidGraph, MermaidSubgraph, MermaidVertex, toViewerGraph}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.NodeStyle.{bold, dashed, filled}
@@ -255,6 +256,42 @@ class AttributesOpsSpec extends FunSuite:
     assertEquals(result.statuses(FontColor.attrId), AttrStatus.Single(AttrValue("#eee")))
     assertEquals(result.statuses(FontName.attrId), AttrStatus.Single(AttrValue("Verdana")))
     assertEquals(result.statuses(FontSize.attrId), AttrStatus.Single(AttrValue("20")))
+  }
+
+  test("getAttributesUpdatesById should resolve default classDef border for unclassed Mermaid nodes via source fallback") {
+    val source =
+      """flowchart LR
+        |subgraph G1 [Service Layer]
+        |  A[CodeMirror]
+        |  B[Parser]
+        |end
+        |A -->|parses| B
+        |classDef default fill:#fefecc,stroke:#85df72
+        |classDef pink fill:#ff66cc,stroke:#aa0099,color:#ffffff
+        |class G1 pink
+        |class A pink
+        |""".stripMargin
+
+    val parserClassDefs = Map(
+      "pink" -> MermaidClassDef(styles = List("fill:#ff66cc", "stroke:#aa0099", "color:#ffffff"))
+    )
+    val mergedClassDefs = MermaidClassDefFallback.withSourceClassDefs(source, parserClassDefs)
+
+    val mermaidGraph = MermaidGraph(
+      vertices = Map(
+        "A" -> MermaidVertex(id = "A", text = "CodeMirror", classes = List("pink")),
+        "B" -> MermaidVertex(id = "B", text = "Parser")
+      ),
+      subgraphs = List(
+        MermaidSubgraph(id = "G1", title = Some("Service Layer"), nodes = List("A", "B"), classes = List("pink"))
+      ),
+      classDefs = mergedClassDefs
+    )
+
+    val viewerGraph = toViewerGraph(mermaidGraph)
+    val parserAttrs = viewerGraph.getAttributesUpdatesById(ElementIds.from(NodeId("B")))
+
+    assertEquals(parserAttrs.statuses(Color.attrId), AttrStatus.Single(AttrValue("#85df72")))
   }
 
   test("getAttributesUpdatesById should not override explicit node attributes when Mermaid-derived values exist") {
