@@ -152,6 +152,7 @@ private def subgraphToAttributes(subgraph: MermaidSubgraph): Attributes =
   val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
 
   subgraph.title.foreach(v => attrs += Label.attrId -> AttrValue(v))
+  if subgraph.classes.nonEmpty then attrs += AttributeId("mermaid_class") -> AttrValue(subgraph.classes.mkString(" "))
 
   Attributes(VectorMap.from(attrs.toSeq))
 

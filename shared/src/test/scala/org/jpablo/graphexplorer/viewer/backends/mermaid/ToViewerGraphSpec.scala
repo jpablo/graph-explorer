@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Style
 import org.jpablo.graphexplorer.viewer.models.AttributeId
+import org.jpablo.graphexplorer.viewer.models.GroupId
 
 class ToViewerGraphSpec extends FunSuite:
 
@@ -75,3 +76,23 @@ class ToViewerGraphSpec extends FunSuite:
       Some("basis")
     )
     assertEquals(edgeAttrs.get(Style.attrId).map(_.toString), Some("dashed"))
+
+  test("toViewerGraph should preserve Mermaid subgraph classes"):
+    val mg = MermaidGraph(
+      vertices = Map("A" -> MermaidVertex(id = "A", text = "A")),
+      subgraphs = List(
+        MermaidSubgraph(
+          id = "ClusterA",
+          title = Some("Cluster A"),
+          nodes = List("A"),
+          classes = List("clusterX")
+        )
+      )
+    )
+
+    val groupAttrs = toViewerGraph(mg).elements.groups(GroupId("ClusterA")).attributes.values
+
+    assertEquals(
+      groupAttrs.get(AttributeId("mermaid_class")).map(_.toString),
+      Some("clusterX")
+    )

@@ -284,3 +284,90 @@ class AttributesOpsSpec extends FunSuite:
 
     assertEquals(result.statuses(FillColor.attrId), AttrStatus.Single(AttrValue("#0af")))
   }
+
+  test("getAttributesUpdatesById should resolve Mermaid edge effective styles with precedence") {
+    val arrow = Arrow(
+      a,
+      b,
+      Attributes(
+        VectorMap(
+          AttributeId("mermaid_edgeStyle") -> AttrValue("stroke:#f00,stroke-width:4px,color:#fff,font-size:16px")
+        )
+      )
+    )
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(nodeWithId(a), nodeWithId(b)),
+        arrows = Map(arrow.id -> arrow),
+        graphAttributes = Attributes(
+          VectorMap(
+            AttributeId("mermaid_linkStyle_default") -> AttrValue("stroke:#00f,stroke-width:2px,font-size:10px")
+          )
+        )
+      )
+    )
+
+    val result = graph.getAttributesUpdatesById(ElementIds.from(arrow.id))
+
+    assertEquals(result.statuses(Color.attrId), AttrStatus.Single(AttrValue("#f00")))
+    assertEquals(result.statuses(PenWidth.attrId), AttrStatus.Single(AttrValue("4")))
+    assertEquals(result.statuses(FontColor.attrId), AttrStatus.Single(AttrValue("#fff")))
+    assertEquals(result.statuses(FontSize.attrId), AttrStatus.Single(AttrValue("16")))
+  }
+
+  test("getAttributesUpdatesById should not override explicit edge attributes with Mermaid-derived values") {
+    val arrow = Arrow(
+      a,
+      b,
+      Attributes(
+        VectorMap(
+          Color.attrId -> AttrValue("#0af"),
+          AttributeId("mermaid_edgeStyle") -> AttrValue("stroke:#f00")
+        )
+      )
+    )
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(nodeWithId(a), nodeWithId(b)),
+        arrows = Map(arrow.id -> arrow)
+      )
+    )
+
+    val result = graph.getAttributesUpdatesById(ElementIds.from(arrow.id))
+
+    assertEquals(result.statuses(Color.attrId), AttrStatus.Single(AttrValue("#0af")))
+  }
+
+  test("getAttributesUpdatesById should resolve Mermaid group effective styles with precedence") {
+    val gid = GroupId("cluster1")
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        groups = Map(
+          gid -> ViewerGroup.group(
+            gid,
+            Attributes(
+              VectorMap(
+                AttributeId("mermaid_class") -> AttrValue("clusterX"),
+                Style.attrId -> AttrValue("stroke:#666,stroke-width:2px")
+              )
+            )
+          )
+        ),
+        graphAttributes = Attributes(
+          VectorMap(
+            AttributeId("mermaid_classDef_default") -> AttrValue("fill:#eee,color:#111,font-size:11px"),
+            AttributeId("mermaid_classDef_clusterX") -> AttrValue("fill:#ddd,stroke:#333,color:#fafafa,font-family:Verdana,font-size:14px")
+          )
+        )
+      )
+    )
+
+    val result = graph.getAttributesUpdatesById(ElementIds.from(gid))
+
+    assertEquals(result.statuses(FillColor.attrId), AttrStatus.Single(AttrValue("#ddd")))
+    assertEquals(result.statuses(PenColor.attrId), AttrStatus.Single(AttrValue("#666")))
+    assertEquals(result.statuses(PenWidth.attrId), AttrStatus.Single(AttrValue("2")))
+    assertEquals(result.statuses(FontColor.attrId), AttrStatus.Single(AttrValue("#fafafa")))
+    assertEquals(result.statuses(FontName.attrId), AttrStatus.Single(AttrValue("Verdana")))
+    assertEquals(result.statuses(FontSize.attrId), AttrStatus.Single(AttrValue("14")))
+  }

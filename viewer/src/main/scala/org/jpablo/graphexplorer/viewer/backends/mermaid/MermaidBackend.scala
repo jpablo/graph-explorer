@@ -182,7 +182,8 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       MermaidSubgraph(
         id = s.id,
         title = s.title.toOption,
-        nodes = s.nodes.toOption.map(_.toList).getOrElse(Nil)
+        nodes = s.nodes.toOption.map(_.toList).getOrElse(Nil),
+        classes = s.classes.toOption.map(_.toList).getOrElse(Nil)
       )
     }.toList
 

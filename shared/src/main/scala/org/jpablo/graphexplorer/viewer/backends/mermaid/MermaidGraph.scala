@@ -67,7 +67,8 @@ case class MermaidEdge(
 case class MermaidSubgraph(
     id:    String,
     title: Option[String] = None,
-    nodes: List[String] = Nil
+    nodes: List[String] = Nil,
+    classes: List[String] = Nil
 ) derives ReadWriter
 
 /** Represents Mermaid classDef declarations.

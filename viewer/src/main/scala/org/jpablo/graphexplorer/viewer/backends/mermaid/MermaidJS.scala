@@ -134,6 +134,7 @@ trait MermaidSubgraphJS extends js.Object:
   val id: String                          = js.native
   val title: js.UndefOr[String]           = js.native
   val nodes: js.UndefOr[js.Array[String]] = js.native
+  val classes: js.UndefOr[js.Array[String]] = js.native
 
 /** Configuration options for Mermaid.initialize() */
 object MermaidConfig:

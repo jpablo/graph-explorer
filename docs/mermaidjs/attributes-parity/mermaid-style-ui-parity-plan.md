@@ -26,7 +26,7 @@ Make Mermaid diagrams first-class in the attributes toolbar:
 
 ## Tracking Snapshot
 
-Current track: `Phase 1`  
+Current track: `Phase 2`  
 Current focus: `MP1-T5`  
 Resume from: `MP1-T5 - manual verification pass for node toolbar parity`
 
@@ -56,11 +56,11 @@ Resume from: `MP1-T5 - manual verification pass for node toolbar parity`
 | MP1-T3 | Integrate resolver into toolbar read path for Mermaid mode | done | MP1-T2 | `elementAttributesUpdates` returns normalized statuses in Mermaid mode | `AttributesOps.getAttributesUpdatesById` | Resolver is applied in the shared attribute read path |
 | MP1-T4 | Add node parity tests (selection -> toolbar updates) | done | MP1-T3 | Tests assert expected `AttributeUpdates` for styled nodes | `AttributesOpsSpec.scala` | Added precedence and explicit-override test coverage |
 | MP1-T5 | Manual verification pass for node toolbar parity | todo | MP1-T4 | Visual verification on sample Mermaid diagrams | pending | Use microservices + minimal reproducer |
-| MP2-T1 | Capture edge style metadata needed for parity (`linkStyle`, defaults) | todo | MP0-T2 | Edge model carries style directives required for read/write parity | pending | Mermaid edges may expose style arrays + defaultStyle |
-| MP2-T2 | Implement edge effective-style resolver and toolbar mapping | todo | MP2-T1 | Arrow toolbar reflects Mermaid edge color/style/width where representable | pending | Includes dotted/thick + width/color parsing |
-| MP2-T3 | Extend subgraph/group style capture (classes and style directives) | todo | MP0-T2 | Group model preserves Mermaid class/style where available | pending | Include subgroup labels + class assignments |
-| MP2-T4 | Implement group effective-style mapping to toolbar attrs | todo | MP2-T3 | Group toolbar reflects resolved border/fill/font values | pending | Compatible with existing group controls |
-| MP2-T5 | Add edge/group parity tests | todo | MP2-T2, MP2-T4 | Automated tests cover read-model parity for edges/groups | pending | Shared + viewer where needed |
+| MP2-T1 | Capture edge style metadata needed for parity (`linkStyle`, defaults) | done | MP0-T2 | Edge model carries style directives required for read/write parity | `MermaidGraph.scala`, `MermaidJS.scala`, `MermaidBackend.scala`, `ToViewerGraph.scala` | Captures per-edge style/interpolate and `linkStyle default` |
+| MP2-T2 | Implement edge effective-style resolver and toolbar mapping | done | MP2-T1 | Arrow toolbar reflects Mermaid edge color/style/width where representable | `AttributesOps.scala` | Resolves `default + per-edge` Mermaid style into edge attrs with explicit-attr override protection |
+| MP2-T3 | Extend subgraph/group style capture (classes and style directives) | done | MP0-T2 | Group model preserves Mermaid class/style where available | `MermaidGraph.scala`, `MermaidJS.scala`, `MermaidBackend.scala`, `ToViewerGraph.scala` | Captures subgraph classes and maps to `mermaid_class` |
+| MP2-T4 | Implement group effective-style mapping to toolbar attrs | done | MP2-T3 | Group toolbar reflects resolved border/fill/font values | `AttributesOps.scala` | Maps group effective Mermaid style to `FillColor`, `PenColor`, `PenWidth`, `Font*` |
+| MP2-T5 | Add edge/group parity tests | done | MP2-T2, MP2-T4 | Automated tests cover read-model parity for edges/groups | `AttributesOpsSpec.scala`, `ToViewerGraphSpec.scala` | Includes precedence and explicit-override coverage for edge/group |
 | MP3-T1 | Define flat Mermaid export policy from GE attrs | todo | MP1-T5, MP2-T5 | Policy documented with deterministic rules | pending | Visual fidelity prioritized over source-structure fidelity |
 | MP3-T2 | Implement node write-back from normalized attrs to Mermaid text | todo | MP3-T1 | Node toolbar edits persist in flat Mermaid output | pending | No regressions for existing serialization tests |
 | MP3-T3 | Implement edge write-back to Mermaid `linkStyle`/edge syntax | todo | MP3-T1 | Edge toolbar edits persist in Mermaid text | pending | Handle index-based linkStyle safely |
@@ -120,6 +120,7 @@ Resume from: `MP1-T5 - manual verification pass for node toolbar parity`
 | 2026-03-01 | Verified Mermaid API surface lacks built-in flatten/effective-style export; documented as implementation constraint | MP0-T2 (clarification) | Local Mermaid API/code inspection | MP0-T2 |
 | 2026-03-01 | Implemented style-input capture and parser utility for Mermaid flattening; added baseline tests and validated compile/test | MP0-T2, MP0-T3, MP0-T4 | `sharedJVM/testOnly ...MermaidStyleDeclarationsSpec ...ToViewerGraphSpec ...FromViewerGraphSpec`; `viewer/compile` | MP1-T1 |
 | 2026-03-01 | Implemented Mermaid node effective-style resolver and toolbar mapping; integrated into attribute read path with tests | MP1-T1, MP1-T2, MP1-T3, MP1-T4 | `sharedJVM/testOnly ...AttributesOpsSpec ...MermaidStyleDeclarationsSpec ...ToViewerGraphSpec ...FromViewerGraphSpec`; `viewer/compile` | MP1-T5 |
+| 2026-03-01 | Implemented edge/group read-path style parity (capture + resolver + tests), keeping explicit attrs authoritative | MP2-T1, MP2-T2, MP2-T3, MP2-T4, MP2-T5 | `sharedJVM/testOnly ...AttributesOpsSpec ...ToViewerGraphSpec ...MermaidStyleDeclarationsSpec ...FromViewerGraphSpec`; `viewer/compile` | MP1-T5 |
 
 ## Open Questions
 
