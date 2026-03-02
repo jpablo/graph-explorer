@@ -4,7 +4,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Shape, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Color, FillColor, FontColor, FontName, FontSize, Label, PenColor, PenWidth, Shape, Style}
 
 import scala.collection.immutable.VectorMap
 
@@ -137,6 +137,72 @@ class FromViewerGraphSpec extends FunSuite:
     val result = viewerGraphToMermaidText(graph)
 
     assert(result.contains("-.->"), s"Should use dashed arrow, got: $result")
+
+  test("viewerGraphToMermaidText should write normalized edge attrs as linkStyle"):
+    val nodeA = NodeId("A")
+    val nodeB = NodeId("B")
+    val nodes = VectorMap(
+      nodeA -> ViewerNode.nodeWithDefaults(nodeA),
+      nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+    )
+    val arrow = Arrow(
+      nodeA,
+      nodeB,
+      Attributes.of(
+        Color     -> "#f00",
+        PenWidth  -> 2.0,
+        FontColor -> "#fff",
+        FontName  -> "Arial",
+        FontSize  -> 16.0
+      )
+    )
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = nodes,
+        arrows = Map(arrow.id -> arrow)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("A --> B"), s"Should keep edge declaration, got: $result")
+    assert(
+      result.matches("(?s).*linkStyle 0 stroke:#f00,stroke-width:2(?:\\.0)?px,color:#fff,font-family:Arial,font-size:16(?:\\.0)?px.*"),
+      s"Should emit linkStyle from normalized edge attrs, got: $result"
+    )
+
+  test("viewerGraphToMermaidText should merge edge metadata and normalized attrs in linkStyle"):
+    val nodeA = NodeId("A")
+    val nodeB = NodeId("B")
+    val nodes = VectorMap(
+      nodeA -> ViewerNode.nodeWithDefaults(nodeA),
+      nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+    )
+    val arrow = Arrow(
+      nodeA,
+      nodeB,
+      Attributes(
+        VectorMap(
+          AttributeId("mermaid_edgeStyle")       -> AttrValue("stroke:#111,stroke-dasharray:3 3"),
+          AttributeId("mermaid_edgeInterpolate") -> AttrValue("basis"),
+          Color.attrId                           -> AttrValue("#f00"),
+          PenWidth.attrId                        -> AttrValue("4.0")
+        )
+      )
+    )
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = nodes,
+        arrows = Map(arrow.id -> arrow)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(
+      result.contains("linkStyle 0 stroke:#f00,stroke-width:4.0px,interpolate:basis,stroke-dasharray:3 3"),
+      s"Normalized attrs should override edge metadata while preserving extra directives, got: $result"
+    )
 
   test("viewerGraphToMermaidText should emit classDef lines from graph attributes"):
     val nodeId = NodeId("A")
@@ -276,6 +342,57 @@ class FromViewerGraphSpec extends FunSuite:
 
     assert(result.contains("style A fill:#f9f,stroke:#333,stroke-width:4px"), s"Should emit style directive, got: $result")
 
+  test("viewerGraphToMermaidText should write normalized node attrs as Mermaid CSS"):
+    val nodeId = NodeId("A")
+    val node = ViewerNode.nodeNoDefaults(
+      nodeId,
+      Attributes.of(
+        FillColor -> "#f9f",
+        Color     -> "#333",
+        PenWidth  -> 2.0,
+        FontColor -> "#fff",
+        FontName  -> "Arial",
+        FontSize  -> 20.0
+      )
+    )
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeId -> node)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(
+      result.matches("(?s).*style A fill:#f9f,stroke:#333,stroke-width:2(?:\\.0)?px,color:#fff,font-family:Arial,font-size:20(?:\\.0)?px.*"),
+      s"Should write normalized attrs as Mermaid CSS style directive, got: $result"
+    )
+
+  test("viewerGraphToMermaidText should let normalized node attrs override existing CSS keys"):
+    val nodeId = NodeId("A")
+    val node = ViewerNode.nodeNoDefaults(
+      nodeId,
+      Attributes(
+        VectorMap(
+          Style.attrId     -> AttrValue("fill:#111,stroke:#222,rx:6px"),
+          FillColor.attrId -> AttrValue("#f9f"),
+          PenWidth.attrId  -> AttrValue("3.0")
+        )
+      )
+    )
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeId -> node)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(
+      result.contains("style A fill:#f9f,stroke:#222,stroke-width:3.0px,rx:6px"),
+      s"Explicit normalized attrs should win over raw CSS for matching keys, got: $result"
+    )
+
   test("viewerGraphToMermaidText should not emit style directive for DOT-style values"):
     val nodeId = NodeId("A")
     val node = ViewerNode.nodeNoDefaults(
@@ -345,6 +462,67 @@ class FromViewerGraphSpec extends FunSuite:
 
     assert(result.contains("style A fill:#f9f,stroke:#333"), s"Should emit style directive for connected node, got: $result")
 
+  test("viewerGraphToMermaidText should write normalized group attrs as Mermaid CSS"):
+    val nodeA   = NodeId("A")
+    val groupId = GroupId("SG")
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeA -> ViewerNode.nodeWithDefaults(nodeA)),
+        groups = Map(
+          groupId -> ViewerGroup.group(
+            groupId,
+            Attributes.of(
+              Label     -> "Cluster",
+              FillColor -> "#eef",
+              PenColor  -> "#333",
+              PenWidth  -> 2.0,
+              FontColor -> "#111",
+              FontName  -> "Arial",
+              FontSize  -> 13.0
+            )
+          )
+        ),
+        memberships = VectorMap(nodeA -> groupId)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("subgraph SG [Cluster]"), s"Should emit group block, got: $result")
+    assert(
+      result.matches("(?s).*style SG fill:#eef,stroke:#333,stroke-width:2(?:\\.0)?px,color:#111,font-family:Arial,font-size:13(?:\\.0)?px.*"),
+      s"Should emit group style from normalized attrs, got: $result"
+    )
+
+  test("viewerGraphToMermaidText should let normalized group attrs override existing CSS keys"):
+    val nodeA   = NodeId("A")
+    val groupId = GroupId("SG")
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeA -> ViewerNode.nodeWithDefaults(nodeA)),
+        groups = Map(
+          groupId -> ViewerGroup.group(
+            groupId,
+            Attributes(
+              VectorMap(
+                Label.attrId     -> AttrValue("Cluster"),
+                Style.attrId     -> AttrValue("fill:#111,rx:6px"),
+                FillColor.attrId -> AttrValue("#f9f")
+              )
+            )
+          )
+        ),
+        memberships = VectorMap(nodeA -> groupId)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(
+      result.contains("style SG fill:#f9f,rx:6px"),
+      s"Normalized group attrs should override matching raw CSS keys, got: $result"
+    )
+
   test("round-trip: MermaidGraph with styles → ViewerGraph → Mermaid text preserves styles"):
     val mg = MermaidGraph(
       vertices = Map(
@@ -366,3 +544,50 @@ class FromViewerGraphSpec extends FunSuite:
     assert(result.contains("style B fill:#f9f,stroke:#333"), s"Should emit inline style for B, got: $result")
     assert(result.contains("A --> B"), s"Should contain edge A → B, got: $result")
     assert(result.contains("B --> C"), s"Should contain edge B → C, got: $result")
+
+  test("round-trip edit flow should serialize flattened node/edge/group style directives"):
+    val mermaidGraph = MermaidGraph(
+      vertices = Map(
+        "A" -> MermaidVertex(id = "A", text = "A"),
+        "B" -> MermaidVertex(id = "B", text = "B")
+      ),
+      edges = List(MermaidEdge(start = "A", end = "B")),
+      subgraphs = List(MermaidSubgraph(id = "SG", title = Some("Cluster"), nodes = List("A")))
+    )
+
+    val parsedViewerGraph = toViewerGraph(mermaidGraph)
+    val edgeId            = parsedViewerGraph.arrows.keys.head
+
+    val editedNode = parsedViewerGraph.updateAttributes(
+      ElementIds.from(NodeId("A")),
+      AttributeUpdates.of(
+        FillColor -> "#ff0",
+        FontSize  -> 18.0
+      )
+    )
+    val editedEdge = editedNode.updateAttributes(
+      ElementIds.from(edgeId),
+      AttributeUpdates.of(
+        Color    -> "#f00",
+        PenWidth -> 2.0
+      )
+    )
+    val editedGraph = editedEdge.updateAttributes(
+      ElementIds.from(GroupId("SG")),
+      AttributeUpdates.of(
+        FillColor -> "#eef",
+        PenColor  -> "#333"
+      )
+    )
+
+    val serialized = viewerGraphToMermaidText(editedGraph)
+
+    assert(
+      serialized.matches("(?s).*style A fill:#ff0,font-size:18(?:\\.0)?px.*"),
+      s"Node edit should serialize to flat style directive, got: $serialized"
+    )
+    assert(
+      serialized.matches("(?s).*linkStyle 0 stroke:#f00,stroke-width:2(?:\\.0)?px.*"),
+      s"Edge edit should serialize to linkStyle directive, got: $serialized"
+    )
+    assert(serialized.contains("style SG fill:#eef,stroke:#333"), s"Group edit should serialize to style directive, got: $serialized")

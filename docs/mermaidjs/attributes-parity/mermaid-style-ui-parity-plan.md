@@ -26,9 +26,9 @@ Make Mermaid diagrams first-class in the attributes toolbar:
 
 ## Tracking Snapshot
 
-Current track: `Phase 3`  
-Current focus: `MP3-T2`  
-Resume from: `MP3-T2 - implement node write-back from normalized attrs`
+Current track: `Phase 4`  
+Current focus: `Completed`  
+Resume from: `Backlog follow-ups (see closeout note)`
 
 ## Design Principle (confirmed)
 
@@ -62,13 +62,13 @@ Resume from: `MP3-T2 - implement node write-back from normalized attrs`
 | MP2-T4 | Implement group effective-style mapping to toolbar attrs | ✅ | MP2-T3 | Group toolbar reflects resolved border/fill/font values | `AttributesOps.scala` | Maps group effective Mermaid style to `FillColor`, `PenColor`, `PenWidth`, `Font*` |
 | MP2-T5 | Add edge/group parity tests | ✅ | MP2-T2, MP2-T4 | Automated tests cover read-model parity for edges/groups | `AttributesOpsSpec.scala`, `ToViewerGraphSpec.scala` | Includes precedence and explicit-override coverage for edge/group |
 | MP3-T1 | Define flat Mermaid export policy from GE attrs | ✅ | MP1-T5, MP2-T5 | Policy documented with deterministic rules | `docs/mermaidjs/attributes-parity/mermaid-flat-export-policy.md`, `FromViewerGraph.scala`, `FromViewerGraphSpec.scala` | Added deterministic emission order and metadata-preserving export scaffolding |
-| MP3-T2 | Implement node write-back from normalized attrs to Mermaid text | todo | MP3-T1 | Node toolbar edits persist in flat Mermaid output | pending | No regressions for existing serialization tests |
-| MP3-T3 | Implement edge write-back to Mermaid `linkStyle`/edge syntax | todo | MP3-T1 | Edge toolbar edits persist in Mermaid text | pending | Handle index-based linkStyle safely |
-| MP3-T4 | Implement group write-back strategy | todo | MP3-T1 | Group toolbar edits persist in Mermaid syntax when supported | pending | Graceful fallback for unsupported attrs |
-| MP3-T5 | Add round-trip tests (parse -> edit -> serialize -> parse) | todo | MP3-T2, MP3-T3, MP3-T4 | Round-trip preserves visual intent with flattened output | pending | Source-structure diffs are acceptable by policy |
-| MP4-T1 | Update Mermaid docs with supported attribute parity matrix | todo | MP3-T5 | Docs list supported/partial/unsupported fields with examples | pending | Update `docs/mermaidjs/*` |
-| MP4-T2 | Regression sweep (`sbt test`, `npm run build`) | todo | MP4-T1 | All tests pass and production build succeeds | pending | Record exact commands/date |
-| MP4-T3 | Closeout note with residual gaps and follow-ups | todo | MP4-T2 | Clear residual scope + next backlog | pending | Final wrap-up for this track |
+| MP3-T2 | Implement node write-back from normalized attrs to Mermaid text | ✅ | MP3-T1 | Node toolbar edits persist in flat Mermaid output | `FromViewerGraph.scala`, `FromViewerGraphSpec.scala` | Node normalized attrs now emit/override Mermaid `style nodeId ...` CSS |
+| MP3-T3 | Implement edge write-back to Mermaid `linkStyle`/edge syntax | ✅ | MP3-T1 | Edge toolbar edits persist in Mermaid text | `FromViewerGraph.scala`, `FromViewerGraphSpec.scala` | Edge normalized attrs now emit deterministic `linkStyle <index> ...`; index follows serialized edge order |
+| MP3-T4 | Implement group write-back strategy | ✅ | MP3-T1 | Group toolbar edits persist in Mermaid syntax when supported | `FromViewerGraph.scala`, `FromViewerGraphSpec.scala` | Group normalized attrs now emit/override Mermaid `style <subgraphId> ...` directives |
+| MP3-T5 | Add round-trip tests (parse -> edit -> serialize -> parse) | ✅ | MP3-T2, MP3-T3, MP3-T4 | Round-trip preserves visual intent with flattened output | `FromViewerGraphSpec.scala` | Added flattened edit-flow round-trip coverage for node/edge/group style directives |
+| MP4-T1 | Update Mermaid docs with supported attribute parity matrix | ✅ | MP3-T5 | Docs list supported/partial/unsupported fields with examples | `docs/mermaidjs/attributes-parity/mermaid-attribute-parity-matrix.md`, `docs/mermaidjs/dot-mermaid-ge-feature-mapping.md` | Matrix now reflects read/write support and known constraints |
+| MP4-T2 | Regression sweep (`sbt test`, `npm run build`) | ✅ | MP4-T1 | All tests pass and production build succeeds | `sbt test`, `npm run build` | `sbt test` includes shared JVM+JS and viewer suites |
+| MP4-T3 | Closeout note with residual gaps and follow-ups | ✅ | MP4-T2 | Clear residual scope + next backlog | `docs/mermaidjs/attributes-parity/mermaid-style-ui-parity-closeout-2026-03-01.md` | Final wrap-up for this track |
 
 ## Phase Gates
 
@@ -91,9 +91,9 @@ Resume from: `MP3-T2 - implement node write-back from normalized attrs`
 | MP-INV-05 | Selected Mermaid node produces expected `AttributeUpdates` statuses | viewer/state tests | todo |
 | MP-INV-06 | Edge style metadata survives parse and maps to arrow toolbar attrs | parser + mapping tests | todo |
 | MP-INV-07 | Group style metadata survives parse and maps to group toolbar attrs | parser + mapping tests | todo |
-| MP-INV-08 | Node toolbar edit writes Mermaid text according to policy | round-trip tests | todo |
-| MP-INV-09 | Edge toolbar edit writes Mermaid `linkStyle` or equivalent | round-trip tests | todo |
-| MP-INV-10 | Serialization remains stable for existing Mermaid scenarios | existing + new serializer tests | todo |
+| MP-INV-08 | Node toolbar edit writes Mermaid text according to policy | round-trip tests | ✅ |
+| MP-INV-09 | Edge toolbar edit writes Mermaid `linkStyle` or equivalent | round-trip tests | ✅ |
+| MP-INV-10 | Serialization remains stable for existing Mermaid scenarios | existing + new serializer tests | ✅ |
 
 ## Session Update Protocol
 
@@ -125,6 +125,11 @@ Resume from: `MP3-T2 - implement node write-back from normalized attrs`
 | 2026-03-01 | Improved Mermaid 10 render parity with Mermaid Live for inline style precedence and marker color: inline node/cluster/edge styles are promoted to `!important`, edge markers are colorized from default linkStyle stroke, and inline node text styles are applied with label-box width compensation | MP1-T5 (hardening), MP2-T2 (hardening) | `viewer/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackendNormalizationSpec`; `viewer/compile`; `viewer/fastLinkJS`; manual compare screenshots (`/tmp/ge-render-fixed2.png` vs `/tmp/official-render.png`) | MP3-T1 |
 | 2026-03-01 | Upgraded Mermaid runtime from `10.9.5` to `11.12.0` and fixed parser compatibility (`parser.yy` can be empty in v11; fallback to `diagram.db`) so Mermaid read path works again; visual parity improved significantly for node/group padding/geometry | MP1-T5 (hardening), MP2-T2 (hardening) | `npm install mermaid@11.12.0`; `viewer/compile`; `viewer/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackendNormalizationSpec`; `viewer/fastLinkJS`; `npm run build`; manual compare (`/tmp/ge-render-v11.png` vs `/tmp/official-render.png`) | MP3-T1 |
 | 2026-03-01 | Defined and codified Mermaid flat export policy (`MP3-T1`): deterministic output order, merged classDef/classDefText emission, default linkStyle export, and stable edge ordering baseline for upcoming write-back tasks | MP3-T1 | `sharedJVM/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.FromViewerGraphSpec` | MP3-T2 |
+| 2026-03-01 | Implemented write parity for node and edge toolbar attrs (`MP3-T2`, `MP3-T3`): normalized node attrs now emit Mermaid `style` directives, and normalized edge attrs emit `linkStyle <index>` with deterministic indexing and metadata merge | MP3-T2, MP3-T3 | `sharedJVM/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.FromViewerGraphSpec` | MP3-T4 |
+| 2026-03-01 | Implemented group write-back (`MP3-T4`): group normalized attrs now emit Mermaid `style <subgraphId>` directives, merged with existing CSS when present | MP3-T4 | `sharedJVM/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.FromViewerGraphSpec` | MP3-T5 |
+| 2026-03-01 | Added flattened write round-trip tests (`MP3-T5`) covering parse-model -> edit -> serialize flow for node, edge, and group attrs, and confirmed serializer stability with expanded Mermaid spec coverage | MP3-T5 | `sharedJVM/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.FromViewerGraphSpec` | MP4-T1 |
+| 2026-03-01 | Added Mermaid attribute parity matrix doc with supported/partial/unsupported read/write coverage and examples (`MP4-T1`) | MP4-T1 | Docs review | MP4-T2 |
+| 2026-03-01 | Completed regression sweep (`MP4-T2`) and closeout (`MP4-T3`) after adding write-parity coverage across shared JVM/JS test runs | MP4-T2, MP4-T3 | `sbt test`; `npm run build` | Completed |
 
 ## Open Questions
 
