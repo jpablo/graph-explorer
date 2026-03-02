@@ -59,15 +59,14 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         { diagram =>
           try
             val yy =
-              diagram.parser.toOption
-                .flatMap(parser => parser.yy.toOption.filter(MermaidBackend.hasFlowchartAccessors))
-                .orElse(diagram.db.toOption)
+              MermaidBackend
+                .selectDiagramYY(diagram)
                 .getOrElse(throw new Exception("Mermaid parser database missing"))
             val vertices  = convertVertices(yy.getVertices())
             val jsEdges   = yy.getEdges()
             val edges     = convertEdges(jsEdges)
             val subgraphs = convertSubgraphs(yy.getSubGraphs())
-            val classDefs = convertClassDefs(yy.getClasses())
+            val classDefs = MermaidBackend.withSourceClassDefs(text, convertClassDefs(yy.getClasses()))
             val defaultEdgeStyle = jsEdges.defaultStyle.toOption.map(_.toList).getOrElse(Nil)
             val defaultEdgeInterpolate = jsEdges.defaultInterpolate.toOption
             val direction = yy.getDirection().toOption
@@ -203,6 +202,7 @@ object MermaidBackend:
   private var operationChain: Future[Unit] = Future.successful(())
   private val MarkerAttributes = List("marker-start", "marker-end")
   private val NodeTextStyleKeys = Set("color", "font-size", "font-family", "font-weight", "font-style")
+  private val MermaidClassDefPrefix = "classdef"
 
   // Check initialization flag from window object to survive HMR
   private def windowDyn = dom.window.asInstanceOf[js.Dynamic]
@@ -244,6 +244,57 @@ object MermaidBackend:
     val dyn = yy.asInstanceOf[js.Dynamic]
     val vertices = dyn.selectDynamic("getVertices")
     !js.isUndefined(vertices) && js.typeOf(vertices) == "function"
+
+  /** Mermaid v11 can expose both parser.yy and diagram.db, where parser.yy may be syntactically valid but semantically incomplete.
+    * Prefer diagram.db when available to retain labels/classes/classDefs on write-back.
+    */
+  private[mermaid] def selectDiagramYY(diagram: Diagram): Option[DiagramYY] =
+    diagram.db.toOption
+      .filter(hasFlowchartAccessors)
+      .orElse(
+        diagram.parser.toOption
+          .flatMap(parser => parser.yy.toOption.filter(hasFlowchartAccessors))
+      )
+
+  /** Mermaid v11 does not always expose all `classDef` entries via `getClasses()`.
+    * Recover missing class definitions from source text so toolbar read parity remains stable.
+    */
+  private[mermaid] def withSourceClassDefs(
+      sourceText: String,
+      classDefs:  Map[String, MermaidClassDef]
+  ): Map[String, MermaidClassDef] =
+    extractClassDefsFromText(sourceText).foldLeft(classDefs) { case (acc, (className, fromSource)) =>
+      acc.get(className) match
+        case Some(existing) if existing.styles.nonEmpty || existing.textStyles.nonEmpty => acc
+        case _                                                                           => acc + (className -> fromSource)
+    }
+
+  private[mermaid] def extractClassDefsFromText(sourceText: String): Map[String, MermaidClassDef] =
+    sourceText.linesIterator
+      .map(_.trim)
+      .filter(line => line.toLowerCase.startsWith(MermaidClassDefPrefix))
+      .flatMap { line =>
+        val withoutPrefix = line.drop(MermaidClassDefPrefix.length).trim
+        val firstSpace = withoutPrefix.indexOf(' ')
+        if firstSpace < 0 then Nil
+        else
+          val rawNames = withoutPrefix.substring(0, firstSpace).trim
+          val body = withoutPrefix.substring(firstSpace + 1).trim.stripSuffix(";")
+          val classNames = rawNames.split(",").map(_.trim).filter(_.nonEmpty)
+          val declarations = body
+            .split(",")
+            .toList
+            .map(_.trim)
+            .filter(fragment => fragment.contains(":"))
+
+          if declarations.nonEmpty then
+            classNames.map(_ -> declarations)
+          else Nil
+      }
+      .foldLeft(Map.empty[String, MermaidClassDef]) { case (acc, (className, declarations)) =>
+        val mergedStyles = acc.get(className).map(_.styles).getOrElse(Nil) ++ declarations
+        acc + (className -> MermaidClassDef(styles = mergedStyles))
+      }
 
   private[mermaid] def normalizeRenderedSvg(svg: dom.svg.SVG, defaultEdgeMarkerColor: Option[String]): Unit =
     normalizeEdgeMarkers(svg, defaultEdgeMarkerColor)
