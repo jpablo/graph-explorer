@@ -601,6 +601,20 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   def handleKeyDown(ev: dom.KeyboardEvent): Unit =
     dom.console.debug("Key pressed:", ev.key, ev.code, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey)
     dom.console.debug("activeElement:", dom.document.activeElement)
+
+    val isSaveShortcut =
+      ev.key.equalsIgnoreCase("s") && (ev.metaKey || ev.ctrlKey) && !ev.altKey
+    if isSaveShortcut then
+      ev.preventDefault()
+      ev.stopPropagation()
+      val bridge = js.Dynamic.global.window.selectDynamic("__graphExplorerDesktopBridge")
+      val saveCurrentTextFn = bridge.selectDynamic("saveCurrentText")
+      if !js.isUndefined(saveCurrentTextFn) && js.typeOf(saveCurrentTextFn) == "function" then
+        saveCurrentTextFn.asInstanceOf[js.Function0[Any]]()
+      else
+        state.infoBus.emit("Desktop save is unavailable in this mode")
+      return
+
     val sh = normalizeShortcut(Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey))
     for cmd <- byShortcut.get(sh) do
       // Prevent default for all handled shortcuts so the pressed key

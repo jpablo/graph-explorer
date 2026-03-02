@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default desktop capability set for Graph Explorer.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
+

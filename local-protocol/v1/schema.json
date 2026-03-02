@@ -1,0 +1,112 @@
+{
+  "version": "v1",
+  "transport": {
+    "requestResponse": "http+json",
+    "events": "sse",
+    "auth": "bearer-token"
+  },
+  "runtimeFile": {
+    "path": "~/.graph-explorer/runtime/control.json",
+    "fields": {
+      "pid": "u32",
+      "port": "u16",
+      "token": "string",
+      "version": "string"
+    }
+  },
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/v1/watch",
+      "request": {
+        "path": "string",
+        "openInUi": "boolean"
+      },
+      "response": {
+        "ok": "boolean",
+        "watch": "WatchDescriptor"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v1/unwatch",
+      "request": {
+        "path": "string"
+      },
+      "response": {
+        "ok": "boolean"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v1/status",
+      "response": {
+        "ok": "boolean",
+        "watches": "WatchDescriptor[]"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v1/document",
+      "query": {
+        "path": "string"
+      },
+      "response": {
+        "ok": "boolean",
+        "document": "DocumentSnapshot"
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/document",
+      "request": {
+        "path": "string",
+        "text": "string",
+        "baseRevision": "u64",
+        "source": "ui|cli"
+      },
+      "response": {
+        "ok": "boolean",
+        "document": "DocumentSnapshot"
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "DOCUMENT_CONFLICT"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v1/events",
+      "response": {
+        "stream": "SseEvent[]"
+      }
+    }
+  ],
+  "types": {
+    "WatchDescriptor": {
+      "path": "string",
+      "format": "dot|mermaid",
+      "revision": "u64"
+    },
+    "DocumentSnapshot": {
+      "path": "string",
+      "text": "string",
+      "format": "dot|mermaid",
+      "revision": "u64",
+      "timestampMs": "u64"
+    },
+    "SseEvent": {
+      "event": "document.changed|document.conflict|watch.added|watch.removed",
+      "payload": "object"
+    },
+    "ErrorEnvelope": {
+      "ok": "false",
+      "code": "string",
+      "message": "string",
+      "details": "object?"
+    }
+  }
+}
+

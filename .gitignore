@@ -58,3 +58,4 @@ scripts/.scala-build/
 vite.config.js.timestamp-*.mjs
 
 .claude-trace/tmp/
+desktop/src-tauri/gen/
