@@ -12,7 +12,7 @@ class FromViewerGraphSpec extends FunSuite:
 
   test("viewerGraphToMermaidText should serialize a simple node"):
     val nodeId = NodeId("A")
-    val node = ViewerNode.nodeWithDefaults(nodeId, Attributes.of(Label -> "Hello"))
+    val node   = ViewerNode.nodeWithDefaults(nodeId, Attributes.of(Label -> "Hello"))
     val graph = ViewerGraph(
       elements = ViewerGraphElements(
         nodes = VectorMap(nodeId -> node)
@@ -140,7 +140,7 @@ class FromViewerGraphSpec extends FunSuite:
 
   test("viewerGraphToMermaidText should emit classDef lines from graph attributes"):
     val nodeId = NodeId("A")
-    val node = ViewerNode.nodeWithDefaults(nodeId)
+    val node   = ViewerNode.nodeWithDefaults(nodeId)
     val graph = ViewerGraph(
       elements = ViewerGraphElements(
         nodes = VectorMap(nodeId -> node),
@@ -156,12 +156,95 @@ class FromViewerGraphSpec extends FunSuite:
     assert(result.contains("classDef green fill:#9f6,stroke:#333"), s"Should contain classDef green, got: $result")
     assert(result.contains("classDef red fill:#f66,stroke:#900"), s"Should contain classDef red, got: $result")
 
+  test("viewerGraphToMermaidText should merge classDef styles and classDef text styles"):
+    val nodeId = NodeId("A")
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeId -> ViewerNode.nodeWithDefaults(nodeId)),
+        graphAttributes = Attributes(VectorMap(
+          AttributeId("mermaid_classDef_warn")     -> AttrValue("fill:#f66,stroke:#900"),
+          AttributeId("mermaid_classDefText_warn") -> AttrValue("color:#fff")
+        ))
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(
+      result.contains("classDef warn fill:#f66,stroke:#900,color:#fff"),
+      s"Should merge classDef + classDefText into one declaration, got: $result"
+    )
+
+  test("viewerGraphToMermaidText should emit default linkStyle from graph attributes"):
+    val nodeA = NodeId("A")
+    val nodeB = NodeId("B")
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(
+          nodeA -> ViewerNode.nodeWithDefaults(nodeA),
+          nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+        ),
+        graphAttributes = Attributes(VectorMap(
+          AttributeId("mermaid_linkStyle_default")       -> AttrValue("stroke:#f00,stroke-width:2px"),
+          AttributeId("mermaid_linkInterpolate_default") -> AttrValue("stepBefore")
+        ))
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(
+      result.contains("linkStyle default stroke:#f00,stroke-width:2px,interpolate:stepBefore"),
+      s"Should emit default linkStyle with interpolation, got: $result"
+    )
+
+  test("viewerGraphToMermaidText should serialize edges in deterministic order"):
+    val nodeA = NodeId("A")
+    val nodeB = NodeId("B")
+    val nodeC = NodeId("C")
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(
+          nodeA -> ViewerNode.nodeWithDefaults(nodeA),
+          nodeB -> ViewerNode.nodeWithDefaults(nodeB),
+          nodeC -> ViewerNode.nodeWithDefaults(nodeC)
+        ),
+        arrows = Map(
+          Arrow(
+            nodeB,
+            nodeC,
+            Attributes.of(Label -> "second"),
+            seq = 2
+          ).id -> Arrow(nodeB, nodeC, Attributes.of(Label -> "second"), seq = 2),
+          Arrow(nodeA, nodeB, Attributes.of(Label -> "first"), seq = 1).id -> Arrow(nodeA, nodeB, Attributes.of(Label -> "first"), seq = 1),
+          Arrow(nodeB, nodeC, Attributes.of(Label -> "middle"), seq = 1).id -> Arrow(
+            nodeB,
+            nodeC,
+            Attributes.of(Label -> "middle"),
+            seq = 1
+          )
+        )
+      )
+    )
+
+    val result    = viewerGraphToMermaidText(graph)
+    val edgeLines = result.linesIterator.filter(_.contains("-->")).toVector
+
+    assertEquals(
+      edgeLines,
+      Vector(
+        "  A -->|first| B",
+        "  B -->|middle| C",
+        "  B -->|second| C"
+      )
+    )
+
   test("viewerGraphToMermaidText should append :::className on nodes with mermaid_class"):
     val nodeId = NodeId("A")
     val node = ViewerNode.nodeNoDefaults(
       nodeId,
       Attributes(VectorMap(
-        Label.attrId -> AttrValue("Hello"),
+        Label.attrId                 -> AttrValue("Hello"),
         AttributeId("mermaid_class") -> AttrValue("green")
       ))
     )
@@ -207,7 +290,7 @@ class FromViewerGraphSpec extends FunSuite:
       elements = ViewerGraphElements(
         nodes = VectorMap(
           nodeId -> node,
-          nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+          nodeB  -> ViewerNode.nodeWithDefaults(nodeB)
         ),
         arrows = Map(arrow.id -> arrow)
       )
@@ -274,7 +357,7 @@ class FromViewerGraphSpec extends FunSuite:
       classDefs = Map("highlight" -> MermaidClassDef(styles = List("fill:#9f6", "stroke:#333")))
     )
 
-    val vg = toViewerGraph(mg)
+    val vg     = toViewerGraph(mg)
     val result = viewerGraphToMermaidText(vg)
 
     assert(result.contains("flowchart LR"), s"Should preserve direction, got: $result")

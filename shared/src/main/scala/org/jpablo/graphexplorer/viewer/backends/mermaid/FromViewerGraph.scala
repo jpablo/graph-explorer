@@ -4,6 +4,14 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Rankdir, S
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
+import scala.collection.immutable.VectorMap
+
+private val MermaidClassDefPrefix             = "mermaid_classDef_"
+private val MermaidClassDefTextPrefix         = "mermaid_classDefText_"
+private val MermaidClassAttr                  = AttributeId("mermaid_class")
+private val MermaidDefaultLinkStyleAttr       = AttributeId("mermaid_linkStyle_default")
+private val MermaidDefaultLinkInterpolateAttr = AttributeId("mermaid_linkInterpolate_default")
+
 /** Converts a ViewerGraph back to Mermaid flowchart text.
   *
   * This is the inverse of `toViewerGraph` in ToViewerGraph.scala.
@@ -28,13 +36,8 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   val direction = graph.elements.graphAttributes.getAs(Rankdir).toString
   lines.append(s"flowchart $direction\n")
 
-  // Emit classDef lines from graph attributes
-  val classDefPrefix = "mermaid_classDef_"
-  graph.elements.graphAttributes.values.foreach { case (attrId, attrValue) =>
-    if attrId.value.startsWith(classDefPrefix) then
-      val className = attrId.value.stripPrefix(classDefPrefix)
-      lines.append(s"  classDef $className ${attrValue.toString}\n")
-  }
+  emitClassDefLines(lines, graph.elements.graphAttributes)
+  emitDefaultLinkStyleLine(lines, graph.elements.graphAttributes)
 
   // Get the root group ID to filter it out
   val rootGroupId = GroupId(ViewerGraphElements.defaultRootId.value)
@@ -43,7 +46,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
 
   // Serialize subgraphs (groups, excluding root)
   val subgraphNodes = scala.collection.mutable.Set[NodeId]()
-  graph.groups.foreach { case (groupId, group) =>
+  graph.groups.toVector.sortBy(_._1.value).foreach { case (groupId, group) =>
     if groupId != rootGroupId then
       val title = group.label.toString match
         case s if s.nonEmpty => s" [$s]"
@@ -56,7 +59,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
       }
 
       // Serialize nodes in this subgraph
-      nodesInGroup.foreach { nodeId =>
+      nodesInGroup.toVector.sortBy(_.value).foreach { nodeId =>
         graph.nodes.get(nodeId).foreach { node =>
           val nodeLine = serializeNode(nodeId, node)
           lines.append(s"    $nodeLine\n")
@@ -77,7 +80,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   }
 
   // Serialize edges
-  graph.arrows.foreach { case (_, arrow) =>
+  sortedArrows(graph.arrows.values).foreach { arrow =>
     val edgeLine = serializeEdge(arrow)
     lines.append(s"  $edgeLine\n")
   }
@@ -95,11 +98,11 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
 private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
   val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
-  val classOpt = node.attributes.values.get(AttributeId("mermaid_class")).map(_.toString).filter(_.nonEmpty)
+  val classOpt = node.attributes.values.get(MermaidClassAttr).map(_.toString).filter(_.nonEmpty)
 
-  val label = labelOpt.getOrElse(nodeId.value)
+  val label                       = labelOpt.getOrElse(nodeId.value)
   val (openBracket, closeBracket) = shapeOpt.map(dotShapeToMermaid).getOrElse(("[", "]"))
-  val classSuffix = classOpt.map(c => s":::$c").getOrElse("")
+  val classSuffix                 = classOpt.map(c => s":::$c").getOrElse("")
 
   if shapeOpt.isEmpty && label == nodeId.value then
     s"${nodeId.value}$classSuffix"
@@ -110,10 +113,10 @@ private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
 
 /** Serialize an edge with its style and label. */
 private def serializeEdge(arrow: Arrow): String =
-  val styleOpt = arrow.attributes.values.get(Style.attrId).map(_.toString)
+  val styleOpt  = arrow.attributes.values.get(Style.attrId).map(_.toString)
   val arrowType = dotStyleToMermaidArrow(styleOpt)
 
-  val labelOpt = arrow.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
+  val labelOpt  = arrow.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val labelPart = labelOpt.map(l => s"|${escapeMermaidLabel(l)}|").getOrElse("")
 
   s"${arrow.source.value} $arrowType$labelPart ${arrow.target.value}"
@@ -146,14 +149,57 @@ private def dotStyleToMermaidArrow(styleOpt: Option[String]): String =
     case _              => "-->"
 
 private def shouldEmitStandaloneNode(nodeId: NodeId, node: ViewerNode, connectedNodeIds: Set[NodeId]): Boolean =
-  val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
-  val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
+  val labelOpt         = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
+  val shapeOpt         = node.attributes.values.get(Shape.attrId).map(_.toString)
   val hasExplicitLabel = labelOpt.exists(_ != nodeId.value)
-  val hasShape = shapeOpt.nonEmpty
-  val hasClass = node.attributes.values.contains(AttributeId("mermaid_class"))
-  val hasCssStyle = node.attributes.values.get(Style.attrId).exists(_.toString.contains(":"))
+  val hasShape         = shapeOpt.nonEmpty
+  val hasClass         = node.attributes.values.contains(MermaidClassAttr)
+  val hasCssStyle      = node.attributes.values.get(Style.attrId).exists(_.toString.contains(":"))
 
   !connectedNodeIds.contains(nodeId) || hasExplicitLabel || hasShape || hasClass || hasCssStyle
+
+private def emitClassDefLines(lines: StringBuilder, graphAttributes: Attributes): Unit =
+  collectClassDefBodies(graphAttributes).foreach { case (className, body) =>
+    lines.append(s"  classDef $className $body\n")
+  }
+
+private def collectClassDefBodies(graphAttributes: Attributes): Vector[(String, String)] =
+  val styleByClass = graphAttributes.values.collect {
+    case (attrId, value) if attrId.value.startsWith(MermaidClassDefPrefix) =>
+      attrId.value.stripPrefix(MermaidClassDefPrefix) -> value.toString
+  }
+  val textByClass = graphAttributes.values.collect {
+    case (attrId, value) if attrId.value.startsWith(MermaidClassDefTextPrefix) =>
+      attrId.value.stripPrefix(MermaidClassDefTextPrefix) -> value.toString
+  }
+
+  val allClassNames = (styleByClass.keySet ++ textByClass.keySet).toVector.sorted
+  allClassNames.flatMap { className =>
+    val merged = mergeMermaidCssBodies(styleByClass.get(className), textByClass.get(className))
+    merged.map(className -> _)
+  }
+
+private def emitDefaultLinkStyleLine(lines: StringBuilder, graphAttributes: Attributes): Unit =
+  val defaultStyleOpt = graphAttributes.values.get(MermaidDefaultLinkStyleAttr).map(_.toString).filter(_.nonEmpty)
+  val defaultInterpolateOpt = graphAttributes.values
+    .get(MermaidDefaultLinkInterpolateAttr)
+    .map(_.toString)
+    .filter(_.nonEmpty)
+    .map(value => s"interpolate:$value")
+
+  mergeMermaidCssBodies(defaultStyleOpt, defaultInterpolateOpt).foreach { body =>
+    lines.append(s"  linkStyle default $body\n")
+  }
+
+private def mergeMermaidCssBodies(styleBodyOpt: Option[String], extraBodyOpt: Option[String]): Option[String] =
+  val base   = styleBodyOpt.map(MermaidStyleDeclarations.parse).getOrElse(VectorMap.empty)
+  val extra  = extraBodyOpt.map(MermaidStyleDeclarations.parse).getOrElse(VectorMap.empty)
+  val merged = base ++ extra
+  if merged.isEmpty then None
+  else Some(merged.map { case (key, value) => s"$key:$value" }.mkString(","))
+
+private def sortedArrows(arrows: Iterable[Arrow]): Vector[Arrow] =
+  arrows.toVector.sortBy(arrow => (arrow.source.value, arrow.target.value, arrow.seq, arrow.id.value))
 
 /** Escape special characters in Mermaid labels. */
 private def escapeMermaidLabel(label: String): String =

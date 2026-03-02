@@ -27,8 +27,8 @@ Make Mermaid diagrams first-class in the attributes toolbar:
 ## Tracking Snapshot
 
 Current track: `Phase 3`  
-Current focus: `MP3-T1`  
-Resume from: `MP3-T1 - define flat Mermaid export policy from GE attrs`
+Current focus: `MP3-T2`  
+Resume from: `MP3-T2 - implement node write-back from normalized attrs`
 
 ## Design Principle (confirmed)
 
@@ -40,7 +40,7 @@ Resume from: `MP3-T1 - define flat Mermaid export policy from GE attrs`
 
 ## Confirmed Constraint
 
-- Mermaid (`10.9.5` in this repo) does not provide a public flatten/effective-style API comparable to the Graphviz simplegraph flattening flow.
+- Mermaid (`11.12.0` in this repo) does not provide a public flatten/effective-style API comparable to the Graphviz simplegraph flattening flow.
 - Therefore, `MP0-T2` + `MP1-T1` must implement app-side style flattening from Mermaid layered inputs (`classDef`/class assignment/inline style).
 
 ## Task Board
@@ -61,7 +61,7 @@ Resume from: `MP3-T1 - define flat Mermaid export policy from GE attrs`
 | MP2-T3 | Extend subgraph/group style capture (classes and style directives) | ✅ | MP0-T2 | Group model preserves Mermaid class/style where available | `MermaidGraph.scala`, `MermaidJS.scala`, `MermaidBackend.scala`, `ToViewerGraph.scala` | Captures subgraph classes and maps to `mermaid_class` |
 | MP2-T4 | Implement group effective-style mapping to toolbar attrs | ✅ | MP2-T3 | Group toolbar reflects resolved border/fill/font values | `AttributesOps.scala` | Maps group effective Mermaid style to `FillColor`, `PenColor`, `PenWidth`, `Font*` |
 | MP2-T5 | Add edge/group parity tests | ✅ | MP2-T2, MP2-T4 | Automated tests cover read-model parity for edges/groups | `AttributesOpsSpec.scala`, `ToViewerGraphSpec.scala` | Includes precedence and explicit-override coverage for edge/group |
-| MP3-T1 | Define flat Mermaid export policy from GE attrs | todo | MP1-T5, MP2-T5 | Policy documented with deterministic rules | pending | Visual fidelity prioritized over source-structure fidelity |
+| MP3-T1 | Define flat Mermaid export policy from GE attrs | ✅ | MP1-T5, MP2-T5 | Policy documented with deterministic rules | `docs/mermaidjs/attributes-parity/mermaid-flat-export-policy.md`, `FromViewerGraph.scala`, `FromViewerGraphSpec.scala` | Added deterministic emission order and metadata-preserving export scaffolding |
 | MP3-T2 | Implement node write-back from normalized attrs to Mermaid text | todo | MP3-T1 | Node toolbar edits persist in flat Mermaid output | pending | No regressions for existing serialization tests |
 | MP3-T3 | Implement edge write-back to Mermaid `linkStyle`/edge syntax | todo | MP3-T1 | Edge toolbar edits persist in Mermaid text | pending | Handle index-based linkStyle safely |
 | MP3-T4 | Implement group write-back strategy | todo | MP3-T1 | Group toolbar edits persist in Mermaid syntax when supported | pending | Graceful fallback for unsupported attrs |
@@ -124,6 +124,7 @@ Resume from: `MP3-T1 - define flat Mermaid export policy from GE attrs`
 | 2026-03-01 | Completed manual UI verification for read parity using controlled Mermaid sample (classDef default/class/inline + linkStyle default/index) | MP1-T5 | DevTools/manual check on `localhost:5173` (node, edge, group toolbar values) | MP3-T1 |
 | 2026-03-01 | Improved Mermaid 10 render parity with Mermaid Live for inline style precedence and marker color: inline node/cluster/edge styles are promoted to `!important`, edge markers are colorized from default linkStyle stroke, and inline node text styles are applied with label-box width compensation | MP1-T5 (hardening), MP2-T2 (hardening) | `viewer/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackendNormalizationSpec`; `viewer/compile`; `viewer/fastLinkJS`; manual compare screenshots (`/tmp/ge-render-fixed2.png` vs `/tmp/official-render.png`) | MP3-T1 |
 | 2026-03-01 | Upgraded Mermaid runtime from `10.9.5` to `11.12.0` and fixed parser compatibility (`parser.yy` can be empty in v11; fallback to `diagram.db`) so Mermaid read path works again; visual parity improved significantly for node/group padding/geometry | MP1-T5 (hardening), MP2-T2 (hardening) | `npm install mermaid@11.12.0`; `viewer/compile`; `viewer/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackendNormalizationSpec`; `viewer/fastLinkJS`; `npm run build`; manual compare (`/tmp/ge-render-v11.png` vs `/tmp/official-render.png`) | MP3-T1 |
+| 2026-03-01 | Defined and codified Mermaid flat export policy (`MP3-T1`): deterministic output order, merged classDef/classDefText emission, default linkStyle export, and stable edge ordering baseline for upcoming write-back tasks | MP3-T1 | `sharedJVM/testOnly org.jpablo.graphexplorer.viewer.backends.mermaid.FromViewerGraphSpec` | MP3-T2 |
 
 ## Open Questions
 

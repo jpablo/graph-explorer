@@ -116,6 +116,9 @@ Style token mapping:
 3. Reconstructing original classDef abstractions is not required.
 4. Structural differences are acceptable if rendered visuals are equivalent within tolerance.
 
+Detailed write-policy contract:
+- `docs/mermaidjs/attributes-parity/mermaid-flat-export-policy.md`
+
 ## Acceptance Criteria for MP0-T1
 
 1. Node/edge/group precedence order is defined and deterministic.
