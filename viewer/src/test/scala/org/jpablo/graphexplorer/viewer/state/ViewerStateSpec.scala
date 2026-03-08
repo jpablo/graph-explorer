@@ -174,28 +174,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       }
     }
 
-  private def installJsDom(): Unit =
-    js.eval(
-      """
-        const { JSDOM } = require('jsdom');
-        const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
-        global.window = dom.window;
-        global.document = dom.window.document;
-        global.DOMParser = dom.window.DOMParser;
-        global.Node = dom.window.Node;
-        global.Element = dom.window.Element;
-        global.HTMLElement = dom.window.HTMLElement;
-        global.SVGElement = dom.window.SVGElement;
-
-        const dpModule = require('dompurify');
-        const DOMPurify = dpModule.default || dpModule;
-        if (typeof DOMPurify.sanitize !== 'function') {
-          const instance = DOMPurify(dom.window);
-          Object.assign(DOMPurify, instance);
-        }
-      """
-    )
-
   private def waitForCondition(
       condition:   => Boolean,
       description: String = "condition",
@@ -214,7 +192,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     p.future
 
   test("mermaid elementAttributesUpdates zoomed Var triggers sourceTextS update"):
-    installJsDom()
     withGraphvizAsync { graphviz =>
       val mermaidSource =
         """flowchart LR
@@ -276,7 +253,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     }
 
   test("mermaid svgWithPositions fires after attribute change via toolbar path"):
-    installJsDom()
     withGraphvizAsync { graphviz =>
       val mermaidSource =
         """flowchart LR
@@ -337,7 +313,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     }
 
   test("mermaid elementAttributesUpdates: source text remains stable after re-parse settles"):
-    installJsDom()
     withGraphvizAsync { graphviz =>
       val mermaidSource =
         """flowchart LR

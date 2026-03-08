@@ -75,29 +75,6 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
     val nextUpdates    = currentUpdates + (FillColor.attrId -> AttrStatus.Single(AttrValue(fillHex)))
     graph.updateAttributes(ids, nextUpdates)
 
-  private def installJsDom(): Unit =
-    js.eval(
-      """
-        const { JSDOM } = require('jsdom');
-        const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
-        global.window = dom.window;
-        global.document = dom.window.document;
-        global.DOMParser = dom.window.DOMParser;
-        global.Node = dom.window.Node;
-        global.Element = dom.window.Element;
-        global.HTMLElement = dom.window.HTMLElement;
-        global.SVGElement = dom.window.SVGElement;
-
-        // Defensive DOMPurify bootstrap for Node+jsdom:
-        // if Mermaid imported DOMPurify before window existed, sanitize may be missing.
-        const dpModule = require('dompurify');
-        const DOMPurify = dpModule.default || dpModule;
-        if (typeof DOMPurify.sanitize !== 'function') {
-          const instance = DOMPurify(dom.window);
-          Object.assign(DOMPurify, instance);
-        }
-      """
-    )
 
   private def waitForCondition(
       condition: => Boolean,
@@ -541,7 +518,7 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
     }
 
   test("mermaid end-to-end internal phases pipeline with real MermaidBackend under jsdom"):
-    installJsDom()
+
     withGraphvizAsync { graphviz =>
       val dotBackend     = new ControlledBackend(DiagramFormat.DOT)
       val mermaidBackend = new org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend()
@@ -623,7 +600,7 @@ class InternalPhasesPhaseSpec extends FunSuite with TestHelpers:
     }
 
   test("mermaid full phases currently reproduces synthetic subgraph node line after node fill edit"):
-    installJsDom()
+
     withGraphvizAsync { graphviz =>
       val dotBackend     = new ControlledBackend(DiagramFormat.DOT)
       val mermaidBackend = new org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend()
