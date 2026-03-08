@@ -101,7 +101,7 @@ case class ViewerState(
   // 5. Render visible content to SVG with position data
   // For DOT: visibleDOT ~> SvgWithPositions (synchronous)
   // For Mermaid: sourceTextS ~> SvgWithPositions (asynchronous)
-  private val svgWithPositions: Signal[Option[SvgWithPositions]] =
+  private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
     phases.currentFormat.flatMapSwitch:
       case DiagramFormat.DOT =>
         // DOT/Graphviz is synchronous - use map directly
@@ -238,9 +238,8 @@ case class ViewerState(
       get: ViewerGraph => A,
       set: (ViewerGraph, A) => ViewerGraph
   ): Var[A] =
-    phases.fullGraphV.zoomLazy(get): (_: ViewerGraph, value: A) =>
-      phases.updateFullGraph(graph => set(graph, value))
-      fullGraphNow()
+    phases.fullGraphV.zoomLazy(get): (currentVG: ViewerGraph, value: A) =>
+      set(currentVG, value)
 
   // --- top level attributes ---
 
