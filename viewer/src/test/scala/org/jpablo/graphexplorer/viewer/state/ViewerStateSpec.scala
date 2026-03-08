@@ -191,6 +191,96 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     loop()
     p.future
 
+  test("DOT finalSVG updates after attribute change via toolbar path"):
+    withGraphvizAsync { graphviz =>
+      val viewerState = ViewerState(ProjectId("dot-final-svg-test"), graphviz, _ => ())
+
+      import com.raquo.laminar.api.L.unsafeWindowOwner
+      given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
+
+      afterMicrotasks {
+        viewerState.addNodeWithSmartConnection()
+        val Seq(nodeA) = viewerState.allNodeIds().toSeq
+
+        val finalSvgSignal = viewerState.finalSVG.observe
+        val svgBefore = finalSvgSignal.now()
+        assert(svgBefore.isDefined, "DOT finalSVG should produce an SVG element")
+        val htmlBefore = svgBefore.get.ref.outerHTML
+
+        // Change fill color via the toolbar path
+        val toolbarVar = viewerState.elementAttributesUpdates(ElementIds.from(nodeA))
+        toolbarVar.update(_ + (FillColor.attrId -> AttrStatus.Single(AttrValue("red"))))
+
+        val svgAfter = finalSvgSignal.now()
+        assert(svgAfter.isDefined, "DOT finalSVG should still produce an SVG after edit")
+        val htmlAfter = svgAfter.get.ref.outerHTML
+
+        assertNotEquals(htmlAfter, htmlBefore, "finalSVG should change after fill color update")
+        assert(htmlAfter.contains("red"), s"finalSVG should contain fill color 'red'. Got: ${htmlAfter.take(500)}")
+      }
+    }
+
+  test("mermaid finalSVG updates after attribute change via toolbar path"):
+    withGraphvizAsync { graphviz =>
+      val mermaidSource =
+        """flowchart LR
+          |  A[CodeMirror]
+          |  B[Parser]
+          |  A --> B
+          |classDef default fill:#fefecc,stroke:#85df72
+          |""".stripMargin
+
+      val viewerState = ViewerState(
+        ProjectId("mermaid-final-svg-test"),
+        graphviz,
+        initialSource = Some(mermaidSource)
+      )
+
+      import com.raquo.laminar.api.L.unsafeWindowOwner
+      given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
+
+      val finalSvgSignal = viewerState.finalSVG.observe
+
+      for
+        _ <- waitForCondition(
+          condition = viewerState.fullGraphNow().nodes.nonEmpty,
+          description = "mermaid initial parse",
+          timeoutMs = 15000
+        )
+        _ <- waitForCondition(
+          condition = finalSvgSignal.now().isDefined,
+          description = "initial finalSVG to be defined",
+          timeoutMs = 5000
+        )
+        _ <- afterMicrotasks {
+          val svgBefore = finalSvgSignal.now()
+          assert(svgBefore.isDefined, "Mermaid finalSVG should produce an SVG element")
+        }
+        _ <- afterMicrotasks {
+          // Change fill color via the toolbar path
+          val toolbarVar = viewerState.elementAttributesUpdates(ElementIds.from(NodeId("B")))
+          val currentUpdates = toolbarVar.now()
+          toolbarVar.set(currentUpdates + (FillColor.attrId -> AttrStatus.Single(AttrValue("#fb2c36"))))
+        }
+        _ <- waitForCondition(
+          condition = viewerState.sourceTextNow().contains("fill:#fb2c36"),
+          description = "source text to contain fill style",
+          timeoutMs = 5000
+        )
+        _ <- waitForCondition(
+          condition = finalSvgSignal.now().exists(_.ref.outerHTML.contains("fb2c36")),
+          description = "finalSVG to contain updated fill color",
+          timeoutMs = 5000
+        )
+        _ <- afterMicrotasks {
+          val svgAfter = finalSvgSignal.now()
+          assert(svgAfter.isDefined, "Mermaid finalSVG should still be defined after edit")
+          val html = svgAfter.get.ref.outerHTML
+          assert(html.contains("fb2c36"), s"Mermaid finalSVG should contain fill color '#fb2c36'. Got: ${html.take(500)}")
+        }
+      yield ()
+    }
+
   test("mermaid elementAttributesUpdates zoomed Var triggers sourceTextS update"):
     withGraphvizAsync { graphviz =>
       val mermaidSource =
