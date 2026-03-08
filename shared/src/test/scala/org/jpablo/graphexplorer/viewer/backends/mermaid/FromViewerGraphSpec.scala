@@ -591,3 +591,152 @@ class FromViewerGraphSpec extends FunSuite:
       s"Edge edit should serialize to linkStyle directive, got: $serialized"
     )
     assert(serialized.contains("style SG fill:#eef,stroke:#333"), s"Group edit should serialize to style directive, got: $serialized")
+
+  test("round-trip edit flow should preserve subgraph class assignments when editing a node fill"):
+    val mermaidGraph = MermaidGraph(
+      vertices = Map(
+        "A" -> MermaidVertex(id = "A", text = "CodeMirror", classes = List("pink")),
+        "B" -> MermaidVertex(id = "B", text = "Parser")
+      ),
+      edges = List(MermaidEdge(start = "A", end = "B", text = Some("parses"))),
+      subgraphs = List(
+        MermaidSubgraph(
+          id = "G1",
+          title = Some("Service Layer"),
+          nodes = List("A", "B"),
+          classes = List("pink")
+        )
+      ),
+      classDefs = Map(
+        "default" -> MermaidClassDef(styles = List("fill:#fefecc", "stroke:#85df72")),
+        "pink"    -> MermaidClassDef(styles = List("fill:#ff66cc", "stroke:#aa0099", "color:#ffffff"))
+      )
+    )
+
+    val parsedViewerGraph = toViewerGraph(mermaidGraph)
+    val editedGraph = parsedViewerGraph.updateAttributes(
+      ElementIds.from(NodeId("B")),
+      AttributeUpdates.of(
+        FillColor -> "#b9f8cf"
+      )
+    )
+
+    val serialized = viewerGraphToMermaidText(editedGraph)
+
+    assert(serialized.contains("style B fill:#b9f8cf"), s"Node B edit should be serialized as inline style, got: $serialized")
+    assert(serialized.contains("class G1 pink"), s"Subgraph class assignment should be preserved after node-only edit, got: $serialized")
+
+  test("round-trip edit flow should preserve node class assignments from source when parser omits them"):
+    val source =
+      """flowchart LR
+        |subgraph G1 [Service Layer]
+        |  A[CodeMirror]
+        |  B[Parser]
+        |end
+        |A -->|parses| B
+        |classDef default fill:#fefecc,stroke:#85df72
+        |classDef pink fill:#ff66cc,stroke:#aa0099,color:#ffffff
+        |class G1 pink
+        |class A pink
+        |""".stripMargin
+
+    // Simulate current Mermaid parser behavior where subgraph class survives but vertex class assignment is dropped.
+    val parserClassDefs = Map(
+      "pink" -> MermaidClassDef(styles = List("fill:#ff66cc", "stroke:#aa0099", "color:#ffffff"))
+    )
+    val mergedClassDefs = MermaidClassDefFallback.withSourceClassDefs(source, parserClassDefs)
+    val parserVertices = Map(
+      "A" -> MermaidVertex(id = "A", text = "CodeMirror"), // parser omitted `class A pink`
+      "B" -> MermaidVertex(id = "B", text = "Parser")
+    )
+    val parserSubgraphs = List(
+      MermaidSubgraph(
+        id = "G1",
+        title = Some("Service Layer"),
+        nodes = List("A", "B"),
+        classes = List("pink")
+      )
+    )
+    val (verticesWithSourceClasses, mergedSubgraphs) =
+      MermaidClassAssignmentFallback.withSourceClassAssignments(source, parserVertices, parserSubgraphs)
+    val mergedVertices = MermaidVertexLabelFallback.withSourceVertexLabels(source, verticesWithSourceClasses)
+
+    val parsedMermaidGraph = MermaidGraph(
+      vertices = mergedVertices,
+      edges = List(MermaidEdge(start = "A", end = "B", text = Some("parses"))),
+      subgraphs = mergedSubgraphs,
+      classDefs = mergedClassDefs
+    )
+
+    val parsedViewerGraph = toViewerGraph(parsedMermaidGraph)
+    val editedGraph = parsedViewerGraph.updateAttributes(
+      ElementIds.from(NodeId("B")),
+      AttributeUpdates.of(
+        FillColor -> "#ffb86a"
+      )
+    )
+
+    val serialized = viewerGraphToMermaidText(editedGraph)
+
+    assert(serialized.contains("class G1 pink"), s"Subgraph class should survive edit, got: $serialized")
+    assert(
+      serialized.contains("class A pink") || serialized.contains("A[CodeMirror]:::pink"),
+      s"Node A should remain pink after unrelated B fill edit, got: $serialized"
+    )
+
+  test("round-trip edit flow should preserve node labels from source when parser omits vertex text"):
+    val source =
+      """flowchart LR
+        |subgraph G1 [Service Layer]
+        |  A[CodeMirror]
+        |  B[Parser]
+        |end
+        |A -->|parses| B
+        |classDef default fill:#fefecc,stroke:#85df72
+        |classDef pink fill:#ff66cc,stroke:#aa0099,color:#ffffff
+        |class G1 pink
+        |class A pink
+        |linkStyle default stroke:#0044ff,stroke-width:2px
+        |""".stripMargin
+
+    // Simulate Mermaid parser output that preserves topology but drops node labels/classes.
+    val parserVertices = Map(
+      "A" -> MermaidVertex(id = "A", text = "A"),
+      "B" -> MermaidVertex(id = "B", text = "B")
+    )
+    val parserSubgraphs = List(
+      MermaidSubgraph(id = "G1", title = Some("Service Layer"), nodes = List("A", "B"), classes = List("pink"))
+    )
+    val parserClassDefs = Map(
+      "pink" -> MermaidClassDef(styles = List("fill:#ff66cc", "stroke:#aa0099", "color:#ffffff"))
+    )
+
+    val (verticesWithSourceClasses, mergedSubgraphs) =
+      MermaidClassAssignmentFallback.withSourceClassAssignments(source, parserVertices, parserSubgraphs)
+    val mergedVertices = MermaidVertexLabelFallback.withSourceVertexLabels(source, verticesWithSourceClasses)
+    val mergedClassDefs = MermaidClassDefFallback.withSourceClassDefs(source, parserClassDefs)
+
+    val parsedMermaidGraph = MermaidGraph(
+      vertices = mergedVertices,
+      edges = List(MermaidEdge(start = "A", end = "B", text = Some("parses"))),
+      subgraphs = mergedSubgraphs,
+      classDefs = mergedClassDefs,
+      direction = Some("LR"),
+      defaultEdgeStyle = List("stroke:#0044ff", "stroke-width:2px")
+    )
+
+    val parsedViewerGraph = toViewerGraph(parsedMermaidGraph)
+    val editedGraph = parsedViewerGraph.updateAttributes(
+      ElementIds.from(NodeId("B")),
+      AttributeUpdates.of(FillColor -> "#b8e6fe")
+    )
+
+    val serialized = viewerGraphToMermaidText(editedGraph)
+
+    assert(serialized.contains("class G1 pink"), s"Subgraph class should survive edit, got: $serialized")
+    assert(
+      serialized.contains("class A pink") || serialized.contains("A[CodeMirror]:::pink") || serialized.contains("A:::pink"),
+      s"Node A class should survive edit, got: $serialized"
+    )
+    assert(serialized.contains("A[CodeMirror]"), s"Node A label should stay CodeMirror, got: $serialized")
+    assert(serialized.contains("B[Parser]"), s"Node B label should stay Parser, got: $serialized")

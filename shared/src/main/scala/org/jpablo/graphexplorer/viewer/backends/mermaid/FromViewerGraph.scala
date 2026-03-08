@@ -106,6 +106,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
         lines.append(s"  style ${groupId.value} $css\n")
       }
   }
+  emitGroupClassLines(lines, graph.groups, rootGroupId)
 
   lines.toString
 
@@ -205,6 +206,31 @@ private def emitDefaultLinkStyleLine(lines: StringBuilder, graphAttributes: Attr
   mergeMermaidCssBodies(defaultStyleOpt, defaultInterpolateOpt).foreach { body =>
     lines.append(s"  linkStyle default $body\n")
   }
+
+private def emitGroupClassLines(
+    lines:       StringBuilder,
+    groups:      Map[GroupId, ViewerGroup],
+    rootGroupId: GroupId
+): Unit =
+  groups.toVector
+    .sortBy(_._1.value)
+    .foreach { case (groupId, group) =>
+      if groupId != rootGroupId then
+        val classNames = group.attributes.values
+          .get(MermaidClassAttr)
+          .map(_.toString)
+          .toVector
+          .flatMap(parseMermaidClassNames)
+        if classNames.nonEmpty then
+          lines.append(s"  class ${groupId.value} ${classNames.mkString(",")}\n")
+    }
+
+private def parseMermaidClassNames(value: String): Vector[String] =
+  value
+    .split("[,\\s]+")
+    .toVector
+    .map(_.trim)
+    .filter(_.nonEmpty)
 
 private def mergeMermaidCssBodies(styleBodyOpt: Option[String], extraBodyOpt: Option[String]): Option[String] =
   val base   = styleBodyOpt.map(MermaidStyleDeclarations.parse).getOrElse(VectorMap.empty)

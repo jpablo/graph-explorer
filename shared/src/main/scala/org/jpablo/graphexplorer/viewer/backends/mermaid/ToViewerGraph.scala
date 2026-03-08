@@ -22,15 +22,22 @@ def toViewerGraph(mermaidGraph: MermaidGraph): ViewerGraph =
 /** Converts a MermaidGraph to ViewerGraphElements.
   */
 def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
+  val referencedNodeIds: Set[String] =
+    mermaidGraph.edges.iterator.flatMap(e => Iterator(e.start, e.end)).toSet ++
+      mermaidGraph.subgraphs.iterator.flatMap(_.nodes).toSet
+
   // Convert vertices to nodes
   val nodes: VectorMap[NodeId, ViewerNode] =
-    VectorMap.from(
-      mermaidGraph.vertices.map { case (id, vertex) =>
-        val nodeId = NodeId(id)
-        val attrs  = vertexToAttributes(vertex)
-        nodeId -> ViewerNode.nodeNoDefaults(nodeId, attrs)
-      }
-    )
+    mermaidGraph.vertices.iterator.foldLeft(VectorMap.empty[NodeId, ViewerNode]) { case (acc, (rawKey, vertex)) =>
+      val vertexId = Option(vertex.id).filter(_.nonEmpty)
+      val canonicalId =
+        if referencedNodeIds.contains(rawKey) then rawKey
+        else vertexId.filter(referencedNodeIds.contains).getOrElse(rawKey)
+      val nodeId      = NodeId(canonicalId)
+      val attrs       = vertexToAttributes(vertex.copy(id = canonicalId))
+      if acc.contains(nodeId) then acc
+      else acc.updated(nodeId, ViewerNode.nodeNoDefaults(nodeId, attrs))
+    }
 
   // Convert edges to arrows
   // Mermaid assigns edge DOM ids using a per-(source,target) sequence counter.

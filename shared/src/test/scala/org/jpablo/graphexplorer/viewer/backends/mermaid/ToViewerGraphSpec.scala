@@ -4,6 +4,7 @@ import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Style
 import org.jpablo.graphexplorer.viewer.models.AttributeId
 import org.jpablo.graphexplorer.viewer.models.GroupId
+import org.jpablo.graphexplorer.viewer.models.NodeId
 
 class ToViewerGraphSpec extends FunSuite:
 
@@ -96,3 +97,43 @@ class ToViewerGraphSpec extends FunSuite:
       groupAttrs.get(AttributeId("mermaid_class")).map(_.toString),
       Some("clusterX")
     )
+
+  test("toViewerGraph should key nodes by vertex.id when parser dictionary keys are synthetic"):
+    val mg = MermaidGraph(
+      vertices = Map(
+        "flowchart-A-0" -> MermaidVertex(id = "A", text = "CodeMirror", classes = List("pink")),
+        "flowchart-B-0" -> MermaidVertex(id = "B", text = "Parser")
+      ),
+      edges = List(MermaidEdge(start = "A", end = "B", text = Some("parses"))),
+      subgraphs = List(MermaidSubgraph(id = "G1", title = Some("Service Layer"), nodes = List("A", "B"), classes = List("pink")))
+    )
+
+    val vg = toViewerGraph(mg)
+
+    assert(vg.nodes.contains(NodeId("A")), "Node A should exist with canonical id")
+    assert(vg.nodes.contains(NodeId("B")), "Node B should exist with canonical id")
+    assert(!vg.nodes.contains(NodeId("flowchart-A-0")), "Synthetic parser key must not leak as node id")
+    assert(!vg.nodes.contains(NodeId("flowchart-B-0")), "Synthetic parser key must not leak as node id")
+    assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("label")).map(_.toString), Some("CodeMirror"))
+    assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("mermaid_class")).map(_.toString), Some("pink"))
+    assertEquals(vg.nodes(NodeId("B")).attributes.get(AttributeId("label")).map(_.toString), Some("Parser"))
+
+  test("toViewerGraph should keep parser dictionary keys when they are the ids referenced by edges/subgraphs"):
+    val mg = MermaidGraph(
+      vertices = Map(
+        "A" -> MermaidVertex(id = "flowchart-A-0", text = "CodeMirror", classes = List("pink")),
+        "B" -> MermaidVertex(id = "flowchart-B-0", text = "Parser")
+      ),
+      edges = List(MermaidEdge(start = "A", end = "B", text = Some("parses"))),
+      subgraphs = List(MermaidSubgraph(id = "G1", title = Some("Service Layer"), nodes = List("A", "B"), classes = List("pink")))
+    )
+
+    val vg = toViewerGraph(mg)
+
+    assert(vg.nodes.contains(NodeId("A")), "Node A should exist using dictionary key id")
+    assert(vg.nodes.contains(NodeId("B")), "Node B should exist using dictionary key id")
+    assert(!vg.nodes.contains(NodeId("flowchart-A-0")), "DOM-like vertex ids must not replace referenced graph ids")
+    assert(!vg.nodes.contains(NodeId("flowchart-B-0")), "DOM-like vertex ids must not replace referenced graph ids")
+    assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("label")).map(_.toString), Some("CodeMirror"))
+    assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("mermaid_class")).map(_.toString), Some("pink"))
+    assertEquals(vg.nodes(NodeId("B")).attributes.get(AttributeId("label")).map(_.toString), Some("Parser"))

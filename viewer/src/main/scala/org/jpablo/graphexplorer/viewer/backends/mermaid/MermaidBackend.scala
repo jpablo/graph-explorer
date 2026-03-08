@@ -66,6 +66,12 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
             val jsEdges   = yy.getEdges()
             val edges     = convertEdges(jsEdges)
             val subgraphs = convertSubgraphs(yy.getSubGraphs())
+            val (verticesWithSourceClasses, subgraphsWithSourceClasses) =
+              MermaidClassAssignmentFallback.withSourceClassAssignments(text, vertices, subgraphs)
+            val verticesWithSourceLabels =
+              MermaidVertexLabelFallback.withSourceVertexLabels(text, verticesWithSourceClasses)
+            val verticesWithSourceCoverage =
+              MermaidMissingVertexFallback.withSourceVertices(text, verticesWithSourceLabels, edges, subgraphsWithSourceClasses)
             val classDefs = MermaidClassDefFallback.withSourceClassDefs(text, convertClassDefs(yy.getClasses()))
             val defaultEdgeStyle = jsEdges.defaultStyle.toOption.map(_.toList).getOrElse(Nil)
             val defaultEdgeInterpolate = jsEdges.defaultInterpolate.toOption
@@ -80,9 +86,9 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
             completed = true
             promise.success(
               MermaidGraph(
-                vertices = vertices,
+                vertices = verticesWithSourceCoverage,
                 edges = edges,
-                subgraphs = subgraphs,
+                subgraphs = subgraphsWithSourceClasses,
                 direction = direction,
                 title = title,
                 classDefs = classDefs,

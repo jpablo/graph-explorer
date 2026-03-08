@@ -109,11 +109,15 @@ lazy val viewer =
         "org.scalablytyped" %%% "viz-js__lang-dot"            % "1.0.4-def35e",
         "org.scalablytyped" %%% "viz-js__viz"                 % "3.14.0-c9123d"
       ),
-      excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat_sjs1")
+      excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat_sjs1"),
       // https://www.scala-js.org/doc/project/js-environments.html
-//      Test / jsEnv := new org.scalajs.jsenv.nodejs.NodeJSEnv(),
+      Test / jsEnv := new org.scalajs.jsenv.nodejs.NodeJSEnv(
+        org.scalajs.jsenv.nodejs.NodeJSEnv.Config().withArgs(
+          List("--import", (baseDirectory.value / "src" / "test" / "resources" / "jsdom-preload.mjs").getAbsolutePath)
+        )
+      ),
 //      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
-//      Test / scalaJSLinkerConfig ~= {_.withModuleKind(ModuleKind.NoModule) },
+//      Test / scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.NoModule) },
 //      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chrome", headless = true, showLogs = true),
 //      testFrameworks += new TestFramework("munit.Framework")
     )
