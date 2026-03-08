@@ -111,14 +111,28 @@ lazy val viewer =
       ),
       excludeDependencies ++= Seq("org.scala-lang.modules" %% "scala-collection-compat_sjs1"),
       // https://www.scala-js.org/doc/project/js-environments.html
-      Test / jsEnv := new org.scalajs.jsenv.nodejs.NodeJSEnv(
-        org.scalajs.jsenv.nodejs.NodeJSEnv.Config().withArgs(
-          List("--import", (baseDirectory.value / "src" / "test" / "resources" / "jsdom-preload.mjs").getAbsolutePath)
-        )
-      ),
-//      Test / jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
-//      Test / scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.NoModule) },
-//      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chrome", headless = true, showLogs = true),
+      // Playwright runs tests in a real headless browser (full SVG/DOM support).
+      // esbuild bundles the Scala.js test output to resolve npm bare imports.
+      Test / jsEnv := new jsenv.playwright.PWEnv(browserName = "chromium", headless = true, showLogs = true),
+      Test / jsEnvInput := {
+        val prevInput = (Test / jsEnvInput).value
+        val bundleDir = (Test / crossTarget).value / "test-bundled"
+        bundleDir.mkdirs()
+        prevInput.map {
+          case org.scalajs.jsenv.Input.ESModule(path) =>
+            val outFile = bundleDir / path.getFileName.toString
+            import scala.sys.process._
+            val cmd = Seq(
+              "npx", "esbuild", path.toAbsolutePath.toString,
+              "--bundle", "--format=esm",
+              s"--outfile=${outFile.getAbsolutePath}"
+            )
+            val exitCode = Process(cmd, baseDirectory.value / "..").!
+            if (exitCode != 0) sys.error(s"esbuild failed with exit code $exitCode")
+            org.scalajs.jsenv.Input.ESModule(outFile.toPath)
+          case other => other
+        }
+      },
 //      testFrameworks += new TestFramework("munit.Framework")
     )
 
