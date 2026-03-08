@@ -13,25 +13,8 @@ class RouterQueryParamSpec extends FunSuite with TestHelpers:
   override def munitFixtures = List(mockStorageFixture())
 
   test("Router picks up ?dot= param for ProjectDetail") {
-    // Minimal window/location/history stub for tests
-    js.eval(
-      """
-        if (typeof window === 'undefined') { global.window = {}; }
-        if (typeof window.location === 'undefined') {
-          window.location = { origin: 'http://localhost', search: '', pathname: '/', href: 'http://localhost/' };
-        }
-        window.history = {
-          pushState: function(_,__,url) {
-            var a = new URL(url, 'http://localhost');
-            window.location.pathname = a.pathname;
-            window.location.search = a.search;
-            window.location.href = a.href;
-          }
-        };
-      """
-    )
     // Arrange: set URL before creating Router
-    dom.window.history.pushState(null, "", s"/diagrams/xyz789?${ShareUrl.param}=" + js.URIUtils.encodeURIComponent("digraph G { x -> y }") )
+    dom.window.history.pushState(null, "", s"/diagrams/xyz789?${ShareUrl.param}=" + js.URIUtils.encodeURIComponent("digraph G { x -> y }"))
 
     given Owner = unsafeWindowOwner
 
