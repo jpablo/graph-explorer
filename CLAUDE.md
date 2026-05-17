@@ -86,6 +86,8 @@ The application uses **Laminar's reactive streams** with **QuickLens** for immut
 - When calling sbt, try to use sbt -client for faster execution
 - Remember to use the metals mcp server when appropriate
 - to get a precise list of sbt projects (modules) use `sbt projects`
+- **Airstream** (the reactive streams library used by Laminar) source code is available locally at `/Users/jpablo/GitHub/Airstream` — consult it when investigating reactive stream behavior, Signal/EventStream internals, or debugging state propagation
+- **Laminar** source code is available locally at `/Users/jpablo/GitHub/Laminar` — consult it when investigating component lifecycle, reactive DOM binding, or element/modifier internals
 
 ## Testing Strategy
 

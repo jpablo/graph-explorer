@@ -8,6 +8,7 @@
 - Scripts: `scripts/` (e.g., `build-viewer-netlify.sh`, `install-stc.sh`).
 
 ## Build, Test, and Development
+- Prefer existing tmux sessions named `sbt` and `vite`; inspect them after every code change for errors. Only if these sessions don't exist should you start `sbt "~viewer/fastLinkJS"` or `npm run dev` yourself.
 - Dev compile (Scala.js): `sbt "~viewer/fastLinkJS"` — incremental compile with hot reload.
 - Dev server: `npm run dev` — Vite on http://localhost:5173.
 - All tests: `sbt test`.
@@ -36,4 +37,3 @@
 ## Security & Configuration Tips
 - No secrets required for local dev; do not commit tokens. The app uses `localStorage` during development.
 - Prereqs: recent Node.js and sbt installed; prefer `sbt --client` for faster startup.
-
