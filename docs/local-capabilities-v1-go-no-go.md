@@ -34,7 +34,8 @@ Implemented and validated in this branch:
 CI (`.github/workflows/local-capabilities-smoke.yml`), production builds
 (`--features tauri/custom-protocol`, frontend built and embedded):
 
-- frontend bundle builds (stc facades + Scala.js fullLink) and is embedded
+- frontend bundle builds (ScalablyTyped facades generated in-build by
+  ScalablyTypedConverterExternalNpmPlugin + Scala.js fullLink) and is embedded
 - desktop + `gx` build as production binaries on macOS, Linux, and Windows
 - prod-build guard fails CI if the desktop ever regresses to a dev build
 - macOS and Linux release runtime smoke pass:
@@ -67,8 +68,10 @@ CI (`.github/workflows/local-capabilities-smoke.yml`), production builds
   — likely `%TEMP%` short/long name, drive-letter case, or `\` vs `/`
   canonicalization differing between watch registration and get lookup/policy.
   Blocks Windows runtime use until fixed.
-- ScalablyTyped facades are pinned to stc-generated content hashes coupled to
-  the stc/Scala.js + npm versions; regenerate and repin together on changes.
+- ScalablyTyped facades are generated in-build (ExternalNpm plugin) from
+  node_modules with no pinned hashes — reproducible across local and CI by
+  construction. Operational requirement: `npm install` must run before any
+  sbt viewer task (the `externalNpm` setting no longer auto-installs).
 - Packaging/toolchain differences can produce release-time failures.
 - Aggressive request limits may need tuning in real workloads.
 

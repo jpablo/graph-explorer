@@ -26,7 +26,8 @@ sbt --client buildLocalCapabilitiesRelease
 Equivalent manual commands (run from repository root):
 
 ```bash
-sbt viewer/fullLinkJS                                   # optimized Scala.js output
+npm install                                             # required: ScalablyTyped reads node_modules
+sbt viewer/fullLinkJS                                   # Scala.js + in-build ScalablyTyped facades
 npm run build                                           # vite bundles it into dist/
 touch desktop/src-tauri/src/main.rs                     # force the re-embed (see note)
 (cd desktop/src-tauri && cargo build --release --locked --features tauri/custom-protocol)
@@ -40,11 +41,15 @@ touch desktop/src-tauri/src/main.rs                     # force the re-embed (se
 > blank unless a vite dev server is running. (The Tauri CLI adds this feature
 > automatically — a bare `cargo build` does not.)
 >
-> Also: `npm run build` is only `vite build`; it does not run the Scala.js
-> compile, so `sbt viewer/fullLinkJS` must come first on a clean checkout.
-> Tauri embeds `dist/` at compile time and `cargo build` is a no-op when only
-> `dist/` changed, so the entrypoint is touched to force the re-embed. The
-> `buildLocalCapabilitiesRelease` task does all of these steps for you.
+> Also: ScalablyTyped facades are generated in-build by
+> `ScalablyTypedConverterExternalNpmPlugin` during `viewer/fullLinkJS`, reading
+> `node_modules` — there are no pinned hashes. So `npm install` **must** run
+> first (the `externalNpm` setting no longer auto-installs), and
+> `sbt viewer/fullLinkJS` must precede `npm run build` (which is only
+> `vite build`). Tauri embeds `dist/` at compile time and `cargo build` is a
+> no-op when only `dist/` changed, so the entrypoint is touched to force the
+> re-embed. The `buildLocalCapabilitiesRelease` task runs the build/embed
+> steps but assumes deps are already installed — run `npm install` first.
 
 Binaries:
 
