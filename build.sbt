@@ -81,10 +81,12 @@ lazy val viewer =
 //          .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
           .withSourceMap(true)
       },
-      externalNpm := {
-        scala.sys.process.Process(List("npm", "install", "--silent", "--no-audit", "--no-fund"), baseDirectory.value).!
-        baseDirectory.value / ".."
-      },
+      // Point ScalablyTyped at the already-installed node_modules. Do NOT run
+      // `npm install` here: every viewer sbt task evaluates this, and when the
+      // build is driven by `npm run build` -> @scala-js/vite-plugin-scalajs ->
+      // sbt, a nested `npm install` rewrites node_modules out from under the
+      // running vite process. Dev/CI install deps explicitly before building.
+      externalNpm := baseDirectory.value / "..",
       // Only generate facades for the libraries the viewer actually binds to.
       // The rest of package.json `dependencies` are JS-only / build-only / a
       // local `file:` dep with no TypeScript types, so ignore them.

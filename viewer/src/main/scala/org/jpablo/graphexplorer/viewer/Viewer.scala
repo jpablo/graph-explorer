@@ -125,7 +125,7 @@ object Viewer:
           desktopBridgeTarget.foreach: current =>
             val detectedFormat = DiagramFormat.detect(message.text)
             current.setDiagramFormat(detectedFormat)
-            current.sourceTextWriter.onNext(message.text)
+            current.sourceText.set(message.text)
 
       window.addEventListener(DesktopDocumentChangedEventName, handler)
       window.addEventListener(DesktopDocumentChangedFallbackEventName, handler)
@@ -134,7 +134,7 @@ object Viewer:
       // window.__graphExplorerDesktopBridge.pushText("...")
       val bridge = js.Dynamic.literal(
         pushText = (text: String) =>
-          desktopBridgeTarget.foreach(_.sourceTextWriter.onNext(text)),
+          desktopBridgeTarget.foreach(_.sourceText.set(text)),
         saveCurrentText = () => saveCurrentTextToDesktop(),
         saveText = (text: String) => saveTextToDesktop(text)
       )
@@ -204,7 +204,7 @@ object Viewer:
 
   private def saveCurrentTextToDesktop(): Unit =
     desktopBridgeTarget.foreach: state =>
-      saveTextToDesktop(state.sourceTextNow())
+      saveTextToDesktop(state.sourceText.now())
 
   private def saveTextToDesktop(text: String): Unit =
     (desktopBridgeTarget, desktopBridgeContext) match
