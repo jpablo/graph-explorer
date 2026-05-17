@@ -207,7 +207,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 | Spline routing — straight/clipped | ✅ | SplineSpec | All edges route via the real `routesplines` pipeline (no straight-leg special-case). `clip_and_install`+`bezier_clip` ported faithfully (ellipse `insidefn` semi-axes = (sizePt+penwidth)/2; `ARROW_LENGTH`=10pt). 07 raw spline byte-exact vs instrumented gv; Hausdorff 0.024 in |
 | Spline routing — box-fit (bowed curves) | ✅ | SplineSpec | **Closed 2026-05-17 by instrument-and-port (§2.5).** Ported box channel (`completeregularpath`/`maximal_bbox`/`rank_box`/`adjustregularpath`/`checkpath`; MINW=16, FUDGE=4, Splinesep=nodesep/4), channel polygon, `Pshortestpath` (taut funnel over box portals), `Proutespline` (recursive least-squares cubic fit + `solve3`). Verified vs instrumented gv 13.0.1: box channel, shortest path AND raw spline reproduce the probe **byte-for-byte** for 01 `a→c` (the curved long edge). 01 `a→c` 0.25 → **0.024 in** Hausdorff vs `plain`. Earlier Catmull-Rom cheap-approx (measured 0.25/0.54 in) stays a recorded dead end |
 | Self-loops, parallel/multi-edges | ⬜ | | |
-| Port/compass-anchored edge endpoints | 🟡 | OutputSpec (04 ports) | **Model + emission done.** AST `NodeId.port` (`field`/`field:compass`) was parsed but dropped by `AttrResolver`; now threaded into `REdge.tailPort/headPort` (additive, default None ⇒ portless edges byte-unchanged) and emitted as dot_json/json0 `tailport`/`headport`. 04's two parallel `struct1→struct2` edges are now distinguished by port and match the golden set `{(f0,a),(f2:s,b:n)}` exactly. **Remaining (next increment):** geometric anchoring — endpoint to the (now-available, `RecordLabel.fieldBox`) field rect + compass side, the parallel-edge `Spline` `(tail,head)`-key merge, and routing/clip into the port box (`beginpath`/`endpath` port branch read in M5). Oracle: 04 `dot`/`plain` per-edge `pos` |
+| Port/compass-anchored edge endpoints | 🟡 | OutputSpec + RecordSpec | **Model + emission + anchor resolver done.** (1) AST `NodeId.port` threaded into `REdge.tailPort/headPort` (additive) + emitted as dot_json/json0 `tailport`/`headport`; 04's two parallel edges match the golden set exactly. (2) `PortAnchor` ports `record_port`+`compassPort`: port name → `RecordLabel.fieldBox`; no-compass/`_`/`c` ⇒ box centre + `clip`; `n/s/e/w/…` ⇒ constrained side/corner point + `theta`. Oracle-gated node-local (isolated from node placement): struct2:`b:n` head anchor == golden `e,` endpoint exactly; struct1:`f2:s` within the ≤0.5 pt begin-nudge. **Remaining (next increment, deep Spline-core):** route the box channel through the **port boxes** (`beginpath`/`endpath` port branch read in M5) + clip the no-compass spline to the field box + de-merge the parallel-edge `Spline` `(tail,head)` key. Oracle: 04 `dot`/`plain` per-edge `pos` |
 
 ### 5.3 Node shapes & labels
 | Feature | Status | Test | Notes |
@@ -645,4 +645,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   `dot`/`plain` per-edge `pos`). §5.2 ports row ⬜→🟡. Same recon
   dividend as records: the gap was found and fixed cheaply instead of
   debugging wrong geometry later.
+- **2026-05-17** — **M6 ports: `PortAnchor` resolver (record_port +
+  compassPort).** Ported `compassPort` over `RecordLabel.fieldBox`:
+  no-compass/`_`/`c` ⇒ field-box centre + `clip=true` (visible endpoint =
+  post-clip box boundary); `n/s/e/w/ne/…` ⇒ constrained side/corner point
+  + `theta`, `clip=false` (that point *is* the endpoint). Verified
+  node-local against the 04 golden, isolated from node placement (same
+  technique as RecordSpec rects): struct2 `b:n` head anchor == the golden
+  `e,` endpoint **exactly** (≤0.05 pt); struct1 `f2:s` tail == golden
+  start within ≤1 pt — and the ~0.5 pt residual is precisely the
+  `beginpath`/`endpath` ±1 nudge (the spline pipeline's, *not* the
+  resolver's), so it's gated honestly with that explained tolerance, not
+  a fudge. no-compass `f0`/`a` resolve to the correct field-box centre
+  exactly + assert `clip=true` (their visible endpoint needs the
+  next-increment clip). Suite **93/93**; graphvizJS compiles. §5.2 stays
+  🟡 — remaining is the genuinely deep Spline-core piece (box channel
+  through the port boxes + no-compass clip-to-field-box + parallel-edge
+  `Spline` key de-merge), scoped with the 04 `dot`/`plain` `pos` oracle
+  for a focused next session.
 - _(append dated entries as milestones land)_

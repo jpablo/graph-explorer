@@ -63,4 +63,47 @@ class RecordSpec extends FunSuite:
       assert(NodeSize.nodeSize(n, g).isDefined, s"${n.id} unsized")
     }
 
+  // ── PortAnchor: record_port + compassPort ────────────────────────────────
+  import org.jpablo.graphexplorer.graphviz.layout.PortAnchor
+
+  private def edge(t: String, h: String, tport: String) =
+    val g = graph
+    val e = g.edges.find(e => e.tail == t && e.head == h && e.tailPortStr.contains(tport))
+      .getOrElse(fail(s"no edge $t:$tport->$h"))
+    val tn = g.nodes.find(_.id == t).get
+    val hn = g.nodes.find(_.id == h).get
+    (PortAnchor.resolve(tn, g, e.tailPort.flatMap(_.name.map(_.value)), e.tailPort.flatMap(_.compass)),
+     PortAnchor.resolve(hn, g, e.headPort.flatMap(_.name.map(_.value)), e.headPort.flatMap(_.compass)))
+
+  test("04 ports resolve to the correct field box (record_port/map_rec_port)"):
+    // no-compass ⇒ box centre + clip=true (endpoint = post-clip box boundary,
+    // resolved by the router — gated end-to-end in the next increment).
+    val (t, h) = edge("struct1", "struct2", "f0")
+    val ta = t.getOrElse(fail("f0 unresolved")); val ha = h.getOrElse(fail("a unresolved"))
+    assert(ta.clip && !ta.constrained, "f0 (no compass) ⇒ clip, unconstrained")
+    assert(ha.clip && !ha.constrained, "a (no compass) ⇒ clip, unconstrained")
+    // centre of struct1.f0 / struct2.a (node-local) — exact vs field rects.
+    val f0 = boxOf("struct1", "f0"); val a = boxOf("struct2", "a")
+    near2((ta.x, ta.y), ((f0._1 + f0._3) / 2, (f0._2 + f0._4) / 2))
+    near2((ha.x, ha.y), ((a._1 + a._3) / 2, (a._2 + a._4) / 2))
+
+  test("04 struct1:f2:s / struct2:b:n — compass anchors match the golden endpoints"):
+    // compass ⇒ constrained side point, clip=false ⇒ that point IS the
+    // spline endpoint (modulo the ≤0.5pt begin/end nudge the spline
+    // pipeline applies — gated end-to-end in the next increment).
+    val (t, h) = edge("struct1", "struct2", "f2:s")
+    val ta = t.getOrElse(fail("f2:s")); val ha = h.getOrElse(fail("b:n"))
+    assert(ta.constrained && !ta.clip, "f2:s ⇒ constrained, no clip")
+    assert(ha.constrained && !ha.clip, "b:n ⇒ constrained, no clip")
+    // golden endpoint (abs) − golden node centre = expected node-local.
+    val (s1x, s1y) = nodeCenterPt("struct1"); val (s2x, s2y) = nodeCenterPt("struct2")
+    // dot pos: struct1:f2:s start = (110.76,86.6); arrow e, = (63.99,25.3)
+    near2approx((ta.x, ta.y), (110.76 - s1x, 86.6 - s1y), 1.0)  // ≤0.5 begin-nudge
+    near2approx((ha.x, ha.y), (63.99 - s2x, 25.3 - s2y), 0.05)  // head: exact
+
+  private def near2(a: (Double, Double), b: (Double, Double)): Unit =
+    assert(math.abs(a._1 - b._1) <= 0.05 && math.abs(a._2 - b._2) <= 0.05, s"$a vs $b")
+  private def near2approx(a: (Double, Double), b: (Double, Double), e: Double): Unit =
+    assert(math.abs(a._1 - b._1) <= e && math.abs(a._2 - b._2) <= e, s"$a vs $b (eps=$e)")
+
 end RecordSpec
