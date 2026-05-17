@@ -57,4 +57,4 @@ dist/
 scripts/.scala-build/
 vite.config.js.timestamp-*.mjs
 
-.claude-trace/
+.claude-trace/tmp/
