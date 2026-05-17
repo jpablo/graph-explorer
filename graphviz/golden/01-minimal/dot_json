@@ -1,0 +1,41 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 81 180",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 2
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2
+    }
+  ]
+}

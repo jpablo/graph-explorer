@@ -1,0 +1,56 @@
+{
+  "name": "cross",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 198 108",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 1,
+      "name": "b3",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "a2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "b2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "a3",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "b1",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 2,
+      "tail": 4,
+      "head": 5
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+graph 1 0 0
+node a0 0.013889 0 0.75 0.5 a0 solid ellipse black lightgrey
+node a1 0 0 0.75 0.5 a1 solid ellipse black lightgrey
+node a2 0 0 0.75 0.5 a2 solid ellipse black lightgrey
+node b0 0.013889 0 0.75 0.5 b0 solid ellipse black lightgrey
+node b1 0 0 0.75 0.5 b1 solid ellipse black lightgrey
+node start 0 0 0.76841 0.5 start solid ellipse black lightgrey
+ solid black
+ solid black
+ solid black
+ solid black
+ solid black
+ solid black
+stop

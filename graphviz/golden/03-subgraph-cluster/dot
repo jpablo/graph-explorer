@@ -1,0 +1,47 @@
+digraph clusters {
+	graph [bb="0,0,0,0"];
+	node [label="\N"];
+	subgraph cluster_0 {
+		graph [bb="0,0,0,0",
+			label="group A",
+			lheight=0.23,
+			lp="0,0",
+			lwidth=0.64
+		];
+		a1	[height=0.5,
+			pos="0,0",
+			width=0.75];
+		a2	[height=0.5,
+			pos="0,0",
+			width=0.75];
+		a1 -> a2;
+	}
+	subgraph cluster_1 {
+		graph [bb="0,0,0,0",
+			label="group B",
+			lheight=0.23,
+			lp="0,0",
+			lwidth=0.63
+		];
+		b1	[height=0.5,
+			pos="0,0",
+			width=0.75];
+	}
+	{
+		graph [rank=same];
+		a0	[height=0.5,
+			pos="1,0",
+			width=0.75];
+		b0	[height=0.5,
+			pos="1,0",
+			width=0.75];
+	}
+	a0 -> a1;
+	a2 -> b1;
+	b0 -> b1;
+	start	[height=0.5,
+		pos="0,0",
+		width=0.76841];
+	start -> a0;
+	start -> b0;
+}

@@ -1,0 +1,47 @@
+{
+  "name": "ports",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,131.98,123.6",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "struct1",
+      "height": "0.51389",
+      "label": "<f0> left | <f1> middle | <f2> right",
+      "pos": "65.99,105.1",
+      "rects": "0,87.1,34.655,123.1 34.655,87.1,89.538,123.1 89.538,87.1,131.98,123.1",
+      "shape": "record",
+      "width": "1.833"
+    },
+    {
+      "_gvid": 1,
+      "name": "struct2",
+      "height": "0.70278",
+      "label": "{ <a> one | <b> two }",
+      "pos": "63.99,25.3",
+      "rects": "36.99,25.3,90.99,50.1 36.99,0.5,90.99,25.3",
+      "shape": "record",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "headport": "a",
+      "pos": "e,63.99,50.6 17.328,86.6 17.328,65.113 48.727,72.279 60.011,61.09",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 1,
+      "headport": "b:n",
+      "pos": "e,63.99,25.3 110.76,86.6 110.76,56.615 74.951,58.408 65.999,36.367",
+      "tailport": "f2:s"
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "name": "clusters",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 0 0",
+  "label": "",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "cluster_0",
+      "label": "group A",
+      "_gvid": 0,
+      "nodes": [
+        4,5
+      ],
+      "edges": [
+        1
+      ]
+    },
+    {
+      "name": "cluster_1",
+      "label": "group B",
+      "_gvid": 1,
+      "nodes": [
+        7
+      ]
+    },
+    {
+      "name": "%7",
+      "label": "",
+      "rank": "same",
+      "_gvid": 2,
+      "nodes": [
+        3,6
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "a0",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "a1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "a2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "b0",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "b1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "start",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 3,
+      "head": 4
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 5
+    },
+    {
+      "_gvid": 3,
+      "tail": 6,
+      "head": 7
+    },
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 7
+    },
+    {
+      "_gvid": 4,
+      "tail": 8,
+      "head": 3
+    },
+    {
+      "_gvid": 5,
+      "tail": 8,
+      "head": 6
+    }
+  ]
+}

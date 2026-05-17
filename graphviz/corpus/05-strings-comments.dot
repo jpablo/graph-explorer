@@ -1,0 +1,11 @@
+// line comment before the graph
+# alternative line comment
+/* a block
+   comment */
+digraph strings {
+  graph [label = "title: " + "two parts"];
+  "node one" [tooltip="has \"quotes\" inside"];
+  "node one" -> n2 [label="line1\nline2"];
+  n2 -> n3 [label=<<b>html</b> label>];
+  n3 -> "node one"; /* trailing comment */
+}

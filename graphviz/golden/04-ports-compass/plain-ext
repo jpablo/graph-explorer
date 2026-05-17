@@ -1,0 +1,6 @@
+graph 1 1.833 1.7167
+node struct1 0.91652 1.4597 1.833 0.51389 "<f0> left | <f1> middle | <f2> right" solid record black lightgrey
+node struct2 0.88875 0.35139 0.75 0.70278 "{ <a> one | <b> two }" solid record black lightgrey
+edge struct1:f0 struct2:a 4 0.24066 1.2028 0.24066 0.90435 0.67677 1.0039 0.83349 0.84847 solid black
+edge struct1:"f2:s" struct2:"b:n" 4 1.5383 1.2028 1.5383 0.78632 1.041 0.81122 0.91666 0.5051 solid black
+stop

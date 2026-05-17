@@ -1,0 +1,5 @@
+strict graph mesh {
+  a -- b -- c -- a;
+  b -- d;
+  c -- d [len=2];
+}

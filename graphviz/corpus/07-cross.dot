@@ -1,0 +1,9 @@
+// Ordering probe: a1,a2,a3 share rank 0; b1,b2,b3 share rank 1.
+// Declaration order [a1,a2,a3]/[b1,b2,b3] yields 3 crossings; the unique
+// 0-crossing layout needs rank 1 reordered to [b3,b2,b1].
+// Exercises init_order + wmedian + transpose (must reach 0 crossings).
+digraph cross {
+  a1 -> b3;
+  a2 -> b2;
+  a3 -> b1;
+}

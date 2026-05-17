@@ -59,11 +59,35 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
     )
   )
 
+// Pure-Scala port of the Graphviz `dot` engine (replaces @viz-js/viz at runtime).
+// No project-specific or platform deps: usable from Scala.js AND the JVM.
+// See PORT.md for plan/conformance tracking.
+lazy val graphviz = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Full) // shared main is platform-neutral; JVM-only oracle harness lives in jvm/
+  .in(file("graphviz"))
+  .settings(
+    name                     := "graphviz",
+    Test / parallelExecution := false,
+    libraryDependencies ++= Seq(
+      "com.lihaoyi"   %%% "fastparse"        % "3.1.1",
+      "org.scalameta" %%% "munit"            % "1.0.0" % Test,
+      "org.scalameta" %%% "munit-scalacheck" % "1.0.0" % Test,
+      "com.lihaoyi"   %%% "ujson"            % "4.2.1" % Test // M7 output gate
+    ),
+    // M0 tech-debt: the fastparse front-end trips fatal-warnings / pure-function
+    // inference. Relaxed here only; re-tighten once the parser stabilises (PORT.md §6).
+    scalacOptions --= Seq("-Xfatal-warnings", "-language:experimental.pureFunctions"),
+    testFrameworks := Seq(new TestFramework("munit.Framework"))
+  )
+  .jsSettings(
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
+  )
+
 lazy val viewer =
   project
     .in(file("viewer"))
     .enablePlugins(ScalaJSPlugin, DynVerPlugin, BuildInfoPlugin)
-    .dependsOn(shared.js)
+    .dependsOn(shared.js, graphviz.js) // M8: pure-Scala graphviz backend (flagged)
     .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
     .settings(
       name                            := "viewer",
@@ -149,7 +173,7 @@ lazy val viewer =
 lazy val root =
   project
     .in(file("."))
-    .aggregate(viewer, shared.js, shared.jvm)
+    .aggregate(viewer, shared.js, shared.jvm, graphviz.js, graphviz.jvm)
     .settings(
       name := "graph-explorer",
       welcomeMessage,

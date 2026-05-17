@@ -1,0 +1,63 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 250 70",
+  "bgcolor": "white",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "start",
+      "fillcolor": "lightblue",
+      "label": "\\N",
+      "shape": "box",
+      "style": "rounded,filled"
+    },
+    {
+      "_gvid": 1,
+      "name": "middle",
+      "fillcolor": "lightblue",
+      "label": "\\N",
+      "shape": "box",
+      "style": "rounded,filled"
+    },
+    {
+      "_gvid": 2,
+      "name": "end",
+      "fillcolor": "lightblue",
+      "label": "\\N",
+      "shape": "box",
+      "style": "rounded,filled"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowhead": "vee",
+      "color": "gray",
+      "label": "go",
+      "weight": "2"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 2,
+      "arrowhead": "vee",
+      "color": "gray",
+      "label": ""
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "arrowhead": "vee",
+      "color": "gray",
+      "label": "",
+      "style": "dashed"
+    }
+  ]
+}

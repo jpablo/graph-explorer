@@ -1,0 +1,76 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,249.88,70",
+  "bgcolor": "white",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "start",
+      "fillcolor": "lightblue",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,52",
+      "shape": "box",
+      "style": "rounded,filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 1,
+      "name": "middle",
+      "fillcolor": "lightblue",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "131.44,52",
+      "shape": "box",
+      "style": "rounded,filled",
+      "width": "0.76226"
+    },
+    {
+      "_gvid": 2,
+      "name": "end",
+      "fillcolor": "lightblue",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "222.88,18",
+      "shape": "box",
+      "style": "rounded,filled",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowhead": "vee",
+      "color": "gray",
+      "label": "go",
+      "lp": "79,60.4",
+      "pos": "e,103.79,52 54.381,52 66.119,52 80.153,52 92.953,52",
+      "weight": "2"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 2,
+      "arrowhead": "vee",
+      "color": "gray",
+      "label": "",
+      "pos": "e,195.68,27.96 159.28,41.799 167.47,38.684 176.62,35.204 185.35,31.888"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "arrowhead": "vee",
+      "color": "gray",
+      "label": "",
+      "pos": "e,195.39,17.456 54.209,40.623 68.622,34.898 86.984,28.455 104,25 130.47,19.625 160.91,17.929 184.23,17.548",
+      "style": "dashed"
+    }
+  ]
+}

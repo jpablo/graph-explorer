@@ -1,0 +1,10 @@
+digraph G {
+  rankdir = LR;
+  graph [bgcolor=white];
+  node [shape=box, style="rounded,filled", fillcolor="lightblue"];
+  edge [color=gray, arrowhead=vee];
+
+  start -> middle [label="go", weight=2];
+  middle -> end;
+  start -> end [style=dashed];
+}

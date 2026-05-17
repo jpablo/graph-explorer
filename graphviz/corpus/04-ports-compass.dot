@@ -1,0 +1,7 @@
+digraph ports {
+  node [shape=record];
+  struct1 [label="<f0> left | <f1> middle | <f2> right"];
+  struct2 [label="{ <a> one | <b> two }"];
+  struct1:f0 -> struct2:a;
+  struct1:f2:s -> struct2:b:n;
+}
