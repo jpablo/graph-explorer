@@ -2,7 +2,8 @@ package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.components.attributes.views.{DiagramAttributesView, ElementsView}
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
+import org.jpablo.graphexplorer.viewer.components.attributes.views.{DiagramAttributesView, ElementsView, MermaidDiagramAttributesView}
 import org.jpablo.graphexplorer.viewer.state.RightPanelSection.{diagramAttributes, elements, sources}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
@@ -21,6 +22,14 @@ def RightPanel(state: ViewerState): Div =
 
   val isFloating = activeSection.map(_ == diagramAttributes)
 
+  // Show different diagram attributes view based on format
+  val diagramAttributesContent =
+    div(
+      child <-- state.currentFormat.map:
+        case DiagramFormat.DOT     => DiagramAttributesView(state)
+        case DiagramFormat.Mermaid => MermaidDiagramAttributesView(state)
+    )
+
   div(
     idAttr := "right-panel",
     cls <-- state.rightPanelActiveSection.signal.map(s => if s.isVisible then "visible" else "not-visible"),
@@ -30,7 +39,7 @@ def RightPanel(state: ViewerState): Div =
       idAttr := "right-panel-content",
       cls("card-body") <-- isFloating,
       List(
-        diagramAttributes -> DiagramAttributesView(state),
+        diagramAttributes -> diagramAttributesContent,
         elements          -> ElementsView(state),
         sources           -> SourceTab(state)
       ).map: (section, child) =>

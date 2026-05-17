@@ -41,7 +41,7 @@ def ArrowEndpointControl(
     case ClientSize.Normal => 12.0
 
   // Calculate the scaling factor based on the edge group's overall transform
-  val scale = SvgUtils.calculateSimpleScale(edge.ref, w.toDouble, clientSize = currentClientSize)
+  val scale = SvgUtils.calculateSimpleScale(edge.ref.asInstanceOf[dom.svg.Locatable], w.toDouble, clientSize = currentClientSize)
 
   // Get translation coordinates from precise position data
   val (trX, trY) = {

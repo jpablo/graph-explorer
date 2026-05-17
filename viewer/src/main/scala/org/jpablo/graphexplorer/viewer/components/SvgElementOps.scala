@@ -5,12 +5,13 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps.emptySvg
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.utils.{BBox, ClientPoint, MouseActionRect, SvgPoint}
 import org.scalajs.dom
+import scala.scalajs.js
 
 extension (clientPoint: ClientPoint)
   def toSvgPoint(screenCtm: dom.SVGMatrix): SvgPoint =
@@ -40,13 +41,13 @@ class SvgElementOps(val ref: dom.svg.SVG):
     val selectedBorders = e.querySelectorAll("." + elem.selectionRectClass)
     for (node <- selectedBorders) do
       node.parentNode.removeChild(node)
-    val bbox = elem.ref.getBBox()
+    val bbox = elem.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
-  def toSVGTextWithIds(ids: ElementIds): String =
+  def toSVGTextWithIds(ids: ElementIds, strategy: SelectableElementStrategy = GraphvizSelectionStrategy): String =
     if (ids.isEmpty) ""
     else
-      val (svgs, boxes) = SelectableElement.findAll(ref).filter(_.elementId in ids).map(buildSvgElement).unzip
+      val (svgs, boxes) = SelectableElement.findAll(ref, strategy).filter(_.elementId in ids).map(buildSvgElement).unzip
       val bbox = boxes.reduce((a, b) =>
         val x      = a.x min b.x
         val y      = a.y min b.y

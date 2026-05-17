@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorT
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
@@ -18,13 +18,14 @@ import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElem
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.ArrowPosition
 
 // A SvgCanvas is an SVG element with interactive elements handled by Laminar.
-// rawSvg is the SVG element as it comes from DOT
+// rawSvg is the SVG element as it comes from DOT or Mermaid
 def SvgCanvas(
     rawSvg:        ReactiveSvgElement[dom.svg.SVG],
     transform:     Signal[String],
     viewerOps:     DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
     mouseAction:   MouseActionVar,
-    edgePositions: Map[String, ArrowPosition]
+    edgePositions: Map[String, ArrowPosition],
+    strategy:      SelectableElementStrategy = GraphvizSelectionStrategy
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
 
@@ -71,7 +72,7 @@ def SvgCanvas(
   end handleDoubleClick
 
   def queryElements(elems: ElementIds) =
-    SelectableElement.query(rawSvg.ref, elems)
+    SelectableElement.query(rawSvg.ref, elems, strategy)
 
   val selectionElementChanges =
     selection.selectionChanges
@@ -88,7 +89,7 @@ def SvgCanvas(
       if selected.size == 1 then queryElements(selected).headOption else None
 
   val allSelectable =
-    SelectableElement.findAll(rawSvg.ref)
+    SelectableElement.findAll(rawSvg.ref, strategy)
 
   // render all selected elements the first time
   rawSvg
@@ -104,7 +105,11 @@ def SvgCanvas(
         // --------------------------------------------------------
         // 1. Drawing a selecting rectangle (OR dbl-click) starts here. Other actions start in their respective elements.
         onMouseDown.filter(leftButton).map(ev => (ev, clientCoords(ev))) --> { case (ev, (pos, shift)) =>
-          val handled = handleDoubleClick(ev, js.Date.now(), findClosestElementId(js.Array(ev.target.asInstanceOf[dom.Element])))
+          val handled = handleDoubleClick(
+            ev,
+            js.Date.now(),
+            findClosestElementId(js.Array(ev.target.asInstanceOf[dom.Element]), strategy = strategy)
+          )
           if !handled then
             mouseAction.start(ExtendSelectionAction(MouseActionRect(pos, pos, shift)))
         },
@@ -155,7 +160,7 @@ def SvgCanvas(
         // --------------------------------------------------------
         // After mounting we just render the already selected elements
         // this happens when the diagram is changed and the selection is not empty
-        onMountCallback: _ =>
+        onMountCallback: ctx =>
           queryElements(selection.now()).foreach(_.select()),
         // subsequent selection changes don't trigger onMountCallback, so we can be more
         // precise and only select/unselect the elements that actually changed

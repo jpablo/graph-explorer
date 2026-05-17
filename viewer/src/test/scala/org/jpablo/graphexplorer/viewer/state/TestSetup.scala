@@ -9,37 +9,56 @@ object TestSetup {
         if (typeof window === 'undefined') {
           global.window = {};
         }
-        
-        if (typeof window.localStorage === 'undefined') {
-          var storage = {};
 
-          window.getStorage = function() {
-            return storage;
-          };
-          
-          window.localStorage = {
-            getItem: function(key) {
-              return storage[key] || null;
-            },
-            setItem: function(key, value) {
-              storage[key] = value.toString();
-            },
-            removeItem: function(key) {
-              delete storage[key];
-            },
-            clear: function() {
-              storage = {};
-            },
-            get length() {
-              return Object.keys(storage).length;
-            },
-            key: function(index) {
-              var keys = Object.keys(storage);
-              return keys[index] || null;
-            }
-          };
+        // Always set up mock localStorage and sessionStorage for tests
+        if (!window.__mockStorageInitialized) {
+          var localStorage = {};
+          var sessionStorage = {};
+
+          window.__testLocalStorage = localStorage;
+          window.__testSessionStorage = sessionStorage;
+          window.__mockStorageInitialized = true;
+
+          function createStorage(storage) {
+            return {
+              getItem: function(key) {
+                return storage[key] || null;
+              },
+              setItem: function(key, value) {
+                storage[key] = value.toString();
+              },
+              removeItem: function(key) {
+                delete storage[key];
+              },
+              clear: function() {
+                for (var key in storage) {
+                  delete storage[key];
+                }
+              },
+              get length() {
+                return Object.keys(storage).length;
+              },
+              key: function(index) {
+                var keys = Object.keys(storage);
+                return keys[index] || null;
+              }
+            };
+          }
+
+          Object.defineProperty(window, 'localStorage', {
+            value: createStorage(localStorage),
+            writable: true,
+            configurable: true
+          });
+
+          Object.defineProperty(window, 'sessionStorage', {
+            value: createStorage(sessionStorage),
+            writable: true,
+            configurable: true
+          });
         } else {
           window.localStorage.clear();
+          window.sessionStorage.clear();
         }
       """
     )
@@ -48,7 +67,11 @@ object TestSetup {
     js.eval(
       """
         if (typeof window !== 'undefined' && window.localStorage && window.localStorage.clear) {
-          window.localStorage.clear();
+          try {
+            window.localStorage.clear();
+          } catch (e) {
+            // Ignore errors from inaccessible localStorage
+          }
         }
       """
     )

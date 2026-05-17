@@ -51,8 +51,9 @@ trait AddNewArrowOps:
   ) =
     // Make sure only start or (start,end) nodes are selected when creating a new arrow
     // For now only allow a line selection into nodes
-    findClosestElementId(elementsFromRectEnd, "g.node") match
-      case Some(endElementId) => selection.set1(Set(start.elementId, endElementId))
+    val strategy = selectionStrategy.observe.now()
+    findClosestElementId(elementsFromRectEnd, strategy = strategy, selector = Some(strategy.nodeSelector)) match
+      case Some(elementId) => selection.set1(Set(start.elementId, elementId))
       case None               => selection.set2(start.elementId)
 
   val dirs = ArrowDirection.values.toSeq
@@ -61,7 +62,7 @@ trait AddNewArrowOps:
     val controls =
       for
         elem <- selection.toSeq
-        c    <- dirs.flatMap(buildNewArrowControl(elem, action, _))
+        c    <- dirs.flatMap(buildNewArrowControl(parent, elem, action, _))
       yield c
 
     // Always clear previous controls to avoid duplicates lingering after selection changes
@@ -69,6 +70,7 @@ trait AddNewArrowOps:
     controls.foreach(parent.appendChild)
 
   def buildNewArrowControl(
+      parent:       dom.svg.G,
       selectedElem: SelectableElement,
       action:       MouseAction,
       direction:    ArrowDirection
@@ -81,7 +83,8 @@ trait AddNewArrowOps:
 
     selectedElem match
       case elem: NodeElement if showControl =>
-        val control = NewArrowControl(elem, graphRankDir.observe.now, direction, clientSize).ref
+        val parentCtm = Option(parent.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
+        val control = NewArrowControl(elem, graphRankDir.observe.now, direction, clientSize, screenCtm = parentCtm).ref
 
         control.addEventListener(
           DomEvent.mousedown,

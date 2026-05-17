@@ -75,7 +75,7 @@ case class Command[-A](
     )
     val gtag = js.Dynamic.global.selectDynamic("gtag")
     if js.typeOf(gtag) == "function" then
-      js.Dynamic.global.gtag("event", "command_executed", p)
+      gtag("event", "command_executed", p)
     action.execute(arg)
 
 class RouterCommands(router: Router):

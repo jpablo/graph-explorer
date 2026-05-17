@@ -56,6 +56,7 @@ def ToolbarArrowsAttributesView(
       ArrowSize  -> InputType.number(start = Some(0), end = Some(5), step = Some(0.1)),
       Constraint -> checkbox,
       // ---------- label stuff ------------
+      labelRow,
       row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
         options = mediumRows11 ++ colorOptions,
         hidden = labelRelatedHidden,

@@ -214,9 +214,11 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         title = span("Examples"),
         options = Signal.fromValue(examples.toSeq.map((a, b) => MenuOption(a, b, None, None))),
         onClickHandler =
-          _.flatMap(FetchStream.get(_)) --> { source =>
-            state.showAll()
-            state.sourceText.set(source)
+          _.flatMap(example => FetchStream.get(example.path).map(example -> _)) --> {
+            case (example, source) =>
+              state.showAll()
+              state.setDiagramFormat(example.format)
+              state.sourceText.set(source)
           }
       ).amend(cls := "hidden lg:block"),
       // -------- show all --------

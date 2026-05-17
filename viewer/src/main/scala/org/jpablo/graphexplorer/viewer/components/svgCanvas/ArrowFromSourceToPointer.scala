@@ -3,9 +3,10 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
-import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
+import org.jpablo.graphexplorer.viewer.domUtils.{DOMPoint, SvgUtils}
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction
+import scala.scalajs.js
 
 /** Creates a reactive SVG arrow element when dragging to create a new edge.
   *
@@ -21,26 +22,46 @@ def ArrowFromSourceToPointer(
     action:    MouseAction.AddNewArrowAction,
     rootGroup: dom.svg.G
 ): ReactiveSvgElement[dom.svg.G] =
-  val point     = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
-  val startBBox = action.originator.ref.getBBox()
+  val point        = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
+  val localBBox    = action.originator.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+  val elemCtm      = Option(action.originator.ref.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
+  val rootCtm      = Option(rootGroup.getScreenCTM())
+  val (bboxX, bboxY, bboxWidth, bboxHeight) =
+    (rootCtm, elemCtm) match
+      case (Some(rootMatrix), Some(elemMatrix)) =>
+        val inv = rootMatrix.inverse()
+        def toRoot(x: Double, y: Double): DOMPoint =
+          new DOMPoint(x, y).matrixTransform(elemMatrix).matrixTransform(inv)
+        val p1   = toRoot(localBBox.x, localBBox.y)
+        val p2   = toRoot(localBBox.x + localBBox.width, localBBox.y)
+        val p3   = toRoot(localBBox.x, localBBox.y + localBBox.height)
+        val p4   = toRoot(localBBox.x + localBBox.width, localBBox.y + localBBox.height)
+        val minX = List(p1.x, p2.x, p3.x, p4.x).min
+        val minY = List(p1.y, p2.y, p3.y, p4.y).min
+        val maxX = List(p1.x, p2.x, p3.x, p4.x).max
+        val maxY = List(p1.y, p2.y, p3.y, p4.y).max
+        (minX, minY, maxX - minX, maxY - minY)
+      case _ =>
+        (localBBox.x, localBBox.y, localBBox.width, localBBox.height)
+
   // Calculate center point
-  val centerX = startBBox.x + startBBox.width / 2
-  val centerY = startBBox.y + startBBox.height / 2
+  val centerX = bboxX + bboxWidth / 2
+  val centerY = bboxY + bboxHeight / 2
 
   // Check if target point is inside bounding box
 
-  val isInside = point.x >= startBBox.x && point.x <= startBBox.x + startBBox.width &&
-    point.y >= startBBox.y && point.y <= startBBox.y + startBBox.height
+  val isInside = point.x >= bboxX && point.x <= bboxX + bboxWidth &&
+    point.y >= bboxY && point.y <= bboxY + bboxHeight
 
   // Calculate start point - use center if inside bbox, intersection if outside
   val (x1, y1) = if isInside then
     (centerX, centerY)
   else
     // Define the four edges of the bounding box
-    val left   = startBBox.x
-    val right  = startBBox.x + startBBox.width
-    val top    = startBBox.y
-    val bottom = startBBox.y + startBBox.height
+    val left   = bboxX
+    val right  = bboxX + bboxWidth
+    val top    = bboxY
+    val bottom = bboxY + bboxHeight
 
     // Direction vector from center to target point
     val dx = point.x - centerX
@@ -66,8 +87,8 @@ def ArrowFromSourceToPointer(
     val (_, ix, iy) = candidates.minBy(_.t)
 
     // Handle numerical precision issues by clamping to the bbox edges
-    val clampedX = left max (right min ix)
-    val clampedY = top max (bottom min iy)
+    val clampedX = left.max(right.min(ix))
+    val clampedY = top.max(bottom.min(iy))
 
     (clampedX, clampedY)
 

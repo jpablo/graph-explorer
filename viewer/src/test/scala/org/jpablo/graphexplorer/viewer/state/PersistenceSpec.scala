@@ -14,34 +14,37 @@ class PersistenceSpec extends FunSuite with TestHelpers:
     s"[StoredString]graph-explorer.project.${projectId.value}"
 
   test("Adding a node with smart connection should store the project in localStorage") {
-    withGraphviz { graphviz =>
+    withGraphvizAsync { graphviz =>
 
       val projectName = "my project"
       val projectId   = ProjectId("test")
       val viewerState = ViewerState(projectId, graphviz)
-      // sanity check
-      assertEquals(viewerState.fullGraphNow(), ViewerGraph.minimal)
 
-      assertEquals(dom.window.localStorage.length, 0)
+      afterMicrotasks {
+        // sanity check
+        assertEquals(viewerState.fullGraphNow(), ViewerGraph.minimal)
 
-      viewerState.project.name.set(projectName)
-      viewerState.addNodeWithSmartConnection()
+        assertEquals(dom.window.localStorage.length, 0)
 
-      assertEquals(
-        obtained = dom.window.localStorage.length,
-        expected = 2,
-        "Should have two items in localStorage: one for the project and one for the graph explorer version"
-      )
+        viewerState.project.name.set(projectName)
+        viewerState.addNodeWithSmartConnection()
 
-      val storedProjectStr = dom.window.localStorage.getItem(storedProjectKey(projectId))
+        assertEquals(
+          obtained = dom.window.localStorage.length,
+          expected = 2,
+          "Should have two items in localStorage: one for the project and one for the graph explorer version"
+        )
 
-      assertEquals(
-        storedProjectStr,
-        s"""{"projectName":"$projectName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}"}"""
-      )
+        val storedProjectStr = dom.window.localStorage.getItem(storedProjectKey(projectId))
 
-      // ---- verify ---
-      assertEquals(viewerState.allNodeIds().size, 1)
-      assertEquals(viewerState.allArrowIds().size, 0)
+        assertEquals(
+          storedProjectStr,
+          s"""{"projectName":"$projectName","source":"digraph \\"G\\" {\\n  \\"a\\" [label=\\"\\"];\\n}","format":"DOT"}"""
+        )
+
+        // ---- verify ---
+        assertEquals(viewerState.allNodeIds().size, 1)
+        assertEquals(viewerState.allArrowIds().size, 0)
+      }
     }
   }

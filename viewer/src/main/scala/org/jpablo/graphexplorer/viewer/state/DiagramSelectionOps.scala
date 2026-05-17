@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
@@ -247,7 +247,7 @@ trait DiagramSelectionOps:
     ) =
       if rect.isEmpty then
         // Equivalent to an onClick event
-        findClosestElementId(elementsFromRectEnd) match
+        findClosestElementId(elementsFromRectEnd, strategy = selectionStrategy.observe.now()) match
           case Some(end) => updateSelectionStatus(end)(rect.shift)
           case None      => clear()
       else
@@ -292,19 +292,25 @@ trait DiagramSelectionOps:
 end DiagramSelectionOps
 
 object DiagramSelectionOps:
-  /** Finds the node ID at the given selection rectangle's end point
+  /** Finds the node ID at the given selection rectangle's end point.
+    *
+    * @param elements The elements to search in
+    * @param strategy The selection strategy for extracting element IDs
+    * @param selector CSS selector for selectable elements (defaults to strategy's allSelector)
     */
   def findClosestElementId(
       elements: js.Array[dom.Element],
-      selector: String = "g.node, g.edge, g.cluster"
+      strategy: SelectableElementStrategy = GraphvizSelectionStrategy,
+      selector: Option[String] = None
   ): Option[ElementId] =
+    val effectiveSelector = selector.getOrElse(strategy.allSelector)
     elements
       .filter(_.namespaceURI == "http://www.w3.org/2000/svg")
-      .flatMap(element => Option(element.closest(selector)))
+      .flatMap(element => Option(element.closest(effectiveSelector)))
       .distinct
       .collect:
-        case g: dom.svg.G => g
-      .map(SelectableElement.fromDomElement)
+        case e: dom.Element => e
+      .map(SelectableElement.fromDomElement(_, strategy))
       .collectFirst:
         case Some(elem) => elem.elementId
 

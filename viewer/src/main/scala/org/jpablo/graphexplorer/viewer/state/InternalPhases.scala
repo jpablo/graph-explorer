@@ -1,26 +1,34 @@
 package org.jpablo.graphexplorer.viewer.state
 
-import com.raquo.airstream.core.Signal
+import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, GraphvizBackend}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.SimpleGraph
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
+import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
+import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, MermaidSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
+import org.jpablo.graphexplorer.viewer.backends.mermaid.viewerGraphToMermaidText
 import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
+import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.scalajs.dom.svg.SVG
 
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 // Unified state containing both representations
 case class GraphState(
     text:        String,
     viewerGraph: ViewerGraph,
+    format:      DiagramFormat,
     lastOrigin:  ChangeOrigin
 ) derives CanEqual
 
@@ -32,22 +40,66 @@ class InternalPhases(
     autoFit:       () => Boolean = () => false,
     editorError:   Var[Option[String]] = Var(None),
     val logLevel:  Level = Level.None
-)(using Owner):
+)(using Owner, ExecutionContext):
 
   simpleLog(s"InternalPhases: Initializing with $initialSource", logLevel)
 
+  // Backends for different diagram formats
+  private val graphvizBackend = GraphvizBackend(graphviz)
+  private lazy val mermaidBackend = MermaidBackend()
+
+  private def backendFor(format: DiagramFormat): DiagramBackend = format match
+    case DiagramFormat.DOT     => graphvizBackend
+    case DiagramFormat.Mermaid => mermaidBackend
+
   // Initialize with the provided source or a minimal graph
-  private val initialText  = initialSource.getOrElse("""digraph "G" {}""")
-  private val initialViewerGraph: ViewerGraph = parseTextToGraph(initialText)
+  private val initialText   = initialSource.getOrElse("""digraph "G" {}""")
+  private val initialFormat = DiagramFormat.detect(initialText)
+  val formatSelection       = Var(initialFormat)
+
+  // Start with minimal graph; async parsing will populate it
+  private val initialViewerGraph: ViewerGraph = ViewerGraph.minimalWithDirected
 
   // Single unified state
   private val state = Var(
     GraphState(
       text = initialText,
       viewerGraph = initialViewerGraph,
+      format = initialFormat,
       lastOrigin = ChangeOrigin.CodeMirror
     )
   )
+
+  // Bus for text changes that need async parsing
+  private val textChangeBus = EventBus[(String, DiagramFormat, ChangeOrigin)]()
+
+  // Handle async parsing results
+  textChangeBus.events
+    .flatMapSwitch { case (text, format, origin) =>
+      val parseFuture =
+        backendFor(format).textToGraph(text).transform {
+          case Success(graph) =>
+            editorError.set(None)
+            Success((text, graph, format, origin))
+          case Failure(f) =>
+            simpleLog(s"Error parsing ${format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
+            editorError.set(Option(f.getMessage))
+            Success((text, ViewerGraph.minimalWithDirected, format, origin))
+        }
+      EventStream.fromFuture(parseFuture)
+    }
+    .foreach { case (text, graph, format, origin) =>
+      // Only update if text and selected format haven't changed since we started parsing
+      if state.now().text == text && formatSelection.now() == format then
+        simpleLog(
+          s"[${format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=$origin",
+          logLevel
+        )
+        state.set(GraphState(text, graph, format, origin))
+    }
+
+  // Trigger initial async parsing (must be after subscription is set up)
+  parseTextToGraphAsync(initialText, initialFormat, ChangeOrigin.CodeMirror)
 
   // Public interface: sourceText as a Var that delegates to the unified state
   val sourceText: Var[String] =
@@ -61,11 +113,9 @@ class InternalPhases(
       withLog("1a. [sourceText -> GraphState]", level = logLevel) {
         // New source of truth: incoming text
         if newText != currentState.text then
-          GraphState(
-            text = newText,
-            viewerGraph = parseTextToGraph(newText),
-            lastOrigin = ChangeOrigin.CodeMirror
-          )
+          val selectedFormat = formatSelection.now()
+          parseTextToGraphAsync(newText, selectedFormat, ChangeOrigin.CodeMirror)
+          currentState.copy(text = newText, format = selectedFormat, lastOrigin = ChangeOrigin.CodeMirror)
         else
           currentState
       }
@@ -81,10 +131,15 @@ class InternalPhases(
     )((currentState: GraphState, newGraph: ViewerGraph) =>
       withLog("2b. [GraphState <- fullGraphV: ViewerGraph]", level = logLevel) {
         // New source of truth: incoming graph
+        // Note: This keeps the current format since the graph was modified in-place
         if newGraph != currentState.viewerGraph then
+          val serializedText = currentState.format match
+            case DiagramFormat.DOT     => viewerGraphToText(newGraph, omitInternal = true)
+            case DiagramFormat.Mermaid => viewerGraphToMermaidText(newGraph)
           GraphState(
-            text = viewerGraphToText(newGraph, omitInternal = true),
+            text = serializedText,
             viewerGraph = newGraph,
+            format = currentState.format, // Preserve format when graph is edited
             lastOrigin = ChangeOrigin.Graph
           )
         else
@@ -124,35 +179,159 @@ class InternalPhases(
       }
     }
 
-  /** Parses DOT text into a ViewerGraph. Returns a minimal graph on error.
-    */
-  private def parseTextToGraph(dotText: String): ViewerGraph =
-    // Safety check: don't process empty or whitespace-only strings
-    if dotText.trim.isEmpty then
-      ViewerGraph.minimalWithDirected
-    else
-      graphviz.textToSimpleGraph(dotText) match
-        case Success(simpleGraph) =>
-          editorError.set(None)
-          // simpleGraph has no node/arrow defaults! (all attributes are "flattened")
-          simplegraph.toViewerGraph(simpleGraph)
+  /** Signal for the current diagram format. */
+  val currentFormat: Signal[DiagramFormat] =
+    state.signal.map(_.format).distinct
 
-        case Failure(f) =>
-          dom.console.error(s"Error parsing DotText to ViewerGraph: ${f.getMessage}")
-          editorError.set(Option(f.getMessage))
-          ViewerGraph.minimalWithDirected
+  /** Signal for the selection strategy based on current format. */
+  val selectionStrategy: Signal[SelectableElementStrategy] =
+    currentFormat.map:
+      case DiagramFormat.DOT     => GraphvizSelectionStrategy
+      case DiagramFormat.Mermaid => MermaidSelectionStrategy
+
+  /** Triggers async parsing of text into a ViewerGraph. */
+  private def parseTextToGraphAsync(text: String, format: DiagramFormat, origin: ChangeOrigin): Unit =
+    if text.trim.nonEmpty then
+      simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
+      textChangeBus.writer.onNext((text, format, origin))
+
+  // Re-parse the current text when the user switches the selected format.
+  formatSelection.signal.changes.foreach: newFormat =>
+    val currentState = state.now()
+    if currentState.format != newFormat then
+      state.set(currentState.copy(format = newFormat))
+      parseTextToGraphAsync(currentState.text, newFormat, currentState.lastOrigin)
 
 end InternalPhases
 
 object InternalPhases:
+  /** Process diagram text (DOT or Mermaid) and return an SVG element.
+    * Used for generating thumbnails on the library page.
+    */
+  def processDotText(
+      graphviz:          Graphviz,
+      dot:              DotText,
+      telemetryContext: Seq[(String, Any)] = Nil
+  )(using ExecutionContext): Signal[ReactiveSvgElement[SVG]] =
+    val format = DiagramFormat.detect(dot.value)
+    ThumbnailSvgCache.get(format, dot.value) match
+      case Some(proto) =>
+        Telemetry.log(
+          "thumb.cache.hit",
+          (telemetryContext ++ Seq(
+            "format"    -> format.toString,
+            "cacheSize" -> ThumbnailSvgCache.size
+          ))*
+        )
+        Signal.fromValue(ThumbnailSvgCache.cloneSvg(proto))
 
-  def processDotText(graphviz: Graphviz, dot: DotText): Signal[ReactiveSvgElement[SVG]] =
-    Signal.fromTry:
-      for
-        simpleGraph <- graphviz.textToSimpleGraph(dot.value)
-        viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
-        dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
-        svg <- graphviz.textToSvg(DotText(dotText0))
-      yield svg.svg
+      case None =>
+        Telemetry.log(
+          "thumb.cache.miss",
+          (telemetryContext ++ Seq(
+            "format"    -> format.toString,
+            "cacheSize" -> ThumbnailSvgCache.size
+          ))*
+        )
+
+        format match
+          case DiagramFormat.DOT =>
+            // DOT format - use Graphviz (synchronous)
+            val startedAt = Telemetry.nowMs()
+
+            val sgStartedAt     = Telemetry.nowMs()
+            val simpleGraphTry  = graphviz.textToSimpleGraph(dot.value)
+            Telemetry.log(
+              "thumb.dot.textToSimpleGraph",
+              (telemetryContext ++ Seq(
+                "dtMs" -> (Telemetry.nowMs() - sgStartedAt),
+                "ok"   -> simpleGraphTry.isSuccess
+              ))*
+            )
+
+            val resultTry =
+              for
+                simpleGraph <- simpleGraphTry
+                viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
+                dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
+                svgStartedAt = Telemetry.nowMs()
+                svgTry       = graphviz.textToSvg(DotText(dotText0))
+                _ = Telemetry.log(
+                  "thumb.dot.textToSvg",
+                  (telemetryContext ++ Seq(
+                    "dtMs" -> (Telemetry.nowMs() - svgStartedAt),
+                    "ok"   -> svgTry.isSuccess
+                  ))*
+                )
+                svg <- svgTry
+              yield svg.svg.ref
+
+            Telemetry.log(
+              "thumb.dot.total",
+              (telemetryContext ++ Seq(
+                "dtMs" -> (Telemetry.nowMs() - startedAt),
+                "ok"   -> resultTry.isSuccess
+              ))*
+            )
+
+            resultTry.foreach: proto =>
+              ThumbnailSvgCache.put(format, dot.value, proto)
+              Telemetry.log(
+                "thumb.cache.store",
+                (telemetryContext ++ Seq(
+                  "format"    -> format.toString,
+                  "cacheSize" -> ThumbnailSvgCache.size
+                ))*
+              )
+
+            Signal.fromTry(resultTry).map(ThumbnailSvgCache.cloneSvg)
+
+          case DiagramFormat.Mermaid =>
+            // Mermaid format - use MermaidBackend (asynchronous)
+            // Render to a string, then parse into a fresh element so SPA re-mounts don't reuse DOM nodes
+            val startedAt = Telemetry.nowMs()
+            Telemetry.log(
+              "thumb.mermaid.start",
+              (telemetryContext ++ Seq("sourceChars" -> dot.value.length))*
+            )
+            val backend = MermaidBackend()
+            Signal
+              .fromFuture(backend.textToSvg(dot.value).map(_.svg.ref.outerHTML): scala.concurrent.Future[String])
+              .map: (svgHtmlOpt: Option[String]) =>
+                svgHtmlOpt match
+                  case Some(svgHtml) =>
+                    Telemetry.log(
+                      "thumb.mermaid.done",
+                      (telemetryContext ++ Seq(
+                        "dtMs" -> (Telemetry.nowMs() - startedAt),
+                        "ok"   -> true
+                      ))*
+                    )
+                    val proto = parseSVG(svgHtml).ref
+                    ThumbnailSvgCache.put(format, dot.value, proto)
+                    Telemetry.log(
+                      "thumb.cache.store",
+                      (telemetryContext ++ Seq(
+                        "format"    -> format.toString,
+                        "cacheSize" -> ThumbnailSvgCache.size
+                      ))*
+                    )
+                    ThumbnailSvgCache.cloneSvg(proto)
+                  case None =>
+                    emptySvg
+
+  /** Empty SVG placeholder for when rendering fails */
+  private def emptySvg: ReactiveSvgElement[SVG] =
+    import com.raquo.laminar.api.L.svg.*
+    svg(
+      width  := "100",
+      height := "100",
+      text(
+        x          := "50",
+        y          := "50",
+        textAnchor := "middle",
+        "No preview"
+      )
+    )
 
 end InternalPhases

@@ -10,7 +10,9 @@ trait ExportOps:
     finalSVG.foreach(_.foreach(s => writeText(s.ref.outerHTML)))
 
   def copySelectionAsSVG(): Unit =
-    finalSVG.foreach(_.foreach(s => writeText(SvgElementOps(s.ref).toSVGTextWithIds(selection.now()))))
+    finalSVG.foreach(_.foreach { s =>
+      writeText(SvgElementOps(s.ref).toSVGTextWithIds(selection.now(), selectionStrategy.observe.now()))
+    })
 
   def copyAsDOT(): Unit =
     val dot = visibleDOT.observe.now()

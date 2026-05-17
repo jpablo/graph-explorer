@@ -5,6 +5,13 @@ import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.utils.BBox
+import scala.scalajs.js
+import scala.scalajs.js.annotation.JSGlobal
+
+@js.native
+@JSGlobal("CSS")
+private object CSSGlobal extends js.Object:
+  def escape(value: String): String = js.native
 
 /** Base trait for interactive graph elements in the SVG canvas.
   *
@@ -13,11 +20,15 @@ import org.jpablo.graphexplorer.viewer.utils.BBox
   *
   * @param ref
   *   The underlying SVG group element
+  * @param strategy
+  *   The strategy for extracting element IDs from the SVG
   */
-sealed trait SelectableElement(val ref: dom.svg.G):
+sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: SelectableElementStrategy):
   def selectedClass: String
 
-  protected val refTitle = ref.querySelector("title").textContent
+  protected lazy val refTitle: String =
+    val title = ref.querySelector("title")
+    if title != null then title.textContent else ""
   // example: <g id="edge:id"> ...
   protected val svgIdAttr = ref.id
 
@@ -38,10 +49,18 @@ sealed trait SelectableElement(val ref: dom.svg.G):
     ref.classList.add(selectedClass)
     val rect = ref.querySelector(s"rect.$selectionRectClass")
     if rect == null then
-      ref.appendChild(SelectedRect().ref)
+      val newRect = SelectedRect().ref
+      // Mermaid nodes render text inside foreignObject (within g.label).
+      // Appending the rect after foreignObject hides the HTML text content.
+      // Insert before the label group so text renders on top of the highlight.
+      val labelGroup = ref.querySelector("g.label")
+      if labelGroup != null then
+        ref.insertBefore(newRect, labelGroup)
+      else
+        ref.appendChild(newRect)
 
   private def SelectedRect() =
-    val bbox = ref.getBBox()
+    val bbox = ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
     svg.rect(
       svg.cls    := selectionRectClass,
       svg.x      := bbox.x.toString,
@@ -52,50 +71,135 @@ sealed trait SelectableElement(val ref: dom.svg.G):
 
 object SelectableElement:
 
-  def fromDomElement(e: dom.svg.G): Option[SelectableElement] =
-    if e.classList.contains("node") then Some(NodeElement(e))
-    else if e.classList.contains("edge") then Some(EdgeElement(e))
-    else if e.classList.contains("cluster") then Some(ClusterElement(e))
+  /** Create a SelectableElement from a DOM element using the specified strategy. */
+  def fromDomElement(e: dom.Element, strategy: SelectableElementStrategy): Option[SelectableElement] =
+    if strategy.isNode(e) then
+      e match
+        case g: dom.svg.G => Some(NodeElement(g, strategy))
+        case _            => None
+    else if strategy.isEdge(e) then
+      e match
+        case se: dom.svg.Element => Some(EdgeElement(se, strategy))
+        case _                   => None
+    else if strategy.isCluster(e) then
+      e match
+        case g: dom.svg.G => Some(ClusterElement(g, strategy))
+        case _            => None
     else None
 
-  def findAll(ref: dom.Element): Seq[SelectableElement] =
-    ref.querySelectorAllT("g").flatMap(fromDomElement)
+  /** Create a SelectableElement from a DOM element using the default Graphviz strategy. */
+  def fromDomElement(e: dom.Element): Option[SelectableElement] =
+    fromDomElement(e, GraphvizSelectionStrategy)
 
-  def query(ref: dom.Element, elems: ElementIds): Seq[SelectableElement] =
+  /** Find all selectable elements in a container using the specified strategy. */
+  def findAll(ref: dom.Element, strategy: SelectableElementStrategy): Seq[SelectableElement] =
+    ref.querySelectorAllT[dom.Element](strategy.allSelector).flatMap(fromDomElement(_, strategy))
+
+  /** Find all selectable elements in a container using the default Graphviz strategy. */
+  def findAll(ref: dom.Element): Seq[SelectableElement] =
+    findAll(ref, GraphvizSelectionStrategy)
+
+  /** Query specific elements by ID using the specified strategy. */
+  def query(ref: dom.Element, elems: ElementIds, strategy: SelectableElementStrategy): Seq[SelectableElement] =
     if elems.isEmpty then
       Seq.empty
     else
-      ref
-        .querySelectorAllT[dom.svg.G](elems.ids.map(id => s"g[id='${id.toSvg}']").mkString(","))
-        .flatMap(fromDomElement)
+      strategy.idSelectorFor(elems) match
+        case Some(selector) =>
+          ref.querySelectorAllT[dom.Element](selector).flatMap(fromDomElement(_, strategy))
+        case None =>
+          findAll(ref, strategy).filter(elem => elems.contains(elem.elementId))
+
+  /** Query specific elements by ID using the default Graphviz strategy. */
+  def query(ref: dom.Element, elems: ElementIds): Seq[SelectableElement] =
+    query(ref, elems, GraphvizSelectionStrategy)
 
 end SelectableElement
 
-case class NodeElement(ref0: dom.svg.G) extends SelectableElement(ref0):
+case class NodeElement(ref0: dom.svg.G, strat: SelectableElementStrategy = GraphvizSelectionStrategy)
+    extends SelectableElement(ref0, strat):
   val selectedClass = "selected"
-  val elementId     = NodeId(refTitle)
+  lazy val elementId: NodeId = strat.extractNodeId(ref)
 
-case class EdgeElement(private val ref0: dom.svg.G) extends SelectableElement(ref0):
+case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy = GraphvizSelectionStrategy)
+    extends SelectableElement(ref0, strat):
   val selectedClass = "selected"
 
-  private lazy val toArrowId: Option[ArrowId] =
-    Arrow.fromSvg(svgIdAttr)
-
-  // if parsing fails, use the title as the nodeId
-  lazy val elementId: ArrowId =
-    toArrowId.getOrElse(ArrowId(refTitle))
+  lazy val elementId: ArrowId = strat.extractArrowId(ref)
 
   override def select(): Unit =
     ref.classList.add(selectedClass)
+    // For Mermaid paths with marker-end, create a selected-state marker
+    styleMarkerForSelection(selected = true)
 
   override def unselect(): Unit =
     ref.classList.remove(selectedClass)
+    // Restore original marker
+    styleMarkerForSelection(selected = false)
+
+  /** Style the arrow marker (arrowhead) for selection state.
+    * Mermaid uses SVG markers which can't be styled via CSS cascade.
+    * We create a cloned marker with selection styling and swap the marker-end reference.
+    * Note: Mermaid may place markers in a <g> element rather than <defs>.
+    */
+  private def styleMarkerForSelection(selected: Boolean): Unit =
+    ref match
+      case path: dom.svg.Path =>
+        val markerEnd = Option(path.getAttribute("marker-end")).filter(_.nonEmpty)
+        markerEnd.foreach { url =>
+          // Extract marker ID from url(#markerId)
+          val markerId = url.stripPrefix("url(#").stripSuffix(")")
+
+          if selected then {
+            // Skip if already using a selected marker
+            if !markerId.endsWith("-selected") then {
+              val selectedMarkerId = s"$markerId-selected"
+
+              // Find the SVG root and the original marker
+              val svgRoot = path.ownerSVGElement
+              if svgRoot != null then {
+                val originalMarker = svgRoot.querySelector(s"#${CSSGlobal.escape(markerId)}")
+
+                if originalMarker != null then {
+                  // Use the marker's parent (could be <defs> or <g> in Mermaid)
+                  val markerParent = originalMarker.parentNode
+                  if markerParent != null then {
+                    // Check if selected marker already exists in the SVG
+                    val existingSelected = svgRoot.querySelector(s"#${CSSGlobal.escape(selectedMarkerId)}")
+                    if existingSelected == null then {
+                      // Clone marker and style for selection
+                      val clonedMarker = originalMarker.cloneNode(true).asInstanceOf[dom.Element]
+                      clonedMarker.setAttribute("id", selectedMarkerId)
+                      // Style the path inside the marker with selection color
+                      val markerPath = clonedMarker.querySelector("path")
+                      if markerPath != null then {
+                        markerPath.setAttribute("fill", "#2c70ff")
+                        markerPath.setAttribute("stroke", "#2c70ff")
+                      }
+                      markerParent.appendChild(clonedMarker)
+                    }
+                    // Point to selected marker
+                    path.setAttribute("marker-end", s"url(#$selectedMarkerId)")
+                  }
+                }
+              }
+            }
+          } else {
+            // Restore original marker by removing "-selected" suffix if present
+            if markerId.endsWith("-selected") then {
+              val originalMarkerId = markerId.stripSuffix("-selected")
+              path.setAttribute("marker-end", s"url(#$originalMarkerId)")
+            }
+          }
+        }
+      case _ => ()
 
 end EdgeElement
 
-case class ClusterElement(ref0: dom.svg.G) extends SelectableElement(ref0):
+case class ClusterElement(ref0: dom.svg.G, strat: SelectableElementStrategy = GraphvizSelectionStrategy)
+    extends SelectableElement(ref0, strat):
   val selectedClass = "selected"
-  val elementId     = GroupId.fromSvg(svgIdAttr).getOrElse(GroupId(refTitle))
+  lazy val elementId: GroupId = strat.extractGroupId(ref)
 
 // ------------------------------
 // dom.Element extensions

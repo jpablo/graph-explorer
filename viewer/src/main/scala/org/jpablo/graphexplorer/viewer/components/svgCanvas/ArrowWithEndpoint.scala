@@ -13,7 +13,11 @@ def ArrowBetweenPointerAndEndpoint(
     action:    MoveArrowEndpointAction,
     rootGroup: dom.svg.G
 ): ReactiveSvgElement[dom.svg.G] =
-  val clonedPath = action.originator.ref.querySelector("path").cloneNode().asInstanceOf[dom.svg.Path]
+  val basePath =
+    action.originator.ref match
+      case path: dom.svg.Path => path
+      case _                  => action.originator.ref.querySelector("path").asInstanceOf[dom.svg.Path]
+  val clonedPath = basePath.cloneNode().asInstanceOf[dom.svg.Path]
   val pathData   = clonedPath.getAttribute("d")
   val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
 
