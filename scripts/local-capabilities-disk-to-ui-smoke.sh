@@ -49,6 +49,7 @@ require_cmd() {
 require_cmd jq
 require_cmd mktemp
 require_cmd python3
+require_cmd curl
 
 now_ms() {
   python3 -c 'import time; print(int(time.time()*1000))'
@@ -95,6 +96,18 @@ watch_json="$("${GX_BIN}" watch "${tmpfile}" --json)"
 last_revision="$(jq -r '.revision' <<<"${watch_json}")"
 echo "watch established at revision ${last_revision}; running ${SAMPLES} samples (budget ${MEDIAN_BUDGET_MS}ms median)"
 
+# Poll the control API directly with curl instead of spawning `gx get` each
+# iteration: process-spawn cost per poll inflated the measured latency on
+# slower CI runners (it is overhead, not disk->UI time). The desktop only
+# decodes %2F in the ?path= query, so encoding just '/' is sufficient here.
+api_port="$(jq -r '.port' "${RUNTIME_FILE}")"
+api_token="$(jq -r '.token' "${RUNTIME_FILE}")"
+doc_url="http://127.0.0.1:${api_port}/v1/document?path=${tmpfile//\//%2F}"
+poll_revision() {
+  curl -s --max-time 2 -H "Authorization: Bearer ${api_token}" "${doc_url}" 2>/dev/null \
+    | jq -r '.document.revision // empty' 2>/dev/null || true
+}
+
 samples=()
 for i in $(seq 1 "${SAMPLES}"); do
   # External edit: write to a sibling temp file then atomically rename, the way
@@ -107,8 +120,7 @@ for i in $(seq 1 "${SAMPLES}"); do
   deadline=$(( t0 + PER_SAMPLE_TIMEOUT_MS ))
   observed=""
   while :; do
-    get_json="$("${GX_BIN}" get --file "${tmpfile}" --json 2>/dev/null || true)"
-    rev="$(jq -r '.revision // empty' <<<"${get_json}" 2>/dev/null || true)"
+    rev="$(poll_revision)"
     if [[ -n "${rev}" && "${rev}" -gt "${last_revision}" ]]; then
       observed="$(now_ms)"
       last_revision="${rev}"
@@ -118,7 +130,7 @@ for i in $(seq 1 "${SAMPLES}"); do
       echo "sample ${i}: no revision bump within ${PER_SAMPLE_TIMEOUT_MS}ms (last revision ${last_revision})" >&2
       exit 1
     fi
-    sleep 0.01
+    sleep 0.005
   done
 
   latency=$(( observed - t0 ))

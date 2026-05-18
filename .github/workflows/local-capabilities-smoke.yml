@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# Opt all JavaScript actions into Node 24 (actions/checkout, setup-*,
+# upload/download-artifact still ship Node 20, which GitHub is deprecating).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   rust-smoke:
     name: Rust smoke (desktop + gx)
