@@ -817,6 +817,8 @@ fn handle_request(
                 }
             }
         }
+        // CORS preflight for the in-app webview's cross-origin fetch.
+        (&Method::Options, _) => text_response(StatusCode(204), ""),
         _ => text_response(StatusCode(404), "not found"),
     };
 
@@ -1389,18 +1391,36 @@ fn is_authorized(request: &Request, token: &str) -> bool {
         .unwrap_or(false)
 }
 
+// The in-app webview reaches this server via a cross-origin fetch
+// (tauri://localhost -> http://127.0.0.1:<port>). A PUT with an
+// Authorization header is a non-simple request, so the webview sends a CORS
+// preflight; without these headers the preflight 404s and the browser blocks
+// the request ("TypeError: Load failed"). `*` is safe here: loopback control
+// server, bearer-token auth, no credentialed cookies.
+fn cors_headers() -> Vec<Header> {
+    vec![
+        Header::from_bytes("Access-Control-Allow-Origin", "*").expect("valid static header"),
+        Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
+            .expect("valid static header"),
+        Header::from_bytes("Access-Control-Allow-Headers", "Authorization, Content-Type")
+            .expect("valid static header"),
+    ]
+}
+
 fn json_response<T: Serialize>(
     status: StatusCode,
     payload: &T,
 ) -> Response<std::io::Cursor<Vec<u8>>> {
     let json = serde_json::to_vec(payload)
         .unwrap_or_else(|_| b"{\"ok\":false,\"message\":\"serialization-error\"}".to_vec());
+    let mut headers = cors_headers();
+    headers.push(
+        Header::from_bytes("Content-Type", "application/json; charset=utf-8")
+            .expect("valid static header"),
+    );
     Response::new(
         status,
-        vec![
-            Header::from_bytes("Content-Type", "application/json; charset=utf-8")
-                .expect("valid static header"),
-        ],
+        headers,
         std::io::Cursor::new(json.clone()),
         Some(json.len()),
         None,
@@ -1409,12 +1429,14 @@ fn json_response<T: Serialize>(
 
 fn text_response(status: StatusCode, body: &str) -> Response<std::io::Cursor<Vec<u8>>> {
     let bytes = body.as_bytes().to_vec();
+    let mut headers = cors_headers();
+    headers.push(
+        Header::from_bytes("Content-Type", "text/plain; charset=utf-8")
+            .expect("valid static header"),
+    );
     Response::new(
         status,
-        vec![
-            Header::from_bytes("Content-Type", "text/plain; charset=utf-8")
-                .expect("valid static header"),
-        ],
+        headers,
         std::io::Cursor::new(bytes.clone()),
         Some(bytes.len()),
         None,
