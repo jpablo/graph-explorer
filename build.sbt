@@ -179,6 +179,11 @@ lazy val root =
         // (http://localhost:5173) instead of the embedded frontendDist, so the
         // window is blank unless a vite dev server happens to be running. The
         // Tauri CLI adds this feature automatically; a bare `cargo build` does not.
+        // Install node deps first: ScalablyTyped (ExternalNpm) reads
+        // node_modules during the sbt fullLinkJS that `npm run build` triggers,
+        // and the `externalNpm` setting no longer auto-installs. This makes the
+        // task self-sufficient on a clean checkout.
+        run(Seq("npm", "install", "--no-audit", "--no-fund"), base)
         run(Seq("npm", "run", "build"), base)
         forceRecompile(base / "desktop" / "src-tauri" / "src" / "main.rs")
         run(
