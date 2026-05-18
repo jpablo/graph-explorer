@@ -1,0 +1,7 @@
+// Self-loop probe (one DOT feature per file, PORT.md §2.3): a no-port
+// self-edge `a -> a` (makeSelfEdge → selfRight) alongside one normal
+// edge so the layout is non-degenerate.
+digraph selfloop {
+  a -> a;
+  a -> b;
+}

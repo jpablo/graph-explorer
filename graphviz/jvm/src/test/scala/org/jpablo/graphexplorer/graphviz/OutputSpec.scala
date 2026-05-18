@@ -176,7 +176,9 @@ class OutputSpec extends FunSuite:
   // genuinely differ (dot_json "0 0 132 124" vs json0 "0,0,131.98,123.6");
   // 01/06/07 are integer ⇒ both equal the golden exactly (was ε-tolerated,
   // now dev 0).
-  (corpus :+ "04-ports-compass").foreach { name =>
+  // 08's bb includes the self-edge `selfRightSpace` (+18) that
+  // `make_LR_constraints` adds to `ND_rw` and `dot_compute_bb` sees.
+  (corpus :+ "04-ports-compass" :+ "08-selfloop").foreach { name =>
     test(s"$name: bb byte-exact (dot_json int, json0 float)"):
       val odj = ujson.read(Output.dotJson(graph(name)))
       val gdj = ujson.read(OracleHarness.golden(name, "dot_json"))
@@ -185,5 +187,25 @@ class OutputSpec extends FunSuite:
       val gj0 = ujson.read(OracleHarness.golden(name, "json0"))
       assertEquals(oj0("bb").str, gj0("bb").str, s"$name json0 bb")
   }
+
+  // Self-loop end-to-end through the public json0 `pos` (the viewer's
+  // `getEdgePos` contract): both edges keyed by (tail,head), `e,EX,EY`
+  // exact + spline within ε vs the json0 golden.
+  test("08-selfloop: json0 self-loop + edge splines match the golden"):
+    def eByTH(v: ujson.Value): Map[(String, String), ujson.Value] =
+      val nm = nameByGvid(v)
+      v("edges").arr.iterator.map(e => edgeKey(e, nm) -> e).toMap
+    val o = ujson.read(Output.json0(graph("08-selfloop")))
+    val gld = ujson.read(OracleHarness.golden("08-selfloop", "json0"))
+    val oE = eByTH(o); val gE = eByTH(gld)
+    assertEquals(oE.keySet, gE.keySet, "08 json0 edge set (incl. self-loop)")
+    assertEquals(oE.keySet, Set(("a", "a"), ("a", "b")))
+    gE.foreach { case (k, ge) =>
+      val (oep, _, opts) = parsePos(oE(k)("pos").str)
+      val (gep, _, gpts) = parsePos(ge("pos").str)
+      assert(oep.isDefined && gep.isDefined, s"08 $k e, prefix")
+      assert(near(oep.get, gep.get, 0.5), s"08 $k ep ${oep.get} vs ${gep.get}")
+      assert(hausdorff(opts, gpts) <= 1.0, s"08 $k spline dev=${hausdorff(opts, gpts)}")
+    }
 
 end OutputSpec

@@ -206,7 +206,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 | Cluster layout (recursive) | ⬜ | | hardest part of M6 |
 | Spline routing — straight/clipped | ✅ | SplineSpec | All edges route via the real `routesplines` pipeline (no straight-leg special-case). `clip_and_install`+`bezier_clip` ported faithfully (ellipse `insidefn` semi-axes = (sizePt+penwidth)/2). **Arrow clip uses the TRUE `arrow_length_normal`** (≈11.53, not nominal 10 — `Arrow.lengthNormal`, 2026-05-17): the directed corpus spline is now **byte-exact** vs `plain` (07/01/04 Hausdorff ≤0.00004 in, was the documented sub-2px residual) |
 | Spline routing — box-fit (bowed curves) | ✅ | SplineSpec | **Closed 2026-05-17 by instrument-and-port (§2.5); residual fully eliminated by the arrow-length port.** Ported box channel (`completeregularpath`/`maximal_bbox`/`rank_box`/`adjustregularpath`/`checkpath`; MINW=16, FUDGE=4, Splinesep=nodesep/4), channel polygon, `Pshortestpath` (taut funnel over box portals), `Proutespline` (recursive least-squares cubic fit + `solve3`). Verified vs instrumented gv 13.0.1: box channel, shortest path AND raw spline reproduce the probe **byte-for-byte** for 01 `a→c`. 01 `a→c` 0.25 → 0.024 → **0.00002 in** (the true `arrow_length` closed the last endpoint residual). Earlier Catmull-Rom cheap-approx (measured 0.25/0.54 in) stays a recorded dead end |
-| Parallel / multi-edges (de-merge) | ✅ | SplineSpec + OutputSpec | `Spline.splines`/`splinesEx` re-keyed `(tail,head)` → **g.edges index** (edge identity); every consumer correlates by index (`Output.doc.E.idx`, json0/dot_json `pos`, `Svg`, `Order.Result.segOwner`). 04's two `struct1→struct2` no longer collapse — distinct splines emitted & gated. Additive: portless graphs byte-identical (01/06/07 green). Self-loops still ⬜ (no corpus) |
+| Self-loops, parallel/multi-edges | ✅ | SplineSpec + OutputSpec + SvgSpec | **Parallel/multi-edge de-merge** (2026-05-17): `Spline` re-keyed `(tail,head)`→**g.edges index**; every consumer correlates by index. **Self-loops** (2026-05-17): added the `08-selfloop` corpus probe (01–07 goldens byte-identical on re-capture); ported `makeSelfEdge`→`selfRight` (no-port: 7-pt 2-cubic bowing right by `rw+(i+1)·nodesep`, `sizey` per the dotsplines.c rank-position rule) + the `make_LR_constraints` `selfRightSpace` (+`SELF_EDGE_SIZE`=18 to `ND_rw`, seen by `dot_compute_bb`/`Output.bbox`). Self-edges don't rank (excluded from acyclic/order); routed separately. **08 byte-exact** vs golden: spline (a→a + a→b), json0/dot_json `bb` (incl. the +18), svg. Additive: portless/non-self graphs byte-identical (01–07 green). Ports-on-self-edges (`selfTop/Left/Bottom`) = documented no-corpus deferral |
 | Port/compass-anchored edge endpoints | ✅ | SplineSpec + OutputSpec + RecordSpec | **Closed 2026-05-17 by instrument-and-port (§2.5).** Beyond the model/emission/anchor layer: ported the `beginpath`/`endpath` REGULAREDGE record-port branch — `RecordLabel.pos_reclbl` field `sides`; `compassPort` + `resolvePort`/`closestSide` (a `_`/no-compass port is dynamically resolved to the field side nearest the other node); the side box + ±1 router nudge; `record_path` pbox fallback (`b:n`, b has no TOP ⇒ side 0 ⇒ field box clipped to node height); constrained-tangent `Proutespline` (`evs`); `clip=false` ⇒ skip the ellipse shape-clip. **Also** ported `make_edge_pairs`'s port x-offset (`m0=(int)(headport.p.x−tailport.p.x)`, slack minlens `m0+1`/`m1+1`) into `XCoord` — struct2.x 65.99→**63.99** == golden (the f0-left/f2-right weighted-median balance). Verified: instrumented gv-13.0.1 box channel/start/end/raw spline reproduced byte-for-byte for **both** 04 edges; final splines match the `plain`/`json0` golden — Hausdorff ≤0.04 in (SplineSpec, mirror **disallowed**: 04 is TB & unmirrored, asserted), json0 `e,EX,EY` exact (≤0.5 pt) + spline ≤2 pt (OutputSpec, the `getEdgePos` contract). The ~0.5 pt `f2:s` begin-nudge is the documented spline-pipeline ±1 (now absorbed end-to-end). Reference worktree reverted pristine |
 
 ### 5.3 Node shapes & labels
@@ -860,4 +860,29 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   "sub-2px" residual was never noise — it was one missing model term
   (stroke-miter arrow length); a constant axial offset always is.
   Remaining M6: LR order-axis (blocker 2), 03 clusters, self-loops.
+- **2026-05-17** — **Self-loops CLOSED — byte-exact end-to-end.** Added
+  the first new corpus probe since `07-cross`: `08-selfloop` (`a->a` +
+  `a->b`, one feature per file, §2.3). Re-ran `oracle/capture.mjs`:
+  01–07 goldens **byte-identical** (oracle determinism reconfirmed), 08
+  frozen. Source-traced the whole self-edge path: `makeSelfEdge`→
+  `selfRight` (no-port: a 7-point / 2-cubic curve bowing right of the
+  node by `rw + (i+1)·nodesep`, `sgn=+1`, `sizey` from the dotsplines.c
+  rank-position rule — minrank ⇒ `y(r)−y(r+1)`), routed in a new
+  `Spline` pass keyed by the g.edges index (self-loops don't rank, so
+  they're cleanly excluded from acyclic/order and handled apart). The
+  spline came out **byte-exact on the first run** (the prior commit's
+  true `arrow_length` makes the loop's clipped end exact too). A second,
+  non-obvious piece the oracle exposed: 08's golden `bb` width is 72,
+  not the 54 node-extent — `position.c make_LR_constraints` enlarges
+  `ND_rw` by `selfRightSpace` (`SELF_EDGE_SIZE`=18, no-port) and
+  `dot_compute_bb` sees it. Ported that into `Output.bbox` (the shared
+  bb): a self-looped node's right extent grows +18/loop ⇒ 08 `bb`
+  byte-exact across dot_json/json0/svg. Gates added: SplineSpec (08
+  spline byte-exact + loop-shape), OutputSpec (08 bb + json0 self-loop
+  `pos`), SvgSpec (08 canvas + edges). Additive — portless/non-self
+  graphs byte-identical (01–07 green). Pure source trace + numeric
+  oracle (no instrumentation; reference worktree pristine). Suite
+  **109→114**; graphvizJS + viewer compile. Ports-on-self-edges
+  (`selfTop/Left/Bottom`) stay a documented no-corpus deferral.
+  Remaining M6: LR order-axis (blocker 2), 03 clusters.
 - _(append dated entries as milestones land)_

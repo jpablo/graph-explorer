@@ -1,0 +1,31 @@
+{
+  "name": "selfloop",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 72 108",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 0
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 1
+    }
+  ]
+}

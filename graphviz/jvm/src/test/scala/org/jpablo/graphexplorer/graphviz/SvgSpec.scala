@@ -186,4 +186,21 @@ class SvgSpec extends FunSuite:
       assertEquals(a, b, s"07 arrowhead ${i + 1} not byte-identical")
     }
 
+  // Self-loop renders in svg: the `<svg>` canvas reflects the +18
+  // selfRightSpace bb, and both edge paths/arrowheads are within ε of
+  // the golden (the loop is byte-exact, cf. SplineSpec).
+  test("08-selfloop: svg header byte-exact + edges visually close"):
+    val o   = ours("08-selfloop")
+    val gld = OracleHarness.golden("08-selfloop", "svg")
+    val Hdr = """<svg width="\d+pt" height="\d+pt"""".r
+    assertEquals(Hdr.findFirstIn(o), Hdr.findFirstIn(gld), "08 <svg> canvas (self-edge bb)")
+    val ge = edges(gld); val oe = edges(o)
+    assertEquals(oe.keySet, ge.keySet, "08 svg edge titles (incl. a->a)")
+    ge.foreach { case (k, g0) =>
+      val e0 = oe(k)
+      assert(hausdorff(e0.d, g0.d) <= Eps, s"08 $k path dev=${hausdorff(e0.d, g0.d)}")
+      for ea <- e0.arrow; ga <- g0.arrow do
+        assert(hausdorff(ea, ga) <= Eps, s"08 $k arrowhead dev=${hausdorff(ea, ga)}")
+    }
+
 end SvgSpec

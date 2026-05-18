@@ -301,6 +301,49 @@ object Spline:
               val ctrl  = if rt < rh then raw else raw.reverse
               out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
     }
+
+    // ── self-edges (makeSelfEdge → selfRight, no-port case) ───────────────
+    // Self-loops don't rank (excluded above & in acyclic); route them here
+    // keyed by their g.edges index. Ports-on-self-edges (selfTop/Left/
+    // Bottom) are a documented deferral (no corpus). `sizey` mirrors the
+    // rank-position rule at the dotsplines.c call site; selfRight bows the
+    // loop right of the node by `rw + (i+1)·nodesep`.
+    val minRank = if ranksSorted.isEmpty then 0 else ranksSorted.head
+    val maxRank = if ranksSorted.isEmpty then 0 else ranksSorted.last
+    g.edges.zipWithIndex
+      .filter { case (e, _) => e.tail == e.head && rankOf.contains(e.tail) }
+      .groupBy(_._1.tail)
+      .foreach { case (nid, group) =>
+        val r    = rankOf(nid)
+        val ndHt = 2.0 * halfH(nid)
+        val sizeyCs =
+          if r == maxRank then
+            if r > minRank then yOf(r - 1) - yOf(r) else ndHt
+          else if r == minRank then yOf(r) - yOf(r + 1)
+          else math.min(yOf(r - 1) - yOf(r), yOf(r) - yOf(r + 1))
+        val cnt   = group.length
+        val stepx = NodeSep                                  // sd.Multisep
+        val stepy = math.max(sizeyCs / 2.0 / 2.0 / cnt, 2.0) // selfRight
+        val np    = Pt(cx(nid), cy(nid))
+        val rw    = lw(nid)
+        group.zipWithIndex.foreach { case ((e, origIdx), i) =>
+          val k  = i + 1
+          val dx = rw + k * stepx
+          val tx = rw + k * stepx
+          val hx = rw + k * stepx
+          val dy = k * stepy // sgn = +1 (tp.y == hp.y, no-port ⇒ no flip)
+          val pts = Vector(
+            np,
+            Pt(np.x + tx / 3.0, np.y + dy),
+            Pt(np.x + dx, np.y + dy),
+            Pt(np.x + dx, np.y),
+            Pt(np.x + dx, np.y - dy),
+            Pt(np.x + hx / 3.0, np.y - dy),
+            np
+          )
+          out(origIdx) = clipInstall(g, pts, e, byId, centerOf)
+        }
+      }
     out.toMap
 
   // ── adjustregularpath: widen path boxes to ≥ MINW ─────────────────────────

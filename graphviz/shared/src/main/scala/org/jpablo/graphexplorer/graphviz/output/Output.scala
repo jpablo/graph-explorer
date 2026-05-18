@@ -83,11 +83,17 @@ object Output:
       }.toVector
     Doc(g.name.getOrElse("%1"), g.directed, g.strict, nodes, edges)
 
+  private val SelfEdgeSize = 18.0 // const.h SELF_EDGE_SIZE
+
   /** Graph bounding box — faithful `position.c` `dot_compute_bb` (root):
     * the **node-extent** box only (NORMAL nodes ± `ND_lw`/`ND_rw`/rank
     * half-heights), **no spline extent and no floor/ceil** (Graphviz keeps
     * the exact float; the splines are channel-bounded so they don't extend
-    * the bb). Drives `bb` for all three formats — shared with `Svg`. */
+    * the bb). One exception is faithfully modelled: `make_LR_constraints`
+    * enlarges `ND_rw` by `selfRightSpace` (`SELF_EDGE_SIZE`=18 per no-port
+    * self-edge, + label width) and `dot_compute_bb` then sees it — so a
+    * self-looped node's right extent (and the bb) grows by 18 per loop.
+    * Drives `bb` for all three formats — shared with `Svg`. */
   private[output] def bbox(g: RGraph): (Double, Double, Double, Double) =
     val (_, yOf) = Coord.rankY(g)
     val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
@@ -97,8 +103,12 @@ object Output:
     g.nodes.foreach { n =>
       for x <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
         val hw = sz.widthIn * 36.0; val hh = sz.heightIn * 36.0
+        // selfRightSpace: no-port self-edges reserve SELF_EDGE_SIZE on the
+        // right (the port/label-bearing cases are deferred — no corpus).
+        val selfW = g.edges.count(e => e.tail == n.id && e.head == n.id &&
+          e.tailPort.isEmpty && e.headPort.isEmpty) * SelfEdgeSize
         val y  = yOf(ranks(n.id))
-        minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw)
+        minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
     }
     (minX, minY, maxX, maxY)

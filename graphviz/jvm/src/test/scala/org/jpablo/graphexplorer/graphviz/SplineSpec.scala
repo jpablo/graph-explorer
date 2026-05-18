@@ -182,4 +182,22 @@ class SplineSpec extends FunSuite:
       }
   }
 
+  // Self-loops (`makeSelfEdge`→`selfRight`, no-port): self-edges don't rank
+  // (excluded from acyclic/order), routed separately keyed by edge index.
+  // 08 = `a -> a` + `a -> b`; both byte-exact vs the `plain` golden (the
+  // true arrow-length close applies to the loop's clipped end too).
+  test("08-selfloop: self-loop + normal edge byte-exact vs the golden"):
+    val gold = goldenEdges("08-selfloop")
+    val ours = ourEdges("08-selfloop")
+    assert(gold.contains(("a", "a")) && gold.contains(("a", "b")), "08 golden edges")
+    gold.foreach { case (k, gg) =>
+      val dev = hausdorff(ours.getOrElse(k, fail(s"08 missing $k")), gg)
+      assert(dev <= EpsExact, s"08 $k dev=$dev (eps=$EpsExact)")
+    }
+    // the loop is a 2-cubic (7 ctrl pts) bowing right of node a (centre
+    // x=0.375in, rw=0.375 ⇒ right edge 0.75in); the golden bows to x=1.0in.
+    val loop = ours(("a", "a"))
+    assertEquals(loop.length, 7, s"a→a should be 2 cubics: $loop")
+    assert(loop.iterator.map(_._1).max > 0.75, s"a→a must bow right of node a: $loop")
+
 end SplineSpec
