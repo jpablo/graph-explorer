@@ -204,6 +204,18 @@ object NodeSize:
     // tracked, PORT.md §5.2).
     Some(Size(bbX / PointsPerInch, bbY / PointsPerInch))
 
+  /** Layout-orientation size — `gv_nodesize(n, GD_flip)` (postproc.c). The
+    * TB layout pipeline (Coord/XCoord/Spline) runs on this; for a flipped
+    * graph (LR/RL) node w/h are **swapped** (`ND_ht = width`, `ND_lw =
+    * ND_rw = height/2`), then `translate_drawing` rotates the result back
+    * and `gv_nodesize(n, false)` restores the true size for drawing.
+    *
+    * `nodeSize` stays the **true** size (the `dot`-oracle contract gated by
+    * NodeSizeSpec) — only the layout pipeline uses this swapped view, so
+    * TB (`flip=false`) is byte-identical (`layoutSize == nodeSize`). */
+  def layoutSize(n: RNode, g: RGraph): Option[Size] =
+    nodeSize(n, g).map(s => if Rank.flip(g) then Size(s.heightIn, s.widthIn) else s)
+
   private inline def sqr(x: Double): Double = x * x
 
 end NodeSize

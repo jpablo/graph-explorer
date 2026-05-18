@@ -42,7 +42,7 @@ object Coord:
     val halfHt = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
     g.nodes.foreach { n =>
       val r = ranks(n.id)
-      NodeSize.nodeSize(n, g).foreach { sz =>
+      NodeSize.layoutSize(n, g).foreach { sz =>
         val h = sz.heightIn * PointsPerInch / 2.0
         if h > halfHt(r) then halfHt(r) = h
       }

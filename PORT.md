@@ -202,7 +202,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 | LR_balance (NS balance=2) | ✅ | NetworkSimplexSpec/XCoordSpec | `ns.c` LR_balance ported. With correct ω, a/c become a flat optimum in [b,v]; LR_balance centres them to match Graphviz |
 | ~~Virtual-node X separation too wide~~ | **RESOLVED 2026-05-16** | XCoordSpec | **Misdiagnosis corrected.** Separation `minlen=55` was right all along (instrumented gv confirms b→v minlen=55). Real bug = wrong ω model (above). Found by building+instrumenting gv 13.0.1, not by re-reading source |
 | Edge-label rank doubling (`ED_minlen*=2`) | ✅ | RankSpec + CoordSpec | **Closed (Y).** `Rank.hasEdgeLabel` ⇒ `acyclic` `minlen*=2` (`edgelabel_ranks`); `Coord` ranksep `(36+1)/2=18`; `make_chain` `label_vnode` half-height = `nLines·fontsize·LINESPACING/2` (`NodeSize.labelHeightPt`, reusing the M1 `\n\l\r` line split — single-line HTML label included) seated at mid rank `(rank t+rank h)/2`; root graph-label space `do_graph_label` = label box + YPAD `2·GAP` (GAP=4) at the labelloc side. CoordSpec 05 deferred-probe **promoted** → 05 in the strict Y list, matches golden ≤0.005 in. (HTML label *width*/table layout stays a separate M6 row — doesn't affect rank-axis Y.) 02 still needs LR (separate row) |
-| `rankdir = TB/LR/BT/RL` | ⬜ (model reverse-engineered) | RankSpec/OrderSpec already rankdir-aware | **Model fully derived (2026-05-17), port deferred — honest negative.** `Rank.rankdir/flip` helpers landed (RANKDIR_TB0/LR1/BT2/RL3; flip = LR\|RL). Transform = `translate_drawing`/`map_point`: `ccwrotatepf(p, rankdir·90)` then `−Offset`; LR ⇒ `(x,y)→(bb.UR.y−y, x−bb.LL.x)` over the canonical bbox. Layout runs with `gv_nodesize(n, flip)` w/h **swapped** (`ht=width, lw=rw=height/2`). **Blocker found by measurement (not guessed):** even with the transform, 02's order-axis (post-rotation Y) is off ~0.35–0.47 in — the swap must thread a *layout-orientation* size through Coord/XCoord/Spline (NOT `NodeSize.nodeSize`, which is the true-size `dot`-oracle contract — proven by NodeSizeSpec breaking when flipped there) **and** the canonical X/order simplex must reproduce the edge-label-weighted straightening under flip. Genuine multi-part sub-port; 02 also has the `go` edge label (✅ rank-doubling). No fake gate added |
+| `rankdir = TB/LR/BT/RL` | 🟡 (blocker 1 closed; blocker 2 quantified) | RankDirSpec | **Blocker (1) RESOLVED 2026-05-17, blocker (2) sharply quantified — honest negative.** (1) `gv_nodesize(n, flip)` ported as `NodeSize.layoutSize` (LR/RL ⇒ w/h swapped: layout `w=trueHeight`, `h=trueWidth`) and threaded through the canonical layout (Coord/XCoord/Spline). `nodeSize` stays the true-size `dot`-oracle contract — `layoutSize == nodeSize` for TB ⇒ **01/06/07/04/05 byte-identical** (106/106; RankDirSpec locks it). The transform (`translate_drawing`/`map_point`, Offset=`(−cbb.UR.y, cbb.LL.x)`; LR ⇒ `final=(cbb.UR.y−y, x−cbb.LL.x)` over the canonical node-extent bbox) is **verified byte-exact vs instrumented gv 13.0.1** — applied to our canonical 02 it gives the **rank axis (final X) within ~3 pt** of the golden (gated as progress). (2) REMAINS: the canonical **order axis** (XCoord under flip) doesn't reproduce gv's straightening — gv aligns `start`/`middle` at canon x≈46 via the `weight=2` edge + label-vnode; ours 45 vs 18 ⇒ final Y off 7–34 pt (not visually close). Needs edge `weight` threaded into the XCoord ω (the documented M5+ deferral) **and** the edge-label vnode's X under doubled ranks. RankDirSpec carries a **self-flagging deferred-probe** (asserts the order-axis still deviates → fails-when-fixed). No fake gate; 02's `go` rank-doubling is ✅ |
 | Cluster layout (recursive) | ⬜ | | hardest part of M6 |
 | Spline routing — straight/clipped | ✅ | SplineSpec | All edges route via the real `routesplines` pipeline (no straight-leg special-case). `clip_and_install`+`bezier_clip` ported faithfully (ellipse `insidefn` semi-axes = (sizePt+penwidth)/2; `ARROW_LENGTH`=10pt). 07 raw spline byte-exact vs instrumented gv; Hausdorff 0.024 in |
 | Spline routing — box-fit (bowed curves) | ✅ | SplineSpec | **Closed 2026-05-17 by instrument-and-port (§2.5).** Ported box channel (`completeregularpath`/`maximal_bbox`/`rank_box`/`adjustregularpath`/`checkpath`; MINW=16, FUDGE=4, Splinesep=nodesep/4), channel polygon, `Pshortestpath` (taut funnel over box portals), `Proutespline` (recursive least-squares cubic fit + `solve3`). Verified vs instrumented gv 13.0.1: box channel, shortest path AND raw spline reproduce the probe **byte-for-byte** for 01 `a→c` (the curved long edge). 01 `a→c` 0.25 → **0.024 in** Hausdorff vs `plain`. Earlier Catmull-Rom cheap-approx (measured 0.25/0.54 in) stays a recorded dead end |
@@ -779,4 +779,34 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   04 svg now diverges from golden **only** by the global documented
   sub-2px M5/M7 arrow-miter residual (within ε; not 04-specific).
   Remaining M6: LR (02), 03 clusters, self-loops.
+- **2026-05-17** — **M6 `rankdir=LR`: blocker (1) CLOSED, blocker (2)
+  sharply quantified (honest negative, real progress).** Re-instrumented
+  gv 13.0.1 (`translate_drawing`/`map_point` probe, reverted) to dump the
+  **canonical** (pre-transform) coords + `Offset` + canonical bb + final
+  coords for 02 (LR) and 01 (TB control). This nailed the model exactly:
+  layout runs TB with `gv_nodesize(n, flip)` (LR ⇒ node w/h **swapped**),
+  then `map_point` = `ccwrotatepf(p, rd·90) − Offset`; LR Offset =
+  `(−cbb.UR.y, cbb.LL.x)` ⇒ `final = (cbb.UR.y − y, x − cbb.LL.x)`
+  (reproduced 02's `start/middle/end` final coords + bb from the dump
+  byte-exact). Ported §7 **blocker (1)**: `NodeSize.layoutSize`
+  (`flip ? swap(w,h) : nodeSize`) threaded through Coord/XCoord/Spline;
+  `nodeSize` untouched (true-size oracle). Because `layoutSize ==
+  nodeSize` when not flipped, **every TB test stays byte-identical**
+  (102→**106/106**, +4 RankDirSpec; 01/06/07/04/05/03 unchanged) — the
+  safe-additive property held. Measured the result vs the 02 golden
+  (not assumed): the **rank axis (final X) is now within ~3 pt** (gated
+  as progress) — the layout-orientation size + transform are correct.
+  §7 **blocker (2)** persists and is now precisely root-caused: the
+  canonical **order axis** (XCoord under flip) doesn't reproduce gv's
+  straightening — gv aligns `start`/`middle` at canon x≈46 via the
+  `weight=2` edge + the `go` label-vnode; ours 45 vs 18 ⇒ final Y off
+  7–34 pt (not visually close). Closing it needs edge `weight` in the
+  XCoord ω (the documented M5+ deferral, which risks the
+  instrument-won M4x ω contract) **plus** the edge-label vnode's X under
+  doubled ranks — itself multi-part, beyond this focused commit.
+  Per methodology: shipped the safe infrastructural progress + a
+  **self-flagging deferred-probe** (RankDirSpec asserts the order-axis
+  still deviates ⇒ fails-when-fixed), no fake gate, no loosened ε,
+  reference worktree reverted pristine. §5.2 LR row ⬜→🟡. Remaining
+  M6: LR order-axis (blocker 2), 03 clusters, self-loops.
 - _(append dated entries as milestones land)_
