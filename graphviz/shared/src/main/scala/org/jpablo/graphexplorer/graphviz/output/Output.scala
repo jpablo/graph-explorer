@@ -83,7 +83,12 @@ object Output:
       }.toVector
     Doc(g.name.getOrElse("%1"), g.directed, g.strict, nodes, edges)
 
-  private def bbox(g: RGraph): (Double, Double, Double, Double) =
+  /** Graph bounding box — faithful `position.c` `dot_compute_bb` (root):
+    * the **node-extent** box only (NORMAL nodes ± `ND_lw`/`ND_rw`/rank
+    * half-heights), **no spline extent and no floor/ceil** (Graphviz keeps
+    * the exact float; the splines are channel-bounded so they don't extend
+    * the bb). Drives `bb` for all three formats — shared with `Svg`. */
+  private[output] def bbox(g: RGraph): (Double, Double, Double, Double) =
     val (_, yOf) = Coord.rankY(g)
     val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
     var minX = Double.MaxValue; var maxX = Double.MinValue
@@ -96,21 +101,21 @@ object Output:
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
     }
-    Spline.splines(g).valuesIterator.flatten.foreach { p =>
-      minX = math.min(minX, p.x); maxX = math.max(maxX, p.x)
-      minY = math.min(minY, p.y); maxY = math.max(maxY, p.y)
-    }
-    (math.floor(minX), math.floor(minY), math.ceil(maxX), math.ceil(maxY))
+    (minX, minY, maxX, maxY)
 
   def dotJson(g: RGraph): String =
     val d = doc(g)
+    // dot_json `bb` is the **integer** box (space-sep) — gv's `-Tjson`
+    // structural dump floor/ceils GD_bb; json0 keeps the exact float.
     val (lx, ly, ux, uy) = bbox(g)
+    val (blx, bly, bux, buy) =
+      (math.floor(lx), math.floor(ly), math.ceil(ux), math.ceil(uy))
     val sb = new StringBuilder
     sb ++= "{\n"
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
-    sb ++= s"""  "bb": "${g5(lx)} ${g5(ly)} ${g5(ux)} ${g5(uy)}",\n"""
+    sb ++= s"""  "bb": "${g5(blx)} ${g5(bly)} ${g5(bux)} ${g5(buy)}",\n"""
     sb ++= s"""  "_subgraph_cnt": 0,\n"""
     sb ++= "  \"objects\": [\n"
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap

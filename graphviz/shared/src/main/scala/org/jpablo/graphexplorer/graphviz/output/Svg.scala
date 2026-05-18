@@ -63,28 +63,14 @@ object Svg:
     val ranks      = Rank.assign(g)
     val spl        = Spline.splinesEx(g)
 
-    // graph bbox (points), Graphviz coords (y-up). Nodes ∪ spline extents.
-    var minX = Double.MaxValue; var maxX = Double.MinValue
-    var minY = Double.MaxValue; var maxY = Double.MinValue
-    g.nodes.foreach { n =>
-      for x <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
-        val y = yOf(ranks(n.id))
-        minX = math.min(minX, x - sz.widthIn * 36.0)
-        maxX = math.max(maxX, x + sz.widthIn * 36.0)
-        minY = math.min(minY, y - sz.heightIn * 36.0)
-        maxY = math.max(maxY, y + sz.heightIn * 36.0)
-    }
-    spl.valuesIterator.foreach { es =>
-      es.pts.foreach { p =>
-        minX = math.min(minX, p.x); maxX = math.max(maxX, p.x)
-        minY = math.min(minY, p.y); maxY = math.max(maxY, p.y)
-      }
-    }
-    val lx = math.floor(minX); val ly = math.floor(minY)
-    val ux = math.ceil(maxX);  val uy = math.ceil(maxY)
+    // graph bbox = the shared exact node-extent box (Output.bbox /
+    // position.c dot_compute_bb) — NO spline, NO floor/ceil. `<svg
+    // width/height>`/viewBox are the ceil'd int canvas; the `translate`
+    // and background polygon keep the exact float (gv: int canvas, 2-dp bb).
+    val (lx, ly, ux, uy) = Output.bbox(g)
     val bbW = ux - lx; val bbH = uy - ly
-    val w   = (bbW + 2 * Margin).toInt
-    val h   = (bbH + 2 * Margin).toInt
+    val w   = math.ceil(bbW + 2 * Margin).toInt
+    val h   = math.ceil(bbH + 2 * Margin).toInt
     val trX = Margin - lx
     val trY = uy + Margin
 

@@ -222,9 +222,9 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 ### 5.4 Output writers
 | Format | Status | Test | Notes |
 |---|---|---|---|
-| `dot_json` | ✅ | OutputSpec | `Output.dotJson`: hand-rolled (no serialization dep). name/`%1`/directed/strict/`_subgraph_cnt`/space-`bb`/objects(`_gvid`,name,label)/edges(`_gvid` by cgraph node-traversal order, tail,head). Structure-exact + bb ±ε vs golden 01/06/07 |
-| `json0` | ✅ | OutputSpec | `Output.json0`: dot_json + node `pos`/`width`/`height`, comma-`bb`, edge `pos` spline string (`e,EX,EY ` iff head arrow, via `Spline.splinesEx` `ESpline.ep`). Geometry ±ε, **mirror-aware** (06 X mirrored, layout-equivalent — cf. XCoordSpec). Number format ≈ C `%.5g` |
-| `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (`arrow_type_normal0` a[1..3]; miter `delta_tip/base` = same M5-deferred sub-2px). **Record nodes** (2026-05-17): ports `record_gencode`/`gen_fields` — outer box `<polygon>` + inter-field separator `<polyline>`s (LR table ⇒ vertical at child llx; TB ⇒ horizontal at child ury) + per-leaf centred field `<text>`; **byte-identical** to the 04 golden's per-node `<g>` blocks (exact, not ε — fully determined by the ✅ RecordLabel layout). `gvprintdouble` (`%.2f` trimmed). **Graph/edge titles** (2026-05-17): named graph ⇒ `<!-- Title: NAME -->` + graph `<title>`, anon ⇒ neither (`g.name`); edge `<title>` = `\E` (labels.c) = `tail[:port]op head[:port]` where port = `chkPort` `.name` (after first `:`, ⇒ `f2:s`→`s`), the edge *comment* stays portless (emit.c) — gated vs 04 + the corpus (closed the latent 06/07 untested gap). Well-formed + visually-close ε vs golden 01/06/07, mirror-aware. Remaining svg gap (cross-format, tracked apart): bbox float precision — `Output.bbox` int-floor/ceils vs gv's exact 2-dp, so svg `translate`/bg differ ≤0.5 pt (within SvgSpec ε; affects dot_json/json0 `bb` too) |
+| `dot_json` | ✅ | OutputSpec | `Output.dotJson`: hand-rolled (no serialization dep). name/`%1`/directed/strict/`_subgraph_cnt`/space-`bb`/objects(`_gvid`,name,label)/edges(`_gvid` by cgraph node-traversal order, tail,head). bb = the **integer** box (floor/ceil of `dot_compute_bb`'s exact node-extent). **byte-exact** vs golden 01/06/07 **and 04** (04 = `"0 0 132 124"`) |
+| `json0` | ✅ | OutputSpec | `Output.json0`: dot_json + node `pos`/`width`/`height`, comma-`bb`, edge `pos` spline string (`e,EX,EY ` iff head arrow, via `Spline.splinesEx` `ESpline.ep`, keyed by edge identity). bb = the **exact float** node-extent (`%.5g`) — distinct from dot_json's int (04 = `"0,0,131.98,123.6"`), **byte-exact** vs golden incl. 04. Geometry ±ε, **mirror-aware** (06 X mirrored, cf. XCoordSpec) |
+| `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (`arrow_type_normal0` a[1..3]; miter `delta_tip/base` = same M5-deferred sub-2px). **Record nodes** (2026-05-17): ports `record_gencode`/`gen_fields` — outer box `<polygon>` + inter-field separator `<polyline>`s (LR table ⇒ vertical at child llx; TB ⇒ horizontal at child ury) + per-leaf centred field `<text>`; **byte-identical** to the 04 golden's per-node `<g>` blocks (exact, not ε — fully determined by the ✅ RecordLabel layout). `gvprintdouble` (`%.2f` trimmed). **Graph/edge titles** (2026-05-17): named graph ⇒ `<!-- Title: NAME -->` + graph `<title>`, anon ⇒ neither (`g.name`); edge `<title>` = `\E` (labels.c) = `tail[:port]op head[:port]` where port = `chkPort` `.name` (after first `:`, ⇒ `f2:s`→`s`), the edge *comment* stays portless (emit.c) — gated vs 04 + the corpus (closed the latent 06/07 untested gap). **Bbox precision** (2026-05-17): `Output.bbox` ports `position.c dot_compute_bb` — node-extent only (NORMAL nodes ± lw/rw + rank ht), **no spline, no floor/ceil**; svg `<svg>`/viewBox = ceil'd int canvas, `translate`/bg = the exact float. 04 svg header/transform/background now **byte-exact** vs golden (`translate(4 127.6)`, bg `135.98`). Well-formed + visually-close ε vs golden 01/06/07/04, mirror-aware. **Sole residual** (global, tracked, not 04/svg-specific): the documented sub-2px M5/M7 arrow-miter `delta_tip/base` on edge paths (within ε) |
 | `MultipleRenderResult` shape (`status/output/errors`) | ✅ | GraphvizSpec | `Graphviz.renderFormats(dot, formats)` (pure, cross-compiled): parse→resolve→emit. `status`/`output` map/`errors` mirror [VizJS.scala:80](viewer/src/main/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/vizjs/VizJS.scala#L80). Malformed DOT / unsupported format → `failure` (reported, not thrown). The M8 call-site seam |
 
 ### 5.5 Explicit non-goals (⛔)
@@ -753,5 +753,30 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   arrow-miter residual. Suite **97/97**; graphvizJS + viewer compile.
   §5.4 `svg` row updated; sole remaining svg item = `Output.bbox` float
   precision (cross-format: dot_json/json0/svg `bb`, its own commit).
+  Remaining M6: LR (02), 03 clusters, self-loops.
+- **2026-05-17** — **bbox precision CLOSED — byte-exact across all 3
+  formats.** The deferred cross-format item. Source-traced (not guessed)
+  `position.c dot_compute_bb` (root): graph bb = **node-extent only**
+  (NORMAL nodes' `ND_coord ± ND_lw/ND_rw`; y from rank `ht1/ht2`),
+  **no spline extent, no floor/ceil** — the splines are channel-bounded
+  so gv deliberately omits them. The oracle then showed the three
+  formats *disagree by design*: `-Tdot`/`json0` `bb` keep the **exact
+  float** (`0,0,131.98,123.6`) while `dot_json` floor/ceils to the
+  **integer** box (`0 0 132 124`), and svg uses a ceil'd **int canvas**
+  (`width/height`/viewBox) but the **exact float** for `translate`/
+  background. Rewrote `Output.bbox` to the exact node-extent (dropped the
+  old spline-union + floor/ceil that the ε gates had tolerated); `dotJson`
+  re-applies floor/ceil; `json0` + `Svg` use the exact value; `Svg` now
+  *shares* `Output.bbox` (removed the duplicated, divergent inline
+  computation). Result: `bb` is **byte-exact** vs the golden for the
+  whole corpus in all three formats, and 04's svg header/transform/
+  background match char-for-char — previously the only non-arrow 04 svg
+  divergence. 01/06/07 unchanged (their extents are integer ⇒ exact ==
+  the old floor/ceil; the ≥ε gates now pass at dev 0). New byte-exact
+  gates: OutputSpec `bb` (dot_json int / json0 float) ×4, SvgSpec 04
+  header/transform/bg ×1. Suite **97→102**; graphvizJS + viewer compile;
+  no instrumentation needed (pure source trace + oracle measurement).
+  04 svg now diverges from golden **only** by the global documented
+  sub-2px M5/M7 arrow-miter residual (within ε; not 04-specific).
   Remaining M6: LR (02), 03 clusters, self-loops.
 - _(append dated entries as milestones land)_

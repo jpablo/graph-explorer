@@ -148,4 +148,22 @@ class SvgSpec extends FunSuite:
     // the edge *comment* stays portless (emit.c agnameof, no ports)
     assert(o.contains("<!-- struct1&#45;&gt;struct2 -->"), "portless edge comment")
 
+  // bbox precision: the shared exact node-extent box (Output.bbox /
+  // dot_compute_bb) ⇒ svg `<svg>` header + `translate` + background polygon
+  // are now byte-exact vs the golden even for 04's non-integer bb
+  // (`translate(4 127.6)`, bg `135.98`/`127.6`) — previously int-ceil'd.
+  test("04-ports-compass: svg header/transform/background byte-exact"):
+    val o   = ours("04-ports-compass")
+    val gld = OracleHarness.golden("04-ports-compass", "svg")
+    def line(s: String, re: scala.util.matching.Regex) =
+      re.findFirstIn(s).getOrElse(fail(s"no match for $re"))
+    val SvgHdr = """<svg width="\d+pt" height="\d+pt"""".r
+    val View   = """viewBox="[^"]*"""".r
+    val Tr     = """transform="[^"]*"""".r
+    val Bg     = """<polygon fill="white"[^/]*/>""".r
+    assertEquals(line(o, SvgHdr), line(gld, SvgHdr), "04 <svg> width/height")
+    assertEquals(line(o, View),   line(gld, View),   "04 viewBox")
+    assertEquals(line(o, Tr),     line(gld, Tr),     "04 transform/translate")
+    assertEquals(line(o, Bg),     line(gld, Bg),     "04 background polygon")
+
 end SvgSpec

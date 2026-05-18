@@ -155,9 +155,9 @@ class OutputSpec extends FunSuite:
         (e.obj.get("tailport").map(_.str).getOrElse(""),
          e.obj.get("headport").map(_.str).getOrElse("")) -> e
       }.toMap
-    val ours = ujson.read(Output.json0(graph("04-ports-compass")))
-    val gold = ujson.read(OracleHarness.golden("04-ports-compass", "json0"))
-    val oE = edgesByPort(ours); val gE = edgesByPort(gold)
+    val ours0 = ujson.read(Output.json0(graph("04-ports-compass")))
+    val gold0 = ujson.read(OracleHarness.golden("04-ports-compass", "json0"))
+    val oE = edgesByPort(ours0); val gE = edgesByPort(gold0)
     assertEquals(oE.keySet, gE.keySet,
       "04 json0 must have 2 port-distinguished edges (de-merge)")
     assertEquals(oE.keySet, Set(("f0", "a"), ("f2:s", "b:n")))
@@ -169,5 +169,21 @@ class OutputSpec extends FunSuite:
       val dev = hausdorff(opts, gpts)
       assert(dev <= Eps, s"04 $k spline dev=$dev (eps=$Eps)")
     }
+
+  // bbox precision (position.c dot_compute_bb): node-extent only, no spline,
+  // no floor/ceil. dot_json `bb` is the **integer** box; json0 the **exact
+  // float**. Gated byte-exact across the whole corpus incl. 04 — where they
+  // genuinely differ (dot_json "0 0 132 124" vs json0 "0,0,131.98,123.6");
+  // 01/06/07 are integer ⇒ both equal the golden exactly (was ε-tolerated,
+  // now dev 0).
+  (corpus :+ "04-ports-compass").foreach { name =>
+    test(s"$name: bb byte-exact (dot_json int, json0 float)"):
+      val odj = ujson.read(Output.dotJson(graph(name)))
+      val gdj = ujson.read(OracleHarness.golden(name, "dot_json"))
+      assertEquals(odj("bb").str, gdj("bb").str, s"$name dot_json bb")
+      val oj0 = ujson.read(Output.json0(graph(name)))
+      val gj0 = ujson.read(OracleHarness.golden(name, "json0"))
+      assertEquals(oj0("bb").str, gj0("bb").str, s"$name json0 bb")
+  }
 
 end OutputSpec
