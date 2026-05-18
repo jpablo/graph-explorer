@@ -16,13 +16,16 @@ import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Rank, XCoord}
   * instrumented gv 13.0.1 (`postproc.c` `translate_drawing`/`map_point`):
   * LR ⇒ `final = (cbb.UR.y − y, x − cbb.LL.x)` over the canonical
   * node-extent bbox. The **rank axis** (final X) lands within ~3 pt of the
-  * 02 golden. §7 blocker (2) REMAINS: the canonical **order axis** (XCoord
-  * under flip) does not reproduce gv's edge-`weight`+label-vnode
-  * straightening (gv aligns `start`/`middle` at canon x≈46 via the
-  * `weight=2` edge; ours 45 vs 18) ⇒ final Y off 7–34 pt — NOT visually
-  * close. Closing it needs `weight` threaded into the XCoord ω (the
-  * documented M5+ deferral) + the edge-label vnode's X under doubled
-  * ranks. No fake gate; the probe below **self-flags** when it lands.
+  * 02 golden. §7 blocker (2) is now **half-closed**: the edge `weight`
+  * was threaded into the XCoord ω (faithful `make_edge_pairs` `ED_weight`;
+  * default-1 ⇒ 01/06/07 byte-identical, XCoordSpec green) — the `weight=2`
+  * `start→middle` edge now **aligns** `start`/`middle` on the canonical
+  * order axis (was 45 vs 18, now 18 vs 18, matching gv's start≡middle).
+  * What still REMAINS is the **edge-label vnode's X under flip**: the
+  * `go` label injects an order-axis virtual node whose placement our
+  * canonical X/mincross doesn't reproduce, so the order axis is still
+  * ~25–34 pt off — NOT visually close. Genuine multi-part; no fake gate;
+  * the probe below **self-flags** when it finally lands.
   */
 class RankDirSpec extends FunSuite:
 

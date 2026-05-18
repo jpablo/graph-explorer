@@ -73,16 +73,22 @@ object XCoord:
     res.segments.zipWithIndex.foreach { case ((t, h), i) =>
       val sn = s"__s$i"
       auxNodes += sn
-      val w = omegaTbl(cls(t))(cls(h)) // × userWeight (default 1; non-default = M5+)
       val owner = res.segOwner.lift(i).getOrElse(-1)
+      val owned = if owner >= 0 && owner < realEdges.length then Some(realEdges(owner)) else None
+      // make_edge_pairs slack weight = ω-class × the **edge `weight`**
+      // (ED_weight, default 1; the whole virtual chain inherits it). Was
+      // a documented M5+ deferral; default-1 ⇒ 01/06/07 unchanged.
+      val wt = owned.flatMap(_.attrs.get("weight")).flatMap(_.toDoubleOption)
+        .map(w => math.max(1, math.round(w).toInt)).getOrElse(1)
+      val w  = omegaTbl(cls(t))(cls(h)) * wt
       val (m0, m1) =
-        if owner >= 0 && owner < realEdges.length then
-          val re  = realEdges(owner)
-          val tpx = if t == re.tail then portX(re.tail, re.tailPort) else 0.0
-          val hpx = if h == re.head then portX(re.head, re.headPort) else 0.0
-          val m   = (hpx - tpx).toInt // C `int` truncation toward zero
-          if m > 0 then (m, 0) else (0, -m)
-        else (0, 0)
+        owned match
+          case Some(re) =>
+            val tpx = if t == re.tail then portX(re.tail, re.tailPort) else 0.0
+            val hpx = if h == re.head then portX(re.head, re.headPort) else 0.0
+            val m   = (hpx - tpx).toInt // C `int` truncation toward zero
+            if m > 0 then (m, 0) else (0, -m)
+          case None => (0, 0)
       edges += NetworkSimplex.NSEdge(sn, t, m0 + 1, w)
       edges += NetworkSimplex.NSEdge(sn, h, m1 + 1, w)
     }
