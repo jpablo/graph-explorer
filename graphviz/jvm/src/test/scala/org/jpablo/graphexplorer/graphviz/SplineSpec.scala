@@ -42,9 +42,24 @@ class SplineSpec extends FunSuite:
       (t, h) -> nums.grouped(2).map(p => (p(0), p(1))).toVector
     }.toMap
 
+  // Spline.splines is now keyed by the g.edges index (parallel edges no
+  // longer collapse). 01/06/07 have unique (tail,head) ⇒ re-key for the
+  // existing whole-drawing gates; 04's parallels get their own test below.
   private def ourEdges(name: String): Map[(String, String), Vector[(Double, Double)]] =
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
-    Spline.splines(g).map { case (k, pts) => k -> pts.map(p => (p.x / 72.0, p.y / 72.0)) }
+    val g  = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    val sp = Spline.splines(g)
+    g.edges.zipWithIndex.flatMap { case (e, ix) =>
+      sp.get(ix).map(pts => (e.tail, e.head) -> pts.map(p => (p.x / 72.0, p.y / 72.0)))
+    }.toMap
+
+  /** Ordered golden `plain` edge splines (file order ⇒ declaration order),
+    * for graphs whose `(tail,head)` is not unique (04's two parallels). */
+  private def goldenEdgeList(name: String): Vector[Vector[(Double, Double)]] =
+    EdgeLine.findAllMatchIn(OracleHarness.golden(name, "plain")).map { m =>
+      val n    = m.group(3).toInt
+      val nums = m.group(4).trim.split("\\s+").take(2 * n).map(_.toDouble)
+      nums.grouped(2).map(p => (p(0), p(1))).toVector
+    }.toVector
 
   /** Mirror axis used by XCoordSpec: W = (golden node x) max + min. */
   private def mirrorW(name: String): Double =
@@ -117,5 +132,33 @@ class SplineSpec extends FunSuite:
     assertEquals(ac.length, 10, s"a→c should be 3 cubics (10 ctrl pts): $ac")
     val maxX = ac.iterator.map(_._1).max
     assert(maxX > ac.head._1 && maxX > ac.last._1, s"a→c should bow right: $ac")
+
+  // ── 04 record ports: the de-merged, port-box-routed splines ──────────────
+  // 04 is TB (struct1 above struct2) and NOT mirrored — assert that here
+  // rather than allowing a mirror (per the task's "verify, don't assume").
+  // Two parallel struct1→struct2 edges (f0→a, f2:s→b:n) keyed by edge index;
+  // matched to the golden by start-point and gated on curve Hausdorff.
+  test("04-ports-compass: both record-port edges within ε of the plain golden"):
+    val g  = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("04-ports-compass")).toOption.get)
+    val sp = Spline.splines(g)
+    val ours = g.edges.indices.flatMap(ix =>
+      sp.get(ix).map(_.map(p => (p.x / 72.0, p.y / 72.0)))
+    ).toVector
+    assertEquals(ours.length, 2, s"04 should have 2 de-merged edges, got ${ours.length}")
+    val gold = goldenEdgeList("04-ports-compass")
+    assertEquals(gold.length, 2, "04 golden should list 2 edges")
+    // 04 is TB & unmirrored: the X axis must match directly (no mirror).
+    val nodeXs = NodeLine.findAllMatchIn(OracleHarness.golden("04-ports-compass", "plain"))
+      .map(_.group(2).toDouble).toVector
+    // pair each golden edge with the nearest-start our edge (unambiguous:
+    // f0 start x≈0.24in vs f2:s start x≈1.54in).
+    gold.foreach { ge =>
+      val best = ours.minBy(oe => d(oe.head, ge.head))
+      val dev  = hausdorff(best, ge)
+      assert(dev <= Eps, s"04 edge (start ${ge.head}) dev=$dev (eps=$Eps)")
+    }
+    // each our edge must be the closest match for exactly one golden edge
+    val assigned = gold.map(ge => ours.minBy(oe => d(oe.head, ge.head)))
+    assert(assigned.toSet.size == 2, s"04 edges collapsed (parallel-edge de-merge failed): $assigned")
 
 end SplineSpec

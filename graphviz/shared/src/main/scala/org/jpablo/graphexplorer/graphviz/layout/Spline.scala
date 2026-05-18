@@ -46,12 +46,16 @@ object Spline:
   final case class ESpline(pts: Vector[Pt], ep: Option[Pt], sp: Option[Pt])
   private final case class Box(var llx: Double, var lly: Double, var urx: Double, var ury: Double)
 
-  /** Original declared edge (tail,head) → piecewise-cubic control points. */
-  def splines(g: RGraph): Map[(String, String), Vector[Pt]] =
+  /** Declared-edge index (position in `g.edges`) → piecewise-cubic control
+    * points. Keyed by edge **identity**, not `(tail,head)`, so parallel /
+    * port-distinguished multi-edges (04's two `struct1→struct2`) do not
+    * collapse — every consumer correlates by the `g.edges` index. */
+  def splines(g: RGraph): Map[Int, Vector[Pt]] =
     splinesEx(g).view.mapValues(_.pts).toMap
 
-  /** Original declared edge (tail,head) → installed spline + arrow attaches. */
-  def splinesEx(g: RGraph): Map[(String, String), ESpline] =
+  /** Declared-edge index (position in `g.edges`) → installed spline + arrow
+    * attaches. See [[splines]] for why the key is the edge index. */
+  def splinesEx(g: RGraph): Map[Int, ESpline] =
     val res          = Order.order(g)
     val (_, allX)    = XCoord.solveAll(g)
     val (_, yOf)     = Coord.rankY(g)
@@ -134,9 +138,82 @@ object Spline:
     def rankBox(rUpper: Int, rLower: Int): Box =
       Box(leftBound, yOf(rLower) + ht2(rLower), rightBound, yOf(rUpper) - ht1(rUpper))
 
-    val out = mutable.LinkedHashMap.empty[(String, String), ESpline]
+    // installed spline keyed by the declared-edge index (position in
+    // g.edges) — parallel/port-distinguished multi-edges must NOT collapse.
+    val out = mutable.LinkedHashMap.empty[Int, ESpline]
 
-    g.edges.filter(e => e.tail != e.head).zipWithIndex.foreach { case (e, i) =>
+    def halfH(id: String): Double =
+      byId.get(id).flatMap(n => NodeSize.nodeSize(n, g)).map(_.heightIn * 36.0).getOrElse(0.0)
+    val centerOf: String => Pt = id => Pt(cx(id), cy(id))
+
+    // ── beginpath/endpath port branch (record field ports, TB) ────────────
+    // Returns the per-end channel box, aim point and constrained tangent for
+    // a record-port endpoint, or None to fall back to the node-centred path.
+    final case class End(box: Box, p: Pt, theta: Double, constrained: Boolean, clip: Boolean)
+
+    def recRoot(id: String): Option[RecordLabel.Field] =
+      byId.get(id).flatMap(n => NodeSize.recordLayout(n, g))
+
+    // resolvePort/closestSide + compassPort over a node-local field box.
+    def portEnd(id: String, other: String, port: org.jpablo.graphexplorer.graphviz.dotlang.Port, isTail: Boolean): Option[End] =
+      val name = port.name.map(_.value).filter(_.nonEmpty)
+      recRoot(id).flatMap { root => name.flatMap { nm => RecordLabel.field(root, nm).flatMap { fld =>
+        val (llx, lly, urx, ury) = (fld.llx, fld.lly, fld.urx, fld.ury)
+        val bcx = (llx + urx) / 2.0; val bcy = (lly + ury) / 2.0
+        val nc  = centerOf(id)
+        import org.jpablo.graphexplorer.graphviz.dotlang.Compass.*
+        import RecordLabel.{Bottom, Right, Top, Left}
+        // compassPort(box, compass, fld.sides) → (pLocal, side, theta, clip)
+        def cp(c: org.jpablo.graphexplorer.graphviz.dotlang.Compass): (Pt, Int, Double, Boolean) =
+          c match
+            case N  => (Pt(bcx, ury), fld.sides & Top,            math.Pi / 2,      false)
+            case S  => (Pt(bcx, lly), fld.sides & Bottom,        -math.Pi / 2,      false)
+            case E  => (Pt(urx, bcy), fld.sides & Right,          0.0,              false)
+            case W  => (Pt(llx, bcy), fld.sides & Left,           math.Pi,          false)
+            case NE => (Pt(urx, ury), fld.sides & (Top | Right),  math.Pi / 4,      false)
+            case NW => (Pt(llx, ury), fld.sides & (Top | Left),   3 * math.Pi / 4,  false)
+            case SE => (Pt(urx, lly), fld.sides & (Bottom|Right), -math.Pi / 4,     false)
+            case SW => (Pt(llx, lly), fld.sides & (Bottom|Left),  -3 * math.Pi / 4, false)
+            case C | Underscore => (Pt(bcx, bcy), 0, 0.0, true)
+        val (pl, side, theta, clip, constrained) =
+          port.compass match
+            case Some(c) if c != Underscore && c != C =>
+              val (p, s, th, cl) = cp(c); (p, s, th, cl, true)
+            case _ =>
+              // `_` / no compass ⇒ dyna ⇒ resolvePort(closestSide)
+              if fld.sides == 0 || fld.sides == (Bottom | Right | Top | Left) then
+                (Pt(bcx, bcy), 0, 0.0, true, false)
+              else
+                // side midpoints (node-local), pick the one closest to `other`
+                val oc = centerOf(other)
+                val cand = Seq(
+                  (Bottom, Pt(bcx, lly), S), (Right, Pt(urx, bcy), E),
+                  (Top,    Pt(bcx, ury), N), (Left,  Pt(llx, bcy), W)
+                ).filter((bit, _, _) => (fld.sides & bit) != 0)
+                val (_, _, bestC) = cand.minBy { (_, mp, _) =>
+                  val ax = nc.x + mp.x - oc.x; val ay = nc.y + mp.y - oc.y
+                  ax * ax + ay * ay
+                }
+                val (p, s, th, cl) = cp(bestC); (p, s, th, cl, true)
+        // beginpath/endpath: box + the ±1 router nudge (REGULAREDGE, NORMAL)
+        val aim = Pt(nc.x + pl.x, nc.y + pl.y)
+        val hh  = halfH(id)
+        if side != 0 then
+          if isTail && (side & Bottom) != 0 then
+            Some(End(maximalBbox(id, Set(id)), Pt(aim.x, aim.y - 1.0), theta, constrained, clip))
+          else if !isTail && (side & Top) != 0 then
+            Some(End(maximalBbox(id, Set(id)), Pt(aim.x, aim.y + 1.0), theta, constrained, clip))
+          else None // tail TOP/L/R or head BOTTOM/L/R: out of 04 scope
+        else
+          // pboxfn = record_path: the top-level field whose x-range holds p.x,
+          // clipped to the node's full height. No router nudge.
+          root.flds.find(f => pl.x >= f.llx && pl.x <= f.urx).orElse(Some(root)).map { f =>
+            End(Box(nc.x + f.llx, nc.y - hh, nc.x + f.urx, nc.y + hh), aim, theta, constrained, clip)
+          }
+      }}}
+
+    g.edges.zipWithIndex.filter { case (e, _) => e.tail != e.head }
+      .zipWithIndex.foreach { case ((e, origIdx), i) =>
       val rt = rankOf(e.tail)
       val rh = rankOf(e.head)
       if rt != rh then
@@ -151,41 +228,79 @@ object Spline:
           val high = if rt < rh then e.head else e.tail
           val pathTopDown: Vector[String] = (low +: mids) :+ high
           val ownPath = pathTopDown.toSet
-
-          // ── box channel (completeregularpath) ──────────────────────────
-          val boxes = mutable.ArrayBuffer.empty[Box]
           val tn0   = pathTopDown.head
-          val tBb   = maximalBbox(tn0, ownPath)
-          boxes += Box(tBb.llx, cy(tn0) - ht1(lo), tBb.urx, cy(tn0)) // tail half
-          var idxN = 0
-          while idxN < pathTopDown.length - 2 do
-            val upper = pathTopDown(idxN)
-            val vn    = pathTopDown(idxN + 1)
-            boxes += rankBox(rankOf(upper), rankOf(vn))
-            val vBb = maximalBbox(vn, ownPath)
-            boxes += vBb
-            idxN += 1
-          val lastUpper = pathTopDown(pathTopDown.length - 2)
-          val hn0       = pathTopDown.last
-          boxes += rankBox(rankOf(lastUpper), rankOf(hn0))
-          val hBb = maximalBbox(hn0, ownPath)
-          boxes += Box(hBb.llx, cy(hn0), hBb.urx, cy(hn0) + ht2(hi)) // head half
+          val hn0   = pathTopDown.last
 
-          val start = Pt(cx(tn0), cy(tn0) - 1.0)
-          val end   = Pt(cx(hn0), cy(hn0) + 1.0)
+          // Port routing: only the scoped case (adjacent ranks, NORMAL real
+          // endpoints, ≥1 resolvable record port). Else node-centred path —
+          // additive, so every portless edge stays byte-identical.
+          val tEnd =
+            if rt < rh then e.tailPort.flatMap(portEnd(tn0, hn0, _, isTail = true))
+            else e.headPort.flatMap(portEnd(tn0, hn0, _, isTail = true))
+          val hEnd =
+            if rt < rh then e.headPort.flatMap(portEnd(hn0, tn0, _, isTail = false))
+            else e.tailPort.flatMap(portEnd(hn0, tn0, _, isTail = false))
+          val portRoute = mids.isEmpty && (tEnd.isDefined || hEnd.isDefined)
 
-          adjustRegularPath(boxes)
-          val st  = Array(start.x, start.y)
-          val en  = Array(end.x, end.y)
-          val centerOf: String => Pt = id => Pt(cx(id), cy(id))
-          if checkpath(boxes, st, en) then
-            out((e.tail, e.head)) = clipInstall(g, Vector(start, end), e, byId, centerOf)
+          if portRoute then
+            // ── port box channel: [tail band] [rank gap] [head band] ──────
+            val tBox  = tEnd.map(_.box).getOrElse(maximalBbox(tn0, ownPath))
+            val hBox  = hEnd.map(_.box).getOrElse(maximalBbox(hn0, ownPath))
+            val boxes = mutable.ArrayBuffer(tBox, rankBox(rankOf(tn0), rankOf(hn0)), hBox)
+            val start = tEnd.map(_.p).getOrElse(Pt(cx(tn0), cy(tn0) - 1.0))
+            val end   = hEnd.map(_.p).getOrElse(Pt(cx(hn0), cy(hn0) + 1.0))
+            val ev0   =
+              if tEnd.exists(_.constrained) then
+                val th = tEnd.get.theta; Pt(math.cos(th), math.sin(th))
+              else Pt(0, 0)
+            val ev1 =
+              if hEnd.exists(_.constrained) then
+                val th = hEnd.get.theta; Pt(-math.cos(th), -math.sin(th))
+              else Pt(0, 0)
+            adjustRegularPath(boxes)
+            val st = Array(start.x, start.y); val en = Array(end.x, end.y)
+            val ctrl0 =
+              if checkpath(boxes, st, en) then Vector(Pt(st(0), st(1)), Pt(en(0), en(1)))
+              else
+                val poly = buildPolygon(boxes)
+                val sp   = funnel(boxes, Pt(st(0), st(1)), Pt(en(0), en(1)))
+                proutespline(poly, sp, ev0, ev1)
+            out(origIdx) = clipInstall(
+              g, ctrl0, e, byId, centerOf,
+              tailClip = tEnd.forall(_.clip), headClip = hEnd.forall(_.clip)
+            )
           else
-            val poly  = buildPolygon(boxes)
-            val sp    = funnel(boxes, Pt(st(0), st(1)), Pt(en(0), en(1)))
-            val raw   = proutespline(poly, sp)
-            val ctrl  = if rt < rh then raw else raw.reverse
-            out((e.tail, e.head)) = clipInstall(g, ctrl, e, byId, centerOf)
+            // ── node-centred box channel (completeregularpath) ────────────
+            val boxes = mutable.ArrayBuffer.empty[Box]
+            val tBb   = maximalBbox(tn0, ownPath)
+            boxes += Box(tBb.llx, cy(tn0) - ht1(lo), tBb.urx, cy(tn0)) // tail half
+            var idxN = 0
+            while idxN < pathTopDown.length - 2 do
+              val upper = pathTopDown(idxN)
+              val vn    = pathTopDown(idxN + 1)
+              boxes += rankBox(rankOf(upper), rankOf(vn))
+              val vBb = maximalBbox(vn, ownPath)
+              boxes += vBb
+              idxN += 1
+            val lastUpper = pathTopDown(pathTopDown.length - 2)
+            boxes += rankBox(rankOf(lastUpper), rankOf(hn0))
+            val hBb = maximalBbox(hn0, ownPath)
+            boxes += Box(hBb.llx, cy(hn0), hBb.urx, cy(hn0) + ht2(hi)) // head half
+
+            val start = Pt(cx(tn0), cy(tn0) - 1.0)
+            val end   = Pt(cx(hn0), cy(hn0) + 1.0)
+
+            adjustRegularPath(boxes)
+            val st  = Array(start.x, start.y)
+            val en  = Array(end.x, end.y)
+            if checkpath(boxes, st, en) then
+              out(origIdx) = clipInstall(g, Vector(start, end), e, byId, centerOf)
+            else
+              val poly  = buildPolygon(boxes)
+              val sp    = funnel(boxes, Pt(st(0), st(1)), Pt(en(0), en(1)))
+              val raw   = proutespline(poly, sp)
+              val ctrl  = if rt < rh then raw else raw.reverse
+              out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
     }
     out.toMap
 
@@ -347,11 +462,18 @@ object Spline:
 
   // ───────────────────────── Proutespline (route.c) ────────────────────────
   private def proutespline(poly: Array[Pt], pl: Vector[Pt]): Vector[Pt] =
+    proutespline(poly, pl, Pt(0, 0), Pt(0, 0))
+
+  /** `Proutespline` with constrained endpoint slopes (`evs`). routespl.c
+    * passes `evs[0]=(cosθs,sinθs)`, `evs[1]=(-cosθe,-sinθe)` for constrained
+    * ports; `Proutespline` then `normv`-normalises them. `(0,0)` ⇒ the
+    * unconstrained least-squares fit (the portless path). */
+  private def proutespline(poly: Array[Pt], pl: Vector[Pt], ev0: Pt, ev1: Pt): Vector[Pt] =
     val edges = Array.tabulate(poly.length)(i => (poly(i), poly((i + 1) % poly.length)))
     val inps  = pl.toArray
     val ops   = mutable.ArrayBuffer.empty[Pt]
     ops += inps(0)
-    reallyRoute(edges, inps, 0, inps.length, Pt(0, 0), Pt(0, 0), ops)
+    reallyRoute(edges, inps, 0, inps.length, normv(ev0), normv(ev1), ops)
     ops.toVector
 
   private def vsub(a: Pt, b: Pt)  = Pt(a.x - b.x, a.y - b.y)
@@ -634,7 +756,8 @@ object Spline:
   private def clipInstall(
       g: RGraph, ctrl0: Vector[Pt], e: org.jpablo.graphexplorer.graphviz.model.REdge,
       byId: Map[String, org.jpablo.graphexplorer.graphviz.model.RNode],
-      centerOf: String => Pt
+      centerOf: String => Pt,
+      tailClip: Boolean = true, headClip: Boolean = true
   ): ESpline =
     val ps =
       if ctrl0.length >= 4 && (ctrl0.length - 1) % 3 == 0 then ctrl0.toArray
@@ -666,9 +789,10 @@ object Spline:
     def approxEq(a: Pt, b: Pt): Boolean =
       math.abs(a.x - b.x) < 0.001 && math.abs(a.y - b.y) < 0.001
 
-    // tail node clip
+    // tail node clip — skipped when the port set clip=false (the resolved
+    // port point IS the endpoint; cf. beginpath `ED_*_port.clip = false`).
     var start = 0
-    insideFn(e.tail).foreach { ins =>
+    if tailClip then insideFn(e.tail).foreach { ins =>
       var s = 0
       var stop = false
       while !stop && s < pn - 4 do
@@ -676,9 +800,9 @@ object Spline:
       start = s
       shapeClip0(start, ins, true)
     }
-    // head node clip
+    // head node clip — likewise skipped for a clip=false port.
     var end = pn - 4
-    insideFn(e.head).foreach { ins =>
+    if headClip then insideFn(e.head).foreach { ins =>
       var en = pn - 4
       var stop = false
       while !stop && en > 0 do

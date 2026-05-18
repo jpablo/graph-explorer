@@ -123,9 +123,9 @@ object Svg:
     val op = if g.directed then "->" else "--"
     var ei = 0
     g.nodes.foreach { tnode =>
-      g.edges.filter(_.tail == tnode.id).foreach { e =>
+      g.edges.zipWithIndex.filter { case (e, _) => e.tail == tnode.id }.foreach { case (e, ix) =>
         ei += 1
-        spl.get((e.tail, e.head)).foreach { es =>
+        spl.get(ix).foreach { es =>
           val pts = es.pts
           val label = s"${e.tail}$op${e.head}"
           sb ++= s"<!-- ${xml(label)} -->\n"

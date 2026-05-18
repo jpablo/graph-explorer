@@ -206,8 +206,8 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 | Cluster layout (recursive) | ⬜ | | hardest part of M6 |
 | Spline routing — straight/clipped | ✅ | SplineSpec | All edges route via the real `routesplines` pipeline (no straight-leg special-case). `clip_and_install`+`bezier_clip` ported faithfully (ellipse `insidefn` semi-axes = (sizePt+penwidth)/2; `ARROW_LENGTH`=10pt). 07 raw spline byte-exact vs instrumented gv; Hausdorff 0.024 in |
 | Spline routing — box-fit (bowed curves) | ✅ | SplineSpec | **Closed 2026-05-17 by instrument-and-port (§2.5).** Ported box channel (`completeregularpath`/`maximal_bbox`/`rank_box`/`adjustregularpath`/`checkpath`; MINW=16, FUDGE=4, Splinesep=nodesep/4), channel polygon, `Pshortestpath` (taut funnel over box portals), `Proutespline` (recursive least-squares cubic fit + `solve3`). Verified vs instrumented gv 13.0.1: box channel, shortest path AND raw spline reproduce the probe **byte-for-byte** for 01 `a→c` (the curved long edge). 01 `a→c` 0.25 → **0.024 in** Hausdorff vs `plain`. Earlier Catmull-Rom cheap-approx (measured 0.25/0.54 in) stays a recorded dead end |
-| Self-loops, parallel/multi-edges | ⬜ | | |
-| Port/compass-anchored edge endpoints | 🟡 | OutputSpec + RecordSpec | **Model + emission + anchor resolver done.** (1) AST `NodeId.port` threaded into `REdge.tailPort/headPort` (additive) + emitted as dot_json/json0 `tailport`/`headport`; 04's two parallel edges match the golden set exactly. (2) `PortAnchor` ports `record_port`+`compassPort`: port name → `RecordLabel.fieldBox`; no-compass/`_`/`c` ⇒ box centre + `clip`; `n/s/e/w/…` ⇒ constrained side/corner point + `theta`. Oracle-gated node-local (isolated from node placement): struct2:`b:n` head anchor == golden `e,` endpoint exactly; struct1:`f2:s` within the ≤0.5 pt begin-nudge. **Remaining (next increment, deep Spline-core):** route the box channel through the **port boxes** (`beginpath`/`endpath` port branch read in M5) + clip the no-compass spline to the field box + de-merge the parallel-edge `Spline` `(tail,head)` key. Oracle: 04 `dot`/`plain` per-edge `pos` |
+| Parallel / multi-edges (de-merge) | ✅ | SplineSpec + OutputSpec | `Spline.splines`/`splinesEx` re-keyed `(tail,head)` → **g.edges index** (edge identity); every consumer correlates by index (`Output.doc.E.idx`, json0/dot_json `pos`, `Svg`, `Order.Result.segOwner`). 04's two `struct1→struct2` no longer collapse — distinct splines emitted & gated. Additive: portless graphs byte-identical (01/06/07 green). Self-loops still ⬜ (no corpus) |
+| Port/compass-anchored edge endpoints | ✅ | SplineSpec + OutputSpec + RecordSpec | **Closed 2026-05-17 by instrument-and-port (§2.5).** Beyond the model/emission/anchor layer: ported the `beginpath`/`endpath` REGULAREDGE record-port branch — `RecordLabel.pos_reclbl` field `sides`; `compassPort` + `resolvePort`/`closestSide` (a `_`/no-compass port is dynamically resolved to the field side nearest the other node); the side box + ±1 router nudge; `record_path` pbox fallback (`b:n`, b has no TOP ⇒ side 0 ⇒ field box clipped to node height); constrained-tangent `Proutespline` (`evs`); `clip=false` ⇒ skip the ellipse shape-clip. **Also** ported `make_edge_pairs`'s port x-offset (`m0=(int)(headport.p.x−tailport.p.x)`, slack minlens `m0+1`/`m1+1`) into `XCoord` — struct2.x 65.99→**63.99** == golden (the f0-left/f2-right weighted-median balance). Verified: instrumented gv-13.0.1 box channel/start/end/raw spline reproduced byte-for-byte for **both** 04 edges; final splines match the `plain`/`json0` golden — Hausdorff ≤0.04 in (SplineSpec, mirror **disallowed**: 04 is TB & unmirrored, asserted), json0 `e,EX,EY` exact (≤0.5 pt) + spline ≤2 pt (OutputSpec, the `getEdgePos` contract). The ~0.5 pt `f2:s` begin-nudge is the documented spline-pipeline ±1 (now absorbed end-to-end). Reference worktree reverted pristine |
 
 ### 5.3 Node shapes & labels
 | Feature | Status | Test | Notes |
@@ -663,4 +663,44 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   through the port boxes + no-compass clip-to-field-box + parallel-edge
   `Spline` key de-merge), scoped with the 04 `dot`/`plain` `pos` oracle
   for a focused next session.
+- **2026-05-17** — **M6 ports CLOSED — 04 lays out + routes end-to-end
+  (§2.5 instrument-and-port).** One getenv-guarded probe in
+  `make_regular_edge` dumped, for **both** 04 edges, the resolved
+  tail/head port (`side`/`p`/`theta`/`constrained`/`clip`), the full
+  `P->boxes` channel, `P->start`/`P->end` and the raw `routesplines`
+  spline. The dump **falsified the "clip the spline to the field box"
+  framing**: Graphviz routes record ports through the *same* box-channel
+  router with three deltas — (1) start/end come from `compassPort` +
+  `resolvePort`/`closestSide` (a `_`/no-compass port is *dynamically*
+  resolved to the field side closest to the other node, → constrained,
+  `clip=false`), (2) the endpoint tangents are constrained (θ → `evs`
+  into `Proutespline` — our `proutespline` already took `ev0/ev1`, just
+  always `(0,0)`), (3) the ellipse shape-clip is skipped. Ported, idiomatic:
+  `RecordLabel.pos_reclbl` field `sides`; `compassPort`/`resolvePort`/
+  `closestSide`; the `beginpath`/`endpath` side box + ±1 nudge and the
+  `record_path` pbox fallback (`struct2:b:n` — b has no TOP ⇒ side 0 ⇒
+  field box clipped to node height, no nudge); constrained-tangent
+  `proutespline`; `clipInstall(tailClip/headClip)` skipping the shape
+  clip on a `clip=false` port. **Second defect the dump's node coords
+  exposed:** `make_edge_pairs` also reads `ED_*_port.p.x` — ported the
+  integer-truncated port x-offset into `XCoord` (slack minlens
+  `m0+1`/`m1+1`, `m0=(int)(headport.x−tailport.x)`); `Order.Result`
+  gained `segOwner` so each segment finds its edge's ports. struct2.x
+  65.99→**63.99** = golden exactly (f0-left vs f2-right weighted-median
+  balance) — without it the spline endpoints sat 2 pt off, a wrong
+  *placement* masquerading as "visually close". Discipline: gated on the
+  **golden**, not the probe; the instrumented box channel/start/end/raw
+  spline reproduce byte-for-byte for both edges; final splines match
+  `plain`/`json0` — SplineSpec Hausdorff ≤0.04 in with **mirror
+  disallowed** (04 is TB & unmirrored — verified, asserted, not assumed),
+  OutputSpec json0 `e,EX,EY` exact (≤0.5 pt) + spline ≤2 pt (the viewer
+  `getEdgePos` contract). Parallel-edge de-merge: `Spline` re-keyed by
+  `g.edges` index; every consumer (Output.doc/json0/dot_json, Svg,
+  SplineSpec) correlates by index — additive, 01/06/07 byte-identical.
+  No fake gate, no loosened ε, no oracle-fit constant (the `make_edge_
+  pairs` int formula is the faithful source rule, cross-checked on both
+  edges + the instrumented dump). Suite **95/95**; graphvizJS compiles;
+  reference worktree reverted pristine (`git checkout`; `rm -rf
+  _dbgbuild`). §5.2 ports + parallel/multi-edge rows ⬜/🟡 → ✅. Remaining
+  M6: LR (02), 03 clusters, record svg field-line drawing, self-loops.
 - _(append dated entries as milestones land)_

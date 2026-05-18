@@ -27,7 +27,11 @@ object Order:
       order:     Map[Int, Vector[String]],
       crossings: Long,
       /** unit-span layout edges incl. virtual chains: (tail, head). */
-      segments:  Vector[(String, String)]
+      segments:  Vector[(String, String)],
+      /** per-segment originating directed-edge index (into `Rank.ranked`'s
+        * `dedges`, == `g.edges` minus self-loops). Lets XCoord recover each
+        * segment's port x-offset (`make_edge_pairs` `ED_*_port.p.x`). */
+      segOwner:  Vector[Int]
   ) derives CanEqual:
     def isVirtual(id: String): Boolean = id.startsWith("__v")
     def realOrder: Map[Int, Vector[String]] =
@@ -44,13 +48,17 @@ object Order:
       out.getOrElseUpdate(id, mutable.ArrayBuffer.empty)
       in.getOrElseUpdate(id, mutable.ArrayBuffer.empty)
     g.nodes.foreach(n => node(n.id))
-    val segs = mutable.ArrayBuffer.empty[(String, String)]
+    val segs   = mutable.ArrayBuffer.empty[(String, String)]
+    val segOwn = mutable.ArrayBuffer.empty[Int]
+    var curOwner = -1
     def connect(t: String, h: String): Unit =
       out(t) += h
       in(h) += t
       segs += ((t, h))
+      segOwn += curOwner
 
     dedges.zipWithIndex.foreach { case (e, idx) =>
+      curOwner = idx
       val rt = rankOf(e.tail)
       val rh = rankOf(e.head)
       if rh - rt <= 1 then
@@ -228,6 +236,6 @@ object Order:
         else restore(best)
 
     restore(best)
-    Result(rank0, snapshot(), bestCross, segs.toVector)
+    Result(rank0, snapshot(), bestCross, segs.toVector, segOwn.toVector)
 
 end Order

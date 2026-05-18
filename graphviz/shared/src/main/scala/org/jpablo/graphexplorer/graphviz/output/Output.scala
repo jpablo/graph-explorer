@@ -64,19 +64,20 @@ object Output:
       edges:    Vector[Doc.E]
   )
   private object Doc:
-    // _gvid, tailGvid, headGvid, tailport, headport
-    final case class E(gv: Int, t: Int, h: Int, tp: Option[String], hp: Option[String])
+    // _gvid, tailGvid, headGvid, tailport, headport, g.edges index
+    final case class E(gv: Int, t: Int, h: Int, tp: Option[String], hp: Option[String], idx: Int)
 
   private def doc(g: RGraph): Doc =
     val gvid  = g.nodes.iterator.map(_.id).zipWithIndex.toMap
     val nodes = g.nodes.map(n => n.id -> gvid(n.id))
     // Edge _gvid = cgraph creation order: for each node (declaration order),
-    // its out-edges in declaration order.
+    // its out-edges in declaration order. `idx` = position in `g.edges` (the
+    // Spline key) so parallel/port multi-edges map to their own spline.
     var k = 0
     val edges =
       g.nodes.iterator.flatMap { n =>
-        g.edges.iterator.filter(_.tail == n.id).map { e =>
-          val r = Doc.E(k, gvid(e.tail), gvid(e.head), e.tailPortStr, e.headPortStr)
+        g.edges.iterator.zipWithIndex.filter { case (e, _) => e.tail == n.id }.map { case (e, ix) =>
+          val r = Doc.E(k, gvid(e.tail), gvid(e.head), e.tailPortStr, e.headPortStr, ix)
           k += 1; r
         }
       }.toVector
@@ -167,23 +168,21 @@ object Output:
     }
     sb ++= "  ],\n"
     sb ++= "  \"edges\": [\n"
-    val idByGvid = d.nodes.map(_.swap).toMap
     d.edges.zipWithIndex.foreach { case (e, i) =>
       val gv = e.gv; val t = e.t; val h = e.h
-      val tn = idByGvid(t); val hn = idByGvid(h)
       sb ++= "    {\n"
       sb ++= s"""      "_gvid": $gv,\n"""
       sb ++= s"""      "tail": $t,\n"""
       sb ++= s"""      "head": $h"""
       e.hp.foreach(p => sb ++= s""",\n      "headport": "${esc(p)}"""")
       e.tp.foreach(p => sb ++= s""",\n      "tailport": "${esc(p)}"""")
-      spl.get((tn, hn)).foreach { es =>
+      spl.get(e.idx).foreach { es =>
         val pre = es.ep.map(p => s"e,${g5(p.x)},${g5(p.y)} ").getOrElse("") +
                   es.sp.map(p => s"s,${g5(p.x)},${g5(p.y)} ").getOrElse("")
         val pts = es.pts.map(p => s"${g5(p.x)},${g5(p.y)}").mkString(" ")
         sb ++= s""",\n      "pos": "$pre$pts"\n"""
       }
-      if spl.get((tn, hn)).isEmpty then sb ++= "\n"
+      if spl.get(e.idx).isEmpty then sb ++= "\n"
       sb ++= (if i == d.edges.length - 1 then "    }\n" else "    },\n")
     }
     sb ++= "  ]\n}\n"

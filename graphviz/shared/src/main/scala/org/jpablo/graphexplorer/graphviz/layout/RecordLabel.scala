@@ -31,6 +31,13 @@ object RecordLabel:
   private val LineSpace  = 1.20
   private val Pt         = 72.0
 
+  // const.h side bits: BOTTOM=1<<0, RIGHT=1<<1, TOP=1<<2, LEFT=1<<3.
+  val Bottom = 1
+  val Right  = 2
+  val Top    = 4
+  val Left   = 8
+  private val AllSides = Bottom | Right | Top | Left
+
   /** A field: either a leaf (`text`) or a table (`flds`). Boxes are filled
     * by `layout`, node-local (centre origin, y-up). */
   final class Field(
@@ -41,6 +48,7 @@ object RecordLabel:
   ):
     var sx, sy = 0.0                       // size (points)
     var llx, lly, urx, ury = 0.0           // box (node-local, y-up)
+    var sides = 0                          // pos_reclbl: accessible sides bitmask
     def isLeaf: Boolean = flds.isEmpty
 
   // ── parse_reclbl ─────────────────────────────────────────────────────────
@@ -143,11 +151,27 @@ object RecordLabel:
         i += 1
 
   // ── pos_reclbl: boxes from upper-left, node-local (centre origin) ────────
-  private def pos(f: Field, ulx: Double, uly: Double): Unit =
+  // `sides` = the set of record-perimeter sides this field is exposed on,
+  // propagated to children via the same first/middle/last masks Graphviz
+  // uses (LR table vs TB table). `record_port` passes a leaf's `sides` to
+  // `compassPort`, which is what makes `struct2:b:n` (b has no TOP) fall to
+  // the `record_path` pbox branch instead of the side-anchored one.
+  private def pos(f: Field, ulx: Double, uly: Double, sides: Int): Unit =
+    f.sides = sides
     f.llx = ulx; f.lly = uly - f.sy; f.urx = ulx + f.sx; f.ury = uly
     var x = ulx; var y = uly
-    f.flds.foreach { c =>
-      pos(c, x, y)
+    val last = f.flds.length - 1
+    f.flds.iterator.zipWithIndex.foreach { case (c, i) =>
+      val mask =
+        if sides == 0 then 0
+        else if f.lr then
+          if i == 0 then (if i == last then AllSides else Top | Bottom | Left)
+          else if i == last then Top | Bottom | Right
+          else Top | Bottom
+        else if i == 0 then (if i == last then AllSides else Top | Right | Left)
+        else if i == last then Left | Bottom | Right
+        else Left | Right
+      pos(c, x, y, sides & mask)
       if f.lr then x += c.sx else y -= c.sy
     }
 
@@ -163,14 +187,16 @@ object RecordLabel:
     val sx = if fixed then mw else math.max(root.sx, mw)
     val sy = if fixed then mh else math.max(root.sy, mh)
     resize(root, sx, sy)
-    pos(root, -sx / 2.0, sy / 2.0)
+    pos(root, -sx / 2.0, sy / 2.0, AllSides)
     (root.sx / Pt, (root.sy + 1.0) / Pt, root) // record_init: height += 1pt kluge
+
+  /** Resolve a port id to its field (`map_rec_port`), node-local boxes set. */
+  def field(root: Field, portId: String): Option[Field] =
+    if root.id.contains(portId) then Some(root)
+    else root.flds.iterator.flatMap(f => field(f, portId)).nextOption()
 
   /** Resolve a port id to its field box (node-local). */
   def fieldBox(root: Field, portId: String): Option[(Double, Double, Double, Double)] =
-    def find(f: Field): Option[Field] =
-      if f.id.contains(portId) then Some(f)
-      else f.flds.iterator.flatMap(find).nextOption()
-    find(root).map(f => (f.llx, f.lly, f.urx, f.ury))
+    field(root, portId).map(f => (f.llx, f.lly, f.urx, f.ury))
 
 end RecordLabel

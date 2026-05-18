@@ -58,13 +58,33 @@ object XCoord:
       }
     }
 
-    // make_edge_pairs: per-segment slack node, ω-weighted straightening
+    // make_edge_pairs: per-segment slack node, ω-weighted straightening.
+    // Port offset (position.c `make_edge_pairs`): m0 = (int)(headport.p.x −
+    // tailport.p.x); minlens become (max(m0,0)+1, max(−m0,0)+1) so the slack
+    // node pulls the segment straight *through the ports*, not node centres.
+    // Portless edges ⇒ both ports x=0 ⇒ m0=0 ⇒ (1,1): byte-identical.
+    val realEdges = g.edges.filter(e => e.tail != e.head)
+    def portX(nodeId: String, port: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]): Double =
+      (for
+        p <- port
+        n <- byId.get(nodeId)
+        a <- PortAnchor.resolve(n, g, p.name.map(_.value).filter(_.nonEmpty), p.compass)
+      yield a.x).getOrElse(0.0)
     res.segments.zipWithIndex.foreach { case ((t, h), i) =>
       val sn = s"__s$i"
       auxNodes += sn
       val w = omegaTbl(cls(t))(cls(h)) // × userWeight (default 1; non-default = M5+)
-      edges += NetworkSimplex.NSEdge(sn, t, 1, w)
-      edges += NetworkSimplex.NSEdge(sn, h, 1, w)
+      val owner = res.segOwner.lift(i).getOrElse(-1)
+      val (m0, m1) =
+        if owner >= 0 && owner < realEdges.length then
+          val re  = realEdges(owner)
+          val tpx = if t == re.tail then portX(re.tail, re.tailPort) else 0.0
+          val hpx = if h == re.head then portX(re.head, re.headPort) else 0.0
+          val m   = (hpx - tpx).toInt // C `int` truncation toward zero
+          if m > 0 then (m, 0) else (0, -m)
+        else (0, 0)
+      edges += NetworkSimplex.NSEdge(sn, t, m0 + 1, w)
+      edges += NetworkSimplex.NSEdge(sn, h, m1 + 1, w)
     }
 
     val xr = NetworkSimplex.solve(auxNodes.toSeq, edges.toSeq, balance = 2)

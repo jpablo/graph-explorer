@@ -144,4 +144,30 @@ class OutputSpec extends FunSuite:
       Set(("struct1", "struct2", "f0", "a"), ("struct1", "struct2", "f2:s", "b:n"))
     )
 
+  // M6 ports increment 2: the de-merged, port-box-routed splines surfaced
+  // through the public json0 `pos` string (the viewer's `getEdgePos`
+  // contract). 04's two parallel struct1→struct2 edges no longer collapse —
+  // each carries its own `e,EX,EY` + control points. Keyed by (tailport,
+  // headport); arrow-attach exact, spline within ε vs the json0 golden.
+  test("04-ports-compass: json0 per-port edge splines match the golden"):
+    def edgesByPort(v: ujson.Value): Map[(String, String), ujson.Value] =
+      v("edges").arr.iterator.map { e =>
+        (e.obj.get("tailport").map(_.str).getOrElse(""),
+         e.obj.get("headport").map(_.str).getOrElse("")) -> e
+      }.toMap
+    val ours = ujson.read(Output.json0(graph("04-ports-compass")))
+    val gold = ujson.read(OracleHarness.golden("04-ports-compass", "json0"))
+    val oE = edgesByPort(ours); val gE = edgesByPort(gold)
+    assertEquals(oE.keySet, gE.keySet,
+      "04 json0 must have 2 port-distinguished edges (de-merge)")
+    assertEquals(oE.keySet, Set(("f0", "a"), ("f2:s", "b:n")))
+    gE.foreach { case (k, ge) =>
+      val (oep, _, opts) = parsePos(oE(k)("pos").str)
+      val (gep, _, gpts) = parsePos(ge("pos").str)
+      assert(oep.isDefined && gep.isDefined, s"04 $k missing e, prefix")
+      assert(near(oep.get, gep.get, 0.5), s"04 $k ep ${oep.get} vs ${gep.get}")
+      val dev = hausdorff(opts, gpts)
+      assert(dev <= Eps, s"04 $k spline dev=$dev (eps=$Eps)")
+    }
+
 end OutputSpec
