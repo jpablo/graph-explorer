@@ -20,6 +20,8 @@ class SvgSpec extends FunSuite:
   private def ours(name: String): String =
     Svg.svg(AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get))
 
+  // whole node <g> block (any shape: ellipse OR record polygon+polylines)
+  private val NodeGRe = """(?s)(<g id="node\d+" class="node">.*?</g>)""".r
   private val NodeRe = """(?s)<g id="node\d+" class="node">\s*<title>(.*?)</title>\s*<ellipse[^>]*cx="([-\d.]+)" cy="([-\d.]+)" rx="([-\d.]+)" ry="([-\d.]+)"[^>]*/>\s*<text[^>]*x="([-\d.]+)" y="([-\d.]+)"[^>]*>(.*?)</text>""".r
   private val EdgeRe = """(?s)<g id="edge\d+" class="edge">\s*<title>(.*?)</title>\s*<path[^>]*d="([^"]*)"/>(?:\s*<polygon[^>]*points="([^"]*)"/>)?""".r
   private val SvgRe  = """<svg width="(\d+)pt" height="(\d+)pt"\s+viewBox="([^"]*)"""".r
@@ -95,5 +97,31 @@ class SvgSpec extends FunSuite:
           assert(hausdorff(ea.map(mx), ga) <= Eps, s"$name $k arrowhead dev=${hausdorff(ea.map(mx), ga)}")
       }
   }
+
+  // M7-svg follow-up: record field-line drawing. `record_gencode`/`gen_fields`
+  // ports the outer box <polygon>, the inter-field separator <polyline>s and
+  // each leaf's centred field <text>. Gated **byte-identical** to the viz-js
+  // golden's per-node <g> blocks (the deliverable of this row; exact, not
+  // ε — the record geometry is fully determined by the ✅ RecordLabel layout).
+  // The graph <title>/`Title:` comment, edge <title> port suffix and bbox
+  // float precision are separate pre-existing svg gaps (any named/ported
+  // graph), tracked apart — they do not affect the node <g> blocks.
+  test("04-ports-compass: record node <g> blocks byte-identical to the golden"):
+    val o   = ours("04-ports-compass")
+    val gld = OracleHarness.golden("04-ports-compass", "svg")
+    val ob  = NodeGRe.findAllMatchIn(o).map(_.group(1)).toVector
+    val gb  = NodeGRe.findAllMatchIn(gld).map(_.group(1)).toVector
+    assertEquals(ob.length, 2, s"expected 2 record node blocks, got ${ob.length}")
+    assertEquals(ob.length, gb.length, "node block count vs golden")
+    ob.zip(gb).zipWithIndex.foreach { case ((a, b), i) =>
+      assertEquals(a, b, s"04 record node block ${i + 1} not byte-identical")
+    }
+    // each record node draws: 1 box polygon + (#fields−1) separators + texts
+    assert(o.contains("""<polygon fill="none" stroke="black" points="0,-87.1 0,-123.1 131.98,-123.1 131.98,-87.1 0,-87.1"/>"""),
+      "struct1 outer record box")
+    assert(o.contains("""<polyline fill="none" stroke="black" points="34.66,-87.1 34.66,-123.1"/>"""),
+      "struct1 f0|f1 separator")
+    assert(o.contains("""<polyline fill="none" stroke="black" points="36.99,-25.3 90.99,-25.3"/>"""),
+      "struct2 a|b separator (TB subtable ⇒ horizontal)")
 
 end SvgSpec

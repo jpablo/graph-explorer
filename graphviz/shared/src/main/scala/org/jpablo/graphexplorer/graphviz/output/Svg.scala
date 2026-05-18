@@ -103,19 +103,49 @@ object Svg:
     sb ++= s"""<polygon fill="white" stroke="none" points="${d2(bx0)},${d2(by0)} ${d2(bx0)},${d2(by1)} ${d2(bx1)},${d2(by1)} ${d2(bx1)},${d2(by0)} ${d2(bx0)},${d2(by0)}"/>\n"""
 
     // nodes (declaration order)
+    val dimY = FontSize * LineSpacing
+    def textAt(cx: Double, cyc: Double, s: String): String =
+      val ty = -(cyc + dimY / 2.0 - FontSize + 0.1 * FontSize)
+      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}" font-family="Times,serif" font-size="14.00">${xml(s)}</text>\n"""
+
+    // record_gencode + gen_fields (shapes.c): outer box polygon, then per
+    // table the inter-child separator polylines + per leaf the field text.
+    // Boxes are node-local (centre origin, y-up) — add the node centre.
+    def genFields(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field,
+                   ncx: Double, ncy: Double): Unit =
+      if f.isLeaf then
+        f.text.filter(_.nonEmpty).foreach { t =>
+          sb ++= textAt(ncx + (f.llx + f.urx) / 2.0, ncy + (f.lly + f.ury) / 2.0, t)
+        }
+      else
+        f.flds.iterator.zipWithIndex.foreach { case (c, k) =>
+          if k > 0 then
+            val (a0, a1) =
+              if f.lr then ((c.llx, c.lly), (c.llx, c.ury)) // vertical sep
+              else        ((c.llx, c.ury), (c.urx, c.ury))  // horizontal sep
+            sb ++= s"""<polyline fill="none" stroke="black" points="${d2(ncx + a0._1)},${d2(-(ncy + a0._2))} ${d2(ncx + a1._1)},${d2(-(ncy + a1._2))}"/>\n"""
+          genFields(c, ncx, ncy)
+        }
+
     g.nodes.zipWithIndex.foreach { case (n, i) =>
       for x <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
         val cy   = yOf(ranks(n.id))
-        val rx   = sz.widthIn * 36.0
-        val ry   = sz.heightIn * 36.0
-        val lbl  = n.attrs.get("label").filter(_ != "\\N").getOrElse(n.id)
-        val dimY = FontSize * LineSpacing
-        val ty   = -(cy + dimY / 2.0 - FontSize + 0.1 * FontSize)
         sb ++= s"<!-- ${xml(n.id)} -->\n"
         sb ++= s"""<g id="node${i + 1}" class="node">\n"""
         sb ++= s"<title>${xml(n.id)}</title>\n"
-        sb ++= s"""<ellipse fill="none" stroke="black" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
-        sb ++= s"""<text xml:space="preserve" text-anchor="middle" x="${d2(x)}" y="${d2(ty)}" font-family="Times,serif" font-size="14.00">${xml(lbl)}</text>\n"""
+        NodeSize.recordLayout(n, g) match
+          case Some(root) =>
+            // outer record box (gvrender_box → svg polygon, LL/UL/UR/LR/LL)
+            val (llx, lly) = (x + root.llx, cy + root.lly)
+            val (urx, ury) = (x + root.urx, cy + root.ury)
+            sb ++= s"""<polygon fill="none" stroke="black" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
+            genFields(root, x, cy)
+          case None =>
+            val rx  = sz.widthIn * 36.0
+            val ry  = sz.heightIn * 36.0
+            val lbl = n.attrs.get("label").filter(_ != "\\N").getOrElse(n.id)
+            sb ++= s"""<ellipse fill="none" stroke="black" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
+            sb ++= textAt(x, cy, lbl)
         sb ++= "</g>\n"
     }
 

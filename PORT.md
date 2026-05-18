@@ -213,7 +213,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 | Feature | Status | Test | Notes |
 |---|---|---|---|
 | Poly shapes: box, ellipse, circle, square, plaintext, none, plain | 🟡 | NodeSizeSpec | sized & oracle-verified; diamond/polygon/point = later |
-| `record` / `Mrecord` (layout/sizing) | ✅ | NodeSizeSpec + RecordSpec | **Closed.** `RecordLabel` ports `parse_reclbl` (grammar `f`, `f\|f`, `{…}` orientation toggle, `<port>`, `\`-escapes/hard-space) + `size_reclbl` (leaf = text dimen + PAD `XPAD 4·GAP`/`YPAD 2·GAP`; LR ⇒ Σx/maxy else Σy/maxx; per-line height = exact `fontsize·LINESPACING`, same finding as the 05 vnode) + `resize_reclbl` (min-size even-int split) + `pos_reclbl` + `record_init` (`+1pt` height kluge). `NodeSize` sizes record/Mrecord (no longer `None`). Verified **exact** vs the 04 `dot` golden: struct1 `1.833×0.51389`, struct2 `0.75×0.70278`; node-local field boxes + node centre == golden absolute `rects` to ≤0.05 pt. Record svg field-line *drawing* = M7-svg follow-up; field-port edge endpoints = the §5.2 ports row (increment 2). HTML-in-record + exotic escape/UTF-8/control = no-corpus deferrals |
+| `record` / `Mrecord` (layout/sizing) | ✅ | NodeSizeSpec + RecordSpec | **Closed.** `RecordLabel` ports `parse_reclbl` (grammar `f`, `f\|f`, `{…}` orientation toggle, `<port>`, `\`-escapes/hard-space) + `size_reclbl` (leaf = text dimen + PAD `XPAD 4·GAP`/`YPAD 2·GAP`; LR ⇒ Σx/maxy else Σy/maxx; per-line height = exact `fontsize·LINESPACING`, same finding as the 05 vnode) + `resize_reclbl` (min-size even-int split) + `pos_reclbl` + `record_init` (`+1pt` height kluge). `NodeSize` sizes record/Mrecord (no longer `None`). Verified **exact** vs the 04 `dot` golden: struct1 `1.833×0.51389`, struct2 `0.75×0.70278`; node-local field boxes + node centre == golden absolute `rects` to ≤0.05 pt. Record svg field-line *drawing* ✅ (2026-05-17, see §5.4 `svg`); field-port edge endpoints ✅ (§5.2 ports row). HTML-in-record + exotic escape/UTF-8/control = no-corpus deferrals |
 | HTML-like labels (table layout) | ⬜ | | M6 |
 | `width`/`height`/`fixedsize`/`margin` | ✅ | NodeSizeSpec | fixedsize true/shape, margin `x[,y]`, min-size floor, regular |
 | Font metrics: Times/Helvetica/Courier | ✅ | NodeSizeSpec | `textspan_lut` transcribed (gen_font_metrics.py); Times oracle-verified |
@@ -224,7 +224,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 |---|---|---|---|
 | `dot_json` | ✅ | OutputSpec | `Output.dotJson`: hand-rolled (no serialization dep). name/`%1`/directed/strict/`_subgraph_cnt`/space-`bb`/objects(`_gvid`,name,label)/edges(`_gvid` by cgraph node-traversal order, tail,head). Structure-exact + bb ±ε vs golden 01/06/07 |
 | `json0` | ✅ | OutputSpec | `Output.json0`: dot_json + node `pos`/`width`/`height`, comma-`bb`, edge `pos` spline string (`e,EX,EY ` iff head arrow, via `Spline.splinesEx` `ESpline.ep`). Geometry ±ε, **mirror-aware** (06 X mirrored, layout-equivalent — cf. XCoordSpec). Number format ≈ C `%.5g` |
-| `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (`arrow_type_normal0` a[1..3]; miter `delta_tip/base` = same M5-deferred sub-2px). `gvprintdouble` (`%.2f` trimmed). Well-formed + visually-close ε vs golden 01/06/07, mirror-aware |
+| `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (`arrow_type_normal0` a[1..3]; miter `delta_tip/base` = same M5-deferred sub-2px). **Record nodes** (2026-05-17): ports `record_gencode`/`gen_fields` — outer box `<polygon>` + inter-field separator `<polyline>`s (LR table ⇒ vertical at child llx; TB ⇒ horizontal at child ury) + per-leaf centred field `<text>`; **byte-identical** to the 04 golden's per-node `<g>` blocks (exact, not ε — fully determined by the ✅ RecordLabel layout). `gvprintdouble` (`%.2f` trimmed). Well-formed + visually-close ε vs golden 01/06/07, mirror-aware. Remaining svg gaps (any named/ported graph, not record-specific, tracked apart): graph `<title>`/`Title:` comment, edge `<title>` port suffix, bbox float precision (translate/bg use int-ceil vs gv's 2-dp) |
 | `MultipleRenderResult` shape (`status/output/errors`) | ✅ | GraphvizSpec | `Graphviz.renderFormats(dot, formats)` (pure, cross-compiled): parse→resolve→emit. `status`/`output` map/`errors` mirror [VizJS.scala:80](viewer/src/main/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/vizjs/VizJS.scala#L80). Malformed DOT / unsupported format → `failure` (reported, not thrown). The M8 call-site seam |
 
 ### 5.5 Explicit non-goals (⛔)
@@ -703,4 +703,31 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   reference worktree reverted pristine (`git checkout`; `rm -rf
   _dbgbuild`). §5.2 ports + parallel/multi-edge rows ⬜/🟡 → ✅. Remaining
   M6: LR (02), 03 clusters, record svg field-line drawing, self-loops.
+- **2026-05-17** — **M7-svg follow-up: record field-line drawing CLOSED —
+  byte-exact.** With records (✅ layout) + ports (✅) done, the last
+  record sub-item was the *drawing*. Ported `record_gencode` + recursive
+  `gen_fields` (shapes.c) into `Svg.svg`: a record node emits the outer
+  box `<polygon>` (`gvrender_box`, LL/UL/UR/LR/LL), then per table the
+  inter-child separator `<polyline>`s (LR ⇒ vertical at `child.b.LL.x`
+  spanning `child.lly..ury`; TB ⇒ horizontal at `child.b.UR.y` spanning
+  `llx..urx` — exactly the C `AF[]`), then per leaf its centred field
+  `<text>` (reusing the existing `emit_label` baseline `−(cy+dimY/2−
+  fs+0.1·fs)` at the **field-box** centre). Non-record nodes keep the
+  `<ellipse>` path unchanged (additive — 01/06/07 byte-identical).
+  Boxes come straight from the ✅ `RecordLabel` root (node-local,
+  un-klugd size) + node centre, so no new geometry. Gated **byte-
+  identical** (not ε): both 04 record node `<g>` blocks == the viz-js
+  golden's char-for-char (verified by extraction + diff). Honest scope:
+  the graph `<title>`/`Title:` comment, edge `<title>` port suffix
+  (`struct1:f0->struct2:a`) and bbox float precision (we int-ceil
+  translate/bg vs gv's 2-dp) are **pre-existing svg gaps for any
+  named/ported graph — NOT record-specific** (SvgSpec's `<ellipse>`-only
+  `NodeRe` never tested them; 07 "cross" has the same untested title
+  gap); recorded in §5.4 as a separate follow-up, not folded in here
+  (one focused commit). Edge path/arrow numbers stay the documented
+  sub-2px M5/M7 arrow-miter residual (within ε). Suite **96/96**;
+  graphvizJS + viewer compile. §5.3 record row's "svg field-line drawing
+  = M7-svg follow-up" → ✅; §5.4 `svg` row notes records + the remaining
+  generic-svg gaps. Remaining M6: LR (02), 03 clusters, self-loops;
+  remaining svg: graph/edge `<title>` + bbox 2-dp precision.
 - _(append dated entries as milestones land)_
