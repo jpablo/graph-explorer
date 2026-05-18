@@ -230,7 +230,25 @@ fn run_status(json: bool) -> Result<u8> {
     }
 }
 
+/// Resolve a user-supplied path to an absolute, canonical string.
+///
+/// `gx` runs in the user's shell, but the desktop resolves paths against its
+/// own working directory — so a relative path fails ("rejected by desktop").
+/// Canonicalize here (against gx's cwd) so any cwd-relative path works and
+/// matches how the desktop normalizes paths; a missing file fails fast with a
+/// clear message instead of an opaque INVALID_REQUEST.
+fn resolve_path(path: &str) -> Result<String> {
+    let canon = fs::canonicalize(path)
+        .map_err(|err| anyhow::anyhow!("cannot resolve path '{path}': {err}"))?;
+    canon
+        .to_str()
+        .map(str::to_string)
+        .ok_or_else(|| anyhow::anyhow!("path is not valid UTF-8: {}", canon.display()))
+}
+
 fn run_watch(path: &str, open_in_ui: bool, json: bool) -> Result<u8> {
+    let resolved = resolve_path(path)?;
+    let path = resolved.as_str();
     let control = read_control_file(&runtime_file_path()?)?;
     let endpoint = format!("{}/v1/watch", control_base_url(&control));
     let payload = serde_json::json!({
@@ -285,6 +303,8 @@ fn run_watch(path: &str, open_in_ui: bool, json: bool) -> Result<u8> {
 }
 
 fn run_unwatch(path: &str, json: bool) -> Result<u8> {
+    let resolved = resolve_path(path)?;
+    let path = resolved.as_str();
     let control = read_control_file(&runtime_file_path()?)?;
     let endpoint = format!("{}/v1/unwatch", control_base_url(&control));
     let payload = serde_json::json!({
@@ -335,6 +355,8 @@ fn run_unwatch(path: &str, json: bool) -> Result<u8> {
 }
 
 fn run_get(path: &str, json: bool) -> Result<u8> {
+    let resolved = resolve_path(path)?;
+    let path = resolved.as_str();
     let control = read_control_file(&runtime_file_path()?)?;
     match get_document(&control, path) {
         Ok(document) => {
@@ -379,6 +401,8 @@ fn run_set(
     base_revision: Option<u64>,
     json: bool,
 ) -> Result<u8> {
+    let resolved = resolve_path(path)?;
+    let path = resolved.as_str();
     let control = read_control_file(&runtime_file_path()?)?;
     let text = resolve_set_text(stdin, text_arg)?;
     let base = if let Some(rev) = base_revision {
