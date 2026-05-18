@@ -58,6 +58,15 @@ class SvgSpec extends FunSuite:
       assert(o.startsWith("<?xml "), "xml decl")
       assert(o.contains("</svg>"), "closed svg")
 
+      // `Title:` comment + graph <title> (labels.c \E / named-graph): a
+      // named graph emits both, an anonymous one neither. (06 "mesh" / 07
+      // "cross" are named — this gap was previously untested.)
+      val CommentRe = """<!--(?: Title: \S+)? Pages: 1 -->""".r
+      assertEquals(CommentRe.findFirstIn(o), CommentRe.findFirstIn(gld), s"$name Title comment")
+      val GTitleRe = """<g id="graph0"[^>]*>\n<title>([^<]*)</title>""".r
+      assertEquals(GTitleRe.findFirstMatchIn(o).map(_.group(1)),
+                   GTitleRe.findFirstMatchIn(gld).map(_.group(1)), s"$name graph <title>")
+
       val om = SvgRe.findFirstMatchIn(o).getOrElse(fail("our <svg> header"))
       val gm = SvgRe.findFirstMatchIn(gld).getOrElse(fail("golden <svg> header"))
       assertEquals(om.group(1), gm.group(1), s"$name svg width")
@@ -123,5 +132,20 @@ class SvgSpec extends FunSuite:
       "struct1 f0|f1 separator")
     assert(o.contains("""<polyline fill="none" stroke="black" points="36.99,-25.3 90.99,-25.3"/>"""),
       "struct2 a|b separator (TB subtable ⇒ horizontal)")
+
+  // 04 is the named, ported graph: gate the graph <title>/`Title:` comment
+  // and the per-edge port `<title>` (`\E`: chkPort `.name` ⇒ `f2:s`→`s`).
+  test("04-ports-compass: graph + edge <title>s match the golden (with ports)"):
+    val o   = ours("04-ports-compass")
+    val gld = OracleHarness.golden("04-ports-compass", "svg")
+    assert(o.contains("<!-- Title: ports Pages: 1 -->"), "named-graph Title comment")
+    assert(o.contains("<title>ports</title>"), "graph <title>")
+    val EdgeT = """<g id="edge\d+" class="edge">\n<title>([^<]*)</title>""".r
+    val ot = EdgeT.findAllMatchIn(o).map(_.group(1)).toSet
+    val gt = EdgeT.findAllMatchIn(gld).map(_.group(1)).toSet
+    assertEquals(ot, gt, "04 edge <title>s")
+    assertEquals(ot, Set("struct1:f0&#45;&gt;struct2:a", "struct1:s&#45;&gt;struct2:n"))
+    // the edge *comment* stays portless (emit.c agnameof, no ports)
+    assert(o.contains("<!-- struct1&#45;&gt;struct2 -->"), "portless edge comment")
 
 end SvgSpec

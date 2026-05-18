@@ -40,6 +40,19 @@ final case class REdge(
   def tailPortStr: Option[String] = tailPort.map(portStr).filter(_.nonEmpty)
   def headPortStr: Option[String] = headPort.map(portStr).filter(_.nonEmpty)
 
+  /** `chkPort`'s `port.name` (utils.c): the raw port spec after its first
+    * `:` if any, else the whole — i.e. the compass when `field:compass`
+    * was given (`f2:s` ⇒ `s`), else the field/compass token. Drives the
+    * svg edge `<title>` (`\E` expansion, labels.c), distinct from the
+    * json0 `tailport`/`headport` which keep the full `field:compass`. */
+  private def portName(p: ast.Port): String =
+    p.compass
+      .map(_.toString.toLowerCase.replace("underscore", "_"))
+      .orElse(p.name.map(_.value))
+      .getOrElse("")
+  def tailPortName: Option[String] = tailPort.map(portName).filter(_.nonEmpty)
+  def headPortName: Option[String] = headPort.map(portName).filter(_.nonEmpty)
+
 final case class RGraph(
     strict:    Boolean,
     directed:  Boolean,

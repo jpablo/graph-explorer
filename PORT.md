@@ -224,7 +224,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 |---|---|---|---|
 | `dot_json` | ✅ | OutputSpec | `Output.dotJson`: hand-rolled (no serialization dep). name/`%1`/directed/strict/`_subgraph_cnt`/space-`bb`/objects(`_gvid`,name,label)/edges(`_gvid` by cgraph node-traversal order, tail,head). Structure-exact + bb ±ε vs golden 01/06/07 |
 | `json0` | ✅ | OutputSpec | `Output.json0`: dot_json + node `pos`/`width`/`height`, comma-`bb`, edge `pos` spline string (`e,EX,EY ` iff head arrow, via `Spline.splinesEx` `ESpline.ep`). Geometry ±ε, **mirror-aware** (06 X mirrored, layout-equivalent — cf. XCoordSpec). Number format ≈ C `%.5g` |
-| `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (`arrow_type_normal0` a[1..3]; miter `delta_tip/base` = same M5-deferred sub-2px). **Record nodes** (2026-05-17): ports `record_gencode`/`gen_fields` — outer box `<polygon>` + inter-field separator `<polyline>`s (LR table ⇒ vertical at child llx; TB ⇒ horizontal at child ury) + per-leaf centred field `<text>`; **byte-identical** to the 04 golden's per-node `<g>` blocks (exact, not ε — fully determined by the ✅ RecordLabel layout). `gvprintdouble` (`%.2f` trimmed). Well-formed + visually-close ε vs golden 01/06/07, mirror-aware. Remaining svg gaps (any named/ported graph, not record-specific, tracked apart): graph `<title>`/`Title:` comment, edge `<title>` port suffix, bbox float precision (translate/bg use int-ceil vs gv's 2-dp) |
+| `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (`arrow_type_normal0` a[1..3]; miter `delta_tip/base` = same M5-deferred sub-2px). **Record nodes** (2026-05-17): ports `record_gencode`/`gen_fields` — outer box `<polygon>` + inter-field separator `<polyline>`s (LR table ⇒ vertical at child llx; TB ⇒ horizontal at child ury) + per-leaf centred field `<text>`; **byte-identical** to the 04 golden's per-node `<g>` blocks (exact, not ε — fully determined by the ✅ RecordLabel layout). `gvprintdouble` (`%.2f` trimmed). **Graph/edge titles** (2026-05-17): named graph ⇒ `<!-- Title: NAME -->` + graph `<title>`, anon ⇒ neither (`g.name`); edge `<title>` = `\E` (labels.c) = `tail[:port]op head[:port]` where port = `chkPort` `.name` (after first `:`, ⇒ `f2:s`→`s`), the edge *comment* stays portless (emit.c) — gated vs 04 + the corpus (closed the latent 06/07 untested gap). Well-formed + visually-close ε vs golden 01/06/07, mirror-aware. Remaining svg gap (cross-format, tracked apart): bbox float precision — `Output.bbox` int-floor/ceils vs gv's exact 2-dp, so svg `translate`/bg differ ≤0.5 pt (within SvgSpec ε; affects dot_json/json0 `bb` too) |
 | `MultipleRenderResult` shape (`status/output/errors`) | ✅ | GraphvizSpec | `Graphviz.renderFormats(dot, formats)` (pure, cross-compiled): parse→resolve→emit. `status`/`output` map/`errors` mirror [VizJS.scala:80](viewer/src/main/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/vizjs/VizJS.scala#L80). Malformed DOT / unsupported format → `failure` (reported, not thrown). The M8 call-site seam |
 
 ### 5.5 Explicit non-goals (⛔)
@@ -730,4 +730,28 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   = M7-svg follow-up" → ✅; §5.4 `svg` row notes records + the remaining
   generic-svg gaps. Remaining M6: LR (02), 03 clusters, self-loops;
   remaining svg: graph/edge `<title>` + bbox 2-dp precision.
+- **2026-05-17** — **svg graph/edge titles (closes the latent 06/07
+  gap).** Continuing the deferred generic-svg follow-up. Traced the
+  exact rule in source (not guessed): `svg_begin_edge` →
+  `strdup_and_subst_obj("\E", e)` (labels.c) ⇒ edge `<title>` =
+  `t_str[:tp]` + `->`/`--` + `h_str[:hp]` where `tp/hp = ED_*_port.name`
+  = `chkPort` `.name` (utils.c) = the raw port spec **after its first
+  `:`** (else whole) — so `struct1:f2:s` ⇒ port name `s`, while json0
+  keeps the full `f2:s` (two genuinely different fields, now both
+  modelled: `REdge.tailPortName`/`tailPortStr`). The edge *comment*
+  stays portless (`emit_edge` uses bare `agnameof`). Named-graph ⇒
+  `<!-- Title: NAME -->` + graph `<title>` (anon `%1` ⇒ neither). Found
+  & fixed a real latent bug: 06 "mesh"/07 "cross" are *named* and their
+  goldens carry the title, but our Svg never emitted it — SvgSpec's
+  `<ellipse>`-only `NodeRe`/header regexes never tested it, so it sat
+  green-but-wrong. SvgSpec corpus loop now asserts the `Title:` comment
+  + graph `<title>` for **every** corpus graph (01 anon ⇒ none; 06/07
+  named), and a 04 test gates the two ported edge `<title>`s
+  (`struct1:f0->struct2:a`, `struct1:s->struct2:n`) + portless comment.
+  Additive (no geometry); 04 svg now diverges from golden **only** by
+  the tracked bbox 2-dp precision + the documented sub-2px M5/M7
+  arrow-miter residual. Suite **97/97**; graphvizJS + viewer compile.
+  §5.4 `svg` row updated; sole remaining svg item = `Output.bbox` float
+  precision (cross-format: dot_json/json0/svg `bb`, its own commit).
+  Remaining M6: LR (02), 03 clusters, self-loops.
 - _(append dated entries as milestones land)_
