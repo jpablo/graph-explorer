@@ -224,7 +224,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 |---|---|---|---|
 | `dot_json` | ✅ | OutputSpec | `Output.dotJson`: hand-rolled (no serialization dep). name/`%1`/directed/strict/`_subgraph_cnt`/space-`bb`/objects(`_gvid`,name,label)/edges(`_gvid` by cgraph node-traversal order, tail,head). bb = the **integer** box (floor/ceil of `dot_compute_bb`'s exact node-extent). **byte-exact** vs golden 01/06/07 **and 04** (04 = `"0 0 132 124"`) |
 | `json0` | ✅ | OutputSpec | `Output.json0`: dot_json + node `pos`/`width`/`height`, comma-`bb`, edge `pos` spline string (`e,EX,EY ` iff head arrow, via `Spline.splinesEx` `ESpline.ep`, keyed by edge identity). bb = the **exact float** node-extent (`%.5g`) — distinct from dot_json's int (04 = `"0,0,131.98,123.6"`), **byte-exact** vs golden incl. 04. Geometry ±ε, **mirror-aware** (06 X mirrored, cf. XCoordSpec) |
-| `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (`arrow_type_normal0` a[1..3]; miter `delta_tip/base` = same M5-deferred sub-2px). **Record nodes** (2026-05-17): ports `record_gencode`/`gen_fields` — outer box `<polygon>` + inter-field separator `<polyline>`s (LR table ⇒ vertical at child llx; TB ⇒ horizontal at child ury) + per-leaf centred field `<text>`; **byte-identical** to the 04 golden's per-node `<g>` blocks (exact, not ε — fully determined by the ✅ RecordLabel layout). `gvprintdouble` (`%.2f` trimmed). **Graph/edge titles** (2026-05-17): named graph ⇒ `<!-- Title: NAME -->` + graph `<title>`, anon ⇒ neither (`g.name`); edge `<title>` = `\E` (labels.c) = `tail[:port]op head[:port]` where port = `chkPort` `.name` (after first `:`, ⇒ `f2:s`→`s`), the edge *comment* stays portless (emit.c) — gated vs 04 + the corpus (closed the latent 06/07 untested gap). **Bbox precision** (2026-05-17): `Output.bbox` ports `position.c dot_compute_bb` — node-extent only (NORMAL nodes ± lw/rw + rank ht), **no spline, no floor/ceil**; svg `<svg>`/viewBox = ceil'd int canvas, `translate`/bg = the exact float. 04 svg header/transform/background now **byte-exact** vs golden (`translate(4 127.6)`, bg `135.98`). Well-formed + visually-close ε vs golden 01/06/07/04, mirror-aware. **Sole residual** (global, tracked, not 04/svg-specific): the documented sub-2px M5/M7 arrow-miter `delta_tip/base` on edge paths (within ε) |
+| `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (full `arrow_type_normal0` + `miter_shape` ported 2026-05-17: `delta_tip` miter incl. the SVG `stroke-miterlimit=4` bevel fallback — **byte-identical** to the golden for non-virtual edges; was the long-deferred sub-2px residual). **Record nodes** (2026-05-17): ports `record_gencode`/`gen_fields` — outer box `<polygon>` + inter-field separator `<polyline>`s (LR table ⇒ vertical at child llx; TB ⇒ horizontal at child ury) + per-leaf centred field `<text>`; **byte-identical** to the 04 golden's per-node `<g>` blocks (exact, not ε — fully determined by the ✅ RecordLabel layout). `gvprintdouble` (`%.2f` trimmed). **Graph/edge titles** (2026-05-17): named graph ⇒ `<!-- Title: NAME -->` + graph `<title>`, anon ⇒ neither (`g.name`); edge `<title>` = `\E` (labels.c) = `tail[:port]op head[:port]` where port = `chkPort` `.name` (after first `:`, ⇒ `f2:s`→`s`), the edge *comment* stays portless (emit.c) — gated vs 04 + the corpus (closed the latent 06/07 untested gap). **Bbox precision** (2026-05-17): `Output.bbox` ports `position.c dot_compute_bb` — node-extent only (NORMAL nodes ± lw/rw + rank ht), **no spline, no floor/ceil**; svg `<svg>`/viewBox = ceil'd int canvas, `translate`/bg = the exact float. 04 svg header/transform/background now **byte-exact** vs golden (`translate(4 127.6)`, bg `135.98`). Well-formed + visually-close ε vs golden 01/06/07/04, mirror-aware. **Arrow miter now ported** (2026-05-17): 07 (no virtual nodes ⇒ exact spline) arrowheads **byte-identical**; the ≤ε residual that remains on curved/port edges is the upstream M5 spline-endpoint feed into the arrow base direction (`Spline.clipInstall`'s nominal ARROW_LENGTH clip — separate spline-pipeline item), not the arrow geometry |
 | `MultipleRenderResult` shape (`status/output/errors`) | ✅ | GraphvizSpec | `Graphviz.renderFormats(dot, formats)` (pure, cross-compiled): parse→resolve→emit. `status`/`output` map/`errors` mirror [VizJS.scala:80](viewer/src/main/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/vizjs/VizJS.scala#L80). Malformed DOT / unsupported format → `failure` (reported, not thrown). The M8 call-site seam |
 
 ### 5.5 Explicit non-goals (⛔)
@@ -809,4 +809,29 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   still deviates ⇒ fails-when-fixed), no fake gate, no loosened ε,
   reference worktree reverted pristine. §5.2 LR row ⬜→🟡. Remaining
   M6: LR order-axis (blocker 2), 03 clusters, self-loops.
+- **2026-05-17** — **Arrow-miter residual CLOSED (svg-scoped).** The
+  sub-2px `delta_tip`/`delta_base` arrowhead residual deferred since
+  M5/M7. **Source-traced, not guessed** (`arrows.c` `arrow_type_normal0`
+  + `miter_shape`): the normal head's tip is shifted by `delta_tip =
+  P3 − P` where `P3` is the stroke line-join (miter) apex of the two
+  arrow-base→tip segments, with the SVG `stroke-miterlimit=4` **bevel
+  fallback** (midpoint of P1/P2) when exceeded. Ported `miterShape` +
+  `arrowNormal0` into `Svg` and hand-verified byte-exact vs the 07 golden
+  *before* wiring (delta_tip ≈ (0,−1.5135) reproduced the measured 1.52 pt
+  shift exactly). Result: **07 arrowheads byte-identical** to the golden
+  (no virtual nodes ⇒ exact spline ⇒ exact arrow base direction); 01's
+  straight-edge arrowhead byte-identical too; the curved `a→c`/04 port
+  edges now ≤0.5 pt (was ~1.5–2) — the remainder is purely the **upstream
+  M5 spline-endpoint feed** into `u` (`Spline.clipInstall`'s nominal
+  `ARROW_LENGTH` clip + `delta_base`-shortened attach), a distinct
+  spline-pipeline item deliberately left out to keep this commit
+  svg-scoped and off the M5 Hausdorff gates. `arrowsize`/`penwidth`
+  threaded (corpus defaults ⇒ 10/1). New gate: SvgSpec asserts 07's 3
+  arrowhead polygons **byte-identical**; the corpus ≤ε loop now passes
+  with a far smaller residual (Eps comment corrected — the miter is no
+  longer the deferral). Reference worktree untouched (pure source trace +
+  numeric oracle check, no instrumentation). Suite **106→107**;
+  graphvizJS + viewer compile. Remaining M6: LR order-axis (blocker 2),
+  03 clusters, self-loops; remaining spline: the `clip_and_install`
+  arrow attach (`delta_base` + true arrow length) — its own item.
 - _(append dated entries as milestones land)_

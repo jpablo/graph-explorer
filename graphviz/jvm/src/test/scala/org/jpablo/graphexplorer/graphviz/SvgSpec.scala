@@ -14,7 +14,9 @@ import org.jpablo.graphexplorer.graphviz.output.Svg
   */
 class SvgSpec extends FunSuite:
 
-  private val Eps = 3.0 // pt — visual closeness (incl. M5-deferred arrow miter)
+  private val Eps = 3.0 // pt — visual closeness (the arrow miter is now
+  // ported & byte-exact for non-virtual edges; the residual ≤ε on
+  // curved/port edges is the upstream spline-endpoint feed, not the arrow)
   private val corpus = List("01-minimal", "06-undirected", "07-cross")
 
   private def ours(name: String): String =
@@ -165,5 +167,23 @@ class SvgSpec extends FunSuite:
     assertEquals(line(o, View),   line(gld, View),   "04 viewBox")
     assertEquals(line(o, Tr),     line(gld, Tr),     "04 transform/translate")
     assertEquals(line(o, Bg),     line(gld, Bg),     "04 background polygon")
+
+  // arrow_type_normal0 + miter_shape ported (the delta_tip miter — the
+  // long-documented sub-2px M5/M7 arrowhead residual). 07 has no virtual
+  // nodes ⇒ its spline (hence the arrow base direction) is exact, so the
+  // arrowhead polygons are now **byte-identical** to the golden. Locks the
+  // miter port; the curved/port residual that remains is the upstream
+  // spline-endpoint feed (≤ε), not the arrow geometry.
+  test("07-cross: arrowhead polygons byte-identical to the golden"):
+    val o   = ours("07-cross")
+    val gld = OracleHarness.golden("07-cross", "svg")
+    val Poly = """<polygon fill="black" stroke="black" points="([^"]*)"/>""".r
+    val op = Poly.findAllMatchIn(o).map(_.group(1)).toVector
+    val gp = Poly.findAllMatchIn(gld).map(_.group(1)).toVector
+    assertEquals(op.length, 3, s"07 should draw 3 arrowheads, got ${op.length}")
+    assertEquals(op.length, gp.length, "07 arrowhead count vs golden")
+    op.zip(gp).zipWithIndex.foreach { case ((a, b), i) =>
+      assertEquals(a, b, s"07 arrowhead ${i + 1} not byte-identical")
+    }
 
 end SvgSpec

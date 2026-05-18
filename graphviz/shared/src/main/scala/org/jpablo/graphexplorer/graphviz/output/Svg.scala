@@ -28,8 +28,7 @@ object Svg:
   private val Margin       = 4.0   // GAP / default graph margin (pt)
   private val FontSize     = 14.0  // DEFAULT_FONTSIZE
   private val LineSpacing  = 1.20  // LINESPACING
-  private val ArrowLen     = 10.0  // ARROW_LENGTH (M5: documented nominal)
-  private val ArrowWidth   = 0.35  // arrow_type_normal0 arrowwidth
+  private val ArrowLen     = 10.0  // ARROW_LENGTH (× arrowsize)
   private val GvVersion    = "13.0.1 (20250615.1724)"
 
   /** gvprintdouble: %.2f, trim trailing zeros & point, snap near-zero to 0. */
@@ -55,6 +54,48 @@ object Svg:
       case c   => b += c
     }
     b.toString
+
+  private type P2 = (Double, Double)
+
+  /** `miter_shape` (arrows.c): the stroke line-join triangle at `p` for the
+    * segments `bl→p` and `p→br`; `points[0]` (`P3`) is the miter apex (or
+    * the bevel midpoint past the SVG miterlimit 4). Penwidth-aware. */
+  private def miterShape(bl: P2, p: P2, br: P2, pw: Double): P2 =
+    if (bl == p) || (br == p) then p
+    else
+      val dxA = p._1 - bl._1; val dyA = p._2 - bl._2; val hA = math.hypot(dxA, dyA)
+      val cosA = dxA / hA; val sinA = dyA / hA
+      val P1   = (p._1 - pw / 2.0 * sinA, p._2 + pw / 2.0 * cosA)
+      val dxB  = br._1 - p._1; val dyB = br._2 - p._2; val hB = math.hypot(dxB, dyB)
+      val cosB = dxB / hB; val sinB = dyB / hB
+      val alpha = if dyA > 0 then math.acos(cosA) else -math.acos(cosA)
+      val beta  = if dyB > 0 then math.acos(cosB) else -math.acos(cosB)
+      val betaRev = beta - math.Pi
+      val theta = betaRev - alpha + (if betaRev - alpha <= -math.Pi then 2 * math.Pi else 0.0)
+      val P2pt  = (p._1 + pw / 2.0 * (-sinB), p._2 - pw / 2.0 * (-cosB))
+      if 1.0 / math.sin(theta / 2.0) > 4.0 then        // SVG stroke-miterlimit
+        ((P1._1 + P2pt._1) / 2.0, (P1._2 + P2pt._2) / 2.0) // bevel midpoint
+      else
+        val l = pw / 2.0 / math.tan(theta / 2.0)
+        (P1._1 + l * cosA, P1._2 + l * sinA)
+
+  /** `arrow_type_normal0` (arrows.c) for the plain `normal` head (no
+    * LEFT/RIGHT/INV/OPEN). `p` = arrow tip (`bezier.ep`), `u` = the
+    * arrow-length vector pointing back up the edge. Returns the 3 polygon
+    * points (`a[1..3]`) including the `delta_tip` miter shift — the sub-2px
+    * M5/M7 residual, now ported (the returned spline-attach `q`/`delta_base`
+    * is the spline pipeline's domain and unchanged here). */
+  private def arrowNormal0(p: P2, u: P2, pw: Double): (P2, P2, P2) =
+    val aw = if pw > 4 then 0.35 * pw / 4 else 0.35
+    val v  = (-u._2 * aw, u._1 * aw)
+    val q0 = (p._1 + u._1, p._2 + u._2)
+    val bl = (-v._1, -v._2); val br = v
+    val bigP = (-u._1, -u._2)
+    val p3 = miterShape(bl, bigP, br, pw)
+    val dtip = (p3._1 - bigP._1, p3._2 - bigP._2)
+    val pp = (p._1 - dtip._1, p._2 - dtip._2)
+    val qq = (q0._1 - dtip._1, q0._2 - dtip._2)
+    ((qq._1 - v._1, qq._2 - v._2), pp, (qq._1 + v._1, qq._2 + v._2))
 
   def svg(g: RGraph): String =
     val byId       = g.nodes.iterator.map(n => n.id -> n).toMap
@@ -170,13 +211,11 @@ object Svg:
               val dx = base.x - tip.x; val dy = base.y - tip.y
               val len = math.hypot(dx, dy)
               if len > 1e-9 then
-                val ux2 = dx / len; val uy2 = dy / len
-                val qx  = tip.x + ux2 * ArrowLen; val qy = tip.y + uy2 * ArrowLen
-                val vx  = -uy2 * ArrowWidth * ArrowLen
-                val vy  = ux2 * ArrowWidth * ArrowLen
-                val a1  = (qx - vx, qy - vy)
-                val a2  = (tip.x, tip.y)
-                val a3  = (qx + vx, qy + vy)
+                val pw = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+                val as = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
+                val mag = ArrowLen * as
+                val u   = (dx / len * mag, dy / len * mag)
+                val (a1, a2, a3) = arrowNormal0((tip.x, tip.y), u, pw)
                 def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
                 sb ++= s"""<polygon fill="black" stroke="black" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
             }
