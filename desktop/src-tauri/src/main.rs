@@ -1202,10 +1202,11 @@ fn remove_watch(
 
 // Disk -> UI propagation budget (LC2-T5) is <=300ms median. Detection latency
 // is bounded by the poll interval, plus the debounce window, plus loop
-// granularity; these values keep the path comfortably under budget on slower
-// CI runners while still coalescing a multi-write editor save into one update.
-const WATCH_POLL_INTERVAL: Duration = Duration::from_millis(30);
-const WATCH_DEBOUNCE: Duration = Duration::from_millis(75);
+// granularity. Tuned to 15/50ms so the median stays well under budget even on
+// slow/oversubscribed CI runners (macOS); 50ms still coalesces a multi-write
+// editor save (those land within a few ms) into one update.
+const WATCH_POLL_INTERVAL: Duration = Duration::from_millis(15);
+const WATCH_DEBOUNCE: Duration = Duration::from_millis(50);
 
 fn spawn_watch_loop(
     control: ControlFile,
