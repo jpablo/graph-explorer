@@ -192,7 +192,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 |---|---|---|---|
 | Acyclic (cycle breaking) | ✅ | RankSpec | DFS back-edge reversal, roots in declaration order (matches `acyclic.c`) |
 | Rank assignment (network simplex) | ✅ | RankSpec + NetworkSimplexSpec | true NS (`init_rank` + tight feasible tree + cut-value pivots + normalize + TB balance). Oracle-verified end-to-end (corpus ranks unchanged) + unit tests for slack/non-unique/weighted/disconnected. LR balance (mode 2) is a stub until M4x X-wiring |
-| `rank=same/min/max/source/sink` | ⬜ | | needs subgraph structure (M1 `RGraph` is flat) — bundled with cluster ranking M6 |
+| `rank=same/min/max/source/sink` | ⬜ | | needs subgraph structure (M1 `RGraph` is flat) — bundled with the cluster/subgraph-tree model (see Cluster row recon); 03's `{rank=same; a0; b0}` is the anon `%7` subgraph in that structure |
 | `minlen`, `weight`, `ranksep`, `nodesep` | 🟡 | RankSpec | `minlen` honoured; `weight` n/a to longest-path; `ranksep`/`nodesep` are M4 (coords) |
 | Virtual nodes for long edges | ✅ | OrderSpec | `class2` unit-span chains; verified via corpus long edges (01/02/05/06) staying 0-crossing |
 | Mincross (weighted median + transpose) | 🟡 | OrderSpec | BFS init + `medians`/`reorder` + `transpose`, MaxIter loop. Gate = crossing-count parity (0 across corpus incl. `07` 3→0). pass-0/pass-1 init *alternation*, flat edges, ports, clusters deferred |
@@ -203,7 +203,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 | ~~Virtual-node X separation too wide~~ | **RESOLVED 2026-05-16** | XCoordSpec | **Misdiagnosis corrected.** Separation `minlen=55` was right all along (instrumented gv confirms b→v minlen=55). Real bug = wrong ω model (above). Found by building+instrumenting gv 13.0.1, not by re-reading source |
 | Edge-label rank doubling (`ED_minlen*=2`) | ✅ | RankSpec + CoordSpec | **Closed (Y).** `Rank.hasEdgeLabel` ⇒ `acyclic` `minlen*=2` (`edgelabel_ranks`); `Coord` ranksep `(36+1)/2=18`; `make_chain` `label_vnode` half-height = `nLines·fontsize·LINESPACING/2` (`NodeSize.labelHeightPt`, reusing the M1 `\n\l\r` line split — single-line HTML label included) seated at mid rank `(rank t+rank h)/2`; root graph-label space `do_graph_label` = label box + YPAD `2·GAP` (GAP=4) at the labelloc side. CoordSpec 05 deferred-probe **promoted** → 05 in the strict Y list, matches golden ≤0.005 in. (HTML label *width*/table layout stays a separate M6 row — doesn't affect rank-axis Y.) 02 still needs LR (separate row) |
 | `rankdir = TB/LR/BT/RL` | 🟡 (blocker 1 closed; blocker 2 quantified) | RankDirSpec | **Blocker (1) RESOLVED 2026-05-17, blocker (2) sharply quantified — honest negative.** (1) `gv_nodesize(n, flip)` ported as `NodeSize.layoutSize` (LR/RL ⇒ w/h swapped: layout `w=trueHeight`, `h=trueWidth`) and threaded through the canonical layout (Coord/XCoord/Spline). `nodeSize` stays the true-size `dot`-oracle contract — `layoutSize == nodeSize` for TB ⇒ **01/06/07/04/05 byte-identical** (106/106; RankDirSpec locks it). The transform (`translate_drawing`/`map_point`, Offset=`(−cbb.UR.y, cbb.LL.x)`; LR ⇒ `final=(cbb.UR.y−y, x−cbb.LL.x)` over the canonical node-extent bbox) is **verified byte-exact vs instrumented gv 13.0.1** — applied to our canonical 02 it gives the **rank axis (final X) within ~3 pt** of the golden (gated as progress). (2) **half-closed 2026-05-17**: edge `weight` threaded into the XCoord ω (faithful `make_edge_pairs` `ED_weight`; default-1 ⇒ 01/06/07 byte-identical, XCoordSpec green) — the `weight=2` `start→middle` edge now **aligns** `start`/`middle` on the canonical order axis (was 45 vs 18, now 18 vs 18, matching gv's `start≡middle`). Still REMAINS: the **edge-label vnode's X under flip** — the `go` label injects an order-axis virtual node our canonical X/mincross doesn't place like gv ⇒ order axis still ~25–34 pt off (not visually close). Genuine remaining sub-part. RankDirSpec carries a **self-flagging deferred-probe** (order-axis still deviates → fails-when-fixed). No fake gate; 02's `go` rank-doubling is ✅ |
-| Cluster layout (recursive) | ⬜ | | hardest part of M6 |
+| Cluster layout (recursive) | ⬜ (recon: **reframed — geometry-free oracle**) | | **Recon 2026-05-17 (major de-risk):** viz-js 3.14.0 (the pinned oracle) does **not lay out clusters** — 03's `plain`/`dot`/`json0` are all `pos="0,0"`, `bb="0,0,0,0"`. So 03 is **not a recursive-layout port** (the "hardest part of M6" framing was wrong); per §1 ("match viz-js *strings*") it's a **structural model+emit** task with NO geometry. Exact target from the golden: `_subgraph_cnt=3`; `objects` = the 3 subgraph objects **first** (`cluster_0`,`cluster_1`, anon `{rank=same}`→`%7`) then the 6 nodes; each subgraph object carries `name`/`label`/`nodes=[gvid…]`/`edges=[gvid…]`; node `_gvid` is offset by `_subgraph_cnt` (a0=3…start=8); edges `_gvid` by cgraph order. **Model-level blocker** (the real work): `AttrResolver`/`RGraph` is flat (no subgraph tree) — needs an additive cluster/subgraph tree threaded into `Output` (safe: non-clustered corpus has `_subgraph_cnt=0` ⇒ unchanged). Foundational, milestone-sized — scoped here for a focused session (records/ports "plan-in-tracker" pattern), not started at session tail |
 | Spline routing — straight/clipped | ✅ | SplineSpec | All edges route via the real `routesplines` pipeline (no straight-leg special-case). `clip_and_install`+`bezier_clip` ported faithfully (ellipse `insidefn` semi-axes = (sizePt+penwidth)/2). **Arrow clip uses the TRUE `arrow_length_normal`** (≈11.53, not nominal 10 — `Arrow.lengthNormal`, 2026-05-17): the directed corpus spline is now **byte-exact** vs `plain` (07/01/04 Hausdorff ≤0.00004 in, was the documented sub-2px residual) |
 | Spline routing — box-fit (bowed curves) | ✅ | SplineSpec | **Closed 2026-05-17 by instrument-and-port (§2.5); residual fully eliminated by the arrow-length port.** Ported box channel (`completeregularpath`/`maximal_bbox`/`rank_box`/`adjustregularpath`/`checkpath`; MINW=16, FUDGE=4, Splinesep=nodesep/4), channel polygon, `Pshortestpath` (taut funnel over box portals), `Proutespline` (recursive least-squares cubic fit + `solve3`). Verified vs instrumented gv 13.0.1: box channel, shortest path AND raw spline reproduce the probe **byte-for-byte** for 01 `a→c`. 01 `a→c` 0.25 → 0.024 → **0.00002 in** (the true `arrow_length` closed the last endpoint residual). Earlier Catmull-Rom cheap-approx (measured 0.25/0.54 in) stays a recorded dead end |
 | Self-loops, parallel/multi-edges | ✅ | SplineSpec + OutputSpec + SvgSpec | **Parallel/multi-edge de-merge** (2026-05-17): `Spline` re-keyed `(tail,head)`→**g.edges index**; every consumer correlates by index. **Self-loops** (2026-05-17): added the `08-selfloop` corpus probe (01–07 goldens byte-identical on re-capture); ported `makeSelfEdge`→`selfRight` (no-port: 7-pt 2-cubic bowing right by `rw+(i+1)·nodesep`, `sizey` per the dotsplines.c rank-position rule) + the `make_LR_constraints` `selfRightSpace` (+`SELF_EDGE_SIZE`=18 to `ND_rw`, seen by `dot_compute_bb`/`Output.bbox`). Self-edges don't rank (excluded from acyclic/order); routed separately. **08 byte-exact** vs golden: spline (a→a + a→b), json0/dot_json `bb` (incl. the +18), svg. Additive: portless/non-self graphs byte-identical (01–07 green). Ports-on-self-edges (`selfTop/Left/Bottom`) = documented no-corpus deferral |
@@ -907,4 +907,32 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   honest progress wall for LR this session** (the label-vnode-X-under-
   flip sub-port is the next discrete step). Remaining M6: LR
   label-vnode-X-under-flip, 03 clusters.
+- **2026-05-17** — **03 clusters: recon reframes it (major de-risk),
+  scoped — honest session-end wall.** Before starting the "hardest part
+  of M6", did the records/ports-style recon-first. **Key finding: the
+  pinned viz-js 3.14.0 oracle does NOT lay out clusters** — 03's
+  `plain`/`dot`/`json0` carry `pos="0,0"`, `bb="0,0,0,0"` throughout.
+  So 03 is **not** a recursive cluster-layout port; per §1 (match
+  viz-js *strings*) it is a **structural model+emit** task with zero
+  geometry. Derived the exact target from the dot_json golden:
+  `_subgraph_cnt=3`; `objects` lists the 3 subgraph objects first
+  (`cluster_0` nodes=[a1,a2] edges=[a1→a2]; `cluster_1` nodes=[b1];
+  anon `{rank=same}`→`%7` nodes=[a0,b0]) then the 6 nodes; node `_gvid`
+  offset by `_subgraph_cnt`; cluster objects carry `label`. Measured
+  our gap: `_subgraph_cnt=0`, no subgraph objects, node `_gvid`
+  unoffset — because `AttrResolver`/`RGraph` is **flat** (no subgraph
+  tree, the long-standing M1 simplification). Closing 03 = an additive
+  cluster/subgraph-tree in the resolved model + `Output` emission
+  (safe: non-clustered corpus stays `_subgraph_cnt=0` ⇒ byte-identical)
+  — foundational and milestone-sized. Per the project methodology
+  (precedent: records/LR §7), recorded the precise scope + exact oracle
+  structure + the model-level blocker in §5.2 for a focused next
+  session rather than starting a foundational refactor at the tail of a
+  long, 12-commit session. **This is the genuine progress wall**: both
+  remaining items (LR label-vnode-X-under-flip; 03 subgraph-tree model)
+  are deeper multi-part sub-ports, not safe focused session-tail
+  commits. Suite green (114/114); graphvizJS + viewer compile;
+  reference worktree pristine. Recon itself committed (the reframe —
+  "geometry-free structural task", not "hardest recursive layout" — is
+  the de-risking dividend).
 - _(append dated entries as milestones land)_
