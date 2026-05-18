@@ -21,16 +21,22 @@ import org.jpablo.graphexplorer.graphviz.layout.Spline
   * `XCoordSpec`): 06's X comes out mirrored, which is not a routing defect.
   *
   * Bounds (PORT.md §1 "visually close" = ~2–4 px = 0.03–0.06 in):
-  *  - `Eps`   = 0.04 in (≈2.9 px): general bound, derived from the spec, not
-  *    back-solved (measured worst in scope is 01 `a→c` ≈ 0.024 in).
-  *  - `Eps07` = 0.03 in: tighter no-virtual-node regression guard — 07 has no
-  *    virtual nodes, its raw spline is byte-exact to Graphviz, only the
-  *    sub-2px endpoint clip differs. Scope: label-free TB (01/06/07).
+  *  - `Eps`   = 0.04 in: general bound, kept for the 06 whole-drawing gate
+  *    (06 is undirected ⇒ no arrow clip; its ≈0.013 in residual is the
+  *    documented layout-equivalent X-mirror, cf. XCoordSpec).
+  *  - `Eps07` = 0.005 in: 07 has no virtual nodes; once the **true**
+  *    `arrow_length_normal` (≈11.53, not nominal 10) is clipped, its
+  *    spline is byte-exact to Graphviz (measured 0.00000) — tightened
+  *    6× from 0.03 to lock that.
+  *  - `EpsExact` = 0.005 in: the directed corpus (01/07/04) spline is now
+  *    byte-exact end-to-end (the M5/M7 arrow-length residual is closed);
+  *    measured worst 0.00004 in — this bound is pure float margin.
   */
 class SplineSpec extends FunSuite:
 
-  private val Eps   = 0.04
-  private val Eps07 = 0.03
+  private val Eps      = 0.04
+  private val Eps07    = 0.005
+  private val EpsExact = 0.005
 
   private val EdgeLine = """(?m)^edge (\S+) (\S+) (\d+) (.+)$""".r
   private val NodeLine = """(?m)^node (\S+) (\S+) (\S+) .*$""".r
@@ -155,10 +161,25 @@ class SplineSpec extends FunSuite:
     gold.foreach { ge =>
       val best = ours.minBy(oe => d(oe.head, ge.head))
       val dev  = hausdorff(best, ge)
-      assert(dev <= Eps, s"04 edge (start ${ge.head}) dev=$dev (eps=$Eps)")
+      assert(dev <= EpsExact, s"04 edge (start ${ge.head}) dev=$dev (eps=$EpsExact)")
     }
     // each our edge must be the closest match for exactly one golden edge
     val assigned = gold.map(ge => ours.minBy(oe => d(oe.head, ge.head)))
     assert(assigned.toSet.size == 2, s"04 edges collapsed (parallel-edge de-merge failed): $assigned")
+
+  // Arrow-length close (arrow_length_normal ≈11.53, not nominal 10): the
+  // directed corpus's edge splines are now **byte-exact** to the `plain`
+  // golden end-to-end (incl. 01 `a→c`, the M5 curved showcase, 0.024→
+  // 0.00002 in). TB & unmirrored ⇒ identity (no mirror allowance). This
+  // is the principled close of the long-deferred M5/M7 endpoint residual.
+  List("01-minimal", "07-cross").foreach { name =>
+    test(s"$name: directed splines byte-exact (true arrow length)"):
+      val gold = goldenEdges(name)
+      val ours = ourEdges(name)
+      gold.foreach { case (k, gg) =>
+        val dev = hausdorff(ours.getOrElse(k, fail(s"$name missing $k")), gg)
+        assert(dev <= EpsExact, s"$name $k dev=$dev (eps=$EpsExact)")
+      }
+  }
 
 end SplineSpec

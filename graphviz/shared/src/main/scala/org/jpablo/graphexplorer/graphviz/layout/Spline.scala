@@ -34,7 +34,6 @@ object Spline:
   private val MINW        = 16.0           // dotsplines.c min box width
   private val HALFMINW    = 8.0
   private val FUDGE        = 4.0           // maximal_bbox FUDGE
-  private val ArrowLen    = 10.0           // arrows.c ARROW_LENGTH
   private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode (== XCoord)
 
   final case class Pt(x: Double, y: Double)
@@ -813,12 +812,18 @@ object Spline:
     while start < pn - 4 && approxEq(ps(start), ps(start + 3)) do start += 3
     while end > 0 && approxEq(ps(end), ps(end + 3)) do end -= 3
 
-    // arrow_clip: directed graphs draw a normal head arrow (ARROW_LENGTH=10).
-    // `epAttach` = Graphviz's spl->ep: the node-boundary point the arrowhead
-    // points at, captured before the arrow gap shortens the curve.
+    // arrow_clip (arrows.c arrowEndClip): trim the curve by the *true*
+    // normal-arrowhead length = `arrow_length_normal` (≈11.53 at the
+    // defaults, NOT the nominal ARROW_LENGTH 10 — the miter makes a
+    // stroked triangle longer than its geometric vertex). Closes the
+    // long-deferred M5/M7 sub-2px residual. `epAttach` = Graphviz's
+    // spl->ep, captured before the gap shortens the curve (unchanged).
     var epAttach: Option[Pt] = None
     if g.directed then
-      val elen2 = ArrowLen * ArrowLen
+      val pw    = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+      val asz   = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
+      val elen  = Arrow.lengthNormal(pw, asz)
+      val elen2 = elen * elen
       val ep    = ps(end + 3)
       epAttach = Some(ep)
       if end > start && dist2(ps(end), ps(end + 3)) < elen2 then end -= 3
