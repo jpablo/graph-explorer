@@ -22,6 +22,40 @@ use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
+/// The app icon, embedded in the binary (this build is unbundled, so there is
+/// no .app/.icns for macOS to read).
+const APP_ICON_PNG: &[u8] = include_bytes!("../icons/icon.png");
+
+/// Set the macOS Dock icon at runtime via AppKit. An unbundled binary has no
+/// .app bundle, so macOS would otherwise show the generic executable icon;
+/// `WebviewWindow::set_icon` does not affect the Dock on macOS. AppKit and
+/// Foundation are already linked by tauri/tao.
+#[cfg(target_os = "macos")]
+// objc 0.2's msg_send!/sel! macros expand to a legacy `cfg(cargo-clippy)`
+// that modern rustc flags via the unexpected_cfgs lint; it's dependency
+// macro noise, not a real cfg of ours.
+#[allow(unexpected_cfgs)]
+fn set_macos_dock_icon(png: &[u8]) {
+    use objc::runtime::Object;
+    use objc::{class, msg_send, sel, sel_impl};
+    type Id = *mut Object;
+    unsafe {
+        let data: Id = msg_send![class!(NSData),
+            dataWithBytes: png.as_ptr() as *const std::ffi::c_void
+            length: png.len()];
+        if data.is_null() {
+            return;
+        }
+        let image: Id = msg_send![class!(NSImage), alloc];
+        let image: Id = msg_send![image, initWithData: data];
+        if image.is_null() {
+            return;
+        }
+        let app: Id = msg_send![class!(NSApplication), sharedApplication];
+        let _: () = msg_send![app, setApplicationIconImage: image];
+    }
+}
+
 #[tauri::command]
 fn health() -> &'static str {
     "ok"
@@ -124,6 +158,18 @@ fn main() {
                     app.handle().clone(),
                 )
                 .map_err(|err| -> Box<dyn std::error::Error> { err.into() })?;
+
+                // Apply the real app icon. Window icon is cross-platform
+                // (Windows taskbar / Linux); the macOS Dock needs the AppKit
+                // call since this binary is unbundled.
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Ok(icon) = tauri::image::Image::from_bytes(APP_ICON_PNG) {
+                        let _ = window.set_icon(icon);
+                    }
+                }
+                #[cfg(target_os = "macos")]
+                set_macos_dock_icon(APP_ICON_PNG);
+
                 Ok(())
             }
         })
