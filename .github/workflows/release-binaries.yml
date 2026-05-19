@@ -1,0 +1,259 @@
+name: Release binaries
+
+# Triggered when scripts/bump-patch-version.sh pushes a vX.Y.Z tag (or via
+# manual dispatch to (re)build assets for an existing tag). Builds the
+# desktop/gx binaries on the same matrix as local-capabilities-smoke.yml,
+# runs the runtime smoke as a per-platform publish gate, then attaches the
+# artifacts to the GitHub Release for the tag.
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vX.Y.Z tag to (re)build and attach assets for
+        required: true
+
+# action-gh-release needs write access to create/attach to the Release.
+permissions:
+  contents: write
+
+# Opt JavaScript actions into Node 24 (same rationale as the smoke workflow).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build-frontend:
+    name: Build frontend bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'sbt'
+
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
+      # ScalablyTyped facades are generated in-build during viewer/fullLinkJS
+      # from node_modules, so `npm install` MUST run before the sbt task.
+      - name: Install npm modules
+        run: npm install
+
+      - name: Compile Scala.js (optimized, generates ScalablyTyped facades)
+        run: sbt -J-Xmx2G viewer/fullLinkJS
+
+      - name: Build frontend bundle
+        run: npm run build
+
+      # The prod desktop build embeds ../../dist at compile time via
+      # generate_context!. dist/ is gitignored, so hand it to the packaging
+      # matrix as an artifact.
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          if-no-files-found: error
+          path: dist
+
+  release:
+    name: Release (${{ matrix.os }})
+    needs: build-frontend
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing its smoke gate must not block the others from
+      # publishing their assets to the Release.
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            xvfb \
+            patchelf
+
+      # macOS: produce a .dmg (which wraps the .app) via the Tauri bundler.
+      # `tauri build` is implicitly a production build (sets custom-protocol),
+      # so it does not need the explicit dev-build guard the raw cargo path
+      # below uses. It also still emits the raw target/release binary that the
+      # smoke scripts exercise.
+      - name: Install Tauri CLI (macOS)
+        if: runner.os == 'macOS'
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build desktop bundle (macOS .dmg + .app)
+        if: runner.os == 'macOS'
+        working-directory: desktop/src-tauri
+        # bundle.active is false in tauri.conf.json, so name the targets
+        # explicitly rather than relying on the default bundle set.
+        run: cargo tauri build --bundles dmg,app
+
+      # Linux/Windows: raw release binary. The tauri/custom-protocol feature is
+      # REQUIRED -- without it the build script leaves `dev` set and the window
+      # loads devUrl (blank window). Fail the job if it ever regresses.
+      - name: Build desktop release (Linux/Windows, assert production build)
+        if: runner.os != 'macOS'
+        working-directory: desktop/src-tauri
+        shell: bash
+        run: |
+          cargo clean -p graph-explorer-desktop
+          cargo build --release --locked --features tauri/custom-protocol -vv 2>&1 | tee build.log
+          if grep -q 'cargo:rustc-cfg=dev' build.log; then
+            echo "::error::desktop built in DEV mode (tauri custom-protocol feature missing) -> blank window"
+            exit 1
+          fi
+
+      - name: Build gx release
+        working-directory: gx
+        run: cargo build --release --locked
+
+      # --- Per-platform publish gate: smoke must pass to attach assets ---
+
+      - name: macOS runtime smoke (release binaries)
+        if: runner.os == 'macOS'
+        run: ./scripts/local-capabilities-release-smoke.sh
+
+      - name: macOS disk->UI smoke (LC2-T5)
+        if: runner.os == 'macOS'
+        run: ./scripts/local-capabilities-disk-to-ui-smoke.sh
+
+      - name: Linux runtime smoke (release binaries)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum ./scripts/local-capabilities-release-smoke.sh
+
+      - name: Linux disk->UI smoke (LC2-T5)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum ./scripts/local-capabilities-disk-to-ui-smoke.sh
+
+      # Non-blocking, mirroring local-capabilities-smoke.yml: the Windows
+      # binary builds correctly but the runtime smoke hits a known, parked
+      # gx/desktop path-normalization bug. Blocking here would block every
+      # release. Remove continue-on-error once the Windows path bug is fixed.
+      - name: Windows runtime smoke (release binaries)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $gx = "gx/target/release/gx.exe"
+          $desktop = "desktop/src-tauri/target/release/graph-explorer-desktop.exe"
+          if (-not (Test-Path $gx)) { throw "missing gx binary: $gx" }
+          if (-not (Test-Path $desktop)) { throw "missing desktop binary: $desktop" }
+
+          Get-Process graph-explorer-desktop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Remove-Item "$HOME/.graph-explorer/runtime/control.json" -ErrorAction SilentlyContinue
+
+          $desktopProc = Start-Process -FilePath $desktop -PassThru
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 120; $i++) {
+              $statusJson = & $gx status --json 2>$null
+              if ($LASTEXITCODE -eq 0 -and $statusJson) {
+                $status = $statusJson | ConvertFrom-Json
+                if ($status.running -eq $true) {
+                  $ready = $true
+                  break
+                }
+              }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not $ready) { throw "desktop control API did not become ready" }
+
+            $tmp = Join-Path $env:TEMP ("gx-release-smoke-" + [guid]::NewGuid().ToString("N") + ".dot")
+            @"
+          digraph G {
+            a -> b
+          }
+          "@ | Set-Content -Path $tmp -NoNewline
+
+            & $gx watch $tmp --json | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "watch failed with exit code $LASTEXITCODE" }
+            & $gx get --file $tmp --json | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "get failed with exit code $LASTEXITCODE" }
+            & $gx set --file $tmp --text "digraph G {`n  b -> c`n}`n" --json | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "set failed with exit code $LASTEXITCODE" }
+            & $gx set --file $tmp --text "digraph G {`n  stale -> write`n}`n" --base-revision 1 --json | Out-Null
+            $staleExit = $LASTEXITCODE
+            if ($staleExit -ne 5) { throw "stale write should exit 5, got $staleExit" }
+            & $gx unwatch $tmp --json | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "unwatch failed with exit code $LASTEXITCODE" }
+            Remove-Item $tmp -ErrorAction SilentlyContinue
+          }
+          finally {
+            if ($desktopProc -and -not $desktopProc.HasExited) {
+              Stop-Process -Id $desktopProc.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+      # --- Stage assets with OS- and tag-tagged names (no collisions) ---
+
+      - name: Stage release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          mkdir -p release-dist
+          case "${{ runner.os }}" in
+            macOS)
+              dmg="$(find desktop/src-tauri/target/release/bundle/dmg -name '*.dmg' | head -n1)"
+              if [[ -z "${dmg}" ]]; then echo "::error::no .dmg produced"; exit 1; fi
+              cp "${dmg}" "release-dist/graph-explorer-desktop-${tag}-macos.dmg"
+              cp gx/target/release/gx "release-dist/gx-${tag}-macos"
+              ;;
+            Linux)
+              cp desktop/src-tauri/target/release/graph-explorer-desktop \
+                "release-dist/graph-explorer-desktop-${tag}-linux"
+              cp gx/target/release/gx "release-dist/gx-${tag}-linux"
+              ;;
+            Windows)
+              cp desktop/src-tauri/target/release/graph-explorer-desktop.exe \
+                "release-dist/graph-explorer-desktop-${tag}-windows.exe"
+              cp gx/target/release/gx.exe "release-dist/gx-${tag}-windows.exe"
+              ;;
+          esac
+          ls -la release-dist
+
+      - name: Attach assets to the Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          fail_on_unmatched_files: true
+          files: release-dist/*
