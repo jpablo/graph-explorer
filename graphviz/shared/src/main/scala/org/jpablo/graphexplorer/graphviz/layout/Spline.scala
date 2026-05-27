@@ -36,20 +36,20 @@ object Spline:
   private val FUDGE        = 4.0           // maximal_bbox FUDGE
   private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode (== XCoord)
 
-  final case class Pt(x: Double, y: Double)
+  final case class XY(x: Double, y: Double)
 
   /** Installed edge spline: piecewise-cubic control points plus the arrow
     * attach points Graphviz records on the `bezier` struct — `ep` (head, set
     * iff a head arrow is drawn) / `sp` (tail). These drive json0's
     * `e,EX,EY`/`s,SX,SY` `pos` prefixes. */
-  final case class ESpline(pts: Vector[Pt], ep: Option[Pt], sp: Option[Pt])
+  final case class ESpline(pts: Vector[XY], ep: Option[XY], sp: Option[XY])
   private final case class Box(var llx: Double, var lly: Double, var urx: Double, var ury: Double)
 
   /** Declared-edge index (position in `g.edges`) → piecewise-cubic control
     * points. Keyed by edge **identity**, not `(tail,head)`, so parallel /
     * port-distinguished multi-edges (04's two `struct1→struct2`) do not
     * collapse — every consumer correlates by the `g.edges` index. */
-  def splines(g: RGraph): Map[Int, Vector[Pt]] =
+  def splines(g: RGraph): Map[Int, Vector[XY]] =
     splinesEx(g).view.mapValues(_.pts).toMap
 
   /** Declared-edge index (position in `g.edges`) → installed spline + arrow
@@ -143,12 +143,12 @@ object Spline:
 
     def halfH(id: String): Double =
       byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.heightIn * 36.0).getOrElse(0.0)
-    val centerOf: String => Pt = id => Pt(cx(id), cy(id))
+    val centerOf: String => XY = id => XY(cx(id), cy(id))
 
     // ── beginpath/endpath port branch (record field ports, TB) ────────────
     // Returns the per-end channel box, aim point and constrained tangent for
     // a record-port endpoint, or None to fall back to the node-centred path.
-    final case class End(box: Box, p: Pt, theta: Double, constrained: Boolean, clip: Boolean)
+    final case class End(box: Box, p: XY, theta: Double, constrained: Boolean, clip: Boolean)
 
     def recRoot(id: String): Option[RecordLabel.Field] =
       byId.get(id).flatMap(n => NodeSize.recordLayout(n, g))
@@ -163,17 +163,17 @@ object Spline:
         import org.jpablo.graphexplorer.graphviz.dotlang.Compass.*
         import RecordLabel.{Bottom, Right, Top, Left}
         // compassPort(box, compass, fld.sides) → (pLocal, side, theta, clip)
-        def cp(c: org.jpablo.graphexplorer.graphviz.dotlang.Compass): (Pt, Int, Double, Boolean) =
+        def cp(c: org.jpablo.graphexplorer.graphviz.dotlang.Compass): (XY, Int, Double, Boolean) =
           c match
-            case N  => (Pt(bcx, ury), fld.sides & Top,            math.Pi / 2,      false)
-            case S  => (Pt(bcx, lly), fld.sides & Bottom,        -math.Pi / 2,      false)
-            case E  => (Pt(urx, bcy), fld.sides & Right,          0.0,              false)
-            case W  => (Pt(llx, bcy), fld.sides & Left,           math.Pi,          false)
-            case NE => (Pt(urx, ury), fld.sides & (Top | Right),  math.Pi / 4,      false)
-            case NW => (Pt(llx, ury), fld.sides & (Top | Left),   3 * math.Pi / 4,  false)
-            case SE => (Pt(urx, lly), fld.sides & (Bottom|Right), -math.Pi / 4,     false)
-            case SW => (Pt(llx, lly), fld.sides & (Bottom|Left),  -3 * math.Pi / 4, false)
-            case C | Underscore => (Pt(bcx, bcy), 0, 0.0, true)
+            case N  => (XY(bcx, ury), fld.sides & Top,            math.Pi / 2,      false)
+            case S  => (XY(bcx, lly), fld.sides & Bottom,        -math.Pi / 2,      false)
+            case E  => (XY(urx, bcy), fld.sides & Right,          0.0,              false)
+            case W  => (XY(llx, bcy), fld.sides & Left,           math.Pi,          false)
+            case NE => (XY(urx, ury), fld.sides & (Top | Right),  math.Pi / 4,      false)
+            case NW => (XY(llx, ury), fld.sides & (Top | Left),   3 * math.Pi / 4,  false)
+            case SE => (XY(urx, lly), fld.sides & (Bottom|Right), -math.Pi / 4,     false)
+            case SW => (XY(llx, lly), fld.sides & (Bottom|Left),  -3 * math.Pi / 4, false)
+            case C | Underscore => (XY(bcx, bcy), 0, 0.0, true)
         val (pl, side, theta, clip, constrained) =
           port.compass match
             case Some(c) if c != Underscore && c != C =>
@@ -181,13 +181,13 @@ object Spline:
             case _ =>
               // `_` / no compass ⇒ dyna ⇒ resolvePort(closestSide)
               if fld.sides == 0 || fld.sides == (Bottom | Right | Top | Left) then
-                (Pt(bcx, bcy), 0, 0.0, true, false)
+                (XY(bcx, bcy), 0, 0.0, true, false)
               else
                 // side midpoints (node-local), pick the one closest to `other`
                 val oc = centerOf(other)
                 val cand = Seq(
-                  (Bottom, Pt(bcx, lly), S), (Right, Pt(urx, bcy), E),
-                  (Top,    Pt(bcx, ury), N), (Left,  Pt(llx, bcy), W)
+                  (Bottom, XY(bcx, lly), S), (Right, XY(urx, bcy), E),
+                  (Top,    XY(bcx, ury), N), (Left,  XY(llx, bcy), W)
                 ).filter((bit, _, _) => (fld.sides & bit) != 0)
                 val (_, _, bestC) = cand.minBy { (_, mp, _) =>
                   val ax = nc.x + mp.x - oc.x; val ay = nc.y + mp.y - oc.y
@@ -195,13 +195,13 @@ object Spline:
                 }
                 val (p, s, th, cl) = cp(bestC); (p, s, th, cl, true)
         // beginpath/endpath: box + the ±1 router nudge (REGULAREDGE, NORMAL)
-        val aim = Pt(nc.x + pl.x, nc.y + pl.y)
+        val aim = XY(nc.x + pl.x, nc.y + pl.y)
         val hh  = halfH(id)
         if side != 0 then
           if isTail && (side & Bottom) != 0 then
-            Some(End(maximalBbox(id, Set(id)), Pt(aim.x, aim.y - 1.0), theta, constrained, clip))
+            Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y - 1.0), theta, constrained, clip))
           else if !isTail && (side & Top) != 0 then
-            Some(End(maximalBbox(id, Set(id)), Pt(aim.x, aim.y + 1.0), theta, constrained, clip))
+            Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y + 1.0), theta, constrained, clip))
           else None // tail TOP/L/R or head BOTTOM/L/R: out of 04 scope
         else
           // pboxfn = record_path: the top-level field whose x-range holds p.x,
@@ -246,23 +246,23 @@ object Spline:
             val tBox  = tEnd.map(_.box).getOrElse(maximalBbox(tn0, ownPath))
             val hBox  = hEnd.map(_.box).getOrElse(maximalBbox(hn0, ownPath))
             val boxes = mutable.ArrayBuffer(tBox, rankBox(rankOf(tn0), rankOf(hn0)), hBox)
-            val start = tEnd.map(_.p).getOrElse(Pt(cx(tn0), cy(tn0) - 1.0))
-            val end   = hEnd.map(_.p).getOrElse(Pt(cx(hn0), cy(hn0) + 1.0))
+            val start = tEnd.map(_.p).getOrElse(XY(cx(tn0), cy(tn0) - 1.0))
+            val end   = hEnd.map(_.p).getOrElse(XY(cx(hn0), cy(hn0) + 1.0))
             val ev0   =
               if tEnd.exists(_.constrained) then
-                val th = tEnd.get.theta; Pt(math.cos(th), math.sin(th))
-              else Pt(0, 0)
+                val th = tEnd.get.theta; XY(math.cos(th), math.sin(th))
+              else XY(0, 0)
             val ev1 =
               if hEnd.exists(_.constrained) then
-                val th = hEnd.get.theta; Pt(-math.cos(th), -math.sin(th))
-              else Pt(0, 0)
+                val th = hEnd.get.theta; XY(-math.cos(th), -math.sin(th))
+              else XY(0, 0)
             adjustRegularPath(boxes)
             val st = Array(start.x, start.y); val en = Array(end.x, end.y)
             val ctrl0 =
-              if checkpath(boxes, st, en) then Vector(Pt(st(0), st(1)), Pt(en(0), en(1)))
+              if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
               else
                 val poly = buildPolygon(boxes)
-                val sp   = funnel(boxes, Pt(st(0), st(1)), Pt(en(0), en(1)))
+                val sp   = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
                 proutespline(poly, sp, ev0, ev1)
             out(origIdx) = clipInstall(
               g, ctrl0, e, byId, centerOf,
@@ -286,8 +286,8 @@ object Spline:
             val hBb = maximalBbox(hn0, ownPath)
             boxes += Box(hBb.llx, cy(hn0), hBb.urx, cy(hn0) + ht2(hi)) // head half
 
-            val start = Pt(cx(tn0), cy(tn0) - 1.0)
-            val end   = Pt(cx(hn0), cy(hn0) + 1.0)
+            val start = XY(cx(tn0), cy(tn0) - 1.0)
+            val end   = XY(cx(hn0), cy(hn0) + 1.0)
 
             adjustRegularPath(boxes)
             val st  = Array(start.x, start.y)
@@ -296,7 +296,7 @@ object Spline:
               out(origIdx) = clipInstall(g, Vector(start, end), e, byId, centerOf)
             else
               val poly  = buildPolygon(boxes)
-              val sp    = funnel(boxes, Pt(st(0), st(1)), Pt(en(0), en(1)))
+              val sp    = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
               val raw   = proutespline(poly, sp)
               val ctrl  = if rt < rh then raw else raw.reverse
               out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
@@ -324,7 +324,7 @@ object Spline:
         val cnt   = group.length
         val stepx = NodeSep                                  // sd.Multisep
         val stepy = math.max(sizeyCs / 2.0 / 2.0 / cnt, 2.0) // selfRight
-        val np    = Pt(cx(nid), cy(nid))
+        val np    = XY(cx(nid), cy(nid))
         val rw    = lw(nid)
         group.zipWithIndex.foreach { case ((e, origIdx), i) =>
           val k  = i + 1
@@ -334,11 +334,11 @@ object Spline:
           val dy = k * stepy // sgn = +1 (tp.y == hp.y, no-port ⇒ no flip)
           val pts = Vector(
             np,
-            Pt(np.x + tx / 3.0, np.y + dy),
-            Pt(np.x + dx, np.y + dy),
-            Pt(np.x + dx, np.y),
-            Pt(np.x + dx, np.y - dy),
-            Pt(np.x + hx / 3.0, np.y - dy),
+            XY(np.x + tx / 3.0, np.y + dy),
+            XY(np.x + dx, np.y + dy),
+            XY(np.x + dx, np.y),
+            XY(np.x + dx, np.y - dy),
+            XY(np.x + hx / 3.0, np.y - dy),
             np
           )
           out(origIdx) = clipInstall(g, pts, e, byId, centerOf)
@@ -414,9 +414,9 @@ object Spline:
     else i1 - j0
 
   /** Channel outline polygon — `routesplines_` box→polygon walk (down-only). */
-  private def buildPolygon(boxes: mutable.ArrayBuffer[Box]): Array[Pt] =
+  private def buildPolygon(boxes: mutable.ArrayBuffer[Box]): Array[XY] =
     val n   = boxes.length
-    val pts = mutable.ArrayBuffer.empty[Pt]
+    val pts = mutable.ArrayBuffer.empty[XY]
     def prevNext(bi: Int): (Int, Int) =
       val prev = if bi > 0 then (if boxes(bi).lly > boxes(bi - 1).lly then -1 else 1) else 0
       val next = if bi + 1 < n then (if boxes(bi + 1).lly > boxes(bi).lly then 1 else -1) else 0
@@ -426,11 +426,11 @@ object Spline:
       val (prev, next) = prevNext(bi)
       if prev != next then
         if next == -1 || prev == 1 then
-          pts += Pt(boxes(bi).llx, boxes(bi).ury); pts += Pt(boxes(bi).llx, boxes(bi).lly)
+          pts += XY(boxes(bi).llx, boxes(bi).ury); pts += XY(boxes(bi).llx, boxes(bi).lly)
         else
-          pts += Pt(boxes(bi).urx, boxes(bi).lly); pts += Pt(boxes(bi).urx, boxes(bi).ury)
+          pts += XY(boxes(bi).urx, boxes(bi).lly); pts += XY(boxes(bi).urx, boxes(bi).ury)
       else if prev == 0 then
-        pts += Pt(boxes(bi).llx, boxes(bi).ury); pts += Pt(boxes(bi).llx, boxes(bi).lly)
+        pts += XY(boxes(bi).llx, boxes(bi).ury); pts += XY(boxes(bi).llx, boxes(bi).lly)
       bi += 1
     bi = n - 1
     while bi >= 0 do
@@ -438,14 +438,14 @@ object Spline:
       val next = if bi > 0 then (if boxes(bi - 1).lly > boxes(bi).lly then 1 else -1) else 0
       if prev != next then
         if next == -1 || prev == 1 then
-          pts += Pt(boxes(bi).llx, boxes(bi).ury); pts += Pt(boxes(bi).llx, boxes(bi).lly)
+          pts += XY(boxes(bi).llx, boxes(bi).ury); pts += XY(boxes(bi).llx, boxes(bi).lly)
         else
-          pts += Pt(boxes(bi).urx, boxes(bi).lly); pts += Pt(boxes(bi).urx, boxes(bi).ury)
+          pts += XY(boxes(bi).urx, boxes(bi).lly); pts += XY(boxes(bi).urx, boxes(bi).ury)
       else if prev == 0 then
-        pts += Pt(boxes(bi).urx, boxes(bi).lly); pts += Pt(boxes(bi).urx, boxes(bi).ury)
+        pts += XY(boxes(bi).urx, boxes(bi).lly); pts += XY(boxes(bi).urx, boxes(bi).ury)
       else
-        pts += Pt(boxes(bi).urx, boxes(bi).lly); pts += Pt(boxes(bi).urx, boxes(bi).ury)
-        pts += Pt(boxes(bi).llx, boxes(bi).ury); pts += Pt(boxes(bi).llx, boxes(bi).lly)
+        pts += XY(boxes(bi).urx, boxes(bi).lly); pts += XY(boxes(bi).urx, boxes(bi).ury)
+        pts += XY(boxes(bi).llx, boxes(bi).ury); pts += XY(boxes(bi).llx, boxes(bi).lly)
       bi -= 1
     pts.toArray
 
@@ -453,8 +453,8 @@ object Spline:
     * y-monotone box channel). Canonical "simple stupid funnel" (Mononen).
     * Facing the descending path, east (+x) is the left chain, west the right.
     */
-  private def funnel(boxes: mutable.ArrayBuffer[Box], s: Pt, e: Pt): Vector[Pt] =
-    val gates = mutable.ArrayBuffer.empty[(Pt, Pt)]
+  private def funnel(boxes: mutable.ArrayBuffer[Box], s: XY, e: XY): Vector[XY] =
+    val gates = mutable.ArrayBuffer.empty[(XY, XY)]
     gates += ((s, s))
     var k = 0
     while k + 1 < boxes.length do
@@ -462,14 +462,14 @@ object Spline:
       val y  = a.lly
       val xl = math.max(a.llx, b.llx)
       val xr = math.min(a.urx, b.urx)
-      gates += ((Pt(xl, y), Pt(xr, y))) // left = smaller x, right = larger x
+      gates += ((XY(xl, y), XY(xr, y))) // left = smaller x, right = larger x
       k += 1
     gates += ((e, e))
     val portals = gates.toArray
-    def triArea2(a: Pt, b: Pt, c: Pt): Double =
+    def triArea2(a: XY, b: XY, c: XY): Double =
       (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)
-    def eq(a: Pt, b: Pt): Boolean = math.abs(a.x - b.x) < 1e-9 && math.abs(a.y - b.y) < 1e-9
-    val pts = mutable.ArrayBuffer[Pt](portals(0)._1)
+    def eq(a: XY, b: XY): Boolean = math.abs(a.x - b.x) < 1e-9 && math.abs(a.y - b.y) < 1e-9
+    val pts = mutable.ArrayBuffer[XY](portals(0)._1)
     var apex = portals(0)._1
     var pL = portals(0)._1
     var pR = portals(0)._2
@@ -503,29 +503,29 @@ object Spline:
     pts.toVector
 
   // ───────────────────────── Proutespline (route.c) ────────────────────────
-  private def proutespline(poly: Array[Pt], pl: Vector[Pt]): Vector[Pt] =
-    proutespline(poly, pl, Pt(0, 0), Pt(0, 0))
+  private def proutespline(poly: Array[XY], pl: Vector[XY]): Vector[XY] =
+    proutespline(poly, pl, XY(0, 0), XY(0, 0))
 
   /** `Proutespline` with constrained endpoint slopes (`evs`). routespl.c
     * passes `evs[0]=(cosθs,sinθs)`, `evs[1]=(-cosθe,-sinθe)` for constrained
     * ports; `Proutespline` then `normv`-normalises them. `(0,0)` ⇒ the
     * unconstrained least-squares fit (the portless path). */
-  private def proutespline(poly: Array[Pt], pl: Vector[Pt], ev0: Pt, ev1: Pt): Vector[Pt] =
+  private def proutespline(poly: Array[XY], pl: Vector[XY], ev0: XY, ev1: XY): Vector[XY] =
     val edges = Array.tabulate(poly.length)(i => (poly(i), poly((i + 1) % poly.length)))
     val inps  = pl.toArray
-    val ops   = mutable.ArrayBuffer.empty[Pt]
+    val ops   = mutable.ArrayBuffer.empty[XY]
     ops += inps(0)
     reallyRoute(edges, inps, 0, inps.length, normv(ev0), normv(ev1), ops)
     ops.toVector
 
-  private def vsub(a: Pt, b: Pt)  = Pt(a.x - b.x, a.y - b.y)
-  private def vadd(a: Pt, b: Pt)  = Pt(a.x + b.x, a.y + b.y)
-  private def vscale(a: Pt, c: Double) = Pt(a.x * c, a.y * c)
-  private def vdot(a: Pt, b: Pt)  = a.x * b.x + a.y * b.y
-  private def vdist(a: Pt, b: Pt) = math.hypot(b.x - a.x, b.y - a.y)
-  private def normv(v: Pt): Pt =
+  private def vsub(a: XY, b: XY)  = XY(a.x - b.x, a.y - b.y)
+  private def vadd(a: XY, b: XY)  = XY(a.x + b.x, a.y + b.y)
+  private def vscale(a: XY, c: Double) = XY(a.x * c, a.y * c)
+  private def vdot(a: XY, b: XY)  = a.x * b.x + a.y * b.y
+  private def vdist(a: XY, b: XY) = math.hypot(b.x - a.x, b.y - a.y)
+  private def normv(v: XY): XY =
     val d = v.x * v.x + v.y * v.y
-    if d > 1e-6 then { val s = math.sqrt(d); Pt(v.x / s, v.y / s) } else v
+    if d > 1e-6 then { val s = math.sqrt(d); XY(v.x / s, v.y / s) } else v
   private def b0(t: Double) = { val u = 1 - t; u * u * u }
   private def b1(t: Double) = { val u = 1 - t; 3 * t * u * u }
   private def b2(t: Double) = { val u = 1 - t; 3 * t * t * u }
@@ -534,8 +534,8 @@ object Spline:
   private def b23(t: Double) = { val u = 1 - t; t * t * (3 * u + t) }
 
   private def reallyRoute(
-      edges: Array[(Pt, Pt)], inps: Array[Pt], off: Int, inpn: Int,
-      ev0: Pt, ev1: Pt, ops: mutable.ArrayBuffer[Pt]
+      edges: Array[(XY, XY)], inps: Array[XY], off: Int, inpn: Int,
+      ev0: XY, ev1: XY, ops: mutable.ArrayBuffer[XY]
   ): Unit =
     val t = new Array[Double](inpn)
     t(0) = 0.0
@@ -558,7 +558,7 @@ object Spline:
         val tt = t(i)
         val px = b0(tt) * p1.x + b1(tt) * cp1.x + b2(tt) * cp2.x + b3(tt) * p2.x
         val py = b0(tt) * p1.y + b1(tt) * cp1.y + b2(tt) * cp2.y + b3(tt) * p2.y
-        val d = vdist(Pt(px, py), inps(off + i))
+        val d = vdist(XY(px, py), inps(off + i))
         if d > maxd then { maxd = d; maxi = i }
         i += 1
       val sp = maxi
@@ -569,9 +569,9 @@ object Spline:
       reallyRoute(edges, inps, off + sp, inpn - sp, sv, ev1, ops)
 
   private def mkspline(
-      inps: Array[Pt], off: Int, inpn: Int, t: Array[Double],
-      a0: Array[Pt], a1: Array[Pt], ev0: Pt, ev1: Pt
-  ): (Pt, Pt, Pt, Pt) =
+      inps: Array[XY], off: Int, inpn: Int, t: Array[Double],
+      a0: Array[XY], a1: Array[XY], ev0: XY, ev1: XY
+  ): (XY, XY, XY, XY) =
     var c00 = 0.0; var c01 = 0.0; var c11 = 0.0; var x0 = 0.0; var x1 = 0.0
     var i = 0
     while i < inpn do
@@ -592,14 +592,14 @@ object Spline:
       s0 = d01; s3 = d01
     (inps(off), vscale(ev0, s0), inps(off + inpn - 1), vscale(ev1, s3))
 
-  private def distN(p: Array[Pt]): Double =
+  private def distN(p: Array[XY]): Double =
     var rv = 0.0; var i = 1
     while i < p.length do { rv += math.hypot(p(i).x - p(i - 1).x, p(i).y - p(i - 1).y); i += 1 }
     rv
 
   private def splinefits(
-      edges: Array[(Pt, Pt)], pa: Pt, va: Pt, pb: Pt, vb: Pt,
-      inps: Array[Pt], off: Int, inpn: Int, ops: mutable.ArrayBuffer[Pt]
+      edges: Array[(XY, XY)], pa: XY, va: XY, pb: XY, vb: XY,
+      inps: Array[XY], off: Int, inpn: Int, ops: mutable.ArrayBuffer[XY]
   ): Int =
     val forceflag = inpn == 2
     var a = 4.0
@@ -609,8 +609,8 @@ object Spline:
     while result == -2 do
       val sps = Array(
         pa,
-        Pt(pa.x + a * va.x / 3.0, pa.y + a * va.y / 3.0),
-        Pt(pb.x - a * vb.x / 3.0, pb.y - a * vb.y / 3.0),
+        XY(pa.x + a * va.x / 3.0, pa.y + a * va.y / 3.0),
+        XY(pb.x - a * vb.x / 3.0, pb.y - a * vb.y / 3.0),
         pb
       )
       if first && distN(sps) < distN(inpsSeg) - 1e-3 then result = 0
@@ -626,7 +626,7 @@ object Spline:
           if a > 0.01 then a = a / 2.0 else a = 0.0
     result
 
-  private def splineIsInside(edges: Array[(Pt, Pt)], sps: Array[Pt]): Boolean =
+  private def splineIsInside(edges: Array[(XY, XY)], sps: Array[XY]): Boolean =
     var ei = 0
     while ei < edges.length do
       val (la, lb) = edges(ei)
@@ -656,7 +656,7 @@ object Spline:
   private def addRoot(root: Double, roots: Array[Double], rootn: Int): Int =
     if root >= 0 && root <= 1 then { roots(rootn) = root; rootn + 1 } else rootn
 
-  private def splineIntersectsLine(sps: Array[Pt], l0: Pt, l1: Pt, roots: Array[Double]): Int =
+  private def splineIntersectsLine(sps: Array[XY], l0: XY, l1: XY, roots: Array[Double]): Int =
     val xc0 = l0.x; val xc1 = l1.x - l0.x
     val yc0 = l0.y; val yc1 = l1.y - l0.y
     var rootn = 0
@@ -749,15 +749,15 @@ object Spline:
   private val NodePenwidth = 1.0 // DEFAULT_NODEPENWIDTH
 
   /** de Casteljau (utils.c `Bezier`): point at t plus [0,t] and [t,1] subs. */
-  private def bezier(v: Array[Pt], s: Int, t: Double): (Pt, Array[Pt], Array[Pt]) =
-    val tri = Array.ofDim[Pt](4, 4)
+  private def bezier(v: Array[XY], s: Int, t: Double): (XY, Array[XY], Array[XY]) =
+    val tri = Array.ofDim[XY](4, 4)
     var j = 0
     while j <= 3 do { tri(0)(j) = v(s + j); j += 1 }
     var i = 1
     while i <= 3 do
       j = 0
       while j <= 3 - i do
-        tri(i)(j) = Pt(
+        tri(i)(j) = XY(
           (1.0 - t) * tri(i - 1)(j).x + t * tri(i - 1)(j + 1).x,
           (1.0 - t) * tri(i - 1)(j).y + t * tri(i - 1)(j + 1).y
         )
@@ -769,7 +769,7 @@ object Spline:
 
   /** bezier_clip (splines.c): binary search; keep the sub-curve outside the
     * shape. `sp` is a 4-point segment, mutated in place. */
-  private def bezierClip(sp: Array[Pt], leftInside: Boolean, inside: Pt => Boolean): Unit =
+  private def bezierClip(sp: Array[XY], leftInside: Boolean, inside: XY => Boolean): Unit =
     val seg  = sp.clone()
     val best = sp.clone()
     var found = false
@@ -796,39 +796,39 @@ object Spline:
     System.arraycopy(srcseg, 0, sp, 0, 4)
 
   private def clipInstall(
-      g: RGraph, ctrl0: Vector[Pt], e: org.jpablo.graphexplorer.graphviz.model.REdge,
+      g: RGraph, ctrl0: Vector[XY], e: org.jpablo.graphexplorer.graphviz.model.REdge,
       byId: Map[String, org.jpablo.graphexplorer.graphviz.model.RNode],
-      centerOf: String => Pt,
+      centerOf: String => XY,
       tailClip: Boolean = true, headClip: Boolean = true
   ): ESpline =
     val ps =
       if ctrl0.length >= 4 && (ctrl0.length - 1) % 3 == 0 then ctrl0.toArray
       else
         val s = ctrl0.head; val t = ctrl0.last
-        Array(s, Pt(s.x + (t.x - s.x) / 3, s.y + (t.y - s.y) / 3),
-              Pt(s.x + 2 * (t.x - s.x) / 3, s.y + 2 * (t.y - s.y) / 3), t)
+        Array(s, XY(s.x + (t.x - s.x) / 3, s.y + (t.y - s.y) / 3),
+              XY(s.x + 2 * (t.x - s.x) / 3, s.y + 2 * (t.y - s.y) / 3), t)
     val pn = ps.length
 
     // ellipse insidefn: box semi-axes = (sizePt + penwidth)/2; symmetric poly
     // ⇒ scalex = scaley = 1. inside ⇔ hypot(P.x/URx, P.y/URy) < 1.
-    def insideFn(id: String): Option[Pt => Boolean] =
+    def insideFn(id: String): Option[XY => Boolean] =
       byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map { sz =>
         val cen = centerOf(id)
         val urx = (sz.widthIn * 72.0 + NodePenwidth) / 2.0
         val ury = (sz.heightIn * 72.0 + NodePenwidth) / 2.0
-        (p: Pt) =>
+        (p: XY) =>
           val px = p.x - cen.x; val py = p.y - cen.y
           if math.abs(px) > urx || math.abs(py) > ury then false
           else math.hypot(px / urx, py / ury) < 1.0
       }
 
-    def shapeClip0(seg: Int, inside: Pt => Boolean, leftInside: Boolean): Unit =
+    def shapeClip0(seg: Int, inside: XY => Boolean, leftInside: Boolean): Unit =
       val w = Array(ps(seg), ps(seg + 1), ps(seg + 2), ps(seg + 3))
       bezierClip(w, leftInside, inside)
       var k = 0
       while k < 4 do { ps(seg + k) = w(k); k += 1 }
 
-    def approxEq(a: Pt, b: Pt): Boolean =
+    def approxEq(a: XY, b: XY): Boolean =
       math.abs(a.x - b.x) < 0.001 && math.abs(a.y - b.y) < 0.001
 
     // tail node clip — skipped when the port set clip=false (the resolved
@@ -861,7 +861,7 @@ object Spline:
     // stroked triangle longer than its geometric vertex). Closes the
     // long-deferred M5/M7 sub-2px residual. `epAttach` = Graphviz's
     // spl->ep, captured before the gap shortens the curve (unchanged).
-    var epAttach: Option[Pt] = None
+    var epAttach: Option[XY] = None
     if g.directed then
       val pw    = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
       val asz   = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
@@ -871,12 +871,12 @@ object Spline:
       epAttach = Some(ep)
       if end > start && dist2(ps(end), ps(end + 3)) < elen2 then end -= 3
       val sp = Array(ep, ps(end + 2), ps(end + 1), ps(end))
-      bezierClip(sp, true, (p: Pt) => dist2(p, ep) < elen2)
+      bezierClip(sp, true, (p: XY) => dist2(p, ep) < elen2)
       ps(end) = sp(3); ps(end + 1) = sp(2); ps(end + 2) = sp(1); ps(end + 3) = sp(0)
 
     ESpline(ps.slice(start, end + 4).toVector, epAttach, None)
 
-  private def dist2(a: Pt, b: Pt): Double =
+  private def dist2(a: XY, b: XY): Double =
     val dx = a.x - b.x; val dy = a.y - b.y
     dx * dx + dy * dy
 
