@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.model.RGraph
+import org.jpablo.graphexplorer.graphviz.units.Length.Pt
 import scala.collection.mutable
 
 /** Phase 3b of the `dot` pipeline: cross-axis (X) coordinate assignment.
@@ -24,7 +25,7 @@ object XCoord:
   private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode
 
   /** Core solve: ordering + x (points) for all placed nodes, left edge at 0. */
-  private def xSolve(g: RGraph): (Order.Result, Map[String, Double]) =
+  private def xSolve(g: RGraph): (Order.Result, Map[String, Pt]) =
     val res  = Order.order(g)
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
 
@@ -99,14 +100,14 @@ object XCoord:
     // shift so the leftmost node's left edge sits at 0 (bbox origin)
     val placed = res.order.values.flatten.toVector
     val shift  = placed.iterator.map(id => xr(id).toDouble - half(id)).minOption.getOrElse(0.0)
-    val allX   = placed.iterator.map(id => id -> (xr(id).toDouble - shift)).toMap
+    val allX   = placed.iterator.map(id => id -> Pt(xr(id).toDouble - shift)).toMap
     (res, allX)
 
   /** x (points) for real **and** virtual placed nodes, plus the ordering. */
-  def solveAll(g: RGraph): (Order.Result, Map[String, Double]) = xSolve(g)
+  def solveAll(g: RGraph): (Order.Result, Map[String, Pt]) = xSolve(g)
 
   /** x (points) for real nodes only. */
-  def xCoords(g: RGraph): Map[String, Double] =
+  def xCoords(g: RGraph): Map[String, Pt] =
     val (_, allX) = xSolve(g)
     g.nodes.iterator.map(n => n.id -> allX(n.id)).toMap
 

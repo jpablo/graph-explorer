@@ -101,13 +101,14 @@ object Output:
     var minY = Double.MaxValue; var maxY = Double.MinValue
     val xs = XCoord.xCoords(g)
     g.nodes.foreach { n =>
-      for x <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
+      for xPt <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
+        val x  = xPt.value
         val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
         // selfRightSpace: no-port self-edges reserve SELF_EDGE_SIZE on the
         // right (the port/label-bearing cases are deferred — no corpus).
         val selfW = g.edges.count(e => e.tail == n.id && e.head == n.id &&
           e.tailPort.isEmpty && e.headPort.isEmpty) * SelfEdgeSize
-        val y  = yOf(ranks(n.id))
+        val y  = yOf(ranks(n.id)).value
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
     }
@@ -170,8 +171,8 @@ object Output:
     d.nodes.zipWithIndex.foreach { case ((id, gv), i) =>
       val n  = byId(id)
       val sz = NodeSize.nodeSize(n, g)
-      val px = xs.getOrElse(id, 0.0)
-      val py = yOf(ranks(id))
+      val px = xs.get(id).fold(0.0)(_.value)
+      val py = yOf(ranks(id)).value
       sb ++= "    {\n"
       sb ++= s"""      "_gvid": $gv,\n"""
       sb ++= s"""      "name": "${esc(id)}",\n"""

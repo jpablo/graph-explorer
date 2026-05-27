@@ -65,8 +65,8 @@ object Spline:
     val rankOf       = orderByRank.iterator.flatMap { case (r, ids) => ids.map(_ -> r) }.toMap
 
     def isV(id: String): Boolean = res.isVirtual(id)
-    def cx(id: String): Double   = allX(id)
-    def cy(id: String): Double   = yOf(rankOf(id))
+    def cx(id: String): Double   = allX(id).value
+    def cy(id: String): Double   = yOf(rankOf(id)).value
     def lw(id: String): Double =
       if isV(id) then VirtualHalf
       else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
@@ -135,7 +135,7 @@ object Spline:
 
     // rank_box(r): full-width inter-rank gap between rank r (upper) and r+1.
     def rankBox(rUpper: Int, rLower: Int): Box =
-      Box(leftBound, yOf(rLower) + ht2(rLower), rightBound, yOf(rUpper) - ht1(rUpper))
+      Box(leftBound, yOf(rLower).value + ht2(rLower), rightBound, yOf(rUpper).value - ht1(rUpper))
 
     // installed spline keyed by the declared-edge index (position in
     // g.edges) — parallel/port-distinguished multi-edges must NOT collapse.
@@ -318,9 +318,9 @@ object Spline:
         val ndHt = 2.0 * halfH(nid)
         val sizeyCs =
           if r == maxRank then
-            if r > minRank then yOf(r - 1) - yOf(r) else ndHt
-          else if r == minRank then yOf(r) - yOf(r + 1)
-          else math.min(yOf(r - 1) - yOf(r), yOf(r) - yOf(r + 1))
+            if r > minRank then yOf(r - 1).value - yOf(r).value else ndHt
+          else if r == minRank then yOf(r).value - yOf(r + 1).value
+          else math.min(yOf(r - 1).value - yOf(r).value, yOf(r).value - yOf(r + 1).value)
         val cnt   = group.length
         val stepx = NodeSep                                  // sd.Multisep
         val stepy = math.max(sizeyCs / 2.0 / 2.0 / cnt, 2.0) // selfRight

@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.model.RGraph
+import org.jpablo.graphexplorer.graphviz.units.Length.Pt
 import scala.collection.mutable
 
 /** Phase 3a of the `dot` pipeline: rank-axis (Y) coordinate assignment.
@@ -33,7 +34,7 @@ object Coord:
   /** (real-node ranks, y-per-rank in points). Virtual nodes share their
     * rank's y, so callers position them via `yOf(rank)`.
     */
-  def rankY(g: RGraph): (Map[String, Int], Map[Int, Double]) =
+  def rankY(g: RGraph): (Map[String, Int], Map[Int, Pt]) =
     val ranks = Rank.assign(g)
     if ranks.isEmpty then return (Map.empty, Map.empty)
     val minR = ranks.values.min
@@ -82,9 +83,9 @@ object Coord:
       yOf(r) = yOf(r + 1) + halfHt(r + 1) + halfHt(r) + rs
       r -= 1
 
-    (ranks, yOf.toMap)
+    (ranks, yOf.iterator.map((r, y) => r -> Pt(y)).toMap)
 
-  def yCoords(g: RGraph): Map[String, Double] =
+  def yCoords(g: RGraph): Map[String, Pt] =
     val (ranks, yOf) = rankY(g)
     ranks.view.mapValues(yOf).toMap
 

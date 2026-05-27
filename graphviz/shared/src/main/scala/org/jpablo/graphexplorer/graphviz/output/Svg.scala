@@ -121,8 +121,9 @@ object Svg:
         }
 
     g.nodes.zipWithIndex.foreach { case (n, i) =>
-      for x <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
-        val cy   = yOf(ranks(n.id))
+      for xPt <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
+        val x    = xPt.value
+        val cy   = yOf(ranks(n.id)).value
         sb ++= s"<!-- ${xml(n.id)} -->\n"
         sb ++= s"""<g id="node${i + 1}" class="node">\n"""
         sb ++= s"<title>${xml(n.id)}</title>\n"

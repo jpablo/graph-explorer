@@ -67,13 +67,14 @@ class RankDirSpec extends FunSuite:
     val ranks = Rank.assign(gr)
     var minX = Double.MaxValue; var maxY = -Double.MaxValue
     gr.nodes.foreach { nd =>
-      for x <- xs.get(nd.id); sz <- NodeSize.layoutSize(nd, gr) do
+      for xPt <- xs.get(nd.id); sz <- NodeSize.layoutSize(nd, gr) do
+        val x  = xPt.value
         val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
-        val y  = yOf(ranks(nd.id))
+        val y  = yOf(ranks(nd.id)).value
         minX = math.min(minX, x - hw); maxY = math.max(maxY, y + hh)
     }
     gr.nodes.iterator.flatMap { nd =>
-      xs.get(nd.id).map(x => nd.id -> ((maxY - yOf(ranks(nd.id)), x - minX)))
+      xs.get(nd.id).map(xPt => nd.id -> ((maxY - yOf(ranks(nd.id)).value, xPt.value - minX)))
     }.toMap
 
   // The rank axis (final X) is already close (the transform is correct +

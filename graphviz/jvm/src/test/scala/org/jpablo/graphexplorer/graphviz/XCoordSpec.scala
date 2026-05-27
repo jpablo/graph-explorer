@@ -29,7 +29,7 @@ class XCoordSpec extends FunSuite:
 
   private def ourX(name: String): Map[String, Double] =
     val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
-    XCoord.xCoords(g).view.mapValues(_ / 72.0).toMap
+    XCoord.xCoords(g).view.mapValues(_.value / 72.0).toMap
 
   // ~2px abs / 5% rel to start (PORT.md §2.1); tighten once stable.
   private val tol = OracleHarness.Tol(abs = 0.03, rel = 0.05)

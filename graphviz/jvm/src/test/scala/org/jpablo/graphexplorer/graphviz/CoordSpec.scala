@@ -32,7 +32,7 @@ class CoordSpec extends FunSuite:
 
   private def ourY(name: String): Map[String, Double] =
     val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
-    Coord.yCoords(g).view.mapValues(_ / 72.0).toMap
+    Coord.yCoords(g).view.mapValues(_.value / 72.0).toMap
 
   private val tol = OracleHarness.Tol(abs = 0.005, rel = 0.0)
 
