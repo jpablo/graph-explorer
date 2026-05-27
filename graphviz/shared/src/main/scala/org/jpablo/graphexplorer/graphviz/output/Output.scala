@@ -102,7 +102,7 @@ object Output:
     val xs = XCoord.xCoords(g)
     g.nodes.foreach { n =>
       for x <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
-        val hw = sz.widthIn * 36.0; val hh = sz.heightIn * 36.0
+        val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
         // selfRightSpace: no-port self-edges reserve SELF_EDGE_SIZE on the
         // right (the port/label-bearing cases are deferred — no corpus).
         val selfW = g.edges.count(e => e.tail == n.id && e.head == n.id &&
@@ -175,10 +175,10 @@ object Output:
       sb ++= "    {\n"
       sb ++= s"""      "_gvid": $gv,\n"""
       sb ++= s"""      "name": "${esc(id)}",\n"""
-      sz.foreach(s => sb ++= s"""      "height": "${g5(s.heightIn)}",\n""")
+      sz.foreach(s => sb ++= s"""      "height": "${g5(s.height.value)}",\n""")
       sb ++= s"""      "label": "${esc(nodeLabel(n))}",\n"""
       sb ++= s"""      "pos": "${g5(px)},${g5(py)}",\n"""
-      sz.foreach(s => sb ++= s"""      "width": "${g5(s.widthIn)}"\n""")
+      sz.foreach(s => sb ++= s"""      "width": "${g5(s.width.value)}"\n""")
       sb ++= (if i == d.nodes.length - 1 then "    }\n" else "    },\n")
     }
     sb ++= "  ],\n"

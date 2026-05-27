@@ -134,8 +134,8 @@ object Svg:
             sb ++= s"""<polygon fill="none" stroke="black" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
             genFields(root, x, cy)
           case None =>
-            val rx  = sz.widthIn * 36.0
-            val ry  = sz.heightIn * 36.0
+            val rx  = sz.halfWidthPt.value
+            val ry  = sz.halfHeightPt.value
             val lbl = n.attrs.get("label").filter(_ != "\\N").getOrElse(n.id)
             sb ++= s"""<ellipse fill="none" stroke="black" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
             sb ++= textAt(x, cy, lbl)

@@ -30,7 +30,7 @@ object XCoord:
 
     def half(id: String): Double =
       if res.isVirtual(id) then VirtualHalf
-      else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.widthIn * 72.0 / 2.0).getOrElse(1.0)
+      else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
 
     // virtual_weight() (mincross.c): aux edge-pair weight = ω·edgeweight
     // where ω = NSClass.weight(class(tail), class(head)). See [[NSClass]]

@@ -61,12 +61,12 @@ class NodeSizeSpec extends FunSuite:
               case Some((ew, eh)) =>
                 checked += 1
                 assert(
-                  OracleHarness.close(sz.widthIn, ew, tol),
-                  s"$name '${n.id}' width: got ${sz.widthIn} expected $ew"
+                  OracleHarness.close(sz.width.value, ew, tol),
+                  s"$name '${n.id}' width: got ${sz.width.value} expected $ew"
                 )
                 assert(
-                  OracleHarness.close(sz.heightIn, eh, tol),
-                  s"$name '${n.id}' height: got ${sz.heightIn} expected $eh"
+                  OracleHarness.close(sz.height.value, eh, tol),
+                  s"$name '${n.id}' height: got ${sz.height.value} expected $eh"
                 )
       }
       assert(checked + deferred == g.nodes.size, s"unaccounted nodes in $name")
@@ -76,11 +76,11 @@ class NodeSizeSpec extends FunSuite:
     // `middle` (box) and `node one` (ellipse) must exceed the min-size floor.
     val g2 = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("02-attrs")).toOption.get)
     val middle = g2.nodes.find(_.id == "middle").flatMap(NodeSize.nodeSize(_, g2)).get
-    assert(middle.widthIn > 0.75, s"middle should exceed floor, got ${middle.widthIn}")
-    assert(OracleHarness.close(middle.widthIn, 0.76226, OracleHarness.Tol(abs = 0.001, rel = 0.005)))
+    assert(middle.width.value > 0.75, s"middle should exceed floor, got ${middle.width.value}")
+    assert(OracleHarness.close(middle.width.value, 0.76226, OracleHarness.Tol(abs = 0.001, rel = 0.005)))
 
     val g5 = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("05-strings-comments")).toOption.get)
     val nodeOne = g5.nodes.find(_.id == "node one").flatMap(NodeSize.nodeSize(_, g5)).get
-    assert(OracleHarness.close(nodeOne.widthIn, 1.2824, OracleHarness.Tol(abs = 0.001, rel = 0.005)))
+    assert(OracleHarness.close(nodeOne.width.value, 1.2824, OracleHarness.Tol(abs = 0.001, rel = 0.005)))
 
 end NodeSizeSpec

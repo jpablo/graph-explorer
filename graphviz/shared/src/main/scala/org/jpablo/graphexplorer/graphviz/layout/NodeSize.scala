@@ -2,6 +2,8 @@ package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.metrics.FontMetrics
 import org.jpablo.graphexplorer.graphviz.model.{RGraph, RNode}
+import org.jpablo.graphexplorer.graphviz.units.Length
+import org.jpablo.graphexplorer.graphviz.units.Length.{In, Pt}
 
 /** Pure-Scala port of Graphviz `poly_init` node sizing (lib/common/shapes.c,
   * gv 13.0.1) for the poly shapes the corpus needs: ellipse, circle, box and
@@ -25,7 +27,17 @@ object NodeSize:
   private val DefWidthIn    = 0.75         // node `width` default
   private val DefHeightIn   = 0.5          // node `height` default
 
-  final case class Size(widthIn: Double, heightIn: Double) derives CanEqual
+  final case class Size(width: In, height: In) derives CanEqual
+
+  /** Convenience accessors so call sites don't repeat the `× 72` (full pt)
+    * or `× 36` (half-pt) conversion that drives the `dot` layout pipeline —
+    * the `Pt` return preserves type safety down to the very last `.value`
+    * at the Double boundary (e.g. JSON output, ellipse rx/ry attributes). */
+  extension (s: Size)
+    def widthPt: Pt      = s.width.toPt
+    def heightPt: Pt     = s.height.toPt
+    def halfWidthPt: Pt  = s.width.toPt / 2.0
+    def halfHeightPt: Pt = s.height.toPt / 2.0
 
   private final case class ShapeKind(
       box:       Boolean, // sides==4, axis-aligned → exact fit (no ellipse pad)
@@ -202,7 +214,7 @@ object NodeSize:
     // `translate_drawing`); it must NOT be applied here. The LR layout-
     // orientation size belongs to a layout-size accessor (RankDir port —
     // tracked, PORT.md §5.2).
-    Some(Size(bbX / PointsPerInch, bbY / PointsPerInch))
+    Some(Size(In(bbX / PointsPerInch), In(bbY / PointsPerInch)))
 
   /** Layout-orientation size — `gv_nodesize(n, GD_flip)` (postproc.c). The
     * TB layout pipeline (Coord/XCoord/Spline) runs on this; for a flipped
@@ -214,7 +226,7 @@ object NodeSize:
     * NodeSizeSpec) — only the layout pipeline uses this swapped view, so
     * TB (`flip=false`) is byte-identical (`layoutSize == nodeSize`). */
   def layoutSize(n: RNode, g: RGraph): Option[Size] =
-    nodeSize(n, g).map(s => if Rank.flip(g) then Size(s.heightIn, s.widthIn) else s)
+    nodeSize(n, g).map(s => if Rank.flip(g) then Size(s.height, s.width) else s)
 
   private inline def sqr(x: Double): Double = x * x
 

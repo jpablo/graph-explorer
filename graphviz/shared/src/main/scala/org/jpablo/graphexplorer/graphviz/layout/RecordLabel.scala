@@ -1,6 +1,8 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.metrics.FontMetrics
+import org.jpablo.graphexplorer.graphviz.units.Length
+import org.jpablo.graphexplorer.graphviz.units.Length.In
 import scala.collection.mutable
 
 /** `record`/`Mrecord` field layout — port of `lib/common/shapes.c`
@@ -180,7 +182,7 @@ object RecordLabel:
   def layout(
       label: String, topLR: Boolean, fontSizePt: Double, fontName: String,
       minWIn: Double, minHIn: Double, fixed: Boolean, margin: Option[(Double, Double)]
-  ): (Double, Double, Field) =
+  ): (In, In, Field) =
     val root = parse(label, topLR)
     sizeOf(root, fontSizePt, fontName, margin)
     val mw = minWIn * Pt; val mh = minHIn * Pt
@@ -188,7 +190,7 @@ object RecordLabel:
     val sy = if fixed then mh else math.max(root.sy, mh)
     resize(root, sx, sy)
     pos(root, -sx / 2.0, sy / 2.0, AllSides)
-    (root.sx / Pt, (root.sy + 1.0) / Pt, root) // record_init: height += 1pt kluge
+    (In(root.sx / Pt), In((root.sy + 1.0) / Pt), root) // record_init: height += 1pt kluge
 
   /** Resolve a port id to its field (`map_rec_port`), node-local boxes set. */
   def field(root: Field, portId: String): Option[Field] =

@@ -48,8 +48,8 @@ class RankDirSpec extends FunSuite:
     assert(Rank.flip(gr) && Rank.rankdir(gr) == RankDir.LR, "02 is rankdir=LR")
     gr.nodes.foreach { nd =>
       for t <- NodeSize.nodeSize(nd, gr); l <- NodeSize.layoutSize(nd, gr) do
-        assertEquals(l.widthIn, t.heightIn, s"02 ${nd.id} layout w = true h")
-        assertEquals(l.heightIn, t.widthIn, s"02 ${nd.id} layout h = true w")
+        assertEquals(l.width, t.height, s"02 ${nd.id} layout w = true h")
+        assertEquals(l.height, t.width, s"02 ${nd.id} layout h = true w")
     }
 
   // golden 02 final node positions (dot, points).
@@ -68,7 +68,7 @@ class RankDirSpec extends FunSuite:
     var minX = Double.MaxValue; var maxY = -Double.MaxValue
     gr.nodes.foreach { nd =>
       for x <- xs.get(nd.id); sz <- NodeSize.layoutSize(nd, gr) do
-        val hw = sz.widthIn * 36.0; val hh = sz.heightIn * 36.0
+        val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
         val y  = yOf(ranks(nd.id))
         minX = math.min(minX, x - hw); maxY = math.max(maxY, y + hh)
     }

@@ -43,7 +43,7 @@ object Coord:
     g.nodes.foreach { n =>
       val r = ranks(n.id)
       NodeSize.layoutSize(n, g).foreach { sz =>
-        val h = sz.heightIn * PointsPerInch / 2.0
+        val h = sz.halfHeightPt.value
         if h > halfHt(r) then halfHt(r) = h
       }
     }

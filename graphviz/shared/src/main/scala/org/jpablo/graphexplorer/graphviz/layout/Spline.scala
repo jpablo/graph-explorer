@@ -69,7 +69,7 @@ object Spline:
     def cy(id: String): Double   = yOf(rankOf(id))
     def lw(id: String): Double =
       if isV(id) then VirtualHalf
-      else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.widthIn * 36.0).getOrElse(1.0)
+      else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
     def rw(id: String): Double = lw(id)
 
     // ht1/ht2 (GD_rank[r] half-heights) = tallest real node half-height in rank.
@@ -77,7 +77,7 @@ object Spline:
     g.nodes.foreach { n =>
       val r = rankOf(n.id)
       NodeSize.layoutSize(n, g).foreach { sz =>
-        val h = sz.heightIn * 36.0
+        val h = sz.halfHeightPt.value
         if h > halfHt(r) then halfHt(r) = h
       }
     }
@@ -142,7 +142,7 @@ object Spline:
     val out = mutable.LinkedHashMap.empty[Int, ESpline]
 
     def halfH(id: String): Double =
-      byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.heightIn * 36.0).getOrElse(0.0)
+      byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfHeightPt.value).getOrElse(0.0)
     val centerOf: String => XY = id => XY(cx(id), cy(id))
 
     // ── beginpath/endpath port branch (record field ports, TB) ────────────
@@ -814,8 +814,8 @@ object Spline:
     def insideFn(id: String): Option[XY => Boolean] =
       byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map { sz =>
         val cen = centerOf(id)
-        val urx = (sz.widthIn * 72.0 + NodePenwidth) / 2.0
-        val ury = (sz.heightIn * 72.0 + NodePenwidth) / 2.0
+        val urx = (sz.widthPt.value + NodePenwidth) / 2.0
+        val ury = (sz.heightPt.value + NodePenwidth) / 2.0
         (p: XY) =>
           val px = p.x - cen.x; val py = p.y - cen.y
           if math.abs(px) > urx || math.abs(py) > ury then false
