@@ -24,17 +24,11 @@ object Rank:
     g.edges.exists(e => e.tail != e.head && e.attrs.get("label").exists(_.nonEmpty))
 
   /** `GD_rankdir`: const.h RANKDIR_TB=0/LR=1/BT=2/RL=3. */
-  def rankdir(g: RGraph): Int =
-    g.rootAttrs.get("rankdir").map(_.toUpperCase) match
-      case Some("LR") => 1
-      case Some("BT") => 2
-      case Some("RL") => 3
-      case _          => 0
+  def rankdir(g: RGraph): RankDir = RankDir.fromAttr(g.rootAttrs.get("rankdir"))
 
   /** `GD_flip`: the rank axis is horizontal (LR/RL) ⇒ node w/h are swapped
     * for layout (`gv_nodesize(n, flip)`). */
-  def flip(g: RGraph): Boolean =
-    val rd = rankdir(g); rd == 1 || rd == 3
+  def flip(g: RGraph): Boolean = rankdir(g).isFlipped
 
   /** Reverse back edges via DFS, exactly as Graphviz `acyclic`/`dfs`:
     * roots visited in node-declaration order; an out-edge to a node currently
@@ -75,7 +69,7 @@ object Rank:
   def ranked(g: RGraph): (Map[String, Int], Vector[DEdge]) =
     val wedges = acyclic(g, if hasEdgeLabel(g) then 2 else 1)
     val nse    = wedges.map(e => NetworkSimplex.NSEdge(e.tail, e.head, e.minlen, 1))
-    (NetworkSimplex.solve(g.nodes.map(_.id), nse, balance = 1), wedges)
+    (NetworkSimplex.solve(g.nodes.map(_.id), nse, balance = NSBalance.TopBottom), wedges)
 
   /** Normalised integer ranks (min rank = 0) for every node. */
   def assign(g: RGraph): Map[String, Int] = ranked(g)._1

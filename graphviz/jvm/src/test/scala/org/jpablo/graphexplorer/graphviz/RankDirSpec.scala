@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.graphviz
 import munit.FunSuite
 import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
 import org.jpablo.graphexplorer.graphviz.model.AttrResolver
-import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Rank, XCoord}
+import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Rank, RankDir, XCoord}
 
 /** `rankdir = LR` (02) — incremental, **honest negative** (PORT.md §5.2/§7).
   *
@@ -45,7 +45,7 @@ class RankDirSpec extends FunSuite:
 
   test("layoutSize: LR swaps w/h (gv_nodesize flip); nodeSize stays true"):
     val gr = g("02-attrs")
-    assert(Rank.flip(gr) && Rank.rankdir(gr) == 1, "02 is rankdir=LR")
+    assert(Rank.flip(gr) && Rank.rankdir(gr) == RankDir.LR, "02 is rankdir=LR")
     gr.nodes.foreach { nd =>
       for t <- NodeSize.nodeSize(nd, gr); l <- NodeSize.layoutSize(nd, gr) do
         assertEquals(l.widthIn, t.heightIn, s"02 ${nd.id} layout w = true h")

@@ -32,16 +32,17 @@ object XCoord:
       if res.isVirtual(id) then VirtualHalf
       else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.widthIn * 72.0 / 2.0).getOrElse(1.0)
 
-    // virtual_weight() (mincross.c): aux edge-pair weight = ω·edgeweight where
-    // ω = table[class(tail)][class(head)], class ∈ {ORDINARY 0, SINGLETON 1
-    // (real node, ≤1 incident real edge), VIRTUAL 2}. C_EE=1,C_SS=C_VS=2,C_VV=4.
+    // virtual_weight() (mincross.c): aux edge-pair weight = ω·edgeweight
+    // where ω = NSClass.weight(class(tail), class(head)). See [[NSClass]]
+    // for the table and case definitions.
     val deg = mutable.HashMap.empty[String, Int].withDefaultValue(0)
     g.edges.foreach { e =>
       if e.tail != e.head then { deg(e.tail) = deg(e.tail) + 1; deg(e.head) = deg(e.head) + 1 }
     }
-    def cls(id: String): Int =
-      if res.isVirtual(id) then 2 else if deg(id) <= 1 then 1 else 0
-    val omegaTbl = Array(Array(1, 1, 1), Array(1, 2, 2), Array(1, 2, 4))
+    def cls(id: String): NSClass =
+      if res.isVirtual(id) then NSClass.Virtual
+      else if deg(id) <= 1 then NSClass.Singleton
+      else NSClass.Ordinary
 
     val auxNodes = mutable.LinkedHashSet.empty[String]
     res.order.toList.sortBy(_._1).foreach { case (_, ids) => ids.foreach(auxNodes += _) }
@@ -80,7 +81,7 @@ object XCoord:
       // a documented M5+ deferral; default-1 ⇒ 01/06/07 unchanged.
       val wt = owned.flatMap(_.attrs.get("weight")).flatMap(_.toDoubleOption)
         .map(w => math.max(1, math.round(w).toInt)).getOrElse(1)
-      val w  = omegaTbl(cls(t))(cls(h)) * wt
+      val w  = NSClass.weight(cls(t), cls(h)) * wt
       val (m0, m1) =
         owned match
           case Some(re) =>
@@ -93,7 +94,7 @@ object XCoord:
       edges += NetworkSimplex.NSEdge(sn, h, m1 + 1, w)
     }
 
-    val xr = NetworkSimplex.solve(auxNodes.toSeq, edges.toSeq, balance = 2)
+    val xr = NetworkSimplex.solve(auxNodes.toSeq, edges.toSeq, balance = NSBalance.LeftRight)
 
     // shift so the leftmost node's left edge sits at 0 (bbox origin)
     val placed = res.order.values.flatten.toVector

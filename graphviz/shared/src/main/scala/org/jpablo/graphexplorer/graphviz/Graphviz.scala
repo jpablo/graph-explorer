@@ -12,6 +12,11 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
   * [Graphviz.scala](viewer/src/main/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/Graphviz.scala)
   * behind a feature flag (viz-js stays as the oracle + fallback).
   *
+  * The public signature stays String-typed (`formats: Seq[String]`,
+  * `status: String`) to preserve viz-js parity; the [[Format]] and
+  * [[RenderStatus]] enums are used internally and converted at the
+  * boundary.
+  *
   * Pure & cross-compiled: parse → resolve → emit strings. No scalajs / JVM
   * APIs (PORT.md §3); the viewer keeps consuming the strings via its
   * existing `read[SimpleGraph]` / `getEdgePos` / `parseSVG`.
@@ -21,42 +26,42 @@ object Graphviz:
   final case class RenderError(level: Option[String], message: String) derives CanEqual
 
   final case class MultipleRenderResult(
-      status: String,                 // "success" | "failure"
-      output: Map[String, String],    // requested format → emitted string
+      status: String,                 // RenderStatus.wire — "success" | "failure"
+      output: Map[String, String],    // requested format name → emitted string
       errors: Vector[RenderError]
   ) derives CanEqual
 
   /** Formats this backend can emit (the slice the viewer requests). */
-  val supported: Set[String] = Set("dot_json", "json0", "svg")
+  val supported: Set[String] = Format.supportedNames
 
-  private def emit(f: String, g: org.jpablo.graphexplorer.graphviz.model.RGraph): String =
+  private def emit(f: Format, g: org.jpablo.graphexplorer.graphviz.model.RGraph): String =
     f match
-      case "dot_json" => Output.dotJson(g)
-      case "json0"    => Output.json0(g)
-      case "svg"      => Svg.svg(g)
-      case other      => throw new IllegalArgumentException(s"unsupported format: $other")
+      case Format.DotJson => Output.dotJson(g)
+      case Format.Json0   => Output.json0(g)
+      case Format.Svg     => Svg.svg(g)
+
+  private def failure(errors: Vector[RenderError]): MultipleRenderResult =
+    MultipleRenderResult(RenderStatus.Failure.wire, Map.empty, errors)
 
   def renderFormats(dot: String, formats: Seq[String]): MultipleRenderResult =
     DotParser.parse(dot) match
       case Left(err) =>
-        MultipleRenderResult("failure", Map.empty, Vector(RenderError(Some("error"), err)))
+        failure(Vector(RenderError(Some("error"), err)))
       case Right(ast) =>
-        val unsupported = formats.filterNot(supported.contains)
+        val parsed: Seq[(String, Option[Format])] =
+          formats.map(name => name -> Format.fromName(name))
+        val unsupported = parsed.collect { case (name, None) => name }
         if unsupported.nonEmpty then
-          MultipleRenderResult(
-            "failure", Map.empty,
-            unsupported.toVector.map(f => RenderError(Some("error"), s"unsupported format: $f"))
-          )
+          failure(unsupported.toVector.map(f => RenderError(Some("error"), s"unsupported format: $f")))
         else
           try
             val g   = AttrResolver.resolve(ast)
-            val out = formats.iterator.map(f => f -> emit(f, g)).toMap
-            MultipleRenderResult("success", out, Vector.empty)
+            val out = parsed.iterator.collect {
+              case (name, Some(fmt)) => name -> emit(fmt, g)
+            }.toMap
+            MultipleRenderResult(RenderStatus.Success.wire, out, Vector.empty)
           catch
             case e: Throwable =>
-              MultipleRenderResult(
-                "failure", Map.empty,
-                Vector(RenderError(Some("error"), Option(e.getMessage).getOrElse(e.toString)))
-              )
+              failure(Vector(RenderError(Some("error"), Option(e.getMessage).getOrElse(e.toString))))
 
 end Graphviz

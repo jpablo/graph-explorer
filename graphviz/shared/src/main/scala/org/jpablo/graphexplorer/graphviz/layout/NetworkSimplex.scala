@@ -17,9 +17,9 @@ object NetworkSimplex:
 
   final case class NSEdge(tail: String, head: String, minlen: Int, weight: Int) derives CanEqual
 
-  /** @param balance 0 = none, 1 = TB (spread loose nodes), 2 = LR (centre
-    *                within slack — used by x-coords). */
-  def solve(nodes: Seq[String], edges: Seq[NSEdge], balance: Int = 0): Map[String, Int] =
+  /** @param balance see [[NSBalance]] — TopBottom spreads loose nodes,
+    *                LeftRight centres within slack (used by x-coords). */
+  def solve(nodes: Seq[String], edges: Seq[NSEdge], balance: NSBalance = NSBalance.None): Map[String, Int] =
     if nodes.isEmpty then return Map.empty
     val nodeList = nodes.toVector
     val es       = edges.toVector
@@ -166,7 +166,7 @@ object NetworkSimplex:
     // ── LR balance (ns.c LR_balance): centre within zero-cutvalue slack ──
     // For each tight tree edge with cutvalue 0, the swap with its entering
     // edge is free; split the slack evenly by shifting e's tail component.
-    if balance == 2 then
+    if balance == NSBalance.LeftRight then
       treeEdges.toVector.sorted.foreach { te =>
         if cutValue(te) == 0 then
           val tSide = tailSide(te)
@@ -190,7 +190,7 @@ object NetworkSimplex:
     val minR = rank.values.min
     nodeList.foreach(v => rank(v) = rank(v) - minR)
 
-    if balance == 1 then tbBalance(nodeList, es, rank, outIdx, inIdx)
+    if balance == NSBalance.TopBottom then tbBalance(nodeList, es, rank, outIdx, inIdx)
 
     nodeList.iterator.map(v => v -> rank(v)).toMap
 
