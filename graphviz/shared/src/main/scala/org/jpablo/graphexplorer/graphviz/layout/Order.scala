@@ -23,35 +23,40 @@ object Order:
 
   final case class Result(
       rank:      Map[String, Int],
-      /** rank index → left-to-right node ids (real + `__v…` virtual). */
-      order:     Map[Int, Vector[String]],
+      /** rank index → left-to-right node ids (real + virtual chain). */
+      order:     Map[Int, Vector[LayoutNode]],
       crossings: Long,
       /** unit-span layout edges incl. virtual chains: (tail, head). */
-      segments:  Vector[(String, String)],
+      segments:  Vector[(LayoutNode, LayoutNode)],
       /** per-segment originating directed-edge index (into `Rank.ranked`'s
         * `dedges`, == `g.edges` minus self-loops). Lets XCoord recover each
         * segment's port x-offset (`make_edge_pairs` `ED_*_port.p.x`). */
       segOwner:  Vector[Int]
   ) derives CanEqual:
-    def isVirtual(id: String): Boolean = id.startsWith("__v")
+    def isVirtual(n: LayoutNode): Boolean = n match
+      case _: LayoutNode.Virtual => true
+      case _                     => false
+    /** rank index → real-node ids (Strings), preserving left-to-right order. */
     def realOrder: Map[Int, Vector[String]] =
-      order.view.mapValues(_.filterNot(isVirtual)).toMap
+      order.view.mapValues(_.collect { case LayoutNode.Real(id) => id }).toMap
 
   def order(g: RGraph): Result =
     val (rank0, dedges) = Rank.ranked(g)
 
     // ── class2: replace long edges with unit-span virtual-node chains ──────
-    val rankOf = mutable.HashMap.from(rank0)
-    val out    = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
-    val in     = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
-    def node(id: String): Unit =
+    val rankOf = mutable.HashMap.from(
+      rank0.iterator.map((s, r) => (LayoutNode.Real(s): LayoutNode) -> r)
+    )
+    val out    = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
+    val in     = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
+    def node(id: LayoutNode): Unit =
       out.getOrElseUpdate(id, mutable.ArrayBuffer.empty)
       in.getOrElseUpdate(id, mutable.ArrayBuffer.empty)
-    g.nodes.foreach(n => node(n.id))
-    val segs   = mutable.ArrayBuffer.empty[(String, String)]
+    g.nodes.foreach(n => node(LayoutNode.Real(n.id)))
+    val segs   = mutable.ArrayBuffer.empty[(LayoutNode, LayoutNode)]
     val segOwn = mutable.ArrayBuffer.empty[Int]
     var curOwner = -1
-    def connect(t: String, h: String): Unit =
+    def connect(t: LayoutNode, h: LayoutNode): Unit =
       out(t) += h
       in(h) += t
       segs += ((t, h))
@@ -59,35 +64,42 @@ object Order:
 
     dedges.zipWithIndex.foreach { case (e, idx) =>
       curOwner = idx
-      val rt = rankOf(e.tail)
-      val rh = rankOf(e.head)
+      val tail = LayoutNode.Real(e.tail)
+      val head = LayoutNode.Real(e.head)
+      val rt = rankOf(tail)
+      val rh = rankOf(head)
       if rh - rt <= 1 then
-        if rh != rt then connect(e.tail, e.head) else () // span 1 (skip flat span 0)
+        if rh != rt then connect(tail, head) else () // span 1 (skip flat span 0)
       else
-        var prev = e.tail
+        var prev: LayoutNode = tail
         var r    = rt + 1
         while r < rh do
-          val v = s"__v${idx}_$r"
+          val v = LayoutNode.Virtual(idx, r)
           node(v)
           rankOf(v) = r
           connect(prev, v)
           prev = v
           r += 1
-        connect(prev, e.head)
+        connect(prev, head)
     }
 
-    val allNodes: Vector[String] = // real (declaration order) then virtual
-      g.nodes.map(_.id) ++ rankOf.keysIterator.filter(_.startsWith("__v")).toVector.sorted
+    // Real (declaration order) then virtual, sorted by their historical
+    // string-form name (`__v{idx}_{rank}`) so reordering of unreached nodes
+    // (the line-104 stable-append pass) is byte-identical to before.
+    val allNodes: Vector[LayoutNode] =
+      g.nodes.map(n => LayoutNode.Real(n.id): LayoutNode) ++
+        rankOf.keysIterator.collect { case v: LayoutNode.Virtual => v }
+          .toVector.sortBy(_.name)
 
     val minR  = if rankOf.isEmpty then 0 else rankOf.values.min
     val maxR  = if rankOf.isEmpty then 0 else rankOf.values.max
-    val ranks = mutable.HashMap.from((minR to maxR).map(r => r -> mutable.ArrayBuffer.empty[String]))
-    val pos   = mutable.HashMap.empty[String, Int]
+    val ranks = mutable.HashMap.from((minR to maxR).map(r => r -> mutable.ArrayBuffer.empty[LayoutNode]))
+    val pos   = mutable.HashMap.empty[LayoutNode, Int]
 
     // ── build_ranks (pass 0): BFS from in-edge-free nodes, follow out ──────
-    val mark = mutable.Set.empty[String]
-    val q    = mutable.Queue.empty[String]
-    def install(n: String): Unit =
+    val mark = mutable.Set.empty[LayoutNode]
+    val q    = mutable.Queue.empty[LayoutNode]
+    def install(n: LayoutNode): Unit =
       val rb = ranks(rankOf(n))
       pos(n) = rb.length
       rb += n
@@ -129,7 +141,7 @@ object Order:
       pos(a) = j; pos(b) = i
 
     // ── weighted-median values + reorder (mincross.c medians/reorder) ─────
-    val mval = mutable.HashMap.empty[String, Double]
+    val mval = mutable.HashMap.empty[LayoutNode, Double]
     def medians(r0: Int, r1: Int): Unit =
       val rb = ranks.getOrElse(r0, mutable.ArrayBuffer.empty)
       rb.foreach { n =>
@@ -171,7 +183,7 @@ object Order:
         nelt -= 1
 
     // ── transpose (adjacent swaps) ───────────────────────────────────────
-    def crossPair(av: Iterable[String], aw: Iterable[String]): Int =
+    def crossPair(av: Iterable[LayoutNode], aw: Iterable[LayoutNode]): Int =
       var c = 0
       av.foreach(x => aw.foreach(y => if pos(x) > pos(y) then c += 1))
       c
@@ -205,9 +217,9 @@ object Order:
       transpose(!reverse)
 
     // ── main loop (mincross.c) ───────────────────────────────────────────
-    def snapshot(): Map[Int, Vector[String]] =
+    def snapshot(): Map[Int, Vector[LayoutNode]] =
       ranks.iterator.map { case (r, b) => r -> b.toVector }.toMap
-    def restore(s: Map[Int, Vector[String]]): Unit =
+    def restore(s: Map[Int, Vector[LayoutNode]]): Unit =
       s.foreach { case (r, v) =>
         val rb = ranks(r); rb.clear(); rb ++= v
         v.iterator.zipWithIndex.foreach { case (n, i) => pos(n) = i }

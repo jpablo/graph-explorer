@@ -25,13 +25,16 @@ object XCoord:
   private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode
 
   /** Core solve: ordering + x (points) for all placed nodes, left edge at 0. */
-  private def xSolve(g: RGraph): (Order.Result, Map[String, Pt]) =
+  private def xSolve(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) =
     val res  = Order.order(g)
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
 
-    def half(id: String): Double =
-      if res.isVirtual(id) then VirtualHalf
-      else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
+    def half(n: LayoutNode): Double = n match
+      case _: LayoutNode.Virtual => VirtualHalf
+      case _: LayoutNode.Slack   => VirtualHalf // never queried; defensive
+      case LayoutNode.Real(id)   =>
+        byId.get(id).flatMap(rn => NodeSize.layoutSize(rn, g))
+          .map(_.halfWidthPt.value).getOrElse(1.0)
 
     // virtual_weight() (mincross.c): aux edge-pair weight = ω·edgeweight
     // where ω = NSClass.weight(class(tail), class(head)). See [[NSClass]]
@@ -40,12 +43,13 @@ object XCoord:
     g.edges.foreach { e =>
       if e.tail != e.head then { deg(e.tail) = deg(e.tail) + 1; deg(e.head) = deg(e.head) + 1 }
     }
-    def cls(id: String): NSClass =
-      if res.isVirtual(id) then NSClass.Virtual
-      else if deg(id) <= 1 then NSClass.Singleton
-      else NSClass.Ordinary
+    def cls(n: LayoutNode): NSClass = n match
+      case _: LayoutNode.Virtual => NSClass.Virtual
+      case _: LayoutNode.Slack   => NSClass.Virtual // never queried; defensive
+      case LayoutNode.Real(id)   =>
+        if deg(id) <= 1 then NSClass.Singleton else NSClass.Ordinary
 
-    val auxNodes = mutable.LinkedHashSet.empty[String]
+    val auxNodes = mutable.LinkedHashSet.empty[LayoutNode]
     res.order.toList.sortBy(_._1).foreach { case (_, ids) => ids.foreach(auxNodes += _) }
 
     val edges = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
@@ -55,7 +59,7 @@ object XCoord:
       ids.sliding(2).foreach {
         case Seq(u, v) =>
           val sep = math.ceil(half(u) + half(v) + NodeSep).toInt
-          edges += NetworkSimplex.NSEdge(u, v, sep, 0)
+          edges += NetworkSimplex.NSEdge(u.name, v.name, sep, 0)
         case _ => ()
       }
     }
@@ -73,7 +77,7 @@ object XCoord:
         a <- PortAnchor.resolve(n, g, p.name.map(_.value).filter(_.nonEmpty), p.compass)
       yield a.x).getOrElse(0.0)
     res.segments.zipWithIndex.foreach { case ((t, h), i) =>
-      val sn = s"__s$i"
+      val sn: LayoutNode = LayoutNode.Slack(i)
       auxNodes += sn
       val owner = res.segOwner.lift(i).getOrElse(-1)
       val owned = if owner >= 0 && owner < realEdges.length then Some(realEdges(owner)) else None
@@ -86,29 +90,39 @@ object XCoord:
       val (m0, m1) =
         owned match
           case Some(re) =>
-            val tpx = if t == re.tail then portX(re.tail, re.tailPort) else 0.0
-            val hpx = if h == re.head then portX(re.head, re.headPort) else 0.0
+            // Endpoint match requires comparing the *real* node id, not a
+            // synthetic virtual carrying the chain through the same rank.
+            val tpx = t match
+              case LayoutNode.Real(id) if id == re.tail => portX(re.tail, re.tailPort)
+              case _ => 0.0
+            val hpx = h match
+              case LayoutNode.Real(id) if id == re.head => portX(re.head, re.headPort)
+              case _ => 0.0
             val m   = (hpx - tpx).toInt // C `int` truncation toward zero
             if m > 0 then (m, 0) else (0, -m)
           case None => (0, 0)
-      edges += NetworkSimplex.NSEdge(sn, t, m0 + 1, w)
-      edges += NetworkSimplex.NSEdge(sn, h, m1 + 1, w)
+      edges += NetworkSimplex.NSEdge(sn.name, t.name, m0 + 1, w)
+      edges += NetworkSimplex.NSEdge(sn.name, h.name, m1 + 1, w)
     }
 
-    val xr = NetworkSimplex.solve(auxNodes.toSeq, edges.toSeq, balance = NSBalance.LeftRight)
+    val xr = NetworkSimplex.solve(auxNodes.toSeq.map(_.name), edges.toSeq, balance = NSBalance.LeftRight)
+    // NS returns String-keyed ranks; map back to LayoutNode via the
+    // historical name-form parse (Order produces the same Virtual/Slack
+    // identities so the round-trip is exact).
+    val xrByNode: Map[LayoutNode, Int] = auxNodes.iterator.map(n => n -> xr(n.name)).toMap
 
     // shift so the leftmost node's left edge sits at 0 (bbox origin)
-    val placed = res.order.values.flatten.toVector
-    val shift  = placed.iterator.map(id => xr(id).toDouble - half(id)).minOption.getOrElse(0.0)
-    val allX   = placed.iterator.map(id => id -> Pt(xr(id).toDouble - shift)).toMap
+    val placed: Vector[LayoutNode] = res.order.values.flatten.toVector
+    val shift  = placed.iterator.map(id => xrByNode(id).toDouble - half(id)).minOption.getOrElse(0.0)
+    val allX   = placed.iterator.map(id => id -> Pt(xrByNode(id).toDouble - shift)).toMap
     (res, allX)
 
   /** x (points) for real **and** virtual placed nodes, plus the ordering. */
-  def solveAll(g: RGraph): (Order.Result, Map[String, Pt]) = xSolve(g)
+  def solveAll(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) = xSolve(g)
 
   /** x (points) for real nodes only. */
   def xCoords(g: RGraph): Map[String, Pt] =
     val (_, allX) = xSolve(g)
-    g.nodes.iterator.map(n => n.id -> allX(n.id)).toMap
+    g.nodes.iterator.map(n => n.id -> allX(LayoutNode.Real(n.id))).toMap
 
 end XCoord

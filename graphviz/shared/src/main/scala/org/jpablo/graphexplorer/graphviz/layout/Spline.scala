@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.model.RGraph
+import org.jpablo.graphexplorer.graphviz.units.Length.Pt
 import scala.collection.mutable
 
 /** Phase 4 of the `dot` pipeline: edge spline routing — full box-fit port.
@@ -56,15 +57,20 @@ object Spline:
     * attaches. See [[splines]] for why the key is the edge index. */
   def splinesEx(g: RGraph): Map[Int, ESpline] =
     val res          = Order.order(g)
-    val (_, allX)    = XCoord.solveAll(g)
+    val (_, allXNode) = XCoord.solveAll(g)
     val (_, yOf)     = Coord.rankY(g)
     val byId         = g.nodes.iterator.map(n => n.id -> n).toMap
-    val orderByRank  = res.order // rank → left→right ids (real + virtual)
-    // res.rank is real-only; invert res.order for a complete (incl. virtual)
-    // id→rank consistent with Order's __v{idx}_{r} placement and XCoord.
+    // The Order/XCoord migration to LayoutNode preserves all type-safety at
+    // construction. Spline's internals stay String-keyed for its 50+ lookup
+    // sites (no unit-mixing risk inside a pure-numerical kernel — see the
+    // "type the boundaries, leave the kernels" principle in the Phase 3
+    // Pt-flow commit). Convert at the consumption boundary:
+    val allX: Map[String, Pt] = allXNode.iterator.map((k, v) => k.name -> v).toMap
+    val orderByRank: Map[Int, Vector[String]] =
+      res.order.view.mapValues(_.map(_.name)).toMap
     val rankOf       = orderByRank.iterator.flatMap { case (r, ids) => ids.map(_ -> r) }.toMap
 
-    def isV(id: String): Boolean = res.isVirtual(id)
+    def isV(id: String): Boolean = LayoutNode.isVirtualName(id)
     def cx(id: String): Double   = allX(id).value
     def cy(id: String): Double   = yOf(rankOf(id)).value
     def lw(id: String): Double =
