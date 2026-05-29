@@ -50,7 +50,9 @@ object LayoutNode:
     else Real(s)
 
   /** Cheap prefix check, equivalent to the historical
-    * `id.startsWith("__v")`. Kept for callers that work with raw String
-    * keys (e.g. [[XCoord]] before it speaks [[LayoutNode]] internally). */
+    * `id.startsWith("__v")`. Kept for Spline.scala, which converts
+    * Order/XCoord's [[LayoutNode]] output back to String keys at the
+    * consumption boundary (its 50+ internal lookup sites stay
+    * String-typed — the kernel/boundary principle). */
   inline def isVirtualName(s: String): Boolean = s.startsWith("__v")
   inline def isSlackName(s: String): Boolean   = s.startsWith("__s")

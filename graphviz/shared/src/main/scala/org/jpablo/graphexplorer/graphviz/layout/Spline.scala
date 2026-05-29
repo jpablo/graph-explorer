@@ -37,12 +37,20 @@ object Spline:
   private val FUDGE        = 4.0           // maximal_bbox FUDGE
   private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode (== XCoord)
 
-  final case class XY(x: Double, y: Double)
+  /** 2D point in the layout coordinate system. The `x`/`y` fields are
+    * raw Doubles for the in-kernel arithmetic (math.hypot, tuple math,
+    * box clipping), but Spline's external surface — the ESpline below —
+    * always carries pt-scale coordinates by construction. The `xPt` /
+    * `yPt` extensions document that contract at the type level for
+    * downstream consumers (Output.json0, Svg.svg). */
+  final case class XY(x: Double, y: Double):
+    inline def xPt: Pt = Pt(x)
+    inline def yPt: Pt = Pt(y)
 
   /** Installed edge spline: piecewise-cubic control points plus the arrow
     * attach points Graphviz records on the `bezier` struct — `ep` (head, set
     * iff a head arrow is drawn) / `sp` (tail). These drive json0's
-    * `e,EX,EY`/`s,SX,SY` `pos` prefixes. */
+    * `e,EX,EY`/`s,SX,SY` `pos` prefixes. All coordinates are in points. */
   final case class ESpline(pts: Vector[XY], ep: Option[XY], sp: Option[XY])
   private final case class Box(var llx: Double, var lly: Double, var urx: Double, var ury: Double)
 
