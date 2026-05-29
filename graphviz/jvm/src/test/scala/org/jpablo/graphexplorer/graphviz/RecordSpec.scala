@@ -84,8 +84,8 @@ class RecordSpec extends FunSuite:
     assert(ha.clip && !ha.constrained, "a (no compass) ⇒ clip, unconstrained")
     // centre of struct1.f0 / struct2.a (node-local) — exact vs field rects.
     val f0 = boxOf("struct1", "f0"); val a = boxOf("struct2", "a")
-    near2((ta.x, ta.y), ((f0._1 + f0._3) / 2, (f0._2 + f0._4) / 2))
-    near2((ha.x, ha.y), ((a._1 + a._3) / 2, (a._2 + a._4) / 2))
+    near2((ta.x.value, ta.y.value), ((f0._1 + f0._3) / 2, (f0._2 + f0._4) / 2))
+    near2((ha.x.value, ha.y.value), ((a._1 + a._3) / 2, (a._2 + a._4) / 2))
 
   test("04 struct1:f2:s / struct2:b:n — compass anchors match the golden endpoints"):
     // compass ⇒ constrained side point, clip=false ⇒ that point IS the
@@ -98,8 +98,8 @@ class RecordSpec extends FunSuite:
     // golden endpoint (abs) − golden node centre = expected node-local.
     val (s1x, s1y) = nodeCenterPt("struct1"); val (s2x, s2y) = nodeCenterPt("struct2")
     // dot pos: struct1:f2:s start = (110.76,86.6); arrow e, = (63.99,25.3)
-    near2approx((ta.x, ta.y), (110.76 - s1x, 86.6 - s1y), 1.0)  // ≤0.5 begin-nudge
-    near2approx((ha.x, ha.y), (63.99 - s2x, 25.3 - s2y), 0.05)  // head: exact
+    near2approx((ta.x.value, ta.y.value), (110.76 - s1x, 86.6 - s1y), 1.0)  // ≤0.5 begin-nudge
+    near2approx((ha.x.value, ha.y.value), (63.99 - s2x, 25.3 - s2y), 0.05)  // head: exact
 
   private def near2(a: (Double, Double), b: (Double, Double)): Unit =
     assert(math.abs(a._1 - b._1) <= 0.05 && math.abs(a._2 - b._2) <= 0.05, s"$a vs $b")

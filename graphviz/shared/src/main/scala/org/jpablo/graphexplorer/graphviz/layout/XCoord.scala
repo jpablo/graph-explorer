@@ -75,7 +75,7 @@ object XCoord:
         p <- port
         n <- byId.get(nodeId)
         a <- PortAnchor.resolve(n, g, p.name.map(_.value).filter(_.nonEmpty), p.compass)
-      yield a.x).getOrElse(0.0)
+      yield a.x.value).getOrElse(0.0)
     res.segments.zipWithIndex.foreach { case ((t, h), i) =>
       val sn: LayoutNode = LayoutNode.Slack(i)
       auxNodes += sn

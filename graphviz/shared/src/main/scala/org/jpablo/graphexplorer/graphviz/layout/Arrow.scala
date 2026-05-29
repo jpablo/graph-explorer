@@ -1,5 +1,7 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
+import org.jpablo.graphexplorer.graphviz.units.Length.Pt
+
 /** Normal-arrowhead geometry — faithful port of `lib/common/arrows.c`
   * (`arrow_type_normal0` + `miter_shape` + `arrow_length_normal`), gv
   * 13.0.1, for the plain `normal` head (no LEFT/RIGHT/INV/OPEN modifiers —
@@ -15,7 +17,11 @@ package org.jpablo.graphexplorer.graphviz.layout
   */
 object Arrow:
 
-  val Length = 10.0 // ARROW_LENGTH (× lenfact × arrowsize)
+  /** `ARROW_LENGTH` (× lenfact × arrowsize). Points-typed at the API
+    * boundary; the internal numerical kernel below stays raw-Double for
+    * tight tuple arithmetic. */
+  val Length: Pt = Pt(10.0)
+  private val LengthD: Double = 10.0
 
   private type P2 = (Double, Double)
 
@@ -66,13 +72,13 @@ object Arrow:
   /** `arrow_length_normal`: the spline-trim length for a `normal` head.
     * `full_length − overlap` where `full_length = q.x` of `normal0` along
     * +x and `overlap = penwidth/2` (no INV). ≈11.53 at the defaults. */
-  def lengthNormal(penwidth: Double, arrowsize: Double): Double =
-    if arrowsize == 0 then 0.0
+  def lengthNormal(penwidth: Double, arrowsize: Double): Pt =
+    if arrowsize == 0 then Pt.Zero
     else
-      val mag = arrowsize * Length // lenfact = 1.0 for ARR_TYPE_NORM
+      val mag = arrowsize * LengthD // lenfact = 1.0 for ARR_TYPE_NORM
       val (_, _, _, q) = normal0((0.0, 0.0), (mag, 0.0), penwidth)
       // full_length = q.x (arrow points along +x, ends at origin); the
       // non-INV overlap is penwidth/2 (overlap_at_tip is INV-only).
-      q._1 - penwidth / 2.0
+      Pt(q._1 - penwidth / 2.0)
 
 end Arrow

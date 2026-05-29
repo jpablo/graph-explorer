@@ -871,7 +871,7 @@ object Spline:
     if g.directed then
       val pw    = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
       val asz   = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
-      val elen  = Arrow.lengthNormal(pw, asz)
+      val elen  = Arrow.lengthNormal(pw, asz).value
       val elen2 = elen * elen
       val ep    = ps(end + 3)
       epAttach = Some(ep)

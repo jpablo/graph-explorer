@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.dotlang.Compass
 import org.jpablo.graphexplorer.graphviz.model.{RGraph, RNode}
+import org.jpablo.graphexplorer.graphviz.units.Length.Pt
 
 /** Port → anchor resolution: `lib/common/shapes.c` `record_port` +
   * `compassPort` (gv 13.0.1), scoped to record field ports (TB, no
@@ -23,11 +24,14 @@ import org.jpablo.graphexplorer.graphviz.model.{RGraph, RNode}
 object PortAnchor:
 
   final case class Anchor(
-      x: Double, y: Double,        // node-local (centre origin, y-up)
+      x: Pt, y: Pt,                // node-local points (centre origin, y-up)
       clip: Boolean,               // spline clipped to the field box
       constrained: Boolean,        // fixed tangent at the endpoint
-      theta: Double                // constrained tangent (radians)
+      theta: Double                // constrained tangent (radians; not a length)
   )
+
+  private inline def anchor(x: Double, y: Double, clip: Boolean, constrained: Boolean, theta: Double): Anchor =
+    Anchor(Pt(x), Pt(y), clip, constrained, theta)
 
   private val HalfPi = math.Pi / 2.0
 
@@ -38,15 +42,15 @@ object PortAnchor:
     import Compass.*
     c match
       case None | Some(Underscore) | Some(C) =>
-        Anchor(cx, cy, clip = true, constrained = false, 0.0)
-      case Some(S)  => Anchor(cx, lly, clip = false, constrained = true, -HalfPi)
-      case Some(N)  => Anchor(cx, ury, clip = false, constrained = true, HalfPi)
-      case Some(E)  => Anchor(urx, cy, clip = false, constrained = true, 0.0)
-      case Some(W)  => Anchor(llx, cy, clip = false, constrained = true, math.Pi)
-      case Some(SE) => Anchor(urx, lly, clip = false, constrained = true, -HalfPi / 2)
-      case Some(SW) => Anchor(llx, lly, clip = false, constrained = true, -3 * HalfPi / 2)
-      case Some(NE) => Anchor(urx, ury, clip = false, constrained = true, HalfPi / 2)
-      case Some(NW) => Anchor(llx, ury, clip = false, constrained = true, 3 * HalfPi / 2)
+        anchor(cx, cy, clip = true, constrained = false, 0.0)
+      case Some(S)  => anchor(cx, lly, clip = false, constrained = true, -HalfPi)
+      case Some(N)  => anchor(cx, ury, clip = false, constrained = true, HalfPi)
+      case Some(E)  => anchor(urx, cy, clip = false, constrained = true, 0.0)
+      case Some(W)  => anchor(llx, cy, clip = false, constrained = true, math.Pi)
+      case Some(SE) => anchor(urx, lly, clip = false, constrained = true, -HalfPi / 2)
+      case Some(SW) => anchor(llx, lly, clip = false, constrained = true, -3 * HalfPi / 2)
+      case Some(NE) => anchor(urx, ury, clip = false, constrained = true, HalfPi / 2)
+      case Some(NW) => anchor(llx, ury, clip = false, constrained = true, 3 * HalfPi / 2)
 
   /** Resolve `node:port[:compass]` to a node-local anchor, or `None` if the
     * node is not a record / the port name is unknown. */
