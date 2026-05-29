@@ -67,7 +67,8 @@ object Svg:
     // position.c dot_compute_bb) — NO spline, NO floor/ceil. `<svg
     // width/height>`/viewBox are the ceil'd int canvas; the `translate`
     // and background polygon keep the exact float (gv: int canvas, 2-dp bb).
-    val (lx, ly, ux, uy) = Output.bbox(g)
+    val (lxPt, lyPt, uxPt, uyPt) = Output.bbox(g)
+    val (lx, ly, ux, uy) = (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
     val bbW = ux - lx; val bbH = uy - ly
     val w   = math.ceil(bbW + 2 * Margin).toInt
     val h   = math.ceil(bbH + 2 * Margin).toInt

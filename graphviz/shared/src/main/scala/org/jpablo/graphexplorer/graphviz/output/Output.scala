@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.graphviz.output
 
 import org.jpablo.graphexplorer.graphviz.model.RGraph
 import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Spline, XCoord}
+import org.jpablo.graphexplorer.graphviz.units.Length.Pt
 
 /** Phase 5 of the `dot` pipeline: output writers (increment 1 — `dot_json`
   * and `json0`).
@@ -94,7 +95,7 @@ object Output:
     * self-edge, + label width) and `dot_compute_bb` then sees it — so a
     * self-looped node's right extent (and the bb) grows by 18 per loop.
     * Drives `bb` for all three formats — shared with `Svg`. */
-  private[output] def bbox(g: RGraph): (Double, Double, Double, Double) =
+  private[output] def bbox(g: RGraph): (Pt, Pt, Pt, Pt) =
     val (_, yOf) = Coord.rankY(g)
     val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
     var minX = Double.MaxValue; var maxX = Double.MinValue
@@ -112,13 +113,14 @@ object Output:
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
     }
-    (minX, minY, maxX, maxY)
+    (Pt(minX), Pt(minY), Pt(maxX), Pt(maxY))
 
   def dotJson(g: RGraph): String =
     val d = doc(g)
     // dot_json `bb` is the **integer** box (space-sep) — gv's `-Tjson`
     // structural dump floor/ceils GD_bb; json0 keeps the exact float.
-    val (lx, ly, ux, uy) = bbox(g)
+    val (lxPt, lyPt, uxPt, uyPt) = bbox(g)
+    val (lx, ly, ux, uy) = (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
     val (blx, bly, bux, buy) =
       (math.floor(lx), math.floor(ly), math.ceil(ux), math.ceil(uy))
     val sb = new StringBuilder
@@ -154,7 +156,8 @@ object Output:
 
   def json0(g: RGraph): String =
     val d = doc(g)
-    val (lx, ly, ux, uy) = bbox(g)
+    val (lxPt, lyPt, uxPt, uyPt) = bbox(g)
+    val (lx, ly, ux, uy) = (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
     val byId  = g.nodes.iterator.map(n => n.id -> n).toMap
     val xs    = XCoord.xCoords(g)
     val (_, yOf) = Coord.rankY(g)
