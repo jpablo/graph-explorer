@@ -58,31 +58,85 @@ object Output:
 
   /** Layout-independent bits shared by both formats. */
   private final case class Doc(
-      name:     String,
-      directed: Boolean,
-      strict:   Boolean,
-      nodes:    Vector[(String, Int)],         // id → _gvid (declaration order)
-      edges:    Vector[Doc.E]
+      name:       String,
+      directed:   Boolean,
+      strict:     Boolean,
+      hasCluster: Boolean,                      // any cluster ⇒ viz-js bails on layout
+      rootAttrs:  Vector[(String, String)],     // root graph attrs, write_attrs-filtered
+      sgCnt:      Int,                           // _subgraph_cnt
+      subgraphs:  Vector[Doc.SG],                // preorder, gvid = 0..sgCnt-1
+      nodes:      Vector[(String, Int)],         // id → _gvid (offset by sgCnt)
+      edges:      Vector[Doc.E]                  // top-level array, AGSEQ order
   )
   private object Doc:
     // _gvid, tailGvid, headGvid, tailport, headport, g.edges index
     final case class E(gv: Int, t: Int, h: Int, tp: Option[String], hp: Option[String], idx: Int)
+    // a subgraph object: gvid, resolved name, label, rank, member-node gvids,
+    // member-edge gvids (both already ownership-filtered + ordered)
+    final case class SG(gvid: Int, name: String, label: String, rank: Option[String],
+        nodeGvids: Vector[Int], edgeGvids: Vector[Int])
 
   private def doc(g: RGraph): Doc =
-    val gvid  = g.nodes.iterator.map(_.id).zipWithIndex.toMap
-    val nodes = g.nodes.map(n => n.id -> gvid(n.id))
-    // Edge _gvid = cgraph creation order: for each node (declaration order),
-    // its out-edges in declaration order. `idx` = position in `g.edges` (the
-    // Spline key) so parallel/port multi-edges map to their own spline.
+    import org.jpablo.graphexplorer.graphviz.model.RSubgraph
+    // Preorder DFS over the subgraph tree = cgraph `label_subgs` order: each
+    // subgraph gets `_gvid` 0..sgCnt-1; real-node `_gvid` is then offset by
+    // sgCnt (write_graph: `ND_gid = sgcnt + ncnt++`).
+    val sgFlat = Vector.newBuilder[RSubgraph]
+    def preorder(s: RSubgraph): Unit = { sgFlat += s; s.children.foreach(preorder) }
+    g.subgraphs.foreach(preorder)
+    val flat  = sgFlat.result()
+    val sgCnt = flat.size
+
+    val nodeIdx  = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+    def nodeGvid(id: String): Int = sgCnt + nodeIdx(id)
+    val nodes = g.nodes.map(n => n.id -> nodeGvid(n.id))
+
+    // Edge _gvid = cgraph node-traversal order (write_graph): for each node
+    // (declaration order), its out-edges in declaration order. `idx` = position
+    // in `g.edges` (= AGSEQ = the Spline key) so parallel/port multi-edges map
+    // to their own spline. The top-level array is then AGSEQ-sorted (gv qsort
+    // by seq in write_edges), while `_gvid` keeps the node-traversal value.
     var k = 0
-    val edges =
+    val edgesByK =
       g.nodes.iterator.flatMap { n =>
         g.edges.iterator.zipWithIndex.filter { case (e, _) => e.tail == n.id }.map { case (e, ix) =>
-          val r = Doc.E(k, gvid(e.tail), gvid(e.head), e.tailPortStr, e.headPortStr, ix)
+          val r = Doc.E(k, nodeGvid(e.tail), nodeGvid(e.head), e.tailPortStr, e.headPortStr, ix)
           k += 1; r
         }
       }.toVector
-    Doc(g.name.getOrElse("%1"), g.directed, g.strict, nodes, edges)
+    val edgeGvidByIdx = edgesByK.iterator.map(e => e.idx -> e.gv).toMap
+    val edges         = edgesByK.sortBy(_.idx)
+
+    // Ownership rule (PORT.md §5.2, oracle-derived): a node that belongs to a
+    // `rank`-constraint subgraph is dropped from every *cluster* node list;
+    // plain-subgraph membership stays additive. `write_edges(sg)` walks only
+    // surviving member nodes, so an evicted node's out-edge leaves the cluster
+    // too. Within a subgraph, nodes/edges list in global id (gvid / AGSEQ)
+    // order, matching `agfstnode(sg)` / the `qsort`.
+    val rankConstrained: Set[String] =
+      flat.iterator.filter(_.rank.isDefined).flatMap(_.nodeIds).toSet
+    def memberNodes(s: RSubgraph): Vector[String] =
+      val declared = s.nodeIds.toSet
+      val kept     = if s.isCluster then declared -- rankConstrained else declared
+      g.nodes.iterator.map(_.id).filter(kept).toVector
+    val subgraphs = flat.zipWithIndex.map { case (s, gv) =>
+      val mem      = memberNodes(s)
+      val memSet   = mem.toSet
+      val edgeGids = s.edgeIdxs.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
+      Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids)
+    }
+
+    // Root graph attributes — gv `write_attrs`: every declared graph-attr key
+    // (agnxtattr order), the root's value (default "" if only set in a
+    // subgraph), skipping empty values *except* `label` (which always prints).
+    val rootAttrs = g.graphAttrKeys.iterator
+      .map(k => k -> g.rootAttrs.getOrElse(k, ""))
+      .filter { case (k, v) => v.nonEmpty || k == "label" }
+      .toVector
+    val hasCluster = flat.exists(_.isCluster)
+
+    Doc(g.name.getOrElse("%1"), g.directed, g.strict, hasCluster, rootAttrs,
+      sgCnt, subgraphs, nodes, edges)
 
   private val SelfEdgeSize = 18.0 // const.h SELF_EDGE_SIZE
 
@@ -115,6 +169,22 @@ object Output:
     }
     (Pt(minX), Pt(minY), Pt(maxX), Pt(maxY))
 
+  /** One subgraph object block (4-space indented, no trailing comma), shared
+    * by both writers. gv field order: name, label, [rank], _gvid, [nodes],
+    * [edges]. json0's cluster-label geometry (bb/lheight/lwidth/lp) is a
+    * tracked deferral (PORT.md §5.4) — not emitted here yet. */
+  private def sgBlockJson(sg: Doc.SG): String =
+    val fields = Vector.newBuilder[String]
+    fields += s"""      "name": "${esc(sg.name)}""""
+    fields += s"""      "label": "${esc(sg.label)}""""
+    sg.rank.foreach(r => fields += s"""      "rank": "${esc(r)}"""")
+    fields += s"""      "_gvid": ${sg.gvid}"""
+    if sg.nodeGvids.nonEmpty then
+      fields += s"""      "nodes": [\n        ${sg.nodeGvids.mkString(",")}\n      ]"""
+    if sg.edgeGvids.nonEmpty then
+      fields += s"""      "edges": [\n        ${sg.edgeGvids.mkString(",")}\n      ]"""
+    "    {\n" + fields.result().mkString(",\n") + "\n    }"
+
   def dotJson(g: RGraph): String =
     val d = doc(g)
     // dot_json `bb` is the **integer** box (space-sep) — gv's `-Tjson`
@@ -128,30 +198,34 @@ object Output:
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
-    sb ++= s"""  "bb": "${g5(blx)} ${g5(bly)} ${g5(bux)} ${g5(buy)}",\n"""
-    sb ++= s"""  "_subgraph_cnt": 0,\n"""
-    sb ++= "  \"objects\": [\n"
+    // Clustered graphs: this viz-js leaves them unlaid-out ⇒ sentinel bb.
+    val bbStr = if d.hasCluster then "0 0 0 0" else s"${g5(blx)} ${g5(bly)} ${g5(bux)} ${g5(buy)}"
+    sb ++= s"""  "bb": "$bbStr",\n"""
+    d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
+    sb ++= s"""  "_subgraph_cnt": ${d.sgCnt},\n"""
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
-    d.nodes.zipWithIndex.foreach { case ((id, gv), i) =>
-      sb ++= "    {\n"
-      sb ++= s"""      "_gvid": $gv,\n"""
-      sb ++= s"""      "name": "${esc(id)}",\n"""
-      sb ++= s"""      "label": "${esc(nodeLabel(byId(id)))}"\n"""
-      sb ++= (if i == d.nodes.length - 1 then "    }\n" else "    },\n")
-    }
-    sb ++= "  ],\n"
+    // objects = subgraph objects (preorder) FIRST, then real nodes (offset gvid)
+    def nodeBlock(id: String, gv: Int): String =
+      "    {\n" + Vector(
+        s"""      "_gvid": $gv""",
+        s"""      "name": "${esc(id)}"""",
+        s"""      "label": "${esc(nodeLabel(byId(id)))}""""
+      ).mkString(",\n") + "\n    }"
+    val objBlocks = d.subgraphs.map(sgBlockJson) ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
+    sb ++= "  \"objects\": [\n"
+    sb ++= objBlocks.mkString(",\n")
+    sb ++= "\n  ],\n"
+    def edgeBlock(e: Doc.E): String =
+      val fields = Vector.newBuilder[String]
+      fields += s"""      "_gvid": ${e.gv}"""
+      fields += s"""      "tail": ${e.t}"""
+      fields += s"""      "head": ${e.h}"""
+      e.hp.foreach(p => fields += s"""      "headport": "${esc(p)}"""")
+      e.tp.foreach(p => fields += s"""      "tailport": "${esc(p)}"""")
+      "    {\n" + fields.result().mkString(",\n") + "\n    }"
     sb ++= "  \"edges\": [\n"
-    d.edges.zipWithIndex.foreach { case (e, i) =>
-      sb ++= "    {\n"
-      sb ++= s"""      "_gvid": ${e.gv},\n"""
-      sb ++= s"""      "tail": ${e.t},\n"""
-      sb ++= s"""      "head": ${e.h}"""
-      e.hp.foreach(p => sb ++= s""",\n      "headport": "${esc(p)}"""")
-      e.tp.foreach(p => sb ++= s""",\n      "tailport": "${esc(p)}"""")
-      sb ++= "\n"
-      sb ++= (if i == d.edges.length - 1 then "    }\n" else "    },\n")
-    }
-    sb ++= "  ]\n}\n"
+    sb ++= d.edges.map(edgeBlock).mkString(",\n")
+    sb ++= "\n  ]\n}\n"
     sb.toString
 
   def json0(g: RGraph): String =
@@ -168,43 +242,44 @@ object Output:
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
-    sb ++= s"""  "bb": "${g5(lx)},${g5(ly)},${g5(ux)},${g5(uy)}",\n"""
-    sb ++= s"""  "_subgraph_cnt": 0,\n"""
-    sb ++= "  \"objects\": [\n"
-    d.nodes.zipWithIndex.foreach { case ((id, gv), i) =>
+    val bbStr = if d.hasCluster then "0,0,0,0" else s"${g5(lx)},${g5(ly)},${g5(ux)},${g5(uy)}"
+    sb ++= s"""  "bb": "$bbStr",\n"""
+    d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
+    sb ++= s"""  "_subgraph_cnt": ${d.sgCnt},\n"""
+    def nodeBlock(id: String, gv: Int): String =
       val n  = byId(id)
       val sz = NodeSize.nodeSize(n, g)
       val px = xs.get(id).fold(0.0)(_.value)
       val py = yOf(ranks(id)).value
-      sb ++= "    {\n"
-      sb ++= s"""      "_gvid": $gv,\n"""
-      sb ++= s"""      "name": "${esc(id)}",\n"""
-      sz.foreach(s => sb ++= s"""      "height": "${g5(s.height.value)}",\n""")
-      sb ++= s"""      "label": "${esc(nodeLabel(n))}",\n"""
-      sb ++= s"""      "pos": "${g5(px)},${g5(py)}",\n"""
-      sz.foreach(s => sb ++= s"""      "width": "${g5(s.width.value)}"\n""")
-      sb ++= (if i == d.nodes.length - 1 then "    }\n" else "    },\n")
-    }
-    sb ++= "  ],\n"
-    sb ++= "  \"edges\": [\n"
-    d.edges.zipWithIndex.foreach { case (e, i) =>
-      val gv = e.gv; val t = e.t; val h = e.h
-      sb ++= "    {\n"
-      sb ++= s"""      "_gvid": $gv,\n"""
-      sb ++= s"""      "tail": $t,\n"""
-      sb ++= s"""      "head": $h"""
-      e.hp.foreach(p => sb ++= s""",\n      "headport": "${esc(p)}"""")
-      e.tp.foreach(p => sb ++= s""",\n      "tailport": "${esc(p)}"""")
+      val fields = Vector.newBuilder[String]
+      fields += s"""      "_gvid": $gv"""
+      fields += s"""      "name": "${esc(id)}""""
+      sz.foreach(s => fields += s"""      "height": "${g5(s.height.value)}"""")
+      fields += s"""      "label": "${esc(nodeLabel(n))}""""
+      fields += s"""      "pos": "${g5(px)},${g5(py)}""""
+      sz.foreach(s => fields += s"""      "width": "${g5(s.width.value)}"""")
+      "    {\n" + fields.result().mkString(",\n") + "\n    }"
+    val objBlocks = d.subgraphs.map(sgBlockJson) ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
+    sb ++= "  \"objects\": [\n"
+    sb ++= objBlocks.mkString(",\n")
+    sb ++= "\n  ],\n"
+    def edgeBlock(e: Doc.E): String =
+      val fields = Vector.newBuilder[String]
+      fields += s"""      "_gvid": ${e.gv}"""
+      fields += s"""      "tail": ${e.t}"""
+      fields += s"""      "head": ${e.h}"""
+      e.hp.foreach(p => fields += s"""      "headport": "${esc(p)}"""")
+      e.tp.foreach(p => fields += s"""      "tailport": "${esc(p)}"""")
       spl.get(e.idx).foreach { es =>
         val pre = es.ep.map(p => s"e,${g5(p.x)},${g5(p.y)} ").getOrElse("") +
                   es.sp.map(p => s"s,${g5(p.x)},${g5(p.y)} ").getOrElse("")
         val pts = es.pts.map(p => s"${g5(p.x)},${g5(p.y)}").mkString(" ")
-        sb ++= s""",\n      "pos": "$pre$pts"\n"""
+        fields += s"""      "pos": "$pre$pts""""
       }
-      if spl.get(e.idx).isEmpty then sb ++= "\n"
-      sb ++= (if i == d.edges.length - 1 then "    }\n" else "    },\n")
-    }
-    sb ++= "  ]\n}\n"
+      "    {\n" + fields.result().mkString(",\n") + "\n    }"
+    sb ++= "  \"edges\": [\n"
+    sb ++= d.edges.map(edgeBlock).mkString(",\n")
+    sb ++= "\n  ]\n}\n"
     sb.toString
 
 end Output
