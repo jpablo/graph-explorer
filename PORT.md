@@ -192,7 +192,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 |---|---|---|---|
 | Acyclic (cycle breaking) | ✅ | RankSpec | DFS back-edge reversal, roots in declaration order (matches `acyclic.c`) |
 | Rank assignment (network simplex) | ✅ | RankSpec + NetworkSimplexSpec | true NS (`init_rank` + tight feasible tree + cut-value pivots + normalize + TB balance). Oracle-verified end-to-end (corpus ranks unchanged) + unit tests for slack/non-unique/weighted/disconnected. LR balance (mode 2) is a stub until M4x X-wiring |
-| `rank=same/min/max/source/sink` | 🟡 (structure landed; layout constraint ⬜) | ClusterSpec | **Subgraph-tree blocker lifted 2026-05-29:** `RGraph.subgraphs` now models the tree (was flat), so `{rank=same}` is captured as an `RSubgraph(rank=Some("same"))` (03's anon `%7`) and its `_gvid`/`nodes`/ownership emit byte-exact in `dot_json`. Still ⬜: the *layout* constraint (actually pinning the set to one rank) — 03 needs no layout (viz-js doesn't lay clusters out) so it isn't exercised yet; a non-cluster `rank=same` corpus probe + the `collapse_rankset` port is the remaining work |
+| `rank=same/min/max/source/sink` | ✅ (`same`; min/max extreme-pin ⬜) | RankSameSpec | **`rank=same` layout CLOSED 2026-05-29 — byte-exact.** `Rank.rankConstraintLeader` ports `collapse_sets` (class1.c): union-find merges each rank-constraint set to one representative; the NS solve runs on the collapsed leaders, then leader ranks expand back to every member. Acyclic + the working edges Order consumes stay on the *original* nodes (only the NS solve collapses) ⇒ additive: identity without rank constraints, unconstrained corpus unchanged. `11-ranksame` probe (`top→a; top→mid→b; {rank=same;a;b}` — forces `a` from rank 1 to rank 2): ranks, node positions, **`dot_json`/`json0`/`svg` all byte-exact**. Also fixed a latent subgraph-`label` emission bug (rank-only `%N` omits `label` unless `label` is a declared graph attr — `write_attrs`; 03's cluster-declared label still reaches its `%7`). ⬜ remaining: the `min`/`source`⇒global-min and `max`/`sink`⇒global-max *extreme* pin (only the same-rank merge is done; no corpus for min/max positioning) |
 | `minlen`, `weight`, `ranksep`, `nodesep` | 🟡 | RankSpec | `minlen` honoured; `weight` n/a to longest-path; `ranksep`/`nodesep` are M4 (coords) |
 | Virtual nodes for long edges | ✅ | OrderSpec | `class2` unit-span chains; verified via corpus long edges (01/02/05/06) staying 0-crossing |
 | Mincross (weighted median + transpose) | 🟡 | OrderSpec | BFS init + `medians`/`reorder` + `transpose`, MaxIter loop. Gate = crossing-count parity (0 across corpus incl. `07` 3→0). pass-0/pass-1 init *alternation*, flat edges, ports, clusters deferred |
@@ -1001,4 +1001,20 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   Refactored `Svg.svg` into the gv node/edge traversal. **`09-styled` svg
   byte-exact**; unstyled corpus (01/06/07/04/08) byte-identical. Suite
   **123→126**; graphvizJS + viewer compile. Styled diagrams now render styled.
+- **2026-05-29** — **`rank=same` layout — byte-exact, the last common
+  *layout* feature.** Ported `collapse_sets` (class1.c) as
+  `Rank.rankConstraintLeader`: union-find merges each rank-constraint set to
+  one representative, the network-simplex solve runs on the collapsed leaders,
+  and leader ranks expand back to every member. Key design point — acyclic and
+  the working edges `Order` builds its virtual chains from stay on the
+  **original** nodes; only the NS solve collapses (Order needs `mid→b`, not
+  `mid→leader`). Additive: identity without rank constraints. `11-ranksame`
+  probe forces a real change (`a`: rank 1 → 2 to join `b`); **all of ranks,
+  positions, `dot_json`/`json0`/`svg` byte-exact** first try — the collapse was
+  the whole job, Order/Coord/XCoord placed the rest exactly. The probe also
+  surfaced a latent bug: a rank-only `%N` subgraph must **omit** `label` unless
+  `label` is a declared graph attr (`write_attrs` skip-empty-except-label over
+  the root's attr dict) — 03's cluster-declared label still reaches its `%7`,
+  but 11's doesn't. Suite **128→133**; graphvizJS + viewer compile. Remaining:
+  the `min`/`max`/`source`/`sink` *extreme-rank* pin (merge done, no corpus).
 - _(append dated entries as milestones land)_

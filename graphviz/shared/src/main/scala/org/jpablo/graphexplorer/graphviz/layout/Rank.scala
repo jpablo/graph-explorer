@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
-import org.jpablo.graphexplorer.graphviz.model.{Attrs, RGraph}
+import org.jpablo.graphexplorer.graphviz.model.{Attrs, RGraph, RSubgraph}
 import scala.collection.mutable
 
 /** Phase 1 of the `dot` pipeline: cycle breaking + rank assignment.
@@ -63,13 +63,50 @@ object Rank:
       if reversed(i) then DEdge(e.head, e.tail, ml) else DEdge(e.tail, e.head, ml)
     }
 
+  /** `collapse_sets` (class1.c): union-find leaders for the `rank=same/min/
+    * max/source/sink` subgraphs — every member is merged to one representative
+    * so the rank solve pins them to a single rank. Identity when no rank
+    * constraints exist ⇒ additive (unconstrained corpus unchanged).
+    *
+    * NOTE: the `min`/`source` (⇒ global min rank) and `max`/`sink` (⇒ global
+    * max) *extreme* constraints are not yet added — only the same-rank merge,
+    * which is the whole of `rank=same`. No corpus exercises min/max/source/
+    * sink positioning; tracked in PORT.md §5.2. */
+  private def rankConstraintLeader(g: RGraph): String => String =
+    val parent = mutable.Map.empty[String, String]
+    def find(x: String): String =
+      val p = parent.getOrElse(x, x)
+      if p == x then x else { val r = find(p); parent(x) = r; r }
+    def union(a: String, b: String): Unit =
+      val (ra, rb) = (find(a), find(b))
+      if ra != rb then parent(ra) = rb
+    val nodeSet = g.nodes.iterator.map(_.id).toSet
+    def walk(subs: Vector[RSubgraph]): Unit = subs.foreach { s =>
+      if s.rank.isDefined then
+        s.nodeIds.filter(nodeSet).reduceLeftOption { (a, b) => union(a, b); b }
+      walk(s.children)
+    }
+    walk(g.subgraphs)
+    (x: String) => find(x)
+
   /** Post-acyclic directed edges plus normalised ranks (min rank = 0),
-    * computed by the network-simplex kernel with TB balance.
+    * computed by the network-simplex kernel with TB balance. Acyclic +
+    * the returned working edges stay on the *original* nodes (Order builds its
+    * virtual chains from them); the `rank=same` collapse applies only to the
+    * NS solve, whose leader ranks are then expanded back to every member.
     */
   def ranked(g: RGraph): (Map[String, Int], Vector[DEdge]) =
     val wedges = acyclic(g, if hasEdgeLabel(g) then 2 else 1)
-    val nse    = wedges.map(e => NetworkSimplex.NSEdge(e.tail, e.head, e.minlen, 1))
-    (NetworkSimplex.solve(g.nodes.map(_.id), nse, balance = NSBalance.TopBottom), wedges)
+    val leader = rankConstraintLeader(g)
+    // collapse endpoints to leaders for ranking; drop now-intra-set edges
+    val nse = wedges.iterator.flatMap { e =>
+      val (t, h) = (leader(e.tail), leader(e.head))
+      if t == h then None else Some(NetworkSimplex.NSEdge(t, h, e.minlen, 1))
+    }.toVector
+    val leaderNodes = g.nodes.iterator.map(n => leader(n.id)).distinct.toVector
+    val leaderRanks = NetworkSimplex.solve(leaderNodes, nse, balance = NSBalance.TopBottom)
+    val ranks = g.nodes.iterator.map(n => n.id -> leaderRanks(leader(n.id))).toMap
+    (ranks, wedges)
 
   /** Normalised integer ranks (min rank = 0) for every node. */
   def assign(g: RGraph): Map[String, Int] = ranked(g)._1

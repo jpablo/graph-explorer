@@ -75,9 +75,12 @@ object Output:
     // _gvid, tailGvid, headGvid, tailport, headport, g.edges index
     final case class E(gv: Int, t: Int, h: Int, tp: Option[String], hp: Option[String], idx: Int)
     // a subgraph object: gvid, resolved name, label, rank, member-node gvids,
-    // member-edge gvids (both already ownership-filtered + ordered)
+    // member-edge gvids (both already ownership-filtered + ordered). emitLabel
+    // = whether `label` is a declared graph attr (write_attrs prints empty
+    // `label` only then — so 03's cluster-declared label reaches %7, but 11's
+    // rank-only subgraph omits it).
     final case class SG(gvid: Int, name: String, label: String, rank: Option[String],
-        nodeGvids: Vector[Int], edgeGvids: Vector[Int])
+        nodeGvids: Vector[Int], edgeGvids: Vector[Int], emitLabel: Boolean)
 
   private def doc(g: RGraph): Doc =
     import org.jpablo.graphexplorer.graphviz.model.RSubgraph
@@ -122,11 +125,12 @@ object Output:
       val declared = s.nodeIds.toSet
       val kept     = if s.isCluster then declared -- rankConstrained else declared
       g.nodes.iterator.map(_.id).filter(kept).toVector
+    val labelDeclared = g.graphAttrKeys.contains("label")
     val subgraphs = flat.zipWithIndex.map { case (s, gv) =>
       val mem      = memberNodes(s)
       val memSet   = mem.toSet
       val edgeGids = s.edgeIdxs.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
-      Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids)
+      Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids, labelDeclared)
     }
 
     // Root graph attributes — gv `write_attrs`: every declared graph-attr key
@@ -176,7 +180,7 @@ object Output:
   private def sgBlockJson(sg: Doc.SG): String =
     val fields = Vector.newBuilder[String]
     fields += s"""      "name": "${esc(sg.name)}""""
-    fields += s"""      "label": "${esc(sg.label)}""""
+    if sg.emitLabel then fields += s"""      "label": "${esc(sg.label)}""""
     sg.rank.foreach(r => fields += s"""      "rank": "${esc(r)}"""")
     fields += s"""      "_gvid": ${sg.gvid}"""
     if sg.nodeGvids.nonEmpty then
