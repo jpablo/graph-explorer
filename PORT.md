@@ -222,8 +222,8 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 ### 5.4 Output writers
 | Format | Status | Test | Notes |
 |---|---|---|---|
-| `dot_json` | ✅ | OutputSpec | `Output.dotJson`: hand-rolled (no serialization dep). name/`%1`/directed/strict/`_subgraph_cnt`/space-`bb`/objects(`_gvid`,name,label)/edges(`_gvid` by cgraph node-traversal order, tail,head). bb = the **integer** box (floor/ceil of `dot_compute_bb`'s exact node-extent). **byte-exact** vs golden 01/06/07 **and 04** (04 = `"0 0 132 124"`) |
-| `json0` | ✅ | OutputSpec | `Output.json0`: dot_json + node `pos`/`width`/`height`, comma-`bb`, edge `pos` spline string (`e,EX,EY ` iff head arrow, via `Spline.splinesEx` `ESpline.ep`, keyed by edge identity). bb = the **exact float** node-extent (`%.5g`) — distinct from dot_json's int (04 = `"0,0,131.98,123.6"`), **byte-exact** vs golden incl. 04. Geometry ±ε, **mirror-aware** (06 X mirrored, cf. XCoordSpec) |
+| `dot_json` | ✅ | OutputSpec + AttrEmitSpec + ClusterSpec | `Output.dotJson`: hand-rolled (no serialization dep). name/`%1`/directed/strict/`_subgraph_cnt`/space-`bb`/subgraph objects (§5.2)/node+edge objects/edges. **Full `write_attrs` (2026-05-29):** every object emits its resolved attributes **alphabetically**, skipping empty values *except* `label` (`json.c` rule) — graph attrs (incl. subgraph-declared surfacing at root, e.g. cluster `label:""`), node attrs (`shape`/`style`/`fillcolor`/`tooltip`/…), edge attrs (`color`/`arrowhead`/`weight`/`style`, `label:""` once any edge is labelled; `tailport`/`headport` are just edge attrs). `stoj` `/`→`\/` escape. `_gvid` offset by `_subgraph_cnt`; edge array AGSEQ-sorted. **byte-exact** vs golden 01/06/07 **and 04** (records now emit `shape`); **02/05 objects+edges byte-exact**, their `bb` deferred (02 LR-layout, 05 graph-label bbox space). bb = **integer** box (floor/ceil of `dot_compute_bb`). |
+| `json0` | ✅ | OutputSpec + AttrEmitSpec | `Output.json0`: dot_json attrs **merged alphabetically** with the layout keys (node `pos`/`width`/`height`, edge `pos` spline `e,EX,EY `) into one `write_attrs` stream — so the viewer's render path (`renderFormats(dot,["svg","json0"])`) now receives `fillcolor`/`shape`/`style`/… (previously dropped ⇒ unstyled). comma-`bb` = exact float node-extent (`%.5g`). **byte-exact** vs golden 01/06/07/04; geometry ±ε, **mirror-aware** (06 X mirrored, cf. XCoordSpec) |
 | `svg` | ✅ | SvgSpec | `Output`/`Svg.svg`: header/`<svg>`/`viewBox`/flipped-y `translate`/background bit-exact; node `<ellipse>`+centered `<text>` (baseline y from `emit_label`+`yoffset_centerline`, source-derived not fitted); edge `<path d>` from the installed spline + normal-arrowhead `<polygon>` (full `arrow_type_normal0` + `miter_shape` ported 2026-05-17: `delta_tip` miter incl. the SVG `stroke-miterlimit=4` bevel fallback — **byte-identical** to the golden for non-virtual edges; was the long-deferred sub-2px residual). **Record nodes** (2026-05-17): ports `record_gencode`/`gen_fields` — outer box `<polygon>` + inter-field separator `<polyline>`s (LR table ⇒ vertical at child llx; TB ⇒ horizontal at child ury) + per-leaf centred field `<text>`; **byte-identical** to the 04 golden's per-node `<g>` blocks (exact, not ε — fully determined by the ✅ RecordLabel layout). `gvprintdouble` (`%.2f` trimmed). **Graph/edge titles** (2026-05-17): named graph ⇒ `<!-- Title: NAME -->` + graph `<title>`, anon ⇒ neither (`g.name`); edge `<title>` = `\E` (labels.c) = `tail[:port]op head[:port]` where port = `chkPort` `.name` (after first `:`, ⇒ `f2:s`→`s`), the edge *comment* stays portless (emit.c) — gated vs 04 + the corpus (closed the latent 06/07 untested gap). **Bbox precision** (2026-05-17): `Output.bbox` ports `position.c dot_compute_bb` — node-extent only (NORMAL nodes ± lw/rw + rank ht), **no spline, no floor/ceil**; svg `<svg>`/viewBox = ceil'd int canvas, `translate`/bg = the exact float. 04 svg header/transform/background now **byte-exact** vs golden (`translate(4 127.6)`, bg `135.98`). Well-formed + visually-close ε vs golden 01/06/07/04, mirror-aware. **Arrow miter + true length ported** (2026-05-17): `Arrow` (shared by Svg + Spline) — arrowhead polygons **byte-identical**, and clipping by the real `arrow_length_normal` (≈11.53) made the directed corpus splines byte-exact, so directed `<path d>` + `<polygon>` now match the golden to float-ε. Only 06 (undirected ⇒ no arrow clip) keeps its documented ≈0.013 in layout-equivalent X-mirror residual |
 | `MultipleRenderResult` shape (`status/output/errors`) | ✅ | GraphvizSpec | `Graphviz.renderFormats(dot, formats)` (pure, cross-compiled): parse→resolve→emit. `status`/`output` map/`errors` mirror [VizJS.scala:80](viewer/src/main/scala/org/jpablo/graphexplorer/viewer/backends/graphviz/vizjs/VizJS.scala#L80). Malformed DOT / unsupported format → `failure` (reported, not thrown). The M8 call-site seam |
 
@@ -966,4 +966,23 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   clean zeros) and svg cluster boxes; `rank=same` *layout* constraint (03
   needs none). Remaining M6: LR label-vnode-X-under-flip, HTML-like labels,
   `rank=same` layout, `json0`/svg cluster geometry.
+- **2026-05-29** — **Full attribute emission in `dot_json`/`json0` — the
+  M8-critical styling path.** The writers previously dropped *every* attribute
+  except `label`, so a `fillcolor`/`shape`/`style` diagram rendered **unstyled**
+  through the Scala backend (byte-exact layout, no colours). Ported gv
+  `write_attrs` (`gvrender_core_json.c`): each object emits its resolved
+  attributes **alphabetically**, skipping empty values *except* `label`
+  (`json.c`), with the `stoj` `/`→`\/` escape. Nodes always carry `label`
+  (default `\N`); edges carry `label` (default `""`) once *any* edge is
+  labelled; `tailport`/`headport` are ordinary edge attributes (which is why
+  04's port-only edges already sorted right). Graph attrs sort alphabetically
+  too (fixed 02's `bgcolor`/`rankdir` order) and surface subgraph-declared keys
+  at the root. For `json0` the layout keys (`pos`/`width`/`height`) merge into
+  the *same* alphabetical stream — so the viewer's actual render format
+  (`renderFormats(dot,["svg","json0"])`) now receives styling. Gated
+  (AttrEmitSpec): **04 `dot_json` byte-exact** (records now emit `shape`);
+  02/05 objects+edges byte-exact (their `bb` deferred — 02 LR, 05 graph-label
+  bbox); 02 `json0` carries the style attrs; 01 unchanged. Suite **118→123**;
+  graphvizJS + viewer compile. Additive — no geometry touched. This is the
+  single most M8-practical fix in the tail: styling now flows end-to-end.
 - _(append dated entries as milestones land)_

@@ -46,6 +46,7 @@ object Output:
     s.foreach {
       case '"'  => b ++= "\\\""
       case '\\' => b ++= "\\\\"
+      case '/'  => b ++= "\\/" // gv `stoj` escapes forward slash (json.c)
       case '\n' => b ++= "\\n"
       case '\r' => b ++= "\\r"
       case '\t' => b ++= "\\t"
@@ -53,8 +54,10 @@ object Output:
     }
     b.toString
 
-  private def nodeLabel(n: org.jpablo.graphexplorer.graphviz.model.RNode): String =
-    n.attrs.toMap.getOrElse("label", "\\N") // Graphviz default node label
+  /** Object attributes as gv `write_attrs` emits them: **alphabetical** by
+    * name, skipping empty values *except* `label` (which always prints). */
+  private def attrPairs(attrs: Map[String, String]): Vector[(String, String)] =
+    attrs.toVector.filter { case (k, v) => v.nonEmpty || k == "label" }.sortBy(_._1)
 
   /** Layout-independent bits shared by both formats. */
   private final case class Doc(
@@ -129,10 +132,7 @@ object Output:
     // Root graph attributes — gv `write_attrs`: every declared graph-attr key
     // (agnxtattr order), the root's value (default "" if only set in a
     // subgraph), skipping empty values *except* `label` (which always prints).
-    val rootAttrs = g.graphAttrKeys.iterator
-      .map(k => k -> g.rootAttrs.getOrElse(k, ""))
-      .filter { case (k, v) => v.nonEmpty || k == "label" }
-      .toVector
+    val rootAttrs = attrPairs(g.graphAttrKeys.iterator.map(k => k -> g.rootAttrs.getOrElse(k, "")).toMap)
     val hasCluster = flat.exists(_.isCluster)
 
     Doc(g.name.getOrElse("%1"), g.directed, g.strict, hasCluster, rootAttrs,
@@ -204,24 +204,31 @@ object Output:
     d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
     sb ++= s"""  "_subgraph_cnt": ${d.sgCnt},\n"""
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
+    // gv auto-declares node `label` (default \N) always, edge `label` (default
+    // "") only when some edge uses it ⇒ every edge then prints `label` too.
+    val edgeLabels = g.edges.exists(_.attrs.toMap.contains("label"))
     // objects = subgraph objects (preorder) FIRST, then real nodes (offset gvid)
     def nodeBlock(id: String, gv: Int): String =
-      "    {\n" + Vector(
-        s"""      "_gvid": $gv""",
-        s"""      "name": "${esc(id)}"""",
-        s"""      "label": "${esc(nodeLabel(byId(id)))}""""
-      ).mkString(",\n") + "\n    }"
+      val a = byId(id).attrs.toMap.updatedWith("label")(v => Some(v.getOrElse("\\N")))
+      val fields = Vector.newBuilder[String]
+      fields += s"""      "_gvid": $gv"""
+      fields += s"""      "name": "${esc(id)}""""
+      attrPairs(a).foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
+      "    {\n" + fields.result().mkString(",\n") + "\n    }"
     val objBlocks = d.subgraphs.map(sgBlockJson) ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
     sb ++= "  \"objects\": [\n"
     sb ++= objBlocks.mkString(",\n")
     sb ++= "\n  ],\n"
     def edgeBlock(e: Doc.E): String =
+      var a = g.edges(e.idx).attrs.toMap
+      e.tp.foreach(p => a += "tailport" -> p) // ports are just edge attributes
+      e.hp.foreach(p => a += "headport" -> p)
+      if edgeLabels then a = a.updatedWith("label")(v => Some(v.getOrElse("")))
       val fields = Vector.newBuilder[String]
       fields += s"""      "_gvid": ${e.gv}"""
       fields += s"""      "tail": ${e.t}"""
       fields += s"""      "head": ${e.h}"""
-      e.hp.foreach(p => fields += s"""      "headport": "${esc(p)}"""")
-      e.tp.foreach(p => fields += s"""      "tailport": "${esc(p)}"""")
+      attrPairs(a).foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
     sb ++= "  \"edges\": [\n"
     sb ++= d.edges.map(edgeBlock).mkString(",\n")
@@ -246,36 +253,46 @@ object Output:
     sb ++= s"""  "bb": "$bbStr",\n"""
     d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
     sb ++= s"""  "_subgraph_cnt": ${d.sgCnt},\n"""
+    val edgeLabels = g.edges.exists(_.attrs.toMap.contains("label"))
+    // json0 = dot_json attrs with the layout keys (height/pos/width for nodes,
+    // pos for edges) merged into the same alphabetical `write_attrs` stream.
     def nodeBlock(id: String, gv: Int): String =
       val n  = byId(id)
       val sz = NodeSize.nodeSize(n, g)
       val px = xs.get(id).fold(0.0)(_.value)
       val py = yOf(ranks(id)).value
+      val a  = n.attrs.toMap.updatedWith("label")(v => Some(v.getOrElse("\\N")))
+      val kv = scala.collection.mutable.LinkedHashMap.empty[String, String]
+      attrPairs(a).foreach((k, v) => kv(k) = s""""${esc(v)}"""")
+      sz.foreach { s => kv("height") = s""""${g5(s.height.value)}""""; kv("width") = s""""${g5(s.width.value)}"""" }
+      kv("pos") = s""""${g5(px)},${g5(py)}""""
       val fields = Vector.newBuilder[String]
       fields += s"""      "_gvid": $gv"""
       fields += s"""      "name": "${esc(id)}""""
-      sz.foreach(s => fields += s"""      "height": "${g5(s.height.value)}"""")
-      fields += s"""      "label": "${esc(nodeLabel(n))}""""
-      fields += s"""      "pos": "${g5(px)},${g5(py)}""""
-      sz.foreach(s => fields += s"""      "width": "${g5(s.width.value)}"""")
+      kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${esc(k)}": $v""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
     val objBlocks = d.subgraphs.map(sgBlockJson) ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
     sb ++= "  \"objects\": [\n"
     sb ++= objBlocks.mkString(",\n")
     sb ++= "\n  ],\n"
     def edgeBlock(e: Doc.E): String =
-      val fields = Vector.newBuilder[String]
-      fields += s"""      "_gvid": ${e.gv}"""
-      fields += s"""      "tail": ${e.t}"""
-      fields += s"""      "head": ${e.h}"""
-      e.hp.foreach(p => fields += s"""      "headport": "${esc(p)}"""")
-      e.tp.foreach(p => fields += s"""      "tailport": "${esc(p)}"""")
+      var a = g.edges(e.idx).attrs.toMap
+      e.tp.foreach(p => a += "tailport" -> p)
+      e.hp.foreach(p => a += "headport" -> p)
+      if edgeLabels then a = a.updatedWith("label")(v => Some(v.getOrElse("")))
+      val kv = scala.collection.mutable.LinkedHashMap.empty[String, String]
+      attrPairs(a).foreach((k, v) => kv(k) = s""""${esc(v)}"""")
       spl.get(e.idx).foreach { es =>
         val pre = es.ep.map(p => s"e,${g5(p.x)},${g5(p.y)} ").getOrElse("") +
                   es.sp.map(p => s"s,${g5(p.x)},${g5(p.y)} ").getOrElse("")
         val pts = es.pts.map(p => s"${g5(p.x)},${g5(p.y)}").mkString(" ")
-        fields += s"""      "pos": "$pre$pts""""
+        kv("pos") = s""""$pre$pts""""
       }
+      val fields = Vector.newBuilder[String]
+      fields += s"""      "_gvid": ${e.gv}"""
+      fields += s"""      "tail": ${e.t}"""
+      fields += s"""      "head": ${e.h}"""
+      kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${esc(k)}": $v""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
     sb ++= "  \"edges\": [\n"
     sb ++= d.edges.map(edgeBlock).mkString(",\n")
