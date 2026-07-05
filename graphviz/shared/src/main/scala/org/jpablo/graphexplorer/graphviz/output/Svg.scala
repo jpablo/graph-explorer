@@ -98,9 +98,10 @@ object Svg:
 
     // nodes (declaration order)
     val dimY = FontSize * LineSpacing
-    def textAt(cx: Double, cyc: Double, s: String): String =
+    def textAt(cx: Double, cyc: Double, s: String, fill: String = ""): String =
       val ty = -(cyc + dimY / 2.0 - FontSize + 0.1 * FontSize)
-      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}" font-family="Times,serif" font-size="14.00">${xml(s)}</text>\n"""
+      val f  = if fill.nonEmpty then s""" fill="$fill"""" else "" // fontcolor
+      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}" font-family="Times,serif" font-size="14.00"$f>${xml(s)}</text>\n"""
 
     // record_gencode + gen_fields (shapes.c): outer box polygon, then per
     // table the inter-child separator polylines + per leaf the field text.
@@ -121,7 +122,11 @@ object Svg:
           genFields(c, ncx, ncy)
         }
 
-    g.nodes.zipWithIndex.foreach { case (n, i) =>
+    val op      = if g.directed then "->" else "--"
+    val nodeIdx = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+
+    def emitNode(i: Int): Unit =
+      val n = g.nodes(i)
       for xPt <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
         val x    = xPt.value
         val cy   = yOf(ranks(n.id)).value
@@ -139,18 +144,21 @@ object Svg:
             val rx  = sz.halfWidthPt.value
             val ry  = sz.halfHeightPt.value
             val lbl = n.attrs.get("label").filter(_ != "\\N").getOrElse(n.id)
-            sb ++= s"""<ellipse fill="none" stroke="black" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
-            sb ++= textAt(x, cy, lbl)
+            // gv node style: `filled` ⇒ fill = fillcolor|color|lightgrey, else
+            // "none"; stroke = pencolor (`color`), default black; text = fontcolor.
+            val styles = n.attrs.get("style").map(_.split(",").iterator.map(_.trim).toSet).getOrElse(Set.empty)
+            val fill =
+              if styles.contains("filled") then
+                n.attrs.get("fillcolor").orElse(n.attrs.get("color")).getOrElse("lightgrey")
+              else "none"
+            val stroke = n.attrs.get("color").getOrElse("black")
+            sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
+            sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
         sb ++= "</g>\n"
-    }
 
-    // edges (cgraph node-traversal order)
-    val op = if g.directed then "->" else "--"
-    var ei = 0
-    g.nodes.foreach { tnode =>
-      g.edges.zipWithIndex.filter { case (e, _) => e.tail == tnode.id }.foreach { case (e, ix) =>
-        ei += 1
-        spl.get(ix).foreach { es =>
+    def emitEdge(ix: Int, ei: Int): Unit =
+      val e = g.edges(ix)
+      spl.get(ix).foreach { es =>
           val pts = es.pts
           // emit.c: the edge *comment* is portless (agnameof tail/head);
           // the `<title>` is the `\E` expansion = tail[:port]op head[:port]
@@ -165,7 +173,15 @@ object Svg:
           sb ++= s"<title>${xml(label)}</title>\n"
           val head = pts.head
           val rest = pts.tail.map(p => s"${d2(p.x)},${d2(-p.y)}").mkString(" ")
-          sb ++= s"""<path fill="none" stroke="black" d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
+          // gv edge: stroke = `color` (default black); `dashed`/`dotted` style
+          // ⇒ stroke-dasharray. Arrowhead polygon takes the same stroke+fill.
+          val eStroke = e.attrs.get("color").getOrElse("black")
+          val eStyles = e.attrs.get("style").map(_.split(",").iterator.map(_.trim).toSet).getOrElse(Set.empty)
+          val dash =
+            if eStyles.contains("dashed") then """ stroke-dasharray="5,2""""
+            else if eStyles.contains("dotted") then """ stroke-dasharray="1,5""""
+            else ""
+          sb ++= s"""<path fill="none" stroke="$eStroke"$dash d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
           if g.directed then
             es.ep.foreach { tip =>
               val base = pts.last
@@ -178,12 +194,27 @@ object Svg:
                 val u   = (dx / len * mag, dy / len * mag)
                 val (a1, a2, a3, _) = Arrow.normal0((tip.x, tip.y), u, pw)
                 def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
-                sb ++= s"""<polygon fill="black" stroke="black" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
+                sb ++= s"""<polygon fill="$eStroke" stroke="$eStroke" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
             }
           sb ++= "</g>\n"
         }
+
+    // gv svg emit order: for each node (first-mention order) emit it, then per
+    // out-edge emit the head node (if unseen) then the edge — so nodes/edges
+    // interleave (a node appears just before the first edge that closes on it).
+    val emitted = scala.collection.mutable.Set.empty[String]
+    def ensureNode(id: String): Unit =
+      nodeIdx.get(id).foreach(i => if !emitted(id) then { emitted += id; emitNode(i) })
+    var ei = 0
+    g.nodes.indices.foreach { ti =>
+      ensureNode(g.nodes(ti).id)
+      g.edges.indices.filter(ix => g.edges(ix).tail == g.nodes(ti).id).foreach { ix =>
+        ensureNode(g.edges(ix).head)
+        ei += 1
+        emitEdge(ix, ei)
       }
     }
+    g.nodes.indices.foreach(i => ensureNode(g.nodes(i).id)) // any isolated nodes
 
     sb ++= "</g>\n</svg>\n"
     sb.toString

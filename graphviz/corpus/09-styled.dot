@@ -1,0 +1,7 @@
+digraph styled {
+  a [style=filled, fillcolor=lightblue];
+  b [color=red, fontcolor=blue];
+  a -> b [color=green];
+  a -> c [style=dashed];
+  b -> c;
+}

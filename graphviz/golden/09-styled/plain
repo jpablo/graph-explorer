@@ -1,0 +1,8 @@
+graph 1 1.125 2.5
+node a 0.75 2.25 0.75 0.5 a filled ellipse black lightblue
+node b 0.375 1.25 0.75 0.5 b solid ellipse red red
+node c 0.75 0.25 0.75 0.5 c solid ellipse black lightgrey
+edge a b 4 0.65922 2.0008 0.61777 1.8933 0.56762 1.7633 0.52107 1.6426 solid green
+edge a c 10 0.80075 1.9987 0.82883 1.8551 0.86084 1.6679 0.875 1.5 0.89367 1.2786 0.89367 1.2214 0.875 1 0.8656 0.88849 0.84832 0.76848 0.82955 0.65838 dashed black
+edge b c 4 0.46578 1.0008 0.50723 0.89329 0.55738 0.76329 0.60393 0.64259 solid black
+stop
