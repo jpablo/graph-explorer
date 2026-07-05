@@ -823,17 +823,23 @@ object Spline:
               XY(s.x + 2 * (t.x - s.x) / 3, s.y + 2 * (t.y - s.y) / 3), t)
     val pn = ps.length
 
-    // ellipse insidefn: box semi-axes = (sizePt + penwidth)/2; symmetric poly
-    // ⇒ scalex = scaley = 1. inside ⇔ hypot(P.x/URx, P.y/URy) < 1.
+    // insidefn: box semi-axes = (sizePt + penwidth)/2. For an ellipse the
+    // symmetric poly ⇒ scalex=scaley=1 ⇒ inside ⇔ hypot(P.x/URx,P.y/URy)<1;
+    // for a box-family shape (poly_inside on the rectangle) it's the plain
+    // axis-aligned bound |px|<URx ∧ |py|<URy.
     def insideFn(id: String): Option[XY => Boolean] =
-      byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map { sz =>
-        val cen = centerOf(id)
-        val urx = (sz.widthPt.value + NodePenwidth) / 2.0
-        val ury = (sz.heightPt.value + NodePenwidth) / 2.0
-        (p: XY) =>
-          val px = p.x - cen.x; val py = p.y - cen.y
-          if math.abs(px) > urx || math.abs(py) > ury then false
-          else math.hypot(px / urx, py / ury) < 1.0
+      byId.get(id).flatMap { n =>
+        NodeSize.layoutSize(n, g).map { sz =>
+          val cen = centerOf(id)
+          val urx = (sz.widthPt.value + NodePenwidth) / 2.0
+          val ury = (sz.heightPt.value + NodePenwidth) / 2.0
+          val boxLike = Set("box", "rect", "rectangle", "square").contains(n.attrs.get("shape").getOrElse(""))
+          (p: XY) =>
+            val px = p.x - cen.x; val py = p.y - cen.y
+            if boxLike then math.abs(px) < urx && math.abs(py) < ury
+            else if math.abs(px) > urx || math.abs(py) > ury then false
+            else math.hypot(px / urx, py / ury) < 1.0
+        }
       }
 
     def shapeClip0(seg: Int, inside: XY => Boolean, leftInside: Boolean): Unit =

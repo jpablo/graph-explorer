@@ -210,16 +210,16 @@ object Svg:
     // gv svg emit order: for each node (first-mention order) emit it, then per
     // out-edge emit the head node (if unseen) then the edge — so nodes/edges
     // interleave (a node appears just before the first edge that closes on it).
+    // svg `id="edgeN"` = the edge's declaration (AGSEQ) index + 1 (g.edges is
+    // in declaration order) — decoupled from the interleaved *emit* order.
     val emitted = scala.collection.mutable.Set.empty[String]
     def ensureNode(id: String): Unit =
       nodeIdx.get(id).foreach(i => if !emitted(id) then { emitted += id; emitNode(i) })
-    var ei = 0
     g.nodes.indices.foreach { ti =>
       ensureNode(g.nodes(ti).id)
       g.edges.indices.filter(ix => g.edges(ix).tail == g.nodes(ti).id).foreach { ix =>
         ensureNode(g.edges(ix).head)
-        ei += 1
-        emitEdge(ix, ei)
+        emitEdge(ix, ix + 1)
       }
     }
     g.nodes.indices.foreach(i => ensureNode(g.nodes(i).id)) // any isolated nodes

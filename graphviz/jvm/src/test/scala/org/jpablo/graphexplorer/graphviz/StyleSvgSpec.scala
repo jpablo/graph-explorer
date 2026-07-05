@@ -19,16 +19,8 @@ class StyleSvgSpec extends FunSuite:
   test("09-styled: svg byte-exact (fill / stroke / dash / fontcolor)"):
     assertEquals(svg("09-styled"), OracleHarness.golden("09-styled", "svg"))
 
-  // shape=box node rendering is byte-exact; edge box-clipping (poly_inside vs
-  // ellipse_inside in clip_and_install) is a deferred spline change, so the
-  // node <g> blocks are asserted rather than the whole svg.
-  test("10-box: box node <g> blocks byte-exact (shape=box ⇒ rectangle <polygon>)"):
-    def nodeBlocks(s: String): Vector[String] =
-      """(?s)<g id="node\d+" class="node">.*?</g>""".r.findAllIn(s).toVector
-    val o = nodeBlocks(svg("10-box"))
-    val g = nodeBlocks(OracleHarness.golden("10-box", "svg"))
-    assertEquals(o.size, 3, "three box nodes")
-    assertEquals(o, g)
+  test("10-box: svg byte-exact (shape=box <polygon> + box edge-clipping)"):
+    assertEquals(svg("10-box"), OracleHarness.golden("10-box", "svg"))
 
   test("01-minimal: unstyled svg stays fill=none stroke=black (no regression)"):
     val s = svg("01-minimal")
