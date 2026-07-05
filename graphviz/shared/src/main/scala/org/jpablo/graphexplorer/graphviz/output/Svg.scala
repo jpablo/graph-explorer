@@ -152,7 +152,15 @@ object Svg:
                 n.attrs.get("fillcolor").orElse(n.attrs.get("color")).getOrElse("lightgrey")
               else "none"
             val stroke = n.attrs.get("color").getOrElse("black")
-            sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
+            // box-family shapes render as a rectangle <polygon> (corners
+            // UR,UL,LL,LR,UR in flipped-y); everything else stays an ellipse.
+            val boxLike = Set("box", "rect", "rectangle", "square")
+            if boxLike.contains(n.attrs.get("shape").getOrElse("")) then
+              val (l, r)   = (x - rx, x + rx)
+              val (t, b)   = (-(cy + ry), -(cy - ry))
+              sb ++= s"""<polygon fill="$fill" stroke="$stroke" points="${d2(r)},${d2(t)} ${d2(l)},${d2(t)} ${d2(l)},${d2(b)} ${d2(r)},${d2(b)} ${d2(r)},${d2(t)}"/>\n"""
+            else
+              sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
             sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
         sb ++= "</g>\n"
 
