@@ -243,7 +243,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 | ~~NS-optimisation deferred (M2 uses longest-path)~~ | **RETIRED 2026-05-16.** `NetworkSimplex` implemented; `Rank` now uses true NS+TB-balance; corpus ranks unchanged (oracle-verified) + `NetworkSimplexSpec` covers slack/non-unique/weighted cases |
 | Reference source ≠ oracle version (tie-break mismatch, unfixable diffs) | §2.4 version-alignment protocol; study only the version-matched worktree |
 | Oracle drift on viz-js bump | Pin `@viz-js/viz` 3.14.0; on any bump re-pin source worktree + regenerate golden + diff review |
-| **XCoord network-simplex non-termination on dense graphs** (found by M8 real-diagram validation 2026-05-29) | **`XCoord.xCoords` hangs** on `sbt-project-dependencies` (36 nodes / **99 edges** — dense aux graph); `Rank`/`Order` complete, only the aux-graph NS loops (likely pivot cycling / no iteration cap). **Showstopper — freezes the viewer.** Invisible to the small corpus. Fix: iteration cap + anti-cycling (Bland's rule) in `NetworkSimplex`, or bound the aux-graph pivots. **Top priority.** |
+| ~~XCoord network-simplex non-termination on dense graphs~~ (found by M8 validation 2026-05-29) | **RESOLVED 2026-05-29.** Not cycling (a `maxIter` cap existed) — an **O(V·(V+E))-per-pivot blowup**: cut values were recomputed from scratch for every tree edge (plus a redundant `cutValue(leaving)` recompute), and `propagateTight` was O(V²). On sbt-deps' ~800-node/1234-edge aux graph that's ~10¹⁴ ops ≈ hang. Fixed by porting `ns.c` `dfs_range` + `dfs_cutval`: all cut values in one **O(V+E)** postorder pass over a rooted low/lim tree (reusing children's values), low/lim subtree membership for the entering-edge search, and adjacency-based `propagateTight`. **Byte-identical** cut values ⇒ corpus 140/140 unchanged. sbt-deps XCoord **∞ → 0.49s** (370 pivots, optimal); module-deps renders in 0.9s. Guard: NetworkSimplexSpec dense 400-node/2800-edge case. |
 
 ## 7. Progress log
 - **2026-05-16** — Plan created. Reference source confirmed available at
@@ -1050,4 +1050,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   layout gap). Recorded in §6 risk register as **top priority**. Diagnostic
   harness was scratch (absolute paths + oracle side-dir) — removed after
   capturing the findings; suite stays 140/140.
+- **2026-05-29** — **Fixed the XCoord network-simplex hang (M8's top
+  finding).** Not an infinite loop — an O(V·(V+E))-per-pivot **blowup**: every
+  cut value recomputed from scratch per tree edge (comment even flagged it:
+  *"correctness over speed; the graphs here are tiny"*), a redundant
+  `cutValue(leaving)` recompute in the search, and an O(V²) `propagateTight`.
+  Fine for the 13-file corpus (tiny), ~10¹⁴ ops on a real 800-node aux graph.
+  Ported `ns.c` `dfs_range` + `dfs_cutval`: rooted **low/lim** tree, all cut
+  values in ONE O(V+E) postorder pass reusing children's values; low/lim
+  subtree membership replaces the O(V²) `componentOf` in the entering search;
+  `propagateTight` walks the tree adjacency (O(V+E)). **Cut values are
+  byte-identical**, so pivot decisions / ranks / x-coords are unchanged —
+  corpus **140/140 green**, no geometry moved. Perf: sbt-deps XCoord **∞ →
+  3.7s → 0.49s** (the propagateTight O(V²)→O(V+E) fix was the 7.5×), 370 pivots
+  (optimal, not capped); module-dependencies (213n) renders in 0.9s. Regression
+  guard added (dense 400-node NS). **Note** a *separate* inefficiency surfaced:
+  `renderFormats` recomputes the full layout ~7× (each of dot_json/json0/svg,
+  and each consumer, re-runs Rank/Order/XCoord/Spline) — memoizing the layout
+  per graph would cut sbt-deps' full render 2.7s → ~0.5s. Tracked, not a hang.
 - _(append dated entries as milestones land)_

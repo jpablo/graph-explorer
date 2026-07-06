@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.layout.NetworkSimplex
+import org.jpablo.graphexplorer.graphviz.layout.{NetworkSimplex, NSBalance}
 import org.jpablo.graphexplorer.graphviz.layout.NetworkSimplex.NSEdge
 
 /** Unit tests for the network-simplex kernel — specifically the ranking-slack
@@ -62,6 +62,19 @@ class NetworkSimplexSpec extends FunSuite:
     val es = Seq(e("a", "b"), e("x", "y"))
     val r  = NetworkSimplex.solve(Seq("a", "b", "x", "y"), es)
     assert(feasible(es, r))
+    assertEquals(r.values.min, 0)
+
+  // Regression guard for the O(V·(V+E))-per-pivot blowup that HUNG XCoord on
+  // dense real diagrams (sbt-project-dependencies aux graph ~800 nodes;
+  // PORT.md §6). A dense layered DAG (400 nodes, ~2800 edges) — vastly larger
+  // than any corpus graph — must solve feasibly; with the old recompute it
+  // never returned. The dfs_range/dfs_cutval rewrite makes each pivot O(V+E).
+  test("dense graph solves feasibly (XCoord-hang regression guard)"):
+    val n     = 400
+    val nodes = (0 until n).map(i => s"n$i")
+    val es    = (for i <- 0 until n; j <- (i + 1) until math.min(i + 8, n) yield e(s"n$i", s"n$j")).toVector
+    val r     = NetworkSimplex.solve(nodes, es, NSBalance.LeftRight)
+    assert(feasible(es, r), "all rank constraints satisfied")
     assertEquals(r.values.min, 0)
 
 end NetworkSimplexSpec

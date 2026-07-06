@@ -56,19 +56,6 @@ object NetworkSimplex:
     // ── feasible tight spanning tree ─────────────────────────────────────
     val treeEdges = mutable.Set.empty[Int]
 
-    /** Nodes reachable from `root` via current tree edges (undirected). */
-    def componentOf(root: String, tree: collection.Set[Int]): mutable.Set[String] =
-      val comp = mutable.Set(root)
-      val stk  = mutable.Stack(root)
-      while stk.nonEmpty do
-        val v = stk.pop()
-        tree.foreach { i =>
-          val e = es(i)
-          val w = if e.tail == v then Some(e.head) else if e.head == v then Some(e.tail) else None
-          w.foreach(x => if !comp(x) then { comp += x; stk.push(x) })
-        }
-      comp
-
     /** Grow `treeEdges` to a tight spanning tree, shifting ranks as needed. */
     def feasibleTree(): Unit =
       var guard = 0
@@ -106,57 +93,119 @@ object NetworkSimplex:
 
     feasibleTree()
 
-    // ── cut values + primal pivots ───────────────────────────────────────
-    def tailSide(leaving: Int): mutable.Set[String] =
-      componentOf(es(leaving).tail, treeEdges - leaving)
+    // ── cut values via a rooted low/lim tree (ns.c dfs_range + dfs_cutval) ──
+    // All tree-edge cut values in ONE O(V+E) postorder pass, reusing children's
+    // cut values — replaces the O(V·(V+E))-per-pivot recomputation that hung on
+    // dense real graphs (aux graph ~800 nodes for 36-node inputs; PORT.md §6).
+    val adj    = mutable.HashMap.from(nodeList.map(_ -> mutable.ArrayBuffer.empty[(Int, String)]))
+    val parent = mutable.HashMap.empty[String, Int] // node → tree edge to parent (-1 = root)
+    val low    = mutable.HashMap.empty[String, Int]
+    val lim    = mutable.HashMap.empty[String, Int] // postorder interval: w ∈ v's subtree ⇔ low(v)≤lim(w)≤lim(v)
+    val post   = mutable.ArrayBuffer.empty[String]
 
-    def cutValue(te: Int): Int =
-      val tSide = tailSide(te)
-      var cv    = 0
-      es.foreach { e =>
-        val tl = tSide(e.tail)
-        val hd = tSide(e.head)
-        if tl && !hd then cv += e.weight
-        else if !tl && hd then cv -= e.weight
+    /** Rebuild the undirected tree adjacency from `treeEdges` (O(E)). */
+    def rebuildAdj(): Unit =
+      adj.valuesIterator.foreach(_.clear())
+      treeEdges.foreach { i => val e = es(i); adj(e.tail) += ((i, e.head)); adj(e.head) += ((i, e.tail)) }
+
+    /** dfs_range: root the current `treeEdges`, assign parent + low/lim
+      * (iterative — the aux tree can be an ~800-deep chain). */
+    def buildRange(): Unit =
+      rebuildAdj()
+      parent.clear(); low.clear(); lim.clear(); post.clear()
+      var counter = 1
+      val visited = mutable.Set.empty[String]
+      nodeList.foreach { r =>
+        if !visited(r) then
+          visited += r; low(r) = counter; parent(r) = -1
+          val stack = mutable.Stack((r, adj(r).iterator))
+          while stack.nonEmpty do
+            val (v, it) = stack.top
+            if it.hasNext then
+              val (ei, w) = it.next()
+              if !visited(w) then
+                visited += w; low(w) = counter; parent(w) = ei
+                stack.push((w, adj(w).iterator))
+            else
+              lim(v) = counter; counter += 1; post += v; stack.pop()
+      }
+
+    /** dfs_cutval: cut value of every tree edge, postorder (children first). */
+    def computeCutvals(): mutable.HashMap[Int, Int] =
+      val cv = mutable.HashMap.empty[Int, Int]
+      post.foreach { v =>
+        val f = parent.getOrElse(v, -1)
+        if f >= 0 then
+          val dir = if es(f).tail == v then 1 else -1
+          var sum = 0
+          def acc(i: Int): Unit =
+            val e     = es(i)
+            val other = if e.tail == v then e.head else e.tail
+            val inSub = low(v) <= lim(other) && lim(other) <= lim(v)
+            var rv    = if !inSub then e.weight else (if treeEdges(i) then cv.getOrElse(i, 0) else 0) - e.weight
+            var d     = if dir > 0 then (if e.head == v then 1 else -1) else (if e.tail == v then 1 else -1)
+            if !inSub then d = -d
+            if d < 0 then rv = -rv
+            sum += rv
+          outIdx(v).foreach(acc); inIdx(v).foreach(acc)
+          cv(f) = sum
       }
       cv
 
+    /** The deeper endpoint of tree edge `te` (whose parent-edge is `te`). */
+    def deeperTail(te: Int): (String, Boolean) =
+      val v = if parent.getOrElse(es(te).tail, -1) == te then es(te).tail else es(te).head
+      (v, es(te).tail == v)
+
     def propagateTight(): Unit =
-      val r0 = nodeList.head
+      rebuildAdj() // tree changed since the last buildRange — refresh adjacency
+      val r0  = nodeList.head
       rank(r0) = 0
       val vis = mutable.Set(r0)
       val stk = mutable.Stack(r0)
       while stk.nonEmpty do
         val v = stk.pop()
-        treeEdges.foreach { i =>
-          val e = es(i)
-          if e.tail == v && !vis(e.head) then
-            rank(e.head) = rank(v) + e.minlen; vis += e.head; stk.push(e.head)
-          else if e.head == v && !vis(e.tail) then
-            rank(e.tail) = rank(v) - e.minlen; vis += e.tail; stk.push(e.tail)
+        adj(v).foreach { case (i, w) => // O(V+E), not O(V·tree)
+          if !vis(w) then
+            val e = es(i)
+            rank(w) = if e.tail == v then rank(v) + e.minlen else rank(v) - e.minlen
+            vis += w; stk.push(w)
         }
       // any nodes not in this tree component keep their init rank
 
-    val maxIter = nodeList.size * es.size + 100
-    var iter    = 0
+    // `onTail(te)`: is node `w` on the tail-side of tree edge `te`? = deeper
+    // node's subtree membership (via low/lim) iff the deeper node is the tail.
+    def onTailSide(te: Int): String => Boolean =
+      val (v, tailIsSub) = deeperTail(te)
+      (w: String) => (low(v) <= lim(w) && lim(w) <= lim(v)) == tailIsSub
+
+    /** min-slack non-tree edge crossing from head-side to tail-side of `te`. */
+    def enteringFor(te: Int): Int =
+      val onTail = onTailSide(te)
+      var entering = -1
+      es.indices.foreach { i =>
+        if !treeEdges(i) then
+          val e = es(i)
+          if !onTail(e.tail) && onTail(e.head) then
+            if entering < 0 || slack(i) < slack(entering) then entering = i
+      }
+      entering
+
+    val maxIter  = nodeList.size * es.size + 100
+    var iter     = 0
     var pivoting = treeEdges.size == nodeList.size - 1
     while pivoting && iter < maxIter do
       iter += 1
-      var leaving = -1
+      buildRange()
+      val cv = computeCutvals()
+      var leaving = -1; var bestCv = 0
       treeEdges.foreach { te =>
-        val cv = cutValue(te)
-        if cv < 0 && (leaving < 0 || cv < cutValue(leaving)) then leaving = te
+        val c = cv.getOrElse(te, 0)
+        if c < 0 && (leaving < 0 || c < bestCv) then { leaving = te; bestCv = c }
       }
       if leaving < 0 then pivoting = false
       else
-        val tSide    = tailSide(leaving)
-        var entering = -1
-        es.indices.foreach { i =>
-          if !treeEdges(i) then
-            val e = es(i)
-            if !tSide(e.tail) && tSide(e.head) then // head→tail side (opposite of leaving)
-              if entering < 0 || slack(i) < slack(entering) then entering = i
-        }
+        val entering = enteringFor(leaving)
         if entering < 0 then pivoting = false
         else
           treeEdges -= leaving
@@ -165,22 +214,19 @@ object NetworkSimplex:
 
     // ── LR balance (ns.c LR_balance): centre within zero-cutvalue slack ──
     // For each tight tree edge with cutvalue 0, the swap with its entering
-    // edge is free; split the slack evenly by shifting e's tail component.
+    // edge is free; split the slack evenly by shifting its tail component.
     if balance == NSBalance.LeftRight then
+      buildRange()
+      val cv = computeCutvals()
       treeEdges.toVector.sorted.foreach { te =>
-        if cutValue(te) == 0 then
-          val tSide = tailSide(te)
-          var entering = -1
-          es.indices.foreach { i =>
-            if !treeEdges(i) then
-              val e = es(i)
-              if !tSide(e.tail) && tSide(e.head) then
-                if entering < 0 || slack(i) < slack(entering) then entering = i
-          }
+        if cv.getOrElse(te, 0) == 0 then
+          val entering = enteringFor(te)
           if entering >= 0 then
             val d = slack(entering)
             if d > 1 then
-              val sh = d / 2
+              val sh      = d / 2
+              val onTail  = onTailSide(te)
+              val tSide   = nodeList.filter(onTail)
               tSide.foreach(v => rank(v) = rank(v) - sh)
               if es.indices.exists(i => slack(i) < 0) then
                 tSide.foreach(v => rank(v) = rank(v) + sh) // revert if infeasible
