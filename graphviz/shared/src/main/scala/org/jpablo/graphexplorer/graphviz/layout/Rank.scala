@@ -95,7 +95,9 @@ object Rank:
     * virtual chains from them); the `rank=same` collapse applies only to the
     * NS solve, whose leader ranks are then expanded back to every member.
     */
-  def ranked(g: RGraph): (Map[String, Int], Vector[DEdge]) =
+  private val rankedMemo = GraphMemo[(Map[String, Int], Vector[DEdge])]()
+  def ranked(g: RGraph): (Map[String, Int], Vector[DEdge]) = rankedMemo(g)(rankedImpl(g))
+  private def rankedImpl(g: RGraph): (Map[String, Int], Vector[DEdge]) =
     val wedges = acyclic(g, if hasEdgeLabel(g) then 2 else 1)
     val leader = rankConstraintLeader(g)
     // collapse endpoints to leaders for ranking; drop now-intra-set edges

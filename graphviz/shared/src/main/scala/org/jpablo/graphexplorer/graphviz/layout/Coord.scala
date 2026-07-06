@@ -34,7 +34,9 @@ object Coord:
   /** (real-node ranks, y-per-rank in points). Virtual nodes share their
     * rank's y, so callers position them via `yOf(rank)`.
     */
-  def rankY(g: RGraph): (Map[String, Int], Map[Int, Pt]) =
+  private val rankYMemo = GraphMemo[(Map[String, Int], Map[Int, Pt])]()
+  def rankY(g: RGraph): (Map[String, Int], Map[Int, Pt]) = rankYMemo(g)(rankYImpl(g))
+  private def rankYImpl(g: RGraph): (Map[String, Int], Map[Int, Pt]) =
     val ranks = Rank.assign(g)
     if ranks.isEmpty then return (Map.empty, Map.empty)
     val minR = ranks.values.min

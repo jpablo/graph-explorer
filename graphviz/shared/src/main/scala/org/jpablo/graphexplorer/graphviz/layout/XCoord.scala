@@ -24,8 +24,12 @@ object XCoord:
   private val NodeSep    = 18.0 // POINTS(DEFAULT_NODESEP = 0.25in)
   private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode
 
+  // Memoized (per-graph, size-1): renderFormats hits xSolve ~7× on one graph.
+  private val solveMemo = GraphMemo[(Order.Result, Map[LayoutNode, Pt])]()
+  private def xSolve(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) = solveMemo(g)(xSolveImpl(g))
+
   /** Core solve: ordering + x (points) for all placed nodes, left edge at 0. */
-  private def xSolve(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) =
+  private def xSolveImpl(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) =
     val res  = Order.order(g)
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
 

@@ -1068,4 +1068,18 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   `renderFormats` recomputes the full layout ~7× (each of dot_json/json0/svg,
   and each consumer, re-runs Rank/Order/XCoord/Spline) — memoizing the layout
   per graph would cut sbt-deps' full render 2.7s → ~0.5s. Tracked, not a hang.
+- **2026-07-06** — **Layout memoization — the ~7× recompute the NS-hang fix
+  surfaced.** `renderFormats` emits dot_json/json0/svg, and each internally
+  calls `Output.bbox` + `Spline`, so the pure per-graph stages (Rank NS,
+  mincross, XCoord NS, Coord, spline routing) ran ~7× on one graph. Added a
+  size-1 identity cache (`GraphMemo`, keyed by `RGraph` reference — same
+  instance flows through a whole render) around `Rank.ranked`, `Order.order`,
+  `Coord.rankY`, `XCoord.xSolve`, `Spline.splinesEx` (each split into a thin
+  memoized entry + unchanged `*Impl`). Pure caching ⇒ **corpus 141/141
+  unchanged**, byte-exactness untouched. `synchronized` compute makes
+  concurrent *different*-graph access merely miss (never torn/wrong); a no-op
+  on single-threaded Scala.js; only one graph's layout retained. Full 3-format
+  render: sbt-project-dependencies **2.7s → 0.35s** (7.7×), module-dependencies
+  **0.93s → 0.16s** (5.8×). Scoped to within-render redundancy — a re-render
+  (new parsed `RGraph`) recomputes, which the viewer caches at its own level.
 - _(append dated entries as milestones land)_

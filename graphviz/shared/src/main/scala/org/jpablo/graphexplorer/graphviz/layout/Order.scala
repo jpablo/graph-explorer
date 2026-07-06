@@ -40,7 +40,9 @@ object Order:
     def realOrder: Map[Int, Vector[String]] =
       order.view.mapValues(_.collect { case LayoutNode.Real(id) => id }).toMap
 
-  def order(g: RGraph): Result =
+  private val orderMemo = GraphMemo[Result]()
+  def order(g: RGraph): Result = orderMemo(g)(orderImpl(g))
+  private def orderImpl(g: RGraph): Result =
     val (rank0, dedges) = Rank.ranked(g)
 
     // ── class2: replace long edges with unit-span virtual-node chains ──────

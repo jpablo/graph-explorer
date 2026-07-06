@@ -63,7 +63,9 @@ object Spline:
 
   /** Declared-edge index (position in `g.edges`) → installed spline + arrow
     * attaches. See [[splines]] for why the key is the edge index. */
-  def splinesEx(g: RGraph): Map[Int, ESpline] =
+  private val splinesMemo = GraphMemo[Map[Int, ESpline]]()
+  def splinesEx(g: RGraph): Map[Int, ESpline] = splinesMemo(g)(splinesExImpl(g))
+  private def splinesExImpl(g: RGraph): Map[Int, ESpline] =
     val res          = Order.order(g)
     val (_, allXNode) = XCoord.solveAll(g)
     val (_, yOf)     = Coord.rankY(g)
