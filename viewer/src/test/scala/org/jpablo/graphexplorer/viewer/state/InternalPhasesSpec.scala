@@ -6,6 +6,9 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.fromExpandedAttributes
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramBackend, DiagramFormat, DiagramLanguages}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
+import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.Single
@@ -13,6 +16,7 @@ import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 class InternalPhasesSpec extends FunSuite with TestHelpers:
 
@@ -22,7 +26,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
   test("Sanity check"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(graphviz, hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
 
       afterMicrotasks {
         assertEquals(phases.fullGraphV.now(), ViewerGraph.minimal)
@@ -39,7 +43,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |    arrowtail="none"
              |  ];
              |}""".stripMargin
-        assertNoDiff(phases.visibleDOT.observe.now().value, visibleDot)
+        assertNoDiff(phases.visibleText.observe.now(),visibleDot)
       }
     }
 
@@ -54,7 +58,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
           |  "a" -> "b" [label="f"];
           |}""".stripMargin
 
-      val phases = new InternalPhases(graphviz, initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
 
       afterMicrotasks {
         val expected =
@@ -83,7 +87,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |  ];
              |}""".stripMargin
 
-        assertNoDiff(phases.visibleDOT.observe.now().value, expected)
+        assertNoDiff(phases.visibleText.observe.now(),expected)
       }
     }
 
@@ -95,7 +99,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
           |  "complexNode" [label="Complex Label", shape="ellipse", fontsize="12", width="1.5", height="0.8"];
           |}""".stripMargin
 
-      val phases = new InternalPhases(graphviz, initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
 
       afterMicrotasks {
         val expected =
@@ -119,7 +123,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |  ];
              |}""".stripMargin
 
-        assertNoDiff(phases.visibleDOT.observe.now().value, expected)
+        assertNoDiff(phases.visibleText.observe.now(),expected)
       }
     }
 
@@ -145,7 +149,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
           |    "a" -> "b";
           |}""".stripMargin
 
-      val phases = new InternalPhases(graphviz, initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
 
       afterMicrotasks {
         val expected =
@@ -185,7 +189,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |  "a" -> "b" [id="arrow:a->b/0"];
              |}
              |""".stripMargin
-        assertNoDiff(phases.visibleDOT.observe.now().value, expected)
+        assertNoDiff(phases.visibleText.observe.now(),expected)
       }
     }
 
@@ -223,7 +227,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
           |    "b" -> "c";
           |}""".stripMargin
 
-      val phases = new InternalPhases(graphviz, initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
 
       afterMicrotasks {
         val expected =
@@ -280,7 +284,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |}
              |""".stripMargin
 
-        assertNoDiff(phases.visibleDOT.observe.now().value, expected)
+        assertNoDiff(phases.visibleText.observe.now(),expected)
       }
     }
 
@@ -312,10 +316,10 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
            |}
            |""".stripMargin
 
-      val phases = new InternalPhases(graphviz, initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
 
       afterMicrotasks {
-        val simpleGraph = phases.simpleGraph.observe.now()
+        val simpleGraph = graphviz.textToSimpleGraph(simpleDot).get
 
         // Sanity check: default styles should be applied correctly (flattened)
         assertEquals(simpleGraph.nodes(0).style, Some("filled,rounded"))
@@ -384,13 +388,13 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |  "n2" -> "n3" [id="arrow:n2->n3/1"];
              |}""".stripMargin
 
-        assertNoDiff(phases.visibleDOT.observe.now().value, expected)
+        assertNoDiff(phases.visibleText.observe.now(),expected)
       }
     }
 
   test("Updating the source text should update the graph"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(graphviz, hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
 
       val newSource =
         """|digraph "G" {
@@ -455,3 +459,35 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
         assertEquals(viewerState.sourceText.now(), expectedSource, "Source text should be updated to reflect the new node")
       }
     }
+
+  test("Reactive text <-> graph sync works with a fake backend (no real Graphviz/Mermaid)"):
+    // The engine now depends only on the DiagramLanguages abstraction, so we can drive it with an
+    // in-memory backend and no async WASM/JS initialization.
+    val phases = new InternalPhases(FakeDiagramLanguages, hiddenNodes = Val(ElementIds()))
+
+    afterMicrotasks {
+      // Initial text was parsed through the fake backend, producing its canned graph.
+      assertEquals(phases.fullGraphV.now(), ViewerGraph.minimal)
+
+      // The selection strategy is resolved via the registry, not hardcoded in the component.
+      assert(phases.selectionStrategy.observe.now() eq GraphvizSelectionStrategy)
+
+      // Editing the graph serializes back to text through the fake backend.
+      phases.fullGraphV.set(ViewerGraph.basic(NodeId("x") -> NodeId("y")))
+      assert(
+        phases.sourceText.now().startsWith("FAKE:"),
+        s"expected fake serialization, got: ${phases.sourceText.now()}"
+      )
+    }
+
+/** Minimal in-memory registry used to prove [[InternalPhases]] needs no real backend. */
+object FakeDiagramLanguages extends DiagramLanguages:
+  private object FakeBackend extends DiagramBackend:
+    override def format: DiagramFormat                             = DiagramFormat.DOT
+    override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(ViewerGraph.minimal)
+    override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
+    override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String = s"FAKE:${graph.nodeIds.size}"
+    override def selectionStrategy: SelectableElementStrategy      = GraphvizSelectionStrategy
+
+  override def default: DiagramBackend                          = FakeBackend
+  override def forFormat(format: DiagramFormat): DiagramBackend = FakeBackend

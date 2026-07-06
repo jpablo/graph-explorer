@@ -2,8 +2,10 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 
 import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
+import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 
 import scala.concurrent.Future
 
@@ -21,3 +23,8 @@ class GraphvizBackend(graphviz: Graphviz) extends DiagramBackend:
 
   override def textToSvg(text: String): Future[SvgWithPositions] =
     Future.fromTry(graphviz.textToSvg(DotText(text)))
+
+  override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String =
+    viewerGraphToText(graph, omitInternal)
+
+  override def selectionStrategy: SelectableElementStrategy = GraphvizSelectionStrategy

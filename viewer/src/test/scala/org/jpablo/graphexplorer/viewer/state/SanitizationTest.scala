@@ -4,6 +4,7 @@ import com.raquo.airstream.ownership.Owner
 import com.raquo.airstream.state.Val
 import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
+import org.jpablo.graphexplorer.viewer.backends.DefaultDiagramLanguages
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
@@ -18,7 +19,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
 
   test("should sanitize leading newlines in labels"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(graphviz = graphviz, hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
 
       val dotWithLeadingNewline =
         """digraph "G" {
@@ -55,7 +56,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
 
   test("should not modify labels without leading newlines"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(graphviz = graphviz, hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
 
       val normalDot =
         """digraph "G" {
@@ -82,7 +83,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
 
   test("should handle multiple leading newlines"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(graphviz = graphviz, hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
 
       val multipleNewlines =
         """digraph "G" {

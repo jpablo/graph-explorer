@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
-import org.jpablo.graphexplorer.viewer.components.selection.MermaidSelectionStrategy
+import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
@@ -41,6 +41,12 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         SvgWithPositions(svg, edgePositions)
       }
     }
+
+  override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String =
+    // Mermaid has no internal-only attributes, so `omitInternal` does not apply.
+    viewerGraphToMermaidText(graph)
+
+  override def selectionStrategy: SelectableElementStrategy = MermaidSelectionStrategy
 
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future. */
   private def parseMermaid(text: String): Future[MermaidGraph] =

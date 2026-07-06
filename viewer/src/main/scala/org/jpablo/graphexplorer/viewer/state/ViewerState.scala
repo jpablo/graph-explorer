@@ -4,11 +4,11 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
-import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
+import org.jpablo.graphexplorer.viewer.formats.dot.{DotText, TextUtils}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph}
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
@@ -58,8 +58,11 @@ case class ViewerState(
   // persisted source can be overridden by passing a non-empty initialSource
   val source = initialSource.getOrElse(persistedDiagramState.now().source)
 
+  // Registry of diagram backends. InternalPhases depends only on this abstraction, not on concrete backends.
+  private val languages = DefaultDiagramLanguages(graphviz)
+
   val phases = InternalPhases(
-    graphviz = graphviz,
+    languages = languages,
     initialSource = if source.isEmpty then None else Some(source),
     hiddenNodes = project.hiddenElements.signal,
     resetView = resetView,
@@ -71,8 +74,7 @@ case class ViewerState(
   val sourceText      = phases.sourceText
   val fullGraph       = phases.fullGraph
   def fullGraphNow()  = phases.fullGraph.observe.now()
-  val visibleDOT      = phases.visibleDOT
-  def visibleDOTNow() = phases.visibleDOT.observe.now()
+  val visibleText     = phases.visibleText
   val visibleGraph    = phases.visibleGraph
   val currentFormat   = phases.currentFormat
   val formatSelection = phases.formatSelection
@@ -98,13 +100,14 @@ case class ViewerState(
   private lazy val mermaidBackend = MermaidBackend()
 
   // 5. Render visible content to SVG with position data
-  // For DOT: visibleDOT ~> SvgWithPositions (synchronous)
+  // For DOT: visibleText ~> SvgWithPositions (synchronous)
   // For Mermaid: sourceText ~> SvgWithPositions (asynchronous)
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
     phases.currentFormat.flatMapSwitch:
       case DiagramFormat.DOT =>
-        // DOT/Graphviz is synchronous - use map directly
-        visibleDOT.map(dotText => graphviz.textToSvg(dotText).toOption)
+        // DOT/Graphviz is synchronous - use map directly.
+        // In the DOT branch visibleText is DOT text, so wrap it back into DotText for the renderer.
+        visibleText.map(dot => graphviz.textToSvg(DotText(dot)).toOption)
       case DiagramFormat.Mermaid =>
         // Mermaid is async - use Signal.fromFuture
         // Validate text before rendering to prevent sending DOT text to Mermaid
@@ -124,7 +127,7 @@ case class ViewerState(
   lazy val finalSVG: Signal[Option[ReactiveSvgElement[SVG]]] =
     svgWithPositions.combineWith(selectionStrategy).map: (svgOpt, strategy) =>
       svgOpt.map: svgWithPos =>
-        withLog("5. [visibleDOT -> SVG]", level = phases.logLevel) {
+        withLog("5. [visibleText -> SVG]", level = phases.logLevel) {
           SvgCanvas(
             rawSvg = svgWithPos.svg,
             transform = transform,

@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 import upickle.default.*
 
 trait ExportOps:
@@ -14,9 +15,12 @@ trait ExportOps:
       writeText(SvgElementOps(s.ref).toSVGTextWithIds(selection.now(), selectionStrategy.observe.now()))
     })
 
+  // DOT is an explicit export target, independent of the currently selected language.
+  private def visibleDOT: String =
+    viewerGraphToText(visibleGraph.observe.now(), omitInternal = false)
+
   def copyAsDOT(): Unit =
-    val dot = visibleDOT.observe.now()
-    writeText(dot.value)
+    writeText(visibleDOT)
 
   def copyAsJSON(): Unit =
     val graph = visibleGraph.observe.now()
@@ -35,14 +39,14 @@ trait ExportOps:
     dom.console.log("Visible graph printed to the console")
 
   def printVisibleDOTtoConsole(): Unit =
-    val dotText = visibleDOT.observe.now()
     // Don't remove this line!! it IS the actual functionality
-    dom.console.log(dotText.value)
+    dom.console.log(visibleDOT)
     dom.console.log("Visible DOT printed to the console")
 
   def printVisibleSimpleGraphJSONtoConsole(): Unit =
-    // TODO: to implement this we need to keep the SimpleGraph in the ViewerState
-    val graph = phases.simpleGraph.observe.now()
-    // Don't remove this line!! it IS the actual functionality
-    dom.console.log(scalajs.js.JSON.parse(write(graph)))
-    dom.console.log("Visible graph JSON printed to the console")
+    // Debug helper: SimpleGraph is a Graphviz/VizJS-specific representation, so this is DOT-only.
+    graphviz.textToSimpleGraph(sourceText.now()).foreach { graph =>
+      // Don't remove this line!! it IS the actual functionality
+      dom.console.log(scalajs.js.JSON.parse(write(graph)))
+      dom.console.log("Visible JSON VizJS Graph printed to the console")
+    }

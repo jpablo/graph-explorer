@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.state.InternalPhases
+import org.jpablo.graphexplorer.viewer.state.ThumbnailRenderer
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 
@@ -221,7 +221,7 @@ private def exampleCard(
                   .get(example.path)
                   .flatMapSwitch: str =>
                     Telemetry.log("home.exampleThumb.start", "example" -> name, "path" -> example.path, "sourceChars" -> str.length)
-                    InternalPhases
+                    ThumbnailRenderer
                       .processDotText(
                         graphviz,
                         DotText(str),
@@ -313,7 +313,7 @@ private def projectCard(graphviz: Graphviz, router: Router)(project: ProjectInfo
                   "name"        -> project.name,
                   "sourceChars" -> str.length
                 )
-                InternalPhases.processDotText(
+                ThumbnailRenderer.processDotText(
                   graphviz,
                   DotText(str),
                   telemetryContext = Seq(
