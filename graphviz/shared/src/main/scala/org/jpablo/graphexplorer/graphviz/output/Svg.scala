@@ -210,6 +210,15 @@ object Svg:
     // gv svg emit order: for each node (first-mention order) emit it, then per
     // out-edge emit the head node (if unseen) then the edge — so nodes/edges
     // interleave (a node appears just before the first edge that closes on it).
+    // root graph label (do_graph_label): centered horizontally, single line,
+    // bottom labelloc (default) at GAP + boxHeight/2. Emitted after the
+    // background, before the nodes. (Custom fontsize / multi-line / top =
+    // tracked follow-ups.)
+    g.rootAttrs.get("label").filter(_.nonEmpty).foreach { lbl =>
+      val lh = NodeSize.labelHeightPt(lbl, FontSize, g.name.getOrElse(""))
+      sb ++= textAt((lx + ux) / 2.0, 4.0 + lh / 2.0, lbl)
+    }
+
     // svg `id="edgeN"` = the edge's declaration (AGSEQ) index + 1 (g.edges is
     // in declaration order) — decoupled from the interleaved *emit* order.
     val emitted = scala.collection.mutable.Set.empty[String]

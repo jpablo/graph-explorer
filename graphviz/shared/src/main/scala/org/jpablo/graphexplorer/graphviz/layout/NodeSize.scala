@@ -91,6 +91,13 @@ object NodeSize:
       else fontSizePt * LineSpacing
     }.sum
 
+  /** Label box **width** in points = widest line (`estimate_textspan_size`).
+    * Drives the graph-label `lwidth` + the label-driven bbox widening. */
+  def labelWidthPt(raw: String, fontSizePt: Double, fontName: String = "Times", graphName: String = ""): Double =
+    labelLines(raw, "", graphName).map { l =>
+      if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
+    }.maxOption.getOrElse(0.0)
+
   /** @return the node bounding box in inches, or `None` for shapes not yet
     *         ported (record/Mrecord/unknown).
     */

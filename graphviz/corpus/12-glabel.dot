@@ -1,0 +1,4 @@
+digraph g {
+  label="hi";
+  a -> b;
+}

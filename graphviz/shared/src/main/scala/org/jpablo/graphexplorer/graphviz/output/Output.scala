@@ -59,6 +59,22 @@ object Output:
   private def attrPairs(attrs: Map[String, String]): Vector[(String, String)] =
     attrs.toVector.filter { case (k, v) => v.nonEmpty || k == "label" }.sortBy(_._1)
 
+  private val Gap         = 4.0  // const.h GAP (YPAD = 2*GAP)
+  private val DefFontSize = 14.0
+
+  // ── root graph label (`do_graph_label`) ─────────────────────────────────
+  private def rootLabelText(g: RGraph): Option[String] = g.rootAttrs.get("label").filter(_.nonEmpty)
+  private def labelFontSize(g: RGraph): Double =
+    g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
+  private def labelTop(g: RGraph): Boolean = g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
+  private def labelHtPt(g: RGraph, lbl: String): Double =
+    NodeSize.labelHeightPt(lbl, labelFontSize(g), g.name.getOrElse(""))
+  /** Reserved rank-axis space = label box + YPAD (2*GAP); 0 with no label. */
+  private def gLabelPad(g: RGraph): Double =
+    rootLabelText(g).map(l => labelHtPt(g, l) + 2.0 * Gap).getOrElse(0.0)
+  /** C `printf("%.2f")` — the `lwidth`/`lheight`/`lp`-dimension format. */
+  private def f2(x: Double): String = BigDecimal(x).setScale(2, BigDecimal.RoundingMode.HALF_UP).toString
+
   /** Layout-independent bits shared by both formats. */
   private final case class Doc(
       name:       String,
@@ -171,7 +187,14 @@ object Output:
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
     }
-    (Pt(minX), Pt(minY), Pt(maxX), Pt(maxY))
+    // root graph label reserves space on its labelloc side (Coord already
+    // shifted the nodes for a bottom label ⇒ extend the bbox to reclaim it).
+    val pad = gLabelPad(g)
+    if pad > 0 then { if labelTop(g) then maxY += pad else minY -= pad }
+    // snap sub-epsilon FP noise to 0 (the label `+pad`/`-pad` round-trip leaves
+    // ~1e-15 where gv has exactly 0); coords are otherwise clean ~integers.
+    def snap(v: Double): Double = if math.abs(v) < 1e-9 then 0.0 else v
+    (Pt(snap(minX)), Pt(snap(minY)), Pt(snap(maxX)), Pt(snap(maxY)))
 
   /** One subgraph object block (4-space indented, no trailing comma), shared
     * by both writers. gv field order: name, label, [rank], _gvid, [nodes],
@@ -255,7 +278,18 @@ object Output:
     sb ++= s"""  "strict": ${d.strict},\n"""
     val bbStr = if d.hasCluster then "0,0,0,0" else s"${g5(lx)},${g5(ly)},${g5(ux)},${g5(uy)}"
     sb ++= s"""  "bb": "$bbStr",\n"""
-    d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
+    // root graph attrs + the label geometry (lp/lwidth/lheight), merged
+    // alphabetically into the write_attrs stream (do_graph_label).
+    val rootKv = scala.collection.mutable.LinkedHashMap.empty[String, String]
+    d.rootAttrs.foreach { case (k, v) => rootKv(k) = s""""${esc(v)}"""" }
+    rootLabelText(g).foreach { lbl =>
+      val lhPt = labelHtPt(g, lbl)
+      val lwIn = NodeSize.labelWidthPt(lbl, labelFontSize(g), g.rootAttrs.getOrElse("fontname", "Times"), g.name.getOrElse("")) / 72.0
+      rootKv("lheight") = s""""${f2(lhPt / 72.0)}""""
+      rootKv("lp")      = s""""${g5((lx + ux) / 2.0)},${g5(if labelTop(g) then uy - Gap - lhPt / 2.0 else Gap + lhPt / 2.0)}""""
+      rootKv("lwidth")  = s""""${f2(lwIn)}""""
+    }
+    rootKv.toVector.sortBy(_._1).foreach { case (k, v) => sb ++= s"""  "${esc(k)}": $v,\n""" }
     sb ++= s"""  "_subgraph_cnt": ${d.sgCnt},\n"""
     val edgeLabels = g.edges.exists(_.attrs.toMap.contains("label"))
     // json0 = dot_json attrs with the layout keys (height/pos/width for nodes,

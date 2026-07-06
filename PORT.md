@@ -1017,4 +1017,18 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   the root's attr dict) — 03's cluster-declared label still reaches its `%7`,
   but 11's doesn't. Suite **128→133**; graphvizJS + viewer compile. Remaining:
   the `min`/`max`/`source`/`sink` *extreme-rank* pin (merge done, no corpus).
+- **2026-05-29** — **Root graph label (`do_graph_label`) — byte-exact
+  (non-widening).** Cracked the geometry by probing three label widths through
+  the oracle: `bb_width = max(node_extent, text_width + XPAD)` and lp.y =
+  `GAP + labelBoxHeight/2`; `lheight`/`lwidth` are `%.2f`, `lp` is `%.5g`. For
+  the common case (label narrower than the drawing ⇒ no re-centering): added
+  `NodeSize.labelWidthPt`; `Output.bbox` now reclaims the label-reserved space
+  Coord already shifts nodes by; `json0` emits `lp`/`lwidth`/`lheight` merged
+  alphabetically into the root `write_attrs` stream; `Svg` renders the centered
+  single-line label `<text>`. Snapped a sub-epsilon FP bb artifact (the
+  `±pad` round-trip leaves ~1e-15 where gv has 0). `12-glabel` probe:
+  `dot_json`/`json0`/`svg` **byte-exact**. Suite **133→138**; graphvizJS +
+  viewer compile. ⬜ follow-ups (all understood, no blocker): label **wider**
+  than drawing ⇒ global X re-centering (`bb=max(node,text+16)`, nodes shift
+  `(Δ)/2`); multi-line + custom-fontsize graph labels; top `labelloc`.
 - _(append dated entries as milestones land)_
