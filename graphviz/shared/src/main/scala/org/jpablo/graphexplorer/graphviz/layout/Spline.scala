@@ -65,6 +65,35 @@ object Spline:
     * attaches. See [[splines]] for why the key is the edge index. */
   private val splinesMemo = GraphMemo[Map[Int, ESpline]]()
   def splinesEx(g: RGraph): Map[Int, ESpline] = splinesMemo(g)(splinesExImpl(g))
+
+  /** Edge-label position `lp` (json0 `lp` / svg text), keyed by g.edges index.
+    * The label sits to the **right** of the (straight) edge at the mid rank:
+    * `lp = labelVnode.x + labelWidth/2` (gv `make_chain` label_vnode; the edge
+    * routes through the vnode's left reference — the probe-derived contract,
+    * PORT.md §5.2 rankdir row). Adjacent rank-doubled edges only (the common
+    * case); asymmetric-vnode separation for neighbours/LR is a follow-up. */
+  private val labelPosMemo = GraphMemo[Map[Int, XY]]()
+  def labelPositions(g: RGraph): Map[Int, XY] = labelPosMemo(g)(labelPositionsImpl(g))
+  private def labelPositionsImpl(g: RGraph): Map[Int, XY] =
+    val ranks     = Rank.assign(g)
+    val (_, allX) = XCoord.solveAll(g)
+    val (_, yOf)  = Coord.rankY(g)
+    val xByName   = allX.iterator.map((k, v) => k.name -> v.value).toMap
+    // dedge index = position among non-self edges (matches Order's Virtual idx)
+    val nonSelf = g.edges.zipWithIndex.filter { case (e, _) => e.tail != e.head }
+    nonSelf.iterator.zipWithIndex.flatMap { case ((e, gIdx), dIdx) =>
+      e.attrs.get("label").filter(_.nonEmpty).flatMap { lbl =>
+        for
+          rt <- ranks.get(e.tail)
+          rh <- ranks.get(e.head) if rt != rh
+          vx <- xByName.get(LayoutNode.Virtual(dIdx, (rt + rh) / 2).name)
+        yield
+          val fs = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
+          val fn = e.attrs.getOrElse("fontname", "Times")
+          val lw = NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse(""))
+          gIdx -> XY(vx + lw / 2.0, yOf((rt + rh) / 2).value)
+      }
+    }.toMap
   private def splinesExImpl(g: RGraph): Map[Int, ESpline] =
     val res          = Order.order(g)
     val (_, allXNode) = XCoord.solveAll(g)

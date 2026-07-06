@@ -1095,4 +1095,19 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   table-layout + render engine — its own sub-project; §6 already suggests a
   viz-js fallback flag); edge-labels/LR = one focused session; exotic shapes =
   bounded but many. Not one push; no architectural work left — all geometry.
+- **2026-07-06** — **Edge labels — straight TB case byte-exact (increment 1).**
+  Acting on the recon: `Spline.labelPositions` computes each labelled edge's
+  `lp = labelVnode.x + labelWidth/2` at the mid rank (the vnode from
+  `XCoord.solveAll`, keyed by g.edges index). `json0` emits `lp` (alphabetical,
+  after `label`); `Svg` renders the edge label `<text>` at `lp` inside the edge
+  `<g>` (same single-line baseline as node/graph labels). Probe `14-edgelabel`
+  (`a→b[label]; b→c`): **dot_json/json0/svg all byte-exact.** Also fixed a
+  **pre-existing Coord bug** the probe exposed: intermediate *virtual* ranks of
+  a spanning/doubled edge get half-height 0.5 (`ND_ht=1`) — was 0, causing a
+  systematic 1pt Y drift on any graph with a virtual-only rank (dense corpus
+  never had one, so 01/05/06/07 unaffected — still byte-exact). Suite
+  **143→145**; graphvizJS + viewer compile. ⬜ increment 2: the **asymmetric
+  label vnode** (`rw = labelWidth` in XCoord/Spline) so the label reserves
+  order-axis space against a rank neighbour — closes branches + rankdir=LR
+  (finite-state-machine). Straight labels with no right-neighbour don't need it.
 - _(append dated entries as milestones land)_

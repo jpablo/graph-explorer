@@ -56,13 +56,20 @@ object Coord:
     // half-height drives that (odd, doubled) rank's Y spacing.
     g.edges.foreach { e =>
       if e.tail != e.head then
-        e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
-          for rt <- ranks.get(e.tail); rh <- ranks.get(e.head) do
+        for rt <- ranks.get(e.tail); rh <- ranks.get(e.head) do
+          // plain virtual nodes (ND_ht=1 ⇒ half 0.5) occupy every intermediate
+          // rank of a spanning/doubled edge — they set that rank's min half-ht.
+          var r = math.min(rt, rh) + 1
+          while r < math.max(rt, rh) do
+            if 0.5 > halfHt(r) then halfHt(r) = 0.5
+            r += 1
+          // labelled edge ⇒ the mid rank's virtual is the (taller) label box.
+          e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
             val mid = (rt + rh) / 2
             val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
             val h2  = NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse("")) / 2.0
             if h2 > halfHt(mid) then halfHt(mid) = h2
-        }
+          }
     }
 
     // Root graph label reserves space on its labelloc side (`do_graph_label`,

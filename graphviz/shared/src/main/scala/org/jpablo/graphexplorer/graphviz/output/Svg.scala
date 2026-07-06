@@ -62,6 +62,7 @@ object Svg:
     val (_, yOf)   = Coord.rankY(g)
     val ranks      = Rank.assign(g)
     val spl        = Spline.splinesEx(g)
+    val labelPos   = Spline.labelPositions(g)
 
     // graph bbox = the shared exact node-extent box (Output.bbox /
     // position.c dot_compute_bb) — NO spline, NO floor/ceil. `<svg
@@ -221,6 +222,10 @@ object Svg:
                 def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
                 sb ++= s"""<polygon fill="$eStroke" stroke="$eStroke" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
             }
+          // edge label text at its lp (make_chain label_vnode)
+          e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
+            labelPos.get(ix).foreach(lp => sb ++= textAt(lp.x, lp.y, lbl, e.attrs.get("fontcolor").getOrElse("")))
+          }
           sb ++= "</g>\n"
         }
 

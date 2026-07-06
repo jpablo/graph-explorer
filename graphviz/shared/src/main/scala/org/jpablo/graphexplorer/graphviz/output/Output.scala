@@ -271,6 +271,7 @@ object Output:
     val (_, yOf) = Coord.rankY(g)
     val ranks = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
     val spl   = Spline.splinesEx(g)
+    val lps   = Spline.labelPositions(g)
     val sb = new StringBuilder
     sb ++= "{\n"
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
@@ -320,6 +321,7 @@ object Output:
       if edgeLabels then a = a.updatedWith("label")(v => Some(v.getOrElse("")))
       val kv = scala.collection.mutable.LinkedHashMap.empty[String, String]
       attrPairs(a).foreach((k, v) => kv(k) = s""""${esc(v)}"""")
+      lps.get(e.idx).foreach(p => kv("lp") = s""""${g5(p.x)},${g5(p.y)}"""")
       spl.get(e.idx).foreach { es =>
         val pre = es.ep.map(p => s"e,${g5(p.x)},${g5(p.y)} ").getOrElse("") +
                   es.sp.map(p => s"s,${g5(p.x)},${g5(p.y)} ").getOrElse("")

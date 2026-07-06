@@ -1,0 +1,4 @@
+digraph el {
+  a -> b [label="hi"];
+  b -> c;
+}
