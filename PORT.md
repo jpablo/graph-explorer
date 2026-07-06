@@ -243,6 +243,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
 | ~~NS-optimisation deferred (M2 uses longest-path)~~ | **RETIRED 2026-05-16.** `NetworkSimplex` implemented; `Rank` now uses true NS+TB-balance; corpus ranks unchanged (oracle-verified) + `NetworkSimplexSpec` covers slack/non-unique/weighted cases |
 | Reference source ≠ oracle version (tie-break mismatch, unfixable diffs) | §2.4 version-alignment protocol; study only the version-matched worktree |
 | Oracle drift on viz-js bump | Pin `@viz-js/viz` 3.14.0; on any bump re-pin source worktree + regenerate golden + diff review |
+| **XCoord network-simplex non-termination on dense graphs** (found by M8 real-diagram validation 2026-05-29) | **`XCoord.xCoords` hangs** on `sbt-project-dependencies` (36 nodes / **99 edges** — dense aux graph); `Rank`/`Order` complete, only the aux-graph NS loops (likely pivot cycling / no iteration cap). **Showstopper — freezes the viewer.** Invisible to the small corpus. Fix: iteration cap + anti-cycling (Bland's rule) in `NetworkSimplex`, or bound the aux-graph pivots. **Top priority.** |
 
 ## 7. Progress log
 - **2026-05-16** — Plan created. Reference source confirmed available at
@@ -1031,4 +1032,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   viewer compile. ⬜ follow-ups (all understood, no blocker): label **wider**
   than drawing ⇒ global X re-centering (`bb=max(node,text+16)`, nodes shift
   `(Δ)/2`); multi-line + custom-fontsize graph labels; top `labelloc`.
+- **2026-05-29** — **M8 real-diagram validation — the corpus-vs-reality gap,
+  measured.** Ran the app's *shipped* example diagrams
+  (`viewer/src/main/resources/examples/`) through the Scala facade **and**
+  viz-js, structurally diffing node/edge sets. **Result: structure is correct
+  everywhere.** data-structures (records), finite-state-machine (LR + edge
+  labels), groups (clusters), html (HTML labels), logo (styling), shapes (60
+  exotic shapes) all **MATCH** the viz-js node/edge sets — the parser /
+  attribute resolver / subgraph-cluster model / emitters handle every real
+  input; the known gaps (edge labels, HTML, LR, exotic-shape *rendering*) are
+  geometry-only and don't corrupt structure. **The one hard finding:
+  `sbt-project-dependencies` (36 nodes / 99 edges) HANGS** — pinpointed to
+  `XCoord.xCoords` (`Rank`/`Order` finish; the aux-graph network simplex
+  loops). A **non-termination robustness bug** that would freeze the viewer,
+  completely invisible to the small oracle corpus. This reprioritizes the
+  backlog: the NS hang jumps ahead of edge-labels/LR (a freeze is worse than a
+  layout gap). Recorded in §6 risk register as **top priority**. Diagnostic
+  harness was scratch (absolute paths + oracle side-dir) — removed after
+  capturing the findings; suite stays 140/140.
 - _(append dated entries as milestones land)_
