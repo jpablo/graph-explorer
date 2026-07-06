@@ -1,0 +1,30 @@
+{
+  "name": "r",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 54 108",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N",
+      "shape": "box",
+      "style": "rounded"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "\\N",
+      "shape": "box",
+      "style": "rounded"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1
+    }
+  ]
+}

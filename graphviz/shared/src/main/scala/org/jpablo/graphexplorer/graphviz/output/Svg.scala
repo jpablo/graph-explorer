@@ -153,12 +153,29 @@ object Svg:
               else "none"
             val stroke = n.attrs.get("color").getOrElse("black")
             // box-family shapes render as a rectangle <polygon> (corners
-            // UR,UL,LL,LR,UR in flipped-y); everything else stays an ellipse.
+            // UR,UL,LL,LR,UR in flipped-y); `style=rounded` ⇒ a <path> with
+            // RBCONST=12 corner arcs (shapes.c round_corners); else ellipse.
             val boxLike = Set("box", "rect", "rectangle", "square")
             if boxLike.contains(n.attrs.get("shape").getOrElse("")) then
-              val (l, r)   = (x - rx, x + rx)
+              val (l, rr)  = (x - rx, x + rx)
               val (t, b)   = (-(cy + ry), -(cy - ry))
-              sb ++= s"""<polygon fill="$fill" stroke="$stroke" points="${d2(r)},${d2(t)} ${d2(l)},${d2(t)} ${d2(l)},${d2(b)} ${d2(r)},${d2(b)} ${d2(r)},${d2(t)}"/>\n"""
+              if styles.contains("rounded") then
+                val c = math.min(12.0, math.min(rx, ry)) // RBCONST, clamped
+                // 4 straight edges (cubic with endpoint controls) + 4 corner
+                // arcs (control points at c/2), CW from the top edge.
+                val segs = Seq(
+                  s"${d2(rr - c)},${d2(t)} ${d2(l + c)},${d2(t)} ${d2(l + c)},${d2(t)}",
+                  s"${d2(l + c / 2)},${d2(t)} ${d2(l)},${d2(t + c / 2)} ${d2(l)},${d2(t + c)}",
+                  s"${d2(l)},${d2(t + c)} ${d2(l)},${d2(b - c)} ${d2(l)},${d2(b - c)}",
+                  s"${d2(l)},${d2(b - c / 2)} ${d2(l + c / 2)},${d2(b)} ${d2(l + c)},${d2(b)}",
+                  s"${d2(l + c)},${d2(b)} ${d2(rr - c)},${d2(b)} ${d2(rr - c)},${d2(b)}",
+                  s"${d2(rr - c / 2)},${d2(b)} ${d2(rr)},${d2(b - c / 2)} ${d2(rr)},${d2(b - c)}",
+                  s"${d2(rr)},${d2(b - c)} ${d2(rr)},${d2(t + c)} ${d2(rr)},${d2(t + c)}",
+                  s"${d2(rr)},${d2(t + c / 2)} ${d2(rr - c / 2)},${d2(t)} ${d2(rr - c)},${d2(t)}"
+                )
+                sb ++= s"""<path fill="$fill" stroke="$stroke" d="M${d2(rr - c)},${d2(t)}C${segs.mkString(" ")}"/>\n"""
+              else
+                sb ++= s"""<polygon fill="$fill" stroke="$stroke" points="${d2(rr)},${d2(t)} ${d2(l)},${d2(t)} ${d2(l)},${d2(b)} ${d2(rr)},${d2(b)} ${d2(rr)},${d2(t)}"/>\n"""
             else
               sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
             sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))

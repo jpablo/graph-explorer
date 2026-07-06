@@ -1,0 +1,4 @@
+digraph r {
+  node [shape=box, style=rounded];
+  a -> b;
+}

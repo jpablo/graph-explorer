@@ -27,4 +27,7 @@ class StyleSvgSpec extends FunSuite:
     assert(s.contains("""<ellipse fill="none" stroke="black""""), "01 nodes unstyled")
     assert(!s.contains("stroke-dasharray"), "01 has no dashes")
 
+  test("13-rounded: svg byte-exact (style=rounded ⇒ RBCONST=12 corner <path>)"):
+    assertEquals(svg("13-rounded"), OracleHarness.golden("13-rounded", "svg"))
+
 end StyleSvgSpec
