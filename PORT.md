@@ -1217,4 +1217,14 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   JS compiles). ⬜ still deferred: non-default penwidth outline, LR/flip vertex
   rotation, `poly_path` box routing (only matters for multi-segment splines
   through a polygon's port), special-option shapes.
+- **2026-07-07** — **`doublecircle` (ellipse peripheries=2, byte-exact).**
+  `ShapeKind` gains a `peripheries` count (doublecircle ⇒ 2); `nodeSize` grows
+  the final bb by `2·GAP·(peripheries−1)` (poly_init ellipse branch: bb → 2·P
+  with `P += GAP` per ring); `Svg` draws `peripheries` concentric ellipses from
+  the inner label-fit ring outward (18, 22). `NodeSize.peripheriesOf` resolves
+  the shape default + explicit `peripheries` attr. Edge clipping needs no change
+  — the node size already IS the outer ring, so the ellipse `insideFn` clips
+  there. **28-doublecircle** byte-exact (svg + dot_json), corpus 183→186, JS
+  compiles. ⬜ deferred: polygon peripheries (doubleoctagon/tripleoctagon — the
+  bisector-offset ring draw), filled multi-periphery fill rules.
 - _(append dated entries as milestones land)_

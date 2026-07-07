@@ -39,3 +39,9 @@ class ShapeSpec extends FunSuite:
     assertEquals(Svg.svg(g("27-polymix")), OracleHarness.golden("27-polymix", "svg"))
   test("27-polymix: dot_json byte-exact"):
     assertEquals(Output.dotJson(g("27-polymix")), OracleHarness.golden("27-polymix", "dot_json"))
+
+  // peripheries=2 (doublecircle): two concentric ellipses, size grown by 2*GAP.
+  test("28-doublecircle: svg byte-exact (two concentric rings)"):
+    assertEquals(Svg.svg(g("28-doublecircle")), OracleHarness.golden("28-doublecircle", "svg"))
+  test("28-doublecircle: dot_json byte-exact (bb grown by peripheries)"):
+    assertEquals(Output.dotJson(g("28-doublecircle")), OracleHarness.golden("28-doublecircle", "dot_json"))

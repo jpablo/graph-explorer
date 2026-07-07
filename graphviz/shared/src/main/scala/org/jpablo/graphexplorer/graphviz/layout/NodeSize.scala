@@ -40,20 +40,30 @@ object NodeSize:
     def halfHeightPt: Pt = s.height.toPt / 2.0
 
   private final case class ShapeKind(
-      box:       Boolean, // sides==4, axis-aligned → exact fit (no ellipse pad)
-      regular:   Boolean, // equalise final w/h
-      plain:     Boolean, // shape=plain: zero min size, no padding
-      supported: Boolean
+      box:         Boolean, // sides==4, axis-aligned → exact fit (no ellipse pad)
+      regular:     Boolean, // equalise final w/h
+      plain:       Boolean, // shape=plain: zero min size, no padding
+      supported:   Boolean,
+      peripheries: Int = 1  // concentric outlines (doublecircle=2); each adds GAP
   )
 
   private def shapeOf(name: String): ShapeKind = name.toLowerCase match
     case "ellipse" | "oval"            => ShapeKind(false, false, false, true)
     case "circle"                      => ShapeKind(false, true, false, true)
+    case "doublecircle"                => ShapeKind(false, true, false, true, peripheries = 2)
     case "box" | "rect" | "rectangle"  => ShapeKind(true, false, false, true)
     case "square"                      => ShapeKind(true, true, false, true)
     case "plaintext" | "none"          => ShapeKind(true, false, false, true)
     case "plain"                       => ShapeKind(true, false, true, true)
     case _                             => ShapeKind(true, false, false, false)
+
+  /** Number of concentric peripheries actually drawn — shape default, overridden
+    * by an explicit `peripheries` attr (late_int, ≥ 0). Consumed by both the
+    * size (each extra periphery adds GAP to the radius) and the svg draw. */
+  def peripheriesOf(n: RNode): Int =
+    val name = n.attrs.getOrElse("shape", "ellipse")
+    val base = Polygon.descOf(name).map(_.peripheries).getOrElse(shapeOf(name).peripheries)
+    n.attrs.get("peripheries").flatMap(_.toIntOption).filter(_ >= 0).getOrElse(base)
 
   /** Split a label into display lines, resolving `\n \l \r` breaks, `\\` →
     * `\`, and `\N`/`\G` substitutions. Justification is irrelevant to sizing.
@@ -255,6 +265,14 @@ object NodeSize:
     if shape.regular then
       val s = math.max(bbX, bbY)
       bbX = s; bbY = s
+
+    // Peripheries (ellipse path, e.g. doublecircle): each extra concentric
+    // ring adds GAP to the radius ⇒ 2*GAP to each dimension (poly_init ellipse
+    // branch grows bb to 2*P where P += GAP per periphery).
+    val peris = peripheriesOf(n)
+    if peris > 1 then
+      val grow = 2.0 * Gap * (peris - 1)
+      bbX += grow; bbY += grow
 
     // NOTE: `nodeSize` is the *true* (rendered) size — the NodeSizeSpec/`dot`
     // oracle contract. Graphviz's `gv_nodesize(n, GD_flip)` w/h swap for

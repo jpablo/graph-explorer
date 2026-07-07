@@ -191,7 +191,16 @@ object Svg:
                   val closed = (pts :+ pts.head).mkString(" ")
                   sb ++= s"""<polygon fill="$fill" stroke="$stroke" points="$closed"/>\n"""
                 case None =>
-                  sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
+                  // ellipse family: draw `peripheries` concentric rings from the
+                  // inner (label-fit) outward; each ring is GAP larger (poly_gencode
+                  // draws periphery 0 first). doublecircle ⇒ 2 rings (18, 22).
+                  val peris = NodeSize.peripheriesOf(n)
+                  val gap   = 4.0 // const.h GAP
+                  var j     = 0
+                  while j < peris do
+                    val off = gap * (peris - 1 - j) // inner ring is smallest
+                    sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx - off)}" ry="${d2(ry - off)}"/>\n"""
+                    j += 1
             sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
         sb ++= "</g>\n"
 
