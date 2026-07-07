@@ -70,9 +70,12 @@ object Svg:
     // and background polygon keep the exact float (gv: int canvas, 2-dp bb).
     val (lxPt, lyPt, uxPt, uyPt) = Output.bbox(g)
     val (lx, ly, ux, uy) = (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
+    // gv canvas: ROUND((pageSize + 2*margin) * dpi/72) with dpi=72 (emit.c:1288)
+    // ⇒ ROUND(bb + 2*margin). (Was ceil — same for ≥.5 fractions; triangle
+    // 69.291 → 69, not ceil's 70.)
     val bbW = ux - lx; val bbH = uy - ly
-    val w   = math.ceil(bbW + 2 * Margin).toInt
-    val h   = math.ceil(bbH + 2 * Margin).toInt
+    val w   = Output.gvRound(bbW + 2 * Margin).toInt
+    val h   = Output.gvRound(bbH + 2 * Margin).toInt
     val trX = Margin - lx
     val trY = uy + Margin
 
@@ -178,7 +181,17 @@ object Svg:
               else
                 sb ++= s"""<polygon fill="$fill" stroke="$stroke" points="${d2(rr)},${d2(t)} ${d2(l)},${d2(t)} ${d2(l)},${d2(b)} ${d2(rr)},${d2(b)} ${d2(rr)},${d2(t)}"/>\n"""
             else
-              sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
+              // Convex builtin polygon (diamond/triangle/hexagon/…): poly_gencode
+              // draws periphery-0 vertices translated by the node centre; SVG
+              // negates y. Points are listed in gv's generated order, closed by
+              // repeating the first vertex.
+              NodeSize.polygon(n, g) match
+                case Some(poly) =>
+                  val pts    = poly.vertices.map((vx, vy) => s"${d2(x + vx)},${d2(-(cy + vy))}")
+                  val closed = (pts :+ pts.head).mkString(" ")
+                  sb ++= s"""<polygon fill="$fill" stroke="$stroke" points="$closed"/>\n"""
+                case None =>
+                  sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx)}" ry="${d2(ry)}"/>\n"""
             sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
         sb ++= "</g>\n"
 

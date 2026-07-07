@@ -169,6 +169,10 @@ object Output:
     * self-edge, + label width) and `dot_compute_bb` then sees it — so a
     * self-looped node's right extent (and the bb) grows by 18 per loop.
     * Drives `bb` for all three formats — shared with `Svg`. */
+  /** gv `ROUND` macro: round half **away from zero** (not Java's half-up). */
+  private[output] def gvRound(x: Double): Double =
+    if x >= 0 then math.floor(x + 0.5) else math.ceil(x - 0.5)
+
   private[output] def bbox(g: RGraph): (Pt, Pt, Pt, Pt) =
     val (_, yOf) = Coord.rankY(g)
     val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
@@ -191,9 +195,15 @@ object Output:
     // shifted the nodes for a bottom label ⇒ extend the bbox to reclaim it).
     val pad = gLabelPad(g)
     if pad > 0 then { if labelTop(g) then maxY += pad else minY -= pad }
-    // snap sub-epsilon FP noise to 0 (the label `+pad`/`-pad` round-trip leaves
-    // ~1e-15 where gv has exactly 0); coords are otherwise clean ~integers.
-    def snap(v: Double): Double = if math.abs(v) < 1e-9 then 0.0 else v
+    // Snap sub-epsilon FP noise to the nearest integer. gv's node coordinates
+    // come out as clean values; a polygon size derived through sqrt/trig
+    // (poly_init) carries ~1e-13 noise, which is harmless EXCEPT when it
+    // straddles the integer boundary that dot_json floor/ceils or the svg
+    // canvas ceils — there it becomes a full ±1pt error (e.g. house maxY
+    // 36.0000001 → ceil 37). Genuine fractionals (triangle 49.6) stay put.
+    def snap(v: Double): Double =
+      val r = math.rint(v)
+      if math.abs(v - r) < 1e-6 then r else v
     (Pt(snap(minX)), Pt(snap(minY)), Pt(snap(maxX)), Pt(snap(maxY)))
 
   /** One subgraph object block (4-space indented, no trailing comma), shared
@@ -215,11 +225,14 @@ object Output:
   def dotJson(g: RGraph): String =
     val d = doc(g)
     // dot_json `bb` is the **integer** box (space-sep) — gv's `-Tjson`
-    // structural dump floor/ceils GD_bb; json0 keeps the exact float.
+    // structural dump ROUNDs each GD_bb corner (ROUND macro = round-half-away-
+    // from-zero); json0 keeps the exact float. (Earlier floor/ceil only ever
+    // matched because no corpus max had a fractional in (0, 0.5) until the
+    // polygon shapes — triangle 61.291 → 61, not ceil's 62.)
     val (lxPt, lyPt, uxPt, uyPt) = bbox(g)
     val (lx, ly, ux, uy) = (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
     val (blx, bly, bux, buy) =
-      (math.floor(lx), math.floor(ly), math.ceil(ux), math.ceil(uy))
+      (gvRound(lx), gvRound(ly), gvRound(ux), gvRound(uy))
     val sb = new StringBuilder
     sb ++= "{\n"
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
@@ -245,7 +258,7 @@ object Output:
     val objBlocks = d.subgraphs.map(sgBlockJson) ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
     sb ++= "  \"objects\": [\n"
     sb ++= objBlocks.mkString(",\n")
-    sb ++= "\n  ],\n"
+    sb ++= "\n  ]"
     def edgeBlock(e: Doc.E): String =
       var a = g.edges(e.idx).attrs.toMap
       e.tp.foreach(p => a += "tailport" -> p) // ports are just edge attributes
@@ -257,9 +270,12 @@ object Output:
       fields += s"""      "head": ${e.h}"""
       attrPairs(a).foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
-    sb ++= "  \"edges\": [\n"
-    sb ++= d.edges.map(edgeBlock).mkString(",\n")
-    sb ++= "\n  ]\n}\n"
+    // gv omits the "edges" array entirely when the graph has no edges.
+    if d.edges.nonEmpty then
+      sb ++= ",\n  \"edges\": [\n"
+      sb ++= d.edges.map(edgeBlock).mkString(",\n")
+      sb ++= "\n  ]"
+    sb ++= "\n}\n"
     sb.toString
 
   def json0(g: RGraph): String =

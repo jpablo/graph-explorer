@@ -79,6 +79,15 @@ object NodeSize:
   private def dbl(n: RNode, key: String, default: Double): Double =
     n.attrs.get(key).flatMap(_.toDoubleOption).getOrElse(default)
 
+  /** Graphviz `mapbool`: true/yes/1(+) ⇒ true; false/no/0/absent ⇒ false. */
+  private def mapBool(v: Option[String]): Boolean = v match
+    case Some(s) =>
+      s.toLowerCase match
+        case "true" | "yes" => true
+        case "false" | "no" => false
+        case other          => other.toIntOption.exists(_ > 0)
+    case None => false
+
   /** Label box height in **points** = Σ per-line height (`make_label`
     * `dimen.y`): `fontSizePt*LINESPACING` for a non-empty line,
     * `(int)(fontSizePt*LINESPACING)` for an empty one. Used to size edge
@@ -125,22 +134,12 @@ object NodeSize:
     )
     Some(root)
 
-  def nodeSize(n: RNode, g: RGraph): Option[Size] =
-    val shapeName = n.attrs.getOrElse("shape", "ellipse")
-    val sn        = shapeName.toLowerCase
-    if sn == "record" || sn == "mrecord" then
-      val fixed = n.attrs.getOrElse("fixedsize", "false").toLowerCase match
-        case "true" | "shape" => true
-        case _                => false
-      val (w, h, _) = RecordLabel.layout(
-        n.attrs.getOrElse("label", "\\N"), !Rank.flip(g),
-        dbl(n, "fontsize", DefFontSize), n.attrs.getOrElse("fontname", DefFontName),
-        dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n)
-      )
-      return Some(Size(w, h))
-    val shape     = shapeOf(shapeName)
-    if !shape.supported then return None
+  /** Shared `poly_init` front-end: label box (points) after PAD/margin, the
+    * min node size, and whether the label is vertically centred. Identical for
+    * ellipse/box/polygon — only the downstream inflation differs. */
+  private final case class Metrics(dimenX: Double, dimenY: Double, minW: Double, minH: Double, valignCentered: Boolean)
 
+  private def polyMetrics(n: RNode, g: RGraph, shape: ShapeKind): Metrics =
     val fontSize = dbl(n, "fontsize", DefFontSize)
     val fontName = n.attrs.getOrElse("fontname", DefFontName)
     val fnCanon  = fontName.toLowerCase
@@ -164,8 +163,8 @@ object NodeSize:
     // padding (only when there is a label, and not shape=plain)
     if (dimenX > 0 || dimenY > 0) && !shape.plain then
       n.attrs.get("margin") match
-        case Some(m) =>
-          val parts = m.split(",").toList.flatMap(_.trim.toDoubleOption)
+        case Some(mm) =>
+          val parts = mm.split(",").toList.flatMap(_.trim.toDoubleOption)
           parts match
             case mx :: my :: _ =>
               dimenX += 2 * PointsPerInch * math.max(mx, 0)
@@ -178,10 +177,6 @@ object NodeSize:
         case None =>
           dimenX += XPad; dimenY += YPad
 
-    var bbX = dimenX
-    var bbY = dimenY
-
-    // min size from width/height attrs (regular ⇒ equal, min of the two)
     val wAttr = dbl(n, "width", DefWidthIn)
     val hAttr = dbl(n, "height", DefHeightIn)
     var minW  = PointsPerInch * (if shape.plain then 0.0 else wAttr)
@@ -190,26 +185,72 @@ object NodeSize:
       val s = PointsPerInch * math.min(wAttr, hAttr)
       minW = s; minH = s
 
+    val valignCentered = !n.attrs.get("labelloc").map(_.charAt(0)).exists(c => c == 't' || c == 'b')
+    Metrics(dimenX, dimenY, minW, minH, valignCentered)
+
+  /** Convex builtin polygon geometry (final bb + centred y-up vertices), or
+    * `None` for non-polygon shapes. Shares [[polyMetrics]] with [[nodeSize]] so
+    * the size the layout uses and the vertices `Svg` draws stay consistent. */
+  def polygon(n: RNode, g: RGraph): Option[Polygon.Poly] =
+    Polygon.descOf(n.attrs.getOrElse("shape", "ellipse")).map { desc =>
+      val shape = ShapeKind(box = false, regular = mapBool(n.attrs.get("regular")), plain = false, supported = true)
+      val m     = polyMetrics(n, g, shape)
+      Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, shape.regular, desc)
+    }
+
+  def nodeSize(n: RNode, g: RGraph): Option[Size] =
+    val shapeName = n.attrs.getOrElse("shape", "ellipse")
+    val sn        = shapeName.toLowerCase
+    if sn == "record" || sn == "mrecord" then
+      val fixed = n.attrs.getOrElse("fixedsize", "false").toLowerCase match
+        case "true" | "shape" => true
+        case _                => false
+      val (w, h, _) = RecordLabel.layout(
+        n.attrs.getOrElse("label", "\\N"), !Rank.flip(g),
+        dbl(n, "fontsize", DefFontSize), n.attrs.getOrElse("fontname", DefFontName),
+        dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n)
+      )
+      return Some(Size(w, h))
+    // Convex builtin polygons (diamond/triangle/hexagon/…) route through
+    // [[Polygon]] for their own inflation + vertex-derived final size; treat
+    // them as non-box (rotated/distorted) with an optional `regular` override.
+    val polyDesc  = Polygon.descOf(shapeName)
+    val shape     =
+      if polyDesc.isDefined then ShapeKind(box = false, regular = mapBool(n.attrs.get("regular")), plain = false, supported = true)
+      else shapeOf(shapeName)
+    if !shape.supported then return None
+
+    val m = polyMetrics(n, g, shape)
+
+    // Convex builtin polygon: Polygon.init does the SQRT2 + 1/cos(π/sides)
+    // inflation and re-derives the final bb from the generated vertices.
+    polyDesc match
+      case Some(desc) =>
+        val p = Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, shape.regular, desc)
+        return Some(Size(In(p.bbX / PointsPerInch), In(p.bbY / PointsPerInch)))
+      case None => ()
+
+    var bbX = m.dimenX
+    var bbY = m.dimenY
+
     if shape.box then
       () // axis-aligned box: label fit is exact
     else
       // smallest ellipse containing the label box, with the spare-height
       // optimisation Graphviz applies when valign is centred.
-      val valign = n.attrs.get("labelloc").map(_.charAt(0)).filter(c => c == 't' || c == 'b')
-      val centred = valign.isEmpty
-      val temp    = bbY * Sqrt2
-      if minH > temp && centred then
-        bbX *= math.sqrt(1.0 / (1.0 - sqr(bbY / minH)))
+      val temp = bbY * Sqrt2
+      if m.minH > temp && m.valignCentered then
+        bbX *= math.sqrt(1.0 / (1.0 - sqr(bbY / m.minH)))
       else
         bbX *= Sqrt2
         bbY = temp
 
     n.attrs.getOrElse("fixedsize", "false").toLowerCase match
       case "shape" | "true" =>
-        bbX = minW; bbY = minH
+        bbX = m.minW; bbY = m.minH
       case _ =>
-        bbX = math.max(minW, bbX)
-        bbY = math.max(minH, bbY)
+        bbX = math.max(m.minW, bbX)
+        bbY = math.max(m.minH, bbY)
 
     if shape.regular then
       val s = math.max(bbX, bbY)

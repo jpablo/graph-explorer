@@ -1173,4 +1173,32 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   fidelity fixes stand. Net: the earlier "flat-optimum in `LR_balance`"
   diagnosis is **superseded** — the NS is faithful and optimal; the residual
   moved one stage downstream.
+- **2026-07-07** — **Convex builtin polygon shapes (12 shapes, byte-exact).**
+  Ported `poly_init` vertex generation + sizing (shapes.c) into a new
+  `Polygon` module: SQRT2 fit-in-ellipse → `1/cos(π/sides)` fit-in-polygon
+  inflation → sector-angle vertex gen (with distortion/skew/orientation) →
+  re-derive final bb from vertex extents → rescale. `NodeSize` routes
+  diamond/triangle/invtriangle/trapezium/invtrapezium/parallelogram/pentagon/
+  house/invhouse/hexagon/septagon/octagon through it (shared `polyMetrics`
+  front-end so the layout size and the drawn vertices stay consistent); `Svg`
+  draws periphery-0 vertices as a `<polygon>` (translate by node centre, negate
+  y, close). **10 single-node probes (16–25) byte-exact** on dot_json + svg —
+  covers orientation-45 (diamond), 180 (inv\*), odd sides (triangle),
+  distortion (house −0.64, trapezium), skew (parallelogram 0.6), plain n-gons
+  (pentagon/hexagon/octagon). Three output-layer fixes fell out and are gated
+  by the new probes:
+  1. **dot_json omits empty `"edges"`** — gv drops the array entirely for an
+     edgeless graph (was always emitting `"edges": []`).
+  2. **bb quantization = `ROUND`, not floor/ceil** — gv ROUNDs each GD_bb
+     corner (dot_json) and `ROUND(pageSize+2·margin)` the svg canvas
+     (emit.c:1288). floor/ceil only ever matched because no prior corpus max
+     had a fractional in (0, .5); triangle 61.291 → 61 (not 62) exposed it.
+  3. **snap near-integer bbox extents** — a polygon size through sqrt/trig
+     carries ~1e-13 noise; harmless except when it straddles the rounding
+     boundary (house maxY 36.0000001). Snap-to-nearest-int within 1e-6 keeps
+     genuine fractionals (triangle 49.6) untouched. Suite: graphvizJVM 178,
+     viewer 42, JS compiles. ⬜ deferred: edges INTO polygons (poly_inside /
+     poly_path clipping), special-option shapes (note/tab/folder/box3d/
+     cylinder, SBOL set, star), circle/square regular variants beyond ellipse/
+     box, Mdiamond/Msquare/Mcircle diagonals, peripheries≥2.
 - _(append dated entries as milestones land)_

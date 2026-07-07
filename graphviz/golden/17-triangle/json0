@@ -1,0 +1,18 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,61.291,49.6",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.68889",
+      "label": "\\N",
+      "pos": "30.645,24.8",
+      "shape": "triangle",
+      "width": "0.85126"
+    }
+  ]
+}
