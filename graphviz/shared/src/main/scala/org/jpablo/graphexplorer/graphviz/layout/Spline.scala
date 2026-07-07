@@ -112,10 +112,12 @@ object Spline:
     def isV(id: String): Boolean = LayoutNode.isVirtualName(id)
     def cx(id: String): Double   = allX(id).value
     def cy(id: String): Double   = yOf(rankOf(id)).value
+    val labelW = Coord.labelVnodeWidths(g) // class2 label_vnode: lw=nodesep, rw=labelWidth
     def lw(id: String): Double =
-      if isV(id) then VirtualHalf
+      if labelW.contains(id) then NodeSep
+      else if isV(id) then VirtualHalf
       else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
-    def rw(id: String): Double = lw(id)
+    def rw(id: String): Double = labelW.getOrElse(id, lw(id))
 
     // ht1/ht2 (GD_rank[r] half-heights) = tallest real node half-height in rank.
     val halfHt = mutable.HashMap.empty[Int, Double].withDefaultValue(0.0)

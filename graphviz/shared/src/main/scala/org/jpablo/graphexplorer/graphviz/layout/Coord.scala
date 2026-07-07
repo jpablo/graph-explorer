@@ -98,4 +98,22 @@ object Coord:
     val (ranks, yOf) = rankY(g)
     ranks.view.mapValues(yOf).toMap
 
+  /** Edge-label virtual-node widths (vnode name → `labelWidth` pt) — the
+    * asymmetric `ND_rw` for `make_LR_constraints`/spline bounds. class2.c
+    * `label_vnode`: `ND_lw = nodesep`, `ND_rw = dimen.x` (label width); the
+    * vnode name matches `Order`'s `Virtual(dedgeIdx, midRank)`. */
+  def labelVnodeWidths(g: RGraph): Map[String, Double] =
+    val ranks = Rank.assign(g)
+    g.edges.iterator.filter(e => e.tail != e.head).zipWithIndex.flatMap { (e, dIdx) =>
+      e.attrs.get("label").filter(_.nonEmpty).flatMap { lbl =>
+        for
+          rt <- ranks.get(e.tail)
+          rh <- ranks.get(e.head) if rt != rh
+        yield
+          val fs = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
+          val fn = e.attrs.getOrElse("fontname", "Times")
+          LayoutNode.Virtual(dIdx, (rt + rh) / 2).name -> NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse(""))
+      }
+    }.toMap
+
 end Coord

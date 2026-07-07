@@ -1,0 +1,4 @@
+digraph el2 {
+  a -> b [label="WIDE"];
+  a -> c;
+}

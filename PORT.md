@@ -1110,4 +1110,18 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   label vnode** (`rw = labelWidth` in XCoord/Spline) so the label reserves
   order-axis space against a rank neighbour — closes branches + rankdir=LR
   (finite-state-machine). Straight labels with no right-neighbour don't need it.
+- **2026-07-07** — **Edge labels increment 2 — asymmetric label vnode (node
+  positions byte-exact).** Ported `class2.c label_vnode`: a label vnode is
+  asymmetric — `ND_lw = nodesep`, `ND_rw = labelWidth` (`dimen.x`; flip swaps
+  with `dimen.y`) — so it reserves order-axis space and pushes its rank
+  neighbour. `Coord.labelVnodeWidths` (vnode name → labelWidth) feeds asymmetric
+  `rw`/`lw` into `XCoord.make_LR_constraints` (`rw(u)+lw(v)+nodesep`) and Spline
+  bounds. **Safe by construction:** `rw==lw==half` for every non-label node, so
+  the arithmetic is identical unless a label vnode is present ⇒ 01/06/07/14
+  provably unmoved (corpus 145→148 green). `15-elbranch` (`a→b[WIDE]; a→c`):
+  **node positions byte-exact** — `b`/`c` now spread to fit the label (was
+  ignoring it). ⬜ increment 3: the label vnode's own x (`lp` off ~21pt) + the
+  spline routing around it need `make_edge_pairs`'s label port-offset
+  (position.c) — closes branch/LR `lp`+splines. Straight labels (14) already
+  fully byte-exact.
 - _(append dated entries as milestones land)_

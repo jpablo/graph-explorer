@@ -40,6 +40,17 @@ object XCoord:
         byId.get(id).flatMap(rn => NodeSize.layoutSize(rn, g))
           .map(_.halfWidthPt.value).getOrElse(1.0)
 
+    // Asymmetric widths (class2.c label_vnode): a label vnode has lw=nodesep,
+    // rw=labelWidth; every other node is symmetric (lw=rw=half) so this is
+    // identical to `half` unless a label vnode is involved.
+    val labelW = Coord.labelVnodeWidths(g)
+    def lw(n: LayoutNode): Double = n match
+      case v: LayoutNode.Virtual if labelW.contains(v.name) => NodeSep
+      case _                                                => half(n)
+    def rw(n: LayoutNode): Double = n match
+      case v: LayoutNode.Virtual if labelW.contains(v.name) => labelW(v.name)
+      case _                                                => half(n)
+
     // virtual_weight() (mincross.c): aux edge-pair weight = ω·edgeweight
     // where ω = NSClass.weight(class(tail), class(head)). See [[NSClass]]
     // for the table and case definitions.
@@ -62,7 +73,7 @@ object XCoord:
     res.order.foreach { case (_, ids) =>
       ids.sliding(2).foreach {
         case Seq(u, v) =>
-          val sep = math.ceil(half(u) + half(v) + NodeSep).toInt
+          val sep = math.ceil(rw(u) + lw(v) + NodeSep).toInt // ND_rw(u)+ND_lw(v)
           edges += NetworkSimplex.NSEdge(u.name, v.name, sep, 0)
         case _ => ()
       }
