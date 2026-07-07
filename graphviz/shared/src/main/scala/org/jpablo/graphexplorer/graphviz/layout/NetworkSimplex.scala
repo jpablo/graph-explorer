@@ -212,24 +212,29 @@ object NetworkSimplex:
           treeEdges += entering
           propagateTight()
 
-    // ── LR balance (ns.c LR_balance): centre within zero-cutvalue slack ──
-    // For each tight tree edge with cutvalue 0, the swap with its entering
-    // edge is free; split the slack evenly by shifting its tail component.
+    // ── LR balance (ns.c:768 LR_balance): centre free (cutvalue-0) edges ──
+    // For each tree edge with cutvalue 0, find its entering edge f; if f's
+    // slack δ > 1, shift the *down node's subtree* by δ/2 toward f (`rerank`).
+    // Faithful port — NO feasibility revert: gv chooses the down node (smaller
+    // ND_lim, deeper in the rooted tree) so the tight edge e loosens (0→δ/2)
+    // and f tightens (δ→δ/2), both ≥ 0 by construction. `rerank(v, δ)` does
+    // ND_rank -= δ over v's subtree = {w : low(v) ≤ lim(w) ≤ lim(v)}.
     if balance == NSBalance.LeftRight then
       buildRange()
       val cv = computeCutvals()
       treeEdges.toVector.sorted.foreach { te =>
         if cv.getOrElse(te, 0) == 0 then
-          val entering = enteringFor(te)
-          if entering >= 0 then
-            val d = slack(entering)
-            if d > 1 then
-              val sh      = d / 2
-              val onTail  = onTailSide(te)
-              val tSide   = nodeList.filter(onTail)
-              tSide.foreach(v => rank(v) = rank(v) - sh)
-              if es.indices.exists(i => slack(i) < 0) then
-                tSide.foreach(v => rank(v) = rank(v) + sh) // revert if infeasible
+          val f = enteringFor(te)
+          if f >= 0 then
+            val delta = slack(f)
+            if delta > 1 then
+              val e = es(te)
+              // down node = endpoint with smaller ND_lim (deeper subtree)
+              val (dn, d) =
+                if lim(e.tail) < lim(e.head) then (e.tail, delta / 2)     // rerank(tail, +δ/2)
+                else                              (e.head, -(delta / 2))  // rerank(head, −δ/2)
+              val lo = low(dn); val hi = lim(dn)
+              nodeList.foreach(w => if lo <= lim(w) && lim(w) <= hi then rank(w) = rank(w) - d)
       }
 
     // ── normalize ────────────────────────────────────────────────────────

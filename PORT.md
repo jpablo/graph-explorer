@@ -1139,4 +1139,38 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   byte-exactness). Increments 1 (straight, byte-exact) + 2 (branch node
   positions byte-exact) stand; the residual is only the label *text* x + its
   spline on branch/LR edges.
+- **2026-07-07** — **Edge labels increment 3 — aux-graph traced; residual
+  RE-LOCATED from the NS to the spline router. Three faithful NS/aux fidelity
+  fixes landed (corpus-neutral, 148/148).** Went back into increment 3 with
+  the gv 13.0.1 source (`/Users/jpablo/GitHub/graphviz-1301`, exact oracle
+  version) instead of guessing. Read the real `ns.c:768 LR_balance`,
+  `position.c:214 make_LR_constraints` + `:325 make_edge_pairs`,
+  `class2.c:20 label_vnode`, and `mincross.c:1804` ω-table. **Landed three
+  faithful ports** (all keep corpus byte-exact — the affected coords aren't in
+  any golden, so they're fidelity-only today):
+  1. **`LR_balance` rewrite** — replaced my component-shift-**with-revert-hack**
+     by gv's exact `rerank(down-node subtree, ±δ/2)` (down node = smaller
+     `ND_lim`); gv needs no feasibility revert because the direction guarantees
+     the tight edge loosens (0→δ/2) and `f` tightens (δ→δ/2). Strictly better
+     code even if corpus-neutral.
+  2. **Odd-rank `nodesep=5`** (`position.c:226`, `sep[i&1]`): with edge labels,
+     gv shrinks same-rank separation on the odd (label) ranks 18→5. Was missing.
+  3. **`ROUND` not `ceil`** for aux minlens (`make_aux_edge`, `:190`).
+  **Instrumented my own aux graph** for `15-elbranch` (temp NS stderr trace):
+  weights come out `a→v0=1`, `v0→b=2` — **byte-exact to gv's ω-table**
+  (`table[ORD][VIRT]=C_EE=1`, `table[VIRT][SING]=C_VS=2`); the asymmetry is
+  real, not a bug. The port's x-solve reaches the **global weighted-length
+  optimum** (objective 72: `v0=b=27`, `v1=c=99`). The spline waypoints I'd been
+  reading as gv's vnode centres (`48.46`, `85`) imply objective ~107 — **higher
+  than optimal**, which a correct NS + cutvalue-0-only `LR_balance` can't
+  produce. ⇒ **those are Bézier control points offset by the label/spline
+  router (`dotsplines`), not the NS coordinates.** So the increment-3 residual
+  (branch/LR `lp` ~21pt off + its spline) is **not in the aux-graph solve at
+  all** — the solve is optimal — it's in the spline-around-label offset stage.
+  Closing it byte-exact still needs an instrumented-gv `ND_coord.x` dump to
+  separate solve-position from spline-offset; that's the heavy path. Increments
+  1 (straight, byte-exact) + 2 (branch node positions byte-exact) + these three
+  fidelity fixes stand. Net: the earlier "flat-optimum in `LR_balance`"
+  diagnosis is **superseded** — the NS is faithful and optimal; the residual
+  moved one stage downstream.
 - _(append dated entries as milestones land)_

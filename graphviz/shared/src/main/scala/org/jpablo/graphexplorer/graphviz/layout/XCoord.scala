@@ -69,11 +69,16 @@ object XCoord:
 
     val edges = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
 
-    // make_LR_constraints: separation within each rank
-    res.order.foreach { case (_, ids) =>
+    // make_LR_constraints: separation within each rank. When the graph has
+    // edge labels, gv (position.c:226) shrinks the separation on ODD ranks —
+    // where the label/chain vnodes live — from nodesep(18) to 5, so the label
+    // box isn't over-spaced from its rank neighbour. `sep[i & 1]`.
+    val hasEL = Rank.hasEdgeLabel(g)
+    res.order.foreach { case (rank, ids) =>
+      val nodesep = if hasEL && (rank & 1) == 1 then 5.0 else NodeSep
       ids.sliding(2).foreach {
         case Seq(u, v) =>
-          val sep = math.ceil(rw(u) + lw(v) + NodeSep).toInt // ND_rw(u)+ND_lw(v)
+          val sep = math.round(rw(u) + lw(v) + nodesep).toInt // ROUND(ND_rw(u)+ND_lw(v)+nodesep)
           edges += NetworkSimplex.NSEdge(u.name, v.name, sep, 0)
         case _ => ()
       }
