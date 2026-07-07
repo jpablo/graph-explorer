@@ -1124,4 +1124,19 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   spline routing around it need `make_edge_pairs`'s label port-offset
   (position.c) — closes branch/LR `lp`+splines. Straight labels (14) already
   fully byte-exact.
+- **2026-07-07** — **Edge labels increment 3 — diagnosed, hit a genuine
+  `LR_balance` wall.** Measured 15-elbranch's rank-1 layout: the port's label
+  vnode `__v0_1` lands at x=**27** (aligned with `b`), gv at ~**48.5**
+  (`lp` 45.27 vs 66.73). Root cause is NOT a missing `make_edge_pairs` label
+  offset (the first guess): the `a(63)→vnode→b(27)` straightening is a **flat
+  optimum** over `[27,63]`, and the port's NS picks the *endpoint* while gv's
+  **`LR_balance` centers** the vnode (nudged by the separation against the
+  `a→c` virtual). So increment 3 = an `LR_balance` flat-optimum-centering
+  subtlety **inside the correctness-critical aux-graph solve** — matching
+  gv's exact position needs either an instrumented-gv aux-graph dump or a
+  careful `LR_balance`/asymmetric-separation study. Deferred as a focused,
+  well-rested task (rushing the NS silently risks the whole port's
+  byte-exactness). Increments 1 (straight, byte-exact) + 2 (branch node
+  positions byte-exact) stand; the residual is only the label *text* x + its
+  spline on branch/LR edges.
 - _(append dated entries as milestones land)_
