@@ -1,0 +1,7 @@
+graph 1 1.75 1.6889
+node a 0.875 1.3444 0.85126 0.68889 a solid triangle black lightgrey
+node b 0.375 0.25 0.75 0.5 b solid hexagon black lightgrey
+node c 1.375 0.25 0.75 0.5 c solid diamond black lightgrey
+edge a b 4 0.79906 1.1686 0.7346 1.031 0.6395 0.82816 0.55569 0.64936 solid black
+edge a c 4 0.95094 1.1686 1.0225 1.0159 1.1319 0.7826 1.2216 0.59117 solid black
+stop

@@ -1,0 +1,1 @@
+digraph { a [shape=diamond]; b [shape=diamond]; a -> b }

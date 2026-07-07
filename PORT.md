@@ -1201,4 +1201,20 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
      poly_path clipping), special-option shapes (note/tab/folder/box3d/
      cylinder, SBOL set, star), circle/square regular variants beyond ellipse/
      box, Mdiamond/Msquare/Mcircle diagonals, peripheries≥2.
+- **2026-07-07** — **Edges into polygon nodes: `poly_inside` clip (byte-exact).**
+  Ported `poly_inside` (shapes.c) so edge splines clip to the polygon boundary
+  instead of the ellipse/box fallback. `Polygon.init` now also emits the
+  **outline** periphery (periphery-0 pushed out by penwidth/2 along each vertex
+  bisector — `poly_init`'s peripheries/outline loop); `Spline.insideFn` gains a
+  polygon branch using `same_side` (shapes.c:371) against that outline: a point
+  is inside ⇔ it's on the node-centre's side of every outline edge (order-
+  independent, so the full loop equals gv's optimised segment walk bit-for-bit;
+  the `≥0` half-plane test matches so the bezier binary-clip converges to gv's
+  exact endpoint). Two probes byte-exact: **26-diamondedge** (vertical clip
+  through a diamond vertex, −71.7) and **27-polymix** (triangle→hexagon +
+  triangle→diamond branch — angled clips on slanted outline edges). Guarded by
+  `Polygon.descOf` so ellipse/box clipping is untouched (corpus 178→183 green,
+  JS compiles). ⬜ still deferred: non-default penwidth outline, LR/flip vertex
+  rotation, `poly_path` box routing (only matters for multi-segment splines
+  through a polygon's port), special-option shapes.
 - _(append dated entries as milestones land)_

@@ -1,0 +1,1 @@
+digraph { a [shape=triangle]; b [shape=hexagon]; c [shape=diamond]; a -> b; a -> c }

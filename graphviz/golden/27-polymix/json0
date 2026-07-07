@@ -1,0 +1,50 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,126,121.6",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.68889",
+      "label": "\\N",
+      "pos": "63,96.8",
+      "shape": "triangle",
+      "width": "0.85126"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,18",
+      "shape": "hexagon",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,18",
+      "shape": "diamond",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "pos": "e,35.198,36.489 57.532,84.136 52.892,74.235 46.044,59.628 40.01,46.754"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "pos": "e,92.754,32.325 68.468,84.136 73.62,73.143 81.494,56.347 87.954,42.564"
+    }
+  ]
+}

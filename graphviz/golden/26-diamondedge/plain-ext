@@ -1,0 +1,5 @@
+graph 1 0.75 1.5
+node a 0.375 1.25 0.75 0.5 a solid diamond black lightgrey
+node b 0.375 0.25 0.75 0.5 b solid diamond black lightgrey
+edge a b 4 0.375 0.99579 0.375 0.89605 0.375 0.77757 0.375 0.66532 solid black
+stop

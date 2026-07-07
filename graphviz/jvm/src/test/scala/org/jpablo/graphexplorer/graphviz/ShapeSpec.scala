@@ -27,3 +27,15 @@ class ShapeSpec extends FunSuite:
     test(s"$name: svg byte-exact (<polygon> vertices)"):
       assertEquals(Svg.svg(g(name)), OracleHarness.golden(name, "svg"))
   }
+
+  // Edge INTO a polygon node: the spline clips to the polygon outline
+  // (poly_inside same_side test), not the ellipse/box fallback.
+  test("26-diamondedge: svg byte-exact (spline clips to diamond outline)"):
+    assertEquals(Svg.svg(g("26-diamondedge")), OracleHarness.golden("26-diamondedge", "svg"))
+
+  // Angled edges into mixed polygons (triangle → hexagon / diamond branch):
+  // the same_side clip must resolve the crossing on a slanted outline edge.
+  test("27-polymix: svg byte-exact (angled clips, mixed shapes)"):
+    assertEquals(Svg.svg(g("27-polymix")), OracleHarness.golden("27-polymix", "svg"))
+  test("27-polymix: dot_json byte-exact"):
+    assertEquals(Output.dotJson(g("27-polymix")), OracleHarness.golden("27-polymix", "dot_json"))

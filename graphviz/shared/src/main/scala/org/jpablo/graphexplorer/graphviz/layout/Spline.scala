@@ -862,17 +862,38 @@ object Spline:
     // axis-aligned bound |px|<URx ∧ |py|<URy.
     def insideFn(id: String): Option[XY => Boolean] =
       byId.get(id).flatMap { n =>
-        NodeSize.layoutSize(n, g).map { sz =>
-          val cen = centerOf(id)
-          val urx = (sz.widthPt.value + NodePenwidth) / 2.0
-          val ury = (sz.heightPt.value + NodePenwidth) / 2.0
-          val boxLike = Set("box", "rect", "rectangle", "square").contains(n.attrs.get("shape").getOrElse(""))
-          (p: XY) =>
-            val px = p.x - cen.x; val py = p.y - cen.y
-            if boxLike then math.abs(px) < urx && math.abs(py) < ury
-            else if math.abs(px) > urx || math.abs(py) > ury then false
-            else math.hypot(px / urx, py / ury) < 1.0
-        }
+        val shapeName = n.attrs.get("shape").getOrElse("")
+        // Convex builtin polygon: poly_inside tests the point against the
+        // OUTLINE (penwidth/2-inflated) polygon — inside ⇔ on the centre's
+        // side of every outline edge (same_side, shapes.c:371). Order-
+        // independent so this full loop equals gv's optimised segment walk.
+        Polygon.descOf(shapeName) match
+          case Some(_) =>
+            NodeSize.polygon(n, g).map { poly =>
+              val cen = centerOf(id)
+              val ol  = poly.outline
+              val m   = ol.length
+              (p: XY) =>
+                val px = p.x - cen.x; val py = p.y - cen.y
+                var i = 0; var inside = true
+                while i < m && inside do
+                  val (qx, qy) = ol(i); val (rx, ry) = ol((i + 1) % m)
+                  if !sameSide(px, py, 0.0, 0.0, qx, qy, rx, ry) then inside = false
+                  i += 1
+                inside
+            }
+          case None =>
+            NodeSize.layoutSize(n, g).map { sz =>
+              val cen = centerOf(id)
+              val urx = (sz.widthPt.value + NodePenwidth) / 2.0
+              val ury = (sz.heightPt.value + NodePenwidth) / 2.0
+              val boxLike = Set("box", "rect", "rectangle", "square").contains(shapeName)
+              (p: XY) =>
+                val px = p.x - cen.x; val py = p.y - cen.y
+                if boxLike then math.abs(px) < urx && math.abs(py) < ury
+                else if math.abs(px) > urx || math.abs(py) > ury then false
+                else math.hypot(px / urx, py / ury) < 1.0
+            }
       }
 
     def shapeClip0(seg: Int, inside: XY => Boolean, leftInside: Boolean): Unit =
@@ -932,5 +953,15 @@ object Spline:
   private def dist2(a: XY, b: XY): Double =
     val dx = a.x - b.x; val dy = a.y - b.y
     dx * dx + dy * dy
+
+  /** shapes.c `same_side`: are p0 and p1 on the same side of line L0→L1?
+    * Uses the `≥ 0` half-plane test (inclusive) exactly as gv, so the
+    * bezier-clip boundary matches bit-for-bit. */
+  private def sameSide(
+      p0x: Double, p0y: Double, p1x: Double, p1y: Double,
+      l0x: Double, l0y: Double, l1x: Double, l1y: Double
+  ): Boolean =
+    val a = -(l1y - l0y); val b = l1x - l0x; val c = a * l0x + b * l0y
+    ((a * p0x + b * p0y - c) >= 0) == ((a * p1x + b * p1y - c) >= 0)
 
 end Spline

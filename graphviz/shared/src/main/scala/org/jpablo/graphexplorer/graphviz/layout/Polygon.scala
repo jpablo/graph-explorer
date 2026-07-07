@@ -45,9 +45,20 @@ object Polygon:
     case "octagon"       => Some(Desc(8, 1, 0.0, 0.0, 0.0))
     case _               => None
 
-  /** Result of `poly_init` for a convex builtin: final node bounding box (pt)
-    * and the centred (origin at node centre, **y-up**) periphery-0 vertices. */
-  final case class Poly(bbX: Double, bbY: Double, vertices: Vector[(Double, Double)])
+  private val Gap       = 4.0 // const.h GAP
+  private val PenWidth  = 1.0 // DEFAULT_NODEPENWIDTH (non-default penwidth deferred)
+
+  /** Result of `poly_init` for a convex builtin: final node bounding box (pt),
+    * the centred (origin at node centre, **y-up**) periphery-0 vertices (drawn),
+    * and the `outline` periphery = periphery-0 pushed out by penwidth/2 along
+    * each vertex bisector. `poly_inside` clips edge splines to the OUTLINE, not
+    * the drawn polygon (shapes.c: `outp = peripheries*sides`). */
+  final case class Poly(
+      bbX:      Double,
+      bbY:      Double,
+      vertices: Vector[(Double, Double)],
+      outline:  Vector[(Double, Double)]
+  )
 
   /** Port of the size-and-vertices core of `poly_init`.
     *
@@ -145,8 +156,33 @@ object Polygon:
     val scalex = bbX / xmax
     val scaley = bbY / ymax
 
-    val verts = Vector.tabulate(sides)(k => (raw(k)(0) * scalex, raw(k)(1) * scaley))
-    Poly(bbX, bbY, verts)
+    val vs = Array.tabulate(sides)(k => (raw(k)(0) * scalex, raw(k)(1) * scaley))
+
+    // Outline periphery: each base vertex pushed out by penwidth/2 along the
+    // bisector of its two incident edges (poly_init peripheries loop, with the
+    // outline offset = GAP-bisector × penwidth/2/GAP). Assumes distinct
+    // vertices (true for the convex builtins; the cylinder degenerate-side
+    // case is not among them).
+    def atan2(dy: Double, dx: Double): Double = math.atan2(dy, dx)
+    val R0   = vs(0)
+    val Qpre = vs(((sides - 1) % sides + sides) % sides) // previous distinct = last
+    var beta = atan2(R0._2 - Qpre._2, R0._1 - Qpre._1)
+    val out  = Array.ofDim[Double](sides, 2)
+    var k    = 0
+    while k < sides do
+      val q  = vs(k)
+      val r  = vs((k + 1) % sides)
+      val alpha = beta
+      beta = atan2(r._2 - q._2, r._1 - q._1)
+      val gamma = (alpha + math.Pi - beta) / 2.0
+      val temp  = Gap / math.sin(gamma)
+      val cosx  = math.cos(alpha - gamma) * temp
+      val sinx  = math.sin(alpha - gamma) * temp
+      out(k)(0) = q._1 + cosx * PenWidth / 2.0 / Gap
+      out(k)(1) = q._2 + sinx * PenWidth / 2.0 / Gap
+      k += 1
+
+    Poly(bbX, bbY, vs.toVector, Vector.tabulate(sides)(i => (out(i)(0), out(i)(1))))
 
   private inline def sqr(x: Double): Double = x * x
 
