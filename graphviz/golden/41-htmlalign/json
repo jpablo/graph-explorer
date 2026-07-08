@@ -1,0 +1,112 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,61.600],[88.660,61.600],[88.660,0.000]]
+    }
+  ],
+  "bb": "0,0,88.662,61.6",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[11.000,31.800],[11.000,54.600],[77.660,54.600],[77.660,31.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [14.000,39.000],
+          "align": "l",
+          "width": 60.660,
+          "text": "wwwwww"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[11.000,7.000],[11.000,29.800],[77.660,29.800],[77.660,7.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [14.000,14.200],
+          "align": "l",
+          "width": 7.000,
+          "text": "x"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[8.000,4.000],[8.000,57.600],[80.660,57.600],[80.660,4.000]]
+        }
+      ],
+      "height": "0.85556",
+      "label": "<TABLE><TR><TD>wwwwww<\/TD><\/TR><TR><TD ALIGN=\"LEFT\">x<\/TD><\/TR><\/TABLE>",
+      "pos": "44.331,30.8",
+      "shape": "plaintext",
+      "width": "1.2314"
+    }
+  ]
+}

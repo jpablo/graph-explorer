@@ -142,24 +142,23 @@ object HtmlParser:
     val spans   = mutable.ListBuffer.empty[HtmlSpan]
     val cur     = mutable.ListBuffer.empty[HtmlItem]
     val stack   = mutable.Stack(HtmlFont())
-    var curAlign: HtmlAlign = HtmlAlign.Center
-    def flush(align: HtmlAlign): Unit =
+    // Each `<br>` may set the *just-ended* line's alignment; `None` inherits
+    // the enclosing default (resolved at render — cell align or centre).
+    def flush(align: Option[HtmlAlign]): Unit =
       spans += HtmlSpan(cur.toList, align); cur.clear()
     var ok = true
     val it = toks.iterator
     while it.hasNext && ok do
       it.next() match
         case Tok.Chars(s)               => cur += HtmlItem(s, stack.top)
-        case Tok.Open("br", a, _)       => flush(alignOf(a).getOrElse(curAlign))
+        case Tok.Open("br", a, _)       => flush(alignOf(a))
         case Tok.Open(n, a, selfClose) if styleTags(n) =>
           if selfClose then () else stack.push(applyFont(stack.top, n, a))
         case Tok.Close(n) if styleTags(n) => if stack.size > 1 then stack.pop()
         case _                          => ok = false
     if !ok then None
     else
-      // a trailing (or only) line: gv keeps a final span if it has items OR
-      // there was at least one line.
-      if cur.nonEmpty || spans.isEmpty then flush(curAlign)
+      if cur.nonEmpty || spans.isEmpty then flush(None)
       Some(HtmlText(spans.toList))
 
   private def alignOf(a: Map[String, String]): Option[HtmlAlign] =

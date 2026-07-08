@@ -29,8 +29,10 @@ final case class HtmlFont(
 /** One styled text run within a line. `size`/`yoffset` filled during sizing. */
 final case class HtmlItem(str: String, font: HtmlFont) derives CanEqual
 
-/** One line (Graphviz `textspan_t`): a list of runs + horizontal alignment. */
-final case class HtmlSpan(items: List[HtmlItem], align: HtmlAlign) derives CanEqual
+/** One line (Graphviz `textspan_t`): a list of runs + optional horizontal
+  * alignment. `None` inherits the enclosing default (cell `align`, else the
+  * label default = centre). */
+final case class HtmlSpan(items: List[HtmlItem], align: Option[HtmlAlign]) derives CanEqual
 
 /** A text block = paragraphs/lines separated by `<br/>` (Graphviz `htmltxt_t`). */
 final case class HtmlText(spans: List[HtmlSpan]) derives CanEqual

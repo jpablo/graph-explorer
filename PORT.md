@@ -1272,4 +1272,17 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   40-htmlnoborder (`border=0 cellborder=0`). Suite: graphvizJVM 219, JS
   compiles. ⬜ deferred: cell `align`/`valign` (TD attr → span alignment),
   colspan/rowspan, `<img>/<hr>/<vr>`, `sub`/`sup` offset, gradient fills.
+- **2026-07-08** — **HTML labels: cell `align` (byte-exact).** `HtmlSpan.align`
+  is now `Option` (`None` inherits); `htmlText` takes an explicit `alignWidth`
+  (the cell content area, or the text box for a standalone label) + a default
+  align, and justifies each line within it (left = area left, right = area
+  right − line, centre = line-centred) — matching `emit_htextspans`. Cell text
+  inherits the `<td align>` attr. Probe byte-exact: 41-htmlalign (a narrow
+  `align=left` cell in a column sized by a wider sibling → content pinned to the
+  area's left edge). Suite: graphvizJVM 222, viewer 42, JS compiles. **HTML
+  labels now cover a broad byte-exact core** (24 gated cases): text
+  (plain/bold/italic/font/multi-line), tables (single/multi-cell, nested,
+  on-ellipse, edge-connected), bgcolor, border variants, and cell alignment.
+  ⬜ deferred: colspan/rowspan, valign, cell `port`, `<img>/<hr>/<vr>`, sub/sup
+  vertical offset, gradient fills.
 - _(append dated entries as milestones land)_

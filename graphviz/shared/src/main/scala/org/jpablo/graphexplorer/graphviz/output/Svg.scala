@@ -113,11 +113,15 @@ object Svg:
       * The baseline reuses the quoted-label placement (gv's simple-text path);
       * multi-line stacks each line down by its height from the block top. */
     def htmlText(cx: Double, cyc: Double, block: org.jpablo.graphexplorer.graphviz.html.HtmlText,
-                 defColor: String): String =
+                 defColor: String, alignWidth: Double,
+                 defAlign: org.jpablo.graphexplorer.graphviz.html.HtmlAlign): String =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlLayout, HtmlAlign}
       val out   = new StringBuilder
       val lines = block.spans.map(sp => (sp, HtmlLayout.lineMetrics(sp, FontSize, "Times")))
-      val boxW  = lines.map(_._2._1).maxOption.getOrElse(0.0)
+      // Justify lines within `alignWidth` (the cell content area, or the text
+      // box itself for a standalone label); each span's own align wins over the
+      // inherited default.
+      val boxW  = alignWidth
       val boxH  = lines.map(_._2._2).sum
       // `simple` (size_html_txt): ≤1 item/span, no style flags, uniform font.
       // Non-simple sets yoffset_centerline=1 uniformly (emit_htextspans), which
@@ -134,7 +138,7 @@ object Svg:
       lines.foreach { case (sp, (lineW, lineH)) =>
         val lineCy = lineTop - lineH / 2.0
         val ty     = -(lineCy + lineH / 2.0 - FontSize + 0.1 * FontSize) - yFix
-        val x0 = sp.align match
+        val x0 = sp.align.getOrElse(defAlign) match
           case HtmlAlign.Left  => cx - boxW / 2.0
           case HtmlAlign.Right => cx + boxW / 2.0 - lineW
           case _               => cx - lineW / 2.0
@@ -162,7 +166,7 @@ object Svg:
       * …, table border last — matches gv). Coords are table-local y-up + centre. */
     def htmlTable(cx: Double, cyc: Double, tbl: org.jpablo.graphexplorer.graphviz.html.HtmlTable,
                   defColor: String): String =
-      import org.jpablo.graphexplorer.graphviz.html.{HtmlTableLayout, HtmlLabel}
+      import org.jpablo.graphexplorer.graphviz.html.{HtmlTableLayout, HtmlLabel, HtmlAlign}
       val laid = HtmlTableLayout.layout(tbl, FontSize, "Times")
       val out  = new StringBuilder
       // box polygon in world coords: LL, UL, UR, LR, LL (gvrender_box order).
@@ -185,7 +189,13 @@ object Svg:
         val ccx = cx + pc.contentBox.cx
         val ccy = cyc + pc.contentBox.cy
         pc.cell.content match
-          case HtmlLabel.Text(block)  => out ++= htmlText(ccx, ccy, block, defColor)
+          case HtmlLabel.Text(block)  =>
+            val cw = pc.contentBox.urx - pc.contentBox.llx
+            val al = pc.cell.attrs.get("align").map(_.toLowerCase) match
+              case Some("left")  => HtmlAlign.Left
+              case Some("right") => HtmlAlign.Right
+              case _             => HtmlAlign.Center
+            out ++= htmlText(ccx, ccy, block, defColor, cw, al)
           case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor)
       }
       if laid.border > 0 then
@@ -294,7 +304,9 @@ object Svg:
               import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel}
               HtmlParser.parse(n.attrs.getOrElse("label", "")) match
                 case Some(HtmlLabel.Text(block)) =>
-                  sb ++= htmlText(x, cy, block, n.attrs.get("fontcolor").getOrElse(""))
+                  val bw = org.jpablo.graphexplorer.graphviz.html.HtmlLayout.textSize(block, FontSize, "Times")._1
+                  sb ++= htmlText(x, cy, block, n.attrs.get("fontcolor").getOrElse(""), bw,
+                    org.jpablo.graphexplorer.graphviz.html.HtmlAlign.Center)
                 case Some(HtmlLabel.Table(tbl)) =>
                   sb ++= htmlTable(x, cy, tbl, n.attrs.get("fontcolor").getOrElse(""))
                 case None                     => sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
