@@ -1,0 +1,15 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 54 37",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<TABLE><TR><TD BGCOLOR=\"yellow\">x<\/TD><\/TR><\/TABLE>",
+      "shape": "plaintext"
+    }
+  ]
+}

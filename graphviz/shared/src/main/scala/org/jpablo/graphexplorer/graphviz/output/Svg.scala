@@ -170,7 +170,16 @@ object Svg:
         val (l, r) = (cx + b.llx, cx + b.urx)
         val (lo, hi) = (cyc + b.lly, cyc + b.ury)
         s"${d2(l)},${d2(-lo)} ${d2(l)},${d2(-hi)} ${d2(r)},${d2(-hi)} ${d2(r)},${d2(-lo)} ${d2(l)},${d2(-lo)}"
+      // table bgcolor fills the whole table box first (behind cells).
+      val tblBox = HtmlTableLayout.BoxLocal(-laid.width / 2.0, -laid.height / 2.0, laid.width / 2.0, laid.height / 2.0)
+      tbl.attrs.get("bgcolor").foreach { bg =>
+        out ++= s"""<polygon fill="$bg" stroke="none" points="${boxPoly(tblBox)}"/>\n"""
+      }
       laid.cells.foreach { pc =>
+        // cell bgcolor fill (no stroke) before the border.
+        pc.cell.attrs.get("bgcolor").foreach { bg =>
+          out ++= s"""<polygon fill="$bg" stroke="none" points="${boxPoly(pc.box)}"/>\n"""
+        }
         if pc.cellBorder > 0 then
           out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(pc.box)}"/>\n"""
         val ccx = cx + pc.contentBox.cx
@@ -180,8 +189,7 @@ object Svg:
           case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor)
       }
       if laid.border > 0 then
-        val tb = HtmlTableLayout.BoxLocal(-laid.width / 2.0, -laid.height / 2.0, laid.width / 2.0, laid.height / 2.0)
-        out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(tb)}"/>\n"""
+        out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(tblBox)}"/>\n"""
       out.toString
 
     // record_gencode + gen_fields (shapes.c): outer box polygon, then per

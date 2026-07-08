@@ -1,0 +1,15 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 54 36",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD>x<\/TD><\/TR><\/TABLE>",
+      "shape": "plaintext"
+    }
+  ]
+}

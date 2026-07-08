@@ -1,0 +1,100 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,36.800],[54.000,36.800],[54.000,0.000]]
+    }
+  ],
+  "bb": "0,0,54,36.8",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#ffff00"
+        },
+        {
+          "op": "P",
+          "points": [[20.500,7.000],[20.500,29.800],[33.500,29.800],[33.500,7.000]]
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[20.500,7.000],[20.500,29.800],[33.500,29.800],[33.500,7.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [23.500,14.200],
+          "align": "l",
+          "width": 7.000,
+          "text": "x"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[17.500,4.000],[17.500,32.800],[36.500,32.800],[36.500,4.000]]
+        }
+      ],
+      "height": "0.51111",
+      "label": "<TABLE><TR><TD BGCOLOR=\"yellow\">x<\/TD><\/TR><\/TABLE>",
+      "pos": "27,18.4",
+      "shape": "plaintext",
+      "width": "0.75"
+    }
+  ]
+}

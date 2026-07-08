@@ -1263,4 +1263,13 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   (single/multi-cell, on-ellipse, edge-connected). ⬜ deferred: colspan/rowspan,
   cell `bgcolor`/`align`/`valign`/`port`, `<img>/<hr>/<vr>`, `sub`/`sup`
   vertical offset, non-default per-cell fonts inside tables.
+- **2026-07-08** — **HTML labels: cell/table `bgcolor` + `border=0` (byte-exact).**
+  `Svg.htmlTable` now fills a table-bgcolor polygon behind the cells and a
+  per-cell bgcolor polygon (fill only, no stroke) before each cell border
+  (gv emit order). `border=0`/`cellborder=0` already fell out of the layout
+  (cell border 0 ⇒ no polygon, table border 0 ⇒ no outer box; the size uses the
+  smaller insets). Probes byte-exact: 39-htmlbgcolor (`<td bgcolor>`),
+  40-htmlnoborder (`border=0 cellborder=0`). Suite: graphvizJVM 219, JS
+  compiles. ⬜ deferred: cell `align`/`valign` (TD attr → span alignment),
+  colspan/rowspan, `<img>/<hr>/<vr>`, `sub`/`sup` offset, gradient fills.
 - _(append dated entries as milestones land)_

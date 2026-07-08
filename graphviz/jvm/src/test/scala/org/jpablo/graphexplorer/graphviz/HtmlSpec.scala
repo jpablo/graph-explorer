@@ -13,7 +13,8 @@ class HtmlSpec extends FunSuite:
 
   private val cases = List(
     "30-htmltext", "31-htmlbold", "32-htmlitalic", "33-htmlfont", "34-htmlmulti",
-    "35-htmltable1", "36-htmltable2", "37-htmltableel", "38-htmltableedge"
+    "35-htmltable1", "36-htmltable2", "37-htmltableel", "38-htmltableedge",
+    "39-htmlbgcolor", "40-htmlnoborder"
   )
 
   cases.foreach { name =>
