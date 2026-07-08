@@ -1,0 +1,8 @@
+digraph {
+	graph [bb="0,0,54,52.043"];
+	node [label="\N"];
+	a	[height=0.72282,
+		label=<<TABLE><TR><TD>x</TD></TR></TABLE>>,
+		pos="27,26.022",
+		width=0.75];
+}

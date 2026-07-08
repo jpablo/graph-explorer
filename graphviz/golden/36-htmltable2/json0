@@ -1,0 +1,18 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,54,61.6",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.85556",
+      "label": "<TABLE><TR><TD>a<\/TD><TD>b<\/TD><\/TR><TR><TD>c<\/TD><TD>d<\/TD><\/TR><\/TABLE>",
+      "pos": "27,30.8",
+      "shape": "plaintext",
+      "width": "0.75"
+    }
+  ]
+}

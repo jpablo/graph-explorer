@@ -1,0 +1,28 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 54 110",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<TABLE><TR><TD>hi<\/TD><\/TR><\/TABLE>",
+      "shape": "plaintext"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "<TABLE><TR><TD>bye<\/TD><\/TR><\/TABLE>",
+      "shape": "plaintext"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1
+    }
+  ]
+}

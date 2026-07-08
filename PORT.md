@@ -1245,4 +1245,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   32-htmlitalic, 33-htmlfont (`<font color>`), 34-htmlmulti (`<br/>`
   multi-line). Suite: graphvizJVM 195, JS compiles. ⬜ next: table layout
   (`size_html_tbl`/`pos_html_tbl`) — parser already builds the table tree.
+- **2026-07-08** — **HTML-like labels: table engine (byte-exact).** Ported
+  `size_html_tbl` / `size_html_cell` / `pos_html_tbl` / `pos_html_cell`
+  (htmltable.c) into `HtmlTableLayout`: cell size = content + 2·(cellpadding +
+  cellborder); table box = (ncols+1)·spacing + 2·border + Σ colWidths (and the
+  row analogue); grid positions place each cell box, content centred in the
+  border+pad inset. `Svg.htmlTable` draws cell borders + centred content
+  (recursing for nested tables), then the outer table border last (gv emit
+  order); cell text reuses `htmlText` centred at the cell's content box. Also:
+  `plaintext`/`none`/`plain` now draw **no shape border** (Svg) and clip edges
+  as a **box** with no penwidth (Spline `insideFn`; they are `sides=4`,
+  `peripheries=0`). Probes byte-exact (svg + dot_json): 35-htmltable1 (single
+  cell), 36-htmltable2 (2×2 grid), 37-htmltableel (table inside the default
+  ellipse), 38-htmltableedge (two plaintext table nodes + a clipped edge).
+  Suite: graphvizJVM 213, viewer 42, JS compiles. HTML labels now cover a
+  byte-exact core: text (plain/bold/italic/font/multi-line) + tables
+  (single/multi-cell, on-ellipse, edge-connected). ⬜ deferred: colspan/rowspan,
+  cell `bgcolor`/`align`/`valign`/`port`, `<img>/<hr>/<vr>`, `sub`/`sup`
+  vertical offset, non-default per-cell fonts inside tables.
 - _(append dated entries as milestones land)_

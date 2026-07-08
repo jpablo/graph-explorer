@@ -1,0 +1,5 @@
+graph 1 0.75 1.5222
+node a 0.375 1.2667 0.75 0.51111 <<TABLE><TR><TD>hi</TD></TR></TABLE>> solid plaintext black lightgrey
+node b 0.375 0.25556 0.75 0.51111 <<TABLE><TR><TD>bye</TD></TR></TABLE>> solid plaintext black lightgrey
+edge a b 4 0.375 1.0147 0.375 0.90966 0.375 0.78329 0.375 0.66471 solid black
+stop

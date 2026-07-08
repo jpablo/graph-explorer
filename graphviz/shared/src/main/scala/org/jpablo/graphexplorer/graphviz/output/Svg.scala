@@ -157,6 +157,33 @@ object Svg:
       }
       out.toString
 
+    /** Render an HTML `<table>` centred at (cx, cyc): cells first (border box +
+      * centred content), then the outer table border (emit order: cell, content,
+      * …, table border last — matches gv). Coords are table-local y-up + centre. */
+    def htmlTable(cx: Double, cyc: Double, tbl: org.jpablo.graphexplorer.graphviz.html.HtmlTable,
+                  defColor: String): String =
+      import org.jpablo.graphexplorer.graphviz.html.{HtmlTableLayout, HtmlLabel}
+      val laid = HtmlTableLayout.layout(tbl, FontSize, "Times")
+      val out  = new StringBuilder
+      // box polygon in world coords: LL, UL, UR, LR, LL (gvrender_box order).
+      def boxPoly(b: HtmlTableLayout.BoxLocal): String =
+        val (l, r) = (cx + b.llx, cx + b.urx)
+        val (lo, hi) = (cyc + b.lly, cyc + b.ury)
+        s"${d2(l)},${d2(-lo)} ${d2(l)},${d2(-hi)} ${d2(r)},${d2(-hi)} ${d2(r)},${d2(-lo)} ${d2(l)},${d2(-lo)}"
+      laid.cells.foreach { pc =>
+        if pc.cellBorder > 0 then
+          out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(pc.box)}"/>\n"""
+        val ccx = cx + pc.contentBox.cx
+        val ccy = cyc + pc.contentBox.cy
+        pc.cell.content match
+          case HtmlLabel.Text(block)  => out ++= htmlText(ccx, ccy, block, defColor)
+          case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor)
+      }
+      if laid.border > 0 then
+        val tb = HtmlTableLayout.BoxLocal(-laid.width / 2.0, -laid.height / 2.0, laid.width / 2.0, laid.height / 2.0)
+        out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(tb)}"/>\n"""
+      out.toString
+
     // record_gencode + gen_fields (shapes.c): outer box polygon, then per
     // table the inter-child separator polylines + per leaf the field text.
     // Boxes are node-local (centre origin, y-up) — add the node centre.
@@ -209,8 +236,11 @@ object Svg:
             // box-family shapes render as a rectangle <polygon> (corners
             // UR,UL,LL,LR,UR in flipped-y); `style=rounded` ⇒ a <path> with
             // RBCONST=12 corner arcs (shapes.c round_corners); else ellipse.
-            val boxLike = Set("box", "rect", "rectangle", "square")
-            if boxLike.contains(n.attrs.get("shape").getOrElse("")) then
+            val boxLike   = Set("box", "rect", "rectangle", "square")
+            val shapeName = n.attrs.get("shape").getOrElse("")
+            val noShape   = Set("plaintext", "none", "plain").contains(shapeName)
+            if noShape then () // plaintext/none/plain draw no shape border
+            else if boxLike.contains(shapeName) then
               val (l, rr)  = (x - rx, x + rx)
               val (t, b)   = (-(cy + ry), -(cy - ry))
               if styles.contains("rounded") then
@@ -257,7 +287,8 @@ object Svg:
               HtmlParser.parse(n.attrs.getOrElse("label", "")) match
                 case Some(HtmlLabel.Text(block)) =>
                   sb ++= htmlText(x, cy, block, n.attrs.get("fontcolor").getOrElse(""))
-                case Some(HtmlLabel.Table(_)) => () // table rendering: task #7
+                case Some(HtmlLabel.Table(tbl)) =>
+                  sb ++= htmlTable(x, cy, tbl, n.attrs.get("fontcolor").getOrElse(""))
                 case None                     => sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
             else
               sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))

@@ -885,9 +885,14 @@ object Spline:
           case None =>
             NodeSize.layoutSize(n, g).map { sz =>
               val cen = centerOf(id)
-              val urx = (sz.widthPt.value + NodePenwidth) / 2.0
-              val ury = (sz.heightPt.value + NodePenwidth) / 2.0
-              val boxLike = Set("box", "rect", "rectangle", "square").contains(shapeName)
+              // plaintext/none/plain are box shapes (sides=4) with NO border
+              // ⇒ box clip using the node size directly (peripheries=0, no
+              // penwidth inflation). Other box-family shapes add penwidth.
+              val plain = Set("plaintext", "none", "plain").contains(shapeName)
+              val pw  = if plain then 0.0 else NodePenwidth
+              val urx = (sz.widthPt.value + pw) / 2.0
+              val ury = (sz.heightPt.value + pw) / 2.0
+              val boxLike = plain || Set("box", "rect", "rectangle", "square").contains(shapeName)
               (p: XY) =>
                 val px = p.x - cen.x; val py = p.y - cen.y
                 if boxLike then math.abs(px) < urx && math.abs(py) < ury

@@ -12,7 +12,8 @@ class HtmlSpec extends FunSuite:
   private def g(n: String) = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
 
   private val cases = List(
-    "30-htmltext", "31-htmlbold", "32-htmlitalic", "33-htmlfont", "34-htmlmulti"
+    "30-htmltext", "31-htmlbold", "32-htmlitalic", "33-htmlfont", "34-htmlmulti",
+    "35-htmltable1", "36-htmltable2", "37-htmltableel", "38-htmltableedge"
   )
 
   cases.foreach { name =>

@@ -1,0 +1,14 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 54 52",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<TABLE><TR><TD>x<\/TD><\/TR><\/TABLE>"
+    }
+  ]
+}
