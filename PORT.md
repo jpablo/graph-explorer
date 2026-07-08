@@ -1227,4 +1227,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   there. **28-doublecircle** byte-exact (svg + dot_json), corpus 183→186, JS
   compiles. ⬜ deferred: polygon peripheries (doubleoctagon/tripleoctagon — the
   bisector-offset ring draw), filled multi-periphery fill rules.
+- **2026-07-08** — **HTML-like labels: parser + text labels (byte-exact).**
+  New `html` package: `HtmlParser` (XML-ish tokenizer + recursive parse →
+  `HtmlLabel` = text block or table; handles `<b>/<i>/<u>/<s>/<sub>/<sup>/
+  <font>` styling, `<br/>`, entities, `<table>/<tr>/<td>`) and `HtmlLayout`
+  (`size_html_txt` port). The parser's `html` flag is now preserved through
+  `Attrs` (`htmlKeys` set, `isHtml`) from the already-existing `idHtml` lexer
+  rule. `NodeSize` sizes an HTML text label from its parsed content box, then
+  reuses the SAME poly_init PAD+fit — so `<hello>` is byte-identical to
+  `"hello"` (confirmed: both rx=30.35). `Svg` renders HTML text left-anchored
+  (`text-anchor=start`) with per-run font attrs; the baseline reuses the
+  quoted-label placement, minus 1pt when the block is **non-simple**
+  (`size_html_txt` `simple` flag: bold/italic/mixed-font sets
+  `yoffset_centerline=1`, emit_htextspans/svg_textspan:453). Also: dot_json
+  omits an empty `edges` array — already handled — and escapes `/`→`\/`.
+  Probes byte-exact (svg + dot_json): 30-htmltext `<hello>`, 31-htmlbold,
+  32-htmlitalic, 33-htmlfont (`<font color>`), 34-htmlmulti (`<br/>`
+  multi-line). Suite: graphvizJVM 195, JS compiles. ⬜ next: table layout
+  (`size_html_tbl`/`pos_html_tbl`) — parser already builds the table tree.
 - _(append dated entries as milestones land)_

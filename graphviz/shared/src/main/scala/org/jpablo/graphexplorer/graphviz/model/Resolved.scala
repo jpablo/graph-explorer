@@ -10,16 +10,26 @@ import scala.collection.mutable
   * structure is intentionally NOT modelled yet (M6) — for layout-stage
   * verification a flattened view is what the early pipeline needs.
   */
-final case class Attrs(toMap: Map[String, String]) derives CanEqual:
+/** @param htmlKeys keys whose value came from an HTML-like `<...>` string
+  *                 (Graphviz's `LT_HTML` label flag) — the value in [[toMap]]
+  *                 is the raw markup; layout/output treat it as HTML, not text. */
+final case class Attrs(toMap: Map[String, String], htmlKeys: Set[String] = Set.empty) derives CanEqual:
   def get(k: String): Option[String]            = toMap.get(k)
   def getOrElse(k: String, d: String): String   = toMap.getOrElse(k, d)
-  def ++(o: Attrs): Attrs                        = Attrs(toMap ++ o.toMap)
+  def isHtml(k: String): Boolean                = htmlKeys.contains(k)
+  /** Later attrs win for both value AND html-ness — a key overridden by a
+    * non-HTML value loses its HTML marking, and vice-versa. */
+  def ++(o: Attrs): Attrs =
+    Attrs(toMap ++ o.toMap, (htmlKeys -- o.toMap.keySet) ++ o.htmlKeys)
 
 object Attrs:
   val empty: Attrs = Attrs(Map.empty)
   /** Later duplicate keys win — Graphviz's last-attribute-wins semantics. */
   def of(ps: Seq[(ast.Id, ast.Id)]): Attrs =
-    Attrs(ps.map { case (k, v) => k.value -> v.value }.toMap)
+    val resolved = ps.foldLeft(Map.empty[String, (String, Boolean)]) {
+      case (acc, (k, v)) => acc.updated(k.value, (v.value, v.html))
+    }
+    Attrs(resolved.view.mapValues(_._1).toMap, resolved.collect { case (k, (_, true)) => k }.toSet)
 
 final case class RNode(id: String, attrs: Attrs) derives CanEqual
 final case class REdge(
@@ -173,7 +183,7 @@ object AttrResolver:
               sc.copy(graph = sc.graph ++ a)
 
         case ast.Stmt.Assign(k, v) =>
-          val a = Attrs(Map(k.value -> v.value))
+          val a = Attrs(Map(k.value -> v.value), if v.html then Set(k.value) else Set.empty)
           if isRoot then rootAttrs = rootAttrs ++ a
           graphAttrKeys += k.value
           captureGraphAttr(k.value, v.value)

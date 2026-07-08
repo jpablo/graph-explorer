@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.metrics.FontMetrics
+import org.jpablo.graphexplorer.graphviz.html.{HtmlLayout, HtmlParser}
 import org.jpablo.graphexplorer.graphviz.model.{RGraph, RNode}
 import org.jpablo.graphexplorer.graphviz.units.Length
 import org.jpablo.graphexplorer.graphviz.units.Length.{In, Pt}
@@ -169,6 +170,16 @@ object NodeSize:
     )
     var dimenX = lineW.maxOption.getOrElse(0.0)
     var dimenY = lineH.sum
+
+    // HTML-like label: `make_html_label` sizes the parsed content box, which
+    // then feeds the SAME poly_init PAD + fit — so a plain-text HTML label
+    // sizes byte-identically to the equivalent quoted label. A markup that
+    // fails to parse falls back to the raw string (gv reverts to simple label).
+    if n.attrs.isHtml("label") then
+      HtmlParser.parse(rawLabel).foreach { lbl =>
+        val (w, h) = HtmlLayout.size(lbl, fontSize, fontName)
+        dimenX = w; dimenY = h
+      }
 
     // padding (only when there is a label, and not shape=plain)
     if (dimenX > 0 || dimenY > 0) && !shape.plain then

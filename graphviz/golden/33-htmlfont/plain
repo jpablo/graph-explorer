@@ -1,0 +1,3 @@
+graph 1 0.75 0.5
+node a 0.375 0.25 0.75 0.5 <<FONT COLOR="red">red</FONT>> solid ellipse black lightgrey
+stop

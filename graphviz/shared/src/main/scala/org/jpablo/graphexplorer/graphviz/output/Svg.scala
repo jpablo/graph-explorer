@@ -107,6 +107,56 @@ object Svg:
       val f  = if fill.nonEmpty then s""" fill="$fill"""" else "" // fontcolor
       s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}" font-family="Times,serif" font-size="14.00"$f>${xml(s)}</text>\n"""
 
+    // ── HTML-like label rendering (emit_html_txt / emit_htextspans) ──────────
+    /** Render an HTML text block centred at (cx, cyc): each line is left-anchored
+      * at its justified x, items laid left-to-right with per-run font styling.
+      * The baseline reuses the quoted-label placement (gv's simple-text path);
+      * multi-line stacks each line down by its height from the block top. */
+    def htmlText(cx: Double, cyc: Double, block: org.jpablo.graphexplorer.graphviz.html.HtmlText,
+                 defColor: String): String =
+      import org.jpablo.graphexplorer.graphviz.html.{HtmlLayout, HtmlAlign}
+      val out   = new StringBuilder
+      val lines = block.spans.map(sp => (sp, HtmlLayout.lineMetrics(sp, FontSize, "Times")))
+      val boxW  = lines.map(_._2._1).maxOption.getOrElse(0.0)
+      val boxH  = lines.map(_._2._2).sum
+      // `simple` (size_html_txt): ≤1 item/span, no style flags, uniform font.
+      // Non-simple sets yoffset_centerline=1 uniformly (emit_htextspans), which
+      // lands each baseline 1pt lower than the simple/quoted-label placement.
+      val allItems = block.spans.flatMap(_.items)
+      def flagged(f: org.jpablo.graphexplorer.graphviz.html.HtmlFont): Boolean =
+        f.bold || f.italic || f.underline || f.strike || f.sub || f.sup
+      val simple = block.spans.forall(_.items.sizeIs <= 1) && allItems.forall(it => !flagged(it.font)) &&
+        allItems.map(it => (it.font.size, it.font.name)).distinct.sizeIs <= 1
+      val yFix = if simple then 0.0 else 1.0
+      // Block centred at cyc (world y-up). Each line's centre y descends by its
+      // own height; the baseline is that centre offset like a quoted label.
+      var lineTop = cyc + boxH / 2.0
+      lines.foreach { case (sp, (lineW, lineH)) =>
+        val lineCy = lineTop - lineH / 2.0
+        val ty     = -(lineCy + lineH / 2.0 - FontSize + 0.1 * FontSize) - yFix
+        val x0 = sp.align match
+          case HtmlAlign.Left  => cx - boxW / 2.0
+          case HtmlAlign.Right => cx + boxW / 2.0 - lineW
+          case _               => cx - lineW / 2.0
+        var xi = x0
+        sp.items.foreach { it =>
+          val fs   = it.font.size.getOrElse(FontSize.toDouble)
+          val nm   = it.font.name.getOrElse("Times")
+          val bold = it.font.bold || nm.toLowerCase.contains("bold")
+          val ital = it.font.italic || nm.toLowerCase.contains("italic") || nm.toLowerCase.contains("oblique")
+          val w    = HtmlLayout.itemWidth(it, FontSize, "Times")
+          val wgt  = if bold then " font-weight=\"bold\"" else ""
+          val sty  = if ital then " font-style=\"italic\"" else ""
+          val col  = it.font.color.orElse(Option(defColor).filter(_.nonEmpty))
+          val f    = col.map(c => s""" fill="$c"""").getOrElse("")
+          val dec  = if it.font.underline then " text-decoration=\"underline\"" else ""
+          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}" font-family="Times,serif"$wgt$sty font-size="${f"$fs%.2f"}"$f$dec>${xml(it.str)}</text>\n"""
+          xi += w
+        }
+        lineTop -= lineH
+      }
+      out.toString
+
     // record_gencode + gen_fields (shapes.c): outer box polygon, then per
     // table the inter-child separator polylines + per leaf the field text.
     // Boxes are node-local (centre origin, y-up) — add the node centre.
@@ -201,7 +251,16 @@ object Svg:
                     val off = gap * (peris - 1 - j) // inner ring is smallest
                     sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx - off)}" ry="${d2(ry - off)}"/>\n"""
                     j += 1
-            sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
+            // HTML-like label ⇒ render the parsed content; else the plain text.
+            if n.attrs.isHtml("label") then
+              import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel}
+              HtmlParser.parse(n.attrs.getOrElse("label", "")) match
+                case Some(HtmlLabel.Text(block)) =>
+                  sb ++= htmlText(x, cy, block, n.attrs.get("fontcolor").getOrElse(""))
+                case Some(HtmlLabel.Table(_)) => () // table rendering: task #7
+                case None                     => sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
+            else
+              sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
         sb ++= "</g>\n"
 
     def emitEdge(ix: Int, ei: Int): Unit =
