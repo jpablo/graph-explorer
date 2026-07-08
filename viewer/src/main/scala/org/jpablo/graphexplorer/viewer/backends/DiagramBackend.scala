@@ -1,10 +1,23 @@
 package org.jpablo.graphexplorer.viewer.backends
 
+import com.raquo.airstream.core.Signal
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
 import scala.concurrent.Future
+
+/** The reactive text sources a backend may choose to render from.
+  *
+  * @param visibleText
+  *   The visible graph (hidden nodes removed) serialized in the current language.
+  * @param sourceText
+  *   The raw editor source text, exactly as the user typed it.
+  */
+final case class DiagramRenderInputs(
+    visibleText: Signal[String],
+    sourceText:  Signal[String]
+)
 
 /** A backend that can parse diagram text, render it to SVG, and serialize a graph back to text.
   *
@@ -48,3 +61,11 @@ trait DiagramBackend:
 
   /** Strategy for extracting element ids from the SVGs this backend produces. */
   def selectionStrategy: SelectableElementStrategy
+
+  /** The backend's reactive rendering policy for the viewer.
+    *
+    * Each backend decides which input to render (the visible graph vs. the raw source), whether
+    * rendering is synchronous or asynchronous, and any validation it needs. This keeps the format
+    * dispatch out of the consumer (`ViewerState`), which only asks the resolved backend to render.
+    */
+  def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]]

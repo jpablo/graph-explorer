@@ -1,12 +1,13 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.Owner
 import com.raquo.airstream.state.Val
 import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.fromExpandedAttributes
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramBackend, DiagramFormat, DiagramLanguages}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramBackend, DiagramFormat, DiagramLanguages, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
@@ -488,6 +489,7 @@ object FakeDiagramLanguages extends DiagramLanguages:
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String = s"FAKE:${graph.nodeIds.size}"
     override def selectionStrategy: SelectableElementStrategy      = GraphvizSelectionStrategy
+    override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
   override def default: DiagramBackend                          = FakeBackend
   override def forFormat(format: DiagramFormat): DiagramBackend = FakeBackend

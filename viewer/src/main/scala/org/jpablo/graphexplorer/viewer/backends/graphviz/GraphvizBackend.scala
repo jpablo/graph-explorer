@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz
 
-import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat}
+import com.raquo.airstream.core.Signal
+import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
@@ -28,3 +29,8 @@ class GraphvizBackend(graphviz: Graphviz) extends DiagramBackend:
     viewerGraphToText(graph, omitInternal)
 
   override def selectionStrategy: SelectableElementStrategy = GraphvizSelectionStrategy
+
+  override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =
+    // Graphviz is synchronous, so render the visible graph's DOT directly (via map) rather than through
+    // a Future. This keeps downstream reads synchronous with the graph edit that triggered them.
+    inputs.visibleText.map(dot => graphviz.textToSvg(DotText(dot)).toOption)

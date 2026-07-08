@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
-import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat}
+import com.raquo.airstream.core.Signal
+import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElementStrategy}
@@ -47,6 +48,19 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     viewerGraphToMermaidText(graph)
 
   override def selectionStrategy: SelectableElementStrategy = MermaidSelectionStrategy
+
+  override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =
+    // Mermaid rendering is asynchronous and its round-trip is lossy, so render the raw source text
+    // (validated) rather than the re-serialized visible graph.
+    inputs.sourceText.flatMapSwitch: mermaidText =>
+      if mermaidText.trim.isEmpty then
+        Signal.fromValue(None)
+      else if DiagramFormat.detect(mermaidText) != DiagramFormat.Mermaid then
+        dom.console.warn(s"[mermaid] Skipping render: text appears to be ${DiagramFormat.detect(mermaidText)} format, not Mermaid")
+        Signal.fromValue(None)
+      else
+        val futureResult = textToSvg(mermaidText).map(Some(_)).recover { case _ => None }
+        Signal.fromFuture(futureResult).map(_.flatten)
 
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future. */
   private def parseMermaid(text: String): Future[MermaidGraph] =

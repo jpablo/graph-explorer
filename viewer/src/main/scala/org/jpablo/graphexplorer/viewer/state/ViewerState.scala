@@ -4,11 +4,10 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
-import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
-import org.jpablo.graphexplorer.viewer.formats.dot.{DotText, TextUtils}
+import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
 import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph}
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
@@ -16,7 +15,6 @@ import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
 import org.jpablo.graphexplorer.viewer.state.mouseActions.{AddNewArrowOps, ExtendSelectionOps, MouseActionVar, MoveArrowEndpointOps}
 import org.jpablo.graphexplorer.zoomLens
-import org.scalajs.dom
 import org.scalajs.dom.svg.SVG
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -96,30 +94,13 @@ case class ViewerState(
 
   val mouseAction = MouseActionVar()
 
-  // Backends for rendering
-  private lazy val mermaidBackend = MermaidBackend()
+  // 5. Render visible content to SVG with position data.
+  // Each backend owns its render policy (DOT: synchronous from visibleText; Mermaid: async from
+  // sourceText, validated), so the format dispatch lives in the registry, not here.
+  private val renderInputs = DiagramRenderInputs(visibleText = visibleText, sourceText = sourceText.signal)
 
-  // 5. Render visible content to SVG with position data
-  // For DOT: visibleText ~> SvgWithPositions (synchronous)
-  // For Mermaid: sourceText ~> SvgWithPositions (asynchronous)
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    phases.currentFormat.flatMapSwitch:
-      case DiagramFormat.DOT =>
-        // DOT/Graphviz is synchronous - use map directly.
-        // In the DOT branch visibleText is DOT text, so wrap it back into DotText for the renderer.
-        visibleText.map(dot => graphviz.textToSvg(DotText(dot)).toOption)
-      case DiagramFormat.Mermaid =>
-        // Mermaid is async - use Signal.fromFuture
-        // Validate text before rendering to prevent sending DOT text to Mermaid
-        sourceText.signal.flatMapSwitch: mermaidText =>
-          if mermaidText.trim.isEmpty then
-            Signal.fromValue(None)
-          else if DiagramFormat.detect(mermaidText) != DiagramFormat.Mermaid then
-            dom.console.warn(s"[mermaid] Skipping render: text appears to be ${DiagramFormat.detect(mermaidText)} format, not Mermaid")
-            Signal.fromValue(None)
-          else
-            val futureResult = mermaidBackend.textToSvg(mermaidText).map(Some(_)).recover { case _ => None }
-            Signal.fromFuture(futureResult).map(_.flatten)
+    phases.currentFormat.flatMapSwitch(languages.forFormat(_).render(renderInputs))
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.
