@@ -1,0 +1,15 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 66 62",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<TABLE><TR><TD ROWSPAN=\"2\">side<\/TD><TD>a<\/TD><\/TR><TR><TD>b<\/TD><\/TR><\/TABLE>",
+      "shape": "plaintext"
+    }
+  ]
+}

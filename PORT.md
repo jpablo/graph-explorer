@@ -1285,4 +1285,17 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   on-ellipse, edge-connected), bgcolor, border variants, and cell alignment.
   ⬜ deferred: colspan/rowspan, valign, cell `port`, `<img>/<hr>/<vr>`, sub/sup
   vertical offset, gradient fills.
+- **2026-07-08** — **HTML labels: colspan/rowspan (byte-exact).** Ported
+  `processTbl`/`findCol` (grid assignment: cells placed row-major at the
+  leftmost free column that fits the colspan, skipping rowspan-occupied cells)
+  and `set_cell_widths`/`set_cell_heights` (CSS-style span distribution:
+  single-span cells set the column/row minimum, then spanning cells widen their
+  columns/rows evenly if wider than the span + internal spacing) into
+  `HtmlTableLayout`. Cell boxes span `colStart(col+colspan)` /
+  `rowStart(row+rowspan)`. Probes byte-exact (svg + dot_json): 42-htmlcolspan
+  (`colspan=2` header over 2 cells), 43-htmlrowspan (`rowspan=2` side cell),
+  44-htmlspanmix (rowspan + colspan together — `findCol` skips the
+  rowspan-occupied column). Suite: graphvizJVM 231, viewer 42, JS compiles.
+  HTML labels now cover **30 byte-exact gated cases**. ⬜ deferred: valign,
+  cell `port`, `<img>/<hr>/<vr>`, sub/sup vertical offset, gradient fills.
 - _(append dated entries as milestones land)_
