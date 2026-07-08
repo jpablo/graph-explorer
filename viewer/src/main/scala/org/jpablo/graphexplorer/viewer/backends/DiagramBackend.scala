@@ -19,6 +19,25 @@ final case class DiagramRenderInputs(
     sourceText:  Signal[String]
 )
 
+/** Presentation metadata for a diagram language, used to render the format selector UI without any
+  * hardcoded per-format knowledge in the components.
+  *
+  * @param selectorLabel
+  *   Label shown in the format dropdown, e.g. "Graphviz (DOT)".
+  * @param editorPlaceholder
+  *   Placeholder for the source editor, e.g. "DOT source".
+  * @param documentationUrl
+  *   Link to this language's documentation.
+  * @param documentationTitle
+  *   Tooltip/title for the documentation link.
+  */
+final case class DiagramLanguageInfo(
+    selectorLabel:      String,
+    editorPlaceholder:  String,
+    documentationUrl:   String,
+    documentationTitle: String
+)
+
 /** A backend that can parse diagram text, render it to SVG, and serialize a graph back to text.
   *
   * This trait abstracts over different diagram formats (DOT/Graphviz, Mermaid, etc.) to provide a unified interface for
@@ -31,6 +50,9 @@ final case class DiagramRenderInputs(
 trait DiagramBackend:
   /** The format this backend handles. */
   def format: DiagramFormat
+
+  /** Presentation metadata for the format selector UI (label, placeholder, documentation link). */
+  def info: DiagramLanguageInfo
 
   /** Parse diagram text into a ViewerGraph.
     *

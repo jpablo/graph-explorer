@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.graphviz
 
 import com.raquo.airstream.core.Signal
-import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramRenderInputs}
+import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
@@ -18,6 +18,13 @@ import scala.concurrent.Future
 class GraphvizBackend(graphviz: Graphviz) extends DiagramBackend:
 
   override def format: DiagramFormat = DiagramFormat.DOT
+
+  override def info: DiagramLanguageInfo = DiagramLanguageInfo(
+    selectorLabel = "Graphviz (DOT)",
+    editorPlaceholder = "DOT source",
+    documentationUrl = "https://www.graphviz.org/documentation/",
+    documentationTitle = "Visit the Graphviz documentation for more information"
+  )
 
   override def textToGraph(text: String): Future[ViewerGraph] =
     Future.fromTry(graphviz.textToSimpleGraph(text).map(simplegraph.toViewerGraph))

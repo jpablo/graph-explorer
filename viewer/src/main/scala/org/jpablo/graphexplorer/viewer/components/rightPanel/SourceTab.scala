@@ -6,16 +6,8 @@ import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 
 def SourceTab(state: ViewerState) =
-  val formatChoices = Seq(
-    DiagramFormat.Mermaid -> "MermaidJS",
-    DiagramFormat.DOT     -> "Graphviz (DOT)"
-  )
-
-  val documentationLink = state.formatSelection.signal.map:
-    case DiagramFormat.Mermaid =>
-      ("https://mermaid.js.org/intro/", "Visit the Mermaid documentation for more information")
-    case DiagramFormat.DOT =>
-      ("https://www.graphviz.org/documentation/", "Visit the Graphviz documentation for more information")
+  // Presentation metadata for the currently selected format, resolved via the backend registry.
+  val currentInfo = state.formatSelection.signal.map(state.formatInfo)
 
   div(
     idAttr := "source-tab",
@@ -26,10 +18,10 @@ def SourceTab(state: ViewerState) =
         cls := "flex items-center gap-3 flex-wrap",
         select(
           cls := "select select-sm",
-          formatChoices.map: (format, label) =>
+          state.availableFormats.map: (format, info) =>
             option(
               value := format.toString,
-              label
+              info.selectorLabel
             ),
           controlled(
             value <-- state.formatSelection.signal.map(_.toString),
@@ -38,9 +30,9 @@ def SourceTab(state: ViewerState) =
         ),
         a(
           cls    := "link",
-          href   <-- documentationLink.map(_._1),
+          href   <-- currentInfo.map(_.documentationUrl),
           target := "_blank",
-          title  <-- documentationLink.map(_._2),
+          title  <-- currentInfo.map(_.documentationTitle),
           "Documentation"
         )
       )
@@ -50,9 +42,7 @@ def SourceTab(state: ViewerState) =
       CodeMirror(
         state,
         idAttr      := "nodes-source",
-        placeholder <-- state.formatSelection.signal.map:
-          case DiagramFormat.Mermaid => "Mermaid source"
-          case DiagramFormat.DOT     => "DOT source"
+        placeholder <-- currentInfo.map(_.editorPlaceholder)
       )
     ),
     child.maybe <-- state.editorError.signal.map:

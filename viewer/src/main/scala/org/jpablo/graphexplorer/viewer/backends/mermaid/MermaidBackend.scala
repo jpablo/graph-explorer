@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import com.raquo.airstream.core.Signal
-import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramRenderInputs}
+import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElementStrategy}
@@ -19,17 +19,25 @@ import scala.util.Try
   * This backend uses the Mermaid.js library to parse and render flowchart diagrams.
   */
 class MermaidBackend(using ExecutionContext) extends DiagramBackend:
-  // Ensure Mermaid is initialized (only happens once)
-  MermaidBackend.ensureInitialized()
 
   override def format: DiagramFormat = DiagramFormat.Mermaid
 
+  override def info: DiagramLanguageInfo = DiagramLanguageInfo(
+    selectorLabel = "MermaidJS",
+    editorPlaceholder = "Mermaid source",
+    documentationUrl = "https://mermaid.js.org/intro/",
+    documentationTitle = "Visit the Mermaid documentation for more information"
+  )
+
   override def textToGraph(text: String): Future[ViewerGraph] =
+    // Initialize Mermaid.js lazily on first use so merely constructing/listing this backend is cheap.
+    MermaidBackend.ensureInitialized()
     MermaidBackend.enqueue {
       parseMermaid(text).map(toViewerGraph)
     }
 
   override def textToSvg(text: String): Future[SvgWithPositions] =
+    MermaidBackend.ensureInitialized()
     MermaidBackend.enqueue {
       val renderId = MermaidBackend.nextRenderId()
       val defaultEdgeMarkerColor = MermaidBackend.extractDefaultEdgeMarkerColor(text)

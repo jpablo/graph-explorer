@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramRenderInputs}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
@@ -79,6 +79,14 @@ case class ViewerState(
   val selectionStrategy = phases.selectionStrategy
   def setDiagramFormat(format: DiagramFormat): Unit =
     formatSelection.set(format)
+
+  /** Presentation metadata for every available format, in display order (drives the selector UI). */
+  lazy val availableFormats: List[(DiagramFormat, DiagramLanguageInfo)] =
+    languages.all.map(backend => backend.format -> backend.info)
+
+  /** Presentation metadata for a single format. */
+  def formatInfo(format: DiagramFormat): DiagramLanguageInfo =
+    languages.forFormat(format).info
 
   private def elementExists(graph: ViewerGraph, id: ElementId): Boolean =
     id match

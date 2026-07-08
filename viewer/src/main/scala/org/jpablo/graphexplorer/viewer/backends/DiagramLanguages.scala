@@ -13,6 +13,9 @@ import scala.concurrent.ExecutionContext
   * `MermaidBackend`, or a specific selection strategy.
   */
 trait DiagramLanguages:
+  /** All available backends, in display order. Drives the format selector UI. */
+  def all: List[DiagramBackend]
+
   /** The backend to fall back to before any format has been detected/selected. */
   def default: DiagramBackend
 
@@ -31,6 +34,10 @@ trait DiagramLanguages:
 class DefaultDiagramLanguages(graphviz: Graphviz)(using ExecutionContext) extends DiagramLanguages:
   private val graphvizBackend     = GraphvizBackend(graphviz)
   private lazy val mermaidBackend = MermaidBackend()
+
+  // Listing constructs both backends. MermaidBackend construction is side-effect-free
+  // (Mermaid.js is initialized lazily on first parse/render), so this stays cheap.
+  override def all: List[DiagramBackend] = List(graphvizBackend, mermaidBackend)
 
   override def default: DiagramBackend = graphvizBackend
 

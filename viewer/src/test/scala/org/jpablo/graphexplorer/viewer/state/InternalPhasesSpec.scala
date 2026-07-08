@@ -7,7 +7,7 @@ import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.fromExpandedAttributes
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramBackend, DiagramFormat, DiagramLanguages, DiagramRenderInputs}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramLanguages, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
@@ -485,11 +485,13 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 object FakeDiagramLanguages extends DiagramLanguages:
   private object FakeBackend extends DiagramBackend:
     override def format: DiagramFormat                             = DiagramFormat.DOT
+    override def info: DiagramLanguageInfo                         = DiagramLanguageInfo("Fake", "fake source", "https://example.test", "Fake docs")
     override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(ViewerGraph.minimal)
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String = s"FAKE:${graph.nodeIds.size}"
     override def selectionStrategy: SelectableElementStrategy      = GraphvizSelectionStrategy
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
+  override def all: List[DiagramBackend]                       = List(FakeBackend)
   override def default: DiagramBackend                          = FakeBackend
   override def forFormat(format: DiagramFormat): DiagramBackend = FakeBackend
