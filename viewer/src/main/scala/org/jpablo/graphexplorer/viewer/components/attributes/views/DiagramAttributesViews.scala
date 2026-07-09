@@ -21,3 +21,8 @@ object DiagramAttributesViews:
   /** The diagram-attributes view for `format` (falls back to the DOT view for unknown formats). */
   def forFormat(format: DiagramFormat, state: ViewerState): HtmlElement =
     byFormat.getOrElse(format, DiagramAttributesView(_))(state)
+
+  /** Formats with an explicit view here. A test asserts this covers every `DiagramFormat`, so the
+    * mapping can't silently drift from the format enum / backend registry.
+    */
+  def knownFormats: Set[DiagramFormat] = byFormat.keySet
