@@ -58,9 +58,24 @@ object PortAnchor:
     portName match
       case None => None // no field port (whole-node endpoint = existing path)
       case Some(name) =>
-        for
-          root <- NodeSize.recordLayout(n, g)
-          box  <- RecordLabel.fieldBox(root, name)
-        yield fromBox(box._1, box._2, box._3, box._4, compass)
+        val record =
+          for
+            root <- NodeSize.recordLayout(n, g)
+            box  <- RecordLabel.fieldBox(root, name)
+          yield fromBox(box._1, box._2, box._3, box._4, compass)
+        record.orElse(htmlCellPort(n, name, compass))
+
+  /** HTML table cell port: `<td port="name">`. The cell box is table-local,
+    * y-up, centred on the table — and the table is centred on the node — so it
+    * doubles as the node-local field box. */
+  private def htmlCellPort(n: RNode, name: String, compass: Option[Compass]): Option[Anchor] =
+    import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel, HtmlTableLayout}
+    if !n.attrs.isHtml("label") then None
+    else
+      HtmlParser.parse(n.attrs.getOrElse("label", "")) match
+        case Some(HtmlLabel.Table(tbl)) =>
+          HtmlTableLayout.cellPortBox(tbl, name, 14.0, "Times")
+            .map(b => fromBox(b.llx, b.lly, b.urx, b.ury, compass))
+        case _ => None
 
 end PortAnchor

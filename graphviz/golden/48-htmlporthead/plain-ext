@@ -1,0 +1,5 @@
+graph 1 0.84722 1.5111
+node a 0.47222 1.2611 0.75 0.5 a solid ellipse black lightgrey
+node b 0.375 0.25556 0.75 0.51111 <<TABLE><TR><TD PORT="p1">x</TD><TD PORT="p2">y</TD></TR></TABLE>> solid plaintext black lightgrey
+edge a b:p2 4 0.47533 1.007 0.47669 0.88705 0.47812 0.73601 0.47879 0.58705 solid black
+stop

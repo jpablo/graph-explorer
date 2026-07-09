@@ -1309,4 +1309,17 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   labels: **34 byte-exact gated cases**. ⬜ deferred: cell `port` (edge → cell),
   `<img>/<hr>/<vr>`, sub/sup vertical offset, gradient fills, row/table-level
   valign inheritance.
+- **2026-07-09** — **HTML labels: cell `port` (byte-exact TB).** Edges can now
+  target a specific `<td port="name">`. `HtmlTableLayout.cellPortBox` looks up
+  the port cell's box; `PortAnchor.resolve` falls back to it for HTML nodes;
+  `Spline.htmlPortEnd` routes the endpoint like the record **dyna** port — pick
+  the cell side closest to the other endpoint, aim at its midpoint with the ±1
+  begin/endpath nudge and a constrained tangent (`clip=false`). Since the table
+  is centred on the node, the cell box doubles as the node-local field box.
+  Probes byte-exact (svg + dot_json): 47-htmlport (`a:p1 -> b`, tail exits the
+  cell bottom → (26.5, −78)), 48-htmlporthead (`a -> b:p2`, head enters the cell
+  top). Record ports unaffected (guarded on `isHtml`). Suite: graphvizJVM 243,
+  viewer 42, JS compiles. HTML labels: **38 byte-exact gated cases**. ⬜ deferred:
+  compass on cell ports (`:p:n`), non-TB port sides, nested-table cell ports,
+  `<img>/<hr>/<vr>`, sub/sup offset, gradient fills.
 - _(append dated entries as milestones land)_

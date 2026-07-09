@@ -34,6 +34,13 @@ object HtmlTableLayout:
     val laid = layout(tbl, baseSize, baseName)
     (laid.width, laid.height)
 
+  /** Box (table-local, y-up, centred) of the cell whose `PORT` attr matches
+    * `port`, or `None`. Searches this table's cells (nested-table ports TODO). */
+  def cellPortBox(tbl: HtmlTable, port: String, baseSize: Double, baseName: String): Option[BoxLocal] =
+    layout(tbl, baseSize, baseName).cells.collectFirst {
+      case pc if pc.cell.attrs.get("port").contains(port) => pc.box
+    }
+
   def layout(tbl: HtmlTable, baseSize: Double, baseName: String): Laid =
     val space      = if tbl.cellspacing >= 0 then tbl.cellspacing else CellSpacing
     val tblBorder  = tbl.border

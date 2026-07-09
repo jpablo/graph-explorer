@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.model.RGraph
 import org.jpablo.graphexplorer.graphviz.units.Length.Pt
+import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel, HtmlTableLayout}
 import scala.collection.mutable
 
 /** Phase 4 of the `dot` pipeline: edge spline routing — full box-fit port.
@@ -200,9 +201,48 @@ object Spline:
     def recRoot(id: String): Option[RecordLabel.Field] =
       byId.get(id).flatMap(n => NodeSize.recordLayout(n, g))
 
+    /** HTML `<td port>` endpoint (no compass): like the record *dyna* port, aim
+      * at the cell side closest to the other endpoint, with the ±1 router nudge
+      * and a constrained tangent (clip=false — the point IS the endpoint). TB
+      * scope: tail exits the cell bottom, head enters the cell top. */
+    def htmlPortEnd(id: String, other: String, port: org.jpablo.graphexplorer.graphviz.dotlang.Port, isTail: Boolean): Option[End] =
+      val name = port.name.map(_.value).filter(_.nonEmpty)
+      val cell =
+        for
+          node <- byId.get(id) if node.attrs.isHtml("label")
+          nm   <- name
+          tbl  <- HtmlParser.parse(node.attrs.getOrElse("label", "")).collect { case HtmlLabel.Table(t) => t }
+          box  <- HtmlTableLayout.cellPortBox(tbl, nm, 14.0, "Times")
+        yield box
+      cell.flatMap { box =>
+        val nc  = centerOf(id)
+        val oc  = centerOf(other)
+        val bcx = (box.llx + box.urx) / 2.0; val bcy = (box.lly + box.ury) / 2.0
+        val hp  = math.Pi / 2.0
+        // 4 side midpoints (node-local) + outward tangent; pick the one closest
+        // to `other` (dyna resolvePort/closestSide).
+        val sides = Seq(
+          (0, XY(bcx, box.lly), -hp),      // bottom
+          (1, XY(box.urx, bcy), 0.0),      // right
+          (2, XY(bcx, box.ury), hp),       // top
+          (3, XY(box.llx, bcy), math.Pi)   // left
+        )
+        val (side, pl, theta) = sides.minBy { case (_, mp, _) =>
+          val ax = nc.x + mp.x - oc.x; val ay = nc.y + mp.y - oc.y; ax * ax + ay * ay
+        }
+        val aim = XY(nc.x + pl.x, nc.y + pl.y)
+        // beginpath/endpath ±1 nudge — TB scope only (bottom for tail, top for head).
+        if isTail && side == 0 then
+          Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y - 1.0), theta, constrained = true, clip = false))
+        else if !isTail && side == 2 then
+          Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y + 1.0), theta, constrained = true, clip = false))
+        else None
+      }
+
     // resolvePort/closestSide + compassPort over a node-local field box.
     def portEnd(id: String, other: String, port: org.jpablo.graphexplorer.graphviz.dotlang.Port, isTail: Boolean): Option[End] =
       val name = port.name.map(_.value).filter(_.nonEmpty)
+      if byId.get(id).exists(_.attrs.isHtml("label")) then return htmlPortEnd(id, other, port, isTail)
       recRoot(id).flatMap { root => name.flatMap { nm => RecordLabel.field(root, nm).flatMap { fld =>
         val (llx, lly, urx, ury) = (fld.llx, fld.lly, fld.urx, fld.ury)
         val bcx = (llx + urx) / 2.0; val bcy = (lly + ury) / 2.0
