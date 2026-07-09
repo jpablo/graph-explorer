@@ -1298,4 +1298,15 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   rowspan-occupied column). Suite: graphvizJVM 231, viewer 42, JS compiles.
   HTML labels now cover **30 byte-exact gated cases**. ⬜ deferred: valign,
   cell `port`, `<img>/<hr>/<vr>`, sub/sup vertical offset, gradient fills.
+- **2026-07-09** — **HTML labels: cell `valign` (byte-exact).** `Svg.htmlTable`
+  now positions each cell's content box within its (taller) content area by the
+  `<td valign>` attr: `top` ⇒ content top at the area top (contentCy =
+  contentBox.ury − contentH/2), `bottom` ⇒ content bottom at the area bottom,
+  `middle` (default) ⇒ centred. Content height comes from `HtmlLayout.size`
+  (text or nested table). Probes byte-exact (svg + dot_json): 45-htmlvaligntop,
+  46-htmlvalignbot (an `x` cell beside a 3-line `a/b/c` cell → baseline shifts
+  to the area top/bottom). Suite: graphvizJVM 237, viewer 42, JS compiles. HTML
+  labels: **34 byte-exact gated cases**. ⬜ deferred: cell `port` (edge → cell),
+  `<img>/<hr>/<vr>`, sub/sup vertical offset, gradient fills, row/table-level
+  valign inheritance.
 - _(append dated entries as milestones land)_

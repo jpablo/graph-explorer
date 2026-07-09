@@ -15,7 +15,8 @@ class HtmlSpec extends FunSuite:
     "30-htmltext", "31-htmlbold", "32-htmlitalic", "33-htmlfont", "34-htmlmulti",
     "35-htmltable1", "36-htmltable2", "37-htmltableel", "38-htmltableedge",
     "39-htmlbgcolor", "40-htmlnoborder", "41-htmlalign",
-    "42-htmlcolspan", "43-htmlrowspan", "44-htmlspanmix"
+    "42-htmlcolspan", "43-htmlrowspan", "44-htmlspanmix",
+    "45-htmlvaligntop", "46-htmlvalignbot"
   )
 
   cases.foreach { name =>

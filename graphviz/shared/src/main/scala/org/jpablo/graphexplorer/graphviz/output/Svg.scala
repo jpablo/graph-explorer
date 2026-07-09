@@ -187,7 +187,14 @@ object Svg:
         if pc.cellBorder > 0 then
           out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(pc.box)}"/>\n"""
         val ccx = cx + pc.contentBox.cx
-        val ccy = cyc + pc.contentBox.cy
+        // valign positions the content box within the (taller) content area:
+        // top ⇒ content top at the area top, bottom ⇒ content bottom at the
+        // area bottom, middle (default) ⇒ centred. (pos_html_cell alignment.)
+        val (_, contentH) = org.jpablo.graphexplorer.graphviz.html.HtmlLayout.size(pc.cell.content, FontSize, "Times")
+        val ccy = pc.cell.attrs.get("valign").map(_.toLowerCase) match
+          case Some("top")    => cyc + pc.contentBox.ury - contentH / 2.0
+          case Some("bottom") => cyc + pc.contentBox.lly + contentH / 2.0
+          case _              => cyc + pc.contentBox.cy
         pc.cell.content match
           case HtmlLabel.Text(block)  =>
             val cw = pc.contentBox.urx - pc.contentBox.llx

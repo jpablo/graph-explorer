@@ -1,0 +1,146 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,70.400],[54.000,70.400],[54.000,0.000]]
+    }
+  ],
+  "bb": "0,0,54,70.4",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[13.000,7.000],[13.000,63.400],[26.000,63.400],[26.000,7.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [16.390,47.800],
+          "align": "l",
+          "width": 6.210,
+          "text": "a"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [16.000,31.000],
+          "align": "l",
+          "width": 7.000,
+          "text": "b"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [16.390,14.200],
+          "align": "l",
+          "width": 6.210,
+          "text": "c"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[28.000,7.000],[28.000,63.400],[41.000,63.400],[41.000,7.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [31.000,14.200],
+          "align": "l",
+          "width": 7.000,
+          "text": "x"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[10.000,4.000],[10.000,66.400],[44.000,66.400],[44.000,4.000]]
+        }
+      ],
+      "height": "0.97778",
+      "label": "<TABLE><TR><TD>a<BR\/>b<BR\/>c<\/TD><TD VALIGN=\"BOTTOM\">x<\/TD><\/TR><\/TABLE>",
+      "pos": "27,35.2",
+      "shape": "plaintext",
+      "width": "0.75"
+    }
+  ]
+}

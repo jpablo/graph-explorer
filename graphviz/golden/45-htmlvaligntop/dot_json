@@ -1,0 +1,15 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 54 70",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<TABLE><TR><TD>a<BR\/>b<BR\/>c<\/TD><TD VALIGN=\"TOP\">x<\/TD><\/TR><\/TABLE>",
+      "shape": "plaintext"
+    }
+  ]
+}
