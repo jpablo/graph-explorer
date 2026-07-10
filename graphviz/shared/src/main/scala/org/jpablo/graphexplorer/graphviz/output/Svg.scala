@@ -255,18 +255,31 @@ object Svg:
               case _             => HtmlAlign.Center
             out ++= htmlText(ccx, ccy, block, defColor, cw, al)
           case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor)
-          case HtmlLabel.Image(src, _) =>
+          case HtmlLabel.Image(src, scale) =>
             // Emit an `<image>` only when the dimensions are known (else gv
             // can't load the file and draws nothing — the missing-image case).
-            // The image box is the cell content box (natural / default-scale
-            // fills it). gvloadimage_core: width=UR.x−LL.x, height=UR.y−LL.y,
-            // x=LL.x, y=−UR.y. src is emitted raw (no XML escaping), per gv.
-            if g.images.contains(src) then
-              val l  = cx + pc.contentBox.llx
-              val r  = cx + pc.contentBox.urx
-              val lo = cyc + pc.contentBox.lly
-              val hi = cyc + pc.contentBox.ury
-              out ++= s"""<image xlink:href="$src" width="${g6(r - l)}px" height="${g6(hi - lo)}px" preserveAspectRatio="xMinYMin meet" x="${g6(l)}" y="${g6(-hi)}"/>\n"""
+            // gvrender_usershape: the target box starts as the cell content box;
+            // SCALE="TRUE" shrinks/grows the image to fit preserving aspect
+            // (the smaller of the two axis scales), then centres it (imagepos
+            // "mc") in whichever dimension it ends up smaller. The fit is
+            // invariant to the image's absolute unit (k cancels in iw·min(pw/iw,
+            // ph/ih)), so the natural pt size feeds it directly — no DPI factor.
+            g.images.get(src).foreach { dim =>
+              var llx = cx + pc.contentBox.llx
+              var urx = cx + pc.contentBox.urx
+              var lly = cyc + pc.contentBox.lly
+              var ury = cyc + pc.contentBox.ury
+              val pw  = urx - llx; val ph = ury - lly
+              if scale.exists(_.equalsIgnoreCase("true")) && dim.w > 0 && dim.h > 0 then
+                val s  = math.min(pw / dim.w, ph / dim.h) // TRUE ⇒ smaller scale
+                val iw = dim.w * s; val ih = dim.h * s
+                if iw < pw then { llx += (pw - iw) / 2.0; urx -= (pw - iw) / 2.0 }
+                if ih < ph then { lly += (ph - ih) / 2.0; ury -= (ph - ih) / 2.0 }
+              // else default/FALSE: box = content box (fills a natural cell).
+              // gvloadimage_core: width=UR.x−LL.x, height=UR.y−LL.y, x=LL.x,
+              // y=−UR.y, %g-formatted. src is emitted raw (no XML escaping).
+              out ++= s"""<image xlink:href="$src" width="${g6(urx - llx)}px" height="${g6(ury - lly)}px" preserveAspectRatio="xMinYMin meet" x="${g6(llx)}" y="${g6(-ury)}"/>\n"""
+            }
       }
       // <hr/>/<vr/> rules: degenerate (zero-width/height) black polygons.
       // HR spans the full table width; VR the full height minus the bottom gap.

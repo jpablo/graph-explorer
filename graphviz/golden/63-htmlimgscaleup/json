@@ -1,0 +1,67 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,74.000],[102.000,74.000],[102.000,0.000]]
+    }
+  ],
+  "bb": "0,0,102,74",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[11.000,7.000],[11.000,67.000],[91.000,67.000],[91.000,7.000]]
+        },
+        {
+                  },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[8.000,4.000],[8.000,70.000],[94.000,70.000],[94.000,4.000]]
+        }
+      ],
+      "height": "1.0278",
+      "label": "<TABLE><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"80\" HEIGHT=\"60\"><IMG SRC=\"p63.png\" SCALE=\"TRUE\"\/><\/TD><\/TR><\/TABLE>",
+      "pos": "51,37",
+      "shape": "plaintext",
+      "width": "1.4167"
+    }
+  ]
+}

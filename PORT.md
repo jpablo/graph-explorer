@@ -1413,4 +1413,23 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   (image smaller than a FIXEDSIZE content box — exercises `g6`'s fractional
   path, e.g. `26.4`/`-40.2`) and the node-level `image=`/`shape=image` attribute
   (ellipse/box fit via `poly_inside`, the `x="3.51219"`-style coords).
+- **2026-07-10** — **HTML `<IMG SCALE="TRUE">` aspect-fit + centre (byte-exact).**
+  Ported `gvrender_usershape` (gvrender.c:670): the target box starts as the cell
+  content box; `SCALE="TRUE"` fits the image preserving aspect using the *smaller*
+  of the two axis scales (`s = min(pw/iw, ph/ih)`), then centres it (imagepos
+  "mc") in whichever axis it ends up smaller (`b.LL += (p−i)/2`, `b.UR −= …`).
+  Key realisation: the fit is **invariant to the image's absolute unit** — the
+  `iw` factor cancels in `iw·min(pw/iw, ph/ih)` — so the raw natural pt size
+  feeds the fit directly (no 72/96 DPI factor, and *not* the truncated drawn
+  size, whose truncation would break proportionality: `nat54 → 40 ≠ 40.5`). This
+  generalised the increment-1 emit (default/FALSE still = content box, correct
+  when the image ≥ the box, i.e. every natural/non-fixed cell). Byte-exact (svg +
+  dot_json): 61-htmlimgscale (72×36 in a 50×40 cell ⇒ 44×22), 62-htmlimgscalefrac
+  (20×60 tall image ⇒ 14.6667×44 @ 38.6667 — the fractional `g6` path), 63-
+  htmlimgscaleup (40×40 enlarged to 54×54, horizontally centred @ x=24). Suite:
+  graphvizJVM 289, viewer 42, JS compiles. HTML labels: **60 byte-exact gated
+  cases**. ⬜ remaining image work: node-level `image=`/`shape=image` (ellipse/box
+  fit via `poly_inside`, `x="3.51219"`-style coords); `SCALE=WIDTH/HEIGHT/BOTH`
+  and non-centre `imagepos` (single-axis scaling — the fit no longer unit-cancels,
+  so these need the exact `gvusershape_size_dpi` value first).
 - _(append dated entries as milestones land)_

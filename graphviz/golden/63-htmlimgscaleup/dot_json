@@ -1,0 +1,15 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 102 74",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<TABLE><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"80\" HEIGHT=\"60\"><IMG SRC=\"p63.png\" SCALE=\"TRUE\"\/><\/TD><\/TR><\/TABLE>",
+      "shape": "plaintext"
+    }
+  ]
+}
