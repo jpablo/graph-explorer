@@ -1,0 +1,13 @@
+digraph {
+	graph [bb="0,0,61,108.8"];
+	node [label="\N"];
+	a	[height=0.5,
+		pos="34,90.8",
+		width=0.75];
+	b	[height=0.51111,
+		label=<<TABLE><TR><TD PORT="p1">x</TD><TD PORT="p2">y</TD></TR></TABLE>>,
+		pos="27,18.4",
+		shape=plaintext,
+		width=0.75];
+	a -> b:p2:n	[pos="e,34.5,30.8 34.224,72.503 34.321,63.867 34.425,52.993 34.473,42.267"];
+}

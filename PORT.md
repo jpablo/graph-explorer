@@ -1322,4 +1322,18 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   viewer 42, JS compiles. HTML labels: **38 byte-exact gated cases**. ⬜ deferred:
   compass on cell ports (`:p:n`), non-TB port sides, nested-table cell ports,
   `<img>/<hr>/<vr>`, sub/sup offset, gradient fills.
+- **2026-07-10** — **HTML labels: compass on cell ports (byte-exact, natural
+  dirs).** `Spline.htmlPortEnd` now honours a compass on a cell port
+  (`a:cell:n`): compassPort maps `n/s/e/w` + corners to the exact cell edge
+  point + outward tangent, plus the 1-unit begin/endpath nudge and a constrained
+  tangent (`clip=false`); `c`/`_`/absent fall back to the dyna closest-side.
+  Probes byte-exact: 50-htmlports (`a:p1:s -> b`, tail exits cell bottom),
+  49-htmlportheadn (`a -> b:p2:n`, head enters cell top). ✅ the compass POINT
+  resolves for all 8 directions; the SVG spline is byte-exact for the **natural**
+  directions (tail-south / head-north — no obstacle). ⬜ against-grain compass
+  (e.g. tail-north, which loops around the node) resolves the point but needs
+  node-as-obstacle routing for the byte-exact loop; `e/w` on internal cells
+  likewise route around. Suite: graphvizJVM 249, viewer 42, JS compiles. HTML
+  labels: **42 byte-exact gated cases**. ⬜ still deferred: obstacle-routed
+  compass, nested-table cell ports, `<img>/<hr>/<vr>`, sub/sup offset, gradients.
 - _(append dated entries as milestones land)_

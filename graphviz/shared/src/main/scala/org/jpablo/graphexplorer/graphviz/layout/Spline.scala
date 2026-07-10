@@ -201,11 +201,13 @@ object Spline:
     def recRoot(id: String): Option[RecordLabel.Field] =
       byId.get(id).flatMap(n => NodeSize.recordLayout(n, g))
 
-    /** HTML `<td port>` endpoint (no compass): like the record *dyna* port, aim
-      * at the cell side closest to the other endpoint, with the ±1 router nudge
-      * and a constrained tangent (clip=false — the point IS the endpoint). TB
-      * scope: tail exits the cell bottom, head enters the cell top. */
+    /** HTML `<td port[:compass]>` endpoint. A compass forces the exact cell
+      * point + outward tangent (compassPort); no compass ⇒ the record *dyna*
+      * port (aim at the cell side closest to the other endpoint). Either way the
+      * endpoint carries the ±1 begin/endpath nudge and a constrained tangent
+      * (clip=false — the point IS the endpoint). TB scope. */
     def htmlPortEnd(id: String, other: String, port: org.jpablo.graphexplorer.graphviz.dotlang.Port, isTail: Boolean): Option[End] =
+      import org.jpablo.graphexplorer.graphviz.dotlang.Compass.*
       val name = port.name.map(_.value).filter(_.nonEmpty)
       val cell =
         for
@@ -219,24 +221,40 @@ object Spline:
         val oc  = centerOf(other)
         val bcx = (box.llx + box.urx) / 2.0; val bcy = (box.lly + box.ury) / 2.0
         val hp  = math.Pi / 2.0
-        // 4 side midpoints (node-local) + outward tangent; pick the one closest
-        // to `other` (dyna resolvePort/closestSide).
-        val sides = Seq(
-          (0, XY(bcx, box.lly), -hp),      // bottom
-          (1, XY(box.urx, bcy), 0.0),      // right
-          (2, XY(bcx, box.ury), hp),       // top
-          (3, XY(box.llx, bcy), math.Pi)   // left
-        )
-        val (side, pl, theta) = sides.minBy { case (_, mp, _) =>
-          val ax = nc.x + mp.x - oc.x; val ay = nc.y + mp.y - oc.y; ax * ax + ay * ay
+        // compass → (cell point (node-local), outward tangent)
+        val compassPt = port.compass.flatMap {
+          case N  => Some((XY(bcx, box.ury), hp))
+          case S  => Some((XY(bcx, box.lly), -hp))
+          case E  => Some((XY(box.urx, bcy), 0.0))
+          case W  => Some((XY(box.llx, bcy), math.Pi))
+          case NE => Some((XY(box.urx, box.ury), hp / 2))
+          case NW => Some((XY(box.llx, box.ury), 3 * hp / 2))
+          case SE => Some((XY(box.urx, box.lly), -hp / 2))
+          case SW => Some((XY(box.llx, box.lly), -3 * hp / 2))
+          case C | Underscore => None // centre / dyna
         }
-        val aim = XY(nc.x + pl.x, nc.y + pl.y)
-        // beginpath/endpath ±1 nudge — TB scope only (bottom for tail, top for head).
-        if isTail && side == 0 then
-          Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y - 1.0), theta, constrained = true, clip = false))
-        else if !isTail && side == 2 then
-          Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y + 1.0), theta, constrained = true, clip = false))
-        else None
+        compassPt match
+          case Some((pl, theta)) =>
+            // beginpath/endpath nudge: 1 unit outward along the tangent.
+            val aim = XY(nc.x + pl.x + math.cos(theta), nc.y + pl.y + math.sin(theta))
+            Some(End(maximalBbox(id, Set(id)), aim, theta, constrained = true, clip = false))
+          case None =>
+            // dyna: closest side midpoint to `other`; ±1 nudge (TB scope only).
+            val sides = Seq(
+              (0, XY(bcx, box.lly), -hp),      // bottom
+              (1, XY(box.urx, bcy), 0.0),      // right
+              (2, XY(bcx, box.ury), hp),       // top
+              (3, XY(box.llx, bcy), math.Pi)   // left
+            )
+            val (side, pl, theta) = sides.minBy { case (_, mp, _) =>
+              val ax = nc.x + mp.x - oc.x; val ay = nc.y + mp.y - oc.y; ax * ax + ay * ay
+            }
+            val aim = XY(nc.x + pl.x, nc.y + pl.y)
+            if isTail && side == 0 then
+              Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y - 1.0), theta, constrained = true, clip = false))
+            else if !isTail && side == 2 then
+              Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y + 1.0), theta, constrained = true, clip = false))
+            else None
       }
 
     // resolvePort/closestSide + compassPort over a node-local field box.
