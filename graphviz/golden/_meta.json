@@ -44,7 +44,7 @@
     "xdot1.4",
     "xdot_json"
   ],
-  "generatedAt": "2026-07-10T15:53:59.767Z",
+  "generatedAt": "2026-07-10T16:16:37.455Z",
   "corpus": {
     "01-minimal": {
       "input": "01-minimal.dot",
@@ -2057,6 +2057,44 @@
         "svg": {
           "status": "success",
           "sha256": "c27e99f171d1bef5db082f0a0816ad4e0b3cb91e57f20e08de2b14c3db3d75f1"
+        }
+      }
+    },
+    "55-htmlporttailn": {
+      "input": "55-htmlporttailn.dot",
+      "sha256": "61205bba14e2a5df518848cf128b2fcefff81d822a0e0ef0ce5cee09d97d5e0e",
+      "formats": {
+        "dot": {
+          "status": "success",
+          "sha256": "72914885a1d89fcf089dea0690ea7adaaab889aa60de11c766bd8d4c92b9d613"
+        },
+        "plain": {
+          "status": "success",
+          "sha256": "fe3b2f9c75268c8492fee05aa74b3a8deef9d6deca3006a9ccade03c48280b6e"
+        },
+        "plain-ext": {
+          "status": "success",
+          "sha256": "f3c452034ed607fb51b6d13ab8906003453dfa5f8bbcd502b9213110ecd87f71"
+        },
+        "json": {
+          "status": "success",
+          "sha256": "b39c5c6377cc4103063d93a31ac81c43d434e33e8fd6c484c11841b80ada6807"
+        },
+        "json0": {
+          "status": "success",
+          "sha256": "a2be94a618c80373661009e32b01334286e4f1b34e04c012088f9864de3bf850"
+        },
+        "dot_json": {
+          "status": "success",
+          "sha256": "8f88dc54e754e8dfe7f683b3ffde42193a8654deb537329142f551695673ca83"
+        },
+        "xdot": {
+          "status": "success",
+          "sha256": "8697cd803352733eee572be9e82d9d54974f51b58bdc46a612a1634c3ad32772"
+        },
+        "svg": {
+          "status": "success",
+          "sha256": "8172cf14331fe2a6ae10120429baf22a57255b030d02877f9c884e3364d1442e"
         }
       }
     }

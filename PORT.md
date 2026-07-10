@@ -1357,4 +1357,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   on internal cells — needs general spline obstacle avoidance) and `<img>`
   (external image files — can't gate byte-exact). The HTML label engine is
   otherwise complete.
+- **2026-07-10** — **Obstacle-routed edges: against-grain compass port
+  (byte-exact).** An against-grain TOP-side tail port (`a:cell:n -> b` with b
+  BELOW) exits the cell top and must loop around the node. Ported `beginpath`'s
+  TOP construction (splines.c:419): three boxes — `b0` above the node, `b` down
+  the go-left/right side (chosen by port.x vs node.x), and the `maximal_bbox`
+  clamped copy (make_regular_edge) — threaded into the port box channel via
+  `End.top/portY/goLeft` + a `topBoxes` builder. Turned out to be **purely a
+  spline problem** (the layout shift — node a x=27→34 to make room — already
+  falls out of the PortAnchor x-coord offset). Two fixes closed it byte-exact:
+  the 3-box channel, and **dropping boxes that `checkpath`'s overlap-repair
+  collapses to zero area** (the clamped maximal_bbox fully overlaps the side box
+  → degenerate → `buildPolygon` was pinching the channel and rejecting the
+  correct left-bulge spline). 55-htmlporttailn byte-exact. Records + all
+  existing edges unaffected (topBoxes only fires for against-grain compass; the
+  degenerate-filter is a no-op when no box collapses). Suite: graphvizJVM 265,
+  viewer 42, JS compiles. HTML labels: **52 byte-exact gated cases**.
+  ⬜ remaining: `e/w` on internal cells (same obstacle mechanism, LEFT/RIGHT side
+  box), `<img>` (external files — out of scope).
 - _(append dated entries as milestones land)_

@@ -1,0 +1,28 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 61 109",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "<TABLE><TR><TD PORT=\"p1\">x<\/TD><TD PORT=\"p2\">y<\/TD><\/TR><\/TABLE>",
+      "shape": "plaintext"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "tailport": "p1:n"
+    }
+  ]
+}

@@ -185,6 +185,29 @@ object Spline:
     def rankBox(rUpper: Int, rLower: Int): Box =
       Box(leftBound, yOf(rLower).value + ht2(rLower), rightBound, yOf(rUpper).value - ht1(rUpper))
 
+    // beginpath TOP (splines.c:419) — three boxes that route the spline up out
+    // of the node then down its go-left/right side: b0 (above the node from the
+    // port height up), b (down the chosen side), bc (maximal_bbox clamped to the
+    // side box's y). `portY` = the un-nudged cell-top world y.
+    val TopRankSep = 36.0 // DEFAULT_RANKSEP (box top only; not path-critical)
+    def topBoxes(id: String, portY: Double, goLeft: Boolean, ownPath: Set[String]): Vector[Box] =
+      val nb   = maximalBbox(id, ownPath)
+      val ncx  = cx(id); val ncy = cy(id); val r = rankOf(id)
+      val bTop = ncy + ht2(r) + TopRankSep / 2.0
+      val yLo  = ncy - ht2(r)
+      if goLeft then
+        Vector(
+          Box(nb.llx - 1, portY, nb.urx, bTop),          // b0: above the node
+          Box(nb.llx - 1, yLo, ncx - lw(id), portY),     // b : down the left side
+          Box(nb.llx, yLo, nb.urx, portY)                // bc: maximal_bbox clamped
+        )
+      else
+        Vector(
+          Box(nb.llx, portY, nb.urx + 1, bTop),
+          Box(ncx + rw(id), yLo, nb.urx + 1, portY),
+          Box(nb.llx, yLo, nb.urx, portY)
+        )
+
     // installed spline keyed by the declared-edge index (position in
     // g.edges) — parallel/port-distinguished multi-edges must NOT collapse.
     val out = mutable.LinkedHashMap.empty[Int, ESpline]
@@ -196,7 +219,11 @@ object Spline:
     // ── beginpath/endpath port branch (record field ports, TB) ────────────
     // Returns the per-end channel box, aim point and constrained tangent for
     // a record-port endpoint, or None to fall back to the node-centred path.
-    final case class End(box: Box, p: XY, theta: Double, constrained: Boolean, clip: Boolean)
+    // `top`/`portY`/`goLeft`: an against-grain TOP-side port (tail exits the
+    // cell top toward a lower head) → the port route builds the go-left/right
+    // box channel that loops around the node (beginpath TOP, splines.c:419).
+    final case class End(box: Box, p: XY, theta: Double, constrained: Boolean, clip: Boolean,
+                         top: Boolean = false, portY: Double = 0.0, goLeft: Boolean = true)
 
     def recRoot(id: String): Option[RecordLabel.Field] =
       byId.get(id).flatMap(n => NodeSize.recordLayout(n, g))
@@ -237,7 +264,12 @@ object Spline:
           case Some((pl, theta)) =>
             // beginpath/endpath nudge: 1 unit outward along the tangent.
             val aim = XY(nc.x + pl.x + math.cos(theta), nc.y + pl.y + math.sin(theta))
-            Some(End(maximalBbox(id, Set(id)), aim, theta, constrained = true, clip = false))
+            // A TOP-side TAIL port exits away from the (lower) head ⇒ loop.
+            val topLoop = isTail && port.compass.contains(N)
+            val portY   = nc.y + box.ury
+            val goLeft  = (nc.x + bcx) < nc.x
+            Some(End(maximalBbox(id, Set(id)), aim, theta, constrained = true, clip = false,
+                     top = topLoop, portY = portY, goLeft = goLeft))
           case None =>
             // dyna: closest side midpoint to `other`; ±1 nudge (TB scope only).
             val sides = Seq(
@@ -347,10 +379,16 @@ object Spline:
           val portRoute = mids.isEmpty && (tEnd.isDefined || hEnd.isDefined)
 
           if portRoute then
-            // ── port box channel: [tail band] [rank gap] [head band] ──────
-            val tBox  = tEnd.map(_.box).getOrElse(maximalBbox(tn0, ownPath))
+            // ── port box channel: [tail band(s)] [rank gap] [head band] ──────
+            // An against-grain TOP-side tail port expands into 3 boxes that loop
+            // up out of the node and down its side.
+            val tBoxes =
+              if tEnd.exists(_.top) then topBoxes(tn0, tEnd.get.portY, tEnd.get.goLeft, ownPath)
+              else Vector(tEnd.map(_.box).getOrElse(maximalBbox(tn0, ownPath)))
             val hBox  = hEnd.map(_.box).getOrElse(maximalBbox(hn0, ownPath))
-            val boxes = mutable.ArrayBuffer(tBox, rankBox(rankOf(tn0), rankOf(hn0)), hBox)
+            val boxes = mutable.ArrayBuffer.from(tBoxes)
+            boxes += rankBox(rankOf(tn0), rankOf(hn0))
+            boxes += hBox
             val start = tEnd.map(_.p).getOrElse(XY(cx(tn0), cy(tn0) - 1.0))
             val end   = hEnd.map(_.p).getOrElse(XY(cx(hn0), cy(hn0) + 1.0))
             val ev0   =
@@ -366,6 +404,11 @@ object Spline:
             val ctrl0 =
               if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
               else
+                // checkpath's overlap repair can collapse a box to zero area
+                // (e.g. the maximal_bbox added for a TOP-side port fully overlaps
+                // the side box) — drop those so buildPolygon doesn't pinch the
+                // channel and wrongly reject the spline.
+                boxes.filterInPlace(b => math.abs(b.ury - b.lly) > 0.01 && math.abs(b.urx - b.llx) > 0.01)
                 val poly = buildPolygon(boxes)
                 val sp   = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
                 proutespline(poly, sp, ev0, ev1)
