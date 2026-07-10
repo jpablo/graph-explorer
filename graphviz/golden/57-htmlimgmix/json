@@ -1,0 +1,95 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,44.000],[97.210,44.000],[97.210,0.000]]
+    }
+  ],
+  "bb": "0,0,97.207,44",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[11.000,7.000],[11.000,37.000],[51.000,37.000],[51.000,7.000]]
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[53.000,7.000],[53.000,37.000],[86.210,37.000],[86.210,7.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [56.000,17.800],
+          "align": "l",
+          "width": 27.210,
+          "text": "label"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[8.000,4.000],[8.000,40.000],[89.210,40.000],[89.210,4.000]]
+        }
+      ],
+      "height": "0.61111",
+      "label": "<TABLE><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"40\" HEIGHT=\"30\"><IMG SRC=\"pic.png\"\/><\/TD><TD>label<\/TD><\/TR><\/TABLE>",
+      "pos": "48.604,22",
+      "shape": "plaintext",
+      "width": "1.3501"
+    }
+  ]
+}

@@ -89,8 +89,18 @@ object HtmlTableLayout:
         val rs = spanOf(cell, "rowspan")
         c = findCol(r, c, cs)
         for j <- c until c + cs; i <- r until r + rs do occupied += ((j, i))
-        val (cw, ch) = HtmlLayout.size(cell.content, baseSize, baseName)
-        infos += Info(r, c, cs, rs, cw + margin, ch + margin, cell)
+        // FIXEDSIZE cell: the box IS width×height (points) — the content size is
+        // ignored (size_html_cell sets sz=0 for a fixed cell). Otherwise the box
+        // is content + 2*(pad + cellBorder).
+        val fixed = cell.attrs.get("fixedsize").exists(v => v.toLowerCase == "true" || v.toLowerCase == "fixed")
+        val fw    = cell.attrs.get("width").flatMap(_.toDoubleOption)
+        val fh    = cell.attrs.get("height").flatMap(_.toDoubleOption)
+        val (cellW, cellH) =
+          if fixed && fw.isDefined && fh.isDefined then (fw.get, fh.get)
+          else
+            val (cw, ch) = HtmlLayout.size(cell.content, baseSize, baseName)
+            (cw + margin, ch + margin)
+        infos += Info(r, c, cs, rs, cellW, cellH, cell)
         c += cs
         ncols = math.max(c, ncols)
         nrows = math.max(r + rs, nrows)

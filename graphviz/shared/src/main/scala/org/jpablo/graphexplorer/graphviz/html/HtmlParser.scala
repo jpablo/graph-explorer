@@ -155,6 +155,11 @@ object HtmlParser:
         case Tok.Open(n, a, selfClose) if styleTags(n) =>
           if selfClose then () else stack.push(applyFont(stack.top, n, a))
         case Tok.Close(n) if styleTags(n) => if stack.size > 1 then stack.pop()
+        // <img> contributes no text; its cell is sized by FIXEDSIZE/WIDTH/HEIGHT
+        // (reading the file for the natural size is out of scope). Tolerate the
+        // implicit </img> close too.
+        case Tok.Open("img", _, _)      => ()
+        case Tok.Close("img")           => ()
         case _                          => ok = false
     if !ok then None
     else

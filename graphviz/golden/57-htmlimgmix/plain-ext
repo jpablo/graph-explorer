@@ -1,0 +1,3 @@
+graph 1 1.3501 0.61111
+node a 0.67505 0.30556 1.3501 0.61111 <<TABLE><TR><TD FIXEDSIZE="TRUE" WIDTH="40" HEIGHT="30"><IMG SRC="pic.png"/></TD><TD>label</TD></TR></TABLE>> solid plaintext black lightgrey
+stop

@@ -1,0 +1,9 @@
+digraph {
+	graph [bb="0,0,72,54"];
+	node [label="\N"];
+	a	[height=0.75,
+		label=<<TABLE><TR><TD FIXEDSIZE="TRUE" WIDTH="50" HEIGHT="40"><IMG SRC="x.png"/></TD></TR></TABLE>>,
+		pos="36,27",
+		shape=plaintext,
+		width=1];
+}

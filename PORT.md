@@ -1375,4 +1375,17 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   viewer 42, JS compiles. HTML labels: **52 byte-exact gated cases**.
   ⬜ remaining: `e/w` on internal cells (same obstacle mechanism, LEFT/RIGHT side
   box), `<img>` (external files — out of scope).
+- **2026-07-10** — **HTML labels: `<img>` + FIXEDSIZE cells (byte-exact
+  layout).** A `FIXEDSIZE="TRUE"` cell's box IS its `WIDTH`×`HEIGHT` (points) —
+  the content size is ignored (`size_html_cell` sets sz=0 for a fixed cell), so
+  an `<img>` cell lays out byte-exact from the DOT alone (no file read needed;
+  viz-js emits no `<image>` without the file either). `HtmlParser` now tolerates
+  `<img>` (contributes no text); `HtmlTableLayout` sizes a fixed cell to
+  width×height. Probes byte-exact (svg + dot_json): 56-htmlimg (single fixed img
+  cell 50×40), 57-htmlimgmix (fixed img cell + text cell). Suite: graphvizJVM
+  271, viewer 42, JS compiles. HTML labels: **54 byte-exact gated cases**.
+  ⛔ genuinely out of scope: the image FILE render (`<image>` element needs the
+  external file's pixel dimensions — an I/O dependency); `e/w` compass on an
+  *internal* cell (gv resolves the blocked-side port through internal-cell
+  special-casing that diverges from the documented side construction).
 - _(append dated entries as milestones land)_
