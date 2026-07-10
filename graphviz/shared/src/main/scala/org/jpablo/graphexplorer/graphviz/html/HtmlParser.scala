@@ -179,6 +179,8 @@ object HtmlParser:
       case Some(Tok.Open("table", tattrs, _)) =>
         i += 1
         val rows = mutable.ListBuffer.empty[List[HtmlCell]]
+        val hrs  = mutable.Set.empty[Int] // boundary index (row below) with an <hr/>
+        val vrs  = mutable.Set.empty[Int] // column boundary (col to the right) with a <vr/>
         var ok   = true
         while i < arr.length && ok do
           arr(i) match
@@ -192,14 +194,16 @@ object HtmlParser:
                     cell match
                       case Some(c) => cells += c; i = next
                       case None    => ok = false
-                  case Tok.Close("tr") => // handled by while guard
-                  case _               => i += 1 // tolerate stray whitespace tokens
+                  case Tok.Open("vr", _, _) => vrs += cells.size; i += 1
+                  case Tok.Close("tr")      => // handled by while guard
+                  case _                    => i += 1 // tolerate stray whitespace tokens
               if i < arr.length && isClose(arr(i), "tr") then i += 1
               rows += cells.toList
-            case Tok.Close("table") => i = arr.length
-            case _                  => i += 1
+            case Tok.Open("hr", _, _) => hrs += rows.size; i += 1
+            case Tok.Close("table")   => i = arr.length
+            case _                    => i += 1
         if !ok then None
-        else Some(mkTable(rows.toList, tattrs))
+        else Some(mkTable(rows.toList, tattrs, hrs.toSet, vrs.toSet))
       case _ => None
 
   private def isClose(t: Tok, name: String): Boolean = t match
@@ -222,7 +226,8 @@ object HtmlParser:
         case None    => parseText(body.toList).map(HtmlLabel.Text.apply)
     (content.map(c => HtmlCell(c, attrs)), i)
 
-  private def mkTable(rows: List[List[HtmlCell]], a: Map[String, String]): HtmlTable =
+  private def mkTable(rows: List[List[HtmlCell]], a: Map[String, String],
+                      hrAfter: Set[Int], vrAfter: Set[Int]): HtmlTable =
     def int(k: String, d: Int) = a.get(k).flatMap(_.toIntOption).getOrElse(d)
     HtmlTable(
       rows        = rows,
@@ -231,7 +236,9 @@ object HtmlParser:
       cellspacing = int("cellspacing", 2),
       cellpadding = int("cellpadding", 2),
       align       = alignOf(a).getOrElse(HtmlAlign.Center),
-      attrs       = a
+      attrs       = a,
+      hrAfter     = hrAfter,
+      vrAfter     = vrAfter
     )
 
 end HtmlParser

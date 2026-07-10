@@ -151,15 +151,21 @@ object Svg:
           val w    = HtmlLayout.itemWidth(it, FontSize, "Times")
           val wgt  = if bold then " font-weight=\"bold\"" else ""
           val sty  = if ital then " font-style=\"italic\"" else ""
+          // <sub>/<sup> ⇒ SVG baseline-shift (same font size, same baseline).
+          val bsh  = if it.font.sub then " baseline-shift=\"sub\""
+                     else if it.font.sup then " baseline-shift=\"super\"" else ""
           val col  = it.font.color.orElse(Option(defColor).filter(_.nonEmpty))
           val f    = col.map(c => s""" fill="$c"""").getOrElse("")
           val dec  = if it.font.underline then " text-decoration=\"underline\"" else ""
-          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}" font-family="Times,serif"$wgt$sty font-size="${f"$fs%.2f"}"$f$dec>${xml(it.str)}</text>\n"""
+          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}" font-family="Times,serif"$wgt$sty$bsh font-size="${f"$fs%.2f"}"$f$dec>${xml(it.str)}</text>\n"""
           xi += w
         }
         lineTop -= lineH
       }
       out.toString
+
+    // Doc-wide gradient id counter (`l_N`) for `bgcolor="c0:c1"` fills.
+    var htmlGradId = 0
 
     /** Render an HTML `<table>` centred at (cx, cyc): cells first (border box +
       * centred content), then the outer table border (emit order: cell, content,
@@ -167,23 +173,36 @@ object Svg:
     def htmlTable(cx: Double, cyc: Double, tbl: org.jpablo.graphexplorer.graphviz.html.HtmlTable,
                   defColor: String): String =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlTableLayout, HtmlLabel, HtmlAlign}
-      val laid = HtmlTableLayout.layout(tbl, FontSize, "Times")
-      val out  = new StringBuilder
+      val laid     = HtmlTableLayout.layout(tbl, FontSize, "Times")
+      val tblSpace = tbl.cellspacing.toDouble
+      val out      = new StringBuilder
       // box polygon in world coords: LL, UL, UR, LR, LL (gvrender_box order).
       def boxPoly(b: HtmlTableLayout.BoxLocal): String =
         val (l, r) = (cx + b.llx, cx + b.urx)
         val (lo, hi) = (cyc + b.lly, cyc + b.ury)
         s"${d2(l)},${d2(-lo)} ${d2(l)},${d2(-hi)} ${d2(r)},${d2(-hi)} ${d2(r)},${d2(-lo)} ${d2(l)},${d2(-lo)}"
+      // Background fill: solid, or a two-colour left→right linear gradient when
+      // bgcolor is `c0:c1` (a `<defs>` linearGradient across the box + url() ref).
+      def bgFill(bg: String, box: HtmlTableLayout.BoxLocal): Unit =
+        val parts = bg.split(":")
+        if parts.length >= 2 then
+          val id     = s"l_$htmlGradId"; htmlGradId += 1
+          val (l, r) = (cx + box.llx, cx + box.urx)
+          val gy     = -(cyc + box.cy)
+          def col(s: String) = s.split(";").head
+          out ++= s"""<defs>\n<linearGradient id="$id" gradientUnits="userSpaceOnUse" x1="${d2(l)}" y1="${d2(gy)}" x2="${d2(r)}" y2="${d2(gy)}" >\n"""
+          out ++= s"""<stop offset="0" style="stop-color:${col(parts(0))};stop-opacity:1.;"/>\n"""
+          out ++= s"""<stop offset="1" style="stop-color:${col(parts(1))};stop-opacity:1.;"/>\n"""
+          out ++= "</linearGradient>\n</defs>\n"
+          out ++= s"""<polygon fill="url(#$id)" stroke="none" points="${boxPoly(box)}"/>\n"""
+        else
+          out ++= s"""<polygon fill="$bg" stroke="none" points="${boxPoly(box)}"/>\n"""
       // table bgcolor fills the whole table box first (behind cells).
       val tblBox = HtmlTableLayout.BoxLocal(-laid.width / 2.0, -laid.height / 2.0, laid.width / 2.0, laid.height / 2.0)
-      tbl.attrs.get("bgcolor").foreach { bg =>
-        out ++= s"""<polygon fill="$bg" stroke="none" points="${boxPoly(tblBox)}"/>\n"""
-      }
+      tbl.attrs.get("bgcolor").foreach(bg => bgFill(bg, tblBox))
       laid.cells.foreach { pc =>
         // cell bgcolor fill (no stroke) before the border.
-        pc.cell.attrs.get("bgcolor").foreach { bg =>
-          out ++= s"""<polygon fill="$bg" stroke="none" points="${boxPoly(pc.box)}"/>\n"""
-        }
+        pc.cell.attrs.get("bgcolor").foreach(bg => bgFill(bg, pc.box))
         if pc.cellBorder > 0 then
           out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(pc.box)}"/>\n"""
         val ccx = cx + pc.contentBox.cx
@@ -204,6 +223,19 @@ object Svg:
               case _             => HtmlAlign.Center
             out ++= htmlText(ccx, ccy, block, defColor, cw, al)
           case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor)
+      }
+      // <hr/>/<vr/> rules: degenerate (zero-width/height) black polygons.
+      // HR spans the full table width; VR the full height minus the bottom gap.
+      val (tl, tr) = (cx - laid.width / 2.0, cx + laid.width / 2.0)
+      val (tb, tt) = (cyc - laid.height / 2.0, cyc + laid.height / 2.0)
+      laid.hrs.foreach { hy =>
+        val y = -(cyc + hy)
+        out ++= s"""<polygon fill="black" stroke="black" points="${d2(tl)},${d2(y)} ${d2(tl)},${d2(y)} ${d2(tr)},${d2(y)} ${d2(tr)},${d2(y)} ${d2(tl)},${d2(y)}"/>\n"""
+      }
+      laid.vrs.foreach { vx =>
+        val x  = cx + vx
+        val lo = -(tb + tblSpace); val hi = -tt
+        out ++= s"""<polygon fill="black" stroke="black" points="${d2(x)},${d2(lo)} ${d2(x)},${d2(hi)} ${d2(x)},${d2(hi)} ${d2(x)},${d2(lo)} ${d2(x)},${d2(lo)}"/>\n"""
       }
       if laid.border > 0 then
         out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(tblBox)}"/>\n"""

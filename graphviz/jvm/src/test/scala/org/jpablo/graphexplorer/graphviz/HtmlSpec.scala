@@ -17,8 +17,20 @@ class HtmlSpec extends FunSuite:
     "39-htmlbgcolor", "40-htmlnoborder", "41-htmlalign",
     "42-htmlcolspan", "43-htmlrowspan", "44-htmlspanmix",
     "45-htmlvaligntop", "46-htmlvalignbot", "47-htmlport", "48-htmlporthead",
-    "49-htmlportheadn", "50-htmlports"
+    "49-htmlportheadn", "50-htmlports", "51-htmlsubsup",
+    "52-htmlhr", "53-htmlvr", "54-htmlgradient"
   )
+
+  // Nested-table cell port resolves to the inner cell (recursion + offset). The
+  // spline through the outer structure isn't byte-exact (routing), so gate the
+  // resolution directly: a single centred nested cell sits at the outer centre.
+  test("nested cell port resolves to the inner cell box"):
+    import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel, HtmlTableLayout}
+    val markup = "<TABLE><TR><TD><TABLE><TR><TD PORT=\"inner\">z</TD></TR></TABLE></TD></TR></TABLE>"
+    val tbl = HtmlParser.parse(markup).collect { case HtmlLabel.Table(t) => t }.get
+    val box = HtmlTableLayout.cellPortBox(tbl, "inner", 14.0, "Times").get
+    assert(math.abs((box.llx + box.urx) / 2.0) < 1e-9, s"inner cell x-centre ≈ 0, got ${box.cx}")
+    assert(math.abs((box.lly + box.ury) / 2.0) < 1e-9, s"inner cell y-centre ≈ 0, got ${box.cy}")
 
   cases.foreach { name =>
     test(s"$name: dot_json byte-exact (html size + raw markup label)"):

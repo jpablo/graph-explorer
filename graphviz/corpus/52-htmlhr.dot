@@ -1,0 +1,1 @@
+digraph { a [shape=plaintext, label=<<TABLE><TR><TD>a</TD></TR><HR/><TR><TD>b</TD></TR></TABLE>>] }

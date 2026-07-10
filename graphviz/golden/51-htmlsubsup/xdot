@@ -1,0 +1,14 @@
+digraph {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 36 54 36 54 0 ",
+		bb="0,0,54,36",
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	a	[_draw_="c 7 -#000000 e 27 18 27 18 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 16.5 14.8 -1 7 1 -x F 14 11 -Times-Roman c 7 -#000000 t 16 T 23.5 14.8 -1 7 1 -1 F 14 11 -Times-Roman \
+c 7 -#000000 t 8 T 30.5 14.8 -1 7 1 -2 ",
+		height=0.5,
+		label=<x<SUB>1</SUB><SUP>2</SUP>>,
+		pos="27,18",
+		width=0.75];
+}

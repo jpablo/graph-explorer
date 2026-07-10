@@ -40,7 +40,9 @@ final case class HtmlText(spans: List[HtmlSpan]) derives CanEqual
 enum HtmlAlign derives CanEqual:
   case Left, Center, Right, Text_
 
-/** A `<table>` with its attributes + rows of cells. */
+/** A `<table>` with its attributes + rows of cells.
+  * @param hrAfter boundary indices (row-below) with an `<hr/>` full-width rule
+  * @param vrAfter column boundaries (col-to-the-right) with a `<vr/>` full-height rule */
 final case class HtmlTable(
     rows:        List[List[HtmlCell]],
     border:      Int,
@@ -48,7 +50,9 @@ final case class HtmlTable(
     cellspacing: Int,
     cellpadding: Int,
     align:       HtmlAlign,
-    attrs:       Map[String, String]
+    attrs:       Map[String, String],
+    hrAfter:     Set[Int] = Set.empty,
+    vrAfter:     Set[Int] = Set.empty
 ) derives CanEqual
 
 /** A `<td>` cell: contents (text or nested table) + attributes. */

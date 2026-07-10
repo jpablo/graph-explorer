@@ -27,19 +27,31 @@ object HtmlTableLayout:
     * cell itself. */
   final case class PlacedCell(box: BoxLocal, contentBox: BoxLocal, cellBorder: Int, cell: HtmlCell)
 
-  final case class Laid(width: Double, height: Double, border: Int, cells: Vector[PlacedCell])
+  /** @param hrs y positions (table-local) of `<hr/>` full-width rules
+    * @param vrs x positions (table-local) of `<vr/>` full-height rules */
+  final case class Laid(width: Double, height: Double, border: Int, cells: Vector[PlacedCell],
+                        hrs: Vector[Double] = Vector.empty, vrs: Vector[Double] = Vector.empty)
 
   /** Overall table box (points). */
   def size(tbl: HtmlTable, baseSize: Double, baseName: String): (Double, Double) =
     val laid = layout(tbl, baseSize, baseName)
     (laid.width, laid.height)
 
-  /** Box (table-local, y-up, centred) of the cell whose `PORT` attr matches
-    * `port`, or `None`. Searches this table's cells (nested-table ports TODO). */
+  /** Box (outer-table-local, y-up, centred) of the cell whose `PORT` attr
+    * matches `port`, searching nested tables too. A nested table is centred on
+    * its containing cell's content box, so a found inner-cell box is offset by
+    * the accumulated content-box centres of the nesting chain. */
   def cellPortBox(tbl: HtmlTable, port: String, baseSize: Double, baseName: String): Option[BoxLocal] =
-    layout(tbl, baseSize, baseName).cells.collectFirst {
-      case pc if pc.cell.attrs.get("port").contains(port) => pc.box
-    }
+    def rec(t: HtmlTable, ox: Double, oy: Double): Option[BoxLocal] =
+      layout(t, baseSize, baseName).cells.iterator.flatMap { pc =>
+        if pc.cell.attrs.get("port").contains(port) then
+          Some(BoxLocal(pc.box.llx + ox, pc.box.lly + oy, pc.box.urx + ox, pc.box.ury + oy))
+        else
+          pc.cell.content match
+            case HtmlLabel.Table(inner) => rec(inner, ox + pc.contentBox.cx, oy + pc.contentBox.cy)
+            case _                      => None
+      }.nextOption()
+    rec(tbl, 0.0, 0.0)
 
   def layout(tbl: HtmlTable, baseSize: Double, baseName: String): Laid =
     val space      = if tbl.cellspacing >= 0 then tbl.cellspacing else CellSpacing
@@ -139,6 +151,10 @@ object HtmlTableLayout:
       PlacedCell(box, contentBox, cellBorder, info.cell)
     }.toVector
 
-    Laid(wd, ht, tblBorder, placed)
+    // rule lines sit in the middle of the spacing gap at a row/column boundary.
+    val hrs = tbl.hrAfter.filter(b => b >= 1 && b <= nrows).toVector.sorted.map(b => rowStart(b) + space / 2.0)
+    val vrs = tbl.vrAfter.filter(b => b >= 1 && b <= ncols).toVector.sorted.map(b => colStart(b) - space / 2.0)
+
+    Laid(wd, ht, tblBorder, placed, hrs, vrs)
 
 end HtmlTableLayout

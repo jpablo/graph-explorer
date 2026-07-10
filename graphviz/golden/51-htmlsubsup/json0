@@ -1,0 +1,17 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,54,36",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.5",
+      "label": "x<SUB>1<\/SUB><SUP>2<\/SUP>",
+      "pos": "27,18",
+      "width": "0.75"
+    }
+  ]
+}

@@ -1336,4 +1336,25 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   likewise route around. Suite: graphvizJVM 249, viewer 42, JS compiles. HTML
   labels: **42 byte-exact gated cases**. ⬜ still deferred: obstacle-routed
   compass, nested-table cell ports, `<img>/<hr>/<vr>`, sub/sup offset, gradients.
+- **2026-07-10** — **HTML labels: sub/sup, nested-cell ports, hr/vr, gradient
+  fills (byte-exact).** Cleared the tail:
+  - **sub/sup** — `<sub>`/`<sup>` emit `baseline-shift="sub"|"super"` (same font
+    size + baseline; the non-simple −1pt offset already applied). 51-htmlsubsup.
+  - **nested-table cell ports** — `cellPortBox` now recurses into nested tables,
+    offsetting the found inner-cell box by the accumulated content-box centres.
+    Resolution gated by a unit test (inner centred cell ⇒ centre ≈ 0); the
+    spline THROUGH the nested structure isn't byte-exact (routing class).
+  - **`<hr/>`/`<vr/>`** — parser tracks row/column rule boundaries; layout emits
+    the rule y/x (`rowStart(b)+space/2`, `colStart(b)−space/2`); Svg draws the
+    degenerate black polygon (HR full table width; VR full height minus the
+    bottom gap). 52-htmlhr, 53-htmlvr.
+  - **gradient bgcolor** — `bgcolor="c0:c1"` emits a `<defs>` linearGradient
+    (left→right across the box, doc-wide `l_N` id) + `fill="url(#l_N)"`; solid
+    otherwise. Table + cell via a shared `bgFill`. 54-htmlgradient.
+  Suite: graphvizJVM 262, viewer 42, JS compiles. HTML labels: **51 byte-exact
+  gated cases** + the nested-port resolution unit test. ⛔ genuinely deferred
+  (not isolated adds): obstacle-routed edges (against-grain compass loops, `e/w`
+  on internal cells — needs general spline obstacle avoidance) and `<img>`
+  (external image files — can't gate byte-exact). The HTML label engine is
+  otherwise complete.
 - _(append dated entries as milestones land)_
