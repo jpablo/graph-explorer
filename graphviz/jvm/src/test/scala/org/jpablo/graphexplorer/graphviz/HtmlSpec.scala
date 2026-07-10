@@ -9,7 +9,11 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
   * identically to the equivalent quoted label; rendering is left-anchored with
   * per-run font styling. Tables lay out cells with border/spacing/padding. */
 class HtmlSpec extends FunSuite:
-  private def g(n: String) = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+  // Inject the image-dimension sidecar (if any) into the resolved graph, exactly
+  // as the caller would supply viz-js's `images` render option.
+  private def g(n: String) =
+    val r = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+    r.copy(images = OracleHarness.corpusImages(n))
 
   private val cases = List(
     "30-htmltext", "31-htmlbold", "32-htmlitalic", "33-htmlfont", "34-htmlmulti",
@@ -19,7 +23,8 @@ class HtmlSpec extends FunSuite:
     "45-htmlvaligntop", "46-htmlvalignbot", "47-htmlport", "48-htmlporthead",
     "49-htmlportheadn", "50-htmlports", "51-htmlsubsup",
     "52-htmlhr", "53-htmlvr", "54-htmlgradient", "55-htmlporttailn",
-    "56-htmlimg", "57-htmlimgmix"
+    "56-htmlimg", "57-htmlimgmix",
+    "58-htmlimgnat", "59-htmlimgrow", "60-htmlimgfrac"
   )
 
   // Nested-table cell port resolves to the inner cell (recursion + offset). The

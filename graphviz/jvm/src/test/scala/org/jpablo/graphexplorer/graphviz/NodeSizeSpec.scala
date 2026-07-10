@@ -47,6 +47,7 @@ class NodeSizeSpec extends FunSuite:
   OracleHarness.corpusNames.foreach { name =>
     test(s"$name: node width/height match the dot golden"):
       val g        = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+        .copy(images = OracleHarness.corpusImages(name)) // image-sized nodes need the sidecar dims
       val expected = goldenSizes(name)
       var checked  = 0
       var deferred = 0

@@ -54,11 +54,24 @@ for (const file of files) {
   const outDir = `${goldenDir}${base}/`;
   await mkdir(outDir, { recursive: true });
 
+  // Optional per-corpus image-dimension sidecar (`<base>.images.json`) mirrors
+  // viz-js's `images` render option — the only way `<IMG>`/`image=` get a size
+  // and emit an `<image>` element (graphviz can't read the file in the sandbox,
+  // and viz-js caches by name across renders, so an image file needs a FRESH
+  // instance to avoid a stale cached size).
+  let images = null;
+  try {
+    const raw = await readFile(`${corpusDir}${base}.images.json`, "utf8");
+    images = JSON.parse(raw);
+  } catch { /* no sidecar */ }
+  const renderViz = images ? await instance() : viz;
+  const renderOpts = images ? { images } : {};
+
   const entry = { input: file, sha256: sha256(src), formats: {} };
 
   for (const [name, format] of Object.entries(FORMATS)) {
     try {
-      const result = viz.render(src, { format, engine: "dot" });
+      const result = renderViz.render(src, { format, engine: "dot", ...renderOpts });
       if (result.status === "success") {
         await writeFile(`${outDir}${name}`, result.output);
         entry.formats[name] = { status: "success", sha256: sha256(result.output) };

@@ -33,17 +33,19 @@ object HtmlTableLayout:
                         hrs: Vector[Double] = Vector.empty, vrs: Vector[Double] = Vector.empty)
 
   /** Overall table box (points). */
-  def size(tbl: HtmlTable, baseSize: Double, baseName: String): (Double, Double) =
-    val laid = layout(tbl, baseSize, baseName)
+  def size(tbl: HtmlTable, baseSize: Double, baseName: String,
+           imgs: ImageDim.Table = ImageDim.empty): (Double, Double) =
+    val laid = layout(tbl, baseSize, baseName, imgs)
     (laid.width, laid.height)
 
   /** Box (outer-table-local, y-up, centred) of the cell whose `PORT` attr
     * matches `port`, searching nested tables too. A nested table is centred on
     * its containing cell's content box, so a found inner-cell box is offset by
     * the accumulated content-box centres of the nesting chain. */
-  def cellPortBox(tbl: HtmlTable, port: String, baseSize: Double, baseName: String): Option[BoxLocal] =
+  def cellPortBox(tbl: HtmlTable, port: String, baseSize: Double, baseName: String,
+                  imgs: ImageDim.Table = ImageDim.empty): Option[BoxLocal] =
     def rec(t: HtmlTable, ox: Double, oy: Double): Option[BoxLocal] =
-      layout(t, baseSize, baseName).cells.iterator.flatMap { pc =>
+      layout(t, baseSize, baseName, imgs).cells.iterator.flatMap { pc =>
         if pc.cell.attrs.get("port").contains(port) then
           Some(BoxLocal(pc.box.llx + ox, pc.box.lly + oy, pc.box.urx + ox, pc.box.ury + oy))
         else
@@ -53,7 +55,8 @@ object HtmlTableLayout:
       }.nextOption()
     rec(tbl, 0.0, 0.0)
 
-  def layout(tbl: HtmlTable, baseSize: Double, baseName: String): Laid =
+  def layout(tbl: HtmlTable, baseSize: Double, baseName: String,
+             imgs: ImageDim.Table = ImageDim.empty): Laid =
     val space      = if tbl.cellspacing >= 0 then tbl.cellspacing else CellSpacing
     val tblBorder  = tbl.border
     val pad        = if tbl.cellpadding >= 0 then tbl.cellpadding else CellPadding
@@ -98,7 +101,7 @@ object HtmlTableLayout:
         val (cellW, cellH) =
           if fixed && fw.isDefined && fh.isDefined then (fw.get, fh.get)
           else
-            val (cw, ch) = HtmlLayout.size(cell.content, baseSize, baseName)
+            val (cw, ch) = HtmlLayout.size(cell.content, baseSize, baseName, imgs)
             (cw + margin, ch + margin)
         infos += Info(r, c, cs, rs, cellW, cellH, cell)
         c += cs

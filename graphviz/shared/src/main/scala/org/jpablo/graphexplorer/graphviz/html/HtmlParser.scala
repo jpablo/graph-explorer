@@ -114,11 +114,18 @@ object HtmlParser:
 
   def parse(markup: String): Option[HtmlLabel] =
     tokenize(markup).flatMap { toks =>
-      // A label is a single top-level table, or a text block.
+      // A label is a single top-level table, a bare image, or a text block.
       val firstOpen = toks.collectFirst { case Tok.Open(n, _, _) => n }
       firstOpen match
         case Some("table") => parseTable(toks).map(HtmlLabel.Table.apply)
+        case Some("img")   => imgOf(toks)
         case _             => parseText(toks).map(HtmlLabel.Text.apply)
+    }
+
+  /** The first `<img>` token as an [[HtmlLabel.Image]] (src + optional scale). */
+  private def imgOf(toks: List[Tok]): Option[HtmlLabel] =
+    toks.collectFirst { case Tok.Open("img", a, _) =>
+      HtmlLabel.Image(a.getOrElse("src", ""), a.get("scale"))
     }
 
   private def applyFont(f: HtmlFont, name: String, a: Map[String, String]): HtmlFont =
@@ -225,10 +232,16 @@ object HtmlParser:
         case Tok.Open("td", _, false) => depth += 1; body += arr(i); i += 1
         case Tok.Close("td")          => depth -= 1; if depth > 0 then body += arr(i); i += 1
         case t                        => body += t; i += 1
+    // A cell holds a nested table, a bare image (`<td>` whose only content is
+    // an `<img>`), or a text block. An img mixed with real text keeps the text
+    // path (parseText tolerates the img) — the img-only case is the common one.
+    val hasTable = body.exists { case Tok.Open("table", _, _) => true; case _ => false }
+    val hasText  = body.exists { case Tok.Chars(s) => s.trim.nonEmpty; case _ => false }
+    val imgTok   = body.collectFirst { case Tok.Open("img", _, _) => () }
     val content =
-      body.collectFirst { case Tok.Open("table", _, _) => () } match
-        case Some(_) => parseTable(body.toList).map(HtmlLabel.Table.apply)
-        case None    => parseText(body.toList).map(HtmlLabel.Text.apply)
+      if hasTable then parseTable(body.toList).map(HtmlLabel.Table.apply)
+      else if imgTok.isDefined && !hasText then imgOf(body.toList)
+      else parseText(body.toList).map(HtmlLabel.Text.apply)
     (content.map(c => HtmlCell(c, attrs)), i)
 
   private def mkTable(rows: List[List[HtmlCell]], a: Map[String, String],

@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.graphviz.model
 
 import org.jpablo.graphexplorer.graphviz.dotlang as ast
+import org.jpablo.graphexplorer.graphviz.html.ImageDim
 import scala.collection.mutable
 
 /** A semantic graph with attributes resolved against DOT's default-statement
@@ -103,7 +104,11 @@ final case class RGraph(
     // `write_attrs` walks for the root object. A key declared only inside a
     // cluster (e.g. `label` via `cluster_0`) still surfaces at the root with
     // its default value.
-    graphAttrKeys: Vector[String] = Vector.empty
+    graphAttrKeys: Vector[String] = Vector.empty,
+    // External image-dimension table (src → natural size). Not in the DOT —
+    // supplied by the caller, mirroring viz-js's `images` render option — so a
+    // referenced `<IMG>`/`image=` can be sized and an `<image>` element emitted.
+    images: ImageDim.Table = ImageDim.empty
 ) derives CanEqual
 
 /** AST → [[RGraph]]. Implements DOT scoping: `node`/`edge`/`graph` default

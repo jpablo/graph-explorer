@@ -1388,4 +1388,29 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   external file's pixel dimensions — an I/O dependency); `e/w` compass on an
   *internal* cell (gv resolves the blocked-side port through internal-cell
   special-casing that diverges from the documented side construction).
+- **2026-07-10** — **Raster image render: `<image>` element for HTML `<IMG>`
+  cells (byte-exact).** Reframed the previously-"out of scope" image FILE render:
+  graphviz can't read the file in the sandbox, but it doesn't need to — the
+  natural size is caller-supplied metadata (viz-js's `images` render option),
+  and only *that* triggers an `<image>` element (probed: no `images` option ⇒ no
+  `<image>`, ever). Modelled the metadata as `RGraph.images: Map[src→ImageDim]`
+  (mirrors the option), threaded through `HtmlLayout`/`HtmlTableLayout` sizing
+  and `Svg`. Derived rules from gv source + oracle: the drawn box = `(int)(natural
+  × 72/96)` — **truncated** to whole points because `size_html_img` stores an
+  integer `box` (a 50pt image ⇒ 37pt, not 37.5); the img cell's content = that
+  drawn box, then standard plaintext-HTML node sizing (`max(54,dw+2·7.92) ×
+  max(36,dh+2·3.96)`, ROUND-quantized) wraps it — the same path text/table
+  labels already use. The `<image>` attrs (`gvloadimage_core.c`: `width=UR.x−LL.x`,
+  `height=UR.y−LL.y`, `x=LL.x`, `y=−UR.y`) print via C `%g` (6 sig-figs, strip
+  zeros) — a new `g6` formatter, distinct from the `%.2f` `gvprintdouble` used
+  for path/polygon coords. Parser now yields `HtmlLabel.Image(src, scale)` for an
+  img-only cell / bare-image label. Capture harness reads a `<name>.images.json`
+  sidecar (fresh viz instance per image file — viz-js caches sizes by name).
+  Byte-exact (svg + dot_json): 58-htmlimgnat (natural 72×36 cell), 59-htmlimgrow
+  (img + text cells in a row), 60-htmlimgfrac (50×34 ⇒ truncation to 37×25).
+  Suite: graphvizJVM 280, viewer 42, JS compiles. HTML labels: **57 byte-exact
+  gated cases**. ⬜ remaining image work: `SCALE="TRUE"` aspect-fit + centering
+  (image smaller than a FIXEDSIZE content box — exercises `g6`'s fractional
+  path, e.g. `26.4`/`-40.2`) and the node-level `image=`/`shape=image` attribute
+  (ellipse/box fit via `poly_inside`, the `x="3.51219"`-style coords).
 - _(append dated entries as milestones land)_

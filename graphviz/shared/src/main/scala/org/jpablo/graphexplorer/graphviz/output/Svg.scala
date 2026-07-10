@@ -31,6 +31,38 @@ object Svg:
   private val ArrowLen     = 10.0  // ARROW_LENGTH (× arrowsize)
   private val GvVersion    = "13.0.1 (20250615.1724)"
 
+  /** C `printf("%g")` with the default precision 6 (used for `<image>` attrs —
+    * `gvloadimage_core.c` prints them raw, not through `gvprintdouble`). Chooses
+    * `%f`-style for exponent ∈ [−4, 6) and strips trailing zeros; `%e`-style
+    * otherwise. Rounds half-to-even, matching the C library's default. */
+  private[output] def g6(x: Double): String =
+    if x == 0.0 || (x > -1e-11 && x < 1e-11) then "0"
+    else
+      val a   = math.abs(x)
+      var exp = math.floor(math.log10(a)).toInt          // ⌊log10|x|⌋
+      if math.pow(10, exp) > a then exp -= 1             // fix log10 fp error
+      if math.pow(10, exp + 1) <= a then exp += 1
+      if exp < -4 || exp >= 6 then
+        // %e style: mantissa to 5 decimals, strip zeros, e±NN (rare here).
+        val m  = x / math.pow(10, exp)
+        val ms = stripZeros(BigDecimal(m).setScale(5, BigDecimal.RoundingMode.HALF_EVEN).bigDecimal.toPlainString)
+        val es = (if exp < 0 then "-" else "+") + f"${math.abs(exp)}%02d"
+        s"${ms}e$es"
+      else
+        val frac = math.max(0, 5 - exp)                   // 6 sig figs ⇒ 5−exp decimals
+        val s    = BigDecimal(x).setScale(frac, BigDecimal.RoundingMode.HALF_EVEN).bigDecimal.toPlainString
+        stripZeros(s)
+
+  /** Drop a trailing fractional-zero run and a dangling decimal point. */
+  private def stripZeros(s: String): String =
+    if !s.contains('.') then s
+    else
+      var e = s.length
+      while e > 0 && s.charAt(e - 1) == '0' do e -= 1
+      if e > 0 && s.charAt(e - 1) == '.' then e -= 1
+      val r = s.substring(0, e)
+      if r == "-0" || r.isEmpty then "0" else r
+
   /** gvprintdouble: %.2f, trim trailing zeros & point, snap near-zero to 0. */
   private[output] def d2(x: Double): String =
     if x > -0.005 && x < 0.005 then "0"
@@ -173,7 +205,7 @@ object Svg:
     def htmlTable(cx: Double, cyc: Double, tbl: org.jpablo.graphexplorer.graphviz.html.HtmlTable,
                   defColor: String): String =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlTableLayout, HtmlLabel, HtmlAlign}
-      val laid     = HtmlTableLayout.layout(tbl, FontSize, "Times")
+      val laid     = HtmlTableLayout.layout(tbl, FontSize, "Times", g.images)
       val tblSpace = tbl.cellspacing.toDouble
       val out      = new StringBuilder
       // box polygon in world coords: LL, UL, UR, LR, LL (gvrender_box order).
@@ -209,7 +241,7 @@ object Svg:
         // valign positions the content box within the (taller) content area:
         // top ⇒ content top at the area top, bottom ⇒ content bottom at the
         // area bottom, middle (default) ⇒ centred. (pos_html_cell alignment.)
-        val (_, contentH) = org.jpablo.graphexplorer.graphviz.html.HtmlLayout.size(pc.cell.content, FontSize, "Times")
+        val (_, contentH) = org.jpablo.graphexplorer.graphviz.html.HtmlLayout.size(pc.cell.content, FontSize, "Times", g.images)
         val ccy = pc.cell.attrs.get("valign").map(_.toLowerCase) match
           case Some("top")    => cyc + pc.contentBox.ury - contentH / 2.0
           case Some("bottom") => cyc + pc.contentBox.lly + contentH / 2.0
@@ -223,6 +255,18 @@ object Svg:
               case _             => HtmlAlign.Center
             out ++= htmlText(ccx, ccy, block, defColor, cw, al)
           case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor)
+          case HtmlLabel.Image(src, _) =>
+            // Emit an `<image>` only when the dimensions are known (else gv
+            // can't load the file and draws nothing — the missing-image case).
+            // The image box is the cell content box (natural / default-scale
+            // fills it). gvloadimage_core: width=UR.x−LL.x, height=UR.y−LL.y,
+            // x=LL.x, y=−UR.y. src is emitted raw (no XML escaping), per gv.
+            if g.images.contains(src) then
+              val l  = cx + pc.contentBox.llx
+              val r  = cx + pc.contentBox.urx
+              val lo = cyc + pc.contentBox.lly
+              val hi = cyc + pc.contentBox.ury
+              out ++= s"""<image xlink:href="$src" width="${g6(r - l)}px" height="${g6(hi - lo)}px" preserveAspectRatio="xMinYMin meet" x="${g6(l)}" y="${g6(-hi)}"/>\n"""
       }
       // <hr/>/<vr/> rules: degenerate (zero-width/height) black polygons.
       // HR spans the full table width; VR the full height minus the bottom gap.
@@ -348,6 +392,12 @@ object Svg:
                     org.jpablo.graphexplorer.graphviz.html.HtmlAlign.Center)
                 case Some(HtmlLabel.Table(tbl)) =>
                   sb ++= htmlTable(x, cy, tbl, n.attrs.get("fontcolor").getOrElse(""))
+                case Some(HtmlLabel.Image(src, _)) =>
+                  // Bare-image node label: the drawn image, centred in the node.
+                  g.images.get(src).foreach { dim =>
+                    val (dw, dh) = dim.drawn
+                    sb ++= s"""<image xlink:href="$src" width="${g6(dw)}px" height="${g6(dh)}px" preserveAspectRatio="xMinYMin meet" x="${g6(x - dw / 2.0)}" y="${g6(-(cy + dh / 2.0))}"/>\n"""
+                  }
                 case None                     => sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
             else
               sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))

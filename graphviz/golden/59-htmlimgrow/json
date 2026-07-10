@@ -1,0 +1,97 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,50.000],[76.890,50.000],[76.890,0.000]]
+    }
+  ],
+  "bb": "0,0,76.89,50",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[11.000,7.000],[11.000,43.000],[47.000,43.000],[47.000,7.000]]
+        },
+        {
+                  },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[49.000,7.000],[49.000,43.000],[65.890,43.000],[65.890,7.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [52.000,20.800],
+          "align": "l",
+          "width": 10.890,
+          "text": "hi"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[8.000,4.000],[8.000,46.000],[68.890,46.000],[68.890,4.000]]
+        }
+      ],
+      "height": "0.69444",
+      "label": "<TABLE><TR><TD><IMG SRC=\"p59.png\"\/><\/TD><TD>hi<\/TD><\/TR><\/TABLE>",
+      "pos": "38.445,25",
+      "shape": "plaintext",
+      "width": "1.0679"
+    }
+  ]
+}

@@ -39,10 +39,14 @@ object HtmlLayout:
     val height = ls.map(_._2).sum
     (width, height)
 
-  /** Overall content box for a label (text or — later — table). */
-  def size(label: HtmlLabel, baseSize: Double, baseName: String): (Double, Double) =
+  /** Overall content box for a label (text, table, or image). An image's box is
+    * its drawn size (natural × 72/96); an unknown `src` (no dimensions given)
+    * contributes 0, matching `size_html_img`'s missing-file fallback. */
+  def size(label: HtmlLabel, baseSize: Double, baseName: String,
+           imgs: ImageDim.Table = ImageDim.empty): (Double, Double) =
     label match
-      case HtmlLabel.Text(block) => textSize(block, baseSize, baseName)
-      case HtmlLabel.Table(tbl)  => HtmlTableLayout.size(tbl, baseSize, baseName)
+      case HtmlLabel.Text(block)   => textSize(block, baseSize, baseName)
+      case HtmlLabel.Table(tbl)    => HtmlTableLayout.size(tbl, baseSize, baseName, imgs)
+      case HtmlLabel.Image(src, _) => imgs.get(src).map(_.drawn).getOrElse((0.0, 0.0))
 
 end HtmlLayout

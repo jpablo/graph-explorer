@@ -40,6 +40,25 @@ object OracleHarness:
 
   def corpusSource(name: String): String = readFile(File(corpusDir, s"$name.dot"))
 
+  /** Image-dimension sidecar for a corpus file (`<name>.images.json`), mirroring
+    * the `images` option passed to viz-js at capture time. Returns natural sizes
+    * (points) keyed by `src`. A `px` value is converted to points (× 72/96);
+    * `pt`/bare stay as-is. Empty when there is no sidecar. */
+  def corpusImages(name: String): Map[String, org.jpablo.graphexplorer.graphviz.html.ImageDim] =
+    import org.jpablo.graphexplorer.graphviz.html.ImageDim
+    val f = File(corpusDir, s"$name.images.json")
+    if !f.isFile then Map.empty
+    else
+      val txt = readFile(f)
+      def toPt(v: String): Double =
+        val num = v.replaceAll("[a-zA-Z]+\\s*$", "").trim.toDouble
+        if v.trim.toLowerCase.endsWith("px") then num * (72.0 / 96.0) else num
+      """\{[^}]*}""".r.findAllIn(txt).flatMap { obj =>
+        def field(k: String) = s""""$k"\\s*:\\s*"([^"]+)"""".r.findFirstMatchIn(obj).map(_.group(1))
+        for nm <- field("name"); w <- field("width"); h <- field("height")
+        yield nm -> ImageDim(toPt(w), toPt(h))
+      }.toMap
+
   /** A captured oracle output, e.g. `golden("01-minimal", "plain")`. */
   def golden(name: String, format: String): String =
     readFile(File(File(goldenDir, name), format))

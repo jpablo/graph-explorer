@@ -11,6 +11,25 @@ package org.jpablo.graphexplorer.graphviz.html
 enum HtmlLabel derives CanEqual:
   case Text(block: HtmlText)
   case Table(tbl: HtmlTable)
+  /** An `<IMG SRC="…" SCALE="…"/>` (Graphviz `htmlimg_t`). The image's natural
+    * size is not in the markup — it comes from the external image-dimension
+    * table ([[ImageDim]], mirroring viz-js's `images` render option). */
+  case Image(src: String, scale: Option[String])
+
+/** Natural size (points) of a referenced image, keyed by `src` in an
+  * [[HtmlImages]] map. Mirrors the dimensions viz-js's `images` option supplies:
+  * graphviz can't read the file, so the caller states the size. The *drawn* box
+  * is this size × 72/96 (`gvusershape_size` DPI scaling). */
+final case class ImageDim(w: Double, h: Double) derives CanEqual:
+  /** Drawn box size (points): natural size × 72/96, truncated to whole points.
+    * `size_html_img` stores the result in an integer `box`, so `(int)(50×0.75)`
+    * = 37 — the truncation is load-bearing for byte-exact layout. */
+  def drawn: (Double, Double) = ((w * ImageDim.Scale).toInt.toDouble, (h * ImageDim.Scale).toInt.toDouble)
+
+object ImageDim:
+  val Scale = 72.0 / 96.0 // 0.75 — gvusershape_size point↔px DPI conversion
+  type Table = Map[String, ImageDim]
+  val empty: Table = Map.empty
 
 /** Font/style context carried down the tag tree (Graphviz `textfont_t` +
   * HTML flags). `None` fields inherit from the enclosing environment. */

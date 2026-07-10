@@ -1,0 +1,18 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,82,47",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.65278",
+      "label": "<TABLE><TR><TD><IMG SRC=\"p58.png\"\/><\/TD><\/TR><\/TABLE>",
+      "pos": "41,23.5",
+      "shape": "plaintext",
+      "width": "1.1389"
+    }
+  ]
+}

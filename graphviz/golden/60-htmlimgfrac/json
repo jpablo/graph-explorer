@@ -1,0 +1,67 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,45.000],[65.000,45.000],[65.000,0.000]]
+    }
+  ],
+  "bb": "0,0,65,45",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[11.000,7.000],[11.000,38.000],[54.000,38.000],[54.000,7.000]]
+        },
+        {
+                  },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[8.000,4.000],[8.000,41.000],[57.000,41.000],[57.000,4.000]]
+        }
+      ],
+      "height": "0.625",
+      "label": "<TABLE><TR><TD><IMG SRC=\"p60.png\"\/><\/TD><\/TR><\/TABLE>",
+      "pos": "32.5,22.5",
+      "shape": "plaintext",
+      "width": "0.90278"
+    }
+  ]
+}

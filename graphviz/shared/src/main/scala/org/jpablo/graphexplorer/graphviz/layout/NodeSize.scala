@@ -177,7 +177,7 @@ object NodeSize:
     // fails to parse falls back to the raw string (gv reverts to simple label).
     if n.attrs.isHtml("label") then
       HtmlParser.parse(rawLabel).foreach { lbl =>
-        val (w, h) = HtmlLayout.size(lbl, fontSize, fontName)
+        val (w, h) = HtmlLayout.size(lbl, fontSize, fontName, g.images)
         dimenX = w; dimenY = h
       }
 
