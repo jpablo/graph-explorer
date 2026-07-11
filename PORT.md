@@ -1547,4 +1547,21 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   special-casing). Whole corpus unchanged: graphvizJVM 330, viewer 42, JS
   compiles. gv reverted pristine, `_dbgbuild` removed. ⬜ 02 full svg still needs
   LR spline routing + `lp` emission (separate); the *layout* is now exact.
+- **2026-07-11** — **`Order`/mincross driver re-transcribed faithfully (audit
+  follow-up).** Audit of `Order`/`Spline` found `Order`'s mincross *driver* was
+  reimplemented (pass-0 init only; the header's own "simplified to pass-0"). Now
+  a faithful port of `mincross` (mincross.c:745): the pass-0/1/2 driver with
+  `save_best`/`restore_best`, **both** `build_ranks` passes (pass 0 = in-free
+  seeds following out-edges, pass 1 = out-free following in), and seeds iterated
+  in `decompose`/`GD_nlist` order (not declaration order). Corpus unchanged
+  (graphvizJVM 330, viewer 42, JS): 01/07 stay byte-exact, no regression. **But
+  it did NOT close 06's mirror** — diagnosis correction: 06's `b`/`c` order is a
+  mirror because 06 has a *flat edge* (`b -- c`, same rank), and flat-edge
+  handling (`flat_reorder`/`flat_breakcycles`/`flat_search` + the flat adjacency
+  model) is a genuinely deferred FEATURE, not the idiomatic drift the audit was
+  about. So the driver drift is closed; ⬜ 06 byte-exact now blocks on the
+  flat-edge port (a bounded but feature-sized increment). `Spline` audit:
+  label-free splines are Hausdorff/mirror-gated (values measure byte-exact);
+  byte-exact svg IS enforced for HTML/record/image/rank; LR/flat/label spline
+  routing unhandled — feature work, not drift.
 - _(append dated entries as milestones land)_

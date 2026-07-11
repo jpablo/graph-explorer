@@ -4,16 +4,18 @@ import org.jpablo.graphexplorer.graphviz.model.RGraph
 import scala.collection.mutable
 
 /** Phase 2 of the `dot` pipeline: within-rank ordering / crossing
-  * minimisation. Ports the core of `lib/dotgen/mincross.c` (gv 13.0.1):
-  * long-edge virtual-node chains (`class2`), BFS initial order
-  * (`build_ranks`, pass 0), the weighted-median `reorder` and `transpose`
-  * adjacent-swap refinement, iterated to `MaxIter` keeping the best.
+  * minimisation. Faithful transcription of `lib/dotgen/mincross.c` (gv 13.0.1):
+  * long-edge virtual-node chains (`class2`), the `decompose`-order (`GD_nlist`)
+  * BFS initial orders (`build_ranks` pass 0 = in-free seeds/out-edges, pass 1 =
+  * out-free seeds/in-edges), the `mincross` pass-0/1/2 driver (`save_best`/
+  * `restore_best`), the weighted-median `reorder`, and `transpose` adjacent-swap
+  * refinement.
   *
-  * Scoped to what the corpus exercises (PORT.md §5.2): no flat-edge handling,
-  * no cluster recursion, no ports, and the pass-0/pass-1 init *alternation*
-  * is simplified to pass-0 only. Gate is crossing-count parity with the
-  * oracle (the objective mincross optimises), not the exact permutation —
-  * left/right mirroring is an accepted documented deviation.
+  * Deferred (⬜, PORT.md §5.2): **flat edges** (`flat_reorder`/`flat_breakcycles`
+  * for same-rank adjacencies — this is what leaves 06's `b`/`c` order a mirror
+  * of gv's), cluster recursion (`mincross_clust`), and ports. Without flat
+  * edges the label-free corpus is gated crossing-count/mirror-aware, not
+  * strictly byte-exact, for graphs that have a same-rank edge.
   */
 object Order:
 
@@ -85,51 +87,60 @@ object Order:
         connect(prev, head)
     }
 
-    // Real (declaration order) then virtual, sorted by their historical
-    // string-form name (`__v{idx}_{rank}`) so reordering of unreached nodes
-    // (the line-104 stable-append pass) is byte-identical to before.
-    val allNodes: Vector[LayoutNode] =
-      g.nodes.map(n => LayoutNode.Real(n.id): LayoutNode) ++
-        rankOf.keysIterator.collect { case v: LayoutNode.Virtual => v }
-          .toVector.sortBy(_.name)
+    // gv `build_ranks` iterates GD_nlist for its BFS seeds — the `decompose`
+    // (decomp.c) DFS order over the class2 real+virtual graph: from declaration-
+    // order real seeds, following out-edges before in-edges. This seed order
+    // (not declaration order) is what makes the initial ordering match gv (and,
+    // e.g., not a left-right mirror).
+    val gdNlist: Vector[LayoutNode] =
+      val done = mutable.Set.empty[LayoutNode]
+      val res  = mutable.ArrayBuffer.empty[LayoutNode]
+      def visit(seed: LayoutNode): Unit =
+        val stk = mutable.Stack(seed)
+        while stk.nonEmpty do
+          val n = stk.pop()
+          if !done(n) then
+            done += n; res += n
+            in(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+            out(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+      g.nodes.foreach { nn => val s: LayoutNode = LayoutNode.Real(nn.id); if !done(s) then visit(s) }
+      (g.nodes.map(n => LayoutNode.Real(n.id): LayoutNode) ++
+        rankOf.keysIterator.collect { case v: LayoutNode.Virtual => v }.toVector.sortBy(_.name))
+        .foreach(n => if !done(n) then { done += n; res += n }) // stable append for unreached
+      res.toVector
 
     val minR  = if rankOf.isEmpty then 0 else rankOf.values.min
     val maxR  = if rankOf.isEmpty then 0 else rankOf.values.max
     val ranks = mutable.HashMap.from((minR to maxR).map(r => r -> mutable.ArrayBuffer.empty[LayoutNode]))
     val pos   = mutable.HashMap.empty[LayoutNode, Int]
-
-    // ── build_ranks (pass 0): BFS from in-edge-free nodes, follow out ──────
-    val mark = mutable.Set.empty[LayoutNode]
-    val q    = mutable.Queue.empty[LayoutNode]
+    val mark  = mutable.Set.empty[LayoutNode]
     def install(n: LayoutNode): Unit =
-      val rb = ranks(rankOf(n))
-      pos(n) = rb.length
-      rb += n
-    allNodes.foreach { root =>
-      if in(root).isEmpty && !mark(root) then
-        mark += root
-        q.enqueue(root)
-        while q.nonEmpty do
-          val n0 = q.dequeue()
-          install(n0)
-          out(n0).foreach(h => if !mark(h) then { mark += h; q.enqueue(h) })
-    }
-    // any nodes unreached (e.g. isolated with only in-edges) — append stably
-    allNodes.foreach(n => if !mark(n) then { mark += n; install(n) })
+      val rb = ranks(rankOf(n)); pos(n) = rb.length; rb += n
 
-    // build_ranks (mincross.c:1334): for a flipped graph (rankdir LR/RL), the
-    // BFS-installed order of EVERY rank is reversed before mincross runs — this
-    // is what makes the LR order axis a mirror of the TB one. TB (unflipped) is
-    // untouched, so the existing corpus is unaffected.
-    if Rank.flip(g) then
-      ranks.valuesIterator.foreach { rb =>
-        val n = rb.length
-        var i = 0
-        while i < n / 2 do
-          val t = rb(i); rb(i) = rb(n - 1 - i); rb(n - 1 - i) = t
-          i += 1
-        rb.iterator.zipWithIndex.foreach { case (nd, idx) => pos(nd) = idx }
+    // build_ranks(pass) (mincross.c:1273): BFS installing each rank left-to-
+    // right. pass 0 seeds from in-edge-free nodes and follows out-edges; pass 1
+    // seeds from out-edge-free nodes and follows in-edges (`enqueue_neighbors`)
+    // — the two initial orderings the driver picks the better of. Seeds are
+    // iterated in GD_nlist order. Then, for a flipped graph (rankdir LR/RL),
+    // EVERY rank is reversed (mincross.c:1334) — the LR order-axis mirror.
+    def buildRanks(pass: Int): Unit =
+      ranks.valuesIterator.foreach(_.clear()); pos.clear(); mark.clear()
+      val q = mutable.Queue.empty[LayoutNode]
+      gdNlist.foreach { root =>
+        val rootFree = if pass == 0 then in(root).isEmpty else out(root).isEmpty
+        if rootFree && !mark(root) then
+          mark += root; q.enqueue(root)
+          while q.nonEmpty do
+            val n0 = q.dequeue(); install(n0)
+            (if pass == 0 then out(n0) else in(n0)).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
       }
+      gdNlist.foreach(n => if !mark(n) then { mark += n; install(n) }) // unreached
+      if Rank.flip(g) then
+        ranks.valuesIterator.foreach { rb =>
+          val n = rb.length; var i = 0
+          while i < n / 2 do { val t = rb(i); rb(i) = rb(n - 1 - i); rb(n - 1 - i) = t; i += 1 }
+          rb.iterator.zipWithIndex.foreach { case (nd, idx) => pos(nd) = idx }
+        }
 
     // ── crossing counting ────────────────────────────────────────────────
     def bilayer(r: Int): Long =
@@ -232,7 +243,11 @@ object Order:
         r += dir
       transpose(!reverse)
 
-    // ── main loop (mincross.c) ───────────────────────────────────────────
+    // ── mincross driver (mincross.c:745) ─────────────────────────────────
+    // Passes 0 and 1 each rebuild the whole order from a different initial BFS
+    // (in-free vs out-free seeds) + ≤min(4,MaxIter) refinement iters; pass 2
+    // refines the best of those for up to MaxIter. `save_best`/`restore_best`
+    // keep the min-crossing order seen; a final `transpose(false)` polishes it.
     def snapshot(): Map[Int, Vector[LayoutNode]] =
       ranks.iterator.map { case (r, b) => r -> b.toVector }.toMap
     def restore(s: Map[Int, Vector[LayoutNode]]): Unit =
@@ -241,29 +256,39 @@ object Order:
         v.iterator.zipWithIndex.foreach { case (n, i) => pos(n) = i }
       }
 
-    var best      = snapshot()
-    var bestCross = ncross
-    if bestCross > 0 then
-      var trying = 0
-      var iter   = 0
-      var cur    = bestCross
-      while iter < MaxIter && trying < MinQuit && cur != 0 do
-        trying += 1
-        mincrossStep(iter)
+    var best      = Map.empty[Int, Vector[LayoutNode]]
+    var bestCross = Long.MaxValue
+    var cur       = Long.MaxValue
+    var pass      = 0
+    var stop      = false
+    while pass <= 2 && !stop do
+      val maxthispass = if pass <= 1 then math.min(4, MaxIter) else MaxIter
+      if pass <= 1 then
+        buildRanks(pass)
+        // flat_breakcycles(pass 0) + flat_reorder: no-ops without flat edges.
         cur = ncross
-        if cur <= bestCross then
-          best = snapshot()
-          if cur < Convergence * bestCross then trying = 0
-          bestCross = cur
-        iter += 1
-      if cur > bestCross then restore(best)
-      if bestCross > 0 then
-        transpose(false)
-        val c = ncross
-        if c <= bestCross then { best = snapshot(); bestCross = c }
-        else restore(best)
-
-    restore(best)
+        if cur <= bestCross then { best = snapshot(); bestCross = cur }
+      else
+        if cur > bestCross then restore(best)
+        cur = bestCross
+      var trying = 0; var iter = 0; var brk = false
+      while iter < maxthispass && !brk do
+        if trying >= MinQuit then brk = true
+        else
+          trying += 1
+          if cur == 0 then brk = true
+          else
+            mincrossStep(iter)
+            cur = ncross
+            if cur <= bestCross then
+              best = snapshot()
+              if cur < Convergence * bestCross then trying = 0
+              bestCross = cur
+            iter += 1
+      if cur == 0 then stop = true
+      pass += 1
+    if cur > bestCross then restore(best)
+    if bestCross > 0 then { transpose(false); bestCross = ncross }
     Result(rank0, snapshot(), bestCross, segs.toVector, segOwn.toVector)
 
 end Order
