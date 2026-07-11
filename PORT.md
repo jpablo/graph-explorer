@@ -1492,4 +1492,19 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   `gvrender_usershape` is now fully covered (all SCALE modes + all 9 imagepos).
   ⬜ remaining: convex-polygon `image=` (diamond/…) — the only image case left,
   needs the polygon's `poly_inside` box instead of the bounding box.
+- **2026-07-10** — **Convex-polygon `image=` (byte-exact) — image feature
+  complete.** `gvrender_usershape` gets `AF` = the innermost-periphery *vertices*
+  and bounding-boxes them, so the placement box is the vertex bbox — which for
+  box/ellipse equals the node box (my earlier shortcut) but for a triangle sits
+  asymmetrically inside it (162 of 216 pt tall). Fixed by taking the box from
+  `NodeSize.polygon(n,g).vertices` when the shape is a convex polygon, node box
+  otherwise. Byte-exact (svg + dot_json): 76-diamondimage (symmetric ⇒ node box),
+  77-triangleimage (vertex bbox ≠ node box ⇒ image @ 88,−155). Suite: graphvizJVM
+  331, viewer 42, JS compiles. **Raster image support is now complete**: HTML
+  `<IMG>` cells and node `image=`/`shape=image` across all shapes (box, ellipse,
+  every convex polygon), all SCALE modes (FALSE/TRUE/WIDTH/HEIGHT/BOTH), and all
+  9 `imagepos` placements. ⛔ genuinely out of scope: `shape=custom`/`shapefile`
+  (external PostScript/shape files); a borderless `shape=none` + `image=` (no
+  gated case — rare); actual raster *pixels* (the `<image>` refs the file by
+  name — a browser/consumer concern, never the renderer's).
 - _(append dated entries as milestones land)_

@@ -1,0 +1,71 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,64.000],[64.000,64.000],[64.000,0.000]]
+    }
+  ],
+  "bb": "0,0,64,64",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[32.000,64.000],[0.000,32.000],[32.000,0.000],[64.000,32.000]]
+        },
+        {
+                  }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [32.000,27.800],
+          "align": "c",
+          "width": 6.210,
+          "text": "a"
+        }
+      ],
+      "height": "0.88889",
+      "image": "p76.png",
+      "label": "\\N",
+      "pos": "32,32",
+      "shape": "diamond",
+      "width": "0.88889"
+    }
+  ]
+}

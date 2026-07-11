@@ -418,14 +418,23 @@ object Svg:
                     j += 1
             // node `image=`: place the image inside the node's bounding box
             // (gvrender_usershape — natural size, centred), after the border and
-            // before the label. Box- and ellipse-family shapes; a convex polygon
-            // (poly desc) or borderless shape is deferred.
-            val imageShape = boxLike.contains(shapeName) ||
-              (!noShape && NodeSize.polygon(n, g).isEmpty)
-            if imageShape then
+            // before the label. Every bordered shape (box, ellipse, convex
+            // polygon) centres the image in its `2rx × 2ry` bbox; a borderless
+            // shape (plaintext/none/plain) is left to its own image path.
+            if !noShape then
               n.attrs.get("image").filter(_.nonEmpty).foreach { src =>
                 g.images.get(src).foreach { dim =>
-                  sb ++= usershapeImage(src, x - rx, x + rx, cy - ry, cy + ry,
+                  // `gvrender_usershape` gets AF = the innermost-periphery
+                  // vertices, so the placement box is their bounding box. For a
+                  // convex polygon that differs from the node box (a triangle's
+                  // vertices sit asymmetrically inside its bbox); box/ellipse
+                  // fall back to the node box (2rx × 2ry).
+                  val (bllx, burx, blly, bury) = NodeSize.polygon(n, g) match
+                    case Some(poly) =>
+                      val vx = poly.vertices.map(_._1); val vy = poly.vertices.map(_._2)
+                      (x + vx.min, x + vx.max, cy + vy.min, cy + vy.max)
+                    case None => (x - rx, x + rx, cy - ry, cy + ry)
+                  sb ++= usershapeImage(src, bllx, burx, blly, bury,
                     dim.w, dim.h, n.attrs.get("imagescale"),
                     n.attrs.get("imagepos").getOrElse("mc"))
                 }

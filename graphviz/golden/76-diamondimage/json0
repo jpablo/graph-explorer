@@ -1,0 +1,19 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,64,64",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.88889",
+      "image": "p76.png",
+      "label": "\\N",
+      "pos": "32,32",
+      "shape": "diamond",
+      "width": "0.88889"
+    }
+  ]
+}

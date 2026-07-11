@@ -22,7 +22,10 @@ class NodeImageSpec extends FunSuite:
     // image, then the image is centred in the bounding box (fractional coords).
     "67-ellipseimage", "68-circleimage", "69-ellipseimagesm",
     // imagepos: place a smaller image in a corner/edge of the node box.
-    "73-nodeimgpostl", "74-nodeimgposbr", "75-nodeimgpostc"
+    "73-nodeimgpostl", "74-nodeimgposbr", "75-nodeimgpostc",
+    // convex polygons: image centred in the vertex bounding box (triangle tests
+    // that the node centre = bbox centre even for a vertically-asymmetric shape).
+    "76-diamondimage", "77-triangleimage"
   )
 
   cases.foreach { name =>
