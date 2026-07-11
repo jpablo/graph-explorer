@@ -25,7 +25,8 @@ class HtmlSpec extends FunSuite:
     "52-htmlhr", "53-htmlvr", "54-htmlgradient", "55-htmlporttailn",
     "56-htmlimg", "57-htmlimgmix",
     "58-htmlimgnat", "59-htmlimgrow", "60-htmlimgfrac",
-    "61-htmlimgscale", "62-htmlimgscalefrac", "63-htmlimgscaleup"
+    "61-htmlimgscale", "62-htmlimgscalefrac", "63-htmlimgscaleup",
+    "70-htmlimgwidth", "71-htmlimgheight", "72-htmlimgboth"
   )
 
   // Nested-table cell port resolves to the inner cell (recursion + offset). The

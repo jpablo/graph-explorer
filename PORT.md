@@ -1466,4 +1466,17 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   ⬜ remaining (narrow): convex-polygon `image=` (diamond/…), `SCALE=WIDTH/HEIGHT/
   BOTH` + non-centre `imagepos` (single-axis scaling needs the exact
   `gvusershape_size_dpi` 96-dpi value the aspect-preserving paths let us skip).
+- **2026-07-10** — **`SCALE=WIDTH/HEIGHT/BOTH` (byte-exact).** Completed the
+  `gvrender_usershape` scale matrix in `usershapeImage`: `WIDTH` fills the box
+  width and keeps natural height, `HEIGHT` the converse, `BOTH` fills both (no
+  aspect). The "needs the exact 96-dpi isz" worry dissolved — the node FALSE
+  cases already pinned `isz = natural pt` (72 dpi ⇒ the pt value), so the
+  single-axis modes just use `natW/natH` directly. Each still centres in the
+  unfilled axis where the image is smaller. Byte-exact (svg + dot_json):
+  70-htmlimgwidth (72×20 in a 54×44 box ⇒ 54×20 @ 14,−42, centred-y),
+  71-htmlimgheight (30×24 ⇒ 30×44 @ 26,−54, centred-x), 72-htmlimgboth (⇒ 54×44
+  fills). Suite: graphvizJVM 316, viewer 42, JS compiles. HTML labels: **63
+  gated cases**. Image `SCALE` is now complete (FALSE/TRUE/WIDTH/HEIGHT/BOTH).
+  ⬜ remaining: convex-polygon `image=` (diamond/…, poly_inside box); non-centre
+  `imagepos` (tl/tr/bl/br/… — the only uncovered `gvrender_usershape` branch).
 - _(append dated entries as milestones land)_

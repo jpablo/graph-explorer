@@ -54,13 +54,14 @@ object Svg:
         stripZeros(s)
 
   /** `gvrender_usershape` (gvrender.c): place an image inside a target box
-    * `[bllx,burx]×[blly,bury]` (world y-up). `SCALE="TRUE"` fits it preserving
-    * aspect by the smaller axis scale; `WIDTH/HEIGHT/BOTH` are not modelled yet;
-    * anything else (incl. the default) is FALSE = no scaling. Then the image is
-    * centred (imagepos "mc") in whichever axis it ends up smaller than the box.
-    * `natW/natH` are the natural pt dimensions (the fit is unit-invariant, so no
-    * DPI factor is needed). Emits the `<image>` line (`gvloadimage_core`: width=
-    * UR.x−LL.x, height=UR.y−LL.y, x=LL.x, y=−UR.y, %g-formatted, src raw). */
+    * `[bllx,burx]×[blly,bury]` (world y-up), scaled per the `SCALE`/`imagescale`
+    * value — `TRUE` fits preserving aspect (smaller axis scale), `WIDTH`/`HEIGHT`
+    * fill that one axis, `BOTH` fills both, anything else (incl. default) is
+    * `FALSE` (natural size). The image is then centred (imagepos "mc") in
+    * whichever axis it ends up smaller than the box. `natW/natH` are the natural
+    * pt dimensions (`gvusershape_size_dpi` at 72 dpi = the pt value). Emits the
+    * `<image>` line (`gvloadimage_core`: width=UR.x−LL.x, height=UR.y−LL.y,
+    * x=LL.x, y=−UR.y, %g-formatted, src raw). */
   private[output] def usershapeImage(src: String, bllx: Double, burx: Double,
                                      blly: Double, bury: Double,
                                      natW: Double, natH: Double, scale: Option[String]): String =
@@ -69,8 +70,11 @@ object Svg:
     if natW > 0 && natH > 0 then
       var iw = natW; var ih = natH
       scale.map(_.toLowerCase) match
-        case Some("true") => val s = math.min(pw / natW, ph / natH); iw = natW * s; ih = natH * s
-        case _            => () // false/default: draw at natural size
+        case Some("true")   => val s = math.min(pw / natW, ph / natH); iw = natW * s; ih = natH * s
+        case Some("width")  => iw = pw                 // fill width, natural height
+        case Some("height") => ih = ph                 // fill height, natural width
+        case Some("both")   => iw = pw; ih = ph        // fill both (no aspect)
+        case _              => ()                      // false/default: natural size
       if iw < pw then { llx += (pw - iw) / 2.0; urx -= (pw - iw) / 2.0 }
       if ih < ph then { lly += (ph - ih) / 2.0; ury -= (ph - ih) / 2.0 }
     s"""<image xlink:href="$src" width="${g6(urx - llx)}px" height="${g6(ury - lly)}px" preserveAspectRatio="xMinYMin meet" x="${g6(llx)}" y="${g6(-ury)}"/>\n"""
