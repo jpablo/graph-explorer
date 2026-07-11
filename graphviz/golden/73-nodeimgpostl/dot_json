@@ -1,0 +1,20 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 144 144",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "fixedsize": "true",
+      "height": "2",
+      "image": "p73.png",
+      "imagepos": "tl",
+      "label": "",
+      "shape": "box",
+      "width": "2"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+digraph {
+	graph [bb="0,0,144,144"];
+	node [label="\N"];
+	a	[fixedsize=true,
+		height=2,
+		image="p75.png",
+		imagepos=tc,
+		label="",
+		pos="72,72",
+		shape=box,
+		width=2];
+}

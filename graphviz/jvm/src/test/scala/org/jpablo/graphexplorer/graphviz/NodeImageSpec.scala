@@ -20,7 +20,9 @@ class NodeImageSpec extends FunSuite:
     "64-nodeimage", "65-nodeimagebox", "66-nodeimagewh",
     // ellipse/circle: the bb (with the image) is inflated ×SQRT2 to contain the
     // image, then the image is centred in the bounding box (fractional coords).
-    "67-ellipseimage", "68-circleimage", "69-ellipseimagesm"
+    "67-ellipseimage", "68-circleimage", "69-ellipseimagesm",
+    // imagepos: place a smaller image in a corner/edge of the node box.
+    "73-nodeimgpostl", "74-nodeimgposbr", "75-nodeimgpostc"
   )
 
   cases.foreach { name =>

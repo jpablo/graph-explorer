@@ -1,0 +1,3 @@
+graph 1 2 2
+node a 1 1 2 2 "" solid box black lightgrey
+stop

@@ -1479,4 +1479,17 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   gated cases**. Image `SCALE` is now complete (FALSE/TRUE/WIDTH/HEIGHT/BOTH).
   ⬜ remaining: convex-polygon `image=` (diamond/…, poly_inside box); non-centre
   `imagepos` (tl/tr/bl/br/… — the only uncovered `gvrender_usershape` branch).
+- **2026-07-10** — **`imagepos` non-centre placement (byte-exact) + empty-label
+  fix.** The last `gvrender_usershape` branch: `imagepos="<v><h>"` (v∈t/m/b,
+  h∈l/c/r, default `mc`) positions a smaller-than-box image in a corner/edge
+  instead of centring — applied per-axis only where the image is smaller.
+  Threaded a `pos` arg into `usershapeImage` (HTML cells stay `mc`, hardcoded by
+  `emit_html_img`; nodes read the `imagepos` attr). Surfaced + fixed a latent
+  bug: `label=""` was emitting an empty `<text></text>` — `emit_label` draws
+  nothing for an empty label, so `Svg` now guards on `lbl.nonEmpty`. Byte-exact
+  (svg + dot_json): 73-nodeimgpostl (@0,−144), 74-nodeimgposbr (@104,−40),
+  75-nodeimgpostc (@52,−144). Suite: graphvizJVM 325, viewer 42, JS compiles.
+  `gvrender_usershape` is now fully covered (all SCALE modes + all 9 imagepos).
+  ⬜ remaining: convex-polygon `image=` (diamond/…) — the only image case left,
+  needs the polygon's `poly_inside` box instead of the bounding box.
 - _(append dated entries as milestones land)_

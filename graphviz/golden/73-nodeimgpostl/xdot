@@ -1,0 +1,16 @@
+digraph {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 144 144 144 144 0 ",
+		bb="0,0,144,144",
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	a	[_draw_="c 7 -#000000 p 4 144 144 0 144 0 0 144 0 I 0 104 40 40 7 -p73.png ",
+		fixedsize=true,
+		height=2,
+		image="p73.png",
+		imagepos=tl,
+		label="",
+		pos="72,72",
+		shape=box,
+		width=2];
+}

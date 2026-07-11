@@ -44,7 +44,7 @@
     "xdot1.4",
     "xdot_json"
   ],
-  "generatedAt": "2026-07-11T00:40:39.478Z",
+  "generatedAt": "2026-07-11T00:42:53.585Z",
   "corpus": {
     "01-minimal": {
       "input": "01-minimal.dot",
@@ -2741,6 +2741,120 @@
         "svg": {
           "status": "success",
           "sha256": "9cc06f4f45eef0a70bde2f83bbf533de42d0d898f99b19505c24437911b48478"
+        }
+      }
+    },
+    "73-nodeimgpostl": {
+      "input": "73-nodeimgpostl.dot",
+      "sha256": "0d0ddcbaead213315c609fb6a22344b84d032c22e6ce02eb9eb64909f8343352",
+      "formats": {
+        "dot": {
+          "status": "success",
+          "sha256": "0897696a019e92d200a2eb2732ee335195e4b083620eb96bee1f667d289f9d17"
+        },
+        "plain": {
+          "status": "success",
+          "sha256": "1640642b39c3553e68fcaa40ec9f8f9eee9bdafbb894364df9f20f3b0845956a"
+        },
+        "plain-ext": {
+          "status": "success",
+          "sha256": "1640642b39c3553e68fcaa40ec9f8f9eee9bdafbb894364df9f20f3b0845956a"
+        },
+        "json": {
+          "status": "success",
+          "sha256": "f844fbebba3668e94b0ce424e40e906519703abd3c7018fed2c727d59707dc4f"
+        },
+        "json0": {
+          "status": "success",
+          "sha256": "e2abe091141cb23cae32643757c5d75dc10546f92036e82adaff3db3f0c5480b"
+        },
+        "dot_json": {
+          "status": "success",
+          "sha256": "65816387c8d00159c670e07d4b2b04dd21020df6f80d3a70820bfb0bd5621aec"
+        },
+        "xdot": {
+          "status": "success",
+          "sha256": "c5a4cc6e9de485b9f0d34493ea6a009f1e15f1bb92793ef849449367e55eaab4"
+        },
+        "svg": {
+          "status": "success",
+          "sha256": "e3efe27d23294e560c39a05c36759104955e3deb9e68449487ce61e4996d3f31"
+        }
+      }
+    },
+    "74-nodeimgposbr": {
+      "input": "74-nodeimgposbr.dot",
+      "sha256": "656e1e94c0d8279571a3a1a11a63b660889bfaf6b4eb6668b0dae2fab3dc5fe9",
+      "formats": {
+        "dot": {
+          "status": "success",
+          "sha256": "3e079fcc4625e6c06ceebe419743cb5934a23b88229b8925b271fea0bfe32a1d"
+        },
+        "plain": {
+          "status": "success",
+          "sha256": "1640642b39c3553e68fcaa40ec9f8f9eee9bdafbb894364df9f20f3b0845956a"
+        },
+        "plain-ext": {
+          "status": "success",
+          "sha256": "1640642b39c3553e68fcaa40ec9f8f9eee9bdafbb894364df9f20f3b0845956a"
+        },
+        "json": {
+          "status": "success",
+          "sha256": "93ec8bb1be7e114897d8dccd8a4cefe90700b83d3ac240d55836ec2b70279a50"
+        },
+        "json0": {
+          "status": "success",
+          "sha256": "d0d0f4b86992a2f61d2bb77b3fa6829813ff29c0b0eb05767e159bc2e89da526"
+        },
+        "dot_json": {
+          "status": "success",
+          "sha256": "d2f29765520ed3fa9b0145d5eb0513e618b6abab723fe6ff95aa233ad5f8b566"
+        },
+        "xdot": {
+          "status": "success",
+          "sha256": "e9d84f272232d827f0b94d6ab4c38eb2a54e6753900ed63df26d723f1222802d"
+        },
+        "svg": {
+          "status": "success",
+          "sha256": "ce125b8b521df91b257c93937e8adcfdc59037e96934d662deff9419cb24cf76"
+        }
+      }
+    },
+    "75-nodeimgpostc": {
+      "input": "75-nodeimgpostc.dot",
+      "sha256": "bbeece9072f071895b5d3d2bcc14ddf10437ded3ef1a20287457e37857972b33",
+      "formats": {
+        "dot": {
+          "status": "success",
+          "sha256": "39464d1e8328f95645e4cf365b3f08771b60f57fe87a2b2dcfcef0d9e626a9e7"
+        },
+        "plain": {
+          "status": "success",
+          "sha256": "1640642b39c3553e68fcaa40ec9f8f9eee9bdafbb894364df9f20f3b0845956a"
+        },
+        "plain-ext": {
+          "status": "success",
+          "sha256": "1640642b39c3553e68fcaa40ec9f8f9eee9bdafbb894364df9f20f3b0845956a"
+        },
+        "json": {
+          "status": "success",
+          "sha256": "c90fa6eb4eeb09fd9d1e0a2a4f8026c42a1e786fcae80cc16e2e4569f5776d5f"
+        },
+        "json0": {
+          "status": "success",
+          "sha256": "51cd870ec11d736b406727b29bcca56a4a4f8ddbd0e0f07ccc2442e774ae0034"
+        },
+        "dot_json": {
+          "status": "success",
+          "sha256": "23ee3983e4a1274de6749d4d0eabbd7e5808218f5b46c3cb7dd97e669e3caf22"
+        },
+        "xdot": {
+          "status": "success",
+          "sha256": "ff8e103e5160c7f95685deb056f18c6fae5dc991f41ccf69fd3d5f5551bd0cc3"
+        },
+        "svg": {
+          "status": "success",
+          "sha256": "a86b46129fc3b7ed0e9a34fce9e899effa240c74cf5eca0d96abbcc832baf8d3"
         }
       }
     }

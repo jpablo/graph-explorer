@@ -1,0 +1,53 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,144.000],[144.000,144.000],[144.000,0.000]]
+    }
+  ],
+  "bb": "0,0,144,144",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[144.000,144.000],[0.000,144.000],[0.000,0.000],[144.000,0.000]]
+        },
+        {
+                  }
+      ],
+      "fixedsize": "true",
+      "height": "2",
+      "image": "p75.png",
+      "imagepos": "tc",
+      "label": "",
+      "pos": "72,72",
+      "shape": "box",
+      "width": "2"
+    }
+  ]
+}

@@ -64,7 +64,8 @@ object Svg:
     * x=LL.x, y=−UR.y, %g-formatted, src raw). */
   private[output] def usershapeImage(src: String, bllx: Double, burx: Double,
                                      blly: Double, bury: Double,
-                                     natW: Double, natH: Double, scale: Option[String]): String =
+                                     natW: Double, natH: Double, scale: Option[String],
+                                     pos: String = "mc"): String =
     var (llx, urx, lly, ury) = (bllx, burx, blly, bury)
     val pw = urx - llx; val ph = ury - lly
     if natW > 0 && natH > 0 then
@@ -75,8 +76,16 @@ object Svg:
         case Some("height") => ih = ph                 // fill height, natural width
         case Some("both")   => iw = pw; ih = ph        // fill both (no aspect)
         case _              => ()                      // false/default: natural size
-      if iw < pw then { llx += (pw - iw) / 2.0; urx -= (pw - iw) / 2.0 }
-      if ih < ph then { lly += (ph - ih) / 2.0; ury -= (ph - ih) / 2.0 }
+      // imagepos (`<v><h>`, v∈t/m/b, h∈l/c/r; default mc) positions the image in
+      // whichever axis it is smaller than the box — else it fills that axis.
+      if iw < pw then pos.lift(1) match
+        case Some('l') => urx = llx + iw
+        case Some('r') => llx = urx - iw
+        case _         => llx += (pw - iw) / 2.0; urx -= (pw - iw) / 2.0
+      if ih < ph then pos.headOption match
+        case Some('t') => lly = ury - ih
+        case Some('b') => ury = lly + ih
+        case _         => lly += (ph - ih) / 2.0; ury -= (ph - ih) / 2.0
     s"""<image xlink:href="$src" width="${g6(urx - llx)}px" height="${g6(ury - lly)}px" preserveAspectRatio="xMinYMin meet" x="${g6(llx)}" y="${g6(-ury)}"/>\n"""
 
   /** Drop a trailing fractional-zero run and a dangling decimal point. */
@@ -417,7 +426,8 @@ object Svg:
               n.attrs.get("image").filter(_.nonEmpty).foreach { src =>
                 g.images.get(src).foreach { dim =>
                   sb ++= usershapeImage(src, x - rx, x + rx, cy - ry, cy + ry,
-                    dim.w, dim.h, n.attrs.get("imagescale"))
+                    dim.w, dim.h, n.attrs.get("imagescale"),
+                    n.attrs.get("imagepos").getOrElse("mc"))
                 }
               }
             // HTML-like label ⇒ render the parsed content; else the plain text.
@@ -436,8 +446,9 @@ object Svg:
                     val (dw, dh) = dim.drawn
                     sb ++= s"""<image xlink:href="$src" width="${g6(dw)}px" height="${g6(dh)}px" preserveAspectRatio="xMinYMin meet" x="${g6(x - dw / 2.0)}" y="${g6(-(cy + dh / 2.0))}"/>\n"""
                   }
-                case None                     => sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
-            else
+                case None                     => if lbl.nonEmpty then sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
+            // an empty label (`label=""`) draws no <text> (emit_label skips it).
+            else if lbl.nonEmpty then
               sb ++= textAt(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""))
         sb ++= "</g>\n"
 
