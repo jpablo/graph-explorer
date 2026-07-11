@@ -16,14 +16,13 @@ import org.jpablo.graphexplorer.graphviz.layout.Spline
   *
   * Gate = **dense-sample symmetric Hausdorff** between our piecewise cubic
   * and the golden's (the "visually close" objective — not control-point
-  * parity, which Graphviz itself does not guarantee across builds). A whole-
-  * drawing horizontal mirror is layout-equivalent and allowed (identical to
-  * `XCoordSpec`): 06's X comes out mirrored, which is not a routing defect.
+  * parity, which Graphviz itself does not guarantee across builds). Matched
+  * directly to the golden (no mirror allowance): with the build_ranks tail
+  * transpose transcribed, 06's X is no longer mirrored (cf. `XCoordSpec`).
   *
   * Bounds (PORT.md §1 "visually close" = ~2–4 px = 0.03–0.06 in):
   *  - `Eps`   = 0.04 in: general bound, kept for the 06 whole-drawing gate
-  *    (06 is undirected ⇒ no arrow clip; its ≈0.013 in residual is the
-  *    documented layout-equivalent X-mirror, cf. XCoordSpec).
+  *    (06 is undirected ⇒ no arrow clip; matched directly to the golden).
   *  - `Eps07` = 0.005 in: 07 has no virtual nodes; once the **true**
   *    `arrow_length_normal` (≈11.53, not nominal 10) is clipped, its
   *    spline is byte-exact to Graphviz (measured 0.00000) — tightened
@@ -67,11 +66,6 @@ class SplineSpec extends FunSuite:
       nums.grouped(2).map(p => (p(0), p(1))).toVector
     }.toVector
 
-  /** Mirror axis used by XCoordSpec: W = (golden node x) max + min. */
-  private def mirrorW(name: String): Double =
-    val xs = NodeLine.findAllMatchIn(OracleHarness.golden(name, "plain")).map(_.group(2).toDouble).toVector
-    xs.max + xs.min
-
   private def cubic(p: Vector[(Double, Double)], s: Int, t: Double): (Double, Double) =
     val u = 1 - t
     val (x0, y0) = p(s); val (x1, y1) = p(s + 1); val (x2, y2) = p(s + 2); val (x3, y3) = p(s + 3)
@@ -104,9 +98,10 @@ class SplineSpec extends FunSuite:
       hausdorff(op.map(tx), gold(k))
     }.max
 
+  // Strict (identity only): with the build_ranks tail transpose transcribed,
+  // 06's X is no longer mirrored, so the spline geometry must match directly.
   private def deviation(name: String): Double =
-    val w = mirrorW(name)
-    math.min(maxDev(name, identity), maxDev(name, { case (x, y) => (w - x, y) }))
+    maxDev(name, identity)
 
   // Structural: every edge is a well-formed piecewise cubic Bézier.
   List("01-minimal", "06-undirected", "07-cross").foreach { name =>
@@ -124,10 +119,10 @@ class SplineSpec extends FunSuite:
   test("07-cross: edge geometry geometrically exact (no-virtual-node guard)"):
     assert(maxDev("07-cross", identity) <= Eps07, s"07 dev=${maxDev("07-cross", identity)}")
 
-  // 01 (curved long edge a→c) and 06 (all straight; X mirrored) — strict
-  // curve-deviation gate, mirror allowed (layout-equivalent, cf. XCoordSpec).
+  // 01 (curved long edge a→c) and 06 (all straight) — strict curve-deviation
+  // gate, matched directly to the golden (no mirror; cf. XCoordSpec).
   List("01-minimal", "06-undirected").foreach { name =>
-    test(s"$name: spline geometry within ε of the plain golden (mirror allowed)"):
+    test(s"$name: spline geometry within ε of the plain golden (strict, no mirror)"):
       assert(deviation(name) <= Eps, s"$name dev=${deviation(name)} (eps=$Eps)")
   }
 

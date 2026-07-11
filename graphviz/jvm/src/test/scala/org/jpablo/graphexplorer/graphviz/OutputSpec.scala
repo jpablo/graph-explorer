@@ -8,9 +8,10 @@ import org.jpablo.graphexplorer.graphviz.output.Output
 /** M7 increment-1 exit gate: `dot_json` / `json0` strings match the captured
   * viz-js goldens. Tolerance-aware structural diff (PORT.md §2.1): graph
   * attrs / `_gvid` / `tail` / `head` / `label` / arrow-prefix exact; geometry
-  * (`bb`, node `pos`/`width`/`height`, edge spline `pos`) within ε. A whole-
-  * drawing horizontal X-mirror is layout-equivalent and allowed (cf.
-  * XCoordSpec/SplineSpec — 06's X comes out mirrored). Scope: label-free TB.
+  * (`bb`, node `pos`/`width`/`height`, edge spline `pos`) within ε. Strict:
+  * matched directly to the golden — the build_ranks tail transpose
+  * (mincross.c:1349) closes 06's former X-mirror (cf. XCoordSpec/SplineSpec).
+  * Scope: label-free TB.
   */
 class OutputSpec extends FunSuite:
 
@@ -77,9 +78,12 @@ class OutputSpec extends FunSuite:
       assertEquals(eset(ours, og), eset(gold, gg), s"$name edge set")
   }
 
-  // ── json0: structure + geometry (mirror-aware) ──────────────────────────
+  // ── json0: structure + geometry (strict, no mirror) ─────────────────────
+  // With the build_ranks tail transpose transcribed (mincross.c:1349), the
+  // whole label-free TB corpus — 06 included — matches the golden X directly;
+  // the former layout-equivalent X-mirror allowance is closed (cf. XCoordSpec).
   corpus.foreach { name =>
-    test(s"$name: json0 matches the golden (structure exact, geometry ±ε, mirror allowed)"):
+    test(s"$name: json0 matches the golden (structure exact, geometry ±ε, no mirror)"):
       val ours = ujson.read(Output.json0(graph(name)))
       val gold = ujson.read(OracleHarness.golden(name, "json0"))
       assertEquals(ours("name").str, gold("name").str)
@@ -89,17 +93,13 @@ class OutputSpec extends FunSuite:
       val gNodes = gold("objects").arr.iterator.map(n => n("name").str -> n).toMap
       val oNodes = ours("objects").arr.iterator.map(n => n("name").str -> n).toMap
       assertEquals(oNodes.keySet, gNodes.keySet, s"$name nodes")
-      val gx = gNodes.values.map(n => num(n("pos").str.split(",")(0))).toVector
-      val W  = gx.max + gx.min // whole-drawing mirror axis (cf. XCoordSpec)
 
-      def nodeDev(mirror: Boolean): Double =
+      def nodeDev: Double =
         oNodes.iterator.map { case (id, on) =>
           val gp = gNodes(id)("pos").str.split(","); val op = on("pos").str.split(",")
-          val ox = if mirror then W - num(op(0)) else num(op(0))
-          math.hypot(ox - num(gp(0)), num(op(1)) - num(gp(1)))
+          math.hypot(num(op(0)) - num(gp(0)), num(op(1)) - num(gp(1)))
         }.max
-      val mir = nodeDev(true) < nodeDev(false)
-      assert(math.min(nodeDev(false), nodeDev(true)) <= Eps, s"$name node pos dev")
+      assert(nodeDev <= Eps, s"$name node pos dev")
 
       // width/height exact (numeric); label exact
       oNodes.foreach { case (id, on) =>
@@ -118,10 +118,9 @@ class OutputSpec extends FunSuite:
         val (gep, gsp, gpts)  = parsePos(ge("pos").str)
         assertEquals(oep.isDefined, gep.isDefined, s"$name $k e,prefix")
         assertEquals(osp.isDefined, gsp.isDefined, s"$name $k s,prefix")
-        def mx(p: (Double, Double)) = if mir then (W - p._1, p._2) else p
-        val dev = hausdorff(opts0.map(mx), gpts)
+        val dev = hausdorff(opts0, gpts)
         assert(dev <= Eps, s"$name $k spline dev=$dev")
-        for o <- oep; gg <- gep do assert(near(mx(o), gg, Eps), s"$name $k ep ${mx(o)} vs $gg")
+        for o <- oep; gg <- gep do assert(near(o, gg, Eps), s"$name $k ep $o vs $gg")
       }
   }
 

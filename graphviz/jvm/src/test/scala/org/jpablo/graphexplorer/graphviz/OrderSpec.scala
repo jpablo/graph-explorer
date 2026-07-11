@@ -13,7 +13,9 @@ import org.jpablo.graphexplorer.graphviz.layout.Order
   * `07-cross` additionally pins the resolved permutation: declaration order
   * gives 3 crossings, the unique optimum needs rank 1 = [b3,b2,b1].
   *
-  * Left/right mirroring of a rank is an accepted documented deviation.
+  * Strict: within-rank order matches the oracle directly. The build_ranks
+  * tail transpose (mincross.c:1349) settles the initial order to gv's exact
+  * tie-break, so the former left/right mirror allowance is closed.
   * Clustered `03` is excluded (M6).
   */
 class OrderSpec extends FunSuite:
@@ -58,7 +60,7 @@ class OrderSpec extends FunSuite:
     // Edge-label rank-doubling (rank.c edgelabel_ranks) interleaves empty
     // real-node ranks for the label vnodes; the oracle's position-recovered
     // partition has no such gap, so dropping empty rows is the
-    // layout-equivalent comparison (cf. the mirror allowance).
+    // layout-equivalent comparison.
     r.realOrder.toList.sortBy(_._1).map(_._2.toList).filter(_.nonEmpty)
 
   private def crossings(name: String): Long =
@@ -72,14 +74,11 @@ class OrderSpec extends FunSuite:
       assertEquals(crossings(name), 0L)
   }
 
-  private def matchesAllowingMirror(our: List[List[String]], exp: List[List[String]]): Boolean =
-    our.equals(exp) || our.equals(exp.map(_.reverse))
-
   List("01-minimal", "02-attrs", "04-ports-compass", "05-strings-comments", "06-undirected")
     .foreach { name =>
-      test(s"$name: real-node order per rank matches the oracle"):
-        assert(
-          matchesAllowingMirror(ourOrder(name), expectedOrder(name)),
+      test(s"$name: real-node order per rank matches the oracle (strict)"):
+        assertEquals(
+          ourOrder(name), expectedOrder(name),
           s"$name order ${ourOrder(name)} vs oracle ${expectedOrder(name)}"
         )
     }
@@ -88,7 +87,7 @@ class OrderSpec extends FunSuite:
     val our = ourOrder("07-cross")
     val exp = expectedOrder("07-cross") // List(List(a1,a2,a3), List(b3,b2,b1))
     assertEquals(exp, List(List("a1", "a2", "a3"), List("b3", "b2", "b1")))
-    assert(matchesAllowingMirror(our, exp), s"got $our")
+    assertEquals(our, exp, s"got $our")
 
   test("03 clusters: ordering runs for all real nodes (exact match deferred to M6)"):
     val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("03-subgraph-cluster")).toOption.get)

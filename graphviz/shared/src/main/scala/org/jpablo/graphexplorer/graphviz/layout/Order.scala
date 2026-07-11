@@ -202,7 +202,8 @@ object Order:
             if rp < ep then
               val p1 = mval.getOrElse(rb(lp), -1.0)
               val p2 = mval.getOrElse(rb(rp), -1.0)
-              if p1 > p2 || (p1 >= p2 && reverse) then exchange(r, lp, rp)
+              val doSwap = p1 > p2 || (p1 >= p2 && reverse)
+              if doSwap then exchange(r, lp, rp)
               lp = rp
             else lp = ep
           else lp = ep
@@ -223,7 +224,8 @@ object Order:
           val v = rb(i); val w = rb(i + 1)
           val c0 = crossPair(in(v), in(w)) + crossPair(out(v), out(w))
           val c1 = crossPair(in(w), in(v)) + crossPair(out(w), out(v))
-          if c1 < c0 || (c0 > 0 && reverse && c1 == c0) then
+          val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
+          if doSwap then
             exchange(r, i, i + 1)
             delta += c0 - c1
           i += 1
@@ -265,7 +267,13 @@ object Order:
       val maxthispass = if pass <= 1 then math.min(4, MaxIter) else MaxIter
       if pass <= 1 then
         buildRanks(pass)
+        // build_ranks tail (mincross.c:1349): the fresh BFS install can leave
+        // crossings that a single transpose pass removes; gv polishes the initial
+        // order here — inside build_ranks, before the driver computes cur_cross.
+        // Omitting it seeds the driver with a mirror-equivalent order whose later
+        // median/transpose passes settle to the opposite tie-break (06's X-mirror).
         // flat_breakcycles(pass 0) + flat_reorder: no-ops without flat edges.
+        if ncross > 0 then transpose(false)
         cur = ncross
         if cur <= bestCross then { best = snapshot(); bestCross = cur }
       else

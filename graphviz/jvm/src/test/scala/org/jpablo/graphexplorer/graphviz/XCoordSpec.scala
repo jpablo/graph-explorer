@@ -9,7 +9,9 @@ import org.jpablo.graphexplorer.graphviz.layout.XCoord
   *
   * Scoped to label-free TB graphs (01/06/07) — same deferrals as M4-Y
   * (02 LR-rotation, 04 records, 03 clusters, edge-label rank-doubling).
-  * Mirror symmetry of the whole drawing is an accepted deviation.
+  * Strict, no mirror allowance: with the `build_ranks` tail transpose
+  * (mincross.c:1349) transcribed, 06 now matches the golden X directly —
+  * the former layout-equivalent X-mirror is closed.
   */
 class XCoordSpec extends FunSuite:
 
@@ -34,23 +36,19 @@ class XCoordSpec extends FunSuite:
   // ~2px abs / 5% rel to start (PORT.md §2.1); tighten once stable.
   private val tol = OracleHarness.Tol(abs = 0.03, rel = 0.05)
 
-  /** A whole-drawing horizontal mirror is layout-equivalent and allowed. */
-  private def matchesAllowingMirror(name: String): Boolean =
+  /** Strict: X matches the golden directly (no mirror). */
+  private def matchesGolden(name: String): Boolean =
     val exp = goldenX(name)
     val got = ourX(name)
-    val w   = exp.values.max + exp.values.min // mirror axis ≈ (min+max)
-    exp.forall { case (id, ex) =>
-      got.get(id).exists { gx =>
-        OracleHarness.close(gx, ex, tol) || OracleHarness.close(w - gx, ex, tol)
-      }
-    }
+    exp.forall { case (id, ex) => got.get(id).exists(gx => OracleHarness.close(gx, ex, tol)) }
 
-  // Label-free TB graphs: X must match the plain golden (mirror allowed).
+  // Label-free TB graphs: X must match the plain golden directly.
   // Closed after instrumenting real Graphviz: the omega model is
-  // virtual_weight()'s class table, not ω=1/2/8-by-virtualness.
+  // virtual_weight()'s class table, not ω=1/2/8-by-virtualness; and the
+  // initial ordering is finalised by the build_ranks tail transpose (06).
   List("01-minimal", "06-undirected", "07-cross").foreach { name =>
-    test(s"$name: node X within ε of the plain golden (mirror allowed)"):
-      assert(matchesAllowingMirror(name), s"$name X ${ourX(name)} vs golden ${goldenX(name)}")
+    test(s"$name: node X matches the plain golden (strict, no mirror)"):
+      assert(matchesGolden(name), s"$name X ${ourX(name)} vs golden ${goldenX(name)}")
   }
 
   test("07-cross: columns straight (a_i aligned with its matched b)"):
