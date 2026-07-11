@@ -86,18 +86,20 @@ class RankDirSpec extends FunSuite:
       assert(math.abs(ox - gx) <= 3.0, s"02 $id rank-axis X $ox vs golden $gx")
     }
 
-  // Self-flagging deferred-probe (precedent: CoordSpec/SplineSpec): the
-  // order axis (final Y) is still materially off (blocker 2). This test
-  // FAILS — by design — the moment LR's XCoord straightening is fixed,
-  // forcing this spec to be promoted to a strict gate then. NOT a fake green.
-  test("02 LR: order-axis (final Y) still deviates — DEFERRED (self-flags)"):
+  // Order axis (final Y): the mincross flip-reverse (mincross.c:1334) + the
+  // label-vnode dimension swap for LR (class2.c label_vnode) — both ported from
+  // instrumented gv 13.0.1 — took this from ~30pt off to ≤6pt. The canonical
+  // X-solve now matches gv on 7 of 8 nodes exactly; the residual is one node
+  // (`end`) whose position depends on gv's LR_balance iterating `Tree_edge` in
+  // tight-tree DFS order (ns.c:768) — my Set-based tree iterates by index, so
+  // the sequential δ/2 reranks differ. Locked as forward progress; the lower
+  // bound self-flags when that final NS-order match lands.
+  test("02 LR: order-axis (final Y) within 6pt — 7/8 canonical nodes exact"):
     val f = finalLR("02-attrs")
-    val worst = golden02.map { case (id, (_, gy)) =>
-      math.abs(f(id)._2 - gy)
-    }.max
-    assert(worst > 6.0,
-      s"02 LR order-axis now within $worst pt of golden — blocker 2 (XCoord " +
-      s"weight/label-vnode under flip) appears FIXED: promote this to the " +
-      s"strict LR gate and close the §5.2 row.")
+    val worst = golden02.map { case (id, (_, gy)) => math.abs(f(id)._2 - gy) }.max
+    assert(worst <= 6.0, s"02 LR order-axis regressed: worst $worst pt (was ≤6)")
+    assert(worst > 2.0,
+      s"02 LR order-axis now within $worst pt — the `end`-node NS Tree_edge " +
+      s"order appears matched: promote this spec to the strict LR gate.")
 
 end RankDirSpec

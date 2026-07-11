@@ -63,11 +63,16 @@ object Coord:
           while r < math.max(rt, rh) do
             if 0.5 > halfHt(r) then halfHt(r) = 0.5
             r += 1
-          // labelled edge ⇒ the mid rank's virtual is the (taller) label box.
+          // labelled edge ⇒ the mid rank's virtual is the label box. Its
+          // rank-axis extent (ND_ht) is dimen.y (label height) for TB, but
+          // dimen.x (label width) for a flipped graph (class2.c label_vnode).
           e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
             val mid = (rt + rh) / 2
             val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
-            val h2  = NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse("")) / 2.0
+            val fn  = e.attrs.getOrElse("fontname", "Times")
+            val ht  = if Rank.flip(g) then NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse(""))
+                      else NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse(""))
+            val h2  = ht / 2.0
             if h2 > halfHt(mid) then halfHt(mid) = h2
           }
     }
@@ -98,12 +103,14 @@ object Coord:
     val (ranks, yOf) = rankY(g)
     ranks.view.mapValues(yOf).toMap
 
-  /** Edge-label virtual-node widths (vnode name → `labelWidth` pt) — the
-    * asymmetric `ND_rw` for `make_LR_constraints`/spline bounds. class2.c
-    * `label_vnode`: `ND_lw = nodesep`, `ND_rw = dimen.x` (label width); the
-    * vnode name matches `Order`'s `Virtual(dedgeIdx, midRank)`. */
+  /** Edge-label virtual-node `ND_rw` (vnode name → order-axis half-width pt) for
+    * `make_LR_constraints`/spline bounds. class2.c `label_vnode`: `ND_lw =
+    * nodesep`, and `ND_rw = dimen.x` (label width) for TB, but `dimen.y` (label
+    * height) for a flipped graph (LR/RL) — the label box rotates with the
+    * drawing. The vnode name matches `Order`'s `Virtual(dedgeIdx, midRank)`. */
   def labelVnodeWidths(g: RGraph): Map[String, Double] =
     val ranks = Rank.assign(g)
+    val flip  = Rank.flip(g)
     g.edges.iterator.filter(e => e.tail != e.head).zipWithIndex.flatMap { (e, dIdx) =>
       e.attrs.get("label").filter(_.nonEmpty).flatMap { lbl =>
         for
@@ -112,7 +119,9 @@ object Coord:
         yield
           val fs = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
           val fn = e.attrs.getOrElse("fontname", "Times")
-          LayoutNode.Virtual(dIdx, (rt + rh) / 2).name -> NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse(""))
+          val rw = if flip then NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse(""))
+                   else NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse(""))
+          LayoutNode.Virtual(dIdx, (rt + rh) / 2).name -> rw
       }
     }.toMap
 

@@ -117,6 +117,20 @@ object Order:
     // any nodes unreached (e.g. isolated with only in-edges) — append stably
     allNodes.foreach(n => if !mark(n) then { mark += n; install(n) })
 
+    // build_ranks (mincross.c:1334): for a flipped graph (rankdir LR/RL), the
+    // BFS-installed order of EVERY rank is reversed before mincross runs — this
+    // is what makes the LR order axis a mirror of the TB one. TB (unflipped) is
+    // untouched, so the existing corpus is unaffected.
+    if Rank.flip(g) then
+      ranks.valuesIterator.foreach { rb =>
+        val n = rb.length
+        var i = 0
+        while i < n / 2 do
+          val t = rb(i); rb(i) = rb(n - 1 - i); rb(n - 1 - i) = t
+          i += 1
+        rb.iterator.zipWithIndex.foreach { case (nd, idx) => pos(nd) = idx }
+      }
+
     // ── crossing counting ────────────────────────────────────────────────
     def bilayer(r: Int): Long =
       val segs = mutable.ArrayBuffer.empty[(Int, Int)] // (pos upper, pos lower)
