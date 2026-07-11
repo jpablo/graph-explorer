@@ -63,39 +63,19 @@ object Spline:
     splinesEx(g).view.mapValues(_.pts).toMap
 
   /** Declared-edge index (position in `g.edges`) → installed spline + arrow
-    * attaches. See [[splines]] for why the key is the edge index. */
-  private val splinesMemo = GraphMemo[Map[Int, ESpline]]()
-  def splinesEx(g: RGraph): Map[Int, ESpline] = splinesMemo(g)(splinesExImpl(g))
+    * attaches. See [[splines]] for why the key is the edge index. The second
+    * map is the edge-label positions (`lp`), produced by the same pass because
+    * gv's `place_vnlabel` reads the label vnode's *post-routing* x — after
+    * `recover_slack` snaps it to its channel box (dotsplines.c:498/2126). */
+  private val splinesMemo = GraphMemo[(Map[Int, ESpline], Map[Int, XY])]()
+  def splinesEx(g: RGraph): Map[Int, ESpline] = splinesMemo(g)(splinesExImpl(g))._1
 
-  /** Edge-label position `lp` (json0 `lp` / svg text), keyed by g.edges index.
-    * The label sits to the **right** of the (straight) edge at the mid rank:
-    * `lp = labelVnode.x + labelWidth/2` (gv `make_chain` label_vnode; the edge
-    * routes through the vnode's left reference — the probe-derived contract,
-    * PORT.md §5.2 rankdir row). Adjacent rank-doubled edges only (the common
-    * case); asymmetric-vnode separation for neighbours/LR is a follow-up. */
-  private val labelPosMemo = GraphMemo[Map[Int, XY]]()
-  def labelPositions(g: RGraph): Map[Int, XY] = labelPosMemo(g)(labelPositionsImpl(g))
-  private def labelPositionsImpl(g: RGraph): Map[Int, XY] =
-    val ranks     = Rank.assign(g)
-    val (_, allX) = XCoord.solveAll(g)
-    val (_, yOf)  = Coord.rankY(g)
-    val xByName   = allX.iterator.map((k, v) => k.name -> v.value).toMap
-    // dedge index = position among non-self edges (matches Order's Virtual idx)
-    val nonSelf = g.edges.zipWithIndex.filter { case (e, _) => e.tail != e.head }
-    nonSelf.iterator.zipWithIndex.flatMap { case ((e, gIdx), dIdx) =>
-      e.attrs.get("label").filter(_.nonEmpty).flatMap { lbl =>
-        for
-          rt <- ranks.get(e.tail)
-          rh <- ranks.get(e.head) if rt != rh
-          vx <- xByName.get(LayoutNode.Virtual(dIdx, (rt + rh) / 2).name)
-        yield
-          val fs = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
-          val fn = e.attrs.getOrElse("fontname", "Times")
-          val lw = NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse(""))
-          gIdx -> XY(vx + lw / 2.0, yOf((rt + rh) / 2).value)
-      }
-    }.toMap
-  private def splinesExImpl(g: RGraph): Map[Int, ESpline] =
+  /** Edge-label position `lp` (json0 `lp` / svg text), keyed by g.edges index —
+    * `lp = routedLabelVnode.x + labelWidth/2` (place_vnlabel), where the vnode x
+    * is the RIGHT edge of the box the labelled edge threads (recover_slack). */
+  def labelPositions(g: RGraph): Map[Int, XY] = splinesMemo(g)(splinesExImpl(g))._2
+
+  private def splinesExImpl(g: RGraph): (Map[Int, ESpline], Map[Int, XY]) =
     val res          = Order.order(g)
     val (_, allXNode) = XCoord.solveAll(g)
     val (_, yOf)     = Coord.rankY(g)
@@ -111,16 +91,30 @@ object Spline:
     val rankOf       = orderByRank.iterator.flatMap { case (r, ids) => ids.map(_ -> r) }.toMap
 
     def isV(id: String): Boolean = LayoutNode.isVirtualName(id)
-    def cx(id: String): Double   = allX(id).value
+    // recover_slack (dotsplines.c:2126) mutates virtual-node x/lw/rw after each
+    // edge routes, so later edges see the shifted neighbours. These overrides
+    // hold those in-flight resizes; absent an override the static solve wins.
+    val cxOv = mutable.HashMap.empty[String, Double]
+    val lwOv = mutable.HashMap.empty[String, Double]
+    val rwOv = mutable.HashMap.empty[String, Double]
+    val labelPos = mutable.HashMap.empty[Int, XY] // origIdx → lp (place_vnlabel)
+    def cx(id: String): Double   = cxOv.getOrElse(id, allX(id).value)
     def cy(id: String): Double   = yOf(rankOf(id)).value
     val labelW = Coord.labelVnodeWidths(g) // class2 label_vnode: lw=nodesep, rw=labelWidth
-    def lw(id: String): Double =
+    def isLabelV(id: String): Boolean = labelW.contains(id)
+    def lw0(id: String): Double =
       if labelW.contains(id) then NodeSep
       else if isV(id) then VirtualHalf
       else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
-    def rw(id: String): Double = labelW.getOrElse(id, lw(id))
+    def lw(id: String): Double  = lwOv.getOrElse(id, lw0(id))
+    def rw(id: String): Double  = rwOv.getOrElse(id, labelW.getOrElse(id, lw0(id)))
 
-    // ht1/ht2 (GD_rank[r] half-heights) = tallest real node half-height in rank.
+    // ht1/ht2 (GD_rank[r] half-heights) = tallest node half-height in rank.
+    // gv counts VIRTUAL nodes too (plain vnode ND_ht=1 ⇒ 0.5; a label vnode
+    // ND_ht=dimen.y), so a pure-virtual rank (edge-label rank-doubling) still
+    // has real height — Coord.rankY already does this for Y spacing, and
+    // recover_slack's box y-scan needs it to land on the label box, not the
+    // rank gap above it. Mirror Coord here.
     val halfHt = mutable.HashMap.empty[Int, Double].withDefaultValue(0.0)
     g.nodes.foreach { n =>
       val r = rankOf(n.id)
@@ -128,6 +122,22 @@ object Spline:
         val h = sz.halfHeightPt.value
         if h > halfHt(r) then halfHt(r) = h
       }
+    }
+    g.edges.foreach { e =>
+      if e.tail != e.head then
+        for rt <- rankOf.get(e.tail); rh <- rankOf.get(e.head) if rt != rh do
+          var r = math.min(rt, rh) + 1
+          while r < math.max(rt, rh) do
+            if 0.5 > halfHt(r) then halfHt(r) = 0.5
+            r += 1
+          e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
+            val mid = (rt + rh) / 2
+            val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
+            val ht  = if Rank.flip(g) then NodeSize.labelWidthPt(lbl, fs, e.attrs.getOrElse("fontname", "Times"), g.name.getOrElse(""))
+                      else NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse(""))
+            val h2  = ht / 2.0
+            if h2 > halfHt(mid) then halfHt(mid) = h2
+          }
     }
     def ht1(r: Int): Double = halfHt(r)
     def ht2(r: Int): Double = halfHt(r)
@@ -161,6 +171,7 @@ object Spline:
     // maximal_bbox(vn): widest box up to in-rank neighbours.
     def maximalBbox(vn: String, ownPath: Set[String]): Box =
       val r = rankOf(vn)
+      val labelVn = isLabelV(vn)
       var b = cx(vn) - lw(vn) - FUDGE
       val llx =
         neighbor(vn, -1, ownPath) match
@@ -170,8 +181,12 @@ object Spline:
             if nb < b then b = nb
             math.round(b).toDouble
           case None => math.min(math.round(b).toDouble, leftBound)
-      var b2 = cx(vn) + rw(vn) + FUDGE
-      val urx =
+      // "we have to leave room for our own label" (maximal_bbox, dotsplines.c:
+      // 2276): a label vnode routes its edge to the LEFT of the label text, so
+      // the right bound starts at x+10 (not x+rw) and — after the neighbour
+      // clamp — the label width is subtracted, leaving the label its own strip.
+      var b2 = if labelVn then cx(vn) + 10.0 else cx(vn) + rw(vn) + FUDGE
+      var urx =
         neighbor(vn, 1, ownPath) match
           case Some(right) =>
             val base = cx(right) - lw(right)
@@ -179,11 +194,57 @@ object Spline:
             if nb > b2 then b2 = nb
             math.round(b2).toDouble
           case None => math.max(math.round(b2).toDouble, rightBound)
+      if labelVn then
+        urx -= rw(vn)
+        if urx < llx then urx = cx(vn)
       Box(llx, cy(vn) - ht1(r), urx, cy(vn) + ht2(r))
 
     // rank_box(r): full-width inter-rank gap between rank r (upper) and r+1.
     def rankBox(rUpper: Int, rLower: Int): Box =
       Box(leftBound, yOf(rLower).value + ht2(rLower), rightBound, yOf(rUpper).value - ht1(rUpper))
+
+    // x of the routed spline `ctrl` (piecewise cubic, monotone in y) at `y`.
+    // A label vnode's box top is a spline on-curve point, so an exact-y match
+    // returns that control point's x verbatim (byte-exact); otherwise fall back
+    // to linear interpolation (the straight-edge case, where x is constant).
+    def splineXatY(ctrl: Vector[XY], y: Double): Double =
+      ctrl.find(p => math.abs(p.y - y) < 0.05).map(_.x).getOrElse {
+        var i = 0; var res = ctrl.headOption.map(_.x).getOrElse(0.0)
+        while i + 1 < ctrl.length do
+          val a = ctrl(i); val b = ctrl(i + 1)
+          if (y - a.y) * (y - b.y) <= 0 && a.y != b.y then
+            res = a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)
+          i += 1
+        res
+      }
+
+    // recover_slack (dotsplines.c:2126): after an edge routes, snap each of its
+    // virtual nodes to the box it threads. gv reads the post-routesplines
+    // corridor box; for a LABEL vnode that box's right edge is exactly the
+    // spline's on-curve point at the label-box top (cy+ht2) — so we read it off
+    // the (byte-exact) routed spline instead of reproducing checkpath's box
+    // collapse. The label then extends rw further right; place_vnlabel puts lp
+    // at x+labelWidth/2. This mutates the shared x/rw so later edges see the
+    // shift (15: a→b's label snap makes a→c's box start past the label). Plain
+    // vnodes snap to the channel-box centre (unused by the corpus, kept faithful).
+    def recoverSlack(vns: Vector[String], boxes: mutable.ArrayBuffer[Box], ctrl: Vector[XY], origIdx: Int): Unit =
+      var b = 0
+      vns.foreach { vn =>
+        val vy = cy(vn)
+        while b < boxes.length && boxes(b).lly > vy do b += 1
+        val bxOpt = if b < boxes.length && boxes(b).ury >= vy then Some(boxes(b)) else None
+        if isLabelV(vn) then
+          val wl = rw(vn) // labelWidth (unchanged by resize)
+          val rx = splineXatY(ctrl, vy + ht2(rankOf(vn)))
+          cxOv(vn) = rx; rwOv(vn) = wl
+          bxOpt.foreach(bx => lwOv(vn) = rx - bx.llx)
+          labelPos(origIdx) = XY(rx + wl / 2.0, vy)
+        else
+          bxOpt.foreach { bx =>
+            val c = (bx.llx + bx.urx) / 2.0
+            cxOv(vn) = c; lwOv(vn) = c - bx.llx; rwOv(vn) = bx.urx - c
+          }
+      }
 
     // beginpath TOP (splines.c:419) — three boxes that route the spline up out
     // of the node then down its go-left/right side: b0 (above the node from the
@@ -440,14 +501,20 @@ object Spline:
             adjustRegularPath(boxes)
             val st  = Array(start.x, start.y)
             val en  = Array(end.x, end.y)
-            if checkpath(boxes, st, en) then
-              out(origIdx) = clipInstall(g, Vector(start, end), e, byId, centerOf)
-            else
-              val poly  = buildPolygon(boxes)
-              val sp    = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
-              val raw   = proutespline(poly, sp)
-              val ctrl  = if rt < rh then raw else raw.reverse
-              out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
+            val routed =
+              if checkpath(boxes, st, en) then
+                out(origIdx) = clipInstall(g, Vector(start, end), e, byId, centerOf)
+                Vector(start, end)
+              else
+                val poly  = buildPolygon(boxes)
+                val sp    = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
+                val raw   = proutespline(poly, sp)
+                val ctrl  = if rt < rh then raw else raw.reverse
+                out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
+                ctrl
+            // snap this edge's virtual nodes to the routed spline (mids are
+            // top→bottom); feeds lp + later edges' neighbour geometry.
+            recoverSlack(mids, boxes, routed, origIdx)
     }
 
     // ── self-edges (makeSelfEdge → selfRight, no-port case) ───────────────
@@ -492,7 +559,7 @@ object Spline:
           out(origIdx) = clipInstall(g, pts, e, byId, centerOf)
         }
       }
-    out.toMap
+    (out.toMap, labelPos.toMap)
 
   // ── adjustregularpath: widen path boxes to ≥ MINW ─────────────────────────
   private def adjustRegularPath(boxes: mutable.ArrayBuffer[Box]): Unit =

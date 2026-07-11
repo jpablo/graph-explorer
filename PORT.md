@@ -1594,4 +1594,29 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   still part of the function — omitting it is transcription drift, and it
   presented as a "missing feature" (flat edges) under pattern-matching. gv
   worktree reverted pristine; `_dbgbuild` removed.
+- **2026-07-11** — **15-elbranch edge-label lp + spline byte-exact — ported the
+  `maximal_bbox` label clamp + `recover_slack`/`resize_vn`.** 15 (`a→b[WIDE]`;
+  `a→c`) had byte-exact node positions + dot_json but its edge `lp` was off by
+  labelWidth/2 and the a→b spline was 1 cubic where gv bows 2. Instrumented gv
+  13.0.1 (§2.5): dumped `install`/`maximal_bbox`/`recover_slack`/`place_vnlabel`
+  and the pre/post-routesplines channel boxes for 14 + 15. Root cause, two gv
+  steps never transcribed: (a) **`maximal_bbox`'s label-vnode clamp**
+  (dotsplines.c:2276) — a label vnode routes its edge to the LEFT of the label,
+  so the box right bound starts at `x+10` (not `x+rw`) and, after the neighbour
+  clamp, `-= rw` (leaving the label its own strip): for 15 UR = round(38.5) −
+  36.538 = 2.462, the narrow box that bends the spline into 2 cubics; (b)
+  **`recover_slack`/`resize_vn`** (dotsplines.c:2126) — after each edge routes,
+  every virtual node is snapped to the box it threads: a label vnode to that
+  box's RIGHT edge, a plain vnode to its centre; `place_vnlabel` then puts
+  `lp = snapped_x + labelWidth/2`. This is **order-dependent** — a→b routes
+  first and its snap makes a→c's box start *past* the label (LL = 39.0 = 2.462 +
+  labelWidth), so a→c's spline is correct too. Ported both into `Spline`
+  (`maximalBbox` label branch; a stateful `recoverSlack` mutating shared
+  x/lw/rw between edges; `halfHt` now counts virtual/label vnodes so a
+  pure-virtual rank has real box height). The snapped label x is read off the
+  **byte-exact routed spline** (its on-curve point at the label-box top) rather
+  than reproducing gv's `checkpath` box-collapse — additive, so 01/04/06/07
+  splines are untouched. `EdgeLabel2Spec` now gates 15 json0 (lp + spline pos) +
+  svg byte-exact; 14 (isolated label) + 12 (graph label) stay byte-exact.
+  graphvizJVM 332/332, JS green. gv worktree reverted pristine; `_dbgbuild` gone.
 - _(append dated entries as milestones land)_
