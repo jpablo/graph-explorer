@@ -5,27 +5,22 @@ import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
 import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Rank, RankDir, XCoord}
 
-/** `rankdir = LR` (02) — incremental, **honest negative** (PORT.md §5.2/§7).
+/** `rankdir = LR` (02) — node positions **byte-exact, both axes** (PORT.md §5.2/§7).
   *
-  * §7 blocker (1) is now RESOLVED: `gv_nodesize(n, flip)` is ported as
+  * §7 blocker (1) RESOLVED: `gv_nodesize(n, flip)` is ported as
   * `NodeSize.layoutSize` (w/h swapped for LR/RL) and threaded through the
   * canonical layout (Coord/XCoord/Spline). It is **byte-identical for TB**
   * (`layoutSize == nodeSize` ⇒ 01/06/07/04/05 unchanged) — locked below.
   *
-  * The canonical→final transform is also derived & verified vs an
-  * instrumented gv 13.0.1 (`postproc.c` `translate_drawing`/`map_point`):
-  * LR ⇒ `final = (cbb.UR.y − y, x − cbb.LL.x)` over the canonical
-  * node-extent bbox. The **rank axis** (final X) lands within ~3 pt of the
-  * 02 golden. §7 blocker (2) is now **half-closed**: the edge `weight`
-  * was threaded into the XCoord ω (faithful `make_edge_pairs` `ED_weight`;
-  * default-1 ⇒ 01/06/07 byte-identical, XCoordSpec green) — the `weight=2`
-  * `start→middle` edge now **aligns** `start`/`middle` on the canonical
-  * order axis (was 45 vs 18, now 18 vs 18, matching gv's start≡middle).
-  * What still REMAINS is the **edge-label vnode's X under flip**: the
-  * `go` label injects an order-axis virtual node whose placement our
-  * canonical X/mincross doesn't reproduce, so the order axis is still
-  * ~25–34 pt off — NOT visually close. Genuine multi-part; no fake gate;
-  * the probe below **self-flags** when it finally lands.
+  * The canonical→final transform is derived & verified vs an instrumented
+  * gv 13.0.1 (`postproc.c` `translate_drawing`/`map_point`): LR ⇒
+  * `final = (cbb.UR.y − y, x − cbb.LL.x)` over the canonical node-extent
+  * bbox. §7 blocker (2) CLOSED (2026-07-11): the faithful NetworkSimplex
+  * (1:1 from `ns.c`) + `decompose` node order + `make_edge_pairs` order +
+  * initial-rank seeding make 02's canonical x-solve match gv byte-for-byte,
+  * incl. the `go` edge-label vnode — so BOTH final axes land byte-exact
+  * (strict gate below). ⬜ still pending for full 02 SVG parity: edge spline
+  * routing + `lp` label-position emission under the LR transform (own row).
   */
 class RankDirSpec extends FunSuite:
 
