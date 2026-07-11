@@ -28,6 +28,33 @@ object XCoord:
   private val solveMemo = GraphMemo[(Order.Result, Map[LayoutNode, Pt])]()
   private def xSolve(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) = solveMemo(g)(xSolveImpl(g))
 
+  /** gv `decompose` (decomp.c): rebuild the node list in DFS order from
+    * declaration-order seeds, following out-edges before in-edges over the
+    * real+virtual layout graph. This is the `GD_nlist` order the aux-graph
+    * network simplex iterates — the NS is order-sensitive (feasible_tree,
+    * LR_balance), so reproducing it is what makes x-coords byte-exact.
+    * `search_component` pushes vec order flat_in/flat_out/in/out (each
+    * reversed); with a LIFO stack the out-neighbours pop first, in forward
+    * order. */
+  private def decomposeOrder(g: RGraph, res: Order.Result): Vector[LayoutNode] =
+    val nodes  = res.order.values.flatten.toVector
+    val out    = mutable.LinkedHashMap.from(nodes.map(_ -> mutable.ArrayBuffer.empty[LayoutNode]))
+    val in     = mutable.LinkedHashMap.from(nodes.map(_ -> mutable.ArrayBuffer.empty[LayoutNode]))
+    res.segments.foreach { case (t, h) => out(t) += h; in(h) += t }
+    val done   = mutable.Set.empty[LayoutNode]
+    val result = mutable.ArrayBuffer.empty[LayoutNode]
+    def visit(seed: LayoutNode): Unit =
+      val stk = mutable.Stack(seed)
+      while stk.nonEmpty do
+        val n = stk.pop()
+        if !done(n) then
+          done += n; result += n
+          in(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+          out(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+    g.nodes.foreach { n => val s: LayoutNode = LayoutNode.Real(n.id); if !done(s) then visit(s) }
+    nodes.foreach(n => if !done(n) then { done += n; result += n }) // isolated
+    result.toVector
+
   /** Core solve: ordering + x (points) for all placed nodes, left edge at 0. */
   private def xSolveImpl(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) =
     val res  = Order.order(g)
@@ -64,22 +91,29 @@ object XCoord:
       case LayoutNode.Real(id)   =>
         if deg(id) <= 1 then NSClass.Singleton else NSClass.Ordinary
 
-    val auxNodes = mutable.LinkedHashSet.empty[LayoutNode]
-    res.order.toList.sortBy(_._1).foreach { case (_, ids) => ids.foreach(auxNodes += _) }
-
     val edges = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
 
-    // make_LR_constraints: separation within each rank. When the graph has
-    // edge labels, gv (position.c:226) shrinks the separation on ODD ranks —
-    // where the label/chain vnodes live — from nodesep(18) to 5, so the label
-    // box isn't over-spaced from its rank neighbour. `sep[i & 1]`.
+    // Initial aux-graph ranks: gv's make_LR_constraints left-packs each rank
+    // (`ND_rank(v) = last + width`) and make_edge_pairs seats each slack below
+    // its endpoints. These are already feasible, so gv skips init_rank — and
+    // that seed determines which feasible_tree is built ⇒ the NS is only
+    // byte-exact if seeded with the SAME ranks.
+    val initRank = mutable.Map.empty[String, Int]
+
+    // make_LR_constraints: separation within each rank, ranks in order
+    // (GD_minrank..GD_maxrank). When the graph has edge labels, gv
+    // (position.c:226) shrinks the separation on ODD ranks — where the
+    // label/chain vnodes live — from nodesep(18) to 5. `sep[i & 1]`.
     val hasEL = Rank.hasEdgeLabel(g)
-    res.order.foreach { case (rank, ids) =>
+    res.order.toList.sortBy(_._1).foreach { case (rank, ids) =>
       val nodesep = if hasEL && (rank & 1) == 1 then 5.0 else NodeSep
+      ids.headOption.foreach(h => initRank(h.name) = 0)
+      var last = 0
       ids.sliding(2).foreach {
         case Seq(u, v) =>
           val sep = math.round(rw(u) + lw(v) + nodesep).toInt // ROUND(ND_rw(u)+ND_lw(v)+nodesep)
           edges += NetworkSimplex.NSEdge(u.name, v.name, sep, 0)
+          last += sep; initRank(v.name) = last
         case _ => ()
       }
     }
@@ -96,9 +130,22 @@ object XCoord:
         n <- byId.get(nodeId)
         a <- PortAnchor.resolve(n, g, p.name.map(_.value).filter(_.nonEmpty), p.compass)
       yield a.x.value).getOrElse(0.0)
-    res.segments.zipWithIndex.foreach { case ((t, h), i) =>
+    // gv make_edge_pairs iterates GD_nlist (decompose order); per node, per
+    // out-segment (ND_save_out order = segment index), it creates a slack node
+    // and two straightening edges. This order — NOT segment order — is what the
+    // NS sees, so reproduce it exactly. Slack nodes are collected in creation
+    // order, then prepended (reversed) to head the NS node list (GD_nlist).
+    val decomp  = decomposeOrder(g, res)
+    val outSegs = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[Int]]
+    res.segments.iterator.zipWithIndex.foreach { case ((t, _), i) =>
+      outSegs.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += i
+    }
+    val slackNodes = mutable.ArrayBuffer.empty[LayoutNode]
+    decomp.foreach { node =>
+      outSegs.getOrElse(node, mutable.ArrayBuffer.empty).foreach { i =>
+      val (t, h) = res.segments(i)
       val sn: LayoutNode = LayoutNode.Slack(i)
-      auxNodes += sn
+      slackNodes += sn
       val owner = res.segOwner.lift(i).getOrElse(-1)
       val owned = if owner >= 0 && owner < realEdges.length then Some(realEdges(owner)) else None
       // make_edge_pairs slack weight = ω-class × the **edge `weight`**
@@ -123,13 +170,20 @@ object XCoord:
           case None => (0, 0)
       edges += NetworkSimplex.NSEdge(sn.name, t.name, m0 + 1, w)
       edges += NetworkSimplex.NSEdge(sn.name, h.name, m1 + 1, w)
+      // ND_rank(sn) = MIN(rank(tail) − m0 − 1, rank(head) − m1 − 1)
+      initRank(sn.name) = math.min(initRank(t.name) - (m0 + 1), initRank(h.name) - (m1 + 1))
+      }
     }
 
-    val xr = NetworkSimplex.solve(auxNodes.toSeq.map(_.name), edges.toSeq, balance = NSBalance.LeftRight)
+    // The NS node order MUST be gv's GD_nlist: slack (reverse of make_edge_pairs
+    // creation order — they are prepended) then the decompose-DFS'd real+virtual
+    // nodes. The order-sensitive NS reproduces gv's x-solve only fed this order.
+    val nodeOrder: Vector[LayoutNode] = slackNodes.reverseIterator.toVector ++ decomp
+    val xr = NetworkSimplex.solve(nodeOrder.map(_.name), edges.toSeq, balance = NSBalance.LeftRight, initRanks = initRank)
     // NS returns String-keyed ranks; map back to LayoutNode via the
     // historical name-form parse (Order produces the same Virtual/Slack
     // identities so the round-trip is exact).
-    val xrByNode: Map[LayoutNode, Int] = auxNodes.iterator.map(n => n -> xr(n.name)).toMap
+    val xrByNode: Map[LayoutNode, Int] = nodeOrder.iterator.map(n => n -> xr(n.name)).toMap
 
     // shift so the leftmost node's left edge sits at 0 (bbox origin)
     val placed: Vector[LayoutNode] = res.order.values.flatten.toVector

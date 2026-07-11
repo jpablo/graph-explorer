@@ -77,29 +77,18 @@ class RankDirSpec extends FunSuite:
       xs.get(nd.id).map(xPt => nd.id -> ((maxY - yOf(ranks(nd.id)).value, xPt.value - minX)))
     }.toMap
 
-  // The rank axis (final X) is already close (the transform is correct +
-  // verified vs instrumented gv); lock that as forward progress.
-  test("02 LR: rank-axis (final X) within ~3 pt of the golden"):
+  // STRICT GATE (promoted 2026-07-11): with the faithful NetworkSimplex +
+  // decompose node order + make_edge_pairs order + initial-rank seeding, 02's
+  // canonical x-solve matches gv byte-for-byte, so BOTH axes land byte-exact.
+  test("02 LR: node positions byte-exact (rank + order axis)"):
     val f = finalLR("02-attrs")
-    golden02.foreach { case (id, (gx, _)) =>
-      val (ox, _) = f(id)
-      assert(math.abs(ox - gx) <= 3.0, s"02 $id rank-axis X $ox vs golden $gx")
+    // compare at gv's output precision (2dp, as `plain`/`json0` emit) — the raw
+    // canonical solve matches gv exactly; only the display rounding matters.
+    def r2(d: Double) = f"$d%.2f"
+    golden02.foreach { case (id, (gx, gy)) =>
+      val (ox, oy) = f(id)
+      assertEquals(r2(ox), r2(gx), s"02 $id rank-axis (final X)")
+      assertEquals(r2(oy), r2(gy), s"02 $id order-axis (final Y)")
     }
-
-  // Order axis (final Y): the mincross flip-reverse (mincross.c:1334) + the
-  // label-vnode dimension swap for LR (class2.c label_vnode) — both ported from
-  // instrumented gv 13.0.1 — took this from ~30pt off to ≤6pt. The canonical
-  // X-solve now matches gv on 7 of 8 nodes exactly; the residual is one node
-  // (`end`) whose position depends on gv's LR_balance iterating `Tree_edge` in
-  // tight-tree DFS order (ns.c:768) — my Set-based tree iterates by index, so
-  // the sequential δ/2 reranks differ. Locked as forward progress; the lower
-  // bound self-flags when that final NS-order match lands.
-  test("02 LR: order-axis (final Y) within 6pt — 7/8 canonical nodes exact"):
-    val f = finalLR("02-attrs")
-    val worst = golden02.map { case (id, (_, gy)) => math.abs(f(id)._2 - gy) }.max
-    assert(worst <= 6.0, s"02 LR order-axis regressed: worst $worst pt (was ≤6)")
-    assert(worst > 2.0,
-      s"02 LR order-axis now within $worst pt — the `end`-node NS Tree_edge " +
-      s"order appears matched: promote this spec to the strict LR gate.")
 
 end RankDirSpec

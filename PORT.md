@@ -1524,4 +1524,27 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   different entering-edge slack (35 vs 25). Reverse-index closes 02 but breaks
   11-ranksame — so a faithful close needs gv's feasible-tree construction order
   (deeper NS change). gv worktree reverted to pristine; `_dbgbuild` removed.
+- **2026-07-11** — **NetworkSimplex re-transcribed 1:1 from `ns.c`; 02-LR CLOSED
+  byte-exact + node-order audit.** Root-cause reframe (user's insight): the port
+  had *reimplemented* the order-sensitive core idiomatically (a `Set`-based tree,
+  per-pivot cutvalue recompute, index-scan feasible tree) instead of transcribing
+  gv — so every order tie (02's `end`, 11's `top`) needed instrumentation to
+  reverse-engineer. Fix: **transcribe, don't reimplement.** `NetworkSimplex` is
+  now a faithful port of `ns.c` — subtree-merge `feasible_tree` (size min-heap +
+  union-find), the `leave_edge`→`enter_edge`→`update` pivot loop with incremental
+  cut values (`treeupdate`) and low/lim (`dfs_range`), ordered `Tree_edge` list,
+  `TB_balance`/`LR_balance`. That alone closed 02 by construction (order axis
+  ≤6pt → **0.0**). It then exposed the same debt one level up, which the audit
+  fixed in `XCoord`: (a) the NS node order must be gv's `GD_nlist` = `decompose`'s
+  DFS (decl-order seeds, out-edges first) with slack nodes prepended; (b)
+  `make_edge_pairs` creates slacks per-node (GD_nlist order), not per-segment;
+  (c) the aux graph is seeded with gv's `make_LR_constraints` initial ranks
+  (feasible ⇒ gv skips `init_rank`), and *that* seed decides which feasible_tree
+  is built. Each was verified against instrumented gv (`NODE`/`AUX`/`XSOLVE`/
+  `TREEEDGE`/`LRBAL` dumps). Result: **02-LR node positions byte-exact (both
+  axes)** — RankDirSpec promoted from self-flagging deferred-probe to a STRICT
+  gate — and **11-ranksame stays byte-exact**, now via the same faithful NS (no
+  special-casing). Whole corpus unchanged: graphvizJVM 330, viewer 42, JS
+  compiles. gv reverted pristine, `_dbgbuild` removed. ⬜ 02 full svg still needs
+  LR spline routing + `lp` emission (separate); the *layout* is now exact.
 - _(append dated entries as milestones land)_
