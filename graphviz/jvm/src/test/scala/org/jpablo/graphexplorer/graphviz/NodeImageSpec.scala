@@ -16,7 +16,12 @@ class NodeImageSpec extends FunSuite:
     val r = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
     r.copy(images = OracleHarness.corpusImages(n))
 
-  private val cases = List("64-nodeimage", "65-nodeimagebox", "66-nodeimagewh")
+  private val cases = List(
+    "64-nodeimage", "65-nodeimagebox", "66-nodeimagewh",
+    // ellipse/circle: the bb (with the image) is inflated ×SQRT2 to contain the
+    // image, then the image is centred in the bounding box (fractional coords).
+    "67-ellipseimage", "68-circleimage", "69-ellipseimagesm"
+  )
 
   cases.foreach { name =>
     test(s"$name: dot_json byte-exact (node image size)"):

@@ -1,0 +1,19 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,108.89,108.89",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "1.5124",
+      "image": "p68.png",
+      "label": "\\N",
+      "pos": "54.447,54.447",
+      "shape": "circle",
+      "width": "1.5124"
+    }
+  ]
+}

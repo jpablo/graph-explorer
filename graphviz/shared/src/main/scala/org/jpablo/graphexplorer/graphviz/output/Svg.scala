@@ -403,10 +403,13 @@ object Svg:
                     val off = gap * (peris - 1 - j) // inner ring is smallest
                     sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx - off)}" ry="${d2(ry - off)}"/>\n"""
                     j += 1
-            // node `image=`: place the image inside the node box
-            // (gvrender_usershape), after the border and before the label —
-            // box-family shapes only (an ellipse's SQRT2 fit is deferred).
-            if boxLike.contains(shapeName) then
+            // node `image=`: place the image inside the node's bounding box
+            // (gvrender_usershape — natural size, centred), after the border and
+            // before the label. Box- and ellipse-family shapes; a convex polygon
+            // (poly desc) or borderless shape is deferred.
+            val imageShape = boxLike.contains(shapeName) ||
+              (!noShape && NodeSize.polygon(n, g).isEmpty)
+            if imageShape then
               n.attrs.get("image").filter(_.nonEmpty).foreach { src =>
                 g.images.get(src).foreach { dim =>
                   sb ++= usershapeImage(src, x - rx, x + rx, cy - ry, cy + ry,

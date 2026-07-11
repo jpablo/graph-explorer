@@ -1,0 +1,16 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 109 109",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "image": "p68.png",
+      "label": "\\N",
+      "shape": "circle"
+    }
+  ]
+}

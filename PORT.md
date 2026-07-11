@@ -1449,4 +1449,21 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   16,−56). Suite: graphvizJVM 298, viewer 42, JS compiles. New `NodeImageSpec`.
   ⬜ remaining: ellipse + `image=` (SQRT2 containment); `SCALE=WIDTH/HEIGHT/BOTH`
   + non-centre `imagepos`.
+- **2026-07-10** — **Ellipse / circle `image=` (SQRT2 containment, byte-exact).**
+  Turned out to be almost entirely un-gating what already existed: the image
+  size folds into the node bb (previous entry, now for all shapes), and the
+  ellipse branch already inflates that bb ×SQRT2 to *contain* it. The image is
+  then placed by the same `usershapeImage` helper against the node's *bounding
+  box* (`2rx × 2ry`) at natural size, centred — so the `x="4.44722"`-style
+  fractional coords are just `(2rx − natW)/2` with `2rx = (drawn+2)·SQRT2`, and
+  the `%g` (`g6`) decimals finally get exercised on real geometry. Only two
+  edits: drop the box-only guard on the size fold, and broaden the emit to
+  ellipse-family (`!borderless && no poly desc`). Byte-exact (svg + dot_json):
+  67-ellipseimage (100×60 in a 108.9×66.5 ellipse ⇒ image @ 4.44722,−63.234),
+  68-circleimage (regular ⇒ 4.44722,−84.4472), 69-ellipseimagesm (40×40 ⇒
+  7,−42.6274). Suite: graphvizJVM 307, viewer 42, JS compiles. Image support now
+  covers HTML `<IMG>` cells (natural + SCALE=TRUE) and box/ellipse node `image=`.
+  ⬜ remaining (narrow): convex-polygon `image=` (diamond/…), `SCALE=WIDTH/HEIGHT/
+  BOTH` + non-centre `imagepos` (single-axis scaling needs the exact
+  `gvusershape_size_dpi` 96-dpi value the aspect-preserving paths let us skip).
 - _(append dated entries as milestones land)_

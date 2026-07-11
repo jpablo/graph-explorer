@@ -201,15 +201,14 @@ object NodeSize:
 
     // node `image=`: the bb grows to hold the image — `bb = max(labelbox,
     // drawnimage + 2)` (shapes.c poly_init, `imagesize += 2` fixed padding).
-    // Box-family only for now (an ellipse must *contain* the image via a SQRT2
-    // poly_inside — deferred). Drawn size = (int)(natural × 72/96), as the cell
-    // path. The image is placed later by `Svg` (gvrender_usershape).
-    if shape.box then
-      n.attrs.get("image").filter(_.nonEmpty).flatMap(g.images.get).foreach { dim =>
-        val (dw, dh) = dim.drawn
-        dimenX = math.max(dimenX, dw + 2.0)
-        dimenY = math.max(dimenY, dh + 2.0)
-      }
+    // Applies before the shape fit, so an ellipse then inflates this bb by
+    // SQRT2 to *contain* the image. Drawn size = (int)(natural × 72/96), as the
+    // cell path. The image is placed later by `Svg` (gvrender_usershape).
+    n.attrs.get("image").filter(_.nonEmpty).flatMap(g.images.get).foreach { dim =>
+      val (dw, dh) = dim.drawn
+      dimenX = math.max(dimenX, dw + 2.0)
+      dimenY = math.max(dimenY, dh + 2.0)
+    }
 
     val wAttr = dbl(n, "width", DefWidthIn)
     val hAttr = dbl(n, "height", DefHeightIn)
