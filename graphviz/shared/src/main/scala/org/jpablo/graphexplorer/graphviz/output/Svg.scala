@@ -53,6 +53,28 @@ object Svg:
         val s    = BigDecimal(x).setScale(frac, BigDecimal.RoundingMode.HALF_EVEN).bigDecimal.toPlainString
         stripZeros(s)
 
+  /** `gvrender_usershape` (gvrender.c): place an image inside a target box
+    * `[bllx,burx]×[blly,bury]` (world y-up). `SCALE="TRUE"` fits it preserving
+    * aspect by the smaller axis scale; `WIDTH/HEIGHT/BOTH` are not modelled yet;
+    * anything else (incl. the default) is FALSE = no scaling. Then the image is
+    * centred (imagepos "mc") in whichever axis it ends up smaller than the box.
+    * `natW/natH` are the natural pt dimensions (the fit is unit-invariant, so no
+    * DPI factor is needed). Emits the `<image>` line (`gvloadimage_core`: width=
+    * UR.x−LL.x, height=UR.y−LL.y, x=LL.x, y=−UR.y, %g-formatted, src raw). */
+  private[output] def usershapeImage(src: String, bllx: Double, burx: Double,
+                                     blly: Double, bury: Double,
+                                     natW: Double, natH: Double, scale: Option[String]): String =
+    var (llx, urx, lly, ury) = (bllx, burx, blly, bury)
+    val pw = urx - llx; val ph = ury - lly
+    if natW > 0 && natH > 0 then
+      var iw = natW; var ih = natH
+      scale.map(_.toLowerCase) match
+        case Some("true") => val s = math.min(pw / natW, ph / natH); iw = natW * s; ih = natH * s
+        case _            => () // false/default: draw at natural size
+      if iw < pw then { llx += (pw - iw) / 2.0; urx -= (pw - iw) / 2.0 }
+      if ih < ph then { lly += (ph - ih) / 2.0; ury -= (ph - ih) / 2.0 }
+    s"""<image xlink:href="$src" width="${g6(urx - llx)}px" height="${g6(ury - lly)}px" preserveAspectRatio="xMinYMin meet" x="${g6(llx)}" y="${g6(-ury)}"/>\n"""
+
   /** Drop a trailing fractional-zero run and a dangling decimal point. */
   private def stripZeros(s: String): String =
     if !s.contains('.') then s
@@ -256,29 +278,15 @@ object Svg:
             out ++= htmlText(ccx, ccy, block, defColor, cw, al)
           case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor)
           case HtmlLabel.Image(src, scale) =>
-            // Emit an `<image>` only when the dimensions are known (else gv
-            // can't load the file and draws nothing — the missing-image case).
-            // gvrender_usershape: the target box starts as the cell content box;
-            // SCALE="TRUE" shrinks/grows the image to fit preserving aspect
-            // (the smaller of the two axis scales), then centres it (imagepos
-            // "mc") in whichever dimension it ends up smaller. The fit is
-            // invariant to the image's absolute unit (k cancels in iw·min(pw/iw,
-            // ph/ih)), so the natural pt size feeds it directly — no DPI factor.
+            // Emit an `<image>` only when the dimensions are known (else gv can't
+            // load the file and draws nothing — the missing-image case). The
+            // target box is the cell content box; the shared usershape placer
+            // handles SCALE + centring.
             g.images.get(src).foreach { dim =>
-              var llx = cx + pc.contentBox.llx
-              var urx = cx + pc.contentBox.urx
-              var lly = cyc + pc.contentBox.lly
-              var ury = cyc + pc.contentBox.ury
-              val pw  = urx - llx; val ph = ury - lly
-              if scale.exists(_.equalsIgnoreCase("true")) && dim.w > 0 && dim.h > 0 then
-                val s  = math.min(pw / dim.w, ph / dim.h) // TRUE ⇒ smaller scale
-                val iw = dim.w * s; val ih = dim.h * s
-                if iw < pw then { llx += (pw - iw) / 2.0; urx -= (pw - iw) / 2.0 }
-                if ih < ph then { lly += (ph - ih) / 2.0; ury -= (ph - ih) / 2.0 }
-              // else default/FALSE: box = content box (fills a natural cell).
-              // gvloadimage_core: width=UR.x−LL.x, height=UR.y−LL.y, x=LL.x,
-              // y=−UR.y, %g-formatted. src is emitted raw (no XML escaping).
-              out ++= s"""<image xlink:href="$src" width="${g6(urx - llx)}px" height="${g6(ury - lly)}px" preserveAspectRatio="xMinYMin meet" x="${g6(llx)}" y="${g6(-ury)}"/>\n"""
+              out ++= usershapeImage(src,
+                cx + pc.contentBox.llx, cx + pc.contentBox.urx,
+                cyc + pc.contentBox.lly, cyc + pc.contentBox.ury,
+                dim.w, dim.h, scale)
             }
       }
       // <hr/>/<vr/> rules: degenerate (zero-width/height) black polygons.
@@ -350,7 +358,7 @@ object Svg:
             // box-family shapes render as a rectangle <polygon> (corners
             // UR,UL,LL,LR,UR in flipped-y); `style=rounded` ⇒ a <path> with
             // RBCONST=12 corner arcs (shapes.c round_corners); else ellipse.
-            val boxLike   = Set("box", "rect", "rectangle", "square")
+            val boxLike   = Set("box", "rect", "rectangle", "square", "image")
             val shapeName = n.attrs.get("shape").getOrElse("")
             val noShape   = Set("plaintext", "none", "plain").contains(shapeName)
             if noShape then () // plaintext/none/plain draw no shape border
@@ -395,6 +403,16 @@ object Svg:
                     val off = gap * (peris - 1 - j) // inner ring is smallest
                     sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx - off)}" ry="${d2(ry - off)}"/>\n"""
                     j += 1
+            // node `image=`: place the image inside the node box
+            // (gvrender_usershape), after the border and before the label —
+            // box-family shapes only (an ellipse's SQRT2 fit is deferred).
+            if boxLike.contains(shapeName) then
+              n.attrs.get("image").filter(_.nonEmpty).foreach { src =>
+                g.images.get(src).foreach { dim =>
+                  sb ++= usershapeImage(src, x - rx, x + rx, cy - ry, cy + ry,
+                    dim.w, dim.h, n.attrs.get("imagescale"))
+                }
+              }
             // HTML-like label ⇒ render the parsed content; else the plain text.
             if n.attrs.isHtml("label") then
               import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel}

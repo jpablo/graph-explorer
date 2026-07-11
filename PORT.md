@@ -1432,4 +1432,21 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   fit via `poly_inside`, `x="3.51219"`-style coords); `SCALE=WIDTH/HEIGHT/BOTH`
   and non-centre `imagepos` (single-axis scaling — the fit no longer unit-cancels,
   so these need the exact `gvusershape_size_dpi` value first).
+- **2026-07-10** — **Node-level `image=` / `shape=image` (box, byte-exact).** A
+  node's `image=` grows its bb to hold the image: `bb = max(labelbox, drawnimage
+  + 2)` (shapes.c poly_init, `imagesize += 2` fixed padding; drawn = `(int)(nat ×
+  72/96)` as the cell path). The image is then placed by `gvrender_usershape`
+  against the *full node box* with SCALE default FALSE (natural size, no scaling)
+  and centred (imagepos "mc") wherever it ends up smaller — factored into a
+  shared `usershapeImage` helper the HTML `<IMG>` path now also uses (so a small
+  FALSE image in a fixed cell centres correctly too, not just fills). `shape=
+  image` is classified + drawn as a box (border + image + centred label — matches
+  the oracle, which draws the border). Scoped to box-family shapes: an ellipse
+  must *contain* the image via a SQRT2 poly_inside (the `x="3.51219"`-style
+  fractional coords) — deferred. Byte-exact (svg + dot_json): 64-nodeimage
+  (100×60 fills a 77×47 node), 65-nodeimagebox (40×40 centred-x in a 54×36 min
+  node ⇒ 40×36 @ x=7), 66-nodeimagewh (explicit 1×1in ⇒ 40×40 centred both axes @
+  16,−56). Suite: graphvizJVM 298, viewer 42, JS compiles. New `NodeImageSpec`.
+  ⬜ remaining: ellipse + `image=` (SQRT2 containment); `SCALE=WIDTH/HEIGHT/BOTH`
+  + non-centre `imagepos`.
 - _(append dated entries as milestones land)_

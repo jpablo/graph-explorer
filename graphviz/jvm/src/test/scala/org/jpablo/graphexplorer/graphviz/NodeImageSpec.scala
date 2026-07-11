@@ -1,0 +1,26 @@
+package org.jpablo.graphexplorer.graphviz
+
+import munit.FunSuite
+import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
+import org.jpablo.graphexplorer.graphviz.model.AttrResolver
+import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
+
+/** Node-level `image=` / `shape=image` (Graphviz `poly_init` image sizing +
+  * `gvrender_usershape` placement). The node box grows to hold the drawn image
+  * (`bb = max(label, drawnImage + 2)`); the image is drawn at natural size
+  * (SCALE default FALSE) and centred in the box where it is smaller. Dimensions
+  * come from the `<name>.images.json` sidecar (viz-js's `images` option). Scoped
+  * to box-family shapes — an ellipse's SQRT2 containment fit is not modelled. */
+class NodeImageSpec extends FunSuite:
+  private def g(n: String) =
+    val r = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+    r.copy(images = OracleHarness.corpusImages(n))
+
+  private val cases = List("64-nodeimage", "65-nodeimagebox", "66-nodeimagewh")
+
+  cases.foreach { name =>
+    test(s"$name: dot_json byte-exact (node image size)"):
+      assertEquals(Output.dotJson(g(name)), OracleHarness.golden(name, "dot_json"))
+    test(s"$name: svg byte-exact (box border + <image> + label)"):
+      assertEquals(Svg.svg(g(name)), OracleHarness.golden(name, "svg"))
+  }

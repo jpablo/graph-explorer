@@ -53,6 +53,7 @@ object NodeSize:
     case "circle"                      => ShapeKind(false, true, false, true)
     case "doublecircle"                => ShapeKind(false, true, false, true, peripheries = 2)
     case "box" | "rect" | "rectangle"  => ShapeKind(true, false, false, true)
+    case "image"                       => ShapeKind(true, false, false, true) // box that holds an image
     case "square"                      => ShapeKind(true, true, false, true)
     case "plaintext" | "none"          => ShapeKind(true, false, false, true)
     case "plain"                       => ShapeKind(true, false, true, true)
@@ -197,6 +198,18 @@ object NodeSize:
               dimenX += XPad; dimenY += YPad
         case None =>
           dimenX += XPad; dimenY += YPad
+
+    // node `image=`: the bb grows to hold the image — `bb = max(labelbox,
+    // drawnimage + 2)` (shapes.c poly_init, `imagesize += 2` fixed padding).
+    // Box-family only for now (an ellipse must *contain* the image via a SQRT2
+    // poly_inside — deferred). Drawn size = (int)(natural × 72/96), as the cell
+    // path. The image is placed later by `Svg` (gvrender_usershape).
+    if shape.box then
+      n.attrs.get("image").filter(_.nonEmpty).flatMap(g.images.get).foreach { dim =>
+        val (dw, dh) = dim.drawn
+        dimenX = math.max(dimenX, dw + 2.0)
+        dimenY = math.max(dimenY, dh + 2.0)
+      }
 
     val wAttr = dbl(n, "width", DefWidthIn)
     val hAttr = dbl(n, "height", DefHeightIn)
