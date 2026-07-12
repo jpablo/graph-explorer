@@ -19,14 +19,46 @@ import scala.collection.mutable
 object Coord:
 
   private val PointsPerInch = 72.0
-  private val RankSep       = 36.0 // POINTS(DEFAULT_RANKSEP = 0.5in)
   private val Gap           = 4.0  // const.h GAP (YPAD = 2*GAP)
   private val DefFontSize   = 14.0 // DEFAULT_FONTSIZE
 
+  /** `POINTS(a) = ROUND(a·72)` — round half away from zero (geom.h). */
+  private def points(inches: Double): Double =
+    val x = inches * PointsPerInch
+    if x >= 0 then math.floor(x + 0.5) else math.ceil(x - 0.5)
+
+  /** strtod-style leading-numeric parse: the longest numeric prefix (after
+    * optional whitespace), or None. Mirrors gv's `strtod`/`sscanf("%lf")` on
+    * `nodesep`/`ranksep` (so `"0.5 equally"` yields `0.5`). */
+  private def leadingDouble(s: String): Option[Double] =
+    "^\\s*([+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)".r
+      .findPrefixMatchOf(s).flatMap(_.group(1).toDoubleOption)
+
+  /** `GD_nodesep` (input.c): `POINTS(late_double("nodesep", 0.25, min 0.02))`.
+    * Default 18pt. Shared by [[XCoord]]/[[Spline]] separation + Splinesep. */
+  def nodeSepPt(g: RGraph): Double =
+    val v = g.rootAttrs.get("nodesep").flatMap(leadingDouble) match
+      case Some(x) => math.max(0.02, x)
+      case None    => 0.25
+    points(v)
+
+  /** `GD_ranksep` base (input.c): `POINTS(max(0.02, %lf) | 0.5)`. Default 36pt. */
+  private def rankSepBasePt(g: RGraph): Double =
+    val v = g.rootAttrs.get("ranksep").flatMap(leadingDouble) match
+      case Some(x) => math.max(0.02, x)
+      case None    => 0.5
+    points(v)
+
+  /** `ranksep="… equally"` ⇒ `GD_exact_ranksep`: ranks are re-spaced to a
+    * uniform `maxht` after the min-gap assignment (set_ycoords). */
+  private def exactRanksep(g: RGraph): Boolean =
+    g.rootAttrs.get("ranksep").exists(_.contains("equally"))
+
   /** `edgelabel_ranks` compensates the doubled ranks by halving ranksep:
-    * `GD_ranksep = (GD_ranksep + 1) / 2` with int `GD_ranksep` ⇒ 36 → 18. */
+    * `GD_ranksep = (GD_ranksep + 1) / 2` with int `GD_ranksep` (rank.c:100). */
   private def rankSep(g: RGraph): Double =
-    if Rank.hasEdgeLabel(g) then ((RankSep.toInt + 1) / 2).toDouble else RankSep
+    val base = rankSepBasePt(g).toInt
+    if Rank.hasEdgeLabel(g) then ((base + 1) / 2).toDouble else base.toDouble
 
   /** Edge-label (width, height) in pt. **HTML-aware**: an HTML label (`<...>`)
     * is parsed and measured by the table/text layout — measuring the raw markup
@@ -179,12 +211,20 @@ object Coord:
     val rs  = rankSep(g)
     val yOf = mutable.Map.empty[Int, Double]
     yOf(maxR) = ht1(maxR) + (if labelTop then 0.0 else gLabelPad)
+    var maxht = 0.0
     var r = maxR - 1
     while r >= minR do
       val d0 = pht(r + 1) + pht(r) + rs           // prim node sep
       val d1 = ht2(r + 1) + ht1(r) + ClOffset      // cluster sep
-      yOf(r) = yOf(r + 1) + math.max(d0, d1)
+      val delta = math.max(d0, d1)
+      if delta > maxht then maxht = delta
+      yOf(r) = yOf(r + 1) + delta
       r -= 1
+    // ranksep="… equally" (GD_exact_ranksep): re-space every rank uniformly
+    // to the largest gap (set_ycoords:817). No effect when all gaps equal.
+    if exactRanksep(g) then
+      r = maxR - 1
+      while r >= minR do { yOf(r) = yOf(r + 1) + maxht; r -= 1 }
 
     // translate_drawing (postproc.c): the drawing shifts by −bb.LL, where
     // bb.LL.y = y(maxR) − GD_ht1(root). Bake the shift in (0 without

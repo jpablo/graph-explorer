@@ -31,12 +31,9 @@ import scala.collection.mutable
   */
 object Spline:
 
-  private val NodeSep     = 18.0           // POINTS(DEFAULT_NODESEP 0.25in)
-  private val Splinesep   = NodeSep / 4.0  // dot_splines_ sd.Splinesep
   private val MINW        = 16.0           // dotsplines.c min box width
   private val HALFMINW    = 8.0
   private val FUDGE        = 4.0           // maximal_bbox FUDGE
-  private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode (== XCoord)
 
   /** 2D point in the layout coordinate system. The `x`/`y` fields are
     * raw Doubles for the in-kernel arithmetic (math.hypot, tuple math,
@@ -80,6 +77,11 @@ object Spline:
     val (_, allXNode) = XCoord.solveAll(g)
     val (_, yOf)     = Coord.rankY(g)
     val byId         = g.nodes.iterator.map(n => n.id -> n).toMap
+    // GD_nodesep (attr-driven), the spline channel separation (nodesep/4),
+    // and a plain virtual node's half width (1 + nodesep/2). Default 18/4.5/10.
+    val NodeSep     = Coord.nodeSepPt(g)
+    val Splinesep   = NodeSep / 4.0
+    val VirtualHalf = 1.0 + NodeSep / 2.0
     // The Order/XCoord migration to LayoutNode preserves all type-safety at
     // construction. Spline's internals stay String-keyed for its 50+ lookup
     // sites (no unit-mixing risk inside a pure-numerical kernel — see the

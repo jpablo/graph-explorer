@@ -1,0 +1,48 @@
+{
+  "name": "seps",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,54,216",
+  "ranksep": "0.75",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,198",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,108",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,18",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "pos": "e,27,126.35 27,179.61 27,167.68 27,151.57 27,137.74"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 2,
+      "pos": "e,27,36.35 27,89.614 27,77.682 27,61.567 27,47.744"
+    }
+  ]
+}

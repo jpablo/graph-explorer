@@ -1,0 +1,6 @@
+digraph seps {
+  nodesep=0.4;
+  a -> b;
+  a -> c;
+  a -> d;
+}

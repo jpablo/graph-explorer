@@ -21,9 +21,6 @@ import scala.collection.mutable
   */
 object XCoord:
 
-  private val NodeSep    = 18.0 // POINTS(DEFAULT_NODESEP = 0.25in)
-  private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode
-
   // Memoized (per-graph, size-1): renderFormats hits xSolve ~7× on one graph.
   // Third element: solved cluster [ln, rn] border x per Cluster.clusters idx.
   private val solveMemo = GraphMemo[(Order.Result, Map[LayoutNode, Pt], Vector[(Double, Double)])]()
@@ -61,6 +58,11 @@ object XCoord:
   private def xSolveImpl(g: RGraph): (Order.Result, Map[LayoutNode, Pt], Vector[(Double, Double)]) =
     val res  = Order.order(g)
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
+
+    // GD_nodesep (attr-driven, default 18pt) + a plain virtual node's half
+    // width (`incr_width` = 1 + nodesep/2, class2.c plain_vnode).
+    val NodeSep     = Coord.nodeSepPt(g)
+    val VirtualHalf = 1.0 + NodeSep / 2.0
 
     def half(n: LayoutNode): Double = n match
       case _: LayoutNode.Virtual => VirtualHalf

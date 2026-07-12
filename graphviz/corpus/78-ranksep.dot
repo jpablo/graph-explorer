@@ -1,0 +1,4 @@
+digraph seps {
+  ranksep=0.75;
+  a -> b -> c;
+}
