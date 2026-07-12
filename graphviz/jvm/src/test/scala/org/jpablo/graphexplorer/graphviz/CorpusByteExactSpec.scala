@@ -39,10 +39,14 @@ class CorpusByteExactSpec extends FunSuite:
     "81-rankmin", "82-rankmax", "84-ranksink",
     // Cluster-aware mincross is byte-exact for contiguity (94-cluster-contig).
     // 95 has a cluster spanning ranks with FREE long edges routing OUTSIDE it
-    // (top→a1/a2). The mincross ORDER is byte-identical to gv (verified) and the
-    // RELATIVE geometry matches exactly; the residual is a uniform ~10.5pt X
-    // shift — an XCoord absolute-anchor gap for a free vnode left of a cluster,
-    // NOT an ordering bug. (Separate subsystem; see §5 XCoord cluster row.)
+    // (top→a1/a2/b1/b2). The mincross ORDER is byte-identical to gv (verified),
+    // and real nodes + cluster boxes match gv after a uniform +10.5pt shift. But
+    // it is NOT just an origin anchor: the FREE-VIRTUAL x-coords genuinely differ
+    // — the left overhang matches gv (18.5pt) yet the right differs (14.3 vs
+    // 28pt), so gv gives a free vnode adjacent to a cluster more border clearance
+    // than my aux graph does. Closing 95 needs BOTH gv's translate_drawing
+    // (origin) AND the free-vnode↔cluster-border separation (XCoord aux graph) —
+    // deeper than an anchor tweak; instrumented-gv territory. (§5 XCoord row.)
     "95-cluster-chains")
 
   private def names: Vector[String] =
