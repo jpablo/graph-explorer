@@ -278,7 +278,7 @@ object Output:
     // matched because no corpus max had a fractional in (0, 0.5) until the
     // polygon shapes — triangle 61.291 → 61, not ceil's 62.)
     val (lx, ly, ux, uy) =
-      if org.jpablo.graphexplorer.graphviz.layout.Rank.flip(g) then
+      if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then
         finalBBox(g, org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g))
       else { val (a, b, c, dd) = bbox(g); (a.value, b.value, c.value, dd.value) }
     val (blx, bly, bux, buy) =
@@ -333,7 +333,7 @@ object Output:
     val tf = org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g)
     val (lxPt, lyPt, uxPt, uyPt) = bbox(g)
     val (lx, ly, ux, uy) =
-      if org.jpablo.graphexplorer.graphviz.layout.Rank.flip(g) then finalBBox(g, tf)
+      if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then finalBBox(g, tf)
       else (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
     val byId  = g.nodes.iterator.map(n => n.id -> n).toMap
     val xs    = XCoord.xCoords(g)

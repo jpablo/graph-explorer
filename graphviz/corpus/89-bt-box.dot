@@ -1,0 +1,6 @@
+digraph btb {
+  rankdir=BT;
+  node [shape=box, style=filled, fillcolor=lightblue];
+  a -> b -> c;
+  a -> d [label="x"];
+}

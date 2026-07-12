@@ -16,17 +16,26 @@ import org.jpablo.graphexplorer.graphviz.model.RGraph
   */
 object DrawTransform:
 
+  /** Whether a non-identity transform applies (any rankdir but TB). The
+    * writers must use [[Output.finalBBox]] — the transformed node-extent box —
+    * whenever this is true, not only for the flipped (LR/RL) axes: BT rotates
+    * the drawing too (vertical flip) even though its rank axis is vertical. */
+  def rotated(g: RGraph): Boolean = Rank.rankdir(g) != RankDir.TB
+
   /** Canonical→final point map for this graph's `rankdir`. Identity for TB
     * (bit-exact — the whole TB corpus must be untouched). */
   def of(g: RGraph): (Double, Double) => (Double, Double) =
     val rd = Rank.rankdir(g)
     if rd == RankDir.TB then (x, y) => (x, y)
     else
-      // ccwrotatepf(p, rd·90°): CCW rotation by a right-angle multiple.
+      // ccwrotatepf(p, rd·90°) — gv's *custom* right-angle map (geom.c), which
+      // is NOT the textbook rotation for 180/270: 90→(-y,x), 180→(x,-y) [a
+      // vertical flip, not (-x,-y)], 270→(y,x) [a transpose, not (y,-x)].
+      // Getting 180/270 wrong mirrors the BT/RL drawing off an axis.
       def ccw(x: Double, y: Double): (Double, Double) = rd match
         case RankDir.LR => (-y, x)
-        case RankDir.BT => (-x, -y)
-        case RankDir.RL => (y, -x)
+        case RankDir.BT => (x, -y)
+        case RankDir.RL => (y, x)
         case RankDir.TB => (x, y)
       // Offset = min corner of the rotated canonical node-extent bbox (NORMAL
       // nodes ± layoutSize half-extents — the same box dot_compute_bb sees).

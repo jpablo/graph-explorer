@@ -1,0 +1,9 @@
+graph 1 1.75 2.7472
+node a 1.125 0.25 0.75 0.5 a filled box black lightblue
+node b 0.375 1.4833 0.75 0.5 b filled box black lightblue
+node c 0.375 2.4972 0.75 0.5 c filled box black lightblue
+node d 1.375 1.4833 0.75 0.5 d filled box black lightblue
+edge a b 4 0.97682 0.50207 0.87171 0.67103 0.7285 0.90122 0.60815 1.0947 solid black
+edge a d 4 1.1744 0.50207 1.2081 0.66447 1.2535 0.88344 1.2926 1.072 x 1.321 0.86667 solid black
+edge b c 4 0.375 1.7359 0.375 1.8413 0.375 1.968 0.375 2.087 solid black
+stop

@@ -1,0 +1,62 @@
+{
+  "name": "btb",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 126 198",
+  "rankdir": "BT",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "fillcolor": "lightblue",
+      "label": "\\N",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "fillcolor": "lightblue",
+      "label": "\\N",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "fillcolor": "lightblue",
+      "label": "\\N",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "fillcolor": "lightblue",
+      "label": "\\N",
+      "shape": "box",
+      "style": "filled"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "label": ""
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 2,
+      "label": ""
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 3,
+      "label": "x"
+    }
+  ]
+}
