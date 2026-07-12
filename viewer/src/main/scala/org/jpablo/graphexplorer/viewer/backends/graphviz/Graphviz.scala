@@ -24,18 +24,42 @@ private case class RenderOutputs(status: String, output: Map[String, String], er
 
 class Graphviz(viz: Viz):
 
-  /** M8 seam: route through the pure-Scala graphviz backend when the
-    * `gx.graphvizEngine=scala` feature flag is set, else viz-js (default
-    * + fallback + oracle). Downstream consumption (`read[SimpleGraph]` /
-    * `getEdgePos` / `parseSVG`) is identical for both engines.
+  /** M8 seam: route through the pure-Scala graphviz backend, with viz-js as
+    * an automatic safety net + oracle. Modes (`gx.graphvizEngine`):
+    *   - `"vizjs"`      ⇒ viz-js only (escape hatch / A-B against the oracle);
+    *   - `"scala"`      ⇒ Scala only, no fallback (strict testing — surfaces
+    *                       any Scala failure instead of hiding it);
+    *   - unset / other  ⇒ **Scala-first**: try Scala, and on a hard failure
+    *                       (status != success, or a thrown exception) fall
+    *                       back to viz-js, logging the DOT + reason so any
+    *                       real-diagram gap the corpus misses is visible.
+    *
+    * Downstream consumption (`read[SimpleGraph]` / `getEdgePos` / `parseSVG`)
+    * is identical for both engines. Only *hard* failures fall back — a
+    * valid-but-divergent Scala layout is not caught here (the byte-exact
+    * corpus + DifferentialSpec are the guard against that).
     */
+  private def renderViz(dot: String, formats: Seq[String]): RenderOutputs =
+    val r = viz.renderFormats(dot, js.Array(formats*))
+    RenderOutputs(r.status, r.output.toMap, r.errors.toSeq.map(_.message).mkString("; "))
+
+  private def renderScala(dot: String, formats: Seq[String]): RenderOutputs =
+    val r = ScalaGraphviz.renderFormats(dot, formats)
+    RenderOutputs(r.status, r.output, r.errors.map(_.message).mkString("; "))
+
   private def renderOutputs(dot: String, formats: Seq[String]): RenderOutputs =
-    if Graphviz.useScalaBackend then
-      val r = ScalaGraphviz.renderFormats(dot, formats)
-      RenderOutputs(r.status, r.output, r.errors.map(_.message).mkString("; "))
-    else
-      val r = viz.renderFormats(dot, js.Array(formats*))
-      RenderOutputs(r.status, r.output.toMap, r.errors.toSeq.map(_.message).mkString("; "))
+    Graphviz.engineMode match
+      case Graphviz.EngineMode.VizJsOnly => renderViz(dot, formats)
+      case Graphviz.EngineMode.ScalaOnly => renderScala(dot, formats)
+      case Graphviz.EngineMode.ScalaFirst =>
+        Try(renderScala(dot, formats)) match
+          case scala.util.Success(r) if r.status == "success" => r
+          case attempt =>
+            val reason = attempt match
+              case scala.util.Success(r) => s"status=${r.status}: ${r.errors}"
+              case scala.util.Failure(e) => s"threw: ${e.getMessage}"
+            dom.console.warn(s"[graphviz] Scala backend fell back to viz-js ($reason)")
+            renderViz(dot, formats)
 
   /** Used to parse the DOT text in CodeMirror and render it to a graph.
     *
@@ -77,10 +101,20 @@ class Graphviz(viz: Viz):
 
 object Graphviz:
 
-  /** Feature flag: `localStorage["gx.graphvizEngine"] == "scala"` opts into
-    * the pure-Scala backend. Absent/other ⇒ viz-js (unchanged default). */
-  def useScalaBackend: Boolean =
-    Try(dom.window.localStorage.getItem("gx.graphvizEngine") == "scala").getOrElse(false)
+  /** Engine selection (`localStorage["gx.graphvizEngine"]`). The DEFAULT
+    * (unset) is **Scala-first with viz-js fallback** — the pure-Scala engine
+    * is byte-exact vs viz-js across the whole corpus (see graphviz
+    * CorpusByteExactSpec/DifferentialSpec), and viz-js stays loaded as the
+    * automatic safety net + oracle. Set `"vizjs"` to force the old engine,
+    * `"scala"` to force Scala with no fallback (testing). */
+  enum EngineMode derives CanEqual:
+    case ScalaFirst, ScalaOnly, VizJsOnly
+
+  def engineMode: EngineMode =
+    Try(dom.window.localStorage.getItem("gx.graphvizEngine")).toOption match
+      case Some("vizjs") => EngineMode.VizJsOnly
+      case Some("scala") => EngineMode.ScalaOnly
+      case _             => EngineMode.ScalaFirst
 
   def build(): Future[Graphviz] =
     VizJS.instance()
