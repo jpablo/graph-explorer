@@ -130,13 +130,19 @@ object Svg:
     val ranks      = Rank.assign(g)
     val spl        = Spline.splinesEx(g)
     val labelPos   = Spline.labelPositions(g)
+    // map_point (postproc.c): rotate canonical coords into the drawing frame
+    // (identity for TB — the corpus is untouched). Every point below is drawn
+    // at tf(canonical); node/label extents stay true-size (the rotation of the
+    // swapped layout size gives back the true size), so only centres transform.
+    val tf = org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g)
 
     // graph bbox = the shared exact node-extent box (Output.bbox /
     // position.c dot_compute_bb) — NO spline, NO floor/ceil. `<svg
     // width/height>`/viewBox are the ceil'd int canvas; the `translate`
     // and background polygon keep the exact float (gv: int canvas, 2-dp bb).
-    val (lxPt, lyPt, uxPt, uyPt) = Output.bbox(g)
-    val (lx, ly, ux, uy) = (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
+    val (lx, ly, ux, uy) =
+      if Rank.flip(g) then Output.finalBBox(g, tf)
+      else { val (a, b, c, d) = Output.bbox(g); (a.value, b.value, c.value, d.value) }
     // gv canvas: ROUND((pageSize + 2*margin) * dpi/72) with dpi=72 (emit.c:1288)
     // ⇒ ROUND(bb + 2*margin). (Was ceil — same for ≥.5 fractions; triangle
     // 69.291 → 69, not ceil's 70.)
@@ -344,8 +350,7 @@ object Svg:
     def emitNode(i: Int): Unit =
       val n = g.nodes(i)
       for xPt <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
-        val x    = xPt.value
-        val cy   = yOf(ranks(n.id)).value
+        val (x, cy) = tf(xPt.value, yOf(ranks(n.id)).value)
         sb ++= s"<!-- ${xml(n.id)} -->\n"
         sb ++= s"""<g id="node${i + 1}" class="node">\n"""
         sb ++= s"<title>${xml(n.id)}</title>\n"
@@ -464,7 +469,8 @@ object Svg:
     def emitEdge(ix: Int, ei: Int): Unit =
       val e = g.edges(ix)
       spl.get(ix).foreach { es =>
-          val pts = es.pts
+          // map_point every spline/arrow/label point into the drawing frame.
+          val pts = es.pts.map(p => { val (x, y) = tf(p.x, p.y); Spline.XY(x, y) })
           // emit.c: the edge *comment* is portless (agnameof tail/head);
           // the `<title>` is the `\E` expansion = tail[:port]op head[:port]
           // where port = chkPort `.name` (after the first ':' if any, else
@@ -488,7 +494,8 @@ object Svg:
             else ""
           sb ++= s"""<path fill="none" stroke="$eStroke"$dash d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
           if g.directed then
-            es.ep.foreach { tip =>
+            es.ep.foreach { epR =>
+              val tip = { val (x, y) = tf(epR.x, epR.y); Spline.XY(x, y) }
               val base = pts.last
               val dx = base.x - tip.x; val dy = base.y - tip.y
               val len = math.hypot(dx, dy)
@@ -497,13 +504,23 @@ object Svg:
                 val as = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
                 val mag = ArrowLen * as
                 val u   = (dx / len * mag, dy / len * mag)
-                val (a1, a2, a3, _) = Arrow.normal0((tip.x, tip.y), u, pw)
                 def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
-                sb ++= s"""<polygon fill="$eStroke" stroke="$eStroke" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
+                // `vee` (crow) ⇒ filled 8-point polygon a[0..7] (gvrender_polygon
+                // a,8,1); everything else ⇒ the normal 3-point arrowhead.
+                if e.attrs.getOrElse("arrowhead", "normal") == "vee" then
+                  val (a, _) = Arrow.crow0((tip.x, tip.y), u, as, pw)
+                  val poly   = ((0 until 8).map(k => pt(a(k))) :+ pt(a(0))).mkString(" ")
+                  sb ++= s"""<polygon fill="$eStroke" stroke="$eStroke" points="$poly"/>\n"""
+                else
+                  val (a1, a2, a3, _) = Arrow.normal0((tip.x, tip.y), u, pw)
+                  sb ++= s"""<polygon fill="$eStroke" stroke="$eStroke" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
             }
           // edge label text at its lp (make_chain label_vnode)
           e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
-            labelPos.get(ix).foreach(lp => sb ++= textAt(lp.x, lp.y, lbl, e.attrs.get("fontcolor").getOrElse("")))
+            labelPos.get(ix).foreach { lp =>
+              val (lpx, lpy) = tf(lp.x, lp.y)
+              sb ++= textAt(lpx, lpy, lbl, e.attrs.get("fontcolor").getOrElse(""))
+            }
           }
           sb ++= "</g>\n"
         }

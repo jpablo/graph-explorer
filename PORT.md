@@ -1650,4 +1650,23 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   checkpath-narrowed corridor (`recover_slack` bypass) — the last spline blocker,
   plus the `vee` svg polygon + svg transform wiring for the full-02 svg gate.
   graphvizJVM 334/334, JS green. TB corpus untouched (arrowhead defaults normal).
+- **2026-07-11** — **02-LR FULLY byte-exact (dot_json + json0 + svg) — `rankdir`
+  closed.** Two final pieces landed. (1) **`limitBoxes`** (routespl.c:242): after
+  routesplines fits the spline, gv resets every channel box's x-range and
+  re-fills it by finely sampling the spline (INIT_DELTA·boxn pts/segment) — each
+  box's `[LL.x, UR.x]` = min/max spline x among samples in its y-range. Ported it
+  and switched `recover_slack` back to the narrowed boxes (dropping the 15-era
+  spline-shortcut): the label vnode now gets its exact `lw = box.UR − box.LL`,
+  which is what clamps the long `start→end` edge's box channel — closing the last
+  spline. json0 **byte-exact**. (2) **svg transform wiring + vee polygon**:
+  threaded `DrawTransform` through every svg coordinate (node centres, spline
+  points, arrow tip/vector, edge-label text) — node/label extents stay true-size
+  (rotating the swapped layout size gives back true size, so only centres
+  transform) — and emit the `vee` head as gv's 8-point crow `<polygon>`
+  (`gvrender_polygon a,8,1`). Also fixed dotJson's `bb` to use the rotated-frame
+  `finalBBox`. 02 (LR + rounded/filled boxes + gray/dashed + vee + `go` label)
+  is now byte-exact end-to-end; **promoted into DifferentialSpec must-pass**.
+  graphvizJVM 336/336, JS green, TB corpus untouched (identity transform). The
+  `rankdir` §5 row is ✅ for LR; RL/BT follow the same `DrawTransform`
+  construction (no corpus) and spline routing under RL/BT is the only open sub-part.
 - _(append dated entries as milestones land)_

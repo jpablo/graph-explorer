@@ -203,47 +203,70 @@ object Spline:
     def rankBox(rUpper: Int, rLower: Int): Box =
       Box(leftBound, yOf(rLower).value + ht2(rLower), rightBound, yOf(rUpper).value - ht1(rUpper))
 
-    // x of the routed spline `ctrl` (piecewise cubic, monotone in y) at `y`.
-    // A label vnode's box top is a spline on-curve point, so an exact-y match
-    // returns that control point's x verbatim (byte-exact); otherwise fall back
-    // to linear interpolation (the straight-edge case, where x is constant).
-    def splineXatY(ctrl: Vector[XY], y: Double): Double =
-      ctrl.find(p => math.abs(p.y - y) < 0.05).map(_.x).getOrElse {
-        var i = 0; var res = ctrl.headOption.map(_.x).getOrElse(0.0)
-        while i + 1 < ctrl.length do
-          val a = ctrl(i); val b = ctrl(i + 1)
-          if (y - a.y) * (y - b.y) <= 0 && a.y != b.y then
-            res = a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)
-          i += 1
-        res
-      }
+    // limitBoxes (routespl.c:242): after routesplines fits the spline, gv resets
+    // every channel box's x-range and re-fills it by finely sampling the spline
+    // (INIT_DELTA·boxn points/segment) — each box's [LL.x, UR.x] becomes the
+    // min/max spline x among samples whose y lands in the box. This is the
+    // corridor-collapse that recover_slack then reads. `ctrl` is the *unclipped*
+    // spline; boxes keep their y-ranges (only x is re-derived).
+    def limitBoxes(boxes: mutable.ArrayBuffer[Box], ctrl: Vector[XY]): Unit =
+      val pts =
+        if ctrl.length >= 4 && (ctrl.length - 1) % 3 == 0 then ctrl
+        else
+          val s = ctrl.head; val t = ctrl.last
+          Vector(s, XY(s.x + (t.x - s.x) / 3, s.y + (t.y - s.y) / 3),
+                 XY(s.x + 2 * (t.x - s.x) / 3, s.y + 2 * (t.y - s.y) / 3), t)
+      var delta = 10.0 // INIT_DELTA
+      var tries = 0
+      var done  = false
+      while !done && tries < 15 do // LOOP_TRIES
+        boxes.foreach { b => b.llx = Double.MaxValue; b.urx = -Double.MaxValue }
+        val numDiv = delta * boxes.length
+        var pi = 0
+        while pi + 3 < pts.length do
+          var si = 0.0
+          while si <= numDiv do
+            val t = si / numDiv
+            var ax = pts(pi).x;     var ay = pts(pi).y
+            var bx = pts(pi + 1).x; var by = pts(pi + 1).y
+            var cx2 = pts(pi + 2).x; var cy2 = pts(pi + 2).y
+            val dx = pts(pi + 3).x; val dy = pts(pi + 3).y
+            ax += t * (bx - ax); ay += t * (by - ay)
+            bx += t * (cx2 - bx); by += t * (cy2 - by)
+            cx2 += t * (dx - cx2); cy2 += t * (dy - cy2)
+            ax += t * (bx - ax); ay += t * (by - ay)
+            bx += t * (cx2 - bx); by += t * (cy2 - by)
+            ax += t * (bx - ax); ay += t * (by - ay)
+            boxes.foreach { b =>
+              if ay <= b.ury + 0.0001 && ay >= b.lly - 0.0001 then // FUDGE
+                b.llx = math.min(b.llx, ax); b.urx = math.max(b.urx, ax)
+            }
+            si += 1
+          pi += 3
+        if boxes.forall(b => b.llx != Double.MaxValue && b.urx != -Double.MaxValue) then done = true
+        else { delta *= 2; tries += 1 }
 
     // recover_slack (dotsplines.c:2126): after an edge routes, snap each of its
-    // virtual nodes to the box it threads. gv reads the post-routesplines
-    // corridor box; for a LABEL vnode that box's right edge is exactly the
-    // spline's on-curve point at the label-box top (cy+ht2) — so we read it off
-    // the (byte-exact) routed spline instead of reproducing checkpath's box
-    // collapse. The label then extends rw further right; place_vnlabel puts lp
-    // at x+labelWidth/2. This mutates the shared x/rw so later edges see the
-    // shift (15: a→b's label snap makes a→c's box start past the label). Plain
-    // vnodes snap to the channel-box centre (unused by the corpus, kept faithful).
-    def recoverSlack(vns: Vector[String], boxes: mutable.ArrayBuffer[Box], ctrl: Vector[XY], origIdx: Int): Unit =
+    // virtual nodes to the (limitBoxes-narrowed) corridor box it threads — a
+    // LABEL vnode to the box's RIGHT edge (the label then extends rw further
+    // right; place_vnlabel puts lp at x+labelWidth/2; lw = full box width),
+    // plain vnodes to the box centre. Mutates the shared x/lw/rw so later edges
+    // see the shift (15: a→b's snap makes a→c start past the label; 02: the
+    // label vnode's narrowed lw is what clamps the long start→end edge's box).
+    def recoverSlack(vns: Vector[String], boxes: mutable.ArrayBuffer[Box], origIdx: Int): Unit =
       var b = 0
       vns.foreach { vn =>
         val vy = cy(vn)
         while b < boxes.length && boxes(b).lly > vy do b += 1
-        val bxOpt = if b < boxes.length && boxes(b).ury >= vy then Some(boxes(b)) else None
-        if isLabelV(vn) then
-          val wl = rw(vn) // labelWidth (unchanged by resize)
-          val rx = splineXatY(ctrl, vy + ht2(rankOf(vn)))
-          cxOv(vn) = rx; rwOv(vn) = wl
-          bxOpt.foreach(bx => lwOv(vn) = rx - bx.llx)
-          labelPos(origIdx) = XY(rx + wl / 2.0, vy)
-        else
-          bxOpt.foreach { bx =>
+        if b < boxes.length && boxes(b).ury >= vy then
+          val bx = boxes(b)
+          if isLabelV(vn) then
+            val wl = rw(vn) // labelWidth (unchanged by resize)
+            cxOv(vn) = bx.urx; lwOv(vn) = bx.urx - bx.llx; rwOv(vn) = wl
+            labelPos(origIdx) = XY(bx.urx + wl / 2.0, vy)
+          else
             val c = (bx.llx + bx.urx) / 2.0
             cxOv(vn) = c; lwOv(vn) = c - bx.llx; rwOv(vn) = bx.urx - c
-          }
       }
 
     // beginpath TOP (splines.c:419) — three boxes that route the spline up out
@@ -512,9 +535,11 @@ object Spline:
                 val ctrl  = if rt < rh then raw else raw.reverse
                 out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
                 ctrl
-            // snap this edge's virtual nodes to the routed spline (mids are
-            // top→bottom); feeds lp + later edges' neighbour geometry.
-            recoverSlack(mids, boxes, routed, origIdx)
+            // narrow the channel boxes to the routed spline corridor, then snap
+            // this edge's virtual nodes to them (mids are top→bottom); feeds lp
+            // + later edges' neighbour geometry.
+            limitBoxes(boxes, routed)
+            recoverSlack(mids, boxes, origIdx)
     }
 
     // ── self-edges (makeSelfEdge → selfRight, no-port case) ───────────────

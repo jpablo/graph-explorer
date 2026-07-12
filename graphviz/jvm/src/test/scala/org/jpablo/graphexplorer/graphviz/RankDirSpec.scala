@@ -5,22 +5,18 @@ import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
 import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Rank, RankDir, XCoord}
 
-/** `rankdir = LR` (02) — node positions **byte-exact, both axes** (PORT.md §5.2/§7).
+/** `rankdir = LR` (02) — **fully byte-exact end-to-end** (dot_json/json0/svg).
   *
-  * §7 blocker (1) RESOLVED: `gv_nodesize(n, flip)` is ported as
-  * `NodeSize.layoutSize` (w/h swapped for LR/RL) and threaded through the
-  * canonical layout (Coord/XCoord/Spline). It is **byte-identical for TB**
-  * (`layoutSize == nodeSize` ⇒ 01/06/07/04/05 unchanged) — locked below.
-  *
-  * The canonical→final transform is derived & verified vs an instrumented
-  * gv 13.0.1 (`postproc.c` `translate_drawing`/`map_point`): LR ⇒
-  * `final = (cbb.UR.y − y, x − cbb.LL.x)` over the canonical node-extent
-  * bbox. §7 blocker (2) CLOSED (2026-07-11): the faithful NetworkSimplex
-  * (1:1 from `ns.c`) + `decompose` node order + `make_edge_pairs` order +
-  * initial-rank seeding make 02's canonical x-solve match gv byte-for-byte,
-  * incl. the `go` edge-label vnode — so BOTH final axes land byte-exact
-  * (strict gate below). ⬜ still pending for full 02 SVG parity: edge spline
-  * routing + `lp` label-position emission under the LR transform (own row).
+  * gv lays out canonically (TB) with `gv_nodesize(flip)` (swapped w/h —
+  * `NodeSize.layoutSize`, byte-identical for TB so 01/04/05/06/07 are
+  * untouched), then rotates the drawing once: `map_point` (`DrawTransform`)
+  * = `ccwrotate(rankdir·90°) − Offset`, wired through Output.json0/dotJson +
+  * Svg. The pieces that closed 02: the faithful NetworkSimplex (canonical
+  * x-solve incl. the `go` edge-label vnode) + `map_point` transform + the
+  * `vee`/crow arrowhead length (`arrow_length_crow`) + `limitBoxes`
+  * (routespl.c) narrowing the channel to the spline corridor so
+  * `recover_slack` gives the label vnode its exact `lw` (which clamps the long
+  * `start→end` edge). Every node, bb, lp, spline, arrow and label matches gv.
   */
 class RankDirSpec extends FunSuite:
 
@@ -86,36 +82,26 @@ class RankDirSpec extends FunSuite:
       assertEquals(r2(oy), r2(gy), s"02 $id order-axis (final Y)")
     }
 
-  // The verified map_point transform (DrawTransform) is now WIRED into the
-  // actual `Output.json0` pipeline (was a test-only computation above). Node
-  // `pos`, `bb` and edge-label `lp` come out byte-exact through the real
-  // writer. Edge spline `pos` under LR (canonical routing refinement) + svg +
-  // the `vee` arrowhead are the tracked follow-up (PORT.md §5.2).
-  test("02 LR: json0 node pos + bb + lp byte-exact via Output.json0"):
-    val ours = ujson.read(org.jpablo.graphexplorer.graphviz.output.Output.json0(g("02-attrs")))
-    val gold = ujson.read(OracleHarness.golden("02-attrs", "json0"))
-    assertEquals(ours("bb").str, gold("bb").str, "02 bb")
-    val gN = gold("objects").arr.iterator.filter(!_.obj.contains("nodes")).map(n => n("name").str -> n("pos").str).toMap
-    ours("objects").arr.iterator.filter(!_.obj.contains("nodes")).foreach { n =>
-      assertEquals(n("pos").str, gN(n("name").str), s"02 ${n("name").str} pos")
-    }
-    val gLp = gold("edges").arr.iterator.flatMap(_.obj.get("lp").map(_.str)).toVector
-    val oLp = ours("edges").arr.iterator.flatMap(_.obj.get("lp").map(_.str)).toVector
-    assertEquals(oLp, gLp, "02 edge lp")
+  // FULL json0 byte-exact (2026-07-11): the map_point transform (DrawTransform)
+  // is wired into Output.json0; the `vee` (crow) arrowhead length trims the
+  // splines correctly; and `limitBoxes` (routespl.c) narrows the channel boxes
+  // to the spline corridor so recover_slack gives the label vnode its exact
+  // `lw` — which clamps the long `start→end` edge. Every node, bb, lp and edge
+  // spline now matches the golden byte-for-byte.
+  test("02 LR: json0 byte-exact (nodes + bb + lp + all splines)"):
+    assertEquals(org.jpablo.graphexplorer.graphviz.output.Output.json0(g("02-attrs")),
+                 OracleHarness.golden("02-attrs", "json0"))
 
-  // The `vee` (crow, ARR_MOD_INV) arrowhead trims the spline by
-  // arrow_length_crow (≈11.22) not arrow_length_normal (≈11.53); with that
-  // ported, the labelled/short edges (start→middle, middle→end) are spline
-  // byte-exact via the transform. The long `start→end` edge still deviates —
-  // its box channel is clamped by the label vnode's resized `lw`, which we
-  // approximate from the maximal_bbox rather than gv's checkpath-narrowed
-  // corridor (tracked follow-up); assert the two closed edges here.
-  test("02 LR: start→middle + middle→end spline pos byte-exact (vee length)"):
-    val ours = ujson.read(org.jpablo.graphexplorer.graphviz.output.Output.json0(g("02-attrs")))
-    val gold = ujson.read(OracleHarness.golden("02-attrs", "json0"))
-    val oPos = ours("edges").arr.iterator.map(_.obj.get("pos").map(_.str).getOrElse("")).toVector
-    val gPos = gold("edges").arr.iterator.map(_.obj.get("pos").map(_.str).getOrElse("")).toVector
-    assertEquals(oPos(0), gPos(0), "02 start→middle spline")
-    assertEquals(oPos(1), gPos(1), "02 middle→end spline")
+  // Full svg: the transform is threaded through every svg coordinate
+  // (node centres, spline points, arrow, edge-label text) and the `vee` head
+  // renders as gv's 8-point crow polygon. rounded/filled boxes, gray/dashed
+  // edges were already modelled — so 02's whole svg is byte-exact.
+  test("02 LR: svg byte-exact (rotated layout + vee arrowheads)"):
+    assertEquals(org.jpablo.graphexplorer.graphviz.output.Svg.svg(g("02-attrs")),
+                 OracleHarness.golden("02-attrs", "svg"))
+
+  test("02 LR: dot_json byte-exact"):
+    assertEquals(org.jpablo.graphexplorer.graphviz.output.Output.dotJson(g("02-attrs")),
+                 OracleHarness.golden("02-attrs", "dot_json"))
 
 end RankDirSpec

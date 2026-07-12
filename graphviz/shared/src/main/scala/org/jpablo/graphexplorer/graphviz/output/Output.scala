@@ -250,8 +250,10 @@ object Output:
     // from-zero); json0 keeps the exact float. (Earlier floor/ceil only ever
     // matched because no corpus max had a fractional in (0, 0.5) until the
     // polygon shapes — triangle 61.291 → 61, not ceil's 62.)
-    val (lxPt, lyPt, uxPt, uyPt) = bbox(g)
-    val (lx, ly, ux, uy) = (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
+    val (lx, ly, ux, uy) =
+      if org.jpablo.graphexplorer.graphviz.layout.Rank.flip(g) then
+        finalBBox(g, org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g))
+      else { val (a, b, c, dd) = bbox(g); (a.value, b.value, c.value, dd.value) }
     val (blx, bly, bux, buy) =
       (gvRound(lx), gvRound(ly), gvRound(ux), gvRound(uy))
     val sb = new StringBuilder
