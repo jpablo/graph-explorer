@@ -1,0 +1,57 @@
+{
+  "name": "flatl",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 144 109",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "%1",
+      "rank": "same",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "d",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "label": "x"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 3,
+      "label": ""
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 4,
+      "label": ""
+    }
+  ]
+}

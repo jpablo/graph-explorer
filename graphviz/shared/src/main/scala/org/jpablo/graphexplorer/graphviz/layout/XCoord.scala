@@ -111,6 +111,36 @@ object XCoord:
     // (position.c:226) shrinks the separation on ODD ranks — where the
     // label/chain vnodes live — from nodesep(18) to 5. `sep[i & 1]`.
     val hasEL = Rank.hasEdgeLabel(g)
+    // Flat (same-rank) edges between order-adjacent nodes widen their pair's
+    // separation (make_LR_constraints flat_out): the aux-adjacency edge's
+    // minlen is bumped to `max(ED_minlen(e)·nodesep + width, width + nodesep +
+    // ROUND(ED_dist))`, where `width = rw(left)+lw(right)`, `ED_dist` is the
+    // widest flat-edge label, and the flat edge's own `ED_minlen` is doubled
+    // when the graph has edge labels. Keyed by the ordered (left,right) names.
+    val posInRank: Map[String, (Int, Int)] =
+      res.order.iterator.flatMap { (r, ids) => ids.zipWithIndex.map { (n, p) => n.name -> (r, p) } }.toMap
+    val flatBump: Map[(String, String), Double] =
+      g.edges.iterator.filter(e => e.tail != e.head).flatMap { e =>
+        for
+          (rt, pt) <- posInRank.get(e.tail)
+          (rh, ph) <- posInRank.get(e.head)
+          if rt == rh && math.abs(pt - ph) == 1
+        yield
+          val (l, r) = if pt < ph then (e.tail, e.head) else (e.head, e.tail)
+          val lblW   = if e.attrs.get("label").exists(_.nonEmpty) then Coord.edgeLabelDim(e, g)._1 else 0.0
+          (l, r) -> lblW
+      }.toVector.groupBy(_._1).view.mapValues(_.map(_._2).max).toMap
+    // make_LR_constraints flat_out: bump the pair's aux-adjacency minlen to
+    // `max(ED_minlen·nodesep + width, width + nodesep + ROUND(ED_dist))`, the
+    // flat edge's ED_minlen being doubled when the graph has edge labels.
+    def flatMinlenOf(u: LayoutNode, v: LayoutNode, base: Int): Int =
+      flatBump.get((u.name, v.name)) match
+        case Some(lblW) =>
+          val width = rw(u) + lw(v)
+          val fm    = if hasEL then 2 else 1
+          val m0    = math.max(fm * NodeSep + width, width + NodeSep + math.round(lblW).toDouble)
+          math.max(base, math.round(m0).toInt)
+        case None => base
     res.order.toList.sortBy(_._1).foreach { case (rank, ids) =>
       val nodesep = if hasEL && (rank & 1) == 1 then 5.0 else NodeSep
       ids.headOption.foreach(h => initRank(h.name) = 0)
@@ -120,13 +150,10 @@ object XCoord:
           // The aux EDGE minlen is `ROUND(width)` (make_aux_edge → ED_minlen),
           // but the SEED rank gv left-packs is `ND_rank(v) = (int)(last +
           // width)` — the running int rank plus the RAW width, TRUNCATED
-          // toward zero (position.c:262). Using ROUND for the seed too
-          // inflates it by up to 1pt on a fractional chain, which can flip
-          // init_graph's feasibility check (05: my seed came out feasible, so
-          // I skipped init_rank where gv runs it → a different feasible_tree
-          // → the `node one` X residual). Truncate the seed, ROUND the edge.
+          // (position.c:262). The flat_out bump raises the EDGE minlen only
+          // (the NS re-solves from the seed, which may go infeasible → init_rank).
           val width  = rw(u) + lw(v) + nodesep
-          val minlen = math.round(width).toInt
+          val minlen = flatMinlenOf(u, v, math.round(width).toInt)
           edges += NetworkSimplex.NSEdge(u.name, v.name, minlen, 0)
           last = (last + width).toInt
           initRank(v.name) = last

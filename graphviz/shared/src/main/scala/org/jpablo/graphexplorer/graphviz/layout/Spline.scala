@@ -556,23 +556,32 @@ object Spline:
             recoverSlack(mids, boxes, origIdx)
       else
         // ── flat edge (rt == rh): same-rank edge (rank=same / minlen=0) ─────
-        // `makeSimpleFlat` (dotsplines.c): a 4-point Bezier at y=tp.y from tail
-        // to head, then clip_and_install (clip to node boundaries + arrow).
-        // Scoped to the simple case gv routes this way — adjacent endpoints,
-        // no ports, no label. Non-adjacent (routed around intervening nodes)
-        // and labeled/ported flat edges are tracked deferrals.
+        // dotsplines.c: `makeSimpleFlat` (unlabeled) routes a 4-point Bezier
+        // [tp, (2tp+hp)/3, (2hp+tp)/3, hp] at y=tp.y; `makeSimpleFlatLabels`
+        // (labeled) routes the degenerate line [tp,tp,hp,hp] and places the
+        // label above the edge at (ctrx, tp.y+(dimen.y+LBL_SPACE)/2). Both
+        // then clip_and_install (clip to node boundaries + arrow). Scoped to
+        // the adjacent, portless case; non-adjacent/ported flat edges deferred.
         val row      = orderByRank.getOrElse(rt, Vector.empty)
         val adjacent = math.abs(row.indexOf(e.tail) - row.indexOf(e.head)) == 1
-        val plain    = e.tailPort.isEmpty && e.headPort.isEmpty &&
-                       !e.attrs.get("label").exists(_.nonEmpty)
-        if adjacent && plain then
+        val ports    = e.tailPort.isDefined || e.headPort.isDefined
+        val labelled = e.attrs.get("label").exists(_.nonEmpty)
+        if adjacent && !ports then
           val tp   = XY(cx(e.tail), cy(e.tail))
           val hp   = XY(cx(e.head), cy(e.head))
-          val ctrl = Vector(tp,
-            XY((2 * tp.x + hp.x) / 3.0, tp.y),
-            XY((2 * hp.x + tp.x) / 3.0, tp.y),
-            hp)
+          val ctrl =
+            if labelled then Vector(tp, tp, hp, hp)
+            else Vector(tp, XY((2 * tp.x + hp.x) / 3.0, tp.y),
+                            XY((2 * hp.x + tp.x) / 3.0, tp.y), hp)
           out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
+          if labelled then
+            // place_flat_label: centred between the facing node edges
+            // (leftend = left.x+rw, rightend = right.x−lw), one
+            // (dimen.y + LBL_SPACE)/2 above the rank line. LBL_SPACE = 6.
+            val (_, dh)  = Coord.edgeLabelDim(e, g)
+            val (ln, rn) = if cx(e.tail) <= cx(e.head) then (e.tail, e.head) else (e.head, e.tail)
+            val ctrx     = (cx(ln) + rw(ln) + cx(rn) - lw(rn)) / 2.0
+            labelPos(origIdx) = XY(ctrx, tp.y + (dh + 6.0) / 2.0)
     }
 
     // ── self-edges (makeSelfEdge → selfRight, no-port case) ───────────────

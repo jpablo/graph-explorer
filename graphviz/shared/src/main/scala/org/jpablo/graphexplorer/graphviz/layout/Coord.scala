@@ -154,12 +154,16 @@ object Coord:
         // labelled edge ⇒ the mid rank's virtual is the label box. Its
         // rank-axis extent (ND_ht) is dimen.y (label height) for TB, but
         // dimen.x (label width) for a flipped graph (class2.c label_vnode).
-        e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
-          val mid    = (rt + rh) / 2
-          val (w, h) = edgeLabelDim(e, g)
-          val ht     = if Rank.flip(g) then w else h // rank-axis extent (flip ⇒ width)
-          scanNode(LayoutNode.Virtual(dIdx, mid).name, mid, ht / 2.0)
-        }
+        // A FLAT labelled edge (rt == rh) places its label above the edge
+        // (makeSimpleFlatLabels), NOT as a rank vnode — it must not inflate
+        // its rank's height.
+        if rt != rh then
+          e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
+            val mid    = (rt + rh) / 2
+            val (w, h) = edgeLabelDim(e, g)
+            val ht     = if Rank.flip(g) then w else h // rank-axis extent (flip ⇒ width)
+            scanNode(LayoutNode.Virtual(dIdx, mid).name, mid, ht / 2.0)
+          }
     }
 
     // ── clust_ht (position.c:680): postorder cluster-ht accumulation ─────
