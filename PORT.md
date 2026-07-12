@@ -1721,4 +1721,28 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   cluster-aware mincross where plain ordering ≠ cluster ordering, and
   default-mode (recursive-ranking) cluster parity. graphvizJVM 418/418, JS
   green.
+- **2026-07-12** — **05-strings-comments CLOSED byte-exact — the deepest NS
+  residual was a 1-line seed-truncation bug, not an unmatchable tie-break.**
+  Three parts. (1) **node tooltip/href anchor** (`emit_begin_node` +
+  `svg_begin_anchor`): a node with non-empty `href`/`URL`/`tooltip` wraps its
+  shape+label in `<g id="a_{objId}"><a …>…</a></g>`; tooltip uses the
+  raw/dash/nbsp escape set. (2) **multi-line plain labels** (`emit_label` +
+  `svg_textspan`): split on `\n`/`\l`/`\r`, stack from the top, anchor per
+  justification — reduces to the existing single-line `textAt`; wired into
+  node + edge labels (edge labels also branch HTML vs plain). (3) **the last
+  ~3pt on `node one`** — traced via instrumented gv (§2.5) to a genuine
+  root cause, NOT a degenerate tie-break as long suspected: `make_LR_constraints`
+  left-packs the aux-graph SEED as `ND_rank(v) = (int)(last + width)` — running
+  int rank + RAW width, TRUNCATED — while the edge minlen is a separate
+  `ROUND(width)`. We used `ROUND` for both, inflating the seed +1 on the `__v2`
+  back-edge chain; that +1 flipped `init_graph`'s feasibility so we skipped
+  `init_rank` where gv runs it → a different (equally-optimal) `feasible_tree`
+  → node one at 60 vs 63. Truncating the seed (edge stays ROUND) made our raw
+  seed match gv's exactly (`[41,54,…,73,55,42]`, feasible=false), `init_rank`
+  runs identically, node one = 63. **05 byte-exact in all 3 formats**,
+  promoted out of the deferral set. The instrument-and-port method paid off
+  again: what looked like an unmatchable degenerate basis was a concrete
+  rounding divergence. Corpus: **75/77 byte-exact** (only 03 — gated vs its
+  newrank oracle — and 06 — accepted 0.05pt spline). graphvizJVM 418/418, JS
+  green, gv worktree pristine.
 - _(append dated entries as milestones land)_
