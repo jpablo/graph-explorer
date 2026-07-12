@@ -3,36 +3,53 @@ package org.jpablo.graphexplorer.graphviz
 import munit.FunSuite
 import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
 import org.jpablo.graphexplorer.graphviz.model.AttrResolver
-import org.jpablo.graphexplorer.graphviz.output.Output
+import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
-/** M6 clusters — the subgraph-tree model + `dot_json` emission (PORT.md §5.2).
+/** M8 clusters — subgraph-tree model + the cluster geometry subsystem.
   *
-  * viz-js 3.14.0 does **not** lay clusters out (03's `plain`/`json0` carry
-  * `pos="0,0"`, `bb="0,0,0,0"`) so 03 is a geometry-free *structural* task:
-  * `dot_json` is fully determined and asserted **byte-exact**. The two rules
-  * this locks down were derived empirically from the version-matched oracle
-  * (probe DOT through viz-js, read the per-subgraph `nodes` arrays), not a
-  * source-instrumented gv build:
+  * **The oracle story (don't-port-the-bug rule).** Graphviz's DEFAULT ranking
+  * is *broken* on 03's cross-cluster `{rank=same; a0; b0}`: 13.0.1 (CLI and
+  * viz-js alike) silently emits a degenerate 0×0 layout; 12.2.1 hard-errors
+  * (`install_in_rank`) after warning "a0 was already in a rankset, deleted
+  * from cluster". The input is NOT contradictory — its constraint system has
+  * a unique minimum-edge-length solution — and gv itself ships the fix as
+  * `newrank=true` (global ranking; rank constraints may span clusters).
   *
-  *  1. Ownership: a node in a `rank`-constraint subgraph is dropped from any
-  *     cluster's node list (`a0`/`b0` list only under `%7`, not their
-  *     clusters); a cluster edge whose tail was evicted leaves too
-  *     (`cluster_0.edges=[1]` = only `a1→a2`).
-  *  2. Anonymous name `%N`: id = `counter*2+1` over the unnamed root + every
-  *     edge + anon subgraphs, in parse order — the three cluster edges tick
-  *     the counter to 3 before `{rank=same}`, giving `%7`.
+  * Our engine ranks globally *by construction* (= newrank semantics), so the
+  * correct oracle is **gv 13.0.1 with `newrank=true`**: corpus file
+  * `03b-subgraph-cluster-newrank` (gated fully byte-exact in
+  * [[CorpusByteExactSpec]]). 03-verbatim must produce the SAME drawing — its
+  * outputs differ from 03b's goldens only by the `newrank` attribute echoes
+  * (dot_json/json0); the svg is byte-identical. That derived gate lives here.
   *
-  * json0 cluster-label geometry (bb/lheight/lwidth/lp) + svg cluster boxes are
-  * tracked deferrals (PORT.md §5.4).
+  * Consequence: gv-default's "eviction" of rank-constrained nodes from their
+  * clusters (the 12.2.1 warning — the first stage of the corruption) does NOT
+  * happen under newrank; the 03b golden keeps `a0` in `cluster_0`. Membership
+  * stays purely additive.
   */
 class ClusterSpec extends FunSuite:
 
   private def graph(name: String) =
     AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
 
-  test("03: dot_json is byte-exact vs the golden (subgraph tree + ownership + %N)"):
+  /** Drop the `newrank` attribute echo lines from a 03b golden — everything
+    * else must match 03-verbatim byte-for-byte. */
+  private def stripNewrank(s: String): String =
+    s.linesIterator.filterNot(_.contains(""""newrank": "true"""")).mkString("\n") + "\n"
+
+  test("03 verbatim: svg is byte-identical to the newrank oracle (03b golden)"):
     val g = graph("03-subgraph-cluster")
-    assertEquals(Output.dotJson(g), OracleHarness.golden("03-subgraph-cluster", "dot_json"))
+    assertEquals(Svg.svg(g), OracleHarness.golden("03b-subgraph-cluster-newrank", "svg"))
+
+  test("03 verbatim: json0 equals the newrank oracle modulo the attribute echo"):
+    val g = graph("03-subgraph-cluster")
+    assertEquals(Output.json0(g),
+      stripNewrank(OracleHarness.golden("03b-subgraph-cluster-newrank", "json0")))
+
+  test("03 verbatim: dot_json equals the newrank oracle modulo the attribute echo"):
+    val g = graph("03-subgraph-cluster")
+    assertEquals(Output.dotJson(g),
+      stripNewrank(OracleHarness.golden("03b-subgraph-cluster-newrank", "dot_json")))
 
   test("03: subgraph-tree model captures names, cluster-ness, rank & the %7 anon id"):
     val g   = graph("03-subgraph-cluster")
@@ -42,19 +59,16 @@ class ClusterSpec extends FunSuite:
     assertEquals(sgs.map(_.label), Vector("group A", "group B", ""))
     assertEquals(sgs.map(_.rank), Vector(None, None, Some("same")))
 
-  test("03: rank=same evicts a0/b0 from their clusters (ownership rule)"):
-    val g = graph("03-subgraph-cluster")
-    // raw declared membership still has a0 in cluster_0 / b0 in cluster_1 …
-    assert(g.subgraphs(0).nodeIds.contains("a0"), "cluster_0 declares a0")
-    // … but the emitted dot_json lists a0/b0 only under %7.
+  test("03: rank=same does NOT evict a0/b0 from their clusters (newrank semantics)"):
+    val g  = graph("03-subgraph-cluster")
     val dj = ujson.read(Output.dotJson(g))
     def nodesOf(name: String): Set[Int] =
       dj("objects").arr.find(_.obj.get("name").exists(_.str == name))
         .flatMap(_.obj.get("nodes")).map(_.arr.iterator.map(_.num.toInt).toSet).getOrElse(Set.empty)
     val gvidOf = dj("objects").arr.iterator
       .flatMap(o => o.obj.get("name").map(_.str -> o("_gvid").num.toInt)).toMap
-    assert(!nodesOf("cluster_0").contains(gvidOf("a0")), "a0 evicted from cluster_0")
-    assert(!nodesOf("cluster_1").contains(gvidOf("b0")), "b0 evicted from cluster_1")
+    assert(nodesOf("cluster_0").contains(gvidOf("a0")), "a0 stays in cluster_0")
+    assert(nodesOf("cluster_1").contains(gvidOf("b0")), "b0 stays in cluster_1")
     assertEquals(nodesOf("%7"), Set(gvidOf("a0"), gvidOf("b0")))
 
   test("non-clustered corpus keeps _subgraph_cnt=0 (additive: no regression)"):

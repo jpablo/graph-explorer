@@ -1,0 +1,15 @@
+digraph clusters {
+  newrank = true;
+  subgraph cluster_0 {
+    label = "group A";
+    a0 -> a1 -> a2;
+  }
+  subgraph cluster_1 {
+    label = "group B";
+    b0 -> b1;
+  }
+  { rank = same; a0; b0; }
+  a2 -> b1;
+  start -> a0;
+  start -> b0;
+}

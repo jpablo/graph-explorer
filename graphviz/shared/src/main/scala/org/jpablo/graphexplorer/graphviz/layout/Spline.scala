@@ -109,38 +109,14 @@ object Spline:
     def lw(id: String): Double  = lwOv.getOrElse(id, lw0(id))
     def rw(id: String): Double  = rwOv.getOrElse(id, labelW.getOrElse(id, lw0(id)))
 
-    // ht1/ht2 (GD_rank[r] half-heights) = tallest node half-height in rank.
-    // gv counts VIRTUAL nodes too (plain vnode ND_ht=1 ⇒ 0.5; a label vnode
-    // ND_ht=dimen.y), so a pure-virtual rank (edge-label rank-doubling) still
-    // has real height — Coord.rankY already does this for Y spacing, and
-    // recover_slack's box y-scan needs it to land on the label box, not the
-    // rank gap above it. Mirror Coord here.
-    val halfHt = mutable.HashMap.empty[Int, Double].withDefaultValue(0.0)
-    g.nodes.foreach { n =>
-      val r = rankOf(n.id)
-      NodeSize.layoutSize(n, g).foreach { sz =>
-        val h = sz.halfHeightPt.value
-        if h > halfHt(r) then halfHt(r) = h
-      }
-    }
-    g.edges.foreach { e =>
-      if e.tail != e.head then
-        for rt <- rankOf.get(e.tail); rh <- rankOf.get(e.head) if rt != rh do
-          var r = math.min(rt, rh) + 1
-          while r < math.max(rt, rh) do
-            if 0.5 > halfHt(r) then halfHt(r) = 0.5
-            r += 1
-          e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
-            val mid = (rt + rh) / 2
-            val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
-            val ht  = if Rank.flip(g) then NodeSize.labelWidthPt(lbl, fs, e.attrs.getOrElse("fontname", "Times"), g.name.getOrElse(""))
-                      else NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse(""))
-            val h2  = ht / 2.0
-            if h2 > halfHt(mid) then halfHt(mid) = h2
-          }
-    }
-    def ht1(r: Int): Double = halfHt(r)
-    def ht2(r: Int): Double = halfHt(r)
+    // ht1/ht2 (GD_rank[r] half-heights): rank_box/maximal_bbox use the
+    // CLUSTER-INFLATED per-rank values (clust_ht adds label bands + margins
+    // at a cluster's extreme ranks) — spline channels stop at cluster
+    // borders. Coord.yInfo owns the set_ycoords node scan + inflation;
+    // without clusters these equal the plain node-scan half-heights.
+    val yiHt = Coord.yInfo(g)
+    def ht1(r: Int): Double = yiHt.ht1.getOrElse(r, 0.0)
+    def ht2(r: Int): Double = yiHt.ht2.getOrElse(r, 0.0)
 
     // ── LeftBound / RightBound (dot_splines_) ───────────────────────────────
     val ranksSorted = orderByRank.keys.toVector.sorted
@@ -168,6 +144,38 @@ object Spline:
         i += dir
       ans
 
+    // cl_bound (dotsplines.c:2198): the REAL cluster of `adj` that interferes
+    // with vn's channel — distinct from vn's own (or its original edge's
+    // endpoints') clusters; a virtual adj must actually lie inside the box
+    // (cl_vninside). The channel then stops at that cluster's border
+    // ± Splinesep instead of at the neighbour node itself.
+    val cluBBs = Cluster.bbs(g)
+    val cluOf  = if cluBBs.isEmpty then Map.empty[String, Int] else Cluster.clustOf(g)
+    val dedges = g.edges.filter(e => e.tail != e.head)
+    def origEnds(vname: String): Option[(String, String)] =
+      LayoutNode.fromName(vname) match
+        case LayoutNode.Virtual(d, _) => dedges.lift(d).map(e => (e.tail, e.head))
+        case _                        => None
+    def clBound(n: String, adj: String): Option[Int] =
+      if cluBBs.isEmpty then None
+      else
+        val (tcl, hcl) =
+          if !isV(n) then { val c = cluOf.get(n); (c, c) }
+          else
+            origEnds(n) match
+              case Some((t, h)) => (cluOf.get(t), cluOf.get(h))
+              case None         => (None, None)
+        def foreign(c: Int): Boolean = !tcl.contains(c) && !hcl.contains(c)
+        def vninside(ci: Int, m: String): Boolean =
+          val bb = cluBBs(ci)
+          bb.llx <= cx(m) && cx(m) <= bb.urx && bb.lly <= cy(m) && cy(m) <= bb.ury
+        if !isV(adj) then cluOf.get(adj).filter(foreign)
+        else
+          origEnds(adj).flatMap { (t2, h2) =>
+            cluOf.get(t2).filter(c => foreign(c) && vninside(c, adj))
+              .orElse(cluOf.get(h2).filter(c => foreign(c) && vninside(c, adj)))
+          }
+
     // maximal_bbox(vn): widest box up to in-rank neighbours.
     def maximalBbox(vn: String, ownPath: Set[String]): Box =
       val r = rankOf(vn)
@@ -176,8 +184,10 @@ object Spline:
       val llx =
         neighbor(vn, -1, ownPath) match
           case Some(left) =>
-            val base = cx(left) + rw(left)
-            val nb   = base + (if isV(left) then Splinesep else NodeSep / 2.0)
+            val nb = clBound(vn, left) match
+              case Some(cl) => cluBBs(cl).urx + Splinesep
+              case None =>
+                cx(left) + rw(left) + (if isV(left) then Splinesep else NodeSep / 2.0)
             if nb < b then b = nb
             math.round(b).toDouble
           case None => math.min(math.round(b).toDouble, leftBound)
@@ -189,8 +199,10 @@ object Spline:
       var urx =
         neighbor(vn, 1, ownPath) match
           case Some(right) =>
-            val base = cx(right) - lw(right)
-            val nb   = base - (if isV(right) then Splinesep else NodeSep / 2.0)
+            val nb = clBound(vn, right) match
+              case Some(cl) => cluBBs(cl).llx - Splinesep
+              case None =>
+                cx(right) - lw(right) - (if isV(right) then Splinesep else NodeSep / 2.0)
             if nb > b2 then b2 = nb
             math.round(b2).toDouble
           case None => math.max(math.round(b2).toDouble, rightBound)

@@ -11,13 +11,17 @@ import java.io.File
   * (Graphviz 13.0.1) goldens **character-for-character**. Image files load
   * their `<name>.images.json` size sidecar (viz-js caches image sizes by name).
   *
-  * 73 of 76 files pass. The three exclusions are each asserted below to still
-  * differ so this list can't rot:
-  *   - 03-subgraph-cluster: NOT a viz-js bug — real gv 13.0.1 ALSO fails to lay
-  *     this out (the `{rank=same; a0; b0}` crosses two clusters; both viz-js and
-  *     the gv CLI emit the degenerate sentinel bb). Per the "don't port the bug"
-  *     rule we do NOT reproduce the sentinel; our layout is valid but has no
-  *     correct oracle to gate byte-exact against (gv is broken for this input).
+  * 74 of 77 files pass (incl. 03b — the full cluster geometry subsystem).
+  * The three exclusions are each asserted below to still differ so this list
+  * can't rot:
+  *   - 03-subgraph-cluster: its goldens are gv's DEFAULT-mode corruption (the
+  *     cross-cluster `{rank=same}` breaks the recursive cluster ranker: 13.0.1
+  *     emits a degenerate 0×0 sentinel, 12.2.1 hard-errors). Per the "don't
+  *     port the bug" rule we lay it out correctly instead — under gv's own
+  *     `newrank` semantics — and gate it byte-exact against the
+  *     `03b-subgraph-cluster-newrank` goldens in [[ClusterSpec]] (svg is
+  *     byte-identical; jsons differ only by the `newrank` attribute echo).
+  *     It stays here only because its OWN goldens are the sentinel.
   *   - 05-strings-comments: **accepted residual** — HTML edge-label metrics now
   *     match gv exactly (n2/n3 byte-exact); the remaining ~3 pt on `node one` is
   *     a network-simplex X-coord balance tie-break on the `__v0_1` label vnode

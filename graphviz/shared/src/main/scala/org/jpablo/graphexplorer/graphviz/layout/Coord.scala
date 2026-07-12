@@ -49,46 +49,119 @@ object Coord:
   /** (real-node ranks, y-per-rank in points). Virtual nodes share their
     * rank's y, so callers position them via `yOf(rank)`.
     */
-  private val rankYMemo = GraphMemo[(Map[String, Int], Map[Int, Pt])]()
-  def rankY(g: RGraph): (Map[String, Int], Map[Int, Pt]) = rankYMemo(g)(rankYImpl(g))
-  private def rankYImpl(g: RGraph): (Map[String, Int], Map[Int, Pt]) =
+  def rankY(g: RGraph): (Map[String, Int], Map[Int, Pt]) =
+    val yi = yInfo(g)
+    (yi.ranks, yi.yOf)
+
+  /** Full `set_ycoords` result (position.c). `ht1`/`ht2` are the per-rank
+    * half-heights **after** cluster inflation (`clust_ht` — label band +
+    * CL_OFFSET margins); `pht` is the primitive node-scan value. `rootHt1`/
+    * `rootHt2` are the root graph's `GD_ht1`/`GD_ht2` (they set the bbox
+    * bottom/top); `clHt1`/`clHt2` index [[Cluster.clusters]]. `yOf` is the
+    * FINAL rank-centre y: gv assigns bottom-up then `translate_drawing`
+    * shifts by −bb.LL — the shift is baked in here (`rootHt1 − ht1(maxR)`).
+    */
+  final case class YInfo(
+      ranks:   Map[String, Int],
+      yOf:     Map[Int, Pt],
+      ht1:     Map[Int, Double],
+      ht2:     Map[Int, Double],
+      rootHt1: Double,
+      rootHt2: Double,
+      clHt1:   Vector[Double],
+      clHt2:   Vector[Double]
+  ) derives CanEqual
+
+  private val yInfoMemo = GraphMemo[YInfo]()
+  def yInfo(g: RGraph): YInfo = yInfoMemo(g)(yInfoImpl(g))
+  private def yInfoImpl(g: RGraph): YInfo =
     val ranks = Rank.assign(g)
-    if ranks.isEmpty then return (Map.empty, Map.empty)
+    if ranks.isEmpty then
+      return YInfo(Map.empty, Map.empty, Map.empty, Map.empty, 0, 0, Vector.empty, Vector.empty)
     val minR = ranks.values.min
     val maxR = ranks.values.max
 
-    val halfHt = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
+    val cls     = Cluster.clusters(g)
+    val clustOf = if cls.isEmpty then Map.empty[String, Int] else Cluster.clustOf(g)
+    val ClOffset = 8.0 // const.h CL_OFFSET (cluster margin)
+    val clHt1   = Array.fill(cls.length)(0.0)
+    val clHt2   = Array.fill(cls.length)(0.0)
+    var rootHt1 = 0.0
+    var rootHt2 = 0.0
+
+    // ── node scan (set_ycoords:741) ──────────────────────────────────────
+    // pht = primitive per-rank half-height; the same scan seeds each node's
+    // innermost cluster ht1/ht2 (± CL_OFFSET) or, for cluster-less nodes at
+    // the graph extremes, the root's GD_ht1/GD_ht2 (yoff = 0).
+    val pht = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
+    def scanNode(name: String, r: Int, h: Double): Unit =
+      if h > pht(r) then pht(r) = h
+      clustOf.get(name) match
+        case Some(ci) =>
+          if r == cls(ci).minRank && h + ClOffset > clHt2(ci) then clHt2(ci) = h + ClOffset
+          if r == cls(ci).maxRank && h + ClOffset > clHt1(ci) then clHt1(ci) = h + ClOffset
+        case None =>
+          if r == minR && h > rootHt2 then rootHt2 = h
+          if r == maxR && h > rootHt1 then rootHt1 = h
     g.nodes.foreach { n =>
-      val r = ranks(n.id)
-      NodeSize.layoutSize(n, g).foreach { sz =>
-        val h = sz.halfHeightPt.value
-        if h > halfHt(r) then halfHt(r) = h
-      }
+      NodeSize.layoutSize(n, g).foreach(sz => scanNode(n.id, ranks(n.id), sz.halfHeightPt.value))
     }
 
     // Edge label_vnode (make_chain): a labelled edge seats a label-sized
     // virtual node at the mid rank `(rank(tail)+rank(head))/2`; its
-    // half-height drives that (odd, doubled) rank's Y spacing.
-    g.edges.foreach { e =>
-      if e.tail != e.head then
-        for rt <- ranks.get(e.tail); rh <- ranks.get(e.head) do
-          // plain virtual nodes (ND_ht=1 ⇒ half 0.5) occupy every intermediate
-          // rank of a spanning/doubled edge — they set that rank's min half-ht.
-          var r = math.min(rt, rh) + 1
-          while r < math.max(rt, rh) do
-            if 0.5 > halfHt(r) then halfHt(r) = 0.5
-            r += 1
-          // labelled edge ⇒ the mid rank's virtual is the label box. Its
-          // rank-axis extent (ND_ht) is dimen.y (label height) for TB, but
-          // dimen.x (label width) for a flipped graph (class2.c label_vnode).
-          e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
-            val mid    = (rt + rh) / 2
-            val (w, h) = edgeLabelDim(e, g)
-            val ht     = if Rank.flip(g) then w else h // rank-axis extent (flip ⇒ width)
-            val h2     = ht / 2.0
-            if h2 > halfHt(mid) then halfHt(mid) = h2
-          }
+    // half-height drives that (odd, doubled) rank's Y spacing. Plain chain
+    // vnodes (ND_ht=1 ⇒ half 0.5) fill the intermediate ranks. A vnode's
+    // rank is strictly inside its endpoints' band, so it can never sit at a
+    // cluster/root extreme — only `pht` is affected.
+    g.edges.iterator.filter(e => e.tail != e.head).zipWithIndex.foreach { (e, dIdx) =>
+      for rt <- ranks.get(e.tail); rh <- ranks.get(e.head) do
+        var r = math.min(rt, rh) + 1
+        while r < math.max(rt, rh) do
+          scanNode(LayoutNode.Virtual(dIdx, r).name, r, 0.5)
+          r += 1
+        // labelled edge ⇒ the mid rank's virtual is the label box. Its
+        // rank-axis extent (ND_ht) is dimen.y (label height) for TB, but
+        // dimen.x (label width) for a flipped graph (class2.c label_vnode).
+        e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
+          val mid    = (rt + rh) / 2
+          val (w, h) = edgeLabelDim(e, g)
+          val ht     = if Rank.flip(g) then w else h // rank-axis extent (flip ⇒ width)
+          scanNode(LayoutNode.Virtual(dIdx, mid).name, mid, ht / 2.0)
+        }
     }
+
+    // ── clust_ht (position.c:680): postorder cluster-ht accumulation ─────
+    // Children inflate parents (+margin at shared extremes); a label adds
+    // its padded border to the cluster's top; each cluster then pushes its
+    // ht into the global per-rank ht1/ht2.
+    val ht1 = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
+    val ht2 = mutable.Map.empty[Int, Double].withDefaultValue(0.0)
+    pht.foreach { (r, h) => ht1(r) = h; ht2(r) = h }
+    if cls.nonEmpty then
+      val depth = cls.zipWithIndex.map { (c, i) =>
+        var d = 0; var p = c.parent
+        while p >= 0 do { d += 1; p = cls(p).parent }
+        i -> d
+      }.toMap
+      cls.indices.sortBy(i => -depth(i)).foreach { ci =>
+        val c = cls(ci)
+        Cluster.childrenOf(g, ci).foreach { cc =>
+          if cls(cc).maxRank == c.maxRank && clHt1(cc) + ClOffset > clHt1(ci) then
+            clHt1(ci) = clHt1(cc) + ClOffset
+          if cls(cc).minRank == c.minRank && clHt2(cc) + ClOffset > clHt2(ci) then
+            clHt2(ci) = clHt2(cc) + ClOffset
+        }
+        if c.hasLabel && !Rank.flip(g) then
+          clHt2(ci) += c.borderTopY // labelloc=t default (BOTTOM border = 0)
+        if clHt2(ci) > ht2(c.minRank) then ht2(c.minRank) = clHt2(ci)
+        if clHt1(ci) > ht1(c.maxRank) then ht1(c.maxRank) = clHt1(ci)
+      }
+      // root level (clust_ht(root)): top-level clusters at the graph
+      // extremes push GD_ht1/GD_ht2 of the root (margin = CL_OFFSET).
+      Cluster.childrenOf(g, -1).foreach { cc =>
+        if cls(cc).maxRank == maxR && clHt1(cc) + ClOffset > rootHt1 then rootHt1 = clHt1(cc) + ClOffset
+        if cls(cc).minRank == minR && clHt2(cc) + ClOffset > rootHt2 then rootHt2 = clHt2(cc) + ClOffset
+      }
 
     // Root graph label reserves space on its labelloc side (`do_graph_label`,
     // default = bottom for the root); height = label box + YPAD (2*GAP).
@@ -102,15 +175,29 @@ object Coord:
     // A bottom-anchored root label shifts the whole drawing up by its
     // reserved space; a top-anchored one only extends the bbox upward and
     // leaves node Y unchanged (bbox is the writers' concern, not gated here).
+    // set_ycoords:783: rank spacing = max(primitive-node sep, cluster sep).
     val rs  = rankSep(g)
     val yOf = mutable.Map.empty[Int, Double]
-    yOf(maxR) = halfHt(maxR) + (if labelTop then 0.0 else gLabelPad)
+    yOf(maxR) = ht1(maxR) + (if labelTop then 0.0 else gLabelPad)
     var r = maxR - 1
     while r >= minR do
-      yOf(r) = yOf(r + 1) + halfHt(r + 1) + halfHt(r) + rs
+      val d0 = pht(r + 1) + pht(r) + rs           // prim node sep
+      val d1 = ht2(r + 1) + ht1(r) + ClOffset      // cluster sep
+      yOf(r) = yOf(r + 1) + math.max(d0, d1)
       r -= 1
 
-    (ranks, yOf.iterator.map((r, y) => r -> Pt(y)).toMap)
+    // translate_drawing (postproc.c): the drawing shifts by −bb.LL, where
+    // bb.LL.y = y(maxR) − GD_ht1(root). Bake the shift in (0 without
+    // clusters: rootHt1 == ht1(maxR) by construction).
+    val shiftY = rootHt1 - ht1(maxR)
+    (YInfo(
+      ranks,
+      yOf.iterator.map((rr, y) => rr -> Pt(y + shiftY)).toMap,
+      ht1.toMap.withDefaultValue(0.0),
+      ht2.toMap.withDefaultValue(0.0),
+      rootHt1, rootHt2,
+      clHt1.toVector, clHt2.toVector
+    ))
 
   def yCoords(g: RGraph): Map[String, Pt] =
     val (ranks, yOf) = rankY(g)

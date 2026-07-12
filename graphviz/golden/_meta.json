@@ -44,7 +44,7 @@
     "xdot1.4",
     "xdot_json"
   ],
-  "generatedAt": "2026-07-11T00:45:53.051Z",
+  "generatedAt": "2026-07-12T06:08:08.738Z",
   "corpus": {
     "01-minimal": {
       "input": "01-minimal.dot",
@@ -157,6 +157,44 @@
         "svg": {
           "status": "success",
           "sha256": "e0010cabc388512cd0634f03cd85f3f49dbccb53a2a46414cf1d03a7c602d488"
+        }
+      }
+    },
+    "03b-subgraph-cluster-newrank": {
+      "input": "03b-subgraph-cluster-newrank.dot",
+      "sha256": "473dbac119947a3a8d5de50cda1101dc4eabd2ffe3cd2c4fd3044086d50af753",
+      "formats": {
+        "dot": {
+          "status": "success",
+          "sha256": "33e6202ccbd47f4fa96ac5c04a52df7a7262839cf4daa8e7639bfdfd7bab3c01"
+        },
+        "plain": {
+          "status": "success",
+          "sha256": "ce0457dc54e73aef3b73ecfecdf433e250aa6c05a161c162c083d0717a175fb7"
+        },
+        "plain-ext": {
+          "status": "success",
+          "sha256": "ce0457dc54e73aef3b73ecfecdf433e250aa6c05a161c162c083d0717a175fb7"
+        },
+        "json": {
+          "status": "success",
+          "sha256": "5bccd8c37bdbbe4f64ca8dc576919a323ad478fcdb081c6c2babade5a9a80a3d"
+        },
+        "json0": {
+          "status": "success",
+          "sha256": "66a15c33d642e4bbe6caeced7915561725440c777f047c8c719c1e256985c0a3"
+        },
+        "dot_json": {
+          "status": "success",
+          "sha256": "957c4cf82a14a8a8a42ea163af11639156b8a6ad0506fbe37d17cf90ed12ba27"
+        },
+        "xdot": {
+          "status": "success",
+          "sha256": "9b1d6e1a52b3b0db078dfb815d0876429c7b87f60f23261e40f5a98649ebd512"
+        },
+        "svg": {
+          "status": "success",
+          "sha256": "3adc99773e7070f287f774db62409f2cde5a8992f9ee7276e8a023c164d5f871"
         }
       }
     },

@@ -80,7 +80,6 @@ object Output:
       name:       String,
       directed:   Boolean,
       strict:     Boolean,
-      hasCluster: Boolean,                      // any cluster ⇒ viz-js bails on layout
       rootAttrs:  Vector[(String, String)],     // root graph attrs, write_attrs-filtered
       sgCnt:      Int,                           // _subgraph_cnt
       subgraphs:  Vector[Doc.SG],                // preorder, gvid = 0..sgCnt-1
@@ -129,18 +128,17 @@ object Output:
     val edgeGvidByIdx = edgesByK.iterator.map(e => e.idx -> e.gv).toMap
     val edges         = edgesByK.sortBy(_.idx)
 
-    // Ownership rule (PORT.md §5.2, oracle-derived): a node that belongs to a
-    // `rank`-constraint subgraph is dropped from every *cluster* node list;
-    // plain-subgraph membership stays additive. `write_edges(sg)` walks only
-    // surviving member nodes, so an evicted node's out-edge leaves the cluster
-    // too. Within a subgraph, nodes/edges list in global id (gvid / AGSEQ)
+    // Membership is purely additive (cgraph containment). NOTE: gv's DEFAULT
+    // ranking *deletes* rank-constrained nodes from clusters ("%s was already
+    // in a rankset, deleted from cluster" — the very corruption that breaks
+    // 03-subgraph-cluster). Our engine implements the global-ranking
+    // (`newrank`) semantics, where no eviction happens — matching the
+    // gv-13.0.1-with-newrank oracle (03b golden: cluster_0 keeps a0).
+    // Within a subgraph, nodes/edges list in global id (gvid / AGSEQ)
     // order, matching `agfstnode(sg)` / the `qsort`.
-    val rankConstrained: Set[String] =
-      flat.iterator.filter(_.rank.isDefined).flatMap(_.nodeIds).toSet
     def memberNodes(s: RSubgraph): Vector[String] =
       val declared = s.nodeIds.toSet
-      val kept     = if s.isCluster then declared -- rankConstrained else declared
-      g.nodes.iterator.map(_.id).filter(kept).toVector
+      g.nodes.iterator.map(_.id).filter(declared).toVector
     val labelDeclared = g.graphAttrKeys.contains("label")
     val subgraphs = flat.zipWithIndex.map { case (s, gv) =>
       val mem      = memberNodes(s)
@@ -153,9 +151,8 @@ object Output:
     // (agnxtattr order), the root's value (default "" if only set in a
     // subgraph), skipping empty values *except* `label` (which always prints).
     val rootAttrs = attrPairs(g.graphAttrKeys.iterator.map(k => k -> g.rootAttrs.getOrElse(k, "")).toMap)
-    val hasCluster = flat.exists(_.isCluster)
 
-    Doc(g.name.getOrElse("%1"), g.directed, g.strict, hasCluster, rootAttrs,
+    Doc(g.name.getOrElse("%1"), g.directed, g.strict, rootAttrs,
       sgCnt, subgraphs, nodes, edges)
 
   private val SelfEdgeSize = 18.0 // const.h SELF_EDGE_SIZE
@@ -191,6 +188,20 @@ object Output:
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
     }
+    // Clusters (dot_compute_bb root): the bb also spans every top-level
+    // cluster box + CL_OFFSET margin in x; in y the root's cluster-inflated
+    // GD_ht1/GD_ht2 set the bottom/top (label bands included).
+    val cls = org.jpablo.graphexplorer.graphviz.layout.Cluster.clusters(g)
+    if cls.nonEmpty then
+      val yi   = Coord.yInfo(g)
+      val cbbs = org.jpablo.graphexplorer.graphviz.layout.Cluster.bbs(g)
+      org.jpablo.graphexplorer.graphviz.layout.Cluster.childrenOf(g, -1).foreach { i =>
+        minX = math.min(minX, cbbs(i).llx - 8.0); maxX = math.max(maxX, cbbs(i).urx + 8.0)
+      }
+      if ranks.nonEmpty then
+        val maxR = ranks.values.max; val minR = ranks.values.min
+        minY = math.min(minY, yOf(maxR).value - yi.rootHt1)
+        maxY = math.max(maxY, yOf(minR).value + yi.rootHt2)
     // root graph label reserves space on its labelloc side (Coord already
     // shifted the nodes for a bottom label ⇒ extend the bbox to reclaim it).
     val pad = gLabelPad(g)
@@ -228,20 +239,36 @@ object Output:
     (snap(minX), snap(minY), snap(maxX), snap(maxY))
 
   /** One subgraph object block (4-space indented, no trailing comma), shared
-    * by both writers. gv field order: name, label, [rank], _gvid, [nodes],
-    * [edges]. json0's cluster-label geometry (bb/lheight/lwidth/lp) is a
-    * tracked deferral (PORT.md §5.4) — not emitted here yet. */
-  private def sgBlockJson(sg: Doc.SG): String =
+    * by both writers. gv field order: name, attrs (alphabetical), _gvid,
+    * [nodes], [edges]. `attrs` come from [[sgAttrs]] (+ json0's cluster
+    * layout attrs), already filtered + sorted. */
+  private def sgBlockJson(sg: Doc.SG, attrs: Vector[(String, String)]): String =
     val fields = Vector.newBuilder[String]
     fields += s"""      "name": "${esc(sg.name)}""""
-    if sg.emitLabel then fields += s"""      "label": "${esc(sg.label)}""""
-    sg.rank.foreach(r => fields += s"""      "rank": "${esc(r)}"""")
+    attrs.foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
     fields += s"""      "_gvid": ${sg.gvid}"""
     if sg.nodeGvids.nonEmpty then
       fields += s"""      "nodes": [\n        ${sg.nodeGvids.mkString(",")}\n      ]"""
     if sg.edgeGvids.nonEmpty then
       fields += s"""      "edges": [\n        ${sg.edgeGvids.mkString(",")}\n      ]"""
     "    {\n" + fields.result().mkString(",\n") + "\n    }"
+
+  /** A subgraph's attribute stream (gv `write_attrs`): every declared
+    * graph-attr key, with the subgraph's own value where it has one (label /
+    * rank in our model) else the root declaration's default (cgraph: setting
+    * a graph attr on the root re-declares its default, so subgraphs echo the
+    * root's value — 03b's `newrank` appears in every cluster object). Empty
+    * values are skipped except an (always-printed) declared `label`. */
+  private def sgAttrs(g: RGraph, sg: Doc.SG): Vector[(String, String)] =
+    g.graphAttrKeys.iterator.map { k =>
+      val own = k match
+        case "label" => sg.label
+        case "rank"  => sg.rank.getOrElse("")
+        case _       => ""
+      k -> (if own.nonEmpty then own else g.rootAttrs.getOrElse(k, ""))
+    }.toVector
+      .filter { case (k, v) => v.nonEmpty || (k == "label" && sg.emitLabel) }
+      .sortBy(_._1)
 
   def dotJson(g: RGraph): String =
     val d = doc(g)
@@ -261,9 +288,7 @@ object Output:
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
-    // Clustered graphs: this viz-js leaves them unlaid-out ⇒ sentinel bb.
-    val bbStr = if d.hasCluster then "0 0 0 0" else s"${g5(blx)} ${g5(bly)} ${g5(bux)} ${g5(buy)}"
-    sb ++= s"""  "bb": "$bbStr",\n"""
+    sb ++= s"""  "bb": "${g5(blx)} ${g5(bly)} ${g5(bux)} ${g5(buy)}",\n"""
     d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
     sb ++= s"""  "_subgraph_cnt": ${d.sgCnt},\n"""
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
@@ -278,7 +303,8 @@ object Output:
       fields += s"""      "name": "${esc(id)}""""
       attrPairs(a).foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
-    val objBlocks = d.subgraphs.map(sgBlockJson) ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
+    val objBlocks = d.subgraphs.map(sg => sgBlockJson(sg, sgAttrs(g, sg))) ++
+      d.nodes.map((id, gv) => nodeBlock(id, gv))
     sb ++= "  \"objects\": [\n"
     sb ++= objBlocks.mkString(",\n")
     sb ++= "\n  ]"
@@ -320,8 +346,7 @@ object Output:
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
-    val bbStr = if d.hasCluster then "0,0,0,0" else s"${g5(lx)},${g5(ly)},${g5(ux)},${g5(uy)}"
-    sb ++= s"""  "bb": "$bbStr",\n"""
+    sb ++= s"""  "bb": "${g5(lx)},${g5(ly)},${g5(ux)},${g5(uy)}",\n"""
     // root graph attrs + the label geometry (lp/lwidth/lheight), merged
     // alphabetically into the write_attrs stream (do_graph_label).
     val rootKv = scala.collection.mutable.LinkedHashMap.empty[String, String]
@@ -366,7 +391,29 @@ object Output:
       fields += s"""      "name": "${esc(id)}""""
       kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${esc(k)}": $v""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
-    val objBlocks = d.subgraphs.map(sgBlockJson) ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
+    // json0 cluster objects add the layout attrs (bb + label geometry),
+    // merged alphabetically into the same write_attrs stream. lp = box
+    // centre x, UR.y − border[TOP].y/2 (place_graph_label, labelloc=t).
+    val cluLayoutAttrs: Map[String, Vector[(String, String)]] =
+      val cls = org.jpablo.graphexplorer.graphviz.layout.Cluster.clusters(g)
+      if cls.isEmpty then Map.empty
+      else
+        val cbbs = org.jpablo.graphexplorer.graphviz.layout.Cluster.bbs(g)
+        cls.zipWithIndex.map { (c, i) =>
+          val bb   = cbbs(i)
+          val base = Vector("bb" -> s"${g5(bb.llx)},${g5(bb.lly)},${g5(bb.urx)},${g5(bb.ury)}")
+          val lbl  =
+            if c.hasLabel then Vector(
+              "lheight" -> f2(c.lheightPt / 72.0),
+              "lp"      -> s"${g5((bb.llx + bb.urx) / 2.0)},${g5(bb.ury - (c.lheightPt + 2 * Gap) / 2.0)}",
+              "lwidth"  -> f2(c.lwidthPt / 72.0))
+            else Vector.empty
+          c.name -> (base ++ lbl)
+        }.toMap
+    val objBlocks = d.subgraphs.map { sg =>
+      val attrs = (sgAttrs(g, sg) ++ cluLayoutAttrs.getOrElse(sg.name, Vector.empty)).sortBy(_._1)
+      sgBlockJson(sg, attrs)
+    } ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
     sb ++= "  \"objects\": [\n"
     sb ++= objBlocks.mkString(",\n")
     // gv omits the "edges" array entirely for an edgeless graph (as dotJson).

@@ -180,6 +180,30 @@ object Svg:
       val f  = if fill.nonEmpty then s""" fill="$fill"""" else "" // fontcolor
       s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}" font-family="Times,serif" font-size="14.00"$f>${xml(s)}</text>\n"""
 
+    // clusters (emit_clusters): each cluster draws a `<g class="cluster">`
+    // with border polygon (LL→UL→UR→LR→LL) + its label, in GD_clust preorder,
+    // after the background and before any node. TB clusters default to
+    // fill=none / stroke=black; the label sits centred at lp (labelloc=t).
+    locally {
+      import org.jpablo.graphexplorer.graphviz.layout.Cluster
+      val cls = Cluster.clusters(g)
+      if cls.nonEmpty then
+        val cbbs = Cluster.bbs(g)
+        cls.zipWithIndex.foreach { (c, i) =>
+          val bb = cbbs(i)
+          sb ++= s"""<g id="clust${i + 1}" class="cluster">\n"""
+          sb ++= s"<title>${xml(c.name)}</title>\n"
+          sb ++= s"""<polygon fill="none" stroke="black" points="${d2(bb.llx)},${d2(-bb.lly)} ${d2(bb.llx)},${d2(-bb.ury)} ${d2(bb.urx)},${d2(-bb.ury)} ${d2(bb.urx)},${d2(-bb.lly)} ${d2(bb.llx)},${d2(-bb.lly)}"/>\n"""
+          if c.hasLabel then
+            // label centre = lp (place_graph_label): box centre x,
+            // UR.y − (label height + YPAD)/2 — same <text> path as nodes.
+            val lpx = (bb.llx + bb.urx) / 2.0
+            val lpy = bb.ury - (c.lheightPt + 2 * 4.0) / 2.0
+            sb ++= textAt(lpx, lpy, c.label)
+          sb ++= "</g>\n"
+        }
+    }
+
     // ── HTML-like label rendering (emit_html_txt / emit_htextspans) ──────────
     /** Render an HTML text block centred at (cx, cyc): each line is left-anchored
       * at its justified x, items laid left-to-right with per-run font styling.

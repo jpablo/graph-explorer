@@ -25,8 +25,10 @@ object XCoord:
   private val VirtualHalf = 1.0 + NodeSep / 2.0 // class2.c plain_vnode
 
   // Memoized (per-graph, size-1): renderFormats hits xSolve ~7× on one graph.
-  private val solveMemo = GraphMemo[(Order.Result, Map[LayoutNode, Pt])]()
-  private def xSolve(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) = solveMemo(g)(xSolveImpl(g))
+  // Third element: solved cluster [ln, rn] border x per Cluster.clusters idx.
+  private val solveMemo = GraphMemo[(Order.Result, Map[LayoutNode, Pt], Vector[(Double, Double)])]()
+  private def xSolve(g: RGraph): (Order.Result, Map[LayoutNode, Pt], Vector[(Double, Double)]) =
+    solveMemo(g)(xSolveImpl(g))
 
   /** gv `decompose` (decomp.c): rebuild the node list in DFS order from
     * declaration-order seeds, following out-edges before in-edges over the
@@ -56,13 +58,14 @@ object XCoord:
     result.toVector
 
   /** Core solve: ordering + x (points) for all placed nodes, left edge at 0. */
-  private def xSolveImpl(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) =
+  private def xSolveImpl(g: RGraph): (Order.Result, Map[LayoutNode, Pt], Vector[(Double, Double)]) =
     val res  = Order.order(g)
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
 
     def half(n: LayoutNode): Double = n match
       case _: LayoutNode.Virtual => VirtualHalf
       case _: LayoutNode.Slack   => VirtualHalf // never queried; defensive
+      case _: LayoutNode.ClusterLn | _: LayoutNode.ClusterRn => 1.0 // virtual_node lw=rw=1
       case LayoutNode.Real(id)   =>
         byId.get(id).flatMap(rn => NodeSize.layoutSize(rn, g))
           .map(_.halfWidthPt.value).getOrElse(1.0)
@@ -88,6 +91,7 @@ object XCoord:
     def cls(n: LayoutNode): NSClass = n match
       case _: LayoutNode.Virtual => NSClass.Virtual
       case _: LayoutNode.Slack   => NSClass.Virtual // never queried; defensive
+      case _: LayoutNode.ClusterLn | _: LayoutNode.ClusterRn => NSClass.Virtual // defensive
       case LayoutNode.Real(id)   =>
         if deg(id) <= 1 then NSClass.Singleton else NSClass.Ordinary
 
@@ -175,28 +179,167 @@ object XCoord:
       }
     }
 
-    // The NS node order MUST be gv's GD_nlist: slack (reverse of make_edge_pairs
-    // creation order — they are prepended) then the decompose-DFS'd real+virtual
+    // ── pos_clusters (position.c:491): cluster containment/separation ──────
+    // Each cluster gets `ln`/`rn` border slacknodes (make_lrvn); containment,
+    // sibling separation, label min-width and box compaction all become
+    // ordinary aux edges (margin = CL_OFFSET = 8) in the SAME solve. Runs
+    // after make_edge_pairs, exactly as create_aux_edges orders it.
+    val cluInfos = Cluster.clusters(g)
+    val clSlacks = mutable.ArrayBuffer.empty[LayoutNode] // fast_node creation order
+    if cluInfos.nonEmpty then
+      val ClOffset = 8.0
+      val flip     = Rank.flip(g)
+      def ln(i: Int) = LayoutNode.ClusterLn(i)
+      def rn(i: Int) = LayoutNode.ClusterRn(i)
+      val lrvnMade = mutable.Set.empty[Int]
+      // GD_rank(cluster): the cluster's slice of the global order (real
+      // members + chain vnodes of its own edges), preserving mincross order.
+      def slice(ci: Int, r: Int): Vector[LayoutNode] =
+        res.order.getOrElse(r, Vector.empty).filter(n => cluInfos(ci).members(n.name)).toVector
+      def gRow(r: Int): Vector[LayoutNode] = res.order.getOrElse(r, Vector.empty).toVector
+      // make_lrvn: create the border pair; a TB cluster label forces the box
+      // at least as wide as the padded label (ln→rn aux edge, weight 0).
+      def makeLrvn(ci: Int): Unit =
+        if !lrvnMade(ci) then
+          lrvnMade += ci
+          clSlacks += ln(ci); clSlacks += rn(ci)
+          if ci >= 0 && cluInfos(ci).hasLabel && !flip then
+            edges += NetworkSimplex.NSEdge(ln(ci).name, rn(ci).name,
+              math.round(cluInfos(ci).borderTopX).toInt, 0)
+      // contain_nodes: per rank, first/last member held inside the borders.
+      def containNodes(ci: Int): Unit =
+        makeLrvn(ci)
+        var r = cluInfos(ci).minRank
+        while r <= cluInfos(ci).maxRank do
+          val row = slice(ci, r)
+          if row.nonEmpty then
+            edges += NetworkSimplex.NSEdge(ln(ci).name, row.head.name,
+              math.round(lw(row.head) + ClOffset).toInt, 0)
+            edges += NetworkSimplex.NSEdge(row.last.name, rn(ci).name,
+              math.round(rw(row.last) + ClOffset).toInt, 0)
+          r += 1
+      // contain_clustnodes: containment + the weight-128 compaction edge
+      // (the label edge, if present, is re-weighted instead — find_fast_edge).
+      def containClustnodes(ci: Int): Unit =
+        if ci >= 0 then
+          containNodes(ci)
+          val ei = edges.indexWhere(e => e.tail == ln(ci).name && e.head == rn(ci).name)
+          if ei >= 0 then edges(ei) = edges(ei).copy(weight = edges(ei).weight + 128)
+          else edges += NetworkSimplex.NSEdge(ln(ci).name, rn(ci).name, 1, 128)
+        Cluster.childrenOf(g, ci).foreach(containClustnodes)
+      // vnode_not_related_to: a virtual whose original edge has no endpoint
+      // in the cluster (its chain merely passes alongside).
+      def vnodeNotRelated(ci: Int, n: LayoutNode): Boolean = n match
+        case LayoutNode.Virtual(d, _) =>
+          realEdges.lift(d).forall(re =>
+            !cluInfos(ci).nodeIds.contains(re.tail) && !cluInfos(ci).nodeIds.contains(re.head))
+        case _ => false
+      def isNormal(n: LayoutNode): Boolean = n match
+        case _: LayoutNode.Real => true
+        case _                  => false
+      // keepout_othernodes: nearest unrelated node left/right of the cluster
+      // on each rank is pushed CL_OFFSET clear of the border.
+      def keepout(ci: Int): Unit =
+        if ci >= 0 then
+          var r = cluInfos(ci).minRank
+          while r <= cluInfos(ci).maxRank do
+            val row = slice(ci, r)
+            if row.nonEmpty then
+              val grow = gRow(r)
+              val pos  = grow.indexOf(row.head)
+              var i    = pos - 1
+              var stop = false
+              while !stop && i >= 0 do
+                val u = grow(i)
+                if isNormal(u) || vnodeNotRelated(ci, u) then
+                  edges += NetworkSimplex.NSEdge(u.name, ln(ci).name,
+                    math.round(ClOffset + rw(u)).toInt, 0)
+                  stop = true
+                i -= 1
+              var j = pos + row.length
+              stop = false
+              while !stop && j < grow.length do
+                val u = grow(j)
+                if isNormal(u) || vnodeNotRelated(ci, u) then
+                  edges += NetworkSimplex.NSEdge(rn(ci).name, u.name,
+                    math.round(ClOffset + lw(u)).toInt, 0)
+                  stop = true
+                j += 1
+            r += 1
+        Cluster.childrenOf(g, ci).foreach(keepout)
+      // contain_subclust: a subcluster's borders sit ≥ margin inside its
+      // parent's (side label borders are 0 in TB — labels live on top).
+      def containSubclust(ci: Int): Unit =
+        makeLrvn(ci)
+        Cluster.childrenOf(g, ci).foreach { cc =>
+          makeLrvn(cc)
+          edges += NetworkSimplex.NSEdge(ln(ci).name, ln(cc).name, math.round(ClOffset).toInt, 0)
+          edges += NetworkSimplex.NSEdge(rn(cc).name, rn(ci).name, math.round(ClOffset).toInt, 0)
+          containSubclust(cc)
+        }
+      // separate_subclust: rank-overlapping sibling boxes stay margin apart,
+      // ordered by their first nodes on the first shared rank.
+      def separateSubclust(ci: Int): Unit =
+        val kids = Cluster.childrenOf(g, ci)
+        kids.foreach(makeLrvn)
+        for ii <- kids.indices; jj <- ii + 1 until kids.length do
+          var low  = kids(ii)
+          var high = kids(jj)
+          if cluInfos(low).minRank > cluInfos(high).minRank then
+            val t = low; low = high; high = t
+          if cluInfos(low).maxRank >= cluInfos(high).minRank then
+            val r    = cluInfos(high).minRank
+            val grow = gRow(r)
+            val lo   = slice(low, r)
+            val hi   = slice(high, r)
+            if lo.nonEmpty && hi.nonEmpty then
+              val (l, rr) =
+                if grow.indexOf(lo.head) < grow.indexOf(hi.head) then (low, high) else (high, low)
+              edges += NetworkSimplex.NSEdge(rn(l).name, ln(rr).name, math.round(ClOffset).toInt, 0)
+        kids.foreach(separateSubclust)
+      containClustnodes(-1)
+      keepout(-1)
+      containSubclust(-1)
+      separateSubclust(-1)
+
+    // The NS node order MUST be gv's GD_nlist: cluster ln/rn (created last ⇒
+    // prepended nearest the head, in reverse creation order), then the
+    // make_edge_pairs slacks (reversed), then the decompose-DFS'd real+virtual
     // nodes. The order-sensitive NS reproduces gv's x-solve only fed this order.
-    val nodeOrder: Vector[LayoutNode] = slackNodes.reverseIterator.toVector ++ decomp
+    val nodeOrder: Vector[LayoutNode] =
+      clSlacks.reverseIterator.toVector ++ slackNodes.reverseIterator.toVector ++ decomp
     val xr = NetworkSimplex.solve(nodeOrder.map(_.name), edges.toSeq, balance = NSBalance.LeftRight, initRanks = initRank)
     // NS returns String-keyed ranks; map back to LayoutNode via the
     // historical name-form parse (Order produces the same Virtual/Slack
     // identities so the round-trip is exact).
     val xrByNode: Map[LayoutNode, Int] = nodeOrder.iterator.map(n => n -> xr(n.name)).toMap
 
-    // shift so the leftmost node's left edge sits at 0 (bbox origin)
+    // shift so the bbox origin sits at 0: leftmost node's left edge, or —
+    // with clusters — the leftmost cluster border − CL_OFFSET
+    // (dot_compute_bb root: bb includes cluster boxes + margin).
     val placed: Vector[LayoutNode] = res.order.values.flatten.toVector
-    val shift  = placed.iterator.map(id => xrByNode(id).toDouble - half(id)).minOption.getOrElse(0.0)
-    val allX   = placed.iterator.map(id => id -> Pt(xrByNode(id).toDouble - shift)).toMap
-    (res, allX)
+    var shift  = placed.iterator.map(id => xrByNode(id).toDouble - half(id)).minOption.getOrElse(0.0)
+    cluInfos.indices.foreach { i =>
+      shift = math.min(shift, xrByNode(LayoutNode.ClusterLn(i)).toDouble - 8.0)
+    }
+    val allX = placed.iterator.map(id => id -> Pt(xrByNode(id).toDouble - shift)).toMap
+    val clB  = cluInfos.indices.map { i =>
+      (xrByNode(LayoutNode.ClusterLn(i)).toDouble - shift,
+       xrByNode(LayoutNode.ClusterRn(i)).toDouble - shift)
+    }.toVector
+    (res, allX, clB)
 
   /** x (points) for real **and** virtual placed nodes, plus the ordering. */
-  def solveAll(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) = xSolve(g)
+  def solveAll(g: RGraph): (Order.Result, Map[LayoutNode, Pt]) =
+    val (res, allX, _) = xSolve(g)
+    (res, allX)
+
+  /** Solved cluster border x `[ln, rn]` per [[Cluster.clusters]] index. */
+  def clusterXBounds(g: RGraph): Vector[(Double, Double)] = xSolve(g)._3
 
   /** x (points) for real nodes only. */
   def xCoords(g: RGraph): Map[String, Pt] =
-    val (_, allX) = xSolve(g)
+    val (_, allX, _) = xSolve(g)
     g.nodes.iterator.map(n => n.id -> allX(LayoutNode.Real(n.id))).toMap
 
 end XCoord

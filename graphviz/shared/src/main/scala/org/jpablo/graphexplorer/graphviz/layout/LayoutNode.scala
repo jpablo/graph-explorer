@@ -22,6 +22,12 @@ enum LayoutNode derives CanEqual:
   case Real(id: String)
   case Virtual(edgeIdx: Int, rank: Int)
   case Slack(segIdx: Int)
+  /** Cluster bounding-box slacknodes `ln`/`rn` (position.c `make_lrvn`):
+    * the aux-graph variables holding a cluster's left/right border x.
+    * `idx` indexes [[Cluster.clusters]]; -1 is the root graph's pair
+    * (created by `contain_subclust`). */
+  case ClusterLn(idx: Int)
+  case ClusterRn(idx: Int)
 
   /** The historical String name used as a key in maps shared with
     * [[NetworkSimplex]] and the rest of the layout pipeline. Byte-identical
@@ -30,6 +36,8 @@ enum LayoutNode derives CanEqual:
     case Real(id)         => id
     case Virtual(e, r)    => s"__v${e}_$r"
     case Slack(i)         => s"__s$i"
+    case ClusterLn(i)     => s"__cln$i"
+    case ClusterRn(i)     => s"__crn$i"
 
 object LayoutNode:
   /** Recover a [[LayoutNode]] from its historical String name. Real-node
@@ -45,6 +53,10 @@ object LayoutNode:
           case (Some(e), Some(r)) => Virtual(e, r)
           case _                  => Real(s)
       else Real(s)
+    else if s.startsWith("__cln") then
+      s.drop(5).toIntOption.map(ClusterLn.apply).getOrElse(Real(s))
+    else if s.startsWith("__crn") then
+      s.drop(5).toIntOption.map(ClusterRn.apply).getOrElse(Real(s))
     else if s.startsWith("__s") then
       s.drop(3).toIntOption.map(Slack.apply).getOrElse(Real(s))
     else Real(s)
