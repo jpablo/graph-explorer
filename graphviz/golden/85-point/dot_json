@@ -1,0 +1,29 @@
+{
+  "name": "pts",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 7 47",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N",
+      "shape": "point"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "\\N",
+      "shape": "point",
+      "width": "0.1"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+digraph pts {
+	graph [bb="0,0,7.2,46.8"];
+	node [label="\N"];
+	a	[height=0.05,
+		pos="3.6,45",
+		shape=point,
+		width=0.05];
+	b	[height=0.1,
+		pos="3.6,3.6",
+		shape=point,
+		width=0.1];
+	a -> b	[pos="e,3.6,7.6262 3.6,43.026 3.6,39.714 3.6,28.567 3.6,19.126"];
+}

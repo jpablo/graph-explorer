@@ -1,0 +1,5 @@
+digraph pts {
+  a [shape=point];
+  b [shape=point, width=0.1];
+  a -> b;
+}

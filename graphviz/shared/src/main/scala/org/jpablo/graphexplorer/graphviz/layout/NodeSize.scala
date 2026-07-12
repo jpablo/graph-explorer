@@ -57,7 +57,23 @@ object NodeSize:
     case "square"                      => ShapeKind(true, true, false, true)
     case "plaintext" | "none"          => ShapeKind(true, false, false, true)
     case "plain"                       => ShapeKind(true, false, true, true)
+    case "point"                       => ShapeKind(false, true, false, true)
     case _                             => ShapeKind(true, false, false, false)
+
+  /** `point_init` (shapes.c): shorthand for circle/style=filled/label="". The
+    * diameter (inches) = `min(late_double(width, ∞, MIN_NODEWIDTH),
+    * late_double(height, ∞, MIN_NODEHEIGHT))`, defaulting to DEF_POINT=0.05
+    * when neither is set, else clamped to ≥ MIN_POINT (0.0003) if positive. */
+  private def pointDiamIn(n: RNode): Double =
+    def ld(key: String, minv: Double): Double =
+      n.attrs.get(key).flatMap(_.toDoubleOption) match
+        case Some(v) => math.max(minv, v)
+        case None    => Double.MaxValue
+    val w = ld("width", 0.01)   // MIN_NODEWIDTH
+    val h = ld("height", 0.02)  // MIN_NODEHEIGHT
+    val m = math.min(w, h)
+    if w == Double.MaxValue && h == Double.MaxValue then 0.05 // DEF_POINT
+    else if m > 0.0 then math.max(m, 0.0003) else m // MIN_POINT
 
   /** Number of concentric peripheries actually drawn — shape default, overridden
     * by an explicit `peripheries` attr (late_int, ≥ 0). Consumed by both the
@@ -253,6 +269,9 @@ object NodeSize:
   def nodeSize(n: RNode, g: RGraph): Option[Size] =
     val shapeName = n.attrs.getOrElse("shape", "ellipse")
     val sn        = shapeName.toLowerCase
+    if sn == "point" then
+      val d = pointDiamIn(n) // circle: width == height == diameter, no label pad
+      return Some(Size(In(d), In(d)))
     if sn == "record" || sn == "mrecord" then
       val fixed = n.attrs.getOrElse("fixedsize", "false").toLowerCase match
         case "true" | "shape" => true

@@ -1,0 +1,5 @@
+graph 1 0.1 0.65
+node a 0.05 0.625 0.05 0.05 a solid point black lightgrey
+node b 0.05 0.05 0.1 0.1 b solid point black lightgrey
+edge a b 4 0.05 0.59758 0.05 0.55158 0.05 0.39676 0.05 0.26564 solid black
+stop

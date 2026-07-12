@@ -1,0 +1,35 @@
+{
+  "name": "pts",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,7.2,46.8",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.05",
+      "label": "\\N",
+      "pos": "3.6,45",
+      "shape": "point",
+      "width": "0.05"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "height": "0.1",
+      "label": "\\N",
+      "pos": "3.6,3.6",
+      "shape": "point",
+      "width": "0.1"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "pos": "e,3.6,7.6262 3.6,43.026 3.6,39.714 3.6,28.567 3.6,19.126"
+    }
+  ]
+}
