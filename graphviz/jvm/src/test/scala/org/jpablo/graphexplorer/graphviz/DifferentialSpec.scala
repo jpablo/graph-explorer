@@ -1,74 +1,64 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
+import java.io.File
 
 /** M8 end-to-end differential gate: the *full* pure pipeline reached only
-  * through the public `Graphviz.renderFormats` facade — exactly the slice
-  * the viewer's flagged backend calls — diffed against the captured viz-js
-  * goldens.
+  * through the public `Graphviz.renderFormats` facade — exactly the slice the
+  * viewer's backend calls — diffed against the captured viz-js goldens.
   *
-  *  - **Must-pass set** (label-free TB: 01/06/07): every requested format
-  *    emitted, `status: success`, and `dot_json`/`json0` parse to the same
-  *    structure as the golden (graph attrs / node & edge sets exact). This
-  *    is the CI-green integration gate.
-  *  - **M6-feature corpus** (02 attrs / 03 clusters / 04 ports / 05 edge-
-  *    labels): the facade must degrade *gracefully* (return, never throw)
-  *    so the viewer's fallback path stays well-defined. Their strict
-  *    golden parity is deliberately NOT asserted — it is M6's job
-  *    (tracked, PORT.md §5); the classification is printed so the M6
-  *    backlog stays data-driven, and this self-flags when M6 lands.
+  * Now that the corpus is byte-exact through the writers ([[CorpusByteExactSpec]]),
+  * this locks the FACADE path (parse → resolve → dispatch → error handling) so
+  * it can't drift: for every non-image corpus file it must emit `dot_json` /
+  * `json0` / `svg` **byte-exact**. Image files (an `<name>.images.json` sidecar
+  * exists) are excluded — the facade takes only `dot: String`, no image channel,
+  * so it correctly omits `<image>` elements the golden has; those are covered by
+  * the writer-level gate. 03/06 are the two documented corpus residuals (03 is
+  * gated vs its newrank oracle in [[ClusterSpec]]; 06 is the accepted spline
+  * residual) — asserted here only to degrade gracefully (return, never throw).
   */
 class DifferentialSpec extends FunSuite:
 
-  // 02 (rankdir=LR + rounded/filled boxes + vee arrows + edge label) and 04
-  // (record ports/compass, now incl. json0 `rects`) are byte-exact end-to-end
-  // ⇒ promoted into the must-pass integration set. 03 (clusters) + 05
-  // (graph-label / HTML-label width) remain M6-tracked.
-  private val mustPass = List("01-minimal", "02-attrs", "04-ports-compass", "06-undirected", "07-cross")
-  private val m6Corpus = List("03-subgraph-cluster", "05-strings-comments")
+  private val residual = Set("03-subgraph-cluster", "06-undirected")
+
+  private def corpusNames: Vector[String] =
+    new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))
+      .map(_.getName.dropRight(4)).sorted.toVector
+
+  private def hasImages(name: String): Boolean =
+    new File(s"graphviz/corpus/$name.images.json").exists()
 
   private def nodeNames(v: ujson.Value): Set[String] =
     v("objects").arr.iterator.map(_("name").str).toSet
-
   private def edgePairs(v: ujson.Value): Set[(Int, Int)] =
-    v("edges").arr.iterator.map(e => (e("tail").num.toInt, e("head").num.toInt)).toSet
+    v.obj.get("edges").map(_.arr.iterator.map(e => (e("tail").num.toInt, e("head").num.toInt)).toSet).getOrElse(Set.empty)
 
-  mustPass.foreach { name =>
-    test(s"$name: end-to-end via Graphviz.renderFormats matches the golden"):
-      val src = OracleHarness.corpusSource(name)
-      val r   = Graphviz.renderFormats(src, Seq("dot_json", "json0", "svg"))
+  // Byte-exact end-to-end through the public facade for every non-image,
+  // non-residual corpus file — the viewer's exact call path.
+  corpusNames.filterNot(n => residual(n) || hasImages(n)).foreach { name =>
+    test(s"$name: Graphviz.renderFormats byte-exact (dot_json + json0 + svg)"):
+      val r = Graphviz.renderFormats(OracleHarness.corpusSource(name), Seq("dot_json", "json0", "svg"))
       assertEquals(r.status, "success", r.errors.toString)
       assertEquals(r.output.keySet, Set("dot_json", "json0", "svg"))
-
-      val odj = ujson.read(r.output("dot_json"))
-      val gdj = ujson.read(OracleHarness.golden(name, "dot_json"))
-      assertEquals(odj("name").str, gdj("name").str, s"$name graph name")
-      assertEquals(odj("directed").bool, gdj("directed").bool)
-      assertEquals(odj("strict").bool, gdj("strict").bool)
-      assertEquals(nodeNames(odj), nodeNames(gdj), s"$name node set")
-      assertEquals(edgePairs(odj), edgePairs(gdj), s"$name edge set")
-
-      val oj0 = ujson.read(r.output("json0"))
-      assertEquals(nodeNames(oj0), nodeNames(gdj), s"$name json0 node set")
-      assert(r.output("svg").startsWith("<?xml ") && r.output("svg").contains("</svg>"),
-        s"$name svg well-formed")
+      assertEquals(r.output("dot_json"), OracleHarness.golden(name, "dot_json"), s"$name dot_json")
+      assertEquals(r.output("json0"), OracleHarness.golden(name, "json0"), s"$name json0")
+      assertEquals(r.output("svg"), OracleHarness.golden(name, "svg"), s"$name svg")
   }
 
-  test("M6-feature corpus degrades gracefully (returns, never throws)"):
-    m6Corpus.foreach { name =>
-      val src = OracleHarness.corpusSource(name)
-      val r   = Graphviz.renderFormats(src, Seq("dot_json", "json0", "svg"))
+  test("residual corpus (03/06) degrades gracefully (returns, never throws)"):
+    residual.foreach { name =>
+      val r = Graphviz.renderFormats(OracleHarness.corpusSource(name), Seq("dot_json", "json0", "svg"))
       assert(r.status == "success" || r.status == "failure", s"$name returned a status")
-      // Data-driven M6 backlog: structural delta vs golden (informational).
-      val verdict =
-        if r.status != "success" then s"failure: ${r.errors.map(_.message.take(50)).mkString}"
-        else
-          val o = ujson.read(r.output("dot_json"))
-          val g = ujson.read(OracleHarness.golden(name, "dot_json"))
-          val ns = if nodeNames(o) == nodeNames(g) then "nodes=ok" else "nodes=DIFF"
-          val es = if edgePairs(o) == edgePairs(g) then "edges=ok" else "edges=DIFF"
-          s"success $ns $es (strict golden parity = M6)"
-      println(f"M8/M6 $name%-22s $verdict")
     }
+
+  test("unsupported format ⇒ failure, not exception"):
+    val r = Graphviz.renderFormats("digraph { a -> b }", Seq("dot_json", "png"))
+    assertEquals(r.status, "failure")
+    assert(r.errors.exists(_.message.contains("png")), r.errors.toString)
+
+  test("malformed DOT ⇒ failure with an error, not exception"):
+    val r = Graphviz.renderFormats("digraph { a -> ", Seq("svg"))
+    assertEquals(r.status, "failure")
+    assert(r.errors.nonEmpty)
 
 end DifferentialSpec
