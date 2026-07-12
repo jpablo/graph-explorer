@@ -1669,4 +1669,19 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   graphvizJVM 336/336, JS green, TB corpus untouched (identity transform). The
   `rankdir` §5 row is ✅ for LR; RL/BT follow the same `DrawTransform`
   construction (no corpus) and spline routing under RL/BT is the only open sub-part.
+- **2026-07-11** — **Whole-corpus byte-exact: 73/76 (all 3 formats) + a locking
+  gate.** After closing 02/04, a full-corpus exact-string sweep found two quick
+  systematic wins and pinned the true residuals. (1) **04 record `rects`**: json0
+  emits each leaf field's absolute box from the RecordLabel layout → 04 byte-exact
+  (promoted to must-pass). (2) **empty json0 edges**: gv omits the `"edges"` key
+  for an edgeless graph (dotJson already did); json0 emitted `"edges": []` —
+  omitting it closed every edgeless shape/HTML single-node test, jumping the
+  exact count 20→53. With the image size sidecar loaded (as the gated specs do),
+  **73 of 76 corpus files are byte-exact across dot_json + json0 + svg**. New
+  `CorpusByteExactSpec` gates all three formats for every file (414 tests total),
+  with the 3 exclusions asserted fails-when-fixed. Remaining: **03** (viz-js
+  leaves clusters unlaid-out — buggy oracle, dot_json matches), **05** (HTML/
+  multi-line edge-label metrics + `tooltip` `<a>` anchor + graph-label centering),
+  **06** (undirected-mesh spline residual ~0.05 pt, Hausdorff-gated). graphvizJVM
+  414/414, JS green.
 - _(append dated entries as milestones land)_
