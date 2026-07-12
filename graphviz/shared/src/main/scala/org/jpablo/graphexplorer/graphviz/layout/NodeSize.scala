@@ -71,22 +71,41 @@ object NodeSize:
     * `\`, and `\N`/`\G` substitutions. Justification is irrelevant to sizing.
     */
   private def labelLines(raw: String, nodeId: String, graphName: String): List[String] =
-    val lines = scala.collection.mutable.ListBuffer.empty[String]
+    labelLinesJust(raw, nodeId, graphName).map(_._1)
+
+  /** Like [[labelLines]] but keeps each line's **justification** — `\n` ⇒
+    * `'n'` (centre), `\l` ⇒ `'l'` (left), `\r` ⇒ `'r'` (right); the final
+    * line (terminated by end-of-string, not an escape) is centre. This is
+    * what `emit_label`/`svg_textspan` need to stack + anchor plain labels. */
+  def labelLinesJust(raw: String, nodeId: String, graphName: String): List[(String, Char)] =
+    val lines = scala.collection.mutable.ListBuffer.empty[(String, Char)]
     val cur   = new StringBuilder
     var i     = 0
     while i < raw.length do
       val c = raw.charAt(i)
       if c == '\\' && i + 1 < raw.length then
         raw.charAt(i + 1) match
-          case 'n' | 'l' | 'r' => lines += cur.toString; cur.clear(); i += 2
-          case '\\'            => cur.append('\\'); i += 2
-          case 'N'             => cur.append(nodeId); i += 2
-          case 'G'             => cur.append(graphName); i += 2
-          case other           => cur.append(other); i += 2
+          case j @ ('n' | 'l' | 'r') => lines += ((cur.toString, j)); cur.clear(); i += 2
+          case '\\'                  => cur.append('\\'); i += 2
+          case 'N'                   => cur.append(nodeId); i += 2
+          case 'G'                   => cur.append(graphName); i += 2
+          case other                 => cur.append(other); i += 2
       else
         cur.append(c); i += 1
-    lines += cur.toString
+    lines += ((cur.toString, 'n'))
     lines.toList
+
+  /** Per-line height in points (`make_label` `dimen.y` term): a non-empty
+    * line is `fontSize*LINESPACING`, an empty one `(int)(fontSize*LINESPACING)`. */
+  def lineHeightPt(line: String, fontSizePt: Double): Double =
+    if line.isEmpty then (fontSizePt * LineSpacing).toInt.toDouble else fontSizePt * LineSpacing
+
+  /** Widest rendered line width in points (`lp->space.x` for a plain label) —
+    * drives `\l`/`\r` justification x-offset. */
+  def labelBoxWidthPt(raw: String, fontSizePt: Double, fontName: String, nodeId: String, graphName: String): Double =
+    labelLinesJust(raw, nodeId, graphName).map { case (l, _) =>
+      if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, false, false)
+    }.maxOption.getOrElse(0.0)
 
   private def dbl(n: RNode, key: String, default: Double): Double =
     n.attrs.get(key).flatMap(_.toDoubleOption).getOrElse(default)
