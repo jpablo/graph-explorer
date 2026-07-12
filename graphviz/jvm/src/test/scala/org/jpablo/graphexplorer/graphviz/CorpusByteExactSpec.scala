@@ -11,15 +11,19 @@ import java.io.File
   * (Graphviz 13.0.1) goldens **character-for-character**. Image files load
   * their `<name>.images.json` size sidecar (viz-js caches image sizes by name).
   *
-  * 73 of 76 files pass. The three exclusions are documented deferrals, NOT
-  * tolerances — each is asserted below to still differ so this list can't rot:
-  *   - 03-subgraph-cluster: the oracle (viz-js) leaves clusters unlaid-out
-  *     (sentinel bb) — dot_json matches; json0/svg cluster geometry can't match
-  *     a buggy golden.
-  *   - 05-strings-comments: HTML/multi-line edge-label metrics + `tooltip`
-  *     `<a xlink:title>` anchor + graph-label centering (tracked follow-up).
-  *   - 06-undirected: an undirected-mesh spline residual (~0.05 pt) — the
-  *     splines are Hausdorff-gated in SplineSpec, not yet exact-string.
+  * 73 of 76 files pass. The three exclusions are each asserted below to still
+  * differ so this list can't rot:
+  *   - 03-subgraph-cluster: NOT a viz-js bug — real gv 13.0.1 ALSO fails to lay
+  *     this out (the `{rank=same; a0; b0}` crosses two clusters; both viz-js and
+  *     the gv CLI emit the degenerate sentinel bb). Per the "don't port the bug"
+  *     rule we do NOT reproduce the sentinel; our layout is valid but has no
+  *     correct oracle to gate byte-exact against (gv is broken for this input).
+  *   - 05-strings-comments: **accepted residual** — HTML edge-label metrics now
+  *     match gv exactly (n2/n3 byte-exact); the remaining ~3 pt on `node one` is
+  *     a network-simplex X-coord balance tie-break on the `__v0_1` label vnode
+  *     (all label dimens verified vs real gv). Plus the `tooltip` `<a>` anchor.
+  *   - 06-undirected: **done** — an undirected-mesh spline residual (~0.05 pt),
+  *     visually identical and Hausdorff-gated in SplineSpec. Accepted as-is.
   */
 class CorpusByteExactSpec extends FunSuite:
 
