@@ -1,7 +1,8 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
-import org.jpablo.graphexplorer.graphviz.model.RGraph
+import org.jpablo.graphexplorer.graphviz.model.{RGraph, REdge}
 import org.jpablo.graphexplorer.graphviz.units.Length.Pt
+import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLayout}
 import scala.collection.mutable
 
 /** Phase 3a of the `dot` pipeline: rank-axis (Y) coordinate assignment.
@@ -26,6 +27,20 @@ object Coord:
     * `GD_ranksep = (GD_ranksep + 1) / 2` with int `GD_ranksep` ⇒ 36 → 18. */
   private def rankSep(g: RGraph): Double =
     if Rank.hasEdgeLabel(g) then ((RankSep.toInt + 1) / 2).toDouble else RankSep
+
+  /** Edge-label (width, height) in pt. **HTML-aware**: an HTML label (`<...>`)
+    * is parsed and measured by the table/text layout — measuring the raw markup
+    * as plain text would count the `<b>`/`</b>` tags and grossly inflate the
+    * label-vnode width (05: `<b>html</b> label` was 105.8 pt instead of ~52). */
+  private[layout] def edgeLabelDim(e: REdge, g: RGraph): (Double, Double) =
+    val lbl = e.attrs.getOrElse("label", "")
+    val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
+    val fn  = e.attrs.getOrElse("fontname", "Times")
+    def plain = (NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse("")),
+                 NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse("")))
+    if e.attrs.isHtml("label") then
+      HtmlParser.parse(lbl).map(h => HtmlLayout.size(h, fs, fn, g.images)).getOrElse(plain)
+    else plain
 
   /** Rank-axis coordinate in points for every real node. For TB this is the
     * final `y` (rank 0 = largest = top); for LR it is pre-rotation and not
@@ -66,13 +81,11 @@ object Coord:
           // labelled edge ⇒ the mid rank's virtual is the label box. Its
           // rank-axis extent (ND_ht) is dimen.y (label height) for TB, but
           // dimen.x (label width) for a flipped graph (class2.c label_vnode).
-          e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
-            val mid = (rt + rh) / 2
-            val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
-            val fn  = e.attrs.getOrElse("fontname", "Times")
-            val ht  = if Rank.flip(g) then NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse(""))
-                      else NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse(""))
-            val h2  = ht / 2.0
+          e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
+            val mid    = (rt + rh) / 2
+            val (w, h) = edgeLabelDim(e, g)
+            val ht     = if Rank.flip(g) then w else h // rank-axis extent (flip ⇒ width)
+            val h2     = ht / 2.0
             if h2 > halfHt(mid) then halfHt(mid) = h2
           }
     }
@@ -117,10 +130,8 @@ object Coord:
           rt <- ranks.get(e.tail)
           rh <- ranks.get(e.head) if rt != rh
         yield
-          val fs = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
-          val fn = e.attrs.getOrElse("fontname", "Times")
-          val rw = if flip then NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse(""))
-                   else NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse(""))
+          val (w, h) = edgeLabelDim(e, g)
+          val rw     = if flip then h else w // order-axis extent (flip ⇒ height)
           LayoutNode.Virtual(dIdx, (rt + rh) / 2).name -> rw
       }
     }.toMap
