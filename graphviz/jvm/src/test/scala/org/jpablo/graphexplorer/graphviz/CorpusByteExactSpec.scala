@@ -11,9 +11,9 @@ import java.io.File
   * (Graphviz 13.0.1) goldens **character-for-character**. Image files load
   * their `<name>.images.json` size sidecar (viz-js caches image sizes by name).
   *
-  * 74 of 77 files pass (incl. 03b — the full cluster geometry subsystem).
-  * The three exclusions are each asserted below to still differ so this list
-  * can't rot:
+  * 75 of 77 files pass (incl. 03b — the full cluster geometry subsystem, and
+  * 05 — closed by the aux-graph seed-truncation fix). The two exclusions are
+  * each asserted below to still differ so this list can't rot:
   *   - 03-subgraph-cluster: its goldens are gv's DEFAULT-mode corruption (the
   *     cross-cluster `{rank=same}` breaks the recursive cluster ranker: 13.0.1
   *     emits a degenerate 0×0 sentinel, 12.2.1 hard-errors). Per the "don't
@@ -22,16 +22,12 @@ import java.io.File
   *     `03b-subgraph-cluster-newrank` goldens in [[ClusterSpec]] (svg is
   *     byte-identical; jsons differ only by the `newrank` attribute echo).
   *     It stays here only because its OWN goldens are the sentinel.
-  *   - 05-strings-comments: **accepted residual** — HTML edge-label metrics now
-  *     match gv exactly (n2/n3 byte-exact); the remaining ~3 pt on `node one` is
-  *     a network-simplex X-coord balance tie-break on the `__v0_1` label vnode
-  *     (all label dimens verified vs real gv). Plus the `tooltip` `<a>` anchor.
   *   - 06-undirected: **done** — an undirected-mesh spline residual (~0.05 pt),
   *     visually identical and Hausdorff-gated in SplineSpec. Accepted as-is.
   */
 class CorpusByteExactSpec extends FunSuite:
 
-  private val deferred = Set("03-subgraph-cluster", "05-strings-comments", "06-undirected")
+  private val deferred = Set("03-subgraph-cluster", "06-undirected")
 
   private def names: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))

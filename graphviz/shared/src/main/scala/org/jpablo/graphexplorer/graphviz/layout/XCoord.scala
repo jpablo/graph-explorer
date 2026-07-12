@@ -115,9 +115,19 @@ object XCoord:
       var last = 0
       ids.sliding(2).foreach {
         case Seq(u, v) =>
-          val sep = math.round(rw(u) + lw(v) + nodesep).toInt // ROUND(ND_rw(u)+ND_lw(v)+nodesep)
-          edges += NetworkSimplex.NSEdge(u.name, v.name, sep, 0)
-          last += sep; initRank(v.name) = last
+          // The aux EDGE minlen is `ROUND(width)` (make_aux_edge → ED_minlen),
+          // but the SEED rank gv left-packs is `ND_rank(v) = (int)(last +
+          // width)` — the running int rank plus the RAW width, TRUNCATED
+          // toward zero (position.c:262). Using ROUND for the seed too
+          // inflates it by up to 1pt on a fractional chain, which can flip
+          // init_graph's feasibility check (05: my seed came out feasible, so
+          // I skipped init_rank where gv runs it → a different feasible_tree
+          // → the `node one` X residual). Truncate the seed, ROUND the edge.
+          val width  = rw(u) + lw(v) + nodesep
+          val minlen = math.round(width).toInt
+          edges += NetworkSimplex.NSEdge(u.name, v.name, minlen, 0)
+          last = (last + width).toInt
+          initRank(v.name) = last
         case _ => ()
       }
     }
