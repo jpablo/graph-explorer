@@ -206,6 +206,27 @@ object Output:
       if math.abs(v - r) < 1e-6 then r else v
     (Pt(snap(minX)), Pt(snap(minY)), Pt(snap(maxX)), Pt(snap(maxY)))
 
+  /** Node-extent bbox in the FINAL (rotated) frame: each node is drawn at its
+    * true size around the `map_point`-transformed centre (rotating the swapped
+    * layout size back to the true size). Used for flipped graphs; the offset in
+    * `tf` already lands the min corner at ~0. selfW/graph-label reservation is
+    * a deferral (no flipped corpus exercises them). */
+  private[output] def finalBBox(g: RGraph, tf: (Double, Double) => (Double, Double)): (Double, Double, Double, Double) =
+    val (_, yOf) = Coord.rankY(g)
+    val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
+    val xs       = XCoord.xCoords(g)
+    var minX = Double.MaxValue; var maxX = Double.MinValue
+    var minY = Double.MaxValue; var maxY = Double.MinValue
+    g.nodes.foreach { n =>
+      for xp <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
+        val (cxv, cyv) = tf(xp.value, yOf(ranks(n.id)).value)
+        val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
+        minX = math.min(minX, cxv - hw); maxX = math.max(maxX, cxv + hw)
+        minY = math.min(minY, cyv - hh); maxY = math.max(maxY, cyv + hh)
+    }
+    def snap(v: Double): Double = { val r = math.rint(v); if math.abs(v - r) < 1e-6 then r else v }
+    (snap(minX), snap(minY), snap(maxX), snap(maxY))
+
   /** One subgraph object block (4-space indented, no trailing comma), shared
     * by both writers. gv field order: name, label, [rank], _gvid, [nodes],
     * [edges]. json0's cluster-label geometry (bb/lheight/lwidth/lp) is a
@@ -280,8 +301,12 @@ object Output:
 
   def json0(g: RGraph): String =
     val d = doc(g)
+    // map_point (postproc.c): rotate canonical coords into the drawing frame.
+    val tf = org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g)
     val (lxPt, lyPt, uxPt, uyPt) = bbox(g)
-    val (lx, ly, ux, uy) = (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
+    val (lx, ly, ux, uy) =
+      if org.jpablo.graphexplorer.graphviz.layout.Rank.flip(g) then finalBBox(g, tf)
+      else (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
     val byId  = g.nodes.iterator.map(n => n.id -> n).toMap
     val xs    = XCoord.xCoords(g)
     val (_, yOf) = Coord.rankY(g)
@@ -320,7 +345,8 @@ object Output:
       val kv = scala.collection.mutable.LinkedHashMap.empty[String, String]
       attrPairs(a).foreach((k, v) => kv(k) = s""""${esc(v)}"""")
       sz.foreach { s => kv("height") = s""""${g5(s.height.value)}""""; kv("width") = s""""${g5(s.width.value)}"""" }
-      kv("pos") = s""""${g5(px)},${g5(py)}""""
+      val (tpx, tpy) = tf(px, py)
+      kv("pos") = s""""${g5(tpx)},${g5(tpy)}""""
       val fields = Vector.newBuilder[String]
       fields += s"""      "_gvid": $gv"""
       fields += s"""      "name": "${esc(id)}""""
@@ -337,11 +363,12 @@ object Output:
       if edgeLabels then a = a.updatedWith("label")(v => Some(v.getOrElse("")))
       val kv = scala.collection.mutable.LinkedHashMap.empty[String, String]
       attrPairs(a).foreach((k, v) => kv(k) = s""""${esc(v)}"""")
-      lps.get(e.idx).foreach(p => kv("lp") = s""""${g5(p.x)},${g5(p.y)}"""")
+      lps.get(e.idx).foreach { p => val (lpx, lpy) = tf(p.x, p.y); kv("lp") = s""""${g5(lpx)},${g5(lpy)}"""" }
       spl.get(e.idx).foreach { es =>
-        val pre = es.ep.map(p => s"e,${g5(p.x)},${g5(p.y)} ").getOrElse("") +
-                  es.sp.map(p => s"s,${g5(p.x)},${g5(p.y)} ").getOrElse("")
-        val pts = es.pts.map(p => s"${g5(p.x)},${g5(p.y)}").mkString(" ")
+        def m(p: Spline.XY): (Double, Double) = tf(p.x, p.y)
+        val pre = es.ep.map(p => { val (x, y) = m(p); s"e,${g5(x)},${g5(y)} " }).getOrElse("") +
+                  es.sp.map(p => { val (x, y) = m(p); s"s,${g5(x)},${g5(y)} " }).getOrElse("")
+        val pts = es.pts.map(p => { val (x, y) = m(p); s"${g5(x)},${g5(y)}" }).mkString(" ")
         kv("pos") = s""""$pre$pts""""
       }
       val fields = Vector.newBuilder[String]

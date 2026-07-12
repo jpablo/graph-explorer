@@ -1619,4 +1619,18 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   splines are untouched. `EdgeLabel2Spec` now gates 15 json0 (lp + spline pos) +
   svg byte-exact; 14 (isolated label) + 12 (graph label) stay byte-exact.
   graphvizJVM 332/332, JS green. gv worktree reverted pristine; `_dbgbuild` gone.
+- **2026-07-11** — **`map_point` transform WIRED into the output pipeline — 02-LR
+  node pos + bb + lp byte-exact via the real writer.** The LR rotation had been
+  a *test-only* computation (`RankDirSpec.finalLR`); `Output.json0` still emitted
+  canonical (TB) coordinates for 02. Ported `postproc.c` `map_point` as
+  `layout/DrawTransform`: `ccwrotate(p, rankdir·90°)` then subtract the min
+  corner of the rotated canonical node-extent bbox (identity for TB — the whole
+  corpus stays bit-exact). Wired it through `Output.json0`: node `pos`, edge
+  `lp`, spline points, and a rotated-frame `finalBBox` all pass through `tf`.
+  Result: 02's `bb` (0,0,249.88,70), all three node positions, and the `go` edge
+  `lp` (79,60.4) are now **byte-exact through the actual pipeline** (RankDirSpec
+  gate promoted). ⬜ Remaining for full 02: edge spline `pos` under LR is *close*
+  but not exact (span-1 edges ~0.1–0.9 pt, the long `start→end` more) — a
+  canonical LR-routing refinement; plus svg wiring + the `vee` arrowhead.
+  graphvizJVM 333/333, JS green. TB corpus untouched (identity transform).
 - _(append dated entries as milestones land)_

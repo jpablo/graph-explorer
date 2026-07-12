@@ -86,4 +86,21 @@ class RankDirSpec extends FunSuite:
       assertEquals(r2(oy), r2(gy), s"02 $id order-axis (final Y)")
     }
 
+  // The verified map_point transform (DrawTransform) is now WIRED into the
+  // actual `Output.json0` pipeline (was a test-only computation above). Node
+  // `pos`, `bb` and edge-label `lp` come out byte-exact through the real
+  // writer. Edge spline `pos` under LR (canonical routing refinement) + svg +
+  // the `vee` arrowhead are the tracked follow-up (PORT.md §5.2).
+  test("02 LR: json0 node pos + bb + lp byte-exact via Output.json0"):
+    val ours = ujson.read(org.jpablo.graphexplorer.graphviz.output.Output.json0(g("02-attrs")))
+    val gold = ujson.read(OracleHarness.golden("02-attrs", "json0"))
+    assertEquals(ours("bb").str, gold("bb").str, "02 bb")
+    val gN = gold("objects").arr.iterator.filter(!_.obj.contains("nodes")).map(n => n("name").str -> n("pos").str).toMap
+    ours("objects").arr.iterator.filter(!_.obj.contains("nodes")).foreach { n =>
+      assertEquals(n("pos").str, gN(n("name").str), s"02 ${n("name").str} pos")
+    }
+    val gLp = gold("edges").arr.iterator.flatMap(_.obj.get("lp").map(_.str)).toVector
+    val oLp = ours("edges").arr.iterator.flatMap(_.obj.get("lp").map(_.str)).toVector
+    assertEquals(oLp, gLp, "02 edge lp")
+
 end RankDirSpec
