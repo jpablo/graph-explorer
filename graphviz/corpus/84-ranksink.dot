@@ -1,0 +1,6 @@
+digraph rk {
+  { rank=sink; t; }
+  a -> b;
+  b -> t;
+  a -> t;
+}

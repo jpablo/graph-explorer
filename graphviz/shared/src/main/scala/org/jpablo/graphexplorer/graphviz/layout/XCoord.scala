@@ -326,11 +326,14 @@ object XCoord:
     // identities so the round-trip is exact).
     val xrByNode: Map[LayoutNode, Int] = nodeOrder.iterator.map(n => n -> xr(n.name)).toMap
 
-    // shift so the bbox origin sits at 0: leftmost node's left edge, or —
-    // with clusters — the leftmost cluster border − CL_OFFSET
-    // (dot_compute_bb root: bb includes cluster boxes + margin).
+    // shift so the bbox origin sits at 0. gv's `dot_compute_bb` left bound is
+    // the leftmost **NORMAL** node's `x − lw` (virtual chain nodes are skipped)
+    // — a reversed min/max chain can park a vnode left of every real node, so
+    // shifting by all-node min would offset the whole drawing. Restrict to
+    // real nodes (+ cluster left borders − CL_OFFSET).
     val placed: Vector[LayoutNode] = res.order.values.flatten.toVector
-    var shift  = placed.iterator.map(id => xrByNode(id).toDouble - half(id)).minOption.getOrElse(0.0)
+    var shift  = placed.iterator.collect { case r: LayoutNode.Real => xrByNode(r).toDouble - half(r) }
+      .minOption.getOrElse(0.0)
     cluInfos.indices.foreach { i =>
       shift = math.min(shift, xrByNode(LayoutNode.ClusterLn(i)).toDouble - 8.0)
     }

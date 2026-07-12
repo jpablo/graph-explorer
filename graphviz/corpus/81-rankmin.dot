@@ -1,0 +1,5 @@
+digraph rk {
+  { rank=min; c; }
+  a -> b -> c;
+  a -> c;
+}

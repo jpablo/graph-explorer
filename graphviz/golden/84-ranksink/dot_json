@@ -1,0 +1,49 @@
+{
+  "name": "rk",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 82 180",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "%1",
+      "rank": "sink",
+      "_gvid": 0,
+      "nodes": [
+        1
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "t",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 1
+    },
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 1
+    }
+  ]
+}
