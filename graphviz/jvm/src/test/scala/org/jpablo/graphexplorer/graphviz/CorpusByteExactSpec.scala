@@ -36,7 +36,13 @@ class CorpusByteExactSpec extends FunSuite:
   // the same mincross BFS-seed tie-break class as the LR order axis.
   private val deferred = Set(
     "03-subgraph-cluster", "06-undirected",
-    "81-rankmin", "82-rankmax", "84-ranksink")
+    "81-rankmin", "82-rankmax", "84-ranksink",
+    // Cluster-aware mincross: single-level cluster contiguity is byte-exact
+    // (94-cluster-contig), but a cluster spanning multiple ranks with FREE long
+    // edges crossing into it (top→a1/a2) needs gv's remincross pass + left2right
+    // to order the free virtuals against the skeleton column — a ~10pt x-shift
+    // until then.
+    "95-cluster-chains")
 
   private def names: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))

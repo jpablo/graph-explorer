@@ -11,11 +11,18 @@ import scala.collection.mutable
   * `restore_best`), the weighted-median `reorder`, and `transpose` adjacent-swap
   * refinement.
   *
+  * **Clusters** (`dot_mincross` + `class2.c`/`cluster.c`): [[orderClustered]]
+  * collapses each top-level cluster to a skeleton column so the top-level
+  * mincross can't interleave clusters, orders each cluster's interior
+  * recursively, then expands. Single-level clusters are byte-exact
+  * (94-cluster-contig); a multi-rank cluster with FREE long edges crossing into
+  * it (95-cluster-chains) still needs the remincross pass + `left2right`.
+  *
   * Deferred (⬜, PORT.md §5.2): **flat edges** (`flat_reorder`/`flat_breakcycles`
   * for same-rank adjacencies — this is what leaves 06's `b`/`c` order a mirror
-  * of gv's), cluster recursion (`mincross_clust`), and ports. Without flat
-  * edges the label-free corpus is gated crossing-count/mirror-aware, not
-  * strictly byte-exact, for graphs that have a same-rank edge.
+  * of gv's), the cluster **remincross** pass + nested clusters, and ports.
+  * Without flat edges the label-free corpus is gated crossing-count/mirror-
+  * aware, not strictly byte-exact, for graphs that have a same-rank edge.
   */
 object Order:
 
@@ -109,12 +116,155 @@ object Order:
         .foreach(n => if !done(n) then { done += n; res += n }) // stable append for unreached
       res.toVector
 
+    val flip = Rank.flip(g)
+    val (order, cross) =
+      if Cluster.clusters(g).isEmpty then runMincross(out, in, rankOf, gdNlist, flip)
+      else orderClustered(g, out, in, rankOf, flip)
+    Result(rank0, order, cross, segs.toVector, segOwn.toVector)
+
+  /** Local collapsed-graph node: either a free (root-level) layout node passed
+    * through, or a cluster **skeleton** rankleader `Sk(cluster, rank)` standing
+    * in for the whole cluster column (gv `build_skeleton`). */
+  private enum CNode derives CanEqual:
+    case Nd(n: LayoutNode)
+    case Sk(clust: Int, rank: Int)
+
+  /** `decompose`-order (decomp.c) over a class2 graph: DFS from declaration-
+    * order real `seeds` following in- then out-edges, then a stable append of
+    * any unreached nodes (`others`). Shared by the cluster collapse + interiors
+    * (the flat graph keeps its own inline copy so its bytes never move). */
+  private def decomposeOrder[N](
+      seeds: Vector[N], others: Vector[N],
+      out: collection.Map[N, mutable.ArrayBuffer[N]],
+      in:  collection.Map[N, mutable.ArrayBuffer[N]]
+  )(using CanEqual[N, N]): Vector[N] =
+    val done = mutable.Set.empty[N]
+    val res  = mutable.ArrayBuffer.empty[N]
+    def visit(seed: N): Unit =
+      val stk = mutable.Stack(seed)
+      while stk.nonEmpty do
+        val n = stk.pop()
+        if !done(n) then
+          done += n; res += n
+          in(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+          out(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+    seeds.foreach(s => if !done(s) then visit(s))
+    (seeds ++ others).foreach(n => if !done(n) then { done += n; res += n })
+    res.toVector
+
+  /** `dot_mincross` with clusters (mincross.c:381 + class2.c/cluster.c):
+    * collapse each top-level cluster to a skeleton column so the top-level
+    * mincross physically can't interleave clusters, order the collapsed graph,
+    * order each cluster's interior recursively, then expand each skeleton back
+    * into its nodes. Scoped to **single-level** clusters (the whole corpus +
+    * probes); nested clusters are a documented TODO (would recurse the collapse
+    * per level). */
+  private def orderClustered(
+      g: RGraph,
+      out: collection.Map[LayoutNode, mutable.ArrayBuffer[LayoutNode]],
+      in:  collection.Map[LayoutNode, mutable.ArrayBuffer[LayoutNode]],
+      rankOf: collection.Map[LayoutNode, Int],
+      flip: Boolean
+  ): (Map[Int, Vector[LayoutNode]], Long) =
+    val cinfos   = Cluster.clusters(g)
+    val clustOf  = Cluster.clustOf(g) // node NAME → innermost cluster idx
+    def cOf(n: LayoutNode): Option[Int] = clustOf.get(n.name)
+    val allNodes = out.keysIterator.toVector
+
+    // Each cluster's occupied rank band (over the class2 nodes actually present).
+    val clRanks: Map[Int, (Int, Int)] =
+      allNodes.groupBy(cOf).collect { case (Some(ci), ns) =>
+        val rs = ns.map(rankOf); ci -> (rs.min, rs.max)
+      }
+
+    // ── each cluster's interior order: mincross on its induced subgraph
+    //    (intra-cluster segments only; seed = declared node order). ──
+    def internalOrder(ci: Int): Map[Int, Vector[LayoutNode]] =
+      val members = allNodes.filter(n => cOf(n).contains(ci)).toSet
+      val iOut  = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
+      val iIn   = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
+      val iRank = mutable.HashMap.empty[LayoutNode, Int]
+      members.foreach { n =>
+        iOut.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
+        iIn.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
+        iRank(n) = rankOf(n)
+      }
+      allNodes.foreach { t =>
+        if members.contains(t) then
+          out(t).foreach { h => if members.contains(h) then { iOut(t) += h; iIn(h) += t } }
+      }
+      val declared = cinfos(ci).nodeIds.iterator.map(id => LayoutNode.Real(id): LayoutNode)
+        .filter(members.contains).toVector
+      val virtuals = members.iterator.collect { case v: LayoutNode.Virtual => v: LayoutNode }
+        .toVector.sortBy(_.name)
+      val seed = decomposeOrder(declared, virtuals, iOut, iIn)
+      runMincross(iOut, iIn, iRank, seed, flip)._1
+
+    // ── collapse: free nodes pass through, each cluster → a skeleton chain. ──
+    def leaderC(n: LayoutNode): CNode = cOf(n) match
+      case Some(ci) => CNode.Sk(ci, rankOf(n))
+      case None     => CNode.Nd(n)
+    val cOut  = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+    val cIn   = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+    val cRank = mutable.HashMap.empty[CNode, Int]
+    def cInit(x: CNode, r: Int): Unit =
+      cOut.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
+      cIn.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
+      cRank(x) = r
+    allNodes.foreach(n => if cOf(n).isEmpty then cInit(CNode.Nd(n), rankOf(n)))
+    clRanks.foreach { case (ci, (lo, hi)) =>
+      (lo to hi).foreach(r => cInit(CNode.Sk(ci, r), r))
+      (lo until hi).foreach { r => // build_skeleton chain (keeps the column together)
+        cOut(CNode.Sk(ci, r)) += CNode.Sk(ci, r + 1); cIn(CNode.Sk(ci, r + 1)) += CNode.Sk(ci, r)
+      }
+    }
+    // redirect every class2 segment to its leaders; drop intra-cluster ones
+    // (interclrep: `else ignore intra-cluster edges` — the recursion owns them).
+    allNodes.foreach { t =>
+      out(t).foreach { h =>
+        val lt = leaderC(t); val lh = leaderC(h)
+        val intra = (lt, lh) match
+          case (CNode.Sk(c1, _), CNode.Sk(c2, _)) => c1 == c2
+          case _                                  => lt == lh
+        if !intra then { cOut(lt) += lh; cIn(lh) += lt }
+      }
+    }
+
+    val cSeeds = g.nodes.iterator.map(n => LayoutNode.Real(n.id): LayoutNode)
+      .filter(n => cOf(n).isEmpty).map(CNode.Nd.apply: LayoutNode => CNode).toVector
+    val cOthers = cOut.keysIterator.filterNot(cSeeds.contains).toVector
+    val cSeed   = decomposeOrder(cSeeds, cOthers, cOut, cIn)
+    val (cOrder, cCross) = runMincross(cOut, cIn, cRank, cSeed, flip)
+
+    // ── expand each skeleton back to its cluster's interior order ──
+    val internal = clRanks.keysIterator.map(ci => ci -> internalOrder(ci)).toMap
+    val finalOrder = cOrder.map { case (r, row) =>
+      r -> row.flatMap {
+        case CNode.Nd(n)      => Vector(n)
+        case CNode.Sk(ci, rr) => internal(ci).getOrElse(rr, Vector.empty)
+      }
+    }
+    (finalOrder, cCross)
+
+  /** The `mincross` driver proper (mincross.c:745) over a class2 graph given as
+    * adjacency maps + a `GD_nlist` seed order. Extracted so both the flat graph
+    * ([[orderImpl]]) and — in the cluster path — the collapsed top-level graph
+    * and each cluster's recursion can share one solver. Reads `out`/`in`/
+    * `rankOf` (never mutates them); returns the per-rank order + crossing count.
+    */
+  private def runMincross[N](
+      out:     collection.Map[N, mutable.ArrayBuffer[N]],
+      in:      collection.Map[N, mutable.ArrayBuffer[N]],
+      rankOf:  collection.Map[N, Int],
+      gdNlist: Vector[N],
+      flip:    Boolean
+  )(using CanEqual[N, N]): (Map[Int, Vector[N]], Long) =
     val minR  = if rankOf.isEmpty then 0 else rankOf.values.min
     val maxR  = if rankOf.isEmpty then 0 else rankOf.values.max
-    val ranks = mutable.HashMap.from((minR to maxR).map(r => r -> mutable.ArrayBuffer.empty[LayoutNode]))
-    val pos   = mutable.HashMap.empty[LayoutNode, Int]
-    val mark  = mutable.Set.empty[LayoutNode]
-    def install(n: LayoutNode): Unit =
+    val ranks = mutable.HashMap.from((minR to maxR).map(r => r -> mutable.ArrayBuffer.empty[N]))
+    val pos   = mutable.HashMap.empty[N, Int]
+    val mark  = mutable.Set.empty[N]
+    def install(n: N): Unit =
       val rb = ranks(rankOf(n)); pos(n) = rb.length; rb += n
 
     // build_ranks(pass) (mincross.c:1273): BFS installing each rank left-to-
@@ -125,7 +275,7 @@ object Order:
     // EVERY rank is reversed (mincross.c:1334) — the LR order-axis mirror.
     def buildRanks(pass: Int): Unit =
       ranks.valuesIterator.foreach(_.clear()); pos.clear(); mark.clear()
-      val q = mutable.Queue.empty[LayoutNode]
+      val q = mutable.Queue.empty[N]
       gdNlist.foreach { root =>
         val rootFree = if pass == 0 then in(root).isEmpty else out(root).isEmpty
         if rootFree && !mark(root) then
@@ -135,7 +285,7 @@ object Order:
             (if pass == 0 then out(n0) else in(n0)).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
       }
       gdNlist.foreach(n => if !mark(n) then { mark += n; install(n) }) // unreached
-      if Rank.flip(g) then
+      if flip then
         ranks.valuesIterator.foreach { rb =>
           val n = rb.length; var i = 0
           while i < n / 2 do { val t = rb(i); rb(i) = rb(n - 1 - i); rb(n - 1 - i) = t; i += 1 }
@@ -168,7 +318,7 @@ object Order:
       pos(a) = j; pos(b) = i
 
     // ── weighted-median values + reorder (mincross.c medians/reorder) ─────
-    val mval = mutable.HashMap.empty[LayoutNode, Double]
+    val mval = mutable.HashMap.empty[N, Double]
     def medians(r0: Int, r1: Int): Unit =
       val rb = ranks.getOrElse(r0, mutable.ArrayBuffer.empty)
       rb.foreach { n =>
@@ -211,7 +361,7 @@ object Order:
         nelt -= 1
 
     // ── transpose (adjacent swaps) ───────────────────────────────────────
-    def crossPair(av: Iterable[LayoutNode], aw: Iterable[LayoutNode]): Int =
+    def crossPair(av: Iterable[N], aw: Iterable[N]): Int =
       var c = 0
       av.foreach(x => aw.foreach(y => if pos(x) > pos(y) then c += 1))
       c
@@ -250,15 +400,15 @@ object Order:
     // (in-free vs out-free seeds) + ≤min(4,MaxIter) refinement iters; pass 2
     // refines the best of those for up to MaxIter. `save_best`/`restore_best`
     // keep the min-crossing order seen; a final `transpose(false)` polishes it.
-    def snapshot(): Map[Int, Vector[LayoutNode]] =
+    def snapshot(): Map[Int, Vector[N]] =
       ranks.iterator.map { case (r, b) => r -> b.toVector }.toMap
-    def restore(s: Map[Int, Vector[LayoutNode]]): Unit =
+    def restore(s: Map[Int, Vector[N]]): Unit =
       s.foreach { case (r, v) =>
         val rb = ranks(r); rb.clear(); rb ++= v
         v.iterator.zipWithIndex.foreach { case (n, i) => pos(n) = i }
       }
 
-    var best      = Map.empty[Int, Vector[LayoutNode]]
+    var best      = Map.empty[Int, Vector[N]]
     var bestCross = Long.MaxValue
     var cur       = Long.MaxValue
     var pass      = 0
@@ -297,6 +447,6 @@ object Order:
       pass += 1
     if cur > bestCross then restore(best)
     if bestCross > 0 then { transpose(false); bestCross = ncross }
-    Result(rank0, snapshot(), bestCross, segs.toVector, segOwn.toVector)
+    (snapshot(), bestCross)
 
 end Order

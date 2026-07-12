@@ -1,0 +1,116 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 227 268",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_0",
+      "_gvid": 0,
+      "nodes": [
+        2,3,4
+      ],
+      "edges": [
+        0,1
+      ]
+    },
+    {
+      "name": "cluster_1",
+      "_gvid": 1,
+      "nodes": [
+        5,6,7
+      ],
+      "edges": [
+        2,3
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a0",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "a1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "a2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "b0",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "b1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "b2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "top",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 4,
+      "tail": 8,
+      "head": 2
+    },
+    {
+      "_gvid": 7,
+      "tail": 8,
+      "head": 5
+    },
+    {
+      "_gvid": 5,
+      "tail": 8,
+      "head": 3
+    },
+    {
+      "_gvid": 8,
+      "tail": 8,
+      "head": 6
+    },
+    {
+      "_gvid": 6,
+      "tail": 8,
+      "head": 4
+    },
+    {
+      "_gvid": 9,
+      "tail": 8,
+      "head": 7
+    },
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 4
+    },
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 6
+    },
+    {
+      "_gvid": 3,
+      "tail": 6,
+      "head": 7
+    }
+  ]
+}
