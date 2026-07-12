@@ -15,14 +15,15 @@ import scala.collection.mutable
   * collapses each top-level cluster to a skeleton column so the top-level
   * mincross can't interleave clusters, orders each cluster's interior
   * recursively, then expands. Single-level clusters are byte-exact
-  * (94-cluster-contig); a multi-rank cluster with FREE long edges crossing into
-  * it (95-cluster-chains) still needs the remincross pass + `left2right`.
+  * (94-cluster-contig); 95-cluster-chains's ORDER is byte-identical to gv too —
+  * its residual is a uniform XCoord-anchor shift (a free edge routing left of a
+  * cluster), not an ordering gap.
   *
   * Deferred (⬜, PORT.md §5.2): **flat edges** (`flat_reorder`/`flat_breakcycles`
   * for same-rank adjacencies — this is what leaves 06's `b`/`c` order a mirror
-  * of gv's), the cluster **remincross** pass + nested clusters, and ports.
-  * Without flat edges the label-free corpus is gated crossing-count/mirror-
-  * aware, not strictly byte-exact, for graphs that have a same-rank edge.
+  * of gv's), **nested** cluster recursion, and ports. Without flat edges the
+  * label-free corpus is gated crossing-count/mirror-aware, not strictly byte-
+  * exact, for graphs that have a same-rank edge.
   */
 object Order:
 

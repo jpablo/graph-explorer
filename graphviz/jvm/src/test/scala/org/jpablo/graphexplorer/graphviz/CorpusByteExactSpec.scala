@@ -37,11 +37,12 @@ class CorpusByteExactSpec extends FunSuite:
   private val deferred = Set(
     "03-subgraph-cluster", "06-undirected",
     "81-rankmin", "82-rankmax", "84-ranksink",
-    // Cluster-aware mincross: single-level cluster contiguity is byte-exact
-    // (94-cluster-contig), but a cluster spanning multiple ranks with FREE long
-    // edges crossing into it (top→a1/a2) needs gv's remincross pass + left2right
-    // to order the free virtuals against the skeleton column — a ~10pt x-shift
-    // until then.
+    // Cluster-aware mincross is byte-exact for contiguity (94-cluster-contig).
+    // 95 has a cluster spanning ranks with FREE long edges routing OUTSIDE it
+    // (top→a1/a2). The mincross ORDER is byte-identical to gv (verified) and the
+    // RELATIVE geometry matches exactly; the residual is a uniform ~10.5pt X
+    // shift — an XCoord absolute-anchor gap for a free vnode left of a cluster,
+    // NOT an ordering bug. (Separate subsystem; see §5 XCoord cluster row.)
     "95-cluster-chains")
 
   private def names: Vector[String] =
