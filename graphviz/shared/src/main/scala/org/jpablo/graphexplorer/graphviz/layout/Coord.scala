@@ -60,6 +60,11 @@ object Coord:
     val base = rankSepBasePt(g).toInt
     if Rank.hasEdgeLabel(g) then ((base + 1) / 2).toDouble else base.toDouble
 
+  /** `GD_ranksep(g)` as dotsplines sees it (post edge-label halving) — the
+    * `vspace` used by `make_flat_edge` for a non-adjacent flat edge at the top
+    * rank (`r == 0`); interior ranks derive `vspace` from the actual gap. */
+  def flatVspaceTopRank(g: RGraph): Double = rankSep(g)
+
 
   /** Edge-label (width, height) in pt. **HTML-aware**: an HTML label (`<...>`)
     * is parsed and measured by the table/text layout — measuring the raw markup

@@ -170,6 +170,59 @@ object Output:
   private[output] def gvRound(x: Double): Double =
     if x >= 0 then math.floor(x + 0.5) else math.ceil(x - 0.5)
 
+  // ── update_bb_bz (emit.c): grow a bb by a spline's TIGHT bezier bbox ───────
+  // dot grows GD_bb per installed spline (the graph box is the node/cluster/
+  // label union with each edge's adaptively-subdivided curve extent), so an
+  // edge that escapes the node span lifts the drawing. Regular-edge splines
+  // stay inside their rank span ⇒ a no-op for them; a non-adjacent flat edge
+  // arches above its rank, and THIS is what raises the graph height. The naive
+  // control-hull bbox would overshoot (control points sit above the curve), so
+  // gv subdivides until each segment is within `HW`=2pt of its chord, then
+  // expands by the now-near-flat control points — recovering the true peak.
+  private val HW2 = 4.0 // (HW = 2pt)²
+  private def ptToLine2(a: Spline.XY, b: Spline.XY, p: Spline.XY): Double =
+    val dx = b.x - a.x; val dy = b.y - a.y
+    var a2 = (p.y - a.y) * dx - (p.x - a.x) * dy
+    a2 *= a2
+    if a2 < 1e-6 then 0.0 else a2 / (dx * dx + dy * dy)
+  private def flatEnough(cp: Array[Spline.XY]): Boolean =
+    ptToLine2(cp(0), cp(3), cp(1)) < HW2 && ptToLine2(cp(0), cp(3), cp(2)) < HW2
+  /** de Casteljau split at t = 0.5 (`Bezier`, utils.c) → (left, right) quads. */
+  private def bezierSplit(cp: Array[Spline.XY]): (Array[Spline.XY], Array[Spline.XY]) =
+    def mid(a: Spline.XY, b: Spline.XY) = Spline.XY((a.x + b.x) / 2.0, (a.y + b.y) / 2.0)
+    val m01 = mid(cp(0), cp(1)); val m12 = mid(cp(1), cp(2)); val m23 = mid(cp(2), cp(3))
+    val mA = mid(m01, m12); val mB = mid(m12, m23); val c = mid(mA, mB)
+    (Array(cp(0), m01, mA, c), Array(c, mB, m23, cp(3)))
+  /** `bb` = mutable `[minX, minY, maxX, maxY]`, grown by one bezier segment. */
+  private def updateBBbz(bb: Array[Double], cp: Array[Spline.XY]): Unit =
+    val outside = cp.exists(p => p.x > bb(2) || p.x < bb(0) || p.y > bb(3) || p.y < bb(1))
+    if outside then
+      if flatEnough(cp) then
+        cp.foreach { p =>
+          if p.x > bb(2) then bb(2) = p.x else if p.x < bb(0) then bb(0) = p.x
+          if p.y > bb(3) then bb(3) = p.y else if p.y < bb(1) then bb(1) = p.y
+        }
+      else
+        val (l, r) = bezierSplit(cp)
+        updateBBbz(bb, l); updateBBbz(bb, r)
+  /** Grow `[minX,minY,maxX,maxY]` by every routed edge spline (update_bb_bz on
+    * each 4-point segment). Splines are in layout coords, matching gv's grow
+    * during routing (before the rankdir transform). */
+  private def growBySplines(g: RGraph, minX: Double, minY: Double, maxX: Double, maxY: Double)
+      : (Double, Double, Double, Double) =
+    val spls = Spline.splinesEx(g)
+    if spls.isEmpty then (minX, minY, maxX, maxY)
+    else
+      val bb = Array(minX, minY, maxX, maxY)
+      spls.valuesIterator.foreach { es =>
+        val pts = es.pts
+        var i = 0
+        while i + 3 < pts.length do
+          updateBBbz(bb, Array(pts(i), pts(i + 1), pts(i + 2), pts(i + 3)))
+          i += 3
+      }
+      (bb(0), bb(1), bb(2), bb(3))
+
   private[output] def bbox(g: RGraph): (Pt, Pt, Pt, Pt) =
     val (_, yOf) = Coord.rankY(g)
     val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
@@ -202,6 +255,11 @@ object Output:
         val maxR = ranks.values.max; val minR = ranks.values.min
         minY = math.min(minY, yOf(maxR).value - yi.rootHt1)
         maxY = math.max(maxY, yOf(minR).value + yi.rootHt2)
+    // Grow by each edge spline's tight curve extent (dot's per-spline
+    // update_bb_bz). A no-op for node-contained regular edges; a non-adjacent
+    // flat-edge arch rises above its rank and lifts the graph height here.
+    val (gx0, gy0, gx1, gy1) = growBySplines(g, minX, minY, maxX, maxY)
+    minX = gx0; minY = gy0; maxX = gx1; maxY = gy1
     // root graph label reserves space on its labelloc side (Coord already
     // shifted the nodes for a bottom label ⇒ extend the bbox to reclaim it).
     val pad = gLabelPad(g)

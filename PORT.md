@@ -161,7 +161,7 @@ Design rules:
 | M4 | Coordinate assignment — **Y** (`set_ycoords`) | Rank-axis Y within tight ε (`plain`) | ✅ Done — 48/48; exact for label-free TB (01/06/07); edge-label rank-doubling deferred |
 | M4x | Coordinate assignment — **X** = network simplex on aux graph | Node x within ε (`plain`/`json0`) | ✅ Done — 59/59; X matches `plain` golden for 01/06/07. Closed by instrumenting real gv 13.0.1 (built from pinned source) to dump the actual aux graph |
 | M5 | Edge spline routing | Edge geometry within ε; same endpoints/clipping | ✅ Done — 66/66; full box-fit ported (box channel → `Pshortestpath` funnel → `Proutespline` → `clip_and_install`/`bezier_clip`); raw spline byte-exact vs instrumented gv 13.0.1; Hausdorff ≤0.024 in (01 incl. curved `a→c`, 07); 06 now direct-match (X-mirror closed 2026-07-11 via the `build_ranks` tail transpose) |
-| M6 | Long tail: clusters, ports, compass, `rankdir`, record & HTML-like labels | Per-feature rows in §5 all ✅ | ✅ **Essentially complete — corpus 84/86 byte-exact (2026-07-12).** Done: records (layout+svg), ports/compass, self-loops/parallel edges, edge-label rank-doubling+Y+lp+spline, svg graph/edge titles, bbox precision, arrow miter + true `arrow_length` + vee/crow, **02 rankdir=LR fully byte-exact**, **03 cluster geometry** (vs newrank oracle — §5.2), full `write_attrs` (dot_json/json0), svg styling + emit-order interleave, box-family + `rounded` + convex polygons + **`point`**, **HTML-like labels** (tables/ports/img/gradient/sub-sup/hr-vr), **node images** (all SCALE modes), **05** (tooltip anchor + multi-line labels + seed-truncation NS fix), **`rank=same/min/max/source/sink`** (source byte-exact; min/max ranking exact, X-order deferred), **`nodesep`/`ranksep`/`ranksep=equally`**, **rankdir=RL/BT** (fully byte-exact — the `ccwrotatepf` custom-formula fix), **flat (same-rank) edges** (adjacent simple/undirected/labeled byte-exact). ⬜ genuinely-remaining (each no-corpus or a deep tie-break, tracked §5/§7): **non-adjacent** flat edges (box-routed around intervening nodes), cluster-aware mincross, the min/max within-rank mincross-order mirror, `\E`/`\T`/`\H` edge-label escapes, polygon peripheries (doubleoctagon), non-default `penwidth` outlines |
+| M6 | Long tail: clusters, ports, compass, `rankdir`, record & HTML-like labels | Per-feature rows in §5 all ✅ | ✅ **Essentially complete — corpus 88/93 byte-exact (2026-07-12).** Done: records (layout+svg), ports/compass, self-loops/parallel edges, edge-label rank-doubling+Y+lp+spline, svg graph/edge titles, bbox precision, arrow miter + true `arrow_length` + vee/crow, **02 rankdir=LR fully byte-exact**, **03 cluster geometry** (vs newrank oracle — §5.2), full `write_attrs` (dot_json/json0), svg styling + emit-order interleave, box-family + `rounded` + convex polygons + **`point`**, **HTML-like labels** (tables/ports/img/gradient/sub-sup/hr-vr), **node images** (all SCALE modes), **05** (tooltip anchor + multi-line labels + seed-truncation NS fix), **`rank=same/min/max/source/sink`** (source byte-exact; min/max ranking exact, X-order deferred), **`nodesep`/`ranksep`/`ranksep=equally`**, **rankdir=RL/BT** (fully byte-exact — the `ccwrotatepf` custom-formula fix), **flat (same-rank) edges** (adjacent simple/undirected/labeled **and non-adjacent** byte-exact — the non-adjacent case arches over the intervening nodes: `make_flat_edge` box channel + the up-and-over geodesic via a winding-consistent `funnelGeneral`, and the graph height grown by `update_bb_bz`'s tight-bezier bbox — 2026-07-12). ⬜ genuinely-remaining (each no-corpus or a deep tie-break, tracked §5/§7): cluster-aware mincross, the min/max within-rank mincross-order mirror, `\E`/`\T`/`\H` edge-label escapes, polygon peripheries (doubleoctagon), non-default `penwidth` outlines |
 | M7 | Output writers: `dot_json` → `json0` → `svg` | Emitted strings parse to identical `SimpleGraph`; SVG visually-close | ✅ Done — 81/81; `dot_json`/`json0`/`svg` writers + `renderFormats` facade. Structural-exact + ε geometry vs goldens (strict, no mirror) for label-free TB (01/06/07); records/clusters/edge-labels are their own tracked deferrals |
 | M8 | Integration behind flag; differential test on real project corpus; viz-js demoted to oracle | Project diagrams render via Scala backend; harness CI green | ✅ **Cutover landed 2026-07-12** — the Scala backend is now the **default** engine (`EngineMode.ScalaFirst`), with viz-js retained as an automatic **fallback** (hard-failure → viz-js, logged) + oracle. `gx.graphvizEngine` = `scala` (strict, no fallback) / `vizjs` (force old) / unset (ScalaFirst). `DifferentialSpec` promoted: the public `Graphviz.renderFormats` facade is **byte-exact vs the golden across all 54 non-image corpus files** + graceful-degradation/failure tests. Downstream (`read[SimpleGraph]`/`getEdgePos`/`parseSVG`) unchanged. viz-js demoted to safety-net + golden-capture. Remaining: the residual **valid-but-wrong** risk on arbitrary user DOT that exercises still-unported features (flat edges, custom `ranksep`/`nodesep`, `rank=min/max` positioning, RL/BT splines — §5 rows) is caught only if it hard-fails; those features are the M-tail backlog |
 
@@ -1777,4 +1777,34 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   90/91/92 byte-exact. ⬜ only non-adjacent (box-routed) flat edges remain
   (guarded-skip today). Corpus now **90/93 byte-exact**; graphvizJVM 512/512,
   JS green, gv worktree pristine.
+- **2026-07-12** — **Non-adjacent flat edge (`93-flat-nonadj`) byte-exact — the
+  last flat sub-case.** Two distinct pieces, both faithful ports. **(1) Routing
+  (Spline).** A non-adjacent flat edge can't run straight (it skips ≥1 node), so
+  `make_flat_edge` arches it up-and-over. Reconstructed the box channel from gv
+  (all 5 boxes byte-exact): the tail/head flat-end box is `maximal_bbox` with
+  `LL.y` pulled to `node.y` (the `makeregularend` extension is degenerate and
+  dropped ⇒ one box/end); the 3-box channel steps up by `stepy = vspace/(cnt+1)`
+  and widens by `stepx = Multisep/(cnt+1)`. Three gv details unlocked the exact
+  x-extents: `ND_mval = ND_rw` during spline routing (so the neighbour clamp is
+  `left.x + left.rw + nodesep/2`), `LeftBound/RightBound ∓ MINW` **once per
+  rank** (the decrement is inside the rank loop), and `vspace = GD_ranksep` at
+  the top rank. The corridor is **not y-monotone** (up-then-down), which the old
+  `funnel` (a y-monotone stand-in for `Pshortestpath`) can't route — so added
+  `funnelGeneral`: each gate is the real shared edge between consecutive boxes,
+  its two ends wound consistently by the local travel direction (`rot90cw`) so
+  the two boundary chains stay coherent through the U-turn. It **reduces to the
+  old gates bit-for-bit for a descending channel** (proven: `d.y<0 ⇒ _1 = smaller
+  x`, gate at `y=a.lly`), so every regular edge is untouched. `buildPolygon` was
+  already a faithful 1:1 transcription of gv's polygon walk (its "down-only" was
+  a mislabel — gv's `flip` is false for the arch, and the walk matches). **(2)
+  Graph height (Output).** The arch rises above its rank, so the drawing must
+  grow — ported `update_bb_bz` (emit.c): dot grows `GD_bb` per installed spline
+  by the spline's **tight** bezier bbox via adaptive de Casteljau subdivision
+  (`check_control_points`: within `HW=2pt` of the chord). The naive control-hull
+  overshoots (133.94); subdivision recovers the true peak (131.955 → `131.96`).
+  A no-op for node-contained regular edges (why node-only `bbox` matched every
+  prior file). Promoted `93` out of both deferred sets. Corpus now **88/93
+  byte-exact** (residuals: 03 gated vs newrank, 06 accepted 0.05pt spline,
+  81/82/84 min/max mincross-order mirror); graphvizJVM **515/515**, JS green, gv
+  worktree pristine.
 - _(append dated entries as milestones land)_

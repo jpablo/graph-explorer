@@ -582,16 +582,45 @@ object Spline:
             val (ln, rn) = if cx(e.tail) <= cx(e.head) then (e.tail, e.head) else (e.head, e.tail)
             val ctrx     = (cx(ln) + rw(ln) + cx(rn) - lw(rn)) / 2.0
             labelPos(origIdx) = XY(ctrx, tp.y + (dh + 6.0) / 2.0)
-        // NON-ADJACENT flat edge (skips ≥1 node): a documented deferral.
-        // The box channel is fully derived + BYTE-EXACT vs instrumented gv
-        // (tail/head flat-end box = maximal_bbox with LL.y=node.y up to
-        // node.y+ht2; a 3-box channel stepping up by stepy=vspace/2 and
-        // widening by stepx=Multisep/2). What's missing is the ROUTING:
-        // `buildPolygon` is down-only (monotonic-descent boxes), but this
-        // corridor goes up-then-down, so the funnel escapes to the far-left
-        // box extent. Generalizing buildPolygon to a non-monotonic corridor
-        // is the remaining work; until then we skip (no spline) rather than
-        // ship a visibly-wrong one.
+        else if !ports && !labelled then
+          // ── non-adjacent flat edge (make_flat_edge): an up-and-over arch ──
+          // Skips ≥1 node in the rank, so it can't run straight — gv arches it
+          // over the intervening nodes. Normalise the edge left→right, build
+          // the tail/head flat-end boxes + a 3-box channel, then route the
+          // geodesic through it. Single-edge scope (cnt = 1); parallel
+          // non-adjacent flats would share one widened channel (no corpus).
+          val (tn, hn) = if cx(e.tail) <= cx(e.head) then (e.tail, e.head) else (e.head, e.tail)
+          val tmb = maximalBbox(tn, Set(tn))
+          val hmb = maximalBbox(hn, Set(hn))
+          // makeFlatEnd: the flat-end box is `maximal_bbox` with LL.y pulled up
+          // to node.y (its `makeregularend` extension to node.y+ht2 comes out
+          // degenerate and is dropped), so a single box per end. UR.y already
+          // equals node.y+ht2 from maximal_bbox.
+          val tend = Box(tmb.llx, cy(tn), tmb.urx, tmb.ury)
+          val hend = Box(hmb.llx, cy(hn), hmb.urx, hmb.ury)
+          val stepx   = NodeSep / 2.0 // sp->Multisep / (cnt + 1), cnt = 1
+          val topRank = ranksSorted.head
+          val vspace  =
+            if rt == topRank then Coord.flatVspaceTopRank(g)
+            else (yOf(rt - 1).value - ht1(rt - 1)) - (yOf(rt).value + ht2(rt))
+          val stepy = vspace / 2.0
+          // channel (make_flat_edge): step up by stepy, widen by stepx.
+          val cb0   = Box(tend.llx, tend.ury, tend.urx + stepx, tend.ury + stepy)
+          val cb1   = Box(tend.llx, cb0.ury, hend.urx, cb0.ury + stepy)
+          val cb2   = Box(hend.llx - stepx, hend.ury, hend.urx, cb1.lly)
+          val boxes = mutable.ArrayBuffer(tend, cb0, cb1, cb2, hend)
+          val st    = Array(cx(tn), cy(tn))
+          val en    = Array(cx(hn), cy(hn))
+          val ctrl  =
+            if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
+            else
+              val poly = buildPolygon(boxes)
+              val sp   = funnelGeneral(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
+              proutespline(poly, sp)
+          // gv routes tn→hn (left→right); reorient to tail(e)→head(e) for
+          // clipInstall (which clips ctrl.head to the tail, ctrl.last to head).
+          out(origIdx) = clipInstall(g, if e.tail == tn then ctrl else ctrl.reverse, e, byId, centerOf)
+        // else: ported / labeled non-adjacent flat edges stay deferred (no corpus).
     }
 
     // ── self-edges (makeSelfEdge → selfRight, no-port case) ───────────────
@@ -757,7 +786,48 @@ object Spline:
       gates += ((XY(xl, y), XY(xr, y))) // left = smaller x, right = larger x
       k += 1
     gates += ((e, e))
-    val portals = gates.toArray
+    funnelCore(gates.toArray, e)
+
+  /** Same taut-string geodesic, but for a corridor that is NOT y-monotone
+    * (`make_flat_edge`'s up-and-over arch). gv routes both shapes through the
+    * one general `Pshortestpath`; the monotone [[funnel]] can't, because it
+    * pins each gate to `y = a.lly` and to a fixed "west = left" winding, which
+    * both break once the path turns back down. Here each gate is the actual
+    * shared edge between consecutive boxes, and its two ends are wound
+    * consistently by the local travel direction (`rot90cw`), so the two
+    * boundary chains stay coherent through the U-turn. For a strictly
+    * descending channel this reduces to [[funnel]]'s gates bit-for-bit (a
+    * horizontal edge at `y = a.lly`, `_1 = smaller x`), so regular edges are
+    * untouched — but the flat branch below is the only caller. */
+  private def funnelGeneral(boxes: mutable.ArrayBuffer[Box], s: XY, e: XY): Vector[XY] =
+    val gates = mutable.ArrayBuffer.empty[(XY, XY)]
+    gates += ((s, s))
+    var k = 0
+    while k + 1 < boxes.length do
+      val a = boxes(k); val b = boxes(k + 1)
+      // shared edge = the touching side (its span in the thin dimension is 0).
+      val xlo = math.max(a.llx, b.llx); val xhi = math.min(a.urx, b.urx)
+      val ylo = math.max(a.lly, b.lly); val yhi = math.min(a.ury, b.ury)
+      val (p, q) =
+        if yhi - ylo <= xhi - xlo then
+          val y = (ylo + yhi) / 2.0; (XY(xlo, y), XY(xhi, y))
+        else
+          val x = (xlo + xhi) / 2.0; (XY(x, ylo), XY(x, yhi))
+      // wind by travel direction d = centroid(b) − centroid(a): the endpoint
+      // maximising dot(rot90cw(d), ·) is `_1` on every gate, so `_1` follows
+      // one continuous wall and `_2` the other even as the corridor bends.
+      val dx = (b.llx + b.urx - a.llx - a.urx) / 2.0
+      val dy = (b.lly + b.ury - a.lly - a.ury) / 2.0
+      val sp = dy * p.x - dx * p.y
+      val sq = dy * q.x - dx * q.y
+      gates += (if sp >= sq then (p, q) else (q, p))
+      k += 1
+    gates += ((e, e))
+    funnelCore(gates.toArray, e)
+
+  /** The Mononen funnel proper: walk the ordered `(left, right)` portals and
+    * emit the taut path. Shared by [[funnel]] and [[funnelGeneral]]. */
+  private def funnelCore(portals: Array[(XY, XY)], e: XY): Vector[XY] =
     def triArea2(a: XY, b: XY, c: XY): Double =
       (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)
     def eq(a: XY, b: XY): Boolean = math.abs(a.x - b.x) < 1e-9 && math.abs(a.y - b.y) < 1e-9
