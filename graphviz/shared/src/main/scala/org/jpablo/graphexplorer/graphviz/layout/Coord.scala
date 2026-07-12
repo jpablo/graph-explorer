@@ -60,6 +60,7 @@ object Coord:
     val base = rankSepBasePt(g).toInt
     if Rank.hasEdgeLabel(g) then ((base + 1) / 2).toDouble else base.toDouble
 
+
   /** Edge-label (width, height) in pt. **HTML-aware**: an HTML label (`<...>`)
     * is parsed and measured by the table/text layout — measuring the raw markup
     * as plain text would count the `<b>`/`</b>` tags and grossly inflate the

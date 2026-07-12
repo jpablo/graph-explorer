@@ -23,7 +23,7 @@ class DifferentialSpec extends FunSuite:
   // oracle; 06 accepted spline; 81/82/84 rank=min/max mincross-order mirror).
   private val residual = Set(
     "03-subgraph-cluster", "06-undirected",
-    "81-rankmin", "82-rankmax", "84-ranksink")
+    "81-rankmin", "82-rankmax", "84-ranksink", "93-flat-nonadj")
 
   private def corpusNames: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))

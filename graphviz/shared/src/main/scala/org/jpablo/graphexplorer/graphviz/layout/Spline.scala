@@ -582,6 +582,16 @@ object Spline:
             val (ln, rn) = if cx(e.tail) <= cx(e.head) then (e.tail, e.head) else (e.head, e.tail)
             val ctrx     = (cx(ln) + rw(ln) + cx(rn) - lw(rn)) / 2.0
             labelPos(origIdx) = XY(ctrx, tp.y + (dh + 6.0) / 2.0)
+        // NON-ADJACENT flat edge (skips ≥1 node): a documented deferral.
+        // The box channel is fully derived + BYTE-EXACT vs instrumented gv
+        // (tail/head flat-end box = maximal_bbox with LL.y=node.y up to
+        // node.y+ht2; a 3-box channel stepping up by stepy=vspace/2 and
+        // widening by stepx=Multisep/2). What's missing is the ROUTING:
+        // `buildPolygon` is down-only (monotonic-descent boxes), but this
+        // corridor goes up-then-down, so the funnel escapes to the far-left
+        // box extent. Generalizing buildPolygon to a non-monotonic corridor
+        // is the remaining work; until then we skip (no spline) rather than
+        // ship a visibly-wrong one.
     }
 
     // ── self-edges (makeSelfEdge → selfRight, no-port case) ───────────────

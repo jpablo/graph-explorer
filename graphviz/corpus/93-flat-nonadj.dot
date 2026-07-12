@@ -1,0 +1,6 @@
+digraph fna {
+  { rank=same; a; b; c; }
+  a -> b -> c;
+  a -> c;
+  a -> d;
+}
