@@ -103,4 +103,19 @@ class RankDirSpec extends FunSuite:
     val oLp = ours("edges").arr.iterator.flatMap(_.obj.get("lp").map(_.str)).toVector
     assertEquals(oLp, gLp, "02 edge lp")
 
+  // The `vee` (crow, ARR_MOD_INV) arrowhead trims the spline by
+  // arrow_length_crow (≈11.22) not arrow_length_normal (≈11.53); with that
+  // ported, the labelled/short edges (start→middle, middle→end) are spline
+  // byte-exact via the transform. The long `start→end` edge still deviates —
+  // its box channel is clamped by the label vnode's resized `lw`, which we
+  // approximate from the maximal_bbox rather than gv's checkpath-narrowed
+  // corridor (tracked follow-up); assert the two closed edges here.
+  test("02 LR: start→middle + middle→end spline pos byte-exact (vee length)"):
+    val ours = ujson.read(org.jpablo.graphexplorer.graphviz.output.Output.json0(g("02-attrs")))
+    val gold = ujson.read(OracleHarness.golden("02-attrs", "json0"))
+    val oPos = ours("edges").arr.iterator.map(_.obj.get("pos").map(_.str).getOrElse("")).toVector
+    val gPos = gold("edges").arr.iterator.map(_.obj.get("pos").map(_.str).getOrElse("")).toVector
+    assertEquals(oPos(0), gPos(0), "02 start→middle spline")
+    assertEquals(oPos(1), gPos(1), "02 middle→end spline")
+
 end RankDirSpec

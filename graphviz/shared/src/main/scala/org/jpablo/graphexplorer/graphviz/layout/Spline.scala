@@ -1112,7 +1112,9 @@ object Spline:
     if g.directed then
       val pw    = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
       val asz   = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
-      val elen  = Arrow.lengthNormal(pw, asz).value
+      // arrowhead type sets the trim length: `vee` (crow, ≈11.22) ≠ `normal`
+      // (≈11.53) — the miter differs, so 02's head-side control points shift.
+      val elen  = Arrow.length(e.attrs.getOrElse("arrowhead", "normal"), pw, asz).value
       val elen2 = elen * elen
       val ep    = ps(end + 3)
       epAttach = Some(ep)

@@ -81,4 +81,57 @@ object Arrow:
       // non-INV overlap is penwidth/2 (overlap_at_tip is INV-only).
       Pt(q._1 - penwidth / 2.0)
 
+  /** `arrow_type_crow0` for the plain `vee` head (`ARR_MOD_INV`, no L/R —
+    * the only crow variant the corpus exercises, on 02). `p` = arrow tip,
+    * `u` = the arrow-length vector back up the edge. Returns the 9-point
+    * polygon `a[0..8]` and the spline-attach `q` (`p+u−delta_tip−delta_base`).
+    * shaftwidth `w` is 0 at penwidth ≤ 1, so a[2..6] collapse toward `q`/`m`. */
+  def crow0(p: P2, u: P2, arrowsize: Double, pw: Double): (Array[P2], P2) =
+    val aw = if pw > 4 * arrowsize then 0.45 * pw / (4 * arrowsize) else 0.45
+    val sw = if pw > 1 then 0.05 * (pw - 1) / arrowsize else 0.0
+    val v  = (-u._2 * aw, u._1 * aw)
+    val w  = (-u._2 * sw, u._1 * sw)
+    var q  = (p._1 + u._1, p._2 + u._2)
+    val m  = (p._1 + u._1 * 0.5, p._2 + u._2 * 0.5)
+    val bigP = (-u._1, -u._2)                    // inv_tip (INV)
+    val bl = (-v._1, -v._2)                      // base_left  = normal_right (INV)
+    val br = v                                   // base_right = normal_left  (INV)
+    val hP = math.hypot(bigP._1, bigP._2)
+    val cosPhi = bigP._1 / hP; val sinPhi = bigP._2 / hP
+    val p3   = miterShape(bl, bigP, br, pw)      // else-branch (no L/R): points[0]
+    val dtip = (p3._1 - bigP._1, p3._2 - bigP._2)
+    val dbase = (pw / 2.0 * cosPhi, pw / 2.0 * sinPhi) // INV
+    val pp = (p._1 - dtip._1, p._2 - dtip._2)
+    q = (q._1 - dtip._1, q._2 - dtip._2)
+    val a = Array[P2](
+      pp,
+      (q._1 - v._1, q._2 - v._2),
+      (m._1 - w._1, m._2 - w._2),
+      (q._1 - w._1, q._2 - w._2),
+      q,
+      (q._1 + w._1, q._2 + w._2),
+      (m._1 + w._1, m._2 + w._2),
+      (q._1 + v._1, q._2 + v._2),
+      pp
+    )
+    q = (q._1 - dbase._1, q._2 - dbase._2)
+    (a, q)
+
+  /** `arrow_length_crow`: spline-trim length for `vee`. `full_length − overlap`,
+    * `full_length = q.x` of `crow0` along +x, INV overlap = `penwidth/2`
+    * (`overlap_at_base`). ≈11.22 at the defaults (vs normal's 11.53). */
+  def lengthCrow(penwidth: Double, arrowsize: Double): Pt =
+    if arrowsize == 0 then Pt.Zero
+    else
+      val mag = arrowsize * LengthD // lenfact = 1.0 for ARR_TYPE_CROW
+      val (_, q) = crow0((0.0, 0.0), (mag, 0.0), arrowsize, penwidth)
+      Pt(q._1 - penwidth / 2.0)
+
+  /** The head-arrow trim length for an edge's `arrowhead` attribute. Only
+    * `normal` (default) and `vee` are modelled; everything else falls back to
+    * normal (no corpus exercises the others yet). */
+  def length(arrowhead: String, penwidth: Double, arrowsize: Double): Pt =
+    if arrowhead == "vee" then lengthCrow(penwidth, arrowsize)
+    else lengthNormal(penwidth, arrowsize)
+
 end Arrow

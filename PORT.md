@@ -1633,4 +1633,21 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   but not exact (span-1 edges ~0.1–0.9 pt, the long `start→end` more) — a
   canonical LR-routing refinement; plus svg wiring + the `vee` arrowhead.
   graphvizJVM 333/333, JS green. TB corpus untouched (identity transform).
+- **2026-07-11** — **`vee` arrowhead (crow) ported — 02's short/labelled edge
+  splines byte-exact.** After the transform landed, 02's edge spline `pos` was
+  *close* but off ~0.1–0.4 pt. Instrumented gv's canonical (pre-`map_point`)
+  02 splines: the raw routing is **identical** to mine (same degenerate straight
+  cubic, modulo the +10 canonical x-shift the transform absorbs) — the drift was
+  entirely in the **head arrow clip**, growing toward the head. 02 uses
+  `arrowhead=vee` = `ARR_TYPE_CROW | ARR_MOD_INV`, a crow arrow with its own
+  `arrow_length_crow` (≈11.22 at the defaults, vs `arrow_length_normal` ≈11.53);
+  I was clipping with the normal length. Ported `arrow_type_crow0` + `arrow_
+  length_crow` (plain vee: INV, no L/R) into `Arrow` (reusing `miterShape`), and
+  made the spline clip pick the length by `arrowhead`. Result: `start→middle` +
+  `middle→end` spline `pos` now **byte-exact** (RankDirSpec gate). ⬜ The long
+  `start→end` edge still deviates: its rank-1 box is clamped by the label vnode's
+  *resized* `lw`, which we approximate from the maximal_bbox rather than gv's
+  checkpath-narrowed corridor (`recover_slack` bypass) — the last spline blocker,
+  plus the `vee` svg polygon + svg transform wiring for the full-02 svg gate.
+  graphvizJVM 334/334, JS green. TB corpus untouched (arrowhead defaults normal).
 - _(append dated entries as milestones land)_
