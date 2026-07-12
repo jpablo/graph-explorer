@@ -369,7 +369,8 @@ object Output:
     val objBlocks = d.subgraphs.map(sgBlockJson) ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
     sb ++= "  \"objects\": [\n"
     sb ++= objBlocks.mkString(",\n")
-    sb ++= "\n  ],\n"
+    // gv omits the "edges" array entirely for an edgeless graph (as dotJson).
+    sb ++= (if d.edges.nonEmpty then "\n  ],\n" else "\n  ]\n")
     def edgeBlock(e: Doc.E): String =
       var a = g.edges(e.idx).attrs.toMap
       e.tp.foreach(p => a += "tailport" -> p)
@@ -391,9 +392,11 @@ object Output:
       fields += s"""      "head": ${e.h}"""
       kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${esc(k)}": $v""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
-    sb ++= "  \"edges\": [\n"
-    sb ++= d.edges.map(edgeBlock).mkString(",\n")
-    sb ++= "\n  ]\n}\n"
+    if d.edges.nonEmpty then
+      sb ++= "  \"edges\": [\n"
+      sb ++= d.edges.map(edgeBlock).mkString(",\n")
+      sb ++= "\n  ]\n"
+    sb ++= "}\n"
     sb.toString
 
 end Output
