@@ -20,11 +20,12 @@ import munit.FunSuite
   */
 class DifferentialSpec extends FunSuite:
 
-  // 02 (rankdir=LR + rounded/filled boxes + vee arrows + edge label) is now
-  // fully byte-exact end-to-end (map_point transform + crow arrow + limitBoxes)
-  // ⇒ promoted into the must-pass integration set.
-  private val mustPass = List("01-minimal", "02-attrs", "06-undirected", "07-cross")
-  private val m6Corpus = List("03-subgraph-cluster", "04-ports-compass", "05-strings-comments")
+  // 02 (rankdir=LR + rounded/filled boxes + vee arrows + edge label) and 04
+  // (record ports/compass, now incl. json0 `rects`) are byte-exact end-to-end
+  // ⇒ promoted into the must-pass integration set. 03 (clusters) + 05
+  // (graph-label / HTML-label width) remain M6-tracked.
+  private val mustPass = List("01-minimal", "02-attrs", "04-ports-compass", "06-undirected", "07-cross")
+  private val m6Corpus = List("03-subgraph-cluster", "05-strings-comments")
 
   private def nodeNames(v: ujson.Value): Set[String] =
     v("objects").arr.iterator.map(_("name").str).toSet

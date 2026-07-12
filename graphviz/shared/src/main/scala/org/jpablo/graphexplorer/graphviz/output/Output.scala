@@ -349,6 +349,18 @@ object Output:
       sz.foreach { s => kv("height") = s""""${g5(s.height.value)}""""; kv("width") = s""""${g5(s.width.value)}"""" }
       val (tpx, tpy) = tf(px, py)
       kv("pos") = s""""${g5(tpx)},${g5(tpy)}""""
+      // record nodes emit `rects` — every leaf field box in absolute coords
+      // (node centre + node-local box, y-up), space-joined in field order.
+      NodeSize.recordLayout(n, g).foreach { root =>
+        def leaves(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field): Vector[org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field] =
+          if f.isLeaf then Vector(f) else f.flds.flatMap(leaves)
+        val rects = leaves(root).map { f =>
+          val (llx, lly) = tf(px + f.llx, py + f.lly)
+          val (urx, ury) = tf(px + f.urx, py + f.ury)
+          s"${g5(llx)},${g5(lly)},${g5(urx)},${g5(ury)}"
+        }.mkString(" ")
+        kv("rects") = s""""$rects""""
+      }
       val fields = Vector.newBuilder[String]
       fields += s"""      "_gvid": $gv"""
       fields += s"""      "name": "${esc(id)}""""

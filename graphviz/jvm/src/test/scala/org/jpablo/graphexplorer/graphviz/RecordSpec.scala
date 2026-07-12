@@ -101,6 +101,13 @@ class RecordSpec extends FunSuite:
     near2approx((ta.x.value, ta.y.value), (110.76 - s1x, 86.6 - s1y), 1.0)  // ≤0.5 begin-nudge
     near2approx((ha.x.value, ha.y.value), (63.99 - s2x, 25.3 - s2y), 0.05)  // head: exact
 
+  // Full json0 byte-exact: the last gap was the record `rects` attribute (each
+  // leaf field's absolute box) — now emitted from the RecordLabel layout. With
+  // svg + dot_json already byte-exact, 04 is byte-exact across all three formats.
+  test("04-ports-compass: json0 byte-exact (incl. record rects)"):
+    assertEquals(org.jpablo.graphexplorer.graphviz.output.Output.json0(graph),
+                 OracleHarness.golden("04-ports-compass", "json0"))
+
   private def near2(a: (Double, Double), b: (Double, Double)): Unit =
     assert(math.abs(a._1 - b._1) <= 0.05 && math.abs(a._2 - b._2) <= 0.05, s"$a vs $b")
   private def near2approx(a: (Double, Double), b: (Double, Double), e: Double): Unit =
