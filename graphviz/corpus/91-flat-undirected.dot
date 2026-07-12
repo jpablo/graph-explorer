@@ -1,0 +1,6 @@
+graph flatu {
+  { rank=same; a; b; }
+  a -- b;
+  a -- c;
+  b -- d;
+}

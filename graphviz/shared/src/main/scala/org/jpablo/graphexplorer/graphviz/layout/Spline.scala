@@ -554,6 +554,25 @@ object Spline:
             // + later edges' neighbour geometry.
             limitBoxes(boxes, routed)
             recoverSlack(mids, boxes, origIdx)
+      else
+        // ── flat edge (rt == rh): same-rank edge (rank=same / minlen=0) ─────
+        // `makeSimpleFlat` (dotsplines.c): a 4-point Bezier at y=tp.y from tail
+        // to head, then clip_and_install (clip to node boundaries + arrow).
+        // Scoped to the simple case gv routes this way — adjacent endpoints,
+        // no ports, no label. Non-adjacent (routed around intervening nodes)
+        // and labeled/ported flat edges are tracked deferrals.
+        val row      = orderByRank.getOrElse(rt, Vector.empty)
+        val adjacent = math.abs(row.indexOf(e.tail) - row.indexOf(e.head)) == 1
+        val plain    = e.tailPort.isEmpty && e.headPort.isEmpty &&
+                       !e.attrs.get("label").exists(_.nonEmpty)
+        if adjacent && plain then
+          val tp   = XY(cx(e.tail), cy(e.tail))
+          val hp   = XY(cx(e.head), cy(e.head))
+          val ctrl = Vector(tp,
+            XY((2 * tp.x + hp.x) / 3.0, tp.y),
+            XY((2 * hp.x + tp.x) / 3.0, tp.y),
+            hp)
+          out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
     }
 
     // ── self-edges (makeSelfEdge → selfRight, no-port case) ───────────────
