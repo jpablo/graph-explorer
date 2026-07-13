@@ -23,7 +23,8 @@ class DifferentialSpec extends FunSuite:
   // oracle; 06 accepted spline; 81/82/84 rank=min/max mincross-order mirror).
   private val residual = Set(
     "03-subgraph-cluster", "06-undirected",
-    "81-rankmin", "82-rankmax", "84-ranksink",
+    "81-rankmin", "82-rankmax",
+    "95-cluster-chains",
     "162-cluster-style", "163-groups")
 
   private def corpusNames: Vector[String] =

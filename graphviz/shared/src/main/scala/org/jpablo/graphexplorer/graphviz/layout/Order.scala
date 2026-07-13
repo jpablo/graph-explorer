@@ -72,7 +72,23 @@ object Order:
       segs += ((t, h))
       segOwn += curOwner
 
-    dedges.zipWithIndex.foreach { case (e, idx) =>
+    // gv iterates class2 per NODE (cgraph creation order), and each node's
+    // out-edges in the cgraph edge-set order: (HEAD-node seq, edge seq) — NOT
+    // edge-declaration order (edge.c `agedgeseqcmpf`: the out-half's key node
+    // is the head). This decides ND_out append order and hence build_ranks'
+    // BFS enqueue order — with pre-declared nodes (e.g. cluster members before
+    // the edges, groups.dot) it differs from edge order and fixes the
+    // left-right mirror. Reversed (acyclic) edges are iterated at their
+    // ORIGINAL tail, sorted by their ORIGINAL head (class2 walks the cgraph
+    // edges and swaps ends by rank), while the chain itself uses the working
+    // (post-reversal) direction.
+    val nodeSeq: Map[String, Int] = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+    val origEnds: Vector[(String, String)] =
+      g.edges.filter(e => e.tail != e.head).map(e => (e.tail, e.head))
+    val byOrigTail: Map[String, Vector[Int]] =
+      dedges.indices.toVector.groupBy(i => origEnds(i)._1)
+    def emit(idx: Int): Unit =
+      val e    = dedges(idx)
       curOwner = idx
       val tail = LayoutNode.Real(e.tail)
       val head = LayoutNode.Real(e.head)
@@ -91,6 +107,10 @@ object Order:
           prev = v
           r += 1
         connect(prev, head)
+    g.nodes.foreach { n =>
+      byOrigTail.getOrElse(n.id, Vector.empty)
+        .sortBy(i => (nodeSeq.getOrElse(origEnds(i)._2, Int.MaxValue), i))
+        .foreach(emit)
     }
 
     // gv `build_ranks` iterates GD_nlist for its BFS seeds — the `decompose`
