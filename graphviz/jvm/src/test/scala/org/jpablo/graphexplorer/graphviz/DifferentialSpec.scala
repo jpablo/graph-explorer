@@ -22,8 +22,7 @@ class DifferentialSpec extends FunSuite:
   // See CorpusByteExactSpec for why each is excluded (03 gated vs newrank
   // oracle; 06 accepted spline; 81/82/84 rank=min/max mincross-order mirror).
   private val residual = Set(
-    "03-subgraph-cluster", "06-undirected",
-    "81-rankmin", "82-rankmax",
+    "03-subgraph-cluster",
     "162-cluster-style")
 
   private def corpusNames: Vector[String] =

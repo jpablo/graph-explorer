@@ -29,18 +29,14 @@ class CorpusByteExactSpec extends FunSuite:
 
   // The five residuals, all characterised (2026-07-12) and each either
   // sub-pixel-accepted, intentional, or a deep tie-break:
-  //   • 06-undirected, 82-rankmax — node POSITIONS are byte-exact; the residual
-  //     is a <0.12pt spline-fit float difference on one curved edge (the
-  //     documented "M5 can't be closed cheaply" Proutespline residual, visually
-  //     identical / Hausdorff-gated).
-  //   • 81-rankmin, 84-ranksink — rank=min/sink reverses the pinned node's edges
-  //     (rank.c minmax_edges via ND_in.list[0] LIFO ⇒ ND_out = reverse-decl
-  //     order). The RANKING is byte-exact; the within-rank order comes out
-  //     left↔right MIRRORED because my reversed edges seed build_ranks in
-  //     declaration order. Closing it means reordering those edges — but the
-  //     wedge index IS the segOwner key tying each spline to its g.edges arrow,
-  //     so a naive reorder misattributes arrows; a clean fix needs decoupling
-  //     the build_ranks seed order from segOwner (an Order refactor, 2 files).
+  //   • 06-undirected, 81-rankmin, 82-rankmax — ALL CLOSED 2026-07-13 by the
+  //     working-direction clip fix: gv routes/clips a rank-reversed edge in the
+  //     WORKING direction (orig-head → orig-tail) and swap_spline's at install;
+  //     bezier_clip's bisection is not direction-symmetric, so clipping in the
+  //     original direction landed the cut 0.05-0.17pt off. What was long
+  //     documented as an unclosable "FP-precision floor" (06/82) was this bug.
+  //     (81/84's original mirror had already fallen to the cgraph edge-order
+  //     fix; 81's residual spline was this same clip-direction issue.)
   //   • 03-subgraph-cluster — INTENTIONAL: its golden is gv's own default-mode
   //     cluster corruption; we lay it out correctly and gate vs 03b (newrank).
   //   • 162-cluster-style — dot_json/json0 byte-exact (cluster attr echo + the
@@ -62,8 +58,7 @@ class CorpusByteExactSpec extends FunSuite:
   //     xpenalty (weighted in_cross/out_cross/ncross) made the collapsed-pass
   //     optimizer track gv exactly.
   private val deferred = Set(
-    "03-subgraph-cluster", "06-undirected",
-    "81-rankmin", "82-rankmax",
+    "03-subgraph-cluster",
     "162-cluster-style")
 
   private def names: Vector[String] =

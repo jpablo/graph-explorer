@@ -534,7 +534,8 @@ object Spline:
                 proutespline(poly, sp, ev0, ev1)
             out(origIdx) = clipInstall(
               g, ctrl0, e, byId, centerOf,
-              tailClip = tEnd.forall(_.clip), headClip = hEnd.forall(_.clip)
+              tailClip = tEnd.forall(_.clip), headClip = hEnd.forall(_.clip),
+              reversedWork = rt > rh
             )
           else
             // ── node-centred box channel (completeregularpath) ────────────
@@ -562,15 +563,18 @@ object Spline:
             val en  = Array(end.x, end.y)
             val routed =
               if checkpath(boxes, st, en) then
-                out(origIdx) = clipInstall(g, Vector(start, end), e, byId, centerOf)
+                out(origIdx) = clipInstall(g, Vector(start, end), e, byId, centerOf,
+                  reversedWork = rt > rh)
                 Vector(start, end)
               else
                 val poly  = buildPolygon(boxes)
                 val sp    = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
                 val raw   = proutespline(poly, sp)
-                val ctrl  = if rt < rh then raw else raw.reverse
-                out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
-                ctrl
+                // gv clips in the WORKING (top-down) parameterization and only
+                // swap_spline's at install — clipInstall(reversedWork) does both.
+                out(origIdx) = clipInstall(g, raw, e, byId, centerOf,
+                  reversedWork = rt > rh)
+                raw
             // narrow the channel boxes to the routed spline corridor, then snap
             // this edge's virtual nodes to them (mids are top→bottom); feeds lp
             // + later edges' neighbour geometry.
@@ -1183,7 +1187,16 @@ object Spline:
       g: RGraph, ctrl0: Vector[XY], e: org.jpablo.graphexplorer.graphviz.model.REdge,
       byId: Map[String, org.jpablo.graphexplorer.graphviz.model.RNode],
       centerOf: String => XY,
-      tailClip: Boolean = true, headClip: Boolean = true
+      tailClip: Boolean = true, headClip: Boolean = true,
+      /** gv routes/clips a rank-REVERSED edge (rank(head) < rank(tail)) in the
+        * WORKING direction — `ctrl0` runs orig-head → orig-tail — and only
+        * swaps the spline at the very end (dotsplines.c swap_spline via
+        * swap_ends_p). The bezier_clip bisection is not direction-symmetric,
+        * so clipping in the original direction lands the cut a hair off
+        * (81-rankmin's 0.06–0.17pt). Here: clip index-0 against the ORIG HEAD,
+        * the far end against the ORIG TAIL, run arrowStartClip (arrows.c:315,
+        * the head arrow sits at the working START), then reverse the points. */
+      reversedWork: Boolean = false
   ): ESpline =
     val ps =
       if ctrl0.length >= 4 && (ctrl0.length - 1) % 3 == 0 then ctrl0.toArray
@@ -1255,10 +1268,14 @@ object Spline:
     def approxEq(a: XY, b: XY): Boolean =
       math.abs(a.x - b.x) < 0.001 && math.abs(a.y - b.y) < 0.001
 
+    // index-0 end of the working list: the orig tail normally, the orig HEAD
+    // for a reversed edge (gv clip_and_install clips fe's tn/hn, splines.c:269).
+    val startNodeId = if reversedWork then e.head else e.tail
+    val endNodeId   = if reversedWork then e.tail else e.head
     // tail node clip — skipped when the port set clip=false (the resolved
     // port point IS the endpoint; cf. beginpath `ED_*_port.clip = false`).
     var start = 0
-    if tailClip then insideFn(e.tail).foreach { ins =>
+    if tailClip then insideFn(startNodeId).foreach { ins =>
       var s = 0
       var stop = false
       while !stop && s < pn - 4 do
@@ -1268,7 +1285,7 @@ object Spline:
     }
     // head node clip — likewise skipped for a clip=false port.
     var end = pn - 4
-    if headClip then insideFn(e.head).foreach { ins =>
+    if headClip then insideFn(endNodeId).foreach { ins =>
       var en = pn - 4
       var stop = false
       while !stop && en > 0 do
@@ -1293,14 +1310,29 @@ object Spline:
       // (≈11.53) — the miter differs, so 02's head-side control points shift.
       val elen  = Arrow.length(e.attrs.getOrElse("arrowhead", "normal"), pw, asz).value
       val elen2 = elen * elen
-      val ep    = ps(end + 3)
-      epAttach = Some(ep)
-      if end > start && dist2(ps(end), ps(end + 3)) < elen2 then end -= 3
-      val sp = Array(ep, ps(end + 2), ps(end + 1), ps(end))
-      bezierClip(sp, true, (p: XY) => dist2(p, ep) < elen2)
-      ps(end) = sp(3); ps(end + 1) = sp(2); ps(end + 2) = sp(1); ps(end + 3) = sp(0)
+      if reversedWork then
+        // arrowStartClip (arrows.c:315): the orig-head arrow sits at the
+        // working START. `sp` saved before the segment advance; the working
+        // segment enters the clip reversed and is written back reversed.
+        val ep = ps(start)
+        epAttach = Some(ep)
+        if end > start && dist2(ps(start), ps(start + 3)) < elen2 then start += 3
+        val w = Array(ps(start + 3), ps(start + 2), ps(start + 1), ep)
+        bezierClip(w, false, (p: XY) => dist2(p, ep) < elen2)
+        ps(start) = w(3); ps(start + 1) = w(2); ps(start + 2) = w(1); ps(start + 3) = w(0)
+      else
+        val ep = ps(end + 3)
+        epAttach = Some(ep)
+        if end > start && dist2(ps(end), ps(end + 3)) < elen2 then end -= 3
+        val sp = Array(ep, ps(end + 2), ps(end + 1), ps(end))
+        bezierClip(sp, true, (p: XY) => dist2(p, ep) < elen2)
+        ps(end) = sp(3); ps(end + 1) = sp(2); ps(end + 2) = sp(1); ps(end + 3) = sp(0)
 
-    ESpline(ps.slice(start, end + 4).toVector, epAttach, None)
+    // swap_spline (dotsplines.c:158): a reversed edge's spline is installed
+    // flipped back into the ORIGINAL direction (points reversed, arrow attach
+    // unchanged — it already sits at the orig head).
+    val pts = ps.slice(start, end + 4).toVector
+    ESpline(if reversedWork then pts.reverse else pts, epAttach, None)
 
   private def dist2(a: XY, b: XY): Double =
     val dx = a.x - b.x; val dy = a.y - b.y
