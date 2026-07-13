@@ -2054,4 +2054,18 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   instrumented `mincross-END` snapshots); its remaining deltas are the
   pre-characterized non-mirror items (Mdiamond/Helvetica width, a dot_json
   cluster edges-array order nuance, sub-pt cross-cluster spline). 753 green.
+- **2026-07-13** — **Mdiamond/font-list width closed.** Differential probes
+  (box/diamond/Mdiamond × Times/Helvetica-list) vs the oracle showed gv returns
+  IDENTICAL sizes for both fonts: `get_metrics_for_font_family` does
+  whole-string permissive matching (case + non-letters ignored) per alias and
+  never splits CSS-style font lists — "Helvetica,Arial,sans-serif" matches
+  nothing → Times fallback. My `family()` had an invented substring fallback
+  (resolved the list to real Helvetica) and `canon()` kept digits; both fixed
+  to exact gv semantics. 163's NodeSizeSpec deferral removed. Also: XCoord's
+  cluster slice now contains intra-cluster chain vnodes (same rule as Order).
+  Remaining 163 residual: the cluster INTERIOR refinement pass — gv's
+  mincross_clust iterates with GLOBAL ncross/medians (reverse-pass tie-swaps
+  flip equal-median pairs, kept via `<=` save) and expands clusters
+  SEQUENTIALLY; my interior pass is cluster-local. Plus the dot_json cluster
+  edges-array order + the sub-pt spline. 754 green.
 - _(append dated entries as milestones land)_
