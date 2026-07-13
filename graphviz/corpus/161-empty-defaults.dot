@@ -1,0 +1,4 @@
+digraph "G" {
+  node [ sides="5", shape="box" ];
+  edge [ dir="both", arrowhead="vee", arrowtail="none" ];
+}

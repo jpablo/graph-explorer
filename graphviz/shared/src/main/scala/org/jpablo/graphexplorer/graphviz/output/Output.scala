@@ -298,7 +298,13 @@ object Output:
     def snap(v: Double): Double =
       val r = math.rint(v)
       if math.abs(v - r) < 1e-6 then r else v
-    (Pt(snap(minX)), Pt(snap(minY)), Pt(snap(maxX)), Pt(snap(maxY)))
+    // Empty drawing (zero nodes/clusters/splines — e.g. `digraph {}` or the
+    // viewer's defaults-only serialization): nothing touched the extreme
+    // seeds, and MinValue−MaxValue overflows to −Infinity downstream (a
+    // NumberFormatException in the BigDecimal formatters). gv emits
+    // bb="0 0 0 0" here (translate_drawing of an empty drawing).
+    if minX > maxX || minY > maxY then (Pt(0.0), Pt(0.0), Pt(0.0), Pt(0.0))
+    else (Pt(snap(minX)), Pt(snap(minY)), Pt(snap(maxX)), Pt(snap(maxY)))
 
   /** Node-extent bbox in the FINAL (rotated) frame: each node is drawn at its
     * true size around the `map_point`-transformed centre (rotating the swapped
@@ -319,7 +325,8 @@ object Output:
         minY = math.min(minY, cyv - hh); maxY = math.max(maxY, cyv + hh)
     }
     def snap(v: Double): Double = { val r = math.rint(v); if math.abs(v - r) < 1e-6 then r else v }
-    (snap(minX), snap(minY), snap(maxX), snap(maxY))
+    if minX > maxX || minY > maxY then (0.0, 0.0, 0.0, 0.0) // empty drawing, see bbox
+    else (snap(minX), snap(minY), snap(maxX), snap(maxY))
 
   /** One subgraph object block (4-space indented, no trailing comma), shared
     * by both writers. gv field order: name, attrs (alphabetical), _gvid,
@@ -377,7 +384,7 @@ object Output:
     sb ++= s"""  "strict": ${d.strict},\n"""
     sb ++= s"""  "bb": "${g5(blx)} ${g5(bly)} ${g5(bux)} ${g5(buy)}",\n"""
     d.rootAttrs.foreach { case (k, v) => sb ++= s"""  "${esc(k)}": "${esc(v)}",\n""" }
-    sb ++= s"""  "_subgraph_cnt": ${d.sgCnt},\n"""
+    sb ++= s"""  "_subgraph_cnt": ${d.sgCnt}""" // comma deferred: gv omits "objects" when empty
     val byId = g.nodes.iterator.map(n => n.id -> n).toMap
     // gv auto-declares node `label` (default \N) always, edge `label` (default
     // "") only when some edge uses it ⇒ every edge then prints `label` too.
@@ -392,9 +399,12 @@ object Output:
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
     val objBlocks = d.subgraphs.map(sg => sgBlockJson(sg, sgAttrs(g, sg))) ++
       d.nodes.map((id, gv) => nodeBlock(id, gv))
-    sb ++= "  \"objects\": [\n"
-    sb ++= objBlocks.mkString(",\n")
-    sb ++= "\n  ]"
+    // gv omits the "objects" array entirely for an empty graph (and an empty
+    // objects set implies no edges — edges auto-declare their endpoints).
+    if objBlocks.nonEmpty then
+      sb ++= ",\n  \"objects\": [\n"
+      sb ++= objBlocks.mkString(",\n")
+      sb ++= "\n  ]"
     def edgeBlock(e: Doc.E): String =
       var a = g.edges(e.idx).attrs.toMap
       e.tp.foreach(p => a += "tailport" -> p) // ports are just edge attributes
@@ -452,7 +462,7 @@ object Output:
       rootKv("lwidth")  = s""""${f2(lwIn)}""""
     }
     rootKv.toVector.sortBy(_._1).foreach { case (k, v) => sb ++= s"""  "${esc(k)}": $v,\n""" }
-    sb ++= s"""  "_subgraph_cnt": ${d.sgCnt},\n"""
+    sb ++= s"""  "_subgraph_cnt": ${d.sgCnt}""" // comma deferred: gv omits "objects" when empty
     val edgeLabels = g.edges.exists(_.attrs.toMap.contains("label"))
     // json0 = dot_json attrs with the layout keys (height/pos/width for nodes,
     // pos for edges) merged into the same alphabetical `write_attrs` stream.
@@ -507,10 +517,13 @@ object Output:
       val attrs = (sgAttrs(g, sg) ++ cluLayoutAttrs.getOrElse(sg.name, Vector.empty)).sortBy(_._1)
       sgBlockJson(sg, attrs)
     } ++ d.nodes.map((id, gv) => nodeBlock(id, gv))
-    sb ++= "  \"objects\": [\n"
-    sb ++= objBlocks.mkString(",\n")
-    // gv omits the "edges" array entirely for an edgeless graph (as dotJson).
-    sb ++= (if d.edges.nonEmpty then "\n  ],\n" else "\n  ]\n")
+    // gv omits the "objects" array entirely for an empty graph (see dotJson);
+    // the "edges" array is likewise omitted for an edgeless graph.
+    if objBlocks.nonEmpty then
+      sb ++= ",\n  \"objects\": [\n"
+      sb ++= objBlocks.mkString(",\n")
+      sb ++= (if d.edges.nonEmpty then "\n  ],\n" else "\n  ]\n")
+    else sb ++= "\n"
     def edgeBlock(e: Doc.E): String =
       var a = g.edges(e.idx).attrs.toMap
       e.tp.foreach(p => a += "tailport" -> p)

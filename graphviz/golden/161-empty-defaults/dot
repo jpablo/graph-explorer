@@ -1,0 +1,11 @@
+digraph G {
+	graph [bb="0,0,0,0"];
+	node [label="\N",
+		shape=box,
+		sides=5
+	];
+	edge [arrowhead=vee,
+		arrowtail=none,
+		dir=both
+	];
+}
