@@ -3,15 +3,12 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, ArrowPosition}
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{Viz, VizJS}
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.graphviz.Graphviz as ScalaGraphviz
 import upickle.default.*
 
 import scala.concurrent.Future
-
-import scala.scalajs.js
 import scala.util.Try
 
 case class SvgWithPositions(
@@ -22,44 +19,18 @@ case class SvgWithPositions(
 /** Backend-neutral render result (the slice both engines expose). */
 private case class RenderOutputs(status: String, output: Map[String, String], errors: String)
 
-class Graphviz(viz: Viz):
+class Graphviz():
 
-  /** M8 seam: route through the pure-Scala graphviz backend, with viz-js as
-    * an automatic safety net + oracle. Modes (`gx.graphvizEngine`):
-    *   - `"vizjs"`      ⇒ viz-js only (escape hatch / A-B against the oracle);
-    *   - `"scala"`      ⇒ Scala only, no fallback (strict testing — surfaces
-    *                       any Scala failure instead of hiding it);
-    *   - unset / other  ⇒ **Scala-first**: try Scala, and on a hard failure
-    *                       (status != success, or a thrown exception) fall
-    *                       back to viz-js, logging the DOT + reason so any
-    *                       real-diagram gap the corpus misses is visible.
-    *
-    * Downstream consumption (`read[SimpleGraph]` / `getEdgePos` / `parseSVG`)
-    * is identical for both engines. Only *hard* failures fall back — a
-    * valid-but-divergent Scala layout is not caught here (the byte-exact
-    * corpus + DifferentialSpec are the guard against that).
-    */
-  private def renderViz(dot: String, formats: Seq[String]): RenderOutputs =
-    val r = viz.renderFormats(dot, js.Array(formats*))
-    RenderOutputs(r.status, r.output.toMap, r.errors.toSeq.map(_.message).mkString("; "))
-
-  private def renderScala(dot: String, formats: Seq[String]): RenderOutputs =
+  /** The pure-Scala graphviz backend is the sole rendering engine (viz-js was
+    * dropped once the shape catalog was byte-exact — see graphviz PORT.md §4;
+    * `CorpusByteExactSpec`/`DifferentialSpec`/`ShapeCatalogSpec` are the guard).
+    * A hard failure (thrown exception, or `status != "success"`) surfaces to the
+    * caller (`textToSvg`/`textToSimpleGraph` are wrapped in `Try`) instead of
+    * being masked by a fallback. Downstream consumption (`read[SimpleGraph]` /
+    * `getEdgePos` / `parseSVG`) is unchanged. */
+  private def renderOutputs(dot: String, formats: Seq[String]): RenderOutputs =
     val r = ScalaGraphviz.renderFormats(dot, formats)
     RenderOutputs(r.status, r.output, r.errors.map(_.message).mkString("; "))
-
-  private def renderOutputs(dot: String, formats: Seq[String]): RenderOutputs =
-    Graphviz.engineMode match
-      case Graphviz.EngineMode.VizJsOnly => renderViz(dot, formats)
-      case Graphviz.EngineMode.ScalaOnly => renderScala(dot, formats)
-      case Graphviz.EngineMode.ScalaFirst =>
-        Try(renderScala(dot, formats)) match
-          case scala.util.Success(r) if r.status == "success" => r
-          case attempt =>
-            val reason = attempt match
-              case scala.util.Success(r) => s"status=${r.status}: ${r.errors}"
-              case scala.util.Failure(e) => s"threw: ${e.getMessage}"
-            dom.console.warn(s"[graphviz] Scala backend fell back to viz-js ($reason)")
-            renderViz(dot, formats)
 
   /** Used to parse the DOT text in CodeMirror and render it to a graph.
     *
@@ -101,22 +72,7 @@ class Graphviz(viz: Viz):
 
 object Graphviz:
 
-  /** Engine selection (`localStorage["gx.graphvizEngine"]`). The DEFAULT
-    * (unset) is **Scala-first with viz-js fallback** — the pure-Scala engine
-    * is byte-exact vs viz-js across the whole corpus (see graphviz
-    * CorpusByteExactSpec/DifferentialSpec), and viz-js stays loaded as the
-    * automatic safety net + oracle. Set `"vizjs"` to force the old engine,
-    * `"scala"` to force Scala with no fallback (testing). */
-  enum EngineMode derives CanEqual:
-    case ScalaFirst, ScalaOnly, VizJsOnly
-
-  def engineMode: EngineMode =
-    Try(dom.window.localStorage.getItem("gx.graphvizEngine")).toOption match
-      case Some("vizjs") => EngineMode.VizJsOnly
-      case Some("scala") => EngineMode.ScalaOnly
-      case _             => EngineMode.ScalaFirst
-
-  def build(): Future[Graphviz] =
-    VizJS.instance()
-      .`then`(viz => Graphviz(viz))
-      .toFuture
+  /** The pure-Scala engine needs no async initialization (viz-js's WASM load is
+    * gone), so this resolves immediately; the `Future` signature is retained so
+    * the call site (`Viewer`) is unchanged. */
+  def build(): Future[Graphviz] = Future.successful(Graphviz())

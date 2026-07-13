@@ -45,4 +45,4 @@ trait ExportOps:
     val graph = phases.simpleGraph.observe.now()
     // Don't remove this line!! it IS the actual functionality
     dom.console.log(scalajs.js.JSON.parse(write(graph)))
-    dom.console.log("Visible JSON VizJS Graph printed to the console")
+    dom.console.log("Visible graph JSON printed to the console")

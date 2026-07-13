@@ -1,8 +1,11 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
-> **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE (2026-07-12).**
-> All milestones M0–M8 done; Scala backend is the default engine; corpus 91/96
-> byte-exact vs `@viz-js/viz` 13.0.1; the 5 corpus residuals are a characterised
+> **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ viz-js
+> DROPPED (2026-07-12).** All milestones M0–M8 done; the Scala backend is the
+> **sole** rendering engine — viz-js is removed from the viewer runtime (bundle
+> no longer ships it), retained only as the golden-capture oracle
+> (`graphviz/oracle/capture.mjs`, a devDependency). Corpus 91/96 byte-exact vs
+> `@viz-js/viz` 13.0.1; the 5 corpus residuals are a characterised
 > precision-and-tie-break floor. **Shape catalog closed:** 61/62 builtin node
 > shapes are ported and byte-exact (`ShapeCatalogSpec`, 36 single-node probes) —
 > the full `poly_init` periphery engine, `round_corners` (containers + all 20
@@ -177,8 +180,11 @@ Design rules:
 
 ### ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE (2026-07-12)
 
-**All milestones M0–M8 are done; the Scala backend is the default engine (viz-js
-demoted to oracle + fallback).** The full `dot` LAYOUT algorithm (rank →
+**All milestones M0–M8 are done; the Scala backend is the SOLE engine — viz-js
+was dropped from the viewer runtime once the shape catalog closed, and now
+exists only as the offline golden-capture oracle (`oracle/capture.mjs`, a
+devDependency; the `Graphviz` class no longer loads or falls back to it).** The
+full `dot` LAYOUT algorithm (rank →
 mincross → x/y coords → splines → clusters/nesting/rankdir/records/HTML/images →
 all three writers) is complete and **91/96 corpus byte-exact**.
 
@@ -1985,4 +1991,21 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   masks any builtin shape on the `ScalaFirst` path. 740 tests green; gv worktree
   pristine. Also: fixed a stray NUL byte in `Svg.scala` (a `' '` sentinel
   saved as a raw NUL) that made the file read as binary to grep/rg/editors.
+- **2026-07-12** — **viz-js dropped from the viewer runtime.** With the shape
+  catalog closed, the Scala port is now the sole render engine. Deleted the
+  `@JSImport("@viz-js/viz")` binding (`vizjs/VizJS.scala`), simplified the viewer
+  `Graphviz` class to a single Scala path (removed `renderViz`, the `EngineMode`
+  enum + `gx.graphvizEngine` localStorage toggle, and the async WASM-load in
+  `build()` → `Future.successful`). A hard render failure now surfaces to the
+  caller (`textToSvg`/`textToSimpleGraph` are `Try`-wrapped) instead of being
+  masked by a fallback. `@viz-js/viz` moved `dependencies → devDependencies`
+  (still needed by `oracle/capture.mjs`); `@viz-js/lang-dot` (editor DOT mode)
+  stays. `simplegraph` (engine-neutral JSON parsing, in `VizJsGraph.scala`) is
+  untouched. Verified: viewer compiles (JVM + JS), `fullLinkJS` + `vite build`
+  produce a `dist/` bundle with **zero** `@viz-js/viz` (no WASM chunk), and the
+  running app renders the full example gallery (doublecircles, clusters,
+  records, HTML, filled shapes) with no console errors. (The dev server's stale
+  `.vite/deps` may still serve a cached viz chunk until it re-optimizes on
+  restart — a dev-only artifact, absent from the production bundle.) 740 tests
+  green; gv worktree pristine.
 - _(append dated entries as milestones land)_
