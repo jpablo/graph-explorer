@@ -1,9 +1,12 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
-> **STATUS: ✅ PORT COMPLETE (2026-07-12).** All milestones M0–M8 done; Scala
-> backend is the default engine; corpus 91/96 byte-exact vs `@viz-js/viz`
-> 13.0.1; the 5 residuals are a characterised precision-and-tie-break floor
-> (see §4 "PORT COMPLETE"), not open work.
+> **STATUS: ✅ LAYOUT PIPELINE COMPLETE — ⚠️ shape catalog partial (2026-07-12).**
+> All milestones M0–M8 done; Scala backend is the default engine; corpus 91/96
+> byte-exact vs `@viz-js/viz` 13.0.1; the 5 corpus residuals are a characterised
+> precision-and-tie-break floor. **KNOWN GAP:** only ~26 of gv's ~62 node shapes
+> are ported — the other ~36 (doubleoctagon, Mdiamond, cylinder, star, the ~20
+> synthetic-biology shapes, generic `polygon`+attrs, …) are unimplemented and
+> crash the pure-Scala path → viz-js fallback. See §4.
 >
 > Living document. Every milestone and every feature row must be backed by an
 > oracle test before its status flips to ✅. Do not mark anything "done" from
@@ -170,12 +173,31 @@ Design rules:
 | M7 | Output writers: `dot_json` → `json0` → `svg` | Emitted strings parse to identical `SimpleGraph`; SVG visually-close | ✅ Done — 81/81; `dot_json`/`json0`/`svg` writers + `renderFormats` facade. Structural-exact + ε geometry vs goldens (strict, no mirror) for label-free TB (01/06/07); records/clusters/edge-labels are their own tracked deferrals |
 | M8 | Integration behind flag; differential test on real project corpus; viz-js demoted to oracle | Project diagrams render via Scala backend; harness CI green | ✅ **Cutover landed 2026-07-12** — the Scala backend is now the **default** engine (`EngineMode.ScalaFirst`), with viz-js retained as an automatic **fallback** (hard-failure → viz-js, logged) + oracle. `gx.graphvizEngine` = `scala` (strict, no fallback) / `vizjs` (force old) / unset (ScalaFirst). `DifferentialSpec` promoted: the public `Graphviz.renderFormats` facade is **byte-exact vs the golden across every non-residual corpus file** + graceful-degradation/failure tests. Downstream (`read[SimpleGraph]`/`getEdgePos`/`parseSVG`) unchanged. viz-js demoted to safety-net + golden-capture. The former valid-but-wrong risk (flat edges, custom `ranksep`/`nodesep`, `rank=min/max`, RL/BT, clusters) is now closed — those features are byte-exact; only the fully-characterised residual floor (§5/§7) remains |
 
-### ✅ PORT COMPLETE (2026-07-12)
+### ✅ LAYOUT PIPELINE COMPLETE — ⚠️ SHAPE CATALOG PARTIAL (2026-07-12)
 
 **All milestones M0–M8 are done; the Scala backend is the default engine (viz-js
-demoted to oracle + fallback).** Corpus **91/96 byte-exact** through the writers
-and the public `renderFormats` facade. The 5 non-byte-exact files are a
-**fully-characterised precision-and-tie-break floor, not open work**:
+demoted to oracle + fallback).** The full `dot` LAYOUT algorithm (rank →
+mincross → x/y coords → splines → clusters/nesting/rankdir/records/HTML/images →
+all three writers) is complete and **91/96 corpus byte-exact**.
+
+**⚠️ The shape CATALOG is NOT complete.** ~26 of gv's ~62 node shapes are ported
+(all convex regular polygons; box/rect/square/plain/plaintext/none; ellipse/
+oval/circle/doublecircle; record/Mrecord/point). The remaining ~36 are **not
+implemented and CRASH the pure-Scala path** (`NodeSize` → `Infinity` → a
+`NumberFormatException`, so `renderFormats` returns `failure` and the app-level
+`ScalaFirst` engine falls back to viz-js — correct render, but via fallback, not
+native). Unported: **doubleoctagon/tripleoctagon** (polygon peripheries >1),
+**Mdiamond/Msquare/Mcircle**, container shapes **note/tab/folder/box3d/
+component/cylinder**, **star/egg/underline**, the generic **`polygon`** + user
+shape-attrs (`sides`/`skew`/`distortion`/`regular`), **epsf**, and the ~20
+synthetic-biology shapes (**promoter/cds/terminator/…**). None are exercised by
+the corpus, so they had no oracle gate — a genuine coverage gap, not a floor.
+**TODO** to be truly shape-complete: port `poly_init` peripheries + the shape
+`vertices` generators + user shape-attrs, add corpus probes, gate byte-exact.
+
+Corpus **91/96 byte-exact** through the writers and `renderFormats`. The 5
+non-byte-exact corpus files are a **fully-characterised precision-and-tie-break
+floor, not open work**:
 
 | File(s) | Residual | Status |
 |---------|----------|--------|
@@ -183,9 +205,11 @@ and the public `renderFormats` facade. The 5 non-byte-exact files are a
 | 81, 84 | rank=min/sink within-rank **mirror** | Ranking byte-exact; order mirrored. `minmax_edges` reverses the pinned node's edges in `ND_in`-LIFO order; a clean fix needs decoupling the build_ranks seed order from the `segOwner` index. |
 | 03 | cluster layout | **Intentional divergence** — its golden is gv's own default-mode cluster corruption; we lay it out correctly and gate vs the `newrank` oracle (03b). |
 
-No feature remains unported. The 3 "no-corpus" backlog items (`\E`/`\T`/`\H`
-edge-label escapes, doubleoctagon peripheries, non-default `penwidth` outlines)
-are coverage-expansion, not gaps in what exists.
+The layout ALGORITHM has no unported feature. The remaining gaps are (a) the
+**~36 unimplemented node shapes** above, and (b) minor no-corpus items
+(`\E`/`\T`/`\H` edge-label escapes, non-default `penwidth` outlines) — all
+coverage-expansion for corner cases, none affecting the core pipeline or the
+common-shape corpus, all reached by the viz-js fallback in the meantime.
 
 ## 5. Conformance matrix
 
