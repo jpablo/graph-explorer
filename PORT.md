@@ -7,7 +7,10 @@
 > `twopi`/`circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime
 > dependency because those layout algorithms are **not ported**. Corpus 91/96
 > byte-exact vs `@viz-js/viz` 13.0.1; the 5 corpus residuals are a characterised
-> precision-and-tie-break floor. **Shape catalog closed:** 61/62 builtin node
+> precision-and-tie-break floor — since REFUTED and CLOSED: the "floor" was
+> the reversed-edge clip DIRECTION (2026-07-13); corpus now 136/138 byte-exact,
+> the only deferrals being 03 (intentional) and 162 (one ~0.5pt spline).
+> **Shape catalog closed:** 61/62 builtin node
 > shapes are ported and byte-exact (`ShapeCatalogSpec`, 36 single-node probes) —
 > the full `poly_init` periphery engine, `round_corners` (containers + all 20
 > SBOL bio shapes), cylinder/star generators, M-variants, egg, and generic
@@ -222,8 +225,8 @@ floor, not open work**:
 
 | File(s) | Residual | Status |
 |---------|----------|--------|
-| 06, 82 | `bezier_clip` output differs <0.05pt | **FP-precision floor** — raw spline + clip algorithm + ellipse test all byte-identical to gv; only gv's exact `hypot`/de-Casteljau bit-pattern differs. Visually identical. (§7 2026-07-12) |
-| 81, 84 | rank=min/sink within-rank **mirror** | Ranking byte-exact; order mirrored. `minmax_edges` reverses the pinned node's edges in `ND_in`-LIFO order; a clean fix needs decoupling the build_ranks seed order from the `segOwner` index. |
+| 06, 82 | ~~`bezier_clip` <0.05pt "FP floor"~~ | **CLOSED 2026-07-13** — the "floor" was the reversed-edge clip DIRECTION: gv clips in the working parameterization and `swap_spline`s at install; the bisection is not direction-symmetric. Byte-exact. |
+| 81, 84 | ~~rank=min/sink mirror~~ | **CLOSED 2026-07-13** — 84 by the cgraph edge-order fix; 81's residual was the clip-direction bug above. Byte-exact. |
 | 03 | cluster layout | **Intentional divergence** — its golden is gv's own default-mode cluster corruption; we lay it out correctly and gate vs the `newrank` oracle (03b). |
 
 The layout ALGORITHM has no unported feature, and the shape catalog is closed
@@ -1995,7 +1998,7 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   goldens before coding; all 108 probe assertions passed with no post-hoc fitting.
   Only `epsf` (external PostScript file) remains out of scope. viz-js no longer
   masks any builtin shape on the `ScalaFirst` path. 740 tests green; gv worktree
-  pristine. Also: fixed a stray NUL byte in `Svg.scala` (a `' '` sentinel
+  pristine. Also: fixed a stray NUL byte in `Svg.scala` (a `'\u0000'` sentinel
   saved as a raw NUL) that made the file read as binary to grep/rg/editors.
 - **2026-07-12** — **viewer routes by layout engine (viz-js kept for non-`dot`).**
   Replaced the old `ScalaFirst`-with-fallback dispatch with engine-aware routing
@@ -2093,4 +2096,21 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   declaration order. dot_json + json0 + svg all byte-exact; promoted into the
   corpus gate. Remaining deferrals: 03 (intentional), 06/82 (FP floor),
   81 (rank=min mirror), 162 (one cross-cluster spline ~0.5pt). 755 green.
+- **2026-07-13** — **The "FP-precision floor" is dead: 06, 81, 82 all
+  byte-exact.** The 81-rankmin chase found its mirror already gone (killed by
+  the session's earlier fixes) and the residual spline off 0.06–0.17pt. An
+  instrumented raw-spline dump (clip_and_install input) showed the raw geometry
+  IDENTICAL to gv — but parameterized in the OPPOSITE direction: gv routes and
+  clips rank-reversed edges in the WORKING direction (orig-head → orig-tail,
+  `swap_ends_p`) and flips the finished spline at install
+  (`swap_spline`). `bezier_clip`'s bisection is not direction-symmetric, so my
+  original-direction clipping landed the cut a hair off — the exact mechanism
+  behind what 2026-07-12's exhaustive chase mis-diagnosed as an unclosable
+  float-precision floor (it compared identical inputs through the clip but
+  never questioned the parameter DIRECTION). `clipInstall` gains
+  `reversedWork` (clip roles swapped, `arrowStartClip` for the head arrow at
+  the working start, points reversed at install); the three regular-edge call
+  sites keep the routed path top-down and pass `reversedWork = rt > rh`. All
+  three fails-when-fixed guards fired at once. Deferrals now: 03 (intentional)
+  + 162 (one ~0.5pt cross-cluster spline). 758 green; gv pristine.
 - _(append dated entries as milestones land)_
