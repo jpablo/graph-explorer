@@ -54,18 +54,15 @@ class CorpusByteExactSpec extends FunSuite:
   //     (NodeSizeSpec deferral) and a cross-cluster spline sub-pt.
   //   • 84-ranksink — CLOSED 2026-07-13 by the cgraph edge-order fix (out-edges
   //     iterate by (head-node seq, edge seq), not declaration order).
-  //   • 95-cluster-chains — was byte-exact via two cancelling divergences: the
-  //     old edge-declaration adjacency + an XCoord calibration. With the
-  //     faithful cgraph order the INITIAL collapsed-pass rank orders now match
-  //     gv exactly (instrumented 2026-07-13); the residual is the collapsed-pass
-  //     mincross reaching a different 0-cross optimum (gv floats free vnodes
-  //     OUTSIDE the skeletons: [v,Sk0,v,Sk1,v,v] vs ours [Sk0,v,v,Sk1,v,v]) —
-  //     suspect install_cluster/skeleton-edge xpenalty semantics. ~10pt x-shift,
-  //     same topology. Next deep-dive.
+  //   • 95-cluster-chains — RE-CLOSED 2026-07-13, this time for the right
+  //     reasons: after the cgraph edge-order fix exposed that its earlier pass
+  //     was two cancelling divergences, porting install_cluster (skeleton
+  //     columns install whole, then enqueue) + CL_CROSS=1000 skeleton-edge
+  //     xpenalty (weighted in_cross/out_cross/ncross) made the collapsed-pass
+  //     optimizer track gv exactly.
   private val deferred = Set(
     "03-subgraph-cluster", "06-undirected",
     "81-rankmin", "82-rankmax",
-    "95-cluster-chains",
     "162-cluster-style", "163-groups")
 
   private def names: Vector[String] =

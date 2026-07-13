@@ -253,7 +253,19 @@ object Order:
       .filter(n => cOf(n).isEmpty).map(CNode.Nd.apply: LayoutNode => CNode).toVector
     val cOthers = cOut.keysIterator.filterNot(cSeeds.contains).toVector
     val cSeed   = decomposeOrder(cSeeds, cOthers, cOut, cIn)
-    val (cOrder, cCross) = runMincross(cOut, cIn, cRank, cSeed, flip)
+    // skeleton chain edges carry ED_xpenalty = CL_CROSS (1000, build_skeleton);
+    // a skeleton node stands for its whole rankleader column (install_cluster).
+    val skWeight: (CNode, CNode) => Long =
+      case (CNode.Sk(c1, _), CNode.Sk(c2, _)) if c1 == c2 => 1000L // CL_CROSS
+      case _                                              => 1L
+    val skColOf: CNode => Option[Int] =
+      case CNode.Sk(ci, _) => Some(ci)
+      case _               => None
+    val skColNodes: Int => Vector[CNode] = ci =>
+      val (lo, hi) = clRanks(ci)
+      (lo to hi).map(r => CNode.Sk(ci, r): CNode).toVector
+    val (cOrder, cCross) = runMincross(cOut, cIn, cRank, cSeed, flip,
+      weight = skWeight, columnOf = skColOf, columnNodes = skColNodes)
 
     // ── expand each skeleton back to its cluster's interior order ──
     val internal = clRanks.keysIterator.map(ci => ci -> internalOrder(ci)).toMap
@@ -276,7 +288,19 @@ object Order:
       in:      collection.Map[N, mutable.ArrayBuffer[N]],
       rankOf:  collection.Map[N, Int],
       gdNlist: Vector[N],
-      flip:    Boolean
+      flip:    Boolean,
+      /** `ED_xpenalty` per (tail, head) segment — crossings count
+        * `weight(e1)*weight(e2)` (mincross.c in_cross/out_cross). The collapsed
+        * cluster pass gives skeleton chain edges CL_CROSS=1000
+        * (build_skeleton); everything else 1. */
+      weight:   (N, N) => Long = (_: N, _: N) => 1L,
+      /** `install_cluster` (cluster.c): dequeuing a skeleton node installs the
+        * cluster's ENTIRE rankleader column (min→max rank) at once, then
+        * enqueues every column node's neighbors in rank order — once per pass
+        * (GD_installed guard). `columnOf(n)` = the column id; `columnNodes(id)`
+        * = the rank-ordered column. */
+      columnOf:    N => Option[Int]  = (_: N) => None,
+      columnNodes: Int => Vector[N]  = (_: Int) => Vector.empty
   )(using CanEqual[N, N]): (Map[Int, Vector[N]], Long) =
     val minR  = if rankOf.isEmpty then 0 else rankOf.values.min
     val maxR  = if rankOf.isEmpty then 0 else rankOf.values.max
@@ -294,16 +318,30 @@ object Order:
     // EVERY rank is reversed (mincross.c:1334) — the LR order-axis mirror.
     def buildRanks(pass: Int): Unit =
       ranks.valuesIterator.foreach(_.clear()); pos.clear(); mark.clear()
+      val colInstalled = mutable.Set.empty[Int] // GD_installed guard (per pass)
       val q = mutable.Queue.empty[N]
+      def enq(n0: N): Unit =
+        (if pass == 0 then out(n0) else in(n0)).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
+      def handle(n0: N): Unit = columnOf(n0) match
+        case Some(ci) => // install_cluster: whole column once, then its neighbors
+          if !colInstalled(ci) then
+            colInstalled += ci
+            val col = columnNodes(ci)
+            col.foreach(install)
+            col.foreach(enq)
+        case None =>
+          install(n0); enq(n0)
       gdNlist.foreach { root =>
         val rootFree = if pass == 0 then in(root).isEmpty else out(root).isEmpty
         if rootFree && !mark(root) then
           mark += root; q.enqueue(root)
-          while q.nonEmpty do
-            val n0 = q.dequeue(); install(n0)
-            (if pass == 0 then out(n0) else in(n0)).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
+          while q.nonEmpty do handle(q.dequeue())
       }
-      gdNlist.foreach(n => if !mark(n) then { mark += n; install(n) }) // unreached
+      gdNlist.foreach { n => // unreached safety net (gv components always have roots)
+        if !mark(n) then
+          mark += n; handle(n)
+          while q.nonEmpty do handle(q.dequeue())
+      }
       if flip then
         ranks.valuesIterator.foreach { rb =>
           val n = rb.length; var i = 0
@@ -311,20 +349,20 @@ object Order:
           rb.iterator.zipWithIndex.foreach { case (nd, idx) => pos(nd) = idx }
         }
 
-    // ── crossing counting ────────────────────────────────────────────────
+    // ── crossing counting (weighted: ED_xpenalty(e1)*ED_xpenalty(e2)) ─────
     def bilayer(r: Int): Long =
-      val segs = mutable.ArrayBuffer.empty[(Int, Int)] // (pos upper, pos lower)
+      val segs = mutable.ArrayBuffer.empty[(Int, Int, Long)] // (pos up, pos down, xpenalty)
       ranks.getOrElse(r, mutable.ArrayBuffer.empty).foreach { u =>
-        out(u).foreach(w => segs += ((pos(u), pos(w))))
+        out(u).foreach(w => segs += ((pos(u), pos(w), weight(u, w))))
       }
       var c = 0L
       var i = 0
       while i < segs.length do
         var j = i + 1
         while j < segs.length do
-          val (ui, wi) = segs(i)
-          val (uj, wj) = segs(j)
-          if (ui - uj) * (wi - wj) < 0 then c += 1
+          val (ui, wi, xi) = segs(i)
+          val (uj, wj, xj) = segs(j)
+          if (ui - uj) * (wi - wj) < 0 then c += xi * xj
           j += 1
         i += 1
       c
@@ -379,10 +417,14 @@ object Order:
         if !reverse then ep -= 1
         nelt -= 1
 
-    // ── transpose (adjacent swaps) ───────────────────────────────────────
-    def crossPair(av: Iterable[N], aw: Iterable[N]): Int =
-      var c = 0
-      av.foreach(x => aw.foreach(y => if pos(x) > pos(y) then c += 1))
+    // ── transpose (adjacent swaps; in_cross/out_cross xpenalty products) ──
+    def crossIn(v: N, w: N): Long = // in_cross(v, w): v's in-tails right of w's
+      var c = 0L
+      in(v).foreach(x => in(w).foreach(y => if pos(x) > pos(y) then c += weight(x, v) * weight(y, w)))
+      c
+    def crossOut(v: N, w: N): Long =
+      var c = 0L
+      out(v).foreach(x => out(w).foreach(y => if pos(x) > pos(y) then c += weight(v, x) * weight(w, y)))
       c
     def transposeStep(reverse: Boolean): Long =
       var delta = 0L
@@ -391,8 +433,8 @@ object Order:
         var i = 0
         while i < rb.length - 1 do
           val v = rb(i); val w = rb(i + 1)
-          val c0 = crossPair(in(v), in(w)) + crossPair(out(v), out(w))
-          val c1 = crossPair(in(w), in(v)) + crossPair(out(w), out(v))
+          val c0 = crossIn(v, w) + crossOut(v, w)
+          val c1 = crossIn(w, v) + crossOut(w, v)
           val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
           if doSwap then
             exchange(r, i, i + 1)
