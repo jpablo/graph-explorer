@@ -69,7 +69,7 @@ object Viewer:
           router.navigateTo(Route.ProjectDetail(newId.value, Some(dot)))
 
     Graphviz.build().foreach: (graphviz: Graphviz) =>
-      dom.console.log("Graphviz (viz.js) initialized:", graphviz)
+      dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)
       printBanner()
       // Start the app after Graphviz is initialized
 

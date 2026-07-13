@@ -1,11 +1,12 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
-> **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ viz-js
-> DROPPED (2026-07-12).** All milestones M0–M8 done; the Scala backend is the
-> **sole** rendering engine — viz-js is removed from the viewer runtime (bundle
-> no longer ships it), retained only as the golden-capture oracle
-> (`graphviz/oracle/capture.mjs`, a devDependency). Corpus 91/96 byte-exact vs
-> `@viz-js/viz` 13.0.1; the 5 corpus residuals are a characterised
+> **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
+> engine is pure-Scala (2026-07-12).** All milestones M0–M8 done. The viewer now
+> routes by layout engine: `dot`/unset → the pure-Scala port (the default and
+> common case, byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/
+> `twopi`/`circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime
+> dependency because those layout algorithms are **not ported**. Corpus 91/96
+> byte-exact vs `@viz-js/viz` 13.0.1; the 5 corpus residuals are a characterised
 > precision-and-tie-break floor. **Shape catalog closed:** 61/62 builtin node
 > shapes are ported and byte-exact (`ShapeCatalogSpec`, 36 single-node probes) —
 > the full `poly_init` periphery engine, `round_corners` (containers + all 20
@@ -180,11 +181,16 @@ Design rules:
 
 ### ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE (2026-07-12)
 
-**All milestones M0–M8 are done; the Scala backend is the SOLE engine — viz-js
-was dropped from the viewer runtime once the shape catalog closed, and now
-exists only as the offline golden-capture oracle (`oracle/capture.mjs`, a
-devDependency; the `Graphviz` class no longer loads or falls back to it).** The
-full `dot` LAYOUT algorithm (rank →
+**All milestones M0–M8 are done; the pure-Scala port is the engine for the `dot`
+layout, dispatched by the viewer `Graphviz` class on the graph `layout`
+attribute (`usesDotEngine`): `dot`/unset → Scala, everything else → viz-js.**
+The port implements ONLY the `dot` engine; the other Graphviz layout engines
+(`neato`/`fdp`/`sfdp`/`twopi`/`circo`/`osage`/`patchwork` — force-directed,
+radial, circular, treemap) are **not ported**, so viz-js remains a runtime
+dependency for them (the shipped `examples/neato/*` + `layout=twopi` examples
+exercise this path). The `dot` path has no viz-js fallback — a hard failure
+there is a port bug we want surfaced, not masked. The full `dot` LAYOUT
+algorithm (rank →
 mincross → x/y coords → splines → clusters/nesting/rankdir/records/HTML/images →
 all three writers) is complete and **91/96 corpus byte-exact**.
 
@@ -1991,21 +1997,23 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   masks any builtin shape on the `ScalaFirst` path. 740 tests green; gv worktree
   pristine. Also: fixed a stray NUL byte in `Svg.scala` (a `' '` sentinel
   saved as a raw NUL) that made the file read as binary to grep/rg/editors.
-- **2026-07-12** — **viz-js dropped from the viewer runtime.** With the shape
-  catalog closed, the Scala port is now the sole render engine. Deleted the
-  `@JSImport("@viz-js/viz")` binding (`vizjs/VizJS.scala`), simplified the viewer
-  `Graphviz` class to a single Scala path (removed `renderViz`, the `EngineMode`
-  enum + `gx.graphvizEngine` localStorage toggle, and the async WASM-load in
-  `build()` → `Future.successful`). A hard render failure now surfaces to the
-  caller (`textToSvg`/`textToSimpleGraph` are `Try`-wrapped) instead of being
-  masked by a fallback. `@viz-js/viz` moved `dependencies → devDependencies`
-  (still needed by `oracle/capture.mjs`); `@viz-js/lang-dot` (editor DOT mode)
-  stays. `simplegraph` (engine-neutral JSON parsing, in `VizJsGraph.scala`) is
-  untouched. Verified: viewer compiles (JVM + JS), `fullLinkJS` + `vite build`
-  produce a `dist/` bundle with **zero** `@viz-js/viz` (no WASM chunk), and the
-  running app renders the full example gallery (doublecircles, clusters,
-  records, HTML, filled shapes) with no console errors. (The dev server's stale
-  `.vite/deps` may still serve a cached viz chunk until it re-optimizes on
-  restart — a dev-only artifact, absent from the production bundle.) 740 tests
-  green; gv worktree pristine.
+- **2026-07-12** — **viewer routes by layout engine (viz-js kept for non-`dot`).**
+  Replaced the old `ScalaFirst`-with-fallback dispatch with engine-aware routing
+  in the viewer `Graphviz` class: `Graphviz.usesDotEngine(dot)` reads the graph
+  `layout` attribute (regex; unset ⇒ `dot`) and sends `dot`/unset graphs to the
+  pure-Scala port and every other engine to viz-js. Removed the `EngineMode`
+  enum + `gx.graphvizEngine` localStorage toggle (the choice is now the engine,
+  not a global mode). **Correction:** an earlier same-day attempt to drop viz-js
+  entirely was wrong — the port implements ONLY the `dot` engine, and the app
+  ships `neato`/`twopi` examples (`examples/neato/*`) that viz-js must lay out;
+  removing it silently mis-rendered them as `dot`. It also surfaced a
+  *pre-existing* latent bug: the old `ScalaFirst` fallback only caught *hard*
+  failures, so a `neato` graph (which `renderScala` "succeeds" at, as `dot`)
+  never fell back — engine routing fixes that. `@viz-js/viz` stays a runtime
+  dependency; `simplegraph` (engine-neutral JSON parsing in `VizJsGraph.scala`)
+  and the `VizJS` binding are retained. The `dot` path has no viz-js fallback by
+  design (surface port bugs). Verified in-browser: dot examples (doublecircles/
+  clusters/records/HTML) render via the port, `neato` examples (Colors, Twelve
+  Colors) render via viz-js with the correct force-directed layout, no console
+  errors. gv worktree pristine.
 - _(append dated entries as milestones land)_

@@ -3,12 +3,14 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, ArrowPosition}
+import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{Viz, VizJS}
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.graphviz.Graphviz as ScalaGraphviz
 import upickle.default.*
 
 import scala.concurrent.Future
+import scala.scalajs.js
 import scala.util.Try
 
 case class SvgWithPositions(
@@ -19,18 +21,32 @@ case class SvgWithPositions(
 /** Backend-neutral render result (the slice both engines expose). */
 private case class RenderOutputs(status: String, output: Map[String, String], errors: String)
 
-class Graphviz():
+class Graphviz(viz: Viz):
 
-  /** The pure-Scala graphviz backend is the sole rendering engine (viz-js was
-    * dropped once the shape catalog was byte-exact — see graphviz PORT.md §4;
-    * `CorpusByteExactSpec`/`DifferentialSpec`/`ShapeCatalogSpec` are the guard).
-    * A hard failure (thrown exception, or `status != "success"`) surfaces to the
-    * caller (`textToSvg`/`textToSimpleGraph` are wrapped in `Try`) instead of
-    * being masked by a fallback. Downstream consumption (`read[SimpleGraph]` /
-    * `getEdgePos` / `parseSVG`) is unchanged. */
-  private def renderOutputs(dot: String, formats: Seq[String]): RenderOutputs =
+  /** Engine-aware dispatch. The pure-Scala backend implements **only** the
+    * `dot` layout engine (byte-exact vs viz-js — see graphviz PORT.md;
+    * `CorpusByteExactSpec`/`DifferentialSpec`/`ShapeCatalogSpec` are the guard),
+    * so it renders every `dot`/unset graph. The other Graphviz engines
+    * (`neato`/`fdp`/`sfdp`/`twopi`/`circo`/`osage`/`patchwork`) are **not**
+    * ported and are delegated to viz-js, which reads the `layout` attribute
+    * itself. The engine is decided from the graph `layout` attribute
+    * ([[Graphviz.usesDotEngine]]).
+    *
+    * The `dot` path has no viz-js fallback on purpose: a hard failure there is a
+    * port bug we want visible (it surfaces to the `Try`-wrapped callers), not
+    * silently masked. Downstream consumption (`read[SimpleGraph]` /
+    * `getEdgePos` / `parseSVG`) is identical for both engines. */
+  private def renderScala(dot: String, formats: Seq[String]): RenderOutputs =
     val r = ScalaGraphviz.renderFormats(dot, formats)
     RenderOutputs(r.status, r.output, r.errors.map(_.message).mkString("; "))
+
+  private def renderViz(dot: String, formats: Seq[String]): RenderOutputs =
+    val r = viz.renderFormats(dot, js.Array(formats*))
+    RenderOutputs(r.status, r.output.toMap, r.errors.toSeq.map(_.message).mkString("; "))
+
+  private def renderOutputs(dot: String, formats: Seq[String]): RenderOutputs =
+    if Graphviz.usesDotEngine(dot) then renderScala(dot, formats)
+    else renderViz(dot, formats) // non-dot layout engine → viz-js (not ported)
 
   /** Used to parse the DOT text in CodeMirror and render it to a graph.
     *
@@ -72,7 +88,23 @@ class Graphviz():
 
 object Graphviz:
 
-  /** The pure-Scala engine needs no async initialization (viz-js's WASM load is
-    * gone), so this resolves immediately; the `Future` signature is retained so
-    * the call site (`Viewer`) is unchanged. */
-  def build(): Future[Graphviz] = Future.successful(Graphviz())
+  /** The `layout` graph attribute → engine name (e.g. `layout=neato`,
+    * `layout = "twopi"`). Absent ⇒ `dot`. A stray match inside a label string is
+    * harmless: it would only route a `dot` graph to viz-js, which lays it out
+    * with `dot` anyway. */
+  private val layoutAttr = """(?i)\blayout\b\s*=\s*"?\s*([A-Za-z]+)""".r
+
+  /** True when the graph uses the `dot` engine — the only one the Scala port
+    * implements. `dot` and unset both route to the port; every other engine
+    * routes to viz-js. */
+  def usesDotEngine(dot: String): Boolean =
+    layoutAttr.findFirstMatchIn(dot).map(_.group(1).toLowerCase) match
+      case Some(engine) => engine == "dot"
+      case None         => true
+
+  /** Loads viz-js (needed for the non-`dot` layout engines); the pure-Scala
+    * `dot` engine needs no async init but shares this instance's lifecycle. */
+  def build(): Future[Graphviz] =
+    VizJS.instance()
+      .`then`(viz => Graphviz(viz))
+      .toFuture
