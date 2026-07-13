@@ -2068,4 +2068,15 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   flip equal-median pairs, kept via `<=` save) and expands clusters
   SEQUENTIALLY; my interior pass is cluster-local. Plus the dot_json cluster
   edges-array order + the sub-pt spline. 754 green.
+- **2026-07-13** — **Cluster interior refinement pass ported** (mincross_clust).
+  Interior install = build_ranks(subg,0) BFS in nlist order (gv's
+  `walkbackwards` is a double reversal: fast_node PREPENDS, so walking backward
+  restores declaration order — taking it literally regressed 94). Interior
+  refinement = mincross(subg,2) run per cluster against the GLOBAL order:
+  medians use global positions, ncross counts the whole root, reverse-pass
+  tie-swaps flip equal-median pairs, `<=` keeps the latest. 163-groups' final
+  per-rank mincross orders now match gv's instrumented snapshots EXACTLY.
+  Remaining 163: XCoord in-cluster vnode solve (+18pt, same order different NS
+  equilibrium), dot_json cluster edges-array listing order, sub-pt spline.
+  754 green.
 - _(append dated entries as milestones land)_
