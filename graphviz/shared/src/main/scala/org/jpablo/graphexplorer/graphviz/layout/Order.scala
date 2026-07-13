@@ -187,7 +187,20 @@ object Order:
   ): (Map[Int, Vector[LayoutNode]], Long) =
     val cinfos   = Cluster.clusters(g)
     val clustOf  = Cluster.clustOf(g) // node NAME → innermost cluster idx
-    def cOf(n: LayoutNode): Option[Int] = clustOf.get(n.name)
+    // A chain vnode belongs to a cluster iff its owning edge's ORIGINAL
+    // endpoints share that cluster (gv mark_clusters sets ND_clust on the
+    // vnodes of intra-cluster edges — e.g. a reversed back edge like
+    // groups.dot's a3->a0). They then live in the cluster's interior mincross,
+    // NOT as free nodes of the collapsed graph.
+    val vOrigEnds: Vector[(String, String)] =
+      g.edges.filter(e => e.tail != e.head).map(e => (e.tail, e.head))
+    def cOf(n: LayoutNode): Option[Int] = n match
+      case LayoutNode.Real(id) => clustOf.get(id)
+      case LayoutNode.Virtual(idx, _) =>
+        val (t, h) = vOrigEnds(idx)
+        (clustOf.get(t), clustOf.get(h)) match
+          case (Some(a), Some(b)) if a == b => Some(a)
+          case _                            => None
     val allNodes = out.keysIterator.toVector
 
     // Each cluster's occupied rank band (over the class2 nodes actually present).
@@ -217,7 +230,7 @@ object Order:
       val virtuals = members.iterator.collect { case v: LayoutNode.Virtual => v: LayoutNode }
         .toVector.sortBy(_.name)
       val seed = decomposeOrder(declared, virtuals, iOut, iIn)
-      runMincross(iOut, iIn, iRank, seed, flip)._1
+      runMincross(iOut, iIn, iRank, seed, flip, rootGraph = false)._1
 
     // ── collapse: free nodes pass through, each cluster → a skeleton chain. ──
     def leaderC(n: LayoutNode): CNode = cOf(n) match
@@ -300,7 +313,11 @@ object Order:
         * (GD_installed guard). `columnOf(n)` = the column id; `columnNodes(id)`
         * = the rank-ordered column. */
       columnOf:    N => Option[Int]  = (_: N) => None,
-      columnNodes: Int => Vector[N]  = (_: Int) => Vector.empty
+      columnNodes: Int => Vector[N]  = (_: Int) => Vector.empty,
+      /** `g == dot_root(g)`: only the root graph's build_ranks runs the tail
+        * transpose (mincross.c:1343) — cluster interiors (mincross_clust,
+        * startpass 2) never do. */
+      rootGraph:   Boolean = true
   )(using CanEqual[N, N]): (Map[Int, Vector[N]], Long) =
     val minR  = if rankOf.isEmpty then 0 else rankOf.values.min
     val maxR  = if rankOf.isEmpty then 0 else rankOf.values.max
@@ -483,8 +500,10 @@ object Order:
         // order here — inside build_ranks, before the driver computes cur_cross.
         // Omitting it seeds the driver with a mirror-equivalent order whose later
         // median/transpose passes settle to the opposite tie-break (06's X-mirror).
+        // Root graph only (`g == dot_root(g)`); with CL_CROSS weights this is
+        // also what floats free vnode chains outside cluster skeleton columns.
         // flat_breakcycles(pass 0) + flat_reorder: no-ops without flat edges.
-        if ncross > 0 then transpose(false)
+        if rootGraph && ncross > 0 then transpose(false)
         cur = ncross
         if cur <= bestCross then { best = snapshot(); bestCross = cur }
       else
