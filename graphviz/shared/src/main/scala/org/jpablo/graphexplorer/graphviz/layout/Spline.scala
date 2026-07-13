@@ -110,6 +110,9 @@ object Spline:
       else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
     def lw(id: String): Double  = lwOv.getOrElse(id, lw0(id))
     def rw(id: String): Double  = rwOv.getOrElse(id, labelW.getOrElse(id, lw0(id)))
+    // gv `ND_mval`: the PRE-spline rw (set at set_xcoords, before recover_slack
+    // narrows a virtual). `rw` without the `rwOv` snap override.
+    def mvalRw(id: String): Double = labelW.getOrElse(id, lw0(id))
 
     // ht1/ht2 (GD_rank[r] half-heights): rank_box/maximal_bbox use the
     // CLUSTER-INFLATED per-rank values (clust_ht adds label bands + margins
@@ -189,7 +192,12 @@ object Spline:
             val nb = clBound(vn, left) match
               case Some(cl) => cluBBs(cl).urx + Splinesep
               case None =>
-                cx(left) + rw(left) + (if isV(left) then Splinesep else NodeSep / 2.0)
+                // gv `maximal_bbox` clamps by `ND_coord(left).x + ND_mval(left)`
+                // — `ND_mval` is the PRE-spline rw (a safe copy from set_xcoords),
+                // NOT the recover_slack-snapped `ND_rw`. So a snapped left-vnode
+                // still reserves its ORIGINAL half-width here (else a narrowed
+                // neighbour would let this box creep in, shortening the spline).
+                cx(left) + mvalRw(left) + (if isV(left) then Splinesep else NodeSep / 2.0)
             if nb < b then b = nb
             math.round(b).toDouble
           case None => math.min(math.round(b).toDouble, leftBound)

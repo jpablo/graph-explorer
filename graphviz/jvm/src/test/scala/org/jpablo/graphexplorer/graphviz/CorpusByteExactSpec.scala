@@ -36,20 +36,7 @@ class CorpusByteExactSpec extends FunSuite:
   // the same mincross BFS-seed tie-break class as the LR order axis.
   private val deferred = Set(
     "03-subgraph-cluster", "06-undirected",
-    "81-rankmin", "82-rankmax", "84-ranksink",
-    // Cluster-aware mincross is byte-exact for contiguity (94-cluster-contig).
-    // 95 (cluster spanning ranks, FREE long edges routing outside it) is NOT an
-    // XCoord bug: instrumented gv 13.0.1 confirmed my aux-NS x-solve is
-    // BYTE-IDENTICAL to gv's raw set_xcoords — nodes AND free virtuals (gv raw
-    // a0@56, rank-1 vnodes @1,111,221,259 = my coords + a constant 13). Two
-    // residuals remain, both downstream of XCoord: (1) OUTPUT — gv's
-    // `translate_drawing` sets the origin from the FULL bb incl. splines (my
-    // XCoord shift is pre-spline, so a left-overhanging spline lands my origin
-    // ~10.5pt off); (2) SPLINE — a recover_slack cascade: top→b1's virtual snaps
-    // to a box that then widens top→b2's `maximal_bbox`, so its funnel hugs the
-    // near edge (199) instead of routing through the vnode (246) → the right
-    // spline is short (209.6 vs gv 233.9). top→a2 (left) is byte-identical.
-    "95-cluster-chains")
+    "81-rankmin", "82-rankmax", "84-ranksink")
 
   private def names: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))

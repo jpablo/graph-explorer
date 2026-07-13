@@ -113,17 +113,23 @@ object Output:
     val nodes = g.nodes.map(n => n.id -> nodeGvid(n.id))
 
     // Edge _gvid = cgraph node-traversal order (write_graph): for each node
-    // (declaration order), its out-edges in declaration order. `idx` = position
-    // in `g.edges` (= AGSEQ = the Spline key) so parallel/port multi-edges map
-    // to their own spline. The top-level array is then AGSEQ-sorted (gv qsort
-    // by seq in write_edges), while `_gvid` keeps the node-traversal value.
+    // (declaration order), its out-edges as `agfstout` returns them — ordered by
+    // HEAD node id (declaration order), then AGSEQ for parallel edges — NOT edge
+    // declaration order. (Coincides with AGSEQ unless a node's out-edges name
+    // their heads out of node order, e.g. 95's `top->a0;top->b0;top->a1;…`.)
+    // `idx` = position in `g.edges` (= AGSEQ = the Spline key) so parallel/port
+    // multi-edges map to their own spline. The top-level array is then
+    // AGSEQ-sorted (gv qsort by seq in write_edges); `_gvid` keeps this value.
+    val nodeDeclIdx = g.nodes.iterator.map(_.id).zipWithIndex.toMap
     var k = 0
     val edgesByK =
       g.nodes.iterator.flatMap { n =>
-        g.edges.iterator.zipWithIndex.filter { case (e, _) => e.tail == n.id }.map { case (e, ix) =>
-          val r = Doc.E(k, nodeGvid(e.tail), nodeGvid(e.head), e.tailPortStr, e.headPortStr, ix)
-          k += 1; r
-        }
+        g.edges.iterator.zipWithIndex.filter { case (e, _) => e.tail == n.id }.toVector
+          .sortBy { case (e, ix) => (nodeDeclIdx.getOrElse(e.head, Int.MaxValue), ix) }
+          .map { case (e, ix) =>
+            val r = Doc.E(k, nodeGvid(e.tail), nodeGvid(e.head), e.tailPortStr, e.headPortStr, ix)
+            k += 1; r
+          }
       }.toVector
     val edgeGvidByIdx = edgesByK.iterator.map(e => e.idx -> e.gv).toMap
     val edges         = edgesByK.sortBy(_.idx)
@@ -143,7 +149,18 @@ object Output:
     val subgraphs = flat.zipWithIndex.map { case (s, gv) =>
       val mem      = memberNodes(s)
       val memSet   = mem.toSet
-      val edgeGids = s.edgeIdxs.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
+      // A CLUSTER owns every edge with BOTH endpoints inside it (cgraph
+      // containment adds them during cluster processing) — membership, NOT the
+      // declaration site: 95's `a0->a1->a2` is declared at root yet belongs to
+      // cluster_0; 03b's cross-cluster `a2->b1` is excluded (b1 ∉ cluster_0). A
+      // PLAIN subgraph (`{rank=same;…}`) gets only its directly-declared edges
+      // (90's `a->b` declared at root stays OUT of its rank=same block).
+      val edgeGids =
+        if s.isCluster then
+          g.edges.iterator.zipWithIndex
+            .collect { case (e, ix) if memSet(e.tail) && memSet(e.head) => edgeGvidByIdx(ix) }
+            .toVector.sorted
+        else s.edgeIdxs.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
       Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids, labelDeclared)
     }
 
@@ -339,8 +356,10 @@ object Output:
       if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then
         finalBBox(g, org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g))
       else { val (a, b, c, dd) = bbox(g); (a.value, b.value, c.value, dd.value) }
+    // translate_drawing: shift the full bb to the origin (a no-op unless a
+    // spline overhangs the node/cluster box — see json0).
     val (blx, bly, bux, buy) =
-      (gvRound(lx), gvRound(ly), gvRound(ux), gvRound(uy))
+      (gvRound(0.0), gvRound(0.0), gvRound(ux - lx), gvRound(uy - ly))
     val sb = new StringBuilder
     sb ++= "{\n"
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
@@ -388,11 +407,17 @@ object Output:
   def json0(g: RGraph): String =
     val d = doc(g)
     // map_point (postproc.c): rotate canonical coords into the drawing frame.
-    val tf = org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g)
+    val tf0 = org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g)
     val (lxPt, lyPt, uxPt, uyPt) = bbox(g)
     val (lx, ly, ux, uy) =
-      if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then finalBBox(g, tf)
+      if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then finalBBox(g, tf0)
       else (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
+    // translate_drawing (postproc.c): the FULL bb (incl. spline overhang) lands
+    // at the origin. A no-op wherever the layout already starts at 0 (every file
+    // whose splines stay within the node/cluster box) — non-trivial only when a
+    // spline overhangs a cluster (95). Compose into `tf` so every coord shifts.
+    val dx = -lx; val dy = -ly
+    val tf: (Double, Double) => (Double, Double) = (x, y) => { val (a, b) = tf0(x, y); (a + dx, b + dy) }
     val byId  = g.nodes.iterator.map(n => n.id -> n).toMap
     val xs    = XCoord.xCoords(g)
     val (_, yOf) = Coord.rankY(g)
@@ -404,7 +429,7 @@ object Output:
     sb ++= s"""  "name": "${esc(d.name)}",\n"""
     sb ++= s"""  "directed": ${d.directed},\n"""
     sb ++= s"""  "strict": ${d.strict},\n"""
-    sb ++= s"""  "bb": "${g5(lx)},${g5(ly)},${g5(ux)},${g5(uy)}",\n"""
+    sb ++= s"""  "bb": "${g5(lx + dx)},${g5(ly + dy)},${g5(ux + dx)},${g5(uy + dy)}",\n"""
     // root graph attrs + the label geometry (lp/lwidth/lheight), merged
     // alphabetically into the write_attrs stream (do_graph_label).
     val rootKv = scala.collection.mutable.LinkedHashMap.empty[String, String]
@@ -413,7 +438,7 @@ object Output:
       val lhPt = labelHtPt(g, lbl)
       val lwIn = NodeSize.labelWidthPt(lbl, labelFontSize(g), g.rootAttrs.getOrElse("fontname", "Times"), g.name.getOrElse("")) / 72.0
       rootKv("lheight") = s""""${f2(lhPt / 72.0)}""""
-      rootKv("lp")      = s""""${g5((lx + ux) / 2.0)},${g5(if labelTop(g) then uy - Gap - lhPt / 2.0 else Gap + lhPt / 2.0)}""""
+      rootKv("lp")      = s""""${g5((lx + ux) / 2.0 + dx)},${g5((if labelTop(g) then uy - Gap - lhPt / 2.0 else Gap + lhPt / 2.0) + dy)}""""
       rootKv("lwidth")  = s""""${f2(lwIn)}""""
     }
     rootKv.toVector.sortBy(_._1).foreach { case (k, v) => sb ++= s"""  "${esc(k)}": $v,\n""" }
@@ -459,11 +484,11 @@ object Output:
         val cbbs = org.jpablo.graphexplorer.graphviz.layout.Cluster.bbs(g)
         cls.zipWithIndex.map { (c, i) =>
           val bb   = cbbs(i)
-          val base = Vector("bb" -> s"${g5(bb.llx)},${g5(bb.lly)},${g5(bb.urx)},${g5(bb.ury)}")
+          val base = Vector("bb" -> s"${g5(bb.llx + dx)},${g5(bb.lly + dy)},${g5(bb.urx + dx)},${g5(bb.ury + dy)}")
           val lbl  =
             if c.hasLabel then Vector(
               "lheight" -> f2(c.lheightPt / 72.0),
-              "lp"      -> s"${g5((bb.llx + bb.urx) / 2.0)},${g5(bb.ury - (c.lheightPt + 2 * Gap) / 2.0)}",
+              "lp"      -> s"${g5((bb.llx + bb.urx) / 2.0 + dx)},${g5(bb.ury - (c.lheightPt + 2 * Gap) / 2.0 + dy)}",
               "lwidth"  -> f2(c.lwidthPt / 72.0))
             else Vector.empty
           c.name -> (base ++ lbl)
