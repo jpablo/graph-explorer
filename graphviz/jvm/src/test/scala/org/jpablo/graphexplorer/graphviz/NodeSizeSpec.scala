@@ -44,13 +44,7 @@ class NodeSizeSpec extends FunSuite:
   // Generous vs. the <0.001 in deviation we actually observe.
   private val tol = OracleHarness.Tol(abs = 0.01, rel = 0.02)
 
-  // 163-groups: the `start` Mdiamond sizes ~8% wider than gv under the
-  // Helvetica font-list + 5-char label (the Times/1-char probe 130-Mdiamond is
-  // byte-exact) — an Mdiamond sizing nuance tracked with the 163 deferral in
-  // CorpusByteExactSpec.
-  private val deferredFiles = Set("163-groups")
-
-  OracleHarness.corpusNames.filterNot(deferredFiles).foreach { name =>
+  OracleHarness.corpusNames.foreach { name =>
     test(s"$name: node width/height match the dot golden"):
       val g        = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
         .copy(images = OracleHarness.corpusImages(name)) // image-sized nodes need the sidecar dims

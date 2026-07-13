@@ -232,9 +232,18 @@ object XCoord:
       def rn(i: Int) = LayoutNode.ClusterRn(i)
       val lrvnMade = mutable.Set.empty[Int]
       // GD_rank(cluster): the cluster's slice of the global order (real
-      // members + chain vnodes of its own edges), preserving mincross order.
+      // members + chain vnodes of INTRA-cluster edges — gv mark_clusters puts
+      // those vnodes in the cluster, so contain_nodes holds them inside the
+      // borders and the box reserves their width; e.g. groups.dot's reversed
+      // a3->a0 chain), preserving mincross order.
+      def inClust(ci: Int, n: LayoutNode): Boolean = n match
+        case LayoutNode.Real(id) => cluInfos(ci).members(id)
+        case LayoutNode.Virtual(d, _) =>
+          realEdges.lift(d).exists(re =>
+            cluInfos(ci).members(re.tail) && cluInfos(ci).members(re.head))
+        case _ => false
       def slice(ci: Int, r: Int): Vector[LayoutNode] =
-        res.order.getOrElse(r, Vector.empty).filter(n => cluInfos(ci).members(n.name)).toVector
+        res.order.getOrElse(r, Vector.empty).filter(inClust(ci, _)).toVector
       def gRow(r: Int): Vector[LayoutNode] = res.order.getOrElse(r, Vector.empty).toVector
       // make_lrvn: create the border pair; a TB cluster label forces the box
       // at least as wide as the padded label (ln→rn aux edge, weight 0).

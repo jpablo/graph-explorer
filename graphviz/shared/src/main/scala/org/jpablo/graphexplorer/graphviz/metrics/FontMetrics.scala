@@ -10,11 +10,12 @@ package org.jpablo.graphexplorer.graphviz.metrics
   */
 object FontMetrics:
 
-  /** Canonicalise a font name the way Graphviz's permissive matcher does:
-    * case-insensitive, separators ignored (`Times-Roman` ≡ `times roman`).
+  /** Canonicalise a font name the way Graphviz's permissive matcher does
+    * (`font_name_equal_permissive`): case-insensitive, everything except
+    * ASCII LETTERS ignored (`Times-Roman` ≡ `times roman` ≡ `tim8esroman`).
     */
   private def canon(s: String): String =
-    s.toLowerCase.filter(c => c.isLetterOrDigit)
+    s.toLowerCase.filter(c => c >= 'a' && c <= 'z')
 
   private val byCanonAlias: Map[String, FontFamilyMetrics] =
     FontMetricsTables.families.flatMap(f => f.names.map(n => canon(n) -> f)).toMap
@@ -24,13 +25,14 @@ object FontMetrics:
     FontMetricsTables.families.head
 
   /** Family for `fontName`, falling back to Times — exactly Graphviz's
-    * `get_metrics_for_font_family` behaviour.
+    * `get_metrics_for_font_family`: WHOLE-string permissive equality against
+    * each family alias, nothing fuzzier. In particular a CSS-style font list
+    * (`"Helvetica,Arial,sans-serif"`) matches NO alias — gv does not split
+    * lists in the metrics path — and so falls back to Times, which is exactly
+    * what the viz-js oracle sizes with.
     */
   def family(fontName: String): FontFamilyMetrics =
-    val c = canon(fontName)
-    byCanonAlias.get(c).orElse(byCanonAlias.collectFirst {
-      case (alias, fam) if c.nonEmpty && (c.contains(alias) || alias.contains(c)) => fam
-    }).getOrElse(timesFamily)
+    byCanonAlias.getOrElse(canon(fontName), timesFamily)
 
   private def variant(f: FontFamilyMetrics, bold: Boolean, italic: Boolean): Array[Short] =
     (bold, italic) match
