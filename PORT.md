@@ -160,7 +160,7 @@ Design rules:
 | M3 | Crossing minimization / within-rank ordering | Within-rank node order matches oracle (acceptable documented deviations) | ✅ Done — 43/43; crossings == oracle (0) incl. `07-cross` 3→0; order matches |
 | M4 | Coordinate assignment — **Y** (`set_ycoords`) | Rank-axis Y within tight ε (`plain`) | ✅ Done — 48/48; exact for label-free TB (01/06/07); edge-label rank-doubling deferred |
 | M4x | Coordinate assignment — **X** = network simplex on aux graph | Node x within ε (`plain`/`json0`) | ✅ Done — 59/59; X matches `plain` golden for 01/06/07. Closed by instrumenting real gv 13.0.1 (built from pinned source) to dump the actual aux graph |
-| M5 | Edge spline routing | Edge geometry within ε; same endpoints/clipping | ✅ Done — 66/66; full box-fit ported (box channel → `Pshortestpath` funnel → `Proutespline` → `clip_and_install`/`bezier_clip`); raw spline byte-exact vs instrumented gv 13.0.1; Hausdorff ≤0.024 in (01 incl. curved `a→c`, 07); 06 now direct-match (X-mirror closed 2026-07-11 via the `build_ranks` tail transpose) |
+| M5 | Edge spline routing | Edge geometry within ε; same endpoints/clipping | ✅ Done — 66/66; full box-fit ported (box channel → `Pshortestpath` funnel → `Proutespline` → `clip_and_install`/`bezier_clip`); raw spline byte-exact vs instrumented gv 13.0.1; Hausdorff ≤0.024 in (01 incl. curved `a→c`, 07); 06 now direct-match (X-mirror closed 2026-07-11 via the `build_ranks` tail transpose). **06/82's residual is a CONFIRMED FP-floor `bezier_clip` difference (2026-07-12, §7): raw spline byte-identical to gv, clip algorithm+ellipse+semi-axes all identical, node-relative clip made no difference ⇒ a <0.05pt floating-point-precision floor, not closable by matching the algorithm; visually identical.** |
 | M6 | Long tail: clusters, ports, compass, `rankdir`, record & HTML-like labels | Per-feature rows in §5 all ✅ | ✅ **Essentially complete — corpus 88/93 byte-exact (2026-07-12).** Done: records (layout+svg), ports/compass, self-loops/parallel edges, edge-label rank-doubling+Y+lp+spline, svg graph/edge titles, bbox precision, arrow miter + true `arrow_length` + vee/crow, **02 rankdir=LR fully byte-exact**, **03 cluster geometry** (vs newrank oracle — §5.2), full `write_attrs` (dot_json/json0), svg styling + emit-order interleave, box-family + `rounded` + convex polygons + **`point`**, **HTML-like labels** (tables/ports/img/gradient/sub-sup/hr-vr), **node images** (all SCALE modes), **05** (tooltip anchor + multi-line labels + seed-truncation NS fix), **`rank=same/min/max/source/sink`** (source byte-exact; min/max ranking exact, X-order deferred), **`nodesep`/`ranksep`/`ranksep=equally`**, **rankdir=RL/BT** (fully byte-exact — the `ccwrotatepf` custom-formula fix), **flat (same-rank) edges** (adjacent simple/undirected/labeled **and non-adjacent** byte-exact — the non-adjacent case arches over the intervening nodes: `make_flat_edge` box channel + the up-and-over geodesic via a winding-consistent `funnelGeneral`, and the graph height grown by `update_bb_bz`'s tight-bezier bbox — 2026-07-12). ⬜ genuinely-remaining (each no-corpus or a deep tie-break, tracked §5/§7): cluster-aware mincross (**byte-exact 2026-07-12** — 94-cluster-contig (contiguity) + 95-cluster-chains (multi-rank clusters w/ free crossing edges) + 96-nested-cluster (nested), via `class2` skeleton collapse + recurse + expand), the min/max within-rank mincross-order mirror, `\E`/`\T`/`\H` edge-label escapes, polygon peripheries (doubleoctagon), non-default `penwidth` outlines |
 | M7 | Output writers: `dot_json` → `json0` → `svg` | Emitted strings parse to identical `SimpleGraph`; SVG visually-close | ✅ Done — 81/81; `dot_json`/`json0`/`svg` writers + `renderFormats` facade. Structural-exact + ε geometry vs goldens (strict, no mirror) for label-free TB (01/06/07); records/clusters/edge-labels are their own tracked deferrals |
 | M8 | Integration behind flag; differential test on real project corpus; viz-js demoted to oracle | Project diagrams render via Scala backend; harness CI green | ✅ **Cutover landed 2026-07-12** — the Scala backend is now the **default** engine (`EngineMode.ScalaFirst`), with viz-js retained as an automatic **fallback** (hard-failure → viz-js, logged) + oracle. `gx.graphvizEngine` = `scala` (strict, no fallback) / `vizjs` (force old) / unset (ScalaFirst). `DifferentialSpec` promoted: the public `Graphviz.renderFormats` facade is **byte-exact vs the golden across all 54 non-image corpus files** + graceful-degradation/failure tests. Downstream (`read[SimpleGraph]`/`getEdgePos`/`parseSVG`) unchanged. viz-js demoted to safety-net + golden-capture. Remaining: the residual **valid-but-wrong** risk on arbitrary user DOT that exercises still-unported features (flat edges, custom `ranksep`/`nodesep`, `rank=min/max` positioning, RL/BT splines — §5 rows) is caught only if it hard-fails; those features are the M-tail backlog |
@@ -1882,4 +1882,27 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   `_gvid`, before `nodes`). Both additive — no-op for the flat single-level
   clusters. Corpus **91/96 byte-exact**; graphvizJVM 524/524, JS green, gv
   worktree pristine (no instrumentation needed).
+- **2026-07-12** — **06/82 residual CONFIRMED (instrumented gv) as a
+  floating-point-floor clip difference — NOT Proutespline, not closable by
+  matching the algorithm.** Chased the <0.05pt residual on 82's curved `a→c`
+  edge (positions byte-exact; only this spline differs). Instrumented gv's
+  `routesplines_` to dump the `Pshortestpath` polyline + `Proutespline` output:
+  gv's raw `a→c` spline is a **straight line** (control points = doubled
+  endpoints) — Proutespline does no least-squares here — and my raw spline is
+  **byte-identical to gv's in the final frame** (`(55,89)→(27,19)`). So the
+  0.048pt lives entirely in the `bezier_clip` of that straight line against the
+  node ellipse. Verified EVERY clip input matches gv: the binary-search
+  algorithm (faithful transcription — split, 0.5 termination, do-while), the
+  ellipse `insidefn` (`hypot(P/box_UR) < 1`, scale=1 for TB), and the semi-axes
+  (`box_URx = (size+penwidth)/2 = 27.5`). Best hypothesis was coordinate
+  MAGNITUDE — gv clips "in node coordinates" (splines.c) i.e. small numbers,
+  mine in absolute coords, and float rounding over ~11 bisection steps could
+  diverge. Implemented the node-relative clip to match gv exactly ⇒ **byte-
+  identical output** (no effect), ruling magnitude out too. Conclusion: with
+  identical input + identical algorithm, a 0.048pt difference remains — a true
+  FP-precision floor (gv's exact `hypot`/de Casteljau bit-pattern), below the
+  algorithmic level, with zero visual change (splines pixel-identical, goldens
+  differ in the 2nd decimal). Reverted all probes; gv worktree pristine; no
+  source change. 06/82 stay accepted FP-floor residuals; the port's 5 residuals
+  are now a fully-characterised precision-and-tie-break floor, not open work.
 - _(append dated entries as milestones land)_
