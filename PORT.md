@@ -2079,4 +2079,18 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   Remaining 163: XCoord in-cluster vnode solve (+18pt, same order different NS
   equilibrium), dot_json cluster edges-array listing order, sub-pt spline.
   754 green.
+- **2026-07-13** — **163-groups (the user's diagram) FULLY BYTE-EXACT** — the
+  XCoord instrumentation round closed the last three gaps in one sitting:
+  (1) intra-cluster chain vnodes keep lw=rw=1 — gv's incr_width reads
+  GD_nodesep(subg), never initialized on cluster subgraphs (a gv quirk, ported
+  deliberately into XCoord + Spline); the a-column and cluster borders now
+  match the golden exactly; (2) the svg font-family attribute is the
+  ps_font_equiv.h alias echo — matched names emit family[,svgFamily]
+  (+weight/stretch/style), unmatched names (CSS font lists) pass VERBATIM,
+  independent of the Times metrics fallback; (3) Msquare/underline/image and
+  all special-corner shapes clip edges as a BOX (poly_inside), not an
+  inscribed ellipse; plus the subgraph edges arrays list edges in cgraph
+  declaration order. dot_json + json0 + svg all byte-exact; promoted into the
+  corpus gate. Remaining deferrals: 03 (intentional), 06/82 (FP floor),
+  81 (rank=min mirror), 162 (one cross-cluster spline ~0.5pt). 755 green.
 - _(append dated entries as milestones land)_
