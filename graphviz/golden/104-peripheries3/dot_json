@@ -1,0 +1,16 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 70 52",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N",
+      "peripheries": "3",
+      "shape": "box"
+    }
+  ]
+}

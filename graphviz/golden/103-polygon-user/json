@@ -1,0 +1,71 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,36.000],[58.820,36.000],[58.820,0.000]]
+    }
+  ],
+  "bb": "0,0,58.824,36",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "p",
+          "points": [[57.020,13.990],[57.600,29.220],[33.460,36.000],[6.270,29.220],[0.000,13.990],[14.320,1.780],[37.200,1.780]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [29.410,13.800],
+          "align": "c",
+          "width": 6.210,
+          "text": "a"
+        }
+      ],
+      "distortion": "0.2",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "29.412,18",
+      "shape": "polygon",
+      "sides": "7",
+      "skew": "0.3",
+      "width": "0.817"
+    }
+  ]
+}

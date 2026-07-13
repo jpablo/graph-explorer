@@ -1,0 +1,6 @@
+digraph flatl {
+  { rank=same; a; b; }
+  a -> b [label="x"];
+  a -> c;
+  b -> d;
+}

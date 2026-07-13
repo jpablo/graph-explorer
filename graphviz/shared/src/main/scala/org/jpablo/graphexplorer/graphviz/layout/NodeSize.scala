@@ -83,6 +83,27 @@ object NodeSize:
     val base = Polygon.descOf(name).map(_.peripheries).getOrElse(shapeOf(name).peripheries)
     n.attrs.get("peripheries").flatMap(_.toIntOption).filter(_ >= 0).getOrElse(base)
 
+  /** Effective polygon descriptor for a node: the builtin base
+    * ([[Polygon.descOf]]) overlaid with the attributes `poly_init` reads —
+    * `peripheries` and `orientation` for every polygon, and `sides`/`skew`/
+    * `distortion` for the generic `polygon` shape (base `sides==0`). `regular`
+    * OR-s in the `regular` attr. Mirrors `late_int`/`late_double` clamping. */
+  def polyDescOf(n: RNode): Option[Polygon.Desc] =
+    Polygon.descOf(n.attrs.getOrElse("shape", "ellipse")).map { base =>
+      def ld(key: String, dflt: Double, lo: Double): Double =
+        n.attrs.get(key).flatMap(_.toDoubleOption).map(math.max(lo, _)).getOrElse(dflt)
+      def li(key: String, dflt: Int, lo: Int): Int =
+        n.attrs.get(key).flatMap(_.toIntOption).map(math.max(lo, _)).getOrElse(dflt)
+      val peripheries = li("peripheries", base.peripheries, 0)
+      val orientation = base.orientation + ld("orientation", 0.0, -360.0)
+      val regular     = base.regular || mapBool(n.attrs.get("regular"))
+      if base.sides == 0 then
+        base.copy(sides = li("sides", 4, 0), peripheries = peripheries, orientation = orientation,
+                  distortion = ld("distortion", 0.0, -100.0), skew = ld("skew", 0.0, -100.0),
+                  regular = regular)
+      else base.copy(peripheries = peripheries, orientation = orientation, regular = regular)
+    }
+
   /** Split a label into display lines, resolving `\n \l \r` breaks, `\\` →
     * `\`, and `\N`/`\G` substitutions. Justification is irrelevant to sizing.
     */
@@ -260,10 +281,10 @@ object NodeSize:
     * `None` for non-polygon shapes. Shares [[polyMetrics]] with [[nodeSize]] so
     * the size the layout uses and the vertices `Svg` draws stay consistent. */
   def polygon(n: RNode, g: RGraph): Option[Polygon.Poly] =
-    Polygon.descOf(n.attrs.getOrElse("shape", "ellipse")).map { desc =>
-      val shape = ShapeKind(box = false, regular = mapBool(n.attrs.get("regular")), plain = false, supported = true)
+    polyDescOf(n).map { desc =>
+      val shape = ShapeKind(box = false, regular = desc.regular, plain = false, supported = true)
       val m     = polyMetrics(n, g, shape)
-      Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, shape.regular, desc)
+      Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, desc.regular, desc)
     }
 
   def nodeSize(n: RNode, g: RGraph): Option[Size] =
@@ -285,19 +306,20 @@ object NodeSize:
     // Convex builtin polygons (diamond/triangle/hexagon/…) route through
     // [[Polygon]] for their own inflation + vertex-derived final size; treat
     // them as non-box (rotated/distorted) with an optional `regular` override.
-    val polyDesc  = Polygon.descOf(shapeName)
+    val polyDesc  = polyDescOf(n)
     val shape     =
-      if polyDesc.isDefined then ShapeKind(box = false, regular = mapBool(n.attrs.get("regular")), plain = false, supported = true)
+      if polyDesc.isDefined then ShapeKind(box = false, regular = polyDesc.get.regular, plain = false, supported = true)
       else shapeOf(shapeName)
     if !shape.supported then return None
 
     val m = polyMetrics(n, g, shape)
 
     // Convex builtin polygon: Polygon.init does the SQRT2 + 1/cos(π/sides)
-    // inflation and re-derives the final bb from the generated vertices.
+    // inflation and re-derives the final bb from the generated vertices
+    // (including any concentric peripheries).
     polyDesc match
       case Some(desc) =>
-        val p = Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, shape.regular, desc)
+        val p = Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, desc.regular, desc)
         return Some(Size(In(p.bbX / PointsPerInch), In(p.bbY / PointsPerInch)))
       case None => ()
 

@@ -1,0 +1,5 @@
+nodes=36 edges=99
+Rank.assign      ok
+Order.order      ok
+XCoord.xCoords   HANG (>6s)
+Spline.splinesEx HANG (>6s)

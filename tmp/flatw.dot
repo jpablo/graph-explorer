@@ -1,0 +1,5 @@
+digraph f {
+  { rank=same; a; b; }
+  a -> b [label="wwwwww"];
+  a -> c;
+}

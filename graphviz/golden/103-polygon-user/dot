@@ -1,0 +1,11 @@
+digraph {
+	graph [bb="0,0,58.824,36"];
+	node [label="\N"];
+	a	[distortion=0.2,
+		height=0.5,
+		pos="29.412,18",
+		shape=polygon,
+		sides=7,
+		skew=0.3,
+		width=0.817];
+}

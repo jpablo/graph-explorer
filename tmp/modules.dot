@@ -1,0 +1,76 @@
+// Graph Explorer — sbt module graph
+// Source of truth: build.sbt (lazy val: shared, graphviz, viewer, root)
+//
+//   solid edge  = .dependsOn(...)  (compile-time dependency)
+//   dashed edge = .aggregate(...)  (build aggregation only)
+//
+//   yellow node  = JS platform  (Scala.js -> browser)
+//   purple node  = JVM platform (runs on the JVM)
+//   amber box3d  = build-only aggregator (no platform / no sources)
+//
+// Render:  dot -Tsvg tmp/modules.dot -o tmp/modules.svg
+
+digraph modules {
+  rankdir = TB;
+  bgcolor = "white";
+  fontname = "Helvetica";
+  labelloc = "t";
+  label = "Graph Explorer — sbt modules";
+
+  node [shape = box, style = "rounded,filled", fontname = "Helvetica", fillcolor = "#eef4ff", color = "#3b6fb5"];
+  edge [fontname = "Helvetica", fontsize = 10, color = "#555555"];
+
+  // Build root: aggregates everything, no source of its own.
+  root [label = "root\n(graph-explorer)", fillcolor = "#fff2cc", color = "#b58900", shape = box3d];
+
+  // JS-platform style: Scala.js -> browser.
+  node [shape = box, style = "rounded,filled", fillcolor = "#fff3bf", color = "#d4a017"];
+
+  // Scala.js frontend application — the only non-cross module with real deps.
+  // JS platform, but shape=component marks it as the entry-point app.
+  viewer [label = "viewer\n(Scala.js app)", shape = component];
+
+  // shared: CrossType.Pure — one source tree, two platform artifacts.
+  subgraph cluster_shared {
+    label = "shared  (crossProject, CrossType.Pure)";
+    style = "rounded,dashed";
+    color = "#3b6fb5";
+    "shared.js"  [label = "shared.js"];
+    "shared.jvm" [label = "shared.jvm", fillcolor = "#ede7fb", color = "#6a4caf"];
+  }
+
+  // graphviz: CrossType.Full — shared main + JVM-only oracle harness (jvm/).
+  subgraph cluster_graphviz {
+    label = "graphviz  (crossProject, CrossType.Full)";
+    style = "rounded,dashed";
+    color = "#3b6fb5";
+    "graphviz.js"  [label = "graphviz.js"];
+    "graphviz.jvm" [label = "graphviz.jvm", fillcolor = "#ede7fb", color = "#6a4caf"];
+  }
+
+  // dependsOn — actual compile dependencies (build.sbt:87)
+  viewer -> "shared.js"   [label = "dependsOn"];
+  viewer -> "graphviz.js" [label = "dependsOn"];
+
+  // aggregate — root drives builds/tests across all five (build.sbt:165)
+  edge [style = dashed, color = "#b58900", fontcolor = "#b58900"];
+  root -> viewer        [label = "aggregate"];
+  root -> "shared.js"   [label = "aggregate"];
+  root -> "shared.jvm"  [label = "aggregate"];
+  root -> "graphviz.js"  [label = "aggregate"];
+  root -> "graphviz.jvm" [label = "aggregate"];
+
+  // Legend — kept off to the side, no edges into the real graph.
+  subgraph cluster_legend {
+    label = "legend";
+    style = "rounded";
+    color = "#999999";
+    fontsize = 11;
+    "legend_js"   [label = "JS platform",          shape = box, style = "rounded,filled", fillcolor = "#fff3bf", color = "#d4a017"];
+    "legend_jvm"  [label = "JVM platform",         shape = box, style = "rounded,filled", fillcolor = "#ede7fb", color = "#6a4caf"];
+    "legend_root" [label = "build aggregator",     shape = box3d, style = "filled",        fillcolor = "#fff2cc", color = "#b58900"];
+    // invisible edges only to stack the legend vertically
+    edge [style = invis];
+    "legend_js" -> "legend_jvm" -> "legend_root";
+  }
+}

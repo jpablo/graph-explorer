@@ -1,0 +1,21 @@
+{
+  "name": "%1",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,58.824,36",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "distortion": "0.2",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "29.412,18",
+      "shape": "polygon",
+      "sides": "7",
+      "skew": "0.3",
+      "width": "0.817"
+    }
+  ]
+}

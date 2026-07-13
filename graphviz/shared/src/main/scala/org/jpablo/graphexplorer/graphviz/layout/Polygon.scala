@@ -3,33 +3,44 @@ package org.jpablo.graphexplorer.graphviz.layout
 /** Pure-Scala port of Graphviz `poly_init` vertex generation + final sizing
   * for the **convex builtin** polygon shapes (lib/common/shapes.c, gv 13.0.1):
   * triangle, invtriangle, diamond, trapezium, invtrapezium, parallelogram,
-  * pentagon, house, invhouse, hexagon, septagon, octagon.
+  * pentagon, house, invhouse, hexagon, septagon, octagon, doubleoctagon,
+  * tripleoctagon, egg, plus the generic `polygon` shape (user-controlled
+  * sides/skew/distortion/orientation/regular/peripheries).
   *
   * These share `poly_fns` with box/ellipse but differ in `sides`, `orientation`
-  * (rotation, deg), `distortion` and `skew`. Ellipse/circle (`sides<=2`) render
-  * as `<ellipse>` and box-family (axis-aligned `sides==4`) as a rectangle — both
-  * handled directly in [[NodeSize]]/`Svg`; this module covers only the rotated /
-  * distorted / n-gon shapes that need explicit vertices.
+  * (rotation, deg), `distortion`, `skew` and `peripheries` (concentric drawn
+  * outlines). Ellipse/circle (`sides<=2`, undistorted) render as `<ellipse>`
+  * and box-family (axis-aligned `sides==4`) as a rectangle — both handled
+  * directly in [[NodeSize]]/`Svg`; this module covers the rotated / distorted /
+  * n-gon / multi-periphery shapes that need explicit vertices. A `sides<=2`
+  * shape that is distorted or skewed (e.g. `egg`) is promoted to a 120-gon
+  * (poly_init), so it too flows through here.
   *
   * The special-option shapes (note/tab/folder/box3d/component/cylinder, the SBOL
-  * biology set, star) set `polygon.option.shape != 0` and are intentionally NOT
-  * here — they need `round_corners`/custom vertex generators (later increment).
+  * biology set, star, the M-variants) set `polygon.option.shape != 0` /
+  * `diagonals` / a custom `vertices` generator and are handled in later
+  * increments; their standard sides=4 *sizing* still routes through here.
   */
 object Polygon:
 
   private val Sqrt2 = 1.41421356237309504880 // arith.h SQRT2
 
   /** Builtin polygon descriptor (shapes.c `p_*` table). `peripheries` is the
-    * drawn-outline count (all convex builtins here use 1). */
+    * drawn-outline count (most convex builtins use 1; doubleoctagon 2,
+    * tripleoctagon 3). `sides==0` marks the generic `polygon` shape whose
+    * geometry is taken entirely from user attributes. */
   final case class Desc(
       sides:       Int,
       peripheries: Int,
       orientation: Double, // degrees
       distortion:  Double,
-      skew:        Double
+      skew:        Double,
+      regular:     Boolean = false
   ) derives CanEqual
 
-  /** @return descriptor for a supported convex builtin, else `None`. */
+  /** @return descriptor for a supported builtin routed through [[init]], else
+    *         `None`. The generic `polygon` shape resolves here to its base
+    *         `Desc(sides=0)`; [[NodeSize]] then overlays the user attributes. */
   def descOf(name: String): Option[Desc] = name.toLowerCase match
     case "triangle"      => Some(Desc(3, 1, 0.0, 0.0, 0.0))
     case "invtriangle"   => Some(Desc(3, 1, 180.0, 0.0, 0.0))
@@ -43,24 +54,32 @@ object Polygon:
     case "hexagon"       => Some(Desc(6, 1, 0.0, 0.0, 0.0))
     case "septagon"      => Some(Desc(7, 1, 0.0, 0.0, 0.0))
     case "octagon"       => Some(Desc(8, 1, 0.0, 0.0, 0.0))
+    case "doubleoctagon" => Some(Desc(8, 2, 0.0, 0.0, 0.0))
+    case "tripleoctagon" => Some(Desc(8, 3, 0.0, 0.0, 0.0))
+    case "egg"           => Some(Desc(1, 1, 0.0, -0.3, 0.0))
+    case "polygon"       => Some(Desc(0, 1, 0.0, 0.0, 0.0))
     case _               => None
 
   private val Gap       = 4.0 // const.h GAP
   private val PenWidth  = 1.0 // DEFAULT_NODEPENWIDTH (non-default penwidth deferred)
 
   /** Result of `poly_init` for a convex builtin: final node bounding box (pt),
-    * the centred (origin at node centre, **y-up**) periphery-0 vertices (drawn),
-    * and the `outline` periphery = periphery-0 pushed out by penwidth/2 along
-    * each vertex bisector. `poly_inside` clips edge splines to the OUTLINE, not
-    * the drawn polygon (shapes.c: `outp = peripheries*sides`). */
+    * the drawn peripheries (each a centred, y-up vertex ring; `rings.head` is
+    * the innermost/label-fitting periphery, `rings.last` the outermost drawn
+    * one), and the `outline` periphery = outermost ring pushed out by
+    * penwidth/2 along each vertex bisector. `poly_inside` clips edge splines to
+    * the OUTLINE, not the drawn polygon (shapes.c: `outp = peripheries*sides`). */
   final case class Poly(
       bbX:      Double,
       bbY:      Double,
-      vertices: Vector[(Double, Double)],
+      rings:    Vector[Vector[(Double, Double)]],
       outline:  Vector[(Double, Double)]
-  )
+  ):
+    /** Innermost periphery — the label-fitting ring; used for image placement
+      * and (peripheries==1) the single drawn outline. */
+    def vertices: Vector[(Double, Double)] = rings.head
 
-  /** Port of the size-and-vertices core of `poly_init`.
+  /** Port of the size-and-vertices core of `poly_init` (convex branch).
     *
     * @param dimenX,dimenY  padded label box (points) — `dimen` after PAD/margin
     * @param minW,minH      min node size (points) = `INCH2PS(width/height)` attrs
@@ -76,10 +95,16 @@ object Polygon:
       regular:        Boolean,
       d:              Desc
   ): Poly =
-    val sides       = d.sides
+    // sides<=2 shape that is distorted/skewed ⇒ approximate by a 120-gon
+    // (poly_init: "I don't know how to distort or skew ellipses in postscript").
+    var sides =
+      if d.sides <= 2 && (d.distortion != 0.0 || d.skew != 0.0) then 120
+      else if d.sides < 3 then 3 // defensive: non-distorted sides<=2 never reach here
+      else d.sides
     val orientation = d.orientation
     val distortion  = d.distortion
     val skew        = d.skew
+    val peripheries = math.max(d.peripheries, 0)
 
     var bbX = dimenX
     var bbY = dimenY
@@ -113,7 +138,7 @@ object Polygon:
       val s = math.max(bbX, bbY)
       width = s; height = s; bbX = s; bbY = s
 
-    // ── vertex generation (regular n-gon with distortion/skew/orientation) ──
+    // ── base periphery generation (regular n-gon with distortion/skew/orient) ──
     val sectorangle = 2.0 * math.Pi / sides
     val sidelength  = math.sin(sectorangle / 2.0)
     val skewdist    = math.hypot(math.abs(distortion) + math.abs(skew), 1.0)
@@ -156,33 +181,75 @@ object Polygon:
     val scalex = bbX / xmax
     val scaley = bbY / ymax
 
-    val vs = Array.tabulate(sides)(k => (raw(k)(0) * scalex, raw(k)(1) * scaley))
+    // base ring scaled to the (label-fitting) bb
+    val base = Array.tabulate(sides)(k => (raw(k)(0) * scalex, raw(k)(1) * scaley))
 
-    // Outline periphery: each base vertex pushed out by penwidth/2 along the
-    // bisector of its two incident edges (poly_init peripheries loop, with the
-    // outline offset = GAP-bisector × penwidth/2/GAP). Assumes distinct
-    // vertices (true for the convex builtins; the cylinder degenerate-side
-    // case is not among them).
-    def atan2(dy: Double, dx: Double): Double = math.atan2(dy, dx)
-    val R0   = vs(0)
-    val Qpre = vs(((sides - 1) % sides + sides) % sides) // previous distinct = last
-    var beta = atan2(R0._2 - Qpre._2, R0._1 - Qpre._1)
-    val out  = Array.ofDim[Double](sides, 2)
-    var k    = 0
-    while k < sides do
-      val q  = vs(k)
-      val r  = vs((k + 1) % sides)
-      val alpha = beta
-      beta = atan2(r._2 - q._2, r._1 - q._1)
-      val gamma = (alpha + math.Pi - beta) / 2.0
-      val temp  = Gap / math.sin(gamma)
-      val cosx  = math.cos(alpha - gamma) * temp
-      val sinx  = math.sin(alpha - gamma) * temp
-      out(k)(0) = q._1 + cosx * PenWidth / 2.0 / Gap
-      out(k)(1) = q._2 + sinx * PenWidth / 2.0 / Gap
-      k += 1
+    // ── concentric peripheries + penwidth outline (poly_init bisector loop) ──
+    // `outp` = # of vertex rings to synthesise beyond nothing: at least the
+    // drawn peripheries, +1 for the penwidth outline when peripheries>=1.
+    val outp = if peripheries >= 1 then peripheries + 1 else math.max(peripheries, 1)
+    // rings(0)=base, rings(j)=base offset out by j*GAP along each bisector,
+    // rings(outp-1)=the penwidth outline.
+    val rings = Array.fill(outp)(Array.ofDim[Double](sides, 2))
+    var s = 0
+    while s < sides do { rings(0)(s)(0) = base(s)._1; rings(0)(s)(1) = base(s)._2; s += 1 }
 
-    Poly(bbX, bbY, vs.toVector, Vector.tabulate(sides)(i => (out(i)(0), out(i)(1))))
+    if outp > 1 then
+      // seed beta from the first side ending at vertices[0] (scan back to the
+      // first distinct predecessor — all distinct for convex builtins).
+      val R0 = base(0)
+      var qIdx = sides - 1
+      var jj = 1
+      while jj < sides && base((sides - jj) % sides) == R0 do { qIdx = (sides - jj - 1 + sides) % sides; jj += 1 }
+      var Q = base((sides - 1) % sides)
+      var beta = math.atan2(R0._2 - Q._2, R0._1 - Q._1)
+      var qprev = Q
+      var cosx = 0.0
+      var sinx = 0.0
+      var i2 = 0
+      while i2 < sides do
+        val cur = base(i2)
+        if cur._1 == qprev._1 && cur._2 == qprev._2 then
+          () // degenerate side (point): reuse the previous offset (cylinder case)
+        else
+          // next distinct vertex forward
+          var r = base((i2 + 1) % sides)
+          var k = 1
+          while k < sides && r == cur do { r = base((i2 + k) % sides); k += 1 }
+          val alpha = beta
+          beta = math.atan2(r._2 - cur._2, r._1 - cur._1)
+          val gamma = (alpha + math.Pi - beta) / 2.0
+          val temp  = Gap / math.sin(gamma)
+          sinx = math.sin(alpha - gamma) * temp
+          cosx = math.cos(alpha - gamma) * temp
+        qprev = cur
+        // successive drawn peripheries at this base vertex
+        var qx = cur._1
+        var qy = cur._2
+        var j = 1
+        while j < peripheries do
+          qx += cosx; qy += sinx
+          rings(j)(i2)(0) = qx; rings(j)(i2)(1) = qy
+          j += 1
+        if outp > peripheries then
+          qx += cosx * PenWidth / 2.0 / Gap
+          qy += sinx * PenWidth / 2.0 / Gap
+          rings(peripheries)(i2)(0) = qx; rings(peripheries)(i2)(1) = qy
+        i2 += 1
+
+      // grow bb by the outermost DRAWN periphery, outline_bb by the outline.
+      var idx = 0
+      while idx < sides do
+        val p = rings(peripheries - 1)(idx)
+        bbX = math.max(2.0 * math.abs(p(0)), bbX)
+        bbY = math.max(2.0 * math.abs(p(1)), bbY)
+        idx += 1
+
+    val drawn   = Vector.tabulate(math.max(peripheries, 1))(j =>
+      Vector.tabulate(sides)(k => (rings(j)(k)(0), rings(j)(k)(1))))
+    val outline = Vector.tabulate(sides)(k => (rings(outp - 1)(k)(0), rings(outp - 1)(k)(1)))
+
+    Poly(bbX, bbY, drawn, outline)
 
   private inline def sqr(x: Double): Double = x * x
 
