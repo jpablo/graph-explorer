@@ -2016,4 +2016,27 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   clusters/records/HTML) render via the port, `neato` examples (Colors, Twelve
   Colors) render via viz-js with the correct force-directed layout, no console
   errors. gv worktree pristine.
+- **2026-07-13** — **cgraph edge-set ordering ported; 84-ranksink CLOSED.**
+  Chased the groups.dot cluster mirror via differential oracle probes + an
+  instrumented gv build (mincross build_ranks/enqueue/nlist trace; worktree
+  reverted after). The root cause was in the FLAT path all along: cgraph orders
+  each node's out-edge set by **(head-node declaration seq, edge seq)** — NOT
+  edge-declaration order (`edge.c agedgeseqcmpf`; the out-half's key node is
+  the head). Every transcription that iterates out-edges inherited my wrong
+  edge-declaration assumption; it only coincides when nodes are edge-implied,
+  which the whole corpus was — pre-declared nodes (cluster members before
+  edges) exposed it. `Order.orderImpl` now emits class2 chains per node in
+  declaration order, out-dedges sorted by (original-head seq, edge idx),
+  reversed edges iterated at their original tail. Closed: 84-ranksink
+  (byte-exact — its "mirror" was this) + the new minimal probe
+  164-cluster-mirror. Re-opened honestly: 95-cluster-chains was byte-exact via
+  two cancelling divergences; with faithful input order its collapsed-pass
+  INITIAL orders now match gv exactly (instrumented), and the residual is the
+  collapsed-pass mincross optimum (gv floats free vnodes outside the skeletons
+  — suspect install_cluster + skeleton-edge xpenalty semantics). 163-groups'
+  mirror is the same class (its cross-cluster edges make the collapsed
+  iterations decide the sides). Next deep-dive: collapsed-pass parity
+  (install_cluster, xpenalty, remincross). **Audit TODO:** other `agfstout`
+  transcription sites (Rank.acyclic DFS, decompose) still assume declaration
+  order — same latent divergence class, no corpus trigger yet. 752 green.
 - _(append dated entries as milestones land)_
