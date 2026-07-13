@@ -58,6 +58,11 @@ object NodeSize:
     case "plaintext" | "none"          => ShapeKind(true, false, false, true)
     case "plain"                       => ShapeKind(true, false, true, true)
     case "point"                       => ShapeKind(false, true, false, true)
+    // special-corner shapes (note/tab/folder/box3d/component + SBOL bio) and
+    // underline all size as a plain sides=4 box (poly_init isBox); only their
+    // drawn outline differs (RoundCorners at render time).
+    case n if RoundCorners.codeOf.contains(n) || n == "underline"
+                                       => ShapeKind(true, false, false, true)
     case _                             => ShapeKind(true, false, false, false)
 
   /** `point_init` (shapes.c): shorthand for circle/style=filled/label="". The

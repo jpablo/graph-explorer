@@ -23,7 +23,15 @@ class ShapeCatalogSpec extends FunSuite:
   private val done: List[String] = List(
     // Category A — generic polygon engine: peripheries + user attrs + egg
     "100-doubleoctagon", "101-tripleoctagon", "102-egg", "103-polygon-user",
-    "104-peripheries3"
+    "104-peripheries3",
+    // Category B — round_corners container shapes
+    "110-note", "111-tab", "112-folder", "113-box3d", "114-component", "115-underline",
+    // Category E — SBOL biological-circuit shapes (share round_corners)
+    "140-promoter", "141-cds", "142-terminator", "143-utr", "144-insulator",
+    "145-ribosite", "146-rnastab", "147-proteasesite", "148-proteinstab",
+    "149-primersite", "150-restrictionsite", "151-fivepoverhang", "152-threepoverhang",
+    "153-noverhang", "154-assembly", "155-signature", "156-rpromoter",
+    "157-rarrow", "158-larrow", "159-lpromoter"
   )
 
   // ── remaining targets (documented; not yet byte-exact) ────────────────────

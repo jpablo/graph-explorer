@@ -485,7 +485,29 @@ object Svg:
             val boxLike   = Set("box", "rect", "rectangle", "square", "image")
             val shapeName = n.attrs.get("shape").getOrElse("")
             val noShape   = Set("plaintext", "none", "plain").contains(shapeName)
+            // node-local, y-up box corners (poly_init isBox vertex order:
+            // TR,TL,BL,BR); shared by the special-corner + underline shapes.
+            def af    = Vector((rx, ry), (-rx, ry), (-rx, -ry), (rx, -ry))
+            def afSvg(p: (Double, Double)) = s"${d2(x + p._1)},${d2(-(cy + p._2))}"
+            import org.jpablo.graphexplorer.graphviz.layout.RoundCorners
             if noShape then () // plaintext/none/plain draw no shape border
+            else if RoundCorners.codeOf.contains(shapeName) then
+              // note/tab/folder/box3d/component + SBOL bio: round_corners on the
+              // box AF, translated by the node centre (SVG negates y). Polygons
+              // are closed by repeating vertex 0; polylines are open.
+              RoundCorners(af, RoundCorners.codeOf(shapeName), fill != "none").foreach {
+                case RoundCorners.Op.Poly(pts, f) =>
+                  val ps = (pts :+ pts.head).map(afSvg).mkString(" ")
+                  sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke" points="$ps"/>\n"""
+                case RoundCorners.Op.Line(pts) =>
+                  sb ++= s"""<polyline fill="none" stroke="$stroke" points="${pts.map(afSvg).mkString(" ")}"/>\n"""
+              }
+            else if shapeName == "underline" then
+              // transparent-stroke box (poly_gencode set_pencolor "transparent")
+              // + the drawn bottom edge AF[2]→AF[3].
+              val boxPts = (af :+ af.head).map(afSvg).mkString(" ")
+              sb ++= s"""<polygon fill="$fill" stroke="none" points="$boxPts"/>\n"""
+              sb ++= s"""<polyline fill="none" stroke="$stroke" points="${afSvg(af(2))} ${afSvg(af(3))}"/>\n"""
             else if boxLike.contains(shapeName) then
               val (l, rr)  = (x - rx, x + rx)
               val (t, b)   = (-(cy + ry), -(cy - ry))
