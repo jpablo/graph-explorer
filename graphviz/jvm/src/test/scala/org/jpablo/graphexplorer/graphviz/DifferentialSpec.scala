@@ -24,7 +24,7 @@ class DifferentialSpec extends FunSuite:
   private val residual = Set(
     "03-subgraph-cluster", "06-undirected",
     "81-rankmin", "82-rankmax",
-    "162-cluster-style", "163-groups")
+    "162-cluster-style")
 
   private def corpusNames: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))

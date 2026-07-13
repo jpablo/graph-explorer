@@ -162,10 +162,14 @@ object Output:
       // PLAIN subgraph (`{rank=same;…}`) gets only its directly-declared edges
       // (90's `a->b` declared at root stays OUT of its rank=same block).
       val edgeGids =
+        // gv lists a subgraph's edges in EDGE DECLARATION order (the cgraph
+        // edge sequence), NOT sorted by gvid — gvids are assigned by the
+        // writer's output order, so the array can look scrambled (163-groups:
+        // cluster_0 = [0,4,3,1]).
         if s.isCluster then
           g.edges.iterator.zipWithIndex
             .collect { case (e, ix) if memSet(e.tail) && memSet(e.head) => edgeGvidByIdx(ix) }
-            .toVector.sorted
+            .toVector
         else s.edgeIdxs.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
       // child subgraph gvids (preorder ⇒ each child's gvid is its index in flat).
       val childGvids = s.children.map(c => flat.indexWhere(_ eq c)).filter(_ >= 0)

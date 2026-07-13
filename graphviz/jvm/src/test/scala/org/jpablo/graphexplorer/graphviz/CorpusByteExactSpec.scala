@@ -47,11 +47,12 @@ class CorpusByteExactSpec extends FunSuite:
   //     styled-cluster svg fill/stroke both landed 2026-07-13); the residual is
   //     ONE cross-cluster edge spline ~0.5pt off (routing-corridor boxes around
   //     cluster walls — same family as the documented spline-fit floor).
-  //   • 163-groups — cluster attrs + colors render correctly; the remaining
-  //     MIRROR is the 95-class collapsed-pass optimum divergence (its cross-
-  //     cluster edges make crossings non-zero, so the collapsed mincross
-  //     iterations decide the sides), plus the Mdiamond/Helvetica width nuance
-  //     (NodeSizeSpec deferral) and a cross-cluster spline sub-pt.
+  //   • 163-groups — FULLY CLOSED 2026-07-13 (all three formats byte-exact)
+  //     after: cluster attr echo + styled-cluster svg, the cgraph edge-order
+  //     fix, install_cluster + CL_CROSS weights, the interior refinement pass,
+  //     the intra-cluster vnode width quirk (GD_nodesep(subg)=0 in incr_width),
+  //     font-list metrics fallback + svg ps_font_equiv echo, Msquare box clip,
+  //     and the subgraph edges-array declaration order.
   //   • 84-ranksink — CLOSED 2026-07-13 by the cgraph edge-order fix (out-edges
   //     iterate by (head-node seq, edge seq), not declaration order).
   //   • 95-cluster-chains — RE-CLOSED 2026-07-13, this time for the right
@@ -63,7 +64,7 @@ class CorpusByteExactSpec extends FunSuite:
   private val deferred = Set(
     "03-subgraph-cluster", "06-undirected",
     "81-rankmin", "82-rankmax",
-    "162-cluster-style", "163-groups")
+    "162-cluster-style")
 
   private def names: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))

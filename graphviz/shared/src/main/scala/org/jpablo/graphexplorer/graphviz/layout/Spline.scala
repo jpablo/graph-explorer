@@ -104,9 +104,23 @@ object Spline:
     def cy(id: String): Double   = yOf(rankOf(id)).value
     val labelW = Coord.labelVnodeWidths(g) // class2 label_vnode: lw=nodesep, rw=labelWidth
     def isLabelV(id: String): Boolean = labelW.contains(id)
+    // gv quirk (as in XCoord): intra-cluster chain vnodes are created by
+    // class2(subg), and incr_width reads GD_nodesep(subg) — unset (0) on
+    // cluster subgraphs — so they keep lw=rw=1, not 1 + nodesep/2.
+    val intraVEdge: Set[Int] =
+      val clustOfName = Cluster.clustOf(g)
+      val ends = g.edges.filter(e => e.tail != e.head).map(e => (e.tail, e.head))
+      ends.indices.filter { i =>
+        (clustOfName.get(ends(i)._1), clustOfName.get(ends(i)._2)) match
+          case (Some(a), Some(b)) => a == b
+          case _                  => false
+      }.toSet
+    def vHalf(id: String): Double = LayoutNode.fromName(id) match
+      case LayoutNode.Virtual(d, _) if intraVEdge(d) => 1.0
+      case _                                         => VirtualHalf
     def lw0(id: String): Double =
       if labelW.contains(id) then NodeSep
-      else if isV(id) then VirtualHalf
+      else if isV(id) then vHalf(id)
       else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
     def lw(id: String): Double  = lwOv.getOrElse(id, lw0(id))
     def rw(id: String): Double  = rwOv.getOrElse(id, labelW.getOrElse(id, lw0(id)))
@@ -1215,7 +1229,15 @@ object Spline:
               val pw  = if plain then 0.0 else NodePenwidth
               val urx = (sz.widthPt.value + pw) / 2.0
               val ury = (sz.heightPt.value + pw) / 2.0
-              val boxLike = plain || Set("box", "rect", "rectangle", "square").contains(shapeName)
+              // Every sides=4 axis-aligned shape clips as a BOX (poly_inside on
+              // the rectangle vertices): the box family, Msquare (regular box +
+              // decorative diagonals), underline/image, and all the special-
+              // corner shapes (note/tab/…/bio — their poly_inside uses the box
+              // periphery, the corner geometry is render-only).
+              val boxLike = plain ||
+                Set("box", "rect", "rectangle", "square", "Msquare", "underline", "image")
+                  .contains(shapeName) ||
+                RoundCorners.codeOf.contains(shapeName)
               (p: XY) =>
                 val px = p.x - cen.x; val py = p.y - cen.y
                 if boxLike then math.abs(px) < urx && math.abs(py) < ury

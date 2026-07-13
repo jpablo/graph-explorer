@@ -27,6 +27,62 @@ object Svg:
 
   private val Margin       = 4.0   // GAP / default graph margin (pt)
   private val FontSize     = 14.0  // DEFAULT_FONTSIZE
+
+  /** `ps_font_equiv.h` PostScript aliases, NATIVEFONTS view (the default
+    * `GD_fontnames`): name → (family, weight, stretch, style, svgFamily).
+    * gv's svg writer (`gvrender_core_svg.c:461`) matches the fontname
+    * case-insensitively against this table; a hit emits
+    * `font-family="family[,svgFamily]"` (+ weight/stretch/style attrs), a
+    * miss emits the fontname VERBATIM — so the default "Times-Roman" prints
+    * as "Times,serif" while a CSS-style list passes through untouched. */
+  private val psAlias: Map[String, (String, String, String, String, String)] = Map(
+    "avantgarde-book"             -> ("URW Gothic L", "book", "", "", "sans-Serif"),
+    "avantgarde-bookoblique"      -> ("URW Gothic L", "book", "", "oblique", "sans-Serif"),
+    "avantgarde-demi"             -> ("URW Gothic L", "demi", "", "", "sans-Serif"),
+    "avantgarde-demioblique"      -> ("URW Gothic L", "demi", "", "oblique", "sans-Serif"),
+    "bookman-demi"                -> ("URW Bookman L", "demi", "", "", "serif"),
+    "bookman-demiitalic"          -> ("URW Bookman L", "demi", "", "italic", "serif"),
+    "bookman-light"               -> ("URW Bookman L", "light", "", "", "serif"),
+    "bookman-lightitalic"         -> ("URW Bookman L", "light", "", "italic", "serif"),
+    "courier"                     -> ("Courier", "", "", "", "monospace"),
+    "courier-bold"                -> ("Courier", "bold", "", "", "monospace"),
+    "courier-boldoblique"         -> ("Courier", "bold", "", "oblique", "monospace"),
+    "courier-oblique"             -> ("Courier", "", "", "oblique", "monospace"),
+    "helvetica"                   -> ("Helvetica", "", "", "", "sans-Serif"),
+    "helvetica-bold"              -> ("Helvetica", "bold", "", "", "sans-Serif"),
+    "helvetica-boldoblique"       -> ("Helvetica", "bold", "", "oblique", "sans-Serif"),
+    "helvetica-narrow"            -> ("Helvetica", "", "condensed", "", "sans-Serif"),
+    "helvetica-narrow-bold"       -> ("Helvetica", "bold", "condensed", "", "sans-Serif"),
+    "helvetica-narrow-boldoblique"-> ("Helvetica", "bold", "condensed", "oblique", "sans-Serif"),
+    "helvetica-narrow-oblique"    -> ("Helvetica", "", "condensed", "oblique", "sans-Serif"),
+    "helvetica-oblique"           -> ("Helvetica", "", "", "oblique", "sans-Serif"),
+    "newcenturyschlbk-bold"       -> ("Century Schoolbook L", "bold", "", "", "serif"),
+    "newcenturyschlbk-bolditalic" -> ("Century Schoolbook L", "bold", "", "italic", "serif"),
+    "newcenturyschlbk-italic"     -> ("Century Schoolbook L", "", "", "italic", "serif"),
+    "newcenturyschlbk-roman"      -> ("Century Schoolbook L", "roman", "", "", "serif"),
+    "palatino-bold"               -> ("Palatino Linotype", "bold", "", "", "serif"),
+    "palatino-bolditalic"         -> ("Palatino Linotype", "bold", "", "italic", "serif"),
+    "palatino-italic"             -> ("Palatino Linotype", "", "", "italic", "serif"),
+    "palatino-roman"              -> ("Palatino Linotype", "roman", "", "", "serif"),
+    "symbol"                      -> ("Symbol", "", "", "", "fantasy"),
+    "times-bold"                  -> ("Times", "bold", "", "", "serif"),
+    "times-bolditalic"            -> ("Times", "bold", "", "italic", "serif"),
+    "times-italic"                -> ("Times", "", "", "italic", "serif"),
+    "times-roman"                 -> ("Times", "", "", "", "serif"),
+    "zapfchancery-mediumitalic"   -> ("URW Chancery L", "medium", "", "italic", "serif"),
+    "zapfdingbats"                -> ("Dingbats", "", "", "", "fantasy"))
+
+  /** The `<text>` font attribute string for a fontname (see [[psAlias]]). */
+  private def svgFontAttrs(fontName: String): String =
+    psAlias.get(fontName.toLowerCase) match
+      case Some((family, weight, stretch, style, svgFam)) =>
+        val fam = if svgFam.nonEmpty && svgFam != family then s"$family,$svgFam" else family
+        val sb  = new StringBuilder(s""" font-family="$fam"""")
+        if weight.nonEmpty then sb ++= s""" font-weight="$weight""""
+        if stretch.nonEmpty then sb ++= s""" font-stretch="$stretch""""
+        if style.nonEmpty then sb ++= s""" font-style="$style""""
+        sb.toString
+      case None => s""" font-family="${fontName}""""
   private val LineSpacing  = 1.20  // LINESPACING
   private val ArrowLen     = 10.0  // ARROW_LENGTH (× arrowsize)
   private val GvVersion    = "13.0.1 (20250615.1724)"
@@ -204,10 +260,11 @@ object Svg:
 
     // nodes (declaration order)
     val dimY = FontSize * LineSpacing
-    def textAt(cx: Double, cyc: Double, s: String, fill: String = ""): String =
+    def textAt(cx: Double, cyc: Double, s: String, fill: String = "",
+               fontName: String = "Times-Roman"): String =
       val ty = -(cyc + dimY / 2.0 - FontSize + 0.1 * FontSize)
       val f  = if fill.nonEmpty then s""" fill="$fill"""" else "" // fontcolor
-      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}" font-family="Times,serif" font-size="14.00"$f>${xml(s)}</text>\n"""
+      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="14.00"$f>${xml(s)}</text>\n"""
 
     /** Multi-line plain label centred at (cx, cyc), y-up (`emit_label` valign
       * 'c' + `svg_textspan`): split on `\n`/`\l`/`\r`, stack from the top
@@ -216,7 +273,7 @@ object Svg:
       * `r`→end@cx+w/2). Reduces to `textAt` for a single centred line. Empty
       * lines advance the cursor but draw nothing. */
     def textLines(cx: Double, cyc: Double, raw: String, fill: String,
-                  nodeId: String, fontName: String = "Times"): String =
+                  nodeId: String, fontName: String = "Times-Roman"): String =
       val lines = NodeSize.labelLinesJust(raw, nodeId, g.name.getOrElse(""))
       if lines.forall(_._1.isEmpty) then return ""
       val dimenY = lines.map((l, _) => NodeSize.lineHeightPt(l, FontSize)).sum
@@ -232,7 +289,7 @@ object Svg:
             case 'l' => ("start", cx - boxW / 2.0)
             case 'r' => ("end",   cx + boxW / 2.0)
             case _   => ("middle", cx)
-          out ++= s"""<text xml:space="preserve" text-anchor="$anchor" x="${d2(tx)}" y="${d2(ty)}" font-family="Times,serif" font-size="14.00"$f>${xml(line)}</text>\n"""
+          out ++= s"""<text xml:space="preserve" text-anchor="$anchor" x="${d2(tx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="14.00"$f>${xml(line)}</text>\n"""
         baseTop -= h
       }
       out.toString
@@ -280,7 +337,8 @@ object Svg:
             // UR.y − (label height + YPAD)/2 — same <text> path as nodes.
             val lpx = (llx + urx) / 2.0
             val lpy = ury - (c.lheightPt + 2 * 4.0) / 2.0
-            sb ++= textAt(lpx, lpy, c.label)
+            sb ++= textAt(lpx, lpy, c.label,
+              fontName = a.getOrElse("fontname", "Times-Roman"))
           sb ++= "</g>\n"
         }
     }
@@ -657,11 +715,11 @@ object Svg:
                     val (dw, dh) = dim.drawn
                     sb ++= s"""<image xlink:href="$src" width="${g6(dw)}px" height="${g6(dh)}px" preserveAspectRatio="xMinYMin meet" x="${g6(x - dw / 2.0)}" y="${g6(-(cy + dh / 2.0))}"/>\n"""
                   }
-                case None                     => if lbl.nonEmpty then sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times"))
+                case None                     => if lbl.nonEmpty then sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"))
             // an empty label (`label=""`) draws no <text> (emit_label skips it);
             // shape=point has an implicit empty label.
             else if lbl.nonEmpty && !isPoint then
-              sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times"))
+              sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"))
         if anchored then sb ++= "</a>\n</g>\n" // svg_end_anchor
         sb ++= "</g>\n"
 
@@ -729,7 +787,7 @@ object Svg:
                   case Some(HtmlLabel.Table(tbl)) => sb ++= htmlTable(lpx, lpy, tbl, col)
                   case _                          => ()
               else
-                sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times"))
+                sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times-Roman"))
             }
           }
           sb ++= "</g>\n"

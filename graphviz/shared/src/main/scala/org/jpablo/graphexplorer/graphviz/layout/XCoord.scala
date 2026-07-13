@@ -64,7 +64,21 @@ object XCoord:
     val NodeSep     = Coord.nodeSepPt(g)
     val VirtualHalf = 1.0 + NodeSep / 2.0
 
+    // gv quirk (ported deliberately): intra-cluster chain vnodes are created
+    // by class2(subg) in expand_cluster, and incr_width reads GD_nodesep(subg)
+    // — never initialized on cluster subgraphs (0) — so they keep
+    // virtual_node's lw=rw=1, unlike root-graph chain vnodes (1 + nodesep/2).
+    val intraVEdge: Set[Int] =
+      val clustOfName = Cluster.clustOf(g)
+      val ends = g.edges.filter(e => e.tail != e.head).map(e => (e.tail, e.head))
+      ends.indices.filter { i =>
+        (clustOfName.get(ends(i)._1), clustOfName.get(ends(i)._2)) match
+          case (Some(a), Some(b)) => a == b
+          case _                  => false
+      }.toSet
+
     def half(n: LayoutNode): Double = n match
+      case LayoutNode.Virtual(d, _) if intraVEdge(d) => 1.0
       case _: LayoutNode.Virtual => VirtualHalf
       case _: LayoutNode.Slack   => VirtualHalf // never queried; defensive
       case _: LayoutNode.ClusterLn | _: LayoutNode.ClusterRn => 1.0 // virtual_node lw=rw=1
