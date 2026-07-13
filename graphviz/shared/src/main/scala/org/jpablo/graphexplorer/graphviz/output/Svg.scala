@@ -246,6 +246,13 @@ object Svg:
       val cls = Cluster.clusters(g)
       if cls.nonEmpty then
         val cbbs = Cluster.bbs(g)
+        // name → RSubgraph, for the cluster's own graph attrs (style/colors).
+        val sgByName =
+          val b = Map.newBuilder[String, org.jpablo.graphexplorer.graphviz.model.RSubgraph]
+          def walk(s: org.jpablo.graphexplorer.graphviz.model.RSubgraph): Unit =
+            b += s.id -> s; s.children.foreach(walk)
+          g.subgraphs.foreach(walk)
+          b.result()
         cls.zipWithIndex.foreach { (c, i) =>
           val cb = cbbs(i)
           // translate_drawing shift (see header): cluster boxes bypass `tf`.
@@ -253,7 +260,21 @@ object Svg:
           val lly = cb.lly + dy; val ury = cb.ury + dy
           sb ++= s"""<g id="clust${i + 1}" class="cluster">\n"""
           sb ++= s"<title>${xml(c.name)}</title>\n"
-          sb ++= s"""<polygon fill="none" stroke="black" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
+          // emit_clusters (emit.c): `style=filled` ⇒ FILL; `color` sets BOTH
+          // fill+pen; `pencolor`/`fillcolor` override; `bgcolor` fills when not
+          // already filled. Defaults: pen=black, fill=lightgrey (when filled).
+          val a = sgByName.get(c.name).map(_.attrs).getOrElse(Map.empty)
+          var filled    = a.get("style").exists(_.split(",").map(_.trim).contains("filled"))
+          var pencolor  = Option.empty[String]
+          var fillcolor = Option.empty[String]
+          a.get("color").filter(_.nonEmpty).foreach { v => pencolor = Some(v); fillcolor = Some(v) }
+          a.get("pencolor").filter(_.nonEmpty).foreach(v => pencolor = Some(v))
+          a.get("fillcolor").filter(_.nonEmpty).foreach(v => fillcolor = Some(v))
+          if (!filled || fillcolor.isEmpty) then
+            a.get("bgcolor").filter(_.nonEmpty).foreach { v => fillcolor = Some(v); filled = true }
+          val pen  = pencolor.getOrElse("black")
+          val fill = if filled then fillcolor.getOrElse("lightgrey") else "none"
+          sb ++= s"""<polygon fill="$fill" stroke="$pen" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
           if c.hasLabel then
             // label centre = lp (place_graph_label): box centre x,
             // UR.y − (label height + YPAD)/2 — same <text> path as nodes.

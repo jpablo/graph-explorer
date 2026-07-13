@@ -1,0 +1,13 @@
+digraph "G" {
+  subgraph cluster_0 {
+    graph [style="filled", label="p1", color="lightgrey", labelloc="t", labeljust="c"];
+    "a0" [style="filled", color="white"];
+    "a1" [style="filled", color="white"];
+  }
+  subgraph cluster_1 {
+    graph [label="p2", color="blue", labelloc="t", labeljust="c"];
+    "b0" [style="filled"];
+  }
+  "a0" -> "a1";
+  "a0" -> "b0";
+}

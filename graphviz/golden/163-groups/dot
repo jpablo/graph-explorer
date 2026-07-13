@@ -1,0 +1,91 @@
+digraph G {
+	graph [bb="0,0,216,401.01",
+		fontname="Helvetica,Arial,sans-serif"
+	];
+	node [fontname="Helvetica,Arial,sans-serif",
+		label="\N",
+		shape=ellipse
+	];
+	edge [fontname="Helvetica,Arial,sans-serif"];
+	subgraph cluster_0 {
+		graph [bb="8,64.214,98,357.01",
+			color=lightgrey,
+			label="process #1",
+			labeljust=c,
+			labelloc=t,
+			lheight=0.23,
+			lp="53,344.61",
+			lwidth=0.83,
+			style=filled
+		];
+		a0	[color=white,
+			height=0.5,
+			pos="63,306.21",
+			style=filled,
+			width=0.75];
+		a1	[color=white,
+			height=0.5,
+			pos="63,234.21",
+			style=filled,
+			width=0.75];
+		a0 -> a1	[pos="e,63,252.32 63,287.91 63,280.62 63,271.94 63,263.75"];
+		a2	[color=white,
+			height=0.5,
+			pos="63,162.21",
+			style=filled,
+			width=0.75];
+		a1 -> a2	[pos="e,63,180.32 63,215.91 63,208.62 63,199.94 63,191.75"];
+		a3	[color=white,
+			height=0.5,
+			pos="63,90.214",
+			style=filled,
+			width=0.75];
+		a2 -> a3	[pos="e,63,108.32 63,143.91 63,136.62 63,127.94 63,119.75"];
+		a3 -> a0	[pos="e,49.25,290.28 49.25,106.15 41.039,116.11 31.381,129.97 27,144.21 12.892,190.09 12.892,206.33 27,252.21 30.183,262.57 36.152,272.71 \
+42.327,281.31"];
+	}
+	subgraph cluster_1 {
+		graph [bb="133,64.214,208,357.01",
+			color=blue,
+			label="process #2",
+			labeljust=c,
+			labelloc=t,
+			lheight=0.23,
+			lp="170.5,344.61",
+			lwidth=0.83
+		];
+		b0	[height=0.5,
+			pos="168,306.21",
+			style=filled,
+			width=0.75];
+		b1	[height=0.5,
+			pos="170,234.21",
+			style=filled,
+			width=0.75];
+		b0 -> b1	[pos="e,169.51,252.32 168.49,287.91 168.7,280.62 168.95,271.94 169.18,263.75"];
+		b2	[height=0.5,
+			pos="173,162.21",
+			style=filled,
+			width=0.75];
+		b1 -> b2	[pos="e,172.27,180.32 170.74,215.91 171.05,208.62 171.43,199.94 171.78,191.75"];
+		b3	[height=0.5,
+			pos="168,90.214",
+			style=filled,
+			width=0.75];
+		b2 -> b3	[pos="e,169.22,108.32 171.76,143.91 171.24,136.62 170.62,127.94 170.04,119.75"];
+	}
+	a1 -> b3	[pos="e,156.63,106.59 74.638,217.47 92.867,192.82 128.3,144.91 149.88,115.71"];
+	end	[height=0.50297,
+		pos="115,18.107",
+		shape=Msquare,
+		width=0.50297];
+	a3 -> end	[pos="e,102.03,36.594 74.54,73.655 80.644,65.426 88.307,55.094 95.318,45.643"];
+	b2 -> a3	[pos="e,81.941,103.27 153.84,149.02 136.65,138.08 111.18,121.87 91.58,109.4"];
+	b3 -> end	[pos="e,128.22,36.594 156.24,73.655 150.02,65.426 142.21,55.094 135.06,45.643"];
+	start	[height=0.5,
+		pos="115,383.01",
+		shape=Mdiamond,
+		width=1.0867];
+	start -> a0	[pos="e,73.937,322.95 105.94,368.98 98.916,358.88 88.967,344.57 80.414,332.26"];
+	start -> b0	[pos="e,156.85,322.95 124.23,368.98 131.39,358.88 141.53,344.57 150.25,332.26"];
+}

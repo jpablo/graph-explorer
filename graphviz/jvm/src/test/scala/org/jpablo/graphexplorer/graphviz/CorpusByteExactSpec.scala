@@ -43,9 +43,18 @@ class CorpusByteExactSpec extends FunSuite:
   //     the build_ranks seed order from segOwner (an Order refactor, 2 files).
   //   • 03-subgraph-cluster — INTENTIONAL: its golden is gv's own default-mode
   //     cluster corruption; we lay it out correctly and gate vs 03b (newrank).
+  //   • 162-cluster-style — dot_json/json0 byte-exact (cluster attr echo + the
+  //     styled-cluster svg fill/stroke both landed 2026-07-13); the residual is
+  //     ONE cross-cluster edge spline ~0.5pt off (routing-corridor boxes around
+  //     cluster walls — same family as the documented spline-fit floor).
+  //   • 163-groups — cluster attrs + colors render correctly; the residual is a
+  //     within-rank LEFT-RIGHT MIRROR of the two clusters (gv: cluster_0 left;
+  //     ours: right) + downstream geometry. Same tie-break class as 81/84
+  //     (cluster mincross install order), tracked with them.
   private val deferred = Set(
     "03-subgraph-cluster", "06-undirected",
-    "81-rankmin", "82-rankmax", "84-ranksink")
+    "81-rankmin", "82-rankmax", "84-ranksink",
+    "162-cluster-style", "163-groups")
 
   private def names: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))

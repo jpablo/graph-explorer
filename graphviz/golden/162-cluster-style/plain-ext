@@ -1,0 +1,7 @@
+graph 1 2.2778 2.3556
+node a0 0.59722 1.5389 0.75 0.5 a0 filled ellipse white white
+node a1 0.59722 0.47222 0.75 0.5 a1 filled ellipse white white
+node b0 1.6806 0.47222 0.75 0.5 b0 filled ellipse black lightgrey
+edge a0 a1 4 0.59722 1.284 0.59722 1.1647 0.59722 1.0176 0.59722 0.88226 solid black
+edge a0 b0 7 0.88013 1.3687 0.96756 1.314 1.0612 1.2484 1.1389 1.1778 1.2504 1.0764 1.3565 0.95018 1.4448 0.83347 solid black
+stop

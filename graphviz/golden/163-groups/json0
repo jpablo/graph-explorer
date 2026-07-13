@@ -1,0 +1,255 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,216,401.01",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "label": "",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_0",
+      "bb": "8,64.214,98,357.01",
+      "color": "lightgrey",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "process #1",
+      "labeljust": "c",
+      "labelloc": "t",
+      "lheight": "0.23",
+      "lp": "53,344.61",
+      "lwidth": "0.83",
+      "style": "filled",
+      "_gvid": 0,
+      "nodes": [
+        2,3,4,5
+      ],
+      "edges": [
+        0,4,3,1
+      ]
+    },
+    {
+      "name": "cluster_1",
+      "bb": "133,64.214,208,357.01",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "process #2",
+      "labeljust": "c",
+      "labelloc": "t",
+      "lheight": "0.23",
+      "lp": "170.5,344.61",
+      "lwidth": "0.83",
+      "_gvid": 1,
+      "nodes": [
+        6,7,8,9
+      ],
+      "edges": [
+        9,7,6
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a0",
+      "color": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "63,306.21",
+      "shape": "ellipse",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "a1",
+      "color": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "63,234.21",
+      "shape": "ellipse",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "a2",
+      "color": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "63,162.21",
+      "shape": "ellipse",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "a3",
+      "color": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "63,90.214",
+      "shape": "ellipse",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 6,
+      "name": "b0",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "168,306.21",
+      "shape": "ellipse",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 7,
+      "name": "b1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "170,234.21",
+      "shape": "ellipse",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 8,
+      "name": "b2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "173,162.21",
+      "shape": "ellipse",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 9,
+      "name": "b3",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "168,90.214",
+      "shape": "ellipse",
+      "style": "filled",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 10,
+      "name": "start",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "115,383.01",
+      "shape": "Mdiamond",
+      "width": "1.0867"
+    },
+    {
+      "_gvid": 11,
+      "name": "end",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.50297",
+      "label": "\\N",
+      "pos": "115,18.107",
+      "shape": "Msquare",
+      "width": "0.50297"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 9,
+      "tail": 8,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,169.22,108.32 171.76,143.91 171.24,136.62 170.62,127.94 170.04,119.75"
+    },
+    {
+      "_gvid": 10,
+      "tail": 9,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,128.22,36.594 156.24,73.655 150.02,65.426 142.21,55.094 135.06,45.643"
+    },
+    {
+      "_gvid": 7,
+      "tail": 7,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,172.27,180.32 170.74,215.91 171.05,208.62 171.43,199.94 171.78,191.75"
+    },
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,63,252.32 63,287.91 63,280.62 63,271.94 63,263.75"
+    },
+    {
+      "_gvid": 4,
+      "tail": 5,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,49.25,290.28 49.25,106.15 41.039,116.11 31.381,129.97 27,144.21 12.892,190.09 12.892,206.33 27,252.21 30.183,262.57 36.152,272.71 42.327,281.31"
+    },
+    {
+      "_gvid": 12,
+      "tail": 10,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,156.85,322.95 124.23,368.98 131.39,358.88 141.53,344.57 150.25,332.26"
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,156.63,106.59 74.638,217.47 92.867,192.82 128.3,144.91 149.88,115.71"
+    },
+    {
+      "_gvid": 11,
+      "tail": 10,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,73.937,322.95 105.94,368.98 98.916,358.88 88.967,344.57 80.414,332.26"
+    },
+    {
+      "_gvid": 3,
+      "tail": 4,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,63,108.32 63,143.91 63,136.62 63,127.94 63,119.75"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,63,180.32 63,215.91 63,208.62 63,199.94 63,191.75"
+    },
+    {
+      "_gvid": 6,
+      "tail": 6,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,169.51,252.32 168.49,287.91 168.7,280.62 168.95,271.94 169.18,263.75"
+    },
+    {
+      "_gvid": 5,
+      "tail": 5,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,102.03,36.594 74.54,73.655 80.644,65.426 88.307,55.094 95.318,45.643"
+    },
+    {
+      "_gvid": 8,
+      "tail": 8,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,81.941,103.27 153.84,149.02 136.65,138.08 111.18,121.87 91.58,109.4"
+    }
+  ]
+}

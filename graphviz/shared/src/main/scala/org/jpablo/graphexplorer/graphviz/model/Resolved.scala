@@ -88,7 +88,12 @@ final case class RSubgraph(
     rank:      Option[String],
     nodeIds:   Vector[String],
     edgeIdxs:  Vector[Int],
-    children:  Vector[RSubgraph]
+    children:  Vector[RSubgraph],
+    /** The subgraph's own graph-attribute values: the enclosing scope's graph
+      * attrs at creation (DOT inheritance) overlaid with its locally-declared
+      * ones (`graph [...]` / bare `k=v`). Drives the writers' cluster attr
+      * echo (`sgAttrs`) and the cluster style/color rendering in `Svg`. */
+    attrs:     Map[String, String] = Map.empty
 ) derives CanEqual
 
 final case class RGraph(
@@ -124,11 +129,12 @@ object AttrResolver:
     * [[RSubgraph]] (the level's own `label`/`rank`) or, at the root, the
     * top-level `subgraphs` (via `children`). */
   private final case class Collected(
-      nodeIds:  Vector[String],
-      edgeIdxs: Vector[Int],
-      children: Vector[RSubgraph],
-      label:    String,
-      rank:     Option[String]
+      nodeIds:    Vector[String],
+      edgeIdxs:   Vector[Int],
+      children:   Vector[RSubgraph],
+      label:      String,
+      rank:       Option[String],
+      graphAttrs: Vector[(String, String)] // locally-declared graph attrs, in order
   )
 
   def resolve(g: ast.Graph): RGraph =
@@ -161,8 +167,11 @@ object AttrResolver:
         case Some(name) => name.value
         case None       => val s = s"%${anonCtr * 2 + 1}"; anonCtr += 1; s
       val col = walk(sg.stmts, sc, isRoot = false)
+      // Graph-attr values visible on this subgraph: DOT inheritance = the
+      // enclosing scope's graph attrs at creation, overlaid with local ones.
+      val sgAttrs = sc.graph.toMap ++ col.graphAttrs
       RSubgraph(id, col.label, id.startsWith("cluster"), col.rank,
-        col.nodeIds, col.edgeIdxs, col.children)
+        col.nodeIds, col.edgeIdxs, col.children, sgAttrs)
 
     def walk(stmts: List[ast.Stmt], sc0: Scope, isRoot: Boolean): Collected =
       var sc         = sc0
@@ -171,10 +180,12 @@ object AttrResolver:
       val children   = mutable.ListBuffer.empty[RSubgraph]
       var label      = ""
       var rank       = Option.empty[String]
+      val levelGA    = mutable.LinkedHashMap.empty[String, String] // local graph attrs
 
       def captureGraphAttr(k: String, v: String): Unit =
         if k == "label" then label = v
         if k == "rank" then rank = Some(v)
+        levelGA(k) = v
 
       stmts.foreach {
         case ast.Stmt.AttrStmt(target, as) =>
@@ -221,7 +232,8 @@ object AttrResolver:
           children += enterSub(sg, sc)
       }
 
-      Collected(levelNodes.toVector, levelEdges.toVector, children.toVector, label, rank)
+      Collected(levelNodes.toVector, levelEdges.toVector, children.toVector, label, rank,
+        levelGA.toVector)
 
     val root = walk(g.stmts, Scope(Attrs.empty, Attrs.empty, Attrs.empty), isRoot = true)
 

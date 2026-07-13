@@ -96,7 +96,7 @@ object Output:
     // rank-only subgraph omits it).
     final case class SG(gvid: Int, name: String, label: String, rank: Option[String],
         nodeGvids: Vector[Int], edgeGvids: Vector[Int], subgraphGvids: Vector[Int],
-        emitLabel: Boolean)
+        emitLabel: Boolean, attrs: Map[String, String] = Map.empty)
 
   private def doc(g: RGraph): Doc =
     import org.jpablo.graphexplorer.graphviz.model.RSubgraph
@@ -169,7 +169,8 @@ object Output:
         else s.edgeIdxs.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
       // child subgraph gvids (preorder ⇒ each child's gvid is its index in flat).
       val childGvids = s.children.map(c => flat.indexWhere(_ eq c)).filter(_ >= 0)
-      Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids, childGvids, labelDeclared)
+      Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids, childGvids, labelDeclared,
+        s.attrs)
     }
 
     // Root graph attributes — gv `write_attrs`: every declared graph-attr key
@@ -356,7 +357,7 @@ object Output:
       val own = k match
         case "label" => sg.label
         case "rank"  => sg.rank.getOrElse("")
-        case _       => ""
+        case _       => sg.attrs.getOrElse(k, "") // the subgraph's own value (incl. inherited scope)
       k -> (if own.nonEmpty then own else g.rootAttrs.getOrElse(k, ""))
     }.toVector
       .filter { case (k, v) => v.nonEmpty || (k == "label" && sg.emitLabel) }
