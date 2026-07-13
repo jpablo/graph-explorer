@@ -209,17 +209,19 @@ object Order:
         val rs = ns.map(rankOf); ci -> (rs.min, rs.max)
       }
 
-    // ── each cluster's interior order: mincross on its induced subgraph
-    //    (intra-cluster segments only; seed = declared node order). ──
-    def internalOrder(ci: Int): Map[Int, Vector[LayoutNode]] =
+    // ── each cluster's interior INSTALL: `expand_cluster` → build_ranks(subg,
+    //    0) — a single pass-0 BFS over the intra-cluster segments, roots
+    //    scanned in REVERSE nlist order (build_ranks `walkbackwards` for
+    //    g != root, "to preserve input node order"). NO local iterations —
+    //    the refinement happens afterwards against the GLOBAL order
+    //    (`mincross(subg, 2)`), where crossings/medians see the whole graph. ──
+    def internalInstall(ci: Int): Map[Int, Vector[LayoutNode]] =
       val members = allNodes.filter(n => cOf(n).contains(ci)).toSet
       val iOut  = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
       val iIn   = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
-      val iRank = mutable.HashMap.empty[LayoutNode, Int]
       members.foreach { n =>
         iOut.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
         iIn.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
-        iRank(n) = rankOf(n)
       }
       allNodes.foreach { t =>
         if members.contains(t) then
@@ -227,10 +229,34 @@ object Order:
       }
       val declared = cinfos(ci).nodeIds.iterator.map(id => LayoutNode.Real(id): LayoutNode)
         .filter(members.contains).toVector
-      val virtuals = members.iterator.collect { case v: LayoutNode.Virtual => v: LayoutNode }
-        .toVector.sortBy(_.name)
-      val seed = decomposeOrder(declared, virtuals, iOut, iIn)
-      runMincross(iOut, iIn, iRank, seed, flip, rootGraph = false)._1
+      // interior chain vnodes in class2(subg) creation order: per owning edge
+      // (in the per-tail, head-seq emission order the global chains used),
+      // min→max rank within a chain.
+      val virtuals = members.iterator.collect { case v: LayoutNode.Virtual => v }
+        .toVector.sortBy(v => (v.edgeIdx, v.rank)).map(v => v: LayoutNode)
+      val nlist = declared ++ virtuals
+      val rows  = mutable.HashMap.empty[Int, mutable.ArrayBuffer[LayoutNode]]
+      val mark  = mutable.Set.empty[LayoutNode]
+      val q     = mutable.Queue.empty[LayoutNode]
+      def install(n: LayoutNode): Unit =
+        rows.getOrElseUpdate(rankOf(n), mutable.ArrayBuffer.empty) += n
+      // build_ranks `walkbackwards`: the cluster nlist is built by fast_node
+      // PREPENDS (reverse insertion), and the backward walk restores insertion
+      // order — which is exactly this list's forward order (reals in
+      // declaration order, then chain vnodes in creation order).
+      nlist.foreach { root =>
+        if iIn(root).isEmpty && !mark(root) then
+          mark += root; q.enqueue(root)
+          while q.nonEmpty do
+            val n0 = q.dequeue(); install(n0)
+            iOut(n0).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
+      }
+      nlist.foreach(n => if !mark(n) then { mark += n; install(n) }) // safety net
+      if flip then rows.valuesIterator.foreach { rb =>
+        val n = rb.length; var i = 0
+        while i < n / 2 do { val t = rb(i); rb(i) = rb(n - 1 - i); rb(n - 1 - i) = t; i += 1 }
+      }
+      rows.iterator.map((r, b) => r -> b.toVector).toMap
 
     // ── collapse: free nodes pass through, each cluster → a skeleton chain. ──
     def leaderC(n: LayoutNode): CNode = cOf(n) match
@@ -280,15 +306,165 @@ object Order:
     val (cOrder, cCross) = runMincross(cOut, cIn, cRank, cSeed, flip,
       weight = skWeight, columnOf = skColOf, columnNodes = skColNodes)
 
-    // ── expand each skeleton back to its cluster's interior order ──
-    val internal = clRanks.keysIterator.map(ci => ci -> internalOrder(ci)).toMap
-    val finalOrder = cOrder.map { case (r, row) =>
-      r -> row.flatMap {
+    // ── expand each skeleton back to its cluster's interior install ──
+    val internal = clRanks.keysIterator.map(ci => ci -> internalInstall(ci)).toMap
+    val rows = mutable.HashMap.from(cOrder.map { case (r, row) =>
+      r -> mutable.ArrayBuffer.from(row.flatMap {
         case CNode.Nd(n)      => Vector(n)
         case CNode.Sk(ci, rr) => internal(ci).getOrElse(rr, Vector.empty)
-      }
-    }
-    (finalOrder, cCross)
+      })
+    })
+    val gpos = mutable.HashMap.empty[LayoutNode, Int]
+    rows.valuesIterator.foreach(rb => rb.iterator.zipWithIndex.foreach((n, i) => gpos(n) = i))
+    val gMinR = if rows.isEmpty then 0 else rows.keysIterator.min
+    val gMaxR = if rows.isEmpty then 0 else rows.keysIterator.max
+
+    // ── per-cluster refinement: `mincross_clust` → mincross(subg, 2). The
+    //    cluster's rank arrays are SLICES of the root's (contiguous by
+    //    construction); medians use GLOBAL neighbor positions and `ncross`
+    //    counts over the WHOLE root graph (gv ncross reads the Root globals),
+    //    so the unavoidable cross-cluster crossings keep the iterations alive
+    //    and reverse-pass tie-swaps can flip equal-median pairs. ──
+    def ncrossGlobal(): Long =
+      var c = 0L
+      var r = gMinR
+      while r < gMaxR do
+        val segs = mutable.ArrayBuffer.empty[(Int, Int)]
+        rows.getOrElse(r, mutable.ArrayBuffer.empty).foreach { u =>
+          out(u).foreach(w => segs += ((gpos(u), gpos(w))))
+        }
+        var i = 0
+        while i < segs.length do
+          var j = i + 1
+          while j < segs.length do
+            if (segs(i)._1 - segs(j)._1) * (segs(i)._2 - segs(j)._2) < 0 then c += 1
+            j += 1
+          i += 1
+        r += 1
+      c
+
+    def refineCluster(ci: Int): Unit =
+      val (cLo, cHi) = clRanks(ci)
+      def slice(r: Int): (Int, Int) = // [from, until) of this cluster's members
+        val rb   = rows(r)
+        var from = 0
+        while from < rb.length && !cOf(rb(from)).contains(ci) do from += 1
+        var until = from
+        while until < rb.length && cOf(rb(until)).contains(ci) do until += 1
+        (from, until)
+      def exchange(r: Int, i: Int, j: Int): Unit =
+        val rb = rows(r); val a = rb(i); val b = rb(j)
+        rb(i) = b; rb(j) = a; gpos(a) = j; gpos(b) = i
+      val mval = mutable.HashMap.empty[LayoutNode, Double]
+      def medians(r0: Int, r1: Int): Unit =
+        val (from, until) = slice(r0)
+        val rb = rows(r0)
+        var k = from
+        while k < until do
+          val n    = rb(k)
+          val nbrs = (if r1 > r0 then out(n) else in(n)).map(gpos).sorted
+          mval(n) = nbrs.length match
+            case 0 => -1.0
+            case 1 => nbrs(0).toDouble
+            case 2 => (nbrs(0) + nbrs(1)) / 2.0
+            case j =>
+              val rm = j / 2
+              if j % 2 == 1 then nbrs(rm).toDouble
+              else
+                val lm    = rm - 1
+                val rspan = nbrs(j - 1) - nbrs(rm)
+                val lspan = nbrs(lm) - nbrs(0)
+                if lspan == rspan then (nbrs(lm) + nbrs(rm)) / 2.0
+                else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
+          k += 1
+      def reorder(r: Int, reverse: Boolean): Unit =
+        val (from, until) = slice(r)
+        val rb = rows(r)
+        var ep = until
+        var nelt = until - from - 1
+        while nelt >= 0 do
+          var lp = from
+          while lp < ep do
+            while lp < ep && mval.getOrElse(rb(lp), -1.0) < 0 do lp += 1
+            if lp < ep then
+              var rp = lp + 1
+              while rp < ep && mval.getOrElse(rb(rp), -1.0) < 0 do rp += 1
+              if rp < ep then
+                val p1 = mval.getOrElse(rb(lp), -1.0)
+                val p2 = mval.getOrElse(rb(rp), -1.0)
+                val doSwap = p1 > p2 || (p1 >= p2 && reverse)
+                if doSwap then exchange(r, lp, rp)
+                lp = rp
+              else lp = ep
+            else lp = ep
+          if !reverse then ep -= 1
+          nelt -= 1
+      def crossIn(v: LayoutNode, w: LayoutNode): Long =
+        var c = 0L
+        in(v).foreach(x => in(w).foreach(y => if gpos(x) > gpos(y) then c += 1))
+        c
+      def crossOut(v: LayoutNode, w: LayoutNode): Long =
+        var c = 0L
+        out(v).foreach(x => out(w).foreach(y => if gpos(x) > gpos(y) then c += 1))
+        c
+      def transposeStep(reverse: Boolean): Long =
+        var delta = 0L
+        (cLo to cHi).foreach { r =>
+          val (from, until) = slice(r)
+          val rb = rows(r)
+          var i = from
+          while i < until - 1 do
+            val v = rb(i); val w = rb(i + 1)
+            val c0 = crossIn(v, w) + crossOut(v, w)
+            val c1 = crossIn(w, v) + crossOut(w, v)
+            val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
+            if doSwap then { exchange(r, i, i + 1); delta += c0 - c1 }
+            i += 1
+        }
+        delta
+      def transpose(reverse: Boolean): Unit =
+        while transposeStep(reverse) >= 1 do ()
+      def mincrossStep(pass: Int): Unit =
+        val reverse = pass % 4 < 2
+        val (first, last, dir) =
+          if pass % 2 == 0 then (cLo + 1, cHi, 1) else (cHi - 1, cLo, -1)
+        var r = first
+        while r != last + dir do
+          medians(r, r - dir)
+          reorder(r, reverse)
+          r += dir
+        transpose(!reverse)
+      def snapshot(): Map[Int, Vector[LayoutNode]] =
+        rows.iterator.map((r, b) => r -> b.toVector).toMap
+      def restore(s: Map[Int, Vector[LayoutNode]]): Unit =
+        s.foreach { (r, v) =>
+          val rb = rows(r); rb.clear(); rb ++= v
+          v.iterator.zipWithIndex.foreach((n, i) => gpos(n) = i)
+        }
+      // mincross(subg, startpass=2) driver
+      var cur  = ncrossGlobal()
+      var best = cur
+      var bst  = snapshot()
+      var trying = 0; var iter = 0; var brk = false
+      while iter < MaxIter && !brk do
+        if trying >= MinQuit then brk = true
+        else
+          trying += 1
+          if cur == 0 then brk = true
+          else
+            mincrossStep(iter)
+            cur = ncrossGlobal()
+            if cur <= best then
+              bst = snapshot()
+              if cur < Convergence * best then trying = 0
+              best = cur
+            iter += 1
+      if cur > best then restore(bst)
+      if best > 0 then transpose(false) // driver tail (slice-constrained)
+
+    clRanks.keysIterator.toVector.sorted.foreach(refineCluster)
+
+    (rows.iterator.map((r, b) => r -> b.toVector).toMap, ncrossGlobal())
 
   /** The `mincross` driver proper (mincross.c:745) over a class2 graph given as
     * adjacency maps + a `GD_nlist` seed order. Extracted so both the flat graph
