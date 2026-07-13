@@ -2039,4 +2039,19 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   (install_cluster, xpenalty, remincross). **Audit TODO:** other `agfstout`
   transcription sites (Rank.acyclic DFS, decompose) still assume declaration
   order — same latent divergence class, no corpus trigger yet. 752 green.
+- **2026-07-13** — **Cluster left-right mirror CLOSED** (three stacked causes,
+  each found via instrumented gv, worktree reverted after each round):
+  (1) cgraph edge-set order — out-edges iterate by (head-node seq, edge seq)
+  (closed 84-ranksink + probe 164); (2) `install_cluster` whole-column install
+  + `CL_CROSS=1000` skeleton-edge xpenalty with `xp(e1)*xp(e2)` crossing
+  weights (re-closed 95 faithfully after the edge-order fix exposed its
+  two-cancelling-errors pass); (3) intra-cluster chain vnodes belong to the
+  CLUSTER (gv mark_clusters), not the collapsed graph — `cOf` now classifies
+  `Virtual(idx,_)` by its owning edge's original endpoints — plus the
+  build_ranks tail transpose is root-graph-only (`rootGraph` flag; with the
+  CL_CROSS weights it floats cross-cluster chains out from between skeleton
+  columns). 163-groups now matches gv's mincross exactly (verified vs the
+  instrumented `mincross-END` snapshots); its remaining deltas are the
+  pre-characterized non-mirror items (Mdiamond/Helvetica width, a dot_json
+  cluster edges-array order nuance, sub-pt cross-cluster spline). 753 green.
 - _(append dated entries as milestones land)_
