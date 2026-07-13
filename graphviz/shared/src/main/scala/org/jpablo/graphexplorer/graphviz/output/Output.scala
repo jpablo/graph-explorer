@@ -95,7 +95,8 @@ object Output:
     // `label` only then — so 03's cluster-declared label reaches %7, but 11's
     // rank-only subgraph omits it).
     final case class SG(gvid: Int, name: String, label: String, rank: Option[String],
-        nodeGvids: Vector[Int], edgeGvids: Vector[Int], emitLabel: Boolean)
+        nodeGvids: Vector[Int], edgeGvids: Vector[Int], subgraphGvids: Vector[Int],
+        emitLabel: Boolean)
 
   private def doc(g: RGraph): Doc =
     import org.jpablo.graphexplorer.graphviz.model.RSubgraph
@@ -142,8 +143,13 @@ object Output:
     // gv-13.0.1-with-newrank oracle (03b golden: cluster_0 keeps a0).
     // Within a subgraph, nodes/edges list in global id (gvid / AGSEQ)
     // order, matching `agfstnode(sg)` / the `qsort`.
+    // A subgraph contains its own nodes AND all its descendant subgraphs'
+    // (cgraph: a nested cluster's nodes are members of the parent too) — so
+    // cluster_0 rolls up the nested cluster_1's a,b. Emitted in gvid order.
+    def transitiveNodeIds(s: RSubgraph): Set[String] =
+      s.nodeIds.toSet ++ s.children.flatMap(transitiveNodeIds)
     def memberNodes(s: RSubgraph): Vector[String] =
-      val declared = s.nodeIds.toSet
+      val declared = transitiveNodeIds(s)
       g.nodes.iterator.map(_.id).filter(declared).toVector
     val labelDeclared = g.graphAttrKeys.contains("label")
     val subgraphs = flat.zipWithIndex.map { case (s, gv) =>
@@ -161,7 +167,9 @@ object Output:
             .collect { case (e, ix) if memSet(e.tail) && memSet(e.head) => edgeGvidByIdx(ix) }
             .toVector.sorted
         else s.edgeIdxs.filter(ix => memSet(g.edges(ix).tail)).sorted.map(edgeGvidByIdx)
-      Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids, labelDeclared)
+      // child subgraph gvids (preorder ⇒ each child's gvid is its index in flat).
+      val childGvids = s.children.map(c => flat.indexWhere(_ eq c)).filter(_ >= 0)
+      Doc.SG(gv, s.id, s.label, s.rank, mem.map(nodeGvid), edgeGids, childGvids, labelDeclared)
     }
 
     // Root graph attributes — gv `write_attrs`: every declared graph-attr key
@@ -322,6 +330,8 @@ object Output:
     fields += s"""      "name": "${esc(sg.name)}""""
     attrs.foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
     fields += s"""      "_gvid": ${sg.gvid}"""
+    if sg.subgraphGvids.nonEmpty then
+      fields += s"""      "subgraphs": [\n        ${sg.subgraphGvids.mkString(",")}\n      ]"""
     if sg.nodeGvids.nonEmpty then
       fields += s"""      "nodes": [\n        ${sg.nodeGvids.mkString(",")}\n      ]"""
     if sg.edgeGvids.nonEmpty then

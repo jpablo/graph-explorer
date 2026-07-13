@@ -1,0 +1,9 @@
+digraph {
+  subgraph cluster_0 {
+    label="outer";
+    subgraph cluster_1 { label="inner"; a; b; }
+    c;
+  }
+  d;
+  a -> b; b -> c; c -> d; d -> a;
+}
