@@ -508,6 +508,15 @@ object Svg:
               val boxPts = (af :+ af.head).map(afSvg).mkString(" ")
               sb ++= s"""<polygon fill="$fill" stroke="none" points="$boxPts"/>\n"""
               sb ++= s"""<polyline fill="none" stroke="$stroke" points="${afSvg(af(2))} ${afSvg(af(3))}"/>\n"""
+            else if shapeName == "Msquare" then
+              // regular box + corner diagonals (diagonals_draw on the box AF).
+              RoundCorners.diagonals(af, 4, fill != "none").foreach {
+                case RoundCorners.Op.Poly(pts, f) =>
+                  val ps = (pts :+ pts.head).map(afSvg).mkString(" ")
+                  sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke" points="$ps"/>\n"""
+                case RoundCorners.Op.Line(pts) =>
+                  sb ++= s"""<polyline fill="none" stroke="$stroke" points="${pts.map(afSvg).mkString(" ")}"/>\n"""
+              }
             else if boxLike.contains(shapeName) then
               val (l, rr)  = (x - rx, x + rx)
               val (t, b)   = (-(cy + ry), -(cy - ry))
@@ -543,6 +552,26 @@ object Svg:
               // the node centre, innermost first and filled, the rest unfilled
               // outlines (SVG negates y; each ring closed by repeating vertex 0).
               NodeSize.polygon(n, g) match
+                case Some(poly) if shapeName == "cylinder" =>
+                  // cylinder_draw: the 19-point body bezier + a 7-point top cap
+                  // (AF[0..6] mirrored across y0 = AF[0].y). beziercurve ⇒
+                  // <path d="M p0 C p1 p2 …"> with y negated at emit.
+                  val afc = poly.rings.head
+                  val body = s"M${afSvg(afc(0))}C${afc.drop(1).map(afSvg).mkString(" ")}"
+                  sb ++= s"""<path fill="$fill" stroke="$stroke" d="$body"/>\n"""
+                  val y0  = afc(0)._2
+                  val cap = Vector(afc(0)) ++ (1 to 5).map(k => (afc(k)._1, 2 * y0 - afc(k)._2)) :+ afc(6)
+                  val capD = s"M${afSvg(cap(0))}C${cap.drop(1).map(afSvg).mkString(" ")}"
+                  sb ++= s"""<path fill="none" stroke="$stroke" d="$capD"/>\n"""
+                case Some(poly) if shapeName == "Mdiamond" =>
+                  // diamond + corner diagonals (diagonals_draw on the diamond AF).
+                  RoundCorners.diagonals(poly.rings.head, 4, fill != "none").foreach {
+                    case RoundCorners.Op.Poly(pts, f) =>
+                      val ps = (pts :+ pts.head).map(afSvg).mkString(" ")
+                      sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke" points="$ps"/>\n"""
+                    case RoundCorners.Op.Line(pts) =>
+                      sb ++= s"""<polyline fill="none" stroke="$stroke" points="${pts.map(afSvg).mkString(" ")}"/>\n"""
+                  }
                 case Some(poly) =>
                   poly.rings.zipWithIndex.foreach { (ring, j) =>
                     val pts    = ring.map((vx, vy) => s"${d2(x + vx)},${d2(-(cy + vy))}")
@@ -561,6 +590,13 @@ object Svg:
                     val off = gap * (peris - 1 - j) // inner ring is smallest
                     sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx - off)}" ry="${d2(ry - off)}"/>\n"""
                     j += 1
+                  if shapeName == "Mcircle" then
+                    // Mcircle_hack: two horizontal chords near top/bottom
+                    // (x=rw·0.6614, y=ht/2·0.75, on the unit circle x²+y²≈1).
+                    val px = rx * 0.6614
+                    val py = ry * 0.75
+                    sb ++= s"""<polyline fill="none" stroke="$stroke" points="${afSvg((px, py))} ${afSvg((-px, py))}"/>\n"""
+                    sb ++= s"""<polyline fill="none" stroke="$stroke" points="${afSvg((px, -py))} ${afSvg((-px, -py))}"/>\n"""
             // node `image=`: place the image inside the node's bounding box
             // (gvrender_usershape — natural size, centred), after the border and
             // before the label. Every bordered shape (box, ellipse, convex

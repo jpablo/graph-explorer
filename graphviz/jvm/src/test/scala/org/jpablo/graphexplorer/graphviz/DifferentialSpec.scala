@@ -25,13 +25,9 @@ class DifferentialSpec extends FunSuite:
     "03-subgraph-cluster", "06-undirected",
     "81-rankmin", "82-rankmax", "84-ranksink")
 
-  // `1XX-*` = the shape-catalog build-out; gated per-shape (byte-exact) in
-  // [[ShapeCatalogSpec]] while in flight, and re-joined to this end-to-end
-  // facade gate once the full catalog lands. Excluded here so the suite stays
-  // a clean regression signal meanwhile.
   private def corpusNames: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))
-      .map(_.getName.dropRight(4)).filterNot(_.matches("""^1\d\d-.*""")).sorted.toVector
+      .map(_.getName.dropRight(4)).sorted.toVector
 
   private def hasImages(name: String): Boolean =
     new File(s"graphviz/corpus/$name.images.json").exists()

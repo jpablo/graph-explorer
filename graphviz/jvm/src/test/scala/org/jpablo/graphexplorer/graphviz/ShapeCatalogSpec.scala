@@ -31,7 +31,11 @@ class ShapeCatalogSpec extends FunSuite:
     "145-ribosite", "146-rnastab", "147-proteasesite", "148-proteinstab",
     "149-primersite", "150-restrictionsite", "151-fivepoverhang", "152-threepoverhang",
     "153-noverhang", "154-assembly", "155-signature", "156-rpromoter",
-    "157-rarrow", "158-larrow", "159-lpromoter"
+    "157-rarrow", "158-larrow", "159-lpromoter",
+    // Category D — M-variants (diagonals_draw / Mcircle_hack)
+    "130-Mdiamond", "131-Msquare", "132-Mcircle",
+    // Category C — custom generators (poly_desc size_gen/vertex_gen)
+    "120-cylinder", "121-star"
   )
 
   // ── remaining targets (documented; not yet byte-exact) ────────────────────

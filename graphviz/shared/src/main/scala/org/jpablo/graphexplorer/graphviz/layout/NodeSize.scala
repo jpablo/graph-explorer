@@ -63,6 +63,10 @@ object NodeSize:
     // drawn outline differs (RoundCorners at render time).
     case n if RoundCorners.codeOf.contains(n) || n == "underline"
                                        => ShapeKind(true, false, false, true)
+    // M-variants: Msquare = regular box, Mcircle = regular circle (Mdiamond is
+    // a diamond, routed via Polygon.descOf). Diagonals are a render-only add-on.
+    case "msquare"                     => ShapeKind(true, true, false, true)
+    case "mcircle"                     => ShapeKind(false, true, false, true)
     case _                             => ShapeKind(true, false, false, false)
 
   /** `point_init` (shapes.c): shorthand for circle/style=filled/label="". The

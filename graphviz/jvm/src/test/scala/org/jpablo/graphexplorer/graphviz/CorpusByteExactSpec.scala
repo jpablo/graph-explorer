@@ -47,14 +47,9 @@ class CorpusByteExactSpec extends FunSuite:
     "03-subgraph-cluster", "06-undirected",
     "81-rankmin", "82-rankmax", "84-ranksink")
 
-  // The `1XX-*` probes are the shape-catalog build-out (note/box3d/cylinder/
-  // star/M*/SBOL/… — poly_init periphery + special-corner generators). They are
-  // gated, category by category as each lands byte-exact, in [[ShapeCatalogSpec]];
-  // excluded here so this whole-corpus gate stays a clean regression signal for
-  // the layout pipeline while that work is in flight.
   private def names: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))
-      .map(_.getName.dropRight(4)).filterNot(_.matches("""^1\d\d-.*""")).sorted.toVector
+      .map(_.getName.dropRight(4)).sorted.toVector
 
   private def graph(n: String) =
     AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
