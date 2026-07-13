@@ -14,16 +14,14 @@ import scala.collection.mutable
   * **Clusters** (`dot_mincross` + `class2.c`/`cluster.c`): [[orderClustered]]
   * collapses each top-level cluster to a skeleton column so the top-level
   * mincross can't interleave clusters, orders each cluster's interior
-  * recursively, then expands. Single-level clusters are byte-exact
-  * (94-cluster-contig); 95-cluster-chains's ORDER is byte-identical to gv too —
-  * its residual is a uniform XCoord-anchor shift (a free edge routing left of a
-  * cluster), not an ordering gap.
+  * recursively, then expands. Byte-exact for contiguity (94), multi-rank
+  * clusters with free crossing edges (95) and nesting (96).
   *
   * Deferred (⬜, PORT.md §5.2): **flat edges** (`flat_reorder`/`flat_breakcycles`
-  * for same-rank adjacencies — this is what leaves 06's `b`/`c` order a mirror
-  * of gv's), **nested** cluster recursion, and ports. Without flat edges the
-  * label-free corpus is gated crossing-count/mirror-aware, not strictly byte-
-  * exact, for graphs that have a same-rank edge.
+  * for same-rank adjacencies — 06's residual), and the **rank=min/sink** within-
+  * rank mirror (81/84: `minmax_edges` reverses the pinned node's edges in
+  * `ND_in`-LIFO order, which my working-graph adjacency doesn't reproduce —
+  * closing it needs decoupling the build_ranks seed order from `segOwner`).
   */
 object Order:
 

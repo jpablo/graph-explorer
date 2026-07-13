@@ -27,13 +27,22 @@ import java.io.File
   */
 class CorpusByteExactSpec extends FunSuite:
 
-  // 81/82/84 exercise `rank=min/max/sink` where pinning REVERSES the pinned
-  // node's edges (rank.c minmax_edges). The RANKING is byte-exact (nodes are
-  // pinned to the correct rank — verified vs the plain golden) and
-  // 83-ranksource (no reversal needed) is fully byte-exact; but a reversed
-  // min/max chain seeds mincross differently than gv, so the within-rank
-  // left↔right ORDER comes out mirrored (a valid layout, not byte-exact) —
-  // the same mincross BFS-seed tie-break class as the LR order axis.
+  // The five residuals, all characterised (2026-07-12) and each either
+  // sub-pixel-accepted, intentional, or a deep tie-break:
+  //   • 06-undirected, 82-rankmax — node POSITIONS are byte-exact; the residual
+  //     is a <0.12pt spline-fit float difference on one curved edge (the
+  //     documented "M5 can't be closed cheaply" Proutespline residual, visually
+  //     identical / Hausdorff-gated).
+  //   • 81-rankmin, 84-ranksink — rank=min/sink reverses the pinned node's edges
+  //     (rank.c minmax_edges via ND_in.list[0] LIFO ⇒ ND_out = reverse-decl
+  //     order). The RANKING is byte-exact; the within-rank order comes out
+  //     left↔right MIRRORED because my reversed edges seed build_ranks in
+  //     declaration order. Closing it means reordering those edges — but the
+  //     wedge index IS the segOwner key tying each spline to its g.edges arrow,
+  //     so a naive reorder misattributes arrows; a clean fix needs decoupling
+  //     the build_ranks seed order from segOwner (an Order refactor, 2 files).
+  //   • 03-subgraph-cluster — INTENTIONAL: its golden is gv's own default-mode
+  //     cluster corruption; we lay it out correctly and gate vs 03b (newrank).
   private val deferred = Set(
     "03-subgraph-cluster", "06-undirected",
     "81-rankmin", "82-rankmax", "84-ranksink")
