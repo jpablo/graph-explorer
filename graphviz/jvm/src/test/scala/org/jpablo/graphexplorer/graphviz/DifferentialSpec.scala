@@ -19,11 +19,10 @@ import java.io.File
   */
 class DifferentialSpec extends FunSuite:
 
-  // See CorpusByteExactSpec for why each is excluded (03 gated vs newrank
-  // oracle; 06 accepted spline; 81/82/84 rank=min/max mincross-order mirror).
+  // See CorpusByteExactSpec: 03 is the single intentional deferral (its golden
+  // is gv's own default-mode cluster corruption; gated vs the newrank oracle).
   private val residual = Set(
-    "03-subgraph-cluster",
-    "162-cluster-style")
+    "03-subgraph-cluster")
 
   private def corpusNames: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))

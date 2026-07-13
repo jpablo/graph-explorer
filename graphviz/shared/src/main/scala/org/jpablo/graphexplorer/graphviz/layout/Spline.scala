@@ -80,7 +80,12 @@ object Spline:
     // GD_nodesep (attr-driven), the spline channel separation (nodesep/4),
     // and a plain virtual node's half width (1 + nodesep/2). Default 18/4.5/10.
     val NodeSep     = Coord.nodeSepPt(g)
-    val Splinesep   = NodeSep / 4.0
+    // dot_splines_ (dotsplines.c:275): `.Splinesep = GD_nodesep(g) / 4` — with
+    // GD_nodesep an *int* (types.h), this is C INTEGER division: 18/4 = 4, not
+    // 4.5. (Contrast maximal_bbox's `GD_nodesep(g) / 2.` — the trailing dot
+    // makes that one floating division.) The 0.5pt matters: a cluster-wall
+    // clamp `round(bb.urx + Splinesep)` lands at 82 vs 83 (162-cluster-style).
+    val Splinesep   = (NodeSep.toInt / 4).toDouble
     val VirtualHalf = 1.0 + NodeSep / 2.0
     // The Order/XCoord migration to LayoutNode preserves all type-safety at
     // construction. Spline's internals stay String-keyed for its 50+ lookup

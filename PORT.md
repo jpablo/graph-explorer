@@ -8,8 +8,9 @@
 > dependency because those layout algorithms are **not ported**. Corpus 91/96
 > byte-exact vs `@viz-js/viz` 13.0.1; the 5 corpus residuals are a characterised
 > precision-and-tie-break floor — since REFUTED and CLOSED: the "floor" was
-> the reversed-edge clip DIRECTION (2026-07-13); corpus now 136/138 byte-exact,
-> the only deferrals being 03 (intentional) and 162 (one ~0.5pt spline).
+> the reversed-edge clip DIRECTION (2026-07-13); corpus now **137/138
+> byte-exact — the single remaining deferral is 03 (intentional: its golden is
+> gv's own default-mode cluster corruption, gated vs the 03b newrank oracle)**.
 > **Shape catalog closed:** 61/62 builtin node
 > shapes are ported and byte-exact (`ShapeCatalogSpec`, 36 single-node probes) —
 > the full `poly_init` periphery engine, `round_corners` (containers + all 20
@@ -2113,4 +2114,21 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   sites keep the routed path top-down and pass `reversedWork = rt > rh`. All
   three fails-when-fixed guards fired at once. Deferrals now: 03 (intentional)
   + 162 (one ~0.5pt cross-cluster spline). 758 green; gv pristine.
+- **2026-07-13** — **162-cluster-style closed: corpus 137/138, the only
+  deferral left is 03 (intentional).** The last residual — ONE cross-cluster
+  spline bending 1pt east of gv's — fell to a single character class:
+  `dot_splines_` initialises `.Splinesep = GD_nodesep(g) / 4` where
+  `GD_nodesep` is an **int** (types.h), so C INTEGER division gives 4 for the
+  default nodesep 18; the port computed `NodeSep / 4.0 = 4.5`. (Contrast
+  `maximal_bbox`'s `GD_nodesep(g) / 2.` — the trailing dot makes that one
+  float.) The cluster-wall channel clamp `round(bb.UR.x + Splinesep)`
+  (`maximal_bbox` → `cl_bound`) then produced 83 vs gv's 82, and the routed
+  spline pivots exactly at that corridor corner. Found by dumping gv's
+  `routesplines` input boxes (`[bx]` probe): gv's head-rank box for `a0->b0`
+  starts at x=82 = cluster_0's wall 78 + 4. My `clBound` transcription was
+  already faithful — only the constant was off; every other Splinesep use had
+  rounded away the 0.5 in the corpus so far. One-line fix in `Spline.scala`.
+  162's fails-when-fixed guard fired; promoted in CorpusByteExactSpec +
+  DifferentialSpec. 759 green; gv worktree reverted + `_dbgbuild` removed
+  (pristine).
 - _(append dated entries as milestones land)_

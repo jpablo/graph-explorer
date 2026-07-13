@@ -39,10 +39,13 @@ class CorpusByteExactSpec extends FunSuite:
   //     fix; 81's residual spline was this same clip-direction issue.)
   //   • 03-subgraph-cluster — INTENTIONAL: its golden is gv's own default-mode
   //     cluster corruption; we lay it out correctly and gate vs 03b (newrank).
-  //   • 162-cluster-style — dot_json/json0 byte-exact (cluster attr echo + the
-  //     styled-cluster svg fill/stroke both landed 2026-07-13); the residual is
-  //     ONE cross-cluster edge spline ~0.5pt off (routing-corridor boxes around
-  //     cluster walls — same family as the documented spline-fit floor).
+  //   • 162-cluster-style — FULLY CLOSED 2026-07-13. The last residual (ONE
+  //     cross-cluster spline ~0.5-1pt) was `Splinesep`: gv's dot_splines_ sets
+  //     `.Splinesep = GD_nodesep(g) / 4` with GD_nodesep an *int* — C INTEGER
+  //     division, 18/4 = 4 — while the port had computed 4.5. The cluster-wall
+  //     channel clamp `round(bb.urx + Splinesep)` (maximal_bbox/cl_bound) then
+  //     landed at 83 vs gv's 82, bending the spline 1pt east of the corridor
+  //     corner. Found by dumping gv's routesplines_ input boxes.
   //   • 163-groups — FULLY CLOSED 2026-07-13 (all three formats byte-exact)
   //     after: cluster attr echo + styled-cluster svg, the cgraph edge-order
   //     fix, install_cluster + CL_CROSS weights, the interior refinement pass,
@@ -58,8 +61,7 @@ class CorpusByteExactSpec extends FunSuite:
   //     xpenalty (weighted in_cross/out_cross/ncross) made the collapsed-pass
   //     optimizer track gv exactly.
   private val deferred = Set(
-    "03-subgraph-cluster",
-    "162-cluster-style")
+    "03-subgraph-cluster")
 
   private def names: Vector[String] =
     new File("graphviz/corpus").listFiles.filter(_.getName.endsWith(".dot"))
