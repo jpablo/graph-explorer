@@ -66,6 +66,17 @@ class Graphviz(viz: Viz):
     // label = "\na\nb" -> label = "a\nb"
     text.replaceAll("""(label\s*=\s*")\\n+""", "$1")
 
+  /** Thumbnail fast path: ONE render pass requesting only `svg`. Unlike
+    * [[textToSvg]] it skips the json0 render, its JSON parse, and the
+    * edge-position extraction — none of which a static thumbnail reads.
+    */
+  def textToSvgOnly(dot: DotText): Try[dom.svg.SVG] =
+    Try {
+      val result = renderOutputs(sanitizeText(dot.value), Seq("svg"))
+      if result.status == "success" then parseSVG(result.output("svg")).ref
+      else throw new Exception(s"Graphviz rendering failed: ${result.status} - ${result.errors}")
+    }
+
   /** The last step in the rendering process.
     */
   def textToSvg(dot: DotText): Try[SvgWithPositions] =

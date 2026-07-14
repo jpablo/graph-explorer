@@ -6,7 +6,6 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, GraphvizBackend}
-import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.SimpleGraph
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidBackend
 import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
@@ -16,7 +15,6 @@ import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.viewerGraphToText
 import org.jpablo.graphexplorer.viewer.backends.mermaid.viewerGraphToMermaidText
 import org.jpablo.graphexplorer.viewer.logging.*
-import org.jpablo.graphexplorer.viewer.models.ElementIds
 import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 import org.scalajs.dom.svg.SVG
@@ -236,55 +234,44 @@ object InternalPhases:
 
         format match
           case DiagramFormat.DOT =>
-            // DOT format - use Graphviz (synchronous)
+            // ONE svg-only render (`textToSvgOnly`) straight from the source
+            // text. The old path laid the graph out TWICE — textToSimpleGraph
+            // (full layout → dot_json → JSON parse), a ViewerGraph round-trip
+            // re-serialized to DOT, then textToSvg (full layout again + json0
+            // + edge positions a static thumbnail never reads). The 0ms delay
+            // moves each card's render into its own macrotask so the browser
+            // paints between cards instead of freezing on the whole batch.
             val startedAt = Telemetry.nowMs()
-
-            val sgStartedAt     = Telemetry.nowMs()
-            val simpleGraphTry  = graphviz.textToSimpleGraph(dot.value)
-            Telemetry.log(
-              "thumb.dot.textToSimpleGraph",
-              (telemetryContext ++ Seq(
-                "dtMs" -> (Telemetry.nowMs() - sgStartedAt),
-                "ok"   -> simpleGraphTry.isSuccess
-              ))*
-            )
-
-            val resultTry =
-              for
-                simpleGraph <- simpleGraphTry
-                viewerGraph = simplegraph.toViewerGraph(simpleGraph).toVisibleGraph(ElementIds())
-                dotText0    = viewerGraphToText(viewerGraph, omitInternal = false)
-                svgStartedAt = Telemetry.nowMs()
-                svgTry       = graphviz.textToSvg(DotText(dotText0))
-                _ = Telemetry.log(
+            EventStream
+              .delay(0, dot)
+              .map: _ =>
+                val svgStartedAt = Telemetry.nowMs()
+                val resultTry    = graphviz.textToSvgOnly(dot)
+                Telemetry.log(
                   "thumb.dot.textToSvg",
                   (telemetryContext ++ Seq(
                     "dtMs" -> (Telemetry.nowMs() - svgStartedAt),
-                    "ok"   -> svgTry.isSuccess
+                    "ok"   -> resultTry.isSuccess
                   ))*
                 )
-                svg <- svgTry
-              yield svg.svg.ref
-
-            Telemetry.log(
-              "thumb.dot.total",
-              (telemetryContext ++ Seq(
-                "dtMs" -> (Telemetry.nowMs() - startedAt),
-                "ok"   -> resultTry.isSuccess
-              ))*
-            )
-
-            resultTry.foreach: proto =>
-              ThumbnailSvgCache.put(format, dot.value, proto)
-              Telemetry.log(
-                "thumb.cache.store",
-                (telemetryContext ++ Seq(
-                  "format"    -> format.toString,
-                  "cacheSize" -> ThumbnailSvgCache.size
-                ))*
-              )
-
-            Signal.fromTry(resultTry).map(ThumbnailSvgCache.cloneSvg)
+                Telemetry.log(
+                  "thumb.dot.total",
+                  (telemetryContext ++ Seq(
+                    "dtMs" -> (Telemetry.nowMs() - startedAt),
+                    "ok"   -> resultTry.isSuccess
+                  ))*
+                )
+                resultTry.foreach: proto =>
+                  ThumbnailSvgCache.put(format, dot.value, proto)
+                  Telemetry.log(
+                    "thumb.cache.store",
+                    (telemetryContext ++ Seq(
+                      "format"    -> format.toString,
+                      "cacheSize" -> ThumbnailSvgCache.size
+                    ))*
+                  )
+                ThumbnailSvgCache.cloneSvg(resultTry.get) // failure → error channel, as Signal.fromTry did
+              .toSignal(svg.svg()) // empty-svg placeholder until the deferred render lands
 
           case DiagramFormat.Mermaid =>
             // Mermaid format - use MermaidBackend (asynchronous)
