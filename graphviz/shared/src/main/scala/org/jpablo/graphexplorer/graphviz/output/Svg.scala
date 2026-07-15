@@ -203,7 +203,6 @@ object Svg:
 
 
   def svg(g: RGraph): String =
-    val byId       = g.nodes.iterator.map(n => n.id -> n).toMap
     val xs         = XCoord.xCoords(g)
     val (_, yOf)   = Coord.rankY(g)
     val ranks      = Rank.assign(g)
@@ -273,7 +272,7 @@ object Svg:
       * `r`→end@cx+w/2). Reduces to `textAt` for a single centred line. Empty
       * lines advance the cursor but draw nothing. */
     def textLines(cx: Double, cyc: Double, raw: String, fill: String,
-                  nodeId: String, fontName: String = "Times-Roman"): String =
+                  nodeId: String, fontName: String): String =
       val lines = NodeSize.labelLinesJust(raw, nodeId, g.name.getOrElse(""))
       if lines.forall(_._1.isEmpty) then return ""
       val dimenY = lines.map((l, _) => NodeSize.lineHeightPt(l, FontSize)).sum
@@ -333,10 +332,9 @@ object Svg:
           val fill = if filled then fillcolor.getOrElse("lightgrey") else "none"
           sb ++= s"""<polygon fill="$fill" stroke="$pen" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
           if c.hasLabel then
-            // label centre = lp (place_graph_label): box centre x,
-            // UR.y − (label height + YPAD)/2 — same <text> path as nodes.
-            val lpx = (llx + urx) / 2.0
-            val lpy = ury - (c.lheightPt + 2 * 4.0) / 2.0
+            // label centre = lp (place_graph_label) — the formula lives on
+            // CInfo.labelLp, shared with json0's `lp` attr.
+            val (lpx, lpy) = c.labelLp(Cluster.BB(llx, lly, urx, ury))
             sb ++= textAt(lpx, lpy, c.label,
               fontName = a.getOrElse("fontname", "Times-Roman"))
           sb ++= "</g>\n"
@@ -810,12 +808,15 @@ object Svg:
     val emitted = scala.collection.mutable.Set.empty[String]
     def ensureNode(id: String): Unit =
       nodeIdx.get(id).foreach(i => if !emitted(id) then { emitted += id; emitNode(i) })
+    // `agfstout` order: out-edges by HEAD node id (declaration), then AGSEQ —
+    // not edge-declaration order (see Output.edgesByK). The `id="edgeN"`
+    // stays the AGSEQ index (ix+1); only the emit sequence is head-ordered.
+    // One O(E) per-tail grouping instead of an all-edges scan per node.
+    val outEdgeIdxByTail: Map[String, Seq[Int]] =
+      g.edges.indices.groupBy(ix => g.edges(ix).tail)
     g.nodes.indices.foreach { ti =>
       ensureNode(g.nodes(ti).id)
-      // `agfstout` order: out-edges by HEAD node id (declaration), then AGSEQ —
-      // not edge-declaration order (see Output.edgesByK). The `id="edgeN"`
-      // stays the AGSEQ index (ix+1); only the emit sequence is head-ordered.
-      g.edges.indices.filter(ix => g.edges(ix).tail == g.nodes(ti).id)
+      outEdgeIdxByTail.getOrElse(g.nodes(ti).id, Seq.empty)
         .sortBy(ix => (nodeIdx.getOrElse(g.edges(ix).head, Int.MaxValue), ix))
         .foreach { ix =>
           ensureNode(g.edges(ix).head)

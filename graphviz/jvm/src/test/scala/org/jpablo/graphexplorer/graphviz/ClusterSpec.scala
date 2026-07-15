@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** M8 clusters — subgraph-tree model + the cluster geometry subsystem.
@@ -30,7 +28,7 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 class ClusterSpec extends FunSuite:
 
   private def graph(name: String) =
-    AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    OracleHarness.corpusGraph(name)
 
   /** Drop the `newrank` attribute echo lines from a 03b golden — everything
     * else must match 03-verbatim byte-for-byte. */

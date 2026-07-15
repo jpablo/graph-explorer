@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.NodeSize
 
 /** M6 records gate: `record`/`Mrecord` parse + field layout reproduce the
@@ -20,7 +18,7 @@ class RecordSpec extends FunSuite:
   private val eps = 0.05 // pt
 
   private def graph =
-    AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("04-ports-compass")).toOption.get)
+    OracleHarness.corpusGraph("04-ports-compass")
 
   // plain: node <name> <x> <y> <w> <h> <label> ... ; coords in inches.
   private def nodeCenterPt(name: String): (Double, Double) =

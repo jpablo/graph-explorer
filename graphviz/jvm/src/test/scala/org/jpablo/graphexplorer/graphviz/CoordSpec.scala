@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.Coord
 
 /** M4 exit gate (Y only): rank-axis Y matches the `plain` golden tightly.
@@ -14,24 +12,12 @@ import org.jpablo.graphexplorer.graphviz.layout.Coord
   */
 class CoordSpec extends FunSuite:
 
-  // plain: `node <name> <x> <y> <w> <h> ...` (name quoted if it has spaces)
-  private val PlainNode =
-    """(?m)^node ("(?:[^"\\]|\\.)*"|\S+) (\S+) (\S+) """.r
-
-  private def unquote(s: String): String =
-    if s.startsWith("\"") && s.endsWith("\"") then
-      s.substring(1, s.length - 1).replace("\\\"", "\"").replace("\\\\", "\\")
-    else s
-
   /** node → y (inches) from the `plain` golden. */
   private def goldenY(name: String): Map[String, Double] =
-    PlainNode
-      .findAllMatchIn(OracleHarness.golden(name, "plain"))
-      .map(m => unquote(m.group(1)) -> m.group(3).toDouble)
-      .toMap
+    OracleHarness.plainNodePositions(name).view.mapValues(_._2).toMap
 
   private def ourY(name: String): Map[String, Double] =
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    val g = OracleHarness.corpusGraph(name)
     Coord.yCoords(g).view.mapValues(_.value / 72.0).toMap
 
   private val tol = OracleHarness.Tol(abs = 0.005, rel = 0.0)

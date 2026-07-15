@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.{Rank, Coord, XCoord}
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
@@ -12,7 +10,7 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
   * `b`. Additive: `rankConstraintLeader` is identity without rank constraints.
   */
 class RankSameSpec extends FunSuite:
-  private def g(n: String) = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+  private def g(n: String) = OracleHarness.corpusGraph(n)
 
   test("11: rank=same collapses a,b onto the bottom rank"):
     val r = Rank.assign(g("11-ranksame"))

@@ -17,6 +17,23 @@ import org.jpablo.graphexplorer.graphviz.units.Length.{In, Pt}
   */
 object NodeSize:
 
+  // ── per-graph geometry cache ──────────────────────────────────────────────
+  // gv computes ND_lw/ND_rw/ND_ht (and the parsed label) ONCE per node in
+  // common_init_node and stores them on the node struct; the port substituted
+  // recomputation for those fields — a typical node was re-measured 8-12×
+  // per render (Coord/XCoord/Spline/Output/Svg all re-derive sizes). These
+  // GraphMemo-backed tables restore the C's compute-once shape. The inner
+  // update is `synchronized` only to guard the mutable map under sbt's
+  // concurrent suites (a no-op on Scala.js); the compute is pure, so a
+  // racing double-compute is harmless.
+  private val sizeMemo   = GraphMemo[scala.collection.mutable.HashMap[String, Option[Size]]]()
+  private val recordMemo = GraphMemo[scala.collection.mutable.HashMap[String, Option[RecordLabel.Field]]]()
+  private val polyMemo   = GraphMemo[scala.collection.mutable.HashMap[String, Option[Polygon.Poly]]]()
+  private def cached[V](memo: GraphMemo[scala.collection.mutable.HashMap[String, V]], g: RGraph, id: String)(
+      compute: => V): V =
+    val m = memo(g)(scala.collection.mutable.HashMap.empty)
+    m.synchronized(m.getOrElseUpdate(id, compute))
+
   private val PointsPerInch = 72.0
   private val Gap           = 4.0          // const.h GAP
   private val XPad          = 4 * Gap      // macros.h XPAD: d.x += 4*GAP
@@ -199,6 +216,8 @@ object NodeSize:
   /** Full record/Mrecord layout (boxes node-local, centre origin, y-up).
     * topLR = `!GD_realflip` (TB ⇒ horizontal top level). */
   def recordLayout(n: RNode, g: RGraph): Option[RecordLabel.Field] =
+    cached(recordMemo, g, n.id)(recordLayoutImpl(n, g))
+  private def recordLayoutImpl(n: RNode, g: RGraph): Option[RecordLabel.Field] =
     val sn = n.attrs.getOrElse("shape", "ellipse").toLowerCase
     if sn != "record" && sn != "mrecord" then return None
     val fixed = n.attrs.getOrElse("fixedsize", "false").toLowerCase match
@@ -290,6 +309,8 @@ object NodeSize:
     * `None` for non-polygon shapes. Shares [[polyMetrics]] with [[nodeSize]] so
     * the size the layout uses and the vertices `Svg` draws stay consistent. */
   def polygon(n: RNode, g: RGraph): Option[Polygon.Poly] =
+    cached(polyMemo, g, n.id)(polygonImpl(n, g))
+  private def polygonImpl(n: RNode, g: RGraph): Option[Polygon.Poly] =
     polyDescOf(n).map { desc =>
       val shape = ShapeKind(box = false, regular = desc.regular, plain = false, supported = true)
       val m     = polyMetrics(n, g, shape)
@@ -297,6 +318,8 @@ object NodeSize:
     }
 
   def nodeSize(n: RNode, g: RGraph): Option[Size] =
+    cached(sizeMemo, g, n.id)(nodeSizeImpl(n, g))
+  private def nodeSizeImpl(n: RNode, g: RGraph): Option[Size] =
     val shapeName = n.attrs.getOrElse("shape", "ellipse")
     val sn        = shapeName.toLowerCase
     if sn == "point" then

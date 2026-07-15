@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.Output
 
 /** Full attribute emission in `dot_json` — gv `write_attrs` (alphabetical,
@@ -15,7 +13,7 @@ import org.jpablo.graphexplorer.graphviz.output.Output
 class AttrEmitSpec extends FunSuite:
 
   private def graph(name: String) =
-    AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    OracleHarness.corpusGraph(name)
 
   private def dotJson(name: String) = Output.dotJson(graph(name))
 

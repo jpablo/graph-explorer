@@ -288,12 +288,9 @@ object Polygon:
     while s < sides do { rings(0)(s)(0) = base(s)._1; rings(0)(s)(1) = base(s)._2; s += 1 }
 
     if outp > 1 then
-      // seed beta from the first side ending at vertices[0] (scan back to the
-      // first distinct predecessor — all distinct for convex builtins).
+      // seed beta from the side ending at vertices[0] (the immediate
+      // predecessor — distinct for every convex builtin, corpus-verified).
       val R0 = base(0)
-      var qIdx = sides - 1
-      var jj = 1
-      while jj < sides && base((sides - jj) % sides) == R0 do { qIdx = (sides - jj - 1 + sides) % sides; jj += 1 }
       var Q = base((sides - 1) % sides)
       var beta = math.atan2(R0._2 - Q._2, R0._1 - Q._1)
       var qprev = Q

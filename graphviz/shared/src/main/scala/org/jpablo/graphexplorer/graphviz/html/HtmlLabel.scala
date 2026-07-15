@@ -3,10 +3,10 @@ package org.jpablo.graphexplorer.graphviz.html
 /** Parsed HTML-like label (Graphviz `htmllabel_t`, lib/common/htmltable.h).
   *
   * A label is EITHER a text block (paragraphs of styled runs) OR a table.
-  * This models the common subset — text with `<b>/<i>/<u>/<s>/<sub>/<sup>/
-  * <font>` styling, `<br/>` line breaks, and `<table>/<tr>/<td>` — enough for
-  * the vast majority of real HTML labels. Exotic features (img, hr/vr, nested
-  * tables, colspan/rowspan, ports, bgcolor gradients) are not modelled yet.
+  * Modelled: text with `<b>/<i>/<u>/<s>/<sub>/<sup>/<font>` styling, `<br/>`
+  * line breaks, `<table>/<tr>/<td>` with colspan/rowspan and nesting, cell
+  * ports (incl. compass), `<img>`, `<hr/>`/`<vr/>` rules, and bgcolor
+  * (incl. gradients, rendered by Svg).
   */
 enum HtmlLabel derives CanEqual:
   case Text(block: HtmlText)
@@ -73,6 +73,14 @@ final case class HtmlTable(
     hrAfter:     Set[Int] = Set.empty,
     vrAfter:     Set[Int] = Set.empty
 ) derives CanEqual
+
+object HtmlTable:
+  /** Graphviz `htmltable_t` defaults (htmltable.c) — the single source for
+    * both the parser's missing-attr substitution and the layout's
+    * negative-value clamping. */
+  val DefaultBorder      = 1
+  val DefaultCellSpacing = 2
+  val DefaultCellPadding = 2
 
 /** A `<td>` cell: contents (text or nested table) + attributes. */
 final case class HtmlCell(

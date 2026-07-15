@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** Root graph label (do_graph_label) — 12-glabel probe (`label="hi"`, narrower
@@ -12,7 +10,7 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
   * top labelloc are tracked follow-ups.)
   */
 class GraphLabelSpec extends FunSuite:
-  private def g(n: String) = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+  private def g(n: String) = OracleHarness.corpusGraph(n)
   test("12: dot_json byte-exact (bb reclaims graph-label space)"):
     assertEquals(Output.dotJson(g("12-glabel")), OracleHarness.golden("12-glabel", "dot_json"))
   test("12: json0 byte-exact (lp/lwidth/lheight)"):

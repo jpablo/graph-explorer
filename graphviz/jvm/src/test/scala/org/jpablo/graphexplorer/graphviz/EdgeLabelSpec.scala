@@ -1,7 +1,5 @@
 package org.jpablo.graphexplorer.graphviz
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** Edge labels (14-edgelabel probe) — straight TB edges. The label sits right
@@ -10,7 +8,7 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
   * virtual ranks get half-height 0.5 (ND_ht=1). Asymmetric-vnode separation
   * (neighbours / rankdir=LR) is the follow-up increment. */
 class EdgeLabelSpec extends FunSuite:
-  private def g(n: String) = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+  private def g(n: String) = OracleHarness.corpusGraph(n)
   test("14: json0 byte-exact (edge lp)"):
     assertEquals(Output.json0(g("14-edgelabel")), OracleHarness.golden("14-edgelabel", "json0"))
   test("14: svg byte-exact (edge label <text>)"):

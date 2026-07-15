@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** Node-level `image=` / `shape=image` (Graphviz `poly_init` image sizing +
@@ -13,7 +11,7 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
   * to box-family shapes — an ellipse's SQRT2 containment fit is not modelled. */
 class NodeImageSpec extends FunSuite:
   private def g(n: String) =
-    val r = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+    val r = OracleHarness.corpusGraph(n)
     r.copy(images = OracleHarness.corpusImages(n))
 
   private val cases = List(

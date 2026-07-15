@@ -1,7 +1,5 @@
 package org.jpablo.graphexplorer.graphviz
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** Edge labels increment 2 — the asymmetric label vnode (class2 label_vnode:
@@ -15,7 +13,7 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
   * (2 cubics) AND a→c's box starts past the label. lp = routed vnode x +
   * labelWidth/2 (place_vnlabel), read off the byte-exact routed spline. */
 class EdgeLabel2Spec extends FunSuite:
-  private def g(n: String) = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+  private def g(n: String) = OracleHarness.corpusGraph(n)
   private def nodePos(dj: String): Map[String, String] =
     ujson.read(dj)("objects").arr.iterator
       .filter(o => o.obj.contains("pos") && !o.obj.contains("nodes"))

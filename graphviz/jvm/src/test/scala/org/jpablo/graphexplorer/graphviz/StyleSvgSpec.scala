@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.Svg
 
 /** SVG styling (09-styled probe) — `fill`/`stroke`/`stroke-dasharray`/text
@@ -14,7 +12,7 @@ import org.jpablo.graphexplorer.graphviz.output.Svg
 class StyleSvgSpec extends FunSuite:
 
   private def svg(name: String) =
-    Svg.svg(AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get))
+    Svg.svg(OracleHarness.corpusGraph(name))
 
   test("09-styled: svg byte-exact (fill / stroke / dash / fontcolor)"):
     assertEquals(svg("09-styled"), OracleHarness.golden("09-styled", "svg"))

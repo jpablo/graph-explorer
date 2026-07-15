@@ -62,7 +62,7 @@ object XCoord:
     // GD_nodesep (attr-driven, default 18pt) + a plain virtual node's half
     // width (`incr_width` = 1 + nodesep/2, class2.c plain_vnode).
     val NodeSep     = Coord.nodeSepPt(g)
-    val VirtualHalf = 1.0 + NodeSep / 2.0
+    val VirtualHalf = Coord.virtualHalfPt(g)
 
     // gv quirk (ported deliberately): intra-cluster chain vnodes are created
     // by class2(subg) in expand_cluster, and incr_width reads GD_nodesep(subg)
@@ -402,9 +402,14 @@ object XCoord:
   /** Solved cluster border x `[ln, rn]` per [[Cluster.clusters]] index. */
   def clusterXBounds(g: RGraph): Vector[(Double, Double)] = xSolve(g)._3
 
-  /** x (points) for real nodes only. */
+  /** x (points) for real nodes only. Memoized: the solve itself is cached,
+    * but this projection re-hashed all N entries on each of its ~5-6 calls
+    * per render (bbox ×2-3, json0, Svg, DrawTransform). */
+  private val xCoordsMemo = GraphMemo[Map[String, Pt]]()
   def xCoords(g: RGraph): Map[String, Pt] =
-    val (_, allX, _) = xSolve(g)
-    g.nodes.iterator.map(n => n.id -> allX(LayoutNode.Real(n.id))).toMap
+    xCoordsMemo(g) {
+      val (_, allX, _) = xSolve(g)
+      g.nodes.iterator.map(n => n.id -> allX(LayoutNode.Real(n.id))).toMap
+    }
 
 end XCoord

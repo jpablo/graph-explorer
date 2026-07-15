@@ -14,9 +14,9 @@ package org.jpablo.graphexplorer.graphviz.layout
   *    network-simplex graph (`make_edge_pairs`'s slack source). Identified
   *    historically by the `__s{segment}` name convention.
   *
-  * The `name` extension reproduces the historical String key exactly,
-  * because [[NetworkSimplex]] is generic over node identifiers and works
-  * with raw strings.
+  * The `name` extension reproduces the historical String key exactly —
+  * [[NetworkSimplex]]'s node identifiers are raw Strings (`NSEdge(tail:
+  * String, head: String, …)`), so the typed layers convert at that boundary.
   */
 enum LayoutNode derives CanEqual:
   case Real(id: String)
@@ -67,4 +67,3 @@ object LayoutNode:
     * consumption boundary (its 50+ internal lookup sites stay
     * String-typed — the kernel/boundary principle). */
   inline def isVirtualName(s: String): Boolean = s.startsWith("__v")
-  inline def isSlackName(s: String): Boolean   = s.startsWith("__s")

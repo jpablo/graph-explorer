@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** HTML-like labels (Graphviz `make_html_label`). Text labels size byte-
@@ -12,7 +10,7 @@ class HtmlSpec extends FunSuite:
   // Inject the image-dimension sidecar (if any) into the resolved graph, exactly
   // as the caller would supply viz-js's `images` render option.
   private def g(n: String) =
-    val r = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+    val r = OracleHarness.corpusGraph(n)
     r.copy(images = OracleHarness.corpusImages(n))
 
   private val cases = List(

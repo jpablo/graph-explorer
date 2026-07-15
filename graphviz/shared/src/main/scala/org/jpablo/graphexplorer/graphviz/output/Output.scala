@@ -63,15 +63,15 @@ object Output:
   private val DefFontSize = 14.0
 
   // ── root graph label (`do_graph_label`) ─────────────────────────────────
+  // Geometry (pad + labelloc) lives in Coord — the layout computes it once,
+  // exactly as gv stores GD_label; the writers only read it.
   private def rootLabelText(g: RGraph): Option[String] = g.rootAttrs.get("label").filter(_.nonEmpty)
   private def labelFontSize(g: RGraph): Double =
     g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
-  private def labelTop(g: RGraph): Boolean = g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
+  private def labelTop(g: RGraph): Boolean = Coord.graphLabelTop(g)
   private def labelHtPt(g: RGraph, lbl: String): Double =
     NodeSize.labelHeightPt(lbl, labelFontSize(g), g.name.getOrElse(""))
-  /** Reserved rank-axis space = label box + YPAD (2*GAP); 0 with no label. */
-  private def gLabelPad(g: RGraph): Double =
-    rootLabelText(g).map(l => labelHtPt(g, l) + 2.0 * Gap).getOrElse(0.0)
+  private def gLabelPad(g: RGraph): Double = Coord.graphLabelPad(g)
   /** C `printf("%.2f")` — the `lwidth`/`lheight`/`lp`-dimension format. */
   private def f2(x: Double): String = BigDecimal(x).setScale(2, BigDecimal.RoundingMode.HALF_UP).toString
 
@@ -98,7 +98,9 @@ object Output:
         nodeGvids: Vector[Int], edgeGvids: Vector[Int], subgraphGvids: Vector[Int],
         emitLabel: Boolean, attrs: Map[String, String] = Map.empty)
 
-  private def doc(g: RGraph): Doc =
+  private val docMemo = org.jpablo.graphexplorer.graphviz.layout.GraphMemo[Doc]()
+  private def doc(g: RGraph): Doc = docMemo(g)(docImpl(g))
+  private def docImpl(g: RGraph): Doc =
     import org.jpablo.graphexplorer.graphviz.model.RSubgraph
     // Preorder DFS over the subgraph tree = cgraph `label_subgs` order: each
     // subgraph gets `_gvid` 0..sgCnt-1; real-node `_gvid` is then offset by
@@ -121,12 +123,14 @@ object Output:
     // `idx` = position in `g.edges` (= AGSEQ = the Spline key) so parallel/port
     // multi-edges map to their own spline. The top-level array is then
     // AGSEQ-sorted (gv qsort by seq in write_edges); `_gvid` keeps this value.
-    val nodeDeclIdx = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+    // O(E) per-tail grouping (groupBy keeps declaration order within a group)
+    // instead of scanning all edges once per node.
+    val edgesByTail = g.edges.zipWithIndex.groupBy(_._1.tail)
     var k = 0
     val edgesByK =
       g.nodes.iterator.flatMap { n =>
-        g.edges.iterator.zipWithIndex.filter { case (e, _) => e.tail == n.id }.toVector
-          .sortBy { case (e, ix) => (nodeDeclIdx.getOrElse(e.head, Int.MaxValue), ix) }
+        edgesByTail.getOrElse(n.id, Vector.empty)
+          .sortBy { case (e, ix) => (nodeIdx.getOrElse(e.head, Int.MaxValue), ix) }
           .map { case (e, ix) =>
             val r = Doc.E(k, nodeGvid(e.tail), nodeGvid(e.head), e.tailPortStr, e.headPortStr, ix)
             k += 1; r
@@ -253,20 +257,25 @@ object Output:
       }
       (bb(0), bb(1), bb(2), bb(3))
 
-  private[output] def bbox(g: RGraph): (Pt, Pt, Pt, Pt) =
+  private val bboxMemo = org.jpablo.graphexplorer.graphviz.layout.GraphMemo[(Pt, Pt, Pt, Pt)]()
+  private[output] def bbox(g: RGraph): (Pt, Pt, Pt, Pt) = bboxMemo(g)(bboxImpl(g))
+  private def bboxImpl(g: RGraph): (Pt, Pt, Pt, Pt) =
     val (_, yOf) = Coord.rankY(g)
     val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
     var minX = Double.MaxValue; var maxX = Double.MinValue
     var minY = Double.MaxValue; var maxY = Double.MinValue
     val xs = XCoord.xCoords(g)
+    // selfRightSpace: no-port self-edges reserve SELF_EDGE_SIZE on the
+    // right (the port/label-bearing cases are deferred — no corpus).
+    // One O(E) count map instead of an O(E) scan per node.
+    val selfLoops: Map[String, Int] =
+      g.edges.filter(e => e.tail == e.head && e.tailPort.isEmpty && e.headPort.isEmpty)
+        .groupBy(_.tail).view.mapValues(_.size).toMap
     g.nodes.foreach { n =>
       for xPt <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
         val x  = xPt.value
         val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
-        // selfRightSpace: no-port self-edges reserve SELF_EDGE_SIZE on the
-        // right (the port/label-bearing cases are deferred — no corpus).
-        val selfW = g.edges.count(e => e.tail == n.id && e.head == n.id &&
-          e.tailPort.isEmpty && e.headPort.isEmpty) * SelfEdgeSize
+        val selfW = selfLoops.getOrElse(n.id, 0) * SelfEdgeSize
         val y  = yOf(ranks(n.id)).value
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
@@ -433,10 +442,9 @@ object Output:
     val d = doc(g)
     // map_point (postproc.c): rotate canonical coords into the drawing frame.
     val tf0 = org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g)
-    val (lxPt, lyPt, uxPt, uyPt) = bbox(g)
     val (lx, ly, ux, uy) =
       if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then finalBBox(g, tf0)
-      else (lxPt.value, lyPt.value, uxPt.value, uyPt.value)
+      else { val (a, b, c, dd) = bbox(g); (a.value, b.value, c.value, dd.value) }
     // translate_drawing (postproc.c): the FULL bb (incl. spline overhang) lands
     // at the origin. A no-op wherever the layout already starts at 0 (every file
     // whose splines stay within the node/cluster box) — non-trivial only when a
@@ -511,10 +519,12 @@ object Output:
           val bb   = cbbs(i)
           val base = Vector("bb" -> s"${g5(bb.llx + dx)},${g5(bb.lly + dy)},${g5(bb.urx + dx)},${g5(bb.ury + dy)}")
           val lbl  =
-            if c.hasLabel then Vector(
-              "lheight" -> f2(c.lheightPt / 72.0),
-              "lp"      -> s"${g5((bb.llx + bb.urx) / 2.0 + dx)},${g5(bb.ury - (c.lheightPt + 2 * Gap) / 2.0 + dy)}",
-              "lwidth"  -> f2(c.lwidthPt / 72.0))
+            if c.hasLabel then
+              val (lpx, lpy) = c.labelLp(bb)
+              Vector(
+                "lheight" -> f2(c.lheightPt / 72.0),
+                "lp"      -> s"${g5(lpx + dx)},${g5(lpy + dy)}",
+                "lwidth"  -> f2(c.lwidthPt / 72.0))
             else Vector.empty
           c.name -> (base ++ lbl)
         }.toMap

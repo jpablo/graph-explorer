@@ -50,6 +50,12 @@ object Cluster:
       * y += 2·GAP). Cluster labels default to `labelloc=t` ⇒ TOP border. */
     def borderTopX: Double = if hasLabel then lwidthPt + 4 * Gap else 0.0
     def borderTopY: Double = if hasLabel then lheightPt + 2 * Gap else 0.0
+    /** Cluster-label centre `lp` given the cluster's [[BB]]
+      * (`place_graph_label`, cluster labelloc=t default): box-centre x,
+      * `UR.y − (lheight + YPAD)/2`. The single home for the formula both
+      * writers (json0 `lp`, svg `<text>`) read. */
+    def labelLp(bb: BB): (Double, Double) =
+      ((bb.llx + bb.urx) / 2.0, bb.ury - (lheightPt + 2 * Gap) / 2.0)
 
   /** Cluster bounding box in final coordinates (assembled from the X solve
     * and the Y machinery — `GD_bb` after `dot_compute_bb`/translation). */

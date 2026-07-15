@@ -23,8 +23,12 @@ object DrawTransform:
   def rotated(g: RGraph): Boolean = Rank.rankdir(g) != RankDir.TB
 
   /** Canonical→final point map for this graph's `rankdir`. Identity for TB
-    * (bit-exact — the whole TB corpus must be untouched). */
-  def of(g: RGraph): (Double, Double) => (Double, Double) =
+    * (bit-exact — the whole TB corpus must be untouched). Memoized: the
+    * rotated-offset scan (layoutSize per node) otherwise re-runs once per
+    * writer (dot_json, json0, svg). */
+  private val ofMemo = GraphMemo[(Double, Double) => (Double, Double)]()
+  def of(g: RGraph): (Double, Double) => (Double, Double) = ofMemo(g)(ofImpl(g))
+  private def ofImpl(g: RGraph): (Double, Double) => (Double, Double) =
     val rd = Rank.rankdir(g)
     if rd == RankDir.TB then (x, y) => (x, y)
     else

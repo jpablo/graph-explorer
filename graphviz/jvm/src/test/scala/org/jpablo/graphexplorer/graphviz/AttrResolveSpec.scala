@@ -1,14 +1,13 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.{AttrResolver, RGraph}
+import org.jpablo.graphexplorer.graphviz.model.RGraph
 
 /** M1: DOT default-statement scoping must resolve the way Graphviz applies it. */
 class AttrResolveSpec extends FunSuite:
 
   private def resolve(name: String): RGraph =
-    AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    OracleHarness.corpusGraph(name)
 
   test("02-attrs: node/edge defaults apply to later implicit items; assign → root"):
     val g = resolve("02-attrs")

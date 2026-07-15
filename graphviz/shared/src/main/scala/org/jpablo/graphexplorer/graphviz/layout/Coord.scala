@@ -42,6 +42,10 @@ object Coord:
       case None    => 0.25
     points(v)
 
+  /** Plain virtual node half-width — `incr_width` = 1 + nodesep/2
+    * (class2.c plain_vnode). Shared by [[XCoord]] and [[Spline]]. */
+  def virtualHalfPt(g: RGraph): Double = 1.0 + nodeSepPt(g) / 2.0
+
   /** `GD_ranksep` base (input.c): `POINTS(max(0.02, %lf) | 0.5)`. Default 36pt. */
   private def rankSepBasePt(g: RGraph): Double =
     val v = g.rootAttrs.get("ranksep").flatMap(leadingDouble) match
@@ -205,14 +209,8 @@ object Coord:
         if cls(cc).minRank == minR && clHt2(cc) + ClOffset > rootHt2 then rootHt2 = clHt2(cc) + ClOffset
       }
 
-    // Root graph label reserves space on its labelloc side (`do_graph_label`,
-    // default = bottom for the root); height = label box + YPAD (2*GAP).
-    val gLabelPad =
-      g.rootAttrs.get("label").filter(_.nonEmpty).map { lbl =>
-        val fs = g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
-        NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse("")) + 2.0 * Gap
-      }.getOrElse(0.0)
-    val labelTop = g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
+    val gLabelPad = graphLabelPad(g)
+    val labelTop  = graphLabelTop(g)
 
     // A bottom-anchored root label shifts the whole drawing up by its
     // reserved space; a top-anchored one only extends the bbox upward and
@@ -253,12 +251,31 @@ object Coord:
     val (ranks, yOf) = rankY(g)
     ranks.view.mapValues(yOf).toMap
 
+  // ── root graph label geometry (`do_graph_label`) ─────────────────────────
+  // gv computes this once during layout and stores GD_label; the port derives
+  // it here — the single home — and both Coord's node shift and the writers'
+  // bbox reservation read these accessors.
+
+  /** Rank-axis space the root label reserves = label box + YPAD (2*GAP);
+    * 0 with no label. */
+  def graphLabelPad(g: RGraph): Double =
+    g.rootAttrs.get("label").filter(_.nonEmpty).map { lbl =>
+      val fs = g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
+      NodeSize.labelHeightPt(lbl, fs, g.name.getOrElse("")) + 2.0 * Gap
+    }.getOrElse(0.0)
+
+  /** `labelloc=t` — the root label sits above the drawing (default: below). */
+  def graphLabelTop(g: RGraph): Boolean =
+    g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
+
   /** Edge-label virtual-node `ND_rw` (vnode name → order-axis half-width pt) for
     * `make_LR_constraints`/spline bounds. class2.c `label_vnode`: `ND_lw =
     * nodesep`, and `ND_rw = dimen.x` (label width) for TB, but `dimen.y` (label
     * height) for a flipped graph (LR/RL) — the label box rotates with the
     * drawing. The vnode name matches `Order`'s `Virtual(dedgeIdx, midRank)`. */
-  def labelVnodeWidths(g: RGraph): Map[String, Double] =
+  private val labelVWMemo = GraphMemo[Map[String, Double]]()
+  def labelVnodeWidths(g: RGraph): Map[String, Double] = labelVWMemo(g)(labelVnodeWidthsImpl(g))
+  private def labelVnodeWidthsImpl(g: RGraph): Map[String, Double] =
     val ranks = Rank.assign(g)
     val flip  = Rank.flip(g)
     g.edges.iterator.filter(e => e.tail != e.head).zipWithIndex.flatMap { (e, dIdx) =>

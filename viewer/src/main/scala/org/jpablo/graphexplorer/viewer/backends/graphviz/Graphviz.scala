@@ -100,16 +100,21 @@ class Graphviz(viz: Viz):
 object Graphviz:
 
   /** The `layout` graph attribute → engine name (e.g. `layout=neato`,
-    * `layout = "twopi"`). Absent ⇒ `dot`. A stray match inside a label string is
-    * harmless: it would only route a `dot` graph to viz-js, which lays it out
-    * with `dot` anyway. */
+    * `layout = "twopi"`). Absent ⇒ `dot`. */
   private val layoutAttr = """(?i)\blayout\b\s*=\s*"?\s*([A-Za-z]+)""".r
+  // Quoted strings (with \" escapes) and //, #, and /*…*/ comments — blanked
+  // before the layout scan so a `layout=neato` graph whose label or comment
+  // mentions `layout=dot` first isn't silently mis-routed to the Scala port
+  // (the reverse mis-match was always harmless: viz-js lays `dot` out as dot).
+  private val quotesAndComments = """(?s)"(?:[^"\\]|\\.)*"|//[^\n]*|#[^\n]*|/\*.*?\*/""".r
 
   /** True when the graph uses the `dot` engine — the only one the Scala port
     * implements. `dot` and unset both route to the port; every other engine
-    * routes to viz-js. */
+    * routes to viz-js. Heuristic (no full parse), but blind to strings and
+    * comments. */
   def usesDotEngine(dot: String): Boolean =
-    layoutAttr.findFirstMatchIn(dot).map(_.group(1).toLowerCase) match
+    val stripped = quotesAndComments.replaceAllIn(dot, " ")
+    layoutAttr.findFirstMatchIn(stripped).map(_.group(1).toLowerCase) match
       case Some(engine) => engine == "dot"
       case None         => true
 

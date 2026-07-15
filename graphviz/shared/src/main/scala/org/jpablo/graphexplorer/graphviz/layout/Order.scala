@@ -41,9 +41,6 @@ object Order:
         * segment's port x-offset (`make_edge_pairs` `ED_*_port.p.x`). */
       segOwner:  Vector[Int]
   ) derives CanEqual:
-    def isVirtual(n: LayoutNode): Boolean = n match
-      case _: LayoutNode.Virtual => true
-      case _                     => false
     /** rank index → real-node ids (Strings), preserving left-to-right order. */
     def realOrder: Map[Int, Vector[String]] =
       order.view.mapValues(_.collect { case LayoutNode.Real(id) => id }).toMap
@@ -131,7 +128,8 @@ object Order:
             out(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
       g.nodes.foreach { nn => val s: LayoutNode = LayoutNode.Real(nn.id); if !done(s) then visit(s) }
       (g.nodes.map(n => LayoutNode.Real(n.id): LayoutNode) ++
-        rankOf.keysIterator.collect { case v: LayoutNode.Virtual => v }.toVector.sortBy(_.name))
+        rankOf.keysIterator.collect { case v: LayoutNode.Virtual => v }
+          .toVector.sortBy(v => (v.edgeIdx, v.rank)))
         .foreach(n => if !done(n) then { done += n; res += n }) // stable append for unreached
       res.toVector
 

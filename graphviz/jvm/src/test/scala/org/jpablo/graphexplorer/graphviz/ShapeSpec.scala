@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** Convex builtin polygon shapes (poly_init vertex generation + sizing).
@@ -13,7 +11,7 @@ import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
   *   - hexagon (6 sides), house (distortion −0.64), parallelogram (skew 0.6)
   */
 class ShapeSpec extends FunSuite:
-  private def g(n: String) = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
+  private def g(n: String) = OracleHarness.corpusGraph(n)
 
   private val shapes = List(
     "16-diamond", "17-triangle", "18-hexagon", "19-house", "20-parallelogram",

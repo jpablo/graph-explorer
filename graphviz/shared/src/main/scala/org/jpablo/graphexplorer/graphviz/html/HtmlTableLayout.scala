@@ -13,9 +13,9 @@ import scala.collection.mutable
   */
 object HtmlTableLayout:
 
-  private val CellSpacing = 2 // DEFAULT_CELLSPACING
-  private val CellPadding = 2 // DEFAULT_CELLPADDING
-  private val Border      = 1 // DEFAULT_BORDER
+  private val CellSpacing = HtmlTable.DefaultCellSpacing
+  private val CellPadding = HtmlTable.DefaultCellPadding
+  private val Border      = HtmlTable.DefaultBorder
 
   /** A box in table-local, y-up coordinates (origin = table centre). */
   final case class BoxLocal(llx: Double, lly: Double, urx: Double, ury: Double):

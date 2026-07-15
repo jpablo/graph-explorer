@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.Spline
 
 /** M5 exit gate: edge geometry is **visually close** to the `plain` golden.
@@ -51,7 +49,7 @@ class SplineSpec extends FunSuite:
   // longer collapse). 01/06/07 have unique (tail,head) ⇒ re-key for the
   // existing whole-drawing gates; 04's parallels get their own test below.
   private def ourEdges(name: String): Map[(String, String), Vector[(Double, Double)]] =
-    val g  = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    val g  = OracleHarness.corpusGraph(name)
     val sp = Spline.splines(g)
     g.edges.zipWithIndex.flatMap { case (e, ix) =>
       sp.get(ix).map(pts => (e.tail, e.head) -> pts.map(p => (p.x / 72.0, p.y / 72.0)))
@@ -140,7 +138,7 @@ class SplineSpec extends FunSuite:
   // Two parallel struct1→struct2 edges (f0→a, f2:s→b:n) keyed by edge index;
   // matched to the golden by start-point and gated on curve Hausdorff.
   test("04-ports-compass: both record-port edges within ε of the plain golden"):
-    val g  = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("04-ports-compass")).toOption.get)
+    val g  = OracleHarness.corpusGraph("04-ports-compass")
     val sp = Spline.splines(g)
     val ours = g.edges.indices.flatMap(ix =>
       sp.get(ix).map(_.map(p => (p.x / 72.0, p.y / 72.0)))
@@ -148,9 +146,6 @@ class SplineSpec extends FunSuite:
     assertEquals(ours.length, 2, s"04 should have 2 de-merged edges, got ${ours.length}")
     val gold = goldenEdgeList("04-ports-compass")
     assertEquals(gold.length, 2, "04 golden should list 2 edges")
-    // 04 is TB & unmirrored: the X axis must match directly (no mirror).
-    val nodeXs = NodeLine.findAllMatchIn(OracleHarness.golden("04-ports-compass", "plain"))
-      .map(_.group(2).toDouble).toVector
     // pair each golden edge with the nearest-start our edge (unambiguous:
     // f0 start x≈0.24in vs f2:s start x≈1.54in).
     gold.foreach { ge =>

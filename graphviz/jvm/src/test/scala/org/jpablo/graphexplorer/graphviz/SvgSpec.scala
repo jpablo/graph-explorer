@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.Svg
 
 /** M7 increment-2 exit gate: the `svg` string is well-formed and visually
@@ -20,7 +18,7 @@ class SvgSpec extends FunSuite:
   private val corpus = List("01-minimal", "06-undirected", "07-cross")
 
   private def ours(name: String): String =
-    Svg.svg(AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get))
+    Svg.svg(OracleHarness.corpusGraph(name))
 
   // whole node <g> block (any shape: ellipse OR record polygon+polylines)
   private val NodeGRe = """(?s)(<g id="node\d+" class="node">.*?</g>)""".r
@@ -49,9 +47,7 @@ class SvgSpec extends FunSuite:
     }.toMap
 
   private def hausdorff(a: Vector[(Double, Double)], b: Vector[(Double, Double)]): Double =
-    def dir(p: Vector[(Double, Double)], q: Vector[(Double, Double)]) =
-      p.iterator.map(x => q.iterator.map(y => math.hypot(x._1 - y._1, x._2 - y._2)).min).max
-    math.max(dir(a, b), dir(b, a))
+    OracleHarness.hausdorff(a, b)
 
   corpus.foreach { name =>
     test(s"$name: svg well-formed + visually close to the golden (mirror allowed)"):

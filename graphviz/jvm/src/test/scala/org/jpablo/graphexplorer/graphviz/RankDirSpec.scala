@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Rank, RankDir, XCoord}
 
 /** `rankdir = LR` (02) — **fully byte-exact end-to-end** (dot_json/json0/svg).
@@ -21,7 +19,7 @@ import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Rank, RankDir,
 class RankDirSpec extends FunSuite:
 
   private def g(name: String) =
-    AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    OracleHarness.corpusGraph(name)
 
   // ── §7 blocker (1) RESOLVED & locked: gv_nodesize(n, flip) ───────────────
   test("layoutSize: TB == nodeSize (byte-identical contract)"):

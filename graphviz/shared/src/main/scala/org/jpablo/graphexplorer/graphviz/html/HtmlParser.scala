@@ -249,10 +249,10 @@ object HtmlParser:
     def int(k: String, d: Int) = a.get(k).flatMap(_.toIntOption).getOrElse(d)
     HtmlTable(
       rows        = rows,
-      border      = int("border", 1),
+      border      = int("border", HtmlTable.DefaultBorder),
       cellborder  = a.get("cellborder").flatMap(_.toIntOption),
-      cellspacing = int("cellspacing", 2),
-      cellpadding = int("cellpadding", 2),
+      cellspacing = int("cellspacing", HtmlTable.DefaultCellSpacing),
+      cellpadding = int("cellpadding", HtmlTable.DefaultCellPadding),
       align       = alignOf(a).getOrElse(HtmlAlign.Center),
       attrs       = a,
       hrAfter     = hrAfter,

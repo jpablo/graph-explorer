@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.XCoord
 
 /** M4x exit gate: cross-axis X within ε of the `plain` golden.
@@ -15,22 +13,11 @@ import org.jpablo.graphexplorer.graphviz.layout.XCoord
   */
 class XCoordSpec extends FunSuite:
 
-  private val PlainNode =
-    """(?m)^node ("(?:[^"\\]|\\.)*"|\S+) (\S+) (\S+) """.r
-
-  private def unquote(s: String): String =
-    if s.startsWith("\"") && s.endsWith("\"") then
-      s.substring(1, s.length - 1).replace("\\\"", "\"").replace("\\\\", "\\")
-    else s
-
   private def goldenX(name: String): Map[String, Double] =
-    PlainNode
-      .findAllMatchIn(OracleHarness.golden(name, "plain"))
-      .map(m => unquote(m.group(1)) -> m.group(2).toDouble)
-      .toMap
+    OracleHarness.plainNodePositions(name).view.mapValues(_._1).toMap
 
   private def ourX(name: String): Map[String, Double] =
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    val g = OracleHarness.corpusGraph(name)
     XCoord.xCoords(g).view.mapValues(_.value / 72.0).toMap
 
   // ~2px abs / 5% rel to start (PORT.md §2.1); tighten once stable.

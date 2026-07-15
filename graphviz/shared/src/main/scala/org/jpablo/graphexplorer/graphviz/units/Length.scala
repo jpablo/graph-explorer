@@ -43,7 +43,6 @@ object Length:
     @targetName("mulPt")  inline def *(k: Double): Pt = x * k
     @targetName("divPt")  inline def /(k: Double): Pt = x / k
     @targetName("negPt")  inline def unary_- : Pt = -x
-    inline def toIn: In = x / PtPerIn
 
   extension (x: In)
     @targetName("inValue") inline def value: Double = x

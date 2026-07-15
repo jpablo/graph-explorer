@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** Shape-catalog build-out gate (the `1XX-*` corpus probes). Every gv 13.0.1
@@ -45,16 +43,11 @@ class ShapeCatalogSpec extends FunSuite:
   //   E SBOL bio   : 140-promoter … 159-lpromoter
 
   private def g(n: String) =
-    AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(n)).toOption.get)
-      .copy(images = OracleHarness.corpusImages(n))
+    OracleHarness.corpusGraph(n)
 
   done.foreach { n =>
-    test(s"$n: dot_json byte-exact"):
-      assertEquals(Output.dotJson(g(n)), OracleHarness.golden(n, "dot_json"))
-    test(s"$n: json0 byte-exact"):
-      assertEquals(Output.json0(g(n)), OracleHarness.golden(n, "json0"))
-    test(s"$n: svg byte-exact"):
-      assertEquals(Svg.svg(g(n)), OracleHarness.golden(n, "svg"))
+    test(s"$n: dot_json + json0 + svg byte-exact"):
+      OracleHarness.assertGoldenExact(n, g(n))
   }
 
 end ShapeCatalogSpec

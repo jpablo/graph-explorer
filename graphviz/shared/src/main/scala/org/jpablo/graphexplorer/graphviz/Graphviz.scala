@@ -63,5 +63,10 @@ object Graphviz:
           catch
             case e: Throwable =>
               failure(Vector(RenderError(Some("error"), Option(e.getMessage).getOrElse(e.toString))))
+          finally
+            // Every call parses a fresh RGraph, so the stage memos can never
+            // hit across calls — drop them so the last graph's full layout
+            // isn't pinned for the life of a long-lived (browser) session.
+            org.jpablo.graphexplorer.graphviz.layout.GraphMemo.clearAll()
 
 end Graphviz

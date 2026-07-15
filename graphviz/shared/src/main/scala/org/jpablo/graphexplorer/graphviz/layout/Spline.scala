@@ -32,18 +32,13 @@ import scala.collection.mutable
 object Spline:
 
   private val MINW        = 16.0           // dotsplines.c min box width
-  private val HALFMINW    = 8.0
   private val FUDGE        = 4.0           // maximal_bbox FUDGE
 
   /** 2D point in the layout coordinate system. The `x`/`y` fields are
     * raw Doubles for the in-kernel arithmetic (math.hypot, tuple math,
-    * box clipping), but Spline's external surface — the ESpline below —
-    * always carries pt-scale coordinates by construction. The `xPt` /
-    * `yPt` extensions document that contract at the type level for
-    * downstream consumers (Output.json0, Svg.svg). */
-  final case class XY(x: Double, y: Double):
-    inline def xPt: Pt = Pt(x)
-    inline def yPt: Pt = Pt(y)
+    * box clipping); Spline's external surface — the ESpline below —
+    * always carries pt-scale coordinates by construction. */
+  final case class XY(x: Double, y: Double)
 
   /** Installed edge spline: piecewise-cubic control points plus the arrow
     * attach points Graphviz records on the `bezier` struct — `ep` (head, set
@@ -86,13 +81,17 @@ object Spline:
     // makes that one floating division.) The 0.5pt matters: a cluster-wall
     // clamp `round(bb.urx + Splinesep)` lands at 82 vs 83 (162-cluster-style).
     val Splinesep   = (NodeSep.toInt / 4).toDouble
-    val VirtualHalf = 1.0 + NodeSep / 2.0
+    val VirtualHalf = Coord.virtualHalfPt(g)
     // The Order/XCoord migration to LayoutNode preserves all type-safety at
     // construction. Spline's internals stay String-keyed for its 50+ lookup
     // sites (no unit-mixing risk inside a pure-numerical kernel — see the
     // "type the boundaries, leave the kernels" principle in the Phase 3
     // Pt-flow commit). Convert at the consumption boundary:
     val allX: Map[String, Pt] = allXNode.iterator.map((k, v) => k.name -> v).toMap
+    // Reverse index of the same conversion: String key → the ORIGINAL typed
+    // node, so recovering a Virtual's owning edge is a lookup of the upstream
+    // value, not a re-parse of the name it was erased to.
+    val nodeOf: Map[String, LayoutNode] = allXNode.keysIterator.map(k => k.name -> k).toMap
     val orderByRank: Map[Int, Vector[String]] =
       res.order.view.mapValues(_.map(_.name)).toMap
     val rankOf       = orderByRank.iterator.flatMap { case (r, ids) => ids.map(_ -> r) }.toMap
@@ -120,9 +119,9 @@ object Spline:
           case (Some(a), Some(b)) => a == b
           case _                  => false
       }.toSet
-    def vHalf(id: String): Double = LayoutNode.fromName(id) match
-      case LayoutNode.Virtual(d, _) if intraVEdge(d) => 1.0
-      case _                                         => VirtualHalf
+    def vHalf(id: String): Double = nodeOf.get(id) match
+      case Some(LayoutNode.Virtual(d, _)) if intraVEdge(d) => 1.0
+      case _                                               => VirtualHalf
     def lw0(id: String): Double =
       if labelW.contains(id) then NodeSep
       else if isV(id) then vHalf(id)
@@ -177,9 +176,9 @@ object Spline:
     val cluOf  = if cluBBs.isEmpty then Map.empty[String, Int] else Cluster.clustOf(g)
     val dedges = g.edges.filter(e => e.tail != e.head)
     def origEnds(vname: String): Option[(String, String)] =
-      LayoutNode.fromName(vname) match
-        case LayoutNode.Virtual(d, _) => dedges.lift(d).map(e => (e.tail, e.head))
-        case _                        => None
+      nodeOf.get(vname) match
+        case Some(LayoutNode.Virtual(d, _)) => dedges.lift(d).map(e => (e.tail, e.head))
+        case _                              => None
     def clBound(n: String, adj: String): Option[Int] =
       if cluBBs.isEmpty then None
       else
@@ -314,7 +313,10 @@ object Spline:
     // of the node then down its go-left/right side: b0 (above the node from the
     // port height up), b (down the chosen side), bc (maximal_bbox clamped to the
     // side box's y). `portY` = the un-nudged cell-top world y.
-    val TopRankSep = 36.0 // DEFAULT_RANKSEP (box top only; not path-critical)
+    // GD_ranksep as dotsplines sees it (box top only; not path-critical) —
+    // derived, not the hardcoded 36.0 default, so non-default `ranksep` graphs
+    // stay faithful here too.
+    val TopRankSep = Coord.flatVspaceTopRank(g)
     def topBoxes(id: String, portY: Double, goLeft: Boolean, ownPath: Set[String]): Vector[Box] =
       val nb   = maximalBbox(id, ownPath)
       val ncx  = cx(id); val ncy = cy(id); val r = rankOf(id)
@@ -480,9 +482,9 @@ object Spline:
       if rt != rh then
         val lo = math.min(rt, rh)
         val hi = math.max(rt, rh)
-        // virtual chain ids for this declared edge (Order's __v{i}_{r} scheme)
+        // virtual chain ids for this declared edge (Order's Virtual scheme)
         val midRanks = (lo + 1 until hi).toVector
-        val mids     = midRanks.map(r => s"__v${i}_$r")
+        val mids     = midRanks.map(r => LayoutNode.Virtual(i, r).name)
         if mids.forall(m => rankOf.contains(m) && allX.contains(m)) then
           // path nodes top→bottom (rank lo .. hi)
           val low  = if rt < rh then e.tail else e.head

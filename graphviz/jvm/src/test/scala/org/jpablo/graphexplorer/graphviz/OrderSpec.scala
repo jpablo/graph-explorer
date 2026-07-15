@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.Order
 
 /** M3 exit gate: within-rank ordering / crossing minimisation.
@@ -55,7 +53,7 @@ class OrderSpec extends FunSuite:
       .map { case (_, grp) => grp.sortBy(withinAxis).map(_._1) }
 
   private def ourOrder(name: String): List[List[String]] =
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    val g = OracleHarness.corpusGraph(name)
     val r = Order.order(g)
     // Edge-label rank-doubling (rank.c edgelabel_ranks) interleaves empty
     // real-node ranks for the label vnodes; the oracle's position-recovered
@@ -64,7 +62,7 @@ class OrderSpec extends FunSuite:
     r.realOrder.toList.sortBy(_._1).map(_._2.toList).filter(_.nonEmpty)
 
   private def crossings(name: String): Long =
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    val g = OracleHarness.corpusGraph(name)
     Order.order(g).crossings
 
   // Whole corpus is per-rank-pair planar ⇒ oracle = 0 crossings everywhere.
@@ -89,8 +87,8 @@ class OrderSpec extends FunSuite:
     assertEquals(exp, List(List("a1", "a2", "a3"), List("b3", "b2", "b1")))
     assertEquals(our, exp, s"got $our")
 
-  test("03 clusters: ordering runs for all real nodes (exact match deferred to M6)"):
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("03-subgraph-cluster")).toOption.get)
+  test("03 clusters: ordering runs for all real nodes (03's own goldens are gv's bug; gated vs 03b in ClusterSpec)"):
+    val g = OracleHarness.corpusGraph("03-subgraph-cluster")
     val r = Order.order(g)
     assertEquals(r.realOrder.values.flatten.toSet, g.nodes.map(_.id).toSet)
 

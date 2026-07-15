@@ -1,8 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.dotlang.DotParser
-import org.jpablo.graphexplorer.graphviz.model.AttrResolver
 import org.jpablo.graphexplorer.graphviz.layout.Rank
 
 /** M2 exit gate: the ported cycle-break + rank assignment must reproduce the
@@ -50,7 +48,7 @@ class RankSpec extends FunSuite:
       .map { case (_, group) => group.map(_._1).toSet }
 
   private def ourPartition(name: String): List[Set[String]] =
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource(name)).toOption.get)
+    val g = OracleHarness.corpusGraph(name)
     Rank.assign(g).groupBy(_._2).toList.sortBy(_._1).map { case (_, m) => m.keySet }
 
   List("01-minimal", "02-attrs", "04-ports-compass", "05-strings-comments", "06-undirected")
@@ -65,7 +63,7 @@ class RankSpec extends FunSuite:
     assertEquals(ranks.head, Set("node one")) // back edge n3→"node one" reversed
 
   test("05: edge labels ⇒ edgelabel_ranks doubling (real ranks spaced by 2)"):
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("05-strings-comments")).toOption.get)
+    val g = OracleHarness.corpusGraph("05-strings-comments")
     assert(Rank.hasEdgeLabel(g), "05 has labelled edges")
     val r = Rank.assign(g)
     // node one=0, n2=2, n3=4 — `rank.c` edgelabel_ranks reserves an odd
@@ -74,20 +72,20 @@ class RankSpec extends FunSuite:
     // independently confirms Graphviz uses exactly this doubled structure.
     assertEquals(Set(r("node one"), r("n2"), r("n3")), Set(0, 2, 4))
     // contrast: 01 has no edge labels ⇒ unit rank spacing (no doubling).
-    val g1 = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("01-minimal")).toOption.get)
+    val g1 = OracleHarness.corpusGraph("01-minimal")
     assert(!Rank.hasEdgeLabel(g1))
     val r1 = Rank.assign(g1)
     assertEquals(Set(r1("a"), r1("b"), r1("c")), Set(0, 1, 2))
 
   test("06: undirected mesh ranks a<b<c<d after cycle breaking"):
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("06-undirected")).toOption.get)
+    val g = OracleHarness.corpusGraph("06-undirected")
     val r = Rank.assign(g)
     assert(r("a") < r("b"), r.toString)
     assert(r("b") < r("c"), r.toString)
     assert(r("c") < r("d"), r.toString)
 
-  test("03 clusters: ranks computed for all nodes (exact match deferred to M6)"):
-    val g = AttrResolver.resolve(DotParser.parse(OracleHarness.corpusSource("03-subgraph-cluster")).toOption.get)
+  test("03 clusters: ranks computed for all nodes (03's own goldens are gv's bug; gated vs 03b in ClusterSpec)"):
+    val g = OracleHarness.corpusGraph("03-subgraph-cluster")
     val r = Rank.assign(g)
     assertEquals(r.keySet, g.nodes.map(_.id).toSet)
     assertEquals(r("start"), 0) // only top-level source
