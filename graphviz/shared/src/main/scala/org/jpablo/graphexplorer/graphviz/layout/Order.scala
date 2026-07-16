@@ -25,6 +25,14 @@ import scala.collection.mutable
   */
 object Order:
 
+  /** Per-segment port view for port-aware mincross (mincross.c `VAL`,
+    * `in_cross`/`out_cross` ties, `local_cross`): each end's CANONICAL-frame
+    * port `p.x` plus the MC ordinal (`port.order`, shapes.c:2863). Default =
+    * gv's undefined port: p=(0,0) → order = MC_SCALE/2 = 128. */
+  final case class SegPorts(tailPX: Double, tailOrd: Int, headPX: Double, headOrd: Int) derives CanEqual
+  object SegPorts:
+    val default: SegPorts = SegPorts(0.0, 128, 0.0, 128)
+
   private val MaxIter     = 24    // mincross.c
   private val MinQuit     = 8
   private val Convergence = 0.995
@@ -84,6 +92,21 @@ object Order:
       g.edges.filter(e => e.tail != e.head).map(e => (e.tail, e.head))
     val byOrigTail: Map[String, Vector[Int]] =
       dedges.indices.toVector.groupBy(i => origEnds(i)._1)
+    // Canonical-frame ports per segment (mincross VAL / cross ties /
+    // local_cross): a chain's FIRST segment carries the working tail's port,
+    // the LAST the working head's; middles default. Reversed (acyclic)
+    // dedges swap ends wholesale, so the working tail port = the ORIGINAL
+    // head port (observed in gv: `node1->%0 px=40.80` for a reversed edge).
+    val byIdN = g.nodes.iterator.map(n => n.id -> n).toMap
+    val realEdges = g.edges.filter(e => e.tail != e.head)
+    val segPortsMap = mutable.HashMap.empty[(LayoutNode, LayoutNode), SegPorts]
+    def canonOf(nodeId: String, port: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]): (Double, Int) =
+      byIdN.get(nodeId) match
+        case Some(n) => val (px, _, ord) = PortAnchor.canonical(n, g, port); (px, ord)
+        case None    => (0.0, 128)
+    def recordSeg(t: LayoutNode, h: LayoutNode, sp: SegPorts): Unit =
+      if sp != SegPorts.default then segPortsMap((t, h)) = sp
+
     def emit(idx: Int): Unit =
       val e    = dedges(idx)
       curOwner = idx
@@ -91,8 +114,17 @@ object Order:
       val head = LayoutNode.Real(e.head)
       val rt = rankOf(tail)
       val rh = rankOf(head)
+      val re = realEdges(idx)
+      val reversed = e.tail != re.tail
+      val (wtPort, whPort) = if reversed then (re.headPort, re.tailPort) else (re.tailPort, re.headPort)
+      lazy val (wtPX, wtOrd) = canonOf(e.tail, wtPort)
+      lazy val (whPX, whOrd) = canonOf(e.head, whPort)
       if rh - rt <= 1 then
-        if rh != rt then connect(tail, head) else () // span 1 (skip flat span 0)
+        if rh != rt then
+          connect(tail, head)
+          if wtPort.isDefined || whPort.isDefined then
+            recordSeg(tail, head, SegPorts(wtPX, wtOrd, whPX, whOrd))
+        else () // span 1 (skip flat span 0)
       else
         var prev: LayoutNode = tail
         var r    = rt + 1
@@ -101,9 +133,13 @@ object Order:
           node(v)
           rankOf(v) = r
           connect(prev, v)
+          if r == rt + 1 && wtPort.isDefined then
+            recordSeg(tail, v, SegPorts(wtPX, wtOrd, 0.0, 128))
           prev = v
           r += 1
         connect(prev, head)
+        if whPort.isDefined then
+          recordSeg(prev, head, SegPorts(0.0, 128, whPX, whOrd))
     g.nodes.foreach { n =>
       byOrigTail.getOrElse(n.id, Vector.empty)
         .sortBy(i => (nodeSeq.getOrElse(origEnds(i)._2, Int.MaxValue), i))
@@ -135,7 +171,16 @@ object Order:
 
     val flip = Rank.flip(g)
     val (order, cross) =
-      if Cluster.clusters(g).isEmpty then runMincross(out, in, rankOf, gdNlist, flip)
+      if Cluster.clusters(g).isEmpty then
+        // ND_has_port: any edge (incl. self-loops) naming a port on the node.
+        val ported: Set[LayoutNode] =
+          g.edges.iterator.flatMap { e =>
+            (if e.tailPort.isDefined then Iterator(LayoutNode.Real(e.tail): LayoutNode) else Iterator.empty) ++
+              (if e.headPort.isDefined then Iterator(LayoutNode.Real(e.head): LayoutNode) else Iterator.empty)
+          }.toSet
+        runMincross(out, in, rankOf, gdNlist, flip,
+          segPorts = (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
+          hasPort  = ported.contains)
       else orderClustered(g, out, in, rankOf, flip)
     Result(rank0, order, cross, segs.toVector, segOwn.toVector)
 
@@ -491,7 +536,14 @@ object Order:
       /** `g == dot_root(g)`: only the root graph's build_ranks runs the tail
         * transpose (mincross.c:1343) — cluster interiors (mincross_clust,
         * startpass 2) never do. */
-      rootGraph:   Boolean = true
+      rootGraph:   Boolean = true,
+      /** Canonical-frame ports per SEGMENT (u,v) — feeds the median `VAL`,
+        * the in/out_cross order-ties and `local_cross`. Parallel segments
+        * share one entry (their ports coincide for duplicate DOT edges). */
+      segPorts:    (N, N) => SegPorts = (_: N, _: N) => SegPorts.default,
+      /** ND_has_port: some edge names a port on this node — gates the
+        * `local_cross` term of ncross (rcross, mincross.c:1626). */
+      hasPort:     N => Boolean = (_: N) => false
   )(using CanEqual[N, N]): (Map[Int, Vector[N]], Long) =
     val minR  = if rankOf.isEmpty then 0 else rankOf.values.min
     val maxR  = if rankOf.isEmpty then 0 else rankOf.values.max
@@ -557,7 +609,40 @@ object Order:
           j += 1
         i += 1
       c
-    def ncross: Long = (minR until maxR).iterator.map(bilayer).sum
+    // local_cross (mincross.c:1573): crossings among a SAME node's out (or
+    // in) edges caused by PORT ordering — (Δ far-order) · (Δ NEAR-side port
+    // p.x) < 0. rcross adds it for every ported node of the rank pair.
+    def localOut(v: N): Long =
+      val os = out.getOrElse(v, mutable.ArrayBuffer.empty)
+      var c = 0L; var i = 0
+      while i < os.length do
+        var j = i + 1
+        while j < os.length do
+          val e = os(i); val f = os(j)
+          if (pos(f) - pos(e)).sign * (segPorts(v, f).tailPX - segPorts(v, e).tailPX).sign < 0 then
+            c += weight(v, e) * weight(v, f)
+          j += 1
+        i += 1
+      c
+    def localIn(v: N): Long =
+      val is0 = in.getOrElse(v, mutable.ArrayBuffer.empty)
+      var c = 0L; var i = 0
+      while i < is0.length do
+        var j = i + 1
+        while j < is0.length do
+          val e = is0(i); val f = is0(j)
+          if (pos(f) - pos(e)).sign * (segPorts(f, v).headPX - segPorts(e, v).headPX).sign < 0 then
+            c += weight(e, v) * weight(f, v)
+          j += 1
+        i += 1
+      c
+    def ncross: Long =
+      (minR until maxR).iterator.map { r =>
+        var c = bilayer(r)
+        ranks.getOrElse(r, mutable.ArrayBuffer.empty).foreach(v => if hasPort(v) then c += localOut(v))
+        ranks.getOrElse(r + 1, mutable.ArrayBuffer.empty).foreach(v => if hasPort(v) then c += localIn(v))
+        c
+      }.sum
 
     def exchange(r: Int, i: Int, j: Int): Unit =
       val rb = ranks(r)
@@ -570,11 +655,16 @@ object Order:
     def medians(r0: Int, r1: Int): Unit =
       val rb = ranks.getOrElse(r0, mutable.ArrayBuffer.empty)
       rb.foreach { n =>
-        val nbrs = (if r1 > r0 then out(n) else in(n)).map(pos).sorted
+        // VAL(node, port) = MC_SCALE·ND_order + port.order (mincross.c:1709):
+        // the median list is INTEGER; the down pass keys each out-neighbour
+        // with the segment's HEAD port ordinal, the up pass with the TAIL's.
+        val nbrs =
+          (if r1 > r0 then out(n).map(w => 256 * pos(w) + segPorts(n, w).headOrd)
+           else in(n).map(x => 256 * pos(x) + segPorts(x, n).tailOrd)).sorted
         mval(n) = nbrs.length match
           case 0 => -1.0
           case 1 => nbrs(0).toDouble
-          case 2 => (nbrs(0) + nbrs(1)) / 2.0
+          case 2 => ((nbrs(0) + nbrs(1)) / 2).toDouble // C int division
           case j =>
             val rm = j / 2
             if j % 2 == 1 then nbrs(rm).toDouble
@@ -582,7 +672,7 @@ object Order:
               val lm    = rm - 1
               val rspan = nbrs(j - 1) - nbrs(rm)
               val lspan = nbrs(lm) - nbrs(0)
-              if lspan == rspan then (nbrs(lm) + nbrs(rm)) / 2.0
+              if lspan == rspan then ((nbrs(lm) + nbrs(rm)) / 2).toDouble // int div
               else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
       }
 
@@ -611,30 +701,53 @@ object Order:
     // ── transpose (adjacent swaps; in_cross/out_cross xpenalty products) ──
     def crossIn(v: N, w: N): Long = // in_cross(v, w): v's in-tails right of w's
       var c = 0L
-      in(v).foreach(x => in(w).foreach(y => if pos(x) > pos(y) then c += weight(x, v) * weight(y, w)))
+      in(v).foreach(x => in(w).foreach { y =>
+        // equal tail ORDER ties break on the tails' canonical port p.x
+        // (mincross.c:648): two record ports on one node still cross.
+        if pos(x) > pos(y) ||
+           (pos(x) == pos(y) && segPorts(x, v).tailPX > segPorts(y, w).tailPX) then
+          c += weight(x, v) * weight(y, w)
+      })
       c
     def crossOut(v: N, w: N): Long =
       var c = 0L
-      out(v).foreach(x => out(w).foreach(y => if pos(x) > pos(y) then c += weight(v, x) * weight(w, y)))
+      out(v).foreach(x => out(w).foreach { y =>
+        if pos(x) > pos(y) ||
+           (pos(x) == pos(y) && segPorts(v, x).headPX > segPorts(w, y).headPX) then
+          c += weight(v, x) * weight(w, y)
+      })
       c
-    def transposeStep(reverse: Boolean): Long =
+    // transpose (mincross.c:728): candidate flags — a sweep visits only
+    // flagged ranks; a swap re-flags the rank and its neighbours. The final
+    // orders can differ from an all-ranks sweep, so transcribe the flags.
+    val candidate = mutable.HashMap.from((minR to maxR).map(r => r -> true))
+    def transposeStep(r: Int, reverse: Boolean): Long =
       var delta = 0L
-      (minR to maxR).foreach { r =>
-        val rb = ranks(r)
-        var i = 0
-        while i < rb.length - 1 do
-          val v = rb(i); val w = rb(i + 1)
-          val c0 = crossIn(v, w) + crossOut(v, w)
-          val c1 = crossIn(w, v) + crossOut(w, v)
-          val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
-          if doSwap then
-            exchange(r, i, i + 1)
-            delta += c0 - c1
-          i += 1
-      }
+      candidate(r) = false
+      val rb = ranks(r)
+      var i = 0
+      while i < rb.length - 1 do
+        val v = rb(i); val w = rb(i + 1)
+        var c0 = 0L; var c1 = 0L
+        if r > minR then { c0 += crossIn(v, w); c1 += crossIn(w, v) }
+        if r < maxR && ranks(r + 1).nonEmpty then { c0 += crossOut(v, w); c1 += crossOut(w, v) }
+        val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
+        if doSwap then
+          exchange(r, i, i + 1)
+          delta += c0 - c1
+          candidate(r) = true
+          if r > minR then candidate(r - 1) = true
+          if r < maxR then candidate(r + 1) = true
+        i += 1
       delta
     def transpose(reverse: Boolean): Unit =
-      while transposeStep(reverse) >= 1 do ()
+      (minR to maxR).foreach(r => candidate(r) = true)
+      var delta = 0L
+      while {
+        delta = 0L
+        (minR to maxR).foreach(r => if candidate(r) then delta += transposeStep(r, reverse))
+        delta >= 1
+      } do ()
 
     def mincrossStep(pass: Int): Unit =
       val reverse = pass % 4 < 2

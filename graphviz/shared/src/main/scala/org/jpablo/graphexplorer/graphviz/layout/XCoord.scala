@@ -190,11 +190,9 @@ object XCoord:
     // Portless edges ⇒ both ports x=0 ⇒ m0=0 ⇒ (1,1): byte-identical.
     val realEdges = g.edges.filter(e => e.tail != e.head)
     def portX(nodeId: String, port: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]): Double =
-      (for
-        p <- port
-        n <- byId.get(nodeId)
-        a <- PortAnchor.resolve(n, g, p.name.map(_.value).filter(_.nonEmpty), p.compass)
-      yield a.x.value).getOrElse(0.0)
+      // ED_*_port.p is stored in the CANONICAL frame (cwrotatepf, shapes.c) —
+      // for LR a record field's vertical offset becomes the canonical x.
+      byId.get(nodeId).map(n => PortAnchor.canonical(n, g, port)._1).getOrElse(0.0)
     // gv make_edge_pairs iterates GD_nlist (decompose order); per node, per
     // out-segment (ND_save_out order = segment index), it creates a slack node
     // and two straightening edges. This order — NOT segment order — is what the

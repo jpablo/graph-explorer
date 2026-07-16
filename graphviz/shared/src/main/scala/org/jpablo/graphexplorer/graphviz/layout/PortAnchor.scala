@@ -23,6 +23,32 @@ import org.jpablo.graphexplorer.graphviz.units.Length.Pt
   */
 object PortAnchor:
 
+  /** The port point as gv STORES it (shapes.c:2854): the true-frame anchor
+    * `cwrotatepf`-rotated by `rankdir·90` into the CANONICAL frame, plus the
+    * mincross ordinal `port.order` — `MC_SCALE/2` (128) at the origin, else
+    * `(int)(MC_SCALE · angle/2π)` with 0 at the north pole increasing CCW.
+    * Undefined ports get (0, 0) → (0.0, 128), matching gv's default port. */
+  def canonical(n: RNode, g: RGraph,
+                port: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]): (Double, Double, Int) =
+    val a = port.flatMap(pp => resolve(n, g, pp.name.map(_.value).filter(_.nonEmpty), pp.compass))
+    a match
+      case None => (0.0, 0.0, 128)
+      case Some(anch) =>
+        val (tx, ty) = (anch.x.value, anch.y.value)
+        val (px, py) = Rank.rankdir(g) match
+          case RankDir.TB => (tx, ty)
+          case RankDir.LR => (ty, -tx)  // cwrotatepf 90
+          case RankDir.BT => (tx, -ty)  // 180
+          case RankDir.RL => (ty, tx)   // 270
+        val ord =
+          if px == 0.0 && py == 0.0 then 128 // MC_SCALE/2
+          else
+            var ang = math.atan2(py, px) + 1.5 * math.Pi
+            if ang >= 2.0 * math.Pi then ang -= 2.0 * math.Pi
+            (256.0 * ang / (2.0 * math.Pi)).toInt
+        (px, py, ord)
+
+
   final case class Anchor(
       x: Pt, y: Pt,                // node-local points (centre origin, y-up)
       clip: Boolean,               // spline clipped to the field box

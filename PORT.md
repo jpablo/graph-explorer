@@ -2229,4 +2229,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   `labelWidth − stepx` after a labelled loop. (5) self-edge labels get
   `lp = (n.x + dx + width/2, n.y)` — fsm's S(a)/S(b). gv worktree
   reverted; corpus 137/138 + examples + 693/52 green.
+- **2026-07-16 (later still)** — **Port-aware mincross transcribed** (the
+  ds/sbt chase, task #61 part 1): dot's crossing machinery SEES record/cell
+  ports — (1) `medians` keys neighbours by `VAL = MC_SCALE·order +
+  port.order` (the angular ordinal shapes.c:2863 stores; 128 for portless)
+  with gv's INT arithmetic (case-2 and equal-span medians use C int
+  division); (2) `in_cross`/`out_cross` break equal-order ties on the
+  tails'/heads' CANONICAL port p.x; (3) `ncross` adds `local_cross` — 
+  crossings among one ported node's own edges from port ordering; (4)
+  `transpose` uses gv's candidate-rank flags; (5) ports are stored
+  CW-ROTATED into the canonical frame (`cwrotatepf(p, 90·rankdir)`) — 
+  `PortAnchor.canonical` is the single home, and `XCoord.portX` now uses it
+  (its true-frame x was a latent LR bug). Per-segment ports: a chain's
+  first/last segment carries the working tail's/head's port (reversed
+  dedges swap ends). Verified with MCTRACE probes: our build_ranks +
+  every mincross iteration now match gv EXACTLY on data-structures
+  (crossings included, cross=5 init). ds is down to ONE rigid −7 aux
+  subtree; corpus 137/138 + examples + 693/52 green throughout; gv
+  worktree pristine.
 - _(append dated entries as milestones land)_

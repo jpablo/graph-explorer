@@ -31,13 +31,15 @@ class ExamplesByteExactSpec extends FunSuite:
     *   inflation in the aux solve + bbox; edgecmp routing order; the
     *   UNSHIFTED raw solve frame (round() isn't translation-invariant);
     *   accumulated selfRight loops + self-edge label lp.]
-    *   - data-structures — ONE rank's within-rank order differs
-    *     (golden [node12,node11,node9,node7] vs ours [node11,node12,node7,
-    *     node9]): a mincross divergence (records + LR); X follows the order.
-    *     (Sizing + record rects already fixed.)
-    *   - sbt-project-dependencies — 9/14 ranks order differently: mincross
-    *     with duplicate/parallel edges (the file declares some edges 2-3×).
-    *     Heights now byte-correct (50pt) after size_html_txt.
+    *   - data-structures — mincross ORDER now matches gv exactly (the
+    *     port-aware mincross transcription: VAL port ordinals, in/out_cross
+    *     port ties, local_cross in ncross, transpose candidates). Remaining:
+    *     ONE aux-solve subtree sits rigidly −7 canonical-x (all nodes except
+    *     node5/node10/the V16 chain) — one make_edge_pairs/balance constraint
+    *     to pin via a gv aux-edge dump.
+    *   - sbt-project-dependencies — within-rank order still differs
+    *     (duplicate/parallel edges declared 2-3×); re-triage with the
+    *     mincross trace now that the port machinery is in.
     * CLOSED 2026-07-16 (same session, in order):
     *   - unsupported/multiple-edges-with-commas — cgraph nodelist grammar
     *     (`nodelist : node | nodelist ',' node`) ported + edge endpoints
