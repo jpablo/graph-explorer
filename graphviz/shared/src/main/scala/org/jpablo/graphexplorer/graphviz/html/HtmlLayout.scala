@@ -32,12 +32,59 @@ object HtmlLayout:
       val h = span.items.map(itemSize(_, baseSize)).max
       (w, h)
 
-  /** Text-block box: width = widest line, height = Σ line heights. */
+  /** One laid-out text line: width, its height contribution (`lsize`) and the
+    * baseline advance from the previous baseline (`lfsize`). */
+  final case class HtmlLine(width: Double, lsize: Double, lfsize: Double) derives CanEqual
+  /** `size_html_txt`'s full result: box + per-line baselines + the `simple`
+    * flag (which also picks the emit-side `yoffset_centerline`). */
+  final case class HtmlTextLayout(width: Double, height: Double, simple: Boolean,
+                                  lines: Vector[HtmlLine]) derives CanEqual
+
+  /** Full `size_html_txt` (htmltable.c:932) transcription.
+    *
+    * `simple` (≤1 item per line, no style flags, uniform font) keeps the
+    * familiar LINESPACING line heights; a NON-simple block (any `<B>`/mixed
+    * fonts…) uses the RAW max font size per line (`lsize = mxfsize`) — 3
+    * lines at 14pt are 42pt tall, not 50.4 — with baselines advanced by
+    * `mxfsize − maxoffset` (first) / `mxfsize + ysize − curbline − maxoffset`.
+    * A single-line block is always `mxysize` tall. `maxoffset` = the
+    * textspan `yoffset_centerline` = 0.1·fontsize (textspan.c:43). */
+  def textLayout(block: HtmlText, baseSize: Double, baseName: String): HtmlTextLayout =
+    val spans = block.spans
+    def flagged(f: HtmlFont): Boolean =
+      f.bold || f.italic || f.underline || f.strike || f.sub || f.sup
+    val allItems = spans.flatMap(_.items)
+    val simple =
+      spans.forall(_.items.sizeIs <= 1) && allItems.forall(it => !flagged(it.font)) &&
+        allItems.map(it => (it.font.size.getOrElse(baseSize), it.font.name.getOrElse(baseName)))
+          .distinct.sizeIs <= 1
+    var ysize    = 0.0
+    var curbline = 0.0
+    var xsize    = 0.0
+    var firstMxy = 0.0
+    val lines = Vector.newBuilder[HtmlLine]
+    spans.zipWithIndex.foreach { (sp, i) =>
+      val width     = sp.items.map(itemWidth(_, baseSize, baseName)).sum
+      val mxfsize   = sp.items.map(it => it.font.size.getOrElse(baseSize)).maxOption.getOrElse(0.0)
+      val mxysize   = sp.items.map(it => it.font.size.getOrElse(baseSize) * LineSpacing).maxOption.getOrElse(0.0)
+      val maxoffset = sp.items.map(it => 0.1 * it.font.size.getOrElse(baseSize)).maxOption.getOrElse(0.0)
+      if i == 0 then firstMxy = mxysize
+      val (lsize, lfsize) =
+        if simple then (mxysize, if i == 0 then mxfsize else mxysize)
+        else (mxfsize, if i == 0 then mxfsize - maxoffset
+                       else mxfsize + ysize - curbline - maxoffset)
+      curbline += lfsize
+      ysize += lsize
+      xsize = math.max(xsize, width)
+      lines += HtmlLine(width, lsize, lfsize)
+    }
+    val height = if spans.length == 1 then firstMxy else ysize
+    HtmlTextLayout(xsize, height, simple, lines.result())
+
+  /** Text-block box (width = widest line; height per [[textLayout]]). */
   def textSize(block: HtmlText, baseSize: Double, baseName: String): (Double, Double) =
-    val ls     = block.spans.map(lineMetrics(_, baseSize, baseName))
-    val width  = ls.map(_._1).maxOption.getOrElse(0.0)
-    val height = ls.map(_._2).sum
-    (width, height)
+    val t = textLayout(block, baseSize, baseName)
+    (t.width, t.height)
 
   /** Overall content box for a label (text, table, or image). An image's box is
     * its drawn size (natural × 72/96); an unknown `src` (no dimensions given)

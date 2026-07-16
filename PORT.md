@@ -2168,4 +2168,28 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   divergence; sbt = node heights 50 vs 58.4pt (font-list sizing);
   data-structures = record `rects` malformed under LR. Deferral notes
   updated in ExamplesByteExactSpec.
+- **2026-07-16** — **Example-gate sweep: commas + logo + html CLOSED (5/8
+  examples byte-exact), plus the full `size_html_txt` transcription.** Root
+  causes, in order: (1) cgraph `nodelist` grammar (`a, b, c` statements +
+  comma edge endpoints) + edge endpoints declare their node in textual
+  order (appendnode); (2) `constraint=false` edges excluded from the
+  ranking graph; (3) `Rank.acyclic` iterates out-edges in `agfstout` order
+  — the long-documented open audit; closed fsm's rank mirrors too; (4)
+  flat edges clip in the ORDER-normalized working direction (`swap_ends_p`
+  within-rank tie-break); (5) `arrowhead=none` ⇒ no trim/`ep`; (6) the
+  clip outline is penwidth-inflated (`poly_init` outline ring); (7) svg:
+  `pad` attr, `bgcolor` canvas, lowercased hex colors, node/edge
+  `stroke-width`, invis edges emit comment-only; (8) the svg HTML renderer
+  hardcoded FontSize/Times while sizing honored the node font — the
+  user-reported oversized-tasks html bug; (9) **size_html_txt transcribed
+  in full**: non-`simple` blocks (any style flag/mixed fonts) use RAW max
+  font size per line (not ×LINESPACING), baselines advance by `lfsize`,
+  single-span blocks are `mxysize` tall, and the emitter places text at
+  `−(baseline + yoffset_centerline)` with the non-simple constant 1 —
+  fixed sbt's 36 node heights (50 vs 58.4pt).
+  **Remaining (deferred, fails-when-fixed):** fsm = pure XCoord aux
+  divergence (order identical, 3 nodes −18/−35 in canonical X; LR + edge
+  labels); data-structures (1 rank) + sbt (9 ranks) = mincross
+  within-rank-order divergences (records/duplicate parallel edges).
+  Corpus 137/138 untouched throughout.
 - _(append dated entries as milestones land)_

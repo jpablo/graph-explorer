@@ -363,32 +363,20 @@ object Svg:
                  defAlign: org.jpablo.graphexplorer.graphviz.html.HtmlAlign,
                  baseSize: Double, baseName: String): String =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlLayout, HtmlAlign}
-      val out   = new StringBuilder
-      val lines = block.spans.map(sp => (sp, HtmlLayout.lineMetrics(sp, baseSize, baseName)))
-      // Justify lines within `alignWidth` (the cell content area, or the text
-      // box itself for a standalone label); each span's own align wins over the
-      // inherited default.
-      val boxW  = alignWidth
-      val boxH  = lines.map(_._2._2).sum
-      // `simple` (size_html_txt): ≤1 item/span, no style flags, uniform font.
-      // Non-simple sets yoffset_centerline=1 uniformly (emit_htextspans), which
-      // lands each baseline 1pt lower than the simple/quoted-label placement.
-      val allItems = block.spans.flatMap(_.items)
-      def flagged(f: org.jpablo.graphexplorer.graphviz.html.HtmlFont): Boolean =
-        f.bold || f.italic || f.underline || f.strike || f.sub || f.sup
-      val simple = block.spans.forall(_.items.sizeIs <= 1) && allItems.forall(it => !flagged(it.font)) &&
-        allItems.map(it => (it.font.size, it.font.name)).distinct.sizeIs <= 1
-      val yFix = if simple then 0.0 else 1.0
-      // Block centred at cyc (world y-up). Each line's centre y descends by its
-      // own height; the baseline is that centre offset like a quoted label.
-      var lineTop = cyc + boxH / 2.0
-      lines.foreach { case (sp, (lineW, lineH)) =>
-        val lineCy = lineTop - lineH / 2.0
-        val ty     = -(lineCy + lineH / 2.0 - baseSize + 0.1 * baseSize) - yFix
+      val out = new StringBuilder
+      // emit_htextspans (htmltable.c:116): the baseline cursor starts at the
+      // box TOP and advances by each line's `lfsize`; the svg y is
+      // −(baseline + yoffset_centerline) with yoffset = 0.1·fontsize for a
+      // `simple` block and the constant 1 otherwise (svg_textspan adds it).
+      val tm   = HtmlLayout.textLayout(block, baseSize, baseName)
+      val boxW = alignWidth
+      var baseline = cyc + tm.height / 2.0
+      block.spans.zip(tm.lines).foreach { (sp, ln) =>
+        baseline -= ln.lfsize
         val x0 = sp.align.getOrElse(defAlign) match
           case HtmlAlign.Left  => cx - boxW / 2.0
-          case HtmlAlign.Right => cx + boxW / 2.0 - lineW
-          case _               => cx - lineW / 2.0
+          case HtmlAlign.Right => cx + boxW / 2.0 - ln.width
+          case _               => cx - ln.width / 2.0
         var xi = x0
         sp.items.foreach { it =>
           val fs   = it.font.size.getOrElse(baseSize)
@@ -404,10 +392,11 @@ object Svg:
           val col  = it.font.color.orElse(Option(defColor).filter(_.nonEmpty))
           val f    = col.map(c => s""" fill="$c"""").getOrElse("")
           val dec  = if it.font.underline then " text-decoration=\"underline\"" else ""
+          val yoffC = if tm.simple then 0.1 * fs else 1.0
+          val ty    = -(baseline + yoffC)
           out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}"${svgFontAttrs(nm)}$wgt$sty$bsh font-size="${f"$fs%.2f"}"$f$dec>${xml(it.str)}</text>\n"""
           xi += w
         }
-        lineTop -= lineH
       }
       out.toString
 

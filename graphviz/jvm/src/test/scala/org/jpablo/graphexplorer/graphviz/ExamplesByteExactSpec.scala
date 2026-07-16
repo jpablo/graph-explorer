@@ -23,21 +23,21 @@ import java.io.File
   */
 class ExamplesByteExactSpec extends FunSuite:
 
-  /** Known divergences (each guarded fails-when-fixed below). Re-triaged
-    * 2026-07-16 with json0 diffs (the first dot_json-only triage blamed
-    * everything on the bb line — dot_json carries no positions; don't repeat
-    * that mistake). The translate_bb/canonical-bb transcription (GraphBB)
-    * closed the bb *mechanism*; what remains per example is:
-    *   - finite-state-machine — LR + edge labels: several node positions
-    *     genuinely differ (canonical-X / ordering divergence, e.g. golden
-    *     327.73,178.03 has no counterpart at ours). Needs an instrumented
-    *     XCoord/mincross chase on LR+edgelabel graphs.
-    *   - sbt-project-dependencies — 36 nodes sized height 0.69444in (50pt,
-    *     golden) vs 0.81111in (58.4pt, ours): node sizing with the
-    *     "Helvetica,Arial,sans-serif" font list + multi-line labels.
-    *   - data-structures — record `rects` under LR come out malformed
-    *     (x1 > x2, e.g. ours "35.551,226.35,8.3508,297.45") and record y
-    *     positions shift: the record-rect rankdir transform is wrong.
+  /** Known divergences (each guarded fails-when-fixed below). Third triage
+    * 2026-07-16 (position-recovered rank orderings): every remaining gap is
+    * layout-ORDER/X, all sizes byte-correct after the size_html_txt
+    * transcription:
+    *   - finite-state-machine — within-rank ORDER IDENTICAL to gv; three
+    *     nodes' canonical-X differ (LR_7/LR_8 −18 = nodesep, LR_4 −35).
+    *     Pure XCoord aux-graph divergence on an LR + edge-label graph —
+    *     needs the instrumented-gv xcoord dump (task #46 methodology).
+    *   - data-structures — ONE rank's within-rank order differs
+    *     (golden [node12,node11,node9,node7] vs ours [node11,node12,node7,
+    *     node9]): a mincross divergence (records + LR); X follows the order.
+    *     (Sizing + record rects already fixed.)
+    *   - sbt-project-dependencies — 9/14 ranks order differently: mincross
+    *     with duplicate/parallel edges (the file declares some edges 2-3×).
+    *     Heights now byte-correct (50pt) after size_html_txt.
     * CLOSED 2026-07-16 (same session, in order):
     *   - unsupported/multiple-edges-with-commas — cgraph nodelist grammar
     *     (`nodelist : node | nodelist ',' node`) ported + edge endpoints
