@@ -29,11 +29,6 @@ The current worklist (kept in sync with the session task tracker; the
 fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
 enforce the deferral halves of it):
 
-- **fsm XCoord aux divergence (LR + edge labels)** — `finite-state-machine`:
-  within-rank order matches gv exactly; three nodes (`LR_7`/`LR_8` −18 =
-  nodesep, `LR_4` −35) differ in canonical X. A `make_LR_constraints`
-  aux-graph divergence. Method: instrumented-gv xcoord dump (as in the
-  95-cluster-chains chase), diff vs `XCoord.xSolve`, port the delta.
 - **mincross within-rank order (data-structures + sbt)** —
   `data-structures` (1 rank: golden `[node12,node11,node9,node7]` vs ours
   `[node11,node12,node7,node9]`) and `sbt-project-dependencies` (9/14
@@ -2213,4 +2208,25 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   labels); data-structures (1 rank) + sbt (9 ranks) = mincross
   within-rank-order divergences (records/duplicate parallel edges).
   Corpus 137/138 untouched throughout.
+- **2026-07-16 (later)** — **fsm CLOSED (6/8 examples byte-exact): five
+  transcriptions, one deep one.** (1) `make_LR_constraints` inflates a
+  self-looped node's `ND_rw` by Σ `selfRightSpace` (18 + flip-aware label
+  width) BEFORE the aux x solve, parking the original in `ND_mval` —
+  XCoord/GraphBB now do the same (fsm's −18/−35 canonical-X gaps).
+  (2) `dot_splines_` routes edges in `edgecmp` order (type desc, |Δrank|,
+  |Δx|, AGSEQ) — recover_slack's in-flight vnode moves make the order
+  load-bearing. (3) **The canonical x frame must be gv's RAW aux-solve
+  ranks** (integers, unnormalized): our old normalization shifted by a
+  FRACTIONAL amount (leftmost real's `x − lw`), and `maximal_bbox`'s
+  `round()` is not translation-invariant — every spline-phase rounding
+  landed on a different lattice, cascading 0.033pt drifts through
+  recover_slack. Found by instrumented-gv `[x]`/`[bx]`/`[rs]` probes: the
+  static solves were IDENTICAL up to the shift; the first divergent box
+  bound was `round(128.033)` vs `round(19.000)`. The unit specs
+  (XCoordSpec/SplineSpec/RankSameSpec) now translate by the canonical bb
+  before comparing against the (post-translation) plain goldens.
+  (4) `selfRight` accumulates dx across a node's loops and bumps by
+  `labelWidth − stepx` after a labelled loop. (5) self-edge labels get
+  `lp = (n.x + dx + width/2, n.y)` — fsm's S(a)/S(b). gv worktree
+  reverted; corpus 137/138 + examples + 693/52 green.
 - _(append dated entries as milestones land)_

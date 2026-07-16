@@ -46,6 +46,47 @@ object Coord:
     * (class2.c plain_vnode). Shared by [[XCoord]] and [[Spline]]. */
   def virtualHalfPt(g: RGraph): Double = 1.0 + nodeSepPt(g) / 2.0
 
+  /** `selfRightSpace(e)` (splines.c:1146): the extra RIGHT-side space a
+    * self-edge needs — `SELF_EDGE_SIZE` (18) plus its label width (`dimen.y`
+    * under flip), unless a port routes it away from the right (any LEFT-side
+    * port, or both ports on the same TOP/BOTTOM side). `make_LR_constraints`
+    * (position.c:264) inflates `ND_rw` by the SUM over a node's self-edges
+    * before the x solve (the original rw is parked in `ND_mval`), and
+    * `dot_compute_bb` sees the inflated value too. */
+  private def portSides(p: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]): Int =
+    // gv side bits from the compass point: n=TOP s=BOTTOM e=RIGHT w=LEFT.
+    val TOP = 1; val BOTTOM = 2; val LEFT = 4; val RIGHT = 8
+    p.flatMap(_.compass).map(_.toString.toLowerCase).map { c =>
+      var s = 0
+      if c.startsWith("n") then s |= TOP
+      if c.startsWith("s") then s |= BOTTOM
+      if c.endsWith("e") then s |= RIGHT
+      if c.endsWith("w") then s |= LEFT
+      s
+    }.getOrElse(0)
+
+  def selfRightSpace(e: REdge, g: RGraph): Double =
+    val TOP = 1; val BOTTOM = 2; val LEFT = 4
+    val ts = portSides(e.tailPort); val hs = portSides(e.headPort)
+    val portless = e.tailPort.isEmpty && e.headPort.isEmpty
+    val onRight = portless ||
+      ((ts & LEFT) == 0 && (hs & LEFT) == 0 &&
+        (ts != hs || (ts & (TOP | BOTTOM)) == 0))
+    if !onRight then 0.0
+    else
+      val lbl = e.attrs.get("label").filter(_.nonEmpty).map { _ =>
+        val (w, h) = edgeLabelDim(e, g)
+        if Rank.flip(g) then h else w
+      }.getOrElse(0.0)
+      18.0 + lbl // SELF_EDGE_SIZE
+
+  /** Σ selfRightSpace over a node's self-edges — the `ND_rw` inflation the
+    * whole position phase (aux x solve + graph bbox) sees. */
+  def selfRightSpaceOf(g: RGraph, nodeId: String): Double =
+    g.edges.iterator
+      .filter(e => e.tail == nodeId && e.head == nodeId)
+      .map(selfRightSpace(_, g)).sum
+
   /** `GD_ranksep` base (input.c): `POINTS(max(0.02, %lf) | 0.5)`. Default 36pt. */
   private def rankSepBasePt(g: RGraph): Double =
     val v = g.rootAttrs.get("ranksep").flatMap(leadingDouble) match

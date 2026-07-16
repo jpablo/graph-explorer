@@ -83,12 +83,12 @@ object GraphBB:
     var minX = Double.MaxValue; var maxX = Double.MinValue
     var minY = Double.MaxValue; var maxY = Double.MinValue
     val xs = XCoord.xCoords(g)
-    // selfRightSpace: no-port self-edges reserve SELF_EDGE_SIZE on the
-    // right (the port/label-bearing cases are deferred — no corpus).
-    // One O(E) count map instead of an O(E) scan per node.
-    val selfLoops: Map[String, Int] =
-      g.edges.filter(e => e.tail == e.head && e.tailPort.isEmpty && e.headPort.isEmpty)
-        .groupBy(_.tail).view.mapValues(_.size).toMap
+    // selfRightSpace: self-edges reserve SELF_EDGE_SIZE (+ label width, port
+    // sides permitting) on the right — dot_compute_bb reads the ND_rw that
+    // make_LR_constraints inflated. One O(E) map, shared formula with XCoord.
+    val selfLoops: Map[String, Double] =
+      g.edges.filter(e => e.tail == e.head).groupBy(_.tail).view
+        .mapValues(_.map(Coord.selfRightSpace(_, g)).sum).toMap
     g.nodes.foreach { n =>
       // layoutSize, NOT nodeSize: dot_compute_bb reads ND_lw/ND_rw/GD_ht1 —
       // the CANONICAL-frame (swapped for LR/RL) extents. Identical for
@@ -97,7 +97,7 @@ object GraphBB:
       for xPt <- xs.get(n.id); sz <- NodeSize.layoutSize(n, g) do
         val x  = xPt.value
         val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
-        val selfW = selfLoops.getOrElse(n.id, 0) * SelfEdgeSize
+        val selfW = selfLoops.getOrElse(n.id, 0.0)
         val y  = yOf(ranks(n.id)).value
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)

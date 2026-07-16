@@ -90,11 +90,19 @@ object XCoord:
     // rw=labelWidth; every other node is symmetric (lw=rw=half) so this is
     // identical to `half` unless a label vnode is involved.
     val labelW = Coord.labelVnodeWidths(g)
+    // make_LR_constraints (position.c:251): a self-looped node's ND_rw is
+    // inflated by Σ selfRightSpace BEFORE the aux solve (the original rw is
+    // parked in ND_mval) — the loop + its label reserve space on the right,
+    // pushing everything after it in the rank (fsm's LR_4/LR_7/LR_8).
+    val selfRw: Map[String, Double] =
+      g.edges.filter(e => e.tail == e.head).groupBy(_.tail).view
+        .mapValues(_.map(Coord.selfRightSpace(_, g)).sum).toMap
     def lw(n: LayoutNode): Double = n match
       case v: LayoutNode.Virtual if labelW.contains(v.name) => NodeSep
       case _                                                => half(n)
     def rw(n: LayoutNode): Double = n match
       case v: LayoutNode.Virtual if labelW.contains(v.name) => labelW(v.name)
+      case LayoutNode.Real(id) if selfRw.contains(id)       => half(n) + selfRw(id)
       case _                                                => half(n)
 
     // virtual_weight() (mincross.c): aux edge-pair weight = ω·edgeweight
@@ -376,17 +384,15 @@ object XCoord:
     // identities so the round-trip is exact).
     val xrByNode: Map[LayoutNode, Int] = nodeOrder.iterator.map(n => n -> xr(n.name)).toMap
 
-    // shift so the bbox origin sits at 0. gv's `dot_compute_bb` left bound is
-    // the leftmost **NORMAL** node's `x − lw` (virtual chain nodes are skipped)
-    // — a reversed min/max chain can park a vnode left of every real node, so
-    // shifting by all-node min would offset the whole drawing. Restrict to
-    // real nodes (+ cluster left borders − CL_OFFSET).
+    // NO normalization: gv's canonical x coords ARE the raw aux-solve ranks
+    // (integers, possibly negative) — the drawing reaches the origin only at
+    // postproc, via GD_bb (our writers' dx = −bb.LL / DrawTransform Offset).
+    // The old shift here (leftmost real's `x − lw`) was FRACTIONAL (node
+    // half-widths like 33.033), and `maximal_bbox`'s round() is not
+    // translation-invariant — every spline-phase rounding landed on a
+    // different lattice than gv's (fsm's cascading 0.033pt drifts).
     val placed: Vector[LayoutNode] = res.order.values.flatten.toVector
-    var shift  = placed.iterator.collect { case r: LayoutNode.Real => xrByNode(r).toDouble - half(r) }
-      .minOption.getOrElse(0.0)
-    cluInfos.indices.foreach { i =>
-      shift = math.min(shift, xrByNode(LayoutNode.ClusterLn(i)).toDouble - 8.0)
-    }
+    val shift  = 0.0
     val allX = placed.iterator.map(id => id -> Pt(xrByNode(id).toDouble - shift)).toMap
     val clB  = cluInfos.indices.map { i =>
       (xrByNode(LayoutNode.ClusterLn(i)).toDouble - shift,

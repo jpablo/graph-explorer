@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.layout.XCoord
+import org.jpablo.graphexplorer.graphviz.layout.{GraphBB, XCoord}
 
 /** M4x exit gate: cross-axis X within ε of the `plain` golden.
   *
@@ -18,7 +18,10 @@ class XCoordSpec extends FunSuite:
 
   private def ourX(name: String): Map[String, Double] =
     val g = OracleHarness.corpusGraph(name)
-    XCoord.xCoords(g).view.mapValues(_.value / 72.0).toMap
+    // the solve is gv's RAW (untranslated) frame; `plain` goldens are
+    // post-translation — shift by the canonical bb LL like the writers do.
+    val dx = GraphBB.bbox(g)._1.value
+    XCoord.xCoords(g).view.mapValues(v => (v.value - dx) / 72.0).toMap
 
   // ~2px abs / 5% rel to start (PORT.md §2.1); tighten once stable.
   private val tol = OracleHarness.Tol(abs = 0.03, rel = 0.05)

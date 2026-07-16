@@ -19,7 +19,10 @@ class RankSameSpec extends FunSuite:
 
   test("11: node positions byte-exact vs the plain golden"):
     val gr = g("11-ranksame"); val ranks = Rank.assign(gr)
-    val (_, yOf) = Coord.rankY(gr); val xs = XCoord.xCoords(gr)
+    val (_, yOf) = Coord.rankY(gr)
+    // raw-frame solve → translate by canonical bb LL.x like the writers
+    val dx = org.jpablo.graphexplorer.graphviz.layout.GraphBB.bbox(gr)._1.value
+    val xs = XCoord.xCoords(gr).view.mapValues(v => org.jpablo.graphexplorer.graphviz.units.Length.Pt(v.value - dx)).toMap
     val golden = Map("top"->(58.0,162.0),"a"->(27.0,18.0),"mid"->(90.0,90.0),"b"->(99.0,18.0))
     gr.nodes.foreach { n =>
       val (gx, gy) = golden(n.id)

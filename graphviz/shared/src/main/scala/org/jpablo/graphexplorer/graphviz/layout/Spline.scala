@@ -129,8 +129,16 @@ object Spline:
     def lw(id: String): Double  = lwOv.getOrElse(id, lw0(id))
     def rw(id: String): Double  = rwOv.getOrElse(id, labelW.getOrElse(id, lw0(id)))
     // gv `ND_mval`: the PRE-spline rw (set at set_xcoords, before recover_slack
-    // narrows a virtual). `rw` without the `rwOv` snap override.
-    def mvalRw(id: String): Double = labelW.getOrElse(id, lw0(id))
+    // narrows a virtual). `rw` without the `rwOv` snap override. For a
+    // SELF-LOOP node the dot_splines swap leaves mval holding the
+    // selfRightSpace-INFLATED rw (position parked the original in mval and
+    // inflated rw; dot_splines swaps them back for routing) — so maximal_bbox
+    // sees the loop+label space when the node is a neighbour.
+    val selfRwSpl: Map[String, Double] =
+      g.edges.filter(e => e.tail == e.head).groupBy(_.tail).view
+        .mapValues(_.map(Coord.selfRightSpace(_, g)).sum).toMap
+    def mvalRw(id: String): Double =
+      labelW.getOrElse(id, lw0(id) + selfRwSpl.getOrElse(id, 0.0))
 
     // ht1/ht2 (GD_rank[r] half-heights): rank_box/maximal_bbox use the
     // CLUSTER-INFLATED per-rank values (clust_ht adds label bands + margins
@@ -475,8 +483,22 @@ object Spline:
           }
       }}}
 
+    // dot_splines_ routes edges in `edgecmp` order (dotsplines.c:551), NOT
+    // declaration order: edge type DESCENDING (self 8 > flat 2 > regular 1),
+    // then |Δrank| of the ORIGINAL endpoints (shortest spans first), then
+    // |Δx| of the solved coords (straightest first), then AGSEQ. The order is
+    // load-bearing: recover_slack moves vnodes as each edge routes, so later
+    // routes see different neighbour geometry (fsm's 0.03pt drifts).
     g.edges.zipWithIndex.filter { case (e, _) => e.tail != e.head }
-      .zipWithIndex.foreach { case ((e, origIdx), i) =>
+      .zipWithIndex
+      .map { case ((e, origIdx), i) => (e, origIdx, i) }
+      .sortBy { (e, _, i) =>
+        val rt = rankOf.getOrElse(e.tail, 0); val rh = rankOf.getOrElse(e.head, 0)
+        val typeKey = if rt == rh then -2 else -1 // descending type via negation
+        val dx = math.abs(allX.get(e.tail).fold(0.0)(_.value) - allX.get(e.head).fold(0.0)(_.value))
+        (typeKey, math.abs(rt - rh), dx, i)
+      }
+      .foreach { case (e, origIdx, i) =>
       val rt = rankOf(e.tail)
       val rh = rankOf(e.head)
       if rt != rh then
@@ -688,12 +710,14 @@ object Spline:
         val stepy = math.max(sizeyCs / 2.0 / 2.0 / cnt, 2.0) // selfRight
         val np    = XY(cx(nid), cy(nid))
         val rw    = lw(nid)
-        group.zipWithIndex.foreach { case ((e, origIdx), i) =>
-          val k  = i + 1
-          val dx = rw + k * stepx
-          val tx = rw + k * stepx
-          val hx = rw + k * stepx
-          val dy = k * stepy // sgn = +1 (tp.y == hp.y, no-port ⇒ no flip)
+        // selfRight accumulates dx/tx/hx/dy ACROSS the node's loops, and a
+        // LABELLED loop bumps dx by (labelWidth − stepx) so the next loop
+        // clears the label. Label pos = (n.x + dx + width/2, n.y) with the
+        // flip-aware width (dimen.y under LR/RL) — fsm's S(a)/S(b) lps.
+        var dx = rw; var tx = rw; var hx = rw; var dy = 0.0
+        group.foreach { case (e, origIdx) =>
+          dx += stepx; tx += stepx; hx += stepx
+          dy += stepy // sgn = +1 (tp.y == hp.y, no-port ⇒ no flip)
           val pts = Vector(
             np,
             XY(np.x + tx / 3.0, np.y + dy),
@@ -703,6 +727,12 @@ object Spline:
             XY(np.x + hx / 3.0, np.y - dy),
             np
           )
+          e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
+            val (wl, hl) = Coord.edgeLabelDim(e, g)
+            val width    = if Rank.flip(g) then hl else wl
+            labelPos(origIdx) = XY(np.x + dx + width / 2.0, np.y)
+            if width > stepx then dx += width - stepx
+          }
           out(origIdx) = clipInstall(g, pts, e, byId, centerOf)
         }
       }

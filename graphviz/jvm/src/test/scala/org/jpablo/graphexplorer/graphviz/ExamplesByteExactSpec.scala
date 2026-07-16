@@ -27,10 +27,10 @@ class ExamplesByteExactSpec extends FunSuite:
     * 2026-07-16 (position-recovered rank orderings): every remaining gap is
     * layout-ORDER/X, all sizes byte-correct after the size_html_txt
     * transcription:
-    *   - finite-state-machine — within-rank ORDER IDENTICAL to gv; three
-    *     nodes' canonical-X differ (LR_7/LR_8 −18 = nodesep, LR_4 −35).
-    *     Pure XCoord aux-graph divergence on an LR + edge-label graph —
-    *     needs the instrumented-gv xcoord dump (task #46 methodology).
+    *   [finite-state-machine — CLOSED 2026-07-16: selfRightSpace rw
+    *   inflation in the aux solve + bbox; edgecmp routing order; the
+    *   UNSHIFTED raw solve frame (round() isn't translation-invariant);
+    *   accumulated selfRight loops + self-edge label lp.]
     *   - data-structures — ONE rank's within-rank order differs
     *     (golden [node12,node11,node9,node7] vs ours [node11,node12,node7,
     *     node9]): a mincross divergence (records + LR); X follows the order.
@@ -54,7 +54,6 @@ class ExamplesByteExactSpec extends FunSuite:
     *     (this was the user-reported oversized-tasks rendering). */
   private val deferred = Set(
     "data-structures",
-    "finite-state-machine",
     "sbt-project-dependencies")
 
   /** Not gateable: the ORACLE itself fails on these (no golden exists).

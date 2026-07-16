@@ -51,8 +51,11 @@ class SplineSpec extends FunSuite:
   private def ourEdges(name: String): Map[(String, String), Vector[(Double, Double)]] =
     val g  = OracleHarness.corpusGraph(name)
     val sp = Spline.splines(g)
+    // the solve/splines are in gv's RAW frame; plain goldens are translated —
+    // shift by the canonical bb LL.x (writers' dx) before comparing.
+    val dx = org.jpablo.graphexplorer.graphviz.layout.GraphBB.bbox(g)._1.value
     g.edges.zipWithIndex.flatMap { case (e, ix) =>
-      sp.get(ix).map(pts => (e.tail, e.head) -> pts.map(p => (p.x / 72.0, p.y / 72.0)))
+      sp.get(ix).map(pts => (e.tail, e.head) -> pts.map(p => ((p.x - dx) / 72.0, p.y / 72.0)))
     }.toMap
 
   /** Ordered golden `plain` edge splines (file order ⇒ declaration order),
@@ -140,8 +143,9 @@ class SplineSpec extends FunSuite:
   test("04-ports-compass: both record-port edges within ε of the plain golden"):
     val g  = OracleHarness.corpusGraph("04-ports-compass")
     val sp = Spline.splines(g)
+    val dx = org.jpablo.graphexplorer.graphviz.layout.GraphBB.bbox(g)._1.value
     val ours = g.edges.indices.flatMap(ix =>
-      sp.get(ix).map(_.map(p => (p.x / 72.0, p.y / 72.0)))
+      sp.get(ix).map(_.map(p => ((p.x - dx) / 72.0, p.y / 72.0)))
     ).toVector
     assertEquals(ours.length, 2, s"04 should have 2 de-merged edges, got ${ours.length}")
     val gold = goldenEdgeList("04-ports-compass")
