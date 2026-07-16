@@ -189,158 +189,12 @@ object Output:
     Doc(g.name.getOrElse("%1"), g.directed, g.strict, rootAttrs,
       sgCnt, subgraphs, nodes, edges)
 
-  private val SelfEdgeSize = 18.0 // const.h SELF_EDGE_SIZE
+  // Graph bbox (canonical dot_compute_bb box + translate_bb final frame)
+  // lives in layout.GraphBB — gv computes it in layout; writers only read.
 
-  /** Graph bounding box — faithful `position.c` `dot_compute_bb` (root):
-    * the **node-extent** box only (NORMAL nodes ± `ND_lw`/`ND_rw`/rank
-    * half-heights), **no spline extent and no floor/ceil** (Graphviz keeps
-    * the exact float; the splines are channel-bounded so they don't extend
-    * the bb). One exception is faithfully modelled: `make_LR_constraints`
-    * enlarges `ND_rw` by `selfRightSpace` (`SELF_EDGE_SIZE`=18 per no-port
-    * self-edge, + label width) and `dot_compute_bb` then sees it — so a
-    * self-looped node's right extent (and the bb) grows by 18 per loop.
-    * Drives `bb` for all three formats — shared with `Svg`. */
   /** gv `ROUND` macro: round half **away from zero** (not Java's half-up). */
   private[output] def gvRound(x: Double): Double =
     if x >= 0 then math.floor(x + 0.5) else math.ceil(x - 0.5)
-
-  // ── update_bb_bz (emit.c): grow a bb by a spline's TIGHT bezier bbox ───────
-  // dot grows GD_bb per installed spline (the graph box is the node/cluster/
-  // label union with each edge's adaptively-subdivided curve extent), so an
-  // edge that escapes the node span lifts the drawing. Regular-edge splines
-  // stay inside their rank span ⇒ a no-op for them; a non-adjacent flat edge
-  // arches above its rank, and THIS is what raises the graph height. The naive
-  // control-hull bbox would overshoot (control points sit above the curve), so
-  // gv subdivides until each segment is within `HW`=2pt of its chord, then
-  // expands by the now-near-flat control points — recovering the true peak.
-  private val HW2 = 4.0 // (HW = 2pt)²
-  private def ptToLine2(a: Spline.XY, b: Spline.XY, p: Spline.XY): Double =
-    val dx = b.x - a.x; val dy = b.y - a.y
-    var a2 = (p.y - a.y) * dx - (p.x - a.x) * dy
-    a2 *= a2
-    if a2 < 1e-6 then 0.0 else a2 / (dx * dx + dy * dy)
-  private def flatEnough(cp: Array[Spline.XY]): Boolean =
-    ptToLine2(cp(0), cp(3), cp(1)) < HW2 && ptToLine2(cp(0), cp(3), cp(2)) < HW2
-  /** de Casteljau split at t = 0.5 (`Bezier`, utils.c) → (left, right) quads. */
-  private def bezierSplit(cp: Array[Spline.XY]): (Array[Spline.XY], Array[Spline.XY]) =
-    def mid(a: Spline.XY, b: Spline.XY) = Spline.XY((a.x + b.x) / 2.0, (a.y + b.y) / 2.0)
-    val m01 = mid(cp(0), cp(1)); val m12 = mid(cp(1), cp(2)); val m23 = mid(cp(2), cp(3))
-    val mA = mid(m01, m12); val mB = mid(m12, m23); val c = mid(mA, mB)
-    (Array(cp(0), m01, mA, c), Array(c, mB, m23, cp(3)))
-  /** `bb` = mutable `[minX, minY, maxX, maxY]`, grown by one bezier segment. */
-  private def updateBBbz(bb: Array[Double], cp: Array[Spline.XY]): Unit =
-    val outside = cp.exists(p => p.x > bb(2) || p.x < bb(0) || p.y > bb(3) || p.y < bb(1))
-    if outside then
-      if flatEnough(cp) then
-        cp.foreach { p =>
-          if p.x > bb(2) then bb(2) = p.x else if p.x < bb(0) then bb(0) = p.x
-          if p.y > bb(3) then bb(3) = p.y else if p.y < bb(1) then bb(1) = p.y
-        }
-      else
-        val (l, r) = bezierSplit(cp)
-        updateBBbz(bb, l); updateBBbz(bb, r)
-  /** Grow `[minX,minY,maxX,maxY]` by every routed edge spline (update_bb_bz on
-    * each 4-point segment). Splines are in layout coords, matching gv's grow
-    * during routing (before the rankdir transform). */
-  private def growBySplines(g: RGraph, minX: Double, minY: Double, maxX: Double, maxY: Double)
-      : (Double, Double, Double, Double) =
-    val spls = Spline.splinesEx(g)
-    if spls.isEmpty then (minX, minY, maxX, maxY)
-    else
-      val bb = Array(minX, minY, maxX, maxY)
-      spls.valuesIterator.foreach { es =>
-        val pts = es.pts
-        var i = 0
-        while i + 3 < pts.length do
-          updateBBbz(bb, Array(pts(i), pts(i + 1), pts(i + 2), pts(i + 3)))
-          i += 3
-      }
-      (bb(0), bb(1), bb(2), bb(3))
-
-  private val bboxMemo = org.jpablo.graphexplorer.graphviz.layout.GraphMemo[(Pt, Pt, Pt, Pt)]()
-  private[output] def bbox(g: RGraph): (Pt, Pt, Pt, Pt) = bboxMemo(g)(bboxImpl(g))
-  private def bboxImpl(g: RGraph): (Pt, Pt, Pt, Pt) =
-    val (_, yOf) = Coord.rankY(g)
-    val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
-    var minX = Double.MaxValue; var maxX = Double.MinValue
-    var minY = Double.MaxValue; var maxY = Double.MinValue
-    val xs = XCoord.xCoords(g)
-    // selfRightSpace: no-port self-edges reserve SELF_EDGE_SIZE on the
-    // right (the port/label-bearing cases are deferred — no corpus).
-    // One O(E) count map instead of an O(E) scan per node.
-    val selfLoops: Map[String, Int] =
-      g.edges.filter(e => e.tail == e.head && e.tailPort.isEmpty && e.headPort.isEmpty)
-        .groupBy(_.tail).view.mapValues(_.size).toMap
-    g.nodes.foreach { n =>
-      for xPt <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
-        val x  = xPt.value
-        val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
-        val selfW = selfLoops.getOrElse(n.id, 0) * SelfEdgeSize
-        val y  = yOf(ranks(n.id)).value
-        minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
-        minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
-    }
-    // Clusters (dot_compute_bb root): the bb also spans every top-level
-    // cluster box + CL_OFFSET margin in x; in y the root's cluster-inflated
-    // GD_ht1/GD_ht2 set the bottom/top (label bands included).
-    val cls = org.jpablo.graphexplorer.graphviz.layout.Cluster.clusters(g)
-    if cls.nonEmpty then
-      val yi   = Coord.yInfo(g)
-      val cbbs = org.jpablo.graphexplorer.graphviz.layout.Cluster.bbs(g)
-      org.jpablo.graphexplorer.graphviz.layout.Cluster.childrenOf(g, -1).foreach { i =>
-        minX = math.min(minX, cbbs(i).llx - 8.0); maxX = math.max(maxX, cbbs(i).urx + 8.0)
-      }
-      if ranks.nonEmpty then
-        val maxR = ranks.values.max; val minR = ranks.values.min
-        minY = math.min(minY, yOf(maxR).value - yi.rootHt1)
-        maxY = math.max(maxY, yOf(minR).value + yi.rootHt2)
-    // Grow by each edge spline's tight curve extent (dot's per-spline
-    // update_bb_bz). A no-op for node-contained regular edges; a non-adjacent
-    // flat-edge arch rises above its rank and lifts the graph height here.
-    val (gx0, gy0, gx1, gy1) = growBySplines(g, minX, minY, maxX, maxY)
-    minX = gx0; minY = gy0; maxX = gx1; maxY = gy1
-    // root graph label reserves space on its labelloc side (Coord already
-    // shifted the nodes for a bottom label ⇒ extend the bbox to reclaim it).
-    val pad = gLabelPad(g)
-    if pad > 0 then { if labelTop(g) then maxY += pad else minY -= pad }
-    // Snap sub-epsilon FP noise to the nearest integer. gv's node coordinates
-    // come out as clean values; a polygon size derived through sqrt/trig
-    // (poly_init) carries ~1e-13 noise, which is harmless EXCEPT when it
-    // straddles the integer boundary that dot_json floor/ceils or the svg
-    // canvas ceils — there it becomes a full ±1pt error (e.g. house maxY
-    // 36.0000001 → ceil 37). Genuine fractionals (triangle 49.6) stay put.
-    def snap(v: Double): Double =
-      val r = math.rint(v)
-      if math.abs(v - r) < 1e-6 then r else v
-    // Empty drawing (zero nodes/clusters/splines — e.g. `digraph {}` or the
-    // viewer's defaults-only serialization): nothing touched the extreme
-    // seeds, and MinValue−MaxValue overflows to −Infinity downstream (a
-    // NumberFormatException in the BigDecimal formatters). gv emits
-    // bb="0 0 0 0" here (translate_drawing of an empty drawing).
-    if minX > maxX || minY > maxY then (Pt(0.0), Pt(0.0), Pt(0.0), Pt(0.0))
-    else (Pt(snap(minX)), Pt(snap(minY)), Pt(snap(maxX)), Pt(snap(maxY)))
-
-  /** Node-extent bbox in the FINAL (rotated) frame: each node is drawn at its
-    * true size around the `map_point`-transformed centre (rotating the swapped
-    * layout size back to the true size). Used for flipped graphs; the offset in
-    * `tf` already lands the min corner at ~0. selfW/graph-label reservation is
-    * a deferral (no flipped corpus exercises them). */
-  private[output] def finalBBox(g: RGraph, tf: (Double, Double) => (Double, Double)): (Double, Double, Double, Double) =
-    val (_, yOf) = Coord.rankY(g)
-    val ranks    = org.jpablo.graphexplorer.graphviz.layout.Rank.assign(g)
-    val xs       = XCoord.xCoords(g)
-    var minX = Double.MaxValue; var maxX = Double.MinValue
-    var minY = Double.MaxValue; var maxY = Double.MinValue
-    g.nodes.foreach { n =>
-      for xp <- xs.get(n.id); sz <- NodeSize.nodeSize(n, g) do
-        val (cxv, cyv) = tf(xp.value, yOf(ranks(n.id)).value)
-        val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
-        minX = math.min(minX, cxv - hw); maxX = math.max(maxX, cxv + hw)
-        minY = math.min(minY, cyv - hh); maxY = math.max(maxY, cyv + hh)
-    }
-    def snap(v: Double): Double = { val r = math.rint(v); if math.abs(v - r) < 1e-6 then r else v }
-    if minX > maxX || minY > maxY then (0.0, 0.0, 0.0, 0.0) // empty drawing, see bbox
-    else (snap(minX), snap(minY), snap(maxX), snap(maxY))
 
   /** One subgraph object block (4-space indented, no trailing comma), shared
     * by both writers. gv field order: name, attrs (alphabetical), _gvid,
@@ -385,8 +239,8 @@ object Output:
     // polygon shapes — triangle 61.291 → 61, not ceil's 62.)
     val (lx, ly, ux, uy) =
       if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then
-        finalBBox(g, org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g))
-      else { val (a, b, c, dd) = bbox(g); (a.value, b.value, c.value, dd.value) }
+        org.jpablo.graphexplorer.graphviz.layout.GraphBB.finalBBox(g)
+      else { val (a, b, c, dd) = org.jpablo.graphexplorer.graphviz.layout.GraphBB.bbox(g); (a.value, b.value, c.value, dd.value) }
     // translate_drawing: shift the full bb to the origin (a no-op unless a
     // spline overhangs the node/cluster box — see json0).
     val (blx, bly, bux, buy) =
@@ -443,8 +297,8 @@ object Output:
     // map_point (postproc.c): rotate canonical coords into the drawing frame.
     val tf0 = org.jpablo.graphexplorer.graphviz.layout.DrawTransform.of(g)
     val (lx, ly, ux, uy) =
-      if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then finalBBox(g, tf0)
-      else { val (a, b, c, dd) = bbox(g); (a.value, b.value, c.value, dd.value) }
+      if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then org.jpablo.graphexplorer.graphviz.layout.GraphBB.finalBBox(g)
+      else { val (a, b, c, dd) = org.jpablo.graphexplorer.graphviz.layout.GraphBB.bbox(g); (a.value, b.value, c.value, dd.value) }
     // translate_drawing (postproc.c): the FULL bb (incl. spline overhang) lands
     // at the origin. A no-op wherever the layout already starts at 0 (every file
     // whose splines stay within the node/cluster box) — non-trivial only when a

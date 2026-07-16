@@ -41,22 +41,17 @@ object DrawTransform:
         case RankDir.BT => (x, -y)
         case RankDir.RL => (y, x)
         case RankDir.TB => (x, y)
-      // Offset = min corner of the rotated canonical node-extent bbox (NORMAL
-      // nodes ± layoutSize half-extents — the same box dot_compute_bb sees).
-      val (_, yOf) = Coord.rankY(g)
-      val ranks    = Rank.assign(g)
-      val xs       = XCoord.xCoords(g)
-      var minRx = Double.MaxValue
-      var minRy = Double.MaxValue
-      g.nodes.foreach { n =>
-        for xp <- xs.get(n.id); sz <- NodeSize.layoutSize(n, g) do
-          val cxv = xp.value; val cyv = yOf(ranks(n.id)).value
-          val hw = sz.halfWidthPt.value; val hh = sz.halfHeightPt.value
-          List((-hw, -hh), (hw, -hh), (-hw, hh), (hw, hh)).foreach { case (dx, dy) =>
-            val (rx, ry) = ccw(cxv + dx, cyv + dy)
-            minRx = math.min(minRx, rx); minRy = math.min(minRy, ry)
-          }
-      }
-      (x, y) => { val (rx, ry) = ccw(x, y); (rx - minRx, ry - minRy) }
+      // Offset (postproc.c:656): derived from the CANONICAL GD_bb — the
+      // full grown box (splines/self-edges/label), NOT a node-extent scan —
+      // with a per-rankdir corner formula (= the rotated bb's min corner):
+      //   LR: (-UR.y, LL.x)   BT: (LL.x, -UR.y)   RL: (LL.y, LL.x)
+      // map_point(p) = ccwrotate(p) − Offset.
+      val (llx, lly, urx, ury) = GraphBB.bbox(g)
+      val (ox, oy) = rd match
+        case RankDir.LR => (-ury.value, llx.value)
+        case RankDir.BT => (llx.value, -ury.value)
+        case RankDir.RL => (lly.value, llx.value)
+        case RankDir.TB => (llx.value, lly.value) // unreached (identity branch above)
+      (x, y) => { val (rx, ry) = ccw(x, y); (rx - ox, ry - oy) }
 
 end DrawTransform

@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.graphviz.output
 
 import org.jpablo.graphexplorer.graphviz.model.RGraph
-import org.jpablo.graphexplorer.graphviz.layout.{Arrow, Coord, NodeSize, Rank, Spline, XCoord}
+import org.jpablo.graphexplorer.graphviz.layout.{Arrow, Coord, GraphBB, NodeSize, Rank, Spline, XCoord}
 
 /** Phase 5 of the `dot` pipeline: the `svg` output writer (M7 increment 2).
   *
@@ -219,8 +219,8 @@ object Svg:
     // ceil'd int canvas; the `translate` and background polygon keep the exact
     // float (gv: int canvas, 2-dp bb).
     val (rlx, rly, rux, ruy) =
-      if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then Output.finalBBox(g, tf0)
-      else { val (a, b, c, d) = Output.bbox(g); (a.value, b.value, c.value, d.value) }
+      if org.jpablo.graphexplorer.graphviz.layout.DrawTransform.rotated(g) then GraphBB.finalBBox(g)
+      else { val (a, b, c, d) = GraphBB.bbox(g); (a.value, b.value, c.value, d.value) }
     // translate_drawing (postproc.c): shift the full bb to the origin (a no-op
     // unless a spline overhangs the node/cluster box — see Output.json0), so
     // coords + the `translate` land exactly like gv's.

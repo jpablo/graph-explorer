@@ -23,15 +23,22 @@ import java.io.File
   */
 class ExamplesByteExactSpec extends FunSuite:
 
-  /** Known divergences (each guarded fails-when-fixed below), triaged
-    * 2026-07-16 on the gate's first run:
-    *   - data-structures / finite-state-machine / sbt-project-dependencies —
-    *     ONE mechanism: all three are rankdir=LR and differ in EXACTLY one
-    *     line (the bb; every node position byte-exact). `Output.finalBBox`
-    *     documents the gap: the rotated-frame bbox doesn't grow by spline
-    *     overhang / self-edge space / graph-label pad (no corpus file
-    *     exercises it — these shipped examples do).
-    *   - logo — real LR layout divergence (nodesep=0.42, pad: node positions
+  /** Known divergences (each guarded fails-when-fixed below). Re-triaged
+    * 2026-07-16 with json0 diffs (the first dot_json-only triage blamed
+    * everything on the bb line — dot_json carries no positions; don't repeat
+    * that mistake). The translate_bb/canonical-bb transcription (GraphBB)
+    * closed the bb *mechanism*; what remains per example is:
+    *   - finite-state-machine — LR + edge labels: several node positions
+    *     genuinely differ (canonical-X / ordering divergence, e.g. golden
+    *     327.73,178.03 has no counterpart at ours). Needs an instrumented
+    *     XCoord/mincross chase on LR+edgelabel graphs.
+    *   - sbt-project-dependencies — 36 nodes sized height 0.69444in (50pt,
+    *     golden) vs 0.81111in (58.4pt, ours): node sizing with the
+    *     "Helvetica,Arial,sans-serif" font list + multi-line labels.
+    *   - data-structures — record `rects` under LR come out malformed
+    *     (x1 > x2, e.g. ours "35.551,226.35,8.3508,297.45") and record y
+    *     positions shift: the record-rect rankdir transform is wrong.
+    *   - logo — LR layout divergence (nodesep=0.42, pad: node positions
     *     differ, e.g. golden 90,84 vs ours 162,99). Needs its own chase.
     *   - html — HTML-table label example renders differently (user-reported
     *     2026-07-16; cell sizing/structure vs viz-js).

@@ -268,6 +268,16 @@ object Coord:
   def graphLabelTop(g: RGraph): Boolean =
     g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
 
+  /** Root-label PADded width — `dimen.x + XPAD` (4*GAP), the cross-axis size
+    * gv_postprocess widens the bb to when the label outgrows the drawing.
+    * 0 with no label. */
+  def graphLabelPaddedWidth(g: RGraph): Double =
+    g.rootAttrs.get("label").filter(_.nonEmpty).map { lbl =>
+      val fs = g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
+      val fn = g.rootAttrs.getOrElse("fontname", "Times")
+      NodeSize.labelWidthPt(lbl, fs, fn, g.name.getOrElse("")) + 4.0 * Gap
+    }.getOrElse(0.0)
+
   /** Edge-label virtual-node `ND_rw` (vnode name → order-axis half-width pt) for
     * `make_LR_constraints`/spline bounds. class2.c `label_vnode`: `ND_lw =
     * nodesep`, and `ND_rw = dimen.x` (label width) for TB, but `dimen.y` (label

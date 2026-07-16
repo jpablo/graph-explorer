@@ -2149,4 +2149,23 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   (valid DOT). failing/leading-newline is excluded outright: viz-js ITSELF
   crashes on it ("table index is out of bounds"), so no golden exists.
   These deferrals are the correctness worklist. 693 green.
+- **2026-07-16** — **`translate_bb` transcribed: the final-frame bbox is the
+  transformed CANONICAL box, not a node-extent scan.** gv never re-derives a
+  rotated-frame bb: `dot_compute_bb` builds the canonical box (with the
+  LAYOUT — swapped — node sizes: ND_lw/rw/GD_ht1), `clip_and_install` grows
+  it per spline during routing, `gv_postprocess` adds the root label (for a
+  FLIPPED graph the label height lands on canonical X; BT inverts
+  top/bottom; a label wider than the drawing widens the bb symmetrically —
+  postproc.c:617), the per-rankdir `Offset` comes from that grown box
+  (postproc.c:656), and `translate_bb` maps its corners. All of that is now
+  `layout/GraphBB` (bbox moved out of Output — gv computes it in layout;
+  writers read it) + `DrawTransform.of`'s Offset formulas. Two bugs fixed en
+  route: canonical bb used TRUE node sizes (±(w−h)/2 off on both axes for
+  flipped ellipses — 86-rankdir-rl), and the label/finalBBox handling for
+  rotated graphs was a node-extent approximation. Corpus 694-green.
+  **Example re-triage (json0, not dot_json — dot_json has no positions!):**
+  the 3 LR examples are NOT one-bb-line: fsm = LR+edgelabel position
+  divergence; sbt = node heights 50 vs 58.4pt (font-list sizing);
+  data-structures = record `rects` malformed under LR. Deferral notes
+  updated in ExamplesByteExactSpec.
 - _(append dated entries as milestones land)_
