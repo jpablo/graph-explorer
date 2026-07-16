@@ -1,16 +1,21 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12).** All milestones M0–M8 done. The viewer now
-> routes by layout engine: `dot`/unset → the pure-Scala port (the default and
-> common case, byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/
-> `twopi`/`circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime
-> dependency because those layout algorithms are **not ported**. Corpus 91/96
-> byte-exact vs `@viz-js/viz` 13.0.1; the 5 corpus residuals are a characterised
-> precision-and-tie-break floor — since REFUTED and CLOSED: the "floor" was
-> the reversed-edge clip DIRECTION (2026-07-13); corpus now **137/138
-> byte-exact — the single remaining deferral is 03 (intentional: its golden is
-> gv's own default-mode cluster corruption, gated vs the 03b newrank oracle)**.
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT SWEEP 144/145
+> (2026-07-16).** All milestones M0–M8 done. The viewer routes by layout
+> engine: `dot`/unset → the pure-Scala port (the default and common case,
+> byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
+> `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
+> because those layout algorithms are **not ported**. Full exact-string
+> sweep vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg, sweep re-run
+> 2026-07-16): **corpus 136/137 + shipped examples 8/8 = 144/145** — the
+> SINGLE remaining diff anywhere is 03-subgraph-cluster, an intentional
+> deferral (its golden is gv's own default-mode cluster corruption; the
+> file is gated byte-exact against the 03b `newrank` oracle in ClusterSpec
+> instead). The `ExamplesByteExactSpec` deferred list is EMPTY. (History:
+> 91/96 at the M8 cutover → every "characterised precision floor" since
+> fell to a real transcription bug — clip direction, int division,
+> `arrow_gen` EPSILON — see the §7 log.)
 > **Shape catalog closed:** 61/62 builtin node
 > shapes are ported and byte-exact (`ShapeCatalogSpec`, 36 single-node probes) —
 > the full `poly_init` periphery engine, `round_corners` (containers + all 20
@@ -29,12 +34,14 @@ The current worklist (kept in sync with the session task tracker; the
 fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
 enforce the deferral halves of it):
 
-- **(no open example work)** — every shipped dot-engine example is
-  byte-exact in all three formats (`ExamplesByteExactSpec` deferred list
-  is EMPTY).
-- **03-subgraph-cluster** — permanent, intentional corpus deferral (its
-  goldens are gv's own default-mode cluster corruption; gated vs the 03b
-  `newrank` oracle in `ClusterSpec`).
+- **NONE.** Full sweep re-confirmed 2026-07-16 (per the periodic
+  exact-string sweep in the project memory; corpus rendered through the
+  sidecar-aware `corpusGraph` path, examples through the public
+  `renderFormats` facade): **144/145 byte-exact** in all three formats.
+- **03-subgraph-cluster** — the single diff, a permanent INTENTIONAL
+  corpus deferral (its goldens are gv's own default-mode cluster
+  corruption; gated byte-exact vs the 03b `newrank` oracle in
+  `ClusterSpec`), fails-when-fixed guarded.
 
 ## 1. Goal & locked decisions
 
@@ -2379,4 +2386,13 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   not "FP noise". Corpus 137/138 (unchanged — the EPSILON shift never
   crosses a print boundary there and now matches gv's true arithmetic),
   examples 8/8, all suites green, gv worktree pristine.
+- **2026-07-16 (final)** — **Full byte-exact sweep confirms 144/145.**
+  Re-ran the whole-corpus + shipped-examples exact-string sweep (all
+  three formats; corpus via the sidecar-aware `corpusGraph` path — the
+  raw-source path false-negatives the 20 image files, exactly as the
+  sweep memory warns): corpus 136/137 + examples 8/8 = **144/145**, the
+  single diff being the intentional 03-subgraph-cluster deferral. Status
+  header + §0 updated; this is the port's steady state: every gated
+  input the app can produce through the `dot` engine matches viz-js
+  13.0.1 character-for-character.
 - _(append dated entries as milestones land)_
