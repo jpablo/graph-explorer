@@ -30,7 +30,7 @@ WASM blob is not.
 
 | Gate | Result |
 |---|---|
-| Corpus (`corpus/*.dot`, 138 files × 3 formats) | **137/138 byte-exact** |
+| Corpus (`corpus/*.dot`, 137 files × 3 formats) | **136/137 byte-exact** (every file but one) |
 | Shape catalog (61 of 62 builtin node shapes) | byte-exact (`ShapeCatalogSpec`) |
 | Shipped viewer examples routed to the port | 5/8 byte-exact, 3 documented deferrals |
 | Full layout pipeline (rank → mincross → coords → splines) | ported |
@@ -107,8 +107,9 @@ graphviz/
     metrics/            embedded AFM font tables (transcribed textspan_lut)
     output/             Output (dot_json/json0) + Svg writers
   jvm/src/test/scala/   MUnit oracle-gated suites (JVM-only: they read files)
-  corpus/               157 hand-written + real-world DOT probes
-  golden/               frozen viz-js outputs, 138 dirs × 8 formats
+  corpus/               137 hand-written + real-world DOT probes
+                        (plus *.images.json size sidecars for image tests)
+  golden/               frozen viz-js outputs, one dir per corpus file × 8 formats
   golden-examples/      frozen goldens for the shipped viewer examples
   oracle/               capture.mjs / capture-examples.mjs / gen_font_metrics.py
 ```
