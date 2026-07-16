@@ -1,0 +1,100 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 165 577",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "fillcolor": "#fff085",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">sourceText<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Var[String]<\/td><\/tr>\n            <\/table>\n        ",
+      "shape": "plaintext",
+      "style": "filled"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "fillcolor": "#fff085",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">versionedText<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Versioned[String]<\/td><\/tr>\n            <\/table>\n        ",
+      "shape": "plaintext",
+      "style": "filled"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "fillcolor": "#fff085",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">versionedFullGraphV<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Versioned[ViewerGraph]<\/td><\/tr>\n            <\/table>\n        ",
+      "shape": "plaintext",
+      "style": "filled"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "fillcolor": "#fff085",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">fullGraphV<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">ViewerGraph<\/td><\/tr>\n            <\/table>\n        ",
+      "shape": "plaintext",
+      "style": "filled"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "fillcolor": "#b8e6fe",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">visibleGraph<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[ViewerGraph]<\/td><\/tr>\n            <\/table>\n        ",
+      "shape": "plaintext",
+      "style": "filled"
+    },
+    {
+      "_gvid": 5,
+      "name": "f",
+      "fillcolor": "#b8e6fe",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">visibleDOT<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[DotText]<\/td><\/tr>\n            <\/table>\n        ",
+      "shape": "plaintext",
+      "style": "filled"
+    },
+    {
+      "_gvid": 6,
+      "name": "g",
+      "fillcolor": "#b8e6fe",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">finalSVG<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[SVG]<\/td><\/tr>\n            <\/table>\n        ",
+      "shape": "plaintext",
+      "style": "filled"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowtail": "vee"
+    },
+    {
+      "_gvid": 5,
+      "tail": 5,
+      "head": 6
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 5
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 3,
+      "arrowtail": "vee"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 2,
+      "arrowtail": "vee"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 4
+    }
+  ]
+}

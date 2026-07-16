@@ -1,0 +1,50 @@
+graph 1 2.2923 8.0167
+node a 1.1462 7.6583 1.2019 0.71667 <
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">sourceText</td></tr>
+                <tr><td align="center" border="1" sides="t">Var[String]</td></tr>
+            </table>
+        > filled plaintext black #fff085
+node b 1.1462 6.4417 1.7096 0.71667 <
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">versionedText</td></tr>
+                <tr><td align="center" border="1" sides="t">Versioned[String]</td></tr>
+            </table>
+        > filled plaintext black #fff085
+node c 1.1462 5.225 2.2923 0.71667 <
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">versionedFullGraphV</td></tr>
+                <tr><td align="center" border="1" sides="t">Versioned[ViewerGraph]</td></tr>
+            </table>
+        > filled plaintext black #fff085
+node d 1.1462 4.0083 1.3637 0.71667 <
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">fullGraphV</td></tr>
+                <tr><td align="center" border="1" sides="t">ViewerGraph</td></tr>
+            </table>
+        > filled plaintext black #fff085
+node e 1.1462 2.7917 1.9901 0.71667 <
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">visibleGraph</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[ViewerGraph]</td></tr>
+            </table>
+        > filled plaintext black #b8e6fe
+node f 1.1462 1.575 1.58 0.71667 <
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">visibleDOT</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[DotText]</td></tr>
+            </table>
+        > filled plaintext black #b8e6fe
+node g 1.1462 0.35833 1.321 0.71667 <
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">finalSVG</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[SVG]</td></tr>
+            </table>
+        > filled plaintext black #b8e6fe
+edge a b 4 1.1462 7.3006 1.1462 7.1934 1.1462 7.0728 1.1462 6.9571 solid black
+edge b c 4 1.1462 6.0839 1.1462 5.9767 1.1462 5.8562 1.1462 5.7405 solid black
+edge c d 4 1.1462 4.8672 1.1462 4.76 1.1462 4.6395 1.1462 4.5238 solid black
+edge d e 4 1.1462 3.6506 1.1462 3.5434 1.1462 3.4228 1.1462 3.3071 solid black
+edge e f 4 1.1462 2.4339 1.1462 2.3267 1.1462 2.2062 1.1462 2.0905 solid black
+edge f g 4 1.1462 1.2172 1.1462 1.11 1.1462 0.98951 1.1462 0.8738 solid black
+stop

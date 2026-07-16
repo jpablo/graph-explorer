@@ -1,0 +1,127 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,165.05,577.2",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "fillcolor": "#fff085",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">sourceText<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Var[String]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,551.4",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.2019"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "fillcolor": "#fff085",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">versionedText<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Versioned[String]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,463.8",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.7096"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "fillcolor": "#fff085",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">versionedFullGraphV<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Versioned[ViewerGraph]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,376.2",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "2.2923"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "fillcolor": "#fff085",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">fullGraphV<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">ViewerGraph<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,288.6",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.3637"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "fillcolor": "#b8e6fe",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">visibleGraph<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[ViewerGraph]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,201",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.9901"
+    },
+    {
+      "_gvid": 5,
+      "name": "f",
+      "fillcolor": "#b8e6fe",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">visibleDOT<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[DotText]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,113.4",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.58"
+    },
+    {
+      "_gvid": 6,
+      "name": "g",
+      "fillcolor": "#b8e6fe",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">finalSVG<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[SVG]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,25.8",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.321"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowtail": "vee",
+      "pos": "e,82.524,489.5 82.524,525.64 82.524,517.92 82.524,509.24 82.524,500.91"
+    },
+    {
+      "_gvid": 5,
+      "tail": 5,
+      "head": 6,
+      "pos": "e,82.524,51.503 82.524,87.641 82.524,79.922 82.524,71.245 82.524,62.914"
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 5,
+      "pos": "e,82.524,139.1 82.524,175.24 82.524,167.52 82.524,158.84 82.524,150.51"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 3,
+      "arrowtail": "vee",
+      "pos": "e,82.524,314.3 82.524,350.44 82.524,342.72 82.524,334.04 82.524,325.71"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 2,
+      "arrowtail": "vee",
+      "pos": "e,82.524,401.9 82.524,438.04 82.524,430.32 82.524,421.64 82.524,413.31"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 4,
+      "pos": "e,82.524,226.7 82.524,262.84 82.524,255.12 82.524,246.44 82.524,238.11"
+    }
+  ]
+}

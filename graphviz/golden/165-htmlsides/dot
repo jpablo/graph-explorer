@@ -1,0 +1,97 @@
+digraph G {
+	graph [bb="0,0,165.05,577.2"];
+	node [label="\N"];
+	a	[fillcolor="#fff085",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">sourceText</td></tr>
+                <tr><td align="center" border="1" sides="t">Var[String]</td></tr>
+            </table>
+        >,
+		pos="82.524,551.4",
+		shape=plaintext,
+		style=filled,
+		width=1.2019];
+	b	[fillcolor="#fff085",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">versionedText</td></tr>
+                <tr><td align="center" border="1" sides="t">Versioned[String]</td></tr>
+            </table>
+        >,
+		pos="82.524,463.8",
+		shape=plaintext,
+		style=filled,
+		width=1.7096];
+	a -> b	[arrowtail=vee,
+		pos="e,82.524,489.5 82.524,525.64 82.524,517.92 82.524,509.24 82.524,500.91"];
+	c	[fillcolor="#fff085",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">versionedFullGraphV</td></tr>
+                <tr><td align="center" border="1" sides="t">Versioned[ViewerGraph]</td></tr>
+            </table>
+        >,
+		pos="82.524,376.2",
+		shape=plaintext,
+		style=filled,
+		width=2.2923];
+	b -> c	[arrowtail=vee,
+		pos="e,82.524,401.9 82.524,438.04 82.524,430.32 82.524,421.64 82.524,413.31"];
+	d	[fillcolor="#fff085",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">fullGraphV</td></tr>
+                <tr><td align="center" border="1" sides="t">ViewerGraph</td></tr>
+            </table>
+        >,
+		pos="82.524,288.6",
+		shape=plaintext,
+		style=filled,
+		width=1.3637];
+	c -> d	[arrowtail=vee,
+		pos="e,82.524,314.3 82.524,350.44 82.524,342.72 82.524,334.04 82.524,325.71"];
+	e	[fillcolor="#b8e6fe",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">visibleGraph</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[ViewerGraph]</td></tr>
+            </table>
+        >,
+		pos="82.524,201",
+		shape=plaintext,
+		style=filled,
+		width=1.9901];
+	d -> e	[pos="e,82.524,226.7 82.524,262.84 82.524,255.12 82.524,246.44 82.524,238.11"];
+	f	[fillcolor="#b8e6fe",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">visibleDOT</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[DotText]</td></tr>
+            </table>
+        >,
+		pos="82.524,113.4",
+		shape=plaintext,
+		style=filled,
+		width=1.58];
+	e -> f	[pos="e,82.524,139.1 82.524,175.24 82.524,167.52 82.524,158.84 82.524,150.51"];
+	g	[fillcolor="#b8e6fe",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">finalSVG</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[SVG]</td></tr>
+            </table>
+        >,
+		pos="82.524,25.8",
+		shape=plaintext,
+		style=filled,
+		width=1.321];
+	f -> g	[pos="e,82.524,51.503 82.524,87.641 82.524,79.922 82.524,71.245 82.524,62.914"];
+}

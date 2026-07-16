@@ -422,6 +422,44 @@ object Svg:
         val (l, r) = (cx + b.llx, cx + b.urx)
         val (lo, hi) = (cyc + b.lly, cyc + b.ury)
         s"${d2(l)},${d2(-lo)} ${d2(l)},${d2(-hi)} ${d2(r)},${d2(-hi)} ${d2(r)},${d2(-lo)} ${d2(l)},${d2(-lo)}"
+      // doBorder (htmltable.c:251): draw a cell/table border. A `sides` attr
+      // (any of l/t/r/b; naming all four is ignored, per sidesfn) masks which
+      // edges are stroked, as open polylines chained through the corners
+      // SW→SE→NE→NW (mkPts order); otherwise the full box polygon. border > 1
+      // insets the corners by border/2 and sets the pen width.
+      def doBorder(attrs: Map[String, String], border: Int, b: HtmlTableLayout.BoxLocal): Unit =
+        val stroke = attrs.get("color").getOrElse("black")
+        val styles = attrs.get("style").map(_.split(",").iterator.map(_.trim.toLowerCase).toSet).getOrElse(Set.empty)
+        val dash =
+          if styles.contains("dashed") then """ stroke-dasharray="5,2""""
+          else if styles.contains("dotted") then """ stroke-dasharray="1,5""""
+          else ""
+        val swA   = if border != 1 then s""" stroke-width="$border"""" else ""
+        val delta = if border > 1 then border / 2.0 else 0.0
+        val (l, r)   = (cx + b.llx + delta, cx + b.urx - delta)
+        val (lo, hi) = (-(cyc + b.lly + delta), -(cyc + b.ury - delta))
+        def pt(px: Double, py: Double) = s"${d2(px)},${d2(py)}"
+        val (sw, se, ne, nw) = (pt(l, lo), pt(r, lo), pt(r, hi), pt(l, hi))
+        def line(pts: String*): Unit =
+          out ++= s"""<polyline fill="none" stroke="$stroke"$dash$swA points="${pts.mkString(" ")}"/>\n"""
+        val mask = attrs.get("sides").map(_.toLowerCase.filter("ltrb".contains(_)).toSet).getOrElse(Set.empty)
+        mask.toSeq.sorted.mkString match
+          case "b"    => line(sw, se)
+          case "r"    => line(se, ne)
+          case "t"    => line(ne, nw)
+          case "l"    => line(nw, sw)
+          case "br"   => line(sw, se, ne)
+          case "rt"   => line(se, ne, nw)
+          case "lt"   => line(ne, nw, sw)
+          case "bl"   => line(nw, sw, se)
+          case "brt"  => line(sw, se, ne, nw)
+          case "lrt"  => line(se, ne, nw, sw)
+          case "blt"  => line(ne, nw, sw, se)
+          case "blr"  => line(nw, sw, se, ne)
+          case "bt"   => line(sw, se); line(ne, nw)
+          case "lr"   => line(nw, sw); line(se, ne)
+          case _      => // none or all four sides ⇒ the full closed box
+            out ++= s"""<polygon fill="none" stroke="$stroke"$dash$swA points="$sw $nw $ne $se $sw"/>\n"""
       // Background fill: solid, or a two-colour left→right linear gradient when
       // bgcolor is `c0:c1` (a `<defs>` linearGradient across the box + url() ref).
       def bgFill(bg: String, box: HtmlTableLayout.BoxLocal): Unit =
@@ -444,8 +482,7 @@ object Svg:
       laid.cells.foreach { pc =>
         // cell bgcolor fill (no stroke) before the border.
         pc.cell.attrs.get("bgcolor").foreach(bg => bgFill(bg, pc.box))
-        if pc.cellBorder > 0 then
-          out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(pc.box)}"/>\n"""
+        if pc.cellBorder > 0 then doBorder(pc.cell.attrs, pc.cellBorder, pc.box)
         val ccx = cx + pc.contentBox.cx
         // valign positions the content box within the (taller) content area:
         // top ⇒ content top at the area top, bottom ⇒ content bottom at the
@@ -489,8 +526,7 @@ object Svg:
         val lo = -(tb + tblSpace); val hi = -tt
         out ++= s"""<polygon fill="black" stroke="black" points="${d2(x)},${d2(lo)} ${d2(x)},${d2(hi)} ${d2(x)},${d2(hi)} ${d2(x)},${d2(lo)} ${d2(x)},${d2(lo)}"/>\n"""
       }
-      if laid.border > 0 then
-        out ++= s"""<polygon fill="none" stroke="black" points="${boxPoly(tblBox)}"/>\n"""
+      if laid.border > 0 then doBorder(tbl.attrs, laid.border, tblBox)
       out.toString
 
     // record_gencode + gen_fields (shapes.c): outer box polygon, then per
@@ -593,7 +629,12 @@ object Svg:
             def af    = Vector((rx, ry), (-rx, ry), (-rx, -ry), (rx, -ry))
             def afSvg(p: (Double, Double)) = s"${d2(x + p._1)},${d2(-(cy + p._2))}"
             import org.jpablo.graphexplorer.graphviz.layout.RoundCorners
-            if noShape then () // plaintext/none/plain draw no shape border
+            if noShape then
+              // plaintext/none/plain have peripheries=0 ⇒ normally no outline,
+              // but poly_gencode (shapes.c:3011) still draws ONE box periphery
+              // when filled, with a transparent pen — fill only, no stroke.
+              if fill != "none" then
+                sb ++= s"""<polygon fill="$fill" stroke="none" points="${(af :+ af.head).map(afSvg).mkString(" ")}"/>\n"""
             else if RoundCorners.codeOf.contains(shapeName) then
               // note/tab/folder/box3d/component + SBOL bio: round_corners on the
               // box AF, translated by the node centre (SVG negates y). Polygons

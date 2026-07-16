@@ -1,0 +1,812 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,577.200],[165.050,577.200],[165.050,0.000]]
+    }
+  ],
+  "bb": "0,0,165.05,577.2",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#fff085"
+        },
+        {
+          "op": "P",
+          "points": [[125.790,577.200],[39.260,577.200],[39.260,525.600],[125.790,525.600]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [51.430,558.600],
+          "align": "l",
+          "width": 62.190,
+          "text": "sourceText"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "L",
+          "points": [[117.790,552.400],[47.260,552.400]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [50.260,536.800],
+          "align": "l",
+          "width": 64.540,
+          "text": "Var[String]"
+        }
+      ],
+      "fillcolor": "#fff085",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">sourceText<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Var[String]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,551.4",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.2019"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#fff085"
+        },
+        {
+          "op": "P",
+          "points": [[144.070,489.600],[20.980,489.600],[20.980,438.000],[144.070,438.000]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [42.480,471.000],
+          "align": "l",
+          "width": 80.080,
+          "text": "versionedText"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "L",
+          "points": [[136.070,464.800],[28.980,464.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [31.980,449.200],
+          "align": "l",
+          "width": 101.090,
+          "text": "Versioned[String]"
+        }
+      ],
+      "fillcolor": "#fff085",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">versionedText<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Versioned[String]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,463.8",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.7096"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#fff085"
+        },
+        {
+          "op": "P",
+          "points": [[165.050,402.000],[0.000,402.000],[0.000,350.400],[165.050,350.400]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [21.480,383.400],
+          "align": "l",
+          "width": 122.090,
+          "text": "versionedFullGraphV"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "L",
+          "points": [[157.050,377.200],[8.000,377.200]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [11.000,361.600],
+          "align": "l",
+          "width": 143.050,
+          "text": "Versioned[ViewerGraph]"
+        }
+      ],
+      "fillcolor": "#fff085",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">versionedFullGraphV<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Versioned[ViewerGraph]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,376.2",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "2.2923"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#fff085"
+        },
+        {
+          "op": "P",
+          "points": [[131.620,314.400],[33.430,314.400],[33.430,262.800],[131.620,262.800]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [50.260,295.800],
+          "align": "l",
+          "width": 64.540,
+          "text": "fullGraphV"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "L",
+          "points": [[123.620,289.600],[41.430,289.600]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [44.430,274.000],
+          "align": "l",
+          "width": 76.190,
+          "text": "ViewerGraph"
+        }
+      ],
+      "fillcolor": "#fff085",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">fullGraphV<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">ViewerGraph<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,288.6",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.3637"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#b8e6fe"
+        },
+        {
+          "op": "P",
+          "points": [[154.170,226.800],[10.880,226.800],[10.880,175.200],[154.170,175.200]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [46.370,208.200],
+          "align": "l",
+          "width": 72.320,
+          "text": "visibleGraph"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "L",
+          "points": [[146.170,202.000],[18.880,202.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [21.880,186.400],
+          "align": "l",
+          "width": 121.290,
+          "text": "Signal[ViewerGraph]"
+        }
+      ],
+      "fillcolor": "#b8e6fe",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">visibleGraph<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[ViewerGraph]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,201",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.9901"
+    },
+    {
+      "_gvid": 5,
+      "name": "f",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#b8e6fe"
+        },
+        {
+          "op": "P",
+          "points": [[139.400,139.200],[25.650,139.200],[25.650,87.600],[139.400,87.600]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [49.470,120.600],
+          "align": "l",
+          "width": 66.100,
+          "text": "visibleDOT"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "L",
+          "points": [[131.400,114.400],[33.650,114.400]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [36.650,98.800],
+          "align": "l",
+          "width": 91.760,
+          "text": "Signal[DotText]"
+        }
+      ],
+      "fillcolor": "#b8e6fe",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">visibleDOT<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[DotText]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,113.4",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.58"
+    },
+    {
+      "_gvid": 6,
+      "name": "g",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#b8e6fe"
+        },
+        {
+          "op": "P",
+          "points": [[130.080,51.600],[34.970,51.600],[34.970,0.000],[130.080,0.000]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [55.690,33.000],
+          "align": "l",
+          "width": 53.660,
+          "text": "finalSVG"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "L",
+          "points": [[122.080,26.800],[42.970,26.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Times-Roman"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [45.970,11.200],
+          "align": "l",
+          "width": 73.110,
+          "text": "Signal[SVG]"
+        }
+      ],
+      "fillcolor": "#b8e6fe",
+      "height": "0.71667",
+      "label": "\n            <table border=\"0\" cellborder=\"0\" cellspacing=\"0\">\n                <tr><td align=\"center\">finalSVG<\/td><\/tr>\n                <tr><td align=\"center\" border=\"1\" sides=\"t\">Signal[SVG]<\/td><\/tr>\n            <\/table>\n        ",
+      "pos": "82.524,25.8",
+      "shape": "plaintext",
+      "style": "filled",
+      "width": "1.321"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "b",
+          "points": [[82.520,525.640],[82.520,517.920],[82.520,509.240],[82.520,500.910]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "P",
+          "points": [[86.020,501.020],[82.520,491.020],[79.020,501.020]]
+        }
+      ],
+      "arrowtail": "vee",
+      "pos": "e,82.524,489.5 82.524,525.64 82.524,517.92 82.524,509.24 82.524,500.91"
+    },
+    {
+      "_gvid": 5,
+      "tail": 5,
+      "head": 6,
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "b",
+          "points": [[82.520,87.640],[82.520,79.920],[82.520,71.240],[82.520,62.910]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "P",
+          "points": [[86.020,63.020],[82.520,53.020],[79.020,63.020]]
+        }
+      ],
+      "pos": "e,82.524,51.503 82.524,87.641 82.524,79.922 82.524,71.245 82.524,62.914"
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 5,
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "b",
+          "points": [[82.520,175.240],[82.520,167.520],[82.520,158.840],[82.520,150.510]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "P",
+          "points": [[86.020,150.620],[82.520,140.620],[79.020,150.620]]
+        }
+      ],
+      "pos": "e,82.524,139.1 82.524,175.24 82.524,167.52 82.524,158.84 82.524,150.51"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 3,
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "b",
+          "points": [[82.520,350.440],[82.520,342.720],[82.520,334.040],[82.520,325.710]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "P",
+          "points": [[86.020,325.820],[82.520,315.820],[79.020,325.820]]
+        }
+      ],
+      "arrowtail": "vee",
+      "pos": "e,82.524,314.3 82.524,350.44 82.524,342.72 82.524,334.04 82.524,325.71"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 2,
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "b",
+          "points": [[82.520,438.040],[82.520,430.320],[82.520,421.640],[82.520,413.310]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "P",
+          "points": [[86.020,413.420],[82.520,403.420],[79.020,413.420]]
+        }
+      ],
+      "arrowtail": "vee",
+      "pos": "e,82.524,401.9 82.524,438.04 82.524,430.32 82.524,421.64 82.524,413.31"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 4,
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "b",
+          "points": [[82.520,262.840],[82.520,255.120],[82.520,246.440],[82.520,238.110]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "P",
+          "points": [[86.020,238.220],[82.520,228.220],[79.020,238.220]]
+        }
+      ],
+      "pos": "e,82.524,226.7 82.524,262.84 82.524,255.12 82.524,246.44 82.524,238.11"
+    }
+  ]
+}

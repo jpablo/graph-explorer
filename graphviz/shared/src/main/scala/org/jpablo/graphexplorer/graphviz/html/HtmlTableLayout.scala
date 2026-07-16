@@ -15,7 +15,6 @@ object HtmlTableLayout:
 
   private val CellSpacing = HtmlTable.DefaultCellSpacing
   private val CellPadding = HtmlTable.DefaultCellPadding
-  private val Border      = HtmlTable.DefaultBorder
 
   /** A box in table-local, y-up coordinates (origin = table centre). */
   final case class BoxLocal(llx: Double, lly: Double, urx: Double, ury: Double):
@@ -60,16 +59,23 @@ object HtmlTableLayout:
     val space      = if tbl.cellspacing >= 0 then tbl.cellspacing else CellSpacing
     val tblBorder  = tbl.border
     val pad        = if tbl.cellpadding >= 0 then tbl.cellpadding else CellPadding
-    // cell border: table `cellborder` attr, else the table border (0 keeps a
-    // borderless table's cells borderless), else DEFAULT_BORDER.
-    val cellBorder = tbl.cellborder.getOrElse(if tblBorder == 0 then 0 else Border)
+    // Per-cell border/pad resolution (size_html_cell, htmltable.c:1096): the
+    // cell's own `border`/`cellpadding` attr wins, else the table `cellborder`,
+    // else the table `border` (the parser substitutes DEFAULT_BORDER when the
+    // attr is absent, so `tblBorder` covers both BORDER_SET and the default).
+    // `sides` never enters sizing — border space is reserved on all four sides.
+    def borderOf(cell: HtmlCell): Int =
+      cell.attrs.get("border").flatMap(_.toIntOption).filter(b => 0 <= b && b <= 255)
+        .getOrElse(tbl.cellborder.getOrElse(tblBorder))
+    def padOf(cell: HtmlCell): Int =
+      cell.attrs.get("cellpadding").flatMap(_.toIntOption).filter(p => 0 <= p && p <= 255)
+        .getOrElse(pad)
 
     // 1. grid assignment (processTbl/findCol) + cell (bordered) size.
     //    Cells are placed row-major, each at the leftmost free column that fits
     //    its colspan (skipping cells occupied by rowspans from above).
     final case class Info(row: Int, col: Int, colspan: Int, rowspan: Int,
                           cellW: Double, cellH: Double, cell: HtmlCell)
-    val margin   = 2.0 * (pad + cellBorder)
     val occupied = mutable.HashSet.empty[(Int, Int)] // (col, row)
     def spanOf(cell: HtmlCell, key: String): Int =
       cell.attrs.get(key).flatMap(_.toIntOption).filter(_ >= 1).getOrElse(1)
@@ -98,6 +104,7 @@ object HtmlTableLayout:
         val fixed = cell.attrs.get("fixedsize").exists(v => v.toLowerCase == "true" || v.toLowerCase == "fixed")
         val fw    = cell.attrs.get("width").flatMap(_.toDoubleOption)
         val fh    = cell.attrs.get("height").flatMap(_.toDoubleOption)
+        val margin = 2.0 * (padOf(cell) + borderOf(cell))
         val (cellW, cellH) =
           if fixed && fw.isDefined && fh.isDefined then (fw.get, fh.get)
           else
@@ -159,9 +166,9 @@ object HtmlTableLayout:
         lly = rowStart(info.row + info.rowspan) + space,
         ury = rowStart(info.row)
       )
-      val inset = cellBorder + pad
+      val inset = borderOf(info.cell) + padOf(info.cell)
       val contentBox = BoxLocal(box.llx + inset, box.lly + inset, box.urx - inset, box.ury - inset)
-      PlacedCell(box, contentBox, cellBorder, info.cell)
+      PlacedCell(box, contentBox, borderOf(info.cell), info.cell)
     }.toVector
 
     // rule lines sit in the middle of the spacing gap at a row/column boundary.

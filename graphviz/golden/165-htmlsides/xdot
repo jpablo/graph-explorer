@@ -1,0 +1,133 @@
+digraph G {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 577.2 165.05 577.2 165.05 0 ",
+		bb="0,0,165.05,577.2",
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	a	[_draw_="c 9 -#fffffe00 C 7 -#fff085 P 4 125.79 577.2 39.26 577.2 39.26 525.6 125.79 525.6 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 51.43 558.6 -1 62.19 10 -sourceText S 5 -solid c 7 -#000000 L 2 117.79 552.4 47.26 552.4 F 14 \
+11 -Times-Roman c 7 -#000000 T 50.26 536.8 -1 64.54 11 -Var[String] ",
+		fillcolor="#fff085",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">sourceText</td></tr>
+                <tr><td align="center" border="1" sides="t">Var[String]</td></tr>
+            </table>
+        >,
+		pos="82.524,551.4",
+		shape=plaintext,
+		style=filled,
+		width=1.2019];
+	b	[_draw_="c 9 -#fffffe00 C 7 -#fff085 P 4 144.07 489.6 20.98 489.6 20.98 438 144.07 438 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 42.48 471 -1 80.08 13 -versionedText S 5 -solid c 7 -#000000 L 2 136.07 464.8 28.98 464.8 F \
+14 11 -Times-Roman c 7 -#000000 T 31.98 449.2 -1 101.09 17 -Versioned[String] ",
+		fillcolor="#fff085",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">versionedText</td></tr>
+                <tr><td align="center" border="1" sides="t">Versioned[String]</td></tr>
+            </table>
+        >,
+		pos="82.524,463.8",
+		shape=plaintext,
+		style=filled,
+		width=1.7096];
+	a -> b	[_draw_="c 7 -#000000 B 4 82.52 525.64 82.52 517.92 82.52 509.24 82.52 500.91 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 86.02 501.02 82.52 491.02 79.02 501.02 ",
+		arrowtail=vee,
+		pos="e,82.524,489.5 82.524,525.64 82.524,517.92 82.524,509.24 82.524,500.91"];
+	c	[_draw_="c 9 -#fffffe00 C 7 -#fff085 P 4 165.05 402 0 402 0 350.4 165.05 350.4 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 21.48 383.4 -1 122.09 19 -versionedFullGraphV S 5 -solid c 7 -#000000 L 2 157.05 377.2 8 377.2 \
+F 14 11 -Times-Roman c 7 -#000000 T 11 361.6 -1 143.05 22 -Versioned[ViewerGraph] ",
+		fillcolor="#fff085",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">versionedFullGraphV</td></tr>
+                <tr><td align="center" border="1" sides="t">Versioned[ViewerGraph]</td></tr>
+            </table>
+        >,
+		pos="82.524,376.2",
+		shape=plaintext,
+		style=filled,
+		width=2.2923];
+	b -> c	[_draw_="c 7 -#000000 B 4 82.52 438.04 82.52 430.32 82.52 421.64 82.52 413.31 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 86.02 413.42 82.52 403.42 79.02 413.42 ",
+		arrowtail=vee,
+		pos="e,82.524,401.9 82.524,438.04 82.524,430.32 82.524,421.64 82.524,413.31"];
+	d	[_draw_="c 9 -#fffffe00 C 7 -#fff085 P 4 131.62 314.4 33.43 314.4 33.43 262.8 131.62 262.8 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 50.26 295.8 -1 64.54 10 -fullGraphV S 5 -solid c 7 -#000000 L 2 123.62 289.6 41.43 289.6 F 14 \
+11 -Times-Roman c 7 -#000000 T 44.43 274 -1 76.19 11 -ViewerGraph ",
+		fillcolor="#fff085",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">fullGraphV</td></tr>
+                <tr><td align="center" border="1" sides="t">ViewerGraph</td></tr>
+            </table>
+        >,
+		pos="82.524,288.6",
+		shape=plaintext,
+		style=filled,
+		width=1.3637];
+	c -> d	[_draw_="c 7 -#000000 B 4 82.52 350.44 82.52 342.72 82.52 334.04 82.52 325.71 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 86.02 325.82 82.52 315.82 79.02 325.82 ",
+		arrowtail=vee,
+		pos="e,82.524,314.3 82.524,350.44 82.524,342.72 82.524,334.04 82.524,325.71"];
+	e	[_draw_="c 9 -#fffffe00 C 7 -#b8e6fe P 4 154.17 226.8 10.88 226.8 10.88 175.2 154.17 175.2 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 46.37 208.2 -1 72.32 12 -visibleGraph S 5 -solid c 7 -#000000 L 2 146.17 202 18.88 202 F 14 \
+11 -Times-Roman c 7 -#000000 T 21.88 186.4 -1 121.29 19 -Signal[ViewerGraph] ",
+		fillcolor="#b8e6fe",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">visibleGraph</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[ViewerGraph]</td></tr>
+            </table>
+        >,
+		pos="82.524,201",
+		shape=plaintext,
+		style=filled,
+		width=1.9901];
+	d -> e	[_draw_="c 7 -#000000 B 4 82.52 262.84 82.52 255.12 82.52 246.44 82.52 238.11 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 86.02 238.22 82.52 228.22 79.02 238.22 ",
+		pos="e,82.524,226.7 82.524,262.84 82.524,255.12 82.524,246.44 82.524,238.11"];
+	f	[_draw_="c 9 -#fffffe00 C 7 -#b8e6fe P 4 139.4 139.2 25.65 139.2 25.65 87.6 139.4 87.6 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 49.47 120.6 -1 66.1 10 -visibleDOT S 5 -solid c 7 -#000000 L 2 131.4 114.4 33.65 114.4 F 14 \
+11 -Times-Roman c 7 -#000000 T 36.65 98.8 -1 91.76 15 -Signal[DotText] ",
+		fillcolor="#b8e6fe",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">visibleDOT</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[DotText]</td></tr>
+            </table>
+        >,
+		pos="82.524,113.4",
+		shape=plaintext,
+		style=filled,
+		width=1.58];
+	e -> f	[_draw_="c 7 -#000000 B 4 82.52 175.24 82.52 167.52 82.52 158.84 82.52 150.51 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 86.02 150.62 82.52 140.62 79.02 150.62 ",
+		pos="e,82.524,139.1 82.524,175.24 82.524,167.52 82.524,158.84 82.524,150.51"];
+	g	[_draw_="c 9 -#fffffe00 C 7 -#b8e6fe P 4 130.08 51.6 34.97 51.6 34.97 0 130.08 0 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 55.69 33 -1 53.66 8 -finalSVG S 5 -solid c 7 -#000000 L 2 122.08 26.8 42.97 26.8 F 14 11 -Times-Roman \
+c 7 -#000000 T 45.97 11.2 -1 73.11 11 -Signal[SVG] ",
+		fillcolor="#b8e6fe",
+		height=0.71667,
+		label=<
+            <table border="0" cellborder="0" cellspacing="0">
+                <tr><td align="center">finalSVG</td></tr>
+                <tr><td align="center" border="1" sides="t">Signal[SVG]</td></tr>
+            </table>
+        >,
+		pos="82.524,25.8",
+		shape=plaintext,
+		style=filled,
+		width=1.321];
+	f -> g	[_draw_="c 7 -#000000 B 4 82.52 87.64 82.52 79.92 82.52 71.24 82.52 62.91 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 86.02 63.02 82.52 53.02 79.02 63.02 ",
+		pos="e,82.524,51.503 82.524,87.641 82.524,79.922 82.524,71.245 82.524,62.914"];
+}

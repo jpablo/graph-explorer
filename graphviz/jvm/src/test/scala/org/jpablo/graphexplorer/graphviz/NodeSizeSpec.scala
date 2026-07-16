@@ -19,9 +19,29 @@ class NodeSizeSpec extends FunSuite:
 
   private def unquote(s: String): String = OracleHarness.unquote(s)
 
+  /** Blank out `label=<...>` HTML values (balanced angle brackets, possibly
+    * multi-line): their free text may contain `]`/`"`, which would end the
+    * stanza-body match early and hide the node's width/height. */
+  private def stripHtmlLabels(dot: String): String =
+    val sb = new StringBuilder
+    var i  = 0
+    while i < dot.length do
+      if dot.startsWith("=<", i) then
+        sb ++= "=\"\""
+        i += 2
+        var depth = 1
+        while i < dot.length && depth > 0 do
+          if dot(i) == '<' then depth += 1
+          else if dot(i) == '>' then depth -= 1
+          i += 1
+      else
+        sb += dot(i)
+        i += 1
+    sb.toString
+
   /** name -> (width,height) inches, as echoed by the oracle. */
   private def goldenSizes(name: String): Map[String, (Double, Double)] =
-    val dot = OracleHarness.golden(name, "dot")
+    val dot = stripHtmlLabels(OracleHarness.golden(name, "dot"))
     NodeStanza
       .findAllMatchIn(dot)
       .flatMap { m =>
