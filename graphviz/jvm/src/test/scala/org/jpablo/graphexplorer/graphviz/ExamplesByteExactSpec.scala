@@ -31,12 +31,14 @@ class ExamplesByteExactSpec extends FunSuite:
     *   inflation in the aux solve + bbox; edgecmp routing order; the
     *   UNSHIFTED raw solve frame (round() isn't translation-invariant);
     *   accumulated selfRight loops + self-edge label lp.]
-    *   - data-structures — mincross ORDER now matches gv exactly (the
-    *     port-aware mincross transcription: VAL port ordinals, in/out_cross
-    *     port ties, local_cross in ncross, transpose candidates). Remaining:
-    *     ONE aux-solve subtree sits rigidly −7 canonical-x (all nodes except
-    *     node5/node10/the V16 chain) — one make_edge_pairs/balance constraint
-    *     to pin via a gv aux-edge dump.
+    *   - data-structures — ORDER and X both match gv exactly now (port-aware
+    *     mincross + the make_edge_pairs working-orientation port fix: the aux
+    *     graphs are byte-identical per the gv make_aux_edge dump). Remaining:
+    *     EDGE SPLINES ONLY — gv resolves record `:fN` ports at route time
+    *     (resolvePort/closestSide → constrained side ports, clip=false) and
+    *     builds ported begin/endpath box channels in the canonical frame;
+    *     our spline port handling is still the TB-adjacent-only approximation
+    *     (splines.c:387 beginpath, shapes.c:4346 resolvePort — see PORT.md).
     *   - sbt-project-dependencies — within-rank order still differs
     *     (duplicate/parallel edges declared 2-3×); re-triage with the
     *     mincross trace now that the port machinery is in.

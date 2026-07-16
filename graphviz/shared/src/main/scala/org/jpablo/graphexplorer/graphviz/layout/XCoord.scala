@@ -222,11 +222,18 @@ object XCoord:
           case Some(re) =>
             // Endpoint match requires comparing the *real* node id, not a
             // synthetic virtual carrying the chain through the same rank.
+            // Segments run in WORKING orientation: an acyclic-reversed dedge's
+            // first segment tails the original HEAD (whose port gv swapped
+            // onto ED_tail_port at reversal) — match either end and use that
+            // end's own port, or the reversed chains drop their ports (ds's
+            // rigid −7 subtree: node7:f1→node1:f0, node11:f2→node1:f0).
             val tpx = t match
               case LayoutNode.Real(id) if id == re.tail => portX(re.tail, re.tailPort)
+              case LayoutNode.Real(id) if id == re.head => portX(re.head, re.headPort)
               case _ => 0.0
             val hpx = h match
               case LayoutNode.Real(id) if id == re.head => portX(re.head, re.headPort)
+              case LayoutNode.Real(id) if id == re.tail => portX(re.tail, re.tailPort)
               case _ => 0.0
             val m   = (hpx - tpx).toInt // C `int` truncation toward zero
             if m > 0 then (m, 0) else (0, -m)

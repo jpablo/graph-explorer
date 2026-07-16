@@ -29,12 +29,23 @@ The current worklist (kept in sync with the session task tracker; the
 fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
 enforce the deferral halves of it):
 
-- **mincross within-rank order (data-structures + sbt)** —
-  `data-structures` (1 rank: golden `[node12,node11,node9,node7]` vs ours
-  `[node11,node12,node7,node9]`) and `sbt-project-dependencies` (9/14
-  ranks; the file declares some edges 2-3× — duplicate/parallel edges
-  suspected in mincross weights/medians). Method: MCTRACE-instrumented gv
-  mincross (as in the 163-groups chase), start with the smaller file.
+- **data-structures: port-aware spline routing** — order and x now match
+  gv exactly (port-aware mincross + the `make_edge_pairs`
+  working-orientation port fix); the remaining diff is edge splines + bb
+  only. gv resolves record `:fN` ports at ROUTE time
+  (`resolvePort`/`closestSide`, shapes.c:4346 → constrained side ports
+  with `clip=false`, or centre ports clipped to the FIELD box via
+  `port.bp`/`record_inside`) and routes through ported
+  `beginpath`/`endpath` box channels in the canonical frame (splines.c:387
+  — side branches, `record_path` corridors, `invflip_side`; multi-rank
+  chains take the working-orientation ports, dotsplines.c:1784 `hackflag`,
+  head dyna port resolved vs the working TAIL, tail's vs the first vnode).
+  Our spline port handling is still the TB-adjacent-only approximation
+  (`portEnd`); `adjustregularpath` also needs the exact fb/lb parity form.
+- **sbt-project-dependencies: within-rank order** — 9/14 ranks differ; the
+  file declares some edges 2-3× — duplicate/parallel edges suspected in
+  mincross weights/medians. Method: MCTRACE-instrumented gv mincross
+  re-triage now that the port machinery is in.
 - **03-subgraph-cluster** — permanent, intentional corpus deferral (its
   goldens are gv's own default-mode cluster corruption; gated vs the 03b
   `newrank` oracle in `ClusterSpec`).
@@ -2247,4 +2258,23 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   (crossings included, cross=5 init). ds is down to ONE rigid −7 aux
   subtree; corpus 137/138 + examples + 693/52 green throughout; gv
   worktree pristine.
+- **2026-07-16 (later still 2)** — **ds −7 aux subtree CLOSED: `make_edge_pairs`
+  working-orientation ports** (task #61 part 2). Method: twin aux-graph
+  dumps — an XTRACE `fprintf` in gv `make_aux_edge` (position.c:176) vs a
+  temporary dump of `XCoord`'s NSEdge buffer; both sides create aux edges
+  in transcription-identical order so a line diff pins divergent
+  constraints directly. Result: 71/71 aux edges, exactly FOUR minlens
+  differed, all on ds's two acyclic-REVERSED ported edges
+  (`node7:f1→node1:f0`, `node11:f2→node1:f0`). Root cause: the
+  `make_edge_pairs` port match in `XCoord` keyed on the ORIGINAL
+  orientation (`id == re.tail ⇒ re.tailPort`), but segments run in WORKING
+  orientation — gv swaps the ports onto the reversed edge at reversal, so
+  the first segment of a reversed chain tails the original HEAD carrying
+  the original head's port. Fix: match either end and use that end's own
+  port (the same working-orientation rule Order got in part 1). The aux
+  graphs are now byte-IDENTICAL and every ds node position matches gv
+  exactly. ds's remaining diff is edge SPLINES + bb only — a separate,
+  newly-scoped subsystem (route-time `resolvePort`/`closestSide` dyna
+  ports, ported `beginpath`/`endpath` channels, field-box `bp` clipping —
+  see §0). Corpus 137/138 + examples + all suites green; gv pristine.
 - _(append dated entries as milestones land)_
