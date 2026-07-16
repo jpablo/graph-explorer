@@ -230,11 +230,20 @@ object Svg:
     // gv canvas: ROUND((pageSize + 2*margin) * dpi/72) with dpi=72 (emit.c:1288)
     // ⇒ ROUND(bb + 2*margin). (Was ceil — same for ≥.5 fractions; triangle
     // 69.291 → 69, not ceil's 70.)
+    // `pad` graph attr (emit.c:2926): "x[,y]" INCHES × 72 overrides the
+    // default 4pt canvas pad on each axis.
+    val (padX, padY) =
+      g.rootAttrs.get("pad").flatMap { p =>
+        val parts = p.split(",").map(_.trim)
+        parts.headOption.flatMap(_.toDoubleOption).map { x =>
+          (x * 72.0, parts.lift(1).flatMap(_.toDoubleOption).getOrElse(x) * 72.0)
+        }
+      }.getOrElse((Margin, Margin))
     val bbW = ux - lx; val bbH = uy - ly
-    val w   = Output.gvRound(bbW + 2 * Margin).toInt
-    val h   = Output.gvRound(bbH + 2 * Margin).toInt
-    val trX = Margin - lx
-    val trY = uy + Margin
+    val w   = Output.gvRound(bbW + 2 * padX).toInt
+    val h   = Output.gvRound(bbH + 2 * padY).toInt
+    val trX = padX - lx
+    val trY = uy + padY
 
     val sb = new StringBuilder
     sb ++= "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
@@ -253,9 +262,12 @@ object Svg:
     sb ++= s"""<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(${d2(trX)} ${d2(trY)})">\n"""
     gname.foreach(nm => sb ++= s"<title>${xml(nm)}</title>\n")
     // background canvas
-    val bx0 = lx - Margin; val bx1 = ux + Margin
-    val by0 = Margin; val by1 = -(uy + Margin)
-    sb ++= s"""<polygon fill="white" stroke="none" points="${d2(bx0)},${d2(by0)} ${d2(bx0)},${d2(by1)} ${d2(bx1)},${d2(by1)} ${d2(bx1)},${d2(by0)} ${d2(bx0)},${d2(by0)}"/>\n"""
+    val bx0 = lx - padX; val bx1 = ux + padX
+    val by0 = padY; val by1 = -(uy + padY)
+    // canvas fill = `bgcolor` graph attr (lowercased hex) else white
+    val bgFill = g.rootAttrs.get("bgcolor").filter(_.nonEmpty)
+      .map(c => if c.startsWith("#") then c.toLowerCase else c).getOrElse("white")
+    sb ++= s"""<polygon fill="$bgFill" stroke="none" points="${d2(bx0)},${d2(by0)} ${d2(bx0)},${d2(by1)} ${d2(bx1)},${d2(by1)} ${d2(bx1)},${d2(by0)} ${d2(bx0)},${d2(by0)}"/>\n"""
 
     // nodes (declaration order)
     val dimY = FontSize * LineSpacing
@@ -348,10 +360,11 @@ object Svg:
       * multi-line stacks each line down by its height from the block top. */
     def htmlText(cx: Double, cyc: Double, block: org.jpablo.graphexplorer.graphviz.html.HtmlText,
                  defColor: String, alignWidth: Double,
-                 defAlign: org.jpablo.graphexplorer.graphviz.html.HtmlAlign): String =
+                 defAlign: org.jpablo.graphexplorer.graphviz.html.HtmlAlign,
+                 baseSize: Double, baseName: String): String =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlLayout, HtmlAlign}
       val out   = new StringBuilder
-      val lines = block.spans.map(sp => (sp, HtmlLayout.lineMetrics(sp, FontSize, "Times")))
+      val lines = block.spans.map(sp => (sp, HtmlLayout.lineMetrics(sp, baseSize, baseName)))
       // Justify lines within `alignWidth` (the cell content area, or the text
       // box itself for a standalone label); each span's own align wins over the
       // inherited default.
@@ -371,18 +384,18 @@ object Svg:
       var lineTop = cyc + boxH / 2.0
       lines.foreach { case (sp, (lineW, lineH)) =>
         val lineCy = lineTop - lineH / 2.0
-        val ty     = -(lineCy + lineH / 2.0 - FontSize + 0.1 * FontSize) - yFix
+        val ty     = -(lineCy + lineH / 2.0 - baseSize + 0.1 * baseSize) - yFix
         val x0 = sp.align.getOrElse(defAlign) match
           case HtmlAlign.Left  => cx - boxW / 2.0
           case HtmlAlign.Right => cx + boxW / 2.0 - lineW
           case _               => cx - lineW / 2.0
         var xi = x0
         sp.items.foreach { it =>
-          val fs   = it.font.size.getOrElse(FontSize.toDouble)
-          val nm   = it.font.name.getOrElse("Times")
+          val fs   = it.font.size.getOrElse(baseSize)
+          val nm   = it.font.name.getOrElse(baseName)
           val bold = it.font.bold || nm.toLowerCase.contains("bold")
           val ital = it.font.italic || nm.toLowerCase.contains("italic") || nm.toLowerCase.contains("oblique")
-          val w    = HtmlLayout.itemWidth(it, FontSize, "Times")
+          val w    = HtmlLayout.itemWidth(it, baseSize, baseName)
           val wgt  = if bold then " font-weight=\"bold\"" else ""
           val sty  = if ital then " font-style=\"italic\"" else ""
           // <sub>/<sup> ⇒ SVG baseline-shift (same font size, same baseline).
@@ -391,7 +404,7 @@ object Svg:
           val col  = it.font.color.orElse(Option(defColor).filter(_.nonEmpty))
           val f    = col.map(c => s""" fill="$c"""").getOrElse("")
           val dec  = if it.font.underline then " text-decoration=\"underline\"" else ""
-          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}" font-family="Times,serif"$wgt$sty$bsh font-size="${f"$fs%.2f"}"$f$dec>${xml(it.str)}</text>\n"""
+          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}"${svgFontAttrs(nm)}$wgt$sty$bsh font-size="${f"$fs%.2f"}"$f$dec>${xml(it.str)}</text>\n"""
           xi += w
         }
         lineTop -= lineH
@@ -405,9 +418,9 @@ object Svg:
       * centred content), then the outer table border (emit order: cell, content,
       * …, table border last — matches gv). Coords are table-local y-up + centre. */
     def htmlTable(cx: Double, cyc: Double, tbl: org.jpablo.graphexplorer.graphviz.html.HtmlTable,
-                  defColor: String): String =
+                  defColor: String, baseSize: Double, baseName: String): String =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlTableLayout, HtmlLabel, HtmlAlign}
-      val laid     = HtmlTableLayout.layout(tbl, FontSize, "Times", g.images)
+      val laid     = HtmlTableLayout.layout(tbl, baseSize, baseName, g.images)
       val tblSpace = tbl.cellspacing.toDouble
       val out      = new StringBuilder
       // box polygon in world coords: LL, UL, UR, LR, LL (gvrender_box order).
@@ -443,7 +456,7 @@ object Svg:
         // valign positions the content box within the (taller) content area:
         // top ⇒ content top at the area top, bottom ⇒ content bottom at the
         // area bottom, middle (default) ⇒ centred. (pos_html_cell alignment.)
-        val (_, contentH) = org.jpablo.graphexplorer.graphviz.html.HtmlLayout.size(pc.cell.content, FontSize, "Times", g.images)
+        val (_, contentH) = org.jpablo.graphexplorer.graphviz.html.HtmlLayout.size(pc.cell.content, baseSize, baseName, g.images)
         val ccy = pc.cell.attrs.get("valign").map(_.toLowerCase) match
           case Some("top")    => cyc + pc.contentBox.ury - contentH / 2.0
           case Some("bottom") => cyc + pc.contentBox.lly + contentH / 2.0
@@ -455,8 +468,8 @@ object Svg:
               case Some("left")  => HtmlAlign.Left
               case Some("right") => HtmlAlign.Right
               case _             => HtmlAlign.Center
-            out ++= htmlText(ccx, ccy, block, defColor, cw, al)
-          case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor)
+            out ++= htmlText(ccx, ccy, block, defColor, cw, al, baseSize, baseName)
+          case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor, baseSize, baseName)
           case HtmlLabel.Image(src, scale) =>
             // Emit an `<image>` only when the dimensions are known (else gv can't
             // load the file and draws nothing — the missing-image case). The
@@ -550,12 +563,18 @@ object Svg:
             // shape=point (point_init): implicitly style=filled with the pen
             // colour, and an empty label — a small filled circle.
             val isPoint = n.attrs.get("shape").contains("point")
-            val fill =
+            // gv canonicalizes colors: `#RRGGBB` hex is emitted lowercase.
+            def canonColor(c: String): String = if c.startsWith("#") then c.toLowerCase else c
+            val fill = canonColor(
               if isPoint then n.attrs.get("color").getOrElse("black")
               else if styles.contains("filled") then
                 n.attrs.get("fillcolor").orElse(n.attrs.get("color")).getOrElse("lightgrey")
-              else "none"
-            val stroke = n.attrs.get("color").getOrElse("black")
+              else "none")
+            val stroke = canonColor(n.attrs.get("color").getOrElse("black"))
+            // penwidth ≠ 1 ⇒ every drawn outline gets stroke-width (gvrender
+            // set_penwidth before the shape ops).
+            val nodePw = n.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+            val swAttr = if nodePw != 1.0 then s""" stroke-width="${Output.g5(nodePw)}"""" else ""
             // box-family shapes render as a rectangle <polygon> (corners
             // UR,UL,LL,LR,UR in flipped-y); `style=rounded` ⇒ a <path> with
             // RBCONST=12 corner arcs (shapes.c round_corners); else ellipse.
@@ -575,24 +594,24 @@ object Svg:
               RoundCorners(af, RoundCorners.codeOf(shapeName), fill != "none").foreach {
                 case RoundCorners.Op.Poly(pts, f) =>
                   val ps = (pts :+ pts.head).map(afSvg).mkString(" ")
-                  sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke" points="$ps"/>\n"""
+                  sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke"$swAttr points="$ps"/>\n"""
                 case RoundCorners.Op.Line(pts) =>
-                  sb ++= s"""<polyline fill="none" stroke="$stroke" points="${pts.map(afSvg).mkString(" ")}"/>\n"""
+                  sb ++= s"""<polyline fill="none" stroke="$stroke"$swAttr points="${pts.map(afSvg).mkString(" ")}"/>\n"""
               }
             else if shapeName == "underline" then
               // transparent-stroke box (poly_gencode set_pencolor "transparent")
               // + the drawn bottom edge AF[2]→AF[3].
               val boxPts = (af :+ af.head).map(afSvg).mkString(" ")
               sb ++= s"""<polygon fill="$fill" stroke="none" points="$boxPts"/>\n"""
-              sb ++= s"""<polyline fill="none" stroke="$stroke" points="${afSvg(af(2))} ${afSvg(af(3))}"/>\n"""
+              sb ++= s"""<polyline fill="none" stroke="$stroke"$swAttr points="${afSvg(af(2))} ${afSvg(af(3))}"/>\n"""
             else if shapeName == "Msquare" then
               // regular box + corner diagonals (diagonals_draw on the box AF).
               RoundCorners.diagonals(af, 4, fill != "none").foreach {
                 case RoundCorners.Op.Poly(pts, f) =>
                   val ps = (pts :+ pts.head).map(afSvg).mkString(" ")
-                  sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke" points="$ps"/>\n"""
+                  sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke"$swAttr points="$ps"/>\n"""
                 case RoundCorners.Op.Line(pts) =>
-                  sb ++= s"""<polyline fill="none" stroke="$stroke" points="${pts.map(afSvg).mkString(" ")}"/>\n"""
+                  sb ++= s"""<polyline fill="none" stroke="$stroke"$swAttr points="${pts.map(afSvg).mkString(" ")}"/>\n"""
               }
             else if boxLike.contains(shapeName) then
               val (l, rr)  = (x - rx, x + rx)
@@ -611,7 +630,7 @@ object Svg:
                   s"${d2(rr)},${d2(b - c)} ${d2(rr)},${d2(t + c)} ${d2(rr)},${d2(t + c)}",
                   s"${d2(rr)},${d2(t + c / 2)} ${d2(rr - c / 2)},${d2(t)} ${d2(rr - c)},${d2(t)}"
                 )
-                sb ++= s"""<path fill="$fill" stroke="$stroke" d="M${d2(rr - c)},${d2(t)}C${segs.mkString(" ")}"/>\n"""
+                sb ++= s"""<path fill="$fill" stroke="$stroke"$swAttr d="M${d2(rr - c)},${d2(t)}C${segs.mkString(" ")}"/>\n"""
               else
                 // one rectangle per periphery (poly p_box, sides=4): innermost
                 // first and filled, each outer ring GAP larger, outlines only.
@@ -621,7 +640,7 @@ object Svg:
                   val off = 4.0 * (peris - 1 - k) // GAP; inner ring is smallest
                   val (l2, rr2, t2, b2) = (l + off, rr - off, t + off, b - off)
                   val rf = if k == 0 then fill else "none"
-                  sb ++= s"""<polygon fill="$rf" stroke="$stroke" points="${d2(rr2)},${d2(t2)} ${d2(l2)},${d2(t2)} ${d2(l2)},${d2(b2)} ${d2(rr2)},${d2(b2)} ${d2(rr2)},${d2(t2)}"/>\n"""
+                  sb ++= s"""<polygon fill="$rf" stroke="$stroke"$swAttr points="${d2(rr2)},${d2(t2)} ${d2(l2)},${d2(t2)} ${d2(l2)},${d2(b2)} ${d2(rr2)},${d2(b2)} ${d2(rr2)},${d2(t2)}"/>\n"""
                   k += 1
             else
               // Convex builtin polygon (diamond/triangle/hexagon/doubleoctagon/
@@ -635,26 +654,26 @@ object Svg:
                   // <path d="M p0 C p1 p2 …"> with y negated at emit.
                   val afc = poly.rings.head
                   val body = s"M${afSvg(afc(0))}C${afc.drop(1).map(afSvg).mkString(" ")}"
-                  sb ++= s"""<path fill="$fill" stroke="$stroke" d="$body"/>\n"""
+                  sb ++= s"""<path fill="$fill" stroke="$stroke"$swAttr d="$body"/>\n"""
                   val y0  = afc(0)._2
                   val cap = Vector(afc(0)) ++ (1 to 5).map(k => (afc(k)._1, 2 * y0 - afc(k)._2)) :+ afc(6)
                   val capD = s"M${afSvg(cap(0))}C${cap.drop(1).map(afSvg).mkString(" ")}"
-                  sb ++= s"""<path fill="none" stroke="$stroke" d="$capD"/>\n"""
+                  sb ++= s"""<path fill="none" stroke="$stroke"$swAttr d="$capD"/>\n"""
                 case Some(poly) if shapeName == "Mdiamond" =>
                   // diamond + corner diagonals (diagonals_draw on the diamond AF).
                   RoundCorners.diagonals(poly.rings.head, 4, fill != "none").foreach {
                     case RoundCorners.Op.Poly(pts, f) =>
                       val ps = (pts :+ pts.head).map(afSvg).mkString(" ")
-                      sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke" points="$ps"/>\n"""
+                      sb ++= s"""<polygon fill="${if f then fill else "none"}" stroke="$stroke"$swAttr points="$ps"/>\n"""
                     case RoundCorners.Op.Line(pts) =>
-                      sb ++= s"""<polyline fill="none" stroke="$stroke" points="${pts.map(afSvg).mkString(" ")}"/>\n"""
+                      sb ++= s"""<polyline fill="none" stroke="$stroke"$swAttr points="${pts.map(afSvg).mkString(" ")}"/>\n"""
                   }
                 case Some(poly) =>
                   poly.rings.zipWithIndex.foreach { (ring, j) =>
                     val pts    = ring.map((vx, vy) => s"${d2(x + vx)},${d2(-(cy + vy))}")
                     val closed = (pts :+ pts.head).mkString(" ")
                     val rf     = if j == 0 then fill else "none" // fill innermost only
-                    sb ++= s"""<polygon fill="$rf" stroke="$stroke" points="$closed"/>\n"""
+                    sb ++= s"""<polygon fill="$rf" stroke="$stroke"$swAttr points="$closed"/>\n"""
                   }
                 case None =>
                   // ellipse family: draw `peripheries` concentric rings from the
@@ -665,15 +684,15 @@ object Svg:
                   var j     = 0
                   while j < peris do
                     val off = gap * (peris - 1 - j) // inner ring is smallest
-                    sb ++= s"""<ellipse fill="$fill" stroke="$stroke" cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx - off)}" ry="${d2(ry - off)}"/>\n"""
+                    sb ++= s"""<ellipse fill="$fill" stroke="$stroke"$swAttr cx="${d2(x)}" cy="${d2(-cy)}" rx="${d2(rx - off)}" ry="${d2(ry - off)}"/>\n"""
                     j += 1
                   if shapeName == "Mcircle" then
                     // Mcircle_hack: two horizontal chords near top/bottom
                     // (x=rw·0.6614, y=ht/2·0.75, on the unit circle x²+y²≈1).
                     val px = rx * 0.6614
                     val py = ry * 0.75
-                    sb ++= s"""<polyline fill="none" stroke="$stroke" points="${afSvg((px, py))} ${afSvg((-px, py))}"/>\n"""
-                    sb ++= s"""<polyline fill="none" stroke="$stroke" points="${afSvg((px, -py))} ${afSvg((-px, -py))}"/>\n"""
+                    sb ++= s"""<polyline fill="none" stroke="$stroke"$swAttr points="${afSvg((px, py))} ${afSvg((-px, py))}"/>\n"""
+                    sb ++= s"""<polyline fill="none" stroke="$stroke"$swAttr points="${afSvg((px, -py))} ${afSvg((-px, -py))}"/>\n"""
             // node `image=`: place the image inside the node's bounding box
             // (gvrender_usershape — natural size, centred), after the border and
             // before the label. Every bordered shape (box, ellipse, convex
@@ -702,11 +721,15 @@ object Svg:
               import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel}
               HtmlParser.parse(n.attrs.getOrElse("label", "")) match
                 case Some(HtmlLabel.Text(block)) =>
-                  val bw = org.jpablo.graphexplorer.graphviz.html.HtmlLayout.textSize(block, FontSize, "Times")._1
+                  val nfs = n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
+                  val nfn = n.attrs.getOrElse("fontname", "Times-Roman")
+                  val bw = org.jpablo.graphexplorer.graphviz.html.HtmlLayout.textSize(block, nfs, nfn)._1
                   sb ++= htmlText(x, cy, block, n.attrs.get("fontcolor").getOrElse(""), bw,
-                    org.jpablo.graphexplorer.graphviz.html.HtmlAlign.Center)
+                    org.jpablo.graphexplorer.graphviz.html.HtmlAlign.Center, nfs, nfn)
                 case Some(HtmlLabel.Table(tbl)) =>
-                  sb ++= htmlTable(x, cy, tbl, n.attrs.get("fontcolor").getOrElse(""))
+                  val nfs = n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
+                  val nfn = n.attrs.getOrElse("fontname", "Times-Roman")
+                  sb ++= htmlTable(x, cy, tbl, n.attrs.get("fontcolor").getOrElse(""), nfs, nfn)
                 case Some(HtmlLabel.Image(src, _)) =>
                   // Bare-image node label: the drawn image, centred in the node.
                   g.images.get(src).foreach { dim =>
@@ -723,7 +746,7 @@ object Svg:
 
     def emitEdge(ix: Int, ei: Int): Unit =
       val e = g.edges(ix)
-      spl.get(ix).foreach { es =>
+      spl.get(ix).foreach { es => scala.util.boundary {
           // map_point every spline/arrow/label point into the drawing frame.
           val pts = es.pts.map(p => { val (x, y) = tf(p.x, p.y); Spline.XY(x, y) })
           // emit.c: the edge *comment* is portless (agnameof tail/head);
@@ -735,6 +758,10 @@ object Svg:
           val hp = e.headPortName.fold("")(":" + _)
           val label = s"${e.tail}$tp$op${e.head}$hp"
           sb ++= s"<!-- ${xml(comment)} -->\n"
+          // style=invis: the edge ranks/routes normally (json0 keeps its pos)
+          // and its COMMENT prints, but the drawing <g> is skipped entirely.
+          if e.attrs.get("style").exists(_.split(",").iterator.map(_.trim).contains("invis")) then
+            scala.util.boundary.break()
           sb ++= s"""<g id="edge$ei" class="edge">\n"""
           sb ++= s"<title>${xml(label)}</title>\n"
           val head = pts.head
@@ -747,7 +774,9 @@ object Svg:
             if eStyles.contains("dashed") then """ stroke-dasharray="5,2""""
             else if eStyles.contains("dotted") then """ stroke-dasharray="1,5""""
             else ""
-          sb ++= s"""<path fill="none" stroke="$eStroke"$dash d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
+          val ePw = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+          val eSw = if ePw != 1.0 then s""" stroke-width="${Output.g5(ePw)}"""" else ""
+          sb ++= s"""<path fill="none" stroke="$eStroke"$eSw$dash d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
           if g.directed then
             es.ep.foreach { epR =>
               val tip = { val (x, y) = tf(epR.x, epR.y); Spline.XY(x, y) }
@@ -780,9 +809,14 @@ object Svg:
                 import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel, HtmlLayout, HtmlAlign}
                 HtmlParser.parse(lbl) match
                   case Some(HtmlLabel.Text(block)) =>
-                    val bw = HtmlLayout.textSize(block, FontSize, "Times")._1
-                    sb ++= htmlText(lpx, lpy, block, col, bw, HtmlAlign.Center)
-                  case Some(HtmlLabel.Table(tbl)) => sb ++= htmlTable(lpx, lpy, tbl, col)
+                    val efs = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
+                    val efn = e.attrs.getOrElse("fontname", "Times-Roman")
+                    val bw = HtmlLayout.textSize(block, efs, efn)._1
+                    sb ++= htmlText(lpx, lpy, block, col, bw, HtmlAlign.Center, efs, efn)
+                  case Some(HtmlLabel.Table(tbl)) =>
+                    val efs = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
+                    val efn = e.attrs.getOrElse("fontname", "Times-Roman")
+                    sb ++= htmlTable(lpx, lpy, tbl, col, efs, efn)
                   case _                          => ()
               else
                 sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times-Roman"))
@@ -790,6 +824,7 @@ object Svg:
           }
           sb ++= "</g>\n"
         }
+      }
 
     // gv svg emit order: for each node (first-mention order) emit it, then per
     // out-edge emit the head node (if unseen) then the edge — so nodes/edges

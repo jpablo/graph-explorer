@@ -346,13 +346,16 @@ object Output:
       kv("pos") = s""""${g5(tpx)},${g5(tpy)}""""
       // record nodes emit `rects` — every leaf field box in absolute coords
       // (node centre + node-local box, y-up), space-joined in field order.
+      // The FIELD boxes are already in the drawn (final) orientation —
+      // recordLayout is flip-aware — so only the node CENTRE goes through
+      // the rankdir transform; pushing the local offsets through `tf` too
+      // double-rotated them (LR rects came out with llx > urx). Same shape
+      // as Svg's record path (transformed centre + local box).
       NodeSize.recordLayout(n, g).foreach { root =>
         def leaves(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field): Vector[org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field] =
           if f.isLeaf then Vector(f) else f.flds.flatMap(leaves)
         val rects = leaves(root).map { f =>
-          val (llx, lly) = tf(px + f.llx, py + f.lly)
-          val (urx, ury) = tf(px + f.urx, py + f.ury)
-          s"${g5(llx)},${g5(lly)},${g5(urx)},${g5(ury)}"
+          s"${g5(tpx + f.llx)},${g5(tpy + f.lly)},${g5(tpx + f.urx)},${g5(tpy + f.ury)}"
         }.mkString(" ")
         kv("rects") = s""""$rects""""
       }

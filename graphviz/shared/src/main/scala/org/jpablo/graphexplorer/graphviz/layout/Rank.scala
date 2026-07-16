@@ -34,12 +34,34 @@ object Rank:
     * roots visited in node-declaration order; an out-edge to a node currently
     * on the DFS stack is reversed (and not recursed into).
     */
+  /** `constraint=false` (mapbool) — the edge exists for routing/mincross but
+    * is ABSENT from the ranking graph (class1.c skips it): no acyclic
+    * traversal or reversal, no rank constraint. Default true. */
+  private[layout] def constrained(attrs: org.jpablo.graphexplorer.graphviz.model.Attrs): Boolean =
+    attrs.get("constraint") match
+      case Some(v) =>
+        v.toLowerCase match
+          case "false" | "no" => false
+          case other          => other.toIntOption.forall(_ > 0)
+      case None => true
+
   private def acyclic(g: RGraph, minlenScale: Int): Vector[DEdge] =
     val edges  = g.edges.filter(e => e.tail != e.head) // self-loops don't rank
     val outIdx = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[Int]]
     g.nodes.foreach(n => outIdx(n.id) = mutable.ArrayBuffer.empty)
     edges.zipWithIndex.foreach { case (e, i) =>
-      outIdx.getOrElseUpdate(e.tail, mutable.ArrayBuffer.empty) += i
+      if constrained(e.attrs) then
+        outIdx.getOrElseUpdate(e.tail, mutable.ArrayBuffer.empty) += i
+    }
+    // agfstout order (cgraph agedgeseqcmpf): a node's out-edges iterate by
+    // (HEAD-node declaration seq, edge seq) — NOT edge-declaration order.
+    // Coincides with declaration order unless heads are named out of node
+    // order (fsm/logo examples); a different DFS order breaks different
+    // back edges ⇒ different ranks.
+    val nodeSeq: Map[String, Int] = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+    outIdx.values.foreach { buf =>
+      val sorted = buf.sortBy(i => (nodeSeq.getOrElse(edges(i).head, Int.MaxValue), i))
+      buf.clear(); buf ++= sorted
     }
     val reversed = mutable.Set.empty[Int]
     val mark     = mutable.Set.empty[String]
@@ -135,9 +157,13 @@ object Rank:
         else e
       }
     // collapse endpoints to leaders for ranking; drop now-intra-set edges
-    var nse = wedges.iterator.flatMap { e =>
+    // AND `constraint=false` edges (absent from the ranking graph — the
+    // realEdges filter matches acyclic's, so indices align with wedges).
+    val realEdges = g.edges.filter(e => e.tail != e.head)
+    var nse = wedges.iterator.zipWithIndex.flatMap { case (e, i) =>
       val (t, h) = (leader(e.tail), leader(e.head))
-      if t == h then None else Some(NetworkSimplex.NSEdge(t, h, e.minlen, 1))
+      if t == h || !constrained(realEdges(i).attrs) then None
+      else Some(NetworkSimplex.NSEdge(t, h, e.minlen, 1))
     }.toVector
     val leaderNodes = g.nodes.iterator.map(n => leader(n.id)).distinct.toVector
     // minmax_edges2 (rank.c): for every leader with no out-edge add `n→maxset`

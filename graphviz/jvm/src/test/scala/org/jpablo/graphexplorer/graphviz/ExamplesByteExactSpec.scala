@@ -38,19 +38,24 @@ class ExamplesByteExactSpec extends FunSuite:
     *   - data-structures — record `rects` under LR come out malformed
     *     (x1 > x2, e.g. ours "35.551,226.35,8.3508,297.45") and record y
     *     positions shift: the record-rect rankdir transform is wrong.
-    *   - logo — LR layout divergence (nodesep=0.42, pad: node positions
-    *     differ, e.g. golden 90,84 vs ours 162,99). Needs its own chase.
-    *   - html — HTML-table label example renders differently (user-reported
-    *     2026-07-16; cell sizing/structure vs viz-js).
-    *   - unsupported/multiple-edges-with-commas — DotParser rejects the
-    *     `a -> b, c` edge-list syntax (valid DOT; viz-js renders it). */
+    * CLOSED 2026-07-16 (same session, in order):
+    *   - unsupported/multiple-edges-with-commas — cgraph nodelist grammar
+    *     (`nodelist : node | nodelist ',' node`) ported + edge endpoints
+    *     declare their node in textual order (appendnode).
+    *   - logo — five fixes: constraint=false edges excluded from ranking;
+    *     acyclic DFS iterates out-edges in agfstout order; `pad` attr sets
+    *     the svg canvas pad; arrowhead=none ⇒ no trim/ep; flat edges clip
+    *     in the order-normalized WORKING direction (swap_ends_p tie-break);
+    *     penwidth-inflated clip outline + stroke-width/bgcolor/hex-lowercase
+    *     in svg.
+    *   - html — layout had already converged; the svg HTML renderer was
+    *     hardcoding FontSize/Times while the sizing honored the node's
+    *     fontsize/fontname — base font now threads through htmlText/htmlTable
+    *     (this was the user-reported oversized-tasks rendering). */
   private val deferred = Set(
     "data-structures",
     "finite-state-machine",
-    "sbt-project-dependencies",
-    "logo",
-    "html",
-    "unsupported/multiple-edges-with-commas")
+    "sbt-project-dependencies")
 
   /** Not gateable: the ORACLE itself fails on these (no golden exists).
     *   - failing/leading-newline: viz-js 3.14.0 crashes with "RuntimeError:

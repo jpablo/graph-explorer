@@ -212,7 +212,12 @@ object AttrResolver:
         case ast.Stmt.EdgeStmt(ends, as) =>
           val ea = Attrs.of(as)
           val ids = ends.map {
-            case ast.EdgeEnd.Node(n) => List((n.id.value, n.port))
+            case ast.EdgeEnd.Node(n) =>
+              // cgraph appendnode: an edge endpoint declares its node THE
+              // MOMENT it is parsed — before any later subgraph end declares
+              // its members (`A -> {B,C}` seq-numbers A before B/C).
+              ensureNode(n.id.value, sc)
+              List((n.id.value, n.port))
             case ast.EdgeEnd.Sub(sg) =>
               val sub = enterSub(sg, sc)
               children += sub

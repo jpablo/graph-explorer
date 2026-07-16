@@ -130,8 +130,26 @@ object DotParser:
       Subgraph(pfx.flatten, stmts)
     }
 
-  private def edgeEnd[$: P]: P[EdgeEnd] =
-    P(subgraph.map(EdgeEnd.Sub(_)) | nodeId.map(EdgeEnd.Node(_)))
+  // cgraph grammar.y: `simple : nodelist | subgraph` with
+  // `nodelist : node | nodelist ',' node` — a comma-separated node list is
+  // valid BOTH as a standalone statement (`B, C, D;` declares three nodes)
+  // and as an edge endpoint (`A -> {B, C}` / `a, b -> c` cross-products).
+  // A multi-node list desugars to an anonymous subgraph of node statements,
+  // which the resolver already handles identically.
+  private def nodeList[$: P]: P[List[NodeId]] =
+    P(nodeId ~ ("," ~ nodeId).rep).map((h, t) => h :: t.toList)
+
+  private enum RawEnd derives CanEqual:
+    case Nodes(ns: List[NodeId])
+    case Sub(sg: Subgraph)
+
+  private def rawEnd[$: P]: P[RawEnd] =
+    P(subgraph.map(RawEnd.Sub(_)) | nodeList.map(RawEnd.Nodes(_)))
+
+  private def toEdgeEnd(e: RawEnd): EdgeEnd = e match
+    case RawEnd.Nodes(List(n)) => EdgeEnd.Node(n)
+    case RawEnd.Nodes(ns)      => EdgeEnd.Sub(Subgraph(None, ns.map(Stmt.NodeStmt(_, Nil))))
+    case RawEnd.Sub(sg)        => EdgeEnd.Sub(sg)
 
   private def edgeOp[$: P]: P[Unit] = P("->" | "--")
 
@@ -141,19 +159,21 @@ object DotParser:
   private def assignStmt[$: P]: P[Stmt] =
     P(id ~ "=" ~ id).map { case (n, v) => Stmt.Assign(n, v) }
 
-  private def edgeOrNodeStmt[$: P]: P[Stmt] =
-    P(edgeEnd ~ (edgeOp ~ edgeEnd).rep ~ attrGroups).map {
+  private def edgeOrNodeStmt[$: P]: P[List[Stmt]] =
+    P(rawEnd ~ (edgeOp ~ rawEnd).rep ~ attrGroups).map {
       case (first, rest, attrs) if rest.nonEmpty =>
-        Stmt.EdgeStmt(first :: rest.toList, attrs)
-      case (EdgeEnd.Node(n), _, attrs) => Stmt.NodeStmt(n, attrs)
-      case (EdgeEnd.Sub(sg), _, _)     => Stmt.SubStmt(sg)
+        List(Stmt.EdgeStmt(toEdgeEnd(first) :: rest.iterator.map(toEdgeEnd).toList, attrs))
+      // A standalone nodelist declares each node INLINE (appendnode) — no
+      // subgraph is created (wrapping one would add a phantom `%N` object).
+      case (RawEnd.Nodes(ns), _, attrs) => ns.map(Stmt.NodeStmt(_, attrs))
+      case (RawEnd.Sub(sg), _, _)       => List(Stmt.SubStmt(sg))
     }
 
-  private def stmt[$: P]: P[Stmt] =
-    P(attrStmt | assignStmt | edgeOrNodeStmt)
+  private def stmt[$: P]: P[List[Stmt]] =
+    P(attrStmt.map(List(_)) | assignStmt.map(List(_)) | edgeOrNodeStmt)
 
   private def stmtList[$: P]: P[List[Stmt]] =
-    P((stmt ~ semiOpt).rep).map(_.toList)
+    P((stmt ~ semiOpt).rep).map(_.flatten.toList)
 
   private def graphP[$: P]: P[Graph] =
     P(

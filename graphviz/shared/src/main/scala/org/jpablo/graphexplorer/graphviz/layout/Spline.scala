@@ -600,13 +600,21 @@ object Spline:
         val ports    = e.tailPort.isDefined || e.headPort.isDefined
         val labelled = e.attrs.get("label").exists(_.nonEmpty)
         if adjacent && !ports then
-          val tp   = XY(cx(e.tail), cy(e.tail))
-          val hp   = XY(cx(e.head), cy(e.head))
+          // make_flat_edge forward-normalizes by within-rank ORDER (the
+          // swap_ends_p tie-break for equal ranks): the WORKING direction is
+          // left→right; the clip runs in it and swap_spline restores the
+          // declared direction at install. bezier_clip is not direction-
+          // symmetric, so clipping tail→head put the two cuts on the wrong
+          // ends (logo's b->h was off ±0.14pt, mirrored).
+          val flatRev = row.indexOf(e.head) < row.indexOf(e.tail)
+          val (wt, wh) = if flatRev then (e.head, e.tail) else (e.tail, e.head)
+          val tp   = XY(cx(wt), cy(wt))
+          val hp   = XY(cx(wh), cy(wh))
           val ctrl =
             if labelled then Vector(tp, tp, hp, hp)
             else Vector(tp, XY((2 * tp.x + hp.x) / 3.0, tp.y),
                             XY((2 * hp.x + tp.x) / 3.0, tp.y), hp)
-          out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf)
+          out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf, reversedWork = flatRev)
           if labelled then
             // place_flat_label: centred between the facing node edges
             // (leftend = left.x+rw, rightend = right.x−lw), one
@@ -650,9 +658,9 @@ object Spline:
               val poly = buildPolygon(boxes)
               val sp   = funnelGeneral(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
               proutespline(poly, sp)
-          // gv routes tn→hn (left→right); reorient to tail(e)→head(e) for
-          // clipInstall (which clips ctrl.head to the tail, ctrl.last to head).
-          out(origIdx) = clipInstall(g, if e.tail == tn then ctrl else ctrl.reverse, e, byId, centerOf)
+          // gv routes AND clips tn→hn (left→right, the working direction) and
+          // swap_spline's at install — clipInstall(reversedWork) does both.
+          out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf, reversedWork = e.tail != tn)
         // else: ported / labeled non-adjacent flat edges stay deferred (no corpus).
     }
 
@@ -1246,7 +1254,13 @@ object Spline:
               // ⇒ box clip using the node size directly (peripheries=0, no
               // penwidth inflation). Other box-family shapes add penwidth.
               val plain = Set("plaintext", "none", "plain").contains(shapeName)
-              val pw  = if plain then 0.0 else NodePenwidth
+              // late_double(n, N_penwidth, 1, 0): the OUTLINE (clip boundary)
+              // sits penwidth/2 outside the outermost periphery (shapes.c
+              // poly_init) — a penwidth=7 circle clips 3.5pt out (logo).
+              val pw =
+                if plain then 0.0
+                else n.attrs.get("penwidth").flatMap(_.toDoubleOption)
+                  .map(math.max(0.0, _)).getOrElse(NodePenwidth)
               val urx = (sz.widthPt.value + pw) / 2.0
               val ury = (sz.heightPt.value + pw) / 2.0
               // Every sides=4 axis-aligned shape clips as a BOX (poly_inside on
@@ -1310,7 +1324,9 @@ object Spline:
     // long-deferred M5/M7 sub-2px residual. `epAttach` = Graphviz's
     // spl->ep, captured before the gap shortens the curve (unchanged).
     var epAttach: Option[XY] = None
-    if g.directed then
+    // arrowhead=none ⇒ eflag=0 (arrows.c arrow_flags): no arrow, no trim,
+    // no `ep` attach — the spline meets the node boundary directly.
+    if g.directed && e.attrs.getOrElse("arrowhead", "normal") != "none" then
       val pw    = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
       val asz   = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
       // arrowhead type sets the trim length: `vee` (crow, ≈11.22) ≠ `normal`
