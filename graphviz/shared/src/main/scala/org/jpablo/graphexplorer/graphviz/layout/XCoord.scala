@@ -212,10 +212,16 @@ object XCoord:
       val owner = res.segOwner.lift(i).getOrElse(-1)
       val owned = if owner >= 0 && owner < realEdges.length then Some(realEdges(owner)) else None
       // make_edge_pairs slack weight = ω-class × the **edge `weight`**
-      // (ED_weight, default 1; the whole virtual chain inherits it). Was
-      // a documented M5+ deferral; default-1 ⇒ 01/06/07 unchanged.
-      val wt = owned.flatMap(_.attrs.get("weight")).flatMap(_.toDoubleOption)
-        .map(w => math.max(1, math.round(w).toInt)).getOrElse(1)
+      // (ED_weight, default 1; the whole virtual chain inherits it). A
+      // class2-merged multi-edge class sums its members' weights onto the
+      // rep chain (merge_chain `ED_weight(rep) += ED_weight(e)`).
+      def weightAttr(d: Int): Int =
+        realEdges.lift(d).flatMap(_.attrs.get("weight")).flatMap(_.toDoubleOption)
+          .map(w => math.max(1, math.round(w).toInt)).getOrElse(1)
+      val wt =
+        if owner >= 0 then
+          res.mergedInto.indices.iterator.filter(res.mergedInto(_) == owner).map(weightAttr).sum max 1
+        else 1
       val w  = NSClass.weight(cls(t), cls(h)) * wt
       val (m0, m1) =
         owned match

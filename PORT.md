@@ -29,14 +29,17 @@ The current worklist (kept in sync with the session task tracker; the
 fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
 enforce the deferral halves of it):
 
-- **sbt-project-dependencies** (last open example) — two known gaps:
-  (a) gv `class2` MERGES consecutive same-endpoint unlabeled multi-edges
-  (class2.c:207 `merge_chain`: ONE chain, summed weight/xpenalty; sbt
-  declares edges 2-3×) — our pipeline keeps them separate, so mincross
-  medians see duplicated neighbours and within-rank order diverges (9/14
-  ranks); route-side, parallel edges share ONE routed spline offset by
-  `Multisep` (dotsplines.c:1948). (b) `splines=polyline`: routesplines
-  takes `make_polyline` (routespl.c:471), not the Bézier fit.
+- **sbt-project-dependencies** (last open example) — the class2
+  multi-edge merge is now PORTED (Order `mergedInto` classes: one chain
+  per class with summed `ED_xpenalty` in mincross and `ED_weight` in the
+  aux solve; Spline routes the rep once and installs members at
+  `±Multisep` interior offsets, dotsplines.c:1948), but sbt's within-rank
+  ORDER still diverges (ranks/x exact, order axis wrong) — needs the
+  MCTRACE iteration-for-iteration comparison vs instrumented gv
+  (mincross.c `mct_dump` + `[in]` install probes, see `3c2f3d48^`
+  history for the probe patches). Also still pending for sbt:
+  `splines=polyline` (`make_polyline`, routespl.c:471) once the order
+  matches.
 - **03-subgraph-cluster** — permanent, intentional corpus deferral (its
   goldens are gv's own default-mode cluster corruption; gated vs the 03b
   `newrank` oracle in `ClusterSpec`).
@@ -2304,4 +2307,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   machinery — the old approximation is gone), examples 7/8, all suites
   green, gv worktree pristine. Only sbt-project-dependencies remains (§0:
   class2 multi-edge merging + splines=polyline).
+- **2026-07-16 (later still 4)** — **class2 multi-edge merge ported** (task
+  #61, sbt part 1). gv merges CONSECUTIVE same-endpoint multi-edges in the
+  agfstout iteration (class2.c:207): flat parallels via `merge_oneway`,
+  inter-rank parallels via `merge_chain` when both are unlabeled with
+  equal ports — ONE chain per class, `ED_weight`/`ED_xpenalty` summed,
+  `prev` staying the rep so a 3rd duplicate joins the class. Ported:
+  `Order` computes `mergedInto` classes in the emit loop (merged dedges
+  get no chain; crossing counts weight segments by class size via the
+  existing `runMincross` xpenalty hook), `Result` carries `mergedInto`,
+  `XCoord` sums the class members' weight attrs into the make_edge_pairs
+  slack weight, and `Spline` routes only reps, installing each member's
+  copy with the dotsplines.c:1948 interior offsets (−Multisep·(cnt−1)/2,
+  then +Multisep per member, declaration order, per-member clip); flat/
+  HTML merged classes (no corpus) inherit the rep's spline verbatim.
+  Corpus 137/138 + examples 7/8 + all suites green (04's parallels have
+  DIFFERENT ports ⇒ correctly not merged). sbt: ranks/x already exact;
+  within-rank order still diverges — next: the MCTRACE loop (probes in
+  `3c2f3d48^`), then `splines=polyline`.
 - _(append dated entries as milestones land)_

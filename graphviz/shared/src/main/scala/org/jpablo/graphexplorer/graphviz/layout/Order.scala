@@ -47,7 +47,13 @@ object Order:
       /** per-segment originating directed-edge index (into `Rank.ranked`'s
         * `dedges`, == `g.edges` minus self-loops). Lets XCoord recover each
         * segment's port x-offset (`make_edge_pairs` `ED_*_port.p.x`). */
-      segOwner:  Vector[Int]
+      segOwner:  Vector[Int],
+      /** class2 multi-edge merge (class2.c:207): dedge idx → its class
+        * REPRESENTATIVE (identity when unmerged). Merged-away dedges have no
+        * chain of their own — the rep's chain carries the summed
+        * `ED_weight`/`ED_xpenalty`; splines route the rep once and install
+        * copies offset by `Multisep`. */
+      mergedInto: Vector[Int]
   ) derives CanEqual:
     /** rank index → real-node ids (Strings), preserving left-to-right order. */
     def realOrder: Map[Int, Vector[String]] =
@@ -140,10 +146,31 @@ object Order:
         connect(prev, head)
         if whPort.isDefined then
           recordSeg(prev, head, SegPorts(0.0, 128, whPX, whOrd))
+    // class2 multi-edge merge (class2.c:207): CONSECUTIVE out-edges (in the
+    // agfstout iteration) with the SAME original endpoints merge — flat
+    // parallels via merge_oneway, inter-rank parallels via merge_chain when
+    // both are unlabeled with equal ports (ED_weight/ED_xpenalty accumulate
+    // on the rep's chain; the merged edge gets NO chain). `prev` stays the
+    // rep after a merge, so a 3rd duplicate joins the same class.
+    val mergedInto = Array.tabulate(dedges.length)(identity)
+    def unlabeled(i: Int): Boolean =
+      realEdges(i).attrs.get("label").forall(_.isEmpty)
+    def portsEq(i: Int, j: Int): Boolean =
+      realEdges(i).tailPort == realEdges(j).tailPort &&
+        realEdges(i).headPort == realEdges(j).headPort
     g.nodes.foreach { n =>
+      var prev = -1
       byOrigTail.getOrElse(n.id, Vector.empty)
         .sortBy(i => (nodeSeq.getOrElse(origEnds(i)._2, Int.MaxValue), i))
-        .foreach(emit)
+        .foreach { idx =>
+          val flat = rankOf(LayoutNode.Real(dedges(idx).tail)) == rankOf(LayoutNode.Real(dedges(idx).head))
+          if prev >= 0 && origEnds(idx) == origEnds(prev) &&
+             (flat || (unlabeled(idx) && unlabeled(prev) && portsEq(idx, prev))) then
+            mergedInto(idx) = mergedInto(prev) // merge_oneway / merge_chain; prev unchanged
+          else
+            emit(idx)
+            prev = idx
+        }
     }
 
     // gv `build_ranks` iterates GD_nlist for its BFS seeds — the `decompose`
@@ -169,6 +196,13 @@ object Order:
         .foreach(n => if !done(n) then { done += n; res += n }) // stable append for unreached
       res.toVector
 
+    // merged-class sizes → per-segment ED_xpenalty (merge_chain sums the
+    // members' xpenalty=1 on every rep segment).
+    val classSize = Array.fill(dedges.length)(0)
+    mergedInto.foreach(r => classSize(r) += 1)
+    val segXpen: Map[(LayoutNode, LayoutNode), Long] =
+      segs.iterator.zip(segOwn).map((s, o) => s -> classSize(o).toLong).toMap
+
     val flip = Rank.flip(g)
     val (order, cross) =
       if Cluster.clusters(g).isEmpty then
@@ -179,10 +213,11 @@ object Order:
               (if e.headPort.isDefined then Iterator(LayoutNode.Real(e.head): LayoutNode) else Iterator.empty)
           }.toSet
         runMincross(out, in, rankOf, gdNlist, flip,
+          weight   = (t, h) => segXpen.getOrElse((t, h), 1L),
           segPorts = (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
           hasPort  = ported.contains)
       else orderClustered(g, out, in, rankOf, flip)
-    Result(rank0, order, cross, segs.toVector, segOwn.toVector)
+    Result(rank0, order, cross, segs.toVector, segOwn.toVector, mergedInto.toVector)
 
   /** Local collapsed-graph node: either a free (root-level) layout node passed
     * through, or a cluster **skeleton** rankleader `Sk(cluster, rank)` standing

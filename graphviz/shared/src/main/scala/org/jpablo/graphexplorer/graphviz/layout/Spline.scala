@@ -669,8 +669,14 @@ object Spline:
     // |Δx| of the solved coords (straightest first), then AGSEQ. The order is
     // load-bearing: recover_slack moves vnodes as each edge routes, so later
     // routes see different neighbour geometry (fsm's 0.03pt drifts).
+    // class2-merged multi-edges: only the REP routes (its chain is the only
+    // one that exists); members install Multisep-offset copies at the rep's
+    // position (dotsplines.c:1948).
+    val dedgeOrigIdx: Vector[Int] =
+      g.edges.zipWithIndex.collect { case (e, oi) if e.tail != e.head => oi }
     g.edges.zipWithIndex.filter { case (e, _) => e.tail != e.head }
       .zipWithIndex
+      .filter { case (_, i) => res.mergedInto.lift(i).forall(_ == i) }
       .map { case ((e, origIdx), i) => (e, origIdx, i) }
       .sortBy { (e, _, i) =>
         val rt = rankOf.getOrElse(e.tail, 0); val rh = rankOf.getOrElse(e.head, 0)
@@ -818,11 +824,36 @@ object Spline:
             // record port still clips, against its FIELD box (port.bp).
             // gv clips in the WORKING (top-down) parameterization and only
             // swap_spline's at install — clipInstall(reversedWork) does both.
-            out(origIdx) = clipInstall(g, routed, e, byId, centerOf,
-              tailClip = tOrigClip && !tCleared, headClip = hOrigClip && !hCleared,
-              reversedWork = rt > rh,
-              tailBp = if tGp.defined then tGp.bp else None,
-              headBp = if hGp.defined then hGp.bp else None)
+            def install(oIx: Int, me: org.jpablo.graphexplorer.graphviz.model.REdge,
+                        pts: Vector[XY]): Unit =
+              out(oIx) = clipInstall(g, pts, me, byId, centerOf,
+                tailClip = tOrigClip && !tCleared, headClip = hOrigClip && !hCleared,
+                reversedWork = rt > rh,
+                tailBp = if tGp.defined then tGp.bp else None,
+                headBp = if hGp.defined then hGp.bp else None)
+            val members = res.mergedInto.indices.filter(res.mergedInto(_) == i).toVector
+            if members.length <= 1 then install(origIdx, e, routed)
+            else
+              // multi-edge install (dotsplines.c:1948): interior points of
+              // the shared route shift by −Multisep·(cnt−1)/2, then
+              // +Multisep per member copy — members in declaration order
+              // (edgecmp's AGSEQ tie), each clipped with its own attrs.
+              val base =
+                (if routed.length >= 4 then routed
+                 else
+                   val s = routed.head; val t = routed.last
+                   Vector(s, XY(s.x + (t.x - s.x) / 3, s.y + (t.y - s.y) / 3),
+                          XY(s.x + 2 * (t.x - s.x) / 3, s.y + 2 * (t.y - s.y) / 3), t)
+                ).toArray
+              val dxm = NodeSep * (members.length - 1) / 2.0
+              var k = 1
+              while k < base.length - 1 do { base(k) = XY(base(k).x - dxm, base(k).y); k += 1 }
+              members.zipWithIndex.foreach { (dj, mi) =>
+                if mi > 0 then
+                  var q = 1
+                  while q < base.length - 1 do { base(q) = XY(base(q).x + NodeSep, base(q).y); q += 1 }
+                install(dedgeOrigIdx(dj), g.edges(dedgeOrigIdx(dj)), base.toVector)
+              }
             // narrow the channel boxes to the routed spline corridor, then snap
             // this edge's virtual nodes to them (mids are top→bottom); feeds lp
             // + later edges' neighbour geometry.
@@ -955,6 +986,14 @@ object Spline:
           out(origIdx) = clipInstall(g, pts, e, byId, centerOf)
         }
       }
+    // any merged-away member not installed by the regular Multisep loop
+    // (flat/HTML classes — no corpus) inherits its rep's spline verbatim.
+    res.mergedInto.indices.foreach { d =>
+      val r = res.mergedInto(d)
+      if r != d then
+        val mo = dedgeOrigIdx(d)
+        if !out.contains(mo) then out.get(dedgeOrigIdx(r)).foreach(sp => out(mo) = sp)
+    }
     (out.toMap, labelPos.toMap)
 
   // ── adjustregularpath: widen path boxes to ≥ MINW ─────────────────────────
