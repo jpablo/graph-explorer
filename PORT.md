@@ -23,6 +23,27 @@
 > code review alone — done means "the differential harness agrees with
 > `@viz-js/viz` within tolerance."
 
+## 0. Open work
+
+The current worklist (kept in sync with the session task tracker; the
+fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
+enforce the deferral halves of it):
+
+- **fsm XCoord aux divergence (LR + edge labels)** — `finite-state-machine`:
+  within-rank order matches gv exactly; three nodes (`LR_7`/`LR_8` −18 =
+  nodesep, `LR_4` −35) differ in canonical X. A `make_LR_constraints`
+  aux-graph divergence. Method: instrumented-gv xcoord dump (as in the
+  95-cluster-chains chase), diff vs `XCoord.xSolve`, port the delta.
+- **mincross within-rank order (data-structures + sbt)** —
+  `data-structures` (1 rank: golden `[node12,node11,node9,node7]` vs ours
+  `[node11,node12,node7,node9]`) and `sbt-project-dependencies` (9/14
+  ranks; the file declares some edges 2-3× — duplicate/parallel edges
+  suspected in mincross weights/medians). Method: MCTRACE-instrumented gv
+  mincross (as in the 163-groups chase), start with the smaller file.
+- **03-subgraph-cluster** — permanent, intentional corpus deferral (its
+  goldens are gv's own default-mode cluster corruption; gated vs the 03b
+  `newrank` oracle in `ClusterSpec`).
+
 ## 1. Goal & locked decisions
 
 Replace the `@viz-js/viz` (Graphviz-in-WASM) runtime dependency with a
