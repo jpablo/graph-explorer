@@ -1,0 +1,230 @@
+{
+  "name": "g",
+  "directed": false,
+  "strict": false,
+  "bb": "0 0 170 241",
+  "bgcolor": "#ffffff00",
+  "label": "",
+  "layout": "fdp",
+  "overlap": "scale",
+  "start": "2",
+  "_subgraph_cnt": 3,
+  "objects": [
+    {
+      "name": "cluster_G0",
+      "bgcolor": "#ffffff00",
+      "label": "G∪T",
+      "layout": "fdp",
+      "overlap": "scale",
+      "start": "2",
+      "_gvid": 0,
+      "subgraphs": [
+        1,
+2
+      ],
+      "nodes": [
+        3,4,5,6,7,8,9
+      ],
+      "edges": [
+        0,2,1,4,5,6,7,3
+      ]
+    },
+    {
+      "name": "cluster_G1",
+      "bgcolor": "white",
+      "label": "G",
+      "layout": "fdp",
+      "overlap": "scale",
+      "start": "2",
+      "_gvid": 1,
+      "nodes": [
+        3,4,5
+      ],
+      "edges": [
+        0,2,1
+      ]
+    },
+    {
+      "name": "cluster_G2",
+      "bgcolor": "white",
+      "label": "H",
+      "layout": "fdp",
+      "overlap": "scale",
+      "start": "2",
+      "_gvid": 2,
+      "nodes": [
+        6,7,8,9
+      ],
+      "edges": [
+        4,5,6,7
+      ]
+    },
+    {
+      "_gvid": 3,
+      "name": "node1",
+      "color": "black",
+      "fillcolor": "white",
+      "fixedsize": "true",
+      "fontsize": "12",
+      "label": "s₁",
+      "shape": "circle",
+      "style": "dashed",
+      "width": "0.25"
+    },
+    {
+      "_gvid": 4,
+      "name": "node2",
+      "color": "black",
+      "fillcolor": "white",
+      "fixedsize": "true",
+      "fontsize": "12",
+      "label": "s₂",
+      "shape": "circle",
+      "style": "filled",
+      "width": "0.25"
+    },
+    {
+      "_gvid": 5,
+      "name": "node3",
+      "color": "black",
+      "fillcolor": "white",
+      "fixedsize": "true",
+      "fontsize": "12",
+      "label": "s₃",
+      "shape": "circle",
+      "style": "filled",
+      "width": "0.25"
+    },
+    {
+      "_gvid": 6,
+      "name": "node5",
+      "color": "black",
+      "fillcolor": "white",
+      "fixedsize": "true",
+      "fontsize": "12",
+      "label": "t₂",
+      "shape": "circle",
+      "style": "filled",
+      "width": "0.25"
+    },
+    {
+      "_gvid": 7,
+      "name": "node6",
+      "color": "black",
+      "fillcolor": "white",
+      "fixedsize": "true",
+      "fontsize": "12",
+      "label": "t₃",
+      "shape": "circle",
+      "style": "filled",
+      "width": "0.25"
+    },
+    {
+      "_gvid": 8,
+      "name": "node4",
+      "color": "black",
+      "fillcolor": "white",
+      "fixedsize": "true",
+      "fontsize": "12",
+      "label": "t₁",
+      "shape": "circle",
+      "style": "filled",
+      "width": "0.25"
+    },
+    {
+      "_gvid": 9,
+      "name": "node7",
+      "color": "black",
+      "fillcolor": "white",
+      "fixedsize": "true",
+      "fontsize": "12",
+      "label": "t₄",
+      "shape": "circle",
+      "style": "filled",
+      "width": "0.25"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 3,
+      "head": 4,
+      "arrowsize": "0.6",
+      "color": "black",
+      "fontsize": "8",
+      "forcelabels": "true",
+      "penwidth": "0.75"
+    },
+    {
+      "_gvid": 2,
+      "tail": 5,
+      "head": 3,
+      "arrowsize": "0.6",
+      "color": "black",
+      "fontsize": "8",
+      "forcelabels": "true",
+      "penwidth": "0.75"
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 5,
+      "arrowsize": "0.6",
+      "color": "black",
+      "fontsize": "8",
+      "forcelabels": "true",
+      "penwidth": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "tail": 6,
+      "head": 7,
+      "arrowsize": "0.6",
+      "color": "black",
+      "fontsize": "8",
+      "forcelabels": "true",
+      "penwidth": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "tail": 7,
+      "head": 8,
+      "arrowsize": "0.6",
+      "color": "black",
+      "fontsize": "8",
+      "forcelabels": "true",
+      "penwidth": "0.75"
+    },
+    {
+      "_gvid": 6,
+      "tail": 7,
+      "head": 9,
+      "arrowsize": "0.6",
+      "color": "black",
+      "fontsize": "8",
+      "forcelabels": "true",
+      "penwidth": "0.75"
+    },
+    {
+      "_gvid": 7,
+      "tail": 8,
+      "head": 6,
+      "arrowsize": "0.6",
+      "color": "black",
+      "fontsize": "8",
+      "forcelabels": "true",
+      "penwidth": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "tail": 5,
+      "head": 7,
+      "arrowsize": "0.6",
+      "color": "black",
+      "fontsize": "8",
+      "forcelabels": "true",
+      "penwidth": "1",
+      "style": "dashed"
+    }
+  ]
+}

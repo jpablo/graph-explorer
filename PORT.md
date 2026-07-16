@@ -2131,4 +2131,22 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   162's fails-when-fixed guard fired; promoted in CorpusByteExactSpec +
   DifferentialSpec. 759 green; gv worktree reverted + `_dbgbuild` removed
   (pristine).
+- **2026-07-16** — **Shipped-examples byte-exact gate.** New
+  `capture-examples.mjs` freezes viz-js goldens (3 formats, engine=dot) for
+  every `viewer/src/main/resources/examples/**` .dot file, and
+  `ExamplesByteExactSpec` gates the ones the app routes to the Scala port —
+  reading the SHIPPED sources directly (no corpus copy to drift) and routing
+  with the same shared `EngineRouting.usesDotEngine` the viewer uses (the
+  predicate moved from the viewer into the shared module for exactly this).
+  First run: 2/8 byte-exact (empty-graph, groups); 6 deferrals triaged, each
+  guarded fails-when-fixed: (a) data-structures + finite-state-machine +
+  sbt-project-dependencies — ONE mechanism, `finalBBox`'s documented
+  rotated-frame gap (no spline-overhang/self-edge/label growth); all node
+  positions byte-exact, only the bb line differs; (b) logo — real LR layout
+  divergence (nodesep=0.42/pad; positions differ); (c) html — HTML-table
+  label layout diverges (user-reported); (d) unsupported/
+  multiple-edges-with-commas — DotParser rejects `a -> b, c` edge lists
+  (valid DOT). failing/leading-newline is excluded outright: viz-js ITSELF
+  crashes on it ("table index is out of bounds"), so no golden exists.
+  These deferrals are the correctness worklist. 693 green.
 - _(append dated entries as milestones land)_

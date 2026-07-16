@@ -1,0 +1,128 @@
+{
+  "name": "Transparency",
+  "directed": false,
+  "strict": false,
+  "bb": "0,0,299.87,320.41",
+  "bgcolor": "#0000ff11",
+  "layout": "neato",
+  "start": "11",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "2",
+      "color": "#eeee0080",
+      "fontsize": "14",
+      "height": "2.22",
+      "label": "",
+      "peripheries": "1",
+      "pos": "219.95,199.92",
+      "shape": "circle",
+      "style": "filled",
+      "width": "2.22"
+    },
+    {
+      "_gvid": 1,
+      "name": "1",
+      "color": "#ff000080",
+      "fontsize": "14",
+      "height": "2.22",
+      "label": "",
+      "peripheries": "1",
+      "pos": "218.91,119.63",
+      "shape": "circle",
+      "style": "filled",
+      "width": "2.22"
+    },
+    {
+      "_gvid": 2,
+      "name": "6",
+      "color": "#ee00ee80",
+      "fontsize": "14",
+      "height": "2.22",
+      "label": "",
+      "peripheries": "1",
+      "pos": "149.14,79.92",
+      "shape": "circle",
+      "style": "filled",
+      "width": "2.22"
+    },
+    {
+      "_gvid": 3,
+      "name": "5",
+      "color": "#0000ff80",
+      "fontsize": "14",
+      "height": "2.22",
+      "label": "",
+      "peripheries": "1",
+      "pos": "79.92,120.6",
+      "shape": "circle",
+      "style": "filled",
+      "width": "2.22"
+    },
+    {
+      "_gvid": 4,
+      "name": "3",
+      "color": "#00ff0080",
+      "fontsize": "14",
+      "height": "2.22",
+      "label": "",
+      "peripheries": "1",
+      "pos": "150.65,240.49",
+      "shape": "circle",
+      "style": "filled",
+      "width": "2.22"
+    },
+    {
+      "_gvid": 5,
+      "name": "4",
+      "color": "#00eeee80",
+      "fontsize": "14",
+      "height": "2.22",
+      "label": "",
+      "peripheries": "1",
+      "pos": "80.803,200.89",
+      "shape": "circle",
+      "style": "filled",
+      "width": "2.22"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 0,
+      "pos": "219.95,199.86 219.95,199.88 219.95,199.89 219.95,199.9"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 2,
+      "pos": "149.09,79.949 149.11,79.94 149.12,79.932 149.13,79.927"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 1,
+      "pos": "218.86,119.61 218.87,119.61 218.89,119.62 218.89,119.63"
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 5,
+      "pos": "80.853,200.92 80.836,200.91 80.824,200.9 80.815,200.9"
+    },
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 4,
+      "pos": "150.7,240.46 150.69,240.47 150.67,240.48 150.66,240.49"
+    },
+    {
+      "_gvid": 5,
+      "tail": 5,
+      "head": 3,
+      "pos": "79.921,120.66 79.92,120.64 79.92,120.63 79.92,120.62"
+    }
+  ]
+}

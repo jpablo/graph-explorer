@@ -1,0 +1,551 @@
+{
+  "name": "shapes",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 838 1014",
+  "layout": "neato",
+  "splines": "false",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "node1",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "box",
+      "pos": "0,0!",
+      "shape": "box"
+    },
+    {
+      "_gvid": 1,
+      "name": "node2",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "polygon",
+      "pos": "2,0!",
+      "shape": "polygon"
+    },
+    {
+      "_gvid": 2,
+      "name": "node3",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "ellipse",
+      "pos": "4,0!",
+      "shape": "ellipse"
+    },
+    {
+      "_gvid": 3,
+      "name": "node4",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "oval",
+      "pos": "6,0!",
+      "shape": "oval"
+    },
+    {
+      "_gvid": 4,
+      "name": "node5",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "circle",
+      "pos": "8,0!",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 5,
+      "name": "node6",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "point",
+      "pos": "10,0!",
+      "shape": "point"
+    },
+    {
+      "_gvid": 6,
+      "name": "node7",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "egg",
+      "pos": "0,1.5!",
+      "shape": "egg"
+    },
+    {
+      "_gvid": 7,
+      "name": "node8",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "triangle",
+      "pos": "2,1.5!",
+      "shape": "triangle"
+    },
+    {
+      "_gvid": 8,
+      "name": "node9",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "plaintext",
+      "pos": "4,1.5!",
+      "shape": "plaintext"
+    },
+    {
+      "_gvid": 9,
+      "name": "node10",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "plain",
+      "pos": "6,1.5!",
+      "shape": "plain"
+    },
+    {
+      "_gvid": 10,
+      "name": "node11",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "diamond",
+      "pos": "8,1.5!",
+      "shape": "diamond"
+    },
+    {
+      "_gvid": 11,
+      "name": "node12",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "trapezium",
+      "pos": "10,1.5!",
+      "shape": "trapezium"
+    },
+    {
+      "_gvid": 12,
+      "name": "node13",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "parallelogram",
+      "pos": "0,3!",
+      "shape": "parallelogram"
+    },
+    {
+      "_gvid": 13,
+      "name": "node14",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "house",
+      "pos": "2,3!",
+      "shape": "house"
+    },
+    {
+      "_gvid": 14,
+      "name": "node15",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "pentagon",
+      "pos": "4,3!",
+      "shape": "pentagon"
+    },
+    {
+      "_gvid": 15,
+      "name": "node16",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "hexagon",
+      "pos": "6,3!",
+      "shape": "hexagon"
+    },
+    {
+      "_gvid": 16,
+      "name": "node17",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "septagon",
+      "pos": "8,3!",
+      "shape": "septagon"
+    },
+    {
+      "_gvid": 17,
+      "name": "node18",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "octagon",
+      "pos": "10,3!",
+      "shape": "octagon"
+    },
+    {
+      "_gvid": 18,
+      "name": "node19",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "doublecircle",
+      "pos": "0,4.5!",
+      "shape": "doublecircle"
+    },
+    {
+      "_gvid": 19,
+      "name": "node20",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "doubleoctagon",
+      "pos": "2,4.5!",
+      "shape": "doubleoctagon"
+    },
+    {
+      "_gvid": 20,
+      "name": "node21",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "tripleoctagon",
+      "pos": "4,4.5!",
+      "shape": "tripleoctagon"
+    },
+    {
+      "_gvid": 21,
+      "name": "node22",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "invtriangle",
+      "pos": "6,4.5!",
+      "shape": "invtriangle"
+    },
+    {
+      "_gvid": 22,
+      "name": "node23",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "invtrapezium",
+      "pos": "8,4.5!",
+      "shape": "invtrapezium"
+    },
+    {
+      "_gvid": 23,
+      "name": "node24",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "invhouse",
+      "pos": "10,4.5!",
+      "shape": "invhouse"
+    },
+    {
+      "_gvid": 24,
+      "name": "node25",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "Mdiamond",
+      "pos": "0,6!",
+      "shape": "Mdiamond"
+    },
+    {
+      "_gvid": 25,
+      "name": "node26",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "Msquare",
+      "pos": "2,6!",
+      "shape": "Msquare"
+    },
+    {
+      "_gvid": 26,
+      "name": "node27",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "Mcircle",
+      "pos": "4,6!",
+      "shape": "Mcircle"
+    },
+    {
+      "_gvid": 27,
+      "name": "node28",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "Mrecord",
+      "pos": "6,6!",
+      "shape": "Mrecord"
+    },
+    {
+      "_gvid": 28,
+      "name": "node29",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "rect",
+      "pos": "8,6!",
+      "shape": "rect"
+    },
+    {
+      "_gvid": 29,
+      "name": "node30",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "rectangle",
+      "pos": "10,6!",
+      "shape": "rectangle"
+    },
+    {
+      "_gvid": 30,
+      "name": "node31",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "square",
+      "pos": "0,7.5!",
+      "shape": "square"
+    },
+    {
+      "_gvid": 31,
+      "name": "node32",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "star",
+      "pos": "2,7.5!",
+      "shape": "star"
+    },
+    {
+      "_gvid": 32,
+      "name": "node33",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "underline",
+      "pos": "4,7.5!",
+      "shape": "underline"
+    },
+    {
+      "_gvid": 33,
+      "name": "node34",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "cylinder",
+      "pos": "6,7.5!",
+      "shape": "cylinder"
+    },
+    {
+      "_gvid": 34,
+      "name": "node35",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "note",
+      "pos": "8,7.5!",
+      "shape": "note"
+    },
+    {
+      "_gvid": 35,
+      "name": "node36",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "tab",
+      "pos": "10,7.5!",
+      "shape": "tab"
+    },
+    {
+      "_gvid": 36,
+      "name": "node37",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "folder",
+      "pos": "0,9!",
+      "shape": "folder"
+    },
+    {
+      "_gvid": 37,
+      "name": "node38",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "box3d",
+      "pos": "2,9!",
+      "shape": "box3d"
+    },
+    {
+      "_gvid": 38,
+      "name": "node39",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "none",
+      "pos": "4,9!",
+      "shape": "none"
+    },
+    {
+      "_gvid": 39,
+      "name": "node40",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "component",
+      "pos": "6,9!",
+      "shape": "component"
+    },
+    {
+      "_gvid": 40,
+      "name": "node41",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "promoter",
+      "pos": "8,9!",
+      "shape": "promoter"
+    },
+    {
+      "_gvid": 41,
+      "name": "node42",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "cds",
+      "pos": "10,9!",
+      "shape": "cds"
+    },
+    {
+      "_gvid": 42,
+      "name": "node43",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "terminator",
+      "pos": "0,10.5!",
+      "shape": "terminator"
+    },
+    {
+      "_gvid": 43,
+      "name": "node44",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "utr",
+      "pos": "2,10.5!",
+      "shape": "utr"
+    },
+    {
+      "_gvid": 44,
+      "name": "node45",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "primersite",
+      "pos": "4,10.5!",
+      "shape": "primersite"
+    },
+    {
+      "_gvid": 45,
+      "name": "node46",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "restrictionsite",
+      "pos": "6,10.5!",
+      "shape": "restrictionsite"
+    },
+    {
+      "_gvid": 46,
+      "name": "node47",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "fivepoverhang",
+      "pos": "8,10.5!",
+      "shape": "fivepoverhang"
+    },
+    {
+      "_gvid": 47,
+      "name": "node48",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "threepoverhang",
+      "pos": "10,10.5!",
+      "shape": "threepoverhang"
+    },
+    {
+      "_gvid": 48,
+      "name": "node49",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "noverhang",
+      "pos": "0,12!",
+      "shape": "noverhang"
+    },
+    {
+      "_gvid": 49,
+      "name": "node50",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "assembly",
+      "pos": "2,12!",
+      "shape": "assembly"
+    },
+    {
+      "_gvid": 50,
+      "name": "node51",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "signature",
+      "pos": "4,12!",
+      "shape": "signature"
+    },
+    {
+      "_gvid": 51,
+      "name": "node52",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "insulator",
+      "pos": "6,12!",
+      "shape": "insulator"
+    },
+    {
+      "_gvid": 52,
+      "name": "node53",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "ribosite",
+      "pos": "8,12!",
+      "shape": "ribosite"
+    },
+    {
+      "_gvid": 53,
+      "name": "node54",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "rnastab",
+      "pos": "10,12!",
+      "shape": "rnastab"
+    },
+    {
+      "_gvid": 54,
+      "name": "node55",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "proteasesite",
+      "pos": "0,13.5!",
+      "shape": "proteasesite"
+    },
+    {
+      "_gvid": 55,
+      "name": "node56",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "proteinstab",
+      "pos": "2,13.5!",
+      "shape": "proteinstab"
+    },
+    {
+      "_gvid": 56,
+      "name": "node57",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "rarrow",
+      "pos": "4,13.5!",
+      "shape": "rarrow"
+    },
+    {
+      "_gvid": 57,
+      "name": "node58",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "larrow",
+      "pos": "6,13.5!",
+      "shape": "larrow"
+    },
+    {
+      "_gvid": 58,
+      "name": "node59",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "lpromoter",
+      "pos": "8,13.5!",
+      "shape": "lpromoter"
+    },
+    {
+      "_gvid": 59,
+      "name": "node60",
+      "fontname": "Arial",
+      "fontsize": "10",
+      "label": "rpromoter",
+      "pos": "10,13.5!",
+      "shape": "rpromoter"
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "name": "D",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,182.44,327.2",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "task_menu",
+      "fontname": "Sans serif",
+      "fontsize": "8",
+      "height": "0.76111",
+      "label": "\n<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">\n<tr><td align=\"left\"><b>Task 1<\/b><\/td><\/tr>\n<tr><td align=\"left\">Choose Menu<\/td><\/tr>\n<tr><td align=\"left\"><font color=\"darkgreen\">done<\/font><\/td><\/tr>\n<\/table>",
+      "pos": "37.441,299.8",
+      "shape": "plaintext",
+      "width": "0.95367"
+    },
+    {
+      "_gvid": 1,
+      "name": "task_ingredients",
+      "fontname": "Sans serif",
+      "fontsize": "8",
+      "height": "0.76111",
+      "label": "\n<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">\n<tr><td align=\"left\"><b>Task 2<\/b><\/td><\/tr>\n<tr><td align=\"left\">Buy ingredients<\/td><\/tr>\n<tr><td align=\"left\"><font color=\"darkgreen\">done<\/font><\/td><\/tr>\n<\/table>",
+      "pos": "37.441,209",
+      "shape": "plaintext",
+      "width": "1.04"
+    },
+    {
+      "_gvid": 2,
+      "name": "task_invitation",
+      "fontname": "Sans serif",
+      "fontsize": "8",
+      "height": "0.76111",
+      "label": "\n<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">\n<tr><td align=\"left\"><b>Task 4<\/b><\/td><\/tr>\n<tr><td align=\"left\">Send invitation<\/td><\/tr>\n<tr><td align=\"left\"><font color=\"darkgreen\">done<\/font><\/td><\/tr>\n<\/table>",
+      "pos": "129.44,209",
+      "shape": "plaintext",
+      "width": "1.0092"
+    },
+    {
+      "_gvid": 3,
+      "name": "task_cook",
+      "fontname": "Sans serif",
+      "fontsize": "8",
+      "height": "0.76111",
+      "label": "\n<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">\n<tr><td align=\"left\"><b>Task 5<\/b><\/td><\/tr>\n<tr><td align=\"left\">Cook<\/td><\/tr>\n<tr><td align=\"left\"><font color=\"red\">todo<\/font><\/td><\/tr>\n<\/table>",
+      "pos": "83.441,118.2",
+      "shape": "plaintext",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "task_table",
+      "fontname": "Sans serif",
+      "fontsize": "8",
+      "height": "0.76111",
+      "label": "\n<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">\n<tr><td align=\"left\"><b>Task 3<\/b><\/td><\/tr>\n<tr><td align=\"left\">Lay table<\/td><\/tr>\n<tr><td align=\"left\"><font color=\"red\">todo<\/font><\/td><\/tr>\n<\/table>",
+      "pos": "155.44,118.2",
+      "shape": "plaintext",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "task_eat",
+      "fontname": "Sans serif",
+      "fontsize": "8",
+      "height": "0.76111",
+      "label": "\n<table border=\"1\" cellborder=\"0\" cellspacing=\"1\">\n<tr><td align=\"left\"><b>Task 6<\/b><\/td><\/tr>\n<tr><td align=\"left\">Eat<\/td><\/tr>\n<tr><td align=\"left\"><font color=\"red\">todo<\/font><\/td><\/tr>\n<\/table>",
+      "pos": "119.44,27.4",
+      "shape": "plaintext",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "pos": "e,37.441,236.28 37.441,272.64 37.441,264.85 37.441,256.15 37.441,247.78"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 3,
+      "pos": "e,69.827,145.48 50.994,181.84 55.261,173.6 60.053,164.35 64.617,155.54"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 3,
+      "pos": "e,97.056,145.48 115.89,181.84 111.62,173.6 106.83,164.35 102.27,155.54"
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 5,
+      "pos": "e,130.1,54.683 144.83,91.037 141.57,82.98 137.91,73.952 134.41,65.314"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 5,
+      "pos": "e,108.79,54.683 94.048,91.037 97.315,82.98 100.97,73.952 104.48,65.314"
+    }
+  ]
+}

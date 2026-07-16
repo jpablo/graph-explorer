@@ -1,0 +1,270 @@
+{
+  "name": "g",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 803 571",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "node0",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> 0x10ba8| <f1>",
+      "shape": "record"
+    },
+    {
+      "_gvid": 1,
+      "name": "node1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> 0xf7fc4380| <f1> | <f2> |-1",
+      "shape": "record"
+    },
+    {
+      "_gvid": 2,
+      "name": "node2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> 0xf7fc44b8| | |2",
+      "shape": "record"
+    },
+    {
+      "_gvid": 3,
+      "name": "node3",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> 3.43322790286038071e-06|44.79998779296875|0",
+      "shape": "record"
+    },
+    {
+      "_gvid": 4,
+      "name": "node4",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> 0xf7fc4380| <f1> | <f2> |2",
+      "shape": "record"
+    },
+    {
+      "_gvid": 5,
+      "name": "node5",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> (nil)| | |-1",
+      "shape": "record"
+    },
+    {
+      "_gvid": 6,
+      "name": "node6",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> 0xf7fc4380| <f1> | <f2> |1",
+      "shape": "record"
+    },
+    {
+      "_gvid": 7,
+      "name": "node7",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> 0xf7fc4380| <f1> | <f2> |2",
+      "shape": "record"
+    },
+    {
+      "_gvid": 8,
+      "name": "node8",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> (nil)| | |-1",
+      "shape": "record"
+    },
+    {
+      "_gvid": 9,
+      "name": "node9",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> (nil)| | |-1",
+      "shape": "record"
+    },
+    {
+      "_gvid": 10,
+      "name": "node10",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> (nil)| <f1> | <f2> |-1",
+      "shape": "record"
+    },
+    {
+      "_gvid": 11,
+      "name": "node11",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> (nil)| <f1> | <f2> |-1",
+      "shape": "record"
+    },
+    {
+      "_gvid": 12,
+      "name": "node12",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "label": "<f0> 0xf7fc43e0| | |1",
+      "shape": "record"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "0",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "1",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "2",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 3,
+      "tail": 1,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "3",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 4,
+      "tail": 1,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "4",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 5,
+      "tail": 4,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "5",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 6,
+      "tail": 4,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "6",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 7,
+      "tail": 4,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "7",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 8,
+      "tail": 6,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "8",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 9,
+      "tail": 6,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "9",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 10,
+      "tail": 6,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "10",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 12,
+      "tail": 7,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "11",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 11,
+      "tail": 7,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "12",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 13,
+      "tail": 7,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "13",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 14,
+      "tail": 10,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "14",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 15,
+      "tail": 10,
+      "head": 12,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "15",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 16,
+      "tail": 11,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "16",
+      "tailport": "f2"
+    }
+  ]
+}

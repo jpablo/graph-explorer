@@ -1,0 +1,154 @@
+{
+  "name": "finite_state_machine",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 751 338",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "LR_2",
+      "label": "LR_2",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 1,
+      "name": "LR_1",
+      "label": "LR_1",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 2,
+      "name": "LR_6",
+      "label": "LR_6",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 3,
+      "name": "LR_5",
+      "label": "LR_5",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 4,
+      "name": "LR_7",
+      "label": "LR_7",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 5,
+      "name": "LR_0",
+      "label": "LR_0",
+      "peripheries": "2",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 6,
+      "name": "LR_3",
+      "label": "LR_3",
+      "peripheries": "2",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 7,
+      "name": "LR_4",
+      "label": "LR_4",
+      "peripheries": "2",
+      "shape": "circle"
+    },
+    {
+      "_gvid": 8,
+      "name": "LR_8",
+      "label": "LR_8",
+      "peripheries": "2",
+      "shape": "circle"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 8,
+      "tail": 4,
+      "head": 3,
+      "label": "S(a)"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 3,
+      "label": "SS(a)"
+    },
+    {
+      "_gvid": 7,
+      "tail": 3,
+      "head": 4,
+      "label": "S(b)"
+    },
+    {
+      "_gvid": 3,
+      "tail": 1,
+      "head": 6,
+      "label": "S($end)"
+    },
+    {
+      "_gvid": 13,
+      "tail": 8,
+      "head": 3,
+      "label": "S(a)"
+    },
+    {
+      "_gvid": 11,
+      "tail": 5,
+      "head": 1,
+      "label": "SS(S)"
+    },
+    {
+      "_gvid": 6,
+      "tail": 3,
+      "head": 3,
+      "label": "S(a)"
+    },
+    {
+      "_gvid": 10,
+      "tail": 5,
+      "head": 0,
+      "label": "SS(B)"
+    },
+    {
+      "_gvid": 12,
+      "tail": 8,
+      "head": 2,
+      "label": "S(b)"
+    },
+    {
+      "_gvid": 5,
+      "tail": 2,
+      "head": 3,
+      "label": "S(a)"
+    },
+    {
+      "_gvid": 9,
+      "tail": 4,
+      "head": 8,
+      "label": "S(b)"
+    },
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 2,
+      "label": "SS(b)"
+    },
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 7,
+      "label": "S(A)"
+    },
+    {
+      "_gvid": 4,
+      "tail": 2,
+      "head": 2,
+      "label": "S(b)"
+    }
+  ]
+}

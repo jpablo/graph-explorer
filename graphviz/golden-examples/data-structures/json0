@@ -1,0 +1,339 @@
+{
+  "name": "g",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,802.56,570.68",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "node0",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "0.76944",
+      "label": "<f0> 0x10ba8| <f1>",
+      "pos": "35.551,481.9",
+      "rects": "0,481.9,71.102,509.1 0,454.7,71.102,481.9",
+      "shape": "record",
+      "width": "0.98752"
+    },
+    {
+      "_gvid": 1,
+      "name": "node1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> 0xf7fc4380| <f1> | <f2> |-1",
+      "pos": "151.98,505.9",
+      "rects": "107.1,533.1,196.86,560.3 107.1,505.9,196.86,533.1 107.1,478.7,196.86,505.9 107.1,451.5,196.86,478.7",
+      "shape": "record",
+      "width": "1.2466"
+    },
+    {
+      "_gvid": 2,
+      "name": "node2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> 0xf7fc44b8| | |2",
+      "pos": "151.98,377.9",
+      "rects": "107.1,405.1,196.86,432.3 107.1,377.9,196.86,405.1 107.1,350.7,196.86,377.9 107.1,323.5,196.86,350.7",
+      "shape": "record",
+      "width": "1.2466"
+    },
+    {
+      "_gvid": 3,
+      "name": "node3",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.1472",
+      "label": "<f0> 3.43322790286038071e-06|44.79998779296875|0",
+      "pos": "706.35,515.9",
+      "rects": "610.13,529.5,802.56,556.7 610.13,502.3,802.56,529.5 610.13,475.1,802.56,502.3",
+      "shape": "record",
+      "width": "2.6726"
+    },
+    {
+      "_gvid": 4,
+      "name": "node4",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> 0xf7fc4380| <f1> | <f2> |2",
+      "pos": "277.74,478.9",
+      "rects": "232.86,506.1,322.62,533.3 232.86,478.9,322.62,506.1 232.86,451.7,322.62,478.9 232.86,424.5,322.62,451.7",
+      "shape": "record",
+      "width": "1.2466"
+    },
+    {
+      "_gvid": 5,
+      "name": "node5",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> (nil)| | |-1",
+      "pos": "277.74,128.9",
+      "rects": "250.74,156.1,304.74,183.3 250.74,128.9,304.74,156.1 250.74,101.7,304.74,128.9 250.74,74.5,304.74,101.7",
+      "shape": "record",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 6,
+      "name": "node6",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> 0xf7fc4380| <f1> | <f2> |1",
+      "pos": "403.5,451.9",
+      "rects": "358.62,479.1,448.38,506.3 358.62,451.9,448.38,479.1 358.62,424.7,448.38,451.9 358.62,397.5,448.38,424.7",
+      "shape": "record",
+      "width": "1.2466"
+    },
+    {
+      "_gvid": 7,
+      "name": "node7",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> 0xf7fc4380| <f1> | <f2> |2",
+      "pos": "529.25,438.9",
+      "rects": "484.38,466.1,574.13,493.3 484.38,438.9,574.13,466.1 484.38,411.7,574.13,438.9 484.38,384.5,574.13,411.7",
+      "shape": "record",
+      "width": "1.2466"
+    },
+    {
+      "_gvid": 8,
+      "name": "node8",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> (nil)| | |-1",
+      "pos": "706.35,384.9",
+      "rects": "679.35,412.1,733.35,439.3 679.35,384.9,733.35,412.1 679.35,357.7,733.35,384.9 679.35,330.5,733.35,357.7",
+      "shape": "record",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 9,
+      "name": "node9",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> (nil)| | |-1",
+      "pos": "529.25,310.9",
+      "rects": "502.25,338.1,556.25,365.3 502.25,310.9,556.25,338.1 502.25,283.7,556.25,310.9 502.25,256.5,556.25,283.7",
+      "shape": "record",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 10,
+      "name": "node10",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> (nil)| <f1> | <f2> |-1",
+      "pos": "403.5,294.9",
+      "rects": "376.5,322.1,430.5,349.3 376.5,294.9,430.5,322.1 376.5,267.7,430.5,294.9 376.5,240.5,430.5,267.7",
+      "shape": "record",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 11,
+      "name": "node11",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> (nil)| <f1> | <f2> |-1",
+      "pos": "529.25,182.9",
+      "rects": "502.25,210.1,556.25,237.3 502.25,182.9,556.25,210.1 502.25,155.7,556.25,182.9 502.25,128.5,556.25,155.7",
+      "shape": "record",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 12,
+      "name": "node12",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "16",
+      "height": "1.525",
+      "label": "<f0> 0xf7fc43e0| | |1",
+      "pos": "529.25,54.9",
+      "rects": "484.82,82.1,573.68,109.3 484.82,54.9,573.68,82.1 484.82,27.7,573.68,54.9 484.82,0.5,573.68,27.7",
+      "shape": "record",
+      "width": "1.2342"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "0",
+      "pos": "e,107.1,546.7 71.102,495.5 94.138,495.5 84.632,530.61 96.482,542.68",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "1",
+      "pos": "e,107.1,418.7 71.102,468.3 93.659,468.3 84.864,434.28 96.644,422.59",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "2",
+      "pos": "e,610.13,543.1 196.86,546.7 214.99,546.7 215.27,561.5 232.86,565.9 271.56,575.58 282.74,567.01 322.62,565.9 434.53,562.79 463.39,568.37 574.13,551.9 585.84,550.16 590.81,546.37 598.79,544.38",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 3,
+      "tail": 1,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "3",
+      "pos": "e,232.86,519.7 196.86,519.5 208.23,519.5 213.54,519.6 221.41,519.66",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 4,
+      "tail": 1,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "4",
+      "pos": "e,277.74,184.3 196.86,492.3 262.77,492.3 190.44,248.35 232.86,197.9 242.29,186.68 260.65,194.82 270.71,193.4",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 5,
+      "tail": 4,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "5",
+      "pos": "e,610.13,543.1 322.62,519.7 446.94,519.7 479.95,541.7 598.75,543.04",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 6,
+      "tail": 4,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "6",
+      "pos": "e,358.62,492.7 322.62,492.5 333.99,492.5 339.3,492.6 347.17,492.66",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 7,
+      "tail": 4,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "7",
+      "pos": "e,375.5,335.7 322.62,465.3 380.45,465.3 322.69,353.28 364.26,337.53",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 8,
+      "tail": 6,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "8",
+      "pos": "e,610.13,543.1 448.38,492.7 456.46,492.7 563.16,529.92 598.98,540.39",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 9,
+      "tail": 6,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "9",
+      "pos": "e,484.38,479.7 448.38,465.5 461.01,465.5 465.22,473.16 473.39,477.23",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 10,
+      "tail": 6,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "10",
+      "pos": "e,501.25,351.7 448.38,438.3 489.07,438.3 462.66,367.79 490.25,354.02",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 12,
+      "tail": 7,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "11",
+      "pos": "e,610.13,543.1 574.13,479.7 601.73,479.7 584.93,525.68 599.35,539.32",
+      "tailport": "f0"
+    },
+    {
+      "_gvid": 11,
+      "tail": 7,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "12",
+      "pos": "e,196.86,546.7 484.38,452.5 451.97,452.5 474.5,496.73 448.38,515.9 360.67,580.24 312.82,549.03 208.19,546.82",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 13,
+      "tail": 7,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "13",
+      "pos": "e,678.35,425.7 574.13,425.3 616.47,425.3 629.78,425.63 667.13,425.69",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 14,
+      "tail": 10,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "14",
+      "pos": "e,501.25,223.7 431.5,308.5 476.1,308.5 456.67,237.65 490.27,225.47",
+      "tailport": "f1"
+    },
+    {
+      "_gvid": 15,
+      "tail": 10,
+      "head": 12,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "15",
+      "pos": "e,484.38,95.7 431.5,281.3 513.08,281.3 409.7,113.38 473.23,96.984",
+      "tailport": "f2"
+    },
+    {
+      "_gvid": 16,
+      "tail": 11,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "f0",
+      "id": "16",
+      "pos": "e,196.86,546.7 501.25,169.3 339.56,169.3 300.72,268.14 232.86,414.9 209.17,466.14 250.9,536.02 208.09,545.6",
+      "tailport": "f2"
+    }
+  ]
+}

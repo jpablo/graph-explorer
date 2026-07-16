@@ -1,0 +1,204 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 216 401",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "label": "",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "cluster_0",
+      "color": "lightgrey",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "process #1",
+      "labeljust": "c",
+      "labelloc": "t",
+      "style": "filled",
+      "_gvid": 0,
+      "nodes": [
+        2,3,4,5
+      ],
+      "edges": [
+        0,4,3,1
+      ]
+    },
+    {
+      "name": "cluster_1",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "process #2",
+      "labeljust": "c",
+      "labelloc": "t",
+      "_gvid": 1,
+      "nodes": [
+        6,7,8,9
+      ],
+      "edges": [
+        9,7,6
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a0",
+      "color": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "ellipse",
+      "style": "filled"
+    },
+    {
+      "_gvid": 3,
+      "name": "a1",
+      "color": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "ellipse",
+      "style": "filled"
+    },
+    {
+      "_gvid": 4,
+      "name": "a2",
+      "color": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "ellipse",
+      "style": "filled"
+    },
+    {
+      "_gvid": 5,
+      "name": "a3",
+      "color": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "ellipse",
+      "style": "filled"
+    },
+    {
+      "_gvid": 6,
+      "name": "b0",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "ellipse",
+      "style": "filled"
+    },
+    {
+      "_gvid": 7,
+      "name": "b1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "ellipse",
+      "style": "filled"
+    },
+    {
+      "_gvid": 8,
+      "name": "b2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "ellipse",
+      "style": "filled"
+    },
+    {
+      "_gvid": 9,
+      "name": "b3",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "ellipse",
+      "style": "filled"
+    },
+    {
+      "_gvid": 10,
+      "name": "start",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "Mdiamond"
+    },
+    {
+      "_gvid": 11,
+      "name": "end",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "Msquare"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 9,
+      "tail": 8,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 10,
+      "tail": 9,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 7,
+      "tail": 7,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 4,
+      "tail": 5,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 12,
+      "tail": 10,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 11,
+      "tail": 10,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 3,
+      "tail": 4,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 1,
+      "tail": 3,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 6,
+      "tail": 6,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 5,
+      "tail": 5,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 8,
+      "tail": 8,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif"
+    }
+  ]
+}

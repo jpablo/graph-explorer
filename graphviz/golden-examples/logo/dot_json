@@ -1,0 +1,93 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 108 102",
+  "bgcolor": "#cad5e2",
+  "layout": "dot",
+  "nodesep": "0.42",
+  "pad": "0.1",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "b",
+      "fillcolor": "#4E79A7",
+      "label": "",
+      "penwidth": "7",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 1,
+      "name": "e",
+      "fillcolor": "#E15759",
+      "label": "",
+      "penwidth": "7",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 2,
+      "name": "g",
+      "fillcolor": "#00bc7d",
+      "label": "",
+      "penwidth": "7",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 3,
+      "name": "h",
+      "fillcolor": "#EDC948",
+      "label": "",
+      "penwidth": "7",
+      "shape": "circle",
+      "style": "filled"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 3,
+      "arrowhead": "none",
+      "constraint": "false",
+      "penwidth": "7",
+      "style": "solid"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "arrowhead": "none",
+      "constraint": "false",
+      "penwidth": "7",
+      "style": "solid"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 1,
+      "arrowhead": "none",
+      "constraint": "false",
+      "penwidth": "7",
+      "style": "solid"
+    },
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowhead": "vee",
+      "style": "invis"
+    },
+    {
+      "_gvid": 4,
+      "tail": 3,
+      "head": 2,
+      "arrowhead": "vee",
+      "style": "invis"
+    }
+  ]
+}

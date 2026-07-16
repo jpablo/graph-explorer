@@ -1,0 +1,80 @@
+{
+  "name": "D",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 198 180",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%1",
+      "_gvid": 0,
+      "nodes": [
+        3,4,5
+      ]
+    },
+    {
+      "name": "%3",
+      "_gvid": 1,
+      "nodes": [
+        6
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "A",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "B",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "C",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "D",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "F",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 5
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 6
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 6
+    },
+    {
+      "_gvid": 5,
+      "tail": 5,
+      "head": 6
+    }
+  ]
+}
