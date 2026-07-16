@@ -32,6 +32,7 @@ import scala.collection.mutable
 object Spline:
 
   private val MINW        = 16.0           // dotsplines.c min box width
+  private val HALFMINW    = 8.0
   private val FUDGE        = 4.0           // maximal_bbox FUDGE
 
   /** 2D point in the layout coordinate system. The `x`/`y` fields are
@@ -163,7 +164,8 @@ object Spline:
     }
 
     // neighbor(vn, dir): nearest rank-order node in dir not on `path`'s own
-    // virtual chain (faithful enough for the no-pathscross corpus scope).
+    // virtual chain (the legacy approximation, kept for the HTML port branch
+    // and flat ends — equivalent to gv's when no chains cross).
     def neighbor(vn: String, dir: Int, ownPath: Set[String]): Option[String] =
       val row = orderByRank(rankOf(vn))
       val idx = row.indexOf(vn)
@@ -207,13 +209,119 @@ object Spline:
               .orElse(cluOf.get(h2).filter(c => foreign(c) && vninside(c, adj)))
           }
 
-    // maximal_bbox(vn): widest box up to in-rank neighbours.
+    // ── gv's real neighbor rule (dotsplines.c:2310) ─────────────────────────
+    // A plain virtual in-rank neighbour is SKIPPED when its chain CROSSES
+    // vn's (pathscross) — the channel then extends past it to the next
+    // normal/labelled/non-crossing node (ds: node7's box reaches past the
+    // crossing V(4,*) chains). Needs the fast-graph chain topology.
+    val orderIdx: Map[String, Int] =
+      orderByRank.iterator.flatMap((_, ids) => ids.zipWithIndex).toMap
+    // working ends + rank span per dedge (segments run working tail → head)
+    val workEnds: Vector[(String, String, Int, Int)] = dedges.map { e =>
+      val rt = rankOf.getOrElse(e.tail, 0); val rh = rankOf.getOrElse(e.head, 0)
+      if rt <= rh then (e.tail, e.head, rt, rh) else (e.head, e.tail, rh, rt)
+    }
+    // fast in/out degrees (chain segments only; flat edges live elsewhere)
+    val outDeg = mutable.HashMap.empty[String, Int].withDefaultValue(0)
+    val inDeg  = mutable.HashMap.empty[String, Int].withDefaultValue(0)
+    workEnds.foreach { case (wt, wh, lo, hi) =>
+      if lo != hi then { outDeg(wt) += 1; inDeg(wh) += 1 }
+    }
+    def outSize(n: String): Int = if isV(n) then 1 else outDeg(n)
+    def inSize(n: String): Int  = if isV(n) then 1 else inDeg(n)
+    // a real node's UNIQUE out/in segment (only queried when the degree is 1)
+    val realOutSeg: Map[String, (String, String)] =
+      workEnds.zipWithIndex.collect { case ((wt, wh, lo, hi), d) if lo != hi =>
+        wt -> (wt, if lo + 1 <= hi - 1 then LayoutNode.Virtual(d, lo + 1).name else wh)
+      }.toMap
+    val realInSeg: Map[String, (String, String)] =
+      workEnds.zipWithIndex.collect { case ((wt, wh, lo, hi), d) if lo != hi =>
+        wh -> (if hi - 1 >= lo + 1 then LayoutNode.Virtual(d, hi - 1).name else wt, wh)
+      }.toMap
+    def chainNextOf(vn: String): String = nodeOf(vn) match
+      case LayoutNode.Virtual(d, r) =>
+        val (_, wh, _, hi) = workEnds(d)
+        if r + 1 <= hi - 1 then LayoutNode.Virtual(d, r + 1).name else wh
+      case _ => vn
+    def chainPrevOf(vn: String): String = nodeOf(vn) match
+      case LayoutNode.Virtual(d, r) =>
+        val (wt, _, lo, _) = workEnds(d)
+        if r - 1 >= lo + 1 then LayoutNode.Virtual(d, r - 1).name else wt
+      case _ => vn
+    def outSegOf(n: String): Option[(String, String)] =
+      if isV(n) then Some((n, chainNextOf(n))) else realOutSeg.get(n)
+    def inSegOf(n: String): Option[(String, String)] =
+      if isV(n) then Some((chainPrevOf(n), n)) else realInSeg.get(n)
+
+    /** pathscross (dotsplines.c:2334): do n0's and n1's chains cross within
+      * two steps up/down? `ie1`/`oe1` are n1's own in/out segments. */
+    def pathscross(n0: String, n1: String,
+                   ie1: Option[(String, String)], oe1: Option[(String, String)]): Boolean =
+      val order = orderIdx(n0) > orderIdx(n1)
+      if outSize(n0) != 1 && outSize(n1) != 1 then return false
+      var e1 = oe1
+      if outSize(n0) == 1 && e1.isDefined then
+        var e0 = outSegOf(n0)
+        var cnt = 0
+        var stop = false
+        while !stop && cnt < 2 do
+          val na = e0.get._2; val nb = e1.get._2
+          if na == nb then stop = true
+          else if order != (orderIdx(na) > orderIdx(nb)) then return true
+          else if outSize(na) != 1 || !isV(na) then stop = true
+          else
+            e0 = Some((na, chainNextOf(na)))
+            if outSize(nb) != 1 || !isV(nb) then stop = true
+            else e1 = Some((nb, chainNextOf(nb)))
+          cnt += 1
+      e1 = ie1
+      if inSize(n0) == 1 && e1.isDefined then
+        var e0 = inSegOf(n0)
+        var cnt = 0
+        var stop = false
+        while !stop && cnt < 2 do
+          val na = e0.get._1; val nb = e1.get._1
+          if na == nb then stop = true
+          else if order != (orderIdx(na) > orderIdx(nb)) then return true
+          else if inSize(na) != 1 || !isV(na) then stop = true
+          else
+            e0 = Some((chainPrevOf(na), na))
+            if inSize(nb) != 1 || !isV(nb) then stop = true
+            else e1 = Some((chainPrevOf(nb), nb))
+          cnt += 1
+      false
+
+    /** neighbor (dotsplines.c:2310): the first normal or labelled-virtual
+      * node in `dir`, or the first plain virtual whose chain does NOT cross. */
+    def neighborGv(vn: String, dir: Int,
+                   ie: Option[(String, String)], oe: Option[(String, String)]): Option[String] =
+      val row = orderByRank(rankOf(vn))
+      var i   = orderIdx(vn) + dir
+      var ans: Option[String] = None
+      while ans.isEmpty && i >= 0 && i < row.length do
+        val n = row(i)
+        if isLabelV(n) then ans = Some(n)
+        else if !isV(n) then ans = Some(n)
+        else if !pathscross(n, vn, ie, oe) then ans = Some(n)
+        i += dir
+      ans
+
+    // maximal_bbox(vn): widest box up to in-rank neighbours (legacy
+    // ownPath-neighbour form — HTML branch, topBoxes, flat ends).
     def maximalBbox(vn: String, ownPath: Set[String]): Box =
+      maximalBboxCore(vn, neighbor(vn, -1, ownPath), neighbor(vn, 1, ownPath))
+
+    /** maximal_bbox with gv's pathscross-aware neighbours (dotsplines.c:2251)
+      * — `ie`/`oe` are vn's own in/out segments as gv passes them. */
+    def maximalBboxGv(vn: String, ie: Option[(String, String)], oe: Option[(String, String)]): Box =
+      maximalBboxCore(vn, neighborGv(vn, -1, ie, oe), neighborGv(vn, 1, ie, oe))
+
+    def maximalBboxCore(vn: String, leftNb: Option[String], rightNb: Option[String]): Box =
       val r = rankOf(vn)
       val labelVn = isLabelV(vn)
       var b = cx(vn) - lw(vn) - FUDGE
       val llx =
-        neighbor(vn, -1, ownPath) match
+        leftNb match
           case Some(left) =>
             val nb = clBound(vn, left) match
               case Some(cl) => cluBBs(cl).urx + Splinesep
@@ -233,7 +341,7 @@ object Spline:
       // clamp — the label width is subtracted, leaving the label its own strip.
       var b2 = if labelVn then cx(vn) + 10.0 else cx(vn) + rw(vn) + FUDGE
       var urx =
-        neighbor(vn, 1, ownPath) match
+        rightNb match
           case Some(right) =>
             val nb = clBound(vn, right) match
               case Some(cl) => cluBBs(cl).llx - Splinesep
@@ -363,6 +471,137 @@ object Spline:
     def recRoot(id: String): Option[RecordLabel.Field] =
       byId.get(id).flatMap(n => NodeSize.recordLayout(n, g))
 
+    // ── canonical-frame port machinery (splines.c beginpath/endpath) ────────
+    // gv resolves record `:fN` ports AT ROUTE TIME: the stored port is `dyna`
+    // (compass `_`), and beginpath/endpath call resolvePort/closestSide with
+    // the segment's OTHER endpoint — so the same declared port lands on a
+    // different field side per edge. The resolved port then shapes the end's
+    // channel boxes (side branches / record_path corridor) and start point.
+    val rd        = Rank.rankdir(g)
+    val flip      = Rank.flip(g)
+    val RanksepPt = Coord.rankSepBasePt(g)
+    val BpFudge   = 2.0 // splines.c FUDGE (≠ dotsplines.c FUDGE=4)
+
+    /** Route-time port resolution (beginpath:395 / endpath:592): initial
+      * `record_port` struct, dyna re-resolved against `otherCanon`. Portless
+      * or unresolvable ⇒ gv's `Center` (clip to the node, p = centre).
+      * Returns (resolved port, ORIG clip flag): clip_and_install reads the
+      * clip off the ORIGINAL edge — the INITIAL resolution's flag (false for
+      * explicit compass ports, true for dyna/centre) — because a dyna's
+      * route-time side resolution lives only on the working copy. */
+    def endPort(id: String, portOpt: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port],
+                otherCanon: XY): (PortAnchor.GvPort, Boolean) =
+      portOpt.flatMap(pp => byId.get(id).flatMap(n => PortAnchor.gvRecordPort(n, g, pp))) match
+        case None => (PortAnchor.GvPort.center, true)
+        case Some(gp0) =>
+          val resolved =
+            if gp0.dyna then PortAnchor.resolveDyna(gp0, rd, (cx(id), cy(id)), (otherCanon.x, otherCanon.y))
+            else gp0
+          (resolved, gp0.clip)
+
+    /** record_path (shapes.c:3817), canonical: the top-level field whose
+      * canonical-x slice holds the port x, as a full-node-height corridor
+      * (`flip_rec_boxf` for LR/RL is the transpose of the true-frame box). */
+    def recordPathBox(id: String, px: Double): Option[Box] =
+      recRoot(id).flatMap { root =>
+        root.flds.find { f =>
+          val (ls, rs) = if flip then (f.lly, f.ury) else (f.llx, f.urx)
+          ls <= px && px <= rs
+        }.map { f =>
+          val hh = halfH(id)
+          if flip then Box(cx(id) + f.lly, cy(id) + f.llx, cx(id) + f.ury, cy(id) + hh)
+          else Box(cx(id) + f.llx, cy(id) - hh, cx(id) + f.urx, cy(id) + hh)
+        }
+      }
+
+    /** beginpath (splines.c:387), REGULAREDGE: P.start (post-nudge), the
+      * constrained tangent, the tail-end channel boxes, and whether the side
+      * branch cleared the orig port's clip flag. `nb` = maximal_bbox. */
+    def beginPathR(id: String, gp: PortAnchor.GvPort, nb: Box): (XY, Option[Double], Vector[Box], Boolean) =
+      var sx = cx(id) + gp.px
+      var sy = cy(id) + gp.py
+      val hh = halfH(id)
+      val th = if gp.constrained then Some(gp.theta) else None
+      if gp.side != 0 then
+        val ncx = cx(id); val ncy = cy(id)
+        val boxes =
+          if (gp.side & RecordLabel.Top) != 0 then
+            val bs =
+              if sx < ncx then // go left
+                Vector(
+                  Box(nb.llx - 1, sy, nb.urx, ncy + hh + RanksepPt / 2.0),
+                  Box(nb.llx - 1, ncy - hh, ncx - lw(id) - (BpFudge - 2), sy))
+              else
+                Vector(
+                  Box(nb.llx, sy, nb.urx + 1, ncy + hh + RanksepPt / 2.0),
+                  Box(ncx + rw(id) + (BpFudge - 2), ncy - hh, nb.urx + 1, sy))
+            sy += 1
+            bs
+          else if (gp.side & RecordLabel.Bottom) != 0 then
+            val b = Box(nb.llx, nb.lly, nb.urx, math.max(nb.ury, sy))
+            sy -= 1
+            Vector(b)
+          else if (gp.side & RecordLabel.Left) != 0 then
+            val b = Box(nb.llx, ncy - hh, sx, sy)
+            sx -= 1
+            Vector(b)
+          else
+            val b = Box(sx, ncy - hh, nb.urx, sy)
+            sx += 1
+            Vector(b)
+        (XY(sx, sy), th, boxes, true)
+      else
+        val corridor = if gp.defined then recordPathBox(id, gp.px) else None
+        corridor match
+          case Some(cb) => (XY(sx, sy), th, Vector(cb), false)
+          case None =>
+            val b = Box(nb.llx, nb.lly, nb.urx, sy) // UR.y = start.y
+            sy -= 1
+            (XY(sx, sy), th, Vector(b), false)
+
+    /** endpath (splines.c:584), REGULAREDGE — the head-side mirror. */
+    def endPathR(id: String, gp: PortAnchor.GvPort, nb: Box): (XY, Option[Double], Vector[Box], Boolean) =
+      var ex = cx(id) + gp.px
+      var ey = cy(id) + gp.py
+      val hh = halfH(id)
+      val th = if gp.constrained then Some(gp.theta) else None
+      if gp.side != 0 then
+        val ncx = cx(id); val ncy = cy(id)
+        val boxes =
+          if (gp.side & RecordLabel.Top) != 0 then
+            val b = Box(nb.llx, math.min(nb.lly, ey), nb.urx, nb.ury)
+            ey += 1
+            Vector(b)
+          else if (gp.side & RecordLabel.Bottom) != 0 then
+            val bs =
+              if ex < ncx then // go left
+                Vector(
+                  Box(nb.llx - 1, ncy - hh - RanksepPt / 2.0, nb.urx, ey),
+                  Box(nb.llx - 1, ey, ncx - lw(id) - (BpFudge - 2), ncy + hh))
+              else
+                Vector(
+                  Box(nb.llx, ncy - hh - RanksepPt / 2.0, nb.urx + 1, ey),
+                  Box(ncx + rw(id) + (BpFudge - 2), ey, nb.urx + 1, ncy + hh))
+            ey -= 1
+            bs
+          else if (gp.side & RecordLabel.Left) != 0 then
+            val b = Box(nb.llx, ey, ex, ncy + hh)
+            ex -= 1
+            Vector(b)
+          else
+            val b = Box(ex, ey, nb.urx, ncy + hh)
+            ex += 1
+            Vector(b)
+        (XY(ex, ey), th, boxes, true)
+      else
+        val corridor = if gp.defined then recordPathBox(id, gp.px) else None
+        corridor match
+          case Some(cb) => (XY(ex, ey), th, Vector(cb), false)
+          case None =>
+            val b = Box(nb.llx, ey, nb.urx, nb.ury) // LL.y = end.y
+            ey += 1
+            (XY(ex, ey), th, Vector(b), false)
+
     /** HTML `<td port[:compass]>` endpoint. A compass forces the exact cell
       * point + outward tangent (compassPort); no compass ⇒ the record *dyna*
       * port (aim at the cell side closest to the other endpoint). Either way the
@@ -424,65 +663,6 @@ object Spline:
             else None
       }
 
-    // resolvePort/closestSide + compassPort over a node-local field box.
-    def portEnd(id: String, other: String, port: org.jpablo.graphexplorer.graphviz.dotlang.Port, isTail: Boolean): Option[End] =
-      val name = port.name.map(_.value).filter(_.nonEmpty)
-      if byId.get(id).exists(_.attrs.isHtml("label")) then return htmlPortEnd(id, other, port, isTail)
-      recRoot(id).flatMap { root => name.flatMap { nm => RecordLabel.field(root, nm).flatMap { fld =>
-        val (llx, lly, urx, ury) = (fld.llx, fld.lly, fld.urx, fld.ury)
-        val bcx = (llx + urx) / 2.0; val bcy = (lly + ury) / 2.0
-        val nc  = centerOf(id)
-        import org.jpablo.graphexplorer.graphviz.dotlang.Compass.*
-        import RecordLabel.{Bottom, Right, Top, Left}
-        // compassPort(box, compass, fld.sides) → (pLocal, side, theta, clip)
-        def cp(c: org.jpablo.graphexplorer.graphviz.dotlang.Compass): (XY, Int, Double, Boolean) =
-          c match
-            case N  => (XY(bcx, ury), fld.sides & Top,            math.Pi / 2,      false)
-            case S  => (XY(bcx, lly), fld.sides & Bottom,        -math.Pi / 2,      false)
-            case E  => (XY(urx, bcy), fld.sides & Right,          0.0,              false)
-            case W  => (XY(llx, bcy), fld.sides & Left,           math.Pi,          false)
-            case NE => (XY(urx, ury), fld.sides & (Top | Right),  math.Pi / 4,      false)
-            case NW => (XY(llx, ury), fld.sides & (Top | Left),   3 * math.Pi / 4,  false)
-            case SE => (XY(urx, lly), fld.sides & (Bottom|Right), -math.Pi / 4,     false)
-            case SW => (XY(llx, lly), fld.sides & (Bottom|Left),  -3 * math.Pi / 4, false)
-            case C | Underscore => (XY(bcx, bcy), 0, 0.0, true)
-        val (pl, side, theta, clip, constrained) =
-          port.compass match
-            case Some(c) if c != Underscore && c != C =>
-              val (p, s, th, cl) = cp(c); (p, s, th, cl, true)
-            case _ =>
-              // `_` / no compass ⇒ dyna ⇒ resolvePort(closestSide)
-              if fld.sides == 0 || fld.sides == (Bottom | Right | Top | Left) then
-                (XY(bcx, bcy), 0, 0.0, true, false)
-              else
-                // side midpoints (node-local), pick the one closest to `other`
-                val oc = centerOf(other)
-                val cand = Seq(
-                  (Bottom, XY(bcx, lly), S), (Right, XY(urx, bcy), E),
-                  (Top,    XY(bcx, ury), N), (Left,  XY(llx, bcy), W)
-                ).filter((bit, _, _) => (fld.sides & bit) != 0)
-                val (_, _, bestC) = cand.minBy { (_, mp, _) =>
-                  val ax = nc.x + mp.x - oc.x; val ay = nc.y + mp.y - oc.y
-                  ax * ax + ay * ay
-                }
-                val (p, s, th, cl) = cp(bestC); (p, s, th, cl, true)
-        // beginpath/endpath: box + the ±1 router nudge (REGULAREDGE, NORMAL)
-        val aim = XY(nc.x + pl.x, nc.y + pl.y)
-        val hh  = halfH(id)
-        if side != 0 then
-          if isTail && (side & Bottom) != 0 then
-            Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y - 1.0), theta, constrained, clip))
-          else if !isTail && (side & Top) != 0 then
-            Some(End(maximalBbox(id, Set(id)), XY(aim.x, aim.y + 1.0), theta, constrained, clip))
-          else None // tail TOP/L/R or head BOTTOM/L/R: out of 04 scope
-        else
-          // pboxfn = record_path: the top-level field whose x-range holds p.x,
-          // clipped to the node's full height. No router nudge.
-          root.flds.find(f => pl.x >= f.llx && pl.x <= f.urx).orElse(Some(root)).map { f =>
-            End(Box(nc.x + f.llx, nc.y - hh, nc.x + f.urx, nc.y + hh), aim, theta, constrained, clip)
-          }
-      }}}
-
     // dot_splines_ routes edges in `edgecmp` order (dotsplines.c:551), NOT
     // declaration order: edge type DESCENDING (self 8 > flat 2 > regular 1),
     // then |Δrank| of the ORIGINAL endpoints (shortest spans first), then
@@ -516,15 +696,18 @@ object Spline:
           val tn0   = pathTopDown.head
           val hn0   = pathTopDown.last
 
-          // Port routing: only the scoped case (adjacent ranks, NORMAL real
-          // endpoints, ≥1 resolvable record port). Else node-centred path —
-          // additive, so every portless edge stays byte-identical.
-          val tEnd =
-            if rt < rh then e.tailPort.flatMap(portEnd(tn0, hn0, _, isTail = true))
-            else e.headPort.flatMap(portEnd(tn0, hn0, _, isTail = true))
-          val hEnd =
-            if rt < rh then e.headPort.flatMap(portEnd(hn0, tn0, _, isTail = false))
-            else e.tailPort.flatMap(portEnd(hn0, tn0, _, isTail = false))
+          // Working-orientation ports (make_regular_edge MAKEFWDEDGE /
+          // fwdedgea, dotsplines.c:1789: a BWDEDGE's working tail takes the
+          // original HEAD's port).
+          val (wtPort, whPort) =
+            if rt < rh then (e.tailPort, e.headPort) else (e.headPort, e.tailPort)
+          // HTML cell ports keep the legacy adjacent-rank channel below
+          // (their own verified path); record + portless ends take the
+          // unified gv channel.
+          val tHtml = byId.get(tn0).exists(_.attrs.isHtml("label"))
+          val hHtml = byId.get(hn0).exists(_.attrs.isHtml("label"))
+          val tEnd  = if tHtml then wtPort.flatMap(htmlPortEnd(tn0, hn0, _, isTail = true)) else None
+          val hEnd  = if hHtml then whPort.flatMap(htmlPortEnd(hn0, tn0, _, isTail = false)) else None
           val portRoute = mids.isEmpty && (tEnd.isDefined || hEnd.isDefined)
 
           if portRoute then
@@ -567,43 +750,79 @@ object Spline:
               reversedWork = rt > rh
             )
           else
-            // ── node-centred box channel (completeregularpath) ────────────
-            val boxes = mutable.ArrayBuffer.empty[Box]
-            val tBb   = maximalBbox(tn0, ownPath)
-            boxes += Box(tBb.llx, cy(tn0) - ht1(lo), tBb.urx, cy(tn0)) // tail half
+            // ── unified make_regular_edge channel (dotsplines.c:1820) ─────
+            // Ported or portless, adjacent or chained. beginpath resolves
+            // the working tail's dyna port vs the segment's OTHER end — the
+            // FIRST VNODE for chains (fwdedgea's head, dotsplines.c:1803);
+            // endpath resolves the head's vs the working TAIL real node
+            // (fwdedgeb keeps the real endpoints, dotsplines.c:1900). HTML
+            // ports have no channel machinery here and route portless.
+            val tOther = mids.headOption.map(m => XY(cx(m), cy(m))).getOrElse(XY(cx(hn0), cy(hn0)))
+            val (tGp, tOrigClip) =
+              if tHtml then (PortAnchor.GvPort.center, true) else endPort(tn0, wtPort, tOther)
+            val (hGp, hOrigClip) =
+              if hHtml then (PortAnchor.GvPort.center, true) else endPort(hn0, whPort, XY(cx(tn0), cy(tn0)))
+
+            // gv's maximal_bbox (ie, oe) threading: tail (NULL, first seg),
+            // chain vnode (in seg, out seg), head (last seg, NULL).
+            def segAt(i: Int): (String, String) = (pathTopDown(i), pathTopDown(i + 1))
+            val nbT = maximalBboxGv(tn0, None, Some(segAt(0)))
+            val (start, thT, tB0, tCleared) = beginPathR(tn0, tGp, nbT)
+            // makeregularend BOTTOM: nb's x-range from the rank bottom up to
+            // the last tail box (degenerate — dropped — in the portless case
+            // where maximal_bbox already reaches the rank bottom).
+            val fillT  = Box(nbT.llx, cy(tn0) - ht1(lo), nbT.urx, tB0.last.lly)
+            val tBoxes = if fillT.llx < fillT.urx && fillT.lly < fillT.ury then tB0 :+ fillT else tB0
+
+            val midBoxes = mutable.ArrayBuffer.empty[Box]
             var idxN = 0
             while idxN < pathTopDown.length - 2 do
               val upper = pathTopDown(idxN)
               val vn    = pathTopDown(idxN + 1)
-              boxes += rankBox(rankOf(upper), rankOf(vn))
-              val vBb = maximalBbox(vn, ownPath)
-              boxes += vBb
+              midBoxes += rankBox(rankOf(upper), rankOf(vn))
+              midBoxes += maximalBboxGv(vn, Some(segAt(idxN)), Some(segAt(idxN + 1)))
               idxN += 1
-            val lastUpper = pathTopDown(pathTopDown.length - 2)
-            boxes += rankBox(rankOf(lastUpper), rankOf(hn0))
-            val hBb = maximalBbox(hn0, ownPath)
-            boxes += Box(hBb.llx, cy(hn0), hBb.urx, cy(hn0) + ht2(hi)) // head half
+            midBoxes += rankBox(rankOf(pathTopDown(pathTopDown.length - 2)), rankOf(hn0))
 
-            val start = XY(cx(tn0), cy(tn0) - 1.0)
-            val end   = XY(cx(hn0), cy(hn0) + 1.0)
+            val nbH = maximalBboxGv(hn0, Some(segAt(pathTopDown.length - 2)), None)
+            val (end, thH, hB0, hCleared) = endPathR(hn0, hGp, nbH)
+            val fillH  = Box(nbH.llx, hB0.last.ury, nbH.urx, cy(hn0) + ht2(hi)) // makeregularend TOP
+            val hBoxes = if fillH.llx < fillH.urx && fillH.lly < fillH.ury then hB0 :+ fillH else hB0
 
-            adjustRegularPath(boxes)
+            // completeregularpath: tend boxes, mid boxes, hend boxes
+            // REVERSED (add_box drops degenerates); fb/lb = the interrank
+            // slice for adjustregularpath's parity rules.
+            val boxes = mutable.ArrayBuffer.empty[Box]
+            def addBox(b: Box): Unit = if b.llx < b.urx && b.lly < b.ury then boxes += b
+            tBoxes.foreach(addBox)
+            val fb = boxes.length + 1
+            val lb = fb + midBoxes.length - 3
+            midBoxes.foreach(addBox)
+            hBoxes.reverse.foreach(addBox)
+            adjustRegularPath(boxes, fb, lb)
+
             val st  = Array(start.x, start.y)
             val en  = Array(end.x, end.y)
+            val ev0 = thT.map(t => XY(math.cos(t), math.sin(t))).getOrElse(XY(0, 0))
+            val ev1 = thH.map(t => XY(-math.cos(t), -math.sin(t))).getOrElse(XY(0, 0))
             val routed =
-              if checkpath(boxes, st, en) then
-                out(origIdx) = clipInstall(g, Vector(start, end), e, byId, centerOf,
-                  reversedWork = rt > rh)
-                Vector(start, end)
+              if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
               else
-                val poly  = buildPolygon(boxes)
-                val sp    = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
-                val raw   = proutespline(poly, sp)
-                // gv clips in the WORKING (top-down) parameterization and only
-                // swap_spline's at install — clipInstall(reversedWork) does both.
-                out(origIdx) = clipInstall(g, raw, e, byId, centerOf,
-                  reversedWork = rt > rh)
-                raw
+                val poly = buildPolygon(boxes)
+                val sp   = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
+                proutespline(poly, sp, ev0, ev1)
+            // Clip flags come from the ORIG port at install (clip_and_install
+            // walks ED_to_orig): initial-resolution clip, cleared only by a
+            // begin/endpath side branch — a route-time dyna side port's
+            // clip=false lives ONLY on the working copy, so a centre-resolved
+            // record port still clips, against its FIELD box (port.bp).
+            // gv clips in the WORKING (top-down) parameterization and only
+            // swap_spline's at install — clipInstall(reversedWork) does both.
+            out(origIdx) = clipInstall(g, routed, e, byId, centerOf,
+              tailClip = tOrigClip && !tCleared, headClip = hOrigClip && !hCleared,
+              reversedWork = rt > rh,
+              tailBp = if tGp.defined then tGp.bp else None,
+              headBp = if hGp.defined then hGp.bp else None)
             // narrow the channel boxes to the routed spline corridor, then snap
             // this edge's virtual nodes to them (mids are top→bottom); feeds lp
             // + later edges' neighbour geometry.
@@ -739,12 +958,45 @@ object Spline:
     (out.toMap, labelPos.toMap)
 
   // ── adjustregularpath: widen path boxes to ≥ MINW ─────────────────────────
+  // Legacy simplified overlap-guarantee (the HTML port-route branch's
+  // corpus-verified form — equivalent to the exact one on its box lists).
   private def adjustRegularPath(boxes: mutable.ArrayBuffer[Box]): Unit =
     var i = 0
     while i + 1 < boxes.length do
       val a = boxes(i); val b = boxes(i + 1)
       if a.urx - MINW < b.llx then b.llx = a.urx - MINW
       if a.llx + MINW > b.urx then b.urx = a.llx + MINW
+      i += 1
+
+  /** adjustregularpath (dotsplines.c:2040), exact: `fb`/`lb` bound the
+    * interrank slice — boxes at EVEN offsets from `fb` (the vnode boxes) are
+    * grown only when degenerate, odd offsets (rank boxes, including the
+    * size_t-underflowing `fb-1` first one) are stretched to MINW; then the
+    * pairwise ≥MINW-overlap pass adjusts the box gv's parity rules pick. */
+  private def adjustRegularPath(boxes: mutable.ArrayBuffer[Box], fb: Int, lb: Int): Unit =
+    var i = fb - 1
+    while i < lb + 1 do
+      if i >= 0 && i < boxes.length then
+        val bp1 = boxes(i)
+        // C `(i - fb) % 2` on size_t: i = fb-1 underflows to an ODD value.
+        if i >= fb && (i - fb) % 2 == 0 then
+          if bp1.llx >= bp1.urx then
+            val x = (bp1.llx + bp1.urx) / 2
+            bp1.llx = x - HALFMINW; bp1.urx = x + HALFMINW
+        else
+          if bp1.llx + MINW > bp1.urx then
+            val x = (bp1.llx + bp1.urx) / 2
+            bp1.llx = x - HALFMINW; bp1.urx = x + HALFMINW
+      i += 1
+    i = 0
+    while i + 1 < boxes.length do
+      val bp1 = boxes(i); val bp2 = boxes(i + 1)
+      if i >= fb && i <= lb && (i - fb) % 2 == 0 then
+        if bp1.llx + MINW > bp2.urx then bp2.urx = bp1.llx + MINW
+        if bp1.urx - MINW < bp2.llx then bp2.llx = bp1.urx - MINW
+      else if i + 1 >= fb && i < lb && (i + 1 - fb) % 2 == 0 then
+        if bp1.llx + MINW > bp2.urx then bp1.llx = bp2.urx - MINW
+        if bp1.urx - MINW < bp2.llx then bp1.urx = bp2.llx + MINW
       i += 1
 
   // ── checkpath: drop degenerate boxes, repair joins/overlaps, clamp ends ───
@@ -1241,7 +1493,13 @@ object Spline:
         * (81-rankmin's 0.06–0.17pt). Here: clip index-0 against the ORIG HEAD,
         * the far end against the ORIG TAIL, run arrowStartClip (arrows.c:315,
         * the head arrow sits at the working START), then reverse the points. */
-      reversedWork: Boolean = false
+      reversedWork: Boolean = false,
+      /** Defined record/cell port boxes (TRUE-frame, node-local): a clipping
+        * end with a port `bp` clips against the FIELD box, not the node shape
+        * (record_inside with inside_context.bp, splines.c:277/288). Keyed to
+        * the WORKING ends like tailClip/headClip. */
+      tailBp: Option[(Double, Double, Double, Double)] = None,
+      headBp: Option[(Double, Double, Double, Double)] = None
   ): ESpline =
     val ps =
       if ctrl0.length >= 4 && (ctrl0.length - 1) % 3 == 0 then ctrl0.toArray
@@ -1298,8 +1556,11 @@ object Spline:
               // decorative diagonals), underline/image, and all the special-
               // corner shapes (note/tab/…/bio — their poly_inside uses the box
               // periphery, the corner geometry is render-only).
+              // record_inside "assumes everything is a rectangle" — records
+              // (incl. Mrecord) clip as boxes too (shapes.c:3786).
               val boxLike = plain ||
-                Set("box", "rect", "rectangle", "square", "Msquare", "underline", "image")
+                Set("box", "rect", "rectangle", "square", "Msquare", "underline", "image",
+                    "record", "Mrecord")
                   .contains(shapeName) ||
                 RoundCorners.codeOf.contains(shapeName)
               (p: XY) =>
@@ -1319,6 +1580,19 @@ object Spline:
     def approxEq(a: XY, b: XY): Boolean =
       math.abs(a.x - b.x) < 0.001 && math.abs(a.y - b.y) < 0.001
 
+    // record_inside with a port bp (clip_and_install → insidefn with
+    // inside_context.bp): the query point is ccw-rotated into the node's
+    // TRUE frame and INSIDE-tested against the FIELD box ± penwidth/2.
+    def bpInsideFn(id: String, bp: (Double, Double, Double, Double)): XY => Boolean =
+      val cen = centerOf(id)
+      val rd  = Rank.rankdir(g)
+      val pw  = byId.get(id).flatMap(_.attrs.get("penwidth")).flatMap(_.toDoubleOption)
+        .map(math.max(0.0, _)).getOrElse(NodePenwidth) / 2.0
+      val (bllx, blly, burx, bury) = bp
+      (p: XY) =>
+        val (tx, ty) = PortAnchor.ccwrot(p.x - cen.x, p.y - cen.y, rd)
+        bllx - pw <= tx && tx <= burx + pw && blly - pw <= ty && ty <= bury + pw
+
     // index-0 end of the working list: the orig tail normally, the orig HEAD
     // for a reversed edge (gv clip_and_install clips fe's tn/hn, splines.c:269).
     val startNodeId = if reversedWork then e.head else e.tail
@@ -1326,7 +1600,7 @@ object Spline:
     // tail node clip — skipped when the port set clip=false (the resolved
     // port point IS the endpoint; cf. beginpath `ED_*_port.clip = false`).
     var start = 0
-    if tailClip then insideFn(startNodeId).foreach { ins =>
+    if tailClip then tailBp.map(bp => Some(bpInsideFn(startNodeId, bp))).getOrElse(insideFn(startNodeId)).foreach { ins =>
       var s = 0
       var stop = false
       while !stop && s < pn - 4 do
@@ -1336,7 +1610,7 @@ object Spline:
     }
     // head node clip — likewise skipped for a clip=false port.
     var end = pn - 4
-    if headClip then insideFn(endNodeId).foreach { ins =>
+    if headClip then headBp.map(bp => Some(bpInsideFn(endNodeId, bp))).getOrElse(insideFn(endNodeId)).foreach { ins =>
       var en = pn - 4
       var stop = false
       while !stop && en > 0 do

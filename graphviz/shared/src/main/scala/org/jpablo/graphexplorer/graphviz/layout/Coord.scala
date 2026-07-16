@@ -88,7 +88,7 @@ object Coord:
       .map(selfRightSpace(_, g)).sum
 
   /** `GD_ranksep` base (input.c): `POINTS(max(0.02, %lf) | 0.5)`. Default 36pt. */
-  private def rankSepBasePt(g: RGraph): Double =
+  def rankSepBasePt(g: RGraph): Double =
     val v = g.rootAttrs.get("ranksep").flatMap(leadingDouble) match
       case Some(x) => math.max(0.02, x)
       case None    => 0.5

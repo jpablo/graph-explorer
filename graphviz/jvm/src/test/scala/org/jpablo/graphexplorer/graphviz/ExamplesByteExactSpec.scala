@@ -31,18 +31,21 @@ class ExamplesByteExactSpec extends FunSuite:
     *   inflation in the aux solve + bbox; edgecmp routing order; the
     *   UNSHIFTED raw solve frame (round() isn't translation-invariant);
     *   accumulated selfRight loops + self-edge label lp.]
-    *   - data-structures — ORDER and X both match gv exactly now (port-aware
-    *     mincross + the make_edge_pairs working-orientation port fix: the aux
-    *     graphs are byte-identical per the gv make_aux_edge dump). Remaining:
-    *     EDGE SPLINES ONLY — gv resolves record `:fN` ports at route time
-    *     (resolvePort/closestSide → constrained side ports, clip=false) and
-    *     builds ported begin/endpath box channels in the canonical frame;
-    *     our spline port handling is still the TB-adjacent-only approximation
-    *     (splines.c:387 beginpath, shapes.c:4346 resolvePort — see PORT.md).
     *   - sbt-project-dependencies — within-rank order still differs
-    *     (duplicate/parallel edges declared 2-3×); re-triage with the
-    *     mincross trace now that the port machinery is in.
+    *     (duplicate/parallel edges declared 2-3×): gv class2 MERGES
+    *     consecutive same-endpoint unlabeled multi-edges into one chain
+    *     (merge_chain: summed weight/xpenalty; one shared routed spline
+    *     offset by Multisep) — our pipeline keeps them separate. Also uses
+    *     `splines=polyline` (make_polyline, not the bezier fit).
     * CLOSED 2026-07-16 (same session, in order):
+    *   - data-structures — three sub-chases: (1) port-aware mincross;
+    *     (2) make_edge_pairs working-orientation ports (aux graph
+    *     byte-identical — every node position exact); (3) route-time port
+    *     resolution (resolvePort/closestSide dyna ports), ported
+    *     beginpath/endpath channels in the canonical frame, field-box
+    *     (port.bp) clipping, exact adjustregularpath fb/lb parity, and
+    *     gv's pathscross-aware maximal_bbox neighbours (crossing chains
+    *     are scanned past, widening the channel).
     *   - unsupported/multiple-edges-with-commas — cgraph nodelist grammar
     *     (`nodelist : node | nodelist ',' node`) ported + edge endpoints
     *     declare their node in textual order (appendnode).
@@ -57,7 +60,6 @@ class ExamplesByteExactSpec extends FunSuite:
     *     fontsize/fontname — base font now threads through htmlText/htmlTable
     *     (this was the user-reported oversized-tasks rendering). */
   private val deferred = Set(
-    "data-structures",
     "sbt-project-dependencies")
 
   /** Not gateable: the ORACLE itself fails on these (no golden exists).

@@ -164,6 +164,10 @@ object Svg:
         s = s.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
       if s == "-0" then "0" else s
 
+  /** Fixed "%.2f" (svg font-size — gv does NOT gvprintdouble-trim it). */
+  private[output] def f2(x: Double): String =
+    BigDecimal(x).setScale(2, BigDecimal.RoundingMode.HALF_UP).bigDecimal.toPlainString
+
   /** Graphviz xml_string for SVG: escape & < > " and '-' (avoids `--` in
     * XML comments; matches `a&#45;&gt;b` in titles/comments). */
   private def xml(s: String): String =
@@ -270,12 +274,13 @@ object Svg:
     sb ++= s"""<polygon fill="$bgFill" stroke="none" points="${d2(bx0)},${d2(by0)} ${d2(bx0)},${d2(by1)} ${d2(bx1)},${d2(by1)} ${d2(bx1)},${d2(by0)} ${d2(bx0)},${d2(by0)}"/>\n"""
 
     // nodes (declaration order)
-    val dimY = FontSize * LineSpacing
     def textAt(cx: Double, cyc: Double, s: String, fill: String = "",
-               fontName: String = "Times-Roman"): String =
-      val ty = -(cyc + dimY / 2.0 - FontSize + 0.1 * FontSize)
+               fontName: String = "Times-Roman", fontSize: Double = FontSize): String =
+      val dimY = fontSize * LineSpacing
+      val ty = -(cyc + dimY / 2.0 - fontSize + 0.1 * fontSize)
       val f  = if fill.nonEmpty then s""" fill="$fill"""" else "" // fontcolor
-      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="14.00"$f>${xml(s)}</text>\n"""
+      // gv prints font-size with a fixed "%.2f" (not gvprintdouble's trim)
+      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="${f2(fontSize)}"$f>${xml(s)}</text>\n"""
 
     /** Multi-line plain label centred at (cx, cyc), y-up (`emit_label` valign
       * 'c' + `svg_textspan`): split on `\n`/`\l`/`\r`, stack from the top
@@ -492,10 +497,14 @@ object Svg:
     // table the inter-child separator polylines + per leaf the field text.
     // Boxes are node-local (centre origin, y-up) — add the node centre.
     def genFields(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field,
-                   ncx: Double, ncy: Double): Unit =
+                   ncx: Double, ncy: Double,
+                   fontName: String, fontSize: Double): Unit =
       if f.isLeaf then
         f.text.filter(_.nonEmpty).foreach { t =>
-          sb ++= textAt(ncx + (f.llx + f.urx) / 2.0, ncy + (f.lly + f.ury) / 2.0, t)
+          // field text renders in the NODE's font (gen_fields → emit_label of
+          // the field's make_label-built lp — node fontname/fontsize).
+          sb ++= textAt(ncx + (f.llx + f.urx) / 2.0, ncy + (f.lly + f.ury) / 2.0, t,
+                        fontName = fontName, fontSize = fontSize)
         }
       else
         f.flds.iterator.zipWithIndex.foreach { case (c, k) =>
@@ -504,7 +513,7 @@ object Svg:
               if f.lr then ((c.llx, c.lly), (c.llx, c.ury)) // vertical sep
               else        ((c.llx, c.ury), (c.urx, c.ury))  // horizontal sep
             sb ++= s"""<polyline fill="none" stroke="black" points="${d2(ncx + a0._1)},${d2(-(ncy + a0._2))} ${d2(ncx + a1._1)},${d2(-(ncy + a1._2))}"/>\n"""
-          genFields(c, ncx, ncy)
+          genFields(c, ncx, ncy, fontName, fontSize)
         }
 
     val op      = if g.directed then "->" else "--"
@@ -541,7 +550,9 @@ object Svg:
             val (llx, lly) = (x + root.llx, cy + root.lly)
             val (urx, ury) = (x + root.urx, cy + root.ury)
             sb ++= s"""<polygon fill="none" stroke="black" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
-            genFields(root, x, cy)
+            genFields(root, x, cy,
+              n.attrs.getOrElse("fontname", "Times-Roman"),
+              n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
           case None =>
             val rx  = sz.halfWidthPt.value
             val ry  = sz.halfHeightPt.value
@@ -751,7 +762,10 @@ object Svg:
           // and its COMMENT prints, but the drawing <g> is skipped entirely.
           if e.attrs.get("style").exists(_.split(",").iterator.map(_.trim).contains("invis")) then
             scala.util.boundary.break()
-          sb ++= s"""<g id="edge$ei" class="edge">\n"""
+          // getObjId (emit.c): an explicit `id` attr overrides `edge{seq}`
+          // (ds declares `id = 0..16` on every edge).
+          val edgeObjId = e.attrs.get("id").filter(_.nonEmpty).getOrElse(s"edge$ei")
+          sb ++= s"""<g id="${xml(edgeObjId)}" class="edge">\n"""
           sb ++= s"<title>${xml(label)}</title>\n"
           val head = pts.head
           val rest = pts.tail.map(p => s"${d2(p.x)},${d2(-p.y)}").mkString(" ")

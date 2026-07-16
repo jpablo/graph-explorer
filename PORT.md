@@ -29,23 +29,14 @@ The current worklist (kept in sync with the session task tracker; the
 fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
 enforce the deferral halves of it):
 
-- **data-structures: port-aware spline routing** — order and x now match
-  gv exactly (port-aware mincross + the `make_edge_pairs`
-  working-orientation port fix); the remaining diff is edge splines + bb
-  only. gv resolves record `:fN` ports at ROUTE time
-  (`resolvePort`/`closestSide`, shapes.c:4346 → constrained side ports
-  with `clip=false`, or centre ports clipped to the FIELD box via
-  `port.bp`/`record_inside`) and routes through ported
-  `beginpath`/`endpath` box channels in the canonical frame (splines.c:387
-  — side branches, `record_path` corridors, `invflip_side`; multi-rank
-  chains take the working-orientation ports, dotsplines.c:1784 `hackflag`,
-  head dyna port resolved vs the working TAIL, tail's vs the first vnode).
-  Our spline port handling is still the TB-adjacent-only approximation
-  (`portEnd`); `adjustregularpath` also needs the exact fb/lb parity form.
-- **sbt-project-dependencies: within-rank order** — 9/14 ranks differ; the
-  file declares some edges 2-3× — duplicate/parallel edges suspected in
-  mincross weights/medians. Method: MCTRACE-instrumented gv mincross
-  re-triage now that the port machinery is in.
+- **sbt-project-dependencies** (last open example) — two known gaps:
+  (a) gv `class2` MERGES consecutive same-endpoint unlabeled multi-edges
+  (class2.c:207 `merge_chain`: ONE chain, summed weight/xpenalty; sbt
+  declares edges 2-3×) — our pipeline keeps them separate, so mincross
+  medians see duplicated neighbours and within-rank order diverges (9/14
+  ranks); route-side, parallel edges share ONE routed spline offset by
+  `Multisep` (dotsplines.c:1948). (b) `splines=polyline`: routesplines
+  takes `make_polyline` (routespl.c:471), not the Bézier fit.
 - **03-subgraph-cluster** — permanent, intentional corpus deferral (its
   goldens are gv's own default-mode cluster corruption; gated vs the 03b
   `newrank` oracle in `ClusterSpec`).
@@ -2277,4 +2268,40 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   newly-scoped subsystem (route-time `resolvePort`/`closestSide` dyna
   ports, ported `beginpath`/`endpath` channels, field-box `bp` clipping —
   see §0). Corpus 137/138 + examples + all suites green; gv pristine.
+- **2026-07-16 (later still 3)** — **data-structures CLOSED (7/8 examples
+  byte-exact): route-time port resolution + ported channels + pathscross**
+  (task #61 part 3). The spline phase now transcribes gv's real port
+  machinery: (1) **`GvPort`** (PortAnchor) — full `compassPort` struct
+  (canonical p via `cwrotatepf`, `invflip_side`/`invflip_angle`, clip,
+  constrained θ, `dyna`, TRUE-frame `bp` field box) + `record_port`
+  (unknown names fall back to name-as-compass over the record box) +
+  `resolvePort`/`closestSide` (dyna ports pick the accessible field side
+  closest to the OTHER endpoint in the FINAL frame — per edge, at route
+  time). (2) **`beginPathR`/`endPathR`** (Spline) — the splines.c:387/584
+  REGULAREDGE side branches (canonical TOP loops / BOTTOM / LEFT / RIGHT +
+  the ±1 nudges + orig-clip clearing), `record_path` corridors
+  (`flip_rec_boxf` = transpose for LR/RL), and the `makeregularend`
+  fill boxes; both feed one UNIFIED make_regular_edge channel (ported or
+  portless, adjacent or chained — the old TB-adjacent-only `portEnd`
+  deleted; HTML cell ports keep their verified legacy branch). Multi-rank
+  chains use working-orientation ports (dotsplines.c:1784 `hackflag`; the
+  tail dyna resolves vs the FIRST VNODE, the head vs the working TAIL).
+  (3) **clip flags off the ORIG port** — initial-resolution clip (false
+  for explicit compass, true for dyna/centre) minus side-branch clearing;
+  a clipping ported end clips against its FIELD box (`record_inside`:
+  ccw-rotate + INSIDE(bp ± penwidth/2)); records/Mrecords clip as boxes.
+  (4) **exact `adjustregularpath`** with gv's fb/lb parity rules (incl.
+  the size_t-underflow quirk at fb−1). (5) **`pathscross` + gv's real
+  `neighbor`** (dotsplines.c:2310/2334): a plain virtual in-rank
+  neighbour whose chain CROSSES vn's within two steps is SKIPPED, widening
+  `maximal_bbox` past it (ds: node7's channel reaches past the crossing
+  V(4,*) chains — this was the last 2-edge/bb residual, found by twin
+  `resize_vn` snap traces + route/box dumps vs instrumented gv). Plus two
+  svg-writer closes surfaced by ds: record field `<text>` now renders in
+  the NODE's fontname/fontsize (was hardcoded Times/14; font-size prints
+  fixed %.2f), and edge `<g id>` honours an explicit `id` attr (getObjId).
+  Corpus 137/138 (04-ports-compass stays byte-exact THROUGH the new
+  machinery — the old approximation is gone), examples 7/8, all suites
+  green, gv worktree pristine. Only sbt-project-dependencies remains (§0:
+  class2 multi-edge merging + splines=polyline).
 - _(append dated entries as milestones land)_

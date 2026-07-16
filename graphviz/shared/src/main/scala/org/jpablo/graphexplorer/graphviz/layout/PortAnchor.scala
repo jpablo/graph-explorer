@@ -91,6 +91,181 @@ object PortAnchor:
           yield fromBox(box._1, box._2, box._3, box._4, compass)
         record.orElse(htmlCellPort(n, name, compass))
 
+  // ── full gv `port` struct for the SPLINE phase ───────────────────────────
+  // shapes.c `record_port` → `compassPort` (initial resolution, possibly
+  // `dyna`) and `resolvePort`/`closestSide` (route-time dyna resolution).
+  // Everything is CANONICAL except `bp`, which stays in the node-local
+  // TRUE/final frame exactly like gv's (`record_inside` ccw-rotates query
+  // points back into it before the INSIDE test).
+
+  final case class GvPort(
+      px: Double, py: Double,     // canonical node-local port point (pp->p)
+      theta: Double,              // canonical tangent (invflip_angle)
+      constrained: Boolean,
+      clip: Boolean,
+      side: Int,                  // canonical side bits; a dyna port keeps RAW true-frame sides
+      defined: Boolean,
+      dyna: Boolean,
+      bp: Option[(Double, Double, Double, Double)]) // TRUE-frame field box (node-local)
+
+  object GvPort:
+    /** `Center` (shapes.c:36) — the portless default: clip to the node. */
+    val center: GvPort = GvPort(0.0, 0.0, -1.0, constrained = false, clip = true,
+                                side = 0, defined = false, dyna = false, bp = None)
+
+  // geom.h side bits (same values as RecordLabel's)
+  private val SBottom = 1
+  private val SRight  = 2
+  private val STop    = 4
+  private val SLeft   = 8
+  private val SAll    = SBottom | SRight | STop | SLeft
+
+  /** shapes.c `invflip_side`: final-frame side → canonical side. */
+  def invflipSide(side: Int, rd: RankDir): Int = rd match
+    case RankDir.TB => side
+    case RankDir.BT =>
+      side match
+        case STop => SBottom; case SBottom => STop; case s => s
+    case RankDir.LR =>
+      side match
+        case STop => SRight; case SBottom => SLeft
+        case SLeft => STop;  case SRight  => SBottom
+        case s => s
+    case RankDir.RL =>
+      side match
+        case STop => SRight; case SBottom => SLeft
+        case SLeft => SBottom; case SRight => STop
+        case s => s
+
+  /** shapes.c `invflip_angle`: final-frame tangent → canonical. */
+  def invflipAngle(angle: Double, rd: RankDir): Double = rd match
+    case RankDir.TB => angle
+    case RankDir.BT => -angle
+    case RankDir.LR => angle - math.Pi * 0.5
+    case RankDir.RL =>
+      if angle == math.Pi then -0.5 * math.Pi
+      else if angle == math.Pi * 0.75 then -0.25 * math.Pi
+      else if angle == math.Pi * 0.5 then 0.0
+      else if angle == 0.0 then math.Pi * 0.5
+      else if angle == math.Pi * -0.25 then math.Pi * 0.75
+      else if angle == math.Pi * -0.5 then math.Pi
+      else angle
+
+  /** geomprocs `cwrotatepf(p, 90·rankdir)`: true/final frame → canonical. */
+  def cwrot(x: Double, y: Double, rd: RankDir): (Double, Double) = rd match
+    case RankDir.TB => (x, y)
+    case RankDir.LR => (y, -x)
+    case RankDir.BT => (x, -y)
+    case RankDir.RL => (y, x)
+
+  /** geomprocs `ccwrotatepf`: canonical → true/final frame (the
+    * `record_inside` clip frame). Inverse of [[cwrot]]. */
+  def ccwrot(x: Double, y: Double, rd: RankDir): (Double, Double) = rd match
+    case RankDir.TB => (x, y)
+    case RankDir.LR => (-y, x)
+    case RankDir.BT => (x, -y)
+    case RankDir.RL => (y, x)
+
+  /** shapes.c `cvtPt`: canonical → final frame (closestSide distances). */
+  def cvtPt(x: Double, y: Double, rd: RankDir): (Double, Double) = rd match
+    case RankDir.TB => (x, y)
+    case RankDir.BT => (x, -y)
+    case RankDir.LR => (-y, x)
+    case RankDir.RL => (y, x)
+
+  /** shapes.c `compassPort` over a TRUE-frame field box (the ictxt-less
+    * branch), full port struct. `compass = None` is the C NULL compass
+    * (centre port, `clip = true`); `_` is the dyna port. */
+  def compassPortFull(box: (Double, Double, Double, Double), sides: Int,
+                      compass: Option[Compass], rd: RankDir): GvPort =
+    val (llx, lly, urx, ury) = box
+    val ctrx = (llx + urx) / 2.0
+    val ctry = (lly + ury) / 2.0
+    var px = ctrx; var py = ctry
+    var theta = 0.0
+    var constrain = false; var dyna = false
+    var side = 0; var clip = true
+    import Compass.*
+    compass match
+      case Some(E)  => px = urx; theta = 0.0; constrain = true; clip = false; side = sides & SRight
+      case Some(S)  => py = lly; px = ctrx; theta = -math.Pi * 0.5; constrain = true; clip = false; side = sides & SBottom
+      case Some(SE) => py = lly; px = urx; theta = -math.Pi * 0.25; constrain = true; clip = false; side = sides & (SBottom | SRight)
+      case Some(SW) => py = lly; px = llx; theta = -math.Pi * 0.75; constrain = true; clip = false; side = sides & (SBottom | SLeft)
+      case Some(W)  => px = llx; theta = math.Pi; constrain = true; clip = false; side = sides & SLeft
+      case Some(N)  => py = ury; px = ctrx; theta = math.Pi * 0.5; constrain = true; clip = false; side = sides & STop
+      case Some(NE) => py = ury; px = urx; theta = math.Pi * 0.25; constrain = true; clip = false; side = sides & (STop | SRight)
+      case Some(NW) => py = ury; px = llx; theta = math.Pi * 0.75; constrain = true; clip = false; side = sides & (STop | SLeft)
+      case Some(Underscore) => dyna = true; side = sides
+      case Some(C) | None   => ()
+    val (cpx, cpy) = cwrot(px, py, rd)
+    GvPort(cpx, cpy, invflipAngle(theta, rd), constrain, clip,
+           if dyna then side else invflipSide(side, rd),
+           defined = true, dyna = dyna, bp = Some(box))
+
+  private def compassOfName(s: String): Option[Compass] =
+    import Compass.*
+    s match
+      case "n" => Some(N); case "ne" => Some(NE); case "e" => Some(E)
+      case "se" => Some(SE); case "s" => Some(S); case "sw" => Some(SW)
+      case "w" => Some(W); case "nw" => Some(NW); case "c" => Some(C)
+      case "_" => Some(Underscore); case _ => None
+
+  /** shapes.c `record_port` for the spline phase: field box + accessible
+    * sides → `compassPort` (no compass ⇒ `_` ⇒ dyna). An unresolved port
+    * NAME is treated as a compass over the whole record box (shapes.c:3775);
+    * an unrecognized one degrades to a centre port over that box (the C
+    * warns and leaves the centre defaults). Non-record nodes → None. */
+  def gvRecordPort(n: RNode, g: RGraph, port: org.jpablo.graphexplorer.graphviz.dotlang.Port): Option[GvPort] =
+    val rd = Rank.rankdir(g)
+    port.name.map(_.value).filter(_.nonEmpty).flatMap { name =>
+      NodeSize.recordLayout(n, g).map { root =>
+        RecordLabel.field(root, name) match
+          case Some(f) =>
+            compassPortFull((f.llx, f.lly, f.urx, f.ury), f.sides,
+                            port.compass.orElse(Some(Compass.Underscore)), rd)
+          case None =>
+            val rootBox = (root.llx, root.lly, root.urx, root.ury)
+            compassPortFull(rootBox, SAll, compassOfName(name).orElse(Some(Compass.C)), rd)
+      }
+    }
+
+  /** shapes.c `resolvePort`/`closestSide` (route time): a dyna port picks the
+    * accessible field-box side whose midpoint (FINAL frame, `cvtPt`) is
+    * closest to `other`, then re-resolves through `compassPort`; no/all sides
+    * ⇒ the centre port. Sides tried in BOTTOM, RIGHT, TOP, LEFT order with a
+    * strict `<` (first wins ties). */
+  def resolveDyna(gp: GvPort, rd: RankDir,
+                  selfCanon: (Double, Double), otherCanon: (Double, Double)): GvPort =
+    gp.bp match
+      case None => gp
+      case Some(bp) => resolveDynaBp(gp, bp, rd, selfCanon, otherCanon)
+
+  private def resolveDynaBp(gp: GvPort, bp: (Double, Double, Double, Double), rd: RankDir,
+                            selfCanon: (Double, Double), otherCanon: (Double, Double)): GvPort =
+    val sides = gp.side
+    val compass: Option[Compass] =
+      if sides == 0 || sides == SAll then None
+      else
+        val (llx, lly, urx, ury) = bp
+        val (ptx, pty) = cvtPt(selfCanon._1, selfCanon._2, rd)
+        val (otx, oty) = cvtPt(otherCanon._1, otherCanon._2, rd)
+        var best = -1; var mind = 0.0
+        var i = 0
+        while i < 4 do
+          if (sides & (1 << i)) != 0 then
+            val (mx, my) = i match
+              case 0 => ((llx + urx) / 2.0, lly)          // BOTTOM → s
+              case 1 => (urx, (lly + ury) / 2.0)          // RIGHT  → e
+              case 2 => ((llx + urx) / 2.0, ury)          // TOP    → n
+              case _ => (llx, (lly + ury) / 2.0)          // LEFT   → w
+            val dx = ptx + mx - otx; val dy = pty + my - oty
+            val d = dx * dx + dy * dy
+            if best < 0 || d < mind then { mind = d; best = i }
+          i += 1
+        import Compass.*
+        Vector(S, E, N, W).lift(best)
+    compassPortFull(bp, sides, compass, rd)
+
   /** HTML table cell port: `<td port="name">`. The cell box is table-local,
     * y-up, centred on the table — and the table is centred on the node — so it
     * doubles as the node-local field box. */
