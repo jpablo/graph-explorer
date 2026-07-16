@@ -42,7 +42,9 @@ object FontMetrics:
       case _             => f.regular
 
   /** Width of `text` in points at a 1pt font size. Mirrors
-    * `estimate_text_width_1pt`: non-ASCII → width of space; `-1` → `0`.
+    * `estimate_text_width_1pt`, which walks the UTF-8 BYTES (`(unsigned
+    * char)*c`): every byte ≥ 128 counts as one space width — so a 2-byte
+    * char like `«` contributes TWO space widths; `-1` → `0`.
     */
   def estimateTextWidth1pt(
       fontName: String,
@@ -50,14 +52,14 @@ object FontMetrics:
       bold:     Boolean = false,
       italic:   Boolean = false
   ): Double =
-    val fam = family(fontName)
-    val w   = variant(fam, bold, italic)
+    val fam   = family(fontName)
+    val w     = variant(fam, bold, italic)
+    val bytes = text.getBytes(java.nio.charset.StandardCharsets.UTF_8)
     var sum = 0
     var i   = 0
-    while i < text.length do
-      val ch       = text.charAt(i)
-      val code     = if ch >= 128 then ' '.toInt else ch.toInt
-      val rawWidth = w(code).toInt
+    while i < bytes.length do
+      val code     = bytes(i) & 0xff
+      val rawWidth = w(if code >= 128 then ' '.toInt else code).toInt
       sum += (if rawWidth == -1 then 0 else rawWidth)
       i += 1
     sum.toDouble / fam.unitsPerEm

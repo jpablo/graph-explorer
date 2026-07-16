@@ -358,6 +358,19 @@ object Svg:
         }
     }
 
+    // colorxlate → the svg driver: `#RRGGBB` hex is emitted lowercase, SVG
+    // color names pass through, and x11-only names resolve to hex — of those
+    // only the gray/grey ramp (grayN = round(255·N/100)) has corpus exercise.
+    def svgColor(c: String): String =
+      if c.startsWith("#") then c.toLowerCase
+      else
+        "(?i)^gr[ae]y([0-9]{1,3})$".r.findFirstMatchIn(c.trim)
+          .flatMap(_.group(1).toIntOption).filter(_ <= 100) match
+          case Some(n) =>
+            val v = math.round(255.0 * n / 100.0).toInt
+            f"#$v%02x$v%02x$v%02x"
+          case None => c
+
     // ── HTML-like label rendering (emit_html_txt / emit_htextspans) ──────────
     /** Render an HTML text block centred at (cx, cyc): each line is left-anchored
       * at its justified x, items laid left-to-right with per-run font styling.
@@ -534,14 +547,26 @@ object Svg:
     // Boxes are node-local (centre origin, y-up) — add the node centre.
     def genFields(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field,
                    ncx: Double, ncy: Double,
-                   fontName: String, fontSize: Double): Unit =
+                   fontName: String, fontSize: Double, fontColor: String = ""): Unit =
+      import org.jpablo.graphexplorer.graphviz.html.{HtmlLabel, HtmlLayout, HtmlAlign}
       if f.isLeaf then
-        f.text.filter(_.nonEmpty).foreach { t =>
-          // field text renders in the NODE's font (gen_fields → emit_label of
-          // the field's make_label-built lp — node fontname/fontsize).
-          sb ++= textAt(ncx + (f.llx + f.urx) / 2.0, ncy + (f.lly + f.ury) / 2.0, t,
-                        fontName = fontName, fontSize = fontSize)
-        }
+        val fcx = ncx + (f.llx + f.urx) / 2.0
+        val fcy = ncy + (f.lly + f.ury) / 2.0
+        f.htmlLbl match
+          // HTML-in-record: the field label is LT_HTML — emit_label places it
+          // at the field-box centre, the block justifies within its OWN box.
+          case Some(HtmlLabel.Text(block)) =>
+            val bw = HtmlLayout.textSize(block, fontSize, fontName)._1
+            sb ++= htmlText(fcx, fcy, block, fontColor, bw, HtmlAlign.Center, fontSize, fontName)
+          case Some(HtmlLabel.Table(tbl)) =>
+            sb ++= htmlTable(fcx, fcy, tbl, fontColor, fontSize, fontName)
+          case Some(HtmlLabel.Image(_, _)) => () // no corpus exercise
+          case None =>
+            f.text.filter(_.nonEmpty).foreach { t =>
+              // field text renders in the NODE's font (gen_fields → emit_label of
+              // the field's make_label-built lp — node fontname/fontsize).
+              sb ++= textAt(fcx, fcy, t, fontName = fontName, fontSize = fontSize)
+            }
       else
         f.flds.iterator.zipWithIndex.foreach { case (c, k) =>
           if k > 0 then
@@ -549,7 +574,7 @@ object Svg:
               if f.lr then ((c.llx, c.lly), (c.llx, c.ury)) // vertical sep
               else        ((c.llx, c.ury), (c.urx, c.ury))  // horizontal sep
             sb ++= s"""<polyline fill="none" stroke="black" points="${d2(ncx + a0._1)},${d2(-(ncy + a0._2))} ${d2(ncx + a1._1)},${d2(-(ncy + a1._2))}"/>\n"""
-          genFields(c, ncx, ncy, fontName, fontSize)
+          genFields(c, ncx, ncy, fontName, fontSize, fontColor)
         }
 
     val op      = if g.directed then "->" else "--"
@@ -582,13 +607,22 @@ object Svg:
           sb ++= a.toString
         NodeSize.recordLayout(n, g) match
           case Some(root) =>
-            // outer record box (gvrender_box → svg polygon, LL/UL/UR/LR/LL)
+            // outer record box (gvrender_box → svg polygon, LL/UL/UR/LR/LL);
+            // record_gencode: style=filled ⇒ fill = fillcolor|color|lightgrey,
+            // stroke = pencolor (`color`, default black).
+            val styles = n.attrs.get("style").map(_.split(",").iterator.map(_.trim).toSet).getOrElse(Set.empty)
+            val fill = svgColor(
+              if styles.contains("filled") then
+                n.attrs.get("fillcolor").orElse(n.attrs.get("color")).getOrElse("lightgrey")
+              else "none")
+            val stroke = svgColor(n.attrs.get("color").getOrElse("black"))
             val (llx, lly) = (x + root.llx, cy + root.lly)
             val (urx, ury) = (x + root.urx, cy + root.ury)
-            sb ++= s"""<polygon fill="none" stroke="black" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
+            sb ++= s"""<polygon fill="$fill" stroke="$stroke" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
             genFields(root, x, cy,
               n.attrs.getOrElse("fontname", "Times-Roman"),
-              n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
+              n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize),
+              n.attrs.getOrElse("fontcolor", ""))
           case None =>
             val rx  = sz.halfWidthPt.value
             val ry  = sz.halfHeightPt.value
@@ -599,14 +633,12 @@ object Svg:
             // shape=point (point_init): implicitly style=filled with the pen
             // colour, and an empty label — a small filled circle.
             val isPoint = n.attrs.get("shape").contains("point")
-            // gv canonicalizes colors: `#RRGGBB` hex is emitted lowercase.
-            def canonColor(c: String): String = if c.startsWith("#") then c.toLowerCase else c
-            val fill = canonColor(
+            val fill = svgColor(
               if isPoint then n.attrs.get("color").getOrElse("black")
               else if styles.contains("filled") then
                 n.attrs.get("fillcolor").orElse(n.attrs.get("color")).getOrElse("lightgrey")
               else "none")
-            val stroke = canonColor(n.attrs.get("color").getOrElse("black"))
+            val stroke = svgColor(n.attrs.get("color").getOrElse("black"))
             // penwidth ≠ 1 ⇒ every drawn outline gets stroke-width (gvrender
             // set_penwidth before the shape ops).
             val nodePw = n.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)

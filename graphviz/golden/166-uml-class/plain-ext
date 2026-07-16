@@ -1,0 +1,81 @@
+graph 1 4.5993 13.172
+node Client 2.4514 12.571 0.75 0.51389 "\N" filled record black gray95
+node Interface1 1.8403 10.824 1.4803 1.5139 <{<b>«interface» I/O</b> | + property<br align="left"/>...<br align="left"/>|+ method<br align="left"/>...<br align="left"/>}> filled record black gray95
+node Interface2 3.0764 10.824 0.5 0.5 "" filled circle black gray95
+node Class1 2.4514 8.7958 1.0392 1.5139 <{<b>I/O class</b> | + property<br align="left"/>...<br align="left"/>|+ method<br align="left"/>...<br align="left"/>}> filled record black gray95
+node System_1 2.4514 6.025 1.2964 2.5611 <<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>System</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left" >+ property</td> </tr>
+					<tr> <td port="ss1" align="left" >- Subsystem 1</td> </tr>
+					<tr> <td port="ss2" align="left" >- Subsystem 2</td> </tr>
+					<tr> <td port="ss3" align="left" >- Subsystem 3</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+			</td> </tr>
+			<tr> <td align="left">+ method<br/>...<br align="left"/></td> </tr>
+		</table>> filled plain black gray95
+node Subsystem_1 0.93752 3.2389 1.268 1.9833 <<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 1</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>> filled plain black gray95
+node Subsystem_2 2.4514 3.2389 1.268 1.9833 <<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 2</b> </td> </tr>
+			<tr> <td>
+				<table align="left" border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>> filled plain black gray95
+node Subsystem_3 3.9653 3.2389 1.268 1.9833 <<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 3</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>> filled plain black gray95
+node "Shared resource" 2.4514 0.75694 1.5776 1.5139 <{
+			<b>Shared resource</b>
+			|
+				+ property<br align="left"/>
+				...<br align="left"/>
+			|
+				+ method<br align="left"/>
+				...<br align="left"/>
+			}> filled record black gray95
+edge Client Interface1 7 2.1194 12.317 2.0429 12.245 1.9707 12.159 1.9256 12.064 1.8766 11.961 1.8444 11.847 1.824 11.732 dependency 2.3899 11.947 dashed black
+edge Client Interface2 7 2.6873 12.318 2.7504 12.242 2.8125 12.154 2.8542 12.064 2.9748 11.802 3.03 11.481 3.0553 11.233 dashed black
+edge Interface1 Class1 4 2.1128 9.9178 2.1501 9.7957 2.1881 9.6714 2.2245 9.5524 solid black
+edge Interface2 Class1 4 3.0047 10.58 2.9265 10.33 2.7972 9.9161 2.6832 9.5514 solid black
+edge Class1 System_1 4 2.4514 7.8813 2.4514 7.6969 2.4514 7.4995 2.4514 7.305 implementation 3.0616 7.6722 dashed black
+edge System_1:ss1 Subsystem_1 4 1.6793 6.4133 0.91362 6.2587 0.8093 5.0981 0.84238 4.2278 dashed black
+edge System_1:ss2 Subsystem_2 4 3.2209 6.1197 3.777 5.9626 3.4105 4.995 3.0156 4.2268 dashed black
+edge System_1:ss3 Subsystem_3 4 3.221 5.8329 3.7929 5.6981 3.9572 4.9012 3.9914 4.2283 dashed black
+edge Subsystem_1:r1 "Shared resource" 7 1.6357 3.2239 1.7058 2.9713 1.6333 2.4281 1.6875 2.2472 1.7625 1.997 1.88 1.7392 2.0005 1.5105 aggregation 2.3263 1.8806 dashed black
+edge Subsystem_2:r1 "Shared resource" 4 3.1732 3.2466 3.2772 2.9536 3.0002 2.1291 2.7598 1.5115 dashed black
+edge Subsystem_3:r1 "Shared resource" 10 3.2638 3.2247 3.188 2.9736 3.2509 2.4327 3.2153 2.2472 3.1737 2.0308 3.1908 1.9666 3.1042 1.7639 3.0677 1.6785 3.0239 1.5925 2.9764 1.5086 dashed black
+stop

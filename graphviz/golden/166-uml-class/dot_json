@@ -1,0 +1,222 @@
+{
+  "name": "UML_Class_diagram",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 331 948",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "label": "UML Class diagram demo",
+  "labelloc": "t",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "Client",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "shape": "record",
+      "style": "filled"
+    },
+    {
+      "_gvid": 1,
+      "name": "Interface1",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "{<b>«interface» I\/O<\/b> | + property<br align=\"left\"\/>...<br align=\"left\"\/>|+ method<br align=\"left\"\/>...<br align=\"left\"\/>}",
+      "shape": "record",
+      "style": "filled"
+    },
+    {
+      "_gvid": 2,
+      "name": "Interface2",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "shape": "circle",
+      "style": "filled",
+      "xlabel": "Simple\\ninterface"
+    },
+    {
+      "_gvid": 3,
+      "name": "Class1",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "{<b>I\/O class<\/b> | + property<br align=\"left\"\/>...<br align=\"left\"\/>|+ method<br align=\"left\"\/>...<br align=\"left\"\/>}",
+      "shape": "record",
+      "style": "filled"
+    },
+    {
+      "_gvid": 4,
+      "name": "System_1",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>System<\/b> <\/td> <\/tr>\n\t\t\t<tr> <td>\n\t\t\t\t<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" >\n\t\t\t\t\t<tr> <td align=\"left\" >+ property<\/td> <\/tr>\n\t\t\t\t\t<tr> <td port=\"ss1\" align=\"left\" >- Subsystem 1<\/td> <\/tr>\n\t\t\t\t\t<tr> <td port=\"ss2\" align=\"left\" >- Subsystem 2<\/td> <\/tr>\n\t\t\t\t\t<tr> <td port=\"ss3\" align=\"left\" >- Subsystem 3<\/td> <\/tr>\n\t\t\t\t\t<tr> <td align=\"left\">...<\/td> <\/tr>\n\t\t\t\t<\/table>\n\t\t\t<\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\">+ method<br\/>...<br align=\"left\"\/><\/td> <\/tr>\n\t\t<\/table>",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 5,
+      "name": "Subsystem_1",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>Subsystem 1<\/b> <\/td> <\/tr>\n\t\t\t<tr> <td>\n\t\t\t\t<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" >\n\t\t\t\t\t<tr> <td align=\"left\">+ property<\/td> <\/tr>\n\t\t\t\t\t<tr> <td align=\"left\" port=\"r1\">- resource<\/td> <\/tr>\n\t\t\t\t\t<tr> <td align=\"left\">...<\/td> <\/tr>\n\t\t\t\t<\/table>\n\t\t\t\t<\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\">\n\t\t\t\t+ method<br\/>\n\t\t\t\t...<br align=\"left\"\/>\n\t\t\t<\/td> <\/tr>\n\t\t<\/table>",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 6,
+      "name": "Subsystem_2",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>Subsystem 2<\/b> <\/td> <\/tr>\n\t\t\t<tr> <td>\n\t\t\t\t<table align=\"left\" border=\"0\" cellborder=\"0\" cellspacing=\"0\" >\n\t\t\t\t\t<tr> <td align=\"left\">+ property<\/td> <\/tr>\n\t\t\t\t\t<tr> <td align=\"left\" port=\"r1\">- resource<\/td> <\/tr>\n\t\t\t\t\t<tr> <td align=\"left\">...<\/td> <\/tr>\n\t\t\t\t<\/table>\n\t\t\t\t<\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\">\n\t\t\t\t+ method<br\/>\n\t\t\t\t...<br align=\"left\"\/>\n\t\t\t<\/td> <\/tr>\n\t\t<\/table>",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 7,
+      "name": "Subsystem_3",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>Subsystem 3<\/b> <\/td> <\/tr>\n\t\t\t<tr> <td>\n\t\t\t\t<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" >\n\t\t\t\t\t<tr> <td align=\"left\">+ property<\/td> <\/tr>\n\t\t\t\t\t<tr> <td align=\"left\" port=\"r1\">- resource<\/td> <\/tr>\n\t\t\t\t\t<tr> <td align=\"left\">...<\/td> <\/tr>\n\t\t\t\t<\/table>\n\t\t\t\t<\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\">\n\t\t\t\t+ method<br\/>\n\t\t\t\t...<br align=\"left\"\/>\n\t\t\t<\/td> <\/tr>\n\t\t<\/table>",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 8,
+      "name": "Shared resource",
+      "fillcolor": "gray95",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "{\n\t\t\t<b>Shared resource<\/b>\n\t\t\t|\n\t\t\t\t+ property<br align=\"left\"\/>\n\t\t\t\t...<br align=\"left\"\/>\n\t\t\t|\n\t\t\t\t+ method<br align=\"left\"\/>\n\t\t\t\t...<br align=\"left\"\/>\n\t\t\t}",
+      "shape": "record",
+      "style": "filled"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowhead": "vee",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "dependency",
+      "style": "dashed"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "arrowhead": "vee",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "style": "dashed"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "arrowhead": "vee",
+      "arrowtail": "empty",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "xlabel": "inheritance"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 3,
+      "arrowhead": "vee",
+      "arrowtail": "empty",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": ""
+    },
+    {
+      "_gvid": 4,
+      "tail": 3,
+      "head": 4,
+      "arrowhead": "vee",
+      "arrowtail": "empty",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "implementation",
+      "style": "dashed"
+    },
+    {
+      "_gvid": 5,
+      "tail": 4,
+      "head": 5,
+      "arrowhead": "vee",
+      "arrowtail": "diamond",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "style": "dashed",
+      "tailport": "ss1",
+      "xlabel": "composition"
+    },
+    {
+      "_gvid": 6,
+      "tail": 4,
+      "head": 6,
+      "arrowhead": "vee",
+      "arrowtail": "diamond",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "style": "dashed",
+      "tailport": "ss2"
+    },
+    {
+      "_gvid": 7,
+      "tail": 4,
+      "head": 7,
+      "arrowhead": "vee",
+      "arrowtail": "diamond",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "style": "dashed",
+      "tailport": "ss3"
+    },
+    {
+      "_gvid": 8,
+      "tail": 5,
+      "head": 8,
+      "arrowhead": "vee",
+      "arrowtail": "odiamond",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "aggregation",
+      "style": "dashed",
+      "tailport": "r1",
+      "xdir": "back"
+    },
+    {
+      "_gvid": 9,
+      "tail": 6,
+      "head": 8,
+      "arrowhead": "vee",
+      "arrowtail": "odiamond",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "style": "dashed",
+      "tailport": "r1",
+      "xdir": "back"
+    },
+    {
+      "_gvid": 10,
+      "tail": 7,
+      "head": 8,
+      "arrowhead": "vee",
+      "arrowtail": "odiamond",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "style": "dashed",
+      "tailport": "r1",
+      "xdir": "back"
+    }
+  ]
+}

@@ -1,0 +1,260 @@
+digraph UML_Class_diagram {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 948.4 331.15 948.4 331.15 0 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 165.57 931.8 0 148.92 22 -UML Class diagram demo ",
+		bb="0,0,331.15,948.4",
+		fontname="Helvetica,Arial,sans-serif",
+		label="UML Class diagram demo",
+		labelloc=t,
+		lheight=0.23,
+		lp="165.57,936",
+		lwidth=2.07,
+		xdotversion=1.7
+	];
+	node [fillcolor=gray95,
+		fontname="Helvetica,Arial,sans-serif",
+		label="\N",
+		shape=record,
+		style=filled
+	];
+	edge [arrowhead=vee,
+		arrowtail=odiamond,
+		dir=back,
+		fontname="Helvetica,Arial,sans-serif",
+		style=dashed,
+		xdir=back
+	];
+	Client	[_draw_="c 7 -#000000 C 7 -#f2f2f2 P 4 149.5 887.1 149.5 923.1 203.5 923.1 203.5 887.1 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 176.11 900.9 0 34.22 6 -Client ",
+		height=0.51389,
+		pos="176.5,905.1",
+		rects="149.5,887.1,202.72,923.1",
+		width=0.75];
+	Interface1	[_draw_="c 7 -#000000 C 7 -#f2f2f2 P 4 79.21 725.3 79.21 833.3 185.79 833.3 185.79 725.3 c 7 -#000000 L 2 79.21 808.5 185.79 808.5 c 7 -#\
+000000 L 2 79.21 766.9 185.79 766.9 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 87.21 817.7 -1 90.58 17 -«interface» I/O F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 t 0 T 103.09 791.9 -1 58.82 10 -+ property F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 103.09 775.1 -1 10.5 \
+3 -... F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 105.81 750.3 -1 53.39 8 -+ method F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 105.81 733.5 -1 10.5 3 -... ",
+		height=1.5139,
+		label=<{<b>«interface» I/O</b> | + property<br align="left"/>...<br align="left"/>|+ method<br align="left"/>...<br align="left"/>}>,
+		pos="132.5,779.3",
+		rects="79.21,808.5,185.79,833.3 79.21,766.9,185.79,808.5 79.21,725.3,185.79,766.9",
+		width=1.4803];
+	Client -> Interface1	[_draw_="S 6 -dashed c 7 -#000000 B 7 152.6 886.82 147.09 881.61 141.89 875.44 138.65 868.6 135.12 861.17 132.79 852.98 131.33 844.68 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 8 130.03 834.97 135.82 844.29 130.53 838.72 131.35 844.88 131.35 844.88 131.35 844.88 130.53 \
+838.72 126.89 845.48 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 172.07 856 0 66.86 10 -dependency ",
+		arrowtail="",
+		dir="",
+		label=dependency,
+		lp="172.07,860.2",
+		pos="e,129.87,833.76 152.6,886.82 147.09,881.61 141.89,875.44 138.65,868.6 135.12,861.17 132.79,852.98 131.33,844.68",
+		xdir=""];
+	Interface2	[_draw_="c 7 -#000000 C 7 -#f2f2f2 E 221.5 779.3 18 18 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 227.98 818.3 0 39.67 6 -Simple F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 227.98 801.5 0 48.96 9 -interface ",
+		height=0.5,
+		label="",
+		pos="221.5,779.3",
+		shape=circle,
+		width=0.5,
+		xlabel="Simple\ninterface",
+		xlp="227.98,814.1"];
+	Client -> Interface2	[_draw_="S 6 -dashed c 7 -#000000 B 7 193.49 886.88 198.03 881.42 202.5 875.1 205.5 868.6 214.18 849.77 218.16 826.66 219.98 808.8 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 8 220.81 798.88 224.46 809.22 220.5 802.65 219.98 808.84 219.98 808.84 219.98 808.84 220.5 \
+802.65 215.5 808.47 ",
+		arrowtail="",
+		dir="",
+		pos="e,220.91,797.66 193.49,886.88 198.03,881.42 202.5,875.1 205.5,868.6 214.18,849.77 218.16,826.66 219.98,808.8",
+		xdir=""];
+	Class1	[_draw_="c 7 -#000000 C 7 -#f2f2f2 P 4 139.09 579.3 139.09 687.3 213.91 687.3 213.91 579.3 c 7 -#000000 L 2 139.09 662.5 213.91 662.5 c 7 \
+-#000000 L 2 139.09 620.9 213.91 620.9 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 150.64 671.7 -1 51.73 9 -I/O class F 14 26 -Helvetica,Arial,sans-serif c \
+7 -#000000 t 0 T 147.09 645.9 -1 58.82 10 -+ property F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 147.09 629.1 -1 10.5 3 \
+-... F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 149.81 604.3 -1 53.39 8 -+ method F 14 26 -Helvetica,Arial,sans-serif c \
+7 -#000000 T 149.81 587.5 -1 10.5 3 -... ",
+		height=1.5139,
+		label=<{<b>I/O class</b> | + property<br align="left"/>...<br align="left"/>|+ method<br align="left"/>...<br align="left"/>}>,
+		pos="176.5,633.3",
+		rects="139.09,662.5,213.91,687.3 139.09,620.9,213.91,662.5 139.09,579.3,213.91,620.9",
+		width=1.0392];
+	Interface1 -> Class1	[_draw_="c 7 -#000000 B 4 152.12 714.08 154.81 705.29 157.54 696.34 160.16 687.77 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 123.31 710.84 0 62.19 11 -inheritance ",
+		_tdraw_="S 5 -solid c 7 -#000000 p 3 148.78 713.06 149.2 723.64 155.47 715.1 ",
+		arrowtail=empty,
+		pos="s,148.76,725.09 152.12,714.08 154.81,705.29 157.54,696.34 160.16,687.77",
+		style="",
+		xdir="",
+		xlabel=inheritance,
+		xlp="123.31,715.04"];
+	Interface2 -> Class1	[_draw_="c 7 -#000000 B 4 216.34 761.78 210.71 743.76 201.39 713.96 193.19 687.7 ",
+		arrowtail=empty,
+		dir=none,
+		pos="216.34,761.78 210.71,743.76 201.39,713.96 193.19,687.7",
+		style="",
+		xdir=""];
+	System_1	[_draw_="c 9 -#fffffe00 C 7 -#f2f2f2 P 4 223.17 526 129.83 526 129.83 341.6 223.17 341.6 ",
+		_ldraw_="S 5 -solid c 7 -#000000 p 4 129.83 499.2 129.83 526 223.17 526 223.17 499.2 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 151.62 \
+509.4 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 155.12 509.4 -1 42.77 6 -System F 14 26 -Helvetica,Arial,\
+sans-serif c 7 -#000000 t 0 T 197.89 509.4 -1 3.5 1 -  S 5 -solid c 7 -#000000 p 4 129.83 385.2 129.83 499.2 223.17 499.2 223.17 \
+385.2 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 136.83 479.6 -1 58.82 10 -+ property F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 136.83 458.8 -1 79.34 13 -- Subsystem 1 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 136.83 438 -1 79.34 13 \
+-- Subsystem 2 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 136.83 417.2 -1 79.34 13 -- Subsystem 3 F 14 26 -Helvetica,Arial,\
+sans-serif c 7 -#000000 T 136.83 396.4 -1 10.5 3 -... S 5 -solid c 7 -#000000 p 4 129.83 341.6 129.83 385.2 223.17 385.2 223.17 \
+341.6 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 134.83 367.6 -1 53.39 8 -+ method F 14 26 -Helvetica,Arial,sans-serif c \
+7 -#000000 T 134.83 350.8 -1 10.5 3 -... ",
+		height=2.5611,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>System</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left" >+ property</td> </tr>
+					<tr> <td port="ss1" align="left" >- Subsystem 1</td> </tr>
+					<tr> <td port="ss2" align="left" >- Subsystem 2</td> </tr>
+					<tr> <td port="ss3" align="left" >- Subsystem 3</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+			</td> </tr>
+			<tr> <td align="left">+ method<br/>...<br align="left"/></td> </tr>
+		</table>>,
+		pos="176.5,433.8",
+		shape=plain,
+		width=1.2964];
+	Class1 -> System_1	[_draw_="S 6 -dashed c 7 -#000000 B 4 176.5 567.45 176.5 554.18 176.5 539.97 176.5 525.96 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 220.44 548.2 0 87.87 14 -implementation ",
+		_tdraw_="S 5 -solid c 7 -#000000 p 3 173 567.34 176.5 577.34 180 567.34 ",
+		arrowtail=empty,
+		label=implementation,
+		lp="220.44,552.4",
+		pos="s,176.5,578.85 176.5,567.45 176.5,554.18 176.5,539.97 176.5,525.96",
+		xdir=""];
+	Subsystem_1	[_draw_="c 9 -#fffffe00 C 7 -#f2f2f2 P 4 113.15 304.6 21.86 304.6 21.86 161.8 113.15 161.8 ",
+		_ldraw_="S 5 -solid c 7 -#000000 p 4 21.86 277.8 21.86 304.6 113.15 304.6 113.15 277.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T \
+26.86 288 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 30.36 288 -1 74.29 11 -Subsystem 1 F 14 26 -Helvetica,\
+Arial,sans-serif c 7 -#000000 t 0 T 104.65 288 -1 3.5 1 -  S 5 -solid c 7 -#000000 p 4 21.86 205.4 21.86 277.8 113.15 277.8 113.15 \
+205.4 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 28.86 258.2 -1 58.82 10 -+ property F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 28.86 237.4 -1 55.58 10 -- resource F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 28.86 216.6 -1 10.5 3 -... \
+S 5 -solid c 7 -#000000 p 4 21.86 161.8 21.86 205.4 113.15 205.4 113.15 161.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T \
+26.86 187.8 -1 53.39 8 -+ method F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 26.86 171 -1 10.5 3 -... ",
+		height=1.9833,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 1</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>>,
+		pos="67.502,233.2",
+		shape=plain,
+		width=1.268];
+	System_1:ss1 -> Subsystem_1	[_draw_="S 6 -dashed c 7 -#000000 B 4 120.91 461.76 65.78 450.62 58.27 367.06 60.65 304.4 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 34.61 406.62 0 69.22 11 -composition ",
+		_tdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 4 120.99 461.76 127.35 458.36 132.94 462.91 126.58 466.32 ",
+		arrowtail=diamond,
+		pos="s,133.83,463 120.91,461.76 65.781,450.62 58.27,367.06 60.652,304.4",
+		xdir="",
+		xlabel=composition,
+		xlp="34.61,410.82"];
+	Subsystem_2	[_draw_="c 9 -#fffffe00 C 7 -#f2f2f2 P 4 222.15 304.6 130.86 304.6 130.86 161.8 222.15 161.8 ",
+		_ldraw_="S 5 -solid c 7 -#000000 p 4 130.86 277.8 130.86 304.6 222.15 304.6 222.15 277.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 135.86 288 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 139.36 288 -1 74.29 11 -Subsystem 2 F 14 26 -Helvetica,\
+Arial,sans-serif c 7 -#000000 t 0 T 213.65 288 -1 3.5 1 -  S 5 -solid c 7 -#000000 p 4 130.86 205.4 130.86 277.8 222.15 277.8 222.15 \
+205.4 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 137.86 258.2 -1 58.82 10 -+ property F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 137.86 237.4 -1 55.58 10 -- resource F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 137.86 216.6 -1 10.5 3 -... \
+S 5 -solid c 7 -#000000 p 4 130.86 161.8 130.86 205.4 222.15 205.4 222.15 161.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 135.86 187.8 -1 53.39 8 -+ method F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 135.86 171 -1 10.5 3 -... ",
+		height=1.9833,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 2</b> </td> </tr>
+			<tr> <td>
+				<table align="left" border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>>,
+		pos="176.5,233.2",
+		shape=plain,
+		width=1.268];
+	System_1:ss2 -> Subsystem_2	[_draw_="S 6 -dashed c 7 -#000000 B 4 231.91 440.62 271.95 429.31 245.55 359.64 217.12 304.33 ",
+		_tdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 4 231.97 440.61 226.51 445.32 220.07 442.09 225.53 437.38 ",
+		arrowtail=diamond,
+		pos="s,219.17,442.2 231.91,440.62 271.95,429.31 245.55,359.64 217.12,304.33",
+		xdir=""];
+	Subsystem_3	[_draw_="c 9 -#fffffe00 C 7 -#f2f2f2 P 4 331.15 304.6 239.86 304.6 239.86 161.8 331.15 161.8 ",
+		_ldraw_="S 5 -solid c 7 -#000000 p 4 239.86 277.8 239.86 304.6 331.15 304.6 331.15 277.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 244.86 288 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 248.36 288 -1 74.29 11 -Subsystem 3 F 14 26 -Helvetica,\
+Arial,sans-serif c 7 -#000000 t 0 T 322.65 288 -1 3.5 1 -  S 5 -solid c 7 -#000000 p 4 239.86 205.4 239.86 277.8 331.15 277.8 331.15 \
+205.4 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 246.86 258.2 -1 58.82 10 -+ property F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 246.86 237.4 -1 55.58 10 -- resource F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 246.86 216.6 -1 10.5 3 -... \
+S 5 -solid c 7 -#000000 p 4 239.86 161.8 239.86 205.4 331.15 205.4 331.15 161.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 244.86 187.8 -1 53.39 8 -+ method F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 244.86 171 -1 10.5 3 -... ",
+		height=1.9833,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 3</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>>,
+		pos="285.5,233.2",
+		shape=plain,
+		width=1.268];
+	System_1:ss3 -> Subsystem_3	[_draw_="S 6 -dashed c 7 -#000000 B 4 231.91 419.97 273.09 410.26 284.92 352.89 287.38 304.44 ",
+		_tdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 4 231.99 419.96 226.47 424.61 220.07 421.3 225.58 416.66 ",
+		arrowtail=diamond,
+		pos="s,219.17,421.4 231.91,419.97 273.09,410.26 284.92,352.89 287.38,304.44",
+		xdir=""];
+	"Shared resource"	[_draw_="c 7 -#000000 C 7 -#f2f2f2 P 4 119.71 0.5 119.71 108.5 233.3 108.5 233.3 0.5 c 7 -#000000 L 2 119.71 83.7 233.3 83.7 c 7 -#000000 \
+L 2 119.71 42.1 233.3 42.1 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 127.71 92.9 -1 97.59 15 -Shared resource F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 t 0 T 147.09 67.1 -1 58.82 10 -+ property F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 147.09 50.3 -1 10.5 3 \
+-... F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 149.81 25.5 -1 53.39 8 -+ method F 14 26 -Helvetica,Arial,sans-serif c 7 \
+-#000000 T 149.81 8.7 -1 10.5 3 -... ",
+		height=1.5139,
+		label=<{
+			<b>Shared resource</b>
+			|
+				+ property<br align="left"/>
+				...<br align="left"/>
+			|
+				+ method<br align="left"/>
+				...<br align="left"/>
+			}>,
+		pos="176.5,54.5",
+		rects="119.71,83.7,233.3,108.5 119.71,42.1,233.3,83.7 119.71,0.5,233.3,42.1",
+		width=1.5776];
+	Subsystem_1:r1 -> "Shared resource"	[_draw_="S 6 -dashed c 7 -#000000 B 7 117.77 232.12 122.82 213.94 117.6 174.83 121.5 161.8 126.9 143.79 135.36 125.23 144.03 108.75 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 167.49 131.2 0 66.08 11 -aggregation ",
+		_tdraw_="S 5 -solid c 7 -#000000 p 4 117.83 232.05 116.75 239.19 109.75 240.93 110.83 233.8 ",
+		label=aggregation,
+		lp="167.49,135.4",
+		pos="s,109.15,241.6 117.77,232.12 122.82,213.94 117.6,174.83 121.5,161.8 126.9,143.79 135.36,125.23 144.03,108.75"];
+	Subsystem_2:r1 -> "Shared resource"	[_draw_="S 6 -dashed c 7 -#000000 B 4 228.47 233.76 235.96 212.66 216.02 153.3 198.71 108.83 ",
+		_tdraw_="S 5 -solid c 7 -#000000 p 4 228.42 233.8 226.06 240.61 218.87 241.05 221.22 234.24 ",
+		pos="s,218.15,241.6 228.47,233.76 235.96,212.66 216.02,153.3 198.71,108.83"];
+	Subsystem_3:r1 -> "Shared resource"	[_draw_="S 6 -dashed c 7 -#000000 B 10 235 232.18 229.53 214.1 234.07 175.15 231.5 161.8 228.51 146.21 229.74 141.59 223.5 127 220.88 120.85 \
+217.72 114.66 214.3 108.62 ",
+		_tdraw_="S 5 -solid c 7 -#000000 p 4 235.02 232.2 242.04 233.83 243.24 240.94 236.21 239.31 ",
+		pos="s,243.86,241.6 235,232.18 229.53,214.1 234.07,175.15 231.5,161.8 228.51,146.21 229.74,141.59 223.5,127 220.88,120.85 217.72,114.66 \
+214.3,108.62"];
+}

@@ -226,7 +226,8 @@ object NodeSize:
     val (_, _, root) = RecordLabel.layout(
       n.attrs.getOrElse("label", "\\N"), !Rank.flip(g),
       dbl(n, "fontsize", DefFontSize), n.attrs.getOrElse("fontname", DefFontName),
-      dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n)
+      dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n),
+      html = n.attrs.isHtml("label"), imgs = g.images
     )
     Some(root)
 
@@ -332,7 +333,8 @@ object NodeSize:
       val (w, h, _) = RecordLabel.layout(
         n.attrs.getOrElse("label", "\\N"), !Rank.flip(g),
         dbl(n, "fontsize", DefFontSize), n.attrs.getOrElse("fontname", DefFontName),
-        dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n)
+        dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n),
+        html = n.attrs.isHtml("label"), imgs = g.images
       )
       return Some(Size(w, h))
     // Convex builtin polygons (diamond/triangle/hexagon/…) route through

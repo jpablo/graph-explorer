@@ -1,0 +1,171 @@
+digraph UML_Class_diagram {
+	graph [bb="0,0,331.15,948.4",
+		fontname="Helvetica,Arial,sans-serif",
+		label="UML Class diagram demo",
+		labelloc=t,
+		lheight=0.23,
+		lp="165.57,936",
+		lwidth=2.07
+	];
+	node [fillcolor=gray95,
+		fontname="Helvetica,Arial,sans-serif",
+		label="\N",
+		shape=record,
+		style=filled
+	];
+	edge [arrowhead=vee,
+		arrowtail=odiamond,
+		dir=back,
+		fontname="Helvetica,Arial,sans-serif",
+		style=dashed,
+		xdir=back
+	];
+	Client	[height=0.51389,
+		pos="176.5,905.1",
+		rects="149.5,887.1,202.72,923.1",
+		width=0.75];
+	Interface1	[height=1.5139,
+		label=<{<b>«interface» I/O</b> | + property<br align="left"/>...<br align="left"/>|+ method<br align="left"/>...<br align="left"/>}>,
+		pos="132.5,779.3",
+		rects="79.21,808.5,185.79,833.3 79.21,766.9,185.79,808.5 79.21,725.3,185.79,766.9",
+		width=1.4803];
+	Client -> Interface1	[arrowtail="",
+		dir="",
+		label=dependency,
+		lp="172.07,860.2",
+		pos="e,129.87,833.76 152.6,886.82 147.09,881.61 141.89,875.44 138.65,868.6 135.12,861.17 132.79,852.98 131.33,844.68",
+		xdir=""];
+	Interface2	[height=0.5,
+		label="",
+		pos="221.5,779.3",
+		shape=circle,
+		width=0.5,
+		xlabel="Simple\ninterface",
+		xlp="227.98,814.1"];
+	Client -> Interface2	[arrowtail="",
+		dir="",
+		pos="e,220.91,797.66 193.49,886.88 198.03,881.42 202.5,875.1 205.5,868.6 214.18,849.77 218.16,826.66 219.98,808.8",
+		xdir=""];
+	Class1	[height=1.5139,
+		label=<{<b>I/O class</b> | + property<br align="left"/>...<br align="left"/>|+ method<br align="left"/>...<br align="left"/>}>,
+		pos="176.5,633.3",
+		rects="139.09,662.5,213.91,687.3 139.09,620.9,213.91,662.5 139.09,579.3,213.91,620.9",
+		width=1.0392];
+	Interface1 -> Class1	[arrowtail=empty,
+		pos="s,148.76,725.09 152.12,714.08 154.81,705.29 157.54,696.34 160.16,687.77",
+		style="",
+		xdir="",
+		xlabel=inheritance,
+		xlp="123.31,715.04"];
+	Interface2 -> Class1	[arrowtail=empty,
+		dir=none,
+		pos="216.34,761.78 210.71,743.76 201.39,713.96 193.19,687.7",
+		style="",
+		xdir=""];
+	System_1	[height=2.5611,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>System</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left" >+ property</td> </tr>
+					<tr> <td port="ss1" align="left" >- Subsystem 1</td> </tr>
+					<tr> <td port="ss2" align="left" >- Subsystem 2</td> </tr>
+					<tr> <td port="ss3" align="left" >- Subsystem 3</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+			</td> </tr>
+			<tr> <td align="left">+ method<br/>...<br align="left"/></td> </tr>
+		</table>>,
+		pos="176.5,433.8",
+		shape=plain,
+		width=1.2964];
+	Class1 -> System_1	[arrowtail=empty,
+		label=implementation,
+		lp="220.44,552.4",
+		pos="s,176.5,578.85 176.5,567.45 176.5,554.18 176.5,539.97 176.5,525.96",
+		xdir=""];
+	Subsystem_1	[height=1.9833,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 1</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>>,
+		pos="67.502,233.2",
+		shape=plain,
+		width=1.268];
+	System_1:ss1 -> Subsystem_1	[arrowtail=diamond,
+		pos="s,133.83,463 120.91,461.76 65.781,450.62 58.27,367.06 60.652,304.4",
+		xdir="",
+		xlabel=composition,
+		xlp="34.61,410.82"];
+	Subsystem_2	[height=1.9833,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 2</b> </td> </tr>
+			<tr> <td>
+				<table align="left" border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>>,
+		pos="176.5,233.2",
+		shape=plain,
+		width=1.268];
+	System_1:ss2 -> Subsystem_2	[arrowtail=diamond,
+		pos="s,219.17,442.2 231.91,440.62 271.95,429.31 245.55,359.64 217.12,304.33",
+		xdir=""];
+	Subsystem_3	[height=1.9833,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>Subsystem 3</b> </td> </tr>
+			<tr> <td>
+				<table border="0" cellborder="0" cellspacing="0" >
+					<tr> <td align="left">+ property</td> </tr>
+					<tr> <td align="left" port="r1">- resource</td> </tr>
+					<tr> <td align="left">...</td> </tr>
+				</table>
+				</td> </tr>
+			<tr> <td align="left">
+				+ method<br/>
+				...<br align="left"/>
+			</td> </tr>
+		</table>>,
+		pos="285.5,233.2",
+		shape=plain,
+		width=1.268];
+	System_1:ss3 -> Subsystem_3	[arrowtail=diamond,
+		pos="s,219.17,421.4 231.91,419.97 273.09,410.26 284.92,352.89 287.38,304.44",
+		xdir=""];
+	"Shared resource"	[height=1.5139,
+		label=<{
+			<b>Shared resource</b>
+			|
+				+ property<br align="left"/>
+				...<br align="left"/>
+			|
+				+ method<br align="left"/>
+				...<br align="left"/>
+			}>,
+		pos="176.5,54.5",
+		rects="119.71,83.7,233.3,108.5 119.71,42.1,233.3,83.7 119.71,0.5,233.3,42.1",
+		width=1.5776];
+	Subsystem_1:r1 -> "Shared resource"	[label=aggregation,
+		lp="167.49,135.4",
+		pos="s,109.15,241.6 117.77,232.12 122.82,213.94 117.6,174.83 121.5,161.8 126.9,143.79 135.36,125.23 144.03,108.75"];
+	Subsystem_2:r1 -> "Shared resource"	[pos="s,218.15,241.6 228.47,233.76 235.96,212.66 216.02,153.3 198.71,108.83"];
+	Subsystem_3:r1 -> "Shared resource"	[pos="s,243.86,241.6 235,232.18 229.53,214.1 234.07,175.15 231.5,161.8 228.51,146.21 229.74,141.59 223.5,127 220.88,120.85 217.72,114.66 \
+214.3,108.62"];
+}
