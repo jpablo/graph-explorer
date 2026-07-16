@@ -165,6 +165,23 @@ object Rank:
       if t == h || !constrained(realEdges(i).attrs) then None
       else Some(NetworkSimplex.NSEdge(t, h, e.minlen, 1))
     }.toVector
+    // class1 (class1.c:94): the RANKING graph carries ONE edge per (t,h)
+    // pair — `find_fast_edge` + `merge_oneway`/`basic_merge`: minlen = max,
+    // weight summed. Unmerged duplicates leave the same NS objective but a
+    // different edge list, and the order-sensitive feasible tree then picks
+    // a different optimum among ties (sbt's 2-3× duplicate edges shifted 5
+    // nodes by a rank). First occurrence keeps its position.
+    locally {
+      val byPair = mutable.LinkedHashMap.empty[(String, String), NetworkSimplex.NSEdge]
+      nse.foreach { e =>
+        byPair.get((e.tail, e.head)) match
+          case Some(r) =>
+            byPair((e.tail, e.head)) =
+              NetworkSimplex.NSEdge(e.tail, e.head, math.max(r.minlen, e.minlen), r.weight + e.weight)
+          case None => byPair((e.tail, e.head)) = e
+      }
+      nse = byPair.values.toVector
+    }
     val leaderNodes = g.nodes.iterator.map(n => leader(n.id)).distinct.toVector
     // minmax_edges2 (rank.c): for every leader with no out-edge add `n→maxset`
     // (minlen slenY), and no in-edge add `minset→n` (minlen slenX), weight 0.
@@ -177,7 +194,44 @@ object Rank:
         rs.minset.foreach(mn => if !hasIn(n) && n != mn then extra += NetworkSimplex.NSEdge(mn, n, rs.slenX, 0))
       }
       nse = nse ++ extra.toVector
-    val leaderRanks = NetworkSimplex.solve(leaderNodes, nse, balance = NSBalance.TopBottom)
+    // TB_balance's Tree_node order = the ranking graph's GD_nlist = the
+    // decompose (decomp.c) DFS over the class1 fast graph: declaration-order
+    // seeds, OUT-edges before IN-edges, adjacency in class1's creation order
+    // (per tail in decl order, out-edges by (head seq, idx), first occurrence
+    // of each merged (t,h) pair — ORIGINAL orientation; acyclic runs later).
+    val tbOrder: Vector[String] =
+      val nodeSeqR = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+      val outAdjR  = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
+      val inAdjR   = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
+      leaderNodes.foreach { n => outAdjR(n) = mutable.ArrayBuffer.empty; inAdjR(n) = mutable.ArrayBuffer.empty }
+      val seen   = mutable.Set.empty[(String, String)]
+      val byTail = g.edges.iterator.zipWithIndex.filter((e, _) => constrained(e.attrs))
+        .toVector.groupBy(_._1.tail)
+      g.nodes.foreach { n =>
+        byTail.getOrElse(n.id, Vector.empty)
+          .sortBy((e, i) => (nodeSeqR.getOrElse(e.head, Int.MaxValue), i))
+          .foreach { (e, _) =>
+            val lt = leader(e.tail); val lh = leader(e.head)
+            if lt != lh && !seen((lt, lh)) then
+              seen += ((lt, lh))
+              outAdjR(lt) += lh
+              inAdjR(lh) += lt
+          }
+      }
+      val done2 = mutable.Set.empty[String]
+      val res   = mutable.ArrayBuffer.empty[String]
+      def visit(seed: String): Unit =
+        val stk = mutable.Stack(seed)
+        while stk.nonEmpty do
+          val n = stk.pop()
+          if !done2(n) then
+            done2 += n; res += n
+            inAdjR(n).reverseIterator.foreach(w => if !done2(w) then stk.push(w))
+            outAdjR(n).reverseIterator.foreach(w => if !done2(w) then stk.push(w))
+      leaderNodes.foreach(s => if !done2(s) then visit(s))
+      res.toVector
+    val leaderRanks = NetworkSimplex.solve(leaderNodes, nse, balance = NSBalance.TopBottom,
+      tbOrder = tbOrder)
     val ranks = g.nodes.iterator.map(n => n.id -> leaderRanks(leader(n.id))).toMap
     (ranks, wedges)
 

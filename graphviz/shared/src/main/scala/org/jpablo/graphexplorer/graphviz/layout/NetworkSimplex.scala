@@ -35,7 +35,13 @@ object NetworkSimplex:
     *   does, and it changes which `feasible_tree` is built). Empty ⇒ start at 0
     *   (then `init_rank` runs, the rank-assignment path). */
   def solve(nodes: Seq[String], edges: Seq[NSEdge], balance: NSBalance = NSBalance.None,
-            initRanks: collection.Map[String, Int] = Map.empty): Map[String, Int] =
+            initRanks: collection.Map[String, Int] = Map.empty,
+            /** TB_balance's `Tree_node` input order (GD_nlist = the ranking
+              * graph's decompose order). When given, the balance pass sorts
+              * THIS sequence with musl-qsort's exact (tie-unstable)
+              * permutation — the oracle's libc — instead of a stable rank
+              * sort of `nodes` order. Empty ⇒ legacy stable sort. */
+            tbOrder: Seq[String] = Seq.empty): Map[String, Int] =
     if nodes.isEmpty then return Map.empty
     val nodeList = nodes.toVector
     val N        = nodeList.length
@@ -480,9 +486,17 @@ object NetworkSimplex:
     def tbBalance(): Unit =
       val maxRank = scanAndNormalize()
       val nrank   = Array.fill(maxRank + 1)(0)
-      // gv sorts Tree_node by increasing rank; a stable rank sort of 0..N-1
-      // reproduces qsort's order for our (rank-distinct-enough) inputs.
-      val order = (0 until N).sortBy(rank)
+      // gv fills Tree_node from GD_nlist and qsorts by rank ONLY
+      // (increasingrankcmpf) — the equal-rank permutation is the libc's.
+      // With `tbOrder` (the decompose-order nlist) we replay the ORACLE's
+      // musl qsort exactly; otherwise the legacy stable sort (equivalent
+      // wherever ties don't matter — the whole pre-sbt corpus).
+      val order: IndexedSeq[Int] =
+        if tbOrder.nonEmpty then
+          val arr = tbOrder.iterator.flatMap(idx.get).toArray
+          MuslSort.sort(arr, (x, y) => Integer.compare(rank(x), rank(y)))
+          arr.toIndexedSeq
+        else (0 until N).sortBy(rank)
       order.foreach(n => nrank(rank(n)) += 1)
       order.foreach { n =>
         var inw = 0; var outw = 0; var lo = 0; var hi = maxRank
@@ -495,7 +509,10 @@ object NetworkSimplex:
           var choice = lo
           var r = lo + 1
           while r <= hi do { if nrank(r) < nrank(choice) then choice = r; r += 1 }
-          nrank(rank(n)) -= 1; nrank(choice) += 1; rank(n) = choice
+          nrank(rank(n)) -= 1; nrank(choice) += 1
+          if sys.props.contains("MCTRACE") then // TEMP PROBE (task #61)
+            System.err.println(s"bal ${nodeList(n)} r=${rank(n)} lo=$lo hi=$hi -> $choice")
+          rank(n) = choice
       }
 
     // dispatch (ns.c:1039): TB balances + normalizes; LR centres, no normalize;

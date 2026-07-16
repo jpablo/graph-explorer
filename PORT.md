@@ -29,17 +29,12 @@ The current worklist (kept in sync with the session task tracker; the
 fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
 enforce the deferral halves of it):
 
-- **sbt-project-dependencies** (last open example) — the class2
-  multi-edge merge is now PORTED (Order `mergedInto` classes: one chain
-  per class with summed `ED_xpenalty` in mincross and `ED_weight` in the
-  aux solve; Spline routes the rep once and installs members at
-  `±Multisep` interior offsets, dotsplines.c:1948), but sbt's within-rank
-  ORDER still diverges (ranks/x exact, order axis wrong) — needs the
-  MCTRACE iteration-for-iteration comparison vs instrumented gv
-  (mincross.c `mct_dump` + `[in]` install probes, see `3c2f3d48^`
-  history for the probe patches). Also still pending for sbt:
-  `splines=polyline` (`make_polyline`, routespl.c:471) once the order
-  matches.
+- **sbt-project-dependencies** (last open example) — dot_json + json0 are
+  BYTE-EXACT; the residual is TWO svg lines (two arrowhead coordinates
+  whose doubles sit exactly on a `%.2f` print boundary — the
+  characterized 06/82-class sub-print-precision FP floor). Closing those
+  2 digits needs bit-level parity of the funnel intersection arithmetic
+  for exactly those two channels; everything semantic already matches.
 - **03-subgraph-cluster** — permanent, intentional corpus deferral (its
   goldens are gv's own default-mode cluster corruption; gated vs the 03b
   `newrank` oracle in `ClusterSpec`).
@@ -2325,4 +2320,45 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   DIFFERENT ports ⇒ correctly not merged). sbt: ranks/x already exact;
   within-rank order still diverges — next: the MCTRACE loop (probes in
   `3c2f3d48^`), then `splines=polyline`.
+- **2026-07-16 (later still 5)** — **sbt MCTRACE chase: layout fully
+  CLOSED (dot_json + json0 byte-exact; svg within a 2-line FP print
+  floor).** Five root causes, found by iteration-level probes vs
+  instrumented gv:
+  1. **Ranking multi-edge merge** (class1.c:94): the ranking NS carries
+     ONE edge per (t,h) pair (`merge_oneway`/`basic_merge`: minlen max,
+     weight summed) — unmerged duplicates left the same objective but a
+     different feasible-tree path. `Rank` now collapses NS edges by pair.
+  2. **TB_balance ties are LIBC-qsort-shaped** (ns.c:835): balanced nodes
+     (inweight == outweight) move to the least-populated rank in [lo,hi],
+     iterated in `Tree_node` order sorted by rank ONLY — an UNSTABLE
+     comparator, so the equal-rank permutation is the libc's. The oracle
+     (viz-js) is emscripten/**musl** = smoothsort, and macOS gv actually
+     DISAGREES with the golden here (verified: golden follows musl) — the
+     instrumented build is not a valid oracle for qsort ties (we patched
+     its TB_balance with musl qsort to restore it). Ported **`MuslSort`**
+     (musl smoothsort 1:1, verified permutation-identical to compiled C)
+     + the `Tree_node` input order = the ranking graph's DECOMPOSE order
+     (class1 fast graph, decl-order seeds, out-before-in), threaded as
+     `tbOrder` into `NetworkSimplex.solve`.
+  3. **sbt HAS edge labels** ("Evicted By" ×32 — rank doubling, label
+     vnodes with LR-flipped rw = label height): already handled, but it
+     raises the smode threshold to 4+1.
+  4. **smode/straight_path** (dotsplines.c:1836): chains with ≥threshold
+     x-aligned vnodes route in SEGMENTS — endpath default + θ=π/2 at a
+     split vnode, the straight stretch emitted as duplicated points
+     (straight_path), beginpath default + θ=−π/2 at the stretch end; each
+     segment limit-boxes + recover_slacks separately. Transcribed as the
+     new chain driver in Spline (portless corpus unaffected — verified by
+     241/241 identical `resize_vn` snaps vs gv).
+  5. **`splines=polyline`** (routespl.c:471): the route is the funnel
+     polyline through `make_polyline` (endpoints ×2, corners ×3), no
+     Proutespline. And the polyline's degenerate cubics exposed a
+     boundary-semantics bug: **poly_inside is boundary-INCLUSIVE for
+     polygons** (strict bbox rejection + `same_side >= 0`) — our box clip
+     used strict `<`, and a polyline midpoint landing EXACTLY on the
+     outline (t=0.5 of an (a,a,b,b) cubic aiming at the node centre)
+     flipped the whole clip bisection. Also svg: dashed/dotted NODE
+     borders now emit stroke-dasharray (like edges).
+  Remaining: 2 svg values at a %.2f print boundary (§0). Corpus 137/138,
+  examples 7/8 + sbt-layout-exact, all suites green, gv worktree pristine.
 - _(append dated entries as milestones land)_

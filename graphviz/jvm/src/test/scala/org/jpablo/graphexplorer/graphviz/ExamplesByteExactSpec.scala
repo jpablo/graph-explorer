@@ -31,12 +31,14 @@ class ExamplesByteExactSpec extends FunSuite:
     *   inflation in the aux solve + bbox; edgecmp routing order; the
     *   UNSHIFTED raw solve frame (round() isn't translation-invariant);
     *   accumulated selfRight loops + self-edge label lp.]
-    *   - sbt-project-dependencies — within-rank order still differs
-    *     (duplicate/parallel edges declared 2-3×): gv class2 MERGES
-    *     consecutive same-endpoint unlabeled multi-edges into one chain
-    *     (merge_chain: summed weight/xpenalty; one shared routed spline
-    *     offset by Multisep) — our pipeline keeps them separate. Also uses
-    *     `splines=polyline` (make_polyline, not the bezier fit).
+    *   - sbt-project-dependencies — dot_json + json0 are BYTE-EXACT (ranks,
+    *     musl-qsort TB_balance ties, mincross with merged multi-edges,
+    *     smode straight-splits, polyline routes, snaps all match gv); the
+    *     residual is TWO svg lines: two arrowhead-polygon coordinates whose
+    *     doubles sit exactly on a %.2f print boundary (…585 → .58 vs .59)
+    *     — sub-print-precision funnel FP, the characterized 06/82-class
+    *     floor. Everything semantic is exact; only the last printed digit
+    *     of 2 of ~4700 svg values flips.
     * CLOSED 2026-07-16 (same session, in order):
     *   - data-structures — three sub-chases: (1) port-aware mincross;
     *     (2) make_edge_pairs working-orientation ports (aux graph

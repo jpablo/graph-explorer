@@ -574,7 +574,14 @@ object Svg:
             // penwidth ≠ 1 ⇒ every drawn outline gets stroke-width (gvrender
             // set_penwidth before the shape ops).
             val nodePw = n.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
-            val swAttr = if nodePw != 1.0 then s""" stroke-width="${Output.g5(nodePw)}"""" else ""
+            // dashed/dotted node borders take stroke-dasharray exactly like
+            // edges (gvrender pencil style; sbt's dashed boxes).
+            val nodeDash =
+              if styles.contains("dashed") then """ stroke-dasharray="5,2""""
+              else if styles.contains("dotted") then """ stroke-dasharray="1,5""""
+              else ""
+            val swAttr =
+              (if nodePw != 1.0 then s""" stroke-width="${Output.g5(nodePw)}"""" else "") + nodeDash
             // box-family shapes render as a rectangle <polygon> (corners
             // UR,UL,LL,LR,UR in flipped-y); `style=rounded` ⇒ a <path> with
             // RBCONST=12 corner arcs (shapes.c round_corners); else ellipse.

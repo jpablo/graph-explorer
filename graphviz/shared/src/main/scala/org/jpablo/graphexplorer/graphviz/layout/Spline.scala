@@ -480,6 +480,20 @@ object Spline:
     val rd        = Rank.rankdir(g)
     val flip      = Rank.flip(g)
     val RanksepPt = Coord.rankSepBasePt(g)
+    // splines=polyline (utils.c edgeType → routespl.c:471): the installed
+    // route is the Pshortestpath funnel POLYLINE run through make_polyline
+    // (pathplan/util.c:59 — endpoints doubled, interior corners tripled into
+    // degenerate cubics); Proutespline never runs, endpoint slopes ignored.
+    val polylineMode = g.rootAttrs.get("splines").map(_.trim).contains("polyline")
+    def makePolyline(pl: Vector[XY]): Vector[XY] =
+      if pl.length < 2 then pl
+      else
+        val out = Vector.newBuilder[XY]
+        out += pl.head; out += pl.head
+        var i = 1
+        while i < pl.length - 1 do { out += pl(i); out += pl(i); out += pl(i); i += 1 }
+        out += pl.last; out += pl.last
+        out.result()
     val BpFudge   = 2.0 // splines.c FUDGE (≠ dotsplines.c FUDGE=4)
 
     /** Route-time port resolution (beginpath:395 / endpath:592): initial
@@ -780,43 +794,89 @@ object Spline:
             val fillT  = Box(nbT.llx, cy(tn0) - ht1(lo), nbT.urx, tB0.last.lly)
             val tBoxes = if fillT.llx < fillT.urx && fillT.lly < fillT.ury then tB0 :+ fillT else tB0
 
-            val midBoxes = mutable.ArrayBuffer.empty[Box]
-            var idxN = 0
-            while idxN < pathTopDown.length - 2 do
-              val upper = pathTopDown(idxN)
-              val vn    = pathTopDown(idxN + 1)
-              midBoxes += rankBox(rankOf(upper), rankOf(vn))
-              midBoxes += maximalBboxGv(vn, Some(segAt(idxN)), Some(segAt(idxN + 1)))
-              idxN += 1
-            midBoxes += rankBox(rankOf(pathTopDown(pathTopDown.length - 2)), rankOf(hn0))
+            // ── chain driver with smode straight-splits (dotsplines.c:1836) ─
+            // straight_len ≥ (EDGE_LABEL ? 4+1 : 2+1) x-aligned vnodes splits
+            // the route: route to a vnode two past detection (endpath default
+            // + θ=π/2 constrained), emit the straight stretch as DUPLICATED
+            // last points (straight_path), resume from the stretch end
+            // (beginpath default + θ=−π/2 constrained). Each segment routes,
+            // limit-boxes and recover_slacks separately; the concatenated
+            // point list installs once.
+            val threshold = if Rank.hasEdgeLabel(g) then 4 + 1 else 2 + 1
+            def straightLen(v0: String): Int =
+              var cnt = 0; var v = v0; var go = true
+              while go do
+                val w = chainNextOf(v)
+                if !isV(w) || outSize(w) != 1 || inSize(w) != 1 || cx(w) != cx(v0) then go = false
+                else { cnt += 1; v = w }
+              cnt
 
+            val pointfs  = mutable.ArrayBuffer.empty[XY]
+            var curTend  = tBoxes
+            var curStart = start
+            var curEv0   = thT.map(t => XY(math.cos(t), math.sin(t))).getOrElse(XY(0, 0))
+            var segStart = 0 // pathTopDown idx of the current segment-run tail
+            val boxesBuf = mutable.ArrayBuffer.empty[Box]
+            var tnI = 0; var hnI = 1
+            var smode = false; var si = -1; var sl = 0
+
+            def routeSeg(hend: Vector[Box], endPt: XY, ev1: XY): Unit =
+              val boxes = mutable.ArrayBuffer.empty[Box]
+              def addBox(b: Box): Unit = if b.llx < b.urx && b.lly < b.ury then boxes += b
+              curTend.foreach(addBox)
+              val fb = boxes.length + 1
+              val lb = fb + boxesBuf.length - 3
+              boxesBuf.foreach(addBox)
+              hend.reverse.foreach(addBox)
+              adjustRegularPath(boxes, fb, lb)
+              val st = Array(curStart.x, curStart.y)
+              val en = Array(endPt.x, endPt.y)
+              val seg =
+                if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
+                else
+                  val sp = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
+                  if polylineMode then makePolyline(sp)
+                  else proutespline(buildPolygon(boxes), sp, curEv0, ev1)
+              pointfs ++= seg
+              limitBoxes(boxes, seg)
+              recoverSlack(pathTopDown.slice(segStart + 1, pathTopDown.length - 1).toVector, boxes, origIdx)
+
+            while hnI < pathTopDown.length - 1 do // hn is a chain vnode
+              val tn = pathTopDown(tnI); val hn = pathTopDown(hnI)
+              boxesBuf += rankBox(rankOf(tn), rankOf(hn))
+              if !smode && { sl = straightLen(hn); sl >= threshold } then
+                smode = true; si = 1; sl -= 2
+              if !smode || si > 0 then
+                si -= 1
+                boxesBuf += maximalBboxGv(hn, Some(segAt(hnI - 1)), Some(segAt(hnI)))
+                tnI = hnI; hnI += 1
+              else
+                // split at hn: endpath default (portless vnode) + TOP fill
+                val nbS   = maximalBboxGv(hn, Some(segAt(hnI - 1)), Some(segAt(hnI)))
+                val hb0   = Box(nbS.llx, cy(hn), nbS.urx, nbS.ury) // LL.y = end.y
+                val fillS = Box(nbS.llx, hb0.ury, nbS.urx, cy(hn) + ht2(rankOf(hn)))
+                val hend  = if fillS.llx < fillS.urx && fillS.lly < fillS.ury then Vector(hb0, fillS) else Vector(hb0)
+                routeSeg(hend, XY(cx(hn), cy(hn) + 1.0), XY(0, -1)) // P.end θ=π/2 constrained
+                // straight_path: skip sl segments; duplicate the last point ×2
+                val lastPt = pointfs.last
+                pointfs += lastPt; pointfs += lastPt
+                tnI = hnI + sl; hnI = tnI + 1; segStart = tnI
+                boxesBuf.clear()
+                val tnN  = pathTopDown(tnI)
+                val nbT2 = maximalBboxGv(tnN, Some(segAt(tnI - 1)), Some(segAt(tnI)))
+                curTend  = Vector(Box(nbT2.llx, nbT2.lly, nbT2.urx, cy(tnN))) // UR.y = start.y
+                curStart = XY(cx(tnN), cy(tnN) - 1.0)
+                curEv0   = XY(0, -1) // P.start θ=−π/2 constrained
+                smode = false
+
+            // final segment into the real head
+            boxesBuf += rankBox(rankOf(pathTopDown(tnI)), rankOf(hn0))
             val nbH = maximalBboxGv(hn0, Some(segAt(pathTopDown.length - 2)), None)
             val (end, thH, hB0, hCleared) = endPathR(hn0, hGp, nbH)
             val fillH  = Box(nbH.llx, hB0.last.ury, nbH.urx, cy(hn0) + ht2(hi)) // makeregularend TOP
             val hBoxes = if fillH.llx < fillH.urx && fillH.lly < fillH.ury then hB0 :+ fillH else hB0
-
-            // completeregularpath: tend boxes, mid boxes, hend boxes
-            // REVERSED (add_box drops degenerates); fb/lb = the interrank
-            // slice for adjustregularpath's parity rules.
-            val boxes = mutable.ArrayBuffer.empty[Box]
-            def addBox(b: Box): Unit = if b.llx < b.urx && b.lly < b.ury then boxes += b
-            tBoxes.foreach(addBox)
-            val fb = boxes.length + 1
-            val lb = fb + midBoxes.length - 3
-            midBoxes.foreach(addBox)
-            hBoxes.reverse.foreach(addBox)
-            adjustRegularPath(boxes, fb, lb)
-
-            val st  = Array(start.x, start.y)
-            val en  = Array(end.x, end.y)
-            val ev0 = thT.map(t => XY(math.cos(t), math.sin(t))).getOrElse(XY(0, 0))
-            val ev1 = thH.map(t => XY(-math.cos(t), -math.sin(t))).getOrElse(XY(0, 0))
-            val routed =
-              if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
-              else
-                val poly = buildPolygon(boxes)
-                val sp   = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
-                proutespline(poly, sp, ev0, ev1)
+            routeSeg(hBoxes, end, thH.map(t => XY(-math.cos(t), -math.sin(t))).getOrElse(XY(0, 0)))
+            val routed = pointfs.toVector
             // Clip flags come from the ORIG port at install (clip_and_install
             // walks ED_to_orig): initial-resolution clip, cleared only by a
             // begin/endpath side branch — a route-time dyna side port's
@@ -854,11 +914,6 @@ object Spline:
                   while q < base.length - 1 do { base(q) = XY(base(q).x + NodeSep, base(q).y); q += 1 }
                 install(dedgeOrigIdx(dj), g.edges(dedgeOrigIdx(dj)), base.toVector)
               }
-            // narrow the channel boxes to the routed spline corridor, then snap
-            // this edge's virtual nodes to them (mids are top→bottom); feeds lp
-            // + later edges' neighbour geometry.
-            limitBoxes(boxes, routed)
-            recoverSlack(mids, boxes, origIdx)
       else
         // ── flat edge (rt == rh): same-rank edge (rank=same / minlen=0) ─────
         // dotsplines.c: `makeSimpleFlat` (unlabeled) routes a 4-point Bezier
@@ -1604,7 +1659,13 @@ object Spline:
                 RoundCorners.codeOf.contains(shapeName)
               (p: XY) =>
                 val px = p.x - cen.x; val py = p.y - cen.y
-                if boxLike then math.abs(px) < urx && math.abs(py) < ury
+                // poly_inside is boundary-INCLUSIVE for polygons: the bbox
+                // check rejects only STRICTLY-outside points and same_side's
+                // `>= 0` counts an exactly-on-the-outline point as inside.
+                // (Matters: a polyline's degenerate-cubic midpoint can land
+                // EXACTLY on the outline — sbt's geny→3.3.1 clip at t=0.5.)
+                // Ellipses stay strict (`hypot(...) < 1`, shapes.c:2501).
+                if boxLike then math.abs(px) <= urx && math.abs(py) <= ury
                 else if math.abs(px) > urx || math.abs(py) > ury then false
                 else math.hypot(px / urx, py / ury) < 1.0
             }
