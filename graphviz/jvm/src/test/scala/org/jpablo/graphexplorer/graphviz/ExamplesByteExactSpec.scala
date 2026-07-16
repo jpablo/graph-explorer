@@ -31,15 +31,20 @@ class ExamplesByteExactSpec extends FunSuite:
     *   inflation in the aux solve + bbox; edgecmp routing order; the
     *   UNSHIFTED raw solve frame (round() isn't translation-invariant);
     *   accumulated selfRight loops + self-edge label lp.]
-    *   - sbt-project-dependencies — dot_json + json0 are BYTE-EXACT (ranks,
-    *     musl-qsort TB_balance ties, mincross with merged multi-edges,
-    *     smode straight-splits, polyline routes, snaps all match gv); the
-    *     residual is TWO svg lines: two arrowhead-polygon coordinates whose
-    *     doubles sit exactly on a %.2f print boundary (…585 → .58 vs .59)
-    *     — sub-print-precision funnel FP, the characterized 06/82-class
-    *     floor. Everything semantic is exact; only the last printed digit
-    *     of 2 of ~4700 svg values flips.
+    * (EMPTY — every shipped dot-engine example is byte-exact.)
     * CLOSED 2026-07-16 (same session, in order):
+    *   - sbt-project-dependencies — the LAST close: after ranks (class1
+    *     multi-edge merge + musl-qsort TB_balance), mincross (merged
+    *     chains), smode straight-splits, splines=polyline and the
+    *     boundary-inclusive box clip, the final 2-svg-line residual was NOT
+    *     an FP floor at all: gv's arrow_gen EPSILON(1e-4)-stabilizes the
+    *     arrowhead direction vector (`s = ARROW_LENGTH/(len+EPS)`, ±EPS per
+    *     component before scaling) — a real ~1e-4 formula term our Svg
+    *     omitted, exposed only where a polygon corner landed on a %.2f
+    *     print boundary. Found by ulp-level triangulation: an
+    *     -ffp-contract=off + musl-qsort instrumented gv whose install
+    *     doubles matched ours BIT-EXACTLY, isolating the divergence to the
+    *     render-side arrow math.
     *   - data-structures — three sub-chases: (1) port-aware mincross;
     *     (2) make_edge_pairs working-orientation ports (aux graph
     *     byte-identical — every node position exact); (3) route-time port
@@ -61,8 +66,7 @@ class ExamplesByteExactSpec extends FunSuite:
     *     hardcoding FontSize/Times while the sizing honored the node's
     *     fontsize/fontname — base font now threads through htmlText/htmlTable
     *     (this was the user-reported oversized-tasks rendering). */
-  private val deferred = Set(
-    "sbt-project-dependencies")
+  private val deferred = Set.empty[String]
 
   /** Not gateable: the ORACLE itself fails on these (no golden exists).
     *   - failing/leading-newline: viz-js 3.14.0 crashes with "RuntimeError:

@@ -796,8 +796,15 @@ object Svg:
               if len > 1e-9 then
                 val pw = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
                 val as = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
-                val mag = ArrowLen * as
-                val u   = (dx / len * mag, dy / len * mag)
+                // arrow_gen (arrows.c): the arrowhead vector is EPSILON(1e-4)-
+                // stabilized — `s = ARROW_LENGTH/(len + EPS)`, ±EPS added to
+                // each component BEFORE scaling, then ×(lenfact·arrowsize).
+                // The nudge shifts polygon corners by ~1e-4pt — visible when
+                // a corner lands exactly on a %.2f print boundary (sbt).
+                val Eps = 0.0001
+                val s   = ArrowLen / (len + Eps)
+                val u   = ((dx + (if dx >= 0.0 then Eps else -Eps)) * s * as,
+                           (dy + (if dy >= 0.0 then Eps else -Eps)) * s * as)
                 def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
                 // `vee` (crow) ⇒ filled 8-point polygon a[0..7] (gvrender_polygon
                 // a,8,1); everything else ⇒ the normal 3-point arrowhead.

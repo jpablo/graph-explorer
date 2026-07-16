@@ -29,12 +29,9 @@ The current worklist (kept in sync with the session task tracker; the
 fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
 enforce the deferral halves of it):
 
-- **sbt-project-dependencies** (last open example) — dot_json + json0 are
-  BYTE-EXACT; the residual is TWO svg lines (two arrowhead coordinates
-  whose doubles sit exactly on a `%.2f` print boundary — the
-  characterized 06/82-class sub-print-precision FP floor). Closing those
-  2 digits needs bit-level parity of the funnel intersection arithmetic
-  for exactly those two channels; everything semantic already matches.
+- **(no open example work)** — every shipped dot-engine example is
+  byte-exact in all three formats (`ExamplesByteExactSpec` deferred list
+  is EMPTY).
 - **03-subgraph-cluster** — permanent, intentional corpus deferral (its
   goldens are gv's own default-mode cluster corruption; gated vs the 03b
   `newrank` oracle in `ClusterSpec`).
@@ -2361,4 +2358,25 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
      borders now emit stroke-dasharray (like edges).
   Remaining: 2 svg values at a %.2f print boundary (§0). Corpus 137/138,
   examples 7/8 + sbt-layout-exact, all suites green, gv worktree pristine.
+- **2026-07-16 (later still 6)** — **sbt fully CLOSED — 8/8 examples
+  byte-exact; the examples deferred list is EMPTY.** The "2-line FP print
+  floor" was NOT an FP floor: gv's `arrow_gen` (arrows.c:25)
+  EPSILON(1e-4)-stabilizes the arrowhead direction vector — `s =
+  ARROW_LENGTH/(hypot(u)+EPS)` and ±EPS added to each component BEFORE
+  scaling — a real ~1e-4 term our Svg omitted, visible only where a
+  polygon corner lands exactly on a `%.2f` print boundary (2 of ~4700 sbt
+  svg values). Method that pinned it: rebuilt the instrumented gv with
+  **`-ffp-contract=off`** (Apple clang default-contracts FMA, making the
+  native build's low bits diverge from BOTH the WASM golden and the JVM)
+  + the musl-qsort TB_balance patch — its clip_and_install doubles then
+  matched ours BIT-EXACTLY (one 1-ulp `ep` on an unrelated edge), proving
+  the layout pipeline exact at the bit level and isolating the flip to
+  the render-side arrow math, where 17-digit dumps showed a ~6e-5 gap —
+  too big for libm ulps — leading straight to arrow_gen's EPSILONs.
+  Lesson for future bit-level chases: compare against a
+  `-ffp-contract=off` build, and remember pure +−*/√ pipelines should be
+  BIT-identical across C/WASM/JVM — any bigger gap is a missing term,
+  not "FP noise". Corpus 137/138 (unchanged — the EPSILON shift never
+  crosses a print boundary there and now matches gv's true arithmetic),
+  examples 8/8, all suites green, gv worktree pristine.
 - _(append dated entries as milestones land)_
