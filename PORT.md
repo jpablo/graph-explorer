@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 159/160
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 160/161
 > (2026-07-16).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 151/152 + shipped examples 8/8 = 159/160** — the SINGLE
+> **corpus 152/153 + shipped examples 8/8 = 160/161** — the SINGLE
 > remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
 > (its golden is gv's own default-mode cluster corruption; the file is
 > gated byte-exact against the 03b `newrank` oracle in ClusterSpec
@@ -55,11 +55,15 @@ enforce the deferral halves of it):
   179-lion-share closed same-day (the global ranking path now carries
   the edge `weight` ATTR into the NS — TB_balance's inweight==outweight
   gate reads it).
+  180-psg closed same-day (the full HTML-4 named-entity table — &bull;
+  measured as its UTF-8 bytes — plus the Mrecord ROUNDED outline path,
+  record-only rects echo, the place_vnlabel post-pass, and svg_textspan
+  fill semantics).
   Remaining (genuine layout divergences, instrumented-gv work):
   psg, pprof, profile, Linux_kernel_diagram, siblings, sdh (its
   `ratio=fill` without `size=` is a gv no-op — real divergence).
-- Current gate (2026-07-16, after 165–179):
-  **corpus 151/152 + examples 8/8 = 159/160 byte-exact** in all three
+- Current gate (2026-07-16, after 165–180):
+  **corpus 152/153 + examples 8/8 = 160/161 byte-exact** in all three
   formats (corpus rendered through the sidecar-aware `corpusGraph` path,
   examples through the public `renderFormats` facade).
 - **03-subgraph-cluster** — the single diff, a permanent INTENTIONAL
