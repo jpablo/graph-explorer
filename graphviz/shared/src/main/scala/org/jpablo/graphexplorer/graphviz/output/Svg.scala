@@ -1037,6 +1037,33 @@ object Svg:
           val edgeObjId = e.attrs.get("id").filter(_.nonEmpty).getOrElse(s"edge$ei")
           sb ++= s"""<g id="${xml(edgeObjId)}" class="edge">\n"""
           sb ++= s"<title>${xml(label)}</title>\n"
+          // emit_begin_edge anchors: href/URL is the shared default; the
+          // GRAPHICS anchor (`a_{objId}`, wrapping spline+arrows) fires iff
+          // edge url || EXPLICIT tooltip (`tooltip`/`edgetooltip` attr), the
+          // LABEL anchor (`a_{objId}-label`, emit_edge_label) iff labelurl ||
+          // explicit `labeltooltip`. Both tooltips default to the label TEXT
+          // (used only when the url makes the anchor fire anyway).
+          val eDfltUrl  = e.attrs.get("href").orElse(e.attrs.get("URL")).filter(_.nonEmpty)
+          val eUrl      = e.attrs.get("edgehref").orElse(e.attrs.get("edgeURL")).filter(_.nonEmpty).orElse(eDfltUrl)
+          val eLblUrl   = e.attrs.get("labelhref").orElse(e.attrs.get("labelURL")).filter(_.nonEmpty).orElse(eDfltUrl)
+          val eExpTip   = e.attrs.get("tooltip").orElse(e.attrs.get("edgetooltip")).filter(_.nonEmpty)
+          val eLblExpTip = e.attrs.get("labeltooltip").filter(_.nonEmpty)
+          val eLblTxt   = e.attrs.get("label").filter(_.nonEmpty)
+          val eTip      = eExpTip.orElse(eLblTxt)
+          val eLblTip   = eLblExpTip.orElse(eLblTxt)
+          val eDfltTgt  = e.attrs.get("target").filter(_.nonEmpty)
+          val eTgt      = e.attrs.get("edgetarget").filter(_.nonEmpty).orElse(eDfltTgt)
+          val eLblTgt   = e.attrs.get("labeltarget").filter(_.nonEmpty).orElse(eDfltTgt)
+          def edgeAnchorOpen(id: String, url: Option[String], tip: Option[String], tgt: Option[String]): Unit =
+            val a = new StringBuilder(s"""<g id="a_${xml(id)}"><a""")
+            url.foreach(h => a ++= s""" xlink:href="${xmlTooltip(h)}"""")
+            tip.foreach(t => a ++= s""" xlink:title="${xmlTooltip(t)}"""")
+            tgt.foreach(t => a ++= s""" target="${xml(t)}"""")
+            a ++= ">\n"
+            sb ++= a.toString
+          val eAnchored    = eUrl.isDefined || eExpTip.isDefined
+          val eLblAnchored = eLblUrl.isDefined || eLblExpTip.isDefined
+          if eAnchored then edgeAnchorOpen(edgeObjId, eUrl, eTip, eTgt)
           val head = pts.head
           val rest = pts.tail.map(p => s"${d2(p.x)},${d2(-p.y)}").mkString(" ")
           // gv edge: stroke = `color` (default black); `dashed`/`dotted` style
@@ -1151,10 +1178,12 @@ object Svg:
             e.attrs.get("arrowhead"), e.attrs.get("arrowtail"))
           sName.filter(_ != "none").foreach { nm => es.sp.foreach(spR => drawArrow(spR, pts.head, nm, tailArrowCol)) }
           eName.filter(_ != "none").foreach { nm => es.ep.foreach(epR => drawArrow(epR, pts.last, nm, headArrowCol)) }
+          if eAnchored then sb ++= "</a>\n</g>\n"
           // edge label text at its lp (make_chain label_vnode): HTML ⇒ the
           // parsed block, else a multi-line plain label (`\n`/`\l`/`\r`).
           e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
             labelPos.get(ix).foreach { lp =>
+              if eLblAnchored then edgeAnchorOpen(s"$edgeObjId-label", eLblUrl, eLblTip, eLblTgt)
               val (lpx, lpy) = tf(lp.x, lp.y)
               val col = e.attrs.get("fontcolor").getOrElse("")
               if e.attrs.isHtml("label") then
@@ -1173,14 +1202,18 @@ object Svg:
               else
                 sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times-Roman"),
                   e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
+              if eLblAnchored then sb ++= "</a>\n</g>\n"
             }
           }
-          // external edge label (addXLabels) after the regular label.
+          // external edge label (addXLabels) after the regular label; gv's
+          // xlabel emit_edge_label call reuses the SAME `{id}-label` anchor id.
           e.attrs.get("xlabel").filter(_.nonEmpty).foreach { xl =>
             xlabels.edges.get(ix).foreach { p =>
+              if eLblAnchored then edgeAnchorOpen(s"$edgeObjId-label", eLblUrl, eLblTip, eLblTgt)
               val (lx, ly) = tf(p.cx, p.cy)
               sb ++= textLines(lx, ly, xl, e.attrs.get("fontcolor").getOrElse(""), "",
                 e.attrs.getOrElse("fontname", "Times-Roman"))
+              if eLblAnchored then sb ++= "</a>\n</g>\n"
             }
           }
           sb ++= "</g>\n"

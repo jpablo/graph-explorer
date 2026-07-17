@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 160/161
-> (2026-07-16).** All milestones M0–M8 done. The viewer routes by layout
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 162/163
+> (2026-07-17).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 152/153 + shipped examples 8/8 = 160/161** — the SINGLE
+> **corpus 154/155 + shipped examples 8/8 = 162/163** — the SINGLE
 > remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
 > (its golden is gv's own default-mode cluster corruption; the file is
 > gated byte-exact against the 03b `newrank` oracle in ClusterSpec
@@ -59,11 +59,21 @@ enforce the deferral halves of it):
   measured as its UTF-8 bytes — plus the Mrecord ROUNDED outline path,
   record-only rects echo, the place_vnlabel post-pass, and svg_textspan
   fill semantics).
+  182-pprof closed 2026-07-17 after a three-part instrumented-gv chase:
+  edge `weight` reaching the dot1 interior/root NS solves, rank1's
+  per-CONNECTED-COMPONENT solving (`decompose` + comp loop — one solve
+  over a disconnected graph leaves the non-spanning part at the
+  init_rank floor), the clustered mincross seed covering ALL declared
+  nodes (decompose(g,1) maps cluster members to their rankleader), the
+  ReMincross `sawclust` reorder rule (mark_lowclusters stamps EVERY
+  node with its lowest cluster OR the root, so a fixed node between two
+  comparables blocks their exchange), and svg edge tooltip/href anchors
+  (`a_{id}` graphics + `a_{id}-label` label wraps).
   Remaining (genuine layout divergences, instrumented-gv work):
-  psg, pprof, profile, Linux_kernel_diagram, siblings, sdh (its
+  profile, Linux_kernel_diagram, siblings, sdh (its
   `ratio=fill` without `size=` is a gv no-op — real divergence).
-- Current gate (2026-07-16, after 165–180):
-  **corpus 152/153 + examples 8/8 = 160/161 byte-exact** in all three
+- Current gate (2026-07-17, after 165–182):
+  **corpus 154/155 + examples 8/8 = 162/163 byte-exact** in all three
   formats (corpus rendered through the sidecar-aware `corpusGraph` path,
   examples through the public `renderFormats` facade).
 - **03-subgraph-cluster** — the single diff, a permanent INTENTIONAL

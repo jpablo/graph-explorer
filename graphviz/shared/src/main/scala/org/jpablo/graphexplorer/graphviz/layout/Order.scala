@@ -379,8 +379,15 @@ object Order:
       }
     }
 
-    val cSeeds = g.nodes.iterator.map(n => LayoutNode.Real(n.id): LayoutNode)
-      .filter(n => cOf(n).isEmpty).map(CNode.Nd.apply: LayoutNode => CNode).toVector
+    // decompose(g, 1) seeds from agfstnode = EVERY node in declaration
+    // order, a cluster member standing in as its rankleader at that node's
+    // rank (decomp.c: `v = GD_rankleader(subg)[ND_rank(v)]`). Filtering to
+    // free nodes made skeleton-only components install LAST (pprof's
+    // isolated File cluster belongs at order 0 on rank 0 — comp0).
+    val cSeeds = g.nodes.iterator
+      .map(n => LayoutNode.Real(n.id): LayoutNode)
+      .filter(rankOf.contains)
+      .map(leaderC).distinct.toVector
     val cOthers = cOut.keysIterator.filterNot(cSeeds.contains).toVector
     val cSeed   = decomposeOrder(cSeeds, cOthers, cOut, cIn)
     // skeleton chain edges carry ED_xpenalty = CL_CROSS (1000, build_skeleton);
@@ -584,6 +591,13 @@ object Order:
                 else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
         }
       def reorder(r: Int, reverse: Boolean): Unit =
+        // gv reorder (mincross.c:1473) with the `sawclust ###` rule: in the
+        // rp scan, once a CLUSTERED node is passed, later clustered nodes
+        // are skipped. Pre-ReMincross only real cluster members are marked;
+        // but mark_lowclusters (run right before ReMincross) stamps EVERY
+        // node with its lowest cluster OR THE ROOT — so here every node is
+        // "clustered", and any fixed (mval<0) node between two comparables
+        // blocks their exchange (pprof r14: V–N5(fixed)–N9 stays put).
         val rb = rows(r)
         var ep = rb.length
         var nelt = rb.length - 1
@@ -594,10 +608,12 @@ object Order:
             if lp < ep then
               var rp = lp + 1
               var muststay = false; var found = false
+              var sawclust = false
               while rp < ep && !muststay && !found do
-                if pinned(rb(lp), rb(rp)) then muststay = true
+                if sawclust then rp += 1 // ###: ND_clust set on ALL nodes here
+                else if pinned(rb(lp), rb(rp)) then muststay = true
                 else if mval.getOrElse(rb(rp), -1.0) >= 0 then found = true
-                else rp += 1
+                else { sawclust = true; rp += 1 }
               if rp < ep then
                 if !muststay then
                   val p1 = mval.getOrElse(rb(lp), -1.0)

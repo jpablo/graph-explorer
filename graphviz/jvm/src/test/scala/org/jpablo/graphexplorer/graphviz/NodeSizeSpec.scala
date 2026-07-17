@@ -13,8 +13,10 @@ class NodeSizeSpec extends FunSuite:
   // `\t+` so cluster-nested nodes (indented with several tabs) also match.
   // body group is QUOTE-AWARE: a `]` inside a quoted attr value (e.g.
   // neural-network's record labels "[(?, ?)]") must not end the stanza.
+  // (?s) so `\\.` spans gv's `\`+newline continuations inside long quoted
+  // labels (182-pprof's File node).
   private val NodeStanza =
-    """(?m)^\t+("(?:[^"\\]|\\.)*"|[A-Za-z_][A-Za-z0-9_]*|[0-9]+)\t\[((?:[^\]"]|"(?:[^"\\]|\\.)*")*)\]""".r
+    """(?sm)^\t+("(?:[^"\\]|\\.)*"|[A-Za-z_][A-Za-z0-9_]*|[0-9]+)\t\[((?:[^\]"]|"(?:[^"\\]|\\.)*")*)\]""".r
   private val WidthRe  = """\bwidth=([0-9.]+)""".r
   private val HeightRe = """\bheight=([0-9.]+)""".r
   private val Keywords = Set("graph", "node", "edge")
