@@ -1,0 +1,313 @@
+digraph g {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 577.6 1208.4 577.6 1208.4 0 ",
+		bb="0,0,1208.4,577.6",
+		fontname="Helvetica,Arial,sans-serif",
+		fontsize=30,
+		label="",
+		labelloc=t,
+		overlap=false,
+		rankdir=LR,
+		ratio=auto,
+		splines=true,
+		xdotversion=1.7
+	];
+	node [fontname="Helvetica,Arial,sans-serif",
+		label="\N"
+	];
+	edge [fontname="Helvetica,Arial,sans-serif"];
+	state0	[_draw_="S 15 -setlinewidth(5) c 7 -#000000 C 7 -#ffffff b 25 12 75.5 12 75.5 184.03 75.5 184.03 75.5 190.03 75.5 196.03 81.5 196.03 87.5 \
+196.03 87.5 196.03 247.1 196.03 247.1 196.03 253.1 190.03 259.1 184.03 259.1 184.03 259.1 12 259.1 12 259.1 6 259.1 0 253.1 0 247.1 \
+0 247.1 0 87.5 0 87.5 0 81.5 6 75.5 12 75.5 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 8 79.5 8 255.1 188.03 255.1 188.03 79.5 S 5 -solid c 9 -#fffffe00 C 7 -#000000 P 4 10 \
+230.3 10 253.1 186.03 253.1 186.03 230.3 F 14 11 -Courier New c 7 -#ffffff T 64.41 237.5 -1 67.21 8 -State #0 F 14 11 -Courier New \
+c 7 -#000000 T 13 212.7 -1 134.42 16 -(0) s -> •e $  F 14 11 -Courier New c 7 -#000000 T 13 187.9 -1 168.03 20 -(1) e -> •l '=' \
+r  F 14 11 -Courier New c 7 -#000000 T 13 163.1 -1 117.62 14 -(2) e -> •r  F 14 11 -Courier New c 7 -#000000 T 13 138.3 -1 151.22 \
+18 -(3) l -> •'*' r  F 14 11 -Courier New c 7 -#000000 T 13 113.5 -1 134.42 16 -(4) l -> •'n'  F 14 11 -Courier New c 7 -#000000 \
+T 13 88.7 -1 117.62 14 -(5) r -> •l  ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=2.5639,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #0</font></td></tr><tr><td align="left" port="r0">&#40;0&#41; s -&gt; &bull;e $ </td></tr><tr><td align="left" port="r1">&#40;1&#41; e -&gt; &bull;l '=' r </td></tr><tr><td align="left" port="r2">&#40;2&#41; e -&gt; &bull;r </td></tr><tr><td align="left" port="r3">&#40;3&#41; l -&gt; &bull;'*' r </td></tr><tr><td align="left" port="r4">&#40;4&#41; l -&gt; &bull;'n' </td></tr><tr><td align="left" port="r5">&#40;5&#41; r -&gt; &bull;l </td></tr></table>>,
+		penwidth=5,
+		pos="98.014,167.3",
+		shape=Mrecord,
+		style="filled, bold",
+		width=2.7226];
+	state1	[_draw_="c 7 -#000000 C 7 -#ffffff b 25 775.5 260.3 775.5 260.3 930.72 260.3 930.72 260.3 936.72 260.3 942.72 266.3 942.72 272.3 942.72 272.3 \
+942.72 382.3 942.72 382.3 942.72 388.3 936.72 394.3 930.72 394.3 930.72 394.3 775.5 394.3 775.5 394.3 769.5 394.3 763.5 388.3 763.5 \
+382.3 763.5 382.3 763.5 272.3 763.5 272.3 763.5 266.3 769.5 260.3 775.5 260.3 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 771.5 264.3 771.5 390.3 934.72 390.3 934.72 264.3 S 5 -solid c 9 -#fffffe00 C 7 -#000000 \
+P 4 773.5 365.5 773.5 388.3 932.72 388.3 932.72 365.5 F 14 11 -Courier New c 7 -#ffffff T 819.51 372.7 -1 67.21 8 -State #1 F 14 \
+11 -Courier New c 7 -#000000 T 776.5 347.9 -1 151.22 18 -(3) l -> •'*' r  F 14 11 -Courier New c 7 -#000000 T 776.5 323.1 -1 151.22 \
+18 -(3) l -> '*' •r  F 14 11 -Courier New c 7 -#000000 T 776.5 298.3 -1 134.42 16 -(4) l -> •'n'  F 14 11 -Courier New c 7 -#\
+000000 T 776.5 273.5 -1 117.62 14 -(5) r -> •l  ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=1.875,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #1</font></td></tr><tr><td align="left" port="r3">&#40;3&#41; l -&gt; &bull;'*' r </td></tr><tr><td align="left" port="r3">&#40;3&#41; l -&gt; '*' &bull;r </td></tr><tr><td align="left" port="r4">&#40;4&#41; l -&gt; &bull;'n' </td></tr><tr><td align="left" port="r5">&#40;5&#41; r -&gt; &bull;l </td></tr></table>>,
+		penwidth=1,
+		pos="853.11,327.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.4892];
+	state0 -> state1	[_draw_="c 7 -#000000 B 7 198.41 179.41 356.69 198.97 653.04 236.77 699.85 251.3 717.54 256.79 735.7 264.15 753.03 272.13 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 751.23 275.15 761.77 276.25 754.22 268.82 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#474747 T 479.35 219.92 0 12.04 3 -'*' ",
+		fontcolor=grey28,
+		fontsize=14,
+		label="'*'",
+		lp="479.35,224.12",
+		penwidth=1,
+		pos="e,763.14,276.9 198.41,179.41 356.69,198.97 653.04,236.77 699.85,251.3 717.54,256.79 735.7,264.15 753.03,272.13"];
+	state2	[_draw_="c 7 -#000000 C 7 -#ffffff b 25 1026.77 195.5 1026.77 195.5 1188 195.5 1188 195.5 1194 195.5 1200 201.5 1200 207.5 1200 207.5 1200 \
+243.1 1200 243.1 1200 249.1 1194 255.1 1188 255.1 1188 255.1 1026.77 255.1 1026.77 255.1 1020.77 255.1 1014.77 249.1 1014.77 243.1 \
+1014.77 243.1 1014.77 207.5 1014.77 207.5 1014.77 201.5 1020.77 195.5 1026.77 195.5 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 1022.77 199.5 1022.77 251.1 1192 251.1 1192 199.5 S 5 -solid c 9 -#fffffe00 C 7 -#000000 \
+P 4 1024.77 226.3 1024.77 249.1 1190 249.1 1190 226.3 F 14 11 -Courier New c 7 -#ffffff T 1073.78 233.5 -1 67.21 8 -State #2 F 14 \
+11 -Courier New c 7 -#000000 T 1027.77 208.7 -1 134.42 16 -(4) l -> 'n' • S 5 -solid c 9 -#fffffe00 C 7 -#c0c0c0 P 4 1167.19 201.5 \
+1167.19 224.3 1190 224.3 1190 201.5 F 14 11 -Courier New c 7 -#000000 T 1170.19 208.7 -1 16.8 2 -=$ ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=0.84167,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #2</font></td></tr><tr><td align="left" port="r4">&#40;4&#41; l -&gt; 'n' &bull;</td><td bgcolor="grey" align="right">=$</td></tr></table>>,
+		penwidth=1,
+		pos="1107.4,225.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.5726];
+	state0 -> state2	[_draw_="c 7 -#000000 B 10 198.33 167.3 244.11 167.3 299.15 167.3 348.67 167.3 348.67 167.3 348.67 167.3 854.11 167.3 905.8 167.3 961.98 \
+179.01 1008.17 191.91 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1007.04 195.23 1017.62 194.61 1008.97 188.5 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#474747 T 601.84 171.5 0 12.04 3 -'n' ",
+		fontcolor=grey28,
+		fontsize=14,
+		label="'n'",
+		lp="601.84,175.7",
+		penwidth=1,
+		pos="e,1019.1,195.03 198.33,167.3 244.11,167.3 299.15,167.3 348.67,167.3 348.67,167.3 348.67,167.3 854.11,167.3 905.8,167.3 961.98,179.01 \
+1008.2,191.91"];
+	state5	[_draw_="c 7 -#000000 C 7 -#000000 b 25 280.46 79.5 280.46 79.5 418.88 79.5 418.88 79.5 424.88 79.5 430.88 85.5 430.88 91.5 430.88 91.5 430.88 \
+127.1 430.88 127.1 430.88 133.1 424.88 139.1 418.88 139.1 418.88 139.1 280.46 139.1 280.46 139.1 274.46 139.1 268.46 133.1 268.46 \
+127.1 268.46 127.1 268.46 91.5 268.46 91.5 268.46 85.5 274.46 79.5 280.46 79.5 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#000000 P 4 276.46 83.5 276.46 135.1 422.88 135.1 422.88 83.5 S 5 -solid c 9 -#fffffe00 C 7 -#000000 \
+P 4 278.46 110.3 278.46 133.1 420.88 133.1 420.88 110.3 F 14 11 -Courier New c 7 -#ffffff T 316.06 117.5 -1 67.21 8 -State #5 F \
+14 11 -Courier New c 7 -#ffffff T 281.46 92.7 -1 134.42 16 -(0) s -> e •$  ",
+		fillcolor=black,
+		fontname="Courier New",
+		height=0.84167,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="black"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #5</font></td></tr><tr><td align="left" port="r0"><font color="white">&#40;0&#41; s -&gt; e &bull;$ </font></td></tr></table>>,
+		penwidth=1,
+		pos="349.67,109.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.2559];
+	state0 -> state5	[_draw_="S 15 -setlinewidth(5) c 7 -#000000 B 7 198.44 123.95 203.66 122.36 208.88 120.93 214.03 119.7 226.35 116.75 239.46 114.59 252.49 \
+113 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 252.59 117.39 262.08 112 251.68 108.69 ",
+		_ldraw_="F 28 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 220.24 128.1 0 12.43 1 -e ",
+		fontcolor=black,
+		fontsize=28,
+		label=e,
+		lp="220.24,136.5",
+		penwidth=5,
+		pos="e,268.28,111.35 198.44,123.95 203.66,122.36 208.88,120.93 214.03,119.7 226.35,116.75 239.46,114.59 252.49,113"];
+	state6	[_draw_="c 7 -#000000 C 7 -#ffffff b 25 256.46 257.1 256.46 257.1 442.88 257.1 442.88 257.1 448.88 257.1 454.88 263.1 454.88 269.1 454.88 \
+269.1 454.88 329.5 454.88 329.5 454.88 335.5 448.88 341.5 442.88 341.5 442.88 341.5 256.46 341.5 256.46 341.5 250.46 341.5 244.46 \
+335.5 244.46 329.5 244.46 329.5 244.46 269.1 244.46 269.1 244.46 263.1 250.46 257.1 256.46 257.1 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 252.46 261.1 252.46 337.5 446.88 337.5 446.88 261.1 S 5 -solid c 9 -#fffffe00 C 7 -#000000 \
+P 4 254.46 312.7 254.46 335.5 444.88 335.5 444.88 312.7 F 14 11 -Courier New c 7 -#ffffff T 316.06 319.9 -1 67.21 8 -State #6 F \
+14 11 -Courier New c 7 -#000000 T 257.46 295.1 -1 168.03 20 -(1) e -> l •'=' r  F 14 11 -Courier New c 7 -#000000 T 257.46 270.3 \
+-1 117.62 14 -(5) r -> l • S 5 -solid c 9 -#fffffe00 C 7 -#c0c0c0 P 4 430.48 263.1 430.48 285.9 444.88 285.9 444.88 263.1 F 14 \
+11 -Courier New c 7 -#000000 T 433.48 270.3 -1 8.4 1 -$ ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=1.1861,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #6</font></td></tr><tr><td align="left" port="r1">&#40;1&#41; e -&gt; l &bull;'=' r </td></tr><tr><td align="left" port="r5">&#40;5&#41; r -&gt; l &bull;</td><td bgcolor="grey" align="right">$</td></tr></table>>,
+		penwidth=1,
+		pos="349.67,299.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.9226];
+	state0 -> state6	[_draw_="S 15 -setlinewidth(5) c 7 -#000000 B 4 198.4 219.85 216.64 229.49 235.64 239.54 253.74 249.11 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 251.64 252.95 262.53 253.75 255.73 245.21 ",
+		_ldraw_="F 28 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 220.24 241.7 0 7.78 1 -l ",
+		fontcolor=black,
+		fontsize=28,
+		label=l,
+		lp="220.24,250.1",
+		penwidth=5,
+		pos="e,268.04,256.67 198.4,219.85 216.64,229.49 235.64,239.54 253.74,249.11"];
+	state9	[_draw_="c 7 -#000000 C 7 -#ffffff b 25 281.66 0.5 281.66 0.5 417.68 0.5 417.68 0.5 423.68 0.5 429.68 6.5 429.68 12.5 429.68 12.5 429.68 \
+48.1 429.68 48.1 429.68 54.1 423.68 60.1 417.68 60.1 417.68 60.1 281.66 60.1 281.66 60.1 275.66 60.1 269.66 54.1 269.66 48.1 269.66 \
+48.1 269.66 12.5 269.66 12.5 269.66 6.5 275.66 0.5 281.66 0.5 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 277.66 4.5 277.66 56.1 421.68 56.1 421.68 4.5 S 5 -solid c 9 -#fffffe00 C 7 -#000000 \
+P 4 279.66 31.3 279.66 54.1 419.68 54.1 419.68 31.3 F 14 11 -Courier New c 7 -#ffffff T 316.06 38.5 -1 67.21 8 -State #9 F 14 11 \
+-Courier New c 7 -#000000 T 282.66 13.7 -1 117.62 14 -(2) e -> r • S 5 -solid c 9 -#fffffe00 C 7 -#c0c0c0 P 4 405.28 6.5 405.28 \
+29.3 419.68 29.3 419.68 6.5 F 14 11 -Courier New c 7 -#000000 T 408.28 13.7 -1 8.4 1 -$ ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=0.84167,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #9</font></td></tr><tr><td align="left" port="r2">&#40;2&#41; e -&gt; r &bull;</td><td bgcolor="grey" align="right">$</td></tr></table>>,
+		penwidth=1,
+		pos="349.67,30.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.2225];
+	state0 -> state9	[_draw_="S 15 -setlinewidth(5) c 7 -#000000 B 7 198.5 88.79 203.66 85.59 208.85 82.53 214.03 79.7 226.7 72.76 240.54 66.43 254.37 60.78 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 255.79 64.92 263.51 57.21 252.6 56.78 ",
+		_ldraw_="F 28 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 220.24 88.1 0 9.32 1 -r ",
+		fontcolor=black,
+		fontsize=28,
+		label=r,
+		lp="220.24,96.5",
+		penwidth=5,
+		pos="e,269.32,54.934 198.5,88.793 203.66,85.587 208.85,82.535 214.03,79.7 226.7,72.758 240.54,66.426 254.37,60.783"];
+	state1 -> state1	[_draw_="c 7 -#000000 B 7 830.8 394.68 834.06 405.44 841.5 412.8 853.11 412.8 860.55 412.8 866.28 409.78 870.29 404.78 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 873.32 406.53 874.74 396.03 867.08 403.36 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#474747 T 853.11 417 0 12.04 3 -'*' ",
+		fontcolor=grey28,
+		fontsize=14,
+		label="'*'",
+		lp="853.11,421.2",
+		penwidth=1,
+		pos="e,875.43,394.68 830.8,394.68 834.06,405.44 841.5,412.8 853.11,412.8 860.55,412.8 866.28,409.78 870.29,404.78"];
+	state1 -> state2	[_draw_="c 7 -#000000 B 4 943.05 291.34 968.37 281.1 995.89 269.97 1021 259.82 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1022.23 263.1 1030.19 256.11 1019.61 256.61 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#474747 T 982.35 280.5 0 12.04 3 -'n' ",
+		fontcolor=grey28,
+		fontsize=14,
+		label="'n'",
+		lp="982.35,284.7",
+		penwidth=1,
+		pos="e,1031.6,255.54 943.05,291.34 968.37,281.1 995.89,269.97 1021,259.82"];
+	state3	[_draw_="c 7 -#000000 C 7 -#ffffff b 25 1035.17 386.5 1035.17 386.5 1179.59 386.5 1179.59 386.5 1185.59 386.5 1191.59 392.5 1191.59 398.5 \
+1191.59 398.5 1191.59 434.1 1191.59 434.1 1191.59 440.1 1185.59 446.1 1179.59 446.1 1179.59 446.1 1035.17 446.1 1035.17 446.1 1029.17 \
+446.1 1023.17 440.1 1023.17 434.1 1023.17 434.1 1023.17 398.5 1023.17 398.5 1023.17 392.5 1029.17 386.5 1035.17 386.5 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 1031.17 390.5 1031.17 442.1 1183.59 442.1 1183.59 390.5 S 5 -solid c 9 -#fffffe00 C 7 \
+-#000000 P 4 1033.17 417.3 1033.17 440.1 1181.59 440.1 1181.59 417.3 F 14 11 -Courier New c 7 -#ffffff T 1073.78 424.5 -1 67.21 \
+8 -State #3 F 14 11 -Courier New c 7 -#000000 T 1036.17 399.7 -1 117.62 14 -(5) r -> l • S 5 -solid c 9 -#fffffe00 C 7 -#c0c0c0 \
+P 4 1158.79 392.5 1158.79 415.3 1181.59 415.3 1181.59 392.5 F 14 11 -Courier New c 7 -#000000 T 1161.79 399.7 -1 16.8 2 -=$ ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=0.84167,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #3</font></td></tr><tr><td align="left" port="r5">&#40;5&#41; r -&gt; l &bull;</td><td bgcolor="grey" align="right">=$</td></tr></table>>,
+		penwidth=1,
+		pos="1107.4,416.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.3392];
+	state1 -> state3	[_draw_="S 15 -setlinewidth(5) c 7 -#000000 B 4 943.05 358.68 963.94 366.05 986.33 373.94 1007.62 381.46 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1006.12 385.57 1017.01 384.77 1009.03 377.32 ",
+		_ldraw_="F 28 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 982.35 382.87 0 7.78 1 -l ",
+		fontcolor=black,
+		fontsize=28,
+		label=l,
+		lp="982.35,391.27",
+		penwidth=5,
+		pos="e,1022.9,386.84 943.05,358.68 963.94,366.05 986.33,373.94 1007.6,381.46"];
+	state4	[_draw_="c 7 -#000000 C 7 -#ffffff b 25 1018.37 297.5 1018.37 297.5 1196.4 297.5 1196.4 297.5 1202.4 297.5 1208.4 303.5 1208.4 309.5 1208.4 \
+309.5 1208.4 345.1 1208.4 345.1 1208.4 351.1 1202.4 357.1 1196.4 357.1 1196.4 357.1 1018.37 357.1 1018.37 357.1 1012.37 357.1 1006.37 \
+351.1 1006.37 345.1 1006.37 345.1 1006.37 309.5 1006.37 309.5 1006.37 303.5 1012.37 297.5 1018.37 297.5 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 1014.37 301.5 1014.37 353.1 1200.4 353.1 1200.4 301.5 S 5 -solid c 9 -#fffffe00 C 7 -#\
+000000 P 4 1016.37 328.3 1016.37 351.1 1198.4 351.1 1198.4 328.3 F 14 11 -Courier New c 7 -#ffffff T 1073.78 335.5 -1 67.21 8 -State #\
+4 F 14 11 -Courier New c 7 -#000000 T 1019.37 310.7 -1 151.22 18 -(3) l -> '*' r • S 5 -solid c 9 -#fffffe00 C 7 -#c0c0c0 P 4 \
+1175.59 303.5 1175.59 326.3 1198.4 326.3 1198.4 303.5 F 14 11 -Courier New c 7 -#000000 T 1178.59 310.7 -1 16.8 2 -=$ ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=0.84167,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #4</font></td></tr><tr><td align="left" port="r3">&#40;3&#41; l -&gt; '*' r &bull;</td><td bgcolor="grey" align="right">=$</td></tr></table>>,
+		penwidth=1,
+		pos="1107.4,327.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.8059];
+	state1 -> state4	[_draw_="S 15 -setlinewidth(5) c 7 -#000000 B 4 943.05 327.3 958.37 327.3 974.5 327.3 990.41 327.3 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 989.97 331.68 999.97 327.3 989.97 322.93 ",
+		_ldraw_="F 28 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 982.35 335.7 0 9.32 1 -r ",
+		fontcolor=black,
+		fontsize=28,
+		label=r,
+		lp="982.35,344.1",
+		penwidth=5,
+		pos="e,1006.2,327.3 943.05,327.3 958.37,327.3 974.5,327.3 990.41,327.3"];
+	state7	[_draw_="c 7 -#000000 C 7 -#ffffff b 25 515.82 260.3 515.82 260.3 687.85 260.3 687.85 260.3 693.85 260.3 699.85 266.3 699.85 272.3 699.85 \
+272.3 699.85 382.3 699.85 382.3 699.85 388.3 693.85 394.3 687.85 394.3 687.85 394.3 515.82 394.3 515.82 394.3 509.82 394.3 503.82 \
+388.3 503.82 382.3 503.82 382.3 503.82 272.3 503.82 272.3 503.82 266.3 509.82 260.3 515.82 260.3 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 511.82 264.3 511.82 390.3 691.85 390.3 691.85 264.3 S 5 -solid c 9 -#fffffe00 C 7 -#000000 \
+P 4 513.82 365.5 513.82 388.3 689.85 388.3 689.85 365.5 F 14 11 -Courier New c 7 -#ffffff T 568.23 372.7 -1 67.21 8 -State #7 F \
+14 11 -Courier New c 7 -#000000 T 516.82 347.9 -1 168.03 20 -(1) e -> l '=' •r  F 14 11 -Courier New c 7 -#000000 T 516.82 323.1 \
+-1 151.22 18 -(3) l -> •'*' r  F 14 11 -Courier New c 7 -#000000 T 516.82 298.3 -1 134.42 16 -(4) l -> •'n'  F 14 11 -Courier \
+New c 7 -#000000 T 516.82 273.5 -1 117.62 14 -(5) r -> •l  ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=1.875,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #7</font></td></tr><tr><td align="left" port="r1">&#40;1&#41; e -&gt; l '=' &bull;r </td></tr><tr><td align="left" port="r3">&#40;3&#41; l -&gt; &bull;'*' r </td></tr><tr><td align="left" port="r4">&#40;4&#41; l -&gt; &bull;'n' </td></tr><tr><td align="left" port="r5">&#40;5&#41; r -&gt; &bull;l </td></tr></table>>,
+		penwidth=1,
+		pos="601.84,327.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.7226];
+	state6 -> state7	[_draw_="c 7 -#000000 B 4 455.31 311.01 467.51 312.38 479.98 313.77 492.23 315.14 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 491.57 318.59 501.9 316.23 492.35 311.64 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#474747 T 479.35 318.34 0 12.94 3 -'=' ",
+		fontcolor=grey28,
+		fontsize=14,
+		label="'='",
+		lp="479.35,322.54",
+		penwidth=1,
+		pos="e,503.41,316.39 455.31,311.01 467.51,312.38 479.98,313.77 492.23,315.14"];
+	state7 -> state1	[_draw_="c 7 -#000000 B 4 700.28 327.3 717.31 327.3 735.05 327.3 752.14 327.3 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 751.75 330.8 761.75 327.3 751.75 323.8 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#474747 T 723.87 331.5 0 12.04 3 -'*' ",
+		fontcolor=grey28,
+		fontsize=14,
+		label="'*'",
+		lp="723.87,335.7",
+		penwidth=1,
+		pos="e,763.27,327.3 700.28,327.3 717.31,327.3 735.05,327.3 752.14,327.3"];
+	state7 -> state2	[_draw_="c 7 -#000000 B 7 691.97 259.84 709.68 249.52 728.75 240.37 747.9 234.5 830.95 209.04 929.97 208.6 1002.88 213.47 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1002.61 216.96 1012.84 214.19 1003.11 209.98 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#474747 T 853.11 238.7 0 12.04 3 -'n' ",
+		fontcolor=grey28,
+		fontsize=14,
+		label="'n'",
+		lp="853.11,242.9",
+		penwidth=1,
+		pos="e,1014.3,214.3 691.97,259.84 709.68,249.52 728.75,240.37 747.9,234.5 830.95,209.04 929.97,208.6 1002.9,213.47"];
+	state7 -> state3	[_draw_="S 15 -setlinewidth(5) c 7 -#000000 B 7 671.88 394.66 694.33 412.34 720.56 429.04 747.9 438.3 832.08 466.81 933.66 456.75 1007.16 \
+442.24 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1007.86 446.56 1016.76 440.25 1006.08 437.99 ",
+		_ldraw_="F 28 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 853.11 464.88 0 7.78 1 -l ",
+		fontcolor=black,
+		fontsize=28,
+		label=l,
+		lp="853.11,473.28",
+		penwidth=5,
+		pos="e,1022.9,438.98 671.88,394.66 694.33,412.34 720.56,429.04 747.9,438.3 832.08,466.81 933.66,456.75 1007.2,442.24"];
+	state8	[_draw_="c 7 -#000000 C 7 -#ffffff b 25 759.9 517.5 759.9 517.5 946.33 517.5 946.33 517.5 952.33 517.5 958.33 523.5 958.33 529.5 958.33 529.5 \
+958.33 565.1 958.33 565.1 958.33 571.1 952.33 577.1 946.33 577.1 946.33 577.1 759.9 577.1 759.9 577.1 753.9 577.1 747.9 571.1 747.9 \
+565.1 747.9 565.1 747.9 529.5 747.9 529.5 747.9 523.5 753.9 517.5 759.9 517.5 ",
+		_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffffff P 4 755.9 521.5 755.9 573.1 950.33 573.1 950.33 521.5 S 5 -solid c 9 -#fffffe00 C 7 -#000000 \
+P 4 757.9 548.3 757.9 571.1 948.33 571.1 948.33 548.3 F 14 11 -Courier New c 7 -#ffffff T 819.51 555.5 -1 67.21 8 -State #8 F 14 \
+11 -Courier New c 7 -#000000 T 760.9 530.7 -1 168.03 20 -(1) e -> l '=' r • S 5 -solid c 9 -#fffffe00 C 7 -#c0c0c0 P 4 933.92 \
+523.5 933.92 546.3 948.33 546.3 948.33 523.5 F 14 11 -Courier New c 7 -#000000 T 936.92 530.7 -1 8.4 1 -$ ",
+		fillcolor=white,
+		fontname="Courier New",
+		height=0.84167,
+		label=<<table border="0" cellborder="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="black" align="center" colspan="2"><font color="white">State #8</font></td></tr><tr><td align="left" port="r1">&#40;1&#41; e -&gt; l '=' r &bull;</td><td bgcolor="grey" align="right">$</td></tr></table>>,
+		penwidth=1,
+		pos="853.11,547.3",
+		shape=Mrecord,
+		style=filled,
+		width=2.9226];
+	state7 -> state8	[_draw_="S 15 -setlinewidth(5) c 7 -#000000 B 7 641.81 394.55 667.23 432.35 703.83 477.08 747.9 503.3 751.61 505.51 755.45 507.66 759.37 \
+509.75 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 757.36 513.64 768.26 514.23 761.3 505.83 ",
+		_ldraw_="F 28 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 723.87 497.97 0 9.32 1 -r ",
+		fontcolor=black,
+		fontsize=28,
+		label=r,
+		lp="723.87,506.37",
+		penwidth=5,
+		pos="e,773.83,517.04 641.81,394.55 667.23,432.35 703.83,477.08 747.9,503.3 751.61,505.51 755.45,507.66 759.37,509.75"];
+}

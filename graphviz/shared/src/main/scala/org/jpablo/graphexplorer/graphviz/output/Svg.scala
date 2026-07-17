@@ -305,7 +305,10 @@ object Svg:
                fontName: String = "Times-Roman", fontSize: Double = FontSize): String =
       val dimY = fontSize * LineSpacing
       val ty = -(cyc + dimY / 2.0 - fontSize + 0.1 * fontSize)
-      val f  = if fill.nonEmpty then s""" fill="$fill"""" else "" // fontcolor
+      // svg_textspan: a STRING color equal to "black" (case-insensitive) is
+      // OMITTED (the default); resolved hex always prints (incl. #000000).
+      val fillP = if fill.isEmpty then "" else fillPaint(fill)
+      val f  = if fillP.nonEmpty && !fillP.equalsIgnoreCase("black") then s""" fill="$fillP"""" else ""
       // gv prints font-size with a fixed "%.2f" (not gvprintdouble's trim)
       // svg_textspan escapes with {raw, dash, nbsp} — the tooltip flag set
       // (2nd+ space of a run → &#160;, ' → &#39;), NOT the plain xml set.
@@ -324,7 +327,8 @@ object Svg:
       if lines.forall(_._1.isEmpty) then return ""
       val dimenY = lines.map((l, _) => NodeSize.lineHeightPt(l, fontSize)).sum
       val boxW   = NodeSize.labelBoxWidthPt(raw, fontSize, fontName, nodeId, g.name.getOrElse(""))
-      val f      = if fill.nonEmpty then s""" fill="$fill"""" else ""
+      val fillP  = if fill.isEmpty then "" else fillPaint(fill)
+      val f      = if fillP.nonEmpty && !fillP.equalsIgnoreCase("black") then s""" fill="$fillP"""" else ""
       val out    = new StringBuilder
       // emit_label valign (labels.c:236): 't'/'b' read the label SPACE
       // (poly_init's available interior), 'c' the label dimen.
@@ -509,11 +513,14 @@ object Svg:
           val bsh  = if it.font.sub then " baseline-shift=\"sub\""
                      else if it.font.sup then " baseline-shift=\"super\"" else ""
           val col  = it.font.color.orElse(Option(defColor).filter(_.nonEmpty))
-          val f    = col.map(c => s""" fill="$c"""").getOrElse("")
+          val f    = col.map(fillPaint).filterNot(_.equalsIgnoreCase("black"))
+            .map(c => s""" fill="$c"""").getOrElse("")
           val dec  = if it.font.underline then " text-decoration=\"underline\"" else ""
           val yoffC = if tm.simple then 0.1 * fs else 1.0
           val ty    = -(baseline + yoffC)
-          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}"${svgFontAttrs(nm)}$wgt$sty$bsh font-size="${f"$fs%.2f"}"$f$dec>${xml(it.str)}</text>\n"""
+          // svg_textspan: html spans escape with {raw, dash, nbsp} too
+          // (' → &#39;, 2nd+ space of a run → &#160; — psg's quoted tokens).
+          out ++= s"""<text xml:space="preserve" text-anchor="start" x="${d2(xi)}" y="${d2(ty)}"${svgFontAttrs(nm)}$wgt$sty$bsh font-size="${f"$fs%.2f"}"$f$dec>${xmlTooltip(it.str)}</text>\n"""
           xi += w
         }
       }
@@ -740,9 +747,36 @@ object Svg:
             // penColor (shapes.c:387): poly/record outlines read ONLY the
             // `color` attr (pencolor is an html-table-side channel).
             val (stroke, strokeOp) = strokeSplit(n.attrs.get("color").getOrElse("black"))
+            val rPw = n.attrs.get("penwidth").flatMap(_.toDoubleOption)
+              .getOrElse(if styles.contains("bold") then 2.0 else 1.0)
+            val rDash =
+              if styles.contains("dashed") then """ stroke-dasharray="5,2""""
+              else if styles.contains("dotted") then """ stroke-dasharray="1,5""""
+              else ""
+            val rSw = (if rPw != 1.0 then s""" stroke-width="${Output.g5(rPw)}"""" else "") + rDash + strokeOp
             val (llx, lly) = (x + root.llx, cy + root.lly)
             val (urx, ury) = (x + root.urx, cy + root.ury)
-            sb ++= s"""<polygon fill="$fill" stroke="$stroke"$strokeOp points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
+            if n.attrs.get("shape").map(_.toLowerCase).contains("mrecord") then
+              // Mrecord = ROUNDED record (record_gencode style |= ROUNDED):
+              // round_corners over the record AF (CCW from LL), RBCONST=12
+              // corner arcs — same 8-cubic structure as the rounded box but
+              // starting at (L+c, bottom).
+              val L = llx; val R = urx
+              val B = -lly; val T = -ury // svg frame (y negated)
+              val c = math.min(12.0, math.min((urx - llx) / 2.0, (ury - lly) / 2.0))
+              val segs = Seq(
+                s"${d2(L + c)},${d2(B)} ${d2(R - c)},${d2(B)} ${d2(R - c)},${d2(B)}",
+                s"${d2(R - c / 2)},${d2(B)} ${d2(R)},${d2(B - c / 2)} ${d2(R)},${d2(B - c)}",
+                s"${d2(R)},${d2(B - c)} ${d2(R)},${d2(T + c)} ${d2(R)},${d2(T + c)}",
+                s"${d2(R)},${d2(T + c / 2)} ${d2(R - c / 2)},${d2(T)} ${d2(R - c)},${d2(T)}",
+                s"${d2(R - c)},${d2(T)} ${d2(L + c)},${d2(T)} ${d2(L + c)},${d2(T)}",
+                s"${d2(L + c / 2)},${d2(T)} ${d2(L)},${d2(T + c / 2)} ${d2(L)},${d2(T + c)}",
+                s"${d2(L)},${d2(T + c)} ${d2(L)},${d2(B - c)} ${d2(L)},${d2(B - c)}",
+                s"${d2(L)},${d2(B - c / 2)} ${d2(L + c / 2)},${d2(B)} ${d2(L + c)},${d2(B)}"
+              )
+              sb ++= s"""<path fill="$fill" stroke="$stroke"$rSw d="M${d2(L + c)},${d2(B)}C${segs.mkString(" ")}"/>\n"""
+            else
+              sb ++= s"""<polygon fill="$fill" stroke="$stroke"$rSw points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
             genFields(root, x, cy,
               n.attrs.getOrElse("fontname", "Times-Roman"),
               n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize),

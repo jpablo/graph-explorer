@@ -38,7 +38,12 @@ object HtmlParser:
                 scala.util.Try(Integer.parseInt(e.drop(2), 16)).toOption.map(_.toChar.toString).getOrElse(s"&$e;")
               case e if e.startsWith("#") =>
                 e.drop(1).toIntOption.map(_.toChar.toString).getOrElse(s"&$e;")
-              case _ => s"&$ent;"
+              // full HTML-4 named entity table (gv scanEntity / entities.h,
+              // GENERATED into Entities.scala): &bull;/&rarr;/&nbsp;… decode
+              // to their code points, then MEASURE as UTF-8 bytes (psg's
+              // • = 3 space widths; nbsp U+00A0 = 2). Unknown names stay
+              // literal, exactly like gv.
+              case e => Entities.codepoints.get(e).map(Character.toString).getOrElse(s"&$ent;")
             sb.append(rep); i = semi + 1
           else { sb.append(c); i += 1 }
         else { sb.append(c); i += 1 }

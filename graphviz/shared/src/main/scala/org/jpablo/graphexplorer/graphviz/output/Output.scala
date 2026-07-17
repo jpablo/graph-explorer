@@ -363,14 +363,17 @@ object Output:
       // the rankdir transform; pushing the local offsets through `tf` too
       // double-rotated them (LR rects came out with llx > urx). Same shape
       // as Svg's record path (transformed centre + local box).
-      NodeSize.recordLayout(n, g).foreach { root =>
-        def leaves(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field): Vector[org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field] =
-          if f.isLeaf then Vector(f) else f.flds.flatMap(leaves)
-        val rects = leaves(root).map { f =>
-          s"${g5(tpx + f.llx)},${g5(tpy + f.lly)},${g5(tpx + f.urx)},${g5(tpy + f.ury)}"
-        }.mkString(" ")
-        kv("rects") = s""""$rects""""
-      }
+      // output.c:312: ONLY the shape named exactly "record" echoes rects —
+      // Mrecord does NOT (psg's Mrecord+html nodes carry no rects attr).
+      if n.attrs.get("shape").map(_.toLowerCase).contains("record") then
+        NodeSize.recordLayout(n, g).foreach { root =>
+          def leaves(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field): Vector[org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field] =
+            if f.isLeaf then Vector(f) else f.flds.flatMap(leaves)
+          val rects = leaves(root).map { f =>
+            s"${g5(tpx + f.llx)},${g5(tpy + f.lly)},${g5(tpx + f.urx)},${g5(tpy + f.ury)}"
+          }.mkString(" ")
+          kv("rects") = s""""$rects""""
+        }
       val fields = Vector.newBuilder[String]
       fields += s"""      "_gvid": $gv"""
       fields += s"""      "name": "${esc(id)}""""

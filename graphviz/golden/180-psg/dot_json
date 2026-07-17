@@ -1,0 +1,259 @@
+{
+  "name": "g",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 1208 578",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "fontsize": "30",
+  "label": "",
+  "labelloc": "t",
+  "overlap": "false",
+  "rankdir": "LR",
+  "ratio": "auto",
+  "splines": "true",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "state0",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #0<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r0\">&#40;0&#41; s -&gt; &bull;e $ <\/td><\/tr><tr><td align=\"left\" port=\"r1\">&#40;1&#41; e -&gt; &bull;l '=' r <\/td><\/tr><tr><td align=\"left\" port=\"r2\">&#40;2&#41; e -&gt; &bull;r <\/td><\/tr><tr><td align=\"left\" port=\"r3\">&#40;3&#41; l -&gt; &bull;'*' r <\/td><\/tr><tr><td align=\"left\" port=\"r4\">&#40;4&#41; l -&gt; &bull;'n' <\/td><\/tr><tr><td align=\"left\" port=\"r5\">&#40;5&#41; r -&gt; &bull;l <\/td><\/tr><\/table>",
+      "penwidth": "5",
+      "shape": "Mrecord",
+      "style": "filled, bold"
+    },
+    {
+      "_gvid": 1,
+      "name": "state1",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #1<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r3\">&#40;3&#41; l -&gt; &bull;'*' r <\/td><\/tr><tr><td align=\"left\" port=\"r3\">&#40;3&#41; l -&gt; '*' &bull;r <\/td><\/tr><tr><td align=\"left\" port=\"r4\">&#40;4&#41; l -&gt; &bull;'n' <\/td><\/tr><tr><td align=\"left\" port=\"r5\">&#40;5&#41; r -&gt; &bull;l <\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    },
+    {
+      "_gvid": 2,
+      "name": "state2",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #2<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r4\">&#40;4&#41; l -&gt; 'n' &bull;<\/td><td bgcolor=\"grey\" align=\"right\">=$<\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    },
+    {
+      "_gvid": 3,
+      "name": "state3",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #3<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r5\">&#40;5&#41; r -&gt; l &bull;<\/td><td bgcolor=\"grey\" align=\"right\">=$<\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    },
+    {
+      "_gvid": 4,
+      "name": "state4",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #4<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r3\">&#40;3&#41; l -&gt; '*' r &bull;<\/td><td bgcolor=\"grey\" align=\"right\">=$<\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    },
+    {
+      "_gvid": 5,
+      "name": "state5",
+      "fillcolor": "black",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"black\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #5<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r0\"><font color=\"white\">&#40;0&#41; s -&gt; e &bull;$ <\/font><\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    },
+    {
+      "_gvid": 6,
+      "name": "state6",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #6<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r1\">&#40;1&#41; e -&gt; l &bull;'=' r <\/td><\/tr><tr><td align=\"left\" port=\"r5\">&#40;5&#41; r -&gt; l &bull;<\/td><td bgcolor=\"grey\" align=\"right\">$<\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    },
+    {
+      "_gvid": 7,
+      "name": "state7",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #7<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r1\">&#40;1&#41; e -&gt; l '=' &bull;r <\/td><\/tr><tr><td align=\"left\" port=\"r3\">&#40;3&#41; l -&gt; &bull;'*' r <\/td><\/tr><tr><td align=\"left\" port=\"r4\">&#40;4&#41; l -&gt; &bull;'n' <\/td><\/tr><tr><td align=\"left\" port=\"r5\">&#40;5&#41; r -&gt; &bull;l <\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    },
+    {
+      "_gvid": 8,
+      "name": "state8",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #8<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r1\">&#40;1&#41; e -&gt; l '=' r &bull;<\/td><td bgcolor=\"grey\" align=\"right\">$<\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    },
+    {
+      "_gvid": 9,
+      "name": "state9",
+      "fillcolor": "white",
+      "fontname": "Courier New",
+      "label": "<table border=\"0\" cellborder=\"0\" cellpadding=\"3\" bgcolor=\"white\"><tr><td bgcolor=\"black\" align=\"center\" colspan=\"2\"><font color=\"white\">State #9<\/font><\/td><\/tr><tr><td align=\"left\" port=\"r2\">&#40;2&#41; e -&gt; r &bull;<\/td><td bgcolor=\"grey\" align=\"right\">$<\/td><\/tr><\/table>",
+      "penwidth": "1",
+      "shape": "Mrecord",
+      "style": "filled"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 5,
+      "fontcolor": "black",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "28",
+      "label": "e",
+      "penwidth": "5"
+    },
+    {
+      "_gvid": 3,
+      "tail": 0,
+      "head": 6,
+      "fontcolor": "black",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "28",
+      "label": "l",
+      "penwidth": "5"
+    },
+    {
+      "_gvid": 4,
+      "tail": 0,
+      "head": 9,
+      "fontcolor": "black",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "28",
+      "label": "r",
+      "penwidth": "5"
+    },
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "fontcolor": "grey28",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "14",
+      "label": "'*'",
+      "penwidth": "1"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "fontcolor": "grey28",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "14",
+      "label": "'n'",
+      "penwidth": "1"
+    },
+    {
+      "_gvid": 5,
+      "tail": 1,
+      "head": 1,
+      "fontcolor": "grey28",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "14",
+      "label": "'*'",
+      "penwidth": "1"
+    },
+    {
+      "_gvid": 8,
+      "tail": 1,
+      "head": 4,
+      "fontcolor": "black",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "28",
+      "label": "r",
+      "penwidth": "5"
+    },
+    {
+      "_gvid": 6,
+      "tail": 1,
+      "head": 2,
+      "fontcolor": "grey28",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "14",
+      "label": "'n'",
+      "penwidth": "1"
+    },
+    {
+      "_gvid": 7,
+      "tail": 1,
+      "head": 3,
+      "fontcolor": "black",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "28",
+      "label": "l",
+      "penwidth": "5"
+    },
+    {
+      "_gvid": 9,
+      "tail": 6,
+      "head": 7,
+      "fontcolor": "grey28",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "14",
+      "label": "'='",
+      "penwidth": "1"
+    },
+    {
+      "_gvid": 13,
+      "tail": 7,
+      "head": 8,
+      "fontcolor": "black",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "28",
+      "label": "r",
+      "penwidth": "5"
+    },
+    {
+      "_gvid": 10,
+      "tail": 7,
+      "head": 1,
+      "fontcolor": "grey28",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "14",
+      "label": "'*'",
+      "penwidth": "1"
+    },
+    {
+      "_gvid": 11,
+      "tail": 7,
+      "head": 2,
+      "fontcolor": "grey28",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "14",
+      "label": "'n'",
+      "penwidth": "1"
+    },
+    {
+      "_gvid": 12,
+      "tail": 7,
+      "head": 3,
+      "fontcolor": "black",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "28",
+      "label": "l",
+      "penwidth": "5"
+    }
+  ]
+}

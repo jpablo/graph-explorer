@@ -1049,6 +1049,19 @@ object Spline:
         val mo = dedgeOrigIdx(d)
         if !out.contains(mo) then out.get(dedgeOrigIdx(r)).foreach(sp => out(mo) = sp)
     }
+    // place_vnlabel post-pass (dotsplines.c:437): AFTER all edges route,
+    // every regular-edge label vnode gets lp = (vn.x + width/2, vn.y) from
+    // its FINAL (possibly recover_slack-snapped) coordinate — including
+    // label vnodes inside straight (smode) sections that no per-segment
+    // snap visited (psg's 8-rank state0→state2). Snapped entries already
+    // hold exactly this value, so only missing ones are filled.
+    labelW.foreach { (vn, w) =>
+      LayoutNode.fromName(vn) match
+        case LayoutNode.Virtual(d, _) =>
+          val orig = dedgeOrigIdx(d)
+          if !labelPos.contains(orig) then labelPos(orig) = XY(cx(vn) + w / 2.0, cy(vn))
+        case _ => ()
+    }
     (out.toMap, labelPos.toMap)
 
   // ── adjustregularpath: widen path boxes to ≥ MINW ─────────────────────────
