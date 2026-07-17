@@ -1,0 +1,107 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,390.29,271.2",
+  "label": "",
+  "splines": "spline",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "g1",
+      "bb": "8,186.4,326,263.2",
+      "cluster": "true",
+      "fillcolor": "#e2e8f0",
+      "label": "Public Interface",
+      "lheight": "0.23",
+      "lp": "167,250.8",
+      "lwidth": "1.24",
+      "penwidth": "0.3",
+      "splines": "spline",
+      "style": "filled",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "c",
+      "height": "0.5",
+      "label": "sourceText: String",
+      "pos": "76,212.4",
+      "shape": "box3d",
+      "width": "1.664"
+    },
+    {
+      "_gvid": 2,
+      "name": "d",
+      "height": "0.5",
+      "label": "fullGraphV: ViewerGraph",
+      "pos": "236,212.4",
+      "shape": "box3d",
+      "width": "2.2794"
+    },
+    {
+      "_gvid": 3,
+      "name": "a",
+      "height": "0.5",
+      "label": "state:GraphState",
+      "pos": "203,18",
+      "shape": "box3d",
+      "width": "1.5073"
+    },
+    {
+      "_gvid": 4,
+      "name": "b",
+      "height": "0.5",
+      "label": "commands",
+      "pos": "203,106.8",
+      "shape": "cylinder",
+      "width": "1.0647"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 3,
+      "label": "set",
+      "lp": "210.78,62.4",
+      "pos": "e,203,36.41 203,88.651 203,76.958 203,61.192 203,47.618"
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 1,
+      "constraint": "true",
+      "label": "set\\n<origin=Graph>",
+      "lp": "109.94,106.8",
+      "pos": "e,68.085,194.06 148.48,31.356 117.92,41.373 82.333,58.906 63.886,88.8 46.275,117.34 54.781,156.91 64.019,183.29"
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4,
+      "label": "GraphUpdate\\n(Graph)",
+      "lp": "233.29,159.6",
+      "pos": "e,196.31,125.23 209.33,194.09 203.78,189.1 198.67,183.15 195.59,176.4 189.91,163.97 190.76,149 193.45,136.21"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 2,
+      "label": "set\\n<origin=CodeMirror>",
+      "lp": "328.29,106.8",
+      "pos": "e,258.43,194.26 217.34,36.453 234.87,59.226 263.18,101.1 271,142.8 273.75,157.48 276.71,162.6 271,176.4 269.66,179.63 267.87,182.72 265.79,185.63"
+    },
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 4,
+      "label": "TextUpdate\\n(CodeMirror)",
+      "lp": "148.9,159.6",
+      "pos": "e,164.33,121.01 80.886,193.95 86.017,178.58 95.503,156.55 110.8,142.8 114.48,139.49 133.67,132.02 153.6,124.83"
+    }
+  ]
+}

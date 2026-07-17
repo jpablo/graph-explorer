@@ -288,10 +288,15 @@ object Polygon:
     while s < sides do { rings(0)(s)(0) = base(s)._1; rings(0)(s)(1) = base(s)._2; s += 1 }
 
     if outp > 1 then
-      // seed beta from the side ending at vertices[0] (the immediate
-      // predecessor — distinct for every convex builtin, corpus-verified).
+      // seed beta from the side ending at vertices[0] — searching BACKWARD
+      // past duplicate vertices (shapes.c:2290: `vertices[(i - j) % sides]`
+      // with i==sides): rings with coincident points (cylinder's bezier
+      // control ring) must seed from the last DISTINCT predecessor, else
+      // atan2(0,0)=0 corrupts the first offsets.
       val R0 = base(0)
-      var Q = base((sides - 1) % sides)
+      var Q  = base(sides - 1)
+      var jj = 1
+      while jj < sides && Q == R0 do { jj += 1; Q = base(sides - jj) }
       var beta = math.atan2(R0._2 - Q._2, R0._1 - Q._1)
       var qprev = Q
       var cosx = 0.0

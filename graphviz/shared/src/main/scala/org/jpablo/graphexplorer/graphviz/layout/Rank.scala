@@ -145,7 +145,247 @@ object Rank:
     */
   private val rankedMemo = GraphMemo[(Map[String, Int], Vector[DEdge])]()
   def ranked(g: RGraph): (Map[String, Int], Vector[DEdge]) = rankedMemo(g)(rankedImpl(g))
+
+  private def mapbool(v: Option[String]): Boolean = v.exists { s =>
+    s.toLowerCase match
+      case "true" | "yes" => true
+      case "false" | "no" => false
+      case other          => other.toIntOption.exists(_ > 0)
+  }
+
+  /** dot_rank (rank.c:449): `newrank` ⇒ dot2 (global ranking — our native
+    * path); otherwise clusters rank RECURSIVELY (dot1: interior solve +
+    * collapse to a leader + interclust1 slack constraints at the root).
+    *
+    * EXCEPTION (don't-port-the-bug, 03): a rank set SPANNING cluster
+    * boundaries corrupts gv's dot1 (13.0.1 emits a 0×0 sentinel drawing) —
+    * for those inputs we keep the correct global (newrank) semantics,
+    * byte-gated against the 03b newrank oracle in ClusterSpec. */
   private def rankedImpl(g: RGraph): (Map[String, Int], Vector[DEdge]) =
+    def topClusters(subs: Vector[RSubgraph]): Vector[RSubgraph] =
+      subs.flatMap(s => if s.isCluster then Vector(s) else topClusters(s.children))
+    val tops = topClusters(g.subgraphs)
+    def crossClusterRankSet: Boolean =
+      val clOf = mutable.HashMap.empty[String, Int]
+      def mark(s: RSubgraph, ci: Int): Unit =
+        s.nodeIds.foreach(n => clOf(n) = ci); s.children.foreach(mark(_, ci))
+      tops.zipWithIndex.foreach((c, i) => mark(c, i))
+      val defaultRank = g.rootAttrs.get("rank").filter(_.nonEmpty)
+      def walk(subs: Vector[RSubgraph]): Boolean = subs.exists { s =>
+        (s.rank.orElse(defaultRank).isDefined && !s.isCluster &&
+          s.nodeIds.map(clOf.get).distinct.length > 1) || walk(s.children)
+      }
+      walk(g.subgraphs)
+    if tops.nonEmpty && !mapbool(g.rootAttrs.get("newrank")) && !crossClusterRankSet then
+      rankedDot1(g, tops)
+    else rankedGlobal(g)
+
+  // ── dot1_rank (rank.c:429): recursive cluster ranking ─────────────────────
+  // collapse_cluster: each cluster's interior is ranked with its OWN solve
+  // (nested clusters first), then collapses to a leader (the LAST rank-0
+  // fast node in list order); class1 turns every inter-cluster edge into a
+  // SLACK virtual node with two aux edges (interclust1, class1.c:31):
+  // v→tail (minlen t_len, weight CL_BACK·w) + v→head (h_len, w), offset =
+  // minlen + t_local − h_local — a SOFT constraint, absent from acyclic.
+  // rank1 runs UNBALANCED when clusters exist; expand_ranksets adds each
+  // member's local offset to its leader's root rank.
+  private def rankedDot1(g: RGraph, tops: Vector[RSubgraph]): (Map[String, Int], Vector[DEdge]) =
+    val minlenScale = if hasEdgeLabel(g) then 2 else 1
+    val realEdges   = g.edges.filter(e => e.tail != e.head)
+    val nodeSeq     = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+    def weightOf(a: Attrs): Int = a.get("weight").flatMap(_.toIntOption).getOrElse(1)
+
+    // dotgen acyclic scoped to an edge subset: DFS seeds in `order`,
+    // out-edges by (head seq, idx); returns the reversed edge indices.
+    def acyclicScoped(order: Vector[String], edgeIdxs: Vector[Int]): Set[Int] =
+      val outIdx = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[Int]]
+      order.foreach(n => outIdx(n) = mutable.ArrayBuffer.empty)
+      edgeIdxs.foreach(i => outIdx.getOrElseUpdate(realEdges(i).tail, mutable.ArrayBuffer.empty) += i)
+      outIdx.values.foreach { buf =>
+        val sorted = buf.sortBy(i => (nodeSeq.getOrElse(realEdges(i).head, Int.MaxValue), i))
+        buf.clear(); buf ++= sorted
+      }
+      val reversed = mutable.Set.empty[Int]
+      val mark = mutable.Set.empty[String]; val onStack = mutable.Set.empty[String]
+      def dfs(n: String): Unit =
+        if !mark(n) then
+          mark += n; onStack += n
+          outIdx.getOrElse(n, mutable.ArrayBuffer.empty).foreach { i =>
+            val w = realEdges(i).head
+            if onStack(w) then reversed += i
+            else if !mark(w) then dfs(w)
+          }
+          onStack -= n
+      order.foreach(dfs)
+      reversed.toSet
+
+    def allNodes(s: RSubgraph): Vector[String] =
+      s.nodeIds ++ s.children.flatMap(allNodes)
+    def subClusters(s: RSubgraph): Vector[RSubgraph] =
+      s.children.flatMap(c => if c.isCluster then Vector(c) else subClusters(c))
+
+    val interiorRev = mutable.Set.empty[Int] // intra-cluster acyclic reversals
+    val slackWasUsed = mutable.Set.empty[Int] // edges turned into slack pairs somewhere
+
+    /** dot1_rank(subg): (leader, member → local rank). */
+    def solveCluster(cl: RSubgraph): (String, Map[String, Int]) =
+      val nested       = subClusters(cl)
+      val nestedSolved = nested.map(solveCluster)
+      val nestedLeader = mutable.HashMap.empty[String, String]
+      val nestedLocal  = mutable.HashMap.empty[String, Int]
+      nested.zip(nestedSolved).foreach { case (nc, (ld, loc)) =>
+        allNodes(nc).foreach(m => nestedLeader(m) = ld)
+        loc.foreach((m, r) => nestedLocal(m) = r)
+      }
+      val memberVec = allNodes(cl).distinct
+      val memberSet = memberVec.toSet
+      val inNested  = nestedLeader.keySet
+      def lead(n: String): String = nestedLeader.getOrElse(n, n)
+      // fast universe (nlist): un-nested members + nested leaders, decl order
+      val fastNodes = memberVec.filter(n => lead(n) == n)
+      val induced = realEdges.indices.filter { i =>
+        val e = realEdges(i)
+        memberSet(e.tail) && memberSet(e.head) && constrained(e.attrs)
+      }.toVector
+      val plain = induced.filter { i =>
+        val e = realEdges(i); !inNested(e.tail) && !inNested(e.head)
+      }
+      val rev = acyclicScoped(fastNodes, plain)
+      interiorRev ++= rev
+      // NS edges: plain (class1 merge) + nested-crossing (interclust1 slack)
+      val byPair = mutable.LinkedHashMap.empty[(String, String), NetworkSimplex.NSEdge]
+      val extra  = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
+      val slackNames = mutable.ArrayBuffer.empty[String]
+      induced.foreach { i =>
+        val e  = realEdges(i)
+        val lt = lead(e.tail); val lh = lead(e.head)
+        if lt != lh then
+          val ml = minlenOf(e.attrs) * minlenScale
+          if inNested(e.tail) || inNested(e.head) then
+            slackWasUsed += i
+            val off = ml + nestedLocal.getOrElse(e.tail, 0) - nestedLocal.getOrElse(e.head, 0)
+            val (tLen, hLen) = if off > 0 then (0, off) else (-off, 0)
+            val v = s"%slack:${cl.id}:${slackNames.length}"
+            slackNames += v
+            val w = weightOf(e.attrs)
+            extra += NetworkSimplex.NSEdge(v, lt, tLen, 10 * w) // CL_BACK
+            extra += NetworkSimplex.NSEdge(v, lh, hLen, w)
+          else
+            val (t, h) = if rev(i) then (lh, lt) else (lt, lh)
+            byPair.get((t, h)) match
+              case Some(r) => byPair((t, h)) =
+                NetworkSimplex.NSEdge(t, h, math.max(r.minlen, ml), r.weight + 1)
+              case None => byPair((t, h)) = NetworkSimplex.NSEdge(t, h, ml, 1)
+      }
+      val nse = byPair.values.toVector ++ extra
+      // rank1: TB balance only when this level has NO nested clusters.
+      val (bal, tbo) =
+        if nested.isEmpty then
+          (NSBalance.TopBottom, decomposeOrderOf(fastNodes, plain, rev))
+        else (NSBalance.None, Vector.empty[String])
+      val solved = NetworkSimplex.solve(fastNodes ++ slackNames, nse, balance = bal, tbOrder = tbo)
+      val local = memberVec.iterator.map { m =>
+        m -> (solved.getOrElse(lead(m), 0) + nestedLocal.getOrElse(m, 0))
+      }.toMap
+      // cluster_leader: the LAST fast NORMAL node in nlist order with rank 0
+      val leader = fastNodes.filter(n => solved.getOrElse(n, 0) == 0).lastOption.getOrElse(memberVec.head)
+      (leader, local)
+
+    // TB_balance Tree_node order for a scoped solve (decompose over the
+    // class1 fast graph — same construction as the global path's tbOrder).
+    def decomposeOrderOf(fastNodes: Vector[String], plain: Vector[Int], rev: Set[Int]): Vector[String] =
+      val outAdjR = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
+      val inAdjR  = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[String]]
+      fastNodes.foreach { n => outAdjR(n) = mutable.ArrayBuffer.empty; inAdjR(n) = mutable.ArrayBuffer.empty }
+      val seen   = mutable.Set.empty[(String, String)]
+      val byTail = plain.groupBy(i => realEdges(i).tail)
+      fastNodes.foreach { n =>
+        byTail.getOrElse(n, Vector.empty)
+          .sortBy(i => (nodeSeq.getOrElse(realEdges(i).head, Int.MaxValue), i))
+          .foreach { i =>
+            val e = realEdges(i)
+            if !seen((e.tail, e.head)) then
+              seen += ((e.tail, e.head))
+              outAdjR(e.tail) += e.head
+              inAdjR(e.head) += e.tail
+          }
+      }
+      val done = mutable.Set.empty[String]
+      val res  = mutable.ArrayBuffer.empty[String]
+      def visit(seed: String): Unit =
+        val stk = mutable.Stack(seed)
+        while stk.nonEmpty do
+          val n = stk.pop()
+          if !done(n) then
+            done += n; res += n
+            inAdjR(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+            outAdjR(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+      fastNodes.foreach(s => if !done(s) then visit(s))
+      res.toVector
+
+    val topSolved = tops.map(solveCluster)
+    val leaderOf  = mutable.HashMap.empty[String, String]
+    val localOf   = mutable.HashMap.empty[String, Int]
+    tops.zip(topSolved).foreach { case (cl, (ld, loc)) =>
+      allNodes(cl).foreach(m => leaderOf(m) = ld)
+      loc.foreach((m, r) => localOf(m) = r)
+    }
+    val clustered = leaderOf.keySet
+    def lead(n: String): String = leaderOf.getOrElse(n, n)
+
+    // root acyclic: only edges with NEITHER endpoint clustered (intra edges
+    // were handled by the interior solves; inter-cluster edges are slack).
+    val rootIdxs  = realEdges.indices.filter(i => constrained(realEdges(i).attrs)).toVector
+    val plainRoot = rootIdxs.filter { i =>
+      val e = realEdges(i); !clustered(e.tail) && !clustered(e.head)
+    }
+    val rootRev = acyclicScoped(g.nodes.map(_.id), plainRoot)
+
+    val byPair = mutable.LinkedHashMap.empty[(String, String), NetworkSimplex.NSEdge]
+    val extra  = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
+    val slackNames = mutable.ArrayBuffer.empty[String]
+    rootIdxs.foreach { i =>
+      val e  = realEdges(i)
+      val lt = lead(e.tail); val lh = lead(e.head)
+      if lt != lh then
+        val ml = minlenOf(e.attrs) * minlenScale
+        if clustered(e.tail) || clustered(e.head) then
+          slackWasUsed += i
+          val off = ml + localOf.getOrElse(e.tail, 0) - localOf.getOrElse(e.head, 0)
+          val (tLen, hLen) = if off > 0 then (0, off) else (-off, 0)
+          val v = s"%slack:$$root:${slackNames.length}"
+          slackNames += v
+          val w = weightOf(e.attrs)
+          extra += NetworkSimplex.NSEdge(v, lt, tLen, 10 * w) // CL_BACK * weight
+          extra += NetworkSimplex.NSEdge(v, lh, hLen, w)
+        else
+          val (t, h) = if rootRev(i) then (lh, lt) else (lt, lh)
+          byPair.get((t, h)) match
+            case Some(r) => byPair((t, h)) =
+              NetworkSimplex.NSEdge(t, h, math.max(r.minlen, ml), r.weight + 1)
+            case None => byPair((t, h)) = NetworkSimplex.NSEdge(t, h, ml, 1)
+    }
+    val rootNodes = g.nodes.iterator.map(n => lead(n.id)).distinct.toVector ++ slackNames
+    // rank1 with clusters present: NO TB balance (rank.c:382).
+    val solved = NetworkSimplex.solve(rootNodes, byPair.values.toVector ++ extra.toVector,
+      balance = NSBalance.None)
+    val ranks = g.nodes.iterator.map { n =>
+      n.id -> (solved.getOrElse(lead(n.id), 0) + localOf.getOrElse(n.id, 0))
+    }.toMap
+
+    // working orientations for Order/Spline: plain edges follow their acyclic
+    // pass; slack (cluster-crossing) edges follow the FINAL rank comparison
+    // (class2's backward-edge handling); flat stays declared.
+    val wedges = realEdges.zipWithIndex.map { (e, i) =>
+      val ml = minlenOf(e.attrs) * minlenScale
+      if slackWasUsed(i) then
+        if ranks(e.tail) > ranks(e.head) then DEdge(e.head, e.tail, ml) else DEdge(e.tail, e.head, ml)
+      else if interiorRev(i) || rootRev(i) then DEdge(e.head, e.tail, ml)
+      else DEdge(e.tail, e.head, ml)
+    }
+    (ranks, wedges)
+
+  private def rankedGlobal(g: RGraph): (Map[String, Int], Vector[DEdge]) =
     val wedges0 = acyclic(g, if hasEdgeLabel(g) then 2 else 1)
     val rs      = rankConstraints(g)
     val leader  = rs.leader

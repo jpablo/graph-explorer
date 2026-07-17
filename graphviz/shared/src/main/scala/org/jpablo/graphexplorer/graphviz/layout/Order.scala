@@ -555,6 +555,134 @@ object Order:
 
     clRanks.keysIterator.toVector.sorted.foreach(refineCluster)
 
+    // ── ReMincross (dot_mincross tail, mincross.c:381): after the interior
+    //    passes, a FINAL mincross(g, 2) runs over the whole EXPANDED graph.
+    //    left2right in this phase (ReMincross=true) pins any adjacent pair
+    //    with DIFFERING clusters (free↔cluster or two clusters), so free
+    //    nodes weave between cluster columns while boundaries hold. ──
+    locally {
+      def pinned(v: LayoutNode, w: LayoutNode): Boolean = cOf(v) != cOf(w)
+      def exchange(r: Int, i: Int, j: Int): Unit =
+        val rb = rows(r); val a = rb(i); val b = rb(j)
+        rb(i) = b; rb(j) = a; gpos(a) = j; gpos(b) = i
+      val mval = mutable.HashMap.empty[LayoutNode, Double]
+      def medians(r0: Int, r1: Int): Unit =
+        rows.getOrElse(r0, mutable.ArrayBuffer.empty).foreach { n =>
+          val nbrs = (if r1 > r0 then out(n) else in(n)).map(gpos).sorted
+          mval(n) = nbrs.length match
+            case 0 => -1.0
+            case 1 => nbrs(0).toDouble
+            case 2 => (nbrs(0) + nbrs(1)) / 2.0
+            case j =>
+              val rm = j / 2
+              if j % 2 == 1 then nbrs(rm).toDouble
+              else
+                val lm    = rm - 1
+                val rspan = nbrs(j - 1) - nbrs(rm)
+                val lspan = nbrs(lm) - nbrs(0)
+                if lspan == rspan then (nbrs(lm) + nbrs(rm)) / 2.0
+                else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
+        }
+      def reorder(r: Int, reverse: Boolean): Unit =
+        val rb = rows(r)
+        var ep = rb.length
+        var nelt = rb.length - 1
+        while nelt >= 0 do
+          var lp = 0
+          while lp < ep do
+            while lp < ep && mval.getOrElse(rb(lp), -1.0) < 0 do lp += 1
+            if lp < ep then
+              var rp = lp + 1
+              var muststay = false; var found = false
+              while rp < ep && !muststay && !found do
+                if pinned(rb(lp), rb(rp)) then muststay = true
+                else if mval.getOrElse(rb(rp), -1.0) >= 0 then found = true
+                else rp += 1
+              if rp < ep then
+                if !muststay then
+                  val p1 = mval.getOrElse(rb(lp), -1.0)
+                  val p2 = mval.getOrElse(rb(rp), -1.0)
+                  if p1 > p2 || (p1 >= p2 && reverse) then exchange(r, lp, rp)
+                lp = rp
+              else lp = ep
+            else lp = ep
+          if !reverse then ep -= 1
+          nelt -= 1
+      def crossIn(v: LayoutNode, w: LayoutNode): Long =
+        var c = 0L
+        in(v).foreach(x => in(w).foreach(y => if gpos(x) > gpos(y) then c += 1))
+        c
+      def crossOut(v: LayoutNode, w: LayoutNode): Long =
+        var c = 0L
+        out(v).foreach(x => out(w).foreach(y => if gpos(x) > gpos(y) then c += 1))
+        c
+      val candidate = mutable.HashMap.from((gMinR to gMaxR).map(r => r -> true))
+      def transposeStep(r: Int, reverse: Boolean): Long =
+        var delta = 0L
+        candidate(r) = false
+        val rb = rows.getOrElse(r, mutable.ArrayBuffer.empty)
+        var i = 0
+        while i < rb.length - 1 do
+          val v = rb(i); val w = rb(i + 1)
+          if !pinned(v, w) then
+            var c0 = 0L; var c1 = 0L
+            if r > gMinR then { c0 += crossIn(v, w); c1 += crossIn(w, v) }
+            if r < gMaxR && rows.getOrElse(r + 1, mutable.ArrayBuffer.empty).nonEmpty then
+              c0 += crossOut(v, w); c1 += crossOut(w, v)
+            if c1 < c0 || (c0 > 0 && reverse && c1 == c0) then
+              exchange(r, i, i + 1)
+              delta += c0 - c1
+              candidate(r) = true
+              if r > gMinR then candidate(r - 1) = true
+              if r < gMaxR then candidate(r + 1) = true
+          i += 1
+        delta
+      def transpose(reverse: Boolean): Unit =
+        (gMinR to gMaxR).foreach(r => candidate(r) = true)
+        var delta = 0L
+        while {
+          delta = 0L
+          (gMinR to gMaxR).foreach(r => if candidate(r) then delta += transposeStep(r, reverse))
+          delta >= 1
+        } do ()
+      def mincrossStep(pass: Int): Unit =
+        val reverse = pass % 4 < 2
+        val (first, last, dir) =
+          if pass % 2 == 0 then (gMinR + 1, gMaxR, 1) else (gMaxR - 1, gMinR, -1)
+        var r = first
+        while r != last + dir do
+          medians(r, r - dir)
+          reorder(r, reverse)
+          r += dir
+        transpose(!reverse)
+      def snapshot(): Map[Int, Vector[LayoutNode]] =
+        rows.iterator.map((r, b) => r -> b.toVector).toMap
+      def restore(s: Map[Int, Vector[LayoutNode]]): Unit =
+        s.foreach { (r, v) =>
+          val rb = rows(r); rb.clear(); rb ++= v
+          v.iterator.zipWithIndex.foreach((n, i) => gpos(n) = i)
+        }
+      var cur  = ncrossGlobal()
+      var best = cur
+      var bst  = snapshot()
+      var trying = 0; var iter = 0; var brk = false
+      while iter < MaxIter && !brk do
+        if trying >= MinQuit then brk = true
+        else
+          trying += 1
+          if cur == 0 then brk = true
+          else
+            mincrossStep(iter)
+            cur = ncrossGlobal()
+            if cur <= best then
+              bst = snapshot()
+              if cur < Convergence * best then trying = 0
+              best = cur
+            iter += 1
+      if cur > best then restore(bst)
+      if best > 0 then transpose(false)
+    }
+
     (rows.iterator.map((r, b) => r -> b.toVector).toMap, ncrossGlobal())
 
   /** The `mincross` driver proper (mincross.c:745) over a class2 graph given as

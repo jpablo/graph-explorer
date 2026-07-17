@@ -1,0 +1,85 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 390 271",
+  "label": "",
+  "splines": "spline",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "g1",
+      "cluster": "true",
+      "fillcolor": "#e2e8f0",
+      "label": "Public Interface",
+      "penwidth": "0.3",
+      "splines": "spline",
+      "style": "filled",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "c",
+      "label": "sourceText: String",
+      "shape": "box3d"
+    },
+    {
+      "_gvid": 2,
+      "name": "d",
+      "label": "fullGraphV: ViewerGraph",
+      "shape": "box3d"
+    },
+    {
+      "_gvid": 3,
+      "name": "a",
+      "label": "state:GraphState",
+      "shape": "box3d"
+    },
+    {
+      "_gvid": 4,
+      "name": "b",
+      "label": "commands",
+      "shape": "cylinder"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 3,
+      "label": "set",
+      "lp": "210.78,62.4"
+    },
+    {
+      "_gvid": 2,
+      "tail": 3,
+      "head": 1,
+      "constraint": "true",
+      "label": "set\\n<origin=Graph>",
+      "lp": "109.94,106.8"
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 4,
+      "label": "GraphUpdate\\n(Graph)",
+      "lp": "233.29,159.6"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 2,
+      "label": "set\\n<origin=CodeMirror>"
+    },
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 4,
+      "label": "TextUpdate\\n(CodeMirror)",
+      "lp": "148.9,159.6"
+    }
+  ]
+}

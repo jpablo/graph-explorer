@@ -170,7 +170,14 @@ object AttrResolver:
       // Graph-attr values visible on this subgraph: DOT inheritance = the
       // enclosing scope's graph attrs at creation, overlaid with local ones.
       val sgAttrs = sc.graph.toMap ++ col.graphAttrs
-      RSubgraph(id, col.label, id.startsWith("cluster"), col.rank,
+      // is_a_cluster (utils.c:692): case-INSENSITIVE "cluster" name prefix,
+      // OR mapbool of the `cluster` attr (inherited defaults included).
+      def mapBool(v: String): Boolean = v.toLowerCase match
+        case "true" | "yes" => true
+        case "false" | "no" => false
+        case other          => other.toIntOption.exists(_ > 0)
+      val isClu = id.toLowerCase.startsWith("cluster") || sgAttrs.get("cluster").exists(mapBool)
+      RSubgraph(id, col.label, isClu, col.rank,
         col.nodeIds, col.edgeIdxs, col.children, sgAttrs)
 
     def walk(stmts: List[ast.Stmt], sc0: Scope, isRoot: Boolean): Collected =

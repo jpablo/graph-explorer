@@ -1,0 +1,49 @@
+digraph "G" {
+  graph [
+    label="",
+    splines="spline"
+  ];
+  subgraph "g1" {
+    graph [
+      label="Public Interface",
+      penwidth="0.3",
+      fillcolor="#e2e8f0",
+      style="filled",
+      cluster="true"
+    ];
+    "c" [
+      label="sourceText: String",
+      shape="box3d"
+    ];
+    "d" [
+      label="fullGraphV: ViewerGraph",
+      shape="box3d"
+    ];
+  }
+  "a" [
+    label="state:GraphState",
+    shape="box3d"
+  ];
+  "b" [
+    label="commands",
+    shape="cylinder"
+  ];
+  "b" -> "a" [
+    label="set",
+    lp="210.78,62.4"
+  ];
+  "a" -> "c" [
+    label="set\n<origin=Graph>",
+    lp="109.94,106.8",
+    constraint="true"
+  ];
+  "d" -> "b" [
+    label="GraphUpdate\n(Graph)",
+    lp="233.29,159.6"
+  ];
+  "a" -> "d" [label="set\n<origin=CodeMirror>"];
+  "c" -> "b" [
+    label="TextUpdate\n(CodeMirror)",
+    lp="148.9,159.6"
+  ];
+}

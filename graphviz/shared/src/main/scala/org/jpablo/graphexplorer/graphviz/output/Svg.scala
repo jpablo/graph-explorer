@@ -348,7 +348,11 @@ object Svg:
             a.get("bgcolor").filter(_.nonEmpty).foreach { v => fillcolor = Some(v); filled = true }
           val pen  = pencolor.getOrElse("black")
           val fill = if filled then fillcolor.getOrElse("lightgrey") else "none"
-          sb ++= s"""<polygon fill="$fill" stroke="$pen" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
+          // cluster `penwidth` ⇒ stroke-width (gvrender set_penwidth; svg
+          // omits the attr at the default 1.0).
+          val cpw = a.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+          val sw  = if cpw != 1.0 then s""" stroke-width="${Output.g5(cpw)}"""" else ""
+          sb ++= s"""<polygon fill="$fill" stroke="$pen"$sw points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
           if c.hasLabel then
             // label centre = lp (place_graph_label) — the formula lives on
             // CInfo.labelLp, shared with json0's `lp` attr.

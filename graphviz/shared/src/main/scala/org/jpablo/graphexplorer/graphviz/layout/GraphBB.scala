@@ -102,6 +102,27 @@ object GraphBB:
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
     }
+    // Edge-label vnodes are FAST nodes in dot_compute_bb (GD_nlist walk):
+    // ND_lw = GD_nodesep, ND_rw = label width, ND_ht = label height
+    // (class2.c:29) — a wide edge label can be the graph's x-extreme
+    // (169's a→d label). lp = vnodeX + width/2 recovers the vnode coord.
+    locally {
+      val lps = Spline.labelPositions(g)
+      if lps.nonEmpty then
+        val ns = Coord.nodeSepPt(g)
+        val realEdges = g.edges.filter(e => e.tail != e.head)
+        lps.foreach { (idx, p) =>
+          // only INTER-RANK labels ride a class2 label vnode; a flat-edge
+          // label (92) is placed inside the rank band, no fast node.
+          realEdges.lift(idx).filter(e => ranks.get(e.tail) != ranks.get(e.head)).foreach { e =>
+            val (w0, h0) = Coord.edgeLabelDim(e, g)
+            val (wl, hl) = if Rank.flip(g) then (h0, w0) else (w0, h0)
+            val vx = p.x - wl / 2.0
+            minX = math.min(minX, vx - ns); maxX = math.max(maxX, vx + wl)
+            minY = math.min(minY, p.y - hl / 2.0); maxY = math.max(maxY, p.y + hl / 2.0)
+          }
+        }
+    }
     // Clusters (dot_compute_bb root): the bb also spans every top-level
     // cluster box + CL_OFFSET margin in x; in y the root's cluster-inflated
     // GD_ht1/GD_ht2 set the bottom/top (label bands included).
