@@ -1,21 +1,27 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT SWEEP 144/145
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 149/150
 > (2026-07-16).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
-> sweep vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg, sweep re-run
-> 2026-07-16): **corpus 136/137 + shipped examples 8/8 = 144/145** — the
-> SINGLE remaining diff anywhere is 03-subgraph-cluster, an intentional
-> deferral (its golden is gv's own default-mode cluster corruption; the
-> file is gated byte-exact against the 03b `newrank` oracle in ClusterSpec
-> instead). The `ExamplesByteExactSpec` deferred list is EMPTY. (History:
-> 91/96 at the M8 cutover → every "characterised precision floor" since
-> fell to a real transcription bug — clip direction, int division,
-> `arrow_gen` EPSILON — see the §7 log.)
+> gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
+> **corpus 141/142 + shipped examples 8/8 = 149/150** — the SINGLE
+> remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
+> (its golden is gv's own default-mode cluster corruption; the file is
+> gated byte-exact against the 03b `newrank` oracle in ClusterSpec
+> instead). The `ExamplesByteExactSpec` deferred list is EMPTY. Five
+> user-reported diagrams (165–169) landed 2026-07-16 and closed FIVE
+> long-deferred subsystems: xlabels (`addXLabels`/`placeLabels`), flat-edge
+> mincross (`flat_reorder`/`flat_breakcycles`/`left2right`), per-component
+> mincross, dot1 RECURSIVE cluster ranking (`collapse_cluster`/
+> `interclust1` slack + the ReMincross phase), plus HTML-in-record fields,
+> HTML side ports through the unified channel, `dir`/arrow-type flags, and
+> the UTF-8-byte width rule. (History: 91/96 at the M8 cutover → every
+> "characterised precision floor" since fell to a real transcription bug —
+> clip direction, int division, `arrow_gen` EPSILON — see the §7 log.)
 > **Shape catalog closed:** 61/62 builtin node
 > shapes are ported and byte-exact (`ShapeCatalogSpec`, 36 single-node probes) —
 > the full `poly_init` periphery engine, `round_corners` (containers + all 20
@@ -34,14 +40,17 @@ The current worklist (kept in sync with the session task tracker; the
 fails-when-fixed guards in `CorpusByteExactSpec` / `ExamplesByteExactSpec`
 enforce the deferral halves of it):
 
-- **NONE.** Full sweep re-confirmed 2026-07-16 (per the periodic
-  exact-string sweep in the project memory; corpus rendered through the
-  sidecar-aware `corpusGraph` path, examples through the public
-  `renderFormats` facade): **144/145 byte-exact** in all three formats.
+- **NONE.** Current gate (2026-07-16, after the 165–169 additions):
+  **corpus 141/142 + examples 8/8 = 149/150 byte-exact** in all three
+  formats (corpus rendered through the sidecar-aware `corpusGraph` path,
+  examples through the public `renderFormats` facade).
 - **03-subgraph-cluster** — the single diff, a permanent INTENTIONAL
   corpus deferral (its goldens are gv's own default-mode cluster
   corruption; gated byte-exact vs the 03b `newrank` oracle in
-  `ClusterSpec`), fails-when-fixed guarded.
+  `ClusterSpec`), fails-when-fixed guarded. The dot1 cluster-ranking port
+  (169) made the exception EXPLICIT in code: a rank set spanning cluster
+  boundaries keeps the correct global (newrank) semantics
+  (`Rank.rankedImpl` dispatch).
 
 ## 1. Goal & locked decisions
 
@@ -2395,4 +2404,50 @@ later milestones). Backing test: `graphviz/jvm/.../DotParserSpec.scala`.
   header + §0 updated; this is the port's steady state: every gated
   input the app can produce through the `dot` engine matches viz-js
   13.0.1 character-for-character.
+- **2026-07-16 (165–169)** — **Five user-reported diagrams added and closed
+  same-day; corpus 141/142, total gate 149/150.** Each landed a deferred
+  subsystem or a frame bug:
+  - **165-htmlsides**: per-CELL HTML border/cellpadding resolution
+    (size_html_cell chain; `sides` never enters sizing), `doBorder` side
+    polylines (all 14 combos), `poly_gencode`'s peripheries==0-but-filled
+    box for filled plaintext.
+  - **166-uml-class**: HTML-in-record fields (parse_reclbl html mode; each
+    field an LT_HTML sub-label), the **xlabel subsystem** (`addXLabels` +
+    `placeLabels`/`xladjust` in the new `XLabels.scala`; placed labels grow
+    the bb pre-translation), `dir`/arrow-type flags (`arrow_flags`,
+    empty/diamond/odiamond, symmetric tail clips + `sp`), HTML side ports
+    through the unified record channel (`gvHtmlPort` + pos_html_tbl sides
+    mask; legacy path retired), nested-table STRETCH (pos_html_tbl),
+    record clips against the FIELD-TREE root box, record field text through
+    the label machinery (raw `\N` sizes as the node name — the resize
+    int-floor had hidden the wrong base), `estimate_text_width_1pt` walks
+    UTF-8 BYTES (2-byte chars = two space widths), x11 gray-ramp colors.
+  - **167-grid**: `graph [rank=same]` as an INHERITED default (rank_set_class
+    resolves through cgraph defaults), the long-deferred **flat-edge
+    mincross machinery** (`flat_breakcycles` matrix + `flat_reorder`
+    postorder toposort + the `left2right` guard in reorder AND transpose),
+    locally-declared-empty subgraph attrs shadow root defaults. Chased with
+    an instrumented gv (MCTRACE stage dumps).
+  - **168-orientation**: **per-component mincross** (decompose +
+    init_mccomp slices — the LR flip reverses each component's rank slice
+    separately; one global reversal mirrors the component stacking),
+    `poly_inside` rotates the canonical query into the TRUE frame
+    (ccwrotatepf — first LR × rotated-polygon case), `label=""` ⇒ dimen
+    (0,0), and the 0×0-node clip semantics (zero-size skips the scale
+    division ⇒ scalex stays 0 ⇒ contains EVERY point — the spline
+    collapses to gv's degenerate stub).
+  - **169-cluster-attr**: `is_a_cluster` accepts the `cluster` ATTR (and the
+    name prefix case-insensitively), **dot1 recursive cluster ranking**
+    (interior solves + leader collapse + `interclust1` slack pairs with
+    CL_BACK=10 — soft constraints absent from acyclic, so cluster-crossing
+    cycles never break edges; root solve unbalanced; all six pre-existing
+    cluster files stayed byte-exact through the new path), the
+    **ReMincross** whole-graph refine phase (free nodes weave between
+    cluster columns; boundaries pinned), the cylinder outline
+    duplicate-vertex bisector SEED (atan2(0,0) corrupted the ring),
+    `poly_inside`'s cached-segment walk (gv-exact on concave rings),
+    edge-label vnodes growing the bb (lw=nodesep, rw=label width), and
+    cluster `penwidth` ⇒ stroke-width.
+  All suites green (graphvizJVM 708, sharedJVM/JS 172 each, viewer 52);
+  gv worktree pristine after both instrumented chases.
 - _(append dated entries as milestones land)_
