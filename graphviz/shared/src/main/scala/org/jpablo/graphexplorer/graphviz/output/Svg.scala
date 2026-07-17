@@ -328,16 +328,19 @@ object Svg:
           g.subgraphs.foreach(walk)
           b.result()
         cls.zipWithIndex.foreach { (c, i) =>
-          val cb = cbbs(i)
-          // translate_drawing shift (see header): cluster boxes bypass `tf`.
-          val llx = cb.llx + dx; val urx = cb.urx + dx
-          val lly = cb.lly + dy; val ury = cb.ury + dy
+          // translate_bb: the CANONICAL cluster box maps corner-wise through
+          // the rankdir transform (identity+offset for TB).
+          val cb  = Cluster.finalBB(g, cbbs(i), tf)
+          val llx = cb.llx; val urx = cb.urx
+          val lly = cb.lly; val ury = cb.ury
           sb ++= s"""<g id="clust${i + 1}" class="cluster">\n"""
           sb ++= s"<title>${xml(c.name)}</title>\n"
           // emit_clusters (emit.c): `style=filled` ⇒ FILL; `color` sets BOTH
           // fill+pen; `pencolor`/`fillcolor` override; `bgcolor` fills when not
           // already filled. Defaults: pen=black, fill=lightgrey (when filled).
           val a = sgByName.get(c.name).map(_.attrs).getOrElse(Map.empty)
+          // style=invis: the <g>+<title> emit, but no box and no label.
+          val invis     = a.get("style").exists(_.split(",").map(_.trim).contains("invis"))
           var filled    = a.get("style").exists(_.split(",").map(_.trim).contains("filled"))
           var pencolor  = Option.empty[String]
           var fillcolor = Option.empty[String]
@@ -352,8 +355,9 @@ object Svg:
           // omits the attr at the default 1.0).
           val cpw = a.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
           val sw  = if cpw != 1.0 then s""" stroke-width="${Output.g5(cpw)}"""" else ""
-          sb ++= s"""<polygon fill="$fill" stroke="$pen"$sw points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
-          if c.hasLabel then
+          if !invis then
+            sb ++= s"""<polygon fill="$fill" stroke="$pen"$sw points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
+          if c.hasLabel && !invis then
             // label centre = lp (place_graph_label) — the formula lives on
             // CInfo.labelLp, shared with json0's `lp` attr.
             val (lpx, lpy) = c.labelLp(Cluster.BB(llx, lly, urx, ury))
@@ -827,11 +831,13 @@ object Svg:
                     val (dw, dh) = dim.drawn
                     sb ++= s"""<image xlink:href="$src" width="${g6(dw)}px" height="${g6(dh)}px" preserveAspectRatio="xMinYMin meet" x="${g6(x - dw / 2.0)}" y="${g6(-(cy + dh / 2.0))}"/>\n"""
                   }
-                case None                     => if lbl.nonEmpty then sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"))
+                case None                     => if lbl.nonEmpty then sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"),
+                    n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
             // an empty label (`label=""`) draws no <text> (emit_label skips it);
             // shape=point has an implicit empty label.
             else if lbl.nonEmpty && !isPoint then
-              sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"))
+              sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"),
+                n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
         // external label (addXLabels): plain text at its placed centre,
         // emitted after the shape+label (emit_node xlabel order).
         n.attrs.get("xlabel").filter(_.nonEmpty).foreach { xl =>
@@ -942,7 +948,8 @@ object Svg:
                     sb ++= htmlTable(lpx, lpy, tbl, col, efs, efn)
                   case _                          => ()
               else
-                sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times-Roman"))
+                sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times-Roman"),
+                  e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
             }
           }
           // external edge label (addXLabels) after the regular label.

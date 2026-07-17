@@ -39,22 +39,28 @@ class NodeSizeSpec extends FunSuite:
         i += 1
     sb.toString
 
-  /** name -> (width,height) inches, as echoed by the oracle. */
+  /** name -> (width,height) inches, as echoed by the oracle. A node stanza
+    * omits `width`/`height` when it equals the declared NODE DEFAULT (gv
+    * doesn't re-echo it) — fall back to the `node [...]` stanza's values. */
   private def goldenSizes(name: String): Map[String, (Double, Double)] =
     val dot = stripHtmlLabels(OracleHarness.golden(name, "dot"))
-    NodeStanza
-      .findAllMatchIn(dot)
-      .flatMap { m =>
-        val nm   = unquote(m.group(1))
-        val body = m.group(2)
-        if Keywords.contains(nm) then None
-        else
-          for
-            w <- WidthRe.findFirstMatchIn(body).map(_.group(1).toDouble)
-            h <- HeightRe.findFirstMatchIn(body).map(_.group(1).toDouble)
-          yield nm -> (w, h)
-      }
-      .toMap
+    val matches = NodeStanza.findAllMatchIn(dot).toVector
+    // the default stanza prints as `node [...]` (SPACE, not tab)
+    val (defW, defH) = """(?m)^\t+node \[([^\]]*)\]""".r.findFirstMatchIn(dot) match
+      case Some(m) =>
+        (WidthRe.findFirstMatchIn(m.group(1)).map(_.group(1).toDouble),
+         HeightRe.findFirstMatchIn(m.group(1)).map(_.group(1).toDouble))
+      case None => (None, None)
+    matches.flatMap { m =>
+      val nm   = unquote(m.group(1))
+      val body = m.group(2)
+      if Keywords.contains(nm) then None
+      else
+        for
+          w <- WidthRe.findFirstMatchIn(body).map(_.group(1).toDouble).orElse(defW)
+          h <- HeightRe.findFirstMatchIn(body).map(_.group(1).toDouble).orElse(defH)
+        yield nm -> (w, h)
+    }.toMap
 
   // Generous vs. the <0.001 in deviation we actually observe.
   private val tol = OracleHarness.Tol(abs = 0.01, rel = 0.02)

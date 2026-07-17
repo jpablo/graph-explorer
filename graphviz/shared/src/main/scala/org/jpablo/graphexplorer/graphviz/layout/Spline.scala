@@ -506,7 +506,9 @@ object Spline:
     def endPort(id: String, portOpt: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port],
                 otherCanon: XY): (PortAnchor.GvPort, Boolean) =
       portOpt.flatMap(pp => byId.get(id).flatMap(n =>
-        PortAnchor.gvRecordPort(n, g, pp).orElse(PortAnchor.gvHtmlPort(n, g, pp)))) match
+        PortAnchor.gvRecordPort(n, g, pp)
+          .orElse(PortAnchor.gvHtmlPort(n, g, pp))
+          .orElse(PortAnchor.gvPolyPort(n, g, pp)))) match
         case None => (PortAnchor.GvPort.center, true)
         case Some(gp0) =>
           val resolved =
@@ -1546,7 +1548,7 @@ object Spline:
 
   /** bezier_clip (splines.c): binary search; keep the sub-curve outside the
     * shape. `sp` is a 4-point segment, mutated in place. */
-  private def bezierClip(sp: Array[XY], leftInside: Boolean, inside: XY => Boolean): Unit =
+  private[layout] def bezierClip(sp: Array[XY], leftInside: Boolean, inside: XY => Boolean): Unit =
     val seg  = sp.clone()
     val best = sp.clone()
     var found = false
@@ -1619,6 +1621,15 @@ object Spline:
               val rd  = Rank.rankdir(g)
               val ol  = poly.outline
               val m   = ol.length
+              // outline bb for the quick reject (n_outline_width/height / 2).
+              val boxURx = ol.iterator.map(v => math.abs(v._1)).max
+              val boxURy = ol.iterator.map(v => math.abs(v._2)).max
+              // poly_inside's cached segment (`s.last`) — fresh per clip
+              // context (one closure per edge-end), persists ACROSS the
+              // bezier-clip bisection queries. With the early wedge-success
+              // this makes the walk gv-exact on CONCAVE rings (cylinder's
+              // bezier control points), where a plain all-faces AND differs.
+              var last = 0
               (p: XY) =>
                 // poly_inside rotates the CANONICAL query into the node's
                 // TRUE frame first (ccwrotatepf, shapes.c:2415) — the vertex
@@ -1626,12 +1637,27 @@ object Spline:
                 // load-bearing for LR/RL/BT with a non-symmetric polygon
                 // (rotated invtriangle, 168).
                 val (px, py) = PortAnchor.ccwrot(p.x - cen.x, p.y - cen.y, rd)
-                var i = 0; var inside = true
-                while i < m && inside do
-                  val (qx, qy) = ol(i); val (rx, ry) = ol((i + 1) % m)
-                  if !sameSide(px, py, 0.0, 0.0, qx, qy, rx, ry) then inside = false
-                  i += 1
-                inside
+                if math.abs(px) > boxURx || math.abs(py) > boxURy then false
+                else
+                  var i  = last % m
+                  var i1 = (i + 1) % m
+                  val (qx, qy) = ol(i); val (rx, ry) = ol(i1)
+                  if !sameSide(px, py, 0.0, 0.0, qx, qy, rx, ry) then false
+                  else
+                    // between this segment's side rays ⇒ inside immediately
+                    val s = sameSide(px, py, qx, qy, rx, ry, 0.0, 0.0)
+                    if s && sameSide(px, py, rx, ry, 0.0, 0.0, qx, qy) then true
+                    else
+                      var j = 1; var res = true; var done = false
+                      while j < m && !done do
+                        if s then { i = i1; i1 = (i + 1) % m }
+                        else { i1 = i; i = (i + m - 1) % m }
+                        val (ax, ay) = ol(i); val (bx, by) = ol(i1)
+                        if !sameSide(px, py, 0.0, 0.0, ax, ay, bx, by) then
+                          last = i; res = false; done = true
+                        j += 1
+                      if res then last = i
+                      res
             }
           case None if Set("record", "mrecord").contains(shapeName.toLowerCase) =>
             // record_inside with bp==NULL (shapes.c:3786): the clip box is the

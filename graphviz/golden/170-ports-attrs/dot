@@ -1,0 +1,80 @@
+digraph G {
+	graph [bb="0,0,217.44,53",
+		rankdir=LR,
+		splines=spline
+	];
+	node [fillcolor="#ffe2e2",
+		fixedsize=true,
+		fontname="Courier New",
+		fontsize=7,
+		height=0.12,
+		label="\N",
+		penwidth=0.6,
+		regular=true,
+		style=filled,
+		width=0.21
+	];
+	edge [arrowhead=none,
+		arrowsize=0.2,
+		fontname="Courier New",
+		fontsize=6,
+		headport=w,
+		penwidth=0.5,
+		tailport=e
+	];
+	subgraph cluster_g3460e575 {
+		graph [bb="8,8,25.44,45",
+			label="",
+			labeljust=c,
+			labelloc=t,
+			style=invis
+		];
+		e	[height=0.02,
+			label="",
+			pos="16.72,36",
+			shape=circle,
+			width=0.02];
+		f	[height=0.02,
+			label="",
+			pos="16.72,17",
+			shape=circle,
+			width=0.02];
+	}
+	a	[height=0.21,
+		label=h1,
+		pos="64.601,44"];
+	e:e -> a:w	[label=C,
+		lp="37.24,43.84",
+		pos="18.631,36 36.068,36 39.603,44 57.041,44"];
+	d	[height=0.21,
+		label=h2,
+		pos="64.601,10"];
+	f:e -> d:w	[label=A,
+		lp="37.24,17.4",
+		pos="18.631,17 26.236,17 27.96,15.17 35.44,13.8 45.028,12.044 47.293,10 57.041,10"];
+	b	[height=0.21,
+		label=g,
+		pos="168.84,26"];
+	a:e -> b:w	[pos="72.161,44 104.38,44 111.75,36.606 143.28,30 151.3,28.32 153.09,26 161.28,26"];
+	g	[height=0.02,
+		label="",
+		pos="216.72,41",
+		shape=circle,
+		width=0.02];
+	b:e -> g:w	[label=E,
+		lp="196.2,37.998",
+		pos="176.4,26 195.22,26 197.18,41 216,41"];
+	h	[height=0.02,
+		label="",
+		pos="216.72,11",
+		shape=circle,
+		width=0.02];
+	b:e -> h:w	[label=F,
+		lp="196.2,22.998",
+		pos="176.4,26 195.22,26 197.18,11 216,11"];
+	c	[height=0.21,
+		label=f,
+		pos="116.72,8"];
+	c:e -> b:w	[pos="124.28,8 142.57,8 142.99,26 161.28,26"];
+	d:e -> c:w	[pos="72.161,10 88.629,10 92.692,8 109.16,8"];
+}

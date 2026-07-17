@@ -161,4 +161,15 @@ object Cluster:
          xb(i)._2, yOf(c.minRank).value + yi.clHt2(i))
     }
 
+  /** A cluster's CANONICAL box mapped into the final frame (translate_bb's
+    * corner mapping through the rankdir transform: LR/BT rotate, so the
+    * (llx,ury)/(urx,lly) corner pair becomes the new LL/UR; RL and TB map
+    * the LL/UR corners directly). `tf` = the writer's full transform
+    * (rotation + translation) — identity+offset for TB. */
+  def finalBB(g: RGraph, bb: BB, tf: (Double, Double) => (Double, Double)): BB =
+    val (ll, ur) = Rank.rankdir(g) match
+      case RankDir.LR | RankDir.BT => (tf(bb.llx, bb.ury), tf(bb.urx, bb.lly))
+      case _                       => (tf(bb.llx, bb.lly), tf(bb.urx, bb.ury))
+    BB(ll._1, ll._2, ur._1, ur._2)
+
 end Cluster

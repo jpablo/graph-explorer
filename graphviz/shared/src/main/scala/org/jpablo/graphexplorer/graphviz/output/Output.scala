@@ -379,14 +379,16 @@ object Output:
       else
         val cbbs = org.jpablo.graphexplorer.graphviz.layout.Cluster.bbs(g)
         cls.zipWithIndex.map { (c, i) =>
-          val bb   = cbbs(i)
-          val base = Vector("bb" -> s"${g5(bb.llx + dx)},${g5(bb.lly + dy)},${g5(bb.urx + dx)},${g5(bb.ury + dy)}")
+          // translate_bb: the CANONICAL cluster box maps corner-wise through
+          // the rankdir transform (identity+offset for TB).
+          val bb   = org.jpablo.graphexplorer.graphviz.layout.Cluster.finalBB(g, cbbs(i), tf)
+          val base = Vector("bb" -> s"${g5(bb.llx)},${g5(bb.lly)},${g5(bb.urx)},${g5(bb.ury)}")
           val lbl  =
             if c.hasLabel then
               val (lpx, lpy) = c.labelLp(bb)
               Vector(
                 "lheight" -> f2(c.lheightPt / 72.0),
-                "lp"      -> s"${g5(lpx + dx)},${g5(lpy + dy)}",
+                "lp"      -> s"${g5(lpx)},${g5(lpy)}",
                 "lwidth"  -> f2(c.lwidthPt / 72.0))
             else Vector.empty
           c.name -> (base ++ lbl)

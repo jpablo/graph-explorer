@@ -289,6 +289,59 @@ object PortAnchor:
           }
     }
 
+  /** poly_port fallback (shapes.c:2905): a port on a PLAIN (non-record,
+    * non-HTML) node treats the port token as a COMPASS over the whole node
+    * box (compassPort with bp=NULL — the final-frame node extents; port.bp
+    * stays UNSET, so clipping uses the node shape). An ellipse's e/w/n/s
+    * land on the side midpoints — identical to compassPoint's axis-ray
+    * boundary hits (diagonal compasses would need the ellipse bisection;
+    * no corpus exercise). Non-compass tokens → None (gv warns → Center). */
+  def gvPolyPort(n: RNode, g: RGraph, port: org.jpablo.graphexplorer.graphviz.dotlang.Port): Option[GvPort] =
+    val rd = Rank.rankdir(g)
+    val cs = port.compass.orElse(port.name.map(_.value).flatMap(compassOfName))
+    cs.flatMap { c =>
+      NodeSize.nodeSize(n, g).map { sz =>
+        val w2 = sz.widthPt.value / 2.0
+        val h2 = sz.heightPt.value / 2.0
+        val base = compassPortFull((-w2, -h2, w2, h2), SAll, Some(c), rd).copy(bp = None)
+        // Non-box shapes pass an inside context: the compass point comes
+        // from compassPoint (shapes.c:2648) — a degenerate bezier from the
+        // centre toward the ray target, trimmed by bezier_clip against the
+        // penwidth-inflated inside fn (±0.5pt convergence — the coarse
+        // bisection IS the oracle value). Ellipse-family only (a compass on
+        // a non-box POLYGON would need its polygon inside fn — no corpus).
+        val shapeName = n.attrs.getOrElse("shape", "ellipse").toLowerCase
+        val ellipseLike = Set("ellipse", "circle", "oval", "doublecircle", "point").contains(shapeName)
+        import Compass.*
+        val ray: Option[(Double, Double)] = c match // FINAL-frame ray target
+          case E  => Some((1.0, 0.0));  case W  => Some((-1.0, 0.0))
+          case N  => Some((0.0, 1.0));  case S  => Some((0.0, -1.0))
+          case NE => Some((1.0, 1.0));  case NW => Some((-1.0, 1.0))
+          case SE => Some((1.0, -1.0)); case SW => Some((-1.0, -1.0))
+          case _  => None
+        (if ellipseLike then ray else None) match
+          case Some((rx, ry)) =>
+            val pw   = n.attrs.get("penwidth").flatMap(_.toDoubleOption).map(math.max(0.0, _)).getOrElse(1.0)
+            val urx  = w2 + pw / 2.0
+            val ury  = h2 + pw / 2.0
+            val maxv = 4.0 * math.max(w2, h2)
+            // target: axis rays keep the centred coordinate (compassPort
+            // passes ctr for the other axis = 0 in node-local).
+            val (tfx, tfy) = (rx * maxv, ry * maxv)
+            val (cx0, cy0) = cwrot(tfx, tfy, rd) // final → canonical
+            // poly_inside ellipse: canonical query ccw-rotates to the true
+            // frame; box test strict >, then hypot < 1 on the outline.
+            val inside: Spline.XY => Boolean = p =>
+              val (px, py) = ccwrot(p.x, p.y, rd)
+              if math.abs(px) > urx || math.abs(py) > ury then false
+              else math.hypot(px / urx, py / ury) < 1.0
+            val curve = Array(Spline.XY(0, 0), Spline.XY(0, 0), Spline.XY(cx0, cy0), Spline.XY(cx0, cy0))
+            Spline.bezierClip(curve, true, inside)
+            base.copy(px = curve(0).x, py = curve(0).y) // already canonical
+          case None => base
+      }
+    }
+
   /** HTML table cell port: `<td port="name">`. The cell box is table-local,
     * y-up, centred on the table — and the table is centred on the node — so it
     * doubles as the node-local field box. */

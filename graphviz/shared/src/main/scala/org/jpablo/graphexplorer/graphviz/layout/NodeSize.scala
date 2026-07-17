@@ -304,7 +304,13 @@ object NodeSize:
     var minW  = PointsPerInch * (if shape.plain then 0.0 else wAttr)
     var minH  = PointsPerInch * (if shape.plain then 0.0 else hAttr)
     if shape.regular && !shape.plain then
-      val s = PointsPerInch * math.min(wAttr, hAttr)
+      // regular (poly_init:1963 + userSize): if the user set width and/or
+      // height, the square = their MAX (absent attr counts 0; a present one
+      // clamps to MIN_NODEWIDTH/HEIGHT); else min of the defaults.
+      val uw  = n.attrs.get("width").flatMap(_.toDoubleOption).map(math.max(_, 0.01)).getOrElse(0.0)
+      val uh  = n.attrs.get("height").flatMap(_.toDoubleOption).map(math.max(_, 0.02)).getOrElse(0.0)
+      val usz = math.max(uw, uh)
+      val s   = PointsPerInch * (if usz > 0.0 then usz else math.min(wAttr, hAttr))
       minW = s; minH = s
 
     val valignCentered = !n.attrs.get("labelloc").map(_.charAt(0)).exists(c => c == 't' || c == 'b')
@@ -317,9 +323,11 @@ object NodeSize:
     cached(polyMemo, g, n.id)(polygonImpl(n, g))
   private def polygonImpl(n: RNode, g: RGraph): Option[Polygon.Poly] =
     polyDescOf(n).map { desc =>
-      val shape = ShapeKind(box = false, regular = desc.regular, plain = false, supported = true)
+      // poly_init:1951 — the `regular` ATTR ORs into the shape's flag.
+      val reg   = desc.regular || mapBool(n.attrs.get("regular"))
+      val shape = ShapeKind(box = false, regular = reg, plain = false, supported = true)
       val m     = polyMetrics(n, g, shape)
-      Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, desc.regular, desc)
+      Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, reg, desc)
     }
 
   def nodeSize(n: RNode, g: RGraph): Option[Size] =
@@ -346,9 +354,12 @@ object NodeSize:
     // [[Polygon]] for their own inflation + vertex-derived final size; treat
     // them as non-box (rotated/distorted) with an optional `regular` override.
     val polyDesc  = polyDescOf(n)
-    val shape     =
+    // poly_init:1951 — the `regular` ATTR ORs into the shape's flag.
+    val regAttr   = mapBool(n.attrs.get("regular"))
+    val shape0    =
       if polyDesc.isDefined then ShapeKind(box = false, regular = polyDesc.get.regular, plain = false, supported = true)
       else shapeOf(shapeName)
+    val shape     = if regAttr && !shape0.regular then shape0.copy(regular = true) else shape0
     if !shape.supported then return None
 
     val m = polyMetrics(n, g, shape)
@@ -358,7 +369,7 @@ object NodeSize:
     // (including any concentric peripheries).
     polyDesc match
       case Some(desc) =>
-        val p = Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, desc.regular, desc)
+        val p = Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, shape.regular, desc)
         return Some(Size(In(p.bbX / PointsPerInch), In(p.bbY / PointsPerInch)))
       case None => ()
 

@@ -1,0 +1,69 @@
+digraph "G" {
+    graph [
+        rankdir="LR",
+        splines="spline"
+    ];
+    node [
+        fontsize="7",
+        fixedsize="true",
+        style="filled",
+        penwidth="0.6",
+        fillcolor="#ffe2e2",
+        width="0.21",
+        fontname="Courier New",
+        height="0.12",
+        regular="true"
+    ];
+    edge [
+        arrowsize="0.2",
+        fontsize="6",
+        penwidth="0.5",
+        arrowhead="none",
+        headport="w",
+        tailport="e",
+        fontname="Courier New"
+    ];
+    subgraph cluster_g3460e575 {
+        graph [
+            style="invis",
+            label="",
+            labelloc="t",
+            labeljust="c"
+        ];
+        "e" [
+            label="",
+            height="0.02",
+            shape="circle",
+            width="0.01"
+        ];
+        "f" [
+            label="",
+            height="0.02",
+            shape="circle",
+            width="0.01"
+        ];
+    }
+    "a" [label="h1"];
+    "b" [label="g"];
+    "c" [label="f"];
+    "d" [label="h2"];
+    "g" [
+        label="",
+        height="0.02",
+        shape="circle",
+        width="0.01"
+    ];
+    "h" [
+        label="",
+        height="0.02",
+        shape="circle",
+        width="0.01"
+    ];
+    "c" -> "b" [headport="w"];
+    "b" -> "g" [label="E"];
+    "e" -> "a" [label="C"];
+    "a" -> "b";
+    "b" -> "h" [label="F"];
+    "f" -> "d" [label="A"];
+    "d" -> "c";
+}

@@ -236,7 +236,19 @@ object AttrResolver:
               ensureNode(t, sc)
               ensureNode(h, sc)
               levelEdges += edges.length     // record index before append
-              edges += REdge(t, h, sc.edge ++ ea, tp, hp)
+              // `tailport`/`headport` ATTRS are the same channel as `:port`
+              // syntax (the DOT parser stores syntax ports into these attrs;
+              // common_init_edge reads them back) — syntax wins when both.
+              // A single token stays a NAME; poly/record resolution decides
+              // whether it is a compass (chkPort splits at the first ':').
+              val eAttrs = sc.edge ++ ea
+              def attrPort(key: String): Option[ast.Port] =
+                eAttrs.get(key).filter(_.nonEmpty).map { v =>
+                  v.split(":", 2) match
+                    case Array(nm, cp) => ast.Port(Some(ast.Id(nm)).filter(_.value.nonEmpty), ast.Compass.from(cp))
+                    case arr           => ast.Port(Some(ast.Id(arr.headOption.getOrElse(""))), None)
+                }
+              edges += REdge(t, h, eAttrs, tp.orElse(attrPort("tailport")), hp.orElse(attrPort("headport")))
               anonCtr += 1                    // every edge is anonymous ⇒ tick
           }
 

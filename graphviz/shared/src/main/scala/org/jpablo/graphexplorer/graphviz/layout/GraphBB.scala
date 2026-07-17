@@ -102,14 +102,15 @@ object GraphBB:
         minX = math.min(minX, x - hw); maxX = math.max(maxX, x + hw + selfW)
         minY = math.min(minY, y - hh); maxY = math.max(maxY, y + hh)
     }
-    // Edge-label vnodes are FAST nodes in dot_compute_bb (GD_nlist walk):
-    // ND_lw = GD_nodesep, ND_rw = label width, ND_ht = label height
-    // (class2.c:29) — a wide edge label can be the graph's x-extreme
-    // (169's a→d label). lp = vnodeX + width/2 recovers the vnode coord.
+    // Edge labels grow the bb via updateBB/addLabelBB at placement
+    // (dotsplines: place_vnlabel → updateBB): the LABEL BOX lp ± dimen/2,
+    // dims swapped for flip. NOT the label vnode's node extents —
+    // dot_compute_bb's x-scan skips virtual nodes entirely (position.c:851),
+    // so the vnode's ND_lw=nodesep pad never reaches the bb (170's LR
+    // labels; 169's wide a→d label = the box right edge).
     locally {
       val lps = Spline.labelPositions(g)
       if lps.nonEmpty then
-        val ns = Coord.nodeSepPt(g)
         val realEdges = g.edges.filter(e => e.tail != e.head)
         lps.foreach { (idx, p) =>
           // only INTER-RANK labels ride a class2 label vnode; a flat-edge
@@ -117,8 +118,7 @@ object GraphBB:
           realEdges.lift(idx).filter(e => ranks.get(e.tail) != ranks.get(e.head)).foreach { e =>
             val (w0, h0) = Coord.edgeLabelDim(e, g)
             val (wl, hl) = if Rank.flip(g) then (h0, w0) else (w0, h0)
-            val vx = p.x - wl / 2.0
-            minX = math.min(minX, vx - ns); maxX = math.max(maxX, vx + wl)
+            minX = math.min(minX, p.x - wl / 2.0); maxX = math.max(maxX, p.x + wl / 2.0)
             minY = math.min(minY, p.y - hl / 2.0); maxY = math.max(maxY, p.y + hl / 2.0)
           }
         }
