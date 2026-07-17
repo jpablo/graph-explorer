@@ -510,8 +510,6 @@ object NetworkSimplex:
           var r = lo + 1
           while r <= hi do { if nrank(r) < nrank(choice) then choice = r; r += 1 }
           nrank(rank(n)) -= 1; nrank(choice) += 1
-          if sys.props.contains("MCTRACE") then // TEMP PROBE (task #61)
-            System.err.println(s"bal ${nodeList(n)} r=${rank(n)} lo=$lo hi=$hi -> $choice")
           rank(n) = choice
       }
 
