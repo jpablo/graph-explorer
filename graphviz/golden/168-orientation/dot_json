@@ -1,0 +1,91 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 156 132",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "h"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "X",
+      "shape": "plain"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "label": "k",
+      "orientation": "151",
+      "regular": "false",
+      "shape": "invtriangle"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "label": "R",
+      "shape": "plain"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "label": "Y",
+      "shape": "plain"
+    },
+    {
+      "_gvid": 5,
+      "name": "f",
+      "label": "",
+      "shape": "plain"
+    },
+    {
+      "_gvid": 6,
+      "name": "g",
+      "label": "S",
+      "shape": "plain"
+    },
+    {
+      "_gvid": 7,
+      "name": "h",
+      "label": "",
+      "shape": "point"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 3,
+      "arrowhead": "none"
+    },
+    {
+      "_gvid": 4,
+      "tail": 6,
+      "head": 7,
+      "arrowhead": "none"
+    },
+    {
+      "_gvid": 3,
+      "tail": 5,
+      "head": 2,
+      "arrowhead": "none"
+    },
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowhead": "none"
+    },
+    {
+      "_gvid": 2,
+      "tail": 4,
+      "head": 0,
+      "arrowhead": "none"
+    }
+  ]
+}

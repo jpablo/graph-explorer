@@ -1,0 +1,40 @@
+digraph "G" {
+    graph [rankdir="LR"];
+    edge [arrowhead="none"];
+    "a" [label="h"];
+    "b" [
+        label="X",
+        shape="plain"
+    ];
+    "c" [
+        label="k",
+        regular="false",
+        orientation="151",
+        shape="invtriangle"
+    ];
+    "d" [
+        label="R",
+        shape="plain"
+    ];
+    "e" [
+        label="Y",
+        shape="plain"
+    ];
+    "f" [
+        label="",
+        shape="plain"
+    ];
+    "g" [
+        label="S",
+        shape="plain"
+    ];
+    "h" [
+        label="",
+        shape="point"
+    ];
+    "c" -> "d";
+    "g" -> "h";
+    "f" -> "c";
+    "a" -> "b";
+    "e" -> "a";
+}

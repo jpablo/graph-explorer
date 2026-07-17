@@ -245,7 +245,10 @@ object NodeSize:
     val italic   = fnCanon.contains("italic") || fnCanon.contains("oblique")
 
     val rawLabel = n.attrs.getOrElse("label", "\\N")
-    val lines    = labelLines(rawLabel, n.id, g.name.getOrElse(""))
+    // label="" ⇒ NO label box at all (dimen 0,0 — an empty-label plain node
+    // is a genuine 0×0 point in gv); a non-empty label's EMPTY LINES still
+    // count (int)(fontsize·LINESPACING) each.
+    val lines    = if rawLabel.isEmpty then Nil else labelLines(rawLabel, n.id, g.name.getOrElse(""))
 
     // estimate_textspan_size: width = fontsize * width@1pt; height per line =
     // fontsize*LINESPACING (non-empty) or (int)(fontsize*LINESPACING) (empty).

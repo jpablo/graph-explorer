@@ -1,0 +1,120 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,155.68,132.4",
+  "rankdir": "LR",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "height": "0.5",
+      "label": "h",
+      "pos": "77.84,18",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "height": "0.23333",
+      "label": "X",
+      "pos": "150.63,18",
+      "shape": "plain",
+      "width": "0.14042"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "height": "0.68889",
+      "label": "k",
+      "orientation": "151",
+      "pos": "77.84,79",
+      "regular": "false",
+      "shape": "invtriangle",
+      "width": "0.88139"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "height": "0.23333",
+      "label": "R",
+      "pos": "150.63,79",
+      "shape": "plain",
+      "width": "0.12969"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "height": "0.23333",
+      "label": "Y",
+      "pos": "5.0552,18",
+      "shape": "plain",
+      "width": "0.14042"
+    },
+    {
+      "_gvid": 5,
+      "name": "f",
+      "height": "0",
+      "label": "",
+      "pos": "5.0552,79",
+      "shape": "plain",
+      "width": "0"
+    },
+    {
+      "_gvid": 6,
+      "name": "g",
+      "height": "0.23333",
+      "label": "S",
+      "pos": "5.0552,124",
+      "shape": "plain",
+      "width": "0.10814"
+    },
+    {
+      "_gvid": 7,
+      "name": "h",
+      "height": "0.05",
+      "label": "",
+      "pos": "77.84,124",
+      "shape": "point",
+      "width": "0.05"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 3,
+      "arrowhead": "none",
+      "pos": "94.2,79 110.95,79 136.63,79 146.03,79"
+    },
+    {
+      "_gvid": 4,
+      "tail": 6,
+      "head": 7,
+      "arrowhead": "none",
+      "pos": "8.7436,124 20.663,124 68.478,124 75.877,124"
+    },
+    {
+      "_gvid": 3,
+      "tail": 5,
+      "head": 2,
+      "arrowhead": "none",
+      "pos": "76.789,79 76.806,79 76.819,79 76.827,79"
+    },
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowhead": "none",
+      "pos": "105.2,18 120.61,18 138.46,18 145.99,18"
+    },
+    {
+      "_gvid": 2,
+      "tail": 4,
+      "head": 0,
+      "arrowhead": "none",
+      "pos": "9.8609,18 17.499,18 35.28,18 50.602,18"
+    }
+  ]
+}

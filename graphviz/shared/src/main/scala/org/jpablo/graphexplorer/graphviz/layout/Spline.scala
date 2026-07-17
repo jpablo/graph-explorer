@@ -1616,10 +1616,16 @@ object Spline:
           case Some(_) =>
             NodeSize.polygon(n, g).map { poly =>
               val cen = centerOf(id)
+              val rd  = Rank.rankdir(g)
               val ol  = poly.outline
               val m   = ol.length
               (p: XY) =>
-                val px = p.x - cen.x; val py = p.y - cen.y
+                // poly_inside rotates the CANONICAL query into the node's
+                // TRUE frame first (ccwrotatepf, shapes.c:2415) — the vertex
+                // ring is stored in the final orientation. Identity for TB;
+                // load-bearing for LR/RL/BT with a non-symmetric polygon
+                // (rotated invtriangle, 168).
+                val (px, py) = PortAnchor.ccwrot(p.x - cen.x, p.y - cen.y, rd)
                 var i = 0; var inside = true
                 while i < m && inside do
                   val (qx, qy) = ol(i); val (rx, ry) = ol((i + 1) % m)
@@ -1661,7 +1667,14 @@ object Spline:
                   .contains(shapeName) ||
                 RoundCorners.codeOf.contains(shapeName)
               (p: XY) =>
-                val px = p.x - cen.x; val py = p.y - cen.y
+                var px = p.x - cen.x; var py = p.y - cen.y
+                // poly_inside's normalizing scale (shapes.c:2472): scalex =
+                // n_width / xsize, applied to the query — with a ZERO-size
+                // axis the division is SKIPPED and scalex stays 0, collapsing
+                // the query to the centre: a 0×0 node (empty plain label)
+                // contains EVERY point, so its spline gets swallowed (168 f).
+                if sz.widthPt.value == 0.0 then px = 0.0
+                if sz.heightPt.value == 0.0 then py = 0.0
                 // poly_inside is boundary-INCLUSIVE for polygons: the bbox
                 // check rejects only STRICTLY-outside points and same_side's
                 // `>= 0` counts an exactly-on-the-outline point as inside.
