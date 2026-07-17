@@ -206,7 +206,9 @@ object Output:
     attrs.foreach((k, v) => fields += s"""      "${esc(k)}": "${esc(v)}"""")
     fields += s"""      "_gvid": ${sg.gvid}"""
     if sg.subgraphGvids.nonEmpty then
-      fields += s"""      "subgraphs": [\n        ${sg.subgraphGvids.mkString(",")}\n      ]"""
+      // write_subgs (!top): one indent before the FIRST entry only; the
+      // ",\n" separator leaves every later gvid at column 0.
+      fields += s"""      "subgraphs": [\n        ${sg.subgraphGvids.mkString(",\n")}\n      ]"""
     if sg.nodeGvids.nonEmpty then
       fields += s"""      "nodes": [\n        ${sg.nodeGvids.mkString(",")}\n      ]"""
     if sg.edgeGvids.nonEmpty then

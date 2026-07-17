@@ -1,0 +1,1779 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,424.8,301.6",
+  "center": "1",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "rankdir": "LR",
+  "_subgraph_cnt": 34,
+  "objects": [
+    {
+      "name": "%1",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 0,
+      "nodes": [
+        34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49
+      ]
+    },
+    {
+      "name": "%3",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 1,
+      "nodes": [
+        50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73
+      ]
+    },
+    {
+      "name": "%5",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 2,
+      "nodes": [
+        74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97
+      ]
+    },
+    {
+      "name": "%7",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 3,
+      "nodes": [
+        74,75
+      ]
+    },
+    {
+      "name": "%15",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 4,
+      "nodes": [
+        74,75
+      ]
+    },
+    {
+      "name": "%23",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 5,
+      "nodes": [
+        76,77
+      ]
+    },
+    {
+      "name": "%31",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 6,
+      "nodes": [
+        76,77
+      ]
+    },
+    {
+      "name": "%39",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 7,
+      "nodes": [
+        78,79
+      ]
+    },
+    {
+      "name": "%47",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 8,
+      "nodes": [
+        78,79
+      ]
+    },
+    {
+      "name": "%55",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 9,
+      "nodes": [
+        80,81
+      ]
+    },
+    {
+      "name": "%63",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 10,
+      "nodes": [
+        80,81
+      ]
+    },
+    {
+      "name": "%71",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 11,
+      "subgraphs": [
+        12,
+13
+      ],
+      "nodes": [
+        58,59,74,75,82,83,84,85
+      ],
+      "edges": [
+        56,24,25,57,26,27
+      ]
+    },
+    {
+      "name": "%73",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 12,
+      "nodes": [
+        82,84
+      ]
+    },
+    {
+      "name": "%81",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 13,
+      "nodes": [
+        83,85
+      ]
+    },
+    {
+      "name": "%89",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 14,
+      "subgraphs": [
+        15,
+16
+      ],
+      "nodes": [
+        60,61,76,77,82,83,84,85
+      ],
+      "edges": [
+        58,28,29,59,30,31
+      ]
+    },
+    {
+      "name": "%91",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 15,
+      "nodes": [
+        82,84
+      ]
+    },
+    {
+      "name": "%99",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 16,
+      "nodes": [
+        83,85
+      ]
+    },
+    {
+      "name": "%107",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 17,
+      "subgraphs": [
+        18,
+19
+      ],
+      "nodes": [
+        62,63,78,79,86,87,88,89
+      ],
+      "edges": [
+        60,32,33,61,34,35
+      ]
+    },
+    {
+      "name": "%109",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 18,
+      "nodes": [
+        86,88
+      ]
+    },
+    {
+      "name": "%117",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 19,
+      "nodes": [
+        87,89
+      ]
+    },
+    {
+      "name": "%125",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 20,
+      "subgraphs": [
+        21,
+22
+      ],
+      "nodes": [
+        64,65,80,81,86,87,88,89
+      ],
+      "edges": [
+        62,36,37,63,38,39
+      ]
+    },
+    {
+      "name": "%127",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 21,
+      "nodes": [
+        86,88
+      ]
+    },
+    {
+      "name": "%135",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 22,
+      "nodes": [
+        87,89
+      ]
+    },
+    {
+      "name": "%143",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 23,
+      "subgraphs": [
+        24,
+25,
+26,
+27
+      ],
+      "nodes": [
+        66,67,68,69,82,83,84,85,90,91,92,93,94,95,96,97
+      ],
+      "edges": [
+        64,40,41,65,42,43,66,44,45,67,46,47
+      ]
+    },
+    {
+      "name": "%145",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 24,
+      "nodes": [
+        90,94
+      ]
+    },
+    {
+      "name": "%153",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 25,
+      "nodes": [
+        91,95
+      ]
+    },
+    {
+      "name": "%161",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 26,
+      "nodes": [
+        92,96
+      ]
+    },
+    {
+      "name": "%169",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 27,
+      "nodes": [
+        93,97
+      ]
+    },
+    {
+      "name": "%177",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 28,
+      "subgraphs": [
+        29,
+30,
+31,
+32
+      ],
+      "nodes": [
+        70,71,72,73,86,87,88,89,90,91,92,93,94,95,96,97
+      ],
+      "edges": [
+        68,48,49,69,50,51,70,52,53,71,54,55
+      ]
+    },
+    {
+      "name": "%179",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 29,
+      "nodes": [
+        90,94
+      ]
+    },
+    {
+      "name": "%187",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 30,
+      "nodes": [
+        91,95
+      ]
+    },
+    {
+      "name": "%195",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 31,
+      "nodes": [
+        92,96
+      ]
+    },
+    {
+      "name": "%203",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 32,
+      "nodes": [
+        93,97
+      ]
+    },
+    {
+      "name": "%211",
+      "center": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "rankdir": "LR",
+      "_gvid": 33,
+      "nodes": [
+        42,43,44,45,46,47,48,49,90,91,92,93,94,95,96,97
+      ],
+      "edges": [
+        72,73,74,75,76,77,78,79
+      ]
+    },
+    {
+      "_gvid": 34,
+      "name": "1",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "10.8,290.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 35,
+      "name": "2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "10.8,250.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 36,
+      "name": "3",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "10.8,210.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 37,
+      "name": "4",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "10.8,170.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 38,
+      "name": "5",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "10.8,130.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 39,
+      "name": "6",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "10.8,90.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 40,
+      "name": "7",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "10.8,50.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 41,
+      "name": "8",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "10.8,10.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 42,
+      "name": "10",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "414,290.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 43,
+      "name": "20",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "414,130.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 44,
+      "name": "30",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "414,210.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 45,
+      "name": "40",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "414,50.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 46,
+      "name": "50",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "414,250.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 47,
+      "name": "60",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "414,90.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 48,
+      "name": "70",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "414,170.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 49,
+      "name": "80",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "414,10.8",
+      "shape": "circle",
+      "style": "invis",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 50,
+      "name": "a",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "68.4,290.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 51,
+      "name": "b",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "68.4,250.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 52,
+      "name": "c",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "68.4,210.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 53,
+      "name": "d",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "68.4,170.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 54,
+      "name": "e",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "68.4,130.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 55,
+      "name": "f",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "68.4,90.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 56,
+      "name": "g",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "68.4,50.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 57,
+      "name": "h",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "68.4,10.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 58,
+      "name": "i",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "183.6,290.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 59,
+      "name": "j",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "183.6,130.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 60,
+      "name": "k",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "183.6,250.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 61,
+      "name": "l",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "183.6,90.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 62,
+      "name": "m",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "183.6,210.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 63,
+      "name": "n",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "183.6,50.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 64,
+      "name": "o",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "183.6,170.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 65,
+      "name": "p",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "183.6,10.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 66,
+      "name": "q",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "298.8,290.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 67,
+      "name": "r",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "298.8,130.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 68,
+      "name": "s",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "298.8,210.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 69,
+      "name": "t",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "298.8,50.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 70,
+      "name": "u",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "298.8,250.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 71,
+      "name": "v",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "298.8,90.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 72,
+      "name": "w",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "298.8,170.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 73,
+      "name": "x",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "298.8,10.8",
+      "shape": "circle",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 74,
+      "name": "A",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "126,290.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 75,
+      "name": "B",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "126,250.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 76,
+      "name": "C",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "126,210.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 77,
+      "name": "D",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "126,170.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 78,
+      "name": "E",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "126,130.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 79,
+      "name": "F",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "126,90.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 80,
+      "name": "G",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "126,50.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 81,
+      "name": "H",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "126,10.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 82,
+      "name": "I",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "241.2,290.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 83,
+      "name": "J",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "241.2,130.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 84,
+      "name": "K",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "241.2,250.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 85,
+      "name": "L",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "241.2,90.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 86,
+      "name": "M",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "241.2,210.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 87,
+      "name": "N",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "241.2,50.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 88,
+      "name": "O",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "241.2,170.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 89,
+      "name": "P",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "241.2,10.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 90,
+      "name": "Q",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "356.4,290.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 91,
+      "name": "R",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "356.4,130.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 92,
+      "name": "S",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "356.4,210.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 93,
+      "name": "T",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "356.4,50.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 94,
+      "name": "U",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "356.4,250.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 95,
+      "name": "V",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "356.4,90.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 96,
+      "name": "W",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "356.4,170.8",
+      "shape": "diamond",
+      "width": "0.3"
+    },
+    {
+      "_gvid": 97,
+      "name": "X",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.3",
+      "label": "",
+      "pos": "356.4,10.8",
+      "shape": "diamond",
+      "width": "0.3"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 34,
+      "head": 50,
+      "color": "#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "21.998,290.8 32.03,290.8 47.257,290.8 57.267,290.8"
+    },
+    {
+      "_gvid": 8,
+      "tail": 50,
+      "head": 74,
+      "color": "#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "79.598,290.8 89.63,290.8 104.86,290.8 114.87,290.8"
+    },
+    {
+      "_gvid": 9,
+      "tail": 50,
+      "head": 75,
+      "color": "#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "77.604,284.9 88.962,276.73 109.2,262.17 119.15,255.01"
+    },
+    {
+      "_gvid": 1,
+      "tail": 35,
+      "head": 51,
+      "color": "#ff0000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "21.998,250.8 32.03,250.8 47.257,250.8 57.267,250.8"
+    },
+    {
+      "_gvid": 10,
+      "tail": 51,
+      "head": 74,
+      "color": "#ff0000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "77.604,256.7 88.962,264.87 109.2,279.43 119.15,286.59"
+    },
+    {
+      "_gvid": 11,
+      "tail": 51,
+      "head": 75,
+      "color": "#ff0000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "79.598,250.8 89.63,250.8 104.86,250.8 114.87,250.8"
+    },
+    {
+      "_gvid": 2,
+      "tail": 36,
+      "head": 52,
+      "color": "#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "21.998,210.8 32.03,210.8 47.257,210.8 57.267,210.8"
+    },
+    {
+      "_gvid": 12,
+      "tail": 52,
+      "head": 76,
+      "color": "#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "79.598,210.8 89.63,210.8 104.86,210.8 114.87,210.8"
+    },
+    {
+      "_gvid": 13,
+      "tail": 52,
+      "head": 77,
+      "color": "#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "77.604,204.9 88.962,196.73 109.2,182.17 119.15,175.01"
+    },
+    {
+      "_gvid": 3,
+      "tail": 37,
+      "head": 53,
+      "color": "#00ff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "21.998,170.8 32.03,170.8 47.257,170.8 57.267,170.8"
+    },
+    {
+      "_gvid": 14,
+      "tail": 53,
+      "head": 76,
+      "color": "#00ff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "77.604,176.7 88.962,184.87 109.2,199.43 119.15,206.59"
+    },
+    {
+      "_gvid": 15,
+      "tail": 53,
+      "head": 77,
+      "color": "#00ff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "79.598,170.8 89.63,170.8 104.86,170.8 114.87,170.8"
+    },
+    {
+      "_gvid": 4,
+      "tail": 38,
+      "head": 54,
+      "color": "#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "21.998,130.8 32.03,130.8 47.257,130.8 57.267,130.8"
+    },
+    {
+      "_gvid": 16,
+      "tail": 54,
+      "head": 78,
+      "color": "#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "79.598,130.8 89.63,130.8 104.86,130.8 114.87,130.8"
+    },
+    {
+      "_gvid": 17,
+      "tail": 54,
+      "head": 79,
+      "color": "#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "77.604,124.9 88.962,116.73 109.2,102.17 119.15,95.01"
+    },
+    {
+      "_gvid": 5,
+      "tail": 39,
+      "head": 55,
+      "color": "#00ffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "21.998,90.8 32.03,90.8 47.257,90.8 57.267,90.8"
+    },
+    {
+      "_gvid": 18,
+      "tail": 55,
+      "head": 78,
+      "color": "#00ffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "77.604,96.702 88.962,104.87 109.2,119.43 119.15,126.59"
+    },
+    {
+      "_gvid": 19,
+      "tail": 55,
+      "head": 79,
+      "color": "#00ffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "79.598,90.8 89.63,90.8 104.86,90.8 114.87,90.8"
+    },
+    {
+      "_gvid": 6,
+      "tail": 40,
+      "head": 56,
+      "color": "#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "21.998,50.8 32.03,50.8 47.257,50.8 57.267,50.8"
+    },
+    {
+      "_gvid": 20,
+      "tail": 56,
+      "head": 80,
+      "color": "#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "79.598,50.8 89.63,50.8 104.86,50.8 114.87,50.8"
+    },
+    {
+      "_gvid": 21,
+      "tail": 56,
+      "head": 81,
+      "color": "#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "77.604,44.898 88.962,36.727 109.2,22.168 119.15,15.01"
+    },
+    {
+      "_gvid": 7,
+      "tail": 41,
+      "head": 57,
+      "color": "#ff00ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "21.998,10.8 32.03,10.8 47.257,10.8 57.267,10.8"
+    },
+    {
+      "_gvid": 22,
+      "tail": 57,
+      "head": 80,
+      "color": "#ff00ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "77.604,16.702 88.962,24.873 109.2,39.432 119.15,46.59"
+    },
+    {
+      "_gvid": 23,
+      "tail": 57,
+      "head": 81,
+      "color": "#ff00ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "79.598,10.8 89.63,10.8 104.86,10.8 114.87,10.8"
+    },
+    {
+      "_gvid": 56,
+      "tail": 74,
+      "head": 58,
+      "color": "#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "137.46,290.8 147.52,290.8 162.64,290.8 172.56,290.8"
+    },
+    {
+      "_gvid": 24,
+      "tail": 58,
+      "head": 82,
+      "color": "#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "194.8,290.8 204.83,290.8 220.06,290.8 230.07,290.8"
+    },
+    {
+      "_gvid": 25,
+      "tail": 58,
+      "head": 84,
+      "color": "#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "192.8,284.9 204.16,276.73 224.4,262.17 234.35,255.01"
+    },
+    {
+      "_gvid": 57,
+      "tail": 75,
+      "head": 59,
+      "color": "#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "130.32,244.16 132.25,240.28 134.7,235.28 136.8,230.8 153.38,195.51 156.22,186.09 172.8,150.8 174.44,147.3 176.3,143.48 177.95,140.13"
+    },
+    {
+      "_gvid": 26,
+      "tail": 59,
+      "head": 83,
+      "color": "#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "194.8,130.8 204.83,130.8 220.06,130.8 230.07,130.8"
+    },
+    {
+      "_gvid": 27,
+      "tail": 59,
+      "head": 85,
+      "color": "#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "192.8,124.9 204.16,116.73 224.4,102.17 234.35,95.01"
+    },
+    {
+      "_gvid": 58,
+      "tail": 76,
+      "head": 60,
+      "color": "#00ff00:#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "132.95,215.08 142.92,222.26 163.03,236.72 174.36,244.87"
+    },
+    {
+      "_gvid": 28,
+      "tail": 60,
+      "head": 82,
+      "color": "#00ff00:#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "192.8,256.7 204.16,264.87 224.4,279.43 234.35,286.59"
+    },
+    {
+      "_gvid": 29,
+      "tail": 60,
+      "head": 84,
+      "color": "#00ff00:#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "194.8,250.8 204.83,250.8 220.06,250.8 230.07,250.8"
+    },
+    {
+      "_gvid": 59,
+      "tail": 77,
+      "head": 61,
+      "color": "#00ff00:#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "131.18,164.79 140.98,150.69 165.46,115.47 176.74,99.236"
+    },
+    {
+      "_gvid": 30,
+      "tail": 61,
+      "head": 83,
+      "color": "#00ff00:#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "192.8,96.702 204.16,104.87 224.4,119.43 234.35,126.59"
+    },
+    {
+      "_gvid": 31,
+      "tail": 61,
+      "head": 85,
+      "color": "#00ff00:#ffff00",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "194.8,90.8 204.83,90.8 220.06,90.8 230.07,90.8"
+    },
+    {
+      "_gvid": 60,
+      "tail": 78,
+      "head": 62,
+      "color": "#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "131.18,136.81 140.98,150.91 165.46,186.13 176.74,202.36"
+    },
+    {
+      "_gvid": 32,
+      "tail": 62,
+      "head": 86,
+      "color": "#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "194.8,210.8 204.83,210.8 220.06,210.8 230.07,210.8"
+    },
+    {
+      "_gvid": 33,
+      "tail": 62,
+      "head": 88,
+      "color": "#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "192.8,204.9 204.16,196.73 224.4,182.17 234.35,175.01"
+    },
+    {
+      "_gvid": 61,
+      "tail": 79,
+      "head": 63,
+      "color": "#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "132.95,86.519 142.92,79.344 163.03,64.878 174.36,56.729"
+    },
+    {
+      "_gvid": 34,
+      "tail": 63,
+      "head": 87,
+      "color": "#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "194.8,50.8 204.83,50.8 220.06,50.8 230.07,50.8"
+    },
+    {
+      "_gvid": 35,
+      "tail": 63,
+      "head": 89,
+      "color": "#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "192.8,44.898 204.16,36.727 224.4,22.168 234.35,15.01"
+    },
+    {
+      "_gvid": 62,
+      "tail": 80,
+      "head": 64,
+      "color": "#ff00ff:#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "130.32,57.44 132.25,61.32 134.7,66.32 136.8,70.8 153.38,106.09 156.22,115.51 172.8,150.8 174.44,154.3 176.3,158.12 177.95,161.47"
+    },
+    {
+      "_gvid": 36,
+      "tail": 64,
+      "head": 86,
+      "color": "#ff00ff:#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "192.8,176.7 204.16,184.87 224.4,199.43 234.35,206.59"
+    },
+    {
+      "_gvid": 37,
+      "tail": 64,
+      "head": 88,
+      "color": "#ff00ff:#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "194.8,170.8 204.83,170.8 220.06,170.8 230.07,170.8"
+    },
+    {
+      "_gvid": 63,
+      "tail": 81,
+      "head": 65,
+      "color": "#ff00ff:#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "137.46,10.8 147.52,10.8 162.64,10.8 172.56,10.8"
+    },
+    {
+      "_gvid": 38,
+      "tail": 65,
+      "head": 87,
+      "color": "#ff00ff:#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "192.8,16.702 204.16,24.873 224.4,39.432 234.35,46.59"
+    },
+    {
+      "_gvid": 39,
+      "tail": 65,
+      "head": 89,
+      "color": "#ff00ff:#ffffff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "194.8,10.8 204.83,10.8 220.06,10.8 230.07,10.8"
+    },
+    {
+      "_gvid": 64,
+      "tail": 82,
+      "head": 66,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "252.66,290.8 262.72,290.8 277.84,290.8 287.76,290.8"
+    },
+    {
+      "_gvid": 40,
+      "tail": 66,
+      "head": 90,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "310,290.8 320.03,290.8 335.26,290.8 345.27,290.8"
+    },
+    {
+      "_gvid": 41,
+      "tail": 66,
+      "head": 94,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "308,284.9 319.36,276.73 339.6,262.17 349.55,255.01"
+    },
+    {
+      "_gvid": 65,
+      "tail": 83,
+      "head": 67,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "252.66,130.8 262.72,130.8 277.84,130.8 287.76,130.8"
+    },
+    {
+      "_gvid": 42,
+      "tail": 67,
+      "head": 91,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "310,130.8 320.03,130.8 335.26,130.8 345.27,130.8"
+    },
+    {
+      "_gvid": 43,
+      "tail": 67,
+      "head": 95,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "308,124.9 319.36,116.73 339.6,102.17 349.55,95.01"
+    },
+    {
+      "_gvid": 66,
+      "tail": 84,
+      "head": 68,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "248.15,246.52 258.12,239.34 278.23,224.88 289.56,216.73"
+    },
+    {
+      "_gvid": 44,
+      "tail": 68,
+      "head": 92,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "310,210.8 320.03,210.8 335.26,210.8 345.27,210.8"
+    },
+    {
+      "_gvid": 45,
+      "tail": 68,
+      "head": 96,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "308,204.9 319.36,196.73 339.6,182.17 349.55,175.01"
+    },
+    {
+      "_gvid": 67,
+      "tail": 85,
+      "head": 69,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "248.15,86.519 258.12,79.344 278.23,64.878 289.56,56.729"
+    },
+    {
+      "_gvid": 46,
+      "tail": 69,
+      "head": 93,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "310,50.8 320.03,50.8 335.26,50.8 345.27,50.8"
+    },
+    {
+      "_gvid": 47,
+      "tail": 69,
+      "head": 97,
+      "color": "#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "308,44.898 319.36,36.727 339.6,22.168 349.55,15.01"
+    },
+    {
+      "_gvid": 68,
+      "tail": 86,
+      "head": 70,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "248.15,215.08 258.12,222.26 278.23,236.72 289.56,244.87"
+    },
+    {
+      "_gvid": 48,
+      "tail": 70,
+      "head": 90,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "308,256.7 319.36,264.87 339.6,279.43 349.55,286.59"
+    },
+    {
+      "_gvid": 49,
+      "tail": 70,
+      "head": 94,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "310,250.8 320.03,250.8 335.26,250.8 345.27,250.8"
+    },
+    {
+      "_gvid": 69,
+      "tail": 87,
+      "head": 71,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "248.15,55.081 258.12,62.256 278.23,76.722 289.56,84.871"
+    },
+    {
+      "_gvid": 50,
+      "tail": 71,
+      "head": 91,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "308,96.702 319.36,104.87 339.6,119.43 349.55,126.59"
+    },
+    {
+      "_gvid": 51,
+      "tail": 71,
+      "head": 95,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "310,90.8 320.03,90.8 335.26,90.8 345.27,90.8"
+    },
+    {
+      "_gvid": 70,
+      "tail": 88,
+      "head": 72,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "252.66,170.8 262.72,170.8 277.84,170.8 287.76,170.8"
+    },
+    {
+      "_gvid": 52,
+      "tail": 72,
+      "head": 92,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "308,176.7 319.36,184.87 339.6,199.43 349.55,206.59"
+    },
+    {
+      "_gvid": 53,
+      "tail": 72,
+      "head": 96,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "310,170.8 320.03,170.8 335.26,170.8 345.27,170.8"
+    },
+    {
+      "_gvid": 71,
+      "tail": 89,
+      "head": 73,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "252.66,10.8 262.72,10.8 277.84,10.8 287.76,10.8"
+    },
+    {
+      "_gvid": 54,
+      "tail": 73,
+      "head": 93,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "308,16.702 319.36,24.873 339.6,39.432 349.55,46.59"
+    },
+    {
+      "_gvid": 55,
+      "tail": 73,
+      "head": 97,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "310,10.8 320.03,10.8 335.26,10.8 345.27,10.8"
+    },
+    {
+      "_gvid": 72,
+      "tail": 90,
+      "head": 42,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "367.86,290.8 377.92,290.8 393.04,290.8 402.96,290.8"
+    },
+    {
+      "_gvid": 73,
+      "tail": 91,
+      "head": 43,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "367.86,130.8 377.92,130.8 393.04,130.8 402.96,130.8"
+    },
+    {
+      "_gvid": 74,
+      "tail": 92,
+      "head": 44,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "367.86,210.8 377.92,210.8 393.04,210.8 402.96,210.8"
+    },
+    {
+      "_gvid": 75,
+      "tail": 93,
+      "head": 45,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "367.86,50.8 377.92,50.8 393.04,50.8 402.96,50.8"
+    },
+    {
+      "_gvid": 76,
+      "tail": 94,
+      "head": 46,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "367.86,250.8 377.92,250.8 393.04,250.8 402.96,250.8"
+    },
+    {
+      "_gvid": 77,
+      "tail": 95,
+      "head": 47,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "367.86,90.8 377.92,90.8 393.04,90.8 402.96,90.8"
+    },
+    {
+      "_gvid": 78,
+      "tail": 96,
+      "head": 48,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "367.86,170.8 377.92,170.8 393.04,170.8 402.96,170.8"
+    },
+    {
+      "_gvid": 79,
+      "tail": 97,
+      "head": 49,
+      "color": "#ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff",
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "367.86,10.8 377.92,10.8 393.04,10.8 402.96,10.8"
+    }
+  ]
+}

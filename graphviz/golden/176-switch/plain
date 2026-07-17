@@ -1,0 +1,146 @@
+graph 1 5.9 4.1889
+node 1 0.15 4.0389 0.3 0.3 "" invis circle black lightgrey
+node 2 0.15 3.4833 0.3 0.3 "" invis circle black lightgrey
+node 3 0.15 2.9278 0.3 0.3 "" invis circle black lightgrey
+node 4 0.15 2.3722 0.3 0.3 "" invis circle black lightgrey
+node 5 0.15 1.8167 0.3 0.3 "" invis circle black lightgrey
+node 6 0.15 1.2611 0.3 0.3 "" invis circle black lightgrey
+node 7 0.15 0.70556 0.3 0.3 "" invis circle black lightgrey
+node 8 0.15 0.15 0.3 0.3 "" invis circle black lightgrey
+node 10 5.75 4.0389 0.3 0.3 "" invis circle black lightgrey
+node 20 5.75 1.8167 0.3 0.3 "" invis circle black lightgrey
+node 30 5.75 2.9278 0.3 0.3 "" invis circle black lightgrey
+node 40 5.75 0.70556 0.3 0.3 "" invis circle black lightgrey
+node 50 5.75 3.4833 0.3 0.3 "" invis circle black lightgrey
+node 60 5.75 1.2611 0.3 0.3 "" invis circle black lightgrey
+node 70 5.75 2.3722 0.3 0.3 "" invis circle black lightgrey
+node 80 5.75 0.15 0.3 0.3 "" invis circle black lightgrey
+node a 0.95 4.0389 0.3 0.3 "" solid circle black lightgrey
+node b 0.95 3.4833 0.3 0.3 "" solid circle black lightgrey
+node c 0.95 2.9278 0.3 0.3 "" solid circle black lightgrey
+node d 0.95 2.3722 0.3 0.3 "" solid circle black lightgrey
+node e 0.95 1.8167 0.3 0.3 "" solid circle black lightgrey
+node f 0.95 1.2611 0.3 0.3 "" solid circle black lightgrey
+node g 0.95 0.70556 0.3 0.3 "" solid circle black lightgrey
+node h 0.95 0.15 0.3 0.3 "" solid circle black lightgrey
+node i 2.55 4.0389 0.3 0.3 "" solid circle black lightgrey
+node j 2.55 1.8167 0.3 0.3 "" solid circle black lightgrey
+node k 2.55 3.4833 0.3 0.3 "" solid circle black lightgrey
+node l 2.55 1.2611 0.3 0.3 "" solid circle black lightgrey
+node m 2.55 2.9278 0.3 0.3 "" solid circle black lightgrey
+node n 2.55 0.70556 0.3 0.3 "" solid circle black lightgrey
+node o 2.55 2.3722 0.3 0.3 "" solid circle black lightgrey
+node p 2.55 0.15 0.3 0.3 "" solid circle black lightgrey
+node q 4.15 4.0389 0.3 0.3 "" solid circle black lightgrey
+node r 4.15 1.8167 0.3 0.3 "" solid circle black lightgrey
+node s 4.15 2.9278 0.3 0.3 "" solid circle black lightgrey
+node t 4.15 0.70556 0.3 0.3 "" solid circle black lightgrey
+node u 4.15 3.4833 0.3 0.3 "" solid circle black lightgrey
+node v 4.15 1.2611 0.3 0.3 "" solid circle black lightgrey
+node w 4.15 2.3722 0.3 0.3 "" solid circle black lightgrey
+node x 4.15 0.15 0.3 0.3 "" solid circle black lightgrey
+node A 1.75 4.0389 0.3 0.3 "" solid diamond black lightgrey
+node B 1.75 3.4833 0.3 0.3 "" solid diamond black lightgrey
+node C 1.75 2.9278 0.3 0.3 "" solid diamond black lightgrey
+node D 1.75 2.3722 0.3 0.3 "" solid diamond black lightgrey
+node E 1.75 1.8167 0.3 0.3 "" solid diamond black lightgrey
+node F 1.75 1.2611 0.3 0.3 "" solid diamond black lightgrey
+node G 1.75 0.70556 0.3 0.3 "" solid diamond black lightgrey
+node H 1.75 0.15 0.3 0.3 "" solid diamond black lightgrey
+node I 3.35 4.0389 0.3 0.3 "" solid diamond black lightgrey
+node J 3.35 1.8167 0.3 0.3 "" solid diamond black lightgrey
+node K 3.35 3.4833 0.3 0.3 "" solid diamond black lightgrey
+node L 3.35 1.2611 0.3 0.3 "" solid diamond black lightgrey
+node M 3.35 2.9278 0.3 0.3 "" solid diamond black lightgrey
+node N 3.35 0.70556 0.3 0.3 "" solid diamond black lightgrey
+node O 3.35 2.3722 0.3 0.3 "" solid diamond black lightgrey
+node P 3.35 0.15 0.3 0.3 "" solid diamond black lightgrey
+node Q 4.95 4.0389 0.3 0.3 "" solid diamond black lightgrey
+node R 4.95 1.8167 0.3 0.3 "" solid diamond black lightgrey
+node S 4.95 2.9278 0.3 0.3 "" solid diamond black lightgrey
+node T 4.95 0.70556 0.3 0.3 "" solid diamond black lightgrey
+node U 4.95 3.4833 0.3 0.3 "" solid diamond black lightgrey
+node V 4.95 1.2611 0.3 0.3 "" solid diamond black lightgrey
+node W 4.95 2.3722 0.3 0.3 "" solid diamond black lightgrey
+node X 4.95 0.15 0.3 0.3 "" solid diamond black lightgrey
+edge 1 a 4 0.30553 4.0389 0.44486 4.0389 0.65635 4.0389 0.79537 4.0389 solid #0000ff
+edge 2 b 4 0.30553 3.4833 0.44486 3.4833 0.65635 3.4833 0.79537 3.4833 solid #ff0000
+edge 3 c 4 0.30553 2.9278 0.44486 2.9278 0.65635 2.9278 0.79537 2.9278 solid #ffff00
+edge 4 d 4 0.30553 2.3722 0.44486 2.3722 0.65635 2.3722 0.79537 2.3722 solid #00ff00
+edge 5 e 4 0.30553 1.8167 0.44486 1.8167 0.65635 1.8167 0.79537 1.8167 solid #000000
+edge 6 f 4 0.30553 1.2611 0.44486 1.2611 0.65635 1.2611 0.79537 1.2611 solid #00ffff
+edge 7 g 4 0.30553 0.70556 0.44486 0.70556 0.65635 0.70556 0.79537 0.70556 solid #ffffff
+edge 8 h 4 0.30553 0.15 0.44486 0.15 0.65635 0.15 0.79537 0.15 solid #ff00ff
+edge a A 4 1.1055 4.0389 1.2449 4.0389 1.4563 4.0389 1.5954 4.0389 solid #0000ff
+edge a B 4 1.0778 3.9569 1.2356 3.8434 1.5167 3.6412 1.6548 3.5418 solid #0000ff
+edge b A 4 1.0778 3.5653 1.2356 3.6788 1.5167 3.881 1.6548 3.9804 solid #ff0000
+edge b B 4 1.1055 3.4833 1.2449 3.4833 1.4563 3.4833 1.5954 3.4833 solid #ff0000
+edge c C 4 1.1055 2.9278 1.2449 2.9278 1.4563 2.9278 1.5954 2.9278 solid #ffff00
+edge c D 4 1.0778 2.8458 1.2356 2.7323 1.5167 2.5301 1.6548 2.4307 solid #ffff00
+edge d C 4 1.0778 2.4542 1.2356 2.5677 1.5167 2.7699 1.6548 2.8693 solid #00ff00
+edge d D 4 1.1055 2.3722 1.2449 2.3722 1.4563 2.3722 1.5954 2.3722 solid #00ff00
+edge e E 4 1.1055 1.8167 1.2449 1.8167 1.4563 1.8167 1.5954 1.8167 solid #000000
+edge e F 4 1.0778 1.7347 1.2356 1.6212 1.5167 1.419 1.6548 1.3196 solid #000000
+edge f E 4 1.0778 1.3431 1.2356 1.4566 1.5167 1.6588 1.6548 1.7582 solid #00ffff
+edge f F 4 1.1055 1.2611 1.2449 1.2611 1.4563 1.2611 1.5954 1.2611 solid #00ffff
+edge g G 4 1.1055 0.70556 1.2449 0.70556 1.4563 0.70556 1.5954 0.70556 solid #ffffff
+edge g H 4 1.0778 0.62358 1.2356 0.51009 1.5167 0.30789 1.6548 0.20847 solid #ffffff
+edge h G 4 1.0778 0.23197 1.2356 0.34546 1.5167 0.54767 1.6548 0.64709 solid #ff00ff
+edge h H 4 1.1055 0.15 1.2449 0.15 1.4563 0.15 1.5954 0.15 solid #ff00ff
+edge i I 4 2.7055 4.0389 2.8449 4.0389 3.0563 4.0389 3.1954 4.0389 solid #ff0000:#0000ff
+edge i K 4 2.6778 3.9569 2.8356 3.8434 3.1167 3.6412 3.2548 3.5418 solid #ff0000:#0000ff
+edge j J 4 2.7055 1.8167 2.8449 1.8167 3.0563 1.8167 3.1954 1.8167 solid #ff0000:#0000ff
+edge j L 4 2.6778 1.7347 2.8356 1.6212 3.1167 1.419 3.2548 1.3196 solid #ff0000:#0000ff
+edge k I 4 2.6778 3.5653 2.8356 3.6788 3.1167 3.881 3.2548 3.9804 solid #00ff00:#ffff00
+edge k K 4 2.7055 3.4833 2.8449 3.4833 3.0563 3.4833 3.1954 3.4833 solid #00ff00:#ffff00
+edge l J 4 2.6778 1.3431 2.8356 1.4566 3.1167 1.6588 3.2548 1.7582 solid #00ff00:#ffff00
+edge l L 4 2.7055 1.2611 2.8449 1.2611 3.0563 1.2611 3.1954 1.2611 solid #00ff00:#ffff00
+edge m M 4 2.7055 2.9278 2.8449 2.9278 3.0563 2.9278 3.1954 2.9278 solid #00ffff:#000000
+edge m O 4 2.6778 2.8458 2.8356 2.7323 3.1167 2.5301 3.2548 2.4307 solid #00ffff:#000000
+edge n N 4 2.7055 0.70556 2.8449 0.70556 3.0563 0.70556 3.1954 0.70556 solid #00ffff:#000000
+edge n P 4 2.6778 0.62358 2.8356 0.51009 3.1167 0.30789 3.2548 0.20847 solid #00ffff:#000000
+edge o M 4 2.6778 2.4542 2.8356 2.5677 3.1167 2.7699 3.2548 2.8693 solid #ff00ff:#ffffff
+edge o O 4 2.7055 2.3722 2.8449 2.3722 3.0563 2.3722 3.1954 2.3722 solid #ff00ff:#ffffff
+edge p N 4 2.6778 0.23197 2.8356 0.34546 3.1167 0.54767 3.2548 0.64709 solid #ff00ff:#ffffff
+edge p P 4 2.7055 0.15 2.8449 0.15 3.0563 0.15 3.1954 0.15 solid #ff00ff:#ffffff
+edge q Q 4 4.3055 4.0389 4.4449 4.0389 4.6563 4.0389 4.7954 4.0389 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge q U 4 4.2778 3.9569 4.4356 3.8434 4.7167 3.6412 4.8548 3.5418 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge r R 4 4.3055 1.8167 4.4449 1.8167 4.6563 1.8167 4.7954 1.8167 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge r V 4 4.2778 1.7347 4.4356 1.6212 4.7167 1.419 4.8548 1.3196 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge s S 4 4.3055 2.9278 4.4449 2.9278 4.6563 2.9278 4.7954 2.9278 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge s W 4 4.2778 2.8458 4.4356 2.7323 4.7167 2.5301 4.8548 2.4307 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge t T 4 4.3055 0.70556 4.4449 0.70556 4.6563 0.70556 4.7954 0.70556 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge t X 4 4.2778 0.62358 4.4356 0.51009 4.7167 0.30789 4.8548 0.20847 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge u Q 4 4.2778 3.5653 4.4356 3.6788 4.7167 3.881 4.8548 3.9804 solid #ff00ff:#ffffff:#00ffff:#000000
+edge u U 4 4.3055 3.4833 4.4449 3.4833 4.6563 3.4833 4.7954 3.4833 solid #ff00ff:#ffffff:#00ffff:#000000
+edge v R 4 4.2778 1.3431 4.4356 1.4566 4.7167 1.6588 4.8548 1.7582 solid #ff00ff:#ffffff:#00ffff:#000000
+edge v V 4 4.3055 1.2611 4.4449 1.2611 4.6563 1.2611 4.7954 1.2611 solid #ff00ff:#ffffff:#00ffff:#000000
+edge w S 4 4.2778 2.4542 4.4356 2.5677 4.7167 2.7699 4.8548 2.8693 solid #ff00ff:#ffffff:#00ffff:#000000
+edge w W 4 4.3055 2.3722 4.4449 2.3722 4.6563 2.3722 4.7954 2.3722 solid #ff00ff:#ffffff:#00ffff:#000000
+edge x T 4 4.2778 0.23197 4.4356 0.34546 4.7167 0.54767 4.8548 0.64709 solid #ff00ff:#ffffff:#00ffff:#000000
+edge x X 4 4.3055 0.15 4.4449 0.15 4.6563 0.15 4.7954 0.15 solid #ff00ff:#ffffff:#00ffff:#000000
+edge A i 4 1.9091 4.0389 2.0489 4.0389 2.2589 4.0389 2.3967 4.0389 solid #ff0000:#0000ff
+edge B j 10 1.81 3.3911 1.8367 3.3372 1.8708 3.2678 1.9 3.2056 2.1303 2.7154 2.1697 2.5846 2.4 2.0944 2.4228 2.0458 2.4486 1.9928 2.4715 1.9463 solid #ff0000:#0000ff
+edge C k 4 1.8465 2.9872 1.985 3.0869 2.2643 3.2878 2.4216 3.401 solid #00ff00:#ffff00
+edge D l 4 1.8219 2.2887 1.958 2.0929 2.298 1.6037 2.4547 1.3783 solid #00ff00:#ffff00
+edge E m 4 1.8219 1.9002 1.958 2.096 2.298 2.5852 2.4547 2.8106 solid #00ffff:#000000
+edge F n 4 1.8465 1.2017 1.985 1.102 2.2643 0.90109 2.4216 0.7879 solid #00ffff:#000000
+edge G o 10 1.81 0.79778 1.8367 0.85167 1.8708 0.92112 1.9 0.98333 2.1303 1.4735 2.1697 1.6043 2.4 2.0944 2.4228 2.1431 2.4486 2.1961 2.4715 2.2426 solid #ff00ff:#ffffff
+edge H p 4 1.9091 0.15 2.0489 0.15 2.2589 0.15 2.3967 0.15 solid #ff00ff:#ffffff
+edge I q 4 3.5091 4.0389 3.6489 4.0389 3.8589 4.0389 3.9967 4.0389 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge J r 4 3.5091 1.8167 3.6489 1.8167 3.8589 1.8167 3.9967 1.8167 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge K s 4 3.4465 3.4239 3.585 3.3242 3.8643 3.1233 4.0216 3.0101 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge L t 4 3.4465 1.2017 3.585 1.102 3.8643 0.90109 4.0216 0.7879 solid #00ff00:#ffff00:#ff0000:#0000ff
+edge M u 4 3.4465 2.9872 3.585 3.0869 3.8643 3.2878 4.0216 3.401 solid #ff00ff:#ffffff:#00ffff:#000000
+edge N v 4 3.4465 0.76501 3.585 0.86466 3.8643 1.0656 4.0216 1.1788 solid #ff00ff:#ffffff:#00ffff:#000000
+edge O w 4 3.5091 2.3722 3.6489 2.3722 3.8589 2.3722 3.9967 2.3722 solid #ff00ff:#ffffff:#00ffff:#000000
+edge P x 4 3.5091 0.15 3.6489 0.15 3.8589 0.15 3.9967 0.15 solid #ff00ff:#ffffff:#00ffff:#000000
+edge Q 10 4 5.1091 4.0389 5.2489 4.0389 5.4589 4.0389 5.5967 4.0389 solid #ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff
+edge R 20 4 5.1091 1.8167 5.2489 1.8167 5.4589 1.8167 5.5967 1.8167 solid #ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff
+edge S 30 4 5.1091 2.9278 5.2489 2.9278 5.4589 2.9278 5.5967 2.9278 solid #ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff
+edge T 40 4 5.1091 0.70556 5.2489 0.70556 5.4589 0.70556 5.5967 0.70556 solid #ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff
+edge U 50 4 5.1091 3.4833 5.2489 3.4833 5.4589 3.4833 5.5967 3.4833 solid #ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff
+edge V 60 4 5.1091 1.2611 5.2489 1.2611 5.4589 1.2611 5.5967 1.2611 solid #ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff
+edge W 70 4 5.1091 2.3722 5.2489 2.3722 5.4589 2.3722 5.5967 2.3722 solid #ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff
+edge X 80 4 5.1091 0.15 5.2489 0.15 5.4589 0.15 5.5967 0.15 solid #ff00ff:#ffffff:#00ffff:#000000:#00ff00:#ffff00:#ff0000:#0000ff
+stop
