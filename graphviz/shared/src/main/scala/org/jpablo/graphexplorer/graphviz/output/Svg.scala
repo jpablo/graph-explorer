@@ -212,6 +212,7 @@ object Svg:
     val ranks      = Rank.assign(g)
     val spl        = Spline.splinesEx(g)
     val labelPos   = Spline.labelPositions(g)
+    val xlabels    = org.jpablo.graphexplorer.graphviz.layout.XLabels.place(g)
     // map_point (postproc.c): rotate canonical coords into the drawing frame
     // (identity for TB — the corpus is untouched). Every point below is drawn
     // at tf(canonical); node/label extents stay true-size (the rotation of the
@@ -289,23 +290,23 @@ object Svg:
       * `r`→end@cx+w/2). Reduces to `textAt` for a single centred line. Empty
       * lines advance the cursor but draw nothing. */
     def textLines(cx: Double, cyc: Double, raw: String, fill: String,
-                  nodeId: String, fontName: String): String =
+                  nodeId: String, fontName: String, fontSize: Double = FontSize): String =
       val lines = NodeSize.labelLinesJust(raw, nodeId, g.name.getOrElse(""))
       if lines.forall(_._1.isEmpty) then return ""
-      val dimenY = lines.map((l, _) => NodeSize.lineHeightPt(l, FontSize)).sum
-      val boxW   = NodeSize.labelBoxWidthPt(raw, FontSize, fontName, nodeId, g.name.getOrElse(""))
+      val dimenY = lines.map((l, _) => NodeSize.lineHeightPt(l, fontSize)).sum
+      val boxW   = NodeSize.labelBoxWidthPt(raw, fontSize, fontName, nodeId, g.name.getOrElse(""))
       val f      = if fill.nonEmpty then s""" fill="$fill"""" else ""
       val out    = new StringBuilder
-      var baseTop = cyc + dimenY / 2.0 - FontSize
+      var baseTop = cyc + dimenY / 2.0 - fontSize
       lines.foreach { case (line, just) =>
-        val h  = NodeSize.lineHeightPt(line, FontSize)
+        val h  = NodeSize.lineHeightPt(line, fontSize)
         if line.nonEmpty then
-          val ty = -(baseTop + 0.1 * FontSize)
+          val ty = -(baseTop + 0.1 * fontSize)
           val (anchor, tx) = just match
             case 'l' => ("start", cx - boxW / 2.0)
             case 'r' => ("end",   cx + boxW / 2.0)
             case _   => ("middle", cx)
-          out ++= s"""<text xml:space="preserve" text-anchor="$anchor" x="${d2(tx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="14.00"$f>${xml(line)}</text>\n"""
+          out ++= s"""<text xml:space="preserve" text-anchor="$anchor" x="${d2(tx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="${f2(fontSize)}"$f>${xml(line)}</text>\n"""
         baseTop -= h
       }
       out.toString
@@ -425,9 +426,10 @@ object Svg:
       * centred content), then the outer table border (emit order: cell, content,
       * …, table border last — matches gv). Coords are table-local y-up + centre. */
     def htmlTable(cx: Double, cyc: Double, tbl: org.jpablo.graphexplorer.graphviz.html.HtmlTable,
-                  defColor: String, baseSize: Double, baseName: String): String =
+                  defColor: String, baseSize: Double, baseName: String,
+                  fit: Option[(Double, Double)] = None): String =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlTableLayout, HtmlLabel, HtmlAlign}
-      val laid     = HtmlTableLayout.layout(tbl, baseSize, baseName, g.images)
+      val laid     = HtmlTableLayout.layout(tbl, baseSize, baseName, g.images, fit)
       val tblSpace = tbl.cellspacing.toDouble
       val out      = new StringBuilder
       // box polygon in world coords: LL, UL, UR, LR, LL (gvrender_box order).
@@ -513,7 +515,10 @@ object Svg:
               case Some("right") => HtmlAlign.Right
               case _             => HtmlAlign.Center
             out ++= htmlText(ccx, ccy, block, defColor, cw, al, baseSize, baseName)
-          case HtmlLabel.Table(inner) => out ++= htmlTable(ccx, ccy, inner, defColor, baseSize, baseName)
+          case HtmlLabel.Table(inner) =>
+            // pos_html_tbl: a nested table stretches into the cell's content box.
+            out ++= htmlTable(ccx, ccy, inner, defColor, baseSize, baseName,
+              Some((pc.contentBox.urx - pc.contentBox.llx, pc.contentBox.ury - pc.contentBox.lly)))
           case HtmlLabel.Image(src, scale) =>
             // Emit an `<image>` only when the dimensions are known (else gv can't
             // load the file and draws nothing — the missing-image case). The
@@ -547,7 +552,8 @@ object Svg:
     // Boxes are node-local (centre origin, y-up) — add the node centre.
     def genFields(f: org.jpablo.graphexplorer.graphviz.layout.RecordLabel.Field,
                    ncx: Double, ncy: Double,
-                   fontName: String, fontSize: Double, fontColor: String = ""): Unit =
+                   fontName: String, fontSize: Double, fontColor: String = "",
+                   nodeId: String = ""): Unit =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlLabel, HtmlLayout, HtmlAlign}
       if f.isLeaf then
         val fcx = ncx + (f.llx + f.urx) / 2.0
@@ -563,9 +569,10 @@ object Svg:
           case Some(HtmlLabel.Image(_, _)) => () // no corpus exercise
           case None =>
             f.text.filter(_.nonEmpty).foreach { t =>
-              // field text renders in the NODE's font (gen_fields → emit_label of
-              // the field's make_label-built lp — node fontname/fontsize).
-              sb ++= textAt(fcx, fcy, t, fontName = fontName, fontSize = fontSize)
+              // field text renders in the NODE's font through the same label
+              // machinery as node labels (gen_fields → emit_label of the
+              // field's make_label lp): \n/\l/\r splits + \N substitution.
+              sb ++= textLines(fcx, fcy, t, fontColor, nodeId, fontName, fontSize)
             }
       else
         f.flds.iterator.zipWithIndex.foreach { case (c, k) =>
@@ -574,7 +581,7 @@ object Svg:
               if f.lr then ((c.llx, c.lly), (c.llx, c.ury)) // vertical sep
               else        ((c.llx, c.ury), (c.urx, c.ury))  // horizontal sep
             sb ++= s"""<polyline fill="none" stroke="black" points="${d2(ncx + a0._1)},${d2(-(ncy + a0._2))} ${d2(ncx + a1._1)},${d2(-(ncy + a1._2))}"/>\n"""
-          genFields(c, ncx, ncy, fontName, fontSize, fontColor)
+          genFields(c, ncx, ncy, fontName, fontSize, fontColor, nodeId)
         }
 
     val op      = if g.directed then "->" else "--"
@@ -622,7 +629,7 @@ object Svg:
             genFields(root, x, cy,
               n.attrs.getOrElse("fontname", "Times-Roman"),
               n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize),
-              n.attrs.getOrElse("fontcolor", ""))
+              n.attrs.getOrElse("fontcolor", ""), n.id)
           case None =>
             val rx  = sz.halfWidthPt.value
             val ry  = sz.halfHeightPt.value
@@ -821,6 +828,15 @@ object Svg:
             // shape=point has an implicit empty label.
             else if lbl.nonEmpty && !isPoint then
               sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"))
+        // external label (addXLabels): plain text at its placed centre,
+        // emitted after the shape+label (emit_node xlabel order).
+        n.attrs.get("xlabel").filter(_.nonEmpty).foreach { xl =>
+          xlabels.nodes.get(n.id).foreach { p =>
+            val (lx, ly) = tf(p.cx, p.cy)
+            sb ++= textLines(lx, ly, xl, n.attrs.get("fontcolor").getOrElse(""), n.id,
+              n.attrs.getOrElse("fontname", "Times-Roman"))
+          }
+        }
         if anchored then sb ++= "</a>\n</g>\n" // svg_end_anchor
         sb ++= "</g>\n"
 
@@ -860,35 +876,48 @@ object Svg:
           val ePw = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
           val eSw = if ePw != 1.0 then s""" stroke-width="${Output.g5(ePw)}"""" else ""
           sb ++= s"""<path fill="none" stroke="$eStroke"$eSw$dash d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
-          if g.directed then
-            es.ep.foreach { epR =>
-              val tip = { val (x, y) = tf(epR.x, epR.y); Spline.XY(x, y) }
-              val base = pts.last
-              val dx = base.x - tip.x; val dy = base.y - tip.y
-              val len = math.hypot(dx, dy)
-              if len > 1e-9 then
-                val pw = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
-                val as = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
-                // arrow_gen (arrows.c): the arrowhead vector is EPSILON(1e-4)-
-                // stabilized — `s = ARROW_LENGTH/(len + EPS)`, ±EPS added to
-                // each component BEFORE scaling, then ×(lenfact·arrowsize).
-                // The nudge shifts polygon corners by ~1e-4pt — visible when
-                // a corner lands exactly on a %.2f print boundary (sbt).
-                val Eps = 0.0001
-                val s   = ArrowLen / (len + Eps)
-                val u   = ((dx + (if dx >= 0.0 then Eps else -Eps)) * s * as,
-                           (dy + (if dy >= 0.0 then Eps else -Eps)) * s * as)
-                def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
-                // `vee` (crow) ⇒ filled 8-point polygon a[0..7] (gvrender_polygon
-                // a,8,1); everything else ⇒ the normal 3-point arrowhead.
-                if e.attrs.getOrElse("arrowhead", "normal") == "vee" then
+          // arrow_gen per drawn end (emit_edge_graphics: tail arrow at sp
+          // with the FIRST spline point, then head arrow at ep with the
+          // LAST) — arrow_flags decides which ends draw and with what name.
+          def drawArrow(attach: Spline.XY, base: Spline.XY, name: String): Unit =
+            val tip = { val (x, y) = tf(attach.x, attach.y); Spline.XY(x, y) }
+            val dx = base.x - tip.x; val dy = base.y - tip.y
+            val len = math.hypot(dx, dy)
+            if len > 1e-9 then
+              val pw = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+              val as = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
+              val (kind, open) = Arrow.kindOf(name)
+              // arrow_gen (arrows.c): the arrowhead vector is EPSILON(1e-4)-
+              // stabilized — `s = ARROW_LENGTH/(len + EPS)`, ±EPS added to
+              // each component BEFORE scaling, then ×(lenfact·arrowsize)
+              // (arrow_gen_type; lenfact 1.2 for diamond, 1.0 otherwise).
+              // The nudge shifts polygon corners by ~1e-4pt — visible when
+              // a corner lands exactly on a %.2f print boundary (sbt).
+              val Eps = 0.0001
+              val s   = ArrowLen / (len + Eps)
+              val lf  = if kind == "diamond" then 1.2 else 1.0
+              val u   = ((dx + (if dx >= 0.0 then Eps else -Eps)) * s * as * lf,
+                         (dy + (if dy >= 0.0 then Eps else -Eps)) * s * as * lf)
+              def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
+              // ARR_MOD_OPEN (`empty`/`odiamond`) ⇒ unfilled polygon.
+              val fill = if open then "none" else eStroke
+              kind match
+                case "vee" =>
+                  // crow ⇒ 8-point polygon a[0..7] (gvrender_polygon a,8,1)
                   val (a, _) = Arrow.crow0((tip.x, tip.y), u, as, pw)
                   val poly   = ((0 until 8).map(k => pt(a(k))) :+ pt(a(0))).mkString(" ")
                   sb ++= s"""<polygon fill="$eStroke" stroke="$eStroke" points="$poly"/>\n"""
-                else
+                case "diamond" =>
+                  val (a, _) = Arrow.diamond0((tip.x, tip.y), u, pw)
+                  val poly   = ((0 until 4).map(k => pt(a(k))) :+ pt(a(0))).mkString(" ")
+                  sb ++= s"""<polygon fill="$fill" stroke="$eStroke" points="$poly"/>\n"""
+                case _ =>
                   val (a1, a2, a3, _) = Arrow.normal0((tip.x, tip.y), u, pw)
-                  sb ++= s"""<polygon fill="$eStroke" stroke="$eStroke" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
-            }
+                  sb ++= s"""<polygon fill="$fill" stroke="$eStroke" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
+          val (sName, eName) = Arrow.flags(g.directed, e.attrs.get("dir"),
+            e.attrs.get("arrowhead"), e.attrs.get("arrowtail"))
+          sName.filter(_ != "none").foreach { nm => es.sp.foreach(spR => drawArrow(spR, pts.head, nm)) }
+          eName.filter(_ != "none").foreach { nm => es.ep.foreach(epR => drawArrow(epR, pts.last, nm)) }
           // edge label text at its lp (make_chain label_vnode): HTML ⇒ the
           // parsed block, else a multi-line plain label (`\n`/`\l`/`\r`).
           e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
@@ -912,6 +941,14 @@ object Svg:
                 sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times-Roman"))
             }
           }
+          // external edge label (addXLabels) after the regular label.
+          e.attrs.get("xlabel").filter(_.nonEmpty).foreach { xl =>
+            xlabels.edges.get(ix).foreach { p =>
+              val (lx, ly) = tf(p.cx, p.cy)
+              sb ++= textLines(lx, ly, xl, e.attrs.get("fontcolor").getOrElse(""), "",
+                e.attrs.getOrElse("fontname", "Times-Roman"))
+            }
+          }
           sb ++= "</g>\n"
         }
       }
@@ -920,12 +957,16 @@ object Svg:
     // out-edge emit the head node (if unseen) then the edge — so nodes/edges
     // interleave (a node appears just before the first edge that closes on it).
     // root graph label (do_graph_label): centered horizontally, single line,
-    // bottom labelloc (default) at GAP + boxHeight/2. Emitted after the
-    // background, before the nodes. (Custom fontsize / multi-line / top =
-    // tracked follow-ups.)
+    // labelloc bottom (default) at GAP + boxHeight/2, top at UR.y − GAP −
+    // boxHeight/2 — in the GRAPH font. Emitted after the background, before
+    // the nodes. (Custom fontsize / multi-line = tracked follow-ups.)
     g.rootAttrs.get("label").filter(_.nonEmpty).foreach { lbl =>
-      val lh = NodeSize.labelHeightPt(lbl, FontSize, g.name.getOrElse(""))
-      sb ++= textAt((lx + ux) / 2.0, 4.0 + lh / 2.0, lbl)
+      val lh  = NodeSize.labelHeightPt(lbl, FontSize, g.name.getOrElse(""))
+      val top = g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
+      val ly2 = if top then (uy - ly) - 4.0 - lh / 2.0 else 4.0 + lh / 2.0
+      sb ++= textAt((lx + ux) / 2.0, ly2, lbl,
+        fill = g.rootAttrs.getOrElse("fontcolor", ""),
+        fontName = g.rootAttrs.getOrElse("fontname", "Times-Roman"))
     }
 
     // svg `id="edgeN"` = the edge's declaration (AGSEQ) index + 1 (g.edges is

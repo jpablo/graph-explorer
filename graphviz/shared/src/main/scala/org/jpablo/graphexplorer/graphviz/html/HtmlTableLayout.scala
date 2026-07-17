@@ -22,14 +22,16 @@ object HtmlTableLayout:
     def cy: Double = (lly + ury) / 2.0
 
   /** A positioned cell: its border box, the inner content box (border+pad
-    * inset, where the child is centred), the drawn cell-border width, and the
-    * cell itself. */
-  final case class PlacedCell(box: BoxLocal, contentBox: BoxLocal, cellBorder: Int, cell: HtmlCell)
+    * inset, where the child is centred), the drawn cell-border width, the
+    * cell itself, and its grid slot (drives the port `sides` mask). */
+  final case class PlacedCell(box: BoxLocal, contentBox: BoxLocal, cellBorder: Int, cell: HtmlCell,
+                              row: Int = 0, col: Int = 0, rowspan: Int = 1, colspan: Int = 1)
 
   /** @param hrs y positions (table-local) of `<hr/>` full-width rules
     * @param vrs x positions (table-local) of `<vr/>` full-height rules */
   final case class Laid(width: Double, height: Double, border: Int, cells: Vector[PlacedCell],
-                        hrs: Vector[Double] = Vector.empty, vrs: Vector[Double] = Vector.empty)
+                        hrs: Vector[Double] = Vector.empty, vrs: Vector[Double] = Vector.empty,
+                        nrows: Int = 0, ncols: Int = 0)
 
   /** Overall table box (points). */
   def size(tbl: HtmlTable, baseSize: Double, baseName: String,
@@ -43,19 +45,48 @@ object HtmlTableLayout:
     * the accumulated content-box centres of the nesting chain. */
   def cellPortBox(tbl: HtmlTable, port: String, baseSize: Double, baseName: String,
                   imgs: ImageDim.Table = ImageDim.empty): Option[BoxLocal] =
-    def rec(t: HtmlTable, ox: Double, oy: Double): Option[BoxLocal] =
-      layout(t, baseSize, baseName, imgs).cells.iterator.flatMap { pc =>
+    cellPortBoxSides(tbl, port, baseSize, baseName, imgs).map(_._1)
+
+  /** Like [[cellPortBox]] but also gv's port `sides` bitmask (const.h:
+    * BOTTOM=1, RIGHT=2, TOP=4, LEFT=8) — which NODE-boundary sides the port
+    * cell touches. `pos_html_tbl` masks the parent's sides by the cell's
+    * grid slot (col 0 ⇒ LEFT, row 0 ⇒ TOP, last col ⇒ RIGHT, last row ⇒
+    * BOTTOM) and `pos_html_cell` recurses into nested tables with the cell's
+    * mask; the top-level table starts with all four. */
+  def cellPortBoxSides(tbl: HtmlTable, port: String, baseSize: Double, baseName: String,
+                       imgs: ImageDim.Table = ImageDim.empty): Option[(BoxLocal, Int)] =
+    val sBottom = 1; val sRight = 2; val sTop = 4; val sLeft = 8
+    def rec(t: HtmlTable, ox: Double, oy: Double, sides: Int,
+            fit: Option[(Double, Double)]): Option[(BoxLocal, Int)] =
+      val laid = layout(t, baseSize, baseName, imgs, fit)
+      laid.cells.iterator.flatMap { pc =>
+        var mask = 0
+        if sides != 0 then
+          if pc.col == 0 then mask |= sLeft
+          if pc.row == 0 then mask |= sTop
+          if pc.col + pc.colspan == laid.ncols then mask |= sRight
+          if pc.row + pc.rowspan == laid.nrows then mask |= sBottom
+        val cellSides = sides & mask
         if pc.cell.attrs.get("port").contains(port) then
-          Some(BoxLocal(pc.box.llx + ox, pc.box.lly + oy, pc.box.urx + ox, pc.box.ury + oy))
+          Some((BoxLocal(pc.box.llx + ox, pc.box.lly + oy, pc.box.urx + ox, pc.box.ury + oy), cellSides))
         else
           pc.cell.content match
-            case HtmlLabel.Table(inner) => rec(inner, ox + pc.contentBox.cx, oy + pc.contentBox.cy)
+            case HtmlLabel.Table(inner) =>
+              // nested tables stretch into the cell's content box.
+              val cw = pc.contentBox.urx - pc.contentBox.llx
+              val ch = pc.contentBox.ury - pc.contentBox.lly
+              rec(inner, ox + pc.contentBox.cx, oy + pc.contentBox.cy, cellSides, Some((cw, ch)))
             case _                      => None
       }.nextOption()
-    rec(tbl, 0.0, 0.0)
+    rec(tbl, 0.0, 0.0, sBottom | sRight | sTop | sLeft, None)
 
+  /** @param fit container (w, h) to stretch INTO (pos_html_tbl): a nested
+    *   table fills its cell's content box — extra space distributes evenly
+    *   across columns/rows (`del/n` each; the C `plus` only mops FP dust) and
+    *   the table box becomes the container box. None = natural size. */
   def layout(tbl: HtmlTable, baseSize: Double, baseName: String,
-             imgs: ImageDim.Table = ImageDim.empty): Laid =
+             imgs: ImageDim.Table = ImageDim.empty,
+             fit: Option[(Double, Double)] = None): Laid =
     val space      = if tbl.cellspacing >= 0 then tbl.cellspacing else CellSpacing
     val tblBorder  = tbl.border
     val pad        = if tbl.cellpadding >= 0 then tbl.cellpadding else CellPadding
@@ -140,8 +171,24 @@ object HtmlTableLayout:
     }
 
     // table box (size_html_tbl)
-    val wd = (ncols + 1) * space + 2 * tblBorder + colW.sum
-    val ht = (nrows + 1) * space + 2 * tblBorder + rowH.sum
+    var wd = (ncols + 1) * space + 2 * tblBorder + colW.sum
+    var ht = (nrows + 1) * space + 2 * tblBorder + rowH.sum
+    // pos_html_tbl (htmltable.c:1592): stretch into the container box.
+    fit.foreach { (fw, fh) =>
+      def cRound(v: Double): Int = if v >= 0 then (v + 0.5).toInt else (v - 0.5).toInt
+      val delx = math.max(fw - wd, 0.0)
+      if ncols > 0 && delx > 0 then
+        val extra = delx / ncols
+        val plus  = cRound(delx - extra * ncols)
+        for i <- 0 until ncols do colW(i) += extra + (if i < plus then 1 else 0)
+        wd += delx
+      val dely = math.max(fh - ht, 0.0)
+      if nrows > 0 && dely > 0 then
+        val extra = dely / nrows
+        val plus  = cRound(dely - extra * nrows)
+        for i <- 0 until nrows do rowH(i) += extra + (if i < plus then 1 else 0)
+        ht += dely
+    }
 
     // 4. positions (pos_html_tbl) with pos = [-wd/2,wd/2] x [-ht/2,ht/2], y-up.
     //    colStart(i) = left x of column i; rowStart(i) = top y of row i.
@@ -168,13 +215,14 @@ object HtmlTableLayout:
       )
       val inset = borderOf(info.cell) + padOf(info.cell)
       val contentBox = BoxLocal(box.llx + inset, box.lly + inset, box.urx - inset, box.ury - inset)
-      PlacedCell(box, contentBox, borderOf(info.cell), info.cell)
+      PlacedCell(box, contentBox, borderOf(info.cell), info.cell,
+                 row = info.row, col = info.col, rowspan = info.rowspan, colspan = info.colspan)
     }.toVector
 
     // rule lines sit in the middle of the spacing gap at a row/column boundary.
     val hrs = tbl.hrAfter.filter(b => b >= 1 && b <= nrows).toVector.sorted.map(b => rowStart(b) + space / 2.0)
     val vrs = tbl.vrAfter.filter(b => b >= 1 && b <= ncols).toVector.sorted.map(b => colStart(b) - space / 2.0)
 
-    Laid(wd, ht, tblBorder, placed, hrs, vrs)
+    Laid(wd, ht, tblBorder, placed, hrs, vrs, nrows = nrows, ncols = ncols)
 
 end HtmlTableLayout

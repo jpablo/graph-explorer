@@ -266,6 +266,29 @@ object PortAnchor:
         Vector(S, E, N, W).lift(best)
     compassPortFull(bp, sides, compass, rd)
 
+  /** shapes.c `poly_port` html branch (shapes.c:2890): `html_port` resolves
+    * the `<td port="name">` cell box + its node-boundary `sides` mask, then
+    * the SAME `compassPort` as records (no compass ⇒ `_` ⇒ dyna, resolved at
+    * route time against the other endpoint). The cell box is table-local
+    * centred on the table — and the table on the node — so it doubles as the
+    * node-local port box. Non-html labels / unknown port names → None. */
+  def gvHtmlPort(n: RNode, g: RGraph, port: org.jpablo.graphexplorer.graphviz.dotlang.Port): Option[GvPort] =
+    import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel, HtmlTableLayout}
+    val rd = Rank.rankdir(g)
+    port.name.map(_.value).filter(_.nonEmpty).flatMap { name =>
+      if !n.attrs.isHtml("label") then None
+      else
+        val fs = n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
+        val fn = n.attrs.getOrElse("fontname", "Times")
+        HtmlParser.parse(n.attrs.getOrElse("label", ""))
+          .collect { case HtmlLabel.Table(tbl) => tbl }
+          .flatMap(tbl => HtmlTableLayout.cellPortBoxSides(tbl, name, fs, fn, g.images))
+          .map { (box, sides) =>
+            compassPortFull((box.llx, box.lly, box.urx, box.ury), sides,
+                            port.compass.orElse(Some(Compass.Underscore)), rd)
+          }
+    }
+
   /** HTML table cell port: `<td port="name">`. The cell box is table-local,
     * y-up, centred on the table — and the table is centred on the node — so it
     * doubles as the node-local field box. */

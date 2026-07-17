@@ -105,9 +105,11 @@ object RecordLabel:
       else if c == '\\' && p.i + 1 < p.s.length then
         p.i += 1
         val n = p.cur
-        if html then { txt += '\\'; txt += n } // html: backslash is literal
-        else if n == ' ' then txt += ' '
-        else txt += n // hard space / literal special
+        // C keeps BOTH chars (`*tsp++ = '\\'` + the dotext copy) except the
+        // non-html hardspace `\ ` — the escape (\n, \N, …) is processed later
+        // by the field label's own text machinery (make_label), not here.
+        if !html && n == ' ' then txt += ' '
+        else { txt += '\\'; txt += n }
         p.i += 1
       else
         c match
@@ -129,10 +131,15 @@ object RecordLabel:
     new Field(None, None, topLR, parseLevel(new P(label), topLR, html))
 
   // ── size_reclbl ──────────────────────────────────────────────────────────
-  private def textDimen(text: String, fontSizePt: Double, fontName: String): (Double, Double) =
+  // Field text sizes through the SAME label machinery as node labels
+  // (make_label): \n/\l/\r line splits AND \N/\G object substitution —
+  // parse_reclbl hands the raw escapes through (an unlabeled record node is
+  // the raw `\N`, which must measure as the node NAME, not as `\N`).
+  private def textDimen(text: String, fontSizePt: Double, fontName: String,
+                        nodeId: String, graphName: String): (Double, Double) =
     val bold   = fontName.toLowerCase.contains("bold")
     val italic = fontName.toLowerCase.contains("italic") || fontName.toLowerCase.contains("oblique")
-    val lines  = if text.isEmpty then List("") else text.split("\\\\n|\\\\l|\\\\r", -1).toList
+    val lines  = NodeSize.labelLinesJust(text, nodeId, graphName).map(_._1)
     val w = lines.iterator.map(l =>
       if l.isEmpty then 0.0 else fontSizePt * FontMetrics.estimateTextWidth1pt(fontName, l, bold, italic)
     ).maxOption.getOrElse(0.0)
@@ -142,7 +149,7 @@ object RecordLabel:
     (w, h)
 
   private def sizeOf(f: Field, fontSizePt: Double, fontName: String, margin: Option[(Double, Double)],
-                     html: Boolean, imgs: ImageDim.Table): Unit =
+                     html: Boolean, imgs: ImageDim.Table, nodeId: String, graphName: String): Unit =
     if f.isLeaf then
       // HTML-in-record: the field label is LT_HTML (make_label in
       // parse_reclbl) — its dimen comes from the HTML sizing path; the
@@ -153,8 +160,8 @@ object RecordLabel:
             case Some(lbl) =>
               f.htmlLbl = Some(lbl)
               HtmlLayout.size(lbl, fontSizePt, fontName, imgs)
-            case None => textDimen(f.text.getOrElse(" "), fontSizePt, fontName)
-        else textDimen(f.text.getOrElse(" "), fontSizePt, fontName)
+            case None => textDimen(f.text.getOrElse(" "), fontSizePt, fontName, nodeId, graphName)
+        else textDimen(f.text.getOrElse(" "), fontSizePt, fontName, nodeId, graphName)
       if tw > 0.0 || th > 0.0 then
         margin match
           case Some((mx, my)) => f.sx = tw + 2 * mx; f.sy = th + 2 * my
@@ -163,7 +170,7 @@ object RecordLabel:
     else
       var x = 0.0; var y = 0.0
       f.flds.foreach { c =>
-        sizeOf(c, fontSizePt, fontName, margin, html, imgs)
+        sizeOf(c, fontSizePt, fontName, margin, html, imgs, nodeId, graphName)
         if f.lr then { x += c.sx; y = math.max(y, c.sy) }
         else { y += c.sy; x = math.max(x, c.sx) }
       }
@@ -214,10 +221,11 @@ object RecordLabel:
   def layout(
       label: String, topLR: Boolean, fontSizePt: Double, fontName: String,
       minWIn: Double, minHIn: Double, fixed: Boolean, margin: Option[(Double, Double)],
-      html: Boolean = false, imgs: ImageDim.Table = ImageDim.empty
+      html: Boolean = false, imgs: ImageDim.Table = ImageDim.empty,
+      nodeId: String = "", graphName: String = ""
   ): (In, In, Field) =
     val root = parse(label, topLR, html)
-    sizeOf(root, fontSizePt, fontName, margin, html, imgs)
+    sizeOf(root, fontSizePt, fontName, margin, html, imgs, nodeId, graphName)
     val mw = minWIn * Pt; val mh = minHIn * Pt
     val sx = if fixed then mw else math.max(root.sx, mw)
     val sy = if fixed then mh else math.max(root.sy, mh)

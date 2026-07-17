@@ -127,11 +127,79 @@ object Arrow:
       val (_, q) = crow0((0.0, 0.0), (mag, 0.0), arrowsize, penwidth)
       Pt(q._1 - penwidth / 2.0)
 
-  /** The head-arrow trim length for an edge's `arrowhead` attribute. Only
-    * `normal` (default) and `vee` are modelled; everything else falls back to
-    * normal (no corpus exercises the others yet). */
+  /** `arrow_type_diamond0` (lenfact 1.2). `p` = arrow tip, `u` = the
+    * arrow-length vector back up the edge. Returns the 4 polygon corners
+    * `a[0..3]` (q, r+v, p, r−v — a[4] closes) and the spline-attach `q`
+    * (delta-shifted TWICE, as the C does). */
+  def diamond0(p: P2, u: P2, pw: Double): (Array[P2], P2) =
+    val v  = (-u._2 / 3.0, u._1 / 3.0)
+    var r  = (p._1 + u._1 / 2.0, p._2 + u._2 / 2.0)
+    var q  = (p._1 + u._1, p._2 + u._2)
+    val bl  = (-0.5 * u._1 - v._1, -0.5 * u._2 - v._2)
+    val br  = (-0.5 * u._1 + v._1, -0.5 * u._2 + v._2)
+    val tip = (-u._1, -u._2)
+    val p3  = miterShape(bl, tip, br, pw)
+    val d   = (p3._1 - tip._1, p3._2 - tip._2)
+    val pp  = (p._1 - d._1, p._2 - d._2)
+    r = (r._1 - d._1, r._2 - d._2)
+    q = (q._1 - d._1, q._2 - d._2)
+    val a = Array[P2](q, (r._1 + v._1, r._2 + v._2), pp, (r._1 - v._1, r._2 - v._2))
+    (a, (q._1 - d._1, q._2 - d._2))
+
+  /** `arrow_length_diamond`: trim = `2·full_length − overlap_at_tip`, where
+    * the tip overlap is the length at which the (proportionally scaled)
+    * diamond's width equals the penwidth. */
+  def lengthDiamond(penwidth: Double, arrowsize: Double): Pt =
+    if arrowsize == 0 then Pt.Zero
+    else
+      val mag    = 1.2 * arrowsize * LengthD // lenfact = 1.2 for ARR_TYPE_DIAMOND
+      val (a, q) = diamond0((0.0, 0.0), (mag, 0.0), penwidth)
+      val base1 = a(3); val base2 = a(1); val tip = a(2)
+      val fullLength       = q._1 / 2.0
+      val nominalLength    = math.abs(base1._1 - tip._1)
+      val nominalBaseWidth = base2._2 - base1._2
+      val fullBaseWidth    = nominalBaseWidth * fullLength / nominalLength
+      val overlap          = fullLength * penwidth / fullBaseWidth
+      Pt(2 * fullLength - overlap)
+
+  /** Arrow-name → (base kind, open?) for the modelled subset: `normal`,
+    * `vee` (crow|inv — OPEN has no meaning for crow), `empty`/`onormal`
+    * (normal|open), `diamond`, `odiamond`/`ediamond` (diamond|open),
+    * `none` (gap ⇒ treated as no arrow, existing convention). Unmodelled
+    * names fall back to normal. */
+  def kindOf(name: String): (String, Boolean) = name match
+    case "vee" | "open"          => ("vee", false)
+    case "empty" | "onormal"     => ("normal", true)
+    case "diamond"               => ("diamond", false)
+    case "odiamond" | "ediamond" => ("diamond", true)
+    case "none"                  => ("none", false)
+    case _                       => ("normal", false)
+
+  /** `arrow_flags` (arrows.c:217): which ends carry arrows. `dir` sets the
+    * per-end base flag (forward/back/both/none); the `arrowhead`/`arrowtail`
+    * attrs refine an end ONLY while it is still plain normal — so `dir=back`
+    * ignores `arrowhead`. Returns (tail arrow name, head arrow name), `None`
+    * = no arrow at that end. */
+  def flags(directed: Boolean, dir: Option[String],
+            arrowhead: Option[String], arrowtail: Option[String]): (Option[String], Option[String]) =
+    var s: Option[String] = None
+    var h: Option[String] = if directed then Some("normal") else None
+    dir.foreach {
+      case "forward" => s = None;           h = Some("normal")
+      case "back"    => s = Some("normal"); h = None
+      case "both"    => s = Some("normal"); h = Some("normal")
+      case "none"    => s = None;           h = None
+      case _         => () // unknown dir: keep defaults (gv leaves flags)
+    }
+    if h.contains("normal") then arrowhead.filter(_.nonEmpty).foreach(a => h = Some(a))
+    if s.contains("normal") then arrowtail.filter(_.nonEmpty).foreach(a => s = Some(a))
+    (s, h)
+
+  /** The arrow trim length for an arrow name (see [[kindOf]]). */
   def length(arrowhead: String, penwidth: Double, arrowsize: Double): Pt =
-    if arrowhead == "vee" then lengthCrow(penwidth, arrowsize)
-    else lengthNormal(penwidth, arrowsize)
+    kindOf(arrowhead)._1 match
+      case "vee"     => lengthCrow(penwidth, arrowsize)
+      case "diamond" => lengthDiamond(penwidth, arrowsize)
+      case _         => lengthNormal(penwidth, arrowsize)
 
 end Arrow

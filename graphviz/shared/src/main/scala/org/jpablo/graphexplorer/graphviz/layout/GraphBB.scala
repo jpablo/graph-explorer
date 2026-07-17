@@ -121,6 +121,16 @@ object GraphBB:
     // flat-edge arch rises above its rank and lifts the graph height here.
     val (gx0, gy0, gx1, gy1) = growBySplines(g, minX, minY, maxX, maxY)
     minX = gx0; minY = gy0; maxX = gx1; maxY = gy1
+    // addXLabels (gv_postprocess): placed external labels grow the canonical
+    // bb (updateBB/addLabelBB per label) BEFORE the root-label pad below.
+    locally {
+      val xl = XLabels.place(g)
+      (xl.nodes.valuesIterator ++ xl.edges.valuesIterator).foreach { p =>
+        val (w, h) = if Rank.flip(g) then (p.h, p.w) else (p.w, p.h)
+        minX = math.min(minX, p.cx - w / 2.0); maxX = math.max(maxX, p.cx + w / 2.0)
+        minY = math.min(minY, p.cy - h / 2.0); maxY = math.max(maxY, p.cy + h / 2.0)
+      }
+    }
     // Root graph label — gv_postprocess (postproc.c:617) grows the CANONICAL
     // bb: for a flipped graph (LR/RL) the label height lands on the canonical
     // X axis (the final y after rotation); TB/BT put it on Y with inverted

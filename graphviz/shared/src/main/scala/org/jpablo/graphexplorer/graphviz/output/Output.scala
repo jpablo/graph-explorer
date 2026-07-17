@@ -344,6 +344,10 @@ object Output:
       sz.foreach { s => kv("height") = s""""${g5(s.height.value)}""""; kv("width") = s""""${g5(s.width.value)}"""" }
       val (tpx, tpy) = tf(px, py)
       kv("pos") = s""""${g5(tpx)},${g5(tpy)}""""
+      // placed external label (addXLabels) — json0-only `xlp`
+      org.jpablo.graphexplorer.graphviz.layout.XLabels.place(g).nodes.get(id).foreach { p =>
+        val (x, y) = tf(p.cx, p.cy); kv("xlp") = s""""${g5(x)},${g5(y)}""""
+      }
       // record nodes emit `rects` — every leaf field box in absolute coords
       // (node centre + node-local box, y-up), space-joined in field order.
       // The FIELD boxes are already in the drawn (final) orientation —
@@ -404,6 +408,9 @@ object Output:
       val kv = scala.collection.mutable.LinkedHashMap.empty[String, String]
       attrPairs(a).foreach((k, v) => kv(k) = s""""${esc(v)}"""")
       lps.get(e.idx).foreach { p => val (lpx, lpy) = tf(p.x, p.y); kv("lp") = s""""${g5(lpx)},${g5(lpy)}"""" }
+      org.jpablo.graphexplorer.graphviz.layout.XLabels.place(g).edges.get(e.idx).foreach { p =>
+        val (x, y) = tf(p.cx, p.cy); kv("xlp") = s""""${g5(x)},${g5(y)}""""
+      }
       spl.get(e.idx).foreach { es =>
         def m(p: Spline.XY): (Double, Double) = tf(p.x, p.y)
         val pre = es.ep.map(p => { val (x, y) = m(p); s"e,${g5(x)},${g5(y)} " }).getOrElse("") +

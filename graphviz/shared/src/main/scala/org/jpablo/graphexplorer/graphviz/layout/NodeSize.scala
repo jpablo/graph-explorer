@@ -227,7 +227,8 @@ object NodeSize:
       n.attrs.getOrElse("label", "\\N"), !Rank.flip(g),
       dbl(n, "fontsize", DefFontSize), n.attrs.getOrElse("fontname", DefFontName),
       dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n),
-      html = n.attrs.isHtml("label"), imgs = g.images
+      html = n.attrs.isHtml("label"), imgs = g.images,
+      nodeId = n.id, graphName = g.name.getOrElse("")
     )
     Some(root)
 
@@ -334,7 +335,8 @@ object NodeSize:
         n.attrs.getOrElse("label", "\\N"), !Rank.flip(g),
         dbl(n, "fontsize", DefFontSize), n.attrs.getOrElse("fontname", DefFontName),
         dbl(n, "width", DefWidthIn), dbl(n, "height", DefHeightIn), fixed, marginPt(n),
-        html = n.attrs.isHtml("label"), imgs = g.images
+        html = n.attrs.isHtml("label"), imgs = g.images,
+        nodeId = n.id, graphName = g.name.getOrElse("")
       )
       return Some(Size(w, h))
     // Convex builtin polygons (diamond/triangle/hexagon/…) route through

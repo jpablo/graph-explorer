@@ -505,7 +505,8 @@ object Spline:
       * route-time side resolution lives only on the working copy. */
     def endPort(id: String, portOpt: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port],
                 otherCanon: XY): (PortAnchor.GvPort, Boolean) =
-      portOpt.flatMap(pp => byId.get(id).flatMap(n => PortAnchor.gvRecordPort(n, g, pp))) match
+      portOpt.flatMap(pp => byId.get(id).flatMap(n =>
+        PortAnchor.gvRecordPort(n, g, pp).orElse(PortAnchor.gvHtmlPort(n, g, pp)))) match
         case None => (PortAnchor.GvPort.center, true)
         case Some(gp0) =>
           val resolved =
@@ -721,13 +722,11 @@ object Spline:
           // original HEAD's port).
           val (wtPort, whPort) =
             if rt < rh then (e.tailPort, e.headPort) else (e.headPort, e.tailPort)
-          // HTML cell ports keep the legacy adjacent-rank channel below
-          // (their own verified path); record + portless ends take the
-          // unified gv channel.
-          val tHtml = byId.get(tn0).exists(_.attrs.isHtml("label"))
-          val hHtml = byId.get(hn0).exists(_.attrs.isHtml("label"))
-          val tEnd  = if tHtml then wtPort.flatMap(htmlPortEnd(tn0, hn0, _, isTail = true)) else None
-          val hEnd  = if hHtml then whPort.flatMap(htmlPortEnd(hn0, tn0, _, isTail = false)) else None
+          // HTML cell ports route through the SAME unified gv channel as
+          // records (poly_port html branch → compassPort → endPort); the
+          // legacy adjacent-rank port channel is retired.
+          val tEnd: Option[End] = None
+          val hEnd: Option[End] = None
           val portRoute = mids.isEmpty && (tEnd.isDefined || hEnd.isDefined)
 
           if portRoute then
@@ -776,12 +775,11 @@ object Spline:
             // FIRST VNODE for chains (fwdedgea's head, dotsplines.c:1803);
             // endpath resolves the head's vs the working TAIL real node
             // (fwdedgeb keeps the real endpoints, dotsplines.c:1900). HTML
-            // ports have no channel machinery here and route portless.
+            // cell ports resolve exactly like record ports (poly_port html
+            // branch → compassPort inside endPort).
             val tOther = mids.headOption.map(m => XY(cx(m), cy(m))).getOrElse(XY(cx(hn0), cy(hn0)))
-            val (tGp, tOrigClip) =
-              if tHtml then (PortAnchor.GvPort.center, true) else endPort(tn0, wtPort, tOther)
-            val (hGp, hOrigClip) =
-              if hHtml then (PortAnchor.GvPort.center, true) else endPort(hn0, whPort, XY(cx(tn0), cy(tn0)))
+            val (tGp, tOrigClip) = endPort(tn0, wtPort, tOther)
+            val (hGp, hOrigClip) = endPort(hn0, whPort, XY(cx(tn0), cy(tn0)))
 
             // gv's maximal_bbox (ie, oe) threading: tail (NULL, first seg),
             // chain vnode (in seg, out seg), head (last seg, NULL).
@@ -1629,6 +1627,13 @@ object Spline:
                   i += 1
                 inside
             }
+          case None if Set("record", "mrecord").contains(shapeName.toLowerCase) =>
+            // record_inside with bp==NULL (shapes.c:3786): the clip box is the
+            // FIELD-TREE ROOT box (ND_shape_info fld0->b) ± penwidth/2 in the
+            // TRUE frame — NOT the node box, which is 1pt taller (the
+            // record_init "+1" height kluge). bpInsideFn IS that test.
+            NodeSize.recordLayout(n, g).map(root =>
+              bpInsideFn(id, (root.llx, root.lly, root.urx, root.ury)))
           case None =>
             NodeSize.layoutSize(n, g).map { sz =>
               val cen = centerOf(id)
@@ -1649,12 +1654,10 @@ object Spline:
               // the rectangle vertices): the box family, Msquare (regular box +
               // decorative diagonals), underline/image, and all the special-
               // corner shapes (note/tab/…/bio — their poly_inside uses the box
-              // periphery, the corner geometry is render-only).
-              // record_inside "assumes everything is a rectangle" — records
-              // (incl. Mrecord) clip as boxes too (shapes.c:3786).
+              // periphery, the corner geometry is render-only). Records clip
+              // against their FIELD-TREE root box (the case above).
               val boxLike = plain ||
-                Set("box", "rect", "rectangle", "square", "Msquare", "underline", "image",
-                    "record", "Mrecord")
+                Set("box", "rect", "rectangle", "square", "Msquare", "underline", "image")
                   .contains(shapeName) ||
                 RoundCorners.codeOf.contains(shapeName)
               (p: XY) =>
@@ -1727,39 +1730,49 @@ object Spline:
     // stroked triangle longer than its geometric vertex). Closes the
     // long-deferred M5/M7 sub-2px residual. `epAttach` = Graphviz's
     // spl->ep, captured before the gap shortens the curve (unchanged).
-    var epAttach: Option[XY] = None
-    // arrowhead=none ⇒ eflag=0 (arrows.c arrow_flags): no arrow, no trim,
-    // no `ep` attach — the spline meets the node boundary directly.
-    if g.directed && e.attrs.getOrElse("arrowhead", "normal") != "none" then
-      val pw    = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
-      val asz   = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
-      // arrowhead type sets the trim length: `vee` (crow, ≈11.22) ≠ `normal`
-      // (≈11.53) — the miter differs, so 02's head-side control points shift.
-      val elen  = Arrow.length(e.attrs.getOrElse("arrowhead", "normal"), pw, asz).value
+    // arrow_clip (arrows.c:344): arrow_flags gives the ORIG-orientation
+    // (tail, head) arrow names; a reversed working edge swaps them ("swap the
+    // two ends"), then arrowStartClip runs before arrowEndClip — both in the
+    // WORKING orientation. `none`/gap keeps the existing no-trim convention.
+    val (snameO, enameO) = Arrow.flags(g.directed, e.attrs.get("dir"),
+      e.attrs.get("arrowhead"), e.attrs.get("arrowtail"))
+    val (sName, eName) = if reversedWork then (enameO, snameO) else (snameO, enameO)
+    val pw  = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+    val asz = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
+    var spAttachW: Option[XY] = None // working-start arrow attach (spl->sp)
+    var epAttachW: Option[XY] = None // working-end arrow attach (spl->ep)
+    // arrowStartClip (arrows.c:315): `sp` saved before the segment advance;
+    // the working segment enters the clip reversed, written back reversed.
+    sName.filter(_ != "none").foreach { name =>
+      // arrow type sets the trim length: `vee` (crow, ≈11.22) ≠ `normal`
+      // (≈11.53) — the miter differs, so the end-side control points shift.
+      val elen  = Arrow.length(name, pw, asz).value
       val elen2 = elen * elen
-      if reversedWork then
-        // arrowStartClip (arrows.c:315): the orig-head arrow sits at the
-        // working START. `sp` saved before the segment advance; the working
-        // segment enters the clip reversed and is written back reversed.
-        val ep = ps(start)
-        epAttach = Some(ep)
-        if end > start && dist2(ps(start), ps(start + 3)) < elen2 then start += 3
-        val w = Array(ps(start + 3), ps(start + 2), ps(start + 1), ep)
-        bezierClip(w, false, (p: XY) => dist2(p, ep) < elen2)
-        ps(start) = w(3); ps(start + 1) = w(2); ps(start + 2) = w(1); ps(start + 3) = w(0)
-      else
-        val ep = ps(end + 3)
-        epAttach = Some(ep)
-        if end > start && dist2(ps(end), ps(end + 3)) < elen2 then end -= 3
-        val sp = Array(ep, ps(end + 2), ps(end + 1), ps(end))
-        bezierClip(sp, true, (p: XY) => dist2(p, ep) < elen2)
-        ps(end) = sp(3); ps(end + 1) = sp(2); ps(end + 2) = sp(1); ps(end + 3) = sp(0)
+      val sp = ps(start)
+      spAttachW = Some(sp)
+      if end > start && dist2(ps(start), ps(start + 3)) < elen2 then start += 3
+      val w = Array(ps(start + 3), ps(start + 2), ps(start + 1), sp)
+      bezierClip(w, false, (p: XY) => dist2(p, sp) < elen2)
+      ps(start) = w(3); ps(start + 1) = w(2); ps(start + 2) = w(1); ps(start + 3) = w(0)
+    }
+    // arrowEndClip
+    eName.filter(_ != "none").foreach { name =>
+      val elen  = Arrow.length(name, pw, asz).value
+      val elen2 = elen * elen
+      val ep = ps(end + 3)
+      epAttachW = Some(ep)
+      if end > start && dist2(ps(end), ps(end + 3)) < elen2 then end -= 3
+      val sp = Array(ep, ps(end + 2), ps(end + 1), ps(end))
+      bezierClip(sp, true, (p: XY) => dist2(p, ep) < elen2)
+      ps(end) = sp(3); ps(end + 1) = sp(2); ps(end + 2) = sp(1); ps(end + 3) = sp(0)
+    }
 
     // swap_spline (dotsplines.c:158): a reversed edge's spline is installed
-    // flipped back into the ORIGINAL direction (points reversed, arrow attach
-    // unchanged — it already sits at the orig head).
+    // flipped back into the ORIGINAL direction (points reversed, sp/ep
+    // swapped — each attach already sits at its orig end).
     val pts = ps.slice(start, end + 4).toVector
-    ESpline(if reversedWork then pts.reverse else pts, epAttach, None)
+    if reversedWork then ESpline(pts.reverse, spAttachW, epAttachW)
+    else ESpline(pts, epAttachW, spAttachW)
 
   private def dist2(a: XY, b: XY): Double =
     val dx = a.x - b.x; val dy = a.y - b.y
