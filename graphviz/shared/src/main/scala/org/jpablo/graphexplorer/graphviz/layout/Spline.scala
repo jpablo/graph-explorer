@@ -1055,9 +1055,13 @@ object Spline:
     // label vnodes inside straight (smode) sections that no per-segment
     // snap visited (psg's 8-rank state0→state2). Snapped entries already
     // hold exactly this value, so only missing ones are filled.
+    // gv iterates GD_nlist, so only vnodes that actually EXIST in the
+    // placed graph are visited — labelW is a per-edge table and can name
+    // vnodes that were never created (merged/degenerate chains); an
+    // unguarded cx() lookup throws (viewer: "key not found: __v5_5").
     labelW.foreach { (vn, w) =>
       LayoutNode.fromName(vn) match
-        case LayoutNode.Virtual(d, _) =>
+        case LayoutNode.Virtual(d, _) if allX.contains(vn) =>
           val orig = dedgeOrigIdx(d)
           if !labelPos.contains(orig) then labelPos(orig) = XY(cx(vn) + w / 2.0, cy(vn))
         case _ => ()
