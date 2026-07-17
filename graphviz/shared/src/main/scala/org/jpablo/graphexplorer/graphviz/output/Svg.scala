@@ -245,8 +245,29 @@ object Svg:
         }
       }.getOrElse((Margin, Margin))
     val bbW = ux - lx; val bbH = uy - ly
-    val w   = Output.gvRound(bbW + 2 * padX).toInt
-    val h   = Output.gvRound(bbH + 2 * padY).toInt
+    // `size` graph attr (getdoubles2ptf, input.c:462): "x,y" or a single
+    // value for both, INCHES → ROUND(×72) points; a trailing '!' sets the
+    // `filled` flag (grow-to-fit). init_job_viewport (emit.c:3060) then
+    // shrinks (or, with '!', grows) the whole canvas by
+    // Z = fmin(size/sz) — layout coords are untouched; only the <svg>
+    // width/height/viewBox and the root `scale(Z Z)` change.
+    val (szX, szY) = (bbW + 2 * padX, bbH + 2 * padY)
+    val zoom: Double =
+      g.rootAttrs.get("size").flatMap { p =>
+        val bang  = p.trim.endsWith("!")
+        val parts = p.trim.stripSuffix("!").split(",").map(_.trim)
+        val xf    = parts.headOption.flatMap(_.toDoubleOption)
+        val yf    = if parts.length > 1 then parts.lift(1).flatMap(_.toDoubleOption) else xf
+        for x <- xf; y <- yf; if x > 0 && y > 0
+        yield (Output.gvRound(x * 72.0), Output.gvRound(y * 72.0), bang)
+      } match
+        case Some((sx, sy, filled)) if sx > 0.001 && sy > 0.001 =>
+          if sx < szX || sy < szY || (filled && sx > szX && sy > szY)
+          then math.min(sx / szX, sy / szY)
+          else 1.0
+        case _ => 1.0
+    val w   = Output.gvRound(szX * zoom).toInt
+    val h   = Output.gvRound(szY * zoom).toInt
     val trX = padX - lx
     val trY = uy + padY
 
@@ -264,7 +285,10 @@ object Svg:
       case None     => "<!-- Pages: 1 -->\n")
     sb ++= s"""<svg width="${w}pt" height="${h}pt"\n"""
     sb ++= s""" viewBox="0.00 0.00 ${w}.00 ${h}.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">\n"""
-    sb ++= s"""<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(${d2(trX)} ${d2(trY)})">\n"""
+    // svg_begin_page: scale is job->zoom via plain `%g` (not gvprintdouble —
+    // "2 digits precision insufficient"); translate stays in graph units.
+    val zs = g6(zoom)
+    sb ++= s"""<g id="graph0" class="graph" transform="scale($zs $zs) rotate(0) translate(${d2(trX)} ${d2(trY)})">\n"""
     gname.foreach(nm => sb ++= s"<title>${xml(nm)}</title>\n")
     // background canvas
     val bx0 = lx - padX; val bx1 = ux + padX

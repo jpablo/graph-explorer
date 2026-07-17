@@ -228,7 +228,13 @@ object AttrResolver:
             case ast.EdgeEnd.Sub(sg) =>
               val sub = enterSub(sg, sc)
               children += sub
-              sub.nodeIds.map((_, None)) // subgraph ends: no port
+              // cgraph expands a subgraph endpoint via agfstnode/agnxtnode
+              // over the subgraph's node SET — ordered by global node seq
+              // (creation order), NOT brace order: `2 -> {3;T1}` creates the
+              // T1 edge first when T1 predates 3. (`nodes` insertion order
+              // IS seq order.) Subgraph ends carry no port.
+              val seqIdx = nodes.keysIterator.zipWithIndex.toMap
+              sub.nodeIds.sortBy(seqIdx).map((_, None))
           }
           ids.foreach(_.foreach { case (nm, _) => levelNodes += nm })
           ids.zip(ids.drop(1)).foreach { case (tails, heads) =>
