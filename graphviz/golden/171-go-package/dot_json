@@ -1,0 +1,464 @@
+{
+  "name": "regexp",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 809 468",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "n0",
+      "URL": "https:\/\/godoc.org\/regexp",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "regexp",
+      "tooltip": "Package regexp implements regular expression search."
+    },
+    {
+      "_gvid": 1,
+      "name": "n1",
+      "URL": "https:\/\/godoc.org\/bytes",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "bytes",
+      "tooltip": "Package bytes implements functions for the manipulation of byte slices."
+    },
+    {
+      "_gvid": 2,
+      "name": "n2",
+      "URL": "https:\/\/godoc.org\/io",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "io",
+      "tooltip": "Package io provides basic interfaces to I\/O primitives."
+    },
+    {
+      "_gvid": 3,
+      "name": "n3",
+      "URL": "https:\/\/godoc.org\/regexp\/syntax",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "regexp\/syntax",
+      "tooltip": "Package syntax parses regular expressions into parse trees and compiles parse trees into programs."
+    },
+    {
+      "_gvid": 4,
+      "name": "n4",
+      "URL": "https:\/\/godoc.org\/sort",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "sort",
+      "tooltip": "Package sort provides primitives for sorting slices and user-defined collections."
+    },
+    {
+      "_gvid": 5,
+      "name": "n5",
+      "URL": "https:\/\/godoc.org\/strconv",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "strconv",
+      "tooltip": "Package strconv implements conversions to and from string representations of basic data types."
+    },
+    {
+      "_gvid": 6,
+      "name": "n6",
+      "URL": "https:\/\/godoc.org\/strings",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "strings",
+      "tooltip": "Package strings implements simple functions to manipulate UTF-8 encoded strings."
+    },
+    {
+      "_gvid": 7,
+      "name": "n7",
+      "URL": "https:\/\/godoc.org\/sync",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "sync",
+      "tooltip": "Package sync provides basic synchronization primitives such as mutual exclusion locks."
+    },
+    {
+      "_gvid": 8,
+      "name": "n8",
+      "URL": "https:\/\/godoc.org\/unicode",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "unicode",
+      "tooltip": "Package unicode provides data and functions to test some properties of Unicode code points."
+    },
+    {
+      "_gvid": 9,
+      "name": "n9",
+      "URL": "https:\/\/godoc.org\/unicode\/utf8",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "unicode\/utf8",
+      "tooltip": "Package utf8 implements functions and constants to support text encoded in UTF-8."
+    },
+    {
+      "_gvid": 10,
+      "name": "n10",
+      "URL": "https:\/\/godoc.org\/internal\/bytealg",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "internal\/bytealg"
+    },
+    {
+      "_gvid": 11,
+      "name": "n11",
+      "URL": "https:\/\/godoc.org\/errors",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "errors",
+      "tooltip": "Package errors implements functions to manipulate errors."
+    },
+    {
+      "_gvid": 12,
+      "name": "n12",
+      "URL": "https:\/\/godoc.org\/internal\/reflectlite",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "internal\/reflectlite",
+      "tooltip": "Package reflectlite implements lightweight version of reflect, not using any package except for \"runtime\" and \"unsafe\"."
+    },
+    {
+      "_gvid": 13,
+      "name": "n13",
+      "URL": "https:\/\/godoc.org\/math",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "math",
+      "tooltip": "Package math provides basic constants and mathematical functions."
+    },
+    {
+      "_gvid": 14,
+      "name": "n14",
+      "URL": "https:\/\/godoc.org\/math\/bits",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "math\/bits",
+      "tooltip": "Package bits implements bit counting and manipulation functions for the predeclared unsigned integer types."
+    },
+    {
+      "_gvid": 15,
+      "name": "n15",
+      "URL": "https:\/\/godoc.org\/unsafe",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "unsafe",
+      "tooltip": "Package unsafe contains operations that step around the type safety of Go programs."
+    },
+    {
+      "_gvid": 16,
+      "name": "n16",
+      "URL": "https:\/\/godoc.org\/internal\/race",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "internal\/race",
+      "tooltip": "Package race contains helper functions for manually instrumenting code for the race detector."
+    },
+    {
+      "_gvid": 17,
+      "name": "n17",
+      "URL": "https:\/\/godoc.org\/runtime",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "runtime"
+    },
+    {
+      "_gvid": 18,
+      "name": "n18",
+      "URL": "https:\/\/godoc.org\/sync\/atomic",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "sync\/atomic",
+      "tooltip": "Package atomic provides low-level atomic memory primitives useful for implementing synchronization algorithms."
+    },
+    {
+      "_gvid": 19,
+      "name": "n19",
+      "URL": "https:\/\/godoc.org\/internal\/cpu",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "internal\/cpu",
+      "tooltip": "Package cpu implements processor feature detection used by the Go standard library."
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 3,
+      "tail": 0,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 4,
+      "tail": 0,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 5,
+      "tail": 0,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 6,
+      "tail": 0,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 7,
+      "tail": 0,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 8,
+      "tail": 0,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 12,
+      "tail": 1,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 9,
+      "tail": 1,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 10,
+      "tail": 1,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 11,
+      "tail": 1,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 13,
+      "tail": 1,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 15,
+      "tail": 2,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 14,
+      "tail": 2,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 16,
+      "tail": 3,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 17,
+      "tail": 3,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 18,
+      "tail": 3,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 19,
+      "tail": 3,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 20,
+      "tail": 3,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 21,
+      "tail": 4,
+      "head": 12,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 23,
+      "tail": 5,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 25,
+      "tail": 5,
+      "head": 13,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 22,
+      "tail": 5,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 24,
+      "tail": 5,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 26,
+      "tail": 5,
+      "head": 14,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 27,
+      "tail": 6,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 28,
+      "tail": 6,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 33,
+      "tail": 6,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 32,
+      "tail": 6,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 31,
+      "tail": 6,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 29,
+      "tail": 6,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 30,
+      "tail": 6,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 35,
+      "tail": 7,
+      "head": 16,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 36,
+      "tail": 7,
+      "head": 17,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 37,
+      "tail": 7,
+      "head": 18,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 34,
+      "tail": 7,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 39,
+      "tail": 10,
+      "head": 19,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 38,
+      "tail": 10,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 40,
+      "tail": 11,
+      "head": 12,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 42,
+      "tail": 12,
+      "head": 17,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 41,
+      "tail": 12,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 44,
+      "tail": 13,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 45,
+      "tail": 13,
+      "head": 19,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 43,
+      "tail": 13,
+      "head": 14,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 46,
+      "tail": 14,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 47,
+      "tail": 16,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 48,
+      "tail": 18,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    }
+  ]
+}

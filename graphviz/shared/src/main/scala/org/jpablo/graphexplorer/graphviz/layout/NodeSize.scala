@@ -155,7 +155,10 @@ object NodeSize:
           case other                 => cur.append(other); i += 2
       else
         cur.append(c); i += 1
-    lines += ((cur.toString, 'n'))
+    // a TRAILING escape produces NOTHING: `"x\n"` sizes and draws exactly
+    // like `"x"` (gv's span builder emits no span after the final escape;
+    // verified empirically against viz-js). Interior empties still count.
+    if cur.nonEmpty || lines.isEmpty then lines += ((cur.toString, 'n'))
     lines.toList
 
   /** Per-line height in points (`make_label` `dimen.y` term): a non-empty
@@ -329,6 +332,33 @@ object NodeSize:
       val m     = polyMetrics(n, g, shape)
       Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, reg, desc)
     }
+
+  /** `ND_label(n)->space.y` (poly_init:2146): the vertical space available
+    * to the label = PADDED label dimen + the growth from the minimum
+    * label-holding box to the final (pre-periphery) box (+ image spare).
+    * Drives labelloc=t/b emission (emit_label valign 't'/'b' read space.y).
+    * Box/ellipse only; other shapes fall back to the padded dimen. */
+  def labelSpaceY(n: RNode, g: RGraph): Double =
+    val shapeName = n.attrs.getOrElse("shape", "ellipse")
+    val regAttr   = mapBool(n.attrs.get("regular"))
+    val shape0    = shapeOf(shapeName)
+    val shape     = if regAttr && !shape0.regular then shape0.copy(regular = true) else shape0
+    val m         = polyMetrics(n, g, shape)
+    if !shape.supported then return m.dimenY
+    var bbX = m.dimenX
+    var bbY = m.dimenY
+    if !shape.box then
+      val temp = bbY * Sqrt2
+      if m.minH > temp && m.valignCentered then
+        bbX *= math.sqrt(1.0 / (1.0 - sqr(bbY / m.minH)))
+      else
+        bbX *= Sqrt2
+        bbY = temp
+    val minBbY = bbY
+    val finalY = n.attrs.getOrElse("fixedsize", "false").toLowerCase match
+      case "shape" | "true" => m.minH
+      case _                => math.max(m.minH, bbY)
+    m.dimenY + math.max(finalY - minBbY, 0.0)
 
   def nodeSize(n: RNode, g: RGraph): Option[Size] =
     cached(sizeMemo, g, n.id)(nodeSizeImpl(n, g))

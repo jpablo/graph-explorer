@@ -1,0 +1,138 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 784 397",
+  "concentrate": "True",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "rankdir": "TB",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "140087530674552",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "title: InputLayer\\n|{input:|output:}|{{[(?, ?)]}|{[(?, ?)]}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 1,
+      "name": "140087537895856",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "body: InputLayer\\n|{input:|output:}|{{[(?, ?)]}|{[(?, ?)]}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 2,
+      "name": "140087531105640",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "embedding_2: Embedding\\n|{input:|output:}|{{(?, ?)}|{(?, ?, 64)}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 3,
+      "name": "140087530711024",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "embedding_3: Embedding\\n|{input:|output:}|{{(?, ?)}|{(?, ?, 64)}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 4,
+      "name": "140087537980360",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "lstm_2: LSTM\\n|{input:|output:}|{{(?, ?, 64)}|{(?, 128)}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 5,
+      "name": "140087531256464",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "lstm_3: LSTM\\n|{input:|output:}|{{(?, ?, 64)}|{(?, 32)}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 6,
+      "name": "140087531106200",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "tags: InputLayer\\n|{input:|output:}|{{[(?, 12)]}|{[(?, 12)]}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 7,
+      "name": "140087530348048",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "concatenate_1: Concatenate\\n|{input:|output:}|{{[(?, 128), (?, 32), (?, 12)]}|{(?, 172)}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 8,
+      "name": "140087530347992",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "priority: Dense\\n|{input:|output:}|{{(?, 172)}|{(?, 1)}}",
+      "shape": "record"
+    },
+    {
+      "_gvid": 9,
+      "name": "140087530711304",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "department: Dense\\n|{input:|output:}|{{(?, 172)}|{(?, 4)}}",
+      "shape": "record"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 3,
+      "tail": 3,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 5,
+      "tail": 5,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 6,
+      "tail": 6,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 7,
+      "tail": 7,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 8,
+      "tail": 7,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    }
+  ]
+}

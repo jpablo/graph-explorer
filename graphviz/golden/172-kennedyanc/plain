@@ -1,0 +1,38 @@
+graph 1 16.343 7.0695
+node I5 3.4724 0.40855 3.2772 0.8171 "Caroline Bouvier Kennedy\nb. 27.11.1957 New York" bold ellipse red red
+node I1 9.9724 3.5377 2.177 0.81111 "John Fitzgerald Kennedy\nb. 29.5.1917 Brookline\nd. 22.11.1963 Dallas" bold box blue blue
+node I6 7.9863 0.40855 5.2389 0.81111 "John Fitzgerald Kennedy\nb. 25.11.1960 Washington\nd. 16.7.1999 over the Atlantic Ocean, near Aquinnah, MA, USA" bold box blue blue
+node I7 11.959 0.40855 2.1986 0.81111 "Patrick Bouvier Kennedy\nb. 7.8.1963\nd. 9.8.1963" bold box blue blue
+node I2 3.4724 1.8906 3.4535 1.1471 "Jaqueline Lee Bouvier\nb. 28.7.1929 Southampton\nd. 19.5.1994 New York City" bold ellipse red red
+node I8 10.653 6.6639 2.3611 0.81111 "Joseph Patrick Kennedy\nb. 6.9.1888 East Boston\nd. 16.11.1969 Hyannis Port" bold box blue blue
+node I10 12.459 3.5377 2.2905 0.81111 "Joseph Patrick Kennedy Jr\nb. 1915\nd. 1944" bold box blue blue
+node I11 15.097 3.5377 2.4907 1.1471 "Rosemary Kennedy\nb. 13.9.1918\nd. 7.1.2005" bold ellipse red red
+node I12 4.3474 3.5377 2.3682 1.1471 "Kathleen Kennedy\nb. 1920\nd. 1948" bold ellipse red red
+node I13 7.2085 3.5377 2.8578 0.8171 "Eunice Mary Kennedy\nb. 10.7.1921 Brookline" bold ellipse red red
+node I9 9.6668 5.1848 3.2016 1.1471 "Rose Elizabeth Fitzgerald\nb. 22.7.1890 Boston\nd. 22.1.1995 Hyannis Port" bold ellipse red red
+node I15 0.80573 0.40855 1.5563 0.5 "Aristotle Onassis" bold box blue blue
+node I3 1.0696 5.1848 2.1392 0.81111 "John Vernou Bouvier III\nb. 1891\nd. 1957" bold box blue blue
+node I4 1.8057 3.5377 2.2079 1.1471 "Janet Norton Lee\nb. 2.10.1877\nd. 3.1.1968" bold ellipse red red
+edge I1 I5 4 9.1426 3.1279 7.866 2.5188 5.4401 1.3613 4.2169 0.7777 bold blue
+edge I1 I6 4 9.7208 3.131 9.3399 2.5361 8.6205 1.4129 8.2389 0.81693 bold orange
+edge I1 I7 4 10.224 3.131 10.605 2.5361 11.324 1.4129 11.706 0.81693 bold orange
+edge I1 I2 7 9.1837 3.1263 9.046 3.0663 8.9025 3.0094 8.7641 2.9642 8.6718 2.9341 6.4807 2.4987 4.9473 2.1955 bold violet
+edge I2 I5 4 3.4724 1.3103 3.4724 1.1476 3.4724 0.97361 3.4724 0.82315 bold red
+edge I2 I6 4 4.6999 1.4813 5.3369 1.276 6.1131 1.026 6.7512 0.82036 bold orange
+edge I2 I7 7 5.1242 1.7156 6.6062 1.5521 8.834 1.2597 10.736 0.8171 10.775 0.80801 10.815 0.79824 10.855 0.78794 bold orange
+edge I2 I15 4 2.5844 1.3925 2.136 1.1479 1.6115 0.8619 1.2489 0.66412 bold violet
+edge I8 I1 10 11.08 6.253 11.204 6.1104 11.324 5.9397 11.389 5.7584 11.562 5.2786 11.617 5.0671 11.389 4.6113 11.252 4.338 11.008 4.1171 10.76 3.9491 bold blue
+edge I8 I10 7 11.195 6.2525 11.359 6.1111 11.529 5.9412 11.653 5.7584 12.039 5.1897 12.266 4.4136 12.376 3.9495 bold orange
+edge I8 I11 7 11.332 6.2515 11.58 6.1016 11.861 5.9266 12.111 5.7584 12.948 5.1949 13.878 4.4956 14.474 4.0372 bold orange
+edge I8 I12 7 9.4691 6.4469 8.8141 6.3069 7.9979 6.086 7.3196 5.7584 6.3879 5.3083 5.4525 4.5515 4.8866 4.0518 bold orange
+edge I8 I13 7 9.4671 6.5037 8.9406 6.3828 8.3497 6.1619 7.9446 5.7584 7.4525 5.2681 7.2893 4.4405 7.2353 3.9501 bold orange
+edge I8 I9 4 10.383 6.2534 10.277 6.0973 10.154 5.9155 10.039 5.7471 bold violet
+edge I9 I1 4 9.7728 4.6091 9.8139 4.3917 9.8599 4.1479 9.8974 3.9493 bold red
+edge I9 I10 4 10.497 4.6895 10.904 4.4536 11.387 4.173 11.773 3.9495 bold orange
+edge I9 I11 7 11.009 4.8671 11.805 4.6753 12.83 4.4081 13.722 4.1113 13.876 4.06 14.038 4.0001 14.194 3.9389 bold orange
+edge I9 I12 7 8.3233 4.8685 7.5366 4.6785 6.5286 4.4127 5.6529 4.1113 5.506 4.0607 5.3524 4.0011 5.2042 3.94 bold orange
+edge I9 I13 4 8.9159 4.6763 8.5459 4.4326 8.1075 4.1438 7.7676 3.9199 bold orange
+edge I3 I2 7 0.81262 4.7762 0.54132 4.3047 0.20166 3.511 0.5835 2.9642 0.88631 2.5306 1.387 2.2739 1.8871 2.1221 bold blue
+edge I3 I4 4 1.2497 4.7748 1.3416 4.5726 1.455 4.3233 1.5553 4.1026 bold violet
+edge I4 I2 4 2.3194 3.0248 2.5107 2.8389 2.7285 2.6273 2.9228 2.4385 bold red
+stop

@@ -1,0 +1,21 @@
+graph 1 10.884 5.5139
+node 140087530674552 1.9831 5.1625 3.0153 0.70278 "title: InputLayer\n|{input:|output:}|{{[(?, ?)]}|{[(?, ?)]}}" solid record black lightgrey
+node 140087537895856 6.2053 5.1625 3.1018 0.70278 "body: InputLayer\n|{input:|output:}|{{[(?, ?)]}|{[(?, ?)]}}" solid record black lightgrey
+node 140087531105640 1.9831 3.9597 3.9661 0.70278 "embedding_2: Embedding\n|{input:|output:}|{{(?, ?)}|{(?, ?, 64)}}" solid record black lightgrey
+node 140087530711024 6.2053 3.9597 3.9661 0.70278 "embedding_3: Embedding\n|{input:|output:}|{{(?, ?)}|{(?, ?, 64)}}" solid record black lightgrey
+node 140087537980360 2.4414 2.7569 3.0592 0.70278 "lstm_2: LSTM\n|{input:|output:}|{{(?, ?, 64)}|{(?, 128)}}" solid record black lightgrey
+node 140087531256464 5.9692 2.7569 3.0592 0.70278 "lstm_3: LSTM\n|{input:|output:}|{{(?, ?, 64)}|{(?, 32)}}" solid record black lightgrey
+node 140087531106200 9.3164 2.7569 3.1343 0.70278 "tags: InputLayer\n|{input:|output:}|{{[(?, 12)]}|{[(?, 12)]}}" solid record black lightgrey
+node 140087530348048 5.9692 1.5542 5.3368 0.70278 "concatenate_1: Concatenate\n|{input:|output:}|{{[(?, 128), (?, 32), (?, 12)]}|{(?, 172)}}" solid record black lightgrey
+node 140087530347992 4.2747 0.35139 2.9941 0.70278 "priority: Dense\n|{input:|output:}|{{(?, 172)}|{(?, 1)}}" solid record black lightgrey
+node 140087530711304 7.6636 0.35139 3.2855 0.70278 "department: Dense\n|{input:|output:}|{{(?, 172)}|{(?, 4)}}" solid record black lightgrey
+edge 140087530674552 140087531105640 4 1.9831 4.815 1.9831 4.7059 1.9831 4.5823 1.9831 4.464 solid black
+edge 140087537895856 140087530711024 4 6.2053 4.815 6.2053 4.7059 6.2053 4.5823 6.2053 4.464 solid black
+edge 140087531105640 140087537980360 4 2.1132 3.6123 2.1567 3.5006 2.2062 3.3739 2.2532 3.2532 solid black
+edge 140087530711024 140087531256464 4 6.1383 3.6123 6.1163 3.5031 6.0915 3.3795 6.0677 3.2613 solid black
+edge 140087537980360 140087530348048 4 3.4523 2.4063 3.8767 2.265 4.3727 2.0998 4.8116 1.9536 solid black
+edge 140087531256464 140087530348048 4 5.9692 2.4095 5.9692 2.3003 5.9692 2.1767 5.9692 2.0585 solid black
+edge 140087531106200 140087530348048 4 8.3572 2.4063 7.9581 2.2662 7.4921 2.1027 7.0784 1.9574 solid black
+edge 140087530348048 140087530347992 4 5.4836 1.2036 5.2975 1.0745 5.0827 0.92557 4.8863 0.78937 solid black
+edge 140087530348048 140087530711304 4 6.4547 1.2036 6.6409 1.0745 6.8556 0.92557 7.0521 0.78937 solid black
+stop

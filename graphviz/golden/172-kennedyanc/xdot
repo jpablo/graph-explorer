@@ -1,0 +1,271 @@
+graph G {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 509 1176.68 509 1176.68 0 ",
+		bb="0,0,1176.7,509",
+		fontname="Helvetica,Arial,sans-serif",
+		xdotversion=1.7
+	];
+	node [fontname="Helvetica,Arial,sans-serif",
+		label="\N"
+	];
+	edge [fontname="Helvetica,Arial,sans-serif"];
+	I5	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 e 250.01 29.42 117.98 29.42 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 250.01 29.62 0 150.85 24 -Caroline Bouvier Kennedy F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 250.01 12.82 0 139.21 22 -b. 27.11.1957 New York ",
+		color=red,
+		height=0.8171,
+		image="images/165px-Caroline_Kennedy.jpg",
+		label="Caroline Bouvier Kennedy\nb. 27.11.1957 New York",
+		labelloc=b,
+		pos="250.01,29.416",
+		shape=ellipse,
+		style=bold,
+		width=3.2772];
+	I1	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff p 4 796.38 283.92 639.64 283.92 639.64 225.52 796.38 225.52 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 718.01 263.32 0 140.75 23 -John Fitzgerald Kennedy F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 718.01 246.52 0 129.49 22 -b. 29.5.1917 Brookline F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 718.01 229.72 \
+0 116.27 20 -d. 22.11.1963 Dallas ",
+		color=blue,
+		height=0.81111,
+		image="images/kennedyface.jpg",
+		label="John Fitzgerald Kennedy\nb. 29.5.1917 Brookline\nd. 22.11.1963 Dallas",
+		labelloc=b,
+		pos="718.01,254.72",
+		shape=box,
+		style=bold,
+		width=2.177];
+	I1 -- I5	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff B 4 658.26 225.21 566.35 181.35 391.68 98.01 303.62 55.99 ",
+		color=blue,
+		pos="658.26,225.21 566.35,181.35 391.68,98.013 303.62,55.994",
+		style=bold];
+	I6	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff p 4 763.61 58.62 386.41 58.62 386.41 0.22 763.61 0.22 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 575.01 38.02 0 140.75 23 -John Fitzgerald Kennedy F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 575.01 21.22 0 148.16 24 -b. 25.11.1960 Washington F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 575.01 4.42 \
+0 361.2 60 -d. 16.7.1999 over the Atlantic Ocean, near Aquinnah, MA, USA ",
+		color=blue,
+		height=0.81111,
+		image="images/180px-JFKJr2.jpg",
+		label="John Fitzgerald Kennedy\nb. 25.11.1960 Washington\nd. 16.7.1999 over the Atlantic Ocean, near Aquinnah, MA, USA",
+		labelloc=b,
+		pos="575.01,29.416",
+		shape=box,
+		style=bold,
+		width=5.2389];
+	I1 -- I6	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 4 699.9 225.44 672.47 182.6 620.68 101.73 593.2 58.82 ",
+		color=orange,
+		pos="699.9,225.44 672.47,182.6 620.68,101.73 593.2,58.819",
+		style=bold];
+	I7	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff p 4 940.16 58.62 781.86 58.62 781.86 0.22 940.16 0.22 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 861.01 42.02 0 142.3 23 -Patrick Bouvier Kennedy F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 861.01 25.22 0 63 11 -b. 7.8.1963 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 861.01 8.42 0 63 11 -d. 9.8.1963 ",
+		color=blue,
+		height=0.81111,
+		label="Patrick Bouvier Kennedy\nb. 7.8.1963\nd. 9.8.1963",
+		pos="861.01,29.416",
+		shape=box,
+		style=bold,
+		width=2.1986];
+	I1 -- I7	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 4 736.12 225.44 763.55 182.6 815.35 101.73 842.82 58.82 ",
+		color=orange,
+		pos="736.12,225.44 763.55,182.6 815.35,101.73 842.82,58.819",
+		style=bold];
+	I2	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 e 250.01 136.13 124.33 41.3 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 250.01 144.73 0 125.95 21 -Jaqueline Lee Bouvier F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 250.01 127.93 0 148.17 24 -b. 28.7.1929 Southampton F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 250.01 111.13 \
+0 159.82 26 -d. 19.5.1994 New York City ",
+		color=red,
+		height=1.1471,
+		image="images/jacqueline-kennedy-onassis.jpg",
+		label="Jaqueline Lee Bouvier\nb. 28.7.1929 Southampton\nd. 19.5.1994 New York City",
+		labelloc=b,
+		pos="250.01,136.13",
+		shape=ellipse,
+		style=bold,
+		width=3.4535];
+	I1 -- I2	[_draw_="S 15 -setlinewidth(2) c 7 -#ee82ee B 7 661.22 225.09 651.31 220.77 640.98 216.68 631.01 213.42 624.37 211.25 466.61 179.91 356.2 \
+158.08 ",
+		color=violet,
+		pos="661.22,225.09 651.31,220.77 640.98,216.68 631.01,213.42 624.37,211.25 466.61,179.91 356.2,158.08",
+		style=bold];
+	I2 -- I5	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 B 4 250.01 94.34 250.01 82.63 250.01 70.1 250.01 59.27 ",
+		color=red,
+		pos="250.01,94.343 250.01,82.628 250.01,70.1 250.01,59.266",
+		style=bold];
+	I2 -- I6	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 4 338.39 106.65 384.25 91.88 440.14 73.87 486.09 59.07 ",
+		color=orange,
+		pos="338.39,106.65 384.25,91.875 440.14,73.868 486.09,59.066",
+		style=bold];
+	I2 -- I7	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 7 368.95 123.52 475.64 111.75 636.05 90.7 773.01 58.83 775.83 58.18 778.68 57.47 781.55 56.73 ",
+		color=orange,
+		pos="368.95,123.52 475.64,111.75 636.05,90.698 773.01,58.831 775.83,58.176 778.68,57.473 781.55,56.732",
+		style=bold];
+	I15	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff p 4 114.04 47.42 1.99 47.42 1.99 11.42 114.04 11.42 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 58.01 25.22 0 96.05 17 -Aristotle Onassis ",
+		color=blue,
+		height=0.5,
+		label="Aristotle Onassis",
+		pos="58.012,29.416",
+		shape=box,
+		style=bold,
+		width=1.5563];
+	I2 -- I15	[_draw_="S 15 -setlinewidth(2) c 7 -#ee82ee B 4 186.08 100.26 153.79 82.65 116.03 62.06 89.92 47.82 ",
+		color=violet,
+		pos="186.08,100.26 153.79,82.649 116.03,62.057 89.919,47.817",
+		style=bold];
+	I8	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff p 4 852.01 509 682.01 509 682.01 450.6 852.01 450.6 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 767.01 488.4 0 135.3 22 -Joseph Patrick Kennedy F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 767.01 471.6 0 133.78 23 -b. 6.9.1888 East Boston F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 767.01 454.8 \
+0 154 26 -d. 16.11.1969 Hyannis Port ",
+		color=blue,
+		height=0.81111,
+		image="images/1025901671.jpg",
+		label="Joseph Patrick Kennedy\nb. 6.9.1888 East Boston\nd. 16.11.1969 Hyannis Port",
+		labelloc=b,
+		pos="767.01,479.8",
+		shape=box,
+		style=bold,
+		width=2.3611];
+	I8 -- I1	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff B 10 797.74 450.22 806.69 439.95 815.32 427.66 820.01 414.6 832.43 380.06 836.45 364.83 820.01 \
+332.01 810.16 312.34 792.56 296.43 774.72 284.34 ",
+		color=blue,
+		pos="797.74,450.22 806.69,439.95 815.32,427.66 820.01,414.6 832.43,380.06 836.45,364.83 820.01,332.01 810.16,312.34 792.56,296.43 774.72,\
+284.34",
+		style=bold];
+	I10	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff p 4 979.47 283.92 814.56 283.92 814.56 225.52 979.47 225.52 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 897.01 267.32 0 148.91 25 -Joseph Patrick Kennedy Jr F 14 26 -Helvetica,Arial,\
+sans-serif c 7 -#000000 T 897.01 250.52 0 42 7 -b. 1915 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 897.01 233.72 0 42 7 \
+-d. 1944 ",
+		color=blue,
+		height=0.81111,
+		label="Joseph Patrick Kennedy Jr\nb. 1915\nd. 1944",
+		pos="897.01,254.72",
+		shape=box,
+		style=bold,
+		width=2.2905];
+	I8 -- I10	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 7 806.02 450.18 817.86 440 830.08 427.77 839.01 414.6 866.8 373.66 883.13 317.78 891.06 284.36 ",
+		color=orange,
+		pos="806.02,450.18 817.86,440 830.08,427.77 839.01,414.6 866.8,373.66 883.13,317.78 891.06,284.36",
+		style=bold];
+	I11	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 e 1087.01 254.72 89.66 41.3 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1087.01 263.32 0 110.8 16 -Rosemary Kennedy F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 1087.01 246.52 0 70 12 -b. 13.9.1918 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1087.01 229.72 0 63 11 -d. \
+7.1.2005 ",
+		color=red,
+		height=1.1471,
+		image="images/rosemary.jpg",
+		label="Rosemary Kennedy\nb. 13.9.1918\nd. 7.1.2005",
+		labelloc=b,
+		pos="1087,254.72",
+		shape=ellipse,
+		style=bold,
+		width=2.4907];
+	I8 -- I11	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 7 815.93 450.11 833.79 439.31 854.02 426.71 872.01 414.6 932.26 374.03 999.2 323.69 1042.13 \
+290.68 ",
+		color=orange,
+		pos="815.93,450.11 833.79,439.31 854.02,426.71 872.01,414.6 932.26,374.03 999.2,323.69 1042.1,290.68",
+		style=bold];
+	I12	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 e 313.01 254.72 85.26 41.3 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 313.01 267.32 0 104.57 16 -Kathleen Kennedy F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 313.01 250.52 0 42 7 -b. 1920 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 313.01 233.72 0 42 7 -d. 1948 ",
+		color=red,
+		height=1.1471,
+		label="Kathleen Kennedy\nb. 1920\nd. 1948",
+		pos="313.01,254.72",
+		shape=ellipse,
+		style=bold,
+		width=2.3682];
+	I8 -- I12	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 7 681.78 464.18 634.62 454.1 575.85 438.19 527.01 414.6 459.93 382.2 392.58 327.71 351.84 291.73 ",
+		color=orange,
+		pos="681.78,464.18 634.62,454.1 575.85,438.19 527.01,414.6 459.93,382.2 392.58,327.71 351.84,291.73",
+		style=bold];
+	I13	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 e 519.01 254.72 102.88 29.42 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 519.01 258.92 0 126.73 19 -Eunice Mary Kennedy F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 519.01 242.12 0 129.49 22 -b. 10.7.1921 Brookline ",
+		color=red,
+		height=0.8171,
+		label="Eunice Mary Kennedy\nb. 10.7.1921 Brookline",
+		pos="519.01,254.72",
+		shape=ellipse,
+		style=bold,
+		width=2.8578];
+	I8 -- I13	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 7 681.63 468.27 643.72 459.56 601.18 443.65 572.01 414.6 536.58 379.3 524.83 319.71 520.94 \
+284.41 ",
+		color=orange,
+		pos="681.63,468.27 643.72,459.56 601.18,443.65 572.01,414.6 536.58,379.3 524.83,319.71 520.94,284.41",
+		style=bold];
+	I9	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 e 696.01 373.31 115.26 41.3 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 696.01 381.91 0 144.62 25 -Rose Elizabeth Fitzgerald F 14 26 -Helvetica,Arial,\
+sans-serif c 7 -#000000 T 696.01 365.11 0 113.18 19 -b. 22.7.1890 Boston F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 696.01 \
+348.31 0 147 25 -d. 22.1.1995 Hyannis Port ",
+		color=red,
+		height=1.1471,
+		image="images/Rose_kennedy.JPG",
+		label="Rose Elizabeth Fitzgerald\nb. 22.7.1890 Boston\nd. 22.1.1995 Hyannis Port",
+		labelloc=b,
+		pos="696.01,373.31",
+		shape=ellipse,
+		style=bold,
+		width=3.2016];
+	I8 -- I9	[_draw_="S 15 -setlinewidth(2) c 7 -#ee82ee B 4 747.61 450.25 739.97 439.01 731.08 425.91 722.84 413.79 ",
+		color=violet,
+		pos="747.61,450.25 739.97,439.01 731.08,425.91 722.84,413.79",
+		style=bold];
+	I9 -- I1	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 B 4 703.64 331.86 706.6 316.2 709.91 298.65 712.61 284.35 ",
+		color=red,
+		pos="703.64,331.86 706.6,316.2 709.91,298.65 712.61,284.35",
+		style=bold];
+	I9 -- I10	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 4 755.77 337.64 785.05 320.66 819.88 300.46 847.63 284.36 ",
+		color=orange,
+		pos="755.77,337.64 785.05,320.66 819.88,300.46 847.63,284.36",
+		style=bold];
+	I9 -- I11	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 7 792.61 350.43 849.95 336.62 923.75 317.38 988.01 296.01 999.11 292.32 1010.73 288.01 1021.96 \
+283.6 ",
+		color=orange,
+		pos="792.61,350.43 849.95,336.62 923.75,317.38 988.01,296.01 999.11,292.32 1010.7,288.01 1022,283.6",
+		style=bold];
+	I9 -- I12	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 7 599.28 350.53 542.63 336.85 470.06 317.72 407.01 296.01 396.44 292.37 385.37 288.08 374.7 \
+283.68 ",
+		color=orange,
+		pos="599.28,350.53 542.63,336.85 470.06,317.72 407.01,296.01 396.44,292.37 385.37,288.08 374.7,283.68",
+		style=bold];
+	I9 -- I13	[_draw_="S 15 -setlinewidth(2) c 7 -#ffa500 B 4 641.94 336.69 615.31 319.15 583.74 298.35 559.27 282.23 ",
+		color=orange,
+		pos="641.94,336.69 615.31,319.15 583.74,298.35 559.27,282.23",
+		style=bold];
+	I3	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff p 4 154.02 402.51 0 402.51 0 344.11 154.02 344.11 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 77.01 381.91 0 138.02 23 -John Vernou Bouvier III F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 77.01 365.11 0 42 7 -b. 1891 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 77.01 348.31 0 42 7 -d. 1957 ",
+		color=blue,
+		height=0.81111,
+		image="images/BE037819.jpg",
+		label="John Vernou Bouvier III\nb. 1891\nd. 1957",
+		labelloc=b,
+		pos="77.012,373.31",
+		shape=box,
+		style=bold,
+		width=2.1392];
+	I3 -- I2	[_draw_="S 15 -setlinewidth(2) c 7 -#0000ff B 7 58.51 343.89 38.97 309.94 14.52 252.79 42.01 213.42 63.81 182.2 99.86 163.72 135.87 152.79 ",
+		color=blue,
+		pos="58.508,343.89 38.975,309.94 14.52,252.79 42.012,213.42 63.814,182.2 99.861,163.72 135.87,152.79",
+		style=bold];
+	I4	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 e 130.01 254.72 79.48 41.3 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 130.01 263.32 0 96.41 16 -Janet Norton Lee F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 130.01 246.52 0 70 12 -b. 2.10.1877 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 130.01 229.72 0 63 11 -d. \
+3.1.1968 ",
+		color=red,
+		height=1.1471,
+		image="images/n48862003257_1275276_1366.jpg",
+		label="Janet Norton Lee\nb. 2.10.1877\nd. 3.1.1968",
+		labelloc=b,
+		pos="130.01,254.72",
+		shape=ellipse,
+		style=bold,
+		width=2.2079];
+	I3 -- I4	[_draw_="S 15 -setlinewidth(2) c 7 -#ee82ee B 4 89.98 343.79 96.6 329.22 104.76 311.27 111.98 295.39 ",
+		color=violet,
+		pos="89.977,343.79 96.597,329.22 104.76,311.27 111.98,295.39",
+		style=bold];
+	I4 -- I2	[_draw_="S 15 -setlinewidth(2) c 7 -#ff0000 B 4 167 217.78 180.77 204.4 196.45 189.17 210.44 175.57 ",
+		color=red,
+		pos="167,217.78 180.77,204.4 196.45,189.17 210.44,175.57",
+		style=bold];
+}

@@ -1,0 +1,396 @@
+{
+  "name": "G",
+  "directed": false,
+  "strict": false,
+  "bb": "0,0,1176.7,509",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "I5",
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.8171",
+      "image": "images\/165px-Caroline_Kennedy.jpg",
+      "label": "Caroline Bouvier Kennedy\\nb. 27.11.1957 New York",
+      "labelloc": "b",
+      "pos": "250.01,29.416",
+      "shape": "ellipse",
+      "style": "bold",
+      "width": "3.2772"
+    },
+    {
+      "_gvid": 1,
+      "name": "I1",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.81111",
+      "image": "images\/kennedyface.jpg",
+      "label": "John Fitzgerald Kennedy\\nb. 29.5.1917 Brookline\\nd. 22.11.1963 Dallas",
+      "labelloc": "b",
+      "pos": "718.01,254.72",
+      "shape": "box",
+      "style": "bold",
+      "width": "2.177"
+    },
+    {
+      "_gvid": 2,
+      "name": "I6",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.81111",
+      "image": "images\/180px-JFKJr2.jpg",
+      "label": "John Fitzgerald Kennedy\\nb. 25.11.1960 Washington\\nd. 16.7.1999 over the Atlantic Ocean, near Aquinnah, MA, USA",
+      "labelloc": "b",
+      "pos": "575.01,29.416",
+      "shape": "box",
+      "style": "bold",
+      "width": "5.2389"
+    },
+    {
+      "_gvid": 3,
+      "name": "I7",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.81111",
+      "label": "Patrick Bouvier Kennedy\\nb. 7.8.1963\\nd. 9.8.1963",
+      "pos": "861.01,29.416",
+      "shape": "box",
+      "style": "bold",
+      "width": "2.1986"
+    },
+    {
+      "_gvid": 4,
+      "name": "I2",
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "1.1471",
+      "image": "images\/jacqueline-kennedy-onassis.jpg",
+      "label": "Jaqueline Lee Bouvier\\nb. 28.7.1929 Southampton\\nd. 19.5.1994 New York City",
+      "labelloc": "b",
+      "pos": "250.01,136.13",
+      "shape": "ellipse",
+      "style": "bold",
+      "width": "3.4535"
+    },
+    {
+      "_gvid": 5,
+      "name": "I8",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.81111",
+      "image": "images\/1025901671.jpg",
+      "label": "Joseph Patrick Kennedy\\nb. 6.9.1888 East Boston\\nd. 16.11.1969 Hyannis Port",
+      "labelloc": "b",
+      "pos": "767.01,479.8",
+      "shape": "box",
+      "style": "bold",
+      "width": "2.3611"
+    },
+    {
+      "_gvid": 6,
+      "name": "I10",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.81111",
+      "label": "Joseph Patrick Kennedy Jr\\nb. 1915\\nd. 1944",
+      "pos": "897.01,254.72",
+      "shape": "box",
+      "style": "bold",
+      "width": "2.2905"
+    },
+    {
+      "_gvid": 7,
+      "name": "I11",
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "1.1471",
+      "image": "images\/rosemary.jpg",
+      "label": "Rosemary Kennedy\\nb. 13.9.1918\\nd. 7.1.2005",
+      "labelloc": "b",
+      "pos": "1087,254.72",
+      "shape": "ellipse",
+      "style": "bold",
+      "width": "2.4907"
+    },
+    {
+      "_gvid": 8,
+      "name": "I12",
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "1.1471",
+      "label": "Kathleen Kennedy\\nb. 1920\\nd. 1948",
+      "pos": "313.01,254.72",
+      "shape": "ellipse",
+      "style": "bold",
+      "width": "2.3682"
+    },
+    {
+      "_gvid": 9,
+      "name": "I13",
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.8171",
+      "label": "Eunice Mary Kennedy\\nb. 10.7.1921 Brookline",
+      "pos": "519.01,254.72",
+      "shape": "ellipse",
+      "style": "bold",
+      "width": "2.8578"
+    },
+    {
+      "_gvid": 10,
+      "name": "I9",
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "1.1471",
+      "image": "images\/Rose_kennedy.JPG",
+      "label": "Rose Elizabeth Fitzgerald\\nb. 22.7.1890 Boston\\nd. 22.1.1995 Hyannis Port",
+      "labelloc": "b",
+      "pos": "696.01,373.31",
+      "shape": "ellipse",
+      "style": "bold",
+      "width": "3.2016"
+    },
+    {
+      "_gvid": 11,
+      "name": "I15",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "Aristotle Onassis",
+      "pos": "58.012,29.416",
+      "shape": "box",
+      "style": "bold",
+      "width": "1.5563"
+    },
+    {
+      "_gvid": 12,
+      "name": "I3",
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.81111",
+      "image": "images\/BE037819.jpg",
+      "label": "John Vernou Bouvier III\\nb. 1891\\nd. 1957",
+      "labelloc": "b",
+      "pos": "77.012,373.31",
+      "shape": "box",
+      "style": "bold",
+      "width": "2.1392"
+    },
+    {
+      "_gvid": 13,
+      "name": "I4",
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "1.1471",
+      "image": "images\/n48862003257_1275276_1366.jpg",
+      "label": "Janet Norton Lee\\nb. 2.10.1877\\nd. 3.1.1968",
+      "labelloc": "b",
+      "pos": "130.01,254.72",
+      "shape": "ellipse",
+      "style": "bold",
+      "width": "2.2079"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 0,
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "658.26,225.21 566.35,181.35 391.68,98.013 303.62,55.994",
+      "style": "bold"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 2,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "699.9,225.44 672.47,182.6 620.68,101.73 593.2,58.819",
+      "style": "bold"
+    },
+    {
+      "_gvid": 5,
+      "tail": 4,
+      "head": 2,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "338.39,106.65 384.25,91.875 440.14,73.868 486.09,59.066",
+      "style": "bold"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "736.12,225.44 763.55,182.6 815.35,101.73 842.82,58.819",
+      "style": "bold"
+    },
+    {
+      "_gvid": 6,
+      "tail": 4,
+      "head": 3,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "368.95,123.52 475.64,111.75 636.05,90.698 773.01,58.831 775.83,58.176 778.68,57.473 781.55,56.732",
+      "style": "bold"
+    },
+    {
+      "_gvid": 3,
+      "tail": 1,
+      "head": 4,
+      "color": "violet",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "661.22,225.09 651.31,220.77 640.98,216.68 631.01,213.42 624.37,211.25 466.61,179.91 356.2,158.08",
+      "style": "bold"
+    },
+    {
+      "_gvid": 8,
+      "tail": 5,
+      "head": 1,
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "797.74,450.22 806.69,439.95 815.32,427.66 820.01,414.6 832.43,380.06 836.45,364.83 820.01,332.01 810.16,312.34 792.56,296.43 774.72,284.34",
+      "style": "bold"
+    },
+    {
+      "_gvid": 9,
+      "tail": 5,
+      "head": 6,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "806.02,450.18 817.86,440 830.08,427.77 839.01,414.6 866.8,373.66 883.13,317.78 891.06,284.36",
+      "style": "bold"
+    },
+    {
+      "_gvid": 15,
+      "tail": 10,
+      "head": 6,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "755.77,337.64 785.05,320.66 819.88,300.46 847.63,284.36",
+      "style": "bold"
+    },
+    {
+      "_gvid": 10,
+      "tail": 5,
+      "head": 7,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "815.93,450.11 833.79,439.31 854.02,426.71 872.01,414.6 932.26,374.03 999.2,323.69 1042.1,290.68",
+      "style": "bold"
+    },
+    {
+      "_gvid": 16,
+      "tail": 10,
+      "head": 7,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "792.61,350.43 849.95,336.62 923.75,317.38 988.01,296.01 999.11,292.32 1010.7,288.01 1022,283.6",
+      "style": "bold"
+    },
+    {
+      "_gvid": 11,
+      "tail": 5,
+      "head": 8,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "681.78,464.18 634.62,454.1 575.85,438.19 527.01,414.6 459.93,382.2 392.58,327.71 351.84,291.73",
+      "style": "bold"
+    },
+    {
+      "_gvid": 17,
+      "tail": 10,
+      "head": 8,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "599.28,350.53 542.63,336.85 470.06,317.72 407.01,296.01 396.44,292.37 385.37,288.08 374.7,283.68",
+      "style": "bold"
+    },
+    {
+      "_gvid": 12,
+      "tail": 5,
+      "head": 9,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "681.63,468.27 643.72,459.56 601.18,443.65 572.01,414.6 536.58,379.3 524.83,319.71 520.94,284.41",
+      "style": "bold"
+    },
+    {
+      "_gvid": 18,
+      "tail": 10,
+      "head": 9,
+      "color": "orange",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "641.94,336.69 615.31,319.15 583.74,298.35 559.27,282.23",
+      "style": "bold"
+    },
+    {
+      "_gvid": 13,
+      "tail": 5,
+      "head": 10,
+      "color": "violet",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "747.61,450.25 739.97,439.01 731.08,425.91 722.84,413.79",
+      "style": "bold"
+    },
+    {
+      "_gvid": 14,
+      "tail": 10,
+      "head": 1,
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "703.64,331.86 706.6,316.2 709.91,298.65 712.61,284.35",
+      "style": "bold"
+    },
+    {
+      "_gvid": 4,
+      "tail": 4,
+      "head": 0,
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "250.01,94.343 250.01,82.628 250.01,70.1 250.01,59.266",
+      "style": "bold"
+    },
+    {
+      "_gvid": 7,
+      "tail": 4,
+      "head": 11,
+      "color": "violet",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "186.08,100.26 153.79,82.649 116.03,62.057 89.919,47.817",
+      "style": "bold"
+    },
+    {
+      "_gvid": 19,
+      "tail": 12,
+      "head": 4,
+      "color": "blue",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "58.508,343.89 38.975,309.94 14.52,252.79 42.012,213.42 63.814,182.2 99.861,163.72 135.87,152.79",
+      "style": "bold"
+    },
+    {
+      "_gvid": 20,
+      "tail": 12,
+      "head": 13,
+      "color": "violet",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "89.977,343.79 96.597,329.22 104.76,311.27 111.98,295.39",
+      "style": "bold"
+    },
+    {
+      "_gvid": 21,
+      "tail": 13,
+      "head": 4,
+      "color": "red",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "167,217.78 180.77,204.4 196.45,189.17 210.44,175.57",
+      "style": "bold"
+    }
+  ]
+}

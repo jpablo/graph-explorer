@@ -1,0 +1,634 @@
+{
+  "name": "unix",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 1006 756",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "5th Edition",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 1,
+      "name": "6th Edition",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 2,
+      "name": "PWB 1.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 3,
+      "name": "LSX",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 4,
+      "name": "1 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 5,
+      "name": "Mini Unix",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 6,
+      "name": "Wollongong",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 7,
+      "name": "Interdata",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 8,
+      "name": "Unix\/TS 3.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 9,
+      "name": "PWB 2.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 10,
+      "name": "7th Edition",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 11,
+      "name": "8th Edition",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 12,
+      "name": "32V",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 13,
+      "name": "V7M",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 14,
+      "name": "Ultrix-11",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 15,
+      "name": "Xenix",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 16,
+      "name": "UniPlus+",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 17,
+      "name": "9th Edition",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 18,
+      "name": "2 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 19,
+      "name": "2.8 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 20,
+      "name": "2.9 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 21,
+      "name": "3 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 22,
+      "name": "4 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 23,
+      "name": "4.1 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 24,
+      "name": "4.2 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 25,
+      "name": "4.3 BSD",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 26,
+      "name": "Ultrix-32",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 27,
+      "name": "PWB 1.2",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 28,
+      "name": "USG 1.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 29,
+      "name": "CB Unix 1",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 30,
+      "name": "USG 2.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 31,
+      "name": "CB Unix 2",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 32,
+      "name": "CB Unix 3",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 33,
+      "name": "Unix\/TS++",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 34,
+      "name": "PDP-11 Sys V",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 35,
+      "name": "USG 3.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 36,
+      "name": "Unix\/TS 1.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 37,
+      "name": "TS 4.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 38,
+      "name": "System V.0",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 39,
+      "name": "System V.2",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    },
+    {
+      "_gvid": 40,
+      "name": "System V.3",
+      "color": "lightblue2",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "style": "filled"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 3,
+      "tail": 1,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 4,
+      "tail": 1,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 5,
+      "tail": 1,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 6,
+      "tail": 1,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 10,
+      "tail": 7,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 11,
+      "tail": 7,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 12,
+      "tail": 7,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 15,
+      "tail": 10,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 16,
+      "tail": 10,
+      "head": 12,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 17,
+      "tail": 10,
+      "head": 13,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 18,
+      "tail": 10,
+      "head": 14,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 19,
+      "tail": 10,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 20,
+      "tail": 10,
+      "head": 16,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 23,
+      "tail": 13,
+      "head": 14,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 21,
+      "tail": 11,
+      "head": 17,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 9,
+      "tail": 4,
+      "head": 18,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 24,
+      "tail": 18,
+      "head": 19,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 25,
+      "tail": 19,
+      "head": 14,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 26,
+      "tail": 19,
+      "head": 20,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 22,
+      "tail": 12,
+      "head": 21,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 27,
+      "tail": 21,
+      "head": 22,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 28,
+      "tail": 22,
+      "head": 23,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 31,
+      "tail": 23,
+      "head": 24,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 30,
+      "tail": 23,
+      "head": 19,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 29,
+      "tail": 23,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 32,
+      "tail": 24,
+      "head": 25,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 33,
+      "tail": 24,
+      "head": 26,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 7,
+      "tail": 2,
+      "head": 27,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 8,
+      "tail": 2,
+      "head": 28,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 34,
+      "tail": 27,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 35,
+      "tail": 28,
+      "head": 29,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 36,
+      "tail": 28,
+      "head": 30,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 37,
+      "tail": 29,
+      "head": 31,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 39,
+      "tail": 31,
+      "head": 32,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 40,
+      "tail": 32,
+      "head": 33,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 41,
+      "tail": 32,
+      "head": 34,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 38,
+      "tail": 30,
+      "head": 35,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 44,
+      "tail": 35,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 14,
+      "tail": 9,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 45,
+      "tail": 36,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 13,
+      "tail": 8,
+      "head": 37,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 43,
+      "tail": 33,
+      "head": 37,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 42,
+      "tail": 32,
+      "head": 37,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 46,
+      "tail": 37,
+      "head": 38,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 47,
+      "tail": 38,
+      "head": 39,
+      "fontname": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "_gvid": 48,
+      "tail": 39,
+      "head": 40,
+      "fontname": "Helvetica,Arial,sans-serif"
+    }
+  ]
+}

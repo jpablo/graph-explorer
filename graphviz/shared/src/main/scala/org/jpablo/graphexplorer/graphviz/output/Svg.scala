@@ -290,14 +290,20 @@ object Svg:
       * `r`→end@cx+w/2). Reduces to `textAt` for a single centred line. Empty
       * lines advance the cursor but draw nothing. */
     def textLines(cx: Double, cyc: Double, raw: String, fill: String,
-                  nodeId: String, fontName: String, fontSize: Double = FontSize): String =
+                  nodeId: String, fontName: String, fontSize: Double = FontSize,
+                  valign: Char = 'c', spaceY: Double = 0.0): String =
       val lines = NodeSize.labelLinesJust(raw, nodeId, g.name.getOrElse(""))
       if lines.forall(_._1.isEmpty) then return ""
       val dimenY = lines.map((l, _) => NodeSize.lineHeightPt(l, fontSize)).sum
       val boxW   = NodeSize.labelBoxWidthPt(raw, fontSize, fontName, nodeId, g.name.getOrElse(""))
       val f      = if fill.nonEmpty then s""" fill="$fill"""" else ""
       val out    = new StringBuilder
-      var baseTop = cyc + dimenY / 2.0 - fontSize
+      // emit_label valign (labels.c:236): 't'/'b' read the label SPACE
+      // (poly_init's available interior), 'c' the label dimen.
+      var baseTop = valign match
+        case 't' => cyc + spaceY / 2.0 - fontSize
+        case 'b' => cyc - spaceY / 2.0 + dimenY - fontSize
+        case _   => cyc + dimenY / 2.0 - fontSize
       lines.foreach { case (line, just) =>
         val h  = NodeSize.lineHeightPt(line, fontSize)
         if line.nonEmpty then
@@ -368,17 +374,36 @@ object Svg:
     }
 
     // colorxlate → the svg driver: `#RRGGBB` hex is emitted lowercase, SVG
-    // color names pass through, and x11-only names resolve to hex — of those
-    // only the gray/grey ramp (grayN = round(255·N/100)) has corpus exercise.
+    // color names pass through, x11-only names resolve to hex (X11Colors,
+    // generated from gv's color_names minus svgcolor_names), and an
+    // "H S V" / "H,S,V" float triple converts via hsv2rgb with TRUNCATED
+    // byte conversion ((unsigned char)(R*255), colxlate.c:290).
     def svgColor(c: String): String =
-      if c.startsWith("#") then c.toLowerCase
+      val t = c.trim
+      if t.startsWith("#") then t.toLowerCase
       else
-        "(?i)^gr[ae]y([0-9]{1,3})$".r.findFirstMatchIn(c.trim)
-          .flatMap(_.group(1).toIntOption).filter(_ <= 100) match
-          case Some(n) =>
-            val v = math.round(255.0 * n / 100.0).toInt
-            f"#$v%02x$v%02x$v%02x"
-          case None => c
+        val parts = t.split("[,\\s]+")
+        if parts.length == 3 && parts.forall(_.toDoubleOption.isDefined) then
+          val h0 = parts(0).toDouble; val s0 = parts(1).toDouble; val v0 = parts(2).toDouble
+          val (r, g, b) =
+            if s0 <= 0.0 then (v0, v0, v0)
+            else
+              var h = if h0 >= 1.0 then 0.0 else h0
+              h *= 6.0
+              val i = h.toInt
+              val f = h - i
+              val pp = v0 * (1 - s0)
+              val q  = v0 * (1 - s0 * f)
+              val tt = v0 * (1 - s0 * (1 - f))
+              i match
+                case 0 => (v0, tt, pp)
+                case 1 => (q, v0, pp)
+                case 2 => (pp, v0, tt)
+                case 3 => (pp, q, v0)
+                case 4 => (tt, pp, v0)
+                case _ => (v0, pp, q)
+          f"#${(r * 255).toInt}%02x${(g * 255).toInt}%02x${(b * 255).toInt}%02x"
+        else X11Colors.toHex.getOrElse(t.toLowerCase, t)
 
     // ── HTML-like label rendering (emit_html_txt / emit_htextspans) ──────────
     /** Render an HTML text block centred at (cx, cyc): each line is left-anchored
@@ -610,7 +635,13 @@ object Svg:
         // (svg_begin_anchor / svg_end_anchor). href aliases URL; the tooltip
         // uses the raw/dash/nbsp escape set.
         val href    = n.attrs.get("href").orElse(n.attrs.get("URL")).filter(_.nonEmpty)
-        val tooltip = n.attrs.get("tooltip").filter(_.nonEmpty)
+        val explicitTooltip = n.attrs.get("tooltip").filter(_.nonEmpty)
+        // an href'd anchor with no explicit tooltip titles with the node
+        // LABEL (emit_begin_node: obj->tooltip = strdup(obj->label)).
+        val tooltip = explicitTooltip.orElse(
+          if href.isDefined then
+            Option(n.attrs.get("label").filter(_ != "\\N").getOrElse(n.id)).filter(_.nonEmpty)
+          else None)
         val target  = n.attrs.get("target").filter(_.nonEmpty)
         val anchored = href.isDefined || tooltip.isDefined
         if anchored then
@@ -656,7 +687,9 @@ object Svg:
             val stroke = svgColor(n.attrs.get("color").getOrElse("black"))
             // penwidth ≠ 1 ⇒ every drawn outline gets stroke-width (gvrender
             // set_penwidth before the shape ops).
-            val nodePw = n.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+            // style=bold ⇒ penwidth 2 unless an explicit penwidth attr wins.
+            val nodePw = n.attrs.get("penwidth").flatMap(_.toDoubleOption)
+              .getOrElse(if styles.contains("bold") then 2.0 else 1.0)
             // dashed/dotted node borders take stroke-dasharray exactly like
             // edges (gvrender pencil style; sbt's dashed boxes).
             val nodeDash =
@@ -836,8 +869,10 @@ object Svg:
             // an empty label (`label=""`) draws no <text> (emit_label skips it);
             // shape=point has an implicit empty label.
             else if lbl.nonEmpty && !isPoint then
+              val va = n.attrs.get("labelloc").map(_.headOption.getOrElse('c')).filter(c => c == 't' || c == 'b').getOrElse('c')
               sb ++= textLines(x, cy, lbl, n.attrs.get("fontcolor").getOrElse(""), n.id, n.attrs.getOrElse("fontname", "Times-Roman"),
-                n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
+                n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize),
+                valign = va, spaceY = if va != 'c' then NodeSize.labelSpaceY(n, g) else 0.0)
         // external label (addXLabels): plain text at its placed centre,
         // emitted after the shape+label (emit_node xlabel order).
         n.attrs.get("xlabel").filter(_.nonEmpty).foreach { xl =>
@@ -883,7 +918,8 @@ object Svg:
             if eStyles.contains("dashed") then """ stroke-dasharray="5,2""""
             else if eStyles.contains("dotted") then """ stroke-dasharray="1,5""""
             else ""
-          val ePw = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+          val ePw = e.attrs.get("penwidth").flatMap(_.toDoubleOption)
+            .getOrElse(if eStyles.contains("bold") then 2.0 else 1.0)
           val eSw = if ePw != 1.0 then s""" stroke-width="${Output.g5(ePw)}"""" else ""
           sb ++= s"""<path fill="none" stroke="$eStroke"$eSw$dash d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
           // arrow_gen per drawn end (emit_edge_graphics: tail arrow at sp

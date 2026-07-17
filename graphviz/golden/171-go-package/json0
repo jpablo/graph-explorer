@@ -1,0 +1,573 @@
+{
+  "name": "regexp",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,808.98,468",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "n0",
+      "URL": "https:\/\/godoc.org\/regexp",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "regexp",
+      "pos": "293,450",
+      "tooltip": "Package regexp implements regular expression search.",
+      "width": "1.0364"
+    },
+    {
+      "_gvid": 1,
+      "name": "n1",
+      "URL": "https:\/\/godoc.org\/bytes",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "bytes",
+      "pos": "141,306",
+      "tooltip": "Package bytes implements functions for the manipulation of byte slices.",
+      "width": "0.8728"
+    },
+    {
+      "_gvid": 2,
+      "name": "n2",
+      "URL": "https:\/\/godoc.org\/io",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "io",
+      "pos": "70,234",
+      "tooltip": "Package io provides basic interfaces to I\/O primitives.",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "n3",
+      "URL": "https:\/\/godoc.org\/regexp\/syntax",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "regexp\/syntax",
+      "pos": "293,378",
+      "tooltip": "Package syntax parses regular expressions into parse trees and compiles parse trees into programs.",
+      "width": "1.8113"
+    },
+    {
+      "_gvid": 4,
+      "name": "n4",
+      "URL": "https:\/\/godoc.org\/sort",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "sort",
+      "pos": "27,306",
+      "tooltip": "Package sort provides primitives for sorting slices and user-defined collections.",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "n5",
+      "URL": "https:\/\/godoc.org\/strconv",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "strconv",
+      "pos": "552,306",
+      "tooltip": "Package strconv implements conversions to and from string representations of basic data types.",
+      "width": "1.0963"
+    },
+    {
+      "_gvid": 6,
+      "name": "n6",
+      "URL": "https:\/\/godoc.org\/strings",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "strings",
+      "pos": "303,306",
+      "tooltip": "Package strings implements simple functions to manipulate UTF-8 encoded strings.",
+      "width": "1.022"
+    },
+    {
+      "_gvid": 7,
+      "name": "n7",
+      "URL": "https:\/\/godoc.org\/sync",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "sync",
+      "pos": "398,162",
+      "tooltip": "Package sync provides basic synchronization primitives such as mutual exclusion locks.",
+      "width": "0.79827"
+    },
+    {
+      "_gvid": 8,
+      "name": "n8",
+      "URL": "https:\/\/godoc.org\/unicode",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "unicode",
+      "pos": "157,234",
+      "tooltip": "Package unicode provides data and functions to test some properties of Unicode code points.",
+      "width": "1.1557"
+    },
+    {
+      "_gvid": 9,
+      "name": "n9",
+      "URL": "https:\/\/godoc.org\/unicode\/utf8",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "unicode\/utf8",
+      "pos": "552,234",
+      "tooltip": "Package utf8 implements functions and constants to support text encoded in UTF-8.",
+      "width": "1.6624"
+    },
+    {
+      "_gvid": 10,
+      "name": "n10",
+      "URL": "https:\/\/godoc.org\/internal\/bytealg",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "internal\/bytealg",
+      "pos": "403,234",
+      "width": "1.9899"
+    },
+    {
+      "_gvid": 11,
+      "name": "n11",
+      "URL": "https:\/\/godoc.org\/errors",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "errors",
+      "pos": "157,162",
+      "tooltip": "Package errors implements functions to manipulate errors.",
+      "width": "0.93213"
+    },
+    {
+      "_gvid": 12,
+      "name": "n12",
+      "URL": "https:\/\/godoc.org\/internal\/reflectlite",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "internal\/reflectlite",
+      "pos": "157,90",
+      "tooltip": "Package reflectlite implements lightweight version of reflect, not using any package except for \"runtime\" and \"unsafe\".",
+      "width": "2.2279"
+    },
+    {
+      "_gvid": 13,
+      "name": "n13",
+      "URL": "https:\/\/godoc.org\/math",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "math",
+      "pos": "736,234",
+      "tooltip": "Package math provides basic constants and mathematical functions.",
+      "width": "0.84294"
+    },
+    {
+      "_gvid": 14,
+      "name": "n14",
+      "URL": "https:\/\/godoc.org\/math\/bits",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "math\/bits",
+      "pos": "762,162",
+      "tooltip": "Package bits implements bit counting and manipulation functions for the predeclared unsigned integer types.",
+      "width": "1.305"
+    },
+    {
+      "_gvid": 15,
+      "name": "n15",
+      "URL": "https:\/\/godoc.org\/unsafe",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "unsafe",
+      "pos": "420,18",
+      "tooltip": "Package unsafe contains operations that step around the type safety of Go programs.",
+      "width": "1.0067"
+    },
+    {
+      "_gvid": 16,
+      "name": "n16",
+      "URL": "https:\/\/godoc.org\/internal\/race",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "internal\/race",
+      "pos": "466,90",
+      "tooltip": "Package race contains helper functions for manually instrumenting code for the race detector.",
+      "width": "1.6469"
+    },
+    {
+      "_gvid": 17,
+      "name": "n17",
+      "URL": "https:\/\/godoc.org\/runtime",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "runtime",
+      "pos": "262,18",
+      "width": "1.1409"
+    },
+    {
+      "_gvid": 18,
+      "name": "n18",
+      "URL": "https:\/\/godoc.org\/sync\/atomic",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "sync\/atomic",
+      "pos": "601,90",
+      "tooltip": "Package atomic provides low-level atomic memory primitives useful for implementing synchronization algorithms.",
+      "width": "1.6028"
+    },
+    {
+      "_gvid": 19,
+      "name": "n19",
+      "URL": "https:\/\/godoc.org\/internal\/cpu",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "internal\/cpu",
+      "pos": "552,162",
+      "tooltip": "Package cpu implements processor feature detection used by the Go standard library.",
+      "width": "1.5877"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,145.98,324.06 262.13,439.69 238.84,431.36 207.34,417.17 186,396 168.82,378.96 156.98,353.99 149.78,334.84"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,74.142,252.27 259.76,441.42 230.59,433.58 188.08,419.18 157,396 112.41,362.76 88.123,299.69 77.22,263.14"
+    },
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 3,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,293,396.1 293,431.7 293,424.41 293,415.73 293,407.54"
+    },
+    {
+      "_gvid": 3,
+      "tail": 0,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,30.191,324.19 255.59,449.78 207.07,448.84 122.22,440.32 68,396 49.281,380.7 38.71,354.96 33.01,335.09"
+    },
+    {
+      "_gvid": 4,
+      "tail": 0,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,542.65,323.72 329.24,445.19 368.8,439.63 432.68,426.39 479,396 503.33,380.03 523.6,353.44 536.56,333.47"
+    },
+    {
+      "_gvid": 5,
+      "tail": 0,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,327.47,319.92 320.43,437.39 337.2,428.68 357.25,414.98 367,396 374.31,381.77 373.81,374.48 367,360 360.56,346.3 348.64,334.92 336.82,326.27"
+    },
+    {
+      "_gvid": 6,
+      "tail": 0,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,425.08,168.52 329.4,445.12 374.09,439.26 451.3,425.53 511,396 587.49,358.17 617.48,334.83 638,252 641.85,236.47 648.02,228.47 638,216 634.81,212.03 502.85,184.49 435.99,170.76"
+    },
+    {
+      "_gvid": 7,
+      "tail": 0,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,165.16,252.02 267.97,436.31 251.98,427.07 231.9,413.19 219,396 188.46,355.3 199.96,335.22 181,288 177.6,279.53 173.61,270.43 169.87,262.21"
+    },
+    {
+      "_gvid": 8,
+      "tail": 0,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,536.93,251.89 318.33,436.33 337.17,426.43 363.12,411.73 384,396 440.57,353.37 498.45,293.62 529.32,260.19"
+    },
+    {
+      "_gvid": 12,
+      "tail": 1,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,355.38,247.72 169.29,297.44 211.01,286.3 289.97,265.2 344.48,250.63"
+    },
+    {
+      "_gvid": 9,
+      "tail": 1,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,84.408,249.21 125.59,289.81 115.94,280.29 103.33,267.86 92.559,257.24"
+    },
+    {
+      "_gvid": 10,
+      "tail": 1,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,153.09,252.1 144.96,287.7 146.64,280.32 148.65,271.52 150.54,263.25"
+    },
+    {
+      "_gvid": 11,
+      "tail": 1,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,508.24,246.57 171.38,300.47 249.52,288.79 453.54,258.15 484,252 488.31,251.13 492.75,250.17 497.2,249.16"
+    },
+    {
+      "_gvid": 13,
+      "tail": 1,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,124.48,167.07 111.59,299.38 86.136,292.8 50.835,279.13 34,252 25.563,238.41 25.205,229.37 34,216 51.524,189.37 85.559,176.06 113.39,169.44"
+    },
+    {
+      "_gvid": 15,
+      "tail": 2,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,139.08,177.42 86.774,219.5 99.088,209.6 116.07,195.94 130.24,184.53"
+    },
+    {
+      "_gvid": 14,
+      "tail": 2,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,369.62,165.66 90.565,222.16 95.519,219.87 100.87,217.65 106,216 193.71,187.87 301.33,173.18 358.27,166.88"
+    },
+    {
+      "_gvid": 16,
+      "tail": 3,
+      "head": 4,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,52.056,313.59 246.97,364.89 194.77,351.15 110.74,329.04 63.068,316.49"
+    },
+    {
+      "_gvid": 17,
+      "tail": 3,
+      "head": 5,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,518.59,316.03 338.41,364.73 385.99,351.87 460.25,331.8 507.49,319.03"
+    },
+    {
+      "_gvid": 18,
+      "tail": 3,
+      "head": 6,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,300.56,324.1 295.47,359.7 296.53,352.32 297.78,343.52 298.96,335.25"
+    },
+    {
+      "_gvid": 19,
+      "tail": 3,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,174.62,250.58 278.9,360.17 263.44,341.94 237.68,312.23 214,288 204.14,277.91 192.84,267.23 182.92,258.13"
+    },
+    {
+      "_gvid": 20,
+      "tail": 3,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,522.71,250.08 320.26,361.32 351.65,343.34 404.81,313.12 451,288 471.26,276.98 493.98,265.02 512.74,255.26"
+    },
+    {
+      "_gvid": 21,
+      "tail": 4,
+      "head": 12,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,129.01,107.28 22.217,287.79 17.997,269.25 13.935,239.27 24,216 43.322,171.32 87.342,135.26 119.46,113.55"
+    },
+    {
+      "_gvid": 23,
+      "tail": 5,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,435.65,250.34 525.36,292.49 503.29,282.12 471.5,267.18 445.86,255.13"
+    },
+    {
+      "_gvid": 25,
+      "tail": 5,
+      "head": 13,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,710.94,244.53 581.56,293.75 613.92,281.44 665.79,261.71 700.37,248.55"
+    },
+    {
+      "_gvid": 22,
+      "tail": 5,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,552,252.1 552,287.7 552,280.41 552,271.73 552,263.54"
+    },
+    {
+      "_gvid": 24,
+      "tail": 5,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,190.29,165.59 578.68,292.33 594.12,283.42 612.19,269.88 621,252 628.07,237.65 631.65,227.94 621,216 607.1,200.42 315.23,175.61 201.66,166.5"
+    },
+    {
+      "_gvid": 26,
+      "tail": 5,
+      "head": 14,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,771.32,180.02 590.55,301.5 648.17,295.38 752.43,280.57 775,252 788.6,234.79 783.36,209.68 775.87,190.52"
+    },
+    {
+      "_gvid": 27,
+      "tail": 6,
+      "head": 2,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,91.052,245.71 269.67,297.95 230.04,289.12 162.19,272.64 106,252 104.46,251.43 102.89,250.83 101.32,250.19"
+    },
+    {
+      "_gvid": 28,
+      "tail": 6,
+      "head": 7,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,375.16,173.11 303.02,287.84 303.81,268.79 307.49,237.85 322,216 332.66,199.95 349.98,187.32 365.39,178.42"
+    },
+    {
+      "_gvid": 33,
+      "tail": 6,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,401.81,34.048 301.18,287.71 299.73,269.61 298.74,240.47 304,216 318.69,147.7 327.62,129.7 367,72 374.47,61.056 384.38,50.432 393.61,41.606"
+    },
+    {
+      "_gvid": 32,
+      "tail": 6,
+      "head": 11,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,172.44,178.02 287.1,289.53 261.4,264.54 210.61,215.14 180.66,186.01"
+    },
+    {
+      "_gvid": 31,
+      "tail": 6,
+      "head": 10,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,379.64,251.35 323.24,290.83 336.75,281.37 354.83,268.72 370.36,257.85"
+    },
+    {
+      "_gvid": 29,
+      "tail": 6,
+      "head": 8,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,184.24,248.06 277.23,292.65 254.28,281.64 220.41,265.4 194.47,252.96"
+    },
+    {
+      "_gvid": 30,
+      "tail": 6,
+      "head": 9,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,509.49,246.95 334.54,296.13 375.78,284.54 448.65,264.06 498.58,250.02"
+    },
+    {
+      "_gvid": 35,
+      "tail": 7,
+      "head": 16,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,449.69,107.79 412.42,146.15 420.95,137.38 431.97,126.03 441.8,115.91"
+    },
+    {
+      "_gvid": 36,
+      "tail": 7,
+      "head": 17,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,277.35,35.025 383.7,146.07 360.24,121.57 313.36,72.624 285.12,43.144"
+    },
+    {
+      "_gvid": 37,
+      "tail": 7,
+      "head": 18,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,563.47,103.94 422.89,152.42 455.09,141.31 511.88,121.73 552.68,107.66"
+    },
+    {
+      "_gvid": 34,
+      "tail": 7,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,411.1,35.648 396.02,143.74 394.41,125.67 393.11,96.548 398,72 399.74,63.268 402.95,54.173 406.38,46.033"
+    },
+    {
+      "_gvid": 39,
+      "tail": 10,
+      "head": 19,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,521.16,177.49 435.7,217.64 457.86,207.23 487.32,193.39 511.05,182.24"
+    },
+    {
+      "_gvid": 38,
+      "tail": 10,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,408.84,35.443 384.41,216.3 375.15,206.72 364.91,193.85 360,180 354.65,164.92 356.77,159.67 360,144 367.53,107.49 387.91,69.403 402.83,45.013"
+    },
+    {
+      "_gvid": 40,
+      "tail": 11,
+      "head": 12,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,157,108.1 157,143.7 157,136.41 157,127.73 157,119.54"
+    },
+    {
+      "_gvid": 42,
+      "tail": 12,
+      "head": 17,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,240.14,33.57 181.88,72.411 196.55,62.635 215.23,50.179 230.87,39.756"
+    },
+    {
+      "_gvid": 41,
+      "tail": 12,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,388.74,27.321 207.4,75.586 256.87,62.42 331.45,42.568 377.86,30.216"
+    },
+    {
+      "_gvid": 44,
+      "tail": 13,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,455.65,22.344 725.77,216.68 719.57,206.4 711.78,192.71 706,180 684.94,133.68 706.2,105.61 668,72 638.59,46.129 530.26,30.618 466.92,23.563"
+    },
+    {
+      "_gvid": 45,
+      "tail": 13,
+      "head": 19,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,587.7,176.44 711.34,223.44 705.04,221.01 698.27,218.4 692,216 660.71,204.03 625.44,190.68 598.13,180.37"
+    },
+    {
+      "_gvid": 43,
+      "tail": 13,
+      "head": 14,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,755.58,180.28 742.29,216.05 745.09,208.52 748.47,199.44 751.62,190.94"
+    },
+    {
+      "_gvid": 46,
+      "tail": 14,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,455.65,22.319 755.16,143.87 746.03,123.34 727.83,89.506 701,72 663.04,47.231 536.29,30.833 466.71,23.465"
+    },
+    {
+      "_gvid": 47,
+      "tail": 16,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,430.72,35.307 454.86,72.055 449.48,63.854 442.89,53.831 436.9,44.715"
+    },
+    {
+      "_gvid": 48,
+      "tail": 18,
+      "head": 15,
+      "fontname": "Helvetica,Arial,sans-serif",
+      "pos": "e,448.12,29.874 565.67,75.337 534.93,63.45 490.47,46.252 458.76,33.989"
+    }
+  ]
+}
