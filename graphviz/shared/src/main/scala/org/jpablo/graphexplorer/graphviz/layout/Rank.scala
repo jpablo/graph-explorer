@@ -195,6 +195,39 @@ object Rank:
   private def weightOf(a: Attrs): Int =
     a.get("weight").flatMap(_.toDoubleOption).map(w => math.max(0, w.toInt)).getOrElse(1)
 
+  /** rank1 (rank.c:373): the NS runs per CONNECTED COMPONENT (gv
+    * `decompose(g,0)` + the comp loop). Feeding a disconnected graph to one
+    * solve leaves everything beyond the feasible tree's component at its
+    * init_rank floor (pprof: an isolated cluster leader + the call tree —
+    * N16 stuck at its minimum feasible rank). Each component normalizes to
+    * rank 0 independently, exactly like gv's per-comp `rank()` calls. */
+  private def solvePerComponent(
+      nodes: Vector[String], edges: Vector[NetworkSimplex.NSEdge],
+      balance: NSBalance, tbOrder: Vector[String] = Vector.empty
+  ): Map[String, Int] =
+    val parent = mutable.HashMap.empty[String, String]
+    def find(x: String): String =
+      val p = parent.getOrElse(x, x)
+      if p == x then x else { val r = find(p); parent(x) = r; r }
+    def union(a: String, b: String): Unit =
+      val (ra, rb) = (find(a), find(b))
+      if ra != rb then parent(ra) = rb
+    edges.foreach(e => union(e.tail, e.head))
+    val compOf = nodes.iterator.map(n => n -> find(n)).toMap
+    // components in first-appearance order over the node list
+    val roots = mutable.LinkedHashSet.empty[String]
+    nodes.foreach(n => roots += compOf(n))
+    if roots.size <= 1 then NetworkSimplex.solve(nodes, edges, balance = balance, tbOrder = tbOrder)
+    else
+      val out = Map.newBuilder[String, Int]
+      roots.foreach { r =>
+        val ns = nodes.filter(compOf(_) == r)
+        val nsSet = ns.toSet
+        val es = edges.filter(e => nsSet(e.tail))
+        out ++= NetworkSimplex.solve(ns, es, balance = balance, tbOrder = tbOrder.filter(nsSet))
+      }
+      out.result()
+
   private def rankedDot1(g: RGraph, tops: Vector[RSubgraph]): (Map[String, Int], Vector[DEdge]) =
     val minlenScale = if hasEdgeLabel(g) then 2 else 1
     val realEdges   = g.edges.filter(e => e.tail != e.head)
@@ -277,10 +310,13 @@ object Rank:
             extra += NetworkSimplex.NSEdge(v, lh, hLen, w)
           else
             val (t, h) = if rev(i) then (lh, lt) else (lt, lh)
+            // class1 merge: ED_weight starts at the edge's `weight` ATTR
+            // and SUMS across merged duplicates (pprof's weight=94 edges).
+            val w = weightOf(e.attrs)
             byPair.get((t, h)) match
               case Some(r) => byPair((t, h)) =
-                NetworkSimplex.NSEdge(t, h, math.max(r.minlen, ml), r.weight + 1)
-              case None => byPair((t, h)) = NetworkSimplex.NSEdge(t, h, ml, 1)
+                NetworkSimplex.NSEdge(t, h, math.max(r.minlen, ml), r.weight + w)
+              case None => byPair((t, h)) = NetworkSimplex.NSEdge(t, h, ml, w)
       }
       val nse = byPair.values.toVector ++ extra
       // rank1: TB balance only when this level has NO nested clusters.
@@ -288,7 +324,7 @@ object Rank:
         if nested.isEmpty then
           (NSBalance.TopBottom, decomposeOrderOf(fastNodes, plain, rev))
         else (NSBalance.None, Vector.empty[String])
-      val solved = NetworkSimplex.solve(fastNodes ++ slackNames, nse, balance = bal, tbOrder = tbo)
+      val solved = solvePerComponent(fastNodes ++ slackNames, nse, balance = bal, tbOrder = tbo)
       val local = memberVec.iterator.map { m =>
         m -> (solved.getOrElse(lead(m), 0) + nestedLocal.getOrElse(m, 0))
       }.toMap
@@ -365,14 +401,16 @@ object Rank:
           extra += NetworkSimplex.NSEdge(v, lh, hLen, w)
         else
           val (t, h) = if rootRev(i) then (lh, lt) else (lt, lh)
+          // class1 merge: ED_weight = weight ATTR, summed across duplicates.
+          val w = weightOf(e.attrs)
           byPair.get((t, h)) match
             case Some(r) => byPair((t, h)) =
-              NetworkSimplex.NSEdge(t, h, math.max(r.minlen, ml), r.weight + 1)
-            case None => byPair((t, h)) = NetworkSimplex.NSEdge(t, h, ml, 1)
+              NetworkSimplex.NSEdge(t, h, math.max(r.minlen, ml), r.weight + w)
+            case None => byPair((t, h)) = NetworkSimplex.NSEdge(t, h, ml, w)
     }
     val rootNodes = g.nodes.iterator.map(n => lead(n.id)).distinct.toVector ++ slackNames
-    // rank1 with clusters present: NO TB balance (rank.c:382).
-    val solved = NetworkSimplex.solve(rootNodes, byPair.values.toVector ++ extra.toVector,
+    // rank1 with clusters present: NO TB balance (rank.c:382); per-component.
+    val solved = solvePerComponent(rootNodes, byPair.values.toVector ++ extra.toVector,
       balance = NSBalance.None)
     val ranks = g.nodes.iterator.map { n =>
       n.id -> (solved.getOrElse(lead(n.id), 0) + localOf.getOrElse(n.id, 0))
