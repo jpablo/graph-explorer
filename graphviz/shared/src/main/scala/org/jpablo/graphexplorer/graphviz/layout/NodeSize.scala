@@ -319,6 +319,12 @@ object NodeSize:
     val valignCentered = !n.attrs.get("labelloc").map(_.charAt(0)).exists(c => c == 't' || c == 'b')
     Metrics(dimenX, dimenY, minW, minH, valignCentered)
 
+  /** `fixedsize=true|shape` (poly_init: bb replaced by user width/height). */
+  private def fixedSizeOf(n: RNode): Boolean =
+    n.attrs.getOrElse("fixedsize", "false").toLowerCase match
+      case "true" | "shape" => true
+      case _                => false
+
   /** Convex builtin polygon geometry (final bb + centred y-up vertices), or
     * `None` for non-polygon shapes. Shares [[polyMetrics]] with [[nodeSize]] so
     * the size the layout uses and the vertices `Svg` draws stay consistent. */
@@ -330,7 +336,8 @@ object NodeSize:
       val reg   = desc.regular || mapBool(n.attrs.get("regular"))
       val shape = ShapeKind(box = false, regular = reg, plain = false, supported = true)
       val m     = polyMetrics(n, g, shape)
-      Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, reg, desc)
+      Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, reg, desc,
+        fixed = fixedSizeOf(n))
     }
 
   /** `ND_label(n)->space.y` (poly_init:2146): the vertical space available
@@ -399,7 +406,8 @@ object NodeSize:
     // (including any concentric peripheries).
     polyDesc match
       case Some(desc) =>
-        val p = Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, shape.regular, desc)
+        val p = Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, shape.regular, desc,
+          fixed = fixedSizeOf(n))
         return Some(Size(In(p.bbX / PointsPerInch), In(p.bbY / PointsPerInch)))
       case None => ()
 

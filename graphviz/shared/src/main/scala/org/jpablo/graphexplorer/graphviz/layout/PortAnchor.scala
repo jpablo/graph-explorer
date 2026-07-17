@@ -321,7 +321,7 @@ object PortAnchor:
           case _  => None
         (if ellipseLike then ray else None) match
           case Some((rx, ry)) =>
-            val pw   = n.attrs.get("penwidth").flatMap(_.toDoubleOption).map(math.max(0.0, _)).getOrElse(1.0)
+            val pw   = n.attrs.get("penwidth").flatMap(_.toDoubleOption).map(math.max(0.0, _)).getOrElse(1.0) // ATTR only
             val urx  = w2 + pw / 2.0
             val ury  = h2 + pw / 2.0
             val maxv = 4.0 * math.max(w2, h2)

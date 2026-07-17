@@ -1,0 +1,854 @@
+digraph Linux_kernel_diagram {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 798 1437.4 798 1437.4 0 ",
+		bb="0,0,1437.4,798",
+		fontname="Helvetica,Arial,sans-serif",
+		newrank=true,
+		nodesep=0.3,
+		overlap=true,
+		ranksep=0.2,
+		splines=false,
+		xdotversion=1.7
+	];
+	node [fixedsize=false,
+		fontname="Helvetica,Arial,sans-serif",
+		fontsize=24,
+		height=1,
+		label="\N",
+		shape=box,
+		style="filled,setlinewidth(5)",
+		width=2.2
+	];
+	edge [arrowhead=none,
+		arrowsize=0.5,
+		fontname="Helvetica,Arial,sans-serif",
+		labelfontname=Ubuntu,
+		style="filled,setlinewidth(5)",
+		weight=10
+	];
+	subgraph system {
+		node [color="#e27dd6ff"];
+		edge [color="#e27dd6ff"];
+		system_	[fixedsize=true,
+			height=0.02,
+			pos="484.2,660.4",
+			shape=point,
+			style=invis,
+			width=0.02];
+		system	[URL="https://en.wikibooks.org/wiki/The_Linux_Kernel/System",
+			_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 C 7 -#ffffff P 4 556.2 736 412.2 736 412.2 692.8 556.2 692.8 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 484.2 707.2 0 66.67 6 -system ",
+			fillcolor=white,
+			fixedsize=true,
+			height=0.6,
+			pos="484.2,714.4",
+			row=func,
+			width=2];
+		system -> system_	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 B 4 484.2 692.55 484.2 683.65 484.2 673.91 484.2 667.73 ",
+			_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#e27dd6 C 7 -#e27dd6 P 3 486.39 672.83 484.2 667.83 482.01 672.83 ",
+			arrowhead="",
+			pos="e,484.2,661.59 484.2,692.55 484.2,683.65 484.2,673.91 484.2,667.73",
+			row=func];
+		SCI	[URL="https://en.wikibooks.org/wiki/The_Linux_Kernel/Syscalls",
+			_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 C 7 -#d9e7ee E 484.2 592 79.2 36 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 484.2 584.8 0 120.66 12 -System calls ",
+			fillcolor="#d9e7ee",
+			fixedsize=true,
+			label="System calls",
+			pos="484.2,592",
+			row=usr,
+			shape=ellipse];
+		sysfs	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 C 7 -#b2d3e4 P 4 563.4 542 405 542 405 470 563.4 470 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 484.2 513.2 0 121.32 12 -proc & sysfs F 24 26 -Helvetica,Arial,sans-serif c 7 \
+-#000000 T 484.2 484.4 0 113.99 12 -file systems ",
+			fillcolor="#b2d3e4",
+			label="proc & sysfs\nfile systems",
+			pos="484.2,506"];
+		SCI -> sysfs	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 B 4 484.2 555.86 484.2 551.37 484.2 546.76 484.2 542.27 ",
+			pos="484.2,555.86 484.2,551.37 484.2,546.76 484.2,542.27"];
+		DM	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 C 7 -#91b5c9 P 8 556.2 408.07 556.2 431.93 514.02 448.8 454.38 448.8 412.2 431.93 412.2 408.07 \
+454.38 391.2 514.02 391.2 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 484.2 426 0 56.63 6 -Device F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 484.2 402 0 52.22 5 -Model ",
+			fillcolor="#91b5c9",
+			fixedsize=true,
+			fontsize=20,
+			height=0.8,
+			label="Device\nModel",
+			pos="484.2,420",
+			shape=octagon,
+			width=2];
+		sysfs -> DM	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 B 4 484.2 469.86 484.2 462.94 484.2 455.76 484.2 449.11 ",
+			pos="484.2,469.86 484.2,462.94 484.2,455.76 484.2,449.11"];
+		log_sys	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 C 7 -#6a9ab1 P 4 563.4 370 405 370 405 266 563.4 266 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 484.2 348 0 92.22 11 -system run, F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 484.2 324 0 72.77 8 -modules, F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 484.2 300 0 58.85 7 -generic F 20 26 -Helvetica,\
+Arial,sans-serif c 7 -#000000 T 484.2 276 0 94.39 10 -HW access  ",
+			fillcolor="#6a9ab1",
+			fontsize=20,
+			height=1.4444,
+			label="system run,\nmodules,\ngeneric\nHW access ",
+			pos="484.2,318"];
+		DM -> log_sys	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 B 4 484.2 390.88 484.2 384.41 484.2 377.33 484.2 370.22 ",
+			pos="484.2,390.88 484.2,384.41 484.2,377.33 484.2,370.22"];
+		bus_drv	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 C 7 -#71809b P 4 563.4 248 405 248 405 176 563.4 176 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 484.2 204.8 0 105.98 11 -bus drivers ",
+			fillcolor="#71809b",
+			label="bus drivers",
+			pos="484.2,212"];
+		log_sys -> bus_drv	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 B 4 484.2 265.61 484.2 259.78 484.2 253.93 484.2 248.37 ",
+			pos="484.2,265.61 484.2,259.78 484.2,253.93 484.2,248.37"];
+		buses	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 C 7 -#777777 P 4 563.4 158 405 158 405 86 563.4 86 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#ffffff T 484.2 128 0 50 6 -buses: F 20 26 -Helvetica,Arial,sans-serif c 7 -#ffffff T 484.2 \
+104 0 100.03 12 -PCI, USB ... ",
+			fillcolor="#777777",
+			fontcolor=white,
+			fontsize=20,
+			label="buses:\nPCI, USB ...",
+			pos="484.2,122",
+			row=chip];
+		bus_drv -> buses	[_draw_="S 15 -setlinewidth(5) c 7 -#e27dd6 B 4 484.2 175.71 484.2 169.98 484.2 164.03 484.2 158.29 ",
+			pos="484.2,175.71 484.2,169.98 484.2,164.03 484.2,158.29"];
+	}
+	subgraph networking {
+		node [color="#61c2c5"];
+		edge [color="#61c2c5"];
+		networking_	[fixedsize=true,
+			height=0.01,
+			pos="1358.2,660.4",
+			shape=point,
+			style=invis,
+			width=0.01];
+		networking	[URL="https://en.wikibooks.org/wiki/The_Linux_Kernel/Networking",
+			_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 C 7 -#ffffff P 4 1430.2 736 1286.2 736 1286.2 692.8 1430.2 692.8 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1358.2 707.2 0 109.31 10 -networking ",
+			fillcolor=white,
+			fixedsize=true,
+			height=0.6,
+			pos="1358.2,714.4",
+			row=func,
+			width=2];
+		networking -> networking_	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 B 4 1358.2 692.55 1358.2 683.57 1358.2 673.74 1358.2 667.57 ",
+			_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#61c2c5 C 7 -#61c2c5 P 3 1360.39 672.69 1358.2 667.69 1356.01 672.69 ",
+			arrowhead="",
+			pos="e,1358.2,661.45 1358.2,692.55 1358.2,683.57 1358.2,673.74 1358.2,667.57",
+			row=func];
+		sock	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 C 7 -#d9e7ee E 1358.2 592 79.2 36 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1358.2 584.8 0 74.66 7 -Sockets ",
+			fillcolor="#d9e7ee",
+			fixedsize=true,
+			label=Sockets,
+			pos="1358.2,592",
+			row=usr,
+			shape=ellipse];
+		prot_fam	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 C 7 -#b2d3e4 P 4 1437.4 542 1279 542 1279 470 1437.4 470 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1358.2 513.2 0 79.98 8 -protocol F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 1358.2 484.4 0 77.31 8 -families ",
+			fillcolor="#b2d3e4",
+			label="protocol\nfamilies",
+			pos="1358.2,506"];
+		sock -> prot_fam	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 B 4 1358.2 555.86 1358.2 551.37 1358.2 546.76 1358.2 542.27 ",
+			pos="1358.2,555.86 1358.2,551.37 1358.2,546.76 1358.2,542.27"];
+		log_prot	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 C 7 -#6a9ab1 P 4 1437.4 354 1279 354 1279 282 1437.4 282 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1358.2 325.2 0 95.99 10 -protocols: F 24 26 -Helvetica,Arial,sans-serif c 7 -#\
+000000 T 1358.2 296.4 0 137.37 12 -TCP, UDP, IP ",
+			fillcolor="#6a9ab1",
+			label="protocols:\nTCP, UDP, IP",
+			pos="1358.2,318"];
+		prot_fam -> log_prot	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 B 4 1358.2 469.75 1358.2 436.57 1358.2 387.71 1358.2 354.46 ",
+			pos="1358.2,469.75 1358.2,436.57 1358.2,387.71 1358.2,354.46"];
+		netif	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 C 7 -#71809b P 4 1437.4 252 1279 252 1279 172 1437.4 172 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1358.2 230 0 65.54 7 -network F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 1358.2 206 0 77.72 10 -interfaces F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1358.2 182 0 89.41 11 -and drivers ",
+			fillcolor="#71809b",
+			fontsize=20,
+			height=1.1111,
+			label="network\ninterfaces\nand drivers",
+			pos="1358.2,212"];
+		log_prot -> netif	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 B 4 1358.2 281.79 1358.2 272.36 1358.2 262.11 1358.2 252.47 ",
+			pos="1358.2,281.79 1358.2,272.36 1358.2,262.11 1358.2,252.47"];
+		net_hw	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 C 7 -#777777 P 4 1437.4 158 1279 158 1279 86 1437.4 86 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#ffffff T 1358.2 128 0 71.09 8 -network: F 20 26 -Helvetica,Arial,sans-serif c 7 -#ffffff \
+T 1358.2 104 0 138.86 18 -Ethernet, WiFi ... ",
+			fillcolor="#777777",
+			fontcolor=white,
+			fontsize=20,
+			label="network:\nEthernet, WiFi ...",
+			pos="1358.2,122",
+			row=chip];
+		netif -> net_hw	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 B 4 1358.2 171.63 1358.2 167.24 1358.2 162.78 1358.2 158.44 ",
+			pos="1358.2,171.63 1358.2,167.24 1358.2,162.78 1358.2,158.44"];
+		NFS	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc C 7 -#91b5c9 P 8 1311.4 408.07 1311.4 431.93 1286.09 448.8 1250.31 448.8 1225 431.93 1225 408.07 \
+1250.31 391.2 1286.09 391.2 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1268.2 412.8 0 44.03 3 -NFS ",
+			color="#8383cc",
+			fillcolor="#91b5c9",
+			fixedsize=true,
+			height=0.8,
+			label=NFS,
+			pos="1268.2,420",
+			shape=octagon,
+			width=1.2];
+		NFS -> log_prot	[_draw_="S 15 -setlinewidth(5) c 7 -#61c2c5 B 4 1290.68 394.02 1301.51 381.99 1314.68 367.35 1326.51 354.21 ",
+			pos="1290.7,394.02 1301.5,381.99 1314.7,367.35 1326.5,354.21",
+			weight=0];
+	}
+	subgraph processing {
+		node [color="#c46747"];
+		edge [color="#c46747"];
+		processing_	[fixedsize=true,
+			height=0.01,
+			pos="664.2,660.4",
+			shape=point,
+			style=invis,
+			width=0.01];
+		processing	[URL="https://en.wikibooks.org/wiki/The_Linux_Kernel/Processing",
+			_draw_="S 15 -setlinewidth(5) c 7 -#c46747 C 7 -#ffffff P 4 736.2 736 592.2 736 592.2 692.8 736.2 692.8 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 664.2 707.2 0 102.64 10 -processing ",
+			fillcolor=white,
+			fixedsize=true,
+			height=0.6,
+			pos="664.2,714.4",
+			row=func,
+			width=2];
+		processing -> processing_	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 B 4 664.2 692.55 664.2 683.57 664.2 673.74 664.2 667.57 ",
+			_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#c46747 C 7 -#c46747 P 3 666.39 672.69 664.2 667.69 662.01 672.69 ",
+			arrowhead="",
+			pos="e,664.2,661.45 664.2,692.55 664.2,683.57 664.2,673.74 664.2,667.57",
+			row=func];
+		proc	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 C 7 -#d9e7ee E 664.2 592 79.2 36 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 664.2 584.8 0 93.32 9 -Processes ",
+			fillcolor="#d9e7ee",
+			fixedsize=true,
+			label=Processes,
+			pos="664.2,592",
+			row=usr,
+			shape=ellipse];
+		Tasks	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 C 7 -#b2d3e4 P 4 743.4 542 585 542 585 470 743.4 470 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 664.2 498.8 0 55.99 5 -Tasks ",
+			fillcolor="#b2d3e4",
+			pos="664.2,506"];
+		proc -> Tasks	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 B 4 664.2 555.86 664.2 551.37 664.2 546.76 664.2 542.27 ",
+			pos="664.2,555.86 664.2,551.37 664.2,546.76 664.2,542.27"];
+		sync	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 C 7 -#91b5c9 P 8 743.4 409.56 743.4 430.44 697.01 445.2 631.39 445.2 585 430.44 585 409.56 631.39 \
+394.8 697.01 394.8 ",
+			_ldraw_="F 20 12 -Arial Narrow c 7 -#000000 T 664.2 414 0 127.74 15 -synchronization ",
+			fillcolor="#91b5c9",
+			fixedsize=true,
+			fontname="Arial Narrow",
+			fontsize=20,
+			height=0.7,
+			label=synchronization,
+			pos="664.2,420",
+			shape=octagon];
+		Tasks -> sync	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 B 4 664.2 469.86 664.2 461.68 664.2 453.14 664.2 445.53 ",
+			pos="664.2,469.86 664.2,461.68 664.2,453.14 664.2,445.53"];
+		sched	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 C 7 -#6a9ab1 P 4 743.4 354 585 354 585 282 743.4 282 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 664.2 310.8 0 95.96 9 -Scheduler ",
+			fillcolor="#6a9ab1",
+			label=Scheduler,
+			pos="664.2,318"];
+		sync -> sched	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 B 4 664.2 394.54 664.2 382.39 664.2 367.51 664.2 354.17 ",
+			pos="664.2,394.54 664.2,382.39 664.2,367.51 664.2,354.17"];
+		IRQ	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 C 7 -#71809b P 4 743.4 252 585 252 585 172 743.4 172 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 664.2 230 0 76.65 10 -interrupts F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 664.2 206 0 39.41 5 -core, F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 664.2 182 0 78.32 8 -CPU arch ",
+			fillcolor="#71809b",
+			fontsize=20,
+			height=1.1111,
+			label="interrupts\ncore,\nCPU arch",
+			pos="664.2,212"];
+		sched -> IRQ	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 B 4 664.2 281.79 664.2 272.36 664.2 262.11 664.2 252.47 ",
+			pos="664.2,281.79 664.2,272.36 664.2,262.11 664.2,252.47"];
+		CPU	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 C 7 -#777777 P 4 743.4 158 585 158 585 86 743.4 86 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#ffffff T 664.2 116 0 38.91 3 -CPU ",
+			fillcolor="#777777",
+			fontcolor=white,
+			fontsize=20,
+			pos="664.2,122",
+			row=chip];
+		IRQ -> CPU	[_draw_="S 15 -setlinewidth(5) c 7 -#c46747 B 4 664.2 171.63 664.2 167.24 664.2 162.78 664.2 158.44 ",
+			pos="664.2,171.63 664.2,167.24 664.2,162.78 664.2,158.44"];
+	}
+	subgraph mem {
+		node [color="#51bf5b",
+			height=1
+		];
+		edge [color="#51bf5b"];
+		MA	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#d9e7ee E 844.2 592 79.2 36 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 844.2 599.2 0 79.98 6 -memory F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 844.2 570.4 0 61.29 6 -access ",
+			fillcolor="#d9e7ee",
+			fixedsize=true,
+			label="memory\naccess",
+			pos="844.2,592",
+			row=usr,
+			shape=ellipse];
+		VM	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#b2d3e4 P 4 923.4 542 765 542 765 470 923.4 470 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 844.2 513.2 0 67.98 7 -Virtual F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 844.2 484.4 0 79.98 6 -memory ",
+			fillcolor="#b2d3e4",
+			label="Virtual\nmemory",
+			pos="844.2,506"];
+		MA -> VM	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b B 4 844.2 555.86 844.2 551.37 844.2 546.76 844.2 542.27 ",
+			pos="844.2,555.86 844.2,551.37 844.2,546.76 844.2,542.27"];
+		mmap	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#91b5c9 P 8 916.2 408.07 916.2 431.93 874.02 448.8 814.38 448.8 772.2 431.93 772.2 408.07 \
+814.38 391.2 874.02 391.2 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 844.2 426 0 66.65 6 -memory F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 844.2 402 0 69.99 7 -mapping ",
+			fillcolor="#91b5c9",
+			fixedsize=true,
+			fontsize=20,
+			height=0.8,
+			label="memory\nmapping",
+			pos="844.2,420",
+			shape=octagon,
+			width=2];
+		VM -> mmap	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b B 4 844.2 469.86 844.2 462.94 844.2 455.76 844.2 449.11 ",
+			pos="844.2,469.86 844.2,462.94 844.2,455.76 844.2,449.11"];
+		log_mem	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#6a9ab1 P 4 923.4 354 765 354 765 282 923.4 282 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 844.2 325.2 0 65.31 7 -logical F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 844.2 296.4 0 79.98 6 -memory ",
+			fillcolor="#6a9ab1",
+			label="logical\nmemory",
+			pos="844.2,318"];
+		mmap -> log_mem	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b B 4 844.2 390.88 844.2 379.56 844.2 366.37 844.2 354.4 ",
+			pos="844.2,390.88 844.2,379.56 844.2,366.37 844.2,354.4"];
+		SW	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc C 7 -#91b5c9 P 8 1031.4 306.07 1031.4 329.93 1006.09 346.8 970.31 346.8 945 329.93 945 306.07 \
+970.31 289.2 1006.09 289.2 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 988.2 310.8 0 53.33 4 -Swap ",
+			color="#8383cc",
+			fillcolor="#91b5c9",
+			fixedsize=true,
+			height=0.8,
+			label=Swap,
+			pos="988.2,318",
+			shape=octagon,
+			width=1.2];
+		mmap -> SW	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b B 4 880.91 393.51 905.07 376.73 936.29 355.05 958.81 339.41 ",
+			pos="880.91,393.51 905.07,376.73 936.29,355.05 958.81,339.41",
+			weight=1];
+		PA	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#71809b P 4 923.4 248 765 248 765 176 923.4 176 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 844.2 219.2 0 46.65 4 -Page F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 844.2 190.4 0 90.63 9 -Allocator ",
+			fillcolor="#71809b",
+			label="Page\nAllocator",
+			pos="844.2,212"];
+		log_mem -> PA	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b B 4 844.2 281.79 844.2 270.95 844.2 259.01 844.2 248.17 ",
+			pos="844.2,281.79 844.2,270.95 844.2,259.01 844.2,248.17"];
+		RAM	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#777777 P 4 923.4 158 765 158 765 86 923.4 86 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#ffffff T 844.2 116 0 105.58 8 -MMU, RAM ",
+			fillcolor="#777777",
+			fontcolor=white,
+			fontsize=20,
+			label="MMU, RAM",
+			pos="844.2,122",
+			row=chip];
+		PA -> RAM	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b B 4 844.2 175.71 844.2 169.98 844.2 164.03 844.2 158.29 ",
+			pos="844.2,175.71 844.2,169.98 844.2,164.03 844.2,158.29"];
+		block	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#71809b P 4 1257.4 252 1099 252 1099 172 1257.4 172 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1178.2 230 0 47.77 5 -Block F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 1178.2 206 0 59.97 7 -devices F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1178.2 182 0 89.41 11 -and drivers ",
+			fillcolor="#71809b",
+			fontsize=20,
+			height=1.1111,
+			label="Block\ndevices\nand drivers",
+			pos="1178.2,212"];
+		SW -> block	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1021.3 298.88 1044.69 286.08 1076.94 268.42 1106.13 252.45 ",
+			color="#8383cc",
+			pos="1021.3,298.88 1044.7,286.08 1076.9,268.42 1106.1,252.45",
+			weight=1];
+		PC	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#91b5c9 P 8 1126.4 408.07 1126.4 431.93 1101.09 448.8 1065.31 448.8 1040 431.93 1040 408.07 \
+1065.31 391.2 1101.09 391.2 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1083.2 426 0 37.75 4 -page F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T \
+1083.2 402 0 45.51 5 -cache ",
+			fillcolor="#91b5c9",
+			fixedsize=true,
+			fontsize=20,
+			height=0.8,
+			label="page\ncache",
+			pos="1083.2,420",
+			shape=octagon,
+			width=1.2];
+		PC -> PA	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b B 4 1056.71 396.95 1015.39 360.98 935.23 291.23 886.04 248.42 ",
+			pos="1056.7,396.95 1015.4,360.98 935.23,291.23 886.04,248.42",
+			weight=0];
+		memory	[URL="https://en.wikibooks.org/wiki/The_Linux_Kernel/Memory",
+			_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b C 7 -#ffffff P 4 916.2 736 772.2 736 772.2 692.8 916.2 692.8 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 844.2 707.2 0 79.98 6 -memory ",
+			fillcolor=white,
+			fixedsize=true,
+			height=0.6,
+			pos="844.2,714.4",
+			row=func,
+			width=2];
+		memory_	[fixedsize=true,
+			height=0.01,
+			pos="844.2,660.4",
+			shape=point,
+			style=invis,
+			width=0.01];
+		memory -> memory_	[_draw_="S 15 -setlinewidth(5) c 7 -#51bf5b B 4 844.2 692.55 844.2 683.57 844.2 673.74 844.2 667.57 ",
+			_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#51bf5b C 7 -#51bf5b P 3 846.39 672.69 844.2 667.69 842.01 672.69 ",
+			arrowhead="",
+			pos="e,844.2,661.45 844.2,692.55 844.2,683.57 844.2,673.74 844.2,667.57",
+			row=func];
+	}
+	subgraph storage {
+		node [color="#8383cc"];
+		edge [color="#8383cc"];
+		NFS;
+		mmap;
+		block;
+		SD	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc C 7 -#777777 P 4 1257.4 158 1099 158 1099 86 1257.4 86 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#ffffff T 1178.2 128 0 128.28 16 -storage devices: F 20 26 -Helvetica,Arial,sans-serif \
+c 7 -#ffffff T 1178.2 104 0 127.79 14 -SCSI, NVMe ... ",
+			fillcolor="#777777",
+			fontcolor=white,
+			fontsize=20,
+			label="storage devices:\nSCSI, NVMe ...",
+			pos="1178.2,122",
+			row=chip];
+		block -> SD	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1178.2 171.63 1178.2 167.24 1178.2 162.78 1178.2 158.44 ",
+			pos="1178.2,171.63 1178.2,167.24 1178.2,162.78 1178.2,158.44"];
+		PC;
+		storage_	[fixedsize=true,
+			height=0.01,
+			pos="1178.2,660.4",
+			shape=point,
+			style=invis,
+			width=0.01];
+		storage	[URL="https://en.wikibooks.org/wiki/The_Linux_Kernel/Storage",
+			_draw_="S 15 -setlinewidth(5) c 7 -#8383cc C 7 -#ffffff P 4 1250.2 736 1106.2 736 1106.2 692.8 1250.2 692.8 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1178.2 707.2 0 69.3 7 -storage ",
+			fillcolor=white,
+			fixedsize=true,
+			height=0.6,
+			pos="1178.2,714.4",
+			row=func,
+			width=2];
+		storage -> storage_	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1178.2 692.55 1178.2 683.57 1178.2 673.74 1178.2 667.57 ",
+			_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#8383cc C 7 -#8383cc P 3 1180.39 672.69 1178.2 667.69 1176.01 672.69 ",
+			arrowhead="",
+			pos="e,1178.2,661.45 1178.2,692.55 1178.2,683.57 1178.2,673.74 1178.2,667.57",
+			row=func];
+		FS	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc C 7 -#d9e7ee E 1178.2 592 79.2 36 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1178.2 599.2 0 81.97 9 -files and F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 1178.2 570.4 0 101.29 11 -directories ",
+			fillcolor="#d9e7ee",
+			fixedsize=true,
+			label="files and\ndirectories",
+			pos="1178.2,592",
+			row=usr,
+			shape=ellipse];
+		VFS	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc C 7 -#b2d3e4 P 4 1257.4 542 1099 542 1099 470 1257.4 470 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1178.2 513.2 0 67.98 7 -Virtual F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 1178.2 484.4 0 114.01 11 -File System ",
+			fillcolor="#b2d3e4",
+			label="Virtual\nFile System",
+			pos="1178.2,506"];
+		FS -> VFS	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1178.2 555.86 1178.2 551.37 1178.2 546.76 1178.2 542.27 ",
+			pos="1178.2,555.86 1178.2,551.37 1178.2,546.76 1178.2,542.27"];
+		VFS -> NFS	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1216.11 469.62 1225.23 461.1 1234.76 452.21 1243.13 444.39 ",
+			pos="1216.1,469.62 1225.2,461.1 1234.8,452.21 1243.1,444.39",
+			weight=0];
+		VFS -> mmap	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1098.62 484.99 1039.58 470.14 960.23 450.18 905.94 436.53 ",
+			pos="1098.6,484.99 1039.6,470.14 960.23,450.18 905.94,436.53",
+			weight=0];
+		VFS -> PC	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1138.19 469.62 1128.35 460.92 1118.07 451.83 1109.1 443.9 ",
+			pos="1138.2,469.62 1128.3,460.92 1118.1,451.83 1109.1,443.9",
+			weight=0];
+		logFS	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc C 7 -#6a9ab1 P 4 1257.4 358 1099 358 1099 278 1257.4 278 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1178.2 336 0 54.42 7 -logical F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 1178.2 312 0 95.55 12 -filesystems: F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 1178.2 288 0 88.88 13 -ext3, xfs ... ",
+			fillcolor="#6a9ab1",
+			fontsize=20,
+			height=1.1111,
+			label="logical\nfilesystems:\next3, xfs ...",
+			pos="1178.2,318"];
+		VFS -> logFS	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1178.2 469.75 1178.2 437.85 1178.2 391.45 1178.2 358.37 ",
+			pos="1178.2,469.75 1178.2,437.85 1178.2,391.45 1178.2,358.37"];
+		logFS -> block	[_draw_="S 15 -setlinewidth(5) c 7 -#8383cc B 4 1178.2 277.68 1178.2 269.4 1178.2 260.66 1178.2 252.37 ",
+			pos="1178.2,277.68 1178.2,269.4 1178.2,260.66 1178.2,252.37"];
+	}
+	subgraph HI {
+		node [color="#cfbf57ff"];
+		edge [color="#cfbf57ff",
+			weight=10
+		];
+		HI_	[fixedsize=true,
+			height=0.01,
+			pos="304.2,660.4",
+			shape=point,
+			style=invis,
+			width=0.01];
+		HI	[URL="https://en.wikibooks.org/wiki/The_Linux_Kernel/Human_interfaces",
+			_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 C 7 -#ffffff P 4 376.2 736 232.2 736 232.2 692.8 376.2 692.8 ",
+			_ldraw_="F 12 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 304.2 718 0 32.66 5 -human F 12 26 -Helvetica,Arial,sans-serif c 7 -#000000 T \
+304.2 703.6 0 41.96 9 -interface ",
+			fillcolor=white,
+			fixedsize=true,
+			fontsize=12,
+			height=0.6,
+			label="human\ninterface",
+			pos="304.2,714.4",
+			row=func,
+			width=2];
+		HI -> HI_	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 B 4 304.2 692.55 304.2 683.57 304.2 673.74 304.2 667.57 ",
+			_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#cfbf57 C 7 -#cfbf57 P 3 306.39 672.69 304.2 667.69 302.01 672.69 ",
+			arrowhead="",
+			pos="e,304.2,661.45 304.2,692.55 304.2,683.57 304.2,673.74 304.2,667.57",
+			row=func];
+		char	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 C 7 -#d9e7ee E 304.2 592 79.2 36 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 304.2 599.2 0 41.3 4 -char F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T \
+304.2 570.4 0 71.96 7 -devices ",
+			fillcolor="#d9e7ee",
+			fixedsize=true,
+			label="char\ndevices",
+			pos="304.2,592",
+			row=usr,
+			shape=ellipse];
+		input	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 C 7 -#b2d3e4 P 4 383.4 542 225 542 225 470 383.4 470 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 304.2 513.2 0 49.34 5 -input F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 304.2 484.4 0 100.01 9 -subsystem ",
+			fillcolor="#b2d3e4",
+			label="input\nsubsystem",
+			pos="304.2,506"];
+		char -> input	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 B 4 304.2 555.86 304.2 551.37 304.2 546.76 304.2 542.27 ",
+			pos="304.2,555.86 304.2,551.37 304.2,546.76 304.2,542.27"];
+		F7	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 C 7 -#6a9ab1 P 4 383.4 354 225 354 225 282 383.4 282 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 304.2 325.2 0 77.98 8 -HI class F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 304.2 296.4 0 66.64 7 -drivers ",
+			fillcolor="#6a9ab1",
+			label="HI class\ndrivers",
+			pos="304.2,318"];
+		input -> F7	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 B 4 304.2 469.75 304.2 436.57 304.2 387.71 304.2 354.46 ",
+			pos="304.2,469.75 304.2,436.57 304.2,387.71 304.2,354.46"];
+		HID	[URL="https://www.kernel.org/doc/html/latest/hid/",
+			_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 C 7 -#71809b P 4 383.4 252 225 252 225 172 383.4 172 ",
+			_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 304.2 230 0 21.1 2 -HI F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 304.2 \
+206 0 88.85 11 -peripherals F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 304.2 182 0 55.54 7 -drivers ",
+			fillcolor="#71809b",
+			fontsize=20,
+			height=1.1111,
+			label="HI\nperipherals\ndrivers",
+			pos="304.2,212"];
+		F7 -> HID	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 B 4 304.2 281.79 304.2 272.36 304.2 262.11 304.2 252.47 ",
+			pos="304.2,281.79 304.2,272.36 304.2,262.11 304.2,252.47"];
+		display	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 C 7 -#777777 P 4 383.4 158 225 158 225 86 383.4 86 ",
+			_ldraw_="F 19 26 -Helvetica,Arial,sans-serif c 7 -#ffffff T 304.2 127.7 0 134.55 16 -keyboard, mouse, F 19 26 -Helvetica,Arial,sans-serif \
+c 7 -#ffffff T 304.2 104.9 0 106.6 14 -display, audio ",
+			fillcolor="#777777",
+			fontcolor=white,
+			fontsize=19,
+			label="keyboard, mouse,\ndisplay, audio",
+			pos="304.2,122",
+			row=chip];
+		HID -> display	[_draw_="S 15 -setlinewidth(5) c 7 -#cfbf57 B 4 304.2 171.63 304.2 167.24 304.2 162.78 304.2 158.44 ",
+			pos="304.2,171.63 304.2,167.24 304.2,162.78 304.2,158.44"];
+	}
+	subgraph functions {
+		graph [rank=same];
+		edge [style=invis,
+			weight=1
+		];
+		system;
+		processing;
+		system -> processing	[pos="556.62,714.4 568.39,714.4 580.15,714.4 591.92,714.4"];
+		networking;
+		memory;
+		processing -> memory	[pos="736.62,714.4 748.39,714.4 760.15,714.4 771.92,714.4"];
+		storage;
+		memory -> storage	[pos="916.61,714.4 979.71,714.4 1042.8,714.4 1105.9,714.4"];
+		storage -> networking	[pos="1250.6,714.4 1262.4,714.4 1274.2,714.4 1285.9,714.4"];
+		HI;
+		HI -> system	[pos="376.62,714.4 388.39,714.4 400.15,714.4 411.92,714.4"];
+		functions_	[fixedsize=true,
+			height=0.01,
+			pos="185.2,714.4",
+			shape=point,
+			style=invis,
+			width=0.01];
+		functions_ -> HI	[pos="185.66,714.4 201.1,714.4 216.53,714.4 231.97,714.4"];
+		functions	[URL="http://www.makelinux.net/ldd3/chp-1-sect-2.shtml",
+			_draw_="S 6 -dashed c 7 -#c0c0c0 p 4 136.8 736 21.6 736 21.6 692.8 136.8 692.8 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 79.2 707.2 0 89.32 9 -functions ",
+			color=gray,
+			fillcolor=gray,
+			fixedsize=true,
+			height=0.6,
+			pos="79.2,714.4",
+			row=func,
+			style=dashed,
+			tooltip="Columns represent main functionalities of the kernel",
+			width=1.6];
+		functions -> functions_	[_draw_="c 7 -#c0c0c0 B 4 137.17 714.4 150.84 714.4 164.5 714.4 178.17 714.4 ",
+			_hdraw_="S 5 -solid c 7 -#c0c0c0 C 7 -#c0c0c0 P 3 177.94 716.15 182.94 714.4 177.94 712.65 ",
+			arrowhead="",
+			color=gray,
+			pos="e,184.45,714.4 137.17,714.4 150.84,714.4 164.5,714.4 178.17,714.4",
+			style="",
+			weight=""];
+	}
+	subgraph interfaces {
+		graph [rank=same];
+		SCI;
+		sock;
+		proc;
+		MA;
+		FS;
+		char;
+		usr_	[fixedsize=true,
+			height=0.02,
+			pos="202.2,592",
+			shape=point,
+			style=invis,
+			width=0.02];
+		usr	[_draw_="S 15 -setlinewidth(0) c 7 -#000000 C 7 -#d9e7ee E 79.2 592 79.2 36 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 79.2 599.2 0 99.28 10 -user space F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 79.2 570.4 0 93.27 10 -interfaces ",
+			fillcolor="#d9e7eeff",
+			fixedsize=true,
+			label="user space\ninterfaces",
+			pos="79.2,592",
+			row=usr,
+			shape=ellipse,
+			style="filled,setlinewidth(0)"];
+	}
+	{
+		edge [style=invis,
+			weight=10
+		];
+		system_;
+		SCI;
+		system_ -> SCI	[pos="484.2,659.21 484.2,657.41 484.2,643.21 484.2,628.41"];
+		networking_;
+		sock;
+		networking_ -> sock	[pos="1358.2,659.35 1358.2,658.41 1358.2,643.77 1358.2,628.48"];
+		processing_;
+		proc;
+		processing_ -> proc	[pos="664.2,659.35 664.2,658.41 664.2,643.77 664.2,628.48"];
+		MA;
+		memory_;
+		memory_ -> MA	[pos="844.2,659.35 844.2,658.41 844.2,643.77 844.2,628.48"];
+		storage_;
+		FS;
+		storage_ -> FS	[pos="1178.2,659.35 1178.2,658.41 1178.2,643.77 1178.2,628.48"];
+		HI_;
+		char;
+		HI_ -> char	[pos="304.2,659.35 304.2,658.41 304.2,643.77 304.2,628.48"];
+	}
+	subgraph virtual {
+		graph [rank=same];
+		sysfs;
+		prot_fam;
+		Tasks;
+		VM;
+		VFS;
+		input;
+		D0	[fixedsize=true,
+			height=0.01,
+			pos="202.2,506",
+			shape=point,
+			style=invis,
+			width=0.01];
+		virt	[URL="https://en.wikipedia.org/wiki/Proxy_pattern",
+			_draw_="S 15 -setlinewidth(0) c 7 -#000000 C 7 -#b2d3e4 P 4 158.4 542 0 542 0 470 158.4 470 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 79.2 513.2 0 62.65 7 -virtual F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 79.2 484.4 0 109.35 10 -subsystems ",
+			fillcolor="#b2d3e4",
+			label="virtual\nsubsystems",
+			pos="79.2,506",
+			style="filled,setlinewidth(0)",
+			tooltip="proxy between standard user space interfaces and internal implementations"];
+	}
+	subgraph bridges {
+		graph [rank=same];
+		DM;
+		NFS;
+		sync;
+		mmap;
+		bridges	[URL="https://en.wikipedia.org/wiki/Bridge_pattern",
+			_draw_="S 15 -setlinewidth(0) c 7 -#000000 C 7 -#91b5c9 P 8 158.4 405.09 158.4 434.91 112.01 456 46.39 456 0 434.91 0 405.09 46.39 384 112.01 \
+384 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 79.2 412.8 0 70.65 7 -bridges ",
+			fillcolor="#91b5c9",
+			pos="79.2,420",
+			shape=octagon,
+			style="filled,setlinewidth(0)",
+			tooltip="bridges between uniform virtual interfaces and various implementations"];
+		E0	[fixedsize=true,
+			height=0.01,
+			pos="202.2,420",
+			shape=point,
+			style=invis,
+			width=0.01];
+	}
+	subgraph logical {
+		graph [rank=same];
+		log_sys;
+		log_prot;
+		sched;
+		log_mem;
+		logFS;
+		F7;
+		F0	[fixedsize=true,
+			height=0.01,
+			pos="202.2,318",
+			shape=point,
+			style=invis,
+			width=0.01];
+		logical	[_draw_="S 15 -setlinewidth(0) c 7 -#000000 C 7 -#6a9ab1 P 4 158.4 354 0 354 0 282 158.4 282 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 79.2 310.8 0 65.31 7 -logical ",
+			fillcolor="#6a9ab1",
+			pos="79.2,318",
+			style="filled,setlinewidth(0)"];
+	}
+	subgraph HWI {
+		graph [rank=same];
+		bus_drv;
+		netif;
+		IRQ;
+		block;
+		HID;
+		HWI	[_draw_="S 15 -setlinewidth(0) c 7 -#000000 C 7 -#71809b P 4 158.4 248 0 248 0 176 158.4 176 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 79.2 219.2 0 89.27 8 -hardware F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 79.2 190.4 0 93.27 10 -interfaces ",
+			fillcolor="#71809b",
+			label="hardware\ninterfaces",
+			pos="79.2,212",
+			style="filled,setlinewidth(0)"];
+		G0	[fixedsize=true,
+			height=0.01,
+			pos="202.2,212",
+			shape=point,
+			style=invis,
+			width=0.01];
+	}
+	subgraph HW {
+		graph [rank=same];
+		buses;
+		net_hw;
+		CPU;
+		RAM;
+		SD;
+		display;
+		HW	[_draw_="S 15 -setlinewidth(0) c 7 -#000000 C 7 -#777777 P 4 158.4 158 0 158 0 86 158.4 86 ",
+			_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#ffffff T 79.2 129.2 0 109.95 12 -electronics, F 24 26 -Helvetica,Arial,sans-serif c 7 \
+-#ffffff T 79.2 100.4 0 89.27 8 -hardware ",
+			fillcolor="#777777",
+			fontcolor=white,
+			label="electronics,\nhardware",
+			pos="79.2,122",
+			row=chip,
+			style="filled,setlinewidth(0)"];
+		H0	[fixedsize=true,
+			height=0.01,
+			pos="202.2,122",
+			shape=point,
+			style=invis,
+			width=0.01];
+	}
+	bottom	[URL="http://www.MakeLinux.net/kernel/diagram",
+		_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 664.2 28.8 0 707.91 68 -© 2007-2022 Costa Shulyupin http://www.MakeLinux.net/\
+kernel/diagram ",
+		label="© 2007-2022 Costa Shulyupin http://www.MakeLinux.net/kernel/diagram",
+		pos="664.2,36",
+		shape=plaintext,
+		style="",
+		width=10.054];
+	CPU -> bottom	[pos="664.2,85.863 664.2,81.277 664.2,76.58 664.2,71.996",
+		style=invis];
+	layers	[_draw_="S 15 -setlinewidth(0) c 7 -#000000 C 7 -#d3d3d3 P 4 115.85 678.8 42.55 678.8 42.55 642 115.85 642 ",
+		_ldraw_="F 24 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 79.2 653.2 0 57.3 6 -layers ",
+		fillcolor=lightgray,
+		height=0.51111,
+		pos="79.2,660.4",
+		style="filled,setlinewidth(0)",
+		tooltip="Functionalities are divided to common layers. It is approximate division.",
+		width=1.0181];
+	functions -> layers	[pos="79.2,692.55 79.2,688.14 79.2,683.53 79.2,679.24",
+		style=invis];
+	usr -> usr_	[_draw_="S 15 -setlinewidth(5) c 7 -#d9e7ee B 4 158.48 592 170.6 592 182.72 592 194.84 592 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#d9e7ee C 7 -#d9e7ee P 3 189.94 594.19 194.94 592 189.94 589.81 ",
+		arrowhead="",
+		color="#d9e7eeff",
+		minlen=2,
+		pos="e,201.18,592 158.48,592 170.6,592 182.72,592 194.84,592"];
+	usr -> virt	[_draw_="S 15 -setlinewidth(5) c 7 -#d9e7ee B 4 79.2 555.86 79.2 551.37 79.2 546.76 79.2 542.27 ",
+		color="#d9e7eeff",
+		pos="79.2,555.86 79.2,551.37 79.2,546.76 79.2,542.27"];
+	virt -> D0	[_draw_="S 15 -setlinewidth(5) c 7 -#b2d3e4 B 4 158.48 506 170.69 506 182.91 506 195.13 506 ",
+		_hdraw_="S 15 -setlinewidth(5) S 5 -solid c 7 -#b2d3e4 C 7 -#b2d3e4 P 3 190.28 508.19 195.28 506 190.28 503.81 ",
+		arrowhead="",
+		color="#b2d3e4",
+		minlen=2,
+		pos="e,201.52,506 158.48,506 170.69,506 182.91,506 195.13,506"];
+	virt -> bridges	[_draw_="S 15 -setlinewidth(5) c 7 -#b2d3e4 B 4 79.2 469.86 79.2 465.37 79.2 460.76 79.2 456.27 ",
+		color="#b2d3e4",
+		pos="79.2,469.86 79.2,465.37 79.2,460.76 79.2,456.27"];
+	bridges -> E0	[_draw_="S 15 -setlinewidth(6) c 7 -#91b5c9 B 4 158.48 420 170.69 420 182.91 420 195.13 420 ",
+		_hdraw_="S 15 -setlinewidth(6) S 5 -solid c 7 -#91b5c9 C 7 -#91b5c9 P 3 190.06 422.63 195.06 420 190.06 417.38 ",
+		arrowhead="",
+		color="#91b5c9",
+		minlen=2,
+		pos="e,201.52,420 158.48,420 170.69,420 182.91,420 195.13,420",
+		style="filled,setlinewidth(6)",
+		weight=""];
+	bridges -> logical	[_draw_="S 15 -setlinewidth(6) c 7 -#91b5c9 B 4 79.2 383.74 79.2 374.18 79.2 363.84 79.2 354.27 ",
+		color="#91b5c9",
+		pos="79.2,383.74 79.2,374.18 79.2,363.84 79.2,354.27",
+		style="filled,setlinewidth(6)"];
+	logical -> F0	[_draw_="S 15 -setlinewidth(6) c 7 -#6a9ab1 B 4 158.48 318 170.69 318 182.91 318 195.13 318 ",
+		_hdraw_="S 15 -setlinewidth(6) S 5 -solid c 7 -#6a9ab1 C 7 -#6a9ab1 P 3 190.06 320.63 195.06 318 190.06 315.38 ",
+		arrowhead="",
+		color="#6a9ab1",
+		minlen=2,
+		pos="e,201.52,318 158.48,318 170.69,318 182.91,318 195.13,318",
+		row=logical,
+		style="filled,setlinewidth(6)",
+		weight=""];
+	logical -> HWI	[_draw_="S 15 -setlinewidth(6) c 7 -#6a9ab1 B 4 79.2 281.79 79.2 270.95 79.2 259.01 79.2 248.17 ",
+		color="#6a9ab1",
+		pos="79.2,281.79 79.2,270.95 79.2,259.01 79.2,248.17",
+		row=logical,
+		style="filled,setlinewidth(6)"];
+	HWI -> G0	[_draw_="S 15 -setlinewidth(6) c 7 -#71809b B 4 158.48 212 170.69 212 182.91 212 195.13 212 ",
+		_hdraw_="S 15 -setlinewidth(6) S 5 -solid c 7 -#71809b C 7 -#71809b P 3 190.06 214.63 195.06 212 190.06 209.38 ",
+		arrowhead="",
+		color="#71809b",
+		minlen=2,
+		pos="e,201.52,212 158.48,212 170.69,212 182.91,212 195.13,212",
+		row=HWI,
+		style="filled,setlinewidth(6)",
+		weight=""];
+	HWI -> HW	[_draw_="S 15 -setlinewidth(6) c 7 -#71809b B 4 79.2 175.71 79.2 169.98 79.2 164.03 79.2 158.29 ",
+		color="#71809b",
+		pos="79.2,175.71 79.2,169.98 79.2,164.03 79.2,158.29",
+		row=HWI,
+		style="filled,setlinewidth(6)"];
+	HW -> H0	[_draw_="S 15 -setlinewidth(6) c 7 -#777777 B 4 158.48 122 170.69 122 182.91 122 195.13 122 ",
+		_hdraw_="S 15 -setlinewidth(6) S 5 -solid c 7 -#777777 C 7 -#777777 P 3 190.06 124.63 195.06 122 190.06 119.38 ",
+		arrowhead="",
+		color="#777777",
+		minlen=2,
+		pos="e,201.52,122 158.48,122 170.69,122 182.91,122 195.13,122",
+		row=chip,
+		style="filled,setlinewidth(6)",
+		weight=""];
+	layers -> usr	[_draw_="c 7 -#c0c0c0 B 4 79.2 641.61 79.2 639.4 79.2 637.08 79.2 634.7 ",
+		_hdraw_="S 5 -solid c 7 -#c0c0c0 C 7 -#c0c0c0 P 3 80.95 634.79 79.2 629.79 77.45 634.79 ",
+		arrowhead="",
+		color=gray,
+		pos="e,79.2,628.28 79.2,641.61 79.2,639.4 79.2,637.08 79.2,634.7",
+		style="filled,setlinewidth(1)"];
+	LKD	[_ldraw_="F 40 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 664.2 762 0 346.54 20 -Linux kernel diagram ",
+		fontsize=40,
+		height=0.66667,
+		label="Linux kernel diagram",
+		pos="664.2,774",
+		shape=plain,
+		style="",
+		width=4.8131];
+	LKD -> processing	[pos="664.2,750.23 664.2,745.58 664.2,740.71 664.2,736.13",
+		style=invis];
+}

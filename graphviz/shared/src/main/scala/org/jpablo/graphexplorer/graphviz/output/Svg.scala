@@ -189,6 +189,42 @@ object Svg:
     }
     b.toString
 
+  /** `gv_xml_escape` with flags `{0}` (svg_begin_anchor's HREF): only
+    * & < > " ' escape — no dash/nbsp — and a `&` that already starts a
+    * legal entity (`&#123;`, `&#xAB;`, `&name;`) stays literal
+    * (xml_isentity). */
+  private def xmlHref(s: String): String =
+    def isEntity(i: Int): Boolean =
+      var j = i + 1
+      if j < s.length && s(j) == '#' then
+        j += 1
+        if j < s.length && (s(j) == 'x' || s(j) == 'X') then
+          j += 1
+          val st = j
+          while j < s.length && Character.digit(s(j), 16) >= 0 do j += 1
+          j > st && j < s.length && s(j) == ';'
+        else
+          val st = j
+          while j < s.length && s(j).isDigit do j += 1
+          j > st && j < s.length && s(j) == ';'
+      else
+        val st = j
+        while j < s.length && s(j).isLetterOrDigit do j += 1
+        j > st && j < s.length && s(j) == ';' && s(st).isLetter
+    val b = new StringBuilder
+    var i = 0
+    while i < s.length do
+      s(i) match
+        case '&' if !isEntity(i) => b ++= "&amp;"
+        case '&'                 => b += '&'
+        case '<'                 => b ++= "&lt;"
+        case '>'                 => b ++= "&gt;"
+        case '"'                 => b ++= "&quot;"
+        case '\''                => b ++= "&#39;"
+        case c                   => b += c
+      i += 1
+    b.toString
+
   /** `gv_xml_escape` with the tooltip/anchor flag set `{raw, dash, nbsp}`
     * (`svg_begin_anchor`): `&` always escaped, `<`/`>`/`"`/`'` escaped, `-`
     * → `&#45;`, the 2nd+ of a consecutive space run → `&#160;`, `\n`/`\r`
@@ -417,7 +453,7 @@ object Svg:
           val fill = if filled then fillcolor.getOrElse("lightgrey") else "none"
           // cluster `penwidth` ⇒ stroke-width (gvrender set_penwidth; svg
           // omits the attr at the default 1.0).
-          val cpw = a.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+          val cpw = Coord.penwidthOptM(a.get).getOrElse(1.0)
           val sw  = if cpw != 1.0 then s""" stroke-width="${Output.g5(cpw)}"""" else ""
           if !invis then
             sb ++= s"""<polygon fill="$fill" stroke="$pen"$sw points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
@@ -747,7 +783,7 @@ object Svg:
         val anchored = href.isDefined || tooltip.isDefined
         if anchored then
           val a = new StringBuilder(s"""<g id="a_${xml(objId)}"><a""")
-          href.foreach(h => a ++= s""" xlink:href="${xmlTooltip(h)}"""")
+          href.foreach(h => a ++= s""" xlink:href="${xmlHref(h)}"""")
           tooltip.foreach(t => a ++= s""" xlink:title="${xmlTooltip(t)}"""")
           target.foreach(t => a ++= s""" target="${xml(t)}"""")
           a ++= ">\n"
@@ -765,8 +801,7 @@ object Svg:
             // penColor (shapes.c:387): poly/record outlines read ONLY the
             // `color` attr (pencolor is an html-table-side channel).
             val (stroke, strokeOp) = strokeSplit(n.attrs.get("color").getOrElse("black"))
-            val rPw = n.attrs.get("penwidth").flatMap(_.toDoubleOption)
-              .getOrElse(if styles.contains("bold") then 2.0 else 1.0)
+            val rPw = Coord.penwidthOpt(n.attrs).getOrElse(1.0)
             val rDash =
               if styles.contains("dashed") then """ stroke-dasharray="5,2""""
               else if styles.contains("dotted") then """ stroke-dasharray="1,5""""
@@ -822,8 +857,7 @@ object Svg:
             // penwidth ≠ 1 ⇒ every drawn outline gets stroke-width (gvrender
             // set_penwidth before the shape ops).
             // style=bold ⇒ penwidth 2 unless an explicit penwidth attr wins.
-            val nodePw = n.attrs.get("penwidth").flatMap(_.toDoubleOption)
-              .getOrElse(if styles.contains("bold") then 2.0 else 1.0)
+            val nodePw = Coord.penwidthOpt(n.attrs).getOrElse(1.0)
             // dashed/dotted node borders take stroke-dasharray exactly like
             // edges (gvrender pencil style; sbt's dashed boxes).
             val nodeDash =
@@ -1063,7 +1097,7 @@ object Svg:
           val eLblTgt   = e.attrs.get("labeltarget").filter(_.nonEmpty).orElse(eDfltTgt)
           def edgeAnchorOpen(id: String, url: Option[String], tip: Option[String], tgt: Option[String]): Unit =
             val a = new StringBuilder(s"""<g id="a_${xml(id)}"><a""")
-            url.foreach(h => a ++= s""" xlink:href="${xmlTooltip(h)}"""")
+            url.foreach(h => a ++= s""" xlink:href="${xmlHref(h)}"""")
             tip.foreach(t => a ++= s""" xlink:title="${xmlTooltip(t)}"""")
             tgt.foreach(t => a ++= s""" target="${xml(t)}"""")
             a ++= ">\n"
@@ -1081,8 +1115,7 @@ object Svg:
             if eStyles.contains("dashed") then """ stroke-dasharray="5,2""""
             else if eStyles.contains("dotted") then """ stroke-dasharray="1,5""""
             else ""
-          val ePw = e.attrs.get("penwidth").flatMap(_.toDoubleOption)
-            .getOrElse(if eStyles.contains("bold") then 2.0 else 1.0)
+          val ePw = Coord.penwidthOpt(e.attrs).getOrElse(1.0)
           val eSw = if ePw != 1.0 then s""" stroke-width="${Output.g5(ePw)}"""" else ""
           // emit_edge_graphics `numc` branch (emit.c:2244): a ':'-separated
           // color list (no ';' weights) draws PARALLEL beziers, one per
@@ -1145,7 +1178,7 @@ object Svg:
             val dx = base.x - tip.x; val dy = base.y - tip.y
             val len = math.hypot(dx, dy)
             if len > 1e-9 then
-              val pw = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+              val pw = Coord.penwidthOpt(e.attrs).getOrElse(1.0)
               val as = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
               val (kind, open) = Arrow.kindOf(name)
               // arrow_gen (arrows.c): the arrowhead vector is EPSILON(1e-4)-

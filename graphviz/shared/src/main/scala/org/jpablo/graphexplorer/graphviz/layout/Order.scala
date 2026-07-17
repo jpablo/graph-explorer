@@ -998,7 +998,28 @@ object Order:
 
       // ── weighted-median values + reorder (mincross.c medians/reorder) ─────
       val mval = mutable.HashMap.empty[N, Double]
-      def medians(r0: Int, r1: Int): Unit =
+      // flat_mval (mincross.c:1706): a CHAIN-ISOLATED node (no in/out chain
+      // segments — e.g. LKD's usr_/D0 spacers whose only edge went flat) gets
+      // seated next to its flat neighbour: mval = mval(max-order flat-in
+      // tail)+1, else mval(min-order flat-out head)−1. Returns true (⇒
+      // hasfixed) when it could NOT assign one — reorder then keeps its
+      // right-edge window (`ep--` is skipped).
+      def flatMval(n: N): Boolean =
+        val fin = fIn(n)
+        if fin.nonEmpty then
+          var nn = fin(0)
+          fin.foreach(t => if pos(t) > pos(nn) then nn = t)
+          if mval.getOrElse(nn, -1.0) >= 0 then { mval(n) = mval(nn) + 1; false }
+          else true
+        else
+          val fout = fOut(n)
+          if fout.nonEmpty then
+            var nn = fout(0)
+            fout.foreach(h => if pos(h) < pos(nn) then nn = h)
+            if mval.getOrElse(nn, -1.0) > 0 then { mval(n) = mval(nn) - 1; false }
+            else true
+          else true
+      def medians(r0: Int, r1: Int): Boolean =
         val rb = ranks.getOrElse(r0, mutable.ArrayBuffer.empty)
         rb.foreach { n =>
           // VAL(node, port) = MC_SCALE·ND_order + port.order (mincross.c:1709):
@@ -1021,8 +1042,13 @@ object Order:
                 if lspan == rspan then ((nbrs(lm) + nbrs(rm)) / 2).toDouble // int div
                 else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
         }
+        var hasfixed = false
+        rb.foreach { n =>
+          if out(n).isEmpty && in(n).isEmpty then hasfixed = flatMval(n) || hasfixed
+        }
+        hasfixed
 
-      def reorder(r: Int, reverse: Boolean): Unit =
+      def reorder(r: Int, reverse: Boolean, hasfixed: Boolean): Unit =
         val rb = ranks(r)
         var ep = rb.length
         var nelt = rb.length - 1
@@ -1048,7 +1074,9 @@ object Order:
                 lp = rp
               else lp = ep
             else lp = ep
-          if !reverse then ep -= 1
+          // gv: `if (!hasfixed && !reverse) ep--` — an unseated fixed node
+          // keeps the full window so it can still drift right.
+          if !hasfixed && !reverse then ep -= 1
           nelt -= 1
 
       // ── transpose (adjacent swaps; in_cross/out_cross xpenalty products) ──
@@ -1110,8 +1138,8 @@ object Order:
           if pass % 2 == 0 then (minR + 1, maxR, 1) else (maxR - 1, minR, -1)
         var r = first
         while r != last + dir do
-          medians(r, r - dir)
-          reorder(r, reverse)
+          val hasfixed = medians(r, r - dir)
+          reorder(r, reverse, hasfixed)
           r += dir
         transpose(!reverse)
 

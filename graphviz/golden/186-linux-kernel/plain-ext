@@ -1,0 +1,135 @@
+graph 1 19.964 11.083
+node system_ 6.725 9.1722 0.02 0.02 system_ invis point #e27dd6ff #e27dd6ff
+node system 6.725 9.9222 2 0.6 system filled,setlinewidth(5) box #e27dd6ff white
+node SCI 6.725 8.2222 2.2 1 "System calls" filled,setlinewidth(5) ellipse #e27dd6ff #d9e7ee
+node sysfs 6.725 7.0278 2.2 1 "proc & sysfs\nfile systems" filled,setlinewidth(5) box #e27dd6ff #b2d3e4
+node DM 6.725 5.8333 2 0.8 "Device\nModel" filled,setlinewidth(5) octagon #e27dd6ff #91b5c9
+node log_sys 6.725 4.4167 2.2 1.4444 "system run,\nmodules,\ngeneric\nHW access " filled,setlinewidth(5) box #e27dd6ff #6a9ab1
+node bus_drv 6.725 2.9444 2.2 1 "bus drivers" filled,setlinewidth(5) box #e27dd6ff #71809b
+node buses 6.725 1.6944 2.2 1 "buses:\nPCI, USB ..." filled,setlinewidth(5) box #e27dd6ff #777777
+node networking_ 18.864 9.1722 0.01 0.01 networking_ invis point #61c2c5 #61c2c5
+node networking 18.864 9.9222 2 0.6 networking filled,setlinewidth(5) box #61c2c5 white
+node sock 18.864 8.2222 2.2 1 Sockets filled,setlinewidth(5) ellipse #61c2c5 #d9e7ee
+node prot_fam 18.864 7.0278 2.2 1 "protocol\nfamilies" filled,setlinewidth(5) box #61c2c5 #b2d3e4
+node log_prot 18.864 4.4167 2.2 1 "protocols:\nTCP, UDP, IP" filled,setlinewidth(5) box #61c2c5 #6a9ab1
+node netif 18.864 2.9444 2.2 1.1111 "network\ninterfaces\nand drivers" filled,setlinewidth(5) box #61c2c5 #71809b
+node net_hw 18.864 1.6944 2.2 1 "network:\nEthernet, WiFi ..." filled,setlinewidth(5) box #61c2c5 #777777
+node NFS 17.614 5.8333 1.2 0.8 NFS filled,setlinewidth(5) octagon #8383cc #91b5c9
+node processing_ 9.225 9.1722 0.01 0.01 processing_ invis point #c46747 #c46747
+node processing 9.225 9.9222 2 0.6 processing filled,setlinewidth(5) box #c46747 white
+node proc 9.225 8.2222 2.2 1 Processes filled,setlinewidth(5) ellipse #c46747 #d9e7ee
+node Tasks 9.225 7.0278 2.2 1 Tasks filled,setlinewidth(5) box #c46747 #b2d3e4
+node sync 9.225 5.8333 2.2 0.7 synchronization filled,setlinewidth(5) octagon #c46747 #91b5c9
+node sched 9.225 4.4167 2.2 1 Scheduler filled,setlinewidth(5) box #c46747 #6a9ab1
+node IRQ 9.225 2.9444 2.2 1.1111 "interrupts\ncore,\nCPU arch" filled,setlinewidth(5) box #c46747 #71809b
+node CPU 9.225 1.6944 2.2 1 CPU filled,setlinewidth(5) box #c46747 #777777
+node MA 11.725 8.2222 2.2 1 "memory\naccess" filled,setlinewidth(5) ellipse #51bf5b #d9e7ee
+node VM 11.725 7.0278 2.2 1 "Virtual\nmemory" filled,setlinewidth(5) box #51bf5b #b2d3e4
+node mmap 11.725 5.8333 2 0.8 "memory\nmapping" filled,setlinewidth(5) octagon #51bf5b #91b5c9
+node log_mem 11.725 4.4167 2.2 1 "logical\nmemory" filled,setlinewidth(5) box #51bf5b #6a9ab1
+node PA 11.725 2.9444 2.2 1 "Page\nAllocator" filled,setlinewidth(5) box #51bf5b #71809b
+node SW 13.725 4.4167 1.2 0.8 Swap filled,setlinewidth(5) octagon #8383cc #91b5c9
+node block 16.364 2.9444 2.2 1.1111 "Block\ndevices\nand drivers" filled,setlinewidth(5) box #51bf5b #71809b
+node PC 15.044 5.8333 1.2 0.8 "page\ncache" filled,setlinewidth(5) octagon #51bf5b #91b5c9
+node RAM 11.725 1.6944 2.2 1 "MMU, RAM" filled,setlinewidth(5) box #51bf5b #777777
+node memory 11.725 9.9222 2 0.6 memory filled,setlinewidth(5) box #51bf5b white
+node memory_ 11.725 9.1722 0.01 0.01 memory_ invis point #51bf5b #51bf5b
+node storage_ 16.364 9.1722 0.01 0.01 storage_ invis point #8383cc #8383cc
+node storage 16.364 9.9222 2 0.6 storage filled,setlinewidth(5) box #8383cc white
+node FS 16.364 8.2222 2.2 1 "files and\ndirectories" filled,setlinewidth(5) ellipse #8383cc #d9e7ee
+node VFS 16.364 7.0278 2.2 1 "Virtual\nFile System" filled,setlinewidth(5) box #8383cc #b2d3e4
+node logFS 16.364 4.4167 2.2 1.1111 "logical\nfilesystems:\next3, xfs ..." filled,setlinewidth(5) box #8383cc #6a9ab1
+node SD 16.364 1.6944 2.2 1 "storage devices:\nSCSI, NVMe ..." filled,setlinewidth(5) box #8383cc #777777
+node HI_ 4.225 9.1722 0.01 0.01 HI_ invis point #cfbf57ff #cfbf57ff
+node HI 4.225 9.9222 2 0.6 "human\ninterface" filled,setlinewidth(5) box #cfbf57ff white
+node char 4.225 8.2222 2.2 1 "char\ndevices" filled,setlinewidth(5) ellipse #cfbf57ff #d9e7ee
+node input 4.225 7.0278 2.2 1 "input\nsubsystem" filled,setlinewidth(5) box #cfbf57ff #b2d3e4
+node F7 4.225 4.4167 2.2 1 "HI class\ndrivers" filled,setlinewidth(5) box #cfbf57ff #6a9ab1
+node HID 4.225 2.9444 2.2 1.1111 "HI\nperipherals\ndrivers" filled,setlinewidth(5) box #cfbf57ff #71809b
+node display 4.225 1.6944 2.2 1 "keyboard, mouse,\ndisplay, audio" filled,setlinewidth(5) box #cfbf57ff #777777
+node functions_ 2.5722 9.9222 0.01 0.01 functions_ invis point black lightgrey
+node functions 1.1 9.9222 1.6 0.6 functions dashed box gray gray
+node usr_ 2.8083 8.2222 0.02 0.02 usr_ invis point black lightgrey
+node usr 1.1 8.2222 2.2 1 "user space\ninterfaces" filled,setlinewidth(0) ellipse black #d9e7eeff
+node D0 2.8083 7.0278 0.01 0.01 D0 invis point black lightgrey
+node virt 1.1 7.0278 2.2 1 "virtual\nsubsystems" filled,setlinewidth(0) box black #b2d3e4
+node bridges 1.1 5.8333 2.2 1 bridges filled,setlinewidth(0) octagon black #91b5c9
+node E0 2.8083 5.8333 0.01 0.01 E0 invis point black lightgrey
+node F0 2.8083 4.4167 0.01 0.01 F0 invis point black lightgrey
+node logical 1.1 4.4167 2.2 1 logical filled,setlinewidth(0) box black #6a9ab1
+node HWI 1.1 2.9444 2.2 1 "hardware\ninterfaces" filled,setlinewidth(0) box black #71809b
+node G0 2.8083 2.9444 0.01 0.01 G0 invis point black lightgrey
+node HW 1.1 1.6944 2.2 1 "electronics,\nhardware" filled,setlinewidth(0) box black #777777
+node H0 2.8083 1.6944 0.01 0.01 H0 invis point black lightgrey
+node bottom 9.225 0.5 10.054 1 "© 2007-2022 Costa Shulyupin http://www.MakeLinux.net/kernel/diagram" solid plaintext black lightgrey
+node layers 1.1 9.1722 1.0181 0.51111 layers filled,setlinewidth(0) box black lightgray
+node LKD 9.225 10.75 4.8131 0.66667 "Linux kernel diagram" solid plain black lightgrey
+edge system_ SCI 4 6.725 9.1557 6.725 9.1308 6.725 8.9334 6.725 8.7279 invis black
+edge system system_ 4 6.725 9.6187 6.725 9.4951 6.725 9.3599 6.725 9.2741 filled,setlinewidth(5) #e27dd6ff
+edge system processing 4 7.7309 9.9222 7.8943 9.9222 8.0577 9.9222 8.2211 9.9222 invis black
+edge SCI sysfs 4 6.725 7.7203 6.725 7.6579 6.725 7.5939 6.725 7.5315 filled,setlinewidth(5) #e27dd6ff
+edge sysfs DM 4 6.725 6.5259 6.725 6.4297 6.725 6.33 6.725 6.2376 filled,setlinewidth(5) #e27dd6ff
+edge DM log_sys 4 6.725 5.4289 6.725 5.339 6.725 5.2407 6.725 5.1419 filled,setlinewidth(5) #e27dd6ff
+edge log_sys bus_drv 4 6.725 3.689 6.725 3.608 6.725 3.5268 6.725 3.4496 filled,setlinewidth(5) #e27dd6ff
+edge bus_drv buses 4 6.725 2.4405 6.725 2.3608 6.725 2.2782 6.725 2.1985 filled,setlinewidth(5) #e27dd6ff
+edge networking_ sock 4 18.864 9.1577 18.864 9.1446 18.864 8.9413 18.864 8.7289 invis black
+edge networking networking_ 4 18.864 9.6187 18.864 9.494 18.864 9.3575 18.864 9.2718 filled,setlinewidth(5) #61c2c5
+edge sock prot_fam 4 18.864 7.7203 18.864 7.6579 18.864 7.5939 18.864 7.5315 filled,setlinewidth(5) #61c2c5
+edge prot_fam log_prot 4 18.864 6.5243 18.864 6.0634 18.864 5.3848 18.864 4.923 filled,setlinewidth(5) #61c2c5
+edge log_prot netif 4 18.864 3.9138 18.864 3.7828 18.864 3.6404 18.864 3.5065 filled,setlinewidth(5) #61c2c5
+edge netif net_hw 4 18.864 2.3838 18.864 2.3228 18.864 2.2609 18.864 2.2006 filled,setlinewidth(5) #61c2c5
+edge NFS log_prot 4 17.926 5.4726 18.077 5.3054 18.259 5.1021 18.424 4.9196 filled,setlinewidth(5) #61c2c5
+edge processing_ proc 4 9.225 9.1577 9.225 9.1446 9.225 8.9413 9.225 8.7289 invis black
+edge processing processing_ 4 9.225 9.6187 9.225 9.494 9.225 9.3575 9.225 9.2718 filled,setlinewidth(5) #c46747
+edge processing memory 4 10.231 9.9222 10.394 9.9222 10.558 9.9222 10.721 9.9222 invis black
+edge proc Tasks 4 9.225 7.7203 9.225 7.6579 9.225 7.5939 9.225 7.5315 filled,setlinewidth(5) #c46747
+edge Tasks sync 4 9.225 6.5259 9.225 6.4122 9.225 6.2936 9.225 6.188 filled,setlinewidth(5) #c46747
+edge sync sched 4 9.225 5.4797 9.225 5.311 9.225 5.1042 9.225 4.919 filled,setlinewidth(5) #c46747
+edge sched IRQ 4 9.225 3.9138 9.225 3.7828 9.225 3.6404 9.225 3.5065 filled,setlinewidth(5) #c46747
+edge IRQ CPU 4 9.225 2.3838 9.225 2.3228 9.225 2.2609 9.225 2.2006 filled,setlinewidth(5) #c46747
+edge CPU bottom 4 9.225 1.1925 9.225 1.1289 9.225 1.0636 9.225 0.99995 invis black
+edge MA VM 4 11.725 7.7203 11.725 7.6579 11.725 7.5939 11.725 7.5315 filled,setlinewidth(5) #51bf5b
+edge VM mmap 4 11.725 6.5259 11.725 6.4297 11.725 6.33 11.725 6.2376 filled,setlinewidth(5) #51bf5b
+edge mmap log_mem 4 11.725 5.4289 11.725 5.2716 11.725 5.0885 11.725 4.9223 filled,setlinewidth(5) #51bf5b
+edge mmap SW 4 12.235 5.4654 12.57 5.2323 13.004 4.9313 13.317 4.714 filled,setlinewidth(5) #51bf5b
+edge log_mem PA 4 11.725 3.9138 11.725 3.7632 11.725 3.5974 11.725 3.4469 filled,setlinewidth(5) #51bf5b
+edge PA RAM 4 11.725 2.4405 11.725 2.3608 11.725 2.2782 11.725 2.1985 filled,setlinewidth(5) #51bf5b
+edge SW block 4 14.185 4.1512 14.51 3.9734 14.958 3.7281 15.363 3.5062 filled,setlinewidth(5) #8383cc
+edge block SD 4 16.364 2.3838 16.364 2.3228 16.364 2.2609 16.364 2.2006 filled,setlinewidth(5) #8383cc
+edge PC PA 4 14.677 5.5131 14.103 5.0137 12.989 4.0448 12.306 3.4502 filled,setlinewidth(5) #51bf5b
+edge memory memory_ 4 11.725 9.6187 11.725 9.494 11.725 9.3575 11.725 9.2718 filled,setlinewidth(5) #51bf5b
+edge memory storage 4 12.731 9.9222 13.607 9.9222 14.483 9.9222 15.36 9.9222 invis black
+edge memory_ MA 4 11.725 9.1577 11.725 9.1446 11.725 8.9413 11.725 8.7289 invis black
+edge storage_ FS 4 16.364 9.1577 16.364 9.1446 16.364 8.9413 16.364 8.7289 invis black
+edge storage networking 4 17.37 9.9222 17.533 9.9222 17.697 9.9222 17.86 9.9222 invis black
+edge storage storage_ 4 16.364 9.6187 16.364 9.494 16.364 9.3575 16.364 9.2718 filled,setlinewidth(5) #8383cc
+edge FS VFS 4 16.364 7.7203 16.364 7.6579 16.364 7.5939 16.364 7.5315 filled,setlinewidth(5) #8383cc
+edge VFS NFS 4 16.89 6.5225 17.017 6.4042 17.149 6.2807 17.266 6.1721 filled,setlinewidth(5) #8383cc
+edge VFS mmap 4 15.259 6.7359 14.439 6.5297 13.337 6.2525 12.583 6.0629 filled,setlinewidth(5) #8383cc
+edge VFS PC 4 15.808 6.5225 15.672 6.4017 15.529 6.2755 15.404 6.1653 filled,setlinewidth(5) #8383cc
+edge VFS logFS 4 16.364 6.5243 16.364 6.0812 16.364 5.4369 16.364 4.9774 filled,setlinewidth(5) #8383cc
+edge logFS block 4 16.364 3.8567 16.364 3.7417 16.364 3.6203 16.364 3.5052 filled,setlinewidth(5) #8383cc
+edge HI_ char 4 4.225 9.1577 4.225 9.1446 4.225 8.9413 4.225 8.7289 invis black
+edge HI system 4 5.2309 9.9222 5.3943 9.9222 5.5577 9.9222 5.7211 9.9222 invis black
+edge HI HI_ 4 4.225 9.6187 4.225 9.494 4.225 9.3575 4.225 9.2718 filled,setlinewidth(5) #cfbf57ff
+edge char input 4 4.225 7.7203 4.225 7.6579 4.225 7.5939 4.225 7.5315 filled,setlinewidth(5) #cfbf57ff
+edge input F7 4 4.225 6.5243 4.225 6.0634 4.225 5.3848 4.225 4.923 filled,setlinewidth(5) #cfbf57ff
+edge F7 HID 4 4.225 3.9138 4.225 3.7828 4.225 3.6404 4.225 3.5065 filled,setlinewidth(5) #cfbf57ff
+edge HID display 4 4.225 2.3838 4.225 2.3228 4.225 2.2609 4.225 2.2006 filled,setlinewidth(5) #cfbf57ff
+edge functions_ HI 4 2.5787 9.9222 2.793 9.9222 3.0074 9.9222 3.2218 9.9222 invis black
+edge functions functions_ 4 1.9051 9.9222 2.0949 9.9222 2.2848 9.9222 2.4746 9.9222 solid gray
+edge functions layers 4 1.1 9.6187 1.1 9.5575 1.1 9.4934 1.1 9.4339 invis black
+edge usr usr_ 4 2.2011 8.2222 2.3694 8.2222 2.5377 8.2222 2.7061 8.2222 filled,setlinewidth(5) #d9e7eeff
+edge usr virt 4 1.1 7.7203 1.1 7.6579 1.1 7.5939 1.1 7.5315 filled,setlinewidth(5) #d9e7eeff
+edge virt D0 4 2.2011 7.0278 2.3708 7.0278 2.5404 7.0278 2.7101 7.0278 filled,setlinewidth(5) #b2d3e4
+edge virt bridges 4 1.1 6.5259 1.1 6.4634 1.1 6.3995 1.1 6.337 filled,setlinewidth(5) #b2d3e4
+edge bridges E0 4 2.2011 5.8333 2.3708 5.8333 2.5404 5.8333 2.7101 5.8333 filled,setlinewidth(6) #91b5c9
+edge bridges logical 4 1.1 5.3298 1.1 5.197 1.1 5.0533 1.1 4.9205 filled,setlinewidth(6) #91b5c9
+edge logical F0 4 2.2011 4.4167 2.3708 4.4167 2.5404 4.4167 2.7101 4.4167 filled,setlinewidth(6) #6a9ab1
+edge logical HWI 4 1.1 3.9138 1.1 3.7632 1.1 3.5974 1.1 3.4469 filled,setlinewidth(6) #6a9ab1
+edge HWI G0 4 2.2011 2.9444 2.3708 2.9444 2.5404 2.9444 2.7101 2.9444 filled,setlinewidth(6) #71809b
+edge HWI HW 4 1.1 2.4405 1.1 2.3608 1.1 2.2782 1.1 2.1985 filled,setlinewidth(6) #71809b
+edge HW H0 4 2.2011 1.6944 2.3708 1.6944 2.5404 1.6944 2.7101 1.6944 filled,setlinewidth(6) #777777
+edge layers usr 4 1.1 8.9112 1.1 8.8806 1.1 8.8484 1.1 8.8153 filled,setlinewidth(1) gray
+edge LKD processing 4 9.225 10.42 9.225 10.355 9.225 10.288 9.225 10.224 invis black
+stop

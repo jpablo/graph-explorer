@@ -485,6 +485,12 @@ object Spline:
     // (pathplan/util.c:59 — endpoints doubled, interior corners tripled into
     // degenerate cubics); Proutespline never runs, endpoint slopes ignored.
     val polylineMode = g.rootAttrs.get("splines").map(_.trim).contains("polyline")
+    // splines=false|line|no|"0…" ⇒ EDGETYPE_LINE (utils.c edgeType): routes
+    // use routePOLYLINES, a routed chunk longer than 4 points is STRAIGHTENED
+    // to [p0,p0,pN,pN], and a >1-rank-span edge (unless delr==2 with edge
+    // labels) skips routing entirely (makeLineEdge, dotsplines.c:1700).
+    val lineMode = g.rootAttrs.get("splines").map(_.trim.toLowerCase).exists(s =>
+      s == "false" || s == "line" || s == "no" || s.headOption.contains('0'))
     def makePolyline(pl: Vector[XY]): Vector[XY] =
       if pl.length < 2 then pl
       else
@@ -770,6 +776,18 @@ object Spline:
               tailClip = tEnd.forall(_.clip), headClip = hEnd.forall(_.clip),
               reversedWork = rt > rh
             )
+          else if lineMode && (hi - lo) > 1 && !((hi - lo) == 2 && Rank.hasEdgeLabel(g)) then
+            // makeLineEdge (dotsplines.c:1700): a line-mode edge spanning >1
+            // rank bypasses routing — a straight centre(+static port) line
+            // [startp, startp, endp, endp], then the normal clip+install.
+            // (The labeled 7-point variant detours through ED_label pos; no
+            // corpus case — labeled line edges keep the straight route.)
+            val (tpx, tpy, _) = wtPort.flatMap(pp => byId.get(tn0).map(n => PortAnchor.canonical(n, g, Some(pp)))).getOrElse((0.0, 0.0, 128))
+            val (hpx, hpy, _) = whPort.flatMap(pp => byId.get(hn0).map(n => PortAnchor.canonical(n, g, Some(pp)))).getOrElse((0.0, 0.0, 128))
+            val startp = XY(cx(tn0) + tpx, cy(tn0) + tpy)
+            val endp   = XY(cx(hn0) + hpx, cy(hn0) + hpy)
+            out(origIdx) = clipInstall(g, Vector(startp, startp, endp, endp), e, byId, centerOf,
+              reversedWork = rt > rh)
           else
             // ── unified make_regular_edge channel (dotsplines.c:1820) ─────
             // Ported or portless, adjacent or chained. beginpath resolves
@@ -835,9 +853,17 @@ object Spline:
                 if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
                 else
                   val sp = funnel(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
-                  if polylineMode then makePolyline(sp)
+                  if polylineMode || lineMode then makePolyline(sp)
                   else proutespline(buildPolygon(boxes), sp, curEv0, ev1)
-              pointfs ++= seg
+              // EDGETYPE_LINE straighten (dotsplines.c:1865/1915): a routed
+              // polyline chunk longer than 4 points collapses to
+              // [p0, p0, pN, pN]; limitBoxes still sees the PRE-straighten
+              // route (routepolylines limits internally before the caller
+              // straightens).
+              if lineMode && seg.length > 4 then
+                pointfs += seg.head; pointfs += seg.head
+                pointfs += seg.last; pointfs += seg.last
+              else pointfs ++= seg
               limitBoxes(boxes, seg)
               recoverSlack(pathTopDown.slice(segStart + 1, pathTopDown.length - 1).toVector, boxes, origIdx)
 
@@ -1703,7 +1729,7 @@ object Spline:
               // poly_init) — a penwidth=7 circle clips 3.5pt out (logo).
               val pw =
                 if plain then 0.0
-                else n.attrs.get("penwidth").flatMap(_.toDoubleOption)
+                else n.attrs.get("penwidth").flatMap(_.toDoubleOption) // ATTR only: geometry (shapes.c late_double)
                   .map(math.max(0.0, _)).getOrElse(NodePenwidth)
               val urx = (sz.widthPt.value + pw) / 2.0
               val ury = (sz.heightPt.value + pw) / 2.0
@@ -1753,7 +1779,7 @@ object Spline:
     def bpInsideFn(id: String, bp: (Double, Double, Double, Double)): XY => Boolean =
       val cen = centerOf(id)
       val rd  = Rank.rankdir(g)
-      val pw  = byId.get(id).flatMap(_.attrs.get("penwidth")).flatMap(_.toDoubleOption)
+      val pw  = byId.get(id).flatMap(_.attrs.get("penwidth")).flatMap(_.toDoubleOption) // ATTR only
         .map(math.max(0.0, _)).getOrElse(NodePenwidth) / 2.0
       val (bllx, blly, burx, bury) = bp
       (p: XY) =>
@@ -1801,7 +1827,7 @@ object Spline:
     val (snameO, enameO) = Arrow.flags(g.directed, e.attrs.get("dir"),
       e.attrs.get("arrowhead"), e.attrs.get("arrowtail"))
     val (sName, eName) = if reversedWork then (enameO, snameO) else (snameO, enameO)
-    val pw  = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0)
+    val pw  = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0) // ATTR only (geometry)
     val asz = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
     var spAttachW: Option[XY] = None // working-start arrow attach (spl->sp)
     var epAttachW: Option[XY] = None // working-end arrow attach (spl->ep)

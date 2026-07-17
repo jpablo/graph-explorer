@@ -167,7 +167,11 @@ object Polygon:
       minH:           Double,
       valignCentered: Boolean,
       regular:        Boolean,
-      d:              Desc
+      d:              Desc,
+      /** `fixedsize=true|shape` (poly_init shapes.c:2107): bb is REPLACED by
+        * the user width/height attrs (minW/minH here) instead of maxed with
+        * the inflated label bb — the label may overflow (gv warns). */
+      fixed:          Boolean = false
   ): Poly =
     // sides<=2 shape that is distorted/skewed ⇒ approximate by a 120-gon
     // (poly_init: "I don't know how to distort or skew ellipses in postscript").
@@ -211,8 +215,8 @@ object Polygon:
           bbX /= t
           bbY /= t
 
-    var width  = math.max(minW, bbX)
-    var height = math.max(minH, bbY)
+    var width  = if fixed then minW else math.max(minW, bbX)
+    var height = if fixed then minH else math.max(minH, bbY)
     bbX = width
     bbY = height
     if regular then

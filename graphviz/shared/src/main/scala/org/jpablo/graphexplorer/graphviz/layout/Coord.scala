@@ -18,6 +18,25 @@ import scala.collection.mutable
   */
 object Coord:
 
+  /** Effective pen width (gvrender_set_style + emit_begin_*): style items
+    * apply IN ORDER — `bold` ⇒ 2, `setlinewidth(N)` ⇒ N (last wins) — and a
+    * `penwidth` ATTR overrides them (it is set AFTER gvrender_set_style).
+    * None ⇒ default 1. */
+  def penwidthOpt(attrs: org.jpablo.graphexplorer.graphviz.model.Attrs): Option[Double] =
+    penwidthOptM(k => attrs.get(k))
+  def penwidthOptM(attrs: String => Option[String]): Option[Double] =
+    attrs("penwidth").flatMap(_.toDoubleOption).orElse {
+      attrs("style").flatMap { st =>
+        var pw: Option[Double] = None
+        st.split(",").iterator.map(_.trim).foreach { item =>
+          if item == "bold" then pw = Some(2.0)
+          else if item.startsWith("setlinewidth(") && item.endsWith(")") then
+            pw = item.stripPrefix("setlinewidth(").stripSuffix(")").trim.toDoubleOption.orElse(Some(0.0))
+        }
+        pw
+      }
+    }
+
   private val PointsPerInch = 72.0
   private val Gap           = 4.0  // const.h GAP (YPAD = 2*GAP)
   private val DefFontSize   = 14.0 // DEFAULT_FONTSIZE
