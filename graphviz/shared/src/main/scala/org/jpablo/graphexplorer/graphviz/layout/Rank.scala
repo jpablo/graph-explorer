@@ -444,48 +444,81 @@ object Rank:
         else if rs.maxset.contains(leader(e.tail)) then DEdge(e.head, e.tail, e.minlen)
         else e
       }
-    // collapse endpoints to leaders for ranking; drop now-intra-set edges
-    // AND `constraint=false` edges (absent from the ranking graph — the
-    // realEdges filter matches acyclic's, so indices align with wedges).
+    // ── the class1 LEADER fast graph (dot1_rank order: collapse_sets →
+    // class1 → minmax_edges → decompose → acyclic → rank1) ────────────────
+    // The ranking graph carries ONE fast edge per LEADER (t,h) pair
+    // (`find_fast_edge` + `merge_oneway`: minlen max, weight sum; first
+    // occurrence keeps its creation position). Creation order = class1's
+    // scan: per TAIL node in declaration order, out-edges by cgraph's
+    // (head seq, idx). CRUCIALLY, gv's `acyclic` then runs ON THIS COLLAPSED
+    // graph — rank=same unions can create leader-level cycles that don't
+    // exist between nodes (sdh: `vc3TTP->xp->au3CTP` chains vs
+    // `au3CTP_4_1->xp_4_1` make au3CTP⇄xp a 2-cycle), and a node-level
+    // acyclic pass never sees them, feeding the NS a cyclic input whose
+    // init_rank never dequeues downstream nodes.
     val realEdges = g.edges.filter(e => e.tail != e.head)
-    var nse = wedges.iterator.zipWithIndex.flatMap { case (e, i) =>
-      val (t, h) = (leader(e.tail), leader(e.head))
-      if t == h || !constrained(realEdges(i).attrs) then None
-      // ED_weight = the edge's `weight` attr (late_int: default 1, FLOOR 0,
-      // atoi truncation). It reaches TB_balance's inweight==outweight test —
-      // lion_share's weight=2 marriage edges keep spouses' children OFF the
-      // balance path; a hardcoded 1 let 018 drift to the emptier marr rank.
-      else Some(NetworkSimplex.NSEdge(t, h, e.minlen, weightOf(realEdges(i).attrs)))
-    }.toVector
-    // class1 (class1.c:94): the RANKING graph carries ONE edge per (t,h)
-    // pair — `find_fast_edge` + `merge_oneway`/`basic_merge`: minlen = max,
-    // weight summed. Unmerged duplicates leave the same NS objective but a
-    // different edge list, and the order-sensitive feasible tree then picks
-    // a different optimum among ties (sbt's 2-3× duplicate edges shifted 5
-    // nodes by a rank). First occurrence keeps its position.
+    val minlenScaleG = if hasEdgeLabel(g) then 2 else 1
+    // ED_weight = the edge's `weight` attr (late_int: default 1, FLOOR 0,
+    // atoi truncation). It reaches TB_balance's inweight==outweight test —
+    // lion_share's weight=2 marriage edges keep spouses' children OFF the
+    // balance path; a hardcoded 1 let 018 drift to the emptier marr rank.
+    val fTail = mutable.ArrayBuffer.empty[String]
+    val fHead = mutable.ArrayBuffer.empty[String]
+    val fMinlen = mutable.ArrayBuffer.empty[Int]
+    val fWeight = mutable.ArrayBuffer.empty[Int]
+    val fAlive = mutable.ArrayBuffer.empty[Boolean]
+    val fOut = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[Int]]
+    val fIn  = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[Int]]
+    val fastByPair = mutable.HashMap.empty[(String, String), Int]
+    def fastMake(t: String, h: String, ml: Int, w: Int): Unit =
+      fastByPair.get((t, h)) match
+        case Some(i) => // merge_oneway: minlen max, weight sum, position kept
+          fMinlen(i) = math.max(fMinlen(i), ml); fWeight(i) += w
+        case None =>
+          val i = fTail.length
+          fTail += t; fHead += h; fMinlen += ml; fWeight += w; fAlive += true
+          fOut.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += i
+          fIn.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += i
+          fastByPair((t, h)) = i
+    // zapinlist (fastgr.c): swap-remove — the hole is filled with the LAST
+    // member. delete_fast_edge = zap from tail-out + head-in.
+    def zap(buf: mutable.ArrayBuffer[Int], e: Int): Unit =
+      val j = buf.indexOf(e)
+      if j >= 0 then { buf(j) = buf(buf.length - 1); buf.remove(buf.length - 1) }
+    // reverse_edge (acyclic.c:20): delete the fast edge; merge into the
+    // opposite fast edge when one exists, else create it (appended at the
+    // END of the new endpoints' lists AND of the global creation order).
+    def fastReverse(e: Int): Unit =
+      fAlive(e) = false
+      zap(fOut.getOrElseUpdate(fTail(e), mutable.ArrayBuffer.empty), e)
+      zap(fIn.getOrElseUpdate(fHead(e), mutable.ArrayBuffer.empty), e)
+      fastByPair.remove((fTail(e), fHead(e)))
+      fastMake(fHead(e), fTail(e), fMinlen(e), fWeight(e))
     locally {
-      val byPair = mutable.LinkedHashMap.empty[(String, String), NetworkSimplex.NSEdge]
-      nse.foreach { e =>
-        byPair.get((e.tail, e.head)) match
-          case Some(r) =>
-            byPair((e.tail, e.head)) =
-              NetworkSimplex.NSEdge(e.tail, e.head, math.max(r.minlen, e.minlen), r.weight + e.weight)
-          case None => byPair((e.tail, e.head)) = e
+      val nodeSeqC = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+      val eByTail = realEdges.indices.groupBy(i => realEdges(i).tail)
+      g.nodes.foreach { n =>
+        eByTail.getOrElse(n.id, Seq.empty)
+          .sortBy(i => (nodeSeqC.getOrElse(realEdges(i).head, Int.MaxValue), i))
+          .foreach { i =>
+            val e = realEdges(i)
+            val (t, h) = (leader(e.tail), leader(e.head))
+            if t != h && constrained(e.attrs) then
+              fastMake(t, h, minlenOf(e.attrs) * minlenScaleG, weightOf(e.attrs))
+          }
       }
-      nse = byPair.values.toVector
+      // minmax_edges (rank.c:316): make maxset a sink / minset a source by
+      // reverse_edge'ing every fast out-/in-edge (list[0] until empty).
+      rs.maxset.foreach { mx =>
+        val out = fOut.getOrElseUpdate(mx, mutable.ArrayBuffer.empty)
+        while out.nonEmpty do fastReverse(out(0))
+      }
+      rs.minset.foreach { mn =>
+        val in = fIn.getOrElseUpdate(mn, mutable.ArrayBuffer.empty)
+        while in.nonEmpty do fastReverse(in(0))
+      }
     }
     val leaderNodes = g.nodes.iterator.map(n => leader(n.id)).distinct.toVector
-    // minmax_edges2 (rank.c): for every leader with no out-edge add `n→maxset`
-    // (minlen slenY), and no in-edge add `minset→n` (minlen slenX), weight 0.
-    if rs.minset.isDefined || rs.maxset.isDefined then
-      val hasOut = nse.iterator.map(_.tail).toSet
-      val hasIn  = nse.iterator.map(_.head).toSet
-      val extra  = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
-      leaderNodes.foreach { n =>
-        rs.maxset.foreach(mx => if !hasOut(n) && n != mx then extra += NetworkSimplex.NSEdge(n, mx, rs.slenY, 0))
-        rs.minset.foreach(mn => if !hasIn(n) && n != mn then extra += NetworkSimplex.NSEdge(mn, n, rs.slenX, 0))
-      }
-      nse = nse ++ extra.toVector
     // TB_balance's Tree_node order = the ranking graph's GD_nlist = the
     // decompose (decomp.c) DFS over the class1 fast graph: declaration-order
     // seeds, OUT-edges before IN-edges, adjacency in class1's creation order
@@ -522,6 +555,43 @@ object Rank:
             outAdjR(n).reverseIterator.foreach(w => if !done2(w) then stk.push(w))
       leaderNodes.foreach(s => if !done2(s) then visit(s))
       res.toVector
+    // acyclic (acyclic.c:32) ON THE FAST GRAPH, per component in nlist
+    // (decompose) order: an out-edge to an on-stack head is reverse_edge'd
+    // in place; gv's `i--` after the swap-remove re-examines the same slot
+    // (now holding the swapped-in LAST edge).
+    locally {
+      val mark = mutable.Set.empty[String]
+      val onStack = mutable.Set.empty[String]
+      def dfs(n: String): Unit =
+        if !mark(n) then
+          mark += n; onStack += n
+          val out = fOut.getOrElseUpdate(n, mutable.ArrayBuffer.empty)
+          var i = 0
+          while i < out.length do
+            val e = out(i)
+            val w = fHead(e)
+            if onStack(w) then fastReverse(e) // slot i re-examined next pass
+            else
+              if !mark(w) then dfs(w)
+              i += 1
+          onStack -= n
+      tbOrder.foreach(dfs)
+      leaderNodes.foreach(dfs) // any leader outside the fast graph (isolated)
+    }
+    var nse = fTail.indices.iterator.filter(fAlive)
+      .map(i => NetworkSimplex.NSEdge(fTail(i), fHead(i), fMinlen(i), fWeight(i)))
+      .toVector
+    // minmax_edges2 (rank.c): for every leader with no out-edge add `n→maxset`
+    // (minlen slenY), and no in-edge add `minset→n` (minlen slenX), weight 0.
+    if rs.minset.isDefined || rs.maxset.isDefined then
+      val hasOut = nse.iterator.map(_.tail).toSet
+      val hasIn  = nse.iterator.map(_.head).toSet
+      val extra  = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
+      leaderNodes.foreach { n =>
+        rs.maxset.foreach(mx => if !hasOut(n) && n != mx then extra += NetworkSimplex.NSEdge(n, mx, rs.slenY, 0))
+        rs.minset.foreach(mn => if !hasIn(n) && n != mn then extra += NetworkSimplex.NSEdge(mn, n, rs.slenX, 0))
+      }
+      nse = nse ++ extra.toVector
     // rank1 (rank.c:373) ALWAYS decomposes and solves per connected
     // component — a single whole-graph solve on a disconnected input dies
     // in feasible_tree (incomplete spanning tree ⇒ the pivot loop is
@@ -531,7 +601,17 @@ object Rank:
     val leaderRanks = solvePerComponent(leaderNodes, nse, balance = NSBalance.TopBottom,
       tbOrder = tbOrder)
     val ranks = g.nodes.iterator.map(n => n.id -> leaderRanks(leader(n.id))).toMap
-    (ranks, wedges)
+    // class2 orientation contract: a working edge whose head ranks ABOVE its
+    // tail (possible only via the LEADER-level acyclic — the real edge is
+    // never reversed, sdh's au3CTP_4_1→xp_4_1) is flipped so downstream
+    // chains run downward; the arrow stays at the original head (g.edges is
+    // the authority via segOwner). Flat (equal-rank) edges keep orientation.
+    val wedgesAligned = wedges.map { e =>
+      if ranks.getOrElse(e.tail, 0) > ranks.getOrElse(e.head, 0)
+      then DEdge(e.head, e.tail, e.minlen)
+      else e
+    }
+    (ranks, wedgesAligned)
 
   /** Normalised integer ranks (min rank = 0) for every node. */
   def assign(g: RGraph): Map[String, Int] = ranked(g)._1

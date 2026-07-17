@@ -923,7 +923,15 @@ object Spline:
         // then clip_and_install (clip to node boundaries + arrow). Scoped to
         // the adjacent, portless case; non-adjacent/ported flat edges deferred.
         val row      = orderByRank.getOrElse(rt, Vector.empty)
-        val adjacent = math.abs(row.indexOf(e.tail) - row.indexOf(e.head)) == 1
+        // checkFlatAdjacent (flat.c:209): the endpoints count as ADJACENT
+        // when every node strictly between them in the rank order is a
+        // plain (unlabeled) VIRTUAL — chain vnodes don't block the straight
+        // rank-level route (sdh's trail edges span 3-4 chain vnodes); a
+        // NORMAL node or a label vnode does.
+        val adjacent =
+          val ti = row.indexOf(e.tail); val hi = row.indexOf(e.head)
+          val (lo, hi2) = if ti < hi then (ti, hi) else (hi, ti)
+          lo >= 0 && (lo + 1 until hi2).forall(k => isV(row(k)) && !isLabelV(row(k)))
         val ports    = e.tailPort.isDefined || e.headPort.isDefined
         val labelled = e.attrs.get("label").exists(_.nonEmpty)
         if adjacent && !ports then

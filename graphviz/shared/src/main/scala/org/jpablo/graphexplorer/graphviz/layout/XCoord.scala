@@ -40,14 +40,41 @@ object XCoord:
     val out    = mutable.LinkedHashMap.from(nodes.map(_ -> mutable.ArrayBuffer.empty[LayoutNode]))
     val in     = mutable.LinkedHashMap.from(nodes.map(_ -> mutable.ArrayBuffer.empty[LayoutNode]))
     res.segments.foreach { case (t, h) => out(t) += h; in(h) += t }
+    // decomp.c search_component walks FOUR lists — ND_out, ND_in,
+    // ND_flat_out, ND_flat_in — flat (same-rank) reps carry the DFS across
+    // rank=same siblings (class2 emit order; parallels merge to the rep).
+    val flatOut = mutable.HashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
+    val flatIn  = mutable.HashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
+    locally {
+      val nodeSeqD = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+      val realD    = g.edges.filter(e => e.tail != e.head)
+      val byTailD  = realD.indices.groupBy(i => realD(i).tail)
+      val seen     = mutable.Set.empty[(String, String)]
+      g.nodes.foreach { n =>
+        byTailD.getOrElse(n.id, Seq.empty)
+          .sortBy(i => (nodeSeqD.getOrElse(realD(i).head, Int.MaxValue), i))
+          .foreach { i =>
+            val e = realD(i)
+            if res.rank.get(e.tail) == res.rank.get(e.head) && res.rank.contains(e.tail)
+               && !seen((e.tail, e.head)) then
+              seen += ((e.tail, e.head))
+              val (t, h) = (LayoutNode.Real(e.tail): LayoutNode, LayoutNode.Real(e.head): LayoutNode)
+              flatOut.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += h
+              flatIn.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += t
+          }
+      }
+    }
     val done   = mutable.Set.empty[LayoutNode]
     val result = mutable.ArrayBuffer.empty[LayoutNode]
+    val emptyA = mutable.ArrayBuffer.empty[LayoutNode]
     def visit(seed: LayoutNode): Unit =
       val stk = mutable.Stack(seed)
       while stk.nonEmpty do
         val n = stk.pop()
         if !done(n) then
           done += n; result += n
+          flatIn.getOrElse(n, emptyA).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+          flatOut.getOrElse(n, emptyA).reverseIterator.foreach(w => if !done(w) then stk.push(w))
           in(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
           out(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
     g.nodes.foreach { n => val s: LayoutNode = LayoutNode.Real(n.id); if !done(s) then visit(s) }
@@ -182,12 +209,47 @@ object XCoord:
           val m0    = math.max(m0a.toDouble, width + NodeSep + math.round(fb.dist).toDouble).toInt
           (math.max(base, m0), fb.weight)
         case None => (base, 0)
+    // Flat edges in ND_flat_out order: per WORKING tail, class2 emit order
+    // (per tail-node decl order, out-edges by (head seq, idx)), parallels
+    // merged onto the rep (minlen max, dist max, weight sum). Used by the
+    // NON-ADJACENT branch below; adjacent pairs keep the flatBump path.
+    val flatOutByTail: Map[String, Vector[(String, FlatBump)]] =
+      val nodeSeqX = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+      val realIdx  = g.edges.filter(e => e.tail != e.head)
+      val byTailX  = realIdx.indices.groupBy(i => realIdx(i).tail)
+      val buf = mutable.LinkedHashMap.empty[(String, String), FlatBump]
+      g.nodes.foreach { n =>
+        byTailX.getOrElse(n.id, Seq.empty)
+          .sortBy(i => (nodeSeqX.getOrElse(realIdx(i).head, Int.MaxValue), i))
+          .foreach { i =>
+            val e = realIdx(i)
+            (posInRank.get(e.tail), posInRank.get(e.head)) match
+              case (Some((rt, _)), Some((rh, _))) if rt == rh =>
+                val dist =
+                  if e.attrs.get("label").exists(_.nonEmpty) then
+                    val (wl, hl) = Coord.edgeLabelDim(e, g)
+                    if Rank.flip(g) then hl else wl
+                  else 0.0
+                val ml = math.max(0, e.attrs.get("minlen").flatMap(_.toIntOption).getOrElse(1))
+                val wt = math.max(0, e.attrs.get("weight").flatMap(_.toDoubleOption).map(_.toInt).getOrElse(1))
+                buf.get((e.tail, e.head)) match
+                  case Some(b) => buf((e.tail, e.head)) =
+                    FlatBump(math.max(b.minlenAttr, ml), math.max(b.dist, dist), b.weight + wt)
+                  case None => buf((e.tail, e.head)) = FlatBump(ml, dist, wt)
+              case _ => ()
+          }
+      }
+      buf.toVector.groupBy(_._1._1).view
+        .mapValues(_.map((k, b) => (k._2, b))).toMap
     res.order.toList.sortBy(_._1).foreach { case (rank, ids) =>
       val nodesep = if hasEL && (rank & 1) == 1 then 5.0 else NodeSep
       ids.headOption.foreach(h => initRank(h.name) = 0)
       var last = 0
-      ids.sliding(2).foreach {
-        case Seq(u, v) =>
+      var j = 0
+      while j < ids.length do
+        val u = ids(j)
+        if j + 1 < ids.length then
+          val v = ids(j + 1)
           // The aux EDGE minlen is `ROUND(width)` (make_aux_edge → ED_minlen),
           // but the SEED rank gv left-packs is `ND_rank(v) = (int)(last +
           // width)` — the running int rank plus the RAW width, TRUNCATED
@@ -198,8 +260,29 @@ object XCoord:
           edges += NetworkSimplex.NSEdge(u.name, v.name, minlen, fw)
           last = (last + width).toInt
           initRank(v.name) = last
-        case _ => ()
-      }
+        // position flat edge endpoints (position.c:312): u's ND_flat_out
+        // edges, t0/h0 ordered by ND_order. Adjacent pairs bump the LR
+        // adjacency edge (flatAdj above); an UNLABELED flat edge between
+        // NON-neighbors gets its own aux edge
+        //   make_aux_edge(t0, h0, ED_minlen·nodesep + width, ED_weight)
+        // (labeled non-neighbors are constrained by the label block).
+        u match
+          case LayoutNode.Real(uid) =>
+            flatOutByTail.getOrElse(uid, Vector.empty).foreach { (other, fb) =>
+              (posInRank.get(uid), posInRank.get(other)) match
+                case (Some((_, pu)), Some((_, po))) =>
+                  val (t0, h0, pt0, ph0) =
+                    if pu < po then (uid, other, pu, po) else (other, uid, po, pu)
+                  if ph0 - pt0 > 1 && fb.dist == 0.0 then
+                    val t0n = LayoutNode.Real(t0); val h0n = LayoutNode.Real(h0)
+                    val width = rw(t0n) + lw(h0n)
+                    val fm    = fb.minlenAttr * (if hasEL then 2 else 1)
+                    val m0    = fm * NodeSep + width
+                    edges += NetworkSimplex.NSEdge(t0, h0, math.round(m0).toInt, fb.weight)
+                case _ => ()
+            }
+          case _ => ()
+        j += 1
     }
 
     // make_edge_pairs: per-segment slack node, ω-weighted straightening.

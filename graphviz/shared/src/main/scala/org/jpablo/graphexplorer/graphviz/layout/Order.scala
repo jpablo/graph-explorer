@@ -179,18 +179,28 @@ object Order:
 
     // gv `build_ranks` iterates GD_nlist for its BFS seeds — the `decompose`
     // (decomp.c) DFS order over the class2 real+virtual graph: from declaration-
-    // order real seeds, following out-edges before in-edges. This seed order
-    // (not declaration order) is what makes the initial ordering match gv (and,
-    // e.g., not a left-right mirror).
+    // order real seeds. search_component walks FOUR lists per node — ND_out,
+    // ND_in, ND_flat_out, ND_flat_in (in that pop order) — flat (same-rank)
+    // edges carry the DFS across rank=same siblings (sdh: spiTTP_1_2's flat
+    // chain pulls spiTTP_2_1/me_2 in before the next declared seed).
+    val flatOutAdj = mutable.HashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
+    val flatInAdj  = mutable.HashMap.empty[LayoutNode, mutable.ArrayBuffer[LayoutNode]]
+    flatReps.foreach { (t, h, _) =>
+      flatOutAdj.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += h
+      flatInAdj.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += t
+    }
     val gdNlist: Vector[LayoutNode] =
       val done = mutable.Set.empty[LayoutNode]
       val res  = mutable.ArrayBuffer.empty[LayoutNode]
+      val emptyAdj = mutable.ArrayBuffer.empty[LayoutNode]
       def visit(seed: LayoutNode): Unit =
         val stk = mutable.Stack(seed)
         while stk.nonEmpty do
           val n = stk.pop()
           if !done(n) then
             done += n; res += n
+            flatInAdj.getOrElse(n, emptyAdj).reverseIterator.foreach(w => if !done(w) then stk.push(w))
+            flatOutAdj.getOrElse(n, emptyAdj).reverseIterator.foreach(w => if !done(w) then stk.push(w))
             in(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
             out(n).reverseIterator.foreach(w => if !done(w) then stk.push(w))
       g.nodes.foreach { nn => val s: LayoutNode = LayoutNode.Real(nn.id); if !done(s) then visit(s) }
