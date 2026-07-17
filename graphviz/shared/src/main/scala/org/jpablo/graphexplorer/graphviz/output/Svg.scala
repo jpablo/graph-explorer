@@ -435,8 +435,12 @@ object Svg:
         val a = Integer.parseInt(t.substring(7), 16)
         if a == 0 then ("none", None)
         else if a == 255 then (t.substring(0, 7), None)
-        else (t.substring(0, 7),
-          Some(String.format(java.util.Locale.ROOT, "%.6f", (a.toFloat / 255.0f).toDouble)))
+        else
+          // C "%f" (6 decimals) of the FLOAT a/255, via BigDecimal —
+          // String.format(Locale, …) links java.text and breaks Scala.js.
+          val v = BigDecimal((a.toFloat / 255.0f).toDouble)
+            .setScale(6, BigDecimal.RoundingMode.HALF_UP).bigDecimal.toPlainString
+          (t.substring(0, 7), Some(v))
       else (t, None)
     /** Fill paint with gv's in-stream `" fill-opacity="` injection (the
       * opacity attr sits immediately after fill, svg_grstyle). */
