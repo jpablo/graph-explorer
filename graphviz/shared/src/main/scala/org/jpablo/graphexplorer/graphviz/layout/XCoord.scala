@@ -198,7 +198,47 @@ object XCoord:
     // and two straightening edges. This order — NOT segment order — is what the
     // NS sees, so reproduce it exactly. Slack nodes are collected in creation
     // order, then prepended (reversed) to head the NS node list (GD_nlist).
-    val decomp  = decomposeOrder(g, res)
+    // CLUSTERED graphs: the final GD_nlist is NOT the decompose order —
+    // merge_ranks (cluster.c:225) moves each expanded cluster's interior
+    // (reals + intra-cluster vnodes) to the root nlist via fast_node
+    // PREPENDS, iterating the interior ranks rank-major left-to-right. So
+    // the LAST-expanded cluster's block heads the list, each block
+    // internally REVERSED (bottom rank right-to-left first); expansion
+    // order is preorder over the cluster tree (mincross_clust recursion).
+    // Non-cluster leftovers keep the collapsed-graph decompose order.
+    // (The block snapshot is the interior order at EXPANSION time; the
+    // interior mincross that follows edits ND_order, not the nlist — we
+    // use the final order, identical unless interior mincross swaps.)
+    val decomp: Vector[LayoutNode] =
+      val cs = Cluster.clusters(g)
+      if cs.isEmpty then decomposeOrder(g, res)
+      else
+        val directMembers: Vector[Set[String]] = cs.indices.toVector.map { ci =>
+          val childIds = Cluster.childrenOf(g, ci).flatMap(cc => cs(cc).members)
+          cs(ci).members -- childIds
+        }
+        def vnodeCluster(v: LayoutNode.Virtual): Int =
+          // a chain vnode belongs to the innermost cluster containing BOTH
+          // endpoints of its originating dedge (its class2 ran there)
+          realEdges.lift(v.edgeIdx) match
+            case Some(re) =>
+              cs.indices.filter(ci => cs(ci).members(re.tail) && cs(ci).members(re.head))
+                .minByOption(ci => cs(ci).members.size)
+                .getOrElse(-1)
+            case None => -1
+        def blockOf(ci: Int): Vector[LayoutNode] =
+          (cs(ci).minRank to cs(ci).maxRank).iterator.flatMap { r =>
+            res.order.getOrElse(r, Vector.empty).iterator.filter {
+              case LayoutNode.Real(id)   => directMembers(ci)(id)
+              case v: LayoutNode.Virtual => vnodeCluster(v) == ci
+              case _                     => false
+            }
+          }.toVector
+        def preorder(ci: Int): Vector[Int] = ci +: Cluster.childrenOf(g, ci).flatMap(preorder)
+        val expansion = Cluster.childrenOf(g, -1).flatMap(preorder)
+        val blocks    = expansion.reverseIterator.map(ci => blockOf(ci).reverse).toVector
+        val inBlocks  = blocks.iterator.flatten.toSet
+        blocks.flatten ++ decomposeOrder(g, res).filterNot(inBlocks)
     val outSegs = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[Int]]
     res.segments.iterator.zipWithIndex.foreach { case ((t, _), i) =>
       outSegs.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += i
@@ -285,8 +325,12 @@ object XCoord:
           lrvnMade += ci
           clSlacks += ln(ci); clSlacks += rn(ci)
           if ci >= 0 && cluInfos(ci).hasLabel && !flip then
+            // make_lrvn: `int w = MAX(border[BOTTOM].x, border[TOP].x)` — a C
+            // double→int TRUNCATION (not ROUND; make_aux_edge's ROUND then
+            // sees an already-integral value). A fractional label width like
+            // 431.8 must give 447, not 448 (GP clusters 21/38).
             edges += NetworkSimplex.NSEdge(ln(ci).name, rn(ci).name,
-              math.round(cluInfos(ci).borderTopX).toInt, 0)
+              cluInfos(ci).borderTopX.toInt, 0)
       // contain_nodes: per rank, first/last member held inside the borders.
       def containNodes(ci: Int): Unit =
         makeLrvn(ci)

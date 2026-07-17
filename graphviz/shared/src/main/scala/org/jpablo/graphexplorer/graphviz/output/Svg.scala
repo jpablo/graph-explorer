@@ -343,6 +343,20 @@ object Svg:
       }
       out.toString
 
+    // root graph label (do_graph_label): centered horizontally, single line,
+    // labelloc bottom (default) at GAP + boxHeight/2, top at UR.y − GAP −
+    // boxHeight/2 — in the GRAPH font. emit.c:3335-3337: emitted right after
+    // the background, BEFORE clusters/nodes/edges (emit_view).
+    // (Custom fontsize / multi-line = tracked follow-ups.)
+    g.rootAttrs.get("label").filter(_.nonEmpty).foreach { lbl =>
+      val lh  = NodeSize.labelHeightPt(lbl, FontSize, g.name.getOrElse(""))
+      val top = g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
+      val ly2 = if top then (uy - ly) - 4.0 - lh / 2.0 else 4.0 + lh / 2.0
+      sb ++= textAt((lx + ux) / 2.0, ly2, lbl,
+        fill = g.rootAttrs.getOrElse("fontcolor", ""),
+        fontName = g.rootAttrs.getOrElse("fontname", "Times-Roman"))
+    }
+
     // clusters (emit_clusters): each cluster draws a `<g class="cluster">`
     // with border polygon (LL→UL→UR→LR→LL) + its label, in GD_clust preorder,
     // after the background and before any node. TB clusters default to
@@ -1086,19 +1100,6 @@ object Svg:
     // gv svg emit order: for each node (first-mention order) emit it, then per
     // out-edge emit the head node (if unseen) then the edge — so nodes/edges
     // interleave (a node appears just before the first edge that closes on it).
-    // root graph label (do_graph_label): centered horizontally, single line,
-    // labelloc bottom (default) at GAP + boxHeight/2, top at UR.y − GAP −
-    // boxHeight/2 — in the GRAPH font. Emitted after the background, before
-    // the nodes. (Custom fontsize / multi-line = tracked follow-ups.)
-    g.rootAttrs.get("label").filter(_.nonEmpty).foreach { lbl =>
-      val lh  = NodeSize.labelHeightPt(lbl, FontSize, g.name.getOrElse(""))
-      val top = g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
-      val ly2 = if top then (uy - ly) - 4.0 - lh / 2.0 else 4.0 + lh / 2.0
-      sb ++= textAt((lx + ux) / 2.0, ly2, lbl,
-        fill = g.rootAttrs.getOrElse("fontcolor", ""),
-        fontName = g.rootAttrs.getOrElse("fontname", "Times-Roman"))
-    }
-
     // svg `id="edgeN"` = the edge's declaration (AGSEQ) index + 1 (g.edges is
     // in declaration order) — decoupled from the interleaved *emit* order.
     val emitted = scala.collection.mutable.Set.empty[String]
