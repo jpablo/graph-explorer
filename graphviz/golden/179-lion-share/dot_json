@@ -1,0 +1,893 @@
+{
+  "name": "Ped_Lion_Share",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 738 727",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "label": "Pedigree Lion_Share",
+  "mincross": "2.0",
+  "ratio": "auto",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "001",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 1,
+      "name": "002",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 2,
+      "name": "003",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 3,
+      "name": "004",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 4,
+      "name": "005",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 5,
+      "name": "006",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 6,
+      "name": "007",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 7,
+      "name": "009",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 8,
+      "name": "014",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 9,
+      "name": "015",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 10,
+      "name": "016",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 11,
+      "name": "ZZ01",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 12,
+      "name": "ZZ02",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 13,
+      "name": "017",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 14,
+      "name": "012",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 15,
+      "name": "008",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 16,
+      "name": "011",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 17,
+      "name": "013",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 18,
+      "name": "010",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 19,
+      "name": "023",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 20,
+      "name": "020",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 21,
+      "name": "021",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 22,
+      "name": "018",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 23,
+      "name": "025",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 24,
+      "name": "019",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 25,
+      "name": "022",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 26,
+      "name": "024",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 27,
+      "name": "027",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "circle",
+      "style": "filled"
+    },
+    {
+      "_gvid": 28,
+      "name": "026",
+      "fillcolor": "white",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 29,
+      "name": "028",
+      "fillcolor": "grey",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "regular": "1",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 30,
+      "name": "marr0001",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 31,
+      "name": "marr0002",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 32,
+      "name": "marr0003",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 33,
+      "name": "marr0004",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 34,
+      "name": "marr0005",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 35,
+      "name": "marr0006",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 36,
+      "name": "marr0007",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 37,
+      "name": "marr0008",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 38,
+      "name": "marr0009",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 39,
+      "name": "marr0010",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 40,
+      "name": "marr0011",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 41,
+      "name": "marr0012",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 42,
+      "name": "marr0013",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 43,
+      "name": "marr0014",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 44,
+      "name": "marr0015",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 45,
+      "name": "marr0016",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    },
+    {
+      "_gvid": 46,
+      "name": "marr0017",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": ".1",
+      "label": "",
+      "shape": "diamond",
+      "style": "filled",
+      "width": ".1"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 30,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 11,
+      "tail": 6,
+      "head": 30,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 34,
+      "tail": 30,
+      "head": 13,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 31,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 17,
+      "tail": 12,
+      "head": 31,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 35,
+      "tail": 31,
+      "head": 14,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 2,
+      "tail": 1,
+      "head": 32,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 5,
+      "tail": 2,
+      "head": 32,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 36,
+      "tail": 32,
+      "head": 15,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 3,
+      "tail": 1,
+      "head": 33,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 10,
+      "tail": 5,
+      "head": 33,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 37,
+      "tail": 33,
+      "head": 16,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 4,
+      "tail": 1,
+      "head": 34,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 16,
+      "tail": 11,
+      "head": 34,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 38,
+      "tail": 34,
+      "head": 17,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 6,
+      "tail": 3,
+      "head": 35,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 12,
+      "tail": 7,
+      "head": 35,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 39,
+      "tail": 35,
+      "head": 18,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 7,
+      "tail": 4,
+      "head": 36,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 14,
+      "tail": 9,
+      "head": 36,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 40,
+      "tail": 36,
+      "head": 19,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 8,
+      "tail": 4,
+      "head": 37,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 15,
+      "tail": 10,
+      "head": 37,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 41,
+      "tail": 37,
+      "head": 20,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 9,
+      "tail": 4,
+      "head": 38,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 19,
+      "tail": 14,
+      "head": 38,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 42,
+      "tail": 38,
+      "head": 21,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 20,
+      "tail": 15,
+      "head": 39,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 18,
+      "tail": 13,
+      "head": 39,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 43,
+      "tail": 39,
+      "head": 22,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 21,
+      "tail": 16,
+      "head": 40,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 24,
+      "tail": 19,
+      "head": 40,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 44,
+      "tail": 40,
+      "head": 23,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 22,
+      "tail": 17,
+      "head": 41,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 13,
+      "tail": 8,
+      "head": 41,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 45,
+      "tail": 41,
+      "head": 24,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 23,
+      "tail": 18,
+      "head": 42,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 26,
+      "tail": 21,
+      "head": 42,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 46,
+      "tail": 42,
+      "head": 25,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 29,
+      "tail": 24,
+      "head": 43,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 25,
+      "tail": 20,
+      "head": 43,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 47,
+      "tail": 43,
+      "head": 26,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 30,
+      "tail": 25,
+      "head": 44,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 28,
+      "tail": 23,
+      "head": 44,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 48,
+      "tail": 44,
+      "head": 27,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 31,
+      "tail": 26,
+      "head": 45,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 27,
+      "tail": 22,
+      "head": 45,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 49,
+      "tail": 45,
+      "head": 28,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    },
+    {
+      "_gvid": 33,
+      "tail": 28,
+      "head": 46,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 32,
+      "tail": 27,
+      "head": 46,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "1"
+    },
+    {
+      "_gvid": 50,
+      "tail": 46,
+      "head": 29,
+      "dir": "none",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "weight": "2"
+    }
+  ]
+}

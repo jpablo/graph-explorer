@@ -189,11 +189,16 @@ object Rank:
   // minlen + t_local − h_local — a SOFT constraint, absent from acyclic.
   // rank1 runs UNBALANCED when clusters exist; expand_ranksets adds each
   // member's local offset to its leader's root rank.
+  // ED_weight = late_int(weight, default 1, FLOOR 0) — atoi truncates
+  // fractions. Shared by the dot1 interclust weights and the global
+  // ranking edges (TB_balance's inweight==outweight test reads it).
+  private def weightOf(a: Attrs): Int =
+    a.get("weight").flatMap(_.toDoubleOption).map(w => math.max(0, w.toInt)).getOrElse(1)
+
   private def rankedDot1(g: RGraph, tops: Vector[RSubgraph]): (Map[String, Int], Vector[DEdge]) =
     val minlenScale = if hasEdgeLabel(g) then 2 else 1
     val realEdges   = g.edges.filter(e => e.tail != e.head)
     val nodeSeq     = g.nodes.iterator.map(_.id).zipWithIndex.toMap
-    def weightOf(a: Attrs): Int = a.get("weight").flatMap(_.toIntOption).getOrElse(1)
 
     // dotgen acyclic scoped to an edge subset: DFS seeds in `order`,
     // out-edges by (head seq, idx); returns the reversed edge indices.
@@ -408,7 +413,11 @@ object Rank:
     var nse = wedges.iterator.zipWithIndex.flatMap { case (e, i) =>
       val (t, h) = (leader(e.tail), leader(e.head))
       if t == h || !constrained(realEdges(i).attrs) then None
-      else Some(NetworkSimplex.NSEdge(t, h, e.minlen, 1))
+      // ED_weight = the edge's `weight` attr (late_int: default 1, FLOOR 0,
+      // atoi truncation). It reaches TB_balance's inweight==outweight test —
+      // lion_share's weight=2 marriage edges keep spouses' children OFF the
+      // balance path; a hardcoded 1 let 018 drift to the emptier marr rank.
+      else Some(NetworkSimplex.NSEdge(t, h, e.minlen, weightOf(realEdges(i).attrs)))
     }.toVector
     // class1 (class1.c:94): the RANKING graph carries ONE edge per (t,h)
     // pair — `find_fast_edge` + `merge_oneway`/`basic_merge`: minlen = max,
