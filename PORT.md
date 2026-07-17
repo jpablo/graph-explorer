@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 162/163
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 163/164
 > (2026-07-17).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 154/155 + shipped examples 8/8 = 162/163** — the SINGLE
+> **corpus 155/156 + shipped examples 8/8 = 163/164** — the SINGLE
 > remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
 > (its golden is gv's own default-mode cluster corruption; the file is
 > gated byte-exact against the 03b `newrank` oracle in ClusterSpec
@@ -69,11 +69,17 @@ enforce the deferral halves of it):
   node with its lowest cluster OR the root, so a fixed node between two
   comparables blocks their exchange), and svg edge tooltip/href anchors
   (`a_{id}` graphics + `a_{id}-label` label wraps).
+  183-profile closed 2026-07-17, instrumentation-free: the GLOBAL
+  ranking path now solves per connected component like gv rank1 — a
+  whole-graph solve on a disconnected input dies in feasible_tree and
+  silently skips the pivot loop, shipping init_rank longest-path ranks
+  (diagnosed by scoring both rank assignments against the raw edge
+  list: ours suboptimal + no reversed edges ⇒ solver stopped early).
   Remaining (genuine layout divergences, instrumented-gv work):
-  profile, Linux_kernel_diagram, siblings, sdh (its
+  Linux_kernel_diagram, siblings, sdh (its
   `ratio=fill` without `size=` is a gv no-op — real divergence).
-- Current gate (2026-07-17, after 165–182):
-  **corpus 154/155 + examples 8/8 = 162/163 byte-exact** in all three
+- Current gate (2026-07-17, after 165–183):
+  **corpus 155/156 + examples 8/8 = 163/164 byte-exact** in all three
   formats (corpus rendered through the sidecar-aware `corpusGraph` path,
   examples through the public `renderFormats` facade).
 - **03-subgraph-cluster** — the single diff, a permanent INTENTIONAL
