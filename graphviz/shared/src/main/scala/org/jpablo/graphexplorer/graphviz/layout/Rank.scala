@@ -522,7 +522,13 @@ object Rank:
             outAdjR(n).reverseIterator.foreach(w => if !done2(w) then stk.push(w))
       leaderNodes.foreach(s => if !done2(s) then visit(s))
       res.toVector
-    val leaderRanks = NetworkSimplex.solve(leaderNodes, nse, balance = NSBalance.TopBottom,
+    // rank1 (rank.c:373) ALWAYS decomposes and solves per connected
+    // component — a single whole-graph solve on a disconnected input dies
+    // in feasible_tree (incomplete spanning tree ⇒ the pivot loop is
+    // silently SKIPPED) and ships init_rank longest-path ranks
+    // (profile.gv: the stray moncontrol→profil pair cost the main
+    // component its two improving pivots).
+    val leaderRanks = solvePerComponent(leaderNodes, nse, balance = NSBalance.TopBottom,
       tbOrder = tbOrder)
     val ranks = g.nodes.iterator.map(n => n.id -> leaderRanks(leader(n.id))).toMap
     (ranks, wedges)
