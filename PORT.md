@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 157/158
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 158/159
 > (2026-07-16).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 149/150 + shipped examples 8/8 = 157/158** — the SINGLE
+> **corpus 150/151 + shipped examples 8/8 = 158/159** — the SINGLE
 > remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
 > (its golden is gv's own default-mode cluster corruption; the file is
 > gated byte-exact against the 03b `newrank` oracle in ClusterSpec
@@ -48,12 +48,15 @@ enforce the deferral halves of it):
   edges + invis nodes + the nested-subgraphs wrap — plus crazy, byte-exact
   in both json formats while viz-js itself crashes rendering its svg.
   177-genetic-programming closed same-day (clustered GD_nlist model +
-  cluster-label-width truncation + graph-label-before-clusters).
-  Remaining (genuine layout divergences, instrumented-gv work): git, lion_share,
+  cluster-label-width truncation + graph-label-before-clusters);
+  178-git closed same-day (flat-edge minlen/weight ATTRS + ED_dist under
+  flip + rgba paint splitting + html pencolor inheritance + nbsp text
+  escapes + root-label fontsize/multi-line + subgraph label echo).
+  Remaining (genuine layout divergences, instrumented-gv work): lion_share,
   psg, pprof, profile, Linux_kernel_diagram, siblings, sdh (its
   `ratio=fill` without `size=` is a gv no-op — real divergence).
-- Current gate (2026-07-16, after 165–177):
-  **corpus 149/150 + examples 8/8 = 157/158 byte-exact** in all three
+- Current gate (2026-07-16, after 165–178):
+  **corpus 150/151 + examples 8/8 = 158/159 byte-exact** in all three
   formats (corpus rendered through the sidecar-aware `corpusGraph` path,
   examples through the public `renderFormats` facade).
 - **03-subgraph-cluster** — the single diff, a permanent INTENTIONAL
