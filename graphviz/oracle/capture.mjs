@@ -70,16 +70,26 @@ for (const file of files) {
   const entry = { input: file, sha256: sha256(src), formats: {} };
 
   for (const [name, format] of Object.entries(FORMATS)) {
+    // viz-js's wasm can corrupt its own state across renders ("table index
+    // is out of bounds" on 185-siblings plain after ~1500 prior renders);
+    // a FRESH instance renders the same input fine — retry once with one.
+    let result;
     try {
-      const result = renderViz.render(src, { format, engine: "dot", ...renderOpts });
-      if (result.status === "success") {
-        await writeFile(`${outDir}${name}`, result.output);
-        entry.formats[name] = { status: "success", sha256: sha256(result.output) };
-      } else {
-        entry.formats[name] = { status: "failure", errors: result.errors };
-      }
+      result = renderViz.render(src, { format, engine: "dot", ...renderOpts });
     } catch (e) {
-      entry.formats[name] = { status: "error", message: String(e) };
+      try {
+        const fresh = await instance();
+        result = fresh.render(src, { format, engine: "dot", ...renderOpts });
+      } catch (e2) {
+        entry.formats[name] = { status: "error", message: String(e2) };
+        continue;
+      }
+    }
+    if (result.status === "success") {
+      await writeFile(`${outDir}${name}`, result.output);
+      entry.formats[name] = { status: "success", sha256: sha256(result.output) };
+    } else {
+      entry.formats[name] = { status: "failure", errors: result.errors };
     }
   }
   meta.corpus[base] = entry;

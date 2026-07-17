@@ -10,13 +10,17 @@ copy algorithm code. Provenance: lib/common/textspan_lut.c, EPL-2.0.
 
 Emits: graphviz/shared/.../graphviz/metrics/FontMetricsTables.scala
 
-Only the three standard families (Times, Helvetica/Arial, Courier) are
-emitted — that is what Graphviz's default-font aliases resolve to and all the
-corpus needs. Re-run if the pinned Graphviz is ever re-pinned.
+Every family in textspan_lut.c is emitted (the 3 core PostScript families
+plus gv's hard-coded web-font metrics — Verdana, Georgia, Trebuchet, etc.;
+the fallback for unknown names is Times, first in the list). Re-run if the
+pinned Graphviz is ever re-pinned.
 """
 import re, sys, pathlib
 
-WANT = {"times", "helvetica", "arial", "courier", "cour"}
+# ALL families from textspan_lut.c — gv ships hard-coded metrics for the 3
+# core PostScript families PLUS common web fonts (Verdana, Georgia, Trebuchet,
+# Consolas, DejaVu Sans, Nunito, OpenSans, Calibri); siblings.gv uses Verdana.
+WANT = None  # None = emit every family
 
 def split_top_level(s, open_ch="{", close_ch="}"):
     """Yield depth-1 element substrings of a brace-delimited C array body."""
@@ -55,7 +59,7 @@ def main():
         # aliases live inside the first (const char *[]){...} group
         alias_grp = re.search(r"\(const char \*\[\]\)\s*\{([^}]*)\}", elem).group(1)
         aliases = re.findall(r'"([^"]*)"', alias_grp)
-        if not (set(a.lower() for a in aliases) & WANT):
+        if WANT is not None and not (set(a.lower() for a in aliases) & WANT):
             continue
         rest = elem[re.search(r"\(const char \*\[\]\)\s*\{[^}]*\}", elem).end():]
         upm = int(re.search(r",\s*(\d+)\s*,", rest).group(1))

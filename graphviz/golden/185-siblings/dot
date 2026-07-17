@@ -1,0 +1,1372 @@
+digraph sdsu {
+	graph [bb="0,0,5515.2,1526.8",
+		fontname=Arial,
+		fontsize=36,
+		label="\nKappa Kappa Psi/Tau Beta Sigma\nSan Diego State University\nEta Mu and Zeta Xi Family Tree\n\nto date: November 30th, 2008\n",
+		lheight=3.59,
+		lp="2757.6,133.4",
+		lwidth=7.59,
+		size="36,36",
+		ssize="30,60",
+		style=bold
+	];
+	node [color=grey,
+		fontname=Verdana,
+		label="\N",
+		size="30,30",
+		style=filled
+	];
+	"Lori Brede"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=10",
+		color=lightpink,
+		height=0.5,
+		pos="2160.6,1004.8",
+		width=1.6862];
+	"Christine Mount"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=76",
+		color=lightpink,
+		height=0.5,
+		pos="2981.6,716.8",
+		width=2.4287];
+	"Lori Brede" -> "Christine Mount"	[pos="e,2940.4,733.13 2200.8,990.87 2262.8,971.41 2385.7,934.77 2492.6,914.8 2566,901.09 2765,920.95 2826.6,878.8 2871.3,848.27 2844.7,\
+809.28 2882.6,770.8 2896,757.24 2913.6,746.31 2930.3,737.98"];
+	"Kathleen Moran"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=349",
+		color=lightpink,
+		height=0.5,
+		pos="2588.6,932.8",
+		width=2.4205];
+	"Lori Brede" -> "Kathleen Moran"	[pos="e,2522.6,944.97 2213.1,995.41 2277.6,985.04 2390.8,966.81 2487.6,950.8 2495.3,949.53 2503.4,948.2 2511.4,946.86"];
+	"Christina Kelly"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=36",
+		color=lightpink,
+		height=0.5,
+		pos="3320.6,932.8",
+		width=2.2476];
+	"Lori Brede" -> "Christina Kelly"	[pos="e,3263.2,945.86 2220.6,1001.3 2431.3,992.5 3130.5,962.69 3230.6,950.8 3237.6,949.98 3244.8,948.93 3252,947.77"];
+	"Josh Atwood"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=6",
+		color=lightblue,
+		height=0.5,
+		pos="1905.6,860.8",
+		width=1.9965];
+	"Lori Brede" -> "Josh Atwood"	[pos="e,1920.2,878.75 2109.4,994.7 2074.4,986.85 2027.9,973.18 1991.6,950.8 1977.3,941.93 1948.2,910.42 1927.8,887.4"];
+	"Samuel Behar"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=82",
+		color=lightblue,
+		height=0.5,
+		pos="1627.6,716.8",
+		width=2.1985];
+	"Lori Brede" -> "Samuel Behar"	[pos="e,1611.1,734.79 2109.6,994.79 2081.2,987.36 2047.2,974.11 2024.6,950.8 1989.3,914.23 2026.8,874.07 1986.6,842.8 1917.1,788.64 1651.1,\
+871.89 1591.6,806.8 1575.4,789.03 1588.9,763 1603.8,743.67"];
+	"Michael Griffith"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=24",
+		color=lightblue,
+		height=0.5,
+		pos="1982.6,1076.8",
+		width=2.3383];
+	"Michael Griffith" -> "Lori Brede"	[pos="e,2125,1019.8 2021.7,1060.4 2049,1049.7 2085.6,1035.3 2114.4,1024"];
+	"Amie Holston"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=30",
+		color=lightpink,
+		height=0.5,
+		pos="2160.6,1076.8",
+		width=2.0946];
+	"Amie Holston" -> "Lori Brede"	[pos="e,2160.6,1022.9 2160.6,1058.5 2160.6,1051.2 2160.6,1042.5 2160.6,1034.3"];
+	"Matthew FitzGerald"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=19",
+		color=lightblue,
+		height=0.5,
+		pos="2703.6,1004.8",
+		width=2.9071];
+	"Amie Holston" -> "Matthew FitzGerald"	[pos="e,2613,1014.1 2215.4,1064.2 2225.4,1062.2 2235.8,1060.3 2245.6,1058.8 2367.5,1039.6 2508.6,1024.3 2601.6,1015.2"];
+	"Casey Carter"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=11",
+		color=lightpink,
+		height=0.5,
+		pos="2534.6,1076.8",
+		width=2.0504];
+	"Laura De'Armond"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=14",
+		color=lightpink,
+		height=0.5,
+		pos="2554.6,1148.8",
+		width=2.6536];
+	"Laura De'Armond" -> "Casey Carter"	[pos="e,2539.5,1094.9 2549.7,1130.5 2547.6,1123 2545,1114.1 2542.6,1105.8"];
+	"Deanna Johnson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=31",
+		color=lightpink,
+		height=0.5,
+		pos="2717.6,1076.8",
+		width=2.5256];
+	"Laura De'Armond" -> "Deanna Johnson"	[pos="e,2680.8,1093.6 2591.6,1131.9 2615,1121.9 2645.3,1108.9 2670.4,1098.1"];
+	"Japheth Cleaver"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=12",
+		color=lightpink,
+		height=0.5,
+		pos="1215.6,1076.8",
+		width=2.4709];
+	"Jillian Clifton"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=13",
+		color=lightpink,
+		height=0.5,
+		pos="993.65,860.8",
+		width=2.0152];
+	"Japheth Cleaver" -> "Jillian Clifton"	[pos="e,935.87,872.09 1143.7,1065.8 1044.4,1052 877.13,1027.9 872.65,1022.8 840.9,986.79 844.26,954.91 870.65,914.8 883.17,895.77 904.11,\
+883.55 925.21,875.7"];
+	"Laura Simonette"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=351",
+		color=lightpink,
+		height=0.5,
+		pos="5373.6,1004.8",
+		width=2.5381];
+	"Japheth Cleaver" -> "Laura Simonette"	[pos="e,5282.7,1006.9 1286.1,1065.5 1307.1,1062.8 1330.3,1060.3 1351.6,1058.8 1452.4,1051.9 4655.2,1014.2 5271.6,1007"];
+	"Jennifer Brandon"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=9",
+		color=lightpink,
+		height=0.5,
+		pos="974.65,1004.8",
+		width=2.5932];
+	"Japheth Cleaver" -> "Jennifer Brandon"	[pos="e,1024.8,1020.4 1166.3,1061.5 1128.5,1050.5 1076,1035.2 1035.6,1023.5"];
+	"Jeremy Browne"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=68",
+		color=lightblue,
+		height=0.5,
+		pos="2119.6,932.8",
+		width=2.3868];
+	"Japheth Cleaver" -> "Jeremy Browne"	[pos="e,2044.4,941.87 1238.5,1059.1 1268.8,1037.9 1324.8,1002.4 1378.6,986.8 1500.6,951.55 1822.1,961.08 1948.6,950.8 1976.1,948.57 2006,\
+945.74 2033,943.03"];
+	"Sandra Chase"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=689",
+		color=lightblue,
+		height=0.5,
+		pos="1246.6,860.8",
+		width=2.1755];
+	"Japheth Cleaver" -> "Sandra Chase"	[pos="e,1244.2,879.03 1218.1,1058.6 1223.4,1021.9 1236,935.46 1242.5,890.33"];
+	"Chuk Gawlik"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=22",
+		color=lightblue,
+		height=0.5,
+		pos="1961.6,1148.8",
+		width=1.981];
+	"Chuk Gawlik" -> "Michael Griffith"	[pos="e,1977.5,1094.9 1966.8,1130.5 1969.1,1123 1971.8,1114.1 1974.3,1105.8"];
+	"Chuk Gawlik" -> "Amie Holston"	[pos="e,2119.4,1092.3 2001.9,1133.6 2032.8,1122.8 2075.6,1107.7 2108.9,1096"];
+	"Chuk Gawlik" -> "Japheth Cleaver"	[pos="e,1287.9,1087.6 1910.4,1135.9 1900.6,1134 1890.3,1132.1 1880.6,1130.8 1647.2,1098.5 1586.2,1117.4 1351.6,1094.8 1334.6,1093.2 1316.5,\
+1091.1 1299.2,1089"];
+	"Alfredo Cardenas"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=335",
+		color=lightblue,
+		height=0.5,
+		pos="2348.6,1076.8",
+		width=2.6168];
+	"Chuk Gawlik" -> "Alfredo Cardenas"	[pos="e,2282.1,1089.8 2018.3,1137.5 2085,1125.5 2196.1,1105.4 2270.9,1091.9"];
+	"Jamie Fratacci"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=44",
+		color=lightpink,
+		height=0.5,
+		pos="1859.6,932.8",
+		width=2.2279];
+	"Chuk Gawlik" -> "Jamie Fratacci"	[pos="e,1862.5,951.16 1930.7,1132.2 1916,1123.2 1899.5,1110.6 1889.6,1094.8 1886.1,1089.2 1872,1007.2 1864.4,962.44"];
+	"Stacy Snyder"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=309",
+		color=lightpink,
+		height=0.5,
+		pos="297.65,1364.8",
+		width=2.1028];
+	"Stacy Snyder" -> "Japheth Cleaver"	[pos="e,1143.8,1087.8 236.99,1353.7 135.06,1334.3 -53.101,1286 14.648,1202.8 113.73,1081.2 827.89,1116.8 1079.6,1094.8 1096.8,1093.3 1115,\
+1091.3 1132.5,1089.2"];
+	"Kristen Elgo"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=7",
+		color=lightpink,
+		height=0.5,
+		pos="759.65,1292.8",
+		width=1.923];
+	"Stacy Snyder" -> "Kristen Elgo"	[pos="e,700.88,1302.7 359.96,1354.4 445.81,1341.4 600.04,1318 689.73,1304.4"];
+	"Steven Gross"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=318",
+		color=lightblue,
+		height=0.5,
+		pos="99.648,1220.8",
+		width=2.1028];
+	"Stacy Snyder" -> "Steven Gross"	[pos="e,122.6,1238.3 274.55,1347.2 239.3,1322 171.98,1273.7 131.92,1244.9"];
+	"Dusty Jolliff"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=33",
+		color=lightpink,
+		height=0.5,
+		pos="497.65,1220.8",
+		width=1.8757];
+	"Stacy Snyder" -> "Dusty Jolliff"	[pos="e,498.18,1239.3 369.69,1359 406.11,1352.9 448.27,1339.5 475.65,1310.8 490.93,1294.8 496.1,1269.9 497.64,1250.5"];
+	"David Guthrie"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=25",
+		color=lightblue,
+		height=0.5,
+		pos="1461.6,932.8",
+		width=2.1692];
+	"David Guthrie" -> "Jillian Clifton"	[pos="e,1054.7,870.94 1397.6,922.21 1310.9,909.25 1156.8,886.2 1066,872.63"];
+	"Kristen Anderson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=350",
+		color=lightpink,
+		height=0.5,
+		pos="1436.6,716.8",
+		width=2.6167];
+	"David Guthrie" -> "Kristen Anderson"	[pos="e,1427.9,734.92 1438.4,915.17 1427.5,905.87 1415.5,893.24 1409.6,878.8 1391.4,834.25 1409.3,777.97 1423.3,745.11"];
+	"Nathan Williams"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=352",
+		color=lightblue,
+		height=0.5,
+		pos="1687.6,860.8",
+		width=2.4904];
+	"David Guthrie" -> "Nathan Williams"	[pos="e,1640.3,876.46 1507.1,917.72 1542.3,906.82 1591.3,891.64 1629.4,879.85"];
+	"David Guthrie" -> "Josh Atwood"	[pos="e,1845.9,871.22 1524.8,921.85 1606.7,908.93 1749.2,886.46 1834.8,872.98"];
+	"David Guthrie" -> "Sandra Chase"	[pos="e,1290.4,876.03 1417.9,917.55 1384.2,906.57 1337.4,891.33 1301.2,879.56"];
+	"Tony Sacco"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=55",
+		color=lightblue,
+		height=0.5,
+		pos="3065.6,1220.8",
+		width=1.8443];
+	"Tony Sacco" -> "Laura De'Armond"	[pos="e,2624,1161.6 3017.4,1208 3008.5,1206.1 2999.3,1204.3 2990.6,1202.8 2844.7,1178.4 2806.3,1186.6 2659.6,1166.8 2651.7,1165.7 2643.5,\
+1164.5 2635.2,1163.3"];
+	"Karen Saye"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=56",
+		color=lightpink,
+		height=0.5,
+		pos="1427.6,1076.8",
+		width=1.8549];
+	"Tony Sacco" -> "Karen Saye"	[pos="e,1477.8,1089.1 3018.7,1207.7 3009.4,1205.7 2999.8,1204 2990.6,1202.8 2848.4,1184.9 1834.7,1217.6 1700.6,1166.8 1677.3,1158 1680,\
+1141.9 1657.6,1130.8 1653.8,1128.9 1555.5,1106.6 1488.7,1091.5"];
+	"Amy Price"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=57",
+		color=lightpink,
+		height=0.5,
+		pos="3300.6,1076.8",
+		width=1.6533];
+	"Tony Sacco" -> "Amy Price"	[pos="e,3290.5,1095 3112.3,1207.6 3152.8,1196.4 3207.8,1179.6 3226.6,1166.8 3250.7,1150.5 3271.2,1124.2 3284.4,1104.4"];
+	"Regan Ashker"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=5",
+		color=lightpink,
+		height=0.5,
+		pos="3066.6,1148.8",
+		width=2.1711];
+	"Tony Sacco" -> "Regan Ashker"	[pos="e,3066.4,1166.9 3065.9,1202.5 3066,1195.2 3066.1,1186.5 3066.2,1178.3"];
+	"Tiffany Kalland"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=35",
+		color=lightpink,
+		height=0.5,
+		pos="2228.6,860.8",
+		width=2.3102];
+	"Tony Sacco" -> "Tiffany Kalland"	[pos="e,2256,878.1 3105.5,1206 3123.5,1197.7 3143,1185 3153.6,1166.8 3177.8,1125.3 3188.5,1093.8 3155.6,1058.8 3112.5,1012.8 2650.8,1037.9 \
+2589.6,1022.8 2465,992.09 2329.7,920.28 2265.9,883.84"];
+	"David Bronson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=84",
+		color=lightblue,
+		height=0.5,
+		pos="3078.6,1004.8",
+		width=2.2714];
+	"Tony Sacco" -> "David Bronson"	[pos="e,3133.1,1018.6 3108.8,1206.8 3140.4,1196.3 3179.3,1181 3188.6,1166.8 3215,1126.7 3214.2,1099.4 3188.6,1058.8 3178.3,1042.3 3161.2,\
+1030.8 3143.5,1022.9"];
+	"Heather Smith"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=59",
+		color=lightpink,
+		height=0.5,
+		pos="1649.6,1220.8",
+		width=2.2664];
+	"Heather Smith" -> "Laura De'Armond"	[pos="e,2487,1161.9 1707.7,1207.8 1718.6,1205.8 1730,1204.1 1740.6,1202.8 2054,1165.7 2135.9,1200.1 2449.6,1166.8 2458.2,1165.9 2467.1,\
+1164.8 2475.9,1163.5"];
+	"Heather Smith" -> "Chuk Gawlik"	[pos="e,1909.5,1161.5 1705.4,1207.3 1759.7,1195.1 1841.9,1176.7 1898.5,1164"];
+	"Kathleen Hansen"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=27",
+		color=lightpink,
+		height=0.5,
+		pos="2347.6,1148.8",
+		width=2.588];
+	"Heather Smith" -> "Kathleen Hansen"	[pos="e,2279.9,1161.6 1708.2,1207.8 1719,1205.9 1730.1,1204.2 1740.6,1202.8 1962.1,1174.3 2019.9,1192.5 2241.6,1166.8 2250.5,1165.8 2259.7,\
+1164.5 2268.8,1163.2"];
+	"Kristin Tang"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=61",
+		color=lightpink,
+		height=0.5,
+		pos="1121.6,1148.8",
+		width=1.9269];
+	"Heather Smith" -> "Kristin Tang"	[pos="e,1171.8,1161.6 1591.2,1208 1580.7,1206.1 1569.9,1204.3 1559.6,1202.8 1400.5,1179.9 1358.5,1192 1199.6,1166.8 1194.1,1165.9 1188.4,\
+1164.9 1182.7,1163.8"];
+	"Kevin Decker"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=15",
+		color=lightblue,
+		height=0.5,
+		pos="1587.6,1076.8",
+		width=2.0879];
+	"Chuck Foster"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=20",
+		color=lightblue,
+		height=0.5,
+		pos="1461.6,1004.8",
+		width=2.0629];
+	"Kevin Decker" -> "Chuck Foster"	[pos="e,1490.4,1021.8 1558.7,1059.7 1541.5,1050.1 1519.3,1037.8 1500.5,1027.4"];
+	"Karen Helbling"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=29",
+		color=lightpink,
+		height=0.5,
+		pos="1679.6,932.8",
+		width=2.2781];
+	"Kevin Decker" -> "Karen Helbling"	[pos="e,1664.1,950.78 1595.7,1058.5 1604.6,1040.1 1619.6,1010.5 1635.6,986.8 1641.9,977.48 1649.5,967.86 1656.6,959.42"];
+	"Alex Hansen"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=26",
+		color=lightblue,
+		height=0.5,
+		pos="2739.6,1148.8",
+		width=1.9781];
+	"Alex Hansen" -> "Kevin Decker"	[pos="e,1640.8,1089.9 2689.5,1135.8 2679.7,1133.8 2669.4,1132 2659.6,1130.8 2223.6,1076.9 2108,1146.6 1671.6,1094.8 1665.2,1094 1658.5,\
+1093 1651.9,1091.9"];
+	"Patrick Doerr"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=16",
+		color=lightblue,
+		height=0.5,
+		pos="3146.6,932.8",
+		width=2.0743];
+	"Alex Hansen" -> "Patrick Doerr"	[pos="e,3097.4,946.71 2763.7,1131.7 2821.3,1093.2 2964.1,998.13 2987.6,986.8 3019.2,971.62 3056.2,959.01 3086.5,949.9"];
+	"Alex Hansen" -> "Deanna Johnson"	[pos="e,2723,1094.9 2734.2,1130.5 2731.9,1123 2729.1,1114.1 2726.4,1105.8"];
+	"Wanda Livelsberger"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=53",
+		color=lightpink,
+		height=0.5,
+		pos="2092.6,1220.8",
+		width=2.9629];
+	"Wanda Livelsberger" -> "Michael Griffith"	[pos="e,2004.4,1094.5 2084.7,1202.4 2075.8,1183.7 2060,1153.5 2041.6,1130.8 2033.3,1120.5 2022.9,1110.4 2013.1,1101.9"];
+	"Wanda Livelsberger" -> "Kevin Decker"	[pos="e,1603.4,1094.9 2014.7,1208.2 2002,1206.4 1988.9,1204.5 1976.6,1202.8 1854.1,1185.8 1814.7,1214.8 1700.6,1166.8 1665.9,1152.2 1632.7,\
+1123.8 1611.5,1103"];
+	"Lynn Reeves"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=48",
+		color=lightpink,
+		height=0.5,
+		pos="2160.6,1148.8",
+		width=2.0129];
+	"Wanda Livelsberger" -> "Lynn Reeves"	[pos="e,2144.3,1166.6 2109.1,1202.9 2117.3,1194.4 2127.3,1184.1 2136.4,1174.8"];
+	"Joseph Butler"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=69",
+		color=lightblue,
+		height=0.5,
+		pos="3471.6,860.8",
+		width=2.1293];
+	"Patrick Doerr" -> "Joseph Butler"	[pos="e,3416.5,873.67 3201,920.08 3257.4,907.96 3345.4,889 3405.6,876.02"];
+	"Sarah Maltese"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=83",
+		color=lightpink,
+		height=0.5,
+		pos="3220.6,860.8",
+		width=2.2165];
+	"Patrick Doerr" -> "Sarah Maltese"	[pos="e,3202.9,878.59 3164.6,914.85 3173.6,906.34 3184.6,895.87 3194.6,886.48"];
+	"Katie Browne"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=60",
+		color=lightpink,
+		height=0.5,
+		pos="2742.6,860.8",
+		width=2.0972];
+	"Patrick Doerr" -> "Katie Browne"	[pos="e,2802.3,872.14 3087.5,921.55 3014.7,908.93 2891.2,887.54 2813.4,874.07"];
+	"Erika Tapia"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=71",
+		color=lightpink,
+		height=0.5,
+		pos="4196.6,788.8",
+		width=1.8067];
+	"Patrick Doerr" -> "Erika Tapia"	[pos="e,4147.9,801.06 3200.7,920.11 3210.7,918.18 3220.9,916.31 3230.6,914.8 3375.1,892.28 3412.6,897.18 3557.6,878.8 3669.5,864.63 3696.9,\
+857.32 3808.6,842.8 3945.8,824.98 3981.2,829.37 4117.6,806.8 4123.9,805.76 4130.5,804.55 4137,803.27"];
+	"Crystal Bozak"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=8",
+		color=lightpink,
+		height=0.5,
+		pos="2553.6,788.8",
+		width=2.1491];
+	"Patrick Doerr" -> "Crystal Bozak"	[pos="e,2611.2,801.06 3084.7,922.37 3034.7,913.81 2963.1,899.37 2902.6,878.8 2867.3,866.75 2862.2,854.44 2826.6,842.8 2746.6,816.57 2723.3,\
+822.87 2640.6,806.8 2634.7,805.64 2628.5,804.44 2622.3,803.23"];
+	"Deanna Jagow"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=23",
+		color=lightpink,
+		height=0.5,
+		pos="3467.6,1004.8",
+		width=2.2616];
+	"Deanna Jagow" -> "Patrick Doerr"	[pos="e,3200.6,945.56 3411,991.45 3355.2,979.28 3270.1,960.71 3211.6,947.95"];
+	"Deanna Jagow" -> "Joseph Butler"	[pos="e,3471.2,878.91 3468.1,986.39 3468.8,962.41 3470,918.94 3470.8,890.22"];
+	"Deanna Jagow" -> "Sarah Maltese"	[pos="e,3291.9,869.24 3461.2,986.69 3452.6,966.51 3435.7,933.34 3410.6,914.8 3379.5,891.74 3338.7,878.71 3302.9,871.35"];
+	"Samuel Wallace"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=354",
+		color=lightblue,
+		height=0.5,
+		pos="3589.6,788.8",
+		width=2.4437];
+	"Deanna Jagow" -> "Samuel Wallace"	[pos="e,3585,807.13 3482.4,986.61 3501.8,963.42 3535.8,920.21 3557.6,878.8 3567.9,859.37 3576.1,835.96 3581.7,818.02"];
+	"Jennifer Stout"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=50",
+		color=lightpink,
+		height=0.5,
+		pos="2810.6,932.8",
+		width=2.1916];
+	"Deanna Jagow" -> "Jennifer Stout"	[pos="e,2868.5,945.35 3409.7,991.88 3399.1,989.97 3388.1,988.17 3377.6,986.8 3168.2,959.15 3113.2,977.83 2903.6,950.8 2895.9,949.8 2887.8,\
+948.59 2879.8,947.27"];
+	"Lori Asaro"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=178",
+		color=lightpink,
+		height=0.5,
+		pos="2770.6,1292.8",
+		width=1.6626];
+	"Mark Pearson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=169",
+		color=lightblue,
+		height=0.5,
+		pos="3897.6,1364.8",
+		width=2.1307];
+	"Mark Pearson" -> "Lori Asaro"	[pos="e,2813.2,1305.8 3823,1360.3 3585.8,1349 2863,1314.4 2838.6,1310.8 2834,1310.1 2829.2,1309.2 2824.3,1308.2"];
+	"Tani Miller"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=195",
+		color=lightpink,
+		height=0.5,
+		pos="3897.6,1292.8",
+		width=1.6918];
+	"Mark Pearson" -> "Tani Miller"	[pos="e,3897.6,1310.9 3897.6,1346.5 3897.6,1339.2 3897.6,1330.5 3897.6,1322.3"];
+	"Marc Martin-ez"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=208",
+		color=lightblue,
+		height=0.5,
+		pos="3963.6,1220.8",
+		width=2.3156];
+	"Mark Pearson" -> "Marc Martin-ez"	[pos="e,3969.2,1239.2 3930.1,1348 3944.4,1339.2 3959.7,1326.8 3967.6,1310.8 3976.9,1292.2 3975.3,1268.5 3971.8,1250.3"];
+	"Lori Ball"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=167",
+		color=lightpink,
+		height=0.5,
+		pos="3481.6,1364.8",
+		width=1.3933];
+	"Lori Ball" -> "Lori Asaro"	[pos="e,2813.6,1305.8 3445.4,1352 3438,1350 3430.1,1348.1 3422.6,1346.8 3166.4,1302.5 3095.6,1350.5 2838.6,1310.8 2834,1310.1 2829.3,1309.2 \
+2824.6,1308.2"];
+	"Ryan Farris"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=18",
+		color=lightblue,
+		height=0.5,
+		pos="3751.6,932.8",
+		width=1.8346];
+	"Ilana Melcher"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=73",
+		color=lightpink,
+		height=0.5,
+		pos="3809.6,788.8",
+		width=2.1226];
+	"Ryan Farris" -> "Ilana Melcher"	[pos="e,3802.6,806.99 3758.6,914.67 3768.5,890.58 3786.5,846.4 3798.3,817.57"];
+	"Jeremy Frazier"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=79",
+		color=lightblue,
+		height=0.5,
+		pos="3547.6,716.8",
+		width=2.2951];
+	"Ryan Farris" -> "Jeremy Frazier"	[pos="e,3608.4,729.4 3749.3,914.5 3744,881.99 3728.1,811.43 3686.6,770.8 3668.3,752.77 3643.1,740.74 3619.2,732.78"];
+	"Veronica Villanueva"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=64",
+		color=lightpink,
+		height=0.5,
+		pos="3923.6,860.8",
+		width=2.95];
+	"Ryan Farris" -> "Veronica Villanueva"	[pos="e,3884.2,877.87 3787.3,917.3 3812.2,907.15 3845.9,893.46 3873.5,882.21"];
+	"Greg Moody"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=70",
+		color=lightblue,
+		height=0.5,
+		pos="2980.6,860.8",
+		width=1.9278];
+	"Ryan Farris" -> "Greg Moody"	[pos="e,3042.7,869.16 3688.7,926.98 3576.6,918.27 3335.1,898.95 3131.6,878.8 3106.3,876.29 3078.5,873.25 3053.8,870.44"];
+	"Rob Reiner"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=51",
+		color=lightblue,
+		height=0.5,
+		pos="402.65,1292.8",
+		width=1.7813];
+	"Rob Reiner" -> "Ryan Farris"	[pos="e,3807.9,942.56 464.11,1287.1 520.61,1283.1 606.72,1277.4 681.65,1274.8 739.5,1272.8 4808.9,1279.9 4849.6,1238.8 4883.8,1204.3 4829,\
+1111.3 4735.6,1058.8 4395.6,867.6 4251.1,1003.8 3864.6,950.8 3849.9,948.78 3834.1,946.49 3819.2,944.25"];
+	"Rob Reiner" -> "Steven Gross"	[pos="e,152.66,1234 354.3,1280.6 302.69,1268.7 220.66,1249.8 163.7,1236.6"];
+	"Rob Reiner" -> "Dusty Jolliff"	[pos="e,475.41,1238.2 424.68,1275.6 437.06,1266.4 452.72,1254.9 466.35,1244.9"];
+	"Kelly Greenhill"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=333",
+		color=lightpink,
+		height=0.5,
+		pos="664.65,1220.8",
+		width=2.2549];
+	"Rob Reiner" -> "Kelly Greenhill"	[pos="e,614.05,1235.3 447.99,1279.7 490.83,1268.2 555.45,1251 602.97,1238.3"];
+	"Jeremy Kirchner"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=37",
+		color=lightblue,
+		height=0.5,
+		pos="283.65,1220.8",
+		width=2.504];
+	"Rob Reiner" -> "Jeremy Kirchner"	[pos="e,311.51,1238.2 375.94,1276.1 359.75,1266.6 338.85,1254.3 321.04,1243.8"];
+	"Dan Kuhlman"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=39",
+		color=lightblue,
+		height=0.5,
+		pos="449.65,1148.8",
+		width=2.1292];
+	"Rob Reiner" -> "Dan Kuhlman"	[pos="e,438.6,1166.8 404.6,1274.3 407.01,1256.1 411.89,1226.8 420.65,1202.8 423.89,1193.9 428.43,1184.7 432.97,1176.6"];
+	"Cindy Teel"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=62",
+		color=lightpink,
+		height=0.5,
+		pos="3816.6,1004.8",
+		width=1.7159];
+	"Cindy Teel" -> "Ryan Farris"	[pos="e,3767.4,950.76 3801.2,987.21 3793.4,978.79 3783.8,968.38 3775,959"];
+	"Sedona Reynolds"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=32",
+		color=lightpink,
+		height=0.5,
+		pos="3967.6,932.8",
+		width=2.623];
+	"Cindy Teel" -> "Sedona Reynolds"	[pos="e,3932.8,949.97 3848.7,988.95 3870.2,978.99 3898.8,965.72 3922.6,954.7"];
+	"Bradley Stouse"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=346",
+		color=lightblue,
+		height=0.5,
+		pos="2423.6,716.8",
+		width=2.3408];
+	"Cindy Teel" -> "Bradley Stouse"	[pos="e,2369.8,731.05 3756.9,999.84 3584.6,988.39 3096.8,955.73 3062.6,950.8 2988.8,940.16 2972,928.34 2898.6,914.8 2792.6,895.23 2765,\
+896.92 2658.6,878.8 2574.6,864.47 2336,872.52 2281.6,806.8 2271.5,794.47 2272.5,783.94 2281.6,770.8 2291.2,757.11 2326,743.99 2358.8,\
+734.23"];
+	"Janay Rabe"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=77",
+		color=lightpink,
+		height=0.5,
+		pos="4008.6,788.8",
+		width=1.8481];
+	"Cindy Teel" -> "Janay Rabe"	[pos="e,4025.1,806.59 3876.4,999.83 3943.6,993.97 4046.6,980.34 4070.6,950.8 4103.9,909.84 4062,848.96 4032.6,815.01"];
+	"Ginger Palmer"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=180",
+		color=lightpink,
+		height=0.5,
+		pos="4320.6,1292.8",
+		width=2.2253];
+	"Vienna McMurtry"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=196",
+		color=lightpink,
+		height=0.5,
+		pos="3630.6,1220.8",
+		width=2.5733];
+	"Ginger Palmer" -> "Vienna McMurtry"	[pos="e,3696.9,1233.7 4260.2,1280.6 4247.2,1278.4 4233.5,1276.4 4220.6,1274.8 4004.8,1248.5 3948.6,1264.7 3732.6,1238.8 3724.7,1237.8 \
+3716.4,1236.7 3708.1,1235.5"];
+	"Gary Frampton"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=201",
+		color=lightblue,
+		height=0.5,
+		pos="4980.6,1220.8",
+		width=2.3393];
+	"Ginger Palmer" -> "Gary Frampton"	[pos="e,4918.5,1233.3 4396.3,1286.5 4504.4,1278.6 4709.3,1262 4882.6,1238.8 4890.6,1237.7 4899,1236.5 4907.3,1235.2"];
+	"J. Angeles"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=3",
+		color=lightblue,
+		height=0.5,
+		pos="3801.6,1220.8",
+		width=1.6736];
+	"Ginger Palmer" -> "J. Angeles"	[pos="e,3845.5,1233.4 4259.7,1280.8 4246.8,1278.6 4233.3,1276.5 4220.6,1274.8 4066.1,1253.7 4025.3,1265.3 3871.6,1238.8 3866.7,1238 3861.6,\
+1237 3856.6,1235.9"];
+	"Mark Newton-John"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=46",
+		color=lightblue,
+		height=0.5,
+		pos="4339.6,1364.8",
+		width=2.8256];
+	"Mark Newton-John" -> "Ginger Palmer"	[pos="e,4325.3,1310.9 4335,1346.5 4332.9,1339 4330.5,1330.1 4328.2,1321.8"];
+	"Mark Newton-John" -> "Sedona Reynolds"	[pos="e,4062,934.32 4436.3,1358.8 4671.5,1345.4 5254.6,1303.9 5254.6,1221.8 5254.6,1221.8 5254.6,1221.8 5254.6,1075.8 5254.6,957.25 4380.7,\
+937.65 4073.2,934.43"];
+	"Gara Thornton"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=360",
+		color=lightpink,
+		height=0.5,
+		pos="5433.6,932.8",
+		width=2.2659];
+	"Mark Newton-John" -> "Gara Thornton"	[pos="e,5449.4,950.7 4440.5,1361.9 4721.4,1355.2 5492.6,1327.4 5492.6,1221.8 5492.6,1221.8 5492.6,1221.8 5492.6,1075.8 5492.6,1035.4 5490.5,\
+1023.6 5473.6,986.8 5469.3,977.2 5462.9,967.69 5456.5,959.43"];
+	"Jarrod Monroe"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=43",
+		color=lightblue,
+		height=0.5,
+		pos="1499.6,860.8",
+		width=2.2385];
+	"Mark Newton-John" -> "Jarrod Monroe"	[pos="e,1444.4,874.24 4262.4,1352.8 4242.7,1350.3 4221.4,1348.1 4201.6,1346.8 4029.1,1335.2 1256.7,1351.7 1088.6,1310.8 1019.5,1294 982.97,\
+1299.4 945.65,1238.8 937.26,1225.2 937.77,1216.7 945.65,1202.8 960.97,1175.7 980.88,1185.6 1005.6,1166.8 1024.2,1152.7 1022.7,1140.8 \
+1043.6,1130.8 1152.9,1078.6 1220.1,1171.7 1313.6,1094.8 1378.9,1041.1 1317.2,976.71 1374.6,914.8 1390.4,897.81 1412.5,886.05 1433.8,\
+878.01"];
+	"Matthew FitzGerald" -> "Kathleen Moran"	[pos="e,2615.6,950.19 2676.1,987.03 2660.8,977.7 2641.5,965.97 2625,955.9"];
+	"Matthew FitzGerald" -> "Christina Kelly"	[pos="e,3262.2,945.6 2798.2,996.77 2903.9,988.33 3080,972.56 3230.6,950.8 3237.4,949.83 3244.3,948.71 3251.3,947.52"];
+	"Matthew FitzGerald" -> "Jennifer Stout"	[pos="e,2785.6,950.19 2729.3,987.03 2743.3,977.88 2760.8,966.41 2776,956.46"];
+	"Mike Tulumello"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=63",
+		color=lightblue,
+		height=0.5,
+		pos="2374.6,788.8",
+		width=2.3283];
+	"Matthew FitzGerald" -> "Mike Tulumello"	[pos="e,2424.4,803.64 2704.5,986.33 2704.5,966.72 2701.6,935 2684.6,914.8 2651.6,875.45 2515.8,830.7 2435.3,806.86"];
+	"Matthew FitzGerald" -> "Jeremy Browne"	[pos="e,2192.9,942.58 2619.7,993.73 2508.9,980.46 2315.1,957.22 2204.1,943.92"];
+	"Kameka Smith"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=80",
+		color=lightpink,
+		height=0.5,
+		pos="3809.6,716.8",
+		width=2.2818];
+	"Matthew FitzGerald" -> "Kameka Smith"	[pos="e,3869.7,729.41 2800.2,997.61 2855.2,994.19 2925.2,990.01 2987.6,986.8 3080.8,982.01 3740.7,987.19 3826.6,950.8 3848.1,941.73 3843.4,\
+924.38 3864.6,914.8 3945.6,878.24 4199.2,940.95 4262.6,878.8 4297,845.12 4303,806.46 4270.6,770.8 4243.1,740.45 3944.2,740.45 3903.6,\
+734.8 3896.3,733.77 3888.6,732.58 3880.9,731.31"];
+	"Mervin Maniago"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=41",
+		color=lightblue,
+		height=0.5,
+		pos="3868.6,1076.8",
+		width=2.4249];
+	"Mervin Maniago" -> "Cindy Teel"	[pos="e,3829.1,1022.6 3856.1,1058.9 3850,1050.7 3842.6,1040.7 3835.8,1031.6"];
+	"Mervin Maniago" -> "Matthew FitzGerald"	[pos="e,2800.6,1011.9 3806.7,1063.7 3795.1,1061.8 3783,1060.1 3771.6,1058.8 3424.9,1020.6 3336,1041.2 2987.6,1022.8 2929.6,1019.7 2865,\
+1015.9 2812,1012.6"];
+	"Tiffany Worthington"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=66",
+		color=lightpink,
+		height=0.5,
+		pos="1751.6,1004.8",
+		width=2.9847];
+	"Mervin Maniago" -> "Tiffany Worthington"	[pos="e,1851.7,1011.6 3807.3,1063.6 3795.5,1061.7 3783.2,1059.9 3771.6,1058.8 3399.8,1022.4 2464.1,1036.2 2090.6,1022.8 2014.7,1020.1 \
+1929.1,1015.8 1863,1012.2"];
+	"Melissa Roy"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=54",
+		color=lightpink,
+		height=0.5,
+		pos="4185.6,860.8",
+		width=1.8827];
+	"Mervin Maniago" -> "Melissa Roy"	[pos="e,4170.2,878.5 3902.5,1059.9 3947.4,1038.2 4028.2,996.58 4090.6,950.8 4117,931.44 4144,905.51 4162.4,886.63"];
+	"Tani Miller" -> "Marc Martin-ez"	[pos="e,3947.7,1238.8 3913.3,1275.2 3921.2,1266.8 3931,1256.4 3939.9,1247"];
+	"Robert Walwick"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=153",
+		color=lightblue,
+		height=0.5,
+		pos="3093.6,1292.8",
+		width=2.3889];
+	"Robert Walwick" -> "Vienna McMurtry"	[pos="e,3563.9,1233.6 3155.9,1280 3166.8,1278.1 3178,1276.3 3188.6,1274.8 3339.5,1253.4 3378.7,1259.5 3529.6,1238.8 3537.1,1237.8 3544.9,\
+1236.6 3552.6,1235.4"];
+	"Ian McIntosh"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=215",
+		color=lightblue,
+		height=0.5,
+		pos="2556.6,1220.8",
+		width=2.0711];
+	"Robert Walwick" -> "Ian McIntosh"	[pos="e,2610.7,1233.6 3031.4,1280 3020.5,1278.1 3009.3,1276.3 2998.6,1274.8 2840.3,1252.7 2798.8,1262.7 2640.6,1238.8 2634.6,1237.9 2628.3,\
+1236.8 2622,1235.7"];
+	"Chuck Foster" -> "David Guthrie"	[pos="e,1461.6,950.9 1461.6,986.5 1461.6,979.21 1461.6,970.53 1461.6,962.34"];
+	"Karen Saye" -> "Chuck Foster"	[pos="e,1453.3,1022.9 1436.1,1058.5 1439.8,1050.9 1444.2,1041.7 1448.3,1033.2"];
+	"Pat Norris"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=207",
+		color=lightblue,
+		height=0.5,
+		pos="4499.6,1436.8",
+		width=1.6352];
+	"Sean Tipps"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=204",
+		color=lightblue,
+		height=0.5,
+		pos="4422.6,1508.8",
+		width=1.7878];
+	"Sean Tipps" -> "Pat Norris"	[pos="e,4481.5,1454.3 4440.9,1491.2 4450.5,1482.5 4462.4,1471.6 4473,1462"];
+	"Teresa Long"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=194",
+		color=lightpink,
+		height=0.5,
+		pos="4575.6,1508.8",
+		width=1.9501];
+	"Teresa Long" -> "Pat Norris"	[pos="e,4517.5,1454.3 4557.6,1491.2 4548.2,1482.5 4536.4,1471.6 4525.9,1462"];
+	"Denmark Vea"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=269",
+		color=lightblue,
+		height=0.5,
+		pos="5149.6,1148.8",
+		width=2.1366];
+	"Marc Martin-ez" -> "Denmark Vea"	[pos="e,5095.3,1161.9 4022.4,1207.6 4033.4,1205.7 4044.8,1204 4055.6,1202.8 4501.3,1153.9 4618.3,1218.4 5063.6,1166.8 5070.4,1166 5077.4,\
+1165 5084.4,1163.8"];
+	"Kristen Villone"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=209",
+		color=lightpink,
+		height=0.5,
+		pos="4821.6,1436.8",
+		width=2.2464];
+	"Kelly Erickson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=199",
+		color=lightblue,
+		height=0.5,
+		pos="4742.6,1508.8",
+		width=2.181];
+	"Kelly Erickson" -> "Kristen Villone"	[pos="e,4802.7,1454.6 4761.8,1490.9 4771.5,1482.3 4783.4,1471.7 4794.1,1462.2"];
+	"Anna Pedroza"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=197",
+		color=lightpink,
+		height=0.5,
+		pos="4916.6,1508.8",
+		width=2.1529];
+	"Anna Pedroza" -> "Kristen Villone"	[pos="e,4844.3,1454.5 4894.1,1491.2 4881.9,1482.2 4866.6,1470.9 4853.2,1461.1"];
+	"Geoff Frank"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=21",
+		color=lightblue,
+		height=0.5,
+		pos="3300.6,1004.8",
+		width=1.8783];
+	"Chris Livelsberger"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=40",
+		color=lightblue,
+		height=0.5,
+		pos="3476.6,1076.8",
+		width=2.7234];
+	"Chris Livelsberger" -> "Deanna Jagow"	[pos="e,3469.8,1022.9 3474.4,1058.5 3473.5,1051.1 3472.3,1042.3 3471.3,1034.1"];
+	"Chris Livelsberger" -> "Geoff Frank"	[pos="e,3337.1,1020.3 3436.7,1059.9 3410.3,1049.4 3375.6,1035.6 3347.8,1024.5"];
+	"Amy Price" -> "Deanna Jagow"	[pos="e,3430.7,1021.3 3334.4,1061.6 3359.1,1051.3 3392.8,1037.2 3420.2,1025.7"];
+	"Amy Price" -> "Geoff Frank"	[pos="e,3300.6,1022.9 3300.6,1058.5 3300.6,1051.2 3300.6,1042.5 3300.6,1034.3"];
+	"Tracy Murray"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=210",
+		color=lightpink,
+		height=0.5,
+		pos="3188.6,1364.8",
+		width=2.0849];
+	"John FitzGibbon"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=92",
+		color=lightblue,
+		height=0.5,
+		pos="3350.6,1436.8",
+		width=2.448];
+	"John FitzGibbon" -> "Tracy Murray"	[pos="e,3224,1381.1 3314.3,1420.1 3290.7,1409.9 3259.8,1396.5 3234.5,1385.6"];
+	"Steven Smith"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=233",
+		color=lightblue,
+		height=0.5,
+		pos="4115.6,1364.8",
+		width=2.1314];
+	"John FitzGibbon" -> "Steven Smith"	[pos="e,4050.6,1374.8 3433,1430.1 3553.8,1421.4 3786.4,1403.7 3983.6,1382.8 4001.7,1380.9 4021.2,1378.5 4039.4,1376.2"];
+	"Jerry Maya"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=250",
+		color=lightblue,
+		height=0.5,
+		pos="3349.6,1364.8",
+		width=1.7774];
+	"John FitzGibbon" -> "Jerry Maya"	[pos="e,3349.9,1382.9 3350.4,1418.5 3350.3,1411.2 3350.2,1402.5 3350.1,1394.3"];
+	"Judy Dulcich"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=177",
+		color=lightpink,
+		height=0.5,
+		pos="3172.6,1436.8",
+		width=1.9914];
+	"Judy Dulcich" -> "Tracy Murray"	[pos="e,3184.7,1382.9 3176.6,1418.5 3178.3,1411.1 3180.3,1402.3 3182.2,1394.1"];
+	"Kelly McKinney"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=222",
+		color=lightpink,
+		height=0.5,
+		pos="3009.6,1364.8",
+		width=2.3359];
+	"Judy Dulcich" -> "Kelly McKinney"	[pos="e,3046,1381.4 3137.7,1420.8 3113.9,1410.6 3082.2,1397 3056.3,1385.8"];
+	"Barbara Tollison"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=172",
+		color=lightpink,
+		height=0.5,
+		pos="2400.6,1292.8",
+		width=2.4854];
+	"Barbara Tollison" -> "Ian McIntosh"	[pos="e,2522.5,1237.1 2436,1275.9 2458.6,1265.8 2488,1252.6 2512.1,1241.8"];
+	"Jayson Smith"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=58",
+		color=lightblue,
+		height=0.5,
+		pos="1474.6,1220.8",
+		width=2.1083];
+	"Jayson Smith" -> "Chuk Gawlik"	[pos="e,1909.5,1161.5 1529.2,1208 1539,1206.1 1549.1,1204.3 1558.6,1202.8 1700.9,1180.5 1738.5,1189.6 1880.6,1166.8 1886.5,1165.9 1892.6,\
+1164.8 1898.6,1163.6"];
+	"Bryan Ransom"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=49",
+		color=thistle,
+		height=0.5,
+		pos="1495.6,1148.8",
+		width=2.2697];
+	"Jayson Smith" -> "Bryan Ransom"	[pos="e,1490.5,1166.9 1479.8,1202.5 1482.1,1195 1484.8,1186.1 1487.3,1177.8"];
+	"Mark Nadeau"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=183",
+		color=lightblue,
+		height=0.5,
+		pos="3007.6,1436.8",
+		width=2.0808];
+	"Mark Nadeau" -> "Kelly McKinney"	[pos="e,3009.2,1382.9 3008.1,1418.5 3008.4,1411.2 3008.6,1402.5 3008.8,1394.3"];
+	"Renee Thompson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=231",
+		color=lightpink,
+		height=0.5,
+		pos="4959.6,1148.8",
+		width=2.6348];
+	"Delphy Shaulis"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=255",
+		color=lightpink,
+		height=0.5,
+		pos="4959.6,1076.8",
+		width=2.3076];
+	"Renee Thompson" -> "Delphy Shaulis"	[pos="e,4959.6,1094.9 4959.6,1130.5 4959.6,1123.2 4959.6,1114.5 4959.6,1106.3"];
+	"J. Angeles" -> "Mervin Maniago"	[pos="e,3873.3,1095.2 3831.4,1204.9 3845.8,1196 3861.6,1183.2 3869.6,1166.8 3878.8,1148.1 3878,1124.5 3875.3,1106.3"];
+	"J. Angeles" -> "Renee Thompson"	[pos="e,4871.5,1155.7 3845.1,1207.9 3853.8,1205.9 3863,1204 3871.6,1202.8 4231.1,1151.7 4325.1,1186.1 4687.6,1166.8 4744.8,1163.8 4808.6,\
+1159.8 4860,1156.5"];
+	"Kathy Jones"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=28",
+		color=lightpink,
+		height=0.5,
+		pos="3790.6,1148.8",
+		width=1.9361];
+	"J. Angeles" -> "Kathy Jones"	[pos="e,3793.3,1166.9 3798.9,1202.5 3797.8,1195.1 3796.4,1186.3 3795.1,1178.1"];
+	"Lucinda Farless"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=334",
+		color=lightpink,
+		height=0.5,
+		pos="3415.6,1148.8",
+		width=2.374];
+	"J. Angeles" -> "Lucinda Farless"	[pos="e,3480.8,1160.8 3757.2,1208.3 3749.1,1206.4 3740.6,1204.4 3732.6,1202.8 3637.3,1183.1 3612.6,1182.9 3516.6,1166.8 3508.7,1165.5 \
+3500.4,1164.1 3492.1,1162.7"];
+	"Terrance Hirsch"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=96",
+		color=lightblue,
+		height=0.5,
+		pos="3612.6,1148.8",
+		width=2.4243];
+	"J. Angeles" -> "Terrance Hirsch"	[pos="e,3653.7,1165 3764.8,1206.1 3736.1,1195.5 3696,1180.7 3664.2,1168.9"];
+	"Kelley Smith"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=223",
+		color=lightpink,
+		height=0.5,
+		pos="5154.6,1220.8",
+		width=2.0057];
+	"Kelley Smith" -> "Renee Thompson"	[pos="e,5002.6,1165.2 5114.7,1205.5 5085.4,1194.9 5045.2,1180.5 5013.1,1169"];
+	"Kelley Smith" -> "Denmark Vea"	[pos="e,5150.9,1166.9 5153.4,1202.5 5152.9,1195.2 5152.3,1186.5 5151.7,1178.3"];
+	"Russell Grant"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=242",
+		color=lightblue,
+		height=0.5,
+		pos="4135.6,1292.8",
+		width=2.1027];
+	"Steven Smith" -> "Russell Grant"	[pos="e,4130.8,1310.9 4120.6,1346.5 4122.7,1339 4125.3,1330.1 4127.7,1321.8"];
+	"Charlene Andrews"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=234",
+		color=lightpink,
+		height=0.5,
+		pos="5098.6,1436.8",
+		width=2.7503];
+	"Diane Reoch"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=227",
+		color=lightpink,
+		height=0.5,
+		pos="5098.6,1508.8",
+		width=1.9905];
+	"Diane Reoch" -> "Charlene Andrews"	[pos="e,5098.6,1454.9 5098.6,1490.5 5098.6,1483.2 5098.6,1474.5 5098.6,1466.3"];
+	"Tonya Alexander"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=238",
+		color=lightpink,
+		height=0.5,
+		pos="2600.6,1292.8",
+		width=2.5664];
+	"Martin Naiman"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=45",
+		color=lightblue,
+		height=0.5,
+		pos="2899.6,1220.8",
+		width=2.2787];
+	"Tonya Alexander" -> "Martin Naiman"	[pos="e,2845.2,1234.5 2658.3,1278.3 2708.7,1266.5 2781.8,1249.4 2834.3,1237.1"];
+	"Gail Vasquez"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=225",
+		color=lightpink,
+		height=0.5,
+		pos="2600.6,1364.8",
+		width=2.0391];
+	"Gail Vasquez" -> "Tonya Alexander"	[pos="e,2600.6,1310.9 2600.6,1346.5 2600.6,1339.2 2600.6,1330.5 2600.6,1322.3"];
+	"Spencer Caldwell"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=239",
+		color=lightblue,
+		height=0.5,
+		pos="1748.6,1364.8",
+		width=2.6107];
+	"Michael Elgo"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=268",
+		color=lightblue,
+		height=0.5,
+		pos="1901.6,1292.8",
+		width=1.9778];
+	"Spencer Caldwell" -> "Michael Elgo"	[pos="e,1868.3,1309.1 1783.7,1347.7 1805.8,1337.7 1834.4,1324.6 1857.9,1313.8"];
+	"Becky Bernal"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=218",
+		color=lightpink,
+		height=0.5,
+		pos="1748.6,1436.8",
+		width=2.0645];
+	"Becky Bernal" -> "Spencer Caldwell"	[pos="e,1748.6,1382.9 1748.6,1418.5 1748.6,1411.2 1748.6,1402.5 1748.6,1394.3"];
+	"Melissa Schwartz"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=252",
+		color=lightpink,
+		height=0.5,
+		pos="4158.6,1220.8",
+		width=2.6092];
+	"Russell Grant" -> "Melissa Schwartz"	[pos="e,4153,1238.9 4141.3,1274.5 4143.8,1267 4146.7,1258.1 4149.5,1249.8"];
+	"Russell Grant" -> "Martin Naiman"	[pos="e,2957.2,1233.9 4068.7,1284 4038,1280.7 4001,1277.1 3967.6,1274.8 3534.2,1244.9 3422.5,1286.8 2990.6,1238.8 2983.4,1238 2975.9,1236.9 \
+2968.5,1235.8"];
+	"Johnny Richardson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=310",
+		color=lightblue,
+		height=0.5,
+		pos="4372.6,1220.8",
+		width=2.8383];
+	"Russell Grant" -> "Johnny Richardson"	[pos="e,4322,1236.8 4181.9,1278.1 4218.8,1267.2 4270.8,1251.9 4311.2,1240"];
+	"Tiffany Worthington" -> "David Guthrie"	[pos="e,1514.1,946.47 1692.3,989.47 1643.6,977.71 1574.8,961.12 1525.1,949.11"];
+	"Tiffany Worthington" -> "Jamie Fratacci"	[pos="e,1834.1,950.35 1777.8,986.85 1791.8,977.76 1809.3,966.43 1824.5,956.57"];
+	"Martin Naiman" -> "Alex Hansen"	[pos="e,2774.2,1164.9 2864.1,1204.3 2840.7,1194 2809.8,1180.5 2784.6,1169.5"];
+	"Martin Naiman" -> "Kathleen Hansen"	[pos="e,2414.8,1161.6 2840.5,1208 2829.9,1206.1 2819,1204.3 2808.6,1202.8 2649.9,1180.1 2608.6,1188 2449.6,1166.8 2442,1165.8 2434,1164.6 \
+2426,1163.4"];
+	"Penny Lewis"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=315",
+		color=lightpink,
+		height=0.5,
+		pos="2899.6,1148.8",
+		width=1.9627];
+	"Martin Naiman" -> "Penny Lewis"	[pos="e,2899.6,1166.9 2899.6,1202.5 2899.6,1195.2 2899.6,1186.5 2899.6,1178.3"];
+	"Lindsay Arehart"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=4",
+		color=lightblue,
+		height=0.5,
+		pos="1131.6,932.8",
+		width=2.429];
+	"Martin Naiman" -> "Lindsay Arehart"	[pos="e,1122.8,951.03 2842.1,1207.7 2831,1205.7 2819.5,1204 2808.6,1202.8 2554.2,1175.2 1905.6,1230.2 1657.6,1166.8 1623.4,1158 1620.7,\
+1140.3 1586.6,1130.8 1536.3,1116.7 1153.2,1133.1 1117.6,1094.8 1084.3,1058.8 1103.1,996.84 1118.3,961.19"];
+	"Janean Angeles"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=86",
+		color=lightpink,
+		height=0.5,
+		pos="2179.6,1292.8",
+		width=2.3975];
+	"Janean Angeles" -> "Alex Hansen"	[pos="e,2686.7,1161.2 2248.9,1281.8 2313,1271.7 2402.9,1255.4 2434.6,1238.8 2455.3,1228 2452,1213.4 2472.6,1202.8 2547.9,1164.1 2576.7,\
+1183.6 2659.6,1166.8 2664.9,1165.7 2670.2,1164.6 2675.7,1163.5"];
+	"Janean Angeles" -> "Wanda Livelsberger"	[pos="e,2113.8,1238.8 2158.6,1274.9 2147.8,1266.1 2134.4,1255.4 2122.5,1245.8"];
+	"Kristianna Reynante"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=308",
+		color=lightpink,
+		height=0.5,
+		pos="1858.6,1220.8",
+		width=3.0268];
+	"Janean Angeles" -> "Kristianna Reynante"	[pos="e,1922.7,1235.8 2121.5,1279.1 2068.9,1267.7 1991.2,1250.7 1933.9,1238.2"];
+	"Shari VerBerkmoes"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=321",
+		color=lightpink,
+		height=0.5,
+		pos="2321.6,1220.8",
+		width=2.901];
+	"Janean Angeles" -> "Shari VerBerkmoes"	[pos="e,2288.2,1238.3 2212.2,1275.7 2231.8,1266.1 2256.9,1253.7 2278.2,1243.2"];
+	"Leslie Harlow"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=265",
+		color=lightpink,
+		height=0.5,
+		pos="2724.6,1220.8",
+		width=2.0899];
+	"Dennis McColl"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=251",
+		color=lightblue,
+		height=0.5,
+		pos="3276.6,1292.8",
+		width=2.1834];
+	"Dennis McColl" -> "Tony Sacco"	[pos="e,3106.5,1235.4 3233.2,1277.4 3199.5,1266.2 3152.8,1250.7 3117.2,1238.9"];
+	"Dennis McColl" -> "Leslie Harlow"	[pos="e,2778.7,1233.6 3220,1280 3209.6,1278.1 3198.8,1276.3 3188.6,1274.8 3020.7,1250.7 2976.5,1263.7 2808.6,1238.8 2802.6,1237.9 2796.3,\
+1236.8 2790,1235.7"];
+	"Denise Luna"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=236",
+		color=lightpink,
+		height=0.5,
+		pos="2918.6,1292.8",
+		width=1.9602];
+	"Denise Luna" -> "Leslie Harlow"	[pos="e,2765,1236.4 2878.9,1277.5 2849,1266.7 2807.9,1251.8 2775.6,1240.2"];
+	"Jonathan Yudman"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=267",
+		color=lightblue,
+		height=0.5,
+		pos="3422.6,1220.8",
+		width=2.7165];
+	"April Ortiz-cloninger"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=258",
+		color=lightpink,
+		height=0.5,
+		pos="3481.6,1292.8",
+		width=3.0115];
+	"April Ortiz-cloninger" -> "Tony Sacco"	[pos="e,3114.6,1233.2 3402.8,1280.1 3318.5,1267.5 3190.3,1248 3141.6,1238.8 3136.4,1237.8 3131,1236.7 3125.6,1235.6"];
+	"April Ortiz-cloninger" -> "Jonathan Yudman"	[pos="e,3437.1,1238.9 3467.1,1274.5 3460.2,1266.4 3451.9,1256.5 3444.3,1247.5"];
+	"Laura Stegner"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=274",
+		color=lightpink,
+		height=0.5,
+		pos="4760.6,1220.8",
+		width=2.2167];
+	"April Ortiz-cloninger" -> "Laura Stegner"	[pos="e,4704.3,1233.9 3573.9,1283 3607.8,1280 3646.4,1276.9 3681.6,1274.8 4121.1,1248.1 4234.1,1288.2 4671.6,1238.8 4678.6,1238 4685.9,\
+1237 4693.1,1235.8"];
+	"Susan Colwell"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=302",
+		color=lightpink,
+		height=0.5,
+		pos="3228.6,1220.8",
+		width=2.1749];
+	"Michael Elgo" -> "Susan Colwell"	[pos="e,3173.5,1233.8 1966.4,1284.9 2001.3,1281.3 2045.3,1277.3 2084.6,1274.8 2553.3,1245.1 2674,1291.5 3140.6,1238.8 3147.6,1238 3154.9,\
+1237 3162.2,1235.8"];
+	"Michael Elgo" -> "Kristianna Reynante"	[pos="e,1869.3,1239.1 1891.2,1274.9 1886.5,1267.1 1880.7,1257.6 1875.3,1248.9"];
+	"Carol Kropp"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=254",
+		color=lightpink,
+		height=0.5,
+		pos="1928.6,1364.8",
+		width=1.8976];
+	"Carol Kropp" -> "Michael Elgo"	[pos="e,1908.2,1310.9 1922,1346.5 1919.1,1339 1915.6,1329.9 1912.3,1321.5"];
+	"Kathleen Hansen" -> "Amy Price"	[pos="e,3247,1084.9 2413.6,1135.7 2425.6,1133.8 2438,1132.1 2449.6,1130.8 2762,1096.9 2842.6,1121.1 3155.6,1094.8 3181.9,1092.6 3210.8,\
+1089.4 3235.8,1086.3"];
+	"Kathleen Hansen" -> "Alfredo Cardenas"	[pos="e,2348.4,1094.9 2347.9,1130.5 2348,1123.2 2348.1,1114.5 2348.2,1106.3"];
+	"Eric Gates"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=282",
+		color=lightblue,
+		height=0.5,
+		pos="4618.6,1148.8",
+		width=1.6727];
+	"Laura Stegner" -> "Eric Gates"	[pos="e,4648.8,1164.7 4728.4,1203.9 4707.8,1193.7 4680.9,1180.5 4658.9,1169.6"];
+	"Kathy Jones" -> "Mervin Maniago"	[pos="e,3849.8,1094.8 3809.1,1131.2 3818.7,1122.6 3830.6,1112 3841.2,1102.4"];
+	"Jennifer Stoewe"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=288",
+		color=lightpink,
+		height=0.5,
+		pos="4486.6,1076.8",
+		width=2.4553];
+	"Eric Gates" -> "Jennifer Stoewe"	[pos="e,4517.1,1093.9 4590,1132.6 4571.6,1122.8 4547.4,1110 4527,1099.2"];
+	"Scott Wood"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=295",
+		color=lightblue,
+		height=0.5,
+		pos="4659.6,1076.8",
+		width=1.8562];
+	"Eric Gates" -> "Scott Wood"	[pos="e,4649.5,1095.1 4628.6,1130.9 4633.1,1123.1 4638.7,1113.6 4643.8,1104.9"];
+	"Erick Sugimura"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=280",
+		color=lightblue,
+		height=0.5,
+		pos="4577.6,1220.8",
+		width=2.3572];
+	"Erick Sugimura" -> "Eric Gates"	[pos="e,4608.6,1166.9 4587.8,1202.5 4592.4,1194.7 4597.9,1185.3 4602.9,1176.6"];
+	"Karen Helbling" -> "Tiffany Kalland"	[pos="e,2153.5,868.88 1739.3,920.05 1749.7,918.17 1760.5,916.34 1770.6,914.8 1899.6,895.31 2050,879.16 2142.2,869.99"];
+	"Karen Helbling" -> "Nathan Williams"	[pos="e,1685.7,878.9 1681.6,914.5 1682.5,907.21 1683.5,898.53 1684.4,890.34"];
+	"Susannah Clayton"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=357",
+		color=lightpink,
+		height=0.5,
+		pos="1925.6,788.8",
+		width=2.7443];
+	"Karen Helbling" -> "Susannah Clayton"	[pos="e,1889.2,805.92 1717.3,916.46 1738.6,907.03 1765.1,893.86 1786.6,878.8 1805.7,865.49 1805.7,856.33 1824.6,842.8 1841.5,830.76 1861.4,\
+819.72 1879.1,810.87"];
+	"Sarah Titilah"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=693",
+		color=lightpink,
+		height=0.5,
+		pos="1459.6,500.8",
+		width=2.0134];
+	"Karen Helbling" -> "Sarah Titilah"	[pos="e,1425.3,516.93 1613.7,921.74 1539.2,909.94 1426.2,890.49 1409.6,878.8 1341.8,830.81 1314.6,800.88 1314.6,717.8 1314.6,717.8 1314.6,\
+717.8 1314.6,643.8 1314.6,586.84 1372.5,545.19 1415.1,522.23"];
+	"Regan Ashker" -> "Karen Helbling"	[pos="e,1729.8,947.45 3016.8,1134.6 2981.9,1124.9 2934.4,1110.6 2893.6,1094.8 2858.8,1081.3 2853.9,1067.9 2817.6,1058.8 2503.9,980.04 \
+2411.4,1065.2 2090.6,1022.8 1964.8,1006.2 1820.4,971.1 1740.6,950.29"];
+	"Veronica Nickel"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=47",
+		color=lightpink,
+		height=0.5,
+		pos="3677.6,1076.8",
+		width=2.3717];
+	"Regan Ashker" -> "Veronica Nickel"	[pos="e,3616.1,1089.6 3139.6,1142.1 3240,1133.8 3426,1117.1 3583.6,1094.8 3590.5,1093.8 3597.7,1092.7 3604.9,1091.5"];
+	"Greg Flood"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=200",
+		color=lightblue,
+		height=0.5,
+		pos="3754.6,1292.8",
+		width=1.7708];
+	"Greg Flood" -> "J. Angeles"	[pos="e,3790.4,1238.6 3766,1274.9 3771.5,1266.8 3778.1,1256.9 3784.1,1247.9"];
+	"Lynn Reeves" -> "Amie Holston"	[pos="e,2160.6,1094.9 2160.6,1130.5 2160.6,1123.2 2160.6,1114.5 2160.6,1106.3"];
+	"Susan Colwell" -> "Lucinda Farless"	[pos="e,3375.1,1165 3268.3,1205 3296.4,1194.4 3334.3,1180.2 3364.7,1168.9"];
+	"Susan Colwell" -> "Terrance Hirsch"	[pos="e,3547.4,1161.1 3286.7,1208.3 3296.3,1206.5 3306.3,1204.6 3315.6,1202.8 3390.5,1188.8 3476.1,1173.6 3536.1,1163.1"];
+	"Christopher Jouan"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=306",
+		color=lightblue,
+		height=0.5,
+		pos="5314.6,1436.8",
+		width=2.7508];
+	"Kevin Owens"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=245",
+		color=lightblue,
+		height=0.5,
+		pos="5314.6,1508.8",
+		width=2.0486];
+	"Kevin Owens" -> "Christopher Jouan"	[pos="e,5314.6,1454.9 5314.6,1490.5 5314.6,1483.2 5314.6,1474.5 5314.6,1466.3"];
+	"Nathan Fellhauer"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=313",
+		color=lightblue,
+		height=0.5,
+		pos="1302.6,1148.8",
+		width=2.605];
+	"Kristianna Reynante" -> "Nathan Fellhauer"	[pos="e,1370.3,1161.6 1779.7,1208 1766.6,1206.2 1753.3,1204.4 1740.6,1202.8 1591.6,1184.1 1553.5,1187.2 1404.6,1166.8 1397.2,1165.8 1389.4,\
+1164.6 1381.7,1163.4"];
+	"Amy Berner"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=300",
+		color=lightpink,
+		height=0.5,
+		pos="297.65,1436.8",
+		width=1.9061];
+	"Amy Berner" -> "Stacy Snyder"	[pos="e,297.65,1382.9 297.65,1418.5 297.65,1411.2 297.65,1402.5 297.65,1394.3"];
+	"Klair Mayerchak"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=320",
+		color=lightpink,
+		height=0.5,
+		pos="981.65,1076.8",
+		width=2.4591];
+	"Nathan Fellhauer" -> "Klair Mayerchak"	[pos="e,1040.4,1090.6 1242.3,1134.6 1188,1122.8 1108.4,1105.4 1051.5,1093"];
+	"James Rowland"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=52",
+		color=thistle,
+		height=0.5,
+		pos="1183.6,1292.8",
+		width=2.3848];
+	"James Rowland" -> "Wanda Livelsberger"	[pos="e,2017,1233.9 1260.4,1284.4 1294.7,1281.2 1335.7,1277.6 1372.6,1274.8 1640.8,1254.8 1709.1,1266.3 1976.6,1238.8 1986,1237.8 1995.8,\
+1236.7 2005.6,1235.4"];
+	"James Rowland" -> "Jayson Smith"	[pos="e,1422.6,1234.3 1238.4,1278.6 1287.6,1266.8 1359.9,1249.4 1411.6,1237"];
+	"James Rowland" -> "Nathan Fellhauer"	[pos="e,1233.5,1161.2 1109.7,1283.3 1039.7,1272.3 950.73,1248.9 989.65,1202.8 990.6,1201.7 1129.7,1178.4 1222.2,1163.1"];
+	"Anson Summers"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=326",
+		color=lightblue,
+		height=0.5,
+		pos="1089.6,1220.8",
+		width=2.5153];
+	"James Rowland" -> "Anson Summers"	[pos="e,1112.1,1238.5 1161.4,1275.2 1149.4,1266.3 1134.4,1255.2 1121.3,1245.4"];
+	"Jennifer Garman"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=331",
+		color=lightpink,
+		height=0.5,
+		pos="1289.6,1220.8",
+		width=2.5397];
+	"James Rowland" -> "Jennifer Garman"	[pos="e,1264.3,1238.5 1208.8,1275.2 1222.5,1266.1 1239.8,1254.7 1254.8,1244.8"];
+	"James Rowland" -> "Kristin Tang"	[pos="e,1067,1160.2 1107.7,1284.1 1049.2,1276.5 975.39,1262.4 956.65,1238.8 946.7,1226.3 947.22,1215.7 956.65,1202.8 968.83,1186.1 1015.5,\
+1172.1 1056.1,1162.6"];
+	"Scott Wright"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=67",
+		color=lightblue,
+		height=0.5,
+		pos="803.65,1076.8",
+		width=1.9941];
+	"James Rowland" -> "Scott Wright"	[pos="e,803.59,1095.2 1113.5,1282.1 1065.1,1274 1000.1,1260.3 945.65,1238.8 887.09,1215.7 860.71,1217.7 823.65,1166.8 810.95,1149.4 806.11,\
+1125.3 804.35,1106.6"];
+	"Brian Raneses"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=314",
+		color=lightblue,
+		height=0.5,
+		pos="1461.6,1292.8",
+		width=2.2202];
+	"Brian Raneses" -> "Heather Smith"	[pos="e,1609.2,1236.9 1501.5,1277 1529.9,1266.4 1568.2,1252.1 1598.7,1240.8"];
+	"Sean McHenry"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=42",
+		color=lightblue,
+		height=0.5,
+		pos="1322.6,1364.8",
+		width=2.2451];
+	"Sean McHenry" -> "James Rowland"	[pos="e,1215.5,1309.9 1291.1,1347.9 1271.8,1338.2 1246.8,1325.6 1225.8,1315"];
+	"Sean McHenry" -> "Brian Raneses"	[pos="e,1430.2,1309.6 1354.2,1347.9 1373.7,1338.1 1399.1,1325.3 1420.2,1314.7"];
+	"Sean McHenry" -> "Kristen Elgo"	[pos="e,811.32,1305.1 1247.9,1357.7 1153.3,1349.5 985.31,1333.2 842.65,1310.8 836.13,1309.8 829.35,1308.6 822.6,1307.3"];
+	"Sean McHenry" -> "Shari VerBerkmoes"	[pos="e,2246.7,1233.7 1380.4,1351.9 1473.1,1333.1 1661,1296.6 1821.6,1274.8 1992.8,1251.6 2037.2,1259.7 2208.6,1238.8 2217.3,1237.7 2226.3,\
+1236.6 2235.3,1235.3"];
+	"Kristin Alongi-Hutchins"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=87",
+		color=lightpink,
+		height=0.5,
+		pos="3024.6,1076.8",
+		width=3.3854];
+	"Penny Lewis" -> "Kristin Alongi-Hutchins"	[pos="e,2994.7,1094.6 2928,1131.9 2944.8,1122.5 2966.3,1110.5 2984.8,1100.1"];
+	"Becky Graham"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=316",
+		color=lightpink,
+		height=0.5,
+		pos="914.65,1148.8",
+		width=2.2772];
+	"Becky Graham" -> "Klair Mayerchak"	[pos="e,965.58,1094.6 930.87,1130.9 938.93,1122.4 948.84,1112.1 957.75,1102.8"];
+	"Kristen Elgo" -> "Heather Smith"	[pos="e,1591.7,1233.8 827.22,1288.4 993.38,1279.8 1418.6,1256.7 1559.6,1238.8 1566.4,1237.9 1573.4,1236.9 1580.4,1235.7"];
+	"Kristen Elgo" -> "Becky Graham"	[pos="e,889.78,1166.4 773.79,1274.8 789.66,1256.3 816.61,1226 842.65,1202.8 854.47,1192.3 868.31,1181.7 880.67,1172.8"];
+	"Kristen Elgo" -> "Kelly Greenhill"	[pos="e,687.22,1238.4 737.61,1275.6 725.32,1266.5 709.8,1255.1 696.24,1245.1"];
+	"Kristen Elgo" -> "Scott Wright"	[pos="e,799.21,1094.9 762.71,1274.3 767.97,1244.7 779.27,1182.8 790.65,1130.8 792.42,1122.7 794.49,1114 796.46,1106"];
+	"Sedona Reynolds" -> "Veronica Villanueva"	[pos="e,3934.4,878.9 3956.8,914.5 3951.9,906.7 3946,897.31 3940.5,888.63"];
+	"Dusty Jolliff" -> "Regan Ashker"	[pos="e,3012.1,1162 545.45,1207.7 555.06,1205.7 565.13,1203.9 574.65,1202.8 1105.6,1140.9 2448,1222.3 2979.6,1166.8 2986.6,1166.1 2993.8,\
+1165.1 3000.9,1163.9"];
+	"Dusty Jolliff" -> "Dan Kuhlman"	[pos="e,461.49,1167.1 486.03,1202.9 480.57,1194.9 473.93,1185.2 467.83,1176.3"];
+	"Jennifer Jouan"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=34",
+		color=lightpink,
+		height=0.5,
+		pos="1761.6,1076.8",
+		width=2.2497];
+	"Jennifer Jouan" -> "Tiffany Worthington"	[pos="e,1754.1,1022.9 1759.2,1058.5 1758.1,1051.1 1756.9,1042.3 1755.7,1034.1"];
+	"Andrea Owens"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=276",
+		color=lightpink,
+		height=0.5,
+		pos="1790.6,1148.8",
+		width=2.2565];
+	"Andrea Owens" -> "Jennifer Jouan"	[pos="e,1768.7,1094.9 1783.5,1130.5 1780.4,1123 1776.6,1113.9 1773.1,1105.5"];
+	"Tamara Scrivner"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=345",
+		color=lightpink,
+		height=0.5,
+		pos="3354.6,788.8",
+		width=2.5389];
+	"Jamie Jackson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=359",
+		color=lightpink,
+		height=0.5,
+		pos="3360.6,716.8",
+		width=2.2321];
+	"Tamara Scrivner" -> "Jamie Jackson"	[pos="e,3359.2,734.9 3356.1,770.5 3356.8,763.21 3357.5,754.53 3358.2,746.34"];
+	"Joseph Butler" -> "Tamara Scrivner"	[pos="e,3382,806.19 3444.5,843.56 3428.8,834.18 3408.9,822.24 3391.7,811.99"];
+	"Joseph Butler" -> "Samuel Wallace"	[pos="e,3562,806.19 3499,843.56 3514.8,834.18 3535,822.24 3552.2,811.99"];
+	"Rachel Perkins"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=692",
+		color=lightpink,
+		height=0.5,
+		pos="3873.6,572.8",
+		width=2.2693];
+	"Joseph Butler" -> "Rachel Perkins"	[pos="e,3921.7,587.76 3525.3,847.59 3534.7,845.76 3544.4,844.06 3553.6,842.8 3612.2,834.78 4044.3,850.01 4084.6,806.8 4094.8,795.92 4097.3,\
+725.23 4081.6,698.8 4049,643.73 3981.8,609.99 3932.6,591.66"];
+	"Cameron Brown"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=75",
+		color=lightblue,
+		height=0.5,
+		pos="3156.6,788.8",
+		width=2.4675];
+	"Joseph Butler" -> "Cameron Brown"	[pos="e,3214.9,802.74 3417.5,847.77 3364.6,836 3283.7,818.04 3226.1,805.23"];
+	"Kyra Sacco"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=81",
+		color=lightpink,
+		height=0.5,
+		pos="1789.6,716.8",
+		width=1.8079];
+	"Joseph Butler" -> "Kyra Sacco"	[pos="e,1853.2,721.37 3474,842.64 3475.8,822.08 3475.1,788.22 3454.6,770.8 3398.7,723.21 2206.1,737.62 2132.6,734.8 2040.2,731.25 1933.9,\
+725.76 1864.4,721.99"];
+	"Teresa Simms"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=91",
+		color=lightpink,
+		height=0.5,
+		pos="3992.6,716.8",
+		width=2.2197];
+	"Joseph Butler" -> "Teresa Simms"	[pos="e,3973.3,734.58 3545.9,856.06 3650.3,849.86 3834.5,835.22 3894.6,806.8 3915.7,796.86 3915.5,786.5 3932.6,770.8 3943,761.29 3954.6,\
+751.01 3964.8,742.05"];
+	"Sarah Maltese" -> "Tamara Scrivner"	[pos="e,3323.6,806.03 3251.4,843.74 3269.8,834.12 3293.5,821.76 3313.5,811.3"];
+	"Melissa Bebak"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=88",
+		color=lightpink,
+		height=0.5,
+		pos="2970.6,788.8",
+		width=2.2053];
+	"Sarah Maltese" -> "Melissa Bebak"	[pos="e,3019.3,803.43 3171.9,846.14 3131.3,834.79 3073.5,818.61 3030.3,806.49"];
+	"Alberto Ayon"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=356",
+		color=lightblue,
+		height=0.5,
+		pos="2113.6,644.8",
+		width=2.0425];
+	"Bradley Stouse" -> "Alberto Ayon"	[pos="e,2166.4,657.71 2367.1,703.04 2313.6,690.96 2233.4,672.84 2177.6,660.23"];
+	"Ryan Underwood"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=74",
+		color=lightblue,
+		height=0.5,
+		pos="2742.6,788.8",
+		width=2.5968];
+	"Ryan Underwood" -> "Bradley Stouse"	[pos="e,2481,730.38 2682.6,774.63 2628.4,762.73 2548.6,745.23 2492,732.79"];
+	"Ryan Underwood" -> "Christine Mount"	[pos="e,2932.7,732.13 2792.5,773.21 2830.1,762.19 2881.9,747.01 2921.8,735.33"];
+	"Rebecca Hippert"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=353",
+		color=lightpink,
+		height=0.5,
+		pos="2231.6,716.8",
+		width=2.5042];
+	"Ryan Underwood" -> "Rebecca Hippert"	[pos="e,2297.1,729.55 2674.6,776.09 2662.9,774.23 2651,772.39 2639.6,770.8 2502.7,751.54 2467.5,754.51 2330.6,734.8 2323.4,733.76 2315.9,\
+732.61 2308.4,731.4"];
+	"Ryan Underwood" -> "Samuel Behar"	[pos="e,1683.3,729.88 2676.6,775.65 2664.4,773.75 2651.6,772.02 2639.6,770.8 2230.8,729.26 2123.9,781.91 1715.6,734.8 1708.8,734 1701.6,\
+732.97 1694.5,731.8"];
+	"Casondra Brimmage"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=347",
+		color=lightpink,
+		height=0.5,
+		pos="3565.6,572.8",
+		width=3.0462];
+	"Lisa Gochnauer"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=358",
+		color=lightpink,
+		height=0.5,
+		pos="3515.6,500.8",
+		width=2.3799];
+	"Casondra Brimmage" -> "Lisa Gochnauer"	[pos="e,3527.9,518.9 3553.3,554.5 3547.6,546.53 3540.7,536.9 3534.4,528.06"];
+	"Laura Fisher"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=690",
+		color=lightpink,
+		height=0.5,
+		pos="3269.6,500.8",
+		width=1.9682];
+	"Casondra Brimmage" -> "Laura Fisher"	[pos="e,3320.3,513.79 3505,557.47 3454.4,545.49 3382.5,528.49 3331.5,516.43"];
+	"Kristopher Lininger"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=85",
+		color=lightblue,
+		height=0.5,
+		pos="3798.6,644.8",
+		width=2.8717];
+	"Kristopher Lininger" -> "Casondra Brimmage"	[pos="e,3616.6,589.12 3748.4,628.7 3712.9,618.05 3665.3,603.73 3627.5,592.38"];
+	"Ilana Melcher" -> "Casondra Brimmage"	[pos="e,3598.3,590.31 3775.1,772.54 3756.9,763.37 3735.1,750.44 3718.6,734.8 3677.2,695.33 3689.2,667.11 3648.6,626.8 3636.8,615.07 3622,\
+604.59 3608.2,596.12"];
+	"Ilana Melcher" -> "Jeremy Frazier"	[pos="e,3598.5,731.38 3760.4,774.63 3717.6,763.22 3655.6,746.64 3609.5,734.34"];
+	"Ilana Melcher" -> "Kameka Smith"	[pos="e,3809.6,734.9 3809.6,770.5 3809.6,763.21 3809.6,754.53 3809.6,746.34"];
+	"Cassiopeia Guthrie"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=348",
+		color=lightpink,
+		height=0.5,
+		pos="3537.6,644.8",
+		width=2.8279];
+	"Cassiopeia Guthrie" -> "Rachel Perkins"	[pos="e,3815.8,585.85 3601.6,630.47 3659.7,618.38 3745,600.59 3804.6,588.18"];
+	"Jeremy Frazier" -> "Cassiopeia Guthrie"	[pos="e,3540.1,662.9 3545.2,698.5 3544.1,691.12 3542.9,682.32 3541.7,674.05"];
+	"Scott Gardner"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=355",
+		color=lightblue,
+		height=0.5,
+		pos="3229.6,644.8",
+		width=2.193];
+	"Jeremy Frazier" -> "Scott Gardner"	[pos="e,3285.1,658 3491.2,703.37 3436.6,691.36 3354,673.17 3296.3,660.47"];
+	"Christine Mount" -> "Cassiopeia Guthrie"	[pos="e,3456.6,656.01 3054.9,706.58 3155.3,693.94 3335.6,671.23 3445.2,657.44"];
+	"Christine Mount" -> "Scott Gardner"	[pos="e,3181.6,659.35 3031.8,701.63 3072,690.3 3128.4,674.39 3170.7,662.45"];
+	"Jennie Bogart"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=78",
+		color=lightpink,
+		height=0.5,
+		pos="2119.6,788.8",
+		width=2.1506];
+	"Tiffany Kalland" -> "Jennie Bogart"	[pos="e,2144.9,806.03 2202.8,843.21 2188.3,833.9 2170,822.17 2154.3,812.07"];
+	"Tiffany Kalland" -> "Rebecca Hippert"	[pos="e,2231.3,734.91 2229,842.39 2229.5,818.41 2230.4,774.94 2231,746.22"];
+	"Robbyn Rozelle"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=72",
+		color=lightpink,
+		height=0.5,
+		pos="1685.6,788.8",
+		width=2.37];
+	"Tiffany Kalland" -> "Robbyn Rozelle"	[pos="e,1756.9,798.99 2158.5,850.76 2058.4,837.85 1874.8,814.18 1768.2,800.45"];
+	"Tiffany Kalland" -> "Cameron Brown"	[pos="e,3093.3,801.82 2310.8,857.49 2460.1,852.65 2785.8,839.08 3058.6,806.8 3066.3,805.9 3074.2,804.79 3082.1,803.59"];
+	"Jennie Bogart" -> "Kristen Anderson"	[pos="e,1503.8,729.79 2064.3,775.82 2054.1,773.92 2043.6,772.14 2033.6,770.8 1815.5,741.4 1758.3,760.75 1539.6,734.8 1531.7,733.85 1523.4,\
+732.72 1515.1,731.5"];
+	"Jennie Bogart" -> "Alberto Ayon"	[pos="e,2114.4,662.91 2118.9,770.39 2117.9,746.41 2116.1,702.94 2114.8,674.22"];
+	"Laura Simonette" -> "Gara Thornton"	[pos="e,5419.3,950.59 5388.2,986.85 5395.3,978.51 5404.1,968.29 5412,959.05"];
+	"Jon Weisel"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=89",
+		color=lightblue,
+		height=0.5,
+		pos="5373.6,1076.8",
+		width=1.7272];
+	"Jon Weisel" -> "Laura Simonette"	[pos="e,5373.6,1022.9 5373.6,1058.5 5373.6,1051.2 5373.6,1042.5 5373.6,1034.3"];
+	"Nathan Williams" -> "Susannah Clayton"	[pos="e,1875,804.68 1736.7,845.38 1773.6,834.52 1824.5,819.55 1864.2,807.88"];
+	"Nathan Williams" -> "Laura Fisher"	[pos="e,3199,502.68 1719.9,843.65 1738.1,833.94 1760.9,820.79 1779.6,806.8 1798.3,792.9 1800,785.99 1817.6,770.8 1837.3,753.85 1847.1,\
+754.83 1863.6,734.8 1920.8,665.49 1880,603.23 1955.6,554.8 2007.6,521.55 2908.4,506.67 3187.7,502.84"];
+	"Samuel Wallace" -> "Jamie Jackson"	[pos="e,3406.9,731.93 3542.2,773.3 3506.1,762.25 3456.2,747 3417.9,735.29"];
+	"Scott Gardner" -> "Lisa Gochnauer"	[pos="e,3483.4,517.79 3261.6,627.92 3313.4,602.24 3415.4,551.56 3473.2,522.88"];
+	"Robert Winebarger"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=361",
+		color=lightblue,
+		height=0.5,
+		pos="1689.6,572.8",
+		width=2.8498];
+	"Scott Gardner" -> "Robert Winebarger"	[pos="e,1783.8,580.33 3152.1,641.17 2953.2,634.31 2408.8,614.7 1955.6,590.8 1902.7,588.01 1843.9,584.31 1795,581.08"];
+	"James Fogelman"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=688",
+		color=lightblue,
+		height=0.5,
+		pos="2056.6,572.8",
+		width=2.5537];
+	"Alberto Ayon" -> "James Fogelman"	[pos="e,2070.7,591.08 2099.9,626.85 2093.2,618.72 2085.1,608.8 2077.8,599.74"];
+	"Susannah Clayton" -> "James Fogelman"	[pos="e,2046.1,591.03 1936.1,770.65 1958.9,733.48 2012.9,645.24 2040.2,600.62"];
+	"Christina Kelly" -> "Melissa Roy"	[pos="e,4125.3,869.35 3398,927.14 3529.7,918.98 3805.8,900.85 4038.6,878.8 4063.3,876.47 4090.2,873.49 4114.1,870.67"];
+	"Robert Winebarger" -> "Sarah Titilah"	[pos="e,1504.1,515.34 1640,556.7 1603.2,545.5 1553.1,530.24 1515,518.65"];
+	"Robin Ellison"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=90",
+		color=lightpink,
+		height=0.5,
+		pos="1627.6,644.8",
+		width=2.0235];
+	"Robin Ellison" -> "Robert Winebarger"	[pos="e,1674.3,591.08 1642.7,626.85 1649.9,618.64 1658.8,608.59 1666.9,599.46"];
+	"Katie Kozma"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=691",
+		color=lightpink,
+		height=0.5,
+		pos="1069.6,572.8",
+		width=1.9986];
+	"Robin Ellison" -> "Katie Kozma"	[pos="e,1132.9,581.74 1563.6,635.77 1459.7,622.73 1254.7,597.01 1144.3,583.16"];
+	"Leila Wilhelm"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=699",
+		color=lightpink,
+		height=0.5,
+		pos="1493.6,572.8",
+		width=2.0948];
+	"Robin Ellison" -> "Leila Wilhelm"	[pos="e,1524.1,589.7 1597.6,628.09 1578.8,618.3 1554.5,605.57 1534.1,594.91"];
+	"Sandy Konar"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=38",
+		color=lightpink,
+		height=0.5,
+		pos="952.65,932.8",
+		width=2.035];
+	"Jennifer Brandon" -> "Sandy Konar"	[pos="e,958.02,950.9 969.21,986.5 966.87,979.04 964.06,970.12 961.44,961.77"];
+	"Jennifer Brandon" -> "Lindsay Arehart"	[pos="e,1096.1,949.66 1010.7,987.74 1033,977.79 1061.9,964.92 1085.8,954.24"];
+	"Jarrod Monroe" -> "Robbyn Rozelle"	[pos="e,1645.2,805.03 1539.5,844.78 1567.3,834.34 1604.6,820.32 1634.5,809.05"];
+	"Jamie Fratacci" -> "Jarrod Monroe"	[pos="e,1559,873.35 1800.6,920.32 1737.4,908.03 1637.2,888.54 1569.9,875.47"];
+	"Jamie Fratacci" -> "Katie Browne"	[pos="e,2670.5,866.43 1930.7,924.03 1959.8,920.96 1993.8,917.53 2024.6,914.8 2254.1,894.52 2525.2,875.98 2659.1,867.18"];
+	"Edward Givens"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=106",
+		color=lightblue,
+		height=0.5,
+		outline=bold,
+		pos="4339.6,1436.8",
+		style=bold,
+		width=2.3095];
+	"Edward Givens" -> "Mark Newton-John"	[pos="e,4339.6,1382.9 4339.6,1418.5 4339.6,1411.2 4339.6,1402.5 4339.6,1394.3"];
+	"Veronica Nickel" -> "Cindy Teel"	[pos="e,3786.8,1020.8 3709.5,1059.7 3729.5,1049.7 3755.4,1036.6 3776.8,1025.9"];
+	"Jennifer Stout" -> "Greg Moody"	[pos="e,2944.7,876.6 2847.5,916.61 2873,906.14 2907,892.14 2934.2,880.91"];
+	"Melissa Roy" -> "Erika Tapia"	[pos="e,4194,806.9 4188.4,842.5 4189.5,835.12 4190.9,826.32 4192.2,818.05"];
+	"Katie Browne" -> "Ryan Underwood"	[pos="e,2742.6,806.9 2742.6,842.5 2742.6,835.21 2742.6,826.53 2742.6,818.34"];
+	"Katie Browne" -> "Mike Tulumello"	[pos="e,2435.9,801.41 2685.2,848.82 2674.7,846.81 2663.8,844.74 2653.6,842.8 2583.5,829.44 2503.5,814.24 2447.2,803.56"];
+	"Katie Browne" -> "Crystal Bozak"	[pos="e,2593.5,804.58 2703,845.13 2674.3,834.47 2635.1,819.98 2604.1,808.5"];
+	"Veronica Villanueva" -> "Ilana Melcher"	[pos="e,3835.9,805.95 3896.3,843.03 3881.2,833.72 3862.1,822.02 3845.7,811.96"];
+	"Scott Wright" -> "Jennifer Brandon"	[pos="e,936.06,1021.6 839.91,1061 864.84,1050.8 898.23,1037.1 925.54,1025.9"];
+	"Scott Wright" -> "Katie Kozma"	[pos="e,1004.5,580.87 804.66,1058.3 806.12,1031.5 808.65,978.7 808.65,933.8 808.65,933.8 808.65,933.8 808.65,715.8 808.65,630.99 916.3,\
+596.54 993.33,582.75"];
+	"Jeremy Browne" -> "Jennie Bogart"	[pos="e,2119.6,806.91 2119.6,914.39 2119.6,890.41 2119.6,846.94 2119.6,818.22"];
+	"Ashley Rehart"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=694",
+		color=lightpink,
+		height=0.5,
+		pos="3260.6,428.8",
+		width=2.1833];
+	"Laura Fisher" -> "Ashley Rehart"	[pos="e,3262.8,446.9 3267.4,482.5 3266.5,475.12 3265.3,466.32 3264.3,458.05"];
+	"Jennifer Cooley"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=702",
+		color=lightpink,
+		height=0.5,
+		pos="3460.6,428.8",
+		width=2.3694];
+	"Laura Fisher" -> "Jennifer Cooley"	[pos="e,3419.3,444.96 3308.8,485.47 3337.6,474.91 3377,460.45 3408.5,448.91"];
+	"Cara Yancey"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=695",
+		color=lightpink,
+		height=0.5,
+		pos="1150.6,500.8",
+		width=1.9791];
+	"Katie Kozma" -> "Cara Yancey"	[pos="e,1131.3,518.51 1088.8,555.21 1099,546.47 1111.6,535.59 1122.7,525.93"];
+	"Cate Threlkeld"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=707",
+		color=lightpink,
+		height=0.5,
+		pos="976.65,500.8",
+		width=2.257];
+	"Katie Kozma" -> "Cate Threlkeld"	[pos="e,998.85,518.51 1047.6,555.21 1035.8,546.3 1021,535.16 1007.9,525.36"];
+	"Lisa Fleck"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=700",
+		color=lightpink,
+		height=0.5,
+		pos="3923.6,500.8",
+		width=1.6107];
+	"Rachel Perkins" -> "Lisa Fleck"	[pos="e,3911.7,518.59 3885.8,554.85 3891.5,546.77 3898.6,536.92 3905,527.91"];
+	"Christine Coyne"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=701",
+		color=lightpink,
+		height=0.5,
+		pos="3741.6,500.8",
+		width=2.433];
+	"Rachel Perkins" -> "Christine Coyne"	[pos="e,3772.2,518.03 3843.4,555.74 3825.2,546.12 3801.9,533.76 3782.2,523.3"];
+	"Elizabeth Larios"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=703",
+		color=lightpink,
+		height=0.5,
+		pos="3060.6,356.8",
+		width=2.4232];
+	"Ashley Rehart" -> "Elizabeth Larios"	[pos="e,3103.6,372.82 3218.7,413.13 3188.4,402.5 3147.1,388.05 3114.3,376.58"];
+	"Kathleen Halberg"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=929",
+		color=lightpink,
+		height=0.5,
+		pos="3260.6,356.8",
+		width=2.6311];
+	"Ashley Rehart" -> "Kathleen Halberg"	[pos="e,3260.6,374.9 3260.6,410.5 3260.6,403.21 3260.6,394.53 3260.6,386.34"];
+	"Ashley Presley"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=698",
+		color=lightpink,
+		height=0.5,
+		pos="1154.6,428.8",
+		width=2.2539];
+	"Cara Yancey" -> "Ashley Presley"	[pos="e,1153.7,446.9 1151.6,482.5 1152.1,475.21 1152.5,466.53 1153,458.34"];
+	"Monique Arellano"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=972",
+		color=lightpink,
+		height=0.5,
+		pos="1154.6,356.8",
+		width=2.6283];
+	"Ashley Presley" -> "Monique Arellano"	[pos="e,1154.6,374.9 1154.6,410.5 1154.6,403.21 1154.6,394.53 1154.6,386.34"];
+	"Greg Moody" -> "Ryan Underwood"	[pos="e,2792.1,804.36 2935.9,846.63 2898.4,835.61 2844.5,819.76 2803.2,807.6"];
+	"Greg Moody" -> "Janay Rabe"	[pos="e,3953.4,799.18 3041.9,851.99 3069.3,848.73 3102.1,845.16 3131.6,842.8 3470.1,815.8 3556.8,839.88 3894.6,806.8 3910.1,805.29 3926.7,\
+803.13 3942.3,800.85"];
+	"Greg Moody" -> "Melissa Bebak"	[pos="e,2973.1,806.9 2978.2,842.5 2977.1,835.12 2975.9,826.32 2974.7,818.05"];
+	"Mallory Williams"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=975",
+		color=lightpink,
+		height=0.5,
+		pos="3932.6,428.8",
+		width=2.4928];
+	"Lisa Fleck" -> "Mallory Williams"	[pos="e,3930.4,446.9 3925.9,482.5 3926.8,475.12 3928,466.32 3929,458.05"];
+	"Rakan Abu-Rahma"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=852",
+		color=lightpink,
+		height=0.5,
+		pos="3723.6,428.8",
+		width=2.8196];
+	"Christine Coyne" -> "Rakan Abu-Rahma"	[pos="e,3728,446.9 3737.2,482.5 3735.3,475.12 3733,466.32 3730.9,458.05"];
+	"Anthony Henderson"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=973",
+		color=lightpink,
+		height=0.5,
+		pos="3479.6,356.8",
+		width=2.9656];
+	"Jennifer Cooley" -> "Anthony Henderson"	[pos="e,3475,374.9 3465.3,410.5 3467.4,403.04 3469.8,394.12 3472.1,385.77"];
+	"Brittany DePew"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=928",
+		color=lightpink,
+		height=0.5,
+		pos="3060.6,284.8",
+		width=2.3814];
+	"Elizabeth Larios" -> "Brittany DePew"	[pos="e,3060.6,302.9 3060.6,338.5 3060.6,331.21 3060.6,322.53 3060.6,314.34"];
+	"Amethyst Tagle"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=974",
+		color=lightpink,
+		height=0.5,
+		pos="968.65,428.8",
+		width=2.4116];
+	"Cate Threlkeld" -> "Amethyst Tagle"	[pos="e,970.6,446.9 974.67,482.5 973.84,475.21 972.85,466.53 971.91,458.34"];
+	"Robbyn Rozelle" -> "Kyra Sacco"	[pos="e,1765.9,733.79 1710.3,771.21 1724.1,761.92 1741.5,750.22 1756.5,740.14"];
+	"Cameron Brown" -> "Kristopher Lininger"	[pos="e,3714.6,655.59 3172.3,770.87 3192.8,749.87 3231,714.87 3271.6,698.8 3428.2,636.85 3481.2,680.28 3648.6,662.8 3666.3,660.95 3685.2,\
+658.89 3703.4,656.85"];
+	"Janay Rabe" -> "Teresa Simms"	[pos="e,3996.6,734.9 4004.7,770.5 4003,763.12 4001,754.32 3999.1,746.05"];
+	"Kameka Smith" -> "Kristopher Lininger"	[pos="e,3801.3,662.9 3806.9,698.5 3805.8,691.12 3804.4,682.32 3803.1,674.05"];
+	"Kyra Sacco" -> "Robin Ellison"	[pos="e,1662.7,660.94 1755.7,701.13 1731.7,690.77 1699.3,676.77 1673.1,665.45"];
+	"Samuel Behar" -> "Robin Ellison"	[pos="e,1627.6,662.9 1627.6,698.5 1627.6,691.21 1627.6,682.53 1627.6,674.34"];
+	"Kristin Alongi-Hutchins" -> "David Bronson"	[pos="e,3065.5,1022.9 3038,1058.5 3044.2,1050.4 3051.7,1040.7 3058.6,1031.8"];
+	"Jennifer Berry"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=270",
+		color=lightpink,
+		height=0.5,
+		pos="2179.6,1364.8",
+		width=2.1957];
+	"Jennifer Berry" -> "Janean Angeles"	[pos="e,2179.6,1310.9 2179.6,1346.5 2179.6,1339.2 2179.6,1330.5 2179.6,1322.3"];
+	"Robert Schmidtke"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=188",
+		color=lightblue,
+		height=0.5,
+		pos="3253.6,1508.8",
+		width=2.7161];
+	"Robert Schmidtke" -> "John FitzGibbon"	[pos="e,3327.4,1454.6 3277.1,1490.9 3289.5,1481.9 3304.9,1470.8 3318.4,1461.1"];
+	"Jean Newman"	[URL="http://sdsu.kkytbs.net/members/profile.html?who=166",
+		color=lightpink,
+		height=0.5,
+		pos="3447.6,1508.8",
+		width=2.1852];
+	"Jean Newman" -> "John FitzGibbon"	[pos="e,3373.8,1454.5 3424.7,1491.2 3412.2,1482.2 3396.6,1470.9 3382.9,1461.1"];
+}

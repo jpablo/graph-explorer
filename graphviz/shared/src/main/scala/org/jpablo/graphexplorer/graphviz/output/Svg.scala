@@ -168,17 +168,24 @@ object Svg:
   private[output] def f2(x: Double): String =
     BigDecimal(x).setScale(2, BigDecimal.RoundingMode.HALF_UP).bigDecimal.toPlainString
 
-  /** Graphviz xml_string for SVG: escape & < > " and '-' (avoids `--` in
-    * XML comments; matches `a&#45;&gt;b` in titles/comments). */
+  /** `gvputs_xml` = gv_xml_escape with `{dash, nbsp}` (xml.c `xml_core`):
+    * & < > " ' escaped (' → `&#39;`, siblings' De'Armond), `-` → `&#45;`
+    * (avoids `--` in XML comments; `a&#45;&gt;b` in titles/comments), and
+    * the 2nd+ of a consecutive space run → `&#160;`. */
   private def xml(s: String): String =
     val b = new StringBuilder
-    s.foreach {
-      case '&' => b ++= "&amp;"
-      case '<' => b ++= "&lt;"
-      case '>' => b ++= "&gt;"
-      case '"' => b ++= "&quot;"
-      case '-' => b ++= "&#45;"
-      case c   => b += c
+    var prev = '\u0000'
+    s.foreach { c =>
+      c match
+        case '&'                => b ++= "&amp;"
+        case '<'                => b ++= "&lt;"
+        case '>'                => b ++= "&gt;"
+        case '"'                => b ++= "&quot;"
+        case '\''               => b ++= "&#39;"
+        case '-'                => b ++= "&#45;"
+        case ' ' if prev == ' ' => b ++= "&#160;"
+        case c                  => b += c
+      prev = c
     }
     b.toString
 

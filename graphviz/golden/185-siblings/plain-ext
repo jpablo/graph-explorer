@@ -1,0 +1,486 @@
+graph 0.46997 76.6 21.206
+node "Lori Brede" 30.009 13.956 1.6862 0.5 "Lori Brede" filled ellipse lightpink lightpink
+node "Michael Griffith" 27.537 14.956 2.3383 0.5 "Michael Griffith" filled ellipse lightblue lightblue
+node "Amie Holston" 30.009 14.956 2.0946 0.5 "Amie Holston" filled ellipse lightpink lightpink
+node "Casey Carter" 35.203 14.956 2.0504 0.5 "Casey Carter" filled ellipse lightpink lightpink
+node "Laura De'Armond" 35.481 15.956 2.6536 0.5 "Laura De'Armond" filled ellipse lightpink lightpink
+node "Japheth Cleaver" 16.884 14.956 2.4709 0.5 "Japheth Cleaver" filled ellipse lightpink lightpink
+node "Chuk Gawlik" 27.245 15.956 1.981 0.5 "Chuk Gawlik" filled ellipse lightblue lightblue
+node "Stacy Snyder" 4.134 18.956 2.1028 0.5 "Stacy Snyder" filled ellipse lightpink lightpink
+node "Jillian Clifton" 13.801 11.956 2.0152 0.5 "Jillian Clifton" filled ellipse lightpink lightpink
+node "David Guthrie" 20.301 12.956 2.1692 0.5 "David Guthrie" filled ellipse lightblue lightblue
+node "Tony Sacco" 42.578 16.956 1.8443 0.5 "Tony Sacco" filled ellipse lightblue lightblue
+node "Heather Smith" 22.912 16.956 2.2664 0.5 "Heather Smith" filled ellipse lightpink lightpink
+node "Kevin Decker" 22.051 14.956 2.0879 0.5 "Kevin Decker" filled ellipse lightblue lightblue
+node "Alex Hansen" 38.051 15.956 1.9781 0.5 "Alex Hansen" filled ellipse lightblue lightblue
+node "Wanda Livelsberger" 29.065 16.956 2.9629 0.5 "Wanda Livelsberger" filled ellipse lightpink lightpink
+node "Patrick Doerr" 43.703 12.956 2.0743 0.5 "Patrick Doerr" filled ellipse lightblue lightblue
+node "Deanna Jagow" 48.162 13.956 2.2616 0.5 "Deanna Jagow" filled ellipse lightpink lightpink
+node "Lori Asaro" 38.481 17.956 1.6626 0.5 "Lori Asaro" filled ellipse lightpink lightpink
+node "Mark Pearson" 54.134 18.956 2.1307 0.5 "Mark Pearson" filled ellipse lightblue lightblue
+node "Lori Ball" 48.356 18.956 1.3933 0.5 "Lori Ball" filled ellipse lightpink lightpink
+node "Ryan Farris" 52.106 12.956 1.8346 0.5 "Ryan Farris" filled ellipse lightblue lightblue
+node "Rob Reiner" 5.5923 17.956 1.7813 0.5 "Rob Reiner" filled ellipse lightblue lightblue
+node "Cindy Teel" 53.009 13.956 1.7159 0.5 "Cindy Teel" filled ellipse lightpink lightpink
+node "Ginger Palmer" 60.009 17.956 2.2253 0.5 "Ginger Palmer" filled ellipse lightpink lightpink
+node "Mark Newton-John" 60.273 18.956 2.8256 0.5 "Mark Newton-John" filled ellipse lightblue lightblue
+node "Matthew FitzGerald" 37.551 13.956 2.9071 0.5 "Matthew FitzGerald" filled ellipse lightblue lightblue
+node "Mervin Maniago" 53.731 14.956 2.4249 0.5 "Mervin Maniago" filled ellipse lightblue lightblue
+node "Tani Miller" 54.134 17.956 1.6918 0.5 "Tani Miller" filled ellipse lightpink lightpink
+node "Vienna McMurtry" 50.426 16.956 2.5733 0.5 "Vienna McMurtry" filled ellipse lightpink lightpink
+node "Robert Walwick" 42.967 17.956 2.3889 0.5 "Robert Walwick" filled ellipse lightblue lightblue
+node "Chuck Foster" 20.301 13.956 2.0629 0.5 "Chuck Foster" filled ellipse lightblue lightblue
+node "Karen Saye" 19.828 14.956 1.8549 0.5 "Karen Saye" filled ellipse lightpink lightpink
+node "Gary Frampton" 69.176 16.956 2.3393 0.5 "Gary Frampton" filled ellipse lightblue lightblue
+node "Pat Norris" 62.495 19.956 1.6352 0.5 "Pat Norris" filled ellipse lightblue lightblue
+node "Sean Tipps" 61.426 20.956 1.7878 0.5 "Sean Tipps" filled ellipse lightblue lightblue
+node "Teresa Long" 63.551 20.956 1.9501 0.5 "Teresa Long" filled ellipse lightpink lightpink
+node "Marc Martin-ez" 55.051 16.956 2.3156 0.5 "Marc Martin-ez" filled ellipse lightblue lightblue
+node "Kristen Villone" 66.967 19.956 2.2464 0.5 "Kristen Villone" filled ellipse lightpink lightpink
+node "Kelly Erickson" 65.87 20.956 2.181 0.5 "Kelly Erickson" filled ellipse lightblue lightblue
+node "Anna Pedroza" 68.287 20.956 2.1529 0.5 "Anna Pedroza" filled ellipse lightpink lightpink
+node "Geoff Frank" 45.842 13.956 1.8783 0.5 "Geoff Frank" filled ellipse lightblue lightblue
+node "Chris Livelsberger" 48.287 14.956 2.7234 0.5 "Chris Livelsberger" filled ellipse lightblue lightblue
+node "Amy Price" 45.842 14.956 1.6533 0.5 "Amy Price" filled ellipse lightpink lightpink
+node "Tracy Murray" 44.287 18.956 2.0849 0.5 "Tracy Murray" filled ellipse lightpink lightpink
+node "John FitzGibbon" 46.537 19.956 2.448 0.5 "John FitzGibbon" filled ellipse lightblue lightblue
+node "Judy Dulcich" 44.065 19.956 1.9914 0.5 "Judy Dulcich" filled ellipse lightpink lightpink
+node "Ian McIntosh" 35.509 16.956 2.0711 0.5 "Ian McIntosh" filled ellipse lightblue lightblue
+node "Barbara Tollison" 33.342 17.956 2.4854 0.5 "Barbara Tollison" filled ellipse lightpink lightpink
+node "Jayson Smith" 20.481 16.956 2.1083 0.5 "Jayson Smith" filled ellipse lightblue lightblue
+node "Kelly McKinney" 41.801 18.956 2.3359 0.5 "Kelly McKinney" filled ellipse lightpink lightpink
+node "Mark Nadeau" 41.773 19.956 2.0808 0.5 "Mark Nadeau" filled ellipse lightblue lightblue
+node "Renee Thompson" 68.884 15.956 2.6348 0.5 "Renee Thompson" filled ellipse lightpink lightpink
+node "J. Angeles" 52.801 16.956 1.6736 0.5 "J. Angeles" filled ellipse lightblue lightblue
+node "Kelley Smith" 71.592 16.956 2.0057 0.5 "Kelley Smith" filled ellipse lightpink lightpink
+node "Steven Smith" 57.162 18.956 2.1314 0.5 "Steven Smith" filled ellipse lightblue lightblue
+node "Charlene Andrews" 70.815 19.956 2.7503 0.5 "Charlene Andrews" filled ellipse lightpink lightpink
+node "Diane Reoch" 70.815 20.956 1.9905 0.5 "Diane Reoch" filled ellipse lightpink lightpink
+node "Tonya Alexander" 36.12 17.956 2.5664 0.5 "Tonya Alexander" filled ellipse lightpink lightpink
+node "Gail Vasquez" 36.12 18.956 2.0391 0.5 "Gail Vasquez" filled ellipse lightpink lightpink
+node "Spencer Caldwell" 24.287 18.956 2.6107 0.5 "Spencer Caldwell" filled ellipse lightblue lightblue
+node "Becky Bernal" 24.287 19.956 2.0645 0.5 "Becky Bernal" filled ellipse lightpink lightpink
+node "Russell Grant" 57.44 17.956 2.1027 0.5 "Russell Grant" filled ellipse lightblue lightblue
+node "Tiffany Worthington" 24.328 13.956 2.9847 0.5 "Tiffany Worthington" filled ellipse lightpink lightpink
+node "Jerry Maya" 46.523 18.956 1.7774 0.5 "Jerry Maya" filled ellipse lightblue lightblue
+node "Melissa Schwartz" 57.759 16.956 2.6092 0.5 "Melissa Schwartz" filled ellipse lightpink lightpink
+node "Delphy Shaulis" 68.884 14.956 2.3076 0.5 "Delphy Shaulis" filled ellipse lightpink lightpink
+node "Martin Naiman" 40.273 16.956 2.2787 0.5 "Martin Naiman" filled ellipse lightblue lightblue
+node "Janean Angeles" 30.273 17.956 2.3975 0.5 "Janean Angeles" filled ellipse lightpink lightpink
+node "Leslie Harlow" 37.842 16.956 2.0899 0.5 "Leslie Harlow" filled ellipse lightpink lightpink
+node "Dennis McColl" 45.509 17.956 2.1834 0.5 "Dennis McColl" filled ellipse lightblue lightblue
+node "Denise Luna" 40.537 17.956 1.9602 0.5 "Denise Luna" filled ellipse lightpink lightpink
+node "Jonathan Yudman" 47.537 16.956 2.7165 0.5 "Jonathan Yudman" filled ellipse lightblue lightblue
+node "April Ortiz-cloninger" 48.356 17.956 3.0115 0.5 "April Ortiz-cloninger" filled ellipse lightpink lightpink
+node "Michael Elgo" 26.412 17.956 1.9778 0.5 "Michael Elgo" filled ellipse lightblue lightblue
+node "Carol Kropp" 26.787 18.956 1.8976 0.5 "Carol Kropp" filled ellipse lightpink lightpink
+node "Denmark Vea" 71.523 15.956 2.1366 0.5 "Denmark Vea" filled ellipse lightblue lightblue
+node "Kathleen Hansen" 32.606 15.956 2.588 0.5 "Kathleen Hansen" filled ellipse lightpink lightpink
+node "Laura Stegner" 66.12 16.956 2.2167 0.5 "Laura Stegner" filled ellipse lightpink lightpink
+node "Kathy Jones" 52.648 15.956 1.9361 0.5 "Kathy Jones" filled ellipse lightpink lightpink
+node "Eric Gates" 64.148 15.956 1.6727 0.5 "Eric Gates" filled ellipse lightblue lightblue
+node "Erick Sugimura" 63.578 16.956 2.3572 0.5 "Erick Sugimura" filled ellipse lightblue lightblue
+node "Jennifer Stoewe" 62.315 14.956 2.4553 0.5 "Jennifer Stoewe" filled ellipse lightpink lightpink
+node "Karen Helbling" 23.328 12.956 2.2781 0.5 "Karen Helbling" filled ellipse lightpink lightpink
+node "Regan Ashker" 42.592 15.956 2.1711 0.5 "Regan Ashker" filled ellipse lightpink lightpink
+node "Scott Wood" 64.717 14.956 1.8562 0.5 "Scott Wood" filled ellipse lightblue lightblue
+node "Greg Flood" 52.148 17.956 1.7708 0.5 "Greg Flood" filled ellipse lightblue lightblue
+node "Lynn Reeves" 30.009 15.956 2.0129 0.5 "Lynn Reeves" filled ellipse lightpink lightpink
+node "Susan Colwell" 44.842 16.956 2.1749 0.5 "Susan Colwell" filled ellipse lightpink lightpink
+node "Christopher Jouan" 73.815 19.956 2.7508 0.5 "Christopher Jouan" filled ellipse lightblue lightblue
+node "Kevin Owens" 73.815 20.956 2.0486 0.5 "Kevin Owens" filled ellipse lightblue lightblue
+node "Kristianna Reynante" 25.815 16.956 3.0268 0.5 "Kristianna Reynante" filled ellipse lightpink lightpink
+node "Amy Berner" 4.134 19.956 1.9061 0.5 "Amy Berner" filled ellipse lightpink lightpink
+node "Deanna Johnson" 37.745 14.956 2.5256 0.5 "Deanna Johnson" filled ellipse lightpink lightpink
+node "Johnny Richardson" 60.731 16.956 2.8383 0.5 "Johnny Richardson" filled ellipse lightblue lightblue
+node "Nathan Fellhauer" 18.092 15.956 2.605 0.5 "Nathan Fellhauer" filled ellipse lightblue lightblue
+node "James Rowland" 16.44 17.956 2.3848 0.5 "James Rowland" filled ellipse thistle thistle
+node "Brian Raneses" 20.301 17.956 2.2202 0.5 "Brian Raneses" filled ellipse lightblue lightblue
+node "Sean McHenry" 18.37 18.956 2.2451 0.5 "Sean McHenry" filled ellipse lightblue lightblue
+node "Penny Lewis" 40.273 15.956 1.9627 0.5 "Penny Lewis" filled ellipse lightpink lightpink
+node "Becky Graham" 12.703 15.956 2.2772 0.5 "Becky Graham" filled ellipse lightpink lightpink
+node "Kristen Elgo" 10.551 17.956 1.923 0.5 "Kristen Elgo" filled ellipse lightpink lightpink
+node "Steven Gross" 1.384 16.956 2.1028 0.5 "Steven Gross" filled ellipse lightblue lightblue
+node "Sedona Reynolds" 55.106 12.956 2.623 0.5 "Sedona Reynolds" filled ellipse lightpink lightpink
+node "Klair Mayerchak" 13.634 14.956 2.4591 0.5 "Klair Mayerchak" filled ellipse lightpink lightpink
+node "Shari VerBerkmoes" 32.245 16.956 2.901 0.5 "Shari VerBerkmoes" filled ellipse lightpink lightpink
+node "Anson Summers" 15.134 16.956 2.5153 0.5 "Anson Summers" filled ellipse lightblue lightblue
+node "Dusty Jolliff" 6.9118 16.956 1.8757 0.5 "Dusty Jolliff" filled ellipse lightpink lightpink
+node "Jennifer Garman" 17.912 16.956 2.5397 0.5 "Jennifer Garman" filled ellipse lightpink lightpink
+node "Kelly Greenhill" 9.2312 16.956 2.2549 0.5 "Kelly Greenhill" filled ellipse lightpink lightpink
+node "Lucinda Farless" 47.44 15.956 2.374 0.5 "Lucinda Farless" filled ellipse lightpink lightpink
+node "Alfredo Cardenas" 32.62 14.956 2.6168 0.5 "Alfredo Cardenas" filled ellipse lightblue lightblue
+node "Jennifer Jouan" 24.467 14.956 2.2497 0.5 "Jennifer Jouan" filled ellipse lightpink lightpink
+node "Andrea Owens" 24.87 15.956 2.2565 0.5 "Andrea Owens" filled ellipse lightpink lightpink
+node "Tamara Scrivner" 46.592 10.956 2.5389 0.5 "Tamara Scrivner" filled ellipse lightpink lightpink
+node "Joseph Butler" 48.217 11.956 2.1293 0.5 "Joseph Butler" filled ellipse lightblue lightblue
+node "Sarah Maltese" 44.731 11.956 2.2165 0.5 "Sarah Maltese" filled ellipse lightpink lightpink
+node "Bradley Stouse" 33.662 9.9556 2.3408 0.5 "Bradley Stouse" filled ellipse lightblue lightblue
+node "Ryan Underwood" 38.092 10.956 2.5968 0.5 "Ryan Underwood" filled ellipse lightblue lightblue
+node "Casondra Brimmage" 49.523 7.9556 3.0462 0.5 "Casondra Brimmage" filled ellipse lightpink lightpink
+node "Kristopher Lininger" 52.759 8.9556 2.8717 0.5 "Kristopher Lininger" filled ellipse lightblue lightblue
+node "Ilana Melcher" 52.912 10.956 2.1226 0.5 "Ilana Melcher" filled ellipse lightpink lightpink
+node "Cassiopeia Guthrie" 49.134 8.9556 2.8279 0.5 "Cassiopeia Guthrie" filled ellipse lightpink lightpink
+node "Jeremy Frazier" 49.273 9.9556 2.2951 0.5 "Jeremy Frazier" filled ellipse lightblue lightblue
+node "Christine Mount" 41.412 9.9556 2.4287 0.5 "Christine Mount" filled ellipse lightpink lightpink
+node "Kathleen Moran" 35.953 12.956 2.4205 0.5 "Kathleen Moran" filled ellipse lightpink lightpink
+node "Tiffany Kalland" 30.953 11.956 2.3102 0.5 "Tiffany Kalland" filled ellipse lightpink lightpink
+node "Kristen Anderson" 19.953 9.9556 2.6167 0.5 "Kristen Anderson" filled ellipse lightpink lightpink
+node "Jennie Bogart" 29.44 10.956 2.1506 0.5 "Jennie Bogart" filled ellipse lightpink lightpink
+node "Laura Simonette" 74.634 13.956 2.5381 0.5 "Laura Simonette" filled ellipse lightpink lightpink
+node "Jon Weisel" 74.634 14.956 1.7272 0.5 "Jon Weisel" filled ellipse lightblue lightblue
+node "Nathan Williams" 23.44 11.956 2.4904 0.5 "Nathan Williams" filled ellipse lightblue lightblue
+node "Rebecca Hippert" 30.995 9.9556 2.5042 0.5 "Rebecca Hippert" filled ellipse lightpink lightpink
+node "Samuel Wallace" 49.856 10.956 2.4437 0.5 "Samuel Wallace" filled ellipse lightblue lightblue
+node "Scott Gardner" 44.856 8.9556 2.193 0.5 "Scott Gardner" filled ellipse lightblue lightblue
+node "Alberto Ayon" 29.356 8.9556 2.0425 0.5 "Alberto Ayon" filled ellipse lightblue lightblue
+node "Susannah Clayton" 26.745 10.956 2.7443 0.5 "Susannah Clayton" filled ellipse lightpink lightpink
+node "Lisa Gochnauer" 48.828 6.9556 2.3799 0.5 "Lisa Gochnauer" filled ellipse lightpink lightpink
+node "Jamie Jackson" 46.676 9.9556 2.2321 0.5 "Jamie Jackson" filled ellipse lightpink lightpink
+node "Christina Kelly" 46.12 12.956 2.2476 0.5 "Christina Kelly" filled ellipse lightpink lightpink
+node "Gara Thornton" 75.467 12.956 2.2659 0.5 "Gara Thornton" filled ellipse lightpink lightpink
+node "Robert Winebarger" 23.467 7.9556 2.8498 0.5 "Robert Winebarger" filled ellipse lightblue lightblue
+node "Robin Ellison" 22.606 8.9556 2.0235 0.5 "Robin Ellison" filled ellipse lightpink lightpink
+node "Jeremy Kirchner" 3.9396 16.956 2.504 0.5 "Jeremy Kirchner" filled ellipse lightblue lightblue
+node "Sandy Konar" 13.231 12.956 2.035 0.5 "Sandy Konar" filled ellipse lightpink lightpink
+node "Jennifer Brandon" 13.537 13.956 2.5932 0.5 "Jennifer Brandon" filled ellipse lightpink lightpink
+node "Dan Kuhlman" 6.2451 15.956 2.1292 0.5 "Dan Kuhlman" filled ellipse lightblue lightblue
+node "Lindsay Arehart" 15.717 12.956 2.429 0.5 "Lindsay Arehart" filled ellipse lightblue lightblue
+node "Jarrod Monroe" 20.828 11.956 2.2385 0.5 "Jarrod Monroe" filled ellipse lightblue lightblue
+node "Jamie Fratacci" 25.828 12.956 2.2279 0.5 "Jamie Fratacci" filled ellipse lightpink lightpink
+node "Edward Givens" 60.273 19.956 2.3095 0.5 "Edward Givens" bold ellipse lightblue lightblue
+node "Veronica Nickel" 51.078 14.956 2.3717 0.5 "Veronica Nickel" filled ellipse lightpink lightpink
+node "Bryan Ransom" 20.773 15.956 2.2697 0.5 "Bryan Ransom" filled ellipse thistle thistle
+node "Jennifer Stout" 39.037 12.956 2.1916 0.5 "Jennifer Stout" filled ellipse lightpink lightpink
+node "Melissa Roy" 58.134 11.956 1.8827 0.5 "Melissa Roy" filled ellipse lightpink lightpink
+node "Josh Atwood" 26.467 11.956 1.9965 0.5 "Josh Atwood" filled ellipse lightblue lightblue
+node "Katie Browne" 38.092 11.956 2.0972 0.5 "Katie Browne" filled ellipse lightpink lightpink
+node "Kristin Tang" 15.578 15.956 1.9269 0.5 "Kristin Tang" filled ellipse lightpink lightpink
+node "Mike Tulumello" 32.981 10.956 2.3283 0.5 "Mike Tulumello" filled ellipse lightblue lightblue
+node "Veronica Villanueva" 54.495 11.956 2.95 0.5 "Veronica Villanueva" filled ellipse lightpink lightpink
+node "Scott Wright" 11.162 14.956 1.9941 0.5 "Scott Wright" filled ellipse lightblue lightblue
+node "Jeremy Browne" 29.44 12.956 2.3868 0.5 "Jeremy Browne" filled ellipse lightblue lightblue
+node "James Fogelman" 28.565 7.9556 2.5537 0.5 "James Fogelman" filled ellipse lightblue lightblue
+node "Sandra Chase" 17.315 11.956 2.1755 0.5 "Sandra Chase" filled ellipse lightblue lightblue
+node "Laura Fisher" 45.412 6.9556 1.9682 0.5 "Laura Fisher" filled ellipse lightpink lightpink
+node "Katie Kozma" 14.856 7.9556 1.9986 0.5 "Katie Kozma" filled ellipse lightpink lightpink
+node "Rachel Perkins" 53.801 7.9556 2.2693 0.5 "Rachel Perkins" filled ellipse lightpink lightpink
+node "Sarah Titilah" 20.273 6.9556 2.0134 0.5 "Sarah Titilah" filled ellipse lightpink lightpink
+node "Ashley Rehart" 45.287 5.9556 2.1833 0.5 "Ashley Rehart" filled ellipse lightpink lightpink
+node "Cara Yancey" 15.981 6.9556 1.9791 0.5 "Cara Yancey" filled ellipse lightpink lightpink
+node "Ashley Presley" 16.037 5.9556 2.2539 0.5 "Ashley Presley" filled ellipse lightpink lightpink
+node "Leila Wilhelm" 20.745 7.9556 2.0948 0.5 "Leila Wilhelm" filled ellipse lightpink lightpink
+node "Greg Moody" 41.398 11.956 1.9278 0.5 "Greg Moody" filled ellipse lightblue lightblue
+node "Lisa Fleck" 54.495 6.9556 1.6107 0.5 "Lisa Fleck" filled ellipse lightpink lightpink
+node "Christine Coyne" 51.967 6.9556 2.433 0.5 "Christine Coyne" filled ellipse lightpink lightpink
+node "Jennifer Cooley" 48.065 5.9556 2.3694 0.5 "Jennifer Cooley" filled ellipse lightpink lightpink
+node "Elizabeth Larios" 42.509 4.9556 2.4232 0.5 "Elizabeth Larios" filled ellipse lightpink lightpink
+node "Cate Threlkeld" 13.565 6.9556 2.257 0.5 "Cate Threlkeld" filled ellipse lightpink lightpink
+node "Erika Tapia" 58.287 10.956 1.8067 0.5 "Erika Tapia" filled ellipse lightpink lightpink
+node "Robbyn Rozelle" 23.412 10.956 2.37 0.5 "Robbyn Rozelle" filled ellipse lightpink lightpink
+node "Cameron Brown" 43.842 10.956 2.4675 0.5 "Cameron Brown" filled ellipse lightblue lightblue
+node "Janay Rabe" 55.676 10.956 1.8481 0.5 "Janay Rabe" filled ellipse lightpink lightpink
+node "Crystal Bozak" 35.467 10.956 2.1491 0.5 "Crystal Bozak" filled ellipse lightpink lightpink
+node "Kameka Smith" 52.912 9.9556 2.2818 0.5 "Kameka Smith" filled ellipse lightpink lightpink
+node "Kyra Sacco" 24.856 9.9556 1.8079 0.5 "Kyra Sacco" filled ellipse lightpink lightpink
+node "Samuel Behar" 22.606 9.9556 2.1985 0.5 "Samuel Behar" filled ellipse lightblue lightblue
+node "David Bronson" 42.759 13.956 2.2714 0.5 "David Bronson" filled ellipse lightblue lightblue
+node "Kristin Alongi-Hutchins" 42.009 14.956 3.3854 0.5 "Kristin Alongi-Hutchins" filled ellipse lightpink lightpink
+node "Rakan Abu-Rahma" 51.717 5.9556 2.8196 0.5 "Rakan Abu-Rahma" filled ellipse lightpink lightpink
+node "Jennifer Berry" 30.273 18.956 2.1957 0.5 "Jennifer Berry" filled ellipse lightpink lightpink
+node "Melissa Bebak" 41.259 10.956 2.2053 0.5 "Melissa Bebak" filled ellipse lightpink lightpink
+node "Teresa Simms" 55.453 9.9556 2.2197 0.5 "Teresa Simms" filled ellipse lightpink lightpink
+node "Robert Schmidtke" 45.19 20.956 2.7161 0.5 "Robert Schmidtke" filled ellipse lightblue lightblue
+node "Jean Newman" 47.884 20.956 2.1852 0.5 "Jean Newman" filled ellipse lightpink lightpink
+node "Brittany DePew" 42.509 3.9556 2.3814 0.5 "Brittany DePew" filled ellipse lightpink lightpink
+node "Kathleen Halberg" 45.287 4.9556 2.6311 0.5 "Kathleen Halberg" filled ellipse lightpink lightpink
+node "Terrance Hirsch" 50.176 15.956 2.4243 0.5 "Terrance Hirsch" filled ellipse lightblue lightblue
+node "Monique Arellano" 16.037 4.9556 2.6283 0.5 "Monique Arellano" filled ellipse lightpink lightpink
+node "Anthony Henderson" 48.328 4.9556 2.9656 0.5 "Anthony Henderson" filled ellipse lightpink lightpink
+node "Amethyst Tagle" 13.453 5.9556 2.4116 0.5 "Amethyst Tagle" filled ellipse lightpink lightpink
+node "Mallory Williams" 54.62 5.9556 2.4928 0.5 "Mallory Williams" filled ellipse lightpink lightpink
+edge "Lori Brede" "Christine Mount" 13 30.567 13.762 31.428 13.492 33.135 12.983 34.62 12.706 35.639 12.515 38.403 12.791 39.259 12.206 39.879 11.782 39.509 11.24 40.037 10.706 40.223 10.517 40.467 10.365 40.698 10.25 solid black
+edge "Lori Brede" "Kathleen Moran" 7 30.737 13.825 31.634 13.681 33.205 13.428 34.551 13.206 34.657 13.188 34.769 13.169 34.88 13.151 solid black
+edge "Lori Brede" "Christina Kelly" 7 30.842 13.907 33.768 13.785 43.478 13.371 44.87 13.206 44.967 13.194 45.067 13.18 45.167 13.164 solid black
+edge "Lori Brede" "Josh Atwood" 7 29.298 13.815 28.811 13.706 28.165 13.516 27.662 13.206 27.462 13.082 27.058 12.645 26.775 12.325 solid black
+edge "Lori Brede" "Samuel Behar" 13 29.299 13.816 28.906 13.713 28.433 13.529 28.12 13.206 27.629 12.698 28.15 12.14 27.592 11.706 26.627 10.953 22.932 12.11 22.106 11.206 21.881 10.959 22.069 10.597 22.275 10.329 solid black
+edge "Michael Griffith" "Lori Brede" 4 28.079 14.728 28.459 14.579 28.967 14.379 29.367 14.222 solid black
+edge "Amie Holston" "Lori Brede" 4 30.009 14.701 30.009 14.6 30.009 14.48 30.009 14.366 solid black
+edge "Amie Holston" "Matthew FitzGerald" 7 30.769 14.78 30.909 14.753 31.053 14.727 31.19 14.706 32.882 14.439 34.841 14.227 36.133 14.1 solid black
+edge "Laura De'Armond" "Casey Carter" 4 35.413 15.701 35.383 15.598 35.348 15.474 35.314 15.358 solid black
+edge "Laura De'Armond" "Deanna Johnson" 4 35.995 15.721 36.319 15.582 36.741 15.401 37.089 15.251 solid black
+edge "Japheth Cleaver" "Jillian Clifton" 10 15.884 14.803 14.506 14.61 12.182 14.276 12.12 14.206 11.679 13.705 11.726 13.263 12.092 12.706 12.266 12.441 12.557 12.271 12.85 12.163 solid black
+edge "Japheth Cleaver" "Laura Simonette" 7 17.862 14.798 18.155 14.761 18.476 14.726 18.773 14.706 20.172 14.609 64.656 14.086 73.217 13.986 solid black
+edge "Japheth Cleaver" "Jennifer Brandon" 4 16.199 14.743 15.673 14.59 14.945 14.378 14.383 14.215 solid black
+edge "Japheth Cleaver" "Jeremy Browne" 10 17.202 14.709 17.623 14.415 18.399 13.922 19.148 13.706 20.841 13.216 25.308 13.348 27.065 13.206 27.446 13.175 27.861 13.135 28.236 13.098 solid black
+edge "Japheth Cleaver" "Sandra Chase" 4 16.919 14.703 16.992 14.194 17.166 12.992 17.257 12.366 solid black
+edge "Chuk Gawlik" "Michael Griffith" 4 27.317 15.701 27.348 15.598 27.385 15.474 27.42 15.358 solid black
+edge "Chuk Gawlik" "Amie Holston" 4 27.804 15.745 28.233 15.594 28.827 15.385 29.291 15.222 solid black
+edge "Chuk Gawlik" "Japheth Cleaver" 10 26.534 15.777 26.397 15.75 26.255 15.724 26.12 15.706 22.878 15.257 22.031 15.52 18.773 15.206 18.537 15.183 18.285 15.154 18.044 15.125 solid black
+edge "Chuk Gawlik" "Alfredo Cardenas" 4 28.032 15.799 28.959 15.632 30.502 15.353 31.54 15.165 solid black
+edge "Chuk Gawlik" "Jamie Fratacci" 7 26.815 15.725 26.611 15.6 26.383 15.425 26.245 15.206 26.196 15.128 26 13.989 25.895 13.367 solid black
+edge "Stacy Snyder" "Japheth Cleaver" 10 3.2915 18.802 1.8758 18.532 -0.73752 17.86 0.20345 16.706 1.5796 15.016 11.498 15.512 14.995 15.206 15.233 15.185 15.487 15.157 15.729 15.128 solid black
+edge "Stacy Snyder" "Kristen Elgo" 4 4.9994 18.811 6.1919 18.63 8.3338 18.305 9.5796 18.117 solid black
+edge "Stacy Snyder" "Steven Gross" 4 3.8132 18.712 3.3236 18.36 2.3886 17.69 1.8322 17.291 solid black
+edge "Stacy Snyder" "Dusty Jolliff" 7 5.1346 18.875 5.6404 18.79 6.226 18.604 6.6062 18.206 6.8185 17.983 6.8903 17.637 6.9116 17.368 solid black
+edge "David Guthrie" "Jillian Clifton" 4 19.411 12.809 18.207 12.628 16.066 12.308 14.806 12.12 solid black
+edge "David Guthrie" "Kristen Anderson" 7 19.978 12.711 19.826 12.582 19.66 12.406 19.578 12.206 19.326 11.587 19.573 10.805 19.769 10.349 solid black
+edge "David Guthrie" "Nathan Williams" 4 20.932 12.746 21.421 12.595 22.101 12.384 22.63 12.22 solid black
+edge "David Guthrie" "Josh Atwood" 4 21.178 12.803 22.315 12.624 24.295 12.312 25.483 12.125 solid black
+edge "David Guthrie" "Sandra Chase" 4 19.693 12.744 19.225 12.591 18.574 12.38 18.072 12.216 solid black
+edge "Tony Sacco" "Laura De'Armond" 10 41.908 16.778 41.785 16.751 41.657 16.726 41.537 16.706 39.51 16.367 38.976 16.481 36.94 16.206 36.829 16.191 36.715 16.174 36.6 16.157 solid black
+edge "Tony Sacco" "Karen Saye" 13 41.926 16.773 41.798 16.746 41.664 16.722 41.537 16.706 39.561 16.456 25.482 16.912 23.62 16.206 23.296 16.083 23.333 15.86 23.023 15.706 22.969 15.679 21.604 15.369 20.676 15.16 solid black
+edge "Tony Sacco" "Amy Price" 7 43.226 16.772 43.788 16.616 44.553 16.384 44.815 16.206 45.148 15.979 45.433 15.614 45.617 15.339 solid black
+edge "Tony Sacco" "Regan Ashker" 4 42.582 16.701 42.583 16.6 42.585 16.48 42.587 16.366 solid black
+edge "Tony Sacco" "Tiffany Kalland" 13 43.133 16.751 43.382 16.634 43.653 16.458 43.801 16.206 44.137 15.63 44.285 15.192 43.828 14.706 43.23 14.067 36.817 14.415 35.967 14.206 34.236 13.779 32.357 12.782 31.471 12.276 solid black
+edge "Tony Sacco" "David Bronson" 10 43.177 16.761 43.616 16.616 44.157 16.403 44.287 16.206 44.653 15.649 44.641 15.27 44.287 14.706 44.143 14.476 43.905 14.317 43.66 14.206 solid black
+edge "Heather Smith" "Laura De'Armond" 10 23.718 16.774 23.87 16.748 24.027 16.723 24.176 16.706 28.528 16.191 29.665 16.668 34.023 16.206 34.141 16.193 34.265 16.177 34.387 16.16 solid black
+edge "Heather Smith" "Chuk Gawlik" 4 23.686 16.768 24.44 16.599 25.582 16.343 26.368 16.166 solid black
+edge "Heather Smith" "Kathleen Hansen" 10 23.726 16.776 23.875 16.749 24.03 16.724 24.176 16.706 27.251 16.309 28.054 16.562 31.134 16.206 31.256 16.191 31.384 16.174 31.511 16.156 solid black
+edge "Heather Smith" "Kristin Tang" 10 22.1 16.778 21.954 16.751 21.804 16.726 21.662 16.706 19.451 16.387 18.868 16.555 16.662 16.206 16.585 16.193 16.506 16.179 16.427 16.164 solid black
+edge "Kevin Decker" "Chuck Foster" 4 21.649 14.719 21.409 14.585 21.101 14.414 20.84 14.269 solid black
+edge "Kevin Decker" "Karen Helbling" 7 22.163 14.701 22.286 14.446 22.495 14.035 22.717 13.706 22.805 13.576 22.91 13.443 23.009 13.325 solid black
+edge "Alex Hansen" "Kevin Decker" 10 37.354 15.774 37.218 15.747 37.075 15.722 36.94 15.706 30.883 14.957 29.278 15.924 23.217 15.206 23.128 15.195 23.035 15.181 22.943 15.165 solid black
+edge "Alex Hansen" "Patrick Doerr" 7 38.385 15.718 39.185 15.183 41.168 13.863 41.495 13.706 41.933 13.495 42.447 13.32 42.868 13.193 solid black
+edge "Alex Hansen" "Deanna Johnson" 4 37.975 15.701 37.943 15.598 37.904 15.474 37.867 15.358 solid black
+edge "Wanda Livelsberger" "Michael Griffith" 7 28.955 16.7 28.83 16.44 28.611 16.021 28.356 15.706 28.24 15.562 28.095 15.422 27.96 15.304 solid black
+edge "Wanda Livelsberger" "Kevin Decker" 10 27.982 16.781 27.805 16.755 27.624 16.729 27.453 16.706 25.752 16.47 25.204 16.872 23.62 16.206 23.137 16.002 22.677 15.608 22.382 15.319 solid black
+edge "Wanda Livelsberger" "Lynn Reeves" 4 29.293 16.706 29.407 16.589 29.546 16.446 29.672 16.316 solid black
+edge "Patrick Doerr" "Joseph Butler" 4 44.459 12.779 45.241 12.61 46.463 12.347 47.3 12.167 solid black
+edge "Patrick Doerr" "Sarah Maltese" 4 43.952 12.706 44.077 12.588 44.231 12.443 44.369 12.312 solid black
+edge "Patrick Doerr" "Katie Browne" 4 42.882 12.799 41.87 12.624 40.156 12.327 39.076 12.14 solid black
+edge "Patrick Doerr" "Erika Tapia" 16 44.455 12.779 44.593 12.752 44.735 12.727 44.87 12.706 46.877 12.393 47.397 12.461 49.412 12.206 50.965 12.009 51.346 11.907 52.898 11.706 54.802 11.458 55.295 11.519 57.19 11.206 57.277 11.191 57.368 11.174 57.459 11.156 solid black
+edge "Patrick Doerr" "Crystal Bozak" 13 42.843 12.811 42.149 12.692 41.154 12.491 40.315 12.206 39.823 12.038 39.752 11.867 39.259 11.706 38.148 11.341 37.824 11.429 36.676 11.206 36.593 11.189 36.507 11.173 36.421 11.156 solid black
+edge "Deanna Jagow" "Patrick Doerr" 4 47.375 13.77 46.6 13.601 45.417 13.343 44.605 13.166 solid black
+edge "Deanna Jagow" "Joseph Butler" 4 48.169 13.7 48.178 13.367 48.195 12.763 48.206 12.364 solid black
+edge "Deanna Jagow" "Sarah Maltese" 7 48.072 13.704 47.953 13.424 47.718 12.963 47.37 12.706 46.937 12.385 46.37 12.204 45.873 12.102 solid black
+edge "Deanna Jagow" "Samuel Wallace" 7 48.367 13.703 48.636 13.381 49.109 12.781 49.412 12.206 49.554 11.936 49.669 11.611 49.746 11.361 solid black
+edge "Deanna Jagow" "Jennifer Stout" 10 47.357 13.776 47.209 13.75 47.056 13.725 46.912 13.706 44.003 13.322 43.239 13.581 40.328 13.206 40.221 13.192 40.109 13.175 39.997 13.157 solid black
+edge "Mark Pearson" "Lori Asaro" 7 53.098 18.893 49.803 18.736 39.764 18.256 39.426 18.206 39.361 18.196 39.294 18.184 39.227 18.17 solid black
+edge "Mark Pearson" "Tani Miller" 4 54.134 18.701 54.134 18.6 54.134 18.48 54.134 18.366 solid black
+edge "Mark Pearson" "Marc Martin-ez" 7 54.585 18.722 54.783 18.6 54.996 18.427 55.106 18.206 55.235 17.947 55.213 17.619 55.163 17.365 solid black
+edge "Lori Ball" "Lori Asaro" 10 47.853 18.778 47.75 18.75 47.64 18.723 47.537 18.706 43.978 18.091 42.995 18.757 39.426 18.206 39.362 18.196 39.296 18.183 39.23 18.17 solid black
+edge "Ryan Farris" "Ilana Melcher" 4 52.203 12.704 52.34 12.369 52.591 11.756 52.754 11.355 solid black
+edge "Ryan Farris" "Jeremy Frazier" 7 52.073 12.701 51.999 12.25 51.779 11.27 51.203 10.706 50.948 10.455 50.599 10.288 50.267 10.177 solid black
+edge "Ryan Farris" "Veronica Villanueva" 4 52.601 12.74 52.947 12.599 53.415 12.409 53.799 12.253 solid black
+edge "Ryan Farris" "Greg Moody" 7 51.232 12.875 49.675 12.754 46.321 12.485 43.495 12.206 43.143 12.171 42.757 12.128 42.414 12.089 solid black
+edge "Rob Reiner" "Ryan Farris" 16 6.446 17.877 7.2307 17.82 8.4267 17.742 9.4673 17.706 10.271 17.678 66.79 17.777 67.356 17.206 67.831 16.727 67.07 15.435 65.773 14.706 61.051 12.05 59.043 13.942 53.676 13.206 53.471 13.178 53.252 13.146 53.044 13.115 solid black
+edge "Rob Reiner" "Steven Gross" 4 4.9209 17.787 4.204 17.621 3.0647 17.358 2.2737 17.175 solid black
+edge "Rob Reiner" "Dusty Jolliff" 4 5.8984 17.716 6.0703 17.589 6.2878 17.429 6.4771 17.29 solid black
+edge "Rob Reiner" "Kelly Greenhill" 4 6.222 17.773 6.8171 17.614 7.7146 17.375 8.3746 17.198 solid black
+edge "Rob Reiner" "Jeremy Kirchner" 4 5.2214 17.723 4.9966 17.591 4.7063 17.42 4.4589 17.275 solid black
+edge "Rob Reiner" "Dan Kuhlman" 7 5.6195 17.699 5.6529 17.445 5.7207 17.039 5.8423 16.706 5.8873 16.582 5.9504 16.455 6.0134 16.341 solid black
+edge "Cindy Teel" "Ryan Farris" 4 52.795 13.711 52.686 13.594 52.552 13.45 52.431 13.319 solid black
+edge "Cindy Teel" "Sedona Reynolds" 4 53.454 13.735 53.752 13.597 54.15 13.413 54.48 13.26 solid black
+edge "Cindy Teel" "Bradley Stouse" 19 52.179 13.887 49.786 13.728 43.011 13.274 42.537 13.206 41.511 13.058 41.278 12.894 40.259 12.706 38.786 12.434 38.402 12.457 36.926 12.206 35.758 12.007 32.445 12.118 31.69 11.206 31.548 11.034 31.563 10.888 31.69 10.706 31.822 10.515 32.306 10.333 32.761 10.198 solid black
+edge "Cindy Teel" "Janay Rabe" 7 53.839 13.887 54.773 13.805 56.203 13.616 56.537 13.206 56.999 12.637 56.417 11.791 56.009 11.32 solid black
+edge "Ginger Palmer" "Vienna McMurtry" 10 59.17 17.786 58.989 17.756 58.799 17.727 58.62 17.706 55.622 17.341 54.841 17.565 51.842 17.206 51.732 17.192 51.617 17.176 51.502 17.159 solid black
+edge "Ginger Palmer" "Gary Frampton" 7 61.06 17.869 62.562 17.758 65.406 17.527 67.815 17.206 67.926 17.191 68.042 17.173 68.157 17.155 solid black
+edge "Ginger Palmer" "J. Angeles" 10 59.162 17.789 58.983 17.759 58.796 17.73 58.62 17.706 56.474 17.413 55.907 17.573 53.773 17.206 53.705 17.194 53.634 17.18 53.563 17.165 solid black
+edge "Mark Newton-John" "Ginger Palmer" 4 60.208 18.701 60.18 18.598 60.146 18.474 60.114 18.358 solid black
+edge "Mark Newton-John" "Sedona Reynolds" 10 61.615 18.873 64.882 18.687 72.981 18.11 72.981 16.969 72.981 16.969 72.981 16.969 72.981 14.942 72.981 13.295 60.843 13.023 56.572 12.978 solid black
+edge "Mark Newton-John" "Gara Thornton" 13 61.673 18.915 65.575 18.823 76.287 18.436 76.287 16.969 76.287 16.969 76.287 16.969 76.287 14.942 76.287 14.38 76.256 14.217 76.023 13.706 75.962 13.572 75.874 13.44 75.785 13.325 solid black
+edge "Mark Newton-John" "Jarrod Monroe" 28 59.2 18.788 58.926 18.755 58.631 18.724 58.356 18.706 55.959 18.545 17.454 18.774 15.12 18.206 14.16 17.972 13.652 18.047 13.134 17.206 13.017 17.016 13.025 16.899 13.134 16.706 13.347 16.33 13.623 16.467 13.967 16.206 14.225 16.01 14.204 15.845 14.495 15.706 16.012 14.981 16.947 16.274 18.245 15.206 19.151 14.46 18.294 13.565 19.092 12.706 19.311 12.47 19.619 12.306 19.914 12.195 solid black
+edge "Matthew FitzGerald" "Kathleen Moran" 4 37.168 13.709 36.955 13.579 36.687 13.416 36.458 13.276 solid black
+edge "Matthew FitzGerald" "Christina Kelly" 7 38.864 13.844 40.332 13.727 42.778 13.508 44.87 13.206 44.963 13.192 45.06 13.177 45.157 13.16 solid black
+edge "Matthew FitzGerald" "Jennifer Stout" 4 37.907 13.709 38.101 13.582 38.345 13.422 38.556 13.284 solid black
+edge "Matthew FitzGerald" "Mike Tulumello" 7 37.563 13.699 37.563 13.427 37.523 12.986 37.287 12.706 36.827 12.159 34.942 11.537 33.824 11.206 solid black
+edge "Matthew FitzGerald" "Jeremy Browne" 4 36.384 13.802 34.846 13.617 32.154 13.295 30.612 13.11 solid black
+edge "Matthew FitzGerald" "Kameka Smith" 22 38.892 13.856 39.655 13.808 40.628 13.75 41.495 13.706 42.789 13.639 51.955 13.711 53.148 13.206 53.445 13.08 53.381 12.839 53.676 12.706 54.8 12.198 58.322 13.069 59.203 12.206 59.681 11.738 59.764 11.201 59.315 10.706 58.932 10.284 54.781 10.284 54.217 10.206 54.115 10.191 54.008 10.175 53.901 10.157 solid black
+edge "Mervin Maniago" "Cindy Teel" 4 53.556 14.706 53.472 14.593 53.369 14.454 53.275 14.328 solid black
+edge "Mervin Maniago" "Matthew FitzGerald" 10 52.871 14.774 52.71 14.747 52.542 14.723 52.384 14.706 47.569 14.175 46.333 14.461 41.495 14.206 40.689 14.163 39.791 14.11 39.056 14.064 solid black
+edge "Mervin Maniago" "Tiffany Worthington" 10 52.879 14.772 52.715 14.745 52.545 14.721 52.384 14.706 47.219 14.201 34.223 14.391 29.037 14.206 27.981 14.168 26.794 14.108 25.875 14.058 solid black
+edge "Mervin Maniago" "Melissa Roy" 7 54.202 14.721 54.825 14.419 55.948 13.841 56.815 13.206 57.181 12.937 57.555 12.576 57.811 12.314 solid black
+edge "Tani Miller" "Marc Martin-ez" 4 54.351 17.711 54.461 17.594 54.598 17.45 54.721 17.319 solid black
+edge "Robert Walwick" "Vienna McMurtry" 10 43.832 17.778 43.983 17.752 44.139 17.727 44.287 17.706 46.382 17.408 46.926 17.492 49.023 17.206 49.126 17.191 49.234 17.175 49.342 17.159 solid black
+edge "Robert Walwick" "Ian McIntosh" 10 42.103 17.777 41.952 17.751 41.795 17.726 41.648 17.706 39.448 17.399 38.872 17.537 36.676 17.206 36.591 17.193 36.504 17.178 36.417 17.162 solid black
+edge "Chuck Foster" "David Guthrie" 4 20.301 13.701 20.301 13.6 20.301 13.48 20.301 13.366 solid black
+edge "Karen Saye" "Chuck Foster" 4 19.945 14.701 19.997 14.595 20.058 14.468 20.116 14.35 solid black
+edge "Sean Tipps" "Pat Norris" 4 61.679 20.711 61.812 20.59 61.978 20.44 62.125 20.306 solid black
+edge "Teresa Long" "Pat Norris" 4 63.301 20.711 63.169 20.59 63.005 20.44 62.86 20.306 solid black
+edge "Marc Martin-ez" "Denmark Vea" 10 55.866 16.773 56.019 16.746 56.178 16.722 56.328 16.706 62.518 16.027 64.144 16.923 70.328 16.206 70.422 16.195 70.519 16.18 70.616 16.164 solid black
+edge "Kelly Erickson" "Kristen Villone" 4 66.136 20.706 66.27 20.587 66.437 20.44 66.585 20.308 solid black
+edge "Anna Pedroza" "Kristen Villone" 4 67.974 20.711 67.804 20.586 67.592 20.43 67.406 20.293 solid black
+edge "Chris Livelsberger" "Deanna Jagow" 4 48.256 14.701 48.243 14.599 48.227 14.477 48.212 14.362 solid black
+edge "Chris Livelsberger" "Geoff Frank" 4 47.732 14.721 47.365 14.575 46.883 14.383 46.497 14.23 solid black
+edge "Amy Price" "Deanna Jagow" 4 46.312 14.745 46.654 14.601 47.123 14.405 47.503 14.246 solid black
+edge "Amy Price" "Geoff Frank" 4 45.842 14.701 45.842 14.6 45.842 14.48 45.842 14.366 solid black
+edge "John FitzGibbon" "Tracy Murray" 4 46.032 19.723 45.704 19.582 45.275 19.396 44.924 19.245 solid black
+edge "John FitzGibbon" "Steven Smith" 7 47.68 19.862 49.359 19.742 52.589 19.497 55.328 19.206 55.58 19.179 55.849 19.146 56.103 19.114 solid black
+edge "John FitzGibbon" "Jerry Maya" 4 46.533 19.701 46.532 19.6 46.53 19.48 46.529 19.366 solid black
+edge "Judy Dulcich" "Tracy Murray" 4 44.119 19.701 44.143 19.599 44.171 19.477 44.197 19.362 solid black
+edge "Judy Dulcich" "Kelly McKinney" 4 43.579 19.733 43.249 19.591 42.809 19.402 42.449 19.248 solid black
+edge "Barbara Tollison" "Ian McIntosh" 4 33.834 17.721 34.147 17.581 34.556 17.397 34.891 17.247 solid black
+edge "Jayson Smith" "Chuk Gawlik" 10 21.239 16.778 21.375 16.752 21.515 16.726 21.648 16.706 23.624 16.396 24.145 16.522 26.12 16.206 26.201 16.193 26.286 16.178 26.37 16.162 solid black
+edge "Jayson Smith" "Bryan Ransom" 4 20.553 16.701 20.584 16.598 20.622 16.474 20.656 16.358 solid black
+edge "Mark Nadeau" "Kelly McKinney" 4 41.78 19.701 41.783 19.6 41.786 19.48 41.789 19.366 solid black
+edge "Renee Thompson" "Delphy Shaulis" 4 68.884 15.701 68.884 15.6 68.884 15.48 68.884 15.366 solid black
+edge "J. Angeles" "Mervin Maniago" 7 53.215 16.735 53.414 16.611 53.634 16.433 53.745 16.206 53.872 15.946 53.862 15.618 53.823 15.365 solid black
+edge "J. Angeles" "Renee Thompson" 10 53.404 16.776 53.525 16.748 53.653 16.723 53.773 16.706 58.765 15.996 60.071 16.474 65.106 16.206 65.899 16.163 66.786 16.108 67.5 16.062 solid black
+edge "J. Angeles" "Kathy Jones" 4 52.763 16.701 52.747 16.599 52.728 16.477 52.71 16.362 solid black
+edge "J. Angeles" "Lucinda Farless" 10 52.184 16.782 52.07 16.755 51.953 16.728 51.842 16.706 50.518 16.433 50.175 16.429 48.842 16.206 48.732 16.187 48.616 16.168 48.501 16.148 solid black
+edge "J. Angeles" "Terrance Hirsch" 4 52.288 16.752 51.89 16.604 51.333 16.398 50.891 16.234 solid black
+edge "Kelley Smith" "Renee Thompson" 4 71.038 16.743 70.63 16.596 70.073 16.396 69.627 16.236 solid black
+edge "Kelley Smith" "Denmark Vea" 4 71.575 16.701 71.568 16.6 71.559 16.48 71.551 16.366 solid black
+edge "Steven Smith" "Russell Grant" 4 57.23 18.701 57.26 18.598 57.295 18.474 57.329 18.358 solid black
+edge "Diane Reoch" "Charlene Andrews" 4 70.815 20.701 70.815 20.6 70.815 20.48 70.815 20.366 solid black
+edge "Tonya Alexander" "Martin Naiman" 4 36.921 17.754 37.621 17.59 38.636 17.353 39.365 17.182 solid black
+edge "Gail Vasquez" "Tonya Alexander" 4 36.12 18.701 36.12 18.6 36.12 18.48 36.12 18.366 solid black
+edge "Spencer Caldwell" "Michael Elgo" 4 24.774 18.719 25.08 18.579 25.477 18.397 25.804 18.248 solid black
+edge "Becky Bernal" "Spencer Caldwell" 4 24.287 19.701 24.287 19.6 24.287 19.48 24.287 19.366 solid black
+edge "Russell Grant" "Melissa Schwartz" 4 57.519 17.701 57.553 17.598 57.593 17.474 57.631 17.358 solid black
+edge "Russell Grant" "Martin Naiman" 10 56.51 17.834 56.083 17.788 55.569 17.737 55.106 17.706 49.086 17.29 47.535 17.873 41.537 17.206 41.437 17.194 41.332 17.18 41.229 17.163 solid black
+edge "Russell Grant" "Johnny Richardson" 4 58.082 17.752 58.594 17.601 59.317 17.387 59.878 17.222 solid black
+edge "Tiffany Worthington" "David Guthrie" 4 23.504 13.743 22.828 13.579 21.873 13.349 21.182 13.182 solid black
+edge "Tiffany Worthington" "Jamie Fratacci" 4 24.692 13.706 24.886 13.58 25.129 13.423 25.34 13.286 solid black
+edge "Martin Naiman" "Alex Hansen" 4 39.78 16.726 39.454 16.583 39.025 16.396 38.675 16.243 solid black
+edge "Martin Naiman" "Kathleen Hansen" 10 39.452 16.778 39.305 16.751 39.153 16.726 39.009 16.706 36.804 16.39 36.231 16.5 34.023 16.206 33.916 16.191 33.805 16.175 33.694 16.158 solid black
+edge "Martin Naiman" "Penny Lewis" 4 40.273 16.701 40.273 16.6 40.273 16.48 40.273 16.366 solid black
+edge "Martin Naiman" "Lindsay Arehart" 16 39.473 16.773 39.32 16.746 39.16 16.722 39.009 16.706 35.475 16.323 26.466 17.086 23.023 16.206 22.547 16.084 22.51 15.838 22.037 15.706 21.338 15.51 16.016 15.738 15.523 15.206 15.06 14.706 15.32 13.845 15.532 13.35 solid black
+edge "Janean Angeles" "Alex Hansen" 13 31.235 17.802 32.125 17.663 33.374 17.436 33.815 17.206 34.101 17.056 34.055 16.853 34.342 16.706 35.388 16.169 35.787 16.439 36.94 16.206 37.012 16.191 37.087 16.176 37.162 16.16 solid black
+edge "Janean Angeles" "Wanda Livelsberger" 4 29.98 17.706 29.83 17.585 29.644 17.436 29.48 17.303 solid black
+edge "Janean Angeles" "Kristianna Reynante" 4 29.466 17.766 28.735 17.606 27.655 17.371 26.859 17.197 solid black
+edge "Janean Angeles" "Shari VerBerkmoes" 4 30.725 17.719 30.997 17.585 31.346 17.413 31.641 17.267 solid black
+edge "Dennis McColl" "Tony Sacco" 4 44.905 17.741 44.438 17.586 43.788 17.371 43.294 17.207 solid black
+edge "Dennis McColl" "Leslie Harlow" 10 44.722 17.778 44.578 17.751 44.428 17.726 44.287 17.706 41.955 17.371 41.34 17.551 39.009 17.206 38.925 17.193 38.837 17.178 38.75 17.163 solid black
+edge "Denise Luna" "Leslie Harlow" 4 39.985 17.743 39.57 17.593 38.998 17.387 38.55 17.225 solid black
+edge "April Ortiz-cloninger" "Tony Sacco" 7 47.261 17.779 46.09 17.604 44.31 17.334 43.634 17.206 43.562 17.192 43.487 17.177 43.412 17.161 solid black
+edge "April Ortiz-cloninger" "Jonathan Yudman" 4 48.154 17.701 48.058 17.588 47.943 17.451 47.838 17.326 solid black
+edge "April Ortiz-cloninger" "Laura Stegner" 10 49.638 17.82 50.108 17.778 50.645 17.735 51.134 17.706 57.238 17.335 58.808 17.892 64.884 17.206 64.981 17.195 65.082 17.18 65.182 17.164 solid black
+edge "Michael Elgo" "Susan Colwell" 10 27.311 17.845 27.797 17.796 28.407 17.74 28.953 17.706 35.463 17.293 37.139 17.937 43.62 17.206 43.717 17.195 43.818 17.18 43.919 17.164 solid black
+edge "Michael Elgo" "Kristianna Reynante" 4 26.267 17.706 26.201 17.598 26.12 17.467 26.046 17.346 solid black
+edge "Carol Kropp" "Michael Elgo" 4 26.694 18.701 26.654 18.597 26.605 18.471 26.56 18.354 solid black
+edge "Kathleen Hansen" "Amy Price" 10 33.522 15.773 33.689 15.747 33.861 15.723 34.023 15.706 38.361 15.235 39.48 15.571 43.828 15.206 44.193 15.175 44.595 15.13 44.942 15.088 solid black
+edge "Kathleen Hansen" "Alfredo Cardenas" 4 32.61 15.701 32.611 15.6 32.613 15.48 32.614 15.366 solid black
+edge "Laura Stegner" "Eric Gates" 4 65.673 16.721 65.386 16.58 65.012 16.395 64.706 16.245 solid black
+edge "Kathy Jones" "Mervin Maniago" 4 52.905 15.711 53.038 15.592 53.203 15.444 53.35 15.311 solid black
+edge "Eric Gates" "Jennifer Stoewe" 4 63.75 15.731 63.494 15.595 63.158 15.417 62.875 15.267 solid black
+edge "Eric Gates" "Scott Wood" 4 64.286 15.706 64.349 15.598 64.426 15.467 64.497 15.346 solid black
+edge "Erick Sugimura" "Eric Gates" 4 63.719 16.701 63.783 16.593 63.859 16.463 63.93 16.342 solid black
+edge "Karen Helbling" "Tiffany Kalland" 7 24.156 12.778 24.301 12.752 24.451 12.727 24.592 12.706 26.384 12.435 28.472 12.211 29.753 12.083 solid black
+edge "Karen Helbling" "Nathan Williams" 4 23.356 12.701 23.367 12.6 23.381 12.48 23.394 12.366 solid black
+edge "Karen Helbling" "Susannah Clayton" 10 23.852 12.729 24.147 12.598 24.515 12.415 24.815 12.206 25.08 12.021 25.08 11.894 25.342 11.706 25.576 11.538 25.853 11.385 26.098 11.262 solid black
+edge "Karen Helbling" "Sarah Titilah" 13 22.412 12.802 21.378 12.638 19.808 12.368 19.578 12.206 18.636 11.539 18.259 11.123 18.259 9.9694 18.259 9.9694 18.259 9.9694 18.259 8.9417 18.259 8.1505 19.062 7.5721 19.654 7.2532 solid black
+edge "Regan Ashker" "Karen Helbling" 13 41.9 15.758 41.415 15.623 40.755 15.425 40.19 15.206 39.706 15.018 39.637 14.832 39.134 14.706 34.776 13.612 33.491 14.794 29.037 14.206 27.289 13.975 25.283 13.487 24.175 13.198 solid black
+edge "Regan Ashker" "Veronica Nickel" 7 43.606 15.862 44.999 15.748 47.583 15.515 49.773 15.206 49.869 15.192 49.968 15.177 50.068 15.16 solid black
+edge "Greg Flood" "J. Angeles" 4 52.306 17.706 52.381 17.594 52.473 17.457 52.557 17.332 solid black
+edge "Lynn Reeves" "Amie Holston" 4 30.009 15.701 30.009 15.6 30.009 15.48 30.009 15.366 solid black
+edge "Susan Colwell" "Lucinda Farless" 4 45.393 16.735 45.783 16.589 46.31 16.392 46.732 16.234 solid black
+edge "Susan Colwell" "Terrance Hirsch" 7 45.648 16.782 45.782 16.756 45.92 16.73 46.051 16.706 47.09 16.511 48.279 16.3 49.113 16.154 solid black
+edge "Kevin Owens" "Christopher Jouan" 4 73.815 20.701 73.815 20.6 73.815 20.48 73.815 20.366 solid black
+edge "Kristianna Reynante" "Nathan Fellhauer" 10 24.718 16.778 24.537 16.753 24.351 16.728 24.176 16.706 22.106 16.446 21.576 16.488 19.509 16.206 19.405 16.191 19.297 16.175 19.19 16.159 solid black
+edge "Amy Berner" "Stacy Snyder" 4 4.134 19.701 4.134 19.6 4.134 19.48 4.134 19.366 solid black
+edge "Nathan Fellhauer" "Klair Mayerchak" 4 17.254 15.759 16.501 15.595 15.395 15.353 14.604 15.181 solid black
+edge "James Rowland" "Wanda Livelsberger" 10 17.505 17.838 17.982 17.794 18.551 17.744 19.065 17.706 22.789 17.427 23.738 17.588 27.453 17.206 27.584 17.192 27.72 17.176 27.855 17.158 solid black
+edge "James Rowland" "Jayson Smith" 4 17.2 17.759 17.884 17.594 18.888 17.353 19.605 17.18 solid black
+edge "James Rowland" "Nathan Fellhauer" 7 15.412 17.824 14.44 17.671 13.205 17.345 13.745 16.706 13.758 16.69 15.691 16.367 16.974 16.154 solid black
+edge "James Rowland" "Anson Summers" 4 16.13 17.711 15.964 17.587 15.756 17.433 15.573 17.297 solid black
+edge "James Rowland" "Jennifer Garman" 4 16.788 17.711 16.98 17.585 17.219 17.427 17.428 17.289 solid black
+edge "James Rowland" "Kristin Tang" 10 15.384 17.835 14.572 17.729 13.547 17.534 13.287 17.206 13.149 17.031 13.156 16.885 13.287 16.706 13.456 16.474 14.104 16.279 14.668 16.148 solid black
+edge "James Rowland" "Scott Wright" 10 15.465 17.807 14.794 17.695 13.89 17.504 13.134 17.206 12.321 16.884 11.954 16.912 11.44 16.206 11.263 15.963 11.196 15.629 11.172 15.369 solid black
+edge "Brian Raneses" "Heather Smith" 4 20.854 17.735 21.248 17.589 21.78 17.391 22.205 17.233 solid black
+edge "Sean McHenry" "James Rowland" 4 17.932 18.721 17.664 18.586 17.317 18.411 17.025 18.264 solid black
+edge "Sean McHenry" "Brian Raneses" 4 18.808 18.721 19.08 18.584 19.432 18.407 19.725 18.259 solid black
+edge "Sean McHenry" "Kristen Elgo" 7 17.333 18.857 16.018 18.743 13.685 18.517 11.703 18.206 11.613 18.191 11.519 18.175 11.425 18.157 solid black
+edge "Sean McHenry" "Shari VerBerkmoes" 10 19.172 18.776 20.46 18.515 23.069 18.008 25.301 17.706 27.678 17.384 28.294 17.495 30.676 17.206 30.796 17.191 30.921 17.174 31.046 17.157 solid black
+edge "Penny Lewis" "Kristin Alongi-Hutchins" 4 40.667 15.721 40.9 15.591 41.199 15.423 41.455 15.28 solid black
+edge "Becky Graham" "Klair Mayerchak" 4 12.929 15.706 13.041 15.589 13.178 15.446 13.302 15.316 solid black
+edge "Kristen Elgo" "Heather Smith" 7 11.489 17.894 13.797 17.775 19.703 17.454 21.662 17.206 21.756 17.194 21.853 17.179 21.95 17.163 solid black
+edge "Kristen Elgo" "Becky Graham" 7 10.747 17.706 10.967 17.448 11.342 17.028 11.703 16.706 11.868 16.559 12.06 16.413 12.231 16.289 solid black
+edge "Kristen Elgo" "Kelly Greenhill" 4 10.245 17.716 10.074 17.59 9.8583 17.432 9.67 17.293 solid black
+edge "Kristen Elgo" "Scott Wright" 7 10.593 17.699 10.666 17.288 10.823 16.428 10.981 15.706 11.006 15.593 11.035 15.472 11.062 15.361 solid black
+edge "Sedona Reynolds" "Veronica Villanueva" 4 54.955 12.701 54.887 12.593 54.805 12.463 54.729 12.342 solid black
+edge "Dusty Jolliff" "Regan Ashker" 10 7.5757 16.773 7.7092 16.746 7.849 16.721 7.9812 16.706 15.355 15.845 34 16.976 41.384 16.206 41.48 16.196 41.58 16.182 41.68 16.166 solid black
+edge "Dusty Jolliff" "Dan Kuhlman" 4 6.7504 16.706 6.6746 16.596 6.5824 16.461 6.4976 16.338 solid black
+edge "Jennifer Jouan" "Tiffany Worthington" 4 24.433 14.701 24.418 14.599 24.401 14.477 24.385 14.362 solid black
+edge "Andrea Owens" "Jennifer Jouan" 4 24.771 15.701 24.727 15.597 24.675 15.471 24.627 15.354 solid black
+edge "Tamara Scrivner" "Jamie Jackson" 4 46.613 10.701 46.622 10.6 46.632 10.48 46.642 10.366 solid black
+edge "Joseph Butler" "Tamara Scrivner" 4 47.84 11.716 47.623 11.586 47.345 11.42 47.108 11.278 solid black
+edge "Joseph Butler" "Samuel Wallace" 4 48.597 11.716 48.817 11.586 49.097 11.42 49.337 11.278 solid black
+edge "Joseph Butler" "Rachel Perkins" 13 48.962 11.772 49.093 11.747 49.228 11.723 49.356 11.706 50.17 11.594 56.17 11.806 56.731 11.206 56.872 11.054 56.907 10.073 56.69 9.7056 56.236 8.9407 55.302 8.4721 54.619 8.2175 solid black
+edge "Joseph Butler" "Cameron Brown" 4 47.465 11.775 46.73 11.611 45.607 11.362 44.807 11.184 solid black
+edge "Joseph Butler" "Kyra Sacco" 10 48.251 11.703 48.276 11.418 48.266 10.948 47.981 10.706 47.204 10.045 30.64 10.245 29.62 10.206 28.337 10.156 26.859 10.08 25.895 10.028 solid black
+edge "Joseph Butler" "Teresa Simms" 10 49.248 11.89 50.698 11.804 53.257 11.6 54.092 11.206 54.384 11.067 54.382 10.924 54.62 10.706 54.764 10.574 54.925 10.431 55.066 10.306 solid black
+edge "Sarah Maltese" "Tamara Scrivner" 4 45.158 11.719 45.414 11.585 45.743 11.413 46.021 11.268 solid black
+edge "Sarah Maltese" "Melissa Bebak" 4 44.054 11.752 43.491 11.594 42.688 11.37 42.087 11.201 solid black
+edge "Bradley Stouse" "Alberto Ayon" 4 32.877 9.7645 32.134 9.5967 31.019 9.345 30.244 9.1699 solid black
+edge "Ryan Underwood" "Bradley Stouse" 4 37.259 10.759 36.506 10.594 35.398 10.35 34.611 10.178 solid black
+edge "Ryan Underwood" "Christine Mount" 4 38.784 10.739 39.307 10.586 40.027 10.375 40.581 10.213 solid black
+edge "Ryan Underwood" "Rebecca Hippert" 10 37.147 10.779 36.985 10.753 36.819 10.728 36.662 10.706 34.76 10.438 34.271 10.479 32.37 10.206 32.27 10.191 32.166 10.175 32.061 10.158 solid black
+edge "Ryan Underwood" "Samuel Behar" 10 37.175 10.773 37.005 10.747 36.828 10.722 36.662 10.706 30.983 10.129 29.499 10.86 23.828 10.206 23.733 10.195 23.633 10.18 23.534 10.164 solid black
+edge "Casondra Brimmage" "Lisa Gochnauer" 4 49.351 7.7013 49.272 7.5907 49.177 7.4569 49.089 7.3342 solid black
+edge "Casondra Brimmage" "Laura Fisher" 4 48.681 7.7426 47.978 7.5763 46.979 7.3401 46.271 7.1727 solid black
+edge "Kristopher Lininger" "Casondra Brimmage" 4 52.061 8.7319 51.569 8.5841 50.907 8.3851 50.382 8.2276 solid black
+edge "Ilana Melcher" "Casondra Brimmage" 10 52.432 10.73 52.179 10.602 51.876 10.423 51.648 10.206 51.073 9.6573 51.239 9.2654 50.676 8.7056 50.512 8.5426 50.306 8.3971 50.113 8.2794 solid black
+edge "Ilana Melcher" "Jeremy Frazier" 4 52.227 10.759 51.634 10.6 50.772 10.37 50.133 10.199 solid black
+edge "Ilana Melcher" "Kameka Smith" 4 52.912 10.701 52.912 10.6 52.912 10.48 52.912 10.366 solid black
+edge "Cassiopeia Guthrie" "Rachel Perkins" 4 50.023 8.7565 50.829 8.5886 52.014 8.3416 52.842 8.1692 solid black
+edge "Jeremy Frazier" "Cassiopeia Guthrie" 4 49.239 9.7013 49.224 9.5989 49.206 9.4767 49.19 9.3618 solid black
+edge "Jeremy Frazier" "Scott Gardner" 4 48.488 9.769 47.731 9.6022 46.583 9.3496 45.782 9.1731 solid black
+edge "Christine Mount" "Cassiopeia Guthrie" 4 42.429 9.8136 43.824 9.638 46.328 9.3227 47.85 9.1311 solid black
+edge "Christine Mount" "Scott Gardner" 4 42.109 9.7449 42.666 9.5875 43.449 9.3665 44.037 9.2007 solid black
+edge "Tiffany Kalland" "Jennie Bogart" 4 30.595 11.711 30.393 11.582 30.14 11.419 29.921 11.279 solid black
+edge "Tiffany Kalland" "Rebecca Hippert" 4 30.959 11.7 30.966 11.367 30.978 10.763 30.987 10.364 solid black
+edge "Tiffany Kalland" "Robbyn Rozelle" 4 29.979 11.816 28.588 11.637 26.039 11.308 24.559 11.117 solid black
+edge "Tiffany Kalland" "Cameron Brown" 7 32.094 11.91 34.168 11.842 38.692 11.654 42.481 11.206 42.587 11.193 42.698 11.178 42.807 11.161 solid black
+edge "Jennie Bogart" "Kristen Anderson" 10 28.671 10.775 28.53 10.749 28.383 10.724 28.245 10.706 25.215 10.297 24.42 10.566 21.384 10.206 21.273 10.192 21.158 10.177 21.043 10.16 solid black
+edge "Jennie Bogart" "Alberto Ayon" 4 29.429 10.7 29.415 10.367 29.39 9.7631 29.373 9.3641 solid black
+edge "Laura Simonette" "Gara Thornton" 4 74.836 13.706 74.935 13.59 75.057 13.448 75.167 13.32 solid black
+edge "Jon Weisel" "Laura Simonette" 4 74.634 14.701 74.634 14.6 74.634 14.48 74.634 14.366 solid black
+edge "Nathan Williams" "Susannah Clayton" 4 24.12 11.741 24.634 11.59 25.34 11.383 25.891 11.221 solid black
+edge "Nathan Williams" "Laura Fisher" 16 23.887 11.717 24.14 11.583 24.457 11.4 24.717 11.206 24.976 11.012 25 10.916 25.245 10.706 25.518 10.47 25.655 10.484 25.884 10.206 26.678 9.2429 26.111 8.3782 27.162 7.7056 27.883 7.2438 40.395 7.037 44.274 6.9838 solid black
+edge "Samuel Wallace" "Jamie Jackson" 4 49.197 10.74 48.695 10.587 48.003 10.375 47.47 10.212 solid black
+edge "Scott Gardner" "Lisa Gochnauer" 4 45.3 8.7212 46.019 8.3644 47.437 7.6605 48.239 7.2622 solid black
+edge "Scott Gardner" "Robert Winebarger" 7 43.779 8.9052 41.016 8.8099 33.456 8.5376 27.162 8.2056 26.426 8.1668 25.609 8.1154 24.931 8.0705 solid black
+edge "Alberto Ayon" "James Fogelman" 4 29.165 8.7063 29.073 8.5934 28.96 8.4555 28.858 8.3298 solid black
+edge "Susannah Clayton" "James Fogelman" 4 26.891 10.703 27.207 10.187 27.957 8.9616 28.337 8.3419 solid black
+edge "Christina Kelly" "Melissa Roy" 7 47.195 12.877 49.024 12.764 52.858 12.512 56.092 12.206 56.434 12.173 56.808 12.132 57.141 12.093 solid black
+edge "Robert Winebarger" "Sarah Titilah" 4 22.778 7.7319 22.267 7.5764 21.571 7.3645 21.042 7.2035 solid black
+edge "Robin Ellison" "Robert Winebarger" 4 22.815 8.7063 22.916 8.5922 23.039 8.4527 23.152 8.3258 solid black
+edge "Robin Ellison" "Katie Kozma" 4 21.717 8.8301 20.273 8.649 17.426 8.2918 15.893 8.0995 solid black
+edge "Robin Ellison" "Leila Wilhelm" 4 22.189 8.7235 21.928 8.5875 21.59 8.4107 21.306 8.2626 solid black
+edge "Jennifer Brandon" "Sandy Konar" 4 13.461 13.701 13.429 13.598 13.39 13.474 13.353 13.358 solid black
+edge "Jennifer Brandon" "Lindsay Arehart" 4 14.037 13.719 14.347 13.58 14.748 13.402 15.081 13.253 solid black
+edge "Jarrod Monroe" "Robbyn Rozelle" 4 21.383 11.733 21.768 11.588 22.286 11.393 22.701 11.237 solid black
+edge "Jamie Fratacci" "Jarrod Monroe" 4 25.008 12.782 24.131 12.612 22.738 12.341 21.805 12.159 solid black
+edge "Jamie Fratacci" "Katie Browne" 7 26.815 12.834 27.219 12.791 27.692 12.743 28.12 12.706 31.306 12.424 35.072 12.166 36.932 12.044 solid black
+edge "Edward Givens" "Mark Newton-John" 4 60.273 19.701 60.273 19.6 60.273 19.48 60.273 19.366 solid black
+edge "Veronica Nickel" "Cindy Teel" 4 51.521 14.719 51.799 14.579 52.159 14.398 52.455 14.249 solid black
+edge "Jennifer Stout" "Greg Moody" 4 39.549 12.731 39.902 12.585 40.375 12.391 40.753 12.235 solid black
+edge "Melissa Roy" "Erika Tapia" 4 58.172 11.701 58.188 11.599 58.207 11.477 58.225 11.362 solid black
+edge "Katie Browne" "Ryan Underwood" 4 38.092 11.701 38.092 11.6 38.092 11.48 38.092 11.366 solid black
+edge "Katie Browne" "Mike Tulumello" 7 37.294 11.789 37.149 11.761 36.998 11.733 36.856 11.706 35.882 11.52 34.771 11.309 33.989 11.161 solid black
+edge "Katie Browne" "Crystal Bozak" 4 37.542 11.738 37.143 11.59 36.599 11.389 36.169 11.229 solid black
+edge "Veronica Villanueva" "Ilana Melcher" 4 54.116 11.709 53.905 11.579 53.641 11.417 53.413 11.277 solid black
+edge "Scott Wright" "Jennifer Brandon" 4 11.665 14.735 12.012 14.594 12.475 14.404 12.855 14.249 solid black
+edge "Scott Wright" "Katie Kozma" 10 11.176 14.699 11.196 14.327 11.231 13.593 11.231 12.969 11.231 12.969 11.231 12.969 11.231 9.9417 11.231 8.7637 12.726 8.2853 13.796 8.0938 solid black
+edge "Jeremy Browne" "Jennie Bogart" 4 29.44 12.7 29.44 12.367 29.44 11.763 29.44 11.364 solid black
+edge "Laura Fisher" "Ashley Rehart" 4 45.381 6.7013 45.368 6.5989 45.352 6.4767 45.337 6.3618 solid black
+edge "Laura Fisher" "Jennifer Cooley" 4 45.955 6.7426 46.355 6.596 46.903 6.3951 47.34 6.2349 solid black
+edge "Katie Kozma" "Cara Yancey" 4 15.123 7.7113 15.263 7.5899 15.438 7.4387 15.593 7.3046 solid black
+edge "Katie Kozma" "Cate Threlkeld" 4 14.55 7.7113 14.386 7.5875 14.18 7.4327 13.999 7.2966 solid black
+edge "Rachel Perkins" "Lisa Fleck" 4 53.969 7.7063 54.049 7.5941 54.147 7.4572 54.236 7.3321 solid black
+edge "Rachel Perkins" "Christine Coyne" 4 53.38 7.7186 53.128 7.5849 52.804 7.4133 52.53 7.268 solid black
+edge "Ashley Rehart" "Elizabeth Larios" 4 44.704 5.7379 44.283 5.5903 43.709 5.3896 43.254 5.2303 solid black
+edge "Ashley Rehart" "Kathleen Halberg" 4 45.287 5.7013 45.287 5.6001 45.287 5.4795 45.287 5.3658 solid black
+edge "Cara Yancey" "Ashley Presley" 4 15.995 6.7013 16.001 6.6001 16.008 6.4795 16.014 6.3658 solid black
+edge "Ashley Presley" "Monique Arellano" 4 16.037 5.7013 16.037 5.6001 16.037 5.4795 16.037 5.3658 solid black
+edge "Greg Moody" "Ryan Underwood" 4 40.776 11.759 40.255 11.606 39.507 11.386 38.933 11.217 solid black
+edge "Greg Moody" "Janay Rabe" 10 42.249 11.833 42.629 11.788 43.084 11.738 43.495 11.706 48.195 11.33 49.4 11.665 54.092 11.206 54.307 11.185 54.537 11.155 54.754 11.123 solid black
+edge "Greg Moody" "Melissa Bebak" 4 41.364 11.701 41.349 11.599 41.331 11.477 41.315 11.362 solid black
+edge "Lisa Fleck" "Mallory Williams" 4 54.526 6.7013 54.539 6.5989 54.555 6.4767 54.57 6.3618 solid black
+edge "Christine Coyne" "Rakan Abu-Rahma" 4 51.906 6.7013 51.879 6.5989 51.848 6.4767 51.818 6.3618 solid black
+edge "Jennifer Cooley" "Anthony Henderson" 4 48.13 5.7013 48.158 5.5977 48.192 5.4739 48.223 5.3578 solid black
+edge "Elizabeth Larios" "Brittany DePew" 4 42.509 4.7013 42.509 4.6001 42.509 4.4795 42.509 4.3658 solid black
+edge "Cate Threlkeld" "Amethyst Tagle" 4 13.537 6.7013 13.526 6.6001 13.512 6.4795 13.499 6.3658 solid black
+edge "Robbyn Rozelle" "Kyra Sacco" 4 23.754 10.711 23.946 10.582 24.187 10.42 24.395 10.28 solid black
+edge "Cameron Brown" "Kristopher Lininger" 10 44.059 10.707 44.344 10.415 44.876 9.9288 45.44 9.7056 47.613 8.8451 48.351 9.4483 50.676 9.2056 50.922 9.1799 51.184 9.1512 51.436 9.123 solid black
+edge "Janay Rabe" "Teresa Simms" 4 55.621 10.701 55.597 10.599 55.569 10.477 55.543 10.362 solid black
+edge "Kameka Smith" "Kristopher Lininger" 4 52.874 9.7013 52.858 9.5989 52.839 9.4767 52.821 9.3618 solid black
+edge "Kyra Sacco" "Robin Ellison" 4 24.385 9.7379 24.052 9.594 23.602 9.3996 23.238 9.2424 solid black
+edge "Samuel Behar" "Robin Ellison" 4 22.606 9.7013 22.606 9.6001 22.606 9.4795 22.606 9.3658 solid black
+edge "Kristin Alongi-Hutchins" "David Bronson" 4 42.194 14.701 42.281 14.589 42.385 14.454 42.481 14.33 solid black
+edge "Jennifer Berry" "Janean Angeles" 4 30.273 18.701 30.273 18.6 30.273 18.48 30.273 18.366 solid black
+edge "Robert Schmidtke" "John FitzGibbon" 4 45.516 20.706 45.688 20.582 45.902 20.428 46.089 20.293 solid black
+edge "Jean Newman" "John FitzGibbon" 4 47.565 20.711 47.392 20.586 47.175 20.43 46.985 20.293 solid black
+stop
