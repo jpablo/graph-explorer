@@ -226,7 +226,11 @@ object Output:
       // A LOCALLY DECLARED value shadows the root default even when empty
       // (cgraph agxget: `label=""` on the subgraph echoes "", not the root's).
       val (own, declared) = k match
-        case "label" => (sg.label, sg.emitLabel)
+        // agxget: a subgraph's label = its LOCAL value if set, else the
+        // root declaration's default — git's anonymous subgraphs echo the
+        // root's "Basic git concepts…". The merged attrs carry the
+        // inherited value; a locally-declared empty label still prints "".
+        case "label" => (sg.attrs.getOrElse("label", sg.label), sg.emitLabel)
         case "rank"  => (sg.rank.getOrElse(""), sg.rank.isDefined)
         case _       => (sg.attrs.getOrElse(k, ""), sg.attrs.contains(k))
       k -> (if declared || own.nonEmpty then own else g.rootAttrs.getOrElse(k, ""))

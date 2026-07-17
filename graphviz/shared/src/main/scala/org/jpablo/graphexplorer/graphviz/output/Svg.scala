@@ -307,7 +307,9 @@ object Svg:
       val ty = -(cyc + dimY / 2.0 - fontSize + 0.1 * fontSize)
       val f  = if fill.nonEmpty then s""" fill="$fill"""" else "" // fontcolor
       // gv prints font-size with a fixed "%.2f" (not gvprintdouble's trim)
-      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="${f2(fontSize)}"$f>${xml(s)}</text>\n"""
+      // svg_textspan escapes with {raw, dash, nbsp} — the tooltip flag set
+      // (2nd+ space of a run → &#160;, ' → &#39;), NOT the plain xml set.
+      s"""<text xml:space="preserve" text-anchor="middle" x="${d2(cx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="${f2(fontSize)}"$f>${xmlTooltip(s)}</text>\n"""
 
     /** Multi-line plain label centred at (cx, cyc), y-up (`emit_label` valign
       * 'c' + `svg_textspan`): split on `\n`/`\l`/`\r`, stack from the top
@@ -338,23 +340,24 @@ object Svg:
             case 'l' => ("start", cx - boxW / 2.0)
             case 'r' => ("end",   cx + boxW / 2.0)
             case _   => ("middle", cx)
-          out ++= s"""<text xml:space="preserve" text-anchor="$anchor" x="${d2(tx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="${f2(fontSize)}"$f>${xml(line)}</text>\n"""
+          out ++= s"""<text xml:space="preserve" text-anchor="$anchor" x="${d2(tx)}" y="${d2(ty)}"${svgFontAttrs(fontName)} font-size="${f2(fontSize)}"$f>${xmlTooltip(line)}</text>\n"""
         baseTop -= h
       }
       out.toString
 
-    // root graph label (do_graph_label): centered horizontally, single line,
-    // labelloc bottom (default) at GAP + boxHeight/2, top at UR.y − GAP −
-    // boxHeight/2 — in the GRAPH font. emit.c:3335-3337: emitted right after
-    // the background, BEFORE clusters/nodes/edges (emit_view).
-    // (Custom fontsize / multi-line = tracked follow-ups.)
+    // root graph label (do_graph_label): centered horizontally, multi-line
+    // (`\n`/`\l`/`\r`, trailing empties dropped), labelloc bottom (default)
+    // at GAP + boxHeight/2, top at UR.y − GAP − boxHeight/2 — in the GRAPH
+    // font + fontsize (git: 20). emit.c:3335-3337: emitted right after the
+    // background, BEFORE clusters/nodes/edges (emit_view).
     g.rootAttrs.get("label").filter(_.nonEmpty).foreach { lbl =>
-      val lh  = NodeSize.labelHeightPt(lbl, FontSize, g.name.getOrElse(""))
+      val gfs = g.rootAttrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize)
+      val lh  = NodeSize.labelHeightPt(lbl, gfs, g.name.getOrElse(""))
       val top = g.rootAttrs.get("labelloc").exists(_.startsWith("t"))
       val ly2 = if top then (uy - ly) - 4.0 - lh / 2.0 else 4.0 + lh / 2.0
-      sb ++= textAt((lx + ux) / 2.0, ly2, lbl,
-        fill = g.rootAttrs.getOrElse("fontcolor", ""),
-        fontName = g.rootAttrs.getOrElse("fontname", "Times-Roman"))
+      sb ++= textLines((lx + ux) / 2.0, ly2, lbl,
+        g.rootAttrs.getOrElse("fontcolor", ""), "",
+        g.rootAttrs.getOrElse("fontname", "Times-Roman"), gfs)
     }
 
     // clusters (emit_clusters): each cluster draws a `<g class="cluster">`
@@ -418,6 +421,30 @@ object Svg:
     // generated from gv's color_names minus svgcolor_names), and an
     // "H S V" / "H,S,V" float triple converts via hsv2rgb with TRUNCATED
     // byte conversion ((unsigned char)(R*255), colxlate.c:290).
+    /** svg_print_paint (gvrender_core_svg.c:118): an `#rrggbbaa` hex splits
+      * into the `#rrggbb` paint + a `*-opacity` attr = C `"%f"` of the FLOAT
+      * a/255 (6 decimals); a=0 paints `none` (no opacity attr); a=255 is the
+      * plain hex. Returns (paint, opacityValue). */
+    def rgbaSplit(c: String): (String, Option[String]) =
+      val t = svgColor(c)
+      if t.length == 9 && t.charAt(0) == '#' then
+        val a = Integer.parseInt(t.substring(7), 16)
+        if a == 0 then ("none", None)
+        else if a == 255 then (t.substring(0, 7), None)
+        else (t.substring(0, 7),
+          Some(String.format(java.util.Locale.ROOT, "%.6f", (a.toFloat / 255.0f).toDouble)))
+      else (t, None)
+    /** Fill paint with gv's in-stream `" fill-opacity="` injection (the
+      * opacity attr sits immediately after fill, svg_grstyle). */
+    def fillPaint(c: String): String =
+      val (p, o) = rgbaSplit(c)
+      o.fold(p)(ov => p + "\" fill-opacity=\"" + ov)
+    /** (stroke paint, trailing ` stroke-opacity="…"` attr) — gv emits the
+      * opacity AFTER stroke-width/dasharray (svg_grstyle). */
+    def strokeSplit(c: String): (String, String) =
+      val (p, o) = rgbaSplit(c)
+      (p, o.fold("")(ov => s""" stroke-opacity="$ov""""))
+
     def svgColor(c: String): String =
       val t = c.trim
       if t.startsWith("#") then t.toLowerCase
@@ -500,7 +527,7 @@ object Svg:
       * …, table border last — matches gv). Coords are table-local y-up + centre. */
     def htmlTable(cx: Double, cyc: Double, tbl: org.jpablo.graphexplorer.graphviz.html.HtmlTable,
                   defColor: String, baseSize: Double, baseName: String,
-                  fit: Option[(Double, Double)] = None): String =
+                  fit: Option[(Double, Double)] = None, defPen: String = "black"): String =
       import org.jpablo.graphexplorer.graphviz.html.{HtmlTableLayout, HtmlLabel, HtmlAlign}
       val laid     = HtmlTableLayout.layout(tbl, baseSize, baseName, g.images, fit)
       val tblSpace = tbl.cellspacing.toDouble
@@ -516,7 +543,9 @@ object Svg:
       // SW→SE→NE→NW (mkPts order); otherwise the full box polygon. border > 1
       // insets the corners by border/2 and sets the pen width.
       def doBorder(attrs: Map[String, String], border: Int, b: HtmlTableLayout.BoxLocal): Unit =
-        val stroke = attrs.get("color").getOrElse("black")
+        // emit_html_tbl: border pencolor = the element's COLOR attr, else the
+        // ENV pencolor (the node's pencolor/color — git's `#00000044`).
+        val (stroke, strokeOp) = strokeSplit(attrs.get("color").getOrElse(defPen))
         val styles = attrs.get("style").map(_.split(",").iterator.map(_.trim.toLowerCase).toSet).getOrElse(Set.empty)
         val dash =
           if styles.contains("dashed") then """ stroke-dasharray="5,2""""
@@ -529,7 +558,7 @@ object Svg:
         def pt(px: Double, py: Double) = s"${d2(px)},${d2(py)}"
         val (sw, se, ne, nw) = (pt(l, lo), pt(r, lo), pt(r, hi), pt(l, hi))
         def line(pts: String*): Unit =
-          out ++= s"""<polyline fill="none" stroke="$stroke"$dash$swA points="${pts.mkString(" ")}"/>\n"""
+          out ++= s"""<polyline fill="none" stroke="$stroke"$dash$swA$strokeOp points="${pts.mkString(" ")}"/>\n"""
         val mask = attrs.get("sides").map(_.toLowerCase.filter("ltrb".contains(_)).toSet).getOrElse(Set.empty)
         mask.toSeq.sorted.mkString match
           case "b"    => line(sw, se)
@@ -547,7 +576,7 @@ object Svg:
           case "bt"   => line(sw, se); line(ne, nw)
           case "lr"   => line(nw, sw); line(se, ne)
           case _      => // none or all four sides ⇒ the full closed box
-            out ++= s"""<polygon fill="none" stroke="$stroke"$dash$swA points="$sw $nw $ne $se $sw"/>\n"""
+            out ++= s"""<polygon fill="none" stroke="$stroke"$dash$swA$strokeOp points="$sw $nw $ne $se $sw"/>\n"""
       // Background fill: solid, or a two-colour left→right linear gradient when
       // bgcolor is `c0:c1` (a `<defs>` linearGradient across the box + url() ref).
       def bgFill(bg: String, box: HtmlTableLayout.BoxLocal): Unit =
@@ -563,7 +592,7 @@ object Svg:
           out ++= "</linearGradient>\n</defs>\n"
           out ++= s"""<polygon fill="url(#$id)" stroke="none" points="${boxPoly(box)}"/>\n"""
         else
-          out ++= s"""<polygon fill="$bg" stroke="none" points="${boxPoly(box)}"/>\n"""
+          out ++= s"""<polygon fill="${fillPaint(bg)}" stroke="none" points="${boxPoly(box)}"/>\n"""
       // table bgcolor fills the whole table box first (behind cells).
       val tblBox = HtmlTableLayout.BoxLocal(-laid.width / 2.0, -laid.height / 2.0, laid.width / 2.0, laid.height / 2.0)
       tbl.attrs.get("bgcolor").foreach(bg => bgFill(bg, tblBox))
@@ -591,7 +620,7 @@ object Svg:
           case HtmlLabel.Table(inner) =>
             // pos_html_tbl: a nested table stretches into the cell's content box.
             out ++= htmlTable(ccx, ccy, inner, defColor, baseSize, baseName,
-              Some((pc.contentBox.urx - pc.contentBox.llx, pc.contentBox.ury - pc.contentBox.lly)))
+              Some((pc.contentBox.urx - pc.contentBox.llx, pc.contentBox.ury - pc.contentBox.lly)), defPen)
           case HtmlLabel.Image(src, scale) =>
             // Emit an `<image>` only when the dimensions are known (else gv can't
             // load the file and draws nothing — the missing-image case). The
@@ -704,14 +733,16 @@ object Svg:
             // record_gencode: style=filled ⇒ fill = fillcolor|color|lightgrey,
             // stroke = pencolor (`color`, default black).
             val styles = n.attrs.get("style").map(_.split(",").iterator.map(_.trim).toSet).getOrElse(Set.empty)
-            val fill = svgColor(
+            val fill = fillPaint(
               if styles.contains("filled") then
                 n.attrs.get("fillcolor").orElse(n.attrs.get("color")).getOrElse("lightgrey")
               else "none")
-            val stroke = svgColor(n.attrs.get("color").getOrElse("black"))
+            // penColor (shapes.c:387): poly/record outlines read ONLY the
+            // `color` attr (pencolor is an html-table-side channel).
+            val (stroke, strokeOp) = strokeSplit(n.attrs.get("color").getOrElse("black"))
             val (llx, lly) = (x + root.llx, cy + root.lly)
             val (urx, ury) = (x + root.urx, cy + root.ury)
-            sb ++= s"""<polygon fill="$fill" stroke="$stroke" points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
+            sb ++= s"""<polygon fill="$fill" stroke="$stroke"$strokeOp points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
             genFields(root, x, cy,
               n.attrs.getOrElse("fontname", "Times-Roman"),
               n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize),
@@ -726,12 +757,16 @@ object Svg:
             // shape=point (point_init): implicitly style=filled with the pen
             // colour, and an empty label — a small filled circle.
             val isPoint = n.attrs.get("shape").contains("point")
-            val fill = svgColor(
+            val fill = fillPaint(
               if isPoint then n.attrs.get("color").getOrElse("black")
               else if styles.contains("filled") then
                 n.attrs.get("fillcolor").orElse(n.attrs.get("color")).getOrElse("lightgrey")
               else "none")
-            val stroke = svgColor(n.attrs.get("color").getOrElse("black"))
+            // penColor (shapes.c:387): the node outline reads ONLY the
+            // `color` attr (else black) — `pencolor` feeds html-table
+            // borders, not poly shapes. An rgba alpha becomes a trailing
+            // stroke-opacity AFTER width/dash (svg_grstyle order).
+            val (stroke, strokeOp) = strokeSplit(n.attrs.get("color").getOrElse("black"))
             // penwidth ≠ 1 ⇒ every drawn outline gets stroke-width (gvrender
             // set_penwidth before the shape ops).
             // style=bold ⇒ penwidth 2 unless an explicit penwidth attr wins.
@@ -744,7 +779,7 @@ object Svg:
               else if styles.contains("dotted") then """ stroke-dasharray="1,5""""
               else ""
             val swAttr =
-              (if nodePw != 1.0 then s""" stroke-width="${Output.g5(nodePw)}"""" else "") + nodeDash
+              (if nodePw != 1.0 then s""" stroke-width="${Output.g5(nodePw)}"""" else "") + nodeDash + strokeOp
             // box-family shapes render as a rectangle <polygon> (corners
             // UR,UL,LL,LR,UR in flipped-y); `style=rounded` ⇒ a <path> with
             // RBCONST=12 corner arcs (shapes.c round_corners); else ellipse.
@@ -904,7 +939,9 @@ object Svg:
                 case Some(HtmlLabel.Table(tbl)) =>
                   val nfs = n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
                   val nfn = n.attrs.getOrElse("fontname", "Times-Roman")
-                  sb ++= htmlTable(x, cy, tbl, n.attrs.get("fontcolor").getOrElse(""), nfs, nfn)
+                  sb ++= htmlTable(x, cy, tbl, n.attrs.get("fontcolor").getOrElse(""), nfs, nfn,
+                    defPen = n.attrs.get("pencolor").filter(_.nonEmpty)
+                      .orElse(n.attrs.get("color")).getOrElse("black"))
                 case Some(HtmlLabel.Image(src, _)) =>
                   // Bare-image node label: the drawn image, centred in the node.
                   g.images.get(src).foreach { dim =>
@@ -1013,10 +1050,12 @@ object Svg:
                 tmp(k) = (tmp(k)._1 + off(k)._1, tmp(k)._2 + off(k)._2)
                 k += 1
               val body = (1 until np).map(k => s"${d2(tmp(k)._1)},${d2(-tmp(k)._2)}").mkString(" ")
-              sb ++= s"""<path fill="none" stroke="${svgColor(c0)}"$eSw$dash d="M${d2(tmp(0)._1)},${d2(-tmp(0)._2)}C$body"/>\n"""
+              val (cp, cop) = strokeSplit(c0)
+              sb ++= s"""<path fill="none" stroke="$cp"$eSw$dash$cop d="M${d2(tmp(0)._1)},${d2(-tmp(0)._2)}C$body"/>\n"""
             }
           else
-            sb ++= s"""<path fill="none" stroke="$eStroke"$eSw$dash d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
+            val (ep, eop) = strokeSplit(eStroke)
+            sb ++= s"""<path fill="none" stroke="$ep"$eSw$dash$eop d="M${d2(head.x)},${d2(-head.y)}C$rest"/>\n"""
           val headArrowCol = if multi then svgColor(comps.head) else eStroke
           val tailArrowCol = if multi && comps.length > 1 then svgColor(comps(1)) else headArrowCol
           // arrow_gen per drawn end (emit_edge_graphics: tail arrow at sp
@@ -1043,20 +1082,26 @@ object Svg:
                          (dy + (if dy >= 0.0 then Eps else -Eps)) * s * as * lf)
               def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
               // ARR_MOD_OPEN (`empty`/`odiamond`) ⇒ unfilled polygon.
-              val fill = if open then "none" else aCol
+              val (aPen, aPenOp0) = strokeSplit(aCol)
+              val aFill           = fillPaint(aCol)
+              // arrow_gen keeps the edge's penwidth (svg stroke-width, before
+              // stroke-opacity) but resets the dash style to solid.
+              val aPenOp =
+                (if pw != 1.0 then s""" stroke-width="${Output.g5(pw)}"""" else "") + aPenOp0
+              val fill = if open then "none" else aFill
               kind match
                 case "vee" =>
                   // crow ⇒ 8-point polygon a[0..7] (gvrender_polygon a,8,1)
                   val (a, _) = Arrow.crow0((tip.x, tip.y), u, as, pw)
                   val poly   = ((0 until 8).map(k => pt(a(k))) :+ pt(a(0))).mkString(" ")
-                  sb ++= s"""<polygon fill="$aCol" stroke="$aCol" points="$poly"/>\n"""
+                  sb ++= s"""<polygon fill="$aFill" stroke="$aPen"$aPenOp points="$poly"/>\n"""
                 case "diamond" =>
                   val (a, _) = Arrow.diamond0((tip.x, tip.y), u, pw)
                   val poly   = ((0 until 4).map(k => pt(a(k))) :+ pt(a(0))).mkString(" ")
-                  sb ++= s"""<polygon fill="$fill" stroke="$aCol" points="$poly"/>\n"""
+                  sb ++= s"""<polygon fill="$fill" stroke="$aPen"$aPenOp points="$poly"/>\n"""
                 case _ =>
                   val (a1, a2, a3, _) = Arrow.normal0((tip.x, tip.y), u, pw)
-                  sb ++= s"""<polygon fill="$fill" stroke="$aCol" points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
+                  sb ++= s"""<polygon fill="$fill" stroke="$aPen"$aPenOp points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
           val (sName, eName) = Arrow.flags(g.directed, e.attrs.get("dir"),
             e.attrs.get("arrowhead"), e.attrs.get("arrowtail"))
           sName.filter(_ != "none").foreach { nm => es.sp.foreach(spR => drawArrow(spR, pts.head, nm, tailArrowCol)) }

@@ -1,0 +1,230 @@
+digraph git_basics {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 235.8 774.22 235.8 774.22 0 ",
+		_ldraw_="F 20 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 387.11 213.8 0 267.71 33 -Basic git concepts and operations ",
+		bb="0,0,774.22,235.8",
+		fontname="Helvetica,Arial,sans-serif",
+		fontsize=20,
+		label="Basic git concepts and operations\n\n",
+		labelloc=t,
+		layout=dot,
+		lheight=0.67,
+		lp="387.11,207.8",
+		lwidth=3.72,
+		newrank=true,
+		rankdir=LR,
+		xdotversion=1.7
+	];
+	node [fontname="Helvetica,Arial,sans-serif",
+		label="\N",
+		pencolor="#00000044",
+		shape=plaintext,
+		style=filled
+	];
+	edge [arrowsize=0.5,
+		fontname="Helvetica,Arial,sans-serif",
+		labeldistance=3,
+		labelfontcolor="#00000080",
+		penwidth=2,
+		style=dotted
+	];
+	{
+		edge [arrowhead=none,
+			color="#00008844"
+		];
+		changes	[_draw_="c 9 -#fffffe00 C 9 -#88000022 P 4 119.63 179.8 0 179.8 0 103.8 119.63 103.8 ",
+			_ldraw_="S 5 -solid c 9 -#00000044 p 4 0 141.8 0 179.8 119.63 179.8 119.63 141.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 34.34 \
+163.2 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 37.84 163.2 -1 47.45 7 -changes F 14 26 -Helvetica,Arial,\
+sans-serif c 7 -#000000 t 0 T 5 149.2 -1 109.63 20 -in the working tree  S 5 -solid c 9 -#00000044 p 4 0 103.8 0 141.8 119.63 141.8 \
+119.63 103.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 2 T 5 125.2 -1 52.1 9 -To view:  F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 t 0 T 5 111.2 -1 38.49 8 -git diff ",
+			color="#88000022",
+			height=1.0556,
+			label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>changes</b><br/>in the working tree </td> </tr>
+			<tr> <td align="left"><i>To view: </i><br align="left"/>
+			git diff
+			<br align="left"/></td> </tr>
+		</table>>,
+			pos="59.817,141.8",
+			shape=plain,
+			width=1.6616];
+		stash_push	[_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 199.41 110.6 0 85.55 16 -git stash [push] ",
+			color="#00008844",
+			height=0.23333,
+			label="git stash [push]",
+			pos="199.41,114.8",
+			shape=plain,
+			style="",
+			width=1.1882];
+		changes -> stash_push	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#00008844 B 4 119.57 130.27 132.13 127.81 145.15 125.25 156.9 122.94 ",
+			pos="119.57,130.27 132.13,127.81 145.15,125.25 156.9,122.94"];
+		staging	[_draw_="c 9 -#fffffe00 C 9 -#ff880022 P 4 376.27 174.8 279.19 174.8 279.19 98.8 376.27 98.8 ",
+			_ldraw_="S 5 -solid c 9 -#00000044 p 4 279.19 136.8 279.19 174.8 376.27 174.8 376.27 136.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 289.62 158.2 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 293.12 158.2 -1 72.71 12 -staging area F 14 26 \
+-Helvetica,Arial,sans-serif c 7 -#000000 t 0 T 288.09 144.2 -1 79.28 14 -(cache, index) S 5 -solid c 9 -#00000044 p 4 279.19 98.8 \
+279.19 136.8 376.27 136.8 376.27 98.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 2 T 284.19 120.2 -1 52.1 9 -To view:  F \
+14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 0 T 284.19 106.2 -1 87.08 17 -git diff --staged ",
+			fillcolor="#ff880022",
+			height=1.0556,
+			label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>staging area</b><br/>(cache, index)</td> </tr>
+			<tr> <td align="left"><i>To view: </i><br align="left"/>
+			git diff --staged
+			<br align="left"/></td> </tr>
+		</table>>,
+			pos="327.73,136.8",
+			shape=plain,
+			width=1.3484];
+		stash_push -> staging	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#00008844 B 4 242.12 122.06 254.05 124.14 267.14 126.42 279.38 128.55 ",
+			pos="242.12,122.06 254.05,124.14 267.14,126.42 279.38,128.55"];
+	}
+	{
+		graph [rank=same];
+		changes;
+		discard	[_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 59.82 45.6 0 40.43 7 -discard ",
+			height=0.5,
+			pos="59.817,49.8",
+			style="",
+			width=0.78372];
+	}
+	changes -> staging	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#88000088 B 7 119.57 141.77 159.51 141.61 213.55 141.13 261.19 139.8 264.61 139.7 268.13 \
+139.59 271.68 139.46 ",
+		_hdraw_="S 15 -setlinewidth(2) S 5 -solid c 9 -#88000088 C 9 -#88000088 P 3 271.53 141.22 276.46 139.28 271.39 137.72 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 199.41 162.53 0 66.49 15 -git add ...     F 14 26 -Helvetica,Arial,sans-serif \
+c 7 -#000000 T 199.41 145.73 0 65.71 15 -git reset       ",
+		color="#88000088",
+		label="git add ...    \ngit reset      ",
+		lp="199.41,158.33",
+		pos="e,279.48,139.16 119.57,141.77 159.51,141.61 213.55,141.13 261.19,139.8 264.61,139.7 268.13,139.59 271.68,139.46"];
+	stash	[_draw_="c 9 -#fffffe00 C 9 -#0044ff22 P 4 237.86 88.2 160.96 88.2 160.96 23.4 237.86 23.4 ",
+		_ldraw_="S 5 -solid c 9 -#00000044 p 4 160.96 61.4 160.96 88.2 237.86 88.2 237.86 61.4 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T \
+182.49 71.6 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 185.99 71.6 -1 30.34 5 -stash S 5 -solid c 9 -#00000044 \
+p 4 160.96 23.4 160.96 61.4 237.86 61.4 237.86 23.4 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 2 T 165.96 44.8 -1 48.6 8 \
+-To view: F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 0 T 165.96 30.8 -1 66.9 14 -git stash list ",
+		fillcolor="#0044ff22",
+		height=0.9,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>stash</b></td> </tr>
+			<tr> <td align="left"><i>To view:</i><br align="left"/>
+			git stash list
+			<br align="left"/></td> </tr>
+		</table>>,
+		pos="199.41,55.8",
+		shape=plain,
+		width=1.068];
+	changes -> stash	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#00000088 B 4 126.24 100.91 138.3 93.37 150.5 85.75 161.35 78.97 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 175.74 92.09 0 70.78 13 -git stash pop ",
+		_tdraw_="S 15 -setlinewidth(2) S 5 -solid c 9 -#00000088 C 9 -#00000088 P 3 125.45 99.34 122.14 103.47 127.3 102.31 ",
+		color="#00000088",
+		dir=back,
+		pos="s,119.57,105.08 126.24,100.91 138.3,93.37 150.5,85.746 161.35,78.966",
+		weight=0,
+		xlabel="git stash pop",
+		xlp="175.74,96.29"];
+	changes -> discard	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#88000088 B 4 59.82 103.93 59.82 94.38 59.82 84.34 59.82 75.54 ",
+		_hdraw_="S 15 -setlinewidth(2) S 5 -solid c 9 -#88000088 C 9 -#88000088 P 3 61.57 75.57 59.82 70.57 58.07 75.57 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 48.42 81.6 0 70.37 15 -git restore ... ",
+		color="#88000088",
+		label="git restore ...",
+		lp="48.417,85.8",
+		pos="e,59.817,67.539 59.817,103.93 59.817,94.379 59.817,84.342 59.817,75.541"];
+	HEAD	[_draw_="c 9 -#fffffe00 C 9 -#88ff0022 P 4 587.86 149.6 473.32 149.6 473.32 0 587.86 0 ",
+		_ldraw_="S 5 -solid c 9 -#00000044 L 4 587.86 124.8 587.86 149.6 473.32 149.6 473.32 124.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 501.04 134 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 504.54 134 -1 43.95 5 -HEAD  F 14 26 -Helvetica,\
+Arial,sans-serif c 7 -#000000 t 0 T 548.48 134 -1 11.66 2 -of S 5 -solid c 9 -#00000044 L 4 473.32 124.8 473.32 100 587.86 100 587.86 \
+124.8 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 477.92 108.2 -1 105.33 19 - the current branch S 5 -solid c 9 -#00000044 \
+p 4 473.32 50 473.32 100 587.86 100 587.86 50 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 2 T 477.32 84.4 -1 48.6 8 -To view: \
+F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 0 T 477.32 70.4 -1 47.84 8 -git show F 14 26 -Helvetica,Arial,sans-serif c 7 \
+-#000000 T 477.32 56.4 -1 36.17 7 -git log S 5 -solid c 9 -#00000044 p 4 473.32 0 473.32 50 587.86 50 587.86 0 F 14 26 -Helvetica,\
+Arial,sans-serif c 7 -#000000 t 2 T 477.32 34.4 -1 106.54 17 -To change branch: F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+t 0 T 477.32 20.4 -1 68.83 14 -git switch ... F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 477.32 6.4 -1 82.81 16 -git checkout \
+... ",
+		fillcolor="#88ff0022",
+		height=2.0778,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="3">
+			<tr> <td port="push" sides="ltr"> <b>HEAD </b>of</td> </tr>
+			<tr> <td port="pull" sides="lbr"> the current branch</td> </tr>
+			<tr> <td port="switch" align="left">
+				<i>To view:</i>
+				<br align="left"/>
+				git show<br align="left"/>
+				git log
+				<br align="left"/>
+			</td> </tr>
+			<tr> <td align="left">
+				<i>To change branch:</i><br align="left"/>
+				git switch ...
+				<br align="left"/>
+				git checkout ...
+				<br align="left"/>
+			</td> </tr>
+		</table>>,
+		pos="530.59,74.8",
+		shape=plain,
+		width=1.5908];
+	staging -> HEAD:push	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#88000088 B 4 376.27 137 402.27 137.09 435.29 137.18 465.66 137.2 ",
+		_hdraw_="S 15 -setlinewidth(2) S 5 -solid c 9 -#88000088 C 9 -#88000088 P 3 465.29 138.95 470.29 137.2 465.29 135.45 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 424.8 141.39 0 61.05 10 -git commit ",
+		color="#88000088",
+		label="git commit",
+		lp="424.8,145.59",
+		pos="e,473.32,137.2 376.27,137 402.27,137.09 435.29,137.18 465.66,137.2",
+		weight=1000];
+	remote	[_draw_="c 9 -#00000022 C 9 -#00ff0022 P 4 769.63 163.8 673.17 163.8 673.17 127.8 769.63 127.8 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 721.4 141.6 0 80.46 13 -remote branch ",
+		color="#00000022",
+		fillcolor="#00ff0022",
+		height=0.5,
+		label="remote branch",
+		pos="721.4,145.8",
+		shape=box,
+		width=1.3397];
+	HEAD:push -> remote	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#88000088 B 4 587.86 137.2 613.24 137.2 641.29 138.79 665.03 140.6 ",
+		_hdraw_="S 15 -setlinewidth(2) S 5 -solid c 9 -#88000088 C 9 -#88000088 P 3 664.77 142.34 669.89 140.98 665.04 138.85 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 628.22 143.71 0 44.73 8 -git push ",
+		color="#88000088",
+		label="git push",
+		lp="628.22,147.91",
+		pos="e,672.91,141.22 587.86,137.2 613.24,137.2 641.29,138.79 665.03,140.6"];
+	HEAD:pull -> remote	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#00440088 B 7 595.79 112.35 617.55 112.11 626.15 111.22 650.59 117 661.05 119.47 671.97 123.32 \
+681.99 127.4 ",
+		_ldraw_="F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 T 628.22 121.2 0 40.06 8 -git pull ",
+		_tdraw_="S 15 -setlinewidth(2) S 5 -solid c 9 -#00440088 C 9 -#00440088 P 3 595.88 110.6 590.89 112.38 595.9 114.1 ",
+		color="#00440088",
+		dir=back,
+		label="git pull",
+		lp="628.22,125.4",
+		pos="s,587.86,112.4 595.79,112.35 617.55,112.11 626.15,111.22 650.59,117 661.05,119.47 671.97,123.32 681.99,127.4"];
+	branches	[_draw_="c 9 -#fffffe00 C 9 -#00888822 P 4 774.22 107.2 668.59 107.2 668.59 42.4 774.22 42.4 ",
+		_ldraw_="S 5 -solid c 9 -#00000044 p 4 668.59 80.4 668.59 107.2 774.22 107.2 774.22 80.4 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 \
+T 674.93 90.6 -1 3.5 1 -  F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 1 T 678.43 90.6 -1 85.94 14 -local branches F 14 26 \
+-Helvetica,Arial,sans-serif c 7 -#000000 t 0 T 764.38 90.6 -1 3.5 1 -  S 5 -solid c 9 -#00000044 p 4 668.59 42.4 668.59 80.4 774.22 \
+80.4 774.22 42.4 F 14 26 -Helvetica,Arial,sans-serif c 7 -#000000 t 2 T 673.59 63.8 -1 48.6 8 -To view: F 14 26 -Helvetica,Arial,\
+sans-serif c 7 -#000000 t 0 T 673.59 49.8 -1 95.63 19 -git branch [--list] ",
+		fillcolor="#00888822",
+		height=0.9,
+		label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>local branches</b> </td> </tr>
+			<tr> <td align="left"><i>To view:</i><br align="left"/>
+			git branch [--list]
+			<br align="left"/></td> </tr>
+			</table>>,
+		pos="721.4,74.8",
+		shape=plain,
+		width=1.4671];
+	HEAD:switch -> branches	[_draw_="c 9 -#00000088 B 4 594.8 75 619.62 74.99 646.38 74.96 668.79 74.91 ",
+		_tdraw_="S 5 -solid c 9 -#00000088 p 4 594.76 75 591.76 77 588.76 75 591.76 73 ",
+		arrowhead=none,
+		arrowtail=odiamond,
+		color="#00000088",
+		dir=back,
+		penwidth=1,
+		pos="s,587.86,75 594.8,74.999 619.62,74.993 646.38,74.955 668.79,74.914",
+		style=""];
+	stash_push -> stash	[_draw_="S 15 -setlinewidth(2) S 6 -dotted c 9 -#00008844 B 4 199.41 106.45 199.41 102.9 199.41 99.36 199.41 95.82 ",
+		_hdraw_="S 15 -setlinewidth(2) S 5 -solid c 9 -#00008844 C 9 -#00008844 P 3 201.16 96.09 199.41 91.09 197.66 96.09 ",
+		color="#00008844",
+		minlen=0,
+		pos="e,199.41,88.066 199.41,106.45 199.41,102.9 199.41,99.362 199.41,95.82",
+		xdir=back];
+}

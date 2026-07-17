@@ -1,0 +1,273 @@
+{
+  "name": "git_basics",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 774 236",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "fontsize": "20",
+  "label": "Basic git concepts and operations\\n\\n",
+  "labelloc": "t",
+  "layout": "dot",
+  "newrank": "true",
+  "rankdir": "LR",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%3",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "20",
+      "label": "Basic git concepts and operations\\n\\n",
+      "labelloc": "t",
+      "layout": "dot",
+      "newrank": "true",
+      "rankdir": "LR",
+      "_gvid": 0,
+      "nodes": [
+        2,3,6
+      ],
+      "edges": [
+        2,8
+      ]
+    },
+    {
+      "name": "%21",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "20",
+      "label": "Basic git concepts and operations\\n\\n",
+      "labelloc": "t",
+      "layout": "dot",
+      "newrank": "true",
+      "rank": "same",
+      "rankdir": "LR",
+      "_gvid": 1,
+      "nodes": [
+        2,9
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "changes",
+      "color": "#88000022",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>changes<\/b><br\/>in the working tree <\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\"><i>To view: <\/i><br align=\"left\"\/>\n\t\t\tgit diff\n\t\t\t<br align=\"left\"\/><\/td> <\/tr>\n\t\t<\/table>",
+      "pencolor": "#00000044",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 3,
+      "name": "staging",
+      "fillcolor": "#ff880022",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>staging area<\/b><br\/>(cache, index)<\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\"><i>To view: <\/i><br align=\"left\"\/>\n\t\t\tgit diff --staged\n\t\t\t<br align=\"left\"\/><\/td> <\/tr>\n\t\t<\/table>",
+      "pencolor": "#00000044",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 4,
+      "name": "HEAD",
+      "fillcolor": "#88ff0022",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"3\">\n\t\t\t<tr> <td port=\"push\" sides=\"ltr\"> <b>HEAD <\/b>of<\/td> <\/tr>\n\t\t\t<tr> <td port=\"pull\" sides=\"lbr\"> the current branch<\/td> <\/tr>\n\t\t\t<tr> <td port=\"switch\" align=\"left\">\n\t\t\t\t<i>To view:<\/i>\n\t\t\t\t<br align=\"left\"\/>\n\t\t\t\tgit show<br align=\"left\"\/>\n\t\t\t\tgit log\n\t\t\t\t<br align=\"left\"\/>\n\t\t\t<\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\">\n\t\t\t\t<i>To change branch:<\/i><br align=\"left\"\/>\n\t\t\t\tgit switch ...\n\t\t\t\t<br align=\"left\"\/>\n\t\t\t\tgit checkout ...\n\t\t\t\t<br align=\"left\"\/>\n\t\t\t<\/td> <\/tr>\n\t\t<\/table>",
+      "pencolor": "#00000044",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 5,
+      "name": "stash",
+      "fillcolor": "#0044ff22",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>stash<\/b><\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\"><i>To view:<\/i><br align=\"left\"\/>\n\t\t\tgit stash list\n\t\t\t<br align=\"left\"\/><\/td> <\/tr>\n\t\t<\/table>",
+      "pencolor": "#00000044",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 6,
+      "name": "stash_push",
+      "color": "#00008844",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git stash [push]",
+      "pencolor": "#00000044",
+      "shape": "plain"
+    },
+    {
+      "_gvid": 7,
+      "name": "remote",
+      "color": "#00000022",
+      "fillcolor": "#00ff0022",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "remote branch",
+      "pencolor": "#00000044",
+      "shape": "box",
+      "style": "filled"
+    },
+    {
+      "_gvid": 8,
+      "name": "branches",
+      "fillcolor": "#00888822",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>local branches<\/b> <\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\"><i>To view:<\/i><br align=\"left\"\/>\n\t\t\tgit branch [--list]\n\t\t\t<br align=\"left\"\/><\/td> <\/tr>\n\t\t\t<\/table>",
+      "pencolor": "#00000044",
+      "shape": "plain",
+      "style": "filled"
+    },
+    {
+      "_gvid": 9,
+      "name": "discard",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "\\N",
+      "pencolor": "#00000044",
+      "shape": "plaintext"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 4,
+      "tail": 3,
+      "head": 4,
+      "arrowsize": "0.5",
+      "color": "#88000088",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "push",
+      "label": "git commit",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "style": "dotted",
+      "weight": "1000"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 6,
+      "arrowhead": "none",
+      "arrowsize": "0.5",
+      "color": "#00008844",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "style": "dotted"
+    },
+    {
+      "_gvid": 8,
+      "tail": 6,
+      "head": 3,
+      "arrowhead": "none",
+      "arrowsize": "0.5",
+      "color": "#00008844",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "style": "dotted"
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 5,
+      "arrowsize": "0.5",
+      "color": "#00000088",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "style": "dotted",
+      "weight": "0",
+      "xlabel": "git stash pop"
+    },
+    {
+      "_gvid": 9,
+      "tail": 6,
+      "head": 5,
+      "arrowsize": "0.5",
+      "color": "#00008844",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "minlen": "0",
+      "penwidth": "2",
+      "style": "dotted",
+      "xdir": "back"
+    },
+    {
+      "_gvid": 5,
+      "tail": 4,
+      "head": 7,
+      "arrowsize": "0.5",
+      "color": "#88000088",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git push",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "style": "dotted",
+      "tailport": "push"
+    },
+    {
+      "_gvid": 6,
+      "tail": 4,
+      "head": 7,
+      "arrowsize": "0.5",
+      "color": "#00440088",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git pull",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "style": "dotted",
+      "tailport": "pull"
+    },
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "arrowsize": "0.5",
+      "color": "#88000088",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git add ...    \\ngit reset      ",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "style": "dotted"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 9,
+      "arrowsize": "0.5",
+      "color": "#88000088",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git restore ...",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "style": "dotted"
+    },
+    {
+      "_gvid": 7,
+      "tail": 4,
+      "head": 8,
+      "arrowhead": "none",
+      "arrowsize": "0.5",
+      "arrowtail": "odiamond",
+      "color": "#00000088",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "1",
+      "tailport": "switch"
+    }
+  ]
+}

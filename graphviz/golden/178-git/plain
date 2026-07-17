@@ -1,0 +1,57 @@
+graph 1 10.753 3.275
+node changes 0.8308 1.9694 1.6616 1.0556 <<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>changes</b><br/>in the working tree </td> </tr>
+			<tr> <td align="left"><i>To view: </i><br align="left"/>
+			git diff
+			<br align="left"/></td> </tr>
+		</table>> filled plain #88000022 #88000022
+node staging 4.5518 1.9 1.3484 1.0556 <<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>staging area</b><br/>(cache, index)</td> </tr>
+			<tr> <td align="left"><i>To view: </i><br align="left"/>
+			git diff --staged
+			<br align="left"/></td> </tr>
+		</table>> filled plain black #ff880022
+node HEAD 7.3693 1.0389 1.5908 2.0778 <<table border="0" cellborder="1" cellspacing="0" cellpadding="3">
+			<tr> <td port="push" sides="ltr"> <b>HEAD </b>of</td> </tr>
+			<tr> <td port="pull" sides="lbr"> the current branch</td> </tr>
+			<tr> <td port="switch" align="left">
+				<i>To view:</i>
+				<br align="left"/>
+				git show<br align="left"/>
+				git log
+				<br align="left"/>
+			</td> </tr>
+			<tr> <td align="left">
+				<i>To change branch:</i><br align="left"/>
+				git switch ...
+				<br align="left"/>
+				git checkout ...
+				<br align="left"/>
+			</td> </tr>
+		</table>> filled plain black #88ff0022
+node stash 2.7696 0.775 1.068 0.9 <<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>stash</b></td> </tr>
+			<tr> <td align="left"><i>To view:</i><br align="left"/>
+			git stash list
+			<br align="left"/></td> </tr>
+		</table>> filled plain black #0044ff22
+node stash_push 2.7696 1.5944 1.1882 0.23333 "git stash [push]" solid plain #00008844 #00008844
+node remote 10.02 2.025 1.3397 0.5 "remote branch" filled box #00000022 #00ff0022
+node branches 10.02 1.0389 1.4671 0.9 <<table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>local branches</b> </td> </tr>
+			<tr> <td align="left"><i>To view:</i><br align="left"/>
+			git branch [--list]
+			<br align="left"/></td> </tr>
+			</table>> filled plain black #00888822
+node discard 0.8308 0.69167 0.78372 0.5 discard solid plaintext black lightgrey
+edge changes staging 7 1.6607 1.969 2.2154 1.9668 2.9659 1.9601 3.6276 1.9417 3.6751 1.9403 3.7241 1.9388 3.7734 1.937 "git add ...    \ngit reset      " 2.7696 2.199 dotted #88000088
+edge changes stash 4 1.7534 1.4015 1.9209 1.2968 2.0903 1.1909 2.2409 1.0967 dotted #00000088
+edge changes stash_push 4 1.6607 1.8093 1.8352 1.7751 2.016 1.7396 2.1792 1.7076 dotted #00008844
+edge changes discard 4 0.8308 1.4435 0.8308 1.3108 0.8308 1.1714 0.8308 1.0492 "git restore ..." 0.67246 1.1917 dotted #88000088
+edge staging HEAD 4 5.2259 1.9027 5.5871 1.904 6.0457 1.9053 6.4675 1.9055 "git commit" 5.8999 2.0221 dotted #88000088
+edge HEAD remote 4 8.1647 1.9056 8.5172 1.9056 8.9069 1.9276 9.2366 1.9528 "git push" 8.7253 2.0543 dotted #88000088
+edge HEAD remote 7 8.2748 1.5605 8.5771 1.5571 8.6965 1.5447 9.0359 1.625 9.1813 1.6594 9.333 1.7128 9.4721 1.7695 "git pull" 8.7253 1.7417 dotted #00440088
+edge HEAD branches 4 8.2612 1.0417 8.6059 1.0416 8.9775 1.041 9.2887 1.0405 solid #00000088
+edge stash_push staging 4 3.3628 1.6953 3.5285 1.7242 3.7103 1.7559 3.8803 1.7855 dotted #00008844
+edge stash_push stash 4 2.7696 1.4784 2.7696 1.4292 2.7696 1.38 2.7696 1.3308 dotted #00008844
+stop

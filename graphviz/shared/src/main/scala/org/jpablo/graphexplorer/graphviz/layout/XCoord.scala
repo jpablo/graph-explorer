@@ -141,7 +141,8 @@ object XCoord:
     // when the graph has edge labels. Keyed by the ordered (left,right) names.
     val posInRank: Map[String, (Int, Int)] =
       res.order.iterator.flatMap { (r, ids) => ids.zipWithIndex.map { (n, p) => n.name -> (r, p) } }.toMap
-    val flatBump: Map[(String, String), Double] =
+    final case class FlatBump(minlenAttr: Int, dist: Double, weight: Int)
+    val flatBump: Map[(String, String), FlatBump] =
       g.edges.iterator.filter(e => e.tail != e.head).flatMap { e =>
         for
           (rt, pt) <- posInRank.get(e.tail)
@@ -149,20 +150,38 @@ object XCoord:
           if rt == rh && math.abs(pt - ph) == 1
         yield
           val (l, r) = if pt < ph then (e.tail, e.head) else (e.head, e.tail)
-          val lblW   = if e.attrs.get("label").exists(_.nonEmpty) then Coord.edgeLabelDim(e, g)._1 else 0.0
-          (l, r) -> lblW
-      }.toVector.groupBy(_._1).view.mapValues(_.map(_._2).max).toMap
-    // make_LR_constraints flat_out: bump the pair's aux-adjacency minlen to
-    // `max(ED_minlen·nodesep + width, width + nodesep + ROUND(ED_dist))`, the
-    // flat edge's ED_minlen being doubled when the graph has edge labels.
-    def flatMinlenOf(u: LayoutNode, v: LayoutNode, base: Int): Int =
+          // ED_dist (flat.c:299) is the label's extent along the CANONICAL
+          // x axis: dimen.y under flip (LR/BT rotate labels), dimen.x else.
+          val dist =
+            if e.attrs.get("label").exists(_.nonEmpty) then
+              val (wl, hl) = Coord.edgeLabelDim(e, g)
+              if Rank.flip(g) then hl else wl
+            else 0.0
+          // ED_minlen/ED_weight: late_int defaults 1, floor 0 — a `minlen=0`
+          // or `weight=0` attr is legal and layout-visible (git).
+          val ml = math.max(0, e.attrs.get("minlen").flatMap(_.toIntOption).getOrElse(1))
+          val wt = math.max(0, e.attrs.get("weight").flatMap(_.toDoubleOption).map(_.toInt).getOrElse(1))
+          (l, r) -> FlatBump(ml, dist, wt)
+      }.toVector.groupBy(_._1).view.mapValues { bs =>
+        FlatBump(bs.map(_._2.minlenAttr).max, bs.map(_._2.dist).max, bs.map(_._2.weight).sum)
+      }.toMap
+    // make_LR_constraints flat_out (position.c:288): a flat edge between
+    // order-adjacent nodes bumps the pair's aux-adjacency edge IN PLACE:
+    //   int m0 = ED_minlen(e)·nodesep + width;            // C trunc
+    //   m0 = MAX(m0, width + nodesep + ROUND(ED_dist(e))) // C trunc again
+    //   ED_minlen(e0) = MAX(ED_minlen(e0), m0);
+    //   ED_weight(e0) = MAX(ED_weight(e0), ED_weight(e));
+    // width = rw(t0)+lw(h0) (NO nodesep); the flat ED_minlen is the edge's
+    // minlen ATTR, doubled when the graph has edge labels (rank doubling).
+    def flatAdj(u: LayoutNode, v: LayoutNode, base: Int): (Int, Int) =
       flatBump.get((u.name, v.name)) match
-        case Some(lblW) =>
+        case Some(fb) =>
           val width = rw(u) + lw(v)
-          val fm    = if hasEL then 2 else 1
-          val m0    = math.max(fm * NodeSep + width, width + NodeSep + math.round(lblW).toDouble)
-          math.max(base, math.round(m0).toInt)
-        case None => base
+          val fm    = fb.minlenAttr * (if hasEL then 2 else 1)
+          val m0a   = (fm * NodeSep + width).toInt
+          val m0    = math.max(m0a.toDouble, width + NodeSep + math.round(fb.dist).toDouble).toInt
+          (math.max(base, m0), fb.weight)
+        case None => (base, 0)
     res.order.toList.sortBy(_._1).foreach { case (rank, ids) =>
       val nodesep = if hasEL && (rank & 1) == 1 then 5.0 else NodeSep
       ids.headOption.foreach(h => initRank(h.name) = 0)
@@ -175,8 +194,8 @@ object XCoord:
           // (position.c:262). The flat_out bump raises the EDGE minlen only
           // (the NS re-solves from the seed, which may go infeasible → init_rank).
           val width  = rw(u) + lw(v) + nodesep
-          val minlen = flatMinlenOf(u, v, math.round(width).toInt)
-          edges += NetworkSimplex.NSEdge(u.name, v.name, minlen, 0)
+          val (minlen, fw) = flatAdj(u, v, math.round(width).toInt)
+          edges += NetworkSimplex.NSEdge(u.name, v.name, minlen, fw)
           last = (last + width).toInt
           initRank(v.name) = last
         case _ => ()
@@ -252,15 +271,16 @@ object XCoord:
       val owner = res.segOwner.lift(i).getOrElse(-1)
       val owned = if owner >= 0 && owner < realEdges.length then Some(realEdges(owner)) else None
       // make_edge_pairs slack weight = ω-class × the **edge `weight`**
-      // (ED_weight, default 1; the whole virtual chain inherits it). A
-      // class2-merged multi-edge class sums its members' weights onto the
-      // rep chain (merge_chain `ED_weight(rep) += ED_weight(e)`).
+      // (ED_weight = late_int(weight, default 1, FLOOR 0 — `weight=0` is
+      // legal and layout-visible, git; atoi ⇒ trunc). A class2-merged
+      // multi-edge class sums its members' weights onto the rep chain
+      // (merge_chain `ED_weight(rep) += ED_weight(e)`) with NO clamp.
       def weightAttr(d: Int): Int =
         realEdges.lift(d).flatMap(_.attrs.get("weight")).flatMap(_.toDoubleOption)
-          .map(w => math.max(1, math.round(w).toInt)).getOrElse(1)
+          .map(w => math.max(0, w.toInt)).getOrElse(1)
       val wt =
         if owner >= 0 then
-          res.mergedInto.indices.iterator.filter(res.mergedInto(_) == owner).map(weightAttr).sum max 1
+          res.mergedInto.indices.iterator.filter(res.mergedInto(_) == owner).map(weightAttr).sum
         else 1
       val w  = NSClass.weight(cls(t), cls(h)) * wt
       val (m0, m1) =

@@ -1,0 +1,1784 @@
+{
+  "name": "git_basics",
+  "directed": true,
+  "strict": false,
+  "_draw_": 
+  [
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#fffffe00"
+    },
+    {
+      "op": "C",
+      "grad": "none",
+      "color": "#ffffff"
+    },
+    {
+      "op": "P",
+      "points": [[0.000,0.000],[0.000,235.800],[774.220,235.800],[774.220,0.000]]
+    }
+  ],
+  "_ldraw_": 
+  [
+    {
+      "op": "F",
+      "size": 20.000,
+      "face": "Helvetica,Arial,sans-serif"
+    },
+    {
+      "op": "c",
+      "grad": "none",
+      "color": "#000000"
+    },
+    {
+      "op": "T",
+      "pt": [387.110,213.800],
+      "align": "c",
+      "width": 267.710,
+      "text": "Basic git concepts and operations"
+    }
+  ],
+  "bb": "0,0,774.22,235.8",
+  "fontname": "Helvetica,Arial,sans-serif",
+  "fontsize": "20",
+  "label": "Basic git concepts and operations\\n\\n",
+  "labelloc": "t",
+  "layout": "dot",
+  "lheight": "0.67",
+  "lp": "387.11,207.8",
+  "lwidth": "3.72",
+  "newrank": "true",
+  "rankdir": "LR",
+  "xdotversion": "1.7",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%3",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "20",
+      "label": "Basic git concepts and operations\\n\\n",
+      "labelloc": "t",
+      "layout": "dot",
+      "newrank": "true",
+      "rankdir": "LR",
+      "_gvid": 0,
+      "nodes": [
+        2,3,6
+      ],
+      "edges": [
+        2,8
+      ]
+    },
+    {
+      "name": "%21",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "fontsize": "20",
+      "label": "Basic git concepts and operations\\n\\n",
+      "labelloc": "t",
+      "layout": "dot",
+      "newrank": "true",
+      "rank": "same",
+      "rankdir": "LR",
+      "_gvid": 1,
+      "nodes": [
+        2,9
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "changes",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#88000022"
+        },
+        {
+          "op": "P",
+          "points": [[119.630,179.800],[0.000,179.800],[0.000,103.800],[119.630,103.800]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[0.000,141.800],[0.000,179.800],[119.630,179.800],[119.630,141.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [34.340,163.200],
+          "align": "l",
+          "width": 3.500,
+          "text": " "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 1
+        },
+        {
+          "op": "T",
+          "pt": [37.840,163.200],
+          "align": "l",
+          "width": 47.450,
+          "text": "changes"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [5.000,149.200],
+          "align": "l",
+          "width": 109.630,
+          "text": "in the working tree "
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[0.000,103.800],[0.000,141.800],[119.630,141.800],[119.630,103.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 2
+        },
+        {
+          "op": "T",
+          "pt": [5.000,125.200],
+          "align": "l",
+          "width": 52.100,
+          "text": "To view: "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [5.000,111.200],
+          "align": "l",
+          "width": 38.490,
+          "text": "git diff"
+        }
+      ],
+      "color": "#88000022",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "1.0556",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>changes<\/b><br\/>in the working tree <\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\"><i>To view: <\/i><br align=\"left\"\/>\n\t\t\tgit diff\n\t\t\t<br align=\"left\"\/><\/td> <\/tr>\n\t\t<\/table>",
+      "pencolor": "#00000044",
+      "pos": "59.817,141.8",
+      "shape": "plain",
+      "style": "filled",
+      "width": "1.6616"
+    },
+    {
+      "_gvid": 3,
+      "name": "staging",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#ff880022"
+        },
+        {
+          "op": "P",
+          "points": [[376.270,174.800],[279.190,174.800],[279.190,98.800],[376.270,98.800]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[279.190,136.800],[279.190,174.800],[376.270,174.800],[376.270,136.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [289.620,158.200],
+          "align": "l",
+          "width": 3.500,
+          "text": " "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 1
+        },
+        {
+          "op": "T",
+          "pt": [293.120,158.200],
+          "align": "l",
+          "width": 72.710,
+          "text": "staging area"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [288.090,144.200],
+          "align": "l",
+          "width": 79.280,
+          "text": "(cache, index)"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[279.190,98.800],[279.190,136.800],[376.270,136.800],[376.270,98.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 2
+        },
+        {
+          "op": "T",
+          "pt": [284.190,120.200],
+          "align": "l",
+          "width": 52.100,
+          "text": "To view: "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [284.190,106.200],
+          "align": "l",
+          "width": 87.080,
+          "text": "git diff --staged"
+        }
+      ],
+      "fillcolor": "#ff880022",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "1.0556",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>staging area<\/b><br\/>(cache, index)<\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\"><i>To view: <\/i><br align=\"left\"\/>\n\t\t\tgit diff --staged\n\t\t\t<br align=\"left\"\/><\/td> <\/tr>\n\t\t<\/table>",
+      "pencolor": "#00000044",
+      "pos": "327.73,136.8",
+      "shape": "plain",
+      "style": "filled",
+      "width": "1.3484"
+    },
+    {
+      "_gvid": 4,
+      "name": "HEAD",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#88ff0022"
+        },
+        {
+          "op": "P",
+          "points": [[587.860,149.600],[473.320,149.600],[473.320,0.000],[587.860,0.000]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "L",
+          "points": [[587.860,124.800],[587.860,149.600],[473.320,149.600],[473.320,124.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [501.040,134.000],
+          "align": "l",
+          "width": 3.500,
+          "text": " "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 1
+        },
+        {
+          "op": "T",
+          "pt": [504.540,134.000],
+          "align": "l",
+          "width": 43.950,
+          "text": "HEAD "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [548.480,134.000],
+          "align": "l",
+          "width": 11.660,
+          "text": "of"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "L",
+          "points": [[473.320,124.800],[473.320,100.000],[587.860,100.000],[587.860,124.800]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [477.920,108.200],
+          "align": "l",
+          "width": 105.330,
+          "text": " the current branch"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[473.320,50.000],[473.320,100.000],[587.860,100.000],[587.860,50.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 2
+        },
+        {
+          "op": "T",
+          "pt": [477.320,84.400],
+          "align": "l",
+          "width": 48.600,
+          "text": "To view:"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [477.320,70.400],
+          "align": "l",
+          "width": 47.840,
+          "text": "git show"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [477.320,56.400],
+          "align": "l",
+          "width": 36.170,
+          "text": "git log"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[473.320,0.000],[473.320,50.000],[587.860,50.000],[587.860,0.000]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 2
+        },
+        {
+          "op": "T",
+          "pt": [477.320,34.400],
+          "align": "l",
+          "width": 106.540,
+          "text": "To change branch:"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [477.320,20.400],
+          "align": "l",
+          "width": 68.830,
+          "text": "git switch ..."
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [477.320,6.400],
+          "align": "l",
+          "width": 82.810,
+          "text": "git checkout ..."
+        }
+      ],
+      "fillcolor": "#88ff0022",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "2.0778",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"3\">\n\t\t\t<tr> <td port=\"push\" sides=\"ltr\"> <b>HEAD <\/b>of<\/td> <\/tr>\n\t\t\t<tr> <td port=\"pull\" sides=\"lbr\"> the current branch<\/td> <\/tr>\n\t\t\t<tr> <td port=\"switch\" align=\"left\">\n\t\t\t\t<i>To view:<\/i>\n\t\t\t\t<br align=\"left\"\/>\n\t\t\t\tgit show<br align=\"left\"\/>\n\t\t\t\tgit log\n\t\t\t\t<br align=\"left\"\/>\n\t\t\t<\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\">\n\t\t\t\t<i>To change branch:<\/i><br align=\"left\"\/>\n\t\t\t\tgit switch ...\n\t\t\t\t<br align=\"left\"\/>\n\t\t\t\tgit checkout ...\n\t\t\t\t<br align=\"left\"\/>\n\t\t\t<\/td> <\/tr>\n\t\t<\/table>",
+      "pencolor": "#00000044",
+      "pos": "530.59,74.8",
+      "shape": "plain",
+      "style": "filled",
+      "width": "1.5908"
+    },
+    {
+      "_gvid": 5,
+      "name": "stash",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#0044ff22"
+        },
+        {
+          "op": "P",
+          "points": [[237.860,88.200],[160.960,88.200],[160.960,23.400],[237.860,23.400]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[160.960,61.400],[160.960,88.200],[237.860,88.200],[237.860,61.400]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [182.490,71.600],
+          "align": "l",
+          "width": 3.500,
+          "text": " "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 1
+        },
+        {
+          "op": "T",
+          "pt": [185.990,71.600],
+          "align": "l",
+          "width": 30.340,
+          "text": "stash"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[160.960,23.400],[160.960,61.400],[237.860,61.400],[237.860,23.400]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 2
+        },
+        {
+          "op": "T",
+          "pt": [165.960,44.800],
+          "align": "l",
+          "width": 48.600,
+          "text": "To view:"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [165.960,30.800],
+          "align": "l",
+          "width": 66.900,
+          "text": "git stash list"
+        }
+      ],
+      "fillcolor": "#0044ff22",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.9",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>stash<\/b><\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\"><i>To view:<\/i><br align=\"left\"\/>\n\t\t\tgit stash list\n\t\t\t<br align=\"left\"\/><\/td> <\/tr>\n\t\t<\/table>",
+      "pencolor": "#00000044",
+      "pos": "199.41,55.8",
+      "shape": "plain",
+      "style": "filled",
+      "width": "1.068"
+    },
+    {
+      "_gvid": 6,
+      "name": "stash_push",
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [199.410,110.600],
+          "align": "c",
+          "width": 85.550,
+          "text": "git stash [push]"
+        }
+      ],
+      "color": "#00008844",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.23333",
+      "label": "git stash [push]",
+      "pencolor": "#00000044",
+      "pos": "199.41,114.8",
+      "shape": "plain",
+      "width": "1.1882"
+    },
+    {
+      "_gvid": 7,
+      "name": "remote",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000022"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#00ff0022"
+        },
+        {
+          "op": "P",
+          "points": [[769.630,163.800],[673.170,163.800],[673.170,127.800],[769.630,127.800]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [721.400,141.600],
+          "align": "c",
+          "width": 80.460,
+          "text": "remote branch"
+        }
+      ],
+      "color": "#00000022",
+      "fillcolor": "#00ff0022",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "remote branch",
+      "pencolor": "#00000044",
+      "pos": "721.4,145.8",
+      "shape": "box",
+      "style": "filled",
+      "width": "1.3397"
+    },
+    {
+      "_gvid": 8,
+      "name": "branches",
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#fffffe00"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#00888822"
+        },
+        {
+          "op": "P",
+          "points": [[774.220,107.200],[668.590,107.200],[668.590,42.400],[774.220,42.400]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[668.590,80.400],[668.590,107.200],[774.220,107.200],[774.220,80.400]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [674.930,90.600],
+          "align": "l",
+          "width": 3.500,
+          "text": " "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 1
+        },
+        {
+          "op": "T",
+          "pt": [678.430,90.600],
+          "align": "l",
+          "width": 85.940,
+          "text": "local branches"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [764.380,90.600],
+          "align": "l",
+          "width": 3.500,
+          "text": " "
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000044"
+        },
+        {
+          "op": "p",
+          "points": [[668.590,42.400],[668.590,80.400],[774.220,80.400],[774.220,42.400]]
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 2
+        },
+        {
+          "op": "T",
+          "pt": [673.590,63.800],
+          "align": "l",
+          "width": 48.600,
+          "text": "To view:"
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "t",
+          "fontchar": 0
+        },
+        {
+          "op": "T",
+          "pt": [673.590,49.800],
+          "align": "l",
+          "width": 95.630,
+          "text": "git branch [--list]"
+        }
+      ],
+      "fillcolor": "#00888822",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.9",
+      "label": "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">\n\t\t\t<tr> <td> <b>local branches<\/b> <\/td> <\/tr>\n\t\t\t<tr> <td align=\"left\"><i>To view:<\/i><br align=\"left\"\/>\n\t\t\tgit branch [--list]\n\t\t\t<br align=\"left\"\/><\/td> <\/tr>\n\t\t\t<\/table>",
+      "pencolor": "#00000044",
+      "pos": "721.4,74.8",
+      "shape": "plain",
+      "style": "filled",
+      "width": "1.4671"
+    },
+    {
+      "_gvid": 9,
+      "name": "discard",
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [59.820,45.600],
+          "align": "c",
+          "width": 40.430,
+          "text": "discard"
+        }
+      ],
+      "fontname": "Helvetica,Arial,sans-serif",
+      "height": "0.5",
+      "label": "\\N",
+      "pencolor": "#00000044",
+      "pos": "59.817,49.8",
+      "shape": "plaintext",
+      "width": "0.78372"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 4,
+      "tail": 3,
+      "head": 4,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "b",
+          "points": [[376.270,137.000],[402.270,137.090],[435.290,137.180],[465.660,137.200]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "P",
+          "points": [[465.290,138.950],[470.290,137.200],[465.290,135.450]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [424.800,141.390],
+          "align": "c",
+          "width": 61.050,
+          "text": "git commit"
+        }
+      ],
+      "arrowsize": "0.5",
+      "color": "#88000088",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "headport": "push",
+      "label": "git commit",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "lp": "424.8,145.59",
+      "penwidth": "2",
+      "pos": "e,473.32,137.2 376.27,137 402.27,137.09 435.29,137.18 465.66,137.2",
+      "style": "dotted",
+      "weight": "1000"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 6,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00008844"
+        },
+        {
+          "op": "b",
+          "points": [[119.570,130.270],[132.130,127.810],[145.150,125.250],[156.900,122.940]]
+        }
+      ],
+      "arrowhead": "none",
+      "arrowsize": "0.5",
+      "color": "#00008844",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "pos": "119.57,130.27 132.13,127.81 145.15,125.25 156.9,122.94",
+      "style": "dotted"
+    },
+    {
+      "_gvid": 8,
+      "tail": 6,
+      "head": 3,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00008844"
+        },
+        {
+          "op": "b",
+          "points": [[242.120,122.060],[254.050,124.140],[267.140,126.420],[279.380,128.550]]
+        }
+      ],
+      "arrowhead": "none",
+      "arrowsize": "0.5",
+      "color": "#00008844",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "pos": "242.12,122.06 254.05,124.14 267.14,126.42 279.38,128.55",
+      "style": "dotted"
+    },
+    {
+      "_gvid": 1,
+      "tail": 2,
+      "head": 5,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000088"
+        },
+        {
+          "op": "b",
+          "points": [[126.240,100.910],[138.300,93.370],[150.500,85.750],[161.350,78.970]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [175.740,92.090],
+          "align": "c",
+          "width": 70.780,
+          "text": "git stash pop"
+        }
+      ],
+      "_tdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000088"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#00000088"
+        },
+        {
+          "op": "P",
+          "points": [[125.450,99.340],[122.140,103.470],[127.300,102.310]]
+        }
+      ],
+      "arrowsize": "0.5",
+      "color": "#00000088",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "2",
+      "pos": "s,119.57,105.08 126.24,100.91 138.3,93.37 150.5,85.746 161.35,78.966",
+      "style": "dotted",
+      "weight": "0",
+      "xlabel": "git stash pop",
+      "xlp": "175.74,96.29"
+    },
+    {
+      "_gvid": 9,
+      "tail": 6,
+      "head": 5,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00008844"
+        },
+        {
+          "op": "b",
+          "points": [[199.410,106.450],[199.410,102.900],[199.410,99.360],[199.410,95.820]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00008844"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#00008844"
+        },
+        {
+          "op": "P",
+          "points": [[201.160,96.090],[199.410,91.090],[197.660,96.090]]
+        }
+      ],
+      "arrowsize": "0.5",
+      "color": "#00008844",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "minlen": "0",
+      "penwidth": "2",
+      "pos": "e,199.41,88.066 199.41,106.45 199.41,102.9 199.41,99.362 199.41,95.82",
+      "style": "dotted",
+      "xdir": "back"
+    },
+    {
+      "_gvid": 5,
+      "tail": 4,
+      "head": 7,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "b",
+          "points": [[587.860,137.200],[613.240,137.200],[641.290,138.790],[665.030,140.600]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "P",
+          "points": [[664.770,142.340],[669.890,140.980],[665.040,138.850]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [628.220,143.710],
+          "align": "c",
+          "width": 44.730,
+          "text": "git push"
+        }
+      ],
+      "arrowsize": "0.5",
+      "color": "#88000088",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git push",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "lp": "628.22,147.91",
+      "penwidth": "2",
+      "pos": "e,672.91,141.22 587.86,137.2 613.24,137.2 641.29,138.79 665.03,140.6",
+      "style": "dotted",
+      "tailport": "push"
+    },
+    {
+      "_gvid": 6,
+      "tail": 4,
+      "head": 7,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00440088"
+        },
+        {
+          "op": "b",
+          "points": [[595.790,112.350],[617.550,112.110],[626.150,111.220],[650.590,117.000],[661.050,119.470],[671.970,123.320],[681.990,127.400]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [628.220,121.200],
+          "align": "c",
+          "width": 40.060,
+          "text": "git pull"
+        }
+      ],
+      "_tdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00440088"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#00440088"
+        },
+        {
+          "op": "P",
+          "points": [[595.880,110.600],[590.890,112.380],[595.900,114.100]]
+        }
+      ],
+      "arrowsize": "0.5",
+      "color": "#00440088",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git pull",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "lp": "628.22,125.4",
+      "penwidth": "2",
+      "pos": "s,587.86,112.4 595.79,112.35 617.55,112.11 626.15,111.22 650.59,117 661.05,119.47 671.97,123.32 681.99,127.4",
+      "style": "dotted",
+      "tailport": "pull"
+    },
+    {
+      "_gvid": 0,
+      "tail": 2,
+      "head": 3,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "b",
+          "points": [[119.570,141.770],[159.510,141.610],[213.550,141.130],[261.190,139.800],[264.610,139.700],[268.130,139.590],[271.680,139.460]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "P",
+          "points": [[271.530,141.220],[276.460,139.280],[271.390,137.720]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [199.410,162.530],
+          "align": "c",
+          "width": 66.490,
+          "text": "git add ...    "
+        },
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [199.410,145.730],
+          "align": "c",
+          "width": 65.710,
+          "text": "git reset      "
+        }
+      ],
+      "arrowsize": "0.5",
+      "color": "#88000088",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git add ...    \\ngit reset      ",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "lp": "199.41,158.33",
+      "penwidth": "2",
+      "pos": "e,279.48,139.16 119.57,141.77 159.51,141.61 213.55,141.13 261.19,139.8 264.61,139.7 268.13,139.59 271.68,139.46",
+      "style": "dotted"
+    },
+    {
+      "_gvid": 3,
+      "tail": 2,
+      "head": 9,
+      "_draw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "dotted"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "b",
+          "points": [[59.820,103.930],[59.820,94.380],[59.820,84.340],[59.820,75.540]]
+        }
+      ],
+      "_hdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "setlinewidth(2)"
+        },
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "C",
+          "grad": "none",
+          "color": "#88000088"
+        },
+        {
+          "op": "P",
+          "points": [[61.570,75.570],[59.820,70.570],[58.070,75.570]]
+        }
+      ],
+      "_ldraw_": 
+      [
+        {
+          "op": "F",
+          "size": 14.000,
+          "face": "Helvetica,Arial,sans-serif"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#000000"
+        },
+        {
+          "op": "T",
+          "pt": [48.420,81.600],
+          "align": "c",
+          "width": 70.370,
+          "text": "git restore ..."
+        }
+      ],
+      "arrowsize": "0.5",
+      "color": "#88000088",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "git restore ...",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "lp": "48.417,85.8",
+      "penwidth": "2",
+      "pos": "e,59.817,67.539 59.817,103.93 59.817,94.379 59.817,84.342 59.817,75.541",
+      "style": "dotted"
+    },
+    {
+      "_gvid": 7,
+      "tail": 4,
+      "head": 8,
+      "_draw_": 
+      [
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000088"
+        },
+        {
+          "op": "b",
+          "points": [[594.800,75.000],[619.620,74.990],[646.380,74.960],[668.790,74.910]]
+        }
+      ],
+      "_tdraw_": 
+      [
+        {
+          "op": "S",
+          "style": "solid"
+        },
+        {
+          "op": "c",
+          "grad": "none",
+          "color": "#00000088"
+        },
+        {
+          "op": "p",
+          "points": [[594.760,75.000],[591.760,77.000],[588.760,75.000],[591.760,73.000]]
+        }
+      ],
+      "arrowhead": "none",
+      "arrowsize": "0.5",
+      "arrowtail": "odiamond",
+      "color": "#00000088",
+      "dir": "back",
+      "fontname": "Helvetica,Arial,sans-serif",
+      "label": "",
+      "labeldistance": "3",
+      "labelfontcolor": "#00000080",
+      "penwidth": "1",
+      "pos": "s,587.86,75 594.8,74.999 619.62,74.993 646.38,74.955 668.79,74.914",
+      "tailport": "switch"
+    }
+  ]
+}
