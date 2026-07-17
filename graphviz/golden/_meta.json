@@ -44,7 +44,7 @@
     "xdot1.4",
     "xdot_json"
   ],
-  "generatedAt": "2026-07-17T06:54:19.228Z",
+  "generatedAt": "2026-07-17T07:56:47.769Z",
   "corpus": {
     "01-minimal": {
       "input": "01-minimal.dot",
@@ -2931,6 +2931,44 @@
         "svg": {
           "status": "success",
           "sha256": "9a220d48029ac052cc09cb1ad534f661120203789ea7ec19a35ec64c0e1a68fe"
+        }
+      }
+    },
+    "181-objid-attrs": {
+      "input": "181-objid-attrs.dot",
+      "sha256": "be9155aade45298110d558075590d5f3e7b8b29e3ada1399d964dc64d91bf243",
+      "formats": {
+        "dot": {
+          "status": "success",
+          "sha256": "309b0a67bbfe8613e6dd885cde1edff1425f799f925cc44e5cfaed75862a811a"
+        },
+        "plain": {
+          "status": "success",
+          "sha256": "78ece9e42106d9fc1ed62931b9a8e9779c72709b71dcb49b6bea10533d7afb54"
+        },
+        "plain-ext": {
+          "status": "success",
+          "sha256": "78ece9e42106d9fc1ed62931b9a8e9779c72709b71dcb49b6bea10533d7afb54"
+        },
+        "json": {
+          "status": "success",
+          "sha256": "5bd6d5eadff0d0a631db5c4d35dc3efa3d51fc80c4dc6fae4d4b57fac52ce11e"
+        },
+        "json0": {
+          "status": "success",
+          "sha256": "469bef93c4e1afefced2abb092bbf08bb2ca6bbc1cb6ec084847dd7f1c2735ec"
+        },
+        "dot_json": {
+          "status": "success",
+          "sha256": "5f9db0fc9873e54e0c642775358922d816e21a43db0ecb1ca8eb5dc120c576d4"
+        },
+        "xdot": {
+          "status": "success",
+          "sha256": "0c700477c2fabd55175e3e8e61a4e895e73fa1e32219f1df6afe4dbe6d4bbae3"
+        },
+        "svg": {
+          "status": "success",
+          "sha256": "5f82f1233255ef85221ff6ea16402c03ff56e0abc590f04d70e3bc78b1f60124"
         }
       }
     },

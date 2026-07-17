@@ -1,0 +1,13 @@
+digraph G {
+  subgraph cluster_g1 {
+    id = "group:g1"
+    label = "G1"
+    a [id="node:a"]
+    b [id="node:b"]
+  }
+  c [id="node:c"]
+  a -> b [id="arrow:a->b/1"]
+  b -> c [id="arrow:b->c/1"]
+  a -> c
+  d
+}

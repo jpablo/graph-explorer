@@ -386,7 +386,11 @@ object Svg:
           val cb  = Cluster.finalBB(g, cbbs(i), tf)
           val llx = cb.llx; val urx = cb.urx
           val lly = cb.lly; val ury = cb.ury
-          sb ++= s"""<g id="clust${i + 1}" class="cluster">\n"""
+          // getObjId: an explicit `id` graph attr on the cluster replaces the
+          // clust{seq} default (the viewer's `id="group:…"` injection).
+          val clustObjId = sgByName.get(c.name).flatMap(_.attrs.get("id"))
+            .filter(_.nonEmpty).getOrElse(s"clust${i + 1}")
+          sb ++= s"""<g id="${xml(clustObjId)}" class="cluster">\n"""
           sb ++= s"<title>${xml(c.name)}</title>\n"
           // emit_clusters (emit.c): `style=filled` ⇒ FILL; `color` sets BOTH
           // fill+pen; `pencolor`/`fillcolor` override; `bgcolor` fills when not
@@ -715,7 +719,10 @@ object Svg:
         // 1-based decl index — byte-exact across the corpus).
         val objId = n.attrs.get("id").filter(_.nonEmpty).getOrElse(s"node${i + 1}")
         sb ++= s"<!-- ${xml(n.id)} -->\n"
-        sb ++= s"""<g id="node${i + 1}" class="node">\n"""
+        // the <g id> IS getObjId's result — an explicit `id` attr replaces
+        // the node{seq} default (svg_print_id_class; the viewer relies on
+        // its injected `id="node:…"` attrs to find elements for selection).
+        sb ++= s"""<g id="${xml(objId)}" class="node">\n"""
         sb ++= s"<title>${xml(n.id)}</title>\n"
         // emit_begin_node anchor: a node with a non-empty `href`/`URL`/`tooltip`
         // wraps its shape+label in `<g id="a_{objId}"><a …>…</a></g>`

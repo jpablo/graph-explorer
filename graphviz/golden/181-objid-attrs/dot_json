@@ -1,0 +1,64 @@
+{
+  "name": "G",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 142 221",
+  "label": "",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "cluster_g1",
+      "id": "group:g1",
+      "label": "G1",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ],
+      "edges": [
+        0
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "a",
+      "id": "node:a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "b",
+      "id": "node:b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "c",
+      "id": "node:c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "d",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 1,
+      "head": 2,
+      "id": "arrow:a->b\/1"
+    },
+    {
+      "_gvid": 2,
+      "tail": 2,
+      "head": 3,
+      "id": "arrow:b->c\/1"
+    },
+    {
+      "_gvid": 1,
+      "tail": 1,
+      "head": 3
+    }
+  ]
+}
