@@ -113,6 +113,7 @@ object Order:
     def recordSeg(t: LayoutNode, h: LayoutNode, sp: SegPorts): Unit =
       if sp != SegPorts.default then segPortsMap((t, h)) = sp
 
+    val flatReps = mutable.ArrayBuffer.empty[(LayoutNode, LayoutNode, Int)]
     def emit(idx: Int): Unit =
       val e    = dedges(idx)
       curOwner = idx
@@ -130,7 +131,10 @@ object Order:
           connect(tail, head)
           if wtPort.isDefined || whPort.isDefined then
             recordSeg(tail, head, SegPorts(wtPX, wtOrd, whPX, whOrd))
-        else () // span 1 (skip flat span 0)
+        else
+          // flat edge (class2.c:246 flat_edge): same-rank rep — feeds the
+          // mincross flat machinery (flat_breakcycles/flat_reorder/left2right)
+          flatReps += ((tail, head, idx))
       else
         var prev: LayoutNode = tail
         var r    = rt + 1
@@ -212,10 +216,19 @@ object Order:
             (if e.tailPort.isDefined then Iterator(LayoutNode.Real(e.tail): LayoutNode) else Iterator.empty) ++
               (if e.headPort.isDefined then Iterator(LayoutNode.Real(e.head): LayoutNode) else Iterator.empty)
           }.toSet
+        // flat rep weight = Σ member `weight` attrs (merge_oneway accumulates
+        // ED_weight on the rep) — only zero/non-zero gates `constraining`.
+        val flatPairs: Vector[(LayoutNode, LayoutNode, Double)] =
+          flatReps.iterator.map { (t, h, rep) =>
+            val w = mergedInto.indices.iterator.filter(mergedInto(_) == rep)
+              .map(j => realEdges(j).attrs.get("weight").flatMap(_.toDoubleOption).getOrElse(1.0)).sum
+            (t, h, w)
+          }.toVector
         runMincross(out, in, rankOf, gdNlist, flip,
           weight   = (t, h) => segXpen.getOrElse((t, h), 1L),
           segPorts = (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
-          hasPort  = ported.contains)
+          hasPort  = ported.contains,
+          flatPairs = flatPairs)
       else orderClustered(g, out, in, rankOf, flip)
     Result(rank0, order, cross, segs.toVector, segOwn.toVector, mergedInto.toVector)
 
@@ -578,7 +591,10 @@ object Order:
       segPorts:    (N, N) => SegPorts = (_: N, _: N) => SegPorts.default,
       /** ND_has_port: some edge names a port on this node — gates the
         * `local_cross` term of ncross (rcross, mincross.c:1626). */
-      hasPort:     N => Boolean = (_: N) => false
+      hasPort:     N => Boolean = (_: N) => false,
+      /** Flat (same-rank) edge reps `(tail, head, ED_weight)` in class2
+        * order — drives flat_breakcycles / flat_reorder / left2right. */
+      flatPairs:   Vector[(N, N, Double)] = Vector.empty[(N, N, Double)]
   )(using CanEqual[N, N]): (Map[Int, Vector[N]], Long) =
     val minR  = if rankOf.isEmpty then 0 else rankOf.values.min
     val maxR  = if rankOf.isEmpty then 0 else rankOf.values.max
@@ -587,6 +603,117 @@ object Order:
     val mark  = mutable.Set.empty[N]
     def install(n: N): Unit =
       val rb = ranks(rankOf(n)); pos(n) = rb.length; rb += n
+
+    // ── flat-edge machinery (mincross.c flat_breakcycles/flat_reorder) ────
+    // ND_flat_out/ND_flat_in lists (class2 append order) + per-edge weight;
+    // flat_rev mutates them (cycle break / non-constraining LR restore).
+    val hasFlat = flatPairs.nonEmpty
+    val flOut = mutable.HashMap.empty[N, mutable.ArrayBuffer[N]]
+    val flIn  = mutable.HashMap.empty[N, mutable.ArrayBuffer[N]]
+    val flWt  = mutable.HashMap.empty[(N, N), Double]
+    flatPairs.foreach { (t, h, w) =>
+      flOut.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += h
+      flIn.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += t
+      flWt((t, h)) = flWt.getOrElse((t, h), 0.0) + w
+    }
+    def fOut(n: N): mutable.ArrayBuffer[N] = flOut.getOrElse(n, mutable.ArrayBuffer.empty)
+    def fIn(n: N):  mutable.ArrayBuffer[N] = flIn.getOrElse(n, mutable.ArrayBuffer.empty)
+    /** fastgr.c flat_rev: delete (t,h); the reversed edge merges into an
+      * existing (h,t) (merge_oneway sums weight) or appends as a new one. */
+    def flatRev(t: N, h: N): Unit =
+      val w = flWt.remove((t, h)).getOrElse(0.0)
+      fOut(t) -= h; fIn(h) -= t
+      if fOut(h).contains(t) then flWt((h, t)) = flWt.getOrElse((h, t), 0.0) + w
+      else
+        flOut.getOrElseUpdate(h, mutable.ArrayBuffer.empty) += t
+        flIn.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += h
+        flWt((h, t)) = w
+    // per-rank flat adjacency matrix (GD_rank[r].flat) + flatindex — assigned
+    // ONCE (flat_breakcycles, pass 0) and consulted by left2right thereafter.
+    val flatIdx = mutable.HashMap.empty[N, Int]
+    val flatMx  = mutable.HashMap.empty[Int, mutable.HashSet[(Int, Int)]]
+    def left2right(v: N, w: N): Boolean =
+      flatMx.get(rankOf(v)) match
+        case None    => false
+        case Some(m) =>
+          val (a, b) = if flip then (w, v) else (v, w)
+          (flatIdx.get(a), flatIdx.get(b)) match
+            case (Some(ia), Some(ib)) => m.contains((ia, ib))
+            case _                    => false
+    def flatBreakcycles(): Unit =
+      if hasFlat then
+        val fmark   = mutable.Set.empty[N]
+        val onstack = mutable.Set.empty[N]
+        (minR to maxR).foreach { r =>
+          val rb  = ranks(r)
+          var any = false
+          rb.iterator.zipWithIndex.foreach { (v, i) =>
+            flatIdx(v) = i
+            if fOut(v).nonEmpty then any = true
+          }
+          if any then
+            val m = flatMx.getOrElseUpdate(r, mutable.HashSet.empty)
+            def search(v: N): Unit = // flat_search (mincross.c:1148)
+              fmark += v; onstack += v
+              val lst = fOut(v)
+              var i = 0
+              while i < lst.length do
+                val h = lst(i)
+                if flWt.getOrElse((v, h), 0.0) == 0.0 then i += 1
+                else if onstack(h) then
+                  m += ((flatIdx(h), flatIdx(v)))
+                  flatRev(v, h) // removes lst(i) — do not advance
+                else
+                  m += ((flatIdx(v), flatIdx(h)))
+                  if !fmark(h) then search(h)
+                  i += 1
+              onstack -= v
+            rb.foreach(v => if !fmark(v) then search(v))
+        }
+    /** flat_reorder (mincross.c:1420): per rank, reverse-topological sort of
+      * the constraining flat DAG (postorder DFS from constraint-free seeds,
+      * scanned right-to-left for TB), then the reversed result becomes the
+      * rank order; non-constraining flat edges pointing right-to-left get
+      * flat_rev'd. */
+    def flatReorder(): Unit =
+      if hasFlat then
+        (minR to maxR).foreach { r =>
+          val rb = ranks(r)
+          if rb.nonEmpty then
+            val fmark = mutable.Set.empty[N]
+            val temp  = mutable.ArrayBuffer.empty[N]
+            def constraining(t: N, h: N): Boolean = flWt.getOrElse((t, h), 0.0) != 0.0
+            def post(v: N): Unit = // postorder (mincross.c:1403)
+              fmark += v
+              fOut(v).foreach(h => if constraining(v, h) && !fmark(h) then post(h))
+              temp += v
+            val n = rb.length
+            var i = 0
+            while i < n do
+              val v = if flip then rb(i) else rb(n - 1 - i)
+              val inCnt  = fIn(v).count(t => constraining(t, v))
+              val outCnt = fOut(v).count(h => constraining(v, h))
+              if inCnt == 0 && outCnt == 0 then temp += v
+              else if !fmark(v) && inCnt == 0 then post(v)
+              i += 1
+            if temp.nonEmpty && temp.length == rb.length then
+              if !flip then
+                var a = 0; var b = temp.length - 1
+                while a < b do { val t = temp(a); temp(a) = temp(b); temp(b) = t; a += 1; b -= 1 }
+              rb.indices.foreach { j => rb(j) = temp(j); pos(rb(j)) = j }
+              // non-constraining flat edges must be made LR
+              var vi = 0
+              while vi < rb.length do
+                val v   = rb(vi)
+                val lst = fOut(v)
+                var j = 0
+                while j < lst.length do
+                  val h = lst(j)
+                  if (!flip && pos(h) < pos(v)) || (flip && pos(h) > pos(v)) then
+                    flatRev(v, h) // removes lst(j) — do not advance
+                  else j += 1
+                vi += 1
+        }
 
     // build_ranks(pass) (mincross.c:1273): BFS installing each rank left-to-
     // right. pass 0 seeds from in-edge-free nodes and follows out-edges; pass 1
@@ -720,13 +847,20 @@ object Order:
         while lp < ep do
           while lp < ep && mval.getOrElse(rb(lp), -1.0) < 0 do lp += 1
           if lp < ep then
+            // find the node that can be compared; a left2right hit on ANY
+            // scanned node (incl. the comparable one) pins lp (muststay).
             var rp = lp + 1
-            while rp < ep && mval.getOrElse(rb(rp), -1.0) < 0 do rp += 1
+            var muststay = false
+            var found    = false
+            while rp < ep && !muststay && !found do
+              if left2right(rb(lp), rb(rp)) then muststay = true
+              else if mval.getOrElse(rb(rp), -1.0) >= 0 then found = true
+              else rp += 1
             if rp < ep then
-              val p1 = mval.getOrElse(rb(lp), -1.0)
-              val p2 = mval.getOrElse(rb(rp), -1.0)
-              val doSwap = p1 > p2 || (p1 >= p2 && reverse)
-              if doSwap then exchange(r, lp, rp)
+              if !muststay then
+                val p1 = mval.getOrElse(rb(lp), -1.0)
+                val p2 = mval.getOrElse(rb(rp), -1.0)
+                if p1 > p2 || (p1 >= p2 && reverse) then exchange(r, lp, rp)
               lp = rp
             else lp = ep
           else lp = ep
@@ -763,16 +897,18 @@ object Order:
       var i = 0
       while i < rb.length - 1 do
         val v = rb(i); val w = rb(i + 1)
-        var c0 = 0L; var c1 = 0L
-        if r > minR then { c0 += crossIn(v, w); c1 += crossIn(w, v) }
-        if r < maxR && ranks(r + 1).nonEmpty then { c0 += crossOut(v, w); c1 += crossOut(w, v) }
-        val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
-        if doSwap then
-          exchange(r, i, i + 1)
-          delta += c0 - c1
-          candidate(r) = true
-          if r > minR then candidate(r - 1) = true
-          if r < maxR then candidate(r + 1) = true
+        // a constraining flat edge v→w pins the pair (left2right, mincross.c:740)
+        if !left2right(v, w) then
+          var c0 = 0L; var c1 = 0L
+          if r > minR then { c0 += crossIn(v, w); c1 += crossIn(w, v) }
+          if r < maxR && ranks(r + 1).nonEmpty then { c0 += crossOut(v, w); c1 += crossOut(w, v) }
+          val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
+          if doSwap then
+            exchange(r, i, i + 1)
+            delta += c0 - c1
+            candidate(r) = true
+            if r > minR then candidate(r - 1) = true
+            if r < maxR then candidate(r + 1) = true
         i += 1
       delta
     def transpose(reverse: Boolean): Unit =
@@ -824,8 +960,11 @@ object Order:
         // median/transpose passes settle to the opposite tie-break (06's X-mirror).
         // Root graph only (`g == dot_root(g)`); with CL_CROSS weights this is
         // also what floats free vnode chains outside cluster skeleton columns.
-        // flat_breakcycles(pass 0) + flat_reorder: no-ops without flat edges.
         if rootGraph && ncross > 0 then transpose(false)
+        // flat_breakcycles (pass 0 only) + flat_reorder (both passes) run
+        // AFTER build_ranks' internal transpose (mincross.c:776).
+        if pass == 0 then flatBreakcycles()
+        flatReorder()
         cur = ncross
         if cur <= bestCross then { best = snapshot(); bestCross = cur }
       else

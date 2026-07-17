@@ -221,11 +221,13 @@ object Output:
     * values are skipped except an (always-printed) declared `label`. */
   private def sgAttrs(g: RGraph, sg: Doc.SG): Vector[(String, String)] =
     g.graphAttrKeys.iterator.map { k =>
-      val own = k match
-        case "label" => sg.label
-        case "rank"  => sg.rank.getOrElse("")
-        case _       => sg.attrs.getOrElse(k, "") // the subgraph's own value (incl. inherited scope)
-      k -> (if own.nonEmpty then own else g.rootAttrs.getOrElse(k, ""))
+      // A LOCALLY DECLARED value shadows the root default even when empty
+      // (cgraph agxget: `label=""` on the subgraph echoes "", not the root's).
+      val (own, declared) = k match
+        case "label" => (sg.label, sg.emitLabel)
+        case "rank"  => (sg.rank.getOrElse(""), sg.rank.isDefined)
+        case _       => (sg.attrs.getOrElse(k, ""), sg.attrs.contains(k))
+      k -> (if declared || own.nonEmpty then own else g.rootAttrs.getOrElse(k, ""))
     }.toVector
       .filter { case (k, v) => v.nonEmpty || (k == "label" && sg.emitLabel) }
       .sortBy(_._1)

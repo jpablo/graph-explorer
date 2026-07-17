@@ -113,8 +113,13 @@ object Rank:
     val minMembers = mutable.ArrayBuffer.empty[String] // min + source
     val maxMembers = mutable.ArrayBuffer.empty[String] // max + sink
     var slenX = 0; var slenY = 0
+    // rank_set_class reads agget(subg, "rank") — which resolves through
+    // cgraph DEFAULTS: `graph [rank=same]` declared at ROOT level makes
+    // every subgraph a rank set by inheritance (the 167 grid). The root
+    // itself is never collapsed (collapse_sets only walks SUBgraphs).
+    val defaultRank = g.rootAttrs.get("rank").filter(_.nonEmpty)
     def walk(subs: Vector[RSubgraph]): Unit = subs.foreach { s =>
-      s.rank.foreach { rt =>
+      s.rank.orElse(defaultRank).foreach { rt =>
         val members = s.nodeIds.filter(nodeSet)
         members.reduceLeftOption { (a, b) => union(a, b); b } // collapse this set
         rt match

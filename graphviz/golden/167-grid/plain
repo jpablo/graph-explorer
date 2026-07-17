@@ -1,0 +1,192 @@
+graph 1 6.0972 5.1222
+node D3 2.6667 2.6944 0.75 0.5 D3 filled plaintext black #e2e8f0
+node E3 3.4306 2.6944 0.75 0.5 E3 filled plaintext black #e2e8f0
+node A3 0.375 2.6944 0.75 0.5 A3 filled plaintext black #e2e8f0
+node B3 1.1389 2.6944 0.75 0.5 B3 filled plaintext black #e2e8f0
+node C3 1.9028 2.6944 0.75 0.5 C3 filled plaintext black #e2e8f0
+node F3 4.1944 2.6944 0.75 0.5 F3 filled plaintext black #e2e8f0
+node G3 4.9583 2.6944 0.75 0.5 G3 filled plaintext black #e2e8f0
+node H3 5.7222 2.6944 0.75 0.5 H3 filled plaintext black #e2e8f0
+node C2 1.9028 3.3056 0.75 0.5 C2 filled plaintext black #e2e8f0
+node F2 4.1944 3.3056 0.75 0.5 F2 filled plaintext black #e2e8f0
+node A2 0.375 3.3056 0.75 0.5 A2 filled plaintext black #e2e8f0
+node B2 1.1389 3.3056 0.75 0.5 B2 filled plaintext black #e2e8f0
+node D2 2.6667 3.3056 0.75 0.5 D2 filled plaintext black #e2e8f0
+node E2 3.4306 3.3056 0.75 0.5 E2 filled plaintext black #e2e8f0
+node G2 4.9583 3.3056 0.75 0.5 G2 filled plaintext black #e2e8f0
+node H2 5.7222 3.3056 0.75 0.5 H2 filled plaintext black #e2e8f0
+node B1 1.1389 3.9167 0.75 0.5 B1 filled plaintext black #e2e8f0
+node G1 4.9583 3.9167 0.75 0.5 G1 filled plaintext black #e2e8f0
+node A1 0.375 3.9167 0.75 0.5 A1 filled plaintext black #e2e8f0
+node C1 1.9028 3.9167 0.75 0.5 C1 filled plaintext black #e2e8f0
+node D1 2.6667 3.9167 0.75 0.5 D1 filled plaintext black #e2e8f0
+node E1 3.4306 3.9167 0.75 0.5 E1 filled plaintext black #e2e8f0
+node F1 4.1944 3.9167 0.75 0.5 F1 filled plaintext black #e2e8f0
+node H1 5.7222 3.9167 0.75 0.5 H1 filled plaintext black #e2e8f0
+node A0 0.375 4.5278 0.75 0.5 A0 filled plaintext black #e2e8f0
+node H0 5.7222 4.5278 0.75 0.5 H0 filled plaintext black #e2e8f0
+node B0 1.1389 4.5278 0.75 0.5 B0 filled plaintext black #e2e8f0
+node C0 1.9028 4.5278 0.75 0.5 C0 filled plaintext black #e2e8f0
+node D0 2.6667 4.5278 0.75 0.5 D0 filled plaintext black #e2e8f0
+node E0 3.4306 4.5278 0.75 0.5 E0 filled plaintext black #e2e8f0
+node F0 4.1944 4.5278 0.75 0.5 F0 filled plaintext black #e2e8f0
+node G0 4.9583 4.5278 0.75 0.5 G0 filled plaintext black #e2e8f0
+node H7 5.7222 0.25 0.75 0.5 H7 filled plaintext black #e2e8f0
+node A7 0.375 0.25 0.75 0.5 A7 filled plaintext black #e2e8f0
+node B7 1.1389 0.25 0.75 0.5 B7 filled plaintext black #e2e8f0
+node C7 1.9028 0.25 0.75 0.5 C7 filled plaintext black #e2e8f0
+node D7 2.6667 0.25 0.75 0.5 D7 filled plaintext black #e2e8f0
+node E7 3.4306 0.25 0.75 0.5 E7 filled plaintext black #e2e8f0
+node F7 4.1944 0.25 0.75 0.5 F7 filled plaintext black #e2e8f0
+node G7 4.9583 0.25 0.75 0.5 G7 filled plaintext black #e2e8f0
+node E4 3.4306 2.0833 0.75 0.5 E4 filled plaintext black #e2e8f0
+node D4 2.6667 2.0833 0.75 0.5 D4 filled plaintext black #e2e8f0
+node A4 0.375 2.0833 0.75 0.5 A4 filled plaintext black #e2e8f0
+node B4 1.1389 2.0833 0.75 0.5 B4 filled plaintext black #e2e8f0
+node C4 1.9028 2.0833 0.75 0.5 C4 filled plaintext black #e2e8f0
+node F4 4.1944 2.0833 0.75 0.5 F4 filled plaintext black #e2e8f0
+node G4 4.9583 2.0833 0.75 0.5 G4 filled plaintext black #e2e8f0
+node H4 5.7222 2.0833 0.75 0.5 H4 filled plaintext black #e2e8f0
+node G6 4.9583 0.86111 0.75 0.5 G6 filled plaintext black #e2e8f0
+node B6 1.1389 0.86111 0.75 0.5 B6 filled plaintext black #e2e8f0
+node A6 0.375 0.86111 0.75 0.5 A6 filled plaintext black #e2e8f0
+node C6 1.9028 0.86111 0.75 0.5 C6 filled plaintext black #e2e8f0
+node D6 2.6667 0.86111 0.75 0.5 D6 filled plaintext black #e2e8f0
+node E6 3.4306 0.86111 0.75 0.5 E6 filled plaintext black #e2e8f0
+node F6 4.1944 0.86111 0.75 0.5 F6 filled plaintext black #e2e8f0
+node H6 5.7222 0.86111 0.75 0.5 H6 filled plaintext black #e2e8f0
+node F5 4.1944 1.4722 0.75 0.5 F5 filled plaintext black #e2e8f0
+node C5 1.9028 1.4722 0.75 0.5 C5 filled plaintext black #e2e8f0
+node A5 0.375 1.4722 0.75 0.5 A5 filled plaintext black #e2e8f0
+node B5 1.1389 1.4722 0.75 0.5 B5 filled plaintext black #e2e8f0
+node D5 2.6667 1.4722 0.75 0.5 D5 filled plaintext black #e2e8f0
+node E5 3.4306 1.4722 0.75 0.5 E5 filled plaintext black #e2e8f0
+node G5 4.9583 1.4722 0.75 0.5 G5 filled plaintext black #e2e8f0
+node H5 5.7222 1.4722 0.75 0.5 H5 filled plaintext black #e2e8f0
+edge D3 E3 4 3.0367 2.6944 3.0449 2.6944 3.0531 2.6944 3.0613 2.6944 dashed dimgrey
+edge D3 E4 4 2.973 2.4467 3.0228 2.4086 3.0744 2.3692 3.1242 2.3312 dashed dimgrey
+edge D3 D4 4 2.6667 2.45 2.6667 2.4105 2.6667 2.3695 2.6667 2.3299 dashed dimgrey
+edge E3 F3 4 3.8006 2.6944 3.8088 2.6944 3.817 2.6944 3.8252 2.6944 dashed dimgrey
+edge E3 E4 4 3.4306 2.45 3.4306 2.4105 3.4306 2.3695 3.4306 2.3299 dashed dimgrey
+edge E3 D4 4 3.1243 2.4467 3.0744 2.4086 3.0228 2.3692 2.973 2.3312 dashed dimgrey
+edge A3 B3 4 0.74501 2.6944 0.75321 2.6944 0.76142 2.6944 0.76963 2.6944 dashed dimgrey
+edge A3 A4 4 0.375 2.45 0.375 2.4105 0.375 2.3695 0.375 2.3299 dashed dimgrey
+edge B3 C3 4 1.5089 2.6944 1.5171 2.6944 1.5253 2.6944 1.5335 2.6944 dashed dimgrey
+edge B3 B4 4 1.1389 2.45 1.1389 2.4105 1.1389 2.3695 1.1389 2.3299 dashed dimgrey
+edge C3 D3 4 2.2728 2.6944 2.281 2.6944 2.2892 2.6944 2.2974 2.6944 dashed dimgrey
+edge C3 C4 4 1.9028 2.45 1.9028 2.4105 1.9028 2.3695 1.9028 2.3299 dashed dimgrey
+edge F3 G3 4 4.5645 2.6944 4.5727 2.6944 4.5809 2.6944 4.5891 2.6944 dashed dimgrey
+edge F3 F4 4 4.1944 2.45 4.1944 2.4105 4.1944 2.3695 4.1944 2.3299 dashed dimgrey
+edge G3 H3 4 5.3283 2.6944 5.3365 2.6944 5.3448 2.6944 5.353 2.6944 dashed dimgrey
+edge G3 G4 4 4.9583 2.45 4.9583 2.4105 4.9583 2.3695 4.9583 2.3299 dashed dimgrey
+edge H3 H4 4 5.7222 2.45 5.7222 2.4105 5.7222 2.3695 5.7222 2.3299 dashed dimgrey
+edge C2 D3 4 2.2091 3.0578 2.2589 3.0197 2.3105 2.9803 2.3603 2.9423 dashed dimgrey
+edge C2 C3 4 1.9028 3.0611 1.9028 3.0216 1.9028 2.9806 1.9028 2.941 dashed dimgrey
+edge C2 D2 4 2.2728 3.3056 2.281 3.3056 2.2892 3.3056 2.2974 3.3056 dashed dimgrey
+edge F2 E3 4 3.8881 3.0578 3.8383 3.0197 3.7867 2.9803 3.7369 2.9423 dashed dimgrey
+edge F2 F3 4 4.1944 3.0611 4.1944 3.0216 4.1944 2.9806 4.1944 2.941 dashed dimgrey
+edge F2 G2 4 4.5645 3.3056 4.5727 3.3056 4.5809 3.3056 4.5891 3.3056 dashed dimgrey
+edge A2 A3 4 0.375 3.0611 0.375 3.0216 0.375 2.9806 0.375 2.941 dashed dimgrey
+edge A2 B2 4 0.74501 3.3056 0.75321 3.3056 0.76142 3.3056 0.76963 3.3056 dashed dimgrey
+edge B2 B3 4 1.1389 3.0611 1.1389 3.0216 1.1389 2.9806 1.1389 2.941 dashed dimgrey
+edge B2 C2 4 1.5089 3.3056 1.5171 3.3056 1.5253 3.3056 1.5335 3.3056 dashed dimgrey
+edge D2 D3 4 2.6667 3.0611 2.6667 3.0216 2.6667 2.9806 2.6667 2.941 dashed dimgrey
+edge D2 E2 4 3.0367 3.3056 3.0449 3.3056 3.0531 3.3056 3.0613 3.3056 dashed dimgrey
+edge E2 E3 4 3.4306 3.0611 3.4306 3.0216 3.4306 2.9806 3.4306 2.941 dashed dimgrey
+edge E2 F2 4 3.8006 3.3056 3.8088 3.3056 3.817 3.3056 3.8252 3.3056 dashed dimgrey
+edge G2 G3 4 4.9583 3.0611 4.9583 3.0216 4.9583 2.9806 4.9583 2.941 dashed dimgrey
+edge G2 H2 4 5.3283 3.3056 5.3365 3.3056 5.3448 3.3056 5.353 3.3056 dashed dimgrey
+edge H2 H3 4 5.7222 3.0611 5.7222 3.0216 5.7222 2.9806 5.7222 2.941 dashed dimgrey
+edge B1 C2 4 1.4452 3.6689 1.495 3.6308 1.5466 3.5914 1.5964 3.5534 dashed dimgrey
+edge B1 B2 4 1.1389 3.6722 1.1389 3.6327 1.1389 3.5917 1.1389 3.5521 dashed dimgrey
+edge B1 C1 4 1.5089 3.9167 1.5171 3.9167 1.5253 3.9167 1.5335 3.9167 dashed dimgrey
+edge G1 F2 4 4.652 3.6689 4.6022 3.6308 4.5506 3.5914 4.5008 3.5534 dashed dimgrey
+edge G1 G2 4 4.9583 3.6722 4.9583 3.6327 4.9583 3.5917 4.9583 3.5521 dashed dimgrey
+edge G1 H1 4 5.3283 3.9167 5.3365 3.9167 5.3448 3.9167 5.353 3.9167 dashed dimgrey
+edge A1 A2 4 0.375 3.6722 0.375 3.6327 0.375 3.5917 0.375 3.5521 dashed dimgrey
+edge A1 B1 4 0.74501 3.9167 0.75321 3.9167 0.76142 3.9167 0.76963 3.9167 dashed dimgrey
+edge C1 C2 4 1.9028 3.6722 1.9028 3.6327 1.9028 3.5917 1.9028 3.5521 dashed dimgrey
+edge C1 D1 4 2.2728 3.9167 2.281 3.9167 2.2892 3.9167 2.2974 3.9167 dashed dimgrey
+edge D1 D2 4 2.6667 3.6722 2.6667 3.6327 2.6667 3.5917 2.6667 3.5521 dashed dimgrey
+edge D1 E1 4 3.0367 3.9167 3.0449 3.9167 3.0531 3.9167 3.0613 3.9167 dashed dimgrey
+edge E1 E2 4 3.4306 3.6722 3.4306 3.6327 3.4306 3.5917 3.4306 3.5521 dashed dimgrey
+edge E1 F1 4 3.8006 3.9167 3.8088 3.9167 3.817 3.9167 3.8252 3.9167 dashed dimgrey
+edge F1 F2 4 4.1944 3.6722 4.1944 3.6327 4.1944 3.5917 4.1944 3.5521 dashed dimgrey
+edge F1 G1 4 4.5645 3.9167 4.5727 3.9167 4.5809 3.9167 4.5891 3.9167 dashed dimgrey
+edge H1 H2 4 5.7222 3.6722 5.7222 3.6327 5.7222 3.5917 5.7222 3.5521 dashed dimgrey
+edge A0 B1 4 0.6813 4.28 0.73111 4.2419 0.78271 4.2025 0.83252 4.1645 dashed dimgrey
+edge A0 A1 4 0.375 4.2833 0.375 4.2439 0.375 4.2028 0.375 4.1633 dashed dimgrey
+edge A0 B0 4 0.74501 4.5278 0.75321 4.5278 0.76142 4.5278 0.76963 4.5278 dashed dimgrey
+edge H0 G1 4 5.4159 4.28 5.3661 4.2419 5.3145 4.2025 5.2647 4.1645 dashed dimgrey
+edge H0 H1 4 5.7222 4.2833 5.7222 4.2439 5.7222 4.2028 5.7222 4.1633 dashed dimgrey
+edge B0 B1 4 1.1389 4.2833 1.1389 4.2439 1.1389 4.2028 1.1389 4.1633 dashed dimgrey
+edge B0 C0 4 1.5089 4.5278 1.5171 4.5278 1.5253 4.5278 1.5335 4.5278 dashed dimgrey
+edge C0 C1 4 1.9028 4.2833 1.9028 4.2439 1.9028 4.2028 1.9028 4.1633 dashed dimgrey
+edge C0 D0 4 2.2728 4.5278 2.281 4.5278 2.2892 4.5278 2.2974 4.5278 dashed dimgrey
+edge D0 D1 4 2.6667 4.2833 2.6667 4.2439 2.6667 4.2028 2.6667 4.1633 dashed dimgrey
+edge D0 E0 4 3.0367 4.5278 3.0449 4.5278 3.0531 4.5278 3.0613 4.5278 dashed dimgrey
+edge E0 E1 4 3.4306 4.2833 3.4306 4.2439 3.4306 4.2028 3.4306 4.1633 dashed dimgrey
+edge E0 F0 4 3.8006 4.5278 3.8088 4.5278 3.817 4.5278 3.8252 4.5278 dashed dimgrey
+edge F0 F1 4 4.1944 4.2833 4.1944 4.2439 4.1944 4.2028 4.1944 4.1633 dashed dimgrey
+edge F0 G0 4 4.5645 4.5278 4.5727 4.5278 4.5809 4.5278 4.5891 4.5278 dashed dimgrey
+edge G0 G1 4 4.9583 4.2833 4.9583 4.2439 4.9583 4.2028 4.9583 4.1633 dashed dimgrey
+edge G0 H0 4 5.3283 4.5278 5.3365 4.5278 5.3448 4.5278 5.353 4.5278 dashed dimgrey
+edge A7 B7 4 0.74501 0.25 0.75321 0.25 0.76142 0.25 0.76963 0.25 dashed dimgrey
+edge B7 C7 4 1.5089 0.25 1.5171 0.25 1.5253 0.25 1.5335 0.25 dashed dimgrey
+edge C7 D7 4 2.2728 0.25 2.281 0.25 2.2892 0.25 2.2974 0.25 dashed dimgrey
+edge D7 E7 4 3.0367 0.25 3.0449 0.25 3.0531 0.25 3.0613 0.25 dashed dimgrey
+edge E7 F7 4 3.8006 0.25 3.8088 0.25 3.817 0.25 3.8252 0.25 dashed dimgrey
+edge F7 G7 4 4.5645 0.25 4.5727 0.25 4.5809 0.25 4.5891 0.25 dashed dimgrey
+edge G7 H7 4 5.3283 0.25 5.3365 0.25 5.3448 0.25 5.353 0.25 dashed dimgrey
+edge E4 F4 4 3.8006 2.0833 3.8088 2.0833 3.817 2.0833 3.8252 2.0833 dashed dimgrey
+edge E4 F5 4 3.7369 1.8355 3.7867 1.7975 3.8383 1.7581 3.8881 1.7201 dashed dimgrey
+edge E4 E5 4 3.4306 1.8389 3.4306 1.7994 3.4306 1.7584 3.4306 1.7188 dashed dimgrey
+edge D4 E4 4 3.0367 2.0833 3.0449 2.0833 3.0531 2.0833 3.0613 2.0833 dashed dimgrey
+edge D4 C5 4 2.3604 1.8355 2.3106 1.7975 2.259 1.7581 2.2091 1.7201 dashed dimgrey
+edge D4 D5 4 2.6667 1.8389 2.6667 1.7994 2.6667 1.7584 2.6667 1.7188 dashed dimgrey
+edge A4 B4 4 0.74501 2.0833 0.75321 2.0833 0.76142 2.0833 0.76963 2.0833 dashed dimgrey
+edge A4 A5 4 0.375 1.8389 0.375 1.7994 0.375 1.7584 0.375 1.7188 dashed dimgrey
+edge B4 C4 4 1.5089 2.0833 1.5171 2.0833 1.5253 2.0833 1.5335 2.0833 dashed dimgrey
+edge B4 B5 4 1.1389 1.8389 1.1389 1.7994 1.1389 1.7584 1.1389 1.7188 dashed dimgrey
+edge C4 D4 4 2.2728 2.0833 2.281 2.0833 2.2892 2.0833 2.2974 2.0833 dashed dimgrey
+edge C4 C5 4 1.9028 1.8389 1.9028 1.7994 1.9028 1.7584 1.9028 1.7188 dashed dimgrey
+edge F4 G4 4 4.5645 2.0833 4.5727 2.0833 4.5809 2.0833 4.5891 2.0833 dashed dimgrey
+edge F4 F5 4 4.1944 1.8389 4.1944 1.7994 4.1944 1.7584 4.1944 1.7188 dashed dimgrey
+edge G4 H4 4 5.3283 2.0833 5.3365 2.0833 5.3448 2.0833 5.353 2.0833 dashed dimgrey
+edge G4 G5 4 4.9583 1.8389 4.9583 1.7994 4.9583 1.7584 4.9583 1.7188 dashed dimgrey
+edge H4 H5 4 5.7222 1.8389 5.7222 1.7994 5.7222 1.7584 5.7222 1.7188 dashed dimgrey
+edge G6 H7 4 5.2646 0.61332 5.3144 0.57528 5.366 0.53588 5.4159 0.49784 dashed dimgrey
+edge G6 G7 4 4.9583 0.61667 4.9583 0.57718 4.9583 0.53613 4.9583 0.49659 dashed dimgrey
+edge G6 H6 4 5.3283 0.86111 5.3365 0.86111 5.3448 0.86111 5.353 0.86111 dashed dimgrey
+edge B6 A7 4 0.83259 0.61332 0.78278 0.57528 0.73118 0.53588 0.68137 0.49784 dashed dimgrey
+edge B6 B7 4 1.1389 0.61667 1.1389 0.57718 1.1389 0.53613 1.1389 0.49659 dashed dimgrey
+edge B6 C6 4 1.5089 0.86111 1.5171 0.86111 1.5253 0.86111 1.5335 0.86111 dashed dimgrey
+edge A6 A7 4 0.375 0.61667 0.375 0.57718 0.375 0.53613 0.375 0.49659 dashed dimgrey
+edge A6 B6 4 0.74501 0.86111 0.75321 0.86111 0.76142 0.86111 0.76963 0.86111 dashed dimgrey
+edge C6 C7 4 1.9028 0.61667 1.9028 0.57718 1.9028 0.53613 1.9028 0.49659 dashed dimgrey
+edge C6 D6 4 2.2728 0.86111 2.281 0.86111 2.2892 0.86111 2.2974 0.86111 dashed dimgrey
+edge D6 D7 4 2.6667 0.61667 2.6667 0.57718 2.6667 0.53613 2.6667 0.49659 dashed dimgrey
+edge D6 E6 4 3.0367 0.86111 3.0449 0.86111 3.0531 0.86111 3.0613 0.86111 dashed dimgrey
+edge E6 E7 4 3.4306 0.61667 3.4306 0.57718 3.4306 0.53613 3.4306 0.49659 dashed dimgrey
+edge E6 F6 4 3.8006 0.86111 3.8088 0.86111 3.817 0.86111 3.8252 0.86111 dashed dimgrey
+edge F6 F7 4 4.1944 0.61667 4.1944 0.57718 4.1944 0.53613 4.1944 0.49659 dashed dimgrey
+edge F6 G6 4 4.5645 0.86111 4.5727 0.86111 4.5809 0.86111 4.5891 0.86111 dashed dimgrey
+edge H6 H7 4 5.7222 0.61667 5.7222 0.57718 5.7222 0.53613 5.7222 0.49659 dashed dimgrey
+edge F5 G6 4 4.5007 1.2244 4.5506 1.1864 4.6022 1.147 4.652 1.109 dashed dimgrey
+edge F5 F6 4 4.1944 1.2278 4.1944 1.1883 4.1944 1.1472 4.1944 1.1077 dashed dimgrey
+edge F5 G5 4 4.5645 1.4722 4.5727 1.4722 4.5809 1.4722 4.5891 1.4722 dashed dimgrey
+edge C5 B6 4 1.5965 1.2244 1.5467 1.1864 1.4951 1.147 1.4453 1.109 dashed dimgrey
+edge C5 C6 4 1.9028 1.2278 1.9028 1.1883 1.9028 1.1472 1.9028 1.1077 dashed dimgrey
+edge C5 D5 4 2.2728 1.4722 2.281 1.4722 2.2892 1.4722 2.2974 1.4722 dashed dimgrey
+edge A5 A6 4 0.375 1.2278 0.375 1.1883 0.375 1.1472 0.375 1.1077 dashed dimgrey
+edge A5 B5 4 0.74501 1.4722 0.75321 1.4722 0.76142 1.4722 0.76963 1.4722 dashed dimgrey
+edge B5 B6 4 1.1389 1.2278 1.1389 1.1883 1.1389 1.1472 1.1389 1.1077 dashed dimgrey
+edge B5 C5 4 1.5089 1.4722 1.5171 1.4722 1.5253 1.4722 1.5335 1.4722 dashed dimgrey
+edge D5 D6 4 2.6667 1.2278 2.6667 1.1883 2.6667 1.1472 2.6667 1.1077 dashed dimgrey
+edge D5 E5 4 3.0367 1.4722 3.0449 1.4722 3.0531 1.4722 3.0613 1.4722 dashed dimgrey
+edge E5 E6 4 3.4306 1.2278 3.4306 1.1883 3.4306 1.1472 3.4306 1.1077 dashed dimgrey
+edge E5 F5 4 3.8006 1.4722 3.8088 1.4722 3.817 1.4722 3.8252 1.4722 dashed dimgrey
+edge G5 G6 4 4.9583 1.2278 4.9583 1.1883 4.9583 1.1472 4.9583 1.1077 dashed dimgrey
+edge G5 H5 4 5.3283 1.4722 5.3365 1.4722 5.3448 1.4722 5.353 1.4722 dashed dimgrey
+edge H5 H6 4 5.7222 1.2278 5.7222 1.1883 5.7222 1.1472 5.7222 1.1077 dashed dimgrey
+stop
