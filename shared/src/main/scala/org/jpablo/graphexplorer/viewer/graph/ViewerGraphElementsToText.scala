@@ -235,6 +235,26 @@ def viewerGraphElementsToText(
     lines += s"${padding(1)}edge$attrFormatting;"
   }
 
+  // Emit one arrow statement at the given nesting level. Arrows live in the
+  // subgraph they were DECLARED in (elements.arrowMemberships) — fdp lays
+  // clusters out separately, so re-serializing an intra-cluster edge at top
+  // level changes the whole layout ("wrong ownership of arrows").
+  val emittedArrows = scala.collection.mutable.Set[org.jpablo.graphexplorer.viewer.models.ArrowId]()
+  def emitArrow(arrow: Arrow, level: Int): Unit = {
+    val tailPort = arrow.sourcePort.map(p => s""":\"$p\"""").getOrElse("")
+    val headPort = arrow.targetPort.map(p => s""":\"$p\"""").getOrElse("")
+
+    val edgeAttrs = collectEdgeAttributes(arrow, Set("tail", "head"))
+
+    val attrFormatting = if (hasNestedSubgraphs || hasComplexHtmlLabels || edgeAttrs.length > 1)
+      formatAttributesMultiLine(edgeAttrs, level, hasComplexHtmlLabels || edgeAttrs.length > 1)
+    else
+      formatAttributes(edgeAttrs)
+
+    lines += s"""${padding(level)}"${arrow.source.value}"$tailPort $edgeOp "${arrow.target.value}"$headPort$attrFormatting;"""
+    emittedArrows += arrow.id
+  }
+
   // Helper to process clusters recursively with proper nesting (using ViewerGraphElements directly)
   def processCluster(groupId: GroupId, level: Int, processedGroups: scala.collection.mutable.Set[GroupId]): Unit = {
     if (processedGroups.contains(groupId)) return
@@ -260,9 +280,15 @@ def viewerGraphElementsToText(
       lines += s"${padding(level + 1)}graph$attrFormatting;"
     }
 
-    // Process nested subgraphs first (groups that are members of this group)
+    // Process nested subgraphs first (groups that are members of this group).
+    // memberships is an unordered Map — sort by the groups' _gvid so nested
+    // clusters serialize in DECLARATION order (fdp layouts are order-sensitive;
+    // an arbitrary order here swapped G and H in "wrong ownership of arrows").
     val nestedGroups = elements.memberships.collect {
       case (childGroupId: GroupId, parentId) if parentId == groupId => childGroupId
+    }.toList.sortBy { childGroupId =>
+      elements.groups(childGroupId).attributes.values.get(AttributeId("_gvid"))
+        .map(_.toString.toDouble).getOrElse(Double.MaxValue)
     }
 
     nestedGroups.foreach { childGroupId =>
@@ -292,6 +318,12 @@ def viewerGraphElementsToText(
         formatAttributes(nodeAttrs)
       lines += s"""${padding(level + 1)}"${node.id.value}"$attrFormatting;"""
     }
+
+    // Add arrows DECLARED in this cluster (innermost owner), in seq order
+    elements.arrows.values.toList
+      .filter(a => elements.arrowMemberships.get(a.id).contains(groupId))
+      .sortBy(_.seq)
+      .foreach(emitArrow(_, level + 1))
 
     lines += s"${padding(level)}}"
   }
@@ -334,20 +366,9 @@ def viewerGraphElementsToText(
     }
   }
 
-  // Add arrows (using Arrow objects directly instead of converting to edges)
-  elements.arrows.foreach { case (_, arrow) =>
-    val tailPort = arrow.sourcePort.map(p => s""":\"$p\"""").getOrElse("")
-    val headPort = arrow.targetPort.map(p => s""":\"$p\"""").getOrElse("")
-
-    val edgeAttrs = collectEdgeAttributes(arrow, Set("tail", "head"))
-
-    val attrFormatting = if (hasNestedSubgraphs || hasComplexHtmlLabels || edgeAttrs.length > 1)
-      formatAttributesMultiLine(edgeAttrs, 1, hasComplexHtmlLabels || edgeAttrs.length > 1)
-    else
-      formatAttributes(edgeAttrs)
-
-    lines += s"""${padding(1)}"${arrow.source.value}"$tailPort $edgeOp "${arrow.target.value}"$headPort$attrFormatting;"""
-  }
+  // Add remaining top-level arrows (anything not already emitted inside its
+  // declaring cluster — includes arrows whose recorded group no longer exists)
+  elements.arrows.values.toList.filterNot(a => emittedArrows.contains(a.id)).foreach(emitArrow(_, 1))
 
   lines += "}"
   lines.mkString("\n")

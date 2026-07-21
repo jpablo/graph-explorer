@@ -23,6 +23,13 @@ case class ViewerGraphElements(
     // membership to the top-level graph is implicit
     // i.e. if an element is not in memberships, it belongs to top-level graph
     memberships: Map[GroupMemberId, GroupId] = Map.empty,
+    // The subgraph an ARROW was declared in (innermost). Arrows absent here
+    // belong to the top-level graph. Kept separate from `memberships` so the
+    // GroupMemberId-based selection/visibility machinery is untouched — but
+    // the DOT round-trip must preserve it: layout engines like fdp lay out
+    // clusters separately, so an intra-cluster edge re-serialized at top
+    // level changes the whole drawing ("wrong ownership of arrows").
+    arrowMemberships: Map[ArrowId, GroupId] = Map.empty,
     groups:      Map[GroupId, ViewerGroup] = Map.empty,
     //
     graphAttributes: Attributes = Attributes.empty,

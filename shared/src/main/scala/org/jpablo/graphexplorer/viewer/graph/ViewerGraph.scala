@@ -122,10 +122,20 @@ case class ViewerGraph(
       (arrowId in arrowIdsToRemove) || (arrow.source in nodeIdsToRemove) || (arrow.target in nodeIdsToRemove)
     }
 
+    // Same policy as node memberships: drop entries for removed arrows;
+    // re-parent to the removed group's container when the group goes away.
+    val updatedArrowMemberships = elements.arrowMemberships.flatMap { (arrowId, groupId) =>
+      if !updatedArrows.contains(arrowId) then None
+      else if groupId in groupIdsToRemove then
+        memberships.get(groupId).map(containerId => arrowId -> containerId)
+      else Some(arrowId -> groupId)
+    }
+
     val graphWithRemovedElements = modifyElements.using(_.copy(
       nodes = nodes -- nodeIdsToRemove,
       arrows = updatedArrows,
       memberships = updatedMemberships,
+      arrowMemberships = updatedArrowMemberships,
       groups = groups -- groupIdsToRemove
     ))
 

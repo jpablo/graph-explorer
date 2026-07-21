@@ -310,7 +310,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
 
   // Separate nodes and clusters from objects array
   val rawNodesBuilder = VectorMap.newBuilder[NodeId, Attributes]
-  val rawClusters     = mutable.Map[GroupId, (Attributes, List[Int], Boolean)]()
+  val rawClusters     = mutable.Map[GroupId, (Attributes, List[Int], List[Int], Boolean)]()
 
   simpleGraph.objects.foreach { objectsList =>
     objectsList.foreach {
@@ -324,7 +324,8 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
         val (groupId, wasCluster) = GroupId.fromDot(cluster.name)
         val attrs                 = toAttributesFromCluster(cluster, Set("name", "nodes", "edges", "subgraphs"))
         val nodeGvids             = cluster.nodes.getOrElse(List.empty)
-        rawClusters(groupId) = (attrs, nodeGvids, wasCluster)
+        val edgeGvids             = cluster.edges.getOrElse(List.empty)
+        rawClusters(groupId) = (attrs, nodeGvids, edgeGvids, wasCluster)
     }
   }
   val rawNodes = rawNodesBuilder.result()
@@ -334,7 +335,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
   val groupsBuilder      = mutable.Map[GroupId, ViewerGroup]()
 
   // Build groups first
-  rawClusters.foreach { case (groupId, (attrs, nodeGvids, wasCluster)) =>
+  rawClusters.foreach { case (groupId, (attrs, nodeGvids, edgeGvids, wasCluster)) =>
     // Ensure cluster attribute is set appropriately:
     // - If already present, preserve it
     // - If missing and was originally a cluster, set to "true"
@@ -352,7 +353,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
   // For each node, find the most specific (innermost) cluster it belongs to
   val nodeToCluster = mutable.Map[Double, GroupId]()
 
-  rawClusters.foreach { case (groupId, (attrs, nodeGvids, wasCluster)) =>
+  rawClusters.foreach { case (groupId, (attrs, nodeGvids, edgeGvids, wasCluster)) =>
     nodeGvids.foreach { gvid =>
       // Check if this node is also contained in any sub-clusters of this cluster
       val cluster = simpleGraph.objects.flatMap(_.collectFirst {
@@ -405,6 +406,33 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     }
   }
 
+  // For each EDGE, find the most specific (innermost) declaring subgraph —
+  // dot_json lists an edge in every enclosing subgraph's `edges` array, so
+  // a cluster only owns the edges its sub-clusters don't claim.
+  val edgeToCluster = mutable.Map[Double, GroupId]()
+
+  rawClusters.foreach { case (groupId, (_, _, edgeGvids, _)) =>
+    edgeGvids.foreach { egvid =>
+      val cluster = simpleGraph.objects.flatMap(_.collectFirst {
+        case SimpleGraphObject.Cluster(c) if GroupId.fromDot(c.name)._1 == groupId => c
+      })
+      val isInSubCluster = cluster.exists { c =>
+        c.subgraphs.exists { subgraphs =>
+          subgraphs.exists { subgraphGvid =>
+            simpleGraph.objects.exists(_.exists {
+              case SimpleGraphObject.Cluster(subCluster) =>
+                subCluster._gvid == subgraphGvid && subCluster.edges.getOrElse(List.empty).contains(egvid)
+              case _ => false
+            })
+          }
+        }
+      }
+      if (!isInSubCluster) {
+        edgeToCluster(egvid) = groupId
+      }
+    }
+  }
+
   // Convert edges to arrows
   val arrows: Map[ArrowId, Arrow] = simpleGraph.edges match {
     case Some(edgeArray) =>
@@ -426,6 +454,23 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
       }.toMap
     case None =>
       Map.empty[ArrowId, Arrow]
+  }
+
+  // Arrow ownership: edge _gvid -> the built ArrowId, joined with the
+  // innermost declaring subgraph computed above.
+  val arrowMembershipsMap: Map[ArrowId, GroupId] = simpleGraph.edges match {
+    case Some(edgeArray) =>
+      edgeArray.flatMap { edge =>
+        edgeToCluster.get(edge._gvid).map { groupId =>
+          val sourceName = gvidToNodeId.getOrElse(edge.tail, edge.tail.toString)
+          val targetName = gvidToNodeId.getOrElse(edge.head, edge.head.toString)
+          // Arrow.id includes the ports — mirror the arrows-map construction
+          // exactly so the ids join.
+          Arrow(NodeId(sourceName), NodeId(targetName), seq = edge._gvid,
+            sourcePort = edge.tailport, targetPort = edge.headport).id -> groupId
+        }
+      }.toMap
+    case None => Map.empty[ArrowId, GroupId]
   }
 
   // Ensure all arrow endpoints are in nodes, preserving the original order from rawNodes
@@ -451,6 +496,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     nodes = finalNodes,
     arrows = arrows,
     memberships = VectorMap.from(membershipsBuilder),
+    arrowMemberships = arrowMembershipsMap,
     groups = groupsBuilder.toMap,
     graphAttributes = graphAttrs
   )

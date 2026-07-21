@@ -24,6 +24,8 @@ case class VizViewerGraphElements(
     // membership to the top-level graph is implicit
     // i.e. if an element is not in memberships, it belongs to top-level graph
     memberships: Map[GroupMemberId, GroupId] = Map.empty,
+    // innermost declaring subgraph per arrow (see ViewerGraphElements)
+    arrowMemberships: Map[ArrowId, GroupId] = Map.empty,
     groups:      Map[GroupId, ViewerGroup] = Map.empty,
     //
     graphAttributes: Attributes = Attributes.empty
@@ -54,6 +56,7 @@ case class VizViewerGraphElements(
       nodes = nodes,
       arrows = arrows,
       memberships = memberships,
+      arrowMemberships = arrowMemberships,
       groups = groups,
       graphAttributes = graphAttributes
     )
