@@ -5,6 +5,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.DotAttribute
 import upickle.default.*
 
 import scala.annotation.targetName
+import scala.collection.immutable.VectorMap
 import scala.language.implicitConversions
 
 // -------------------
@@ -119,6 +120,12 @@ object Attributes:
     stringKeyRW(readwriter[Map[AttributeId, AttrValue]].bimap(_.values, Attributes(_)))
 
   val empty = Attributes(Map.empty)
+
+  /** Order-preserving factory: keeps the pairs' insertion order via VectorMap. Use instead of `of` (which goes through an unordered Map)
+    * whenever attribute order matters, e.g. for serialization.
+    */
+  def fromOrdered(pairs: IterableOnce[(AttributeId, AttrValue)]): Attributes =
+    Attributes(VectorMap.from(pairs))
 
   def of(values: AttributePair*) =
     Attributes(values.map(_.toTuple).toMap)

@@ -25,12 +25,10 @@ def viewerGraphElementsToText(
   }
 
   // Detect if this is a complex graph with nested subgraphs or has HTML labels
-  val hasNestedSubgraphs = elements.groups.exists { case (groupId, _) =>
-    // Check if any group has subgroups (nested clusters)
-    elements.memberships.exists {
-      case (childGroupId: GroupId, parentId) => parentId == groupId
-      case _                                 => false
-    }
+  // (a nested subgraph = a membership whose child is itself a group)
+  val hasNestedSubgraphs = elements.memberships.exists {
+    case (_: GroupId, parentId) => elements.groups.contains(parentId)
+    case _                      => false
   }
 
   // Check if any node has HTML labels with multi-line content
@@ -47,12 +45,15 @@ def viewerGraphElementsToText(
   // Escape a raw string for embedding inside a DOT double-quoted string.
   // Only the double-quote delimiter is escaped here: backslashes/newlines in
   // label values are already escaped upstream (formats.dot.TextUtils.escape),
-  // so escaping them again would double them. Applied to every emitted value
-  // and id, otherwise a value containing a `"` produces malformed DOT.
+  // so escaping them again would double them.
   def escapeDotString(value: String): String = value.replace("\"", "\\\"")
 
+  // The ONE way to emit a DOT double-quoted string — every quoted id, name, port and
+  // value goes through here, so no emission site can accidentally skip the escaping.
+  def quoted(value: String): String = s""""${escapeDotString(value)}""""
+
   // Helper to format a single attribute value
-  def formatValue(value: String): String = s""""${escapeDotString(value)}""""
+  def formatValue(value: String): String = quoted(value)
 
   // Helper to format a label value - HTML labels use <> notation, others use quotes
   def formatLabelValue(value: String): String = {
@@ -60,14 +61,17 @@ def viewerGraphElementsToText(
       // Remove leading/trailing whitespace and format HTML labels
       val trimmed = value.trim
       s"<$trimmed>"
-    } else s""""${escapeDotString(value)}""""
+    } else quoted(value)
   }
+
+  // Declaration-order sort key: elements sort by their _gvid; missing _gvid sorts last.
+  def gvidOrder(attrs: ViewerAttributes): Double =
+    attrs.values.get(AttributeId("_gvid")).map(_.toString.toDouble).getOrElse(Double.MaxValue)
 
   // Helper to collect attributes from ViewerNode directly
   def collectNodeAttributes(
-      node:          ViewerNode,
-      excludeKeys:   Set[String] = Set.empty,
-      insideCluster: Boolean = false
+      node:        ViewerNode,
+      excludeKeys: Set[String] = Set.empty
   ): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
     val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
@@ -209,38 +213,31 @@ def viewerGraphElementsToText(
   val graphTypeStr = if graphType.isDirected then "digraph" else "graph"
   val edgeOp    = if graphType.isDirected then "->" else "--"
 
-  lines += s"""$graphTypeStr "${escapeDotString(graphName)}" {"""
+  lines += s"""$graphTypeStr ${quoted(graphName)} {"""
 
-  // Add graph attributes (exclude name and directed as they're handled specially)
-  val graphAttrs = collectGraphAttributes(elements.graphAttributes, Set("name", "directed"))
-  if (graphAttrs.nonEmpty) {
-    // Use multi-line formatting for graphs with multiple attributes
-    val attrFormatting = if (graphAttrs.length > 1)
-      formatAttributesMultiLine(graphAttrs, 1, true)
-    else
-      formatAttributes(graphAttrs)
-    lines += s"${padding(1)}graph$attrFormatting;"
+  // Emit a top-level `graph`/`node`/`edge` attribute statement (multi-line when > 1 attr)
+  def emitAttrStatement(keyword: String, attrs: List[(String, String)]): Unit = {
+    if (attrs.nonEmpty) {
+      val attrFormatting = if (attrs.length > 1)
+        formatAttributesMultiLine(attrs, 1, true)
+      else
+        formatAttributes(attrs)
+      lines += s"${padding(1)}$keyword$attrFormatting;"
+    }
   }
 
-  // Add default node attributes
-  val defaultNodeAttrs = collectGraphAttributes(elements.defaultNodeAttributes)
-  if (defaultNodeAttrs.nonEmpty) {
-    val attrFormatting = if (defaultNodeAttrs.length > 1)
-      formatAttributesMultiLine(defaultNodeAttrs, 1, true)
-    else
-      formatAttributes(defaultNodeAttrs)
-    lines += s"${padding(1)}node$attrFormatting;"
-  }
+  // Graph attributes (name/directed are handled specially), then default node/edge attributes
+  emitAttrStatement("graph", collectGraphAttributes(elements.graphAttributes, Set("name", "directed")))
+  emitAttrStatement("node", collectGraphAttributes(elements.defaultNodeAttributes))
+  emitAttrStatement("edge", collectGraphAttributes(elements.defaultArrowAttributes))
 
-  // Add default edge attributes
-  val defaultEdgeAttrs = collectGraphAttributes(elements.defaultArrowAttributes)
-  if (defaultEdgeAttrs.nonEmpty) {
-    val attrFormatting = if (defaultEdgeAttrs.length > 1)
-      formatAttributesMultiLine(defaultEdgeAttrs, 1, true)
-    else
-      formatAttributes(defaultEdgeAttrs)
-    lines += s"${padding(1)}edge$attrFormatting;"
-  }
+  // One pass over memberships/arrows up front instead of a rescan per cluster.
+  val childGroupsByParent: Map[GroupId, List[GroupId]] =
+    elements.memberships.toList.collect { case (childGroupId: GroupId, parentId) => (parentId, childGroupId) }.groupMap(_._1)(_._2)
+  val nodesByParent: Map[GroupId, List[NodeId]] =
+    elements.memberships.toList.collect { case (nodeId: NodeId, parentId) => (parentId, nodeId) }.groupMap(_._1)(_._2)
+  val arrowsByOwner: Map[GroupId, List[Arrow]] =
+    elements.arrows.values.toList.flatMap(a => elements.arrowMemberships.get(a.id).map(_ -> a)).groupMap(_._1)(_._2)
 
   // Emit one arrow statement at the given nesting level. Arrows live in the
   // subgraph they were DECLARED in (elements.arrowMemberships) — fdp lays
@@ -248,8 +245,8 @@ def viewerGraphElementsToText(
   // level changes the whole layout ("wrong ownership of arrows").
   val emittedArrows = scala.collection.mutable.Set[org.jpablo.graphexplorer.viewer.models.ArrowId]()
   def emitArrow(arrow: Arrow, level: Int): Unit = {
-    val tailPort = arrow.sourcePort.map(p => s""":\"${escapeDotString(p)}\"""").getOrElse("")
-    val headPort = arrow.targetPort.map(p => s""":\"${escapeDotString(p)}\"""").getOrElse("")
+    val tailPort = arrow.sourcePort.map(p => ":" + quoted(p)).getOrElse("")
+    val headPort = arrow.targetPort.map(p => ":" + quoted(p)).getOrElse("")
 
     val edgeAttrs = collectEdgeAttributes(arrow, Set("tail", "head"))
 
@@ -258,8 +255,22 @@ def viewerGraphElementsToText(
     else
       formatAttributes(edgeAttrs)
 
-    lines += s"""${padding(level)}"${escapeDotString(arrow.source.value)}"$tailPort $edgeOp "${escapeDotString(arrow.target.value)}"$headPort$attrFormatting;"""
+    lines += s"""${padding(level)}${quoted(arrow.source.value)}$tailPort $edgeOp ${quoted(arrow.target.value)}$headPort$attrFormatting;"""
     emittedArrows += arrow.id
+  }
+
+  // Emit one node statement at the given nesting level (shared by cluster members and
+  // standalone nodes — the formatting decision is identical).
+  def emitNode(node: ViewerNode, level: Int): Unit = {
+    val nodeAttrs = collectNodeAttributes(node)
+    val hasMultiLineHtmlLabel = node.attributes.values.get(Label.attrId)
+      .map(_.toString)
+      .exists(label => isHtmlLabel(label) && label.trim.split("\n").length > 1)
+    val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1)
+      formatAttributesMultiLine(nodeAttrs, level, hasComplexHtmlLabels || nodeAttrs.length > 1)
+    else
+      formatAttributes(nodeAttrs)
+    lines += s"""${padding(level)}${quoted(node.id.value)}$attrFormatting;"""
   }
 
   // Helper to process clusters recursively with proper nesting (using ViewerGraphElements directly)
@@ -277,7 +288,7 @@ def viewerGraphElementsToText(
     val subgraphName =
       if (isCluster && !group.id.value.startsWith("cluster")) s"cluster_${group.id.value}"
       else group.id.value
-    lines += s"""${padding(level)}subgraph "${escapeDotString(subgraphName)}" {"""
+    lines += s"""${padding(level)}subgraph ${quoted(subgraphName)} {"""
 
     val clusterAttrs = collectClusterAttributes(group)
     if (clusterAttrs.nonEmpty) {
@@ -293,44 +304,22 @@ def viewerGraphElementsToText(
     // memberships is an unordered Map — sort by the groups' _gvid so nested
     // clusters serialize in DECLARATION order (fdp layouts are order-sensitive;
     // an arbitrary order here swapped G and H in "wrong ownership of arrows").
-    val nestedGroups = elements.memberships.collect {
-      case (childGroupId: GroupId, parentId) if parentId == groupId => childGroupId
-    }.toList.sortBy { childGroupId =>
-      elements.groups(childGroupId).attributes.values.get(AttributeId("_gvid"))
-        .map(_.toString.toDouble).getOrElse(Double.MaxValue)
-    }
+    childGroupsByParent
+      .getOrElse(groupId, Nil)
+      .sortBy(childGroupId => gvidOrder(elements.groups(childGroupId).attributes))
+      .foreach { childGroupId =>
+        processCluster(childGroupId, level + 1, processedGroups)
+      }
 
-    nestedGroups.foreach { childGroupId =>
-      processCluster(childGroupId, level + 1, processedGroups)
-    }
-
-    // Add nodes that belong to this cluster
-    val clusterNodes = elements.memberships.collect {
-      case (nodeId: NodeId, parentId) if parentId == groupId => nodeId
-    }
-
-    // Sort nodes by their _gvid attribute to preserve original order
-    val sortedClusterNodes = clusterNodes.toList.sortBy { nodeId =>
-      elements.nodes(nodeId).attributes.values.get(AttributeId("_gvid"))
-        .map(_.toString.toDouble).getOrElse(Double.MaxValue)
-    }
-
-    sortedClusterNodes.foreach { nodeId =>
-      val node      = elements.nodes(nodeId)
-      val nodeAttrs = collectNodeAttributes(node, insideCluster = true)
-      val hasMultiLineHtmlLabel = node.attributes.values.get(Label.attrId)
-        .map(_.toString)
-        .exists(label => isHtmlLabel(label) && label.trim.split("\n").length > 1)
-      val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1)
-        formatAttributesMultiLine(nodeAttrs, level + 1, hasComplexHtmlLabels || nodeAttrs.length > 1)
-      else
-        formatAttributes(nodeAttrs)
-      lines += s"""${padding(level + 1)}"${escapeDotString(node.id.value)}"$attrFormatting;"""
-    }
+    // Add nodes that belong to this cluster, sorted by _gvid to preserve original order
+    nodesByParent
+      .getOrElse(groupId, Nil)
+      .sortBy(nodeId => gvidOrder(elements.nodes(nodeId).attributes))
+      .foreach(nodeId => emitNode(elements.nodes(nodeId), level + 1))
 
     // Add arrows DECLARED in this cluster (innermost owner), in seq order
-    elements.arrows.values.toList
-      .filter(a => elements.arrowMemberships.get(a.id).contains(groupId))
+    arrowsByOwner
+      .getOrElse(groupId, Nil)
       .sortBy(_.seq)
       .foreach(emitArrow(_, level + 1))
 
@@ -348,30 +337,19 @@ def viewerGraphElementsToText(
 
   // Sort groups by their _gvid attribute to preserve original order
   val sortedGroupsToProcess = groupsToProcess.toList.sortBy { groupId =>
-    elements.groups(groupId).attributes.values.get(AttributeId("_gvid"))
-      .map(_.toString.toDouble).getOrElse(Double.MaxValue)
+    gvidOrder(elements.groups(groupId).attributes)
   }
 
   sortedGroupsToProcess.foreach { groupId =>
     processCluster(groupId, 1, processedGroups)
   }
 
-  // Add standalone nodes (not in clusters)
-  val clusterNodeIds = elements.memberships.collect {
-    case (nodeId: NodeId, _) => nodeId
-  }.toSet
+  // Add standalone nodes (not members of any cluster)
+  val clusterNodeIds = nodesByParent.values.flatten.toSet
 
   elements.nodes.foreach { case (nodeId, node) =>
     if (!clusterNodeIds.contains(nodeId)) {
-      val nodeAttrs = collectNodeAttributes(node)
-      val hasMultiLineHtmlLabel = node.attributes.values.get(Label.attrId)
-        .map(_.toString)
-        .exists(label => isHtmlLabel(label) && label.trim.split("\n").length > 1)
-      val attrFormatting = if (hasNestedSubgraphs || hasMultiLineHtmlLabel || hasComplexHtmlLabels || nodeAttrs.length > 1)
-        formatAttributesMultiLine(nodeAttrs, 1, hasComplexHtmlLabels || nodeAttrs.length > 1)
-      else
-        formatAttributes(nodeAttrs)
-      lines += s"""${padding(1)}"${escapeDotString(node.id.value)}"$attrFormatting;"""
+      emitNode(node, 1)
     }
   }
 

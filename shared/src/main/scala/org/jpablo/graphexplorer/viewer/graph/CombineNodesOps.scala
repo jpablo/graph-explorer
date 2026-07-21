@@ -9,6 +9,16 @@ import scala.collection.immutable.VectorMap
 trait CombineNodesOps:
   this: ViewerGraph =>
 
+  /** Rebuilds the arrows map by transforming every arrow, and re-keys `elements.arrowMemberships` from old to new ArrowIds so cluster
+    * ownership survives the id change — the bulk sibling of `ViewerGraph.rekeyArrowMembership`.
+    */
+  private def remapArrows(transform: Arrow => Arrow): (VectorMap[ArrowId, Arrow], Map[ArrowId, GroupId]) =
+    val arrowRemap         = arrows.toSeq.map((oldId, arrow) => oldId -> transform(arrow))
+    val remapped           = VectorMap.from(arrowRemap.map((_, a) => a.id -> a))
+    val idRemap            = arrowRemap.map((oldId, a) => oldId -> a.id).toMap
+    val rekeyedMemberships = elements.arrowMemberships.flatMap((oldId, g) => idRemap.get(oldId).map(_ -> g))
+    (remapped, rekeyedMemberships)
+
   /** Checks if the given nodes can be combined into a record node.
     * Nodes can be combined if they all belong to the same group (or all have no group).
     */
@@ -58,20 +68,15 @@ trait CombineNodesOps:
           node.id -> s"f$idx"
         }.toMap
 
-        // Remap all edges, keeping the old->new ArrowId correspondence so arrow
-        // cluster ownership (arrowMemberships) survives the id change.
-        val arrowRemap: Seq[(ArrowId, Arrow)] = arrows.toSeq.map { case (oldArrowId, arrow) =>
-          val updatedArrow = arrow.copy(
+        // Remap all edges; cluster ownership survives the id change (remapArrows).
+        val (remappedArrows, updatedArrowMemberships) = remapArrows { arrow =>
+          arrow.copy(
             source = if portMapping.contains(arrow.source) then newNodeId else arrow.source,
             target = if portMapping.contains(arrow.target) then newNodeId else arrow.target,
             sourcePort = portMapping.get(arrow.source).orElse(arrow.sourcePort),
             targetPort = portMapping.get(arrow.target).orElse(arrow.targetPort)
           )
-          oldArrowId -> updatedArrow
         }
-        val remappedArrows          = VectorMap.from(arrowRemap.map((_, a) => a.id -> a))
-        val idRemap                 = arrowRemap.map((oldId, a) => oldId -> a.id).toMap
-        val updatedArrowMemberships = elements.arrowMemberships.flatMap((oldId, g) => idRemap.get(oldId).map(_ -> g))
 
         // Build the new graph
         val updatedNodes = (nodes -- nodeIds) + (newNodeId -> newNode)
@@ -161,8 +166,8 @@ trait CombineNodesOps:
             // of the now-nonexistent record id.
             val firstNewNodeId = newNodes.head._1
 
-            // Remap all edges, keeping old->new ArrowId correspondence for arrowMemberships.
-            val arrowRemap: Seq[(ArrowId, Arrow)] = arrows.toSeq.map { case (oldArrowId, arrow) =>
+            // Remap all edges; cluster ownership survives the id change (remapArrows).
+            val (remappedArrows, updatedArrowMemberships) = remapArrows { arrow =>
               val (newSource, newSourcePort) =
                 if arrow.source == nodeId then
                   (arrow.sourcePort.flatMap(portToNodeMap.get).getOrElse(firstNewNodeId), None)
@@ -175,17 +180,13 @@ trait CombineNodesOps:
                 else
                   (arrow.target, arrow.targetPort)
 
-              val updatedArrow = arrow.copy(
+              arrow.copy(
                 source = newSource,
                 target = newTarget,
                 sourcePort = newSourcePort,
                 targetPort = newTargetPort
               )
-              oldArrowId -> updatedArrow
             }
-            val remappedArrows          = VectorMap.from(arrowRemap.map((_, a) => a.id -> a))
-            val idRemap                 = arrowRemap.map((oldId, a) => oldId -> a.id).toMap
-            val updatedArrowMemberships = elements.arrowMemberships.flatMap((oldId, g) => idRemap.get(oldId).map(_ -> g))
 
             // Build the new graph
             val updatedNodes = (nodes - nodeId) ++ newNodes.map { case (id, node) => id -> node }

@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidStyleDeclarations
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
@@ -19,8 +20,8 @@ trait AttributesOps:
   /** Updates attributes for a set of nodes and arrows.
     *
     * This method updates the attributes of the specified nodes and arrows:
-    *   1. Separates the input IDs into arrow IDs and node IDs 2. Updates attributes for matching arrows 3. Updates attributes for matching
-    *      nodes, including any endpoints of updated arrows that were in the original selection
+    *   1. Separates the input IDs into arrow IDs, node IDs and group IDs 2. Updates attributes for matching arrows 3. Updates attributes
+    *      for matching nodes and groups
     *
     * @return
     *   Updated ViewerGraphData with the new attributes applied
@@ -38,10 +39,7 @@ trait AttributesOps:
       .mapValues(_.modifyAttrs.using(attrs => AttributesOps.normalizeFill(selectionAttrs.applyTo(attrs))))
       .toMap
 
-    val nodeIdsToUpdate = classified.nodes ++
-      (updatedArrows.values.flatMap(_.endpoints).toSet & classified.nodes)
-
-    val updatedNodes = nodeIdsToUpdate.foldLeft(nodes): (nodes, id) =>
+    val updatedNodes = classified.nodes.foldLeft(nodes): (nodes, id) =>
       nodes.updated(
         id,
         nodes.getOrElse(id, nodeWithDefaults(id)).modifyAttrs.using(attrs => AttributesOps.normalizeFill(selectionAttrs.applyTo(attrs)))
@@ -72,7 +70,7 @@ trait AttributesOps:
     * @return
     *   an `AttributeUpdates` instance encapsulating the aggregated attribute updates for the specified element IDs
     */
-  def getAttributesUpdatesById[K <: ElementId](elementIds: ElementIds): AttributeUpdates =
+  def getAttributesUpdatesById(elementIds: ElementIds): AttributeUpdates =
     val mermaidStyleIndex = AttributesOps.MermaidStyleIndex.fromGraphAttributes(elements.graphAttributes)
     AttributeUpdates(
       elementIds.ids.foldLeft(Map.empty[AttributeId, AttrValueWithStatus]): (attrs, elementId) =>
@@ -157,12 +155,6 @@ object AttributesOps:
       update = (graph, updates) => graph.updateAttributes(elementIds, updates)
     )
 
-  private val MermaidClassDefPrefix     = "mermaid_classDef_"
-  private val MermaidClassDefTextPrefix = "mermaid_classDefText_"
-  private val MermaidClassAttr          = AttributeId("mermaid_class")
-  private val MermaidDefaultLinkStyleAttr = AttributeId("mermaid_linkStyle_default")
-  private val MermaidEdgeStyleAttr        = AttributeId("mermaid_edgeStyle")
-
   private[graph] case class MermaidStyleIndex(
       classDefs:     Map[String, VectorMap[String, String]],
       classDefTexts: Map[String, VectorMap[String, String]],
@@ -200,22 +192,26 @@ object AttributesOps:
       mermaidStyleIndex: MermaidStyleIndex
   ): Attributes =
     elementId match
-      case _: NodeId => withMermaidEffectiveNodeAttrs(attrs, mermaidStyleIndex)
+      case _: NodeId  => withMermaidEffectiveMemberAttrs(attrs, mermaidStyleIndex, strokeAttr = Color.attrId)
       case _: ArrowId => withMermaidEffectiveEdgeAttrs(attrs, mermaidStyleIndex)
-      case _: GroupId => withMermaidEffectiveGroupAttrs(attrs, mermaidStyleIndex)
+      case _: GroupId => withMermaidEffectiveMemberAttrs(attrs, mermaidStyleIndex, strokeAttr = PenColor.attrId)
 
-  private def withMermaidEffectiveNodeAttrs(
-      nodeAttrs:         Attributes,
-      mermaidStyleIndex: MermaidStyleIndex
+  /** Derive DOT attributes from the resolved Mermaid class/inline css for a node or
+    * group. The only difference between the two kinds is which DOT attribute the css
+    * `stroke` maps to (nodes: Color, groups: PenColor).
+    */
+  private def withMermaidEffectiveMemberAttrs(
+      memberAttrs:       Attributes,
+      mermaidStyleIndex: MermaidStyleIndex,
+      strokeAttr:        AttributeId
   ): Attributes =
-    val (effectiveStyles, effectiveTextStyles) = resolveMermaidClassAndInlineStyles(nodeAttrs, mermaidStyleIndex)
+    val (effectiveStyles, effectiveTextStyles) = resolveMermaidClassAndInlineStyles(memberAttrs, mermaidStyleIndex)
 
-    if effectiveStyles.isEmpty && effectiveTextStyles.isEmpty then nodeAttrs
+    if effectiveStyles.isEmpty && effectiveTextStyles.isEmpty then memberAttrs
     else
-
       val derived = scala.collection.mutable.ListBuffer.empty[(AttributeId, AttrValue)]
       effectiveStyles.get("fill").foreach(v => derived += FillColor.attrId -> AttrValue(v))
-      effectiveStyles.get("stroke").foreach(v => derived += Color.attrId -> AttrValue(v))
+      effectiveStyles.get("stroke").foreach(v => derived += strokeAttr -> AttrValue(v))
       effectiveStyles.get("stroke-width").flatMap(parseCssNumber).foreach(v => derived += PenWidth.attrId -> AttrValue(v))
       effectiveStyles.get("font-family").foreach(v => derived += FontName.attrId -> AttrValue(v))
       effectiveStyles.get("font-size").flatMap(parseCssNumber).foreach(v => derived += FontSize.attrId -> AttrValue(v))
@@ -224,30 +220,8 @@ object AttributesOps:
         .orElse(effectiveTextStyles.get("fill"))
         .foreach(v => derived += FontColor.attrId -> AttrValue(v))
 
-      val derivedMissingOnly = derived.filterNot((attrId, _) => nodeAttrs.values.contains(attrId)).toMap
-      nodeAttrs ++ derivedMissingOnly
-
-  private def withMermaidEffectiveGroupAttrs(
-      groupAttrs:        Attributes,
-      mermaidStyleIndex: MermaidStyleIndex
-  ): Attributes =
-    val (effectiveStyles, effectiveTextStyles) = resolveMermaidClassAndInlineStyles(groupAttrs, mermaidStyleIndex)
-
-    if effectiveStyles.isEmpty && effectiveTextStyles.isEmpty then groupAttrs
-    else
-      val derived = scala.collection.mutable.ListBuffer.empty[(AttributeId, AttrValue)]
-      effectiveStyles.get("fill").foreach(v => derived += FillColor.attrId -> AttrValue(v))
-      effectiveStyles.get("stroke").foreach(v => derived += PenColor.attrId -> AttrValue(v))
-      effectiveStyles.get("stroke-width").flatMap(parseCssNumber).foreach(v => derived += PenWidth.attrId -> AttrValue(v))
-      effectiveStyles.get("font-family").foreach(v => derived += FontName.attrId -> AttrValue(v))
-      effectiveStyles.get("font-size").flatMap(parseCssNumber).foreach(v => derived += FontSize.attrId -> AttrValue(v))
-      effectiveStyles
-        .get("color")
-        .orElse(effectiveTextStyles.get("fill"))
-        .foreach(v => derived += FontColor.attrId -> AttrValue(v))
-
-      val derivedMissingOnly = derived.filterNot((attrId, _) => groupAttrs.values.contains(attrId)).toMap
-      groupAttrs ++ derivedMissingOnly
+      val derivedMissingOnly = derived.filterNot((attrId, _) => memberAttrs.values.contains(attrId)).toMap
+      memberAttrs ++ derivedMissingOnly
 
   private def withMermaidEffectiveEdgeAttrs(
       edgeAttrs:         Attributes,
@@ -277,13 +251,13 @@ object AttributesOps:
       attrs:             Attributes,
       mermaidStyleIndex: MermaidStyleIndex
   ): (VectorMap[String, String], VectorMap[String, String]) =
+    // One tokenizer for the mermaid_class format, shared with the exporter
+    // (previously this split on "\\s+" while the exporter split on "[,\\s]+").
     val classNames =
       attrs
         .get(MermaidClassAttr)
         .toList
-        .flatMap(_.toString.split("\\s+"))
-        .map(_.trim)
-        .filter(_.nonEmpty)
+        .flatMap(v => parseMermaidClassNames(v.toString))
 
     val defaultStyles      = mermaidStyleIndex.classDefs.getOrElse("default", VectorMap.empty)
     val defaultTextStyles  = mermaidStyleIndex.classDefTexts.getOrElse("default", VectorMap.empty)

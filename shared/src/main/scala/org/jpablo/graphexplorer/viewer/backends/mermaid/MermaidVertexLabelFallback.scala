@@ -1,18 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 object MermaidVertexLabelFallback:
-  private val IgnoredLinePrefixes = List(
-    "%%",
-    "flowchart",
-    "graph",
-    "subgraph",
-    "classdef",
-    "class ",
-    "style ",
-    "linkstyle",
-    "click ",
-    "end"
-  )
+  import MermaidSourceScan.normalizeLabel
 
   private val NodeLabelPatterns = List(
     raw"""([A-Za-z0-9_][A-Za-z0-9_-]*)\s*\[\(([^\]]+?)\)\]""".r,      // cylinder: A[(DB)]
@@ -53,26 +42,11 @@ object MermaidVertexLabelFallback:
     sourceText.linesIterator
       .map(_.trim)
       .filter(line => line.nonEmpty)
-      .filterNot(line => shouldIgnoreLine(line))
+      .filterNot(line => MermaidSourceScan.isIgnoredLine(line))
       .foldLeft(Map.empty[String, String]) { (acc, line) =>
         val fromLine = extractVertexLabelsFromLine(line)
         acc ++ fromLine
       }
-
-  private def shouldIgnoreLine(line: String): Boolean =
-    val lower = line.toLowerCase
-    IgnoredLinePrefixes.exists(prefix => isIgnoredPrefix(lower, prefix))
-
-  // A directive keyword only ignores a line when it appears as a WHOLE word, so a node
-  // id that merely starts with one (e.g. `graphState[...]`, `endNode[...]`) is not
-  // dropped. Prefixes already ending in a space, and the `%%` comment marker, keep
-  // plain startsWith semantics.
-  private def isIgnoredPrefix(lower: String, prefix: String): Boolean =
-    if prefix.endsWith(" ") || prefix == "%%" then lower.startsWith(prefix)
-    else lower == prefix || (lower.startsWith(prefix) && !isIdentifierChar(lower.charAt(prefix.length)))
-
-  private def isIdentifierChar(c: Char): Boolean =
-    c.isLetterOrDigit || c == '_' || c == '-'
 
   /** Match only at the start of the line to avoid spurious matches inside
     * quoted node labels or edge label content (between `|...|`).
@@ -91,12 +65,3 @@ object MermaidVertexLabelFallback:
       .map(m => m.group(1) -> normalizeLabel(m.group(2)))
       .collectFirst { case kv @ (_, label) if label.nonEmpty => kv }
       .toMap
-
-  private def normalizeLabel(raw: String): String =
-    val trimmed = raw.trim
-    val unquoted =
-      if trimmed.length >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")
-      then trimmed.substring(1, trimmed.length - 1)
-      else trimmed
-
-    unquoted.replace("#quot;", "\"").trim

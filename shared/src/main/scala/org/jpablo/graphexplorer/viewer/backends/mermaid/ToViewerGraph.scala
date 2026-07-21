@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
@@ -91,14 +92,14 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
   mermaidGraph.title.foreach(t => graphAttrs += Label.attrId -> AttrValue(t))
   mermaidGraph.classDefs.foreach { case (name, classDef) =>
     if classDef.styles.nonEmpty then
-      graphAttrs += AttributeId(s"mermaid_classDef_$name") -> AttrValue(classDef.styles.mkString(","))
+      graphAttrs += AttributeId(MermaidClassDefPrefix + name) -> AttrValue(classDef.styles.mkString(","))
     if classDef.textStyles.nonEmpty then
-      graphAttrs += AttributeId(s"mermaid_classDefText_$name") -> AttrValue(classDef.textStyles.mkString(","))
+      graphAttrs += AttributeId(MermaidClassDefTextPrefix + name) -> AttrValue(classDef.textStyles.mkString(","))
   }
   if mermaidGraph.defaultEdgeStyle.nonEmpty then
-    graphAttrs += AttributeId("mermaid_linkStyle_default") -> AttrValue(mermaidGraph.defaultEdgeStyle.mkString(","))
+    graphAttrs += MermaidDefaultLinkStyleAttr -> AttrValue(mermaidGraph.defaultEdgeStyle.mkString(","))
   mermaidGraph.defaultEdgeInterpolate.foreach(v =>
-    graphAttrs += AttributeId("mermaid_linkInterpolate_default") -> AttrValue(v)
+    graphAttrs += MermaidDefaultLinkInterpolateAttr -> AttrValue(v)
   )
 
   ViewerGraphElements(
@@ -106,7 +107,7 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
     arrows = arrows,
     memberships = memberships,
     groups = groups,
-    graphAttributes = Attributes(VectorMap.from(graphAttrs.toSeq))
+    graphAttributes = Attributes.fromOrdered(graphAttrs)
   )
 
 /** Converts a MermaidVertex to Attributes. */
@@ -123,15 +124,15 @@ private def vertexToAttributes(vertex: MermaidVertex): Attributes =
   }
 
   // Store Mermaid-specific data as custom attributes
-  vertex.domId.foreach(v => attrs += AttributeId("mermaid_domId") -> AttrValue(v))
+  vertex.domId.foreach(v => attrs += MermaidDomIdAttr -> AttrValue(v))
 
   // Combine styles into a single style attribute if present
   if vertex.styles.nonEmpty then attrs += Style.attrId -> AttrValue(vertex.styles.mkString(","))
 
   // Store classes as a custom attribute
-  if vertex.classes.nonEmpty then attrs += AttributeId("mermaid_class") -> AttrValue(vertex.classes.mkString(" "))
+  if vertex.classes.nonEmpty then attrs += MermaidClassAttr -> AttrValue(vertex.classes.mkString(" "))
 
-  Attributes(VectorMap.from(attrs.toSeq))
+  Attributes.fromOrdered(attrs)
 
 /** Converts a MermaidEdge to Attributes. */
 private def edgeToAttributes(edge: MermaidEdge): Attributes =
@@ -148,20 +149,20 @@ private def edgeToAttributes(edge: MermaidEdge): Attributes =
   }
 
   // Store edge type as custom attribute
-  edge.edgeType.foreach(v => attrs += AttributeId("mermaid_edgeType") -> AttrValue(v))
-  if edge.styles.nonEmpty then attrs += AttributeId("mermaid_edgeStyle") -> AttrValue(edge.styles.mkString(","))
-  edge.interpolate.foreach(v => attrs += AttributeId("mermaid_edgeInterpolate") -> AttrValue(v))
+  edge.edgeType.foreach(v => attrs += MermaidEdgeTypeAttr -> AttrValue(v))
+  if edge.styles.nonEmpty then attrs += MermaidEdgeStyleAttr -> AttrValue(edge.styles.mkString(","))
+  edge.interpolate.foreach(v => attrs += MermaidEdgeInterpolateAttr -> AttrValue(v))
 
-  Attributes(VectorMap.from(attrs.toSeq))
+  Attributes.fromOrdered(attrs)
 
 /** Converts a MermaidSubgraph to Attributes. */
 private def subgraphToAttributes(subgraph: MermaidSubgraph): Attributes =
   val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
 
   subgraph.title.foreach(v => attrs += Label.attrId -> AttrValue(v))
-  if subgraph.classes.nonEmpty then attrs += AttributeId("mermaid_class") -> AttrValue(subgraph.classes.mkString(" "))
+  if subgraph.classes.nonEmpty then attrs += MermaidClassAttr -> AttrValue(subgraph.classes.mkString(" "))
 
-  Attributes(VectorMap.from(attrs.toSeq))
+  Attributes.fromOrdered(attrs)
 
 /** Maps Mermaid shape names to DOT shape names. */
 private def mermaidShapeToDot(mermaidShape: String): String =

@@ -65,28 +65,13 @@ case class StyleSubAttributes(
     * @return
     *   A comma-separated string of style components, including fill, bold, invisible attributes, and non-default border and corner styles.
     */
-  def toStyleStringNoDefaults: Option[String] =
-    // ASSUME: no defaults
-    if this == missing then
-      None
-    else
-      val parts = ArrayBuffer.empty[String]
-      if fill.is(true) then parts += Style.filled.toString
-      if bold.is(true) then parts += Style.bold.toString
-      if invisible.is(true) then parts += Style.invis.toString
-      corner match
-        case Single(c) => parts += c.toString
-        case _         =>
-      border match
-        case Single(b) => parts += b.toString
-        case _         =>
-      val str = parts.mkString(",")
-      // A non-`missing` StyleSubAttributes can legitimately emit no tokens (e.g. only
-      // fill=false), so return None rather than asserting non-empty.
-      if str.isEmpty then None else Some(str)
-
-  def toStyleStrings: Option[String] =
-    // Simplified: emit only explicit, non-default tokens.
+  /** Renders the sub-attributes as a comma-separated `style` value.
+    *
+    * @param dropDefaults
+    *   when true, corner/border tokens equal to their defaults are omitted (element style, which inherits from emitted defaults); when
+    *   false every Single value is emitted (the default attribute statements themselves).
+    */
+  private def styleTokens(dropDefaults: Boolean): Option[String] =
     if this == missing then None
     else
       val parts = ArrayBuffer.empty[String]
@@ -95,16 +80,23 @@ case class StyleSubAttributes(
       if invisible.is(true) then parts += InvisibleStyle.invis
 
       corner match
-        case Single(c) if c != CornerStyle.default => parts += c.toString
-        case _                                     =>
+        case Single(c) if !dropDefaults || c != CornerStyle.default => parts += c.toString
+        case _                                                      =>
 
       border match
-        case Single(b) if b != BorderStyle.default => parts += b.toString
-        case _                                     =>
+        case Single(b) if !dropDefaults || b != BorderStyle.default => parts += b.toString
+        case _                                                      =>
 
+      // A non-`missing` StyleSubAttributes can legitimately emit no tokens (e.g. only fill=false).
       if parts.isEmpty then None else Some(parts.mkString(","))
 
-  
+  /** Style string for default attribute statements: every Single value is emitted. */
+  def toStyleStringNoDefaults: Option[String] = styleTokens(dropDefaults = false)
+
+  /** Style string for elements: emits only explicit, non-default tokens. */
+  def toStyleStrings: Option[String] = styleTokens(dropDefaults = true)
+
+
 
 object StyleSubAttributes:
 

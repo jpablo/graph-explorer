@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, DotAttribute, GraphType}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, GraphType}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
@@ -52,7 +52,9 @@ case class ViewerGraph(
   val groupIds = groups.keySet
 
   lazy val nodesSeq = nodes.toSeq
-  val arrowsSet     = arrows.values.toSet
+  // lazy: ViewerGraph is copied once per element in editing folds (reverse, duplicate,
+  // reset), and an eager O(arrows) set build per copy is pure waste when unused.
+  lazy val arrowsSet = arrows.values.toSet
 
   val modifyElements               = this.modify(_.elements)
   protected[graph] val modifyNodes = this.modify(_.elements.nodes)
@@ -227,15 +229,6 @@ case class ViewerGraph(
     val updated = modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId)
       .rekeyArrowMembership(arrowId, newArrow.id)
     (updated, newArrow.id)
-
-  def effectiveAttributeValue[A](
-      dotAttribute: DotAttribute[A],
-      attrs:        Attributes
-  ): A =
-    val value = attrs.get(dotAttribute)
-    value
-      .flatMap(attrVal => dotAttribute.fromString(attrVal.toString))
-      .getOrElse(dotAttribute.default)
 
   /** Reverses the arrow styles for the specified arrow elements in the graph. The method updates the attributes of the arrows, swapping the
     * styles of their head and tail based on their effective values, while considering the default attributes of the graph.
@@ -414,7 +407,7 @@ case class ViewerGraph(
     val newGroupId = graph.nextGroupId()
     // Filter out layout-specific attributes that shouldn't be copied
     val filteredAttributes = group.attributes.filterKeys(attrId =>
-      !Set("_gvid", "width", "pos", "height", "lp", "lwidth", "lheight").contains(attrId.value)
+      !ViewerGraph.groupLayoutOnlyAttrs.contains(attrId.value)
     )
     val newGroup        = ViewerGroup.group(newGroupId, filteredAttributes)
     val ogParentGroupId = graph.membership(group.id)
@@ -438,7 +431,7 @@ case class ViewerGraph(
     val (newGraph, newNodeId) = graph.addNode(targetGroupId)
     // Filter out layout-specific attributes that shouldn't be copied
     val filteredAttributes = node.attributes.filterKeys(attrId =>
-      !Set("_gvid", "width", "pos", "height").contains(attrId.value)
+      !ViewerGraph.nodeLayoutOnlyAttrs.contains(attrId.value)
     )
     val finalGraphForNode = newGraph.updateAttributes(ElementIds.from(newNodeId), filteredAttributes.toUpdates)
     (finalGraphForNode, newNodeId)
@@ -469,6 +462,11 @@ case class ViewerGraph(
 end ViewerGraph
 
 object ViewerGraph:
+
+  // Engine-produced layout attributes that must not be copied when duplicating an
+  // element (groups additionally carry label-placement output: lp/lwidth/lheight).
+  private val nodeLayoutOnlyAttrs  = Set("_gvid", "width", "pos", "height")
+  private val groupLayoutOnlyAttrs = nodeLayoutOnlyAttrs ++ Set("lp", "lwidth", "lheight")
 
   /** omitInternal = true is useful when showing the text to the user. omitInternal = false is needed when suing the DOT text to render the
     * graph.

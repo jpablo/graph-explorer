@@ -25,6 +25,11 @@ case class CSV(rows: Array[Array[String]]):
     ViewerGraph.basic(arrows*)
 
 object CSV:
+  // Regex group names
+  private val delimiter = "Delimiter"
+  private val quoted    = "Quoted"
+  private val unquoted  = "Unquoted"
+
   // https://www.bennadel.com/blog/1504-ask-ben-parsing-csv-strings-with-javascript-exec-regular-expression-command.htm
   def apply(strData: String, strDelimiter: String = ","): CSV =
     val objPattern =
@@ -39,9 +44,7 @@ object CSV:
 
     val arrData: ArrayBuffer[ArrayBuffer[String]] = ArrayBuffer.empty
 
-    val matches = objPattern.findAllMatchIn(strData).toList
-
-    for (m, i) <- matches.zipWithIndex if m.start != m.end do
+    for m <- objPattern.findAllMatchIn(strData) if m.start != m.end do
       // Get the delimiter that was found.
       val strMatchedDelimiter = m.group(delimiter)
 
@@ -63,7 +66,3 @@ object CSV:
     CSV(arrData.map(_.toArray).toArray)
 
 end CSV
-
-val delimiter = "Delimiter"
-val quoted = "Quoted"
-val unquoted = "Unquoted"

@@ -111,7 +111,9 @@ trait GroupsOps:
     * @return A set of GroupIds that are empty
     */
   def getEmptyGroups(): Set[GroupId] =
-    groups.keySet.filter(groupId => getDirectChildren(Set(groupId)).isEmpty)
+    // A group is empty iff no membership points at it; one pass over memberships
+    // instead of a getDirectChildren scan per group (removeEmptyGroups recurses).
+    groups.keySet -- memberships.values.toSet
 
   /** Recursively removes all empty groups and their memberships.
     * This method will keep removing empty groups until no more empty groups remain,

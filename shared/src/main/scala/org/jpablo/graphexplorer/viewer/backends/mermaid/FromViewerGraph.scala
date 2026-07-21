@@ -1,19 +1,15 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
+import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, Color, FillColor, FontColor, FontName, FontSize, Label, PenColor, PenWidth, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
 import scala.collection.immutable.VectorMap
 
-private val MermaidClassDefPrefix             = "mermaid_classDef_"
-private val MermaidClassDefTextPrefix         = "mermaid_classDefText_"
-private val MermaidClassAttr                  = AttributeId("mermaid_class")
-private val MermaidDefaultLinkStyleAttr       = AttributeId("mermaid_linkStyle_default")
-private val MermaidDefaultLinkInterpolateAttr = AttributeId("mermaid_linkInterpolate_default")
-private val MermaidEdgeStyleAttr              = AttributeId("mermaid_edgeStyle")
-private val MermaidEdgeInterpolateAttr        = AttributeId("mermaid_edgeInterpolate")
-private val MermaidNodeCssPreferredKeyOrder   = Vector("fill", "stroke", "stroke-width", "color", "font-family", "font-size")
+private val MermaidNodeCssPreferredKeyOrder = Vector("fill", "stroke", "stroke-width", "color", "font-family", "font-size")
+private val MermaidUnsafeIdChar             = "[^A-Za-z0-9_-]".r
 
 /** Converts a ViewerGraph back to Mermaid flowchart text.
   *
@@ -47,22 +43,25 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
 
   val connectedNodeIds = graph.arrows.values.flatMap(_.endpoints).toSet
 
+  // Shared indexes: one deterministic group ordering for the three group passes,
+  // and one membership pass instead of a scan per group.
+  val sortedGroups = graph.groups.toVector.sortBy(_._1.value)
+  val nodesByGroup: Map[GroupId, List[NodeId]] =
+    graph.memberships.toList
+      .collect { case (nodeId: NodeId, gId) => (gId, nodeId) }
+      .groupMap(_._1)(_._2)
+
   // Serialize subgraphs (groups, excluding root)
   val subgraphNodes = scala.collection.mutable.Set[NodeId]()
-  graph.groups.toVector.sortBy(_._1.value).foreach { case (groupId, group) =>
+  sortedGroups.foreach { case (groupId, group) =>
     if groupId != rootGroupId then
       val title = group.label.toString match
         case s if s.nonEmpty => s" [$s]"
         case _               => ""
       lines.append(s"  subgraph ${mermaidId(groupId.value)}$title\n")
 
-      // Find nodes in this subgraph
-      val nodesInGroup = graph.memberships.collect {
-        case (nodeId: NodeId, gId) if gId == groupId => nodeId
-      }
-
       // Serialize nodes in this subgraph
-      nodesInGroup.toVector.sortBy(_.value).foreach { nodeId =>
+      nodesByGroup.getOrElse(groupId, Nil).toVector.sortBy(_.value).foreach { nodeId =>
         graph.nodes.get(nodeId).foreach { node =>
           val nodeLine = serializeNode(nodeId, node)
           lines.append(s"    $nodeLine\n")
@@ -100,13 +99,13 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
       lines.append(s"  style ${mermaidId(nodeId.value)} $css\n")
     }
   }
-  graph.groups.toVector.sortBy(_._1.value).foreach { case (groupId, group) =>
+  sortedGroups.foreach { case (groupId, group) =>
     if groupId != rootGroupId then
       groupStyleDirectiveCss(group).foreach { css =>
         lines.append(s"  style ${mermaidId(groupId.value)} $css\n")
       }
   }
-  emitGroupClassLines(lines, graph.groups, rootGroupId)
+  emitGroupClassLines(lines, sortedGroups, rootGroupId)
 
   lines.toString
 
@@ -156,8 +155,8 @@ private def edgeLineStyle(attrs: Attributes): Option[String] =
   * resolve. Ids with whitespace or metacharacters (possible after DOT import of quoted ids)
   * would otherwise produce invalid/mis-parsed Mermaid. Already-safe ids pass through unchanged. */
 private def mermaidId(id: String): String =
-  if id.forall(c => c.isLetterOrDigit || c == '_' || c == '-') then id
-  else id.replaceAll("[^A-Za-z0-9_-]", "_")
+  if id.forall(MermaidSourceScan.isIdentifierChar) then id
+  else MermaidUnsafeIdChar.replaceAllIn(id, "_")
 
 /** Maps DOT shape names to Mermaid bracket syntax (paired with `mermaidShapeToDot`).
   *
@@ -235,29 +234,20 @@ private def emitDefaultLinkStyleLine(lines: StringBuilder, graphAttributes: Attr
   }
 
 private def emitGroupClassLines(
-    lines:       StringBuilder,
-    groups:      Map[GroupId, ViewerGroup],
-    rootGroupId: GroupId
+    lines:        StringBuilder,
+    sortedGroups: Vector[(GroupId, ViewerGroup)],
+    rootGroupId:  GroupId
 ): Unit =
-  groups.toVector
-    .sortBy(_._1.value)
-    .foreach { case (groupId, group) =>
-      if groupId != rootGroupId then
-        val classNames = group.attributes.values
-          .get(MermaidClassAttr)
-          .map(_.toString)
-          .toVector
-          .flatMap(parseMermaidClassNames)
-        if classNames.nonEmpty then
-          lines.append(s"  class ${mermaidId(groupId.value)} ${classNames.mkString(",")}\n")
-    }
-
-private def parseMermaidClassNames(value: String): Vector[String] =
-  value
-    .split("[,\\s]+")
-    .toVector
-    .map(_.trim)
-    .filter(_.nonEmpty)
+  sortedGroups.foreach { case (groupId, group) =>
+    if groupId != rootGroupId then
+      val classNames = group.attributes.values
+        .get(MermaidClassAttr)
+        .map(_.toString)
+        .toVector
+        .flatMap(parseMermaidClassNames)
+      if classNames.nonEmpty then
+        lines.append(s"  class ${mermaidId(groupId.value)} ${classNames.mkString(",")}\n")
+  }
 
 private def mergeMermaidCssBodies(styleBodyOpt: Option[String], extraBodyOpt: Option[String]): Option[String] =
   val base   = styleBodyOpt.map(MermaidStyleDeclarations.parse).getOrElse(VectorMap.empty)
@@ -266,41 +256,55 @@ private def mergeMermaidCssBodies(styleBodyOpt: Option[String], extraBodyOpt: Op
   if merged.isEmpty then None
   else Some(formatMermaidCssBody(merged))
 
-private def nodeStyleDirectiveCss(node: ViewerNode): Option[String] =
-  val attrs = node.attributes.values
-  val baseStyleDeclarations = attrs
-    .get(Style.attrId)
+// --- css directive helpers -----------------------------------------------------------
+// The DOT-attribute -> css-declaration mapping lives once here, shared by the
+// node/edge/group style directives (it is the inverse of the css -> DOT derivation in
+// graph.AttributesOps).
+
+private def cssValue(attrs: Map[AttributeId, AttrValue], attrId: AttributeId): Option[String] =
+  attrs.get(attrId).map(_.toString).filter(_.nonEmpty)
+
+private def cssPx(attrs: Map[AttributeId, AttrValue], attrId: AttributeId): Option[String] =
+  attrs.get(attrId).map(v => s"${v.toString}px").filter(_.nonEmpty)
+
+/** Parse an attribute holding css declarations (only when it looks like css, i.e. contains ':'). */
+private def cssDeclarationsOf(attrs: Map[AttributeId, AttrValue], attrId: AttributeId): VectorMap[String, String] =
+  attrs
+    .get(attrId)
     .map(_.toString)
     .filter(_.contains(":"))
     .map(MermaidStyleDeclarations.parse)
     .getOrElse(VectorMap.empty)
 
-  val merged = baseStyleDeclarations
-    .updatedWith("fill")(existing => attrs.get(FillColor.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("stroke")(existing => attrs.get(Color.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("stroke-width")(existing => attrs.get(PenWidth.attrId).map(v => s"${v.toString}px").filter(_.nonEmpty).orElse(existing))
-    .updatedWith("color")(existing => attrs.get(FontColor.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("font-family")(existing => attrs.get(FontName.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("font-size")(existing => attrs.get(FontSize.attrId).map(v => s"${v.toString}px").filter(_.nonEmpty).orElse(existing))
+/** Layer per-attribute overrides (in order) onto base css declarations, drop blank values, format. */
+private def mergeCssOverrides(
+    base:      VectorMap[String, String],
+    overrides: Seq[(String, Option[String])]
+): Option[String] =
+  val merged = overrides
+    .foldLeft(base) { case (acc, (key, valueOpt)) =>
+      acc.updatedWith(key)(existing => valueOpt.orElse(existing))
+    }
     .filter((_, value) => value.trim.nonEmpty)
-
   if merged.isEmpty then None
   else Some(formatMermaidCssBody(merged))
 
+private def nodeStyleDirectiveCss(node: ViewerNode): Option[String] =
+  val attrs = node.attributes.values
+  mergeCssOverrides(
+    cssDeclarationsOf(attrs, Style.attrId),
+    Seq(
+      "fill"         -> cssValue(attrs, FillColor.attrId),
+      "stroke"       -> cssValue(attrs, Color.attrId),
+      "stroke-width" -> cssPx(attrs, PenWidth.attrId),
+      "color"        -> cssValue(attrs, FontColor.attrId),
+      "font-family"  -> cssValue(attrs, FontName.attrId),
+      "font-size"    -> cssPx(attrs, FontSize.attrId)
+    )
+  )
+
 private def edgeStyleDirectiveCss(arrow: Arrow): Option[String] =
   val attrs = arrow.attributes.values
-  val baseMermaidEdgeStyle = attrs
-    .get(MermaidEdgeStyleAttr)
-    .map(_.toString)
-    .filter(_.contains(":"))
-    .map(MermaidStyleDeclarations.parse)
-    .getOrElse(VectorMap.empty)
-  val baseCssFromStyleAttr = attrs
-    .get(Style.attrId)
-    .map(_.toString)
-    .filter(_.contains(":"))
-    .map(MermaidStyleDeclarations.parse)
-    .getOrElse(VectorMap.empty)
   val interpolateDeclaration = attrs
     .get(MermaidEdgeInterpolateAttr)
     .map(_.toString)
@@ -308,39 +312,31 @@ private def edgeStyleDirectiveCss(arrow: Arrow): Option[String] =
     .map(v => VectorMap("interpolate" -> v))
     .getOrElse(VectorMap.empty)
 
-  val base = baseMermaidEdgeStyle ++ baseCssFromStyleAttr ++ interpolateDeclaration
-  val merged = base
-    .updatedWith("stroke")(existing => attrs.get(Color.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("stroke-width")(existing => attrs.get(PenWidth.attrId).map(v => s"${v.toString}px").filter(_.nonEmpty).orElse(existing))
-    .updatedWith("color")(existing => attrs.get(FontColor.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("font-family")(existing => attrs.get(FontName.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("font-size")(existing => attrs.get(FontSize.attrId).map(v => s"${v.toString}px").filter(_.nonEmpty).orElse(existing))
-    .filter((_, value) => value.trim.nonEmpty)
-
-  if merged.isEmpty then None
-  else Some(formatMermaidCssBody(merged))
+  mergeCssOverrides(
+    cssDeclarationsOf(attrs, MermaidEdgeStyleAttr) ++ cssDeclarationsOf(attrs, Style.attrId) ++ interpolateDeclaration,
+    Seq(
+      "stroke"       -> cssValue(attrs, Color.attrId),
+      "stroke-width" -> cssPx(attrs, PenWidth.attrId),
+      "color"        -> cssValue(attrs, FontColor.attrId),
+      "font-family"  -> cssValue(attrs, FontName.attrId),
+      "font-size"    -> cssPx(attrs, FontSize.attrId)
+    )
+  )
 
 private def groupStyleDirectiveCss(group: ViewerGroup): Option[String] =
-  val attrs = group.attributes.values
-  val baseStyleDeclarations = attrs
-    .get(Style.attrId)
-    .map(_.toString)
-    .filter(_.contains(":"))
-    .map(MermaidStyleDeclarations.parse)
-    .getOrElse(VectorMap.empty)
-
+  val attrs       = group.attributes.values
   val borderColor = attrs.get(PenColor.attrId).orElse(attrs.get(Color.attrId)).map(_.toString).filter(_.nonEmpty)
-  val merged = baseStyleDeclarations
-    .updatedWith("fill")(existing => attrs.get(FillColor.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("stroke")(existing => borderColor.orElse(existing))
-    .updatedWith("stroke-width")(existing => attrs.get(PenWidth.attrId).map(v => s"${v.toString}px").filter(_.nonEmpty).orElse(existing))
-    .updatedWith("color")(existing => attrs.get(FontColor.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("font-family")(existing => attrs.get(FontName.attrId).map(_.toString).filter(_.nonEmpty).orElse(existing))
-    .updatedWith("font-size")(existing => attrs.get(FontSize.attrId).map(v => s"${v.toString}px").filter(_.nonEmpty).orElse(existing))
-    .filter((_, value) => value.trim.nonEmpty)
-
-  if merged.isEmpty then None
-  else Some(formatMermaidCssBody(merged))
+  mergeCssOverrides(
+    cssDeclarationsOf(attrs, Style.attrId),
+    Seq(
+      "fill"         -> cssValue(attrs, FillColor.attrId),
+      "stroke"       -> borderColor,
+      "stroke-width" -> cssPx(attrs, PenWidth.attrId),
+      "color"        -> cssValue(attrs, FontColor.attrId),
+      "font-family"  -> cssValue(attrs, FontName.attrId),
+      "font-size"    -> cssPx(attrs, FontSize.attrId)
+    )
+  )
 
 private def formatMermaidCssBody(declarations: VectorMap[String, String]): String =
   val preferred = MermaidNodeCssPreferredKeyOrder.flatMap { key =>

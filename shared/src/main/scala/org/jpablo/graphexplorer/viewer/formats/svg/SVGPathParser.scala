@@ -161,16 +161,3 @@ class SVGPathParser extends RegexParsers:
 object SVGPathParser:
   def parse(input: String): Either[String, List[PathCommand]] =
     (new SVGPathParser).parse(input)
-
-// Example usage
-@main def testSVGPathParser(): Unit =
-//  val testPath = "M10 10 L 20 20 H 30 V 40 C 10 20 30 40 50 60 Z"
-  val testPath = "M325.6,-264.61C298.88,-252.16 262.71,-235.31 234.01,-221.94"
-  println(testPath)
-  SVGPathParser.parse(testPath) match
-    case Right(commands) =>
-      println("Successfully parsed:")
-      commands.foreach(println)
-      println(PathCommand.toData(commands))
-    case Left(error) =>
-      println(error)
