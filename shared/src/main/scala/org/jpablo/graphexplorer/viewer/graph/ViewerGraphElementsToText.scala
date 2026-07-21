@@ -44,8 +44,15 @@ def viewerGraphElementsToText(
   def padding(level: Int): String =
     if (hasNestedSubgraphs || hasComplexHtmlLabels) "    " * level else "  " * level
 
+  // Escape a raw string for embedding inside a DOT double-quoted string.
+  // Only the double-quote delimiter is escaped here: backslashes/newlines in
+  // label values are already escaped upstream (formats.dot.TextUtils.escape),
+  // so escaping them again would double them. Applied to every emitted value
+  // and id, otherwise a value containing a `"` produces malformed DOT.
+  def escapeDotString(value: String): String = value.replace("\"", "\\\"")
+
   // Helper to format a single attribute value
-  def formatValue(value: String): String = s""""$value""""
+  def formatValue(value: String): String = s""""${escapeDotString(value)}""""
 
   // Helper to format a label value - HTML labels use <> notation, others use quotes
   def formatLabelValue(value: String): String = {
@@ -53,7 +60,7 @@ def viewerGraphElementsToText(
       // Remove leading/trailing whitespace and format HTML labels
       val trimmed = value.trim
       s"<$trimmed>"
-    } else s""""$value""""
+    } else s""""${escapeDotString(value)}""""
   }
 
   // Helper to collect attributes from ViewerNode directly
@@ -202,7 +209,7 @@ def viewerGraphElementsToText(
   val graphTypeStr = if graphType.isDirected then "digraph" else "graph"
   val edgeOp    = if graphType.isDirected then "->" else "--"
 
-  lines += s"""$graphTypeStr "${graphName}" {"""
+  lines += s"""$graphTypeStr "${escapeDotString(graphName)}" {"""
 
   // Add graph attributes (exclude name and directed as they're handled specially)
   val graphAttrs = collectGraphAttributes(elements.graphAttributes, Set("name", "directed"))
@@ -241,8 +248,8 @@ def viewerGraphElementsToText(
   // level changes the whole layout ("wrong ownership of arrows").
   val emittedArrows = scala.collection.mutable.Set[org.jpablo.graphexplorer.viewer.models.ArrowId]()
   def emitArrow(arrow: Arrow, level: Int): Unit = {
-    val tailPort = arrow.sourcePort.map(p => s""":\"$p\"""").getOrElse("")
-    val headPort = arrow.targetPort.map(p => s""":\"$p\"""").getOrElse("")
+    val tailPort = arrow.sourcePort.map(p => s""":\"${escapeDotString(p)}\"""").getOrElse("")
+    val headPort = arrow.targetPort.map(p => s""":\"${escapeDotString(p)}\"""").getOrElse("")
 
     val edgeAttrs = collectEdgeAttributes(arrow, Set("tail", "head"))
 
@@ -251,7 +258,7 @@ def viewerGraphElementsToText(
     else
       formatAttributes(edgeAttrs)
 
-    lines += s"""${padding(level)}"${arrow.source.value}"$tailPort $edgeOp "${arrow.target.value}"$headPort$attrFormatting;"""
+    lines += s"""${padding(level)}"${escapeDotString(arrow.source.value)}"$tailPort $edgeOp "${escapeDotString(arrow.target.value)}"$headPort$attrFormatting;"""
     emittedArrows += arrow.id
   }
 
@@ -262,13 +269,15 @@ def viewerGraphElementsToText(
 
     val group = elements.groups(groupId)
 
-    // Add "cluster" prefix only for groups that look like they were stripped cluster IDs
-    // These have cluster="true" and simple IDs like "0", "test", but NOT complex names like "first_group"
-    val isCluster                = group.attributes.values.get(AttributeId("cluster")).exists(_.toString == "true")
-    val looksLikeStrippedCluster = group.id.value.matches("\\d+|[a-z]+") && group.id.value.length <= 10
-    val shouldRestorePrefix      = isCluster && looksLikeStrippedCluster
-    val subgraphName             = if (shouldRestorePrefix) s"cluster_${group.id.value}" else group.id.value
-    lines += s"""${padding(level)}subgraph "$subgraphName" {"""
+    // Graphviz only draws a subgraph as a cluster when its name starts with "cluster",
+    // and GroupId.fromDot strips that prefix on import (storing cluster="true"). Restore
+    // the prefix from the reliable `cluster` attribute — not from the id's spelling, which
+    // dropped cluster semantics for ids with uppercase/underscores or > 10 chars.
+    val isCluster    = group.attributes.values.get(AttributeId("cluster")).exists(_.toString == "true")
+    val subgraphName =
+      if (isCluster && !group.id.value.startsWith("cluster")) s"cluster_${group.id.value}"
+      else group.id.value
+    lines += s"""${padding(level)}subgraph "${escapeDotString(subgraphName)}" {"""
 
     val clusterAttrs = collectClusterAttributes(group)
     if (clusterAttrs.nonEmpty) {
@@ -316,7 +325,7 @@ def viewerGraphElementsToText(
         formatAttributesMultiLine(nodeAttrs, level + 1, hasComplexHtmlLabels || nodeAttrs.length > 1)
       else
         formatAttributes(nodeAttrs)
-      lines += s"""${padding(level + 1)}"${node.id.value}"$attrFormatting;"""
+      lines += s"""${padding(level + 1)}"${escapeDotString(node.id.value)}"$attrFormatting;"""
     }
 
     // Add arrows DECLARED in this cluster (innermost owner), in seq order
@@ -362,7 +371,7 @@ def viewerGraphElementsToText(
         formatAttributesMultiLine(nodeAttrs, 1, hasComplexHtmlLabels || nodeAttrs.length > 1)
       else
         formatAttributes(nodeAttrs)
-      lines += s"""${padding(1)}"${node.id.value}"$attrFormatting;"""
+      lines += s"""${padding(1)}"${escapeDotString(node.id.value)}"$attrFormatting;"""
     }
   }
 

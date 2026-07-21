@@ -40,8 +40,11 @@ class ArrowOwnershipRoundTripSpec extends FunSuite:
     val out = viewerGraphToText(vg, omitInternal = false)
     def idx(s: String): Int =
       val i = out.indexOf(s); assert(i >= 0, s"not found: $s"); i
-    val g1Open  = idx("subgraph \"G1\"")
-    val g2Open  = idx("subgraph \"G2\"")
+    // cluster="true" groups restore their graphviz `cluster_` prefix on export
+    // (GroupId.fromDot stripped it on import: cluster_G1 -> "G1"), so fdp lays them
+    // out as clusters exactly like the original source.
+    val g1Open  = idx("subgraph \"cluster_G1\"")
+    val g2Open  = idx("subgraph \"cluster_G2\"")
     // declaration order: G1 before G2 (memberships is a Map -- must be sorted)
     assert(g1Open < g2Open, "nested clusters must serialize in _gvid order")
     // G1 edges live between the G1 open and the G2 open

@@ -58,34 +58,20 @@ trait CombineNodesOps:
           node.id -> s"f$idx"
         }.toMap
 
-        // Remap all edges
-        val remappedArrows = arrows.map { case (arrowId, arrow) =>
-          val newSource = portMapping.get(arrow.source) match
-            case Some(port) => arrow.source  // Will be replaced below
-            case None => arrow.source
-
-          val newTarget = portMapping.get(arrow.target) match
-            case Some(port) => arrow.target
-            case None => arrow.target
-
-          val newSourcePort = portMapping.get(arrow.source) match
-            case Some(port) => Some(port)
-            case None => arrow.sourcePort
-
-          val newTargetPort = portMapping.get(arrow.target) match
-            case Some(port) => Some(port)
-            case None => arrow.targetPort
-
-          // Update source/target if they were in the combined nodes
+        // Remap all edges, keeping the old->new ArrowId correspondence so arrow
+        // cluster ownership (arrowMemberships) survives the id change.
+        val arrowRemap: Seq[(ArrowId, Arrow)] = arrows.toSeq.map { case (oldArrowId, arrow) =>
           val updatedArrow = arrow.copy(
             source = if portMapping.contains(arrow.source) then newNodeId else arrow.source,
             target = if portMapping.contains(arrow.target) then newNodeId else arrow.target,
-            sourcePort = newSourcePort,
-            targetPort = newTargetPort
+            sourcePort = portMapping.get(arrow.source).orElse(arrow.sourcePort),
+            targetPort = portMapping.get(arrow.target).orElse(arrow.targetPort)
           )
-
-          updatedArrow.id -> updatedArrow
+          oldArrowId -> updatedArrow
         }
+        val remappedArrows          = VectorMap.from(arrowRemap.map((_, a) => a.id -> a))
+        val idRemap                 = arrowRemap.map((oldId, a) => oldId -> a.id).toMap
+        val updatedArrowMemberships = elements.arrowMemberships.flatMap((oldId, g) => idRemap.get(oldId).map(_ -> g))
 
         // Build the new graph
         val updatedNodes = (nodes -- nodeIds) + (newNodeId -> newNode)
@@ -94,8 +80,9 @@ trait CombineNodesOps:
         copy(
           elements = elements.copy(
             nodes = updatedNodes,
-            arrows = VectorMap.from(remappedArrows),
-            memberships = updatedMemberships
+            arrows = remappedArrows,
+            memberships = updatedMemberships,
+            arrowMemberships = updatedArrowMemberships
           )
         )
 
@@ -150,8 +137,8 @@ trait CombineNodesOps:
           val recordLabel = recordNode.label.toString
           val fieldLabels = parseRecordLabel(recordLabel)
 
-          if fieldLabels.isEmpty then
-            this  // Cannot parse label, return unchanged
+          if fieldLabels.forall(_.isEmpty) then
+            this  // Nothing meaningful to split into, return unchanged
           else
             // Get the group membership of the record node
             val groupMembership = memberships.get(nodeId)
@@ -167,19 +154,24 @@ trait CombineNodesOps:
               case ((newId, _), idx) => s"f$idx" -> newId
             }.toMap
 
-            // Remap all edges
-            val remappedArrows = arrows.map { case (arrowId, arrow) =>
-              // Check if source is the record node with a port
+            // Fallback for edges that touch the record without a resolvable port
+            // (a port-less edge, or a port name not present because the label was
+            // hand-authored). The record node is deleted below, so anything pointing
+            // at it must be re-homed to a real field node — the first one — instead
+            // of the now-nonexistent record id.
+            val firstNewNodeId = newNodes.head._1
+
+            // Remap all edges, keeping old->new ArrowId correspondence for arrowMemberships.
+            val arrowRemap: Seq[(ArrowId, Arrow)] = arrows.toSeq.map { case (oldArrowId, arrow) =>
               val (newSource, newSourcePort) =
-                if arrow.source == nodeId && arrow.sourcePort.isDefined then
-                  (portToNodeMap.getOrElse(arrow.sourcePort.get, arrow.source), None)
+                if arrow.source == nodeId then
+                  (arrow.sourcePort.flatMap(portToNodeMap.get).getOrElse(firstNewNodeId), None)
                 else
                   (arrow.source, arrow.sourcePort)
 
-              // Check if target is the record node with a port
               val (newTarget, newTargetPort) =
-                if arrow.target == nodeId && arrow.targetPort.isDefined then
-                  (portToNodeMap.getOrElse(arrow.targetPort.get, arrow.target), None)
+                if arrow.target == nodeId then
+                  (arrow.targetPort.flatMap(portToNodeMap.get).getOrElse(firstNewNodeId), None)
                 else
                   (arrow.target, arrow.targetPort)
 
@@ -189,9 +181,11 @@ trait CombineNodesOps:
                 sourcePort = newSourcePort,
                 targetPort = newTargetPort
               )
-
-              updatedArrow.id -> updatedArrow
+              oldArrowId -> updatedArrow
             }
+            val remappedArrows          = VectorMap.from(arrowRemap.map((_, a) => a.id -> a))
+            val idRemap                 = arrowRemap.map((oldId, a) => oldId -> a.id).toMap
+            val updatedArrowMemberships = elements.arrowMemberships.flatMap((oldId, g) => idRemap.get(oldId).map(_ -> g))
 
             // Build the new graph
             val updatedNodes = (nodes - nodeId) ++ newNodes.map { case (id, node) => id -> node }
@@ -201,8 +195,9 @@ trait CombineNodesOps:
             copy(
               elements = elements.copy(
                 nodes = updatedNodes,
-                arrows = VectorMap.from(remappedArrows),
-                memberships = updatedMemberships
+                arrows = remappedArrows,
+                memberships = updatedMemberships,
+                arrowMemberships = updatedArrowMemberships
               )
             )
 
@@ -219,6 +214,9 @@ trait CombineNodesOps:
     else
       recordLabel
 
+    // Keep every field positionally (do NOT drop empty labels): the f<index> ports
+    // on edges are positional, so dropping an empty field would misalign the indices
+    // and send an edge into the wrong (or a deleted) node when splitting.
     cleanLabel.split(" \\| ").toSeq.map { field =>
       // Remove port identifier (e.g., "<f0> ")
       val labelPart = field.replaceFirst("^<f\\d+>\\s*", "")
@@ -229,7 +227,7 @@ trait CombineNodesOps:
         .replace("\\>", ">")
         .replace("\\{", "{")
         .replace("\\}", "}")
-    }.filter(_.nonEmpty)
+    }
 
   /** Transposes a record node between horizontal and vertical orientations.
     * Toggles between wrapped (vertical) and unwrapped (horizontal) formats.

@@ -37,6 +37,12 @@ object MermaidEdgeLabelFallback:
   private val InlineLabelPattern =
     raw"""([A-Za-z0-9_][A-Za-z0-9_-]*)\s+--\s+(.+?)\s+-->\s+([A-Za-z0-9_][A-Za-z0-9_-]*)""".r
 
+  // Matches a plain (label-less) edge: A --> B, A -.-> B, A ==> B, A --- B, ...
+  // Requires at least one line char (- . =) in the link so it won't match arbitrary
+  // token pairs. Used only to advance the per-pair ordinal for unlabeled edges.
+  private val PlainEdgePattern =
+    raw"""([A-Za-z0-9_][A-Za-z0-9_-]*)\s+[-.=<>ox~]*[-.=][-.=<>ox~]*\s+([A-Za-z0-9_][A-Za-z0-9_-]*)""".r
+
   /** When Mermaid's parser drops edge labels from `getEdges()`, recover them from the raw source text.
     *
     * Parser-provided labels are always preferred. Recovery is applied only to edges whose `text` field is empty or
@@ -71,29 +77,50 @@ object MermaidEdgeLabelFallback:
       .map(_.trim)
       .filter(line => line.nonEmpty && !isIgnoredLine(line))
       .foreach { line =>
-        extractLabelFromLine(line).foreach { case (source, label, target) =>
+        // Advance the per-pair ordinal for EVERY edge line (labeled or not) so it stays
+        // in lockstep with ToViewerGraph / withSourceEdgeLabels, which count all edges of
+        // a pair. Counting only labeled lines misaligned the ordinal and attached a label
+        // to the wrong edge whenever a pair mixed labeled and unlabeled edges.
+        extractEdgeFromLine(line).foreach { case (source, target, labelOpt) =>
           val key = (source, target)
           counts(key) += 1
-          result((source, target, counts(key))) = label
+          labelOpt.foreach(label => result((source, target, counts(key))) = label)
         }
       }
     result.toMap
 
-  private def extractLabelFromLine(line: String): Option[(String, String, String)] =
-    PipeLabelPattern
-      .findPrefixMatchOf(line)
-      .map(m => (m.group(1), normalizeLabel(m.group(2)), m.group(3)))
-      .filter { case (_, label, _) => label.nonEmpty }
-      .orElse {
-        InlineLabelPattern
-          .findPrefixMatchOf(line)
-          .map(m => (m.group(1), normalizeLabel(m.group(2)), m.group(3)))
-          .filter { case (_, label, _) => label.nonEmpty }
-      }
+  /** Parse an edge line into (source, target, optional label). Tries the labeled
+    * syntaxes first (recovering a non-empty label), then a plain label-less edge, so the
+    * per-pair ordinal advances once per edge regardless of whether it carries a label. */
+  private def extractEdgeFromLine(line: String): Option[(String, String, Option[String])] =
+    val labeled =
+      PipeLabelPattern.findPrefixMatchOf(line)
+        .map(m => (m.group(1), m.group(3), normalizeLabel(m.group(2))))
+        .filter { case (_, _, label) => label.nonEmpty }
+        .orElse {
+          InlineLabelPattern.findPrefixMatchOf(line)
+            .map(m => (m.group(1), m.group(3), normalizeLabel(m.group(2))))
+            .filter { case (_, _, label) => label.nonEmpty }
+        }
+        .map { case (s, t, label) => (s, t, Some(label)) }
+    labeled.orElse(
+      PlainEdgePattern.findPrefixMatchOf(line).map(m => (m.group(1), m.group(2), None))
+    )
 
   private def isIgnoredLine(line: String): Boolean =
     val lower = line.toLowerCase
-    IgnoredLinePrefixes.exists(prefix => lower.startsWith(prefix))
+    IgnoredLinePrefixes.exists(prefix => isIgnoredPrefix(lower, prefix))
+
+  // A directive keyword only ignores a line when it appears as a WHOLE word, so an edge
+  // whose endpoint id merely starts with one (e.g. `graphState --> B`, `endNode --> B`)
+  // is not dropped. Prefixes already ending in a space, and the `%%` comment marker, keep
+  // plain startsWith semantics.
+  private def isIgnoredPrefix(lower: String, prefix: String): Boolean =
+    if prefix.endsWith(" ") || prefix == "%%" then lower.startsWith(prefix)
+    else lower == prefix || (lower.startsWith(prefix) && !isIdentifierChar(lower.charAt(prefix.length)))
+
+  private def isIdentifierChar(c: Char): Boolean =
+    c.isLetterOrDigit || c == '_' || c == '-'
 
   private def normalizeLabel(raw: String): String =
     val trimmed = raw.trim

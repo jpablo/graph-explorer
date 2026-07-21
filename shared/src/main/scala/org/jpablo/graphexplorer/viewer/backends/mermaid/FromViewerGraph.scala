@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Color, FillColor, FontColor, FontName, FontSize, Label, PenColor, PenWidth, Rankdir, Shape, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, Color, FillColor, FontColor, FontName, FontSize, Label, PenColor, PenWidth, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -54,7 +54,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
       val title = group.label.toString match
         case s if s.nonEmpty => s" [$s]"
         case _               => ""
-      lines.append(s"  subgraph ${groupId.value}$title\n")
+      lines.append(s"  subgraph ${mermaidId(groupId.value)}$title\n")
 
       // Find nodes in this subgraph
       val nodesInGroup = graph.memberships.collect {
@@ -97,13 +97,13 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   // Emit inline style directives for nodes, merging CSS style text and normalized node attrs.
   graph.nodes.foreach { case (nodeId, node) =>
     nodeStyleDirectiveCss(node).foreach { css =>
-      lines.append(s"  style ${nodeId.value} $css\n")
+      lines.append(s"  style ${mermaidId(nodeId.value)} $css\n")
     }
   }
   graph.groups.toVector.sortBy(_._1.value).foreach { case (groupId, group) =>
     if groupId != rootGroupId then
       groupStyleDirectiveCss(group).foreach { css =>
-        lines.append(s"  style ${groupId.value} $css\n")
+        lines.append(s"  style ${mermaidId(groupId.value)} $css\n")
       }
   }
   emitGroupClassLines(lines, graph.groups, rootGroupId)
@@ -116,30 +116,55 @@ private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
   val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
   val classOpt = node.attributes.values.get(MermaidClassAttr).map(_.toString).filter(_.nonEmpty)
 
+  val safeId                      = mermaidId(nodeId.value)
   val label                       = labelOpt.getOrElse(nodeId.value)
   val (openBracket, closeBracket) = shapeOpt.map(dotShapeToMermaid).getOrElse(("[", "]"))
   val classSuffix                 = classOpt.map(c => s":::$c").getOrElse("")
 
-  if shapeOpt.isEmpty && label == nodeId.value then
-    s"${nodeId.value}$classSuffix"
+  // Bare form only when the id is already Mermaid-safe and there is no shape/label to show.
+  if shapeOpt.isEmpty && label == nodeId.value && safeId == nodeId.value then
+    s"$safeId$classSuffix"
   else
     // Escape label for Mermaid (quotes need special handling)
     val escapedLabel = escapeMermaidLabel(label)
-    s"${nodeId.value}$openBracket$escapedLabel$closeBracket$classSuffix"
+    s"$safeId$openBracket$escapedLabel$closeBracket$classSuffix"
 
 /** Serialize an edge with its style and label. */
 private def serializeEdge(arrow: Arrow): String =
-  val styleOpt  = arrow.attributes.values.get(Style.attrId).map(_.toString)
-  val arrowType = dotStyleToMermaidArrow(styleOpt)
+  val arrowType = dotStyleToMermaidArrow(edgeLineStyle(arrow.attributes))
 
   val labelOpt  = arrow.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val labelPart = labelOpt.map(l => s"|${escapeMermaidLabel(l)}|").getOrElse("")
 
-  s"${arrow.source.value} $arrowType$labelPart ${arrow.target.value}"
+  s"${mermaidId(arrow.source.value)} $arrowType$labelPart ${mermaidId(arrow.target.value)}"
 
-/** Maps DOT shape names back to Mermaid bracket syntax.
+/** Derive the DOT line-style keyword (dashed/dotted/bold) for an edge from either a
+  * collapsed `style` attribute (Mermaid-sourced) or the expanded style sub-attributes
+  * BorderStyle/BoldStyle. DOT import expands `style` into these sub-attributes and
+  * removes `style`, so reading `style` alone would silently drop dashed/dotted/bold
+  * edges and emit plain solid arrows. Note: Mermaid cannot distinguish dashed from
+  * dotted, so both collapse to `-.->`. */
+private def edgeLineStyle(attrs: Attributes): Option[String] =
+  val values = attrs.values
+  values
+    .get(Style.attrId).map(_.toString).filterNot(_.contains(":"))
+    .orElse(Option.when(values.get(BoldStyle.attrId).exists(_.toString == "true"))("bold"))
+    .orElse(values.get(BorderStyle.attrId).map(_.toString))
+
+/** Map a node/subgraph id to a Mermaid-safe identifier, applied consistently at every id
+  * emission site (node defs, edges, subgraphs, style/class directives) so references still
+  * resolve. Ids with whitespace or metacharacters (possible after DOT import of quoted ids)
+  * would otherwise produce invalid/mis-parsed Mermaid. Already-safe ids pass through unchanged. */
+private def mermaidId(id: String): String =
+  if id.forall(c => c.isLetterOrDigit || c == '_' || c == '-') then id
+  else id.replaceAll("[^A-Za-z0-9_-]", "_")
+
+/** Maps DOT shape names to Mermaid bracket syntax (paired with `mermaidShapeToDot`).
   *
-  * This is the inverse of `mermaidShapeToDot` in ToViewerGraph.scala.
+  * Not a perfect inverse: Mermaid has fewer shapes than DOT, so several DOT shapes
+  * collapse onto the same brackets (e.g. `ellipse` and `stadium` both use `([ ])`).
+  * `mermaidShapeToDot` resolves each bracket to one canonical DOT shape so the
+  * common shapes stay stable across a round-trip.
   */
 private def dotShapeToMermaid(dotShape: String): (String, String) =
   dotShape.toLowerCase match
@@ -156,7 +181,9 @@ private def dotShapeToMermaid(dotShape: String): (String, String) =
     case "stadium"                    => ("([", "])")
     case _                            => ("[", "]") // Default to rectangle
 
-/** Maps DOT edge styles to Mermaid arrow syntax. */
+/** Maps DOT edge styles to Mermaid arrow syntax. Mermaid's arrow syntax cannot
+  * distinguish dashed from dotted, so both map to `-.->` (round-tripping as dashed);
+  * finer distinctions would need a `linkStyle stroke-dasharray` directive. */
 private def dotStyleToMermaidArrow(styleOpt: Option[String]): String =
   styleOpt match
     case Some("dashed") => "-.->"
@@ -222,7 +249,7 @@ private def emitGroupClassLines(
           .toVector
           .flatMap(parseMermaidClassNames)
         if classNames.nonEmpty then
-          lines.append(s"  class ${groupId.value} ${classNames.mkString(",")}\n")
+          lines.append(s"  class ${mermaidId(groupId.value)} ${classNames.mkString(",")}\n")
     }
 
 private def parseMermaidClassNames(value: String): Vector[String] =

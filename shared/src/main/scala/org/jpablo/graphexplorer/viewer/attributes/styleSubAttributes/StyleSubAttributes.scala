@@ -81,7 +81,8 @@ case class StyleSubAttributes(
         case Single(b) => parts += b.toString
         case _         =>
       val str = parts.mkString(",")
-      assert(str.nonEmpty)
+      // A non-`missing` StyleSubAttributes can legitimately emit no tokens (e.g. only
+      // fill=false), so return None rather than asserting non-empty.
       if str.isEmpty then None else Some(str)
 
   def toStyleStrings: Option[String] =

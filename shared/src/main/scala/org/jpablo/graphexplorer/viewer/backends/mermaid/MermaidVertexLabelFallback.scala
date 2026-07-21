@@ -61,7 +61,18 @@ object MermaidVertexLabelFallback:
 
   private def shouldIgnoreLine(line: String): Boolean =
     val lower = line.toLowerCase
-    IgnoredLinePrefixes.exists(prefix => lower.startsWith(prefix))
+    IgnoredLinePrefixes.exists(prefix => isIgnoredPrefix(lower, prefix))
+
+  // A directive keyword only ignores a line when it appears as a WHOLE word, so a node
+  // id that merely starts with one (e.g. `graphState[...]`, `endNode[...]`) is not
+  // dropped. Prefixes already ending in a space, and the `%%` comment marker, keep
+  // plain startsWith semantics.
+  private def isIgnoredPrefix(lower: String, prefix: String): Boolean =
+    if prefix.endsWith(" ") || prefix == "%%" then lower.startsWith(prefix)
+    else lower == prefix || (lower.startsWith(prefix) && !isIdentifierChar(lower.charAt(prefix.length)))
+
+  private def isIdentifierChar(c: Char): Boolean =
+    c.isLetterOrDigit || c == '_' || c == '-'
 
   /** Match only at the start of the line to avoid spurious matches inside
     * quoted node labels or edge label content (between `|...|`).
@@ -71,16 +82,15 @@ object MermaidVertexLabelFallback:
     * vertex `n`. Anchoring to the line prefix prevents this.
     */
   private def extractVertexLabelsFromLine(line: String): Map[String, String] =
-    NodeLabelPatterns.foldLeft(Map.empty[String, String]) { (acc, pattern) =>
-      pattern.findPrefixMatchOf(line) match
-        case Some(m) =>
-          val nodeId = m.group(1)
-          val raw    = m.group(2)
-          val label  = normalizeLabel(raw)
-          if label.nonEmpty then acc + (nodeId -> label)
-          else acc
-        case None => acc
-    }
+    // First matching pattern wins: NodeLabelPatterns are ordered most-specific first
+    // (cylinder `[(..)]`, hexagon `{{..}}` before the general `[..]`/`{..}`), so a
+    // general pattern can no longer override the specific shape nested inside it
+    // (e.g. `A{{Hello}}` -> `Hello`, not `{Hello`).
+    NodeLabelPatterns.iterator
+      .flatMap(_.findPrefixMatchOf(line))
+      .map(m => m.group(1) -> normalizeLabel(m.group(2)))
+      .collectFirst { case kv @ (_, label) if label.nonEmpty => kv }
+      .toMap
 
   private def normalizeLabel(raw: String): String =
     val trimmed = raw.trim

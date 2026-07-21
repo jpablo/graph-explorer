@@ -93,8 +93,10 @@ trait GroupsOps:
       // Get the direct children first
       val directChildren = getDirectChildren(groupIds)
 
-      // Find which of the direct children are groups themselves
-      val childGroups = directChildren.collect { case memId if GroupId(memId.value) in groups => GroupId(memId.value) }
+      // Find which of the direct children are groups themselves. Match the actual
+      // GroupId subtype instead of reconstructing GroupId(memId.value), which would
+      // misclassify a NodeId whose value collides with an existing group id.
+      val childGroups = directChildren.collect { case g: GroupId if g in groups => g }
 
       // Base case: no child groups, return just the direct children
       if childGroups.isEmpty then directChildren

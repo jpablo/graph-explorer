@@ -168,7 +168,10 @@ private def mermaidShapeToDot(mermaidShape: String): String =
   mermaidShape.toLowerCase match
     case "rect" | "rectangle"      => "box"
     case "round" | "rounded"       => "box" // with rounded corners style
-    case "stadium"                 => "box"
+    // Mermaid stadium brackets `([ ])` are also what a DOT `ellipse` serializes to
+    // (dotShapeToMermaid), so map stadium back to `ellipse` (a valid graphviz shape)
+    // to keep ellipse/stadium stable across a round-trip instead of collapsing to box.
+    case "stadium"                 => "ellipse"
     case "subroutine"              => "box"
     case "cylinder" | "database"   => "cylinder"
     case "circle"                  => "circle"

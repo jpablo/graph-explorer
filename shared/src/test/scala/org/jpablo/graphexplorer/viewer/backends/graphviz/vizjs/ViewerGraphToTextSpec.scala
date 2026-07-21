@@ -87,7 +87,7 @@ class ViewerGraphToTextSpec extends FunSuite:
          |    label="A title",
          |    rankdir="LR"
          |  ];
-         |  subgraph "first_group" {
+         |  subgraph "cluster_first_group" {
          |    graph [
          |      id="group:first_group",
          |      lp="43,97.2",
@@ -144,7 +144,7 @@ class ViewerGraphToTextSpec extends FunSuite:
          |    label="Diagram",
          |    rankdir="LR"
          |  ];
-         |  subgraph "g9c2b161c" {
+         |  subgraph "cluster_g9c2b161c" {
          |    graph [
          |      id="group:g9c2b161c",
          |      label="",
@@ -195,7 +195,7 @@ class ViewerGraphToTextSpec extends FunSuite:
          |    label="Diagram",
          |    rankdir="LR"
          |  ];
-         |  subgraph "g9c2b161c" {
+         |  subgraph "cluster_g9c2b161c" {
          |    graph [
          |      id="group:g9c2b161c",
          |      label="Custom Group Label",
@@ -265,13 +265,13 @@ class ViewerGraphToTextSpec extends FunSuite:
          |        label="",
          |        rankdir="LR"
          |    ];
-         |    subgraph "g0f6ceed0" {
+         |    subgraph "cluster_g0f6ceed0" {
          |        graph [
          |            id="group:g0f6ceed0",
          |            label="G1",
          |            cluster="true"
          |        ];
-         |        subgraph "gacd87035" {
+         |        subgraph "cluster_gacd87035" {
          |            graph [
          |                id="group:gacd87035",
          |                label="",
@@ -356,13 +356,13 @@ class ViewerGraphToTextSpec extends FunSuite:
          |        arrowhead="vee",
          |        arrowtail="none"
          |    ];
-         |    subgraph "G1" {
+         |    subgraph "cluster_G1" {
          |        graph [
          |            id="group:G1",
          |            label="group 1",
          |            cluster="true"
          |        ];
-         |        subgraph "G2" {
+         |        subgraph "cluster_G2" {
          |            graph [
          |                id="group:G2",
          |                label="group 2",

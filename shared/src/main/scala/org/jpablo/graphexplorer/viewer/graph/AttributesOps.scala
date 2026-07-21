@@ -135,7 +135,11 @@ object AttributesOps:
   private[graph] def normalizeFill(attrs: Attributes): Attributes =
     val fc = attrs.get(FillColor)
     fc match
-      case Some(v) if v.toString == FillColor.none => attrs + (FillStyle.attrId -> AttrValue(false.toString))
+      // fillcolor="none" means "no fill": drop the color as well as marking the fill
+      // style false. Leaving fillcolor="none" behind would be a fillcolor-without-filled
+      // combo, which the DOT export invariant (ViewerGraphElements.combineAttributes)
+      // forbids and asserts on — so exporting a node whose fill was cleared would crash.
+      case Some(v) if v.toString == FillColor.none => (attrs - FillColor) + (FillStyle.attrId -> AttrValue(false.toString))
       case Some(_)                                 => attrs + (FillStyle.attrId -> AttrValue(true.toString))
       case None                                    => attrs
 

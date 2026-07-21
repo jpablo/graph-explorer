@@ -104,6 +104,19 @@ case class ViewerGraph(
     val nodeIdsToRemove  = classified.nodes
     val arrowIdsToRemove = classified.arrows
 
+    // When a member's group is removed, re-parent to the nearest ANCESTOR group that
+    // survives the removal — walking past ancestors that are also being removed.
+    // Returning None re-homes the member to the top level (a standalone node), rather
+    // than leaving a membership pointing at a deleted group, which made the member
+    // vanish from the render (counted as a cluster member of a cluster never emitted).
+    @tailrec
+    def survivingContainer(groupId: GroupId): Option[GroupId] =
+      if !(groupId in groupIdsToRemove) then Some(groupId)
+      else
+        memberships.get(groupId) match
+          case Some(parent) => survivingContainer(parent)
+          case None         => None
+
     val updatedMemberships = memberships.flatMap: (elementId, groupId) =>
       // case 1: remove a nested group
       if elementId.asGroupId.exists(_ in groupIdsToRemove) then
@@ -113,8 +126,8 @@ case class ViewerGraph(
         None
       // case 3: remove a node from a group
       else if groupId in groupIdsToRemove then
-        // If group is deleted, add element to group's container if it exists
-        memberships.get(groupId).map(containerId => elementId -> containerId)
+        // Re-parent to the nearest surviving ancestor group (or top level).
+        survivingContainer(groupId).map(containerId => elementId -> containerId)
       else
         Some(elementId -> groupId) // Keep unchanged
 
@@ -123,11 +136,11 @@ case class ViewerGraph(
     }
 
     // Same policy as node memberships: drop entries for removed arrows;
-    // re-parent to the removed group's container when the group goes away.
+    // re-parent to the nearest surviving ancestor when the owning group goes away.
     val updatedArrowMemberships = elements.arrowMemberships.flatMap { (arrowId, groupId) =>
       if !updatedArrows.contains(arrowId) then None
       else if groupId in groupIdsToRemove then
-        memberships.get(groupId).map(containerId => arrowId -> containerId)
+        survivingContainer(groupId).map(containerId => arrowId -> containerId)
       else Some(arrowId -> groupId)
     }
 
@@ -191,13 +204,29 @@ case class ViewerGraph(
     val (newGraph, arrow) = addNodeWithId(nodeId, targetGroup, attributes).addArrow(nodeId, target)
     (newGraph, nodeId, arrow.id)
 
+  /** Carry an arrow's innermost-cluster ownership (arrowMemberships) across an
+    * operation that changes its ArrowId. Without this, an edge declared inside a
+    * cluster loses its ownership on move/reverse/combine and is re-serialized at
+    * top level, changing fdp/dot layout ("wrong ownership of arrows").
+    */
+  private def rekeyArrowMembership(oldId: ArrowId, newId: ArrowId): ViewerGraph =
+    if oldId == newId then this
+    else
+      this.modify(_.elements.arrowMemberships).using { am =>
+        am.get(oldId) match
+          case Some(groupId) => am - oldId + (newId -> groupId)
+          case None          => am
+      }
+
   def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId): (ViewerGraph, ArrowId) =
     val arrow = arrows(arrowId)
     val newArrow =
       newEndpoint match
         case ArrowEndpointId.SourceId(id) => arrow.copy(source = id)
         case ArrowEndpointId.TargetId(id) => arrow.copy(target = id)
-    (modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId), newArrow.id)
+    val updated = modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId)
+      .rekeyArrowMembership(arrowId, newArrow.id)
+    (updated, newArrow.id)
 
   def effectiveAttributeValue[A](
       dotAttribute: DotAttribute[A],
@@ -263,8 +292,9 @@ case class ViewerGraph(
           val newSeq    = graphWithoutOriginal.maxArrowSequence(newSource, newTarget) + 1
           // 3. Create the reversed arrow
           val reversedArrow = Arrow(newSource, newTarget, attributes = originalArrow.attributes, seq = newSeq)
-          // 4. Add the reversed arrow
+          // 4. Add the reversed arrow, carrying its cluster ownership across the id change
           graphWithoutOriginal.modifyArrows.using(_ + (reversedArrow.id -> reversedArrow))
+            .rekeyArrowMembership(arrowId, reversedArrow.id)
 
   /** Smart connection behavior for adding nodes.
     *
@@ -466,8 +496,16 @@ object ViewerGraph:
       toBase26(n).reverse.map(i => (i + 97).toChar).mkString
 
   def basic(arrows: (NodeId, NodeId)*): ViewerGraph =
+    // Assign a per-(source,target) sequence so parallel/duplicate edges get distinct
+    // ArrowIds instead of collapsing to one via .toMap (all-seq-1 would dedup).
+    val (builtArrows, _) =
+      arrows.foldLeft((Vector.empty[Arrow], Map.empty[(NodeId, NodeId), Int])) {
+        case ((acc, seqByPair), (a, b)) =>
+          val seq = seqByPair.getOrElse((a, b), 0) + 1
+          (acc :+ Arrow(a, b, seq = seq), seqByPair.updated((a, b), seq))
+      }
     ViewerGraph(
-      ViewerGraphElements(arrows = arrows.map((a, b) => Arrow(a, b)).map(a => a.id -> a).toMap)
+      ViewerGraphElements(arrows = builtArrows.map(a => a.id -> a).toMap)
     )
 
   val minimal: ViewerGraph = ViewerGraph()
