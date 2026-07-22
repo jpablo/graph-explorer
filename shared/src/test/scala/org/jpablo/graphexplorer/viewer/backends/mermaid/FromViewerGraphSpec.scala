@@ -819,3 +819,34 @@ class FromViewerGraphSpec extends FunSuite:
     val result = viewerGraphToMermaidText(graph)
 
     assert(result.contains("A[a\\nb]"), s"Literal backslash-n should stay verbatim, got: $result")
+
+  test("viewerGraphToMermaidText should nest child subgraphs inside their parent"):
+    val nodeA = NodeId("a")
+    val nodeB = NodeId("b")
+    val g1    = GroupId("G1")
+    val g2    = GroupId("G2")
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(
+          nodeA -> ViewerNode.nodeWithDefaults(nodeA),
+          nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+        ),
+        groups = Map(
+          g1 -> ViewerGroup.group(g1, Attributes.empty),
+          g2 -> ViewerGroup.group(g2, Attributes.empty)
+        ),
+        memberships = VectorMap(nodeA -> g1, g2 -> g1, nodeB -> g2)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    val expected =
+      """  subgraph G1
+        |    a
+        |    subgraph G2
+        |      b
+        |    end
+        |  end
+        |""".stripMargin
+    assert(result.contains(expected), s"Child group should be emitted inside its parent, got: $result")

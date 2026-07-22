@@ -29,6 +29,9 @@ lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .enablePlugins(DynVerPlugin, BuildInfoPlugin)
   .in(file("shared"))
+  // Test-only: FeatureParitySpec closes the DOT text round-trip through the
+  // pure-Scala graphviz engine (the same parse path the app uses for `dot`).
+  .dependsOn(graphviz % "test->compile")
   .settings(
     name                     := "shared",
     Test / parallelExecution := false,

@@ -27,7 +27,11 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
     mermaidGraph.edges.iterator.flatMap(e => Iterator(e.start, e.end)).toSet ++
       mermaidGraph.subgraphs.iterator.flatMap(_.nodes).toSet
 
-  // Convert vertices to nodes
+  val subgraphIds: Set[String] = mermaidGraph.subgraphs.iterator.map(_.id).toSet
+
+  // Convert vertices to nodes. mermaid.js also lists subgraph ids in its vertices
+  // dictionary — those are groups, not nodes, and materializing them here would emit
+  // a stray standalone node statement on the next serialization.
   val nodes: VectorMap[NodeId, ViewerNode] =
     mermaidGraph.vertices.iterator.foldLeft(VectorMap.empty[NodeId, ViewerNode]) { case (acc, (rawKey, vertex)) =>
       val vertexId = Option(vertex.id).filter(_.nonEmpty)
@@ -36,7 +40,7 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
         else vertexId.filter(referencedNodeIds.contains).getOrElse(rawKey)
       val nodeId      = NodeId(canonicalId)
       val attrs       = vertexToAttributes(vertex.copy(id = canonicalId))
-      if acc.contains(nodeId) then acc
+      if subgraphIds.contains(canonicalId) || acc.contains(nodeId) then acc
       else acc.updated(nodeId, ViewerNode.nodeNoDefaults(nodeId, attrs))
     }
 
@@ -71,13 +75,18 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
       groupId -> ViewerGroup.group(groupId, attrs)
     }.toMap
 
-  // Build memberships from subgraphs
+  // Build memberships from subgraphs. Mermaid lists a NESTED subgraph's id in the
+  // parent's member list, so an id naming another subgraph becomes a group->group
+  // membership; treating it as a node would both lose the nesting and fabricate a
+  // phantom node membership.
   val memberships: VectorMap[GroupMemberId, GroupId] =
     VectorMap.from(
       mermaidGraph.subgraphs.flatMap { subgraph =>
         val groupId = GroupId(subgraph.id)
-        subgraph.nodes.map { nodeIdStr =>
-          NodeId(nodeIdStr) -> groupId
+        subgraph.nodes.map { memberId =>
+          val member: GroupMemberId =
+            if subgraphIds.contains(memberId) then GroupId(memberId) else NodeId(memberId)
+          member -> groupId
         }
       }
     )

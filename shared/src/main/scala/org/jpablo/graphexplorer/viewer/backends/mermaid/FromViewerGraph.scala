@@ -51,25 +51,51 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
       .collect { case (nodeId: NodeId, gId) => (gId, nodeId) }
       .groupMap(_._1)(_._2)
 
-  // Serialize subgraphs (groups, excluding root)
+  // Serialize subgraphs (groups, excluding root). Child groups are emitted INSIDE
+  // their parent's block — Mermaid supports nested subgraphs, and emitting them flat
+  // would silently drop the group-in-group memberships on the next parse.
+  val childGroupsByParent: Map[GroupId, Vector[GroupId]] =
+    graph.memberships.toVector
+      .collect {
+        case (childId: GroupId, parentId) if parentId != rootGroupId && graph.groups.contains(parentId) =>
+          (parentId, childId)
+      }
+      .groupMap(_._1)(_._2)
+  val nestedGroupIds: Set[GroupId] = childGroupsByParent.values.flatten.toSet
+
   val subgraphNodes = scala.collection.mutable.Set[NodeId]()
-  sortedGroups.foreach { case (groupId, group) =>
-    if groupId != rootGroupId then
+  val emittedGroups = scala.collection.mutable.Set[GroupId]() // guards against membership cycles
+
+  def emitSubgraph(groupId: GroupId, group: ViewerGroup, depth: Int): Unit =
+    if emittedGroups.add(groupId) then
+      val indent = "  " * depth
       val title = MermaidLabelText.fromStored(group.label.toString) match
         case s if s.nonEmpty => s" [$s]"
         case _               => ""
-      lines.append(s"  subgraph ${mermaidId(groupId.value)}$title\n")
+      lines.append(s"${indent}subgraph ${mermaidId(groupId.value)}$title\n")
 
-      // Serialize nodes in this subgraph
+      // Member nodes first, then child subgraphs, each in deterministic id order
       nodesByGroup.getOrElse(groupId, Nil).toVector.sortBy(_.value).foreach { nodeId =>
         graph.nodes.get(nodeId).foreach { node =>
-          val nodeLine = serializeNode(nodeId, node)
-          lines.append(s"    $nodeLine\n")
+          lines.append(s"$indent  ${serializeNode(nodeId, node)}\n")
           subgraphNodes += nodeId
         }
       }
+      childGroupsByParent.getOrElse(groupId, Vector.empty).sortBy(_.value).foreach { childId =>
+        graph.groups.get(childId).foreach(child => emitSubgraph(childId, child, depth + 1))
+      }
 
-      lines.append("  end\n")
+      lines.append(s"${indent}end\n")
+
+  sortedGroups.foreach { case (groupId, group) =>
+    if groupId != rootGroupId && !nestedGroupIds.contains(groupId) then
+      emitSubgraph(groupId, group, depth = 1)
+  }
+  // A membership cycle (malformed input) leaves its groups unreachable from any
+  // top-level emission — emit them at top level rather than dropping them.
+  sortedGroups.foreach { case (groupId, group) =>
+    if groupId != rootGroupId && !emittedGroups.contains(groupId) then
+      emitSubgraph(groupId, group, depth = 1)
   }
 
   // Serialize nodes not in any subgraph

@@ -164,3 +164,25 @@ class ToViewerGraphSpec extends FunSuite:
 
     // Mermaid renders a\nb literally, so the stored form must be the escaped literal a\\nb
     assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("label")).map(_.toString), Some("a\\\\nb"))
+
+  test("toViewerGraph should reconstruct nested subgraphs as group-in-group memberships"):
+    val mg = MermaidGraph(
+      vertices = Map(
+        "a" -> MermaidVertex(id = "a", text = "a"),
+        "b" -> MermaidVertex(id = "b", text = "b"),
+        // mermaid.js also reports subgraph ids as entries in the vertices dictionary
+        "G2" -> MermaidVertex(id = "G2", text = "G2")
+      ),
+      subgraphs = List(
+        // Mermaid lists the nested subgraph's id in the parent's member list
+        MermaidSubgraph(id = "G1", nodes = List("a", "G2")),
+        MermaidSubgraph(id = "G2", nodes = List("b"))
+      )
+    )
+
+    val vg = toViewerGraph(mg)
+
+    assertEquals(vg.memberships.get(NodeId("a")), Some(GroupId("G1")))
+    assertEquals(vg.memberships.get(GroupId("G2")), Some(GroupId("G1")), "child subgraph must be a group member, not a node")
+    assertEquals(vg.memberships.get(NodeId("b")), Some(GroupId("G2")))
+    assert(!vg.nodes.contains(NodeId("G2")), "child subgraph id must not appear as a node")
