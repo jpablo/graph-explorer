@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, 
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElementStrategy}
-import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
+import org.jpablo.graphexplorer.viewer.domUtils.{parseSVG, querySelectorAllT}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -46,6 +46,8 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         val svg = parseSVG(svgString)
         MermaidBackend.normalizeRenderedSvg(svg.ref, defaultEdgeMarkerColor)
         val edgePositions = extractEdgePositions(svg.ref)
+        // After extractEdgePositions, so the id-less clones don't pollute the positions map
+        MermaidBackend.addEdgeHitAreas(svg.ref)
         dom.console.info(s"[mermaid] textToSvg complete id=$renderId edges=${edgePositions.size}")
         SvgWithPositions(svg, edgePositions)
       }
@@ -333,6 +335,31 @@ object MermaidBackend:
     normalizeEdgeMarkers(svg, defaultEdgeMarkerColor)
     enforceInlineStylePrecedence(svg)
     applyNodeInlineTextStyles(svg)
+
+  /** Mermaid edges are bare ~2px paths — a nearly unhittable click target. Insert an
+    * invisible, wider clone underneath each edge path so clicks within a few px of the
+    * curve still resolve to the edge. The clone keeps the `flowchart-link` class (so the
+    * selection machinery treats it as an edge) but carries the original's DOM id in
+    * `data-edge-id` (ids must stay unique) — MermaidSelectionStrategy reads that first,
+    * so clone and original resolve to the same ArrowId. `stroke-dasharray:none` matters:
+    * with `pointer-events: stroke`, a dashed clone would only hit-test on the dashes.
+    */
+  private[mermaid] def addEdgeHitAreas(svg: dom.svg.SVG): Unit =
+    svg.querySelectorAllT[dom.Element]("path.flowchart-link").foreach { p =>
+      val hit = p.cloneNode(false).asInstanceOf[dom.Element]
+      hit.removeAttribute("id")
+      hit.removeAttribute("marker-start")
+      hit.removeAttribute("marker-end")
+      hit.setAttribute("data-edge-id", p.id)
+      hit.setAttribute("class", s"${Option(p.getAttribute("class")).getOrElse("")} edge-hit-area".trim)
+      hit.setAttribute(
+        "style",
+        // non-scaling-stroke keeps the hit halo ~14 SCREEN px at any canvas zoom
+        "fill:none;stroke:transparent;stroke-width:14px;stroke-dasharray:none;stroke-linecap:round;" +
+          "pointer-events:stroke;vector-effect:non-scaling-stroke"
+      )
+      p.parentNode.insertBefore(hit, p)
+    }
 
   /** Mermaid 10 emits class-level rules with `!important` for classDef, but inline `style` declarations without it.
     * In the browser, classDef can therefore override inline style. We promote inline declarations to `!important`

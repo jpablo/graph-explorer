@@ -311,6 +311,8 @@ svg {
         stroke: #2c70ff !important;
         vector-effect: non-scaling-stroke;
         filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
+        // decoration only — must never intercept clicks aimed at covered elements
+        pointer-events: none;
       }
 
       .edge.selected,
@@ -327,6 +329,16 @@ svg {
       path.flowchart-link.selected,
       path.edgePath.selected {
         stroke: #2c70ff !important;
+      }
+
+      // Invisible wide hit-target clones under Mermaid edge paths (addEdgeHitAreas).
+      // Must never paint — including when the selection sync tags them .selected
+      // (three classes outrank the two-class .selected rule above).
+      path.flowchart-link.edge-hit-area,
+      path.flowchart-link.edge-hit-area.selected {
+        stroke: transparent !important;
+        filter: none !important;
+        animation: none !important;
       }
 
       // Make Mermaid edge label backgrounds semi-transparent so arrows remain visible

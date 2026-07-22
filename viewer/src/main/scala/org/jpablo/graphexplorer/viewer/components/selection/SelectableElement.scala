@@ -62,11 +62,17 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
   private def SelectedRect() =
     val bbox = ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
     svg.rect(
-      svg.cls    := selectionRectClass,
-      svg.x      := bbox.x.toString,
-      svg.y      := bbox.y.toString,
-      svg.width  := bbox.width.toString,
-      svg.height := bbox.height.toString
+      svg.cls := selectionRectClass,
+      // Selection decorations must be invisible to hit-testing: the rect has a painted
+      // fill, so without this it becomes an elementsFromPoint target over the whole
+      // bbox (for clusters, the entire group area) and click resolution can steer back
+      // to the decorated element instead of what the user aimed at (same rationale as
+      // #dragging-arrow-group in style.scss).
+      svg.pointerEvents := "none",
+      svg.x             := bbox.x.toString,
+      svg.y             := bbox.y.toString,
+      svg.width         := bbox.width.toString,
+      svg.height        := bbox.height.toString
     )
 
 object SelectableElement:

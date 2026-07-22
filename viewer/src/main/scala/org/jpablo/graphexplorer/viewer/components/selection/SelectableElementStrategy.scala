@@ -130,8 +130,11 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
 
   override def extractArrowId(e: dom.Element): ArrowId =
     def arrowIdFromElement(edgeElem: dom.Element): Option[ArrowId] =
+      // Hit-area clones (MermaidBackend.addEdgeHitAreas) carry the original path's DOM
+      // id in data-edge-id, since element ids must stay unique.
+      val domId = dataAttr(edgeElem, "data-edge-id").getOrElse(edgeElem.id)
       val idParts =
-        edgeElem.id match
+        domId match
           case mermaidEdgeIdPatternV11(s, t, idx) => Some((s, t, idx.toInt + 1))
           case mermaidEdgeIdPattern(s, t, idx)    => Some((s, t, idx.toInt + 1))
           case _                                  => None
