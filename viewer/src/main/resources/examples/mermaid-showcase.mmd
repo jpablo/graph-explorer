@@ -1,0 +1,18 @@
+---
+title: Graph Explorer — latest fixes
+---
+flowchart LR
+classDef fixed fill:#bbf7d0,stroke:#15803d
+subgraph Dialog [Edit Label Dialog]
+  typed["You press Shift+Enter…<br/>…you get a line break"]:::fixed
+end
+subgraph Backend [Mermaid Backend]
+  stored["Stored DOT-escaped:<br/>a literal \n stays verbatim"]
+  subgraph Nested [Nested Subgraph]
+    kept(("survives<br/>canvas edits")):::fixed
+  end
+end
+out{{"Rendered with<br/>real line breaks"}}
+typed -->|"escaped<br/>on save"| stored
+stored -.->|serialize| out
+stored ==> kept

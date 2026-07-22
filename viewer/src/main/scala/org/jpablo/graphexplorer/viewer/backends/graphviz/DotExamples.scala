@@ -27,5 +27,6 @@ object DotExamples:
     "Colors"                     -> ExampleSource("/examples/neato/colors.dot", DiagramFormat.DOT),
     "Twelve Colors"              -> ExampleSource("/examples/neato/twelve-colors.dot", DiagramFormat.DOT),
     // Mermaid examples
-    "Mermaid: Microservices"     -> ExampleSource("/examples/mermaid-microservices.mmd", DiagramFormat.Mermaid)
+    "Mermaid: Microservices"     -> ExampleSource("/examples/mermaid-microservices.mmd", DiagramFormat.Mermaid),
+    "Mermaid: Feature Showcase"  -> ExampleSource("/examples/mermaid-showcase.mmd", DiagramFormat.Mermaid)
   )

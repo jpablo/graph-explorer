@@ -96,7 +96,12 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
   // Pattern to extract node ID from Mermaid's DOM ID format
   // e.g., "flowchart-start-1414" -> "start"
   private val mermaidNodeIdPattern = """flowchart-(.+)-\d+""".r
-  private val mermaidEdgeIdPattern = """L-(.+)-(.+)-(\d+)""".r
+  // Edge DOM ids changed across Mermaid majors: old renderers emitted "L-A-B-0" plus
+  // LS-/LE- source/target classes; Mermaid 11 emits "L_A_B_0" with neither class.
+  // Missing the v11 form made extractArrowId fall through to a garbage hashCode id,
+  // which the stale-selection pruner immediately dropped — edges were unselectable.
+  private val mermaidEdgeIdPattern    = """L-(.+)-(.+)-(\d+)""".r
+  private val mermaidEdgeIdPatternV11 = """L_(.+)_(.+)_(\d+)""".r
 
   private def classList(e: dom.Element): Seq[String] =
     (0 until e.classList.length).flatMap(i => Option(e.classList.item(i)))
@@ -125,23 +130,21 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
 
   override def extractArrowId(e: dom.Element): ArrowId =
     def arrowIdFromElement(edgeElem: dom.Element): Option[ArrowId] =
-      val svgId = edgeElem.id
-      val seqFromId =
-        svgId match
-          case mermaidEdgeIdPattern(_, _, idx) => Some(idx.toInt + 1)
-          case _                               => None
-      val source = classPrefixed(edgeElem, "LS-")
-      val target = classPrefixed(edgeElem, "LE-")
+      val idParts =
+        edgeElem.id match
+          case mermaidEdgeIdPatternV11(s, t, idx) => Some((s, t, idx.toInt + 1))
+          case mermaidEdgeIdPattern(s, t, idx)    => Some((s, t, idx.toInt + 1))
+          case _                                  => None
+      // LS-/LE- classes (old renderers) are authoritative when present; otherwise
+      // fall back to the endpoints parsed from the DOM id.
+      val source = classPrefixed(edgeElem, "LS-").orElse(idParts.map(_._1))
+      val target = classPrefixed(edgeElem, "LE-").orElse(idParts.map(_._2))
+      val seq    = idParts.fold(1)(_._3)
 
       (source, target) match
         case (Some(s), Some(t)) =>
-          val seq = seqFromId.getOrElse(1)
           Some(ArrowId(s"$s${Arrow.titleIdSeparator}$t${Arrow.sequenceSeparator}$seq"))
-        case _ =>
-          svgId match
-            case mermaidEdgeIdPattern(source, target, idx) =>
-              Some(ArrowId(s"$source${Arrow.titleIdSeparator}$target${Arrow.sequenceSeparator}${idx.toInt + 1}"))
-            case _ => None
+        case _ => None
 
     val candidates =
       e match
