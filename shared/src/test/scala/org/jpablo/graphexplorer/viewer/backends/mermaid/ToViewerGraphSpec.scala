@@ -137,3 +137,30 @@ class ToViewerGraphSpec extends FunSuite:
     assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("label")).map(_.toString), Some("CodeMirror"))
     assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("mermaid_class")).map(_.toString), Some("pink"))
     assertEquals(vg.nodes(NodeId("B")).attributes.get(AttributeId("label")).map(_.toString), Some("Parser"))
+
+  test("toViewerGraph should convert <br/> in labels to the stored line-break escape"):
+    val mg = MermaidGraph(
+      vertices = Map(
+        "A" -> MermaidVertex(id = "A", text = "line1<br/>line2"),
+        "B" -> MermaidVertex(id = "B", text = "B")
+      ),
+      edges = List(MermaidEdge(start = "A", end = "B", text = Some("up<br>down"))),
+      subgraphs = List(MermaidSubgraph(id = "G1", title = Some("Top<br />Bottom"), nodes = List("A")))
+    )
+
+    val vg = toViewerGraph(mg)
+
+    // Stored form is DOT-escaped: \n (2 chars) is a line break
+    assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("label")).map(_.toString), Some("line1\\nline2"))
+    assertEquals(vg.arrows.values.head.attributes.get(AttributeId("label")).map(_.toString), Some("up\\ndown"))
+    assertEquals(vg.groups(GroupId("G1")).attributes.get(AttributeId("label")).map(_.toString), Some("Top\\nBottom"))
+
+  test("toViewerGraph should store a verbatim \\n in mermaid text as literal characters, not a line break"):
+    val mg = MermaidGraph(
+      vertices = Map("A" -> MermaidVertex(id = "A", text = "a\\nb"))
+    )
+
+    val vg = toViewerGraph(mg)
+
+    // Mermaid renders a\nb literally, so the stored form must be the escaped literal a\\nb
+    assertEquals(vg.nodes(NodeId("A")).attributes.get(AttributeId("label")).map(_.toString), Some("a\\\\nb"))

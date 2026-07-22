@@ -55,7 +55,7 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
   val subgraphNodes = scala.collection.mutable.Set[NodeId]()
   sortedGroups.foreach { case (groupId, group) =>
     if groupId != rootGroupId then
-      val title = group.label.toString match
+      val title = MermaidLabelText.fromStored(group.label.toString) match
         case s if s.nonEmpty => s" [$s]"
         case _               => ""
       lines.append(s"  subgraph ${mermaidId(groupId.value)}$title\n")
@@ -124,8 +124,9 @@ private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
   if shapeOpt.isEmpty && label == nodeId.value && safeId == nodeId.value then
     s"$safeId$classSuffix"
   else
-    // Escape label for Mermaid (quotes need special handling)
-    val escapedLabel = escapeMermaidLabel(label)
+    // Escape label for Mermaid (quotes need special handling); stored line breaks
+    // become <br/> (which also triggers quoting below)
+    val escapedLabel = escapeMermaidLabel(MermaidLabelText.fromStored(label))
     s"$safeId$openBracket$escapedLabel$closeBracket$classSuffix"
 
 /** Serialize an edge with its style and label. */
@@ -133,7 +134,7 @@ private def serializeEdge(arrow: Arrow): String =
   val arrowType = dotStyleToMermaidArrow(edgeLineStyle(arrow.attributes))
 
   val labelOpt  = arrow.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
-  val labelPart = labelOpt.map(l => s"|${escapeMermaidLabel(l)}|").getOrElse("")
+  val labelPart = labelOpt.map(l => s"|${escapeMermaidLabel(MermaidLabelText.fromStored(l))}|").getOrElse("")
 
   s"${mermaidId(arrow.source.value)} $arrowType$labelPart ${mermaidId(arrow.target.value)}"
 

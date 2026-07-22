@@ -114,8 +114,8 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
 private def vertexToAttributes(vertex: MermaidVertex): Attributes =
   val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
 
-  // Label (use text if different from id)
-  if vertex.text != vertex.id then attrs += Label.attrId -> AttrValue(vertex.text)
+  // Label (use text if different from id), converted to the stored (DOT-escaped) form
+  if vertex.text != vertex.id then attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(vertex.text))
 
   // Shape mapping from Mermaid to DOT
   vertex.shape.foreach { shape =>
@@ -138,8 +138,8 @@ private def vertexToAttributes(vertex: MermaidVertex): Attributes =
 private def edgeToAttributes(edge: MermaidEdge): Attributes =
   val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
 
-  // Label
-  edge.text.filter(_.nonEmpty).foreach(v => attrs += Label.attrId -> AttrValue(v))
+  // Label, converted to the stored (DOT-escaped) form
+  edge.text.filter(_.nonEmpty).foreach(v => attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(v)))
 
   // Map Mermaid stroke to DOT style
   edge.stroke.foreach {
@@ -159,7 +159,7 @@ private def edgeToAttributes(edge: MermaidEdge): Attributes =
 private def subgraphToAttributes(subgraph: MermaidSubgraph): Attributes =
   val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
 
-  subgraph.title.foreach(v => attrs += Label.attrId -> AttrValue(v))
+  subgraph.title.foreach(v => attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(v)))
   if subgraph.classes.nonEmpty then attrs += MermaidClassAttr -> AttrValue(subgraph.classes.mkString(" "))
 
   Attributes.fromOrdered(attrs)

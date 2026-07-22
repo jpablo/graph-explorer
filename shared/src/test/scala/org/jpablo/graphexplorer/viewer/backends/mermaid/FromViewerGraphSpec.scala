@@ -783,3 +783,39 @@ class FromViewerGraphSpec extends FunSuite:
     val result         = MermaidEdgeLabelFallback.withSourceEdgeLabels(serialized, edgesWithLabel)
 
     assertEquals(result.head.text, Some("approved"), "Parser label should be preserved unchanged")
+
+  test("viewerGraphToMermaidText should serialize stored line breaks as <br/>"):
+    // Stored labels are DOT-escaped: \n (2 chars) is a line break. Mermaid renders \n
+    // literally, so the serializer must emit <br/> instead.
+    val nodeA = NodeId("A")
+    val nodeB = NodeId("B")
+    val nodes = VectorMap(
+      nodeA -> ViewerNode.nodeWithDefaults(nodeA, Attributes.of(Label -> "line1\\nline2")),
+      nodeB -> ViewerNode.nodeWithDefaults(nodeB)
+    )
+    val arrow = Arrow(nodeA, nodeB, attributes = Attributes.of(Label -> "up\\ndown"))
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = nodes,
+        arrows = Map(arrow.id -> arrow)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("A[\"line1<br/>line2\"]"), s"Node label breaks should become <br/>, got: $result")
+    assert(result.contains("|\"up<br/>down\"|"), s"Edge label breaks should become <br/>, got: $result")
+
+  test("viewerGraphToMermaidText should serialize a stored literal \\n as verbatim text, not a line break"):
+    // Stored a\\nb is the literal 4-char text a\nb (the user typed a backslash and an n)
+    val nodeId = NodeId("A")
+    val node   = ViewerNode.nodeWithDefaults(nodeId, Attributes.of(Label -> "a\\\\nb"))
+    val graph = ViewerGraph(
+      elements = ViewerGraphElements(
+        nodes = VectorMap(nodeId -> node)
+      )
+    )
+
+    val result = viewerGraphToMermaidText(graph)
+
+    assert(result.contains("A[a\\nb]"), s"Literal backslash-n should stay verbatim, got: $result")
