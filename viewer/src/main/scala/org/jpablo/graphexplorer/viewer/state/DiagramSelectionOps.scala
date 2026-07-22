@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
-import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElement, SelectableElementStrategy}
+import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
@@ -89,6 +89,13 @@ trait DiagramSelectionOps:
       val nodesToRemove = ss intersect current
       if nodesToRemove.nonEmpty then set(current -- nodesToRemove)
 
+    /** Keeps only the ids satisfying the predicate. Unlike remove(), the filter is applied when
+      * the update TRANSACTION executes, so it composes correctly with selection writes queued in
+      * the same propagation (used by the stale-selection pruner).
+      */
+    def keepOnly(p: ElementId => Boolean): Unit =
+      selectionV.update(_.filter(p))
+
     def clear()(using name: sourcecode.FullName): Unit =
       set(ElementIds())
 
@@ -97,8 +104,6 @@ trait DiagramSelectionOps:
 
     def hide() =
       project.hiddenElements.update(_ ++ selection.now())
-
-    private def visibleGraphNow(): ViewerGraph = phases.visibleGraph.observe.now()
 
     def selectGroupMembers() =
       val s          = now()
@@ -247,7 +252,7 @@ trait DiagramSelectionOps:
     ) =
       if rect.isEmpty then
         // Equivalent to an onClick event
-        findClosestElementId(elementsFromRectEnd, strategy = selectionStrategy.observe.now()) match
+        findClosestElementId(elementsFromRectEnd, strategy = selectionStrategyNow()) match
           case Some(end) => updateSelectionStatus(end)(rect.shift)
           case None      => clear()
       else
@@ -300,7 +305,7 @@ object DiagramSelectionOps:
     */
   def findClosestElementId(
       elements: js.Array[dom.Element],
-      strategy: SelectableElementStrategy = GraphvizSelectionStrategy,
+      strategy: SelectableElementStrategy,
       selector: Option[String] = None
   ): Option[ElementId] =
     val effectiveSelector = selector.getOrElse(strategy.allSelector)

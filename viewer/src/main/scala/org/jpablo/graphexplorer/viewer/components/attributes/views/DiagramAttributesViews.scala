@@ -18,9 +18,12 @@ object DiagramAttributesViews:
       DiagramFormat.Mermaid -> (MermaidDiagramAttributesView(_))
     )
 
-  /** The diagram-attributes view for `format` (falls back to the DOT view for unknown formats). */
+  /** The diagram-attributes view for `format`. Totality over the enum is guaranteed by
+    * DiagramAttributesViewsSpec, so a missing mapping fails loudly instead of silently
+    * rendering the DOT editor for the wrong language.
+    */
   def forFormat(format: DiagramFormat, state: ViewerState): HtmlElement =
-    byFormat.getOrElse(format, DiagramAttributesView(_))(state)
+    byFormat(format)(state)
 
   /** Formats with an explicit view here. A test asserts this covers every `DiagramFormat`, so the
     * mapping can't silently drift from the format enum / backend registry.

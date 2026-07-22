@@ -48,7 +48,7 @@ def ArrowsList(state: ViewerState): Div =
     idAttr := "arrows-list",
     form(
       idAttr := "edges-panel-controls",
-      Join(LabeledCheckboxFormControl(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveEdges)),
+      Join(LabeledCheckboxFormControl(id = s"filter-by-active-arrows", labelStr = "only visible", isChecked = onlyActiveEdges)),
       div(
         cls := "flex gap-2",
         Search(

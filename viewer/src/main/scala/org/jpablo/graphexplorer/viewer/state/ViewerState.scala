@@ -6,6 +6,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
@@ -31,6 +32,12 @@ case class ViewerState(
     initialLeftPanelVisible:  Boolean = false,
     clientSize:               ClientSize = Normal,
     logLevel:                 Level = Level.None
+)(
+    // All of this state's subscriptions hang off this owner. Pass a killable owner
+    // (e.g. ManualOwner killed on unmount) so navigating away releases the whole
+    // instance instead of pinning it for the session (previous leak: one full
+    // ViewerState retained per project visit).
+    using val owner: Owner = unsafeWindowOwner
 ) extends SvgTransformOps,
       DiagramSelectionOps,
       VisibilityOps,
@@ -40,7 +47,6 @@ case class ViewerState(
       ExtendSelectionOps,
       UIState,
       Persistence:
-  given owner: Owner = unsafeWindowOwner
 
   lazy val project =
     ProjectOps(Var(Project(projectId)))
@@ -71,12 +77,23 @@ case class ViewerState(
 
   val sourceText      = phases.sourceText
   val fullGraph       = phases.fullGraph
-  def fullGraphNow()  = phases.fullGraph.observe.now()
   val visibleText     = phases.visibleText
   val visibleGraph    = phases.visibleGraph
   val currentFormat   = phases.currentFormat
   val formatSelection = phases.formatSelection
   val selectionStrategy = phases.selectionStrategy
+
+  // Shared read-once handles. Signal#observe allocates a PERMANENT owner-bound
+  // subscription per call, so ad-hoc `.observe.now()` in per-event handlers leaked
+  // unboundedly (one subscription per mouse-move). Read through these instead.
+  private lazy val fullGraphObs         = fullGraph.observe
+  private lazy val visibleGraphObs      = visibleGraph.observe
+  private lazy val selectionStrategyObs = selectionStrategy.observe
+  private lazy val graphRankDirObs      = graphRankDir.observe
+  def fullGraphNow(): ViewerGraph         = fullGraphObs.now()
+  def visibleGraphNow(): ViewerGraph      = visibleGraphObs.now()
+  def selectionStrategyNow(): SelectableElementStrategy = selectionStrategyObs.now()
+  def graphRankDirNow(): Rankdir          = graphRankDirObs.now()
   def setDiagramFormat(format: DiagramFormat): Unit =
     formatSelection.set(format)
 
@@ -94,10 +111,12 @@ case class ViewerState(
       case groupId: GroupId => graph.groups.contains(groupId)
       case arrowId: ArrowId => graph.arrows.contains(arrowId)
 
+  // Prune selected ids that no longer exist in the graph. Uses keepOnly (a Var.update)
+  // so the filter runs when ITS transaction executes: a selection.set made inside the
+  // same graph update (e.g. combineIntoRecord selecting the new record) has already
+  // landed by then and is preserved. A snapshot-based remove() here clobbered it.
   fullGraph.changes.foreach { graph =>
-    val staleSelection = selection.now().filter(id => !elementExists(graph, id))
-    if staleSelection.nonEmpty then
-      selection.remove(staleSelection)
+    selection.keepOnly(id => elementExists(graph, id))
   }
 
   val mouseAction = MouseActionVar()
@@ -105,7 +124,11 @@ case class ViewerState(
   // 5. Render visible content to SVG with position data.
   // Each backend owns its render policy (DOT: synchronous from visibleText; Mermaid: async from
   // sourceText, validated), so the format dispatch lives in the registry, not here.
-  private val renderInputs = DiagramRenderInputs(visibleText = visibleText, sourceText = sourceText.signal)
+  private val renderInputs = DiagramRenderInputs(
+    visibleText = visibleText,
+    sourceText = sourceText.signal,
+    hasHiddenElements = project.hiddenElements.signal.map(_.nonEmpty).distinct
+  )
 
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
     phases.currentFormat.flatMapSwitch(languages.forFormat(_).render(renderInputs))
@@ -126,6 +149,12 @@ case class ViewerState(
             strategy = strategy
           )
         }
+
+  // One-shot read of the current SVG (for exports). A permanent handle rather than
+  // per-call observe; previously each copy-click subscribed forever, so every later
+  // render silently overwrote the clipboard.
+  private lazy val finalSVGObs = finalSVG.observe
+  def finalSVGNow(): Option[ReactiveSvgElement[SVG]] = finalSVGObs.now()
 
   // ------------- App settings -------------
   // If true, prompt for label before creating a new node (default: true)
@@ -173,7 +202,7 @@ case class ViewerState(
   initializePersistence()
 
   def nodeById(ids: Seq[NodeId]): Seq[ViewerNode] =
-    ids.flatMap(fullGraph.observe.now().getNode)
+    ids.flatMap(fullGraphNow().getNode)
 
   def allNodeIds(): Set[NodeId] =
     fullGraphNow().nodeIds
@@ -229,14 +258,15 @@ case class ViewerState(
   def graphType: Var[GraphType] =
     phases.fullGraphV.zoomLazy(_.tpe)((g, tpe) => g.copy(tpe = tpe))
 
-  def graphLayout: Signal[Layout] =
+  // lazy vals (not defs): one signal chain per state instead of a fresh chain per call
+  lazy val graphAttributes: Signal[Attributes] =
+    fullGraph.map(_.elements.graphAttributes)
+
+  lazy val graphLayout: Signal[Layout] =
     graphAttributes.map(_.getAs(Layout))
 
-  def graphRankDir: Signal[Rankdir] =
+  lazy val graphRankDir: Signal[Rankdir] =
     graphAttributes.map(_.getAs(Rankdir))
-
-  def graphAttributes: Signal[Attributes] =
-    fullGraph.map(_.elements.graphAttributes)
 
   def updateLabel(elementId: ElementId, label: String): Unit =
     elementAttributesUpdates(ElementIds.from(elementId)).set:

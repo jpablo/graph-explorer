@@ -30,25 +30,45 @@ object DiagramFormat:
       if isMermaid(firstContent) then Mermaid
       else DOT
 
-  private def isMermaid(text: String): Boolean =
-    // Mermaid flowchart patterns
-    text.startsWith("flowchart") ||
-    text.startsWith("graph td") ||
-    text.startsWith("graph tb") ||
-    text.startsWith("graph bt") ||
-    text.startsWith("graph lr") ||
-    text.startsWith("graph rl") ||
-    // Other Mermaid diagram types
-    text.startsWith("sequencediagram") ||
-    text.startsWith("classdiagram") ||
-    text.startsWith("statediagram") ||
-    text.startsWith("erdiagram") ||
-    text.startsWith("journey") ||
-    text.startsWith("gantt") ||
-    text.startsWith("pie") ||
-    text.startsWith("mindmap") ||
-    text.startsWith("timeline") ||
-    text.startsWith("gitgraph") ||
+  // Lowercased prefixes of every Mermaid diagram type bundled with mermaid 11
+  // (plus the flowchart `graph <dir>` forms, directives and YAML frontmatter).
+  private val mermaidPrefixes = List(
+    "flowchart",
+    "graph td",
+    "graph tb",
+    "graph bt",
+    "graph lr",
+    "graph rl",
+    "sequencediagram",
+    "classdiagram",
+    "statediagram",
+    "erdiagram",
+    "journey",
+    "gantt",
+    "pie",
+    "mindmap",
+    "timeline",
+    "gitgraph",
+    "quadrantchart",
+    "xychart",
+    "sankey",
+    "requirementdiagram",
+    "c4context",
+    "c4container",
+    "c4component",
+    "c4dynamic",
+    "c4deployment",
+    "block-beta",
+    "kanban",
+    "packet",
+    "radar",
+    "architecture",
+    "treemap",
+    "zenuml",
     // Mermaid directive marker
-    text.startsWith("%%{") ||
-    text.startsWith("---") // YAML frontmatter often used in Mermaid
+    "%%{",
+    "---" // YAML frontmatter often used in Mermaid
+  )
+
+  private def isMermaid(text: String): Boolean =
+    mermaidPrefixes.exists(text.startsWith)

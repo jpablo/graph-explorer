@@ -99,8 +99,16 @@ object ThumbnailRenderer:
               (telemetryContext ++ Seq("sourceChars" -> dot.value.length))*
             )
             val backend = MermaidBackend()
+            // recover: a render failure must land on the emptySvg placeholder below, not in
+            // Airstream's error channel (which raised a global error per card mount).
+            val svgHtmlFuture: scala.concurrent.Future[Option[String]] =
+              backend
+                .textToSvg(dot.value)
+                .map(r => Option(r.svg.ref.outerHTML))
+                .recover { case _ => None }
             Signal
-              .fromFuture(backend.textToSvg(dot.value).map(_.svg.ref.outerHTML): scala.concurrent.Future[String])
+              .fromFuture(svgHtmlFuture)
+              .map(_.flatten)
               .map: (svgHtmlOpt: Option[String]) =>
                 svgHtmlOpt match
                   case Some(svgHtml) =>
@@ -122,6 +130,7 @@ object ThumbnailRenderer:
                     )
                     ThumbnailSvgCache.cloneSvg(proto)
                   case None =>
+                    // pending OR failed: show the "No preview" placeholder
                     emptySvg
 
   /** Empty SVG placeholder for when rendering fails */

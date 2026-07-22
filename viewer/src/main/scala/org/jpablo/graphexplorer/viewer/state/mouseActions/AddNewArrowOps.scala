@@ -51,7 +51,7 @@ trait AddNewArrowOps:
   ) =
     // Make sure only start or (start,end) nodes are selected when creating a new arrow
     // For now only allow a line selection into nodes
-    val strategy = selectionStrategy.observe.now()
+    val strategy = selectionStrategyNow()
     findClosestElementId(elementsFromRectEnd, strategy = strategy, selector = Some(strategy.nodeSelector)) match
       case Some(elementId) => selection.set1(Set(start.elementId, elementId))
       case None               => selection.set2(start.elementId)
@@ -84,7 +84,7 @@ trait AddNewArrowOps:
     selectedElem match
       case elem: NodeElement if showControl =>
         val parentCtm = Option(parent.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
-        val control = NewArrowControl(elem, graphRankDir.observe.now, direction, clientSize, screenCtm = parentCtm).ref
+        val control = NewArrowControl(elem, graphRankDirNow, direction, clientSize, screenCtm = parentCtm).ref
 
         control.addEventListener(
           DomEvent.mousedown,

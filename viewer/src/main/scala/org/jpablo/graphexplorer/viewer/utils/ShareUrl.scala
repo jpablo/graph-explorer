@@ -18,3 +18,9 @@ object ShareUrl:
   def readDotParam(): Option[String] =
     val params = new dom.URLSearchParams(dom.window.location.search)
     Option(params.get(param))
+
+  /** The project id embedded in a share-URL path (`/diagrams/<id>?dot=...`), if any. */
+  def readProjectIdFromPath(): Option[ProjectId] =
+    dom.window.location.pathname.split("/").toList.filter(_.nonEmpty) match
+      case seg :: id :: Nil if seg == Router.diagrams => Some(ProjectId(id))
+      case _                                          => None

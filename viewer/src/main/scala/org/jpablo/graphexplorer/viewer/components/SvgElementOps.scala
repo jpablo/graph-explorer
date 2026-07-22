@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.SvgElementOps.emptySvg
-import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElement, SelectableElementStrategy}
+import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.models.ElementIds
@@ -44,7 +44,7 @@ class SvgElementOps(val ref: dom.svg.SVG):
     val bbox = elem.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
     (e, BBox(bbox.x, bbox.y, bbox.width, bbox.height))
 
-  def toSVGTextWithIds(ids: ElementIds, strategy: SelectableElementStrategy = GraphvizSelectionStrategy): String =
+  def toSVGTextWithIds(ids: ElementIds, strategy: SelectableElementStrategy): String =
     if (ids.isEmpty) ""
     else
       val (svgs, boxes) = SelectableElement.findAll(ref, strategy).filter(_.elementId in ids).map(buildSvgElement).unzip

@@ -87,17 +87,13 @@ object SelectableElement:
         case _            => None
     else None
 
-  /** Create a SelectableElement from a DOM element using the default Graphviz strategy. */
-  def fromDomElement(e: dom.Element): Option[SelectableElement] =
-    fromDomElement(e, GraphvizSelectionStrategy)
+  // NOTE: no default-strategy overloads/defaults here on purpose — a call site that
+  // omits the strategy would compile fine and silently extract nothing from Mermaid
+  // SVGs, undoing the strategy injection. The compiler forces callers to pass one.
 
   /** Find all selectable elements in a container using the specified strategy. */
   def findAll(ref: dom.Element, strategy: SelectableElementStrategy): Seq[SelectableElement] =
     ref.querySelectorAllT[dom.Element](strategy.allSelector).flatMap(fromDomElement(_, strategy))
-
-  /** Find all selectable elements in a container using the default Graphviz strategy. */
-  def findAll(ref: dom.Element): Seq[SelectableElement] =
-    findAll(ref, GraphvizSelectionStrategy)
 
   /** Query specific elements by ID using the specified strategy. */
   def query(ref: dom.Element, elems: ElementIds, strategy: SelectableElementStrategy): Seq[SelectableElement] =
@@ -110,18 +106,14 @@ object SelectableElement:
         case None =>
           findAll(ref, strategy).filter(elem => elems.contains(elem.elementId))
 
-  /** Query specific elements by ID using the default Graphviz strategy. */
-  def query(ref: dom.Element, elems: ElementIds): Seq[SelectableElement] =
-    query(ref, elems, GraphvizSelectionStrategy)
-
 end SelectableElement
 
-case class NodeElement(ref0: dom.svg.G, strat: SelectableElementStrategy = GraphvizSelectionStrategy)
+case class NodeElement(ref0: dom.svg.G, strat: SelectableElementStrategy)
     extends SelectableElement(ref0, strat):
   val selectedClass = "selected"
   lazy val elementId: NodeId = strat.extractNodeId(ref)
 
-case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy = GraphvizSelectionStrategy)
+case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy)
     extends SelectableElement(ref0, strat):
   val selectedClass = "selected"
 
@@ -196,7 +188,7 @@ case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy =
 
 end EdgeElement
 
-case class ClusterElement(ref0: dom.svg.G, strat: SelectableElementStrategy = GraphvizSelectionStrategy)
+case class ClusterElement(ref0: dom.svg.G, strat: SelectableElementStrategy)
     extends SelectableElement(ref0, strat):
   val selectedClass = "selected"
   lazy val elementId: GroupId = strat.extractGroupId(ref)

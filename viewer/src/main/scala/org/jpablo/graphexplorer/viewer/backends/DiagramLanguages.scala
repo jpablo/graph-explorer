@@ -16,30 +16,20 @@ trait DiagramLanguages:
   /** All available backends, in display order. Drives the format selector UI. */
   def all: List[DiagramBackend]
 
-  /** The backend to fall back to before any format has been detected/selected. */
-  def default: DiagramBackend
-
   /** Resolve the backend responsible for a given format. */
   def forFormat(format: DiagramFormat): DiagramBackend
 
-  /** Resolve the backend for a piece of diagram text via format detection. */
-  def detect(text: String): DiagramBackend =
-    forFormat(DiagramFormat.detect(text))
-
 /** Default registry wiring the concrete Graphviz and Mermaid backends.
   *
-  * The Mermaid backend is created lazily so Mermaid.js is only initialized once a Mermaid diagram is
-  * actually requested.
+  * Backend construction is side-effect-free (Mermaid.js itself is initialized lazily inside the
+  * backend on first parse/render), so building the registry is cheap.
   */
 class DefaultDiagramLanguages(graphviz: Graphviz)(using ExecutionContext) extends DiagramLanguages:
-  private val graphvizBackend     = GraphvizBackend(graphviz)
-  private lazy val mermaidBackend = MermaidBackend()
+  private val graphvizBackend = GraphvizBackend(graphviz)
+  private val mermaidBackend  = MermaidBackend()
 
-  // Listing constructs both backends. MermaidBackend construction is side-effect-free
-  // (Mermaid.js is initialized lazily on first parse/render), so this stays cheap.
-  override def all: List[DiagramBackend] = List(graphvizBackend, mermaidBackend)
-
-  override def default: DiagramBackend = graphvizBackend
+  // Display order: Mermaid first (the order the format selector always used).
+  override def all: List[DiagramBackend] = List(mermaidBackend, graphvizBackend)
 
   override def forFormat(format: DiagramFormat): DiagramBackend = format match
     case DiagramFormat.DOT     => graphvizBackend

@@ -9,8 +9,6 @@ import org.scalajs.dom.KeyValue
 import scala.scalajs.js
 
 def CommandsPanel(state: ViewerState, commands: Commands) =
-  import state.owner
-
   val searchTerm     = Var("")
   val searchHasFocus = Var(false)
   val focusSearch    = EventBus[Boolean]()
@@ -19,21 +17,8 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
   val highlightedIndex = Var(-1)
   val scrollDown       = Var(true)
 
-  // Reset highlighted index when search term changes
-  searchTerm.signal.foreach(_ => highlightedIndex.set(-1))
-  // Reset highlighted index when selection changes
-  state.selection.signal.foreach(_ => highlightedIndex.set(-1))
-
   def shouldShowCommand(term: String, selection: Selection)(cmd: Command[?]) =
     cmd.shortLabel.toLowerCase.contains(term.toLowerCase) && cmd.isVisible(selection)
-
-  // Global key handler for Cmd+K
-  for
-    e <- documentEvents(_.onKeyDown)
-      .filter(e => e.key.toLowerCase == "k" && e.metaKey)
-  do
-    e.preventDefault()
-    focusSearch.emit(true)
 
   def getVisibleCommands(term: String, selection: Selection): Map[String, List[Command[?]]] =
     commands.byHeader.transform((_, cmds) => cmds.filter(shouldShowCommand(term, selection)))
@@ -82,6 +67,16 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
 
   div(
     cls := "dropdown",
+    // Mount-scoped bindings (previously owner-bound foreach subscriptions that
+    // outlived the panel — including a document-level Cmd+K listener leaked per visit):
+    // reset the highlighted index when the search term or selection changes,
+    searchTerm.signal --> (_ => highlightedIndex.set(-1)),
+    state.selection.signal --> (_ => highlightedIndex.set(-1)),
+    // and focus the palette on Cmd+K while this panel is mounted.
+    documentEvents(_.onKeyDown).filter(e => e.key.toLowerCase == "k" && e.metaKey) --> { e =>
+      e.preventDefault()
+      focusSearch.emit(true)
+    },
     // Search box at the top with consistent styling
     label(
       cls := "input input-xs px-1 w-32 transition-all duration-200 ease-in-out mt-[-3px] no-outline",

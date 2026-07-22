@@ -17,11 +17,27 @@ case class ProjectsDirectory(projects: List[ProjectInfo] = Nil) derives ReadWrit
 object ProjectStorage:
   given owner: Owner = unsafeWindowOwner
 
+  private val DirectoryKey = "graph-explorer.projects"
+  private val SettingsKey  = "graph-explorer.settings"
+
   private lazy val directoryStorage =
-    storedString("graph-explorer.projects", write(ProjectsDirectory()))
+    storedString(DirectoryKey, write(ProjectsDirectory()))
 
   private lazy val settingsStorage =
-    storedString("graph-explorer.settings", write(ViewerSettings.empty))
+    storedString(SettingsKey, write(ViewerSettings.empty))
+
+  // ONE permanent observation per storage instance: observing the signal is what keeps
+  // laminext's localStorage sync alive, and `.observe.now()` per call allocated a
+  // permanent subscription each time (updateDirectory runs per keystroke, so these
+  // accumulated by the thousands). Read via these handles instead.
+  private lazy val directoryStorageNow = directoryStorage.signal.observe
+  private lazy val settingsStorageNow  = settingsStorage.signal.observe
+
+  // One-shot read for probe-only lookups (no writes on these keys from here).
+  // NOTE: laminext's storedString namespaces its keys with a "[StoredString]" prefix
+  // (PersistenceSpec pins this), so raw reads must use the same key format.
+  private def readLocalStorage(key: String, default: => String): String =
+    Option(dom.window.localStorage.getItem(s"[StoredString]$key")).getOrElse(default)
 
   lazy val directory: Signal[ProjectsDirectory] =
     directoryStorage.signal.map(read[ProjectsDirectory](_))
@@ -42,10 +58,12 @@ object ProjectStorage:
   def createProjectPersistence(id: ProjectId, initialSource: Option[String]): Var[PersistedDiagramState] =
     val initialState   = PersistedDiagramState.minimal(initialSource)
     val projectStorage = storedString(projectKey(id), initial = write(initialState))
+    // One observation per project storage: starts the localStorage sync and serves reads
+    val projectStorageNow = projectStorage.signal.observe
     // Initialize storage ~> PersistedDiagramState
     val persistedDiagramState: Var[PersistedDiagramState] =
       try
-        Var(read[PersistedDiagramState](projectStorage.signal.observe.now()))
+        Var(read[PersistedDiagramState](projectStorageNow.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e, defaulting to initial state")
@@ -73,7 +91,7 @@ object ProjectStorage:
     // Initialize storage ~> ViewerSettings Var
     val viewerSettings =
       try
-        Var(read[ViewerSettings](settingsStorage.signal.observe.now()))
+        Var(read[ViewerSettings](settingsStorageNow.now()))
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading viewer settings: $e")
@@ -109,25 +127,48 @@ object ProjectStorage:
       catch
         case e: Throwable =>
           dom.console.error(s"Error reading state: $e")
-          "digraph G { b }"
+          PersistedDiagramState.minimalGraphText
 
   // ----------------- Private methods -----------------
 
   private def updateDirectory(f: ProjectsDirectory => ProjectsDirectory): Unit =
-    val currentDir = read[ProjectsDirectory](directoryStorage.signal.observe.now())
-    // Execute transformation immediately and store the result
-    directoryStorage.set(write(f(currentDir)))
+    val currentDir = read[ProjectsDirectory](directoryStorageNow.now())
+    val updated    = f(currentDir)
+    // GUARD against catastrophic index loss: writing an EMPTY directory while real
+    // project payloads exist in storage means the read went wrong (e.g. a wrong
+    // storage key made currentDir default to empty) — persisting it would erase the
+    // whole library index while every project payload survives, which is exactly the
+    // accident that once wiped the dev library. Skip the write and complain instead.
+    if updated.projects.isEmpty && storedProjectPayloadsExist() then
+      dom.console.error(
+        "Refusing to overwrite the projects directory with an empty one while project payloads exist in storage — " +
+          "this indicates a bug (bad directory read), not a legitimate empty library."
+      )
+    else
+      directoryStorage.set(write(updated))
+
+  /** True when any project payload key holds substantive content (deleted projects keep their key with an empty value). */
+  private def storedProjectPayloadsExist(): Boolean =
+    val prefix = s"[StoredString]graph-explorer.project."
+    (0 until dom.window.localStorage.length).exists { i =>
+      Option(dom.window.localStorage.key(i)).exists { k =>
+        k.startsWith(prefix) && Option(dom.window.localStorage.getItem(k)).exists(_.length > 2)
+      }
+    }
 
   private def projectKey(id: ProjectId): String =
     s"graph-explorer.project.${id.value}"
 
+  /** True when a project with this id exists in the directory. */
+  def projectExists(id: ProjectId): Boolean =
+    read[ProjectsDirectory](directoryStorageNow.now()).projects.exists(_.id == id)
+
   /** Find a project whose persisted source exactly matches the given DOT text. */
   def findProjectByExactSource(dot: String): Option[ProjectId] =
-    val dir = read[ProjectsDirectory](directoryStorage.signal.observe.now())
+    val dir = read[ProjectsDirectory](directoryStorageNow.now())
     dir.projects.collectFirst(Function.unlift { info =>
-      val projectStorage = storedString(projectKey(info.id), write(PersistedDiagramState.empty))
       try
-        val state = read[PersistedDiagramState](projectStorage.signal.observe.now())
+        val state = read[PersistedDiagramState](readLocalStorage(projectKey(info.id), write(PersistedDiagramState.empty)))
         if state.source == dot then Some(info.id) else None
       catch
         case _: Throwable => None

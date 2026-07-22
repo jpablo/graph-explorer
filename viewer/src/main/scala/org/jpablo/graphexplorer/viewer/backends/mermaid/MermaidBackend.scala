@@ -58,17 +58,24 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
   override def selectionStrategy: SelectableElementStrategy = MermaidSelectionStrategy
 
   override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =
-    // Mermaid rendering is asynchronous and its round-trip is lossy, so render the raw source text
-    // (validated) rather than the re-serialized visible graph.
-    inputs.sourceText.flatMapSwitch: mermaidText =>
-      if mermaidText.trim.isEmpty then
-        Signal.fromValue(None)
-      else if DiagramFormat.detect(mermaidText) != DiagramFormat.Mermaid then
-        dom.console.warn(s"[mermaid] Skipping render: text appears to be ${DiagramFormat.detect(mermaidText)} format, not Mermaid")
-        Signal.fromValue(None)
-      else
-        val futureResult = textToSvg(mermaidText).map(Some(_)).recover { case _ => None }
-        Signal.fromFuture(futureResult).map(_.flatten)
+    // Render the raw source text for fidelity (the Mermaid round-trip is lossy) — but when
+    // elements are hidden, render the serialized visible graph instead, otherwise hide/show
+    // operations have no visual effect in Mermaid mode (while exports DO exclude them).
+    inputs.sourceText
+      .combineWith(inputs.hasHiddenElements, inputs.visibleText)
+      .flatMapSwitch: (sourceText, hasHidden, visibleText) =>
+        val mermaidText = if hasHidden then visibleText else sourceText
+        if mermaidText.trim.isEmpty then
+          Signal.fromValue(None)
+        else
+          val detected = DiagramFormat.detect(mermaidText)
+          if detected != DiagramFormat.Mermaid then
+            // The registry already routed here by the format TAG; detection is advisory
+            // (its prefix list can lag new Mermaid diagram types), so warn but still try —
+            // a genuine non-Mermaid text fails the render and recovers to None below.
+            dom.console.warn(s"[mermaid] Text does not look like Mermaid (detected: $detected); attempting render anyway")
+          val futureResult = textToSvg(mermaidText).map(Some(_)).recover { case _ => None }
+          Signal.fromFuture(futureResult).map(_.flatten)
 
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future. */
   private def parseMermaid(text: String): Future[MermaidGraph] =
@@ -277,10 +284,27 @@ object MermaidBackend:
       setInitialized()
       dom.console.info("[mermaid] Mermaid.js initialized")
 
+  /** Mermaid promises occasionally never settle (the 2s "still pending" watchdog exists for a
+    * reason). Without a timeout, one such promise wedged the operation chain forever — every
+    * later parse/render queued behind it until page reload.
+    */
+  private val OperationTimeoutMs = 15000
+
+  private def withTimeout[A](f: Future[A], label: String)(using ExecutionContext): Future[A] =
+    val p = Promise[A]()
+    val handle = js.timers.setTimeout(OperationTimeoutMs) {
+      p.tryFailure(new RuntimeException(s"[mermaid] $label did not settle within ${OperationTimeoutMs}ms"))
+    }
+    f.onComplete { result =>
+      js.timers.clearTimeout(handle)
+      p.tryComplete(result)
+    }
+    p.future
+
   /** Serialize Mermaid operations so parse/render don't race during lazy diagram registration. */
   private def enqueue[A](op: => Future[A])(using ExecutionContext): Future[A] = synchronized {
     val previous = operationChain.recover { case _ => () }
-    val next = previous.flatMap(_ => Try(op).fold(Future.failed, identity))
+    val next = previous.flatMap(_ => withTimeout(Try(op).fold(Future.failed, identity), "operation"))
     operationChain = next.map(_ => ()).recover { case _ => () }
     next
   }

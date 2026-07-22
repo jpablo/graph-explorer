@@ -165,7 +165,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |    arrowhead="vee",
              |    arrowtail="none"
              |  ];
-             |  subgraph "G1" {
+             |  subgraph "cluster_G1" {
              |    graph [
              |      id="group:G1",
              |      label="",
@@ -176,7 +176,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |      label="a"
              |    ];
              |  }
-             |  subgraph "G2" {
+             |  subgraph "cluster_G2" {
              |    graph [
              |      id="group:G2",
              |      label="",
@@ -243,13 +243,13 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |        arrowhead="vee",
              |        arrowtail="none"
              |    ];
-             |    subgraph "G1" {
+             |    subgraph "cluster_G1" {
              |        graph [
              |            id="group:G1",
              |            label="group 1",
              |            cluster="true"
              |        ];
-             |        subgraph "G2" {
+             |        subgraph "cluster_G2" {
              |            graph [
              |                id="group:G2",
              |                label="group 2",
@@ -260,7 +260,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |                label="c"
              |            ];
              |        }
-             |        subgraph "G3" {
+             |        subgraph "cluster_G3" {
              |            graph [
              |                id="group:G3",
              |                label="group 3",
@@ -271,6 +271,9 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |                label="b"
              |            ];
              |        }
+             |        "b" -> "c" [
+             |            id="arrow:b->c/0"
+             |        ];
              |    }
              |    "a" [
              |        id="node:a",
@@ -278,9 +281,6 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
              |    ];
              |    "a" -> "b" [
              |        id="arrow:a->b/1"
-             |    ];
-             |    "b" -> "c" [
-             |        id="arrow:b->c/0"
              |    ];
              |}
              |""".stripMargin
@@ -492,6 +492,5 @@ object FakeDiagramLanguages extends DiagramLanguages:
     override def selectionStrategy: SelectableElementStrategy      = GraphvizSelectionStrategy
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
-  override def all: List[DiagramBackend]                       = List(FakeBackend)
-  override def default: DiagramBackend                          = FakeBackend
+  override def all: List[DiagramBackend]                        = List(FakeBackend)
   override def forFormat(format: DiagramFormat): DiagramBackend = FakeBackend

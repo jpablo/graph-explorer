@@ -13,10 +13,15 @@ import scala.concurrent.Future
   *   The visible graph (hidden nodes removed) serialized in the current language.
   * @param sourceText
   *   The raw editor source text, exactly as the user typed it.
+  * @param hasHiddenElements
+  *   True when some elements are hidden. Backends that prefer rendering the raw source for
+  *   fidelity (Mermaid) must switch to `visibleText` while this is true, otherwise
+  *   hide/show operations have no visual effect in that format.
   */
 final case class DiagramRenderInputs(
-    visibleText: Signal[String],
-    sourceText:  Signal[String]
+    visibleText:       Signal[String],
+    sourceText:        Signal[String],
+    hasHiddenElements: Signal[Boolean] = Signal.fromValue(false)
 )
 
 /** Presentation metadata for a diagram language, used to render the format selector UI without any

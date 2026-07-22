@@ -169,7 +169,9 @@ def NodesList(state: ViewerState): Div =
     },
     form(
       idAttr := "right-panel-controls",
-      Join(LabeledCheckboxFormControl(id = s"filter-by-active", labelStr = "only visible", isChecked = onlyActiveVar)),
+      // id must differ from ArrowsList's checkbox: both lists are mounted at once, and a
+      // duplicated DOM id made a label click in one tab toggle the other tab's checkbox
+      Join(LabeledCheckboxFormControl(id = s"filter-by-active-nodes", labelStr = "only visible", isChecked = onlyActiveVar)),
       div(
         cls := "flex gap-2",
         Search(

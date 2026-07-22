@@ -7,33 +7,35 @@ import upickle.default.*
 trait ExportOps:
   this: ViewerState =>
 
+  // NOTE: exports read the current value ONCE (xxxNow() shared handles). A
+  // `finalSVG.foreach` here subscribed permanently, so every later render
+  // silently re-copied the SVG over the user's clipboard.
   def copyAsFullDiagramSVG(): Unit =
-    finalSVG.foreach(_.foreach(s => writeText(s.ref.outerHTML)))
+    finalSVGNow().foreach(s => writeText(s.ref.outerHTML))
 
   def copySelectionAsSVG(): Unit =
-    finalSVG.foreach(_.foreach { s =>
-      writeText(SvgElementOps(s.ref).toSVGTextWithIds(selection.now(), selectionStrategy.observe.now()))
-    })
+    finalSVGNow().foreach: s =>
+      writeText(SvgElementOps(s.ref).toSVGTextWithIds(selection.now(), selectionStrategyNow()))
 
   // DOT is an explicit export target, independent of the currently selected language.
   private def visibleDOT: String =
-    viewerGraphToText(visibleGraph.observe.now(), omitInternal = false)
+    viewerGraphToText(visibleGraphNow(), omitInternal = false)
 
   def copyAsDOT(): Unit =
     writeText(visibleDOT)
 
   def copyAsJSON(): Unit =
-    val graph = visibleGraph.observe.now()
+    val graph = visibleGraphNow()
     writeText(write(graph.elements))
 
   def printVisibleGraphToConsole(): Unit =
-    val graph = visibleGraph.observe.now()
+    val graph = visibleGraphNow()
     // Don't remove this line!! it IS the actual functionality
     pprint.log(graph, showFieldNames = true)
     dom.console.log("Visible graph printed to the console")
 
   def printVisibleGraphJsonToConsole(): Unit =
-    val graph = visibleGraph.observe.now()
+    val graph = visibleGraphNow()
     // Don't remove this line!! it IS the actual functionality
     dom.console.log(write(graph.elements, indent = 2))
     dom.console.log("Visible graph printed to the console")
@@ -44,9 +46,15 @@ trait ExportOps:
     dom.console.log("Visible DOT printed to the console")
 
   def printVisibleSimpleGraphJSONtoConsole(): Unit =
-    // Debug helper: SimpleGraph is a Graphviz/VizJS-specific representation, so this is DOT-only.
-    graphviz.textToSimpleGraph(sourceText.now()).foreach { graph =>
-      // Don't remove this line!! it IS the actual functionality
-      dom.console.log(scalajs.js.JSON.parse(write(graph)))
-      dom.console.log("Visible JSON VizJS Graph printed to the console")
-    }
+    // Debug helper: SimpleGraph is a Graphviz/VizJS-specific representation, so it is
+    // built from the VISIBLE graph serialized as DOT (matching the command's name),
+    // and a failure is reported instead of silently printing nothing.
+    graphviz
+      .textToSimpleGraph(visibleDOT)
+      .fold(
+        err => dom.console.error("Could not build SimpleGraph JSON:", err.getMessage),
+        graph =>
+          // Don't remove this line!! it IS the actual functionality
+          dom.console.log(scalajs.js.JSON.parse(write(graph)))
+          dom.console.log("Visible SimpleGraph JSON printed to the console")
+      )

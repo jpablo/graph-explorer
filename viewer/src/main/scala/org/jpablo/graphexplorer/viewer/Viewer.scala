@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer
 
 import buildinfo.BuildInfo
+import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.projects.{ProjectStorage, ProjectsDirectoryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
@@ -44,6 +45,22 @@ object Viewer:
     def setTheme(theme: String): Unit =
       document.documentElement.setAttribute("data-theme", theme)
 
+    // Clipboard writes with failure surfaced: the returned Promise was previously
+    // discarded, so a denied permission / unfocused document / insecure origin failed
+    // with no feedback while the UI still suggested success.
+    def clipboardWrite(text: String): Unit =
+      try
+        window.navigator.clipboard
+          .writeText(text)
+          .`then`[Unit](
+            (_: Unit) => (),
+            (err: Any) =>
+              errors.emit(s"Could not copy to clipboard: ${String.valueOf(err)}")
+          )
+      catch
+        case e: Throwable =>
+          errors.emit(s"Clipboard unavailable: ${e.getMessage}")
+
     val viewerSettings = ProjectStorage.loadViewerSettings()
     viewerSettings.now().currentTheme.foreach(setTheme)
 
@@ -60,13 +77,20 @@ object Viewer:
     // If a share URL (?dot=...) is present, resolve it immediately:
     val sharedDot = ShareUrl.readDotParam()
     sharedDot.foreach: dot =>
-      ProjectStorage.findProjectByExactSource(dot) match
-        case Some(existingId) =>
-          router.navigateTo(Route.ProjectDetail(existingId.value))
+      // The link path embeds the project id (/diagrams/<id>?dot=...): when that project
+      // exists locally, open IT — matching by exact source alone forked a new "Untitled"
+      // copy every time the owner revisited their own link after an edit.
+      ShareUrl.readProjectIdFromPath().filter(ProjectStorage.projectExists) match
+        case Some(pathId) =>
+          router.navigateTo(Route.ProjectDetail(pathId.value))
         case None =>
-          // Create a new project initialized with the provided DOT
-          val newId = ProjectStorage.createProjectDirectoryEntry("Untitled")
-          router.navigateTo(Route.ProjectDetail(newId.value, Some(dot)))
+          ProjectStorage.findProjectByExactSource(dot) match
+            case Some(existingId) =>
+              router.navigateTo(Route.ProjectDetail(existingId.value))
+            case None =>
+              // Create a new project initialized with the provided DOT
+              val newId = ProjectStorage.createProjectDirectoryEntry("Untitled")
+              router.navigateTo(Route.ProjectDetail(newId.value, Some(dot)))
 
     Graphviz.build().foreach: (graphviz: Graphviz) =>
       dom.console.log("Graphviz initialized (Scala port for dot, viz-js for other engines):", graphviz)
@@ -80,11 +104,16 @@ object Viewer:
               ProjectsDirectoryView(graphviz, router, routerCmds)
 
             case Route.ProjectDetail(id, source) =>
+              // Owner scoped to this project visit: killed when the view unmounts, so the
+              // ViewerState's subscriptions (phases, persistence, theme, panels...) — and the
+              // whole object graph they retain — are released instead of leaking one full
+              // ViewerState per navigation on the never-killed window owner.
+              val viewOwner = new ManualOwner
               val state =
                 ViewerState(
                   projectId = ProjectId(id),
                   graphviz = graphviz,
-                  writeText = window.navigator.clipboard.writeText,
+                  writeText = clipboardWrite,
                   setTheme = setTheme,
                   errorBus = errors,
                   infoBus = infos,
@@ -93,15 +122,16 @@ object Viewer:
                   initialLeftPanelVisible = lastLeftPanelVisible,
                   clientSize = clientSize,
                   logLevel = logLevel
-                )
+                )(using viewOwner)
               // A bit hacky: we need to keep track of the last right panel section selected,
               // otherwise there's a noticeable transition none => something when switching diagrams
-              state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)
+              state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)(using viewOwner)
               // Similarly track the left panel visibility state between diagrams
-              state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)
+              state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
               attachDesktopBridge(state)
 
               TopLevel(state, router, Commands(state, routerCmds))
+                .amend(onUnmountCallback(_ => viewOwner.killSubscriptions()))
         )
 
       render(document.querySelector("#app"), app)
@@ -134,7 +164,12 @@ object Viewer:
       // window.__graphExplorerDesktopBridge.pushText("...")
       val bridge = js.Dynamic.literal(
         pushText = (text: String) =>
-          desktopBridgeTarget.foreach(_.sourceText.set(text)),
+          // Mirror the event path above: detect the format BEFORE setting the text,
+          // otherwise pushed Mermaid text is parsed by the currently selected backend.
+          desktopBridgeTarget.foreach: current =>
+            current.setDiagramFormat(DiagramFormat.detect(text))
+            current.sourceText.set(text)
+        ,
         saveCurrentText = () => saveCurrentTextToDesktop(),
         saveText = (text: String) => saveTextToDesktop(text)
       )
@@ -229,6 +264,9 @@ object Viewer:
 
         dom.fetch(url, requestInit)
           .`then`[Unit]: response =>
+            // RETURN the inner promise so failures inside it (non-JSON 200 body,
+            // missing `document` field...) reach the catch below instead of becoming
+            // silent unhandled rejections that read as a successful save.
             response.text().`then`[Unit]: raw =>
               if response.ok then
                 val parsed    = js.JSON.parse(raw).asInstanceOf[js.Dynamic]
@@ -246,7 +284,6 @@ object Viewer:
               else
                 state.errorBus.emit(s"Save failed (${response.status})")
               js.undefined
-            js.undefined
           .`catch`: (err: Any) =>
             state.errorBus.emit(s"Save failed: ${String.valueOf(err)}")
             js.undefined

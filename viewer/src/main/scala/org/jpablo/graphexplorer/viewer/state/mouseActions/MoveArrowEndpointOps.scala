@@ -8,7 +8,8 @@ import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowEndpointId, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{Inactive, MoveArrowEndpointAction}
-import org.jpablo.graphexplorer.viewer.utils.{DomEvent, MouseActionRect}
+import org.jpablo.graphexplorer.viewer.domUtils.DomEvent
+import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.ArrowPosition
 
 /*
@@ -33,7 +34,7 @@ trait MoveArrowEndpointOps:
               // Convert NodeIds to SelectableElements
               val nodeIds = Set(arrow.source, arrow.target)
               val elementIds = ElementIds(nodeIds)
-              val selectableElements = SelectableElement.query(parent, elementIds, selectionStrategy.observe.now())
+              val selectableElements = SelectableElement.query(parent, elementIds, selectionStrategyNow())
               val nodeElementsMap = selectableElements.collect { 
                 case ne if ne.nodeId.isDefined => ne.nodeId.get -> ne 
               }.toMap
@@ -60,10 +61,11 @@ trait MoveArrowEndpointOps:
         case _ =>
           Array.empty[dom.svg.G]
 
-    if controls.nonEmpty then
-      controls.foreach(parent.appendChild)
-    else
-      parent.querySelectorAll("g.edge-endpoint-disk").foreach(_.remove())
+    // Always clear previous controls first (like handleNewArrowControls): appending
+    // without clearing stacked duplicate disks (with live listeners) on every
+    // click-without-drag cycle.
+    parent.querySelectorAll("g.edge-endpoint-disk").foreach(_.remove())
+    controls.foreach(parent.appendChild)
 
   // 2. Draw a dynamic arrow that follows the pointer
   // see: [[org.jpablo.graphexplorer.viewer.components.svgCanvas.ArrowBetweenPointerAndEndpoint]]
@@ -73,7 +75,7 @@ trait MoveArrowEndpointOps:
     val start     = action.originator
     val neighbors = dom.document.elementsFromPoint(action.rect.end.x, action.rect.end.y)
 
-    val strategy = selectionStrategy.observe.now()
+    val strategy = selectionStrategyNow()
     findClosestElementId(neighbors, strategy = strategy, selector = Some(strategy.nodeSelector)) match
       case Some(targetElementId) =>
         val ignore = (start, targetElementId) match

@@ -14,6 +14,11 @@ import scala.scalajs.js
 
 class ViewerStateSpec extends FunSuite with TestHelpers:
 
+  // Owner for ViewerState construction and .observe calls in the tests below.
+  // Must be in scope BEFORE each ViewerState(...) since the constructor now takes it.
+  import com.raquo.laminar.api.L.unsafeWindowOwner
+  given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
+
   override def munitFixtures = List(mockStorageFixture())
 
   test("addNodeWithSmartConnection should add a node to the graph"):
@@ -163,8 +168,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     withGraphvizAsync { graphviz =>
       val viewerState = ViewerState(ProjectId("dot-svg-test"), graphviz, _ => ())
 
-      import com.raquo.laminar.api.L.unsafeWindowOwner
-      given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
 
       afterMicrotasks {
         viewerState.addNodeWithSmartConnection()
@@ -199,8 +202,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
     withGraphvizAsync { graphviz =>
       val viewerState = ViewerState(ProjectId("dot-final-svg-test"), graphviz, _ => ())
 
-      import com.raquo.laminar.api.L.unsafeWindowOwner
-      given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
 
       afterMicrotasks {
         viewerState.addNodeWithSmartConnection()
@@ -241,8 +242,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
       )
 
       // Track sourceText signal emissions to verify the SVG pipeline would fire
-      import com.raquo.laminar.api.L.unsafeWindowOwner
-      given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
       val sourceTextEmissions = Var(List.empty[String])
       viewerState.sourceText.signal.foreach: text =>
         sourceTextEmissions.update(text :: _)
@@ -302,8 +301,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
         logLevel = org.jpablo.graphexplorer.viewer.logging.Level.Info
       )
 
-      import com.raquo.laminar.api.L.unsafeWindowOwner
-      given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
 
       // Track all svgWithPositions emissions
       val svgEmissions = Var(0)
@@ -361,8 +358,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
         initialSource = Some(mermaidSource)
       )
 
-      import com.raquo.laminar.api.L.unsafeWindowOwner
-      given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
 
       val finalSvgSignal = viewerState.finalSVG.observe
 
@@ -422,9 +417,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
         initialSource = Some(mermaidSource)
       )
 
-      import com.raquo.airstream.ownership.Owner
-      import com.raquo.laminar.api.L.unsafeWindowOwner
-      given Owner = unsafeWindowOwner
 
       for
         _ <- waitForCondition(
@@ -481,8 +473,6 @@ class ViewerStateSpec extends FunSuite with TestHelpers:
         initialSource = Some(mermaidSource)
       )
 
-      import com.raquo.laminar.api.L.unsafeWindowOwner
-      given com.raquo.airstream.ownership.Owner = unsafeWindowOwner
 
       for
         _ <- waitForCondition(

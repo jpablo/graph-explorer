@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElement, SelectableElementStrategy}
+import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorT
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
@@ -25,7 +25,7 @@ def SvgCanvas(
     viewerOps:     DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
     mouseAction:   MouseActionVar,
     edgePositions: Map[String, ArrowPosition],
-    strategy:      SelectableElementStrategy = GraphvizSelectionStrategy
+    strategy:      SelectableElementStrategy
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
 
@@ -169,9 +169,25 @@ def SvgCanvas(
           groups.toUnselect.foreach(_.unselect())
           groups.toSelect.foreach(_.select())
           // select/unselect modify the DOM directly, which seems to make the focus go to the
-          // document body. We need the focus back to the canvas container to process handle keys.
-          dom.window.requestAnimationFrame(_ => viewerOps.canvasContainerFocus.emit(true))
+          // document body. We need the focus back to the canvas container to process handle keys —
+          // but NOT while the user is typing in an editable element (e.g. the source editor):
+          // selection can change from a background re-parse, and stealing focus there routes
+          // subsequent keystrokes to the canvas shortcuts ('n' adds a node, Backspace deletes).
+          dom.window.requestAnimationFrame { _ =>
+            if !isTextEditingActive() then viewerOps.canvasContainerFocus.emit(true)
+          }
         }
       )
     }
 end SvgCanvas
+
+/** True while an editable element (input/textarea/contenteditable, incl. the CodeMirror
+  * source editor) has keyboard focus — used to avoid stealing focus to the canvas.
+  */
+private def isTextEditingActive(): Boolean =
+  Option(dom.document.activeElement).exists { active =>
+    val tag = active.tagName.toUpperCase
+    tag == "INPUT" || tag == "TEXTAREA" ||
+    active.asInstanceOf[dom.html.Element].isContentEditable ||
+    active.closest(".cm-editor") != null
+  }

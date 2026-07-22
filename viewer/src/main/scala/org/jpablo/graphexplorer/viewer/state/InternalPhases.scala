@@ -17,7 +17,11 @@ case class GraphState(
     text:        String,
     viewerGraph: ViewerGraph,
     format:      DiagramFormat,
-    lastOrigin:  ChangeOrigin
+    lastOrigin:  ChangeOrigin,
+    // False when `viewerGraph` does NOT correspond to `text` (the parse failed). While out of
+    // sync, graph edits are ignored: serializing the placeholder graph would overwrite the
+    // user's document in the editor AND localStorage (observed data-loss path).
+    graphInSync: Boolean = true
 ) derives CanEqual
 
 /** Reactive text <-> graph synchronization engine.
@@ -41,7 +45,7 @@ class InternalPhases(
 
   // Initialize with the provided source or a minimal graph
   private val initialText   = initialSource.getOrElse("""digraph "G" {}""")
-  private val initialFormat = languages.detect(initialText).format
+  private val initialFormat = DiagramFormat.detect(initialText)
   val formatSelection       = Var(initialFormat)
 
   // Start with minimal graph; async parsing will populate it
@@ -60,29 +64,43 @@ class InternalPhases(
   // Bus for text changes that need async parsing
   private val textChangeBus = EventBus[(String, DiagramFormat, ChangeOrigin)]()
 
-  // Handle async parsing results
+  // Handle async parsing results.
+  // NOTE: all side effects (editorError included) happen in the guarded foreach below, NOT in
+  // the Future transform: flatMapSwitch abandons superseded parses, but their Futures still
+  // complete — unguarded writes from them used to flash stale errors (or clear real ones).
   textChangeBus.events
     .flatMapSwitch { case (text, format, origin) =>
-      val parseFuture =
-        languages.forFormat(format).textToGraph(text).transform {
-          case Success(graph) =>
-            editorError.set(None)
-            Success((text, graph, format, origin))
-          case Failure(f) =>
-            simpleLog(s"Error parsing ${format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
-            editorError.set(Option(f.getMessage))
-            Success((text, ViewerGraph.minimalWithDirected, format, origin))
-        }
-      EventStream.fromFuture(parseFuture)
+      if text.trim.isEmpty then
+        // An empty document parses to the empty graph (in sync): the canvas clears together
+        // with the editor, and a later canvas edit cannot resurrect the deleted content.
+        EventStream.fromValue((text, Right(ViewerGraph.minimalWithDirected), format, origin))
+      else
+        val parseFuture =
+          languages.forFormat(format).textToGraph(text).transform {
+            case Success(graph) => Success((text, Right(graph), format, origin))
+            case Failure(f) =>
+              simpleLog(s"Error parsing ${format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
+              Success((text, Left(f.getMessage), format, origin))
+          }
+        EventStream.fromFuture(parseFuture)
     }
-    .foreach { case (text, graph, format, origin) =>
+    .foreach { case (text, result, format, origin) =>
       // Only update if text and selected format haven't changed since we started parsing
       if state.now().text == text && formatSelection.now() == format then
-        simpleLog(
-          s"[${format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=$origin",
-          logLevel
-        )
-        state.set(GraphState(text, graph, format, origin))
+        result match
+          case Right(graph) =>
+            editorError.set(None)
+            simpleLog(
+              s"[${format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=$origin",
+              logLevel
+            )
+            state.set(GraphState(text, graph, format, origin))
+          case Left(error) =>
+            editorError.set(Option(error))
+            // Keep the user's text; show the placeholder graph but mark it OUT OF SYNC so
+            // graph edits are ignored until a successful parse (prevents overwriting the
+            // document with a serialized near-empty graph).
+            state.set(GraphState(text, ViewerGraph.minimalWithDirected, format, origin, graphInSync = false))
     }
 
   // Trigger initial async parsing (must be after subscription is set up)
@@ -119,7 +137,12 @@ class InternalPhases(
       withLog("2b. [GraphState <- fullGraphV: ViewerGraph]", level = logLevel) {
         // New source of truth: incoming graph
         // Note: This keeps the current format since the graph was modified in-place
-        if newGraph != currentState.viewerGraph then
+        if !currentState.graphInSync then
+          // The displayed graph does not correspond to the current text (parse failed).
+          // Serializing it would overwrite the user's document — ignore the edit.
+          simpleLog("Ignoring graph edit while text and graph are out of sync (parse error)", logLevel)
+          currentState
+        else if newGraph != currentState.viewerGraph then
           val serializedText =
             languages.forFormat(currentState.format).graphToText(newGraph, omitInternal = true)
           GraphState(
@@ -170,11 +193,12 @@ class InternalPhases(
   val selectionStrategy: Signal[SelectableElementStrategy] =
     currentFormat.map(languages.forFormat(_).selectionStrategy)
 
-  /** Triggers async parsing of text into a ViewerGraph. */
+  /** Triggers async parsing of text into a ViewerGraph. Empty text is handled by the same
+    * pipeline (committing the empty graph), so the canvas always tracks the editor.
+    */
   private def parseTextToGraphAsync(text: String, format: DiagramFormat, origin: ChangeOrigin): Unit =
-    if text.trim.nonEmpty then
-      simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
-      textChangeBus.writer.onNext((text, format, origin))
+    simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
+    textChangeBus.writer.onNext((text, format, origin))
 
   // Re-parse the current text when the user switches the selected format.
   formatSelection.signal.changes.foreach: newFormat =>
