@@ -18,7 +18,12 @@ def ArrowBetweenPointerAndEndpoint(
       case path: dom.svg.Path => path
       case _                  => action.originator.ref.querySelector("path").asInstanceOf[dom.svg.Path]
   val clonedPath = basePath.cloneNode().asInstanceOf[dom.svg.Path]
-  val pathData   = clonedPath.getAttribute("d")
+  // The preview must not inherit the source path's inline styles: Mermaid promotes
+  // linkStyle declarations to inline `!important` (and hit-area clones are inline
+  // transparent), either of which would beat the #dragging-arrow-group CSS and the
+  // stroke-width attribute set below, leaving the preview mis-colored or invisible.
+  clonedPath.removeAttribute("style")
+  val pathData = clonedPath.getAttribute("d")
   val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
 
   def updateOrigin(commands: List[PathCommand]) =

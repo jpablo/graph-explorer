@@ -77,6 +77,14 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
 
 object SelectableElement:
 
+  /** Class marking invisible pointer-target decorations (MermaidBackend.addEdgeHitAreas).
+    * They exist ONLY to catch clicks near thin edges: click resolution may go through
+    * them (fromDomElement), but they must never be surfaced as the CANONICAL element
+    * for an id — geometry/visual consumers (selection highlight, the endpoint-drag
+    * preview which clones the path, bbox readers) need the real rendered element.
+    */
+  val hitAreaClass = "edge-hit-area"
+
   /** Create a SelectableElement from a DOM element using the specified strategy. */
   def fromDomElement(e: dom.Element, strategy: SelectableElementStrategy): Option[SelectableElement] =
     if strategy.isNode(e) then
@@ -97,9 +105,15 @@ object SelectableElement:
   // omits the strategy would compile fine and silently extract nothing from Mermaid
   // SVGs, undoing the strategy injection. The compiler forces callers to pass one.
 
-  /** Find all selectable elements in a container using the specified strategy. */
+  /** Find all selectable elements in a container using the specified strategy.
+    * Hit-area clones are excluded: they duplicate their original's id, and being
+    * inserted BEFORE it they would otherwise win headOption-style lookups.
+    */
   def findAll(ref: dom.Element, strategy: SelectableElementStrategy): Seq[SelectableElement] =
-    ref.querySelectorAllT[dom.Element](strategy.allSelector).flatMap(fromDomElement(_, strategy))
+    ref
+      .querySelectorAllT[dom.Element](strategy.allSelector)
+      .filterNot(_.classList.contains(hitAreaClass))
+      .flatMap(fromDomElement(_, strategy))
 
   /** Query specific elements by ID using the specified strategy. */
   def query(ref: dom.Element, elems: ElementIds, strategy: SelectableElementStrategy): Seq[SelectableElement] =

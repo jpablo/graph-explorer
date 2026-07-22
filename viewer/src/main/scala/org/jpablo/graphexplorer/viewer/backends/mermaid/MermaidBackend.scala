@@ -4,7 +4,7 @@ import com.raquo.airstream.core.Signal
 import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
-import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElementStrategy}
+import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.{parseSVG, querySelectorAllT}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 
@@ -351,7 +351,10 @@ object MermaidBackend:
       hit.removeAttribute("marker-start")
       hit.removeAttribute("marker-end")
       hit.setAttribute("data-edge-id", p.id)
-      hit.setAttribute("class", s"${Option(p.getAttribute("class")).getOrElse("")} edge-hit-area".trim)
+      hit.setAttribute(
+        "class",
+        s"${Option(p.getAttribute("class")).getOrElse("")} ${SelectableElement.hitAreaClass}".trim
+      )
       hit.setAttribute(
         "style",
         // non-scaling-stroke keeps the hit halo ~14 SCREEN px at any canvas zoom
