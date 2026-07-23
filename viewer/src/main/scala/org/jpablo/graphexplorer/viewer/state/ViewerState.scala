@@ -90,10 +90,12 @@ case class ViewerState(
   private lazy val visibleGraphObs      = visibleGraph.observe
   private lazy val selectionStrategyObs = selectionStrategy.observe
   private lazy val graphRankDirObs      = graphRankDir.observe
+  private lazy val currentFormatObs     = currentFormat.observe
   def fullGraphNow(): ViewerGraph         = fullGraphObs.now()
   def visibleGraphNow(): ViewerGraph      = visibleGraphObs.now()
   def selectionStrategyNow(): SelectableElementStrategy = selectionStrategyObs.now()
   def graphRankDirNow(): Rankdir          = graphRankDirObs.now()
+  def currentFormatNow(): DiagramFormat   = currentFormatObs.now()
   def setDiagramFormat(format: DiagramFormat): Unit =
     formatSelection.set(format)
 

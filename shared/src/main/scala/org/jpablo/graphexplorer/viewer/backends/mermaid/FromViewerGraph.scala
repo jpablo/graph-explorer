@@ -179,8 +179,11 @@ private def serializeEdge(arrow: Arrow): String =
   * dir=both (see ViewerGraph.defaultEdgeTheme), so the drawn markers are controlled by
   * the ArrowHead (default: an arrow) and ArrowTail (default: none) shapes; an explicit
   * `dir` attribute further masks them, matching Graphviz semantics.
+  *
+  * Public: DiagramSelectionOps.reverseArrowsStyle uses the same resolution to decide
+  * when the swap must become an endpoint reversal in Mermaid mode.
   */
-private def effectiveEdgeMarkers(attrs: Attributes): (start: Boolean, end: Boolean) =
+def effectiveEdgeMarkers(attrs: Attributes): (start: Boolean, end: Boolean) =
   val values    = attrs.values
   val headDrawn = values.get(ArrowHead.attrId).map(_.toString).forall(_ != "none")
   val tailDrawn = values.get(ArrowTail.attrId).map(_.toString).exists(_ != "none")

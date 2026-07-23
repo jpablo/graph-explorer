@@ -2,6 +2,8 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.EventStream
 import com.raquo.airstream.state.Var
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
+import org.jpablo.graphexplorer.viewer.backends.mermaid.effectiveEdgeMarkers
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.extensions.in
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
@@ -178,10 +180,41 @@ trait DiagramSelectionOps:
         phases.fullGraphV.update(_.transposeRecord(nodeId))
 
     def reverseArrowsStyle() =
-      phases.fullGraphV.update(_.reverseArrowsStyle(now()))
+      val mermaidMode = currentFormatNow() == DiagramFormat.Mermaid
+      phases.fullGraphV.update { graph =>
+        val classified = now().classify
+        // Mermaid has no tail-only link form: swapping the markers of an end-only
+        // arrow would make the serializer render it endpoint-swapped, desyncing the
+        // in-memory arrow id from the DOM (selection invisible, edge unclickable).
+        // For those arrows the identity-coherent equivalent is reversing the
+        // endpoints themselves; marker swaps stay marker swaps everywhere else.
+        val (toReverse, toSwap) =
+          if mermaidMode then
+            classified.arrows.partition { id =>
+              graph.arrows.get(id).exists { a =>
+                val markers = effectiveEdgeMarkers(a.attributes)
+                markers.end && !markers.start
+              }
+            }
+          else (Set.empty[ArrowId], classified.arrows)
+        val newGraph    = graph.reverseArrowsStyle(ElementIds(toSwap)).reverseArrows(ElementIds(toReverse))
+        val newArrowIds = newGraph.arrowIds -- graph.arrowIds
+        if newArrowIds.nonEmpty then
+          set1(classified.nodes ++ classified.groups ++ toSwap ++ newArrowIds)
+        newGraph
+      }
 
     def reverseArrows() =
-      phases.fullGraphV.update(_.reverseArrows(now()))
+      phases.fullGraphV.update { graph =>
+        val classified  = now().classify
+        val newGraph    = graph.reverseArrows(now())
+        // Follow the reversed arrows: their ids change with the endpoints, so keeping
+        // the old ids would leave the selection pointing at nothing (pruned).
+        val newArrowIds = newGraph.arrowIds -- graph.arrowIds
+        if newArrowIds.nonEmpty then
+          set1(classified.nodes ++ classified.groups ++ newArrowIds)
+        newGraph
+      }
 
     def selectAllVisibleNodes() =
       val visibleNodes = visibleGraphNow().nodeIds
