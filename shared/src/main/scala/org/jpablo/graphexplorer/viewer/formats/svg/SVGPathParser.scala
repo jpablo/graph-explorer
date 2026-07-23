@@ -62,14 +62,19 @@ class SVGPathParser extends RegexParsers:
 
   // Basic parsers
   def number: Parser[Double] = """-?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?""".r ^^ { _.toDouble }
-  def flag: Parser[Boolean]  = ("0" ^^^ false) | ("1" ^^^ true)
   def comma: Parser[String]  = ","
 
-  // Coordinate parsers
-  def coordinate: Parser[Double] = number
+  // The SVG spec allows comma OR whitespace separators between ANY two values.
+  // Accepting an optional leading comma before every value makes both dialects
+  // parse: Graphviz separates pairs with spaces (`C1,2 3,4 5,6`) while Mermaid
+  // separates everything with commas (`C1,2,3,4,5,6`) — the latter previously
+  // failed, which silently froze the endpoint-drag preview via its getOrElse
+  // fallback (whitespace is consumed by skipWhitespace).
+  def coordinate: Parser[Double] = opt(comma) ~> number
+  def flag: Parser[Boolean]      = opt(comma) ~> (("0" ^^^ false) | ("1" ^^^ true))
 
-  def coordinatePair: Parser[Coordinate] = coordinate ~ opt(comma) ~ coordinate ^^ {
-    case x ~ _ ~ y => (x, y)
+  def coordinatePair: Parser[Coordinate] = coordinate ~ coordinate ^^ {
+    case x ~ y => (x, y)
   }
 
   // Command parsers
