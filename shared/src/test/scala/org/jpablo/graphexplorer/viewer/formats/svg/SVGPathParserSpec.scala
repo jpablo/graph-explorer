@@ -41,3 +41,36 @@ class SVGPathParserSpec extends FunSuite:
   test("parses comma-separated H/V and arc commands"):
     val parsed = SVGPathParser.parse("M0,0H10,20V5,15A1,1,0,0,1,10,10")
     assert(parsed.isRight, s"Should parse, got: $parsed")
+
+  // --- endpoint-drag reshaping ------------------------------------------------------
+
+  private def mermaidShaped =
+    SVGPathParser.parse("M0,0L10,5C20,10,30,15,40,20C50,25,60,30,70,35L80,40").toOption.get
+
+  private def graphvizShaped =
+    SVGPathParser.parse("M0,0C10,5 20,10 30,15 40,20 50,25 60,30").toOption.get
+
+  test("moveTarget drops Mermaid's trailing straight stub and re-bends the curve"):
+    val moved = PathCommand.moveTarget(mermaidShaped, (200.0, 300.0))
+    // The trailing LineTo stub is gone; the curve itself now ends at the pointer
+    moved.last match
+      case CurveTo(true, points) => assertEquals(points.last._3, (200.0, 300.0))
+      case other                 => fail(s"Expected trailing CurveTo, got: $other")
+    assertEquals(moved.length, mermaidShaped.length - 1)
+
+  test("moveTarget on Graphviz-shaped paths just moves the curve endpoint"):
+    val moved = PathCommand.moveTarget(graphvizShaped, (200.0, 300.0))
+    assertEquals(moved.length, graphvizShaped.length)
+    moved.last match
+      case CurveTo(true, points) =>
+        assertEquals(points.last._3, (200.0, 300.0))
+        // preceding geometry untouched
+        assertEquals(points.init, graphvizShaped.last.asInstanceOf[CurveTo].points.init)
+      case other => fail(s"Expected trailing CurveTo, got: $other")
+
+  test("moveOrigin drops Mermaid's leading straight stub and moves the start"):
+    val moved = PathCommand.moveOrigin(mermaidShaped, (-50.0, -60.0))
+    moved match
+      case MoveTo(true, List(p)) :: (_: CurveTo) :: _ => assertEquals(p, (-50.0, -60.0))
+      case other                                      => fail(s"Expected MoveTo :: CurveTo, got: $other")
+    assertEquals(moved.length, mermaidShaped.length - 1)

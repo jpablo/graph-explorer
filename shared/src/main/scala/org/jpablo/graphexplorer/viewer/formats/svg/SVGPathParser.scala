@@ -57,6 +57,36 @@ object PathCommand:
   def toData(commands: List[PathCommand]): String =
     commands.map(_.asString).mkString(" ")
 
+  /** Move the path's END to `point`, keeping the rest of the shape.
+    *
+    * Mermaid terminates its edge paths with a short straight stub (`...C... L end`);
+    * bending only that stub leaves the curve frozen and stretches the stub — a sharp
+    * elbow at the joint. When the last command is a single-point LineTo preceded by a
+    * CurveTo, drop the stub and move the CURVE's endpoint instead — the same smooth
+    * re-bend Graphviz paths get (they end in the curve itself).
+    */
+  def moveTarget(commands: List[PathCommand], point: Coordinate): List[PathCommand] =
+    val trimmed = commands match
+      case init :+ (c: CurveTo) :+ LineTo(_, _ :: Nil) => init :+ c
+      case other                                       => other
+    trimmed match
+      case init :+ LineTo(a, pts) => init :+ LineTo(a, pts.init :+ point)
+      case init :+ CurveTo(a, points) =>
+        val (c1, c2, _) = points.last
+        init :+ CurveTo(a, points.init :+ (c1, c2, point))
+      case other => other
+
+  /** Move the path's START to `point` (mirror of [[moveTarget]]: Mermaid also opens
+    * with a `M start L p C ...` stub, which would hinge at `p`).
+    */
+  def moveOrigin(commands: List[PathCommand], point: Coordinate): List[PathCommand] =
+    val trimmed = commands match
+      case (m: MoveTo) :: LineTo(_, _ :: Nil) :: (c: CurveTo) :: rest => m :: c :: rest
+      case other                                                     => other
+    trimmed match
+      case MoveTo(a, _ :: pt) :: ct => MoveTo(a, point :: pt) :: ct
+      case other                    => other
+
 class SVGPathParser extends RegexParsers:
   override def skipWhitespace = true // Let's handle whitespace automatically
 

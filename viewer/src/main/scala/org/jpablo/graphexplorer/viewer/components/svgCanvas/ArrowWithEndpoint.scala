@@ -5,7 +5,6 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.arrowHeadMarker
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
-import org.jpablo.graphexplorer.viewer.formats.svg.PathCommand.*
 import org.jpablo.graphexplorer.viewer.formats.svg.{PathCommand, SVGPathParser}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.MoveArrowEndpointAction
 
@@ -26,26 +25,11 @@ def ArrowBetweenPointerAndEndpoint(
   val pathData = clonedPath.getAttribute("d")
   val point      = action.rect.end.toSvgPoint(rootGroup.getScreenCTM())
 
-  def updateOrigin(commands: List[PathCommand]) =
-    commands match
-      case MoveTo(a, _ :: pt) :: ct => MoveTo(a, point.toTuple :: pt) :: ct
-      case other                    => other
-
-  def updateTarget(commands: List[PathCommand]) =
-    commands match
-      case commands =>
-        // Find the last command to update the target point
-        val lastIndex = commands.size - 1
-        commands.zipWithIndex.map:
-          case (LineTo(a, pts), i) if i == lastIndex     => LineTo(a, pts.init :+ point.toTuple)
-          case (CurveTo(a, points), i) if i == lastIndex =>
-            // For CurveTo, we need to update the last point in the last triplet
-            val updatedPoints = points.init :+ (points.last._1, points.last._2, point.toTuple)
-            CurveTo(a, updatedPoints)
-          case (cmd, _) => cmd
-
   val updatedPathData = SVGPathParser.parse(pathData)
-    .map(if action.endpoint.isSource then updateOrigin else updateTarget)
+    .map { commands =>
+      if action.endpoint.isSource then PathCommand.moveOrigin(commands, point.toTuple)
+      else PathCommand.moveTarget(commands, point.toTuple)
+    }
     .map(PathCommand.toData)
     .getOrElse(pathData)
 
