@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label, Rankdir, Shape, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, GraphType, Label, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -156,6 +156,14 @@ private def edgeToAttributes(edge: MermaidEdge): Attributes =
     case "thick"  => attrs += Style.attrId -> AttrValue("bold")
     case _        => // "normal" or unknown - no style needed
   }
+
+  // Arrow markers: map mermaid link forms onto the DOT head/tail model the app renders
+  // with (dir=both — see ViewerGraph.defaultEdgeTheme, so ArrowHead/ArrowTail alone
+  // control the drawn markers). double_* = arrows at both ends; arrow_open = none.
+  edge.edgeType match
+    case Some(t) if t.startsWith("double_") => attrs += ArrowTail.attrId -> AttrValue("normal")
+    case Some("arrow_open")                 => attrs += ArrowHead.attrId -> AttrValue("none")
+    case _                                  => ()
 
   // Store edge type as custom attribute
   edge.edgeType.foreach(v => attrs += MermaidEdgeTypeAttr -> AttrValue(v))

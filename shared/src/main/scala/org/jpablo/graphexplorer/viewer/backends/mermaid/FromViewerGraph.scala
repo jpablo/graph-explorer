@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BoldStyle, BorderStyle, Color, FillColor, FontColor, FontName, FontSize, Label, PenColor, PenWidth, Rankdir, Shape, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, BoldStyle, BorderStyle, Color, Dir, FillColor, FontColor, FontName, FontSize, Label, PenColor, PenWidth, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -157,12 +157,38 @@ private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
 
 /** Serialize an edge with its style and label. */
 private def serializeEdge(arrow: Arrow): String =
-  val arrowType = dotStyleToMermaidArrow(edgeLineStyle(arrow.attributes))
+  val (startArrow, endArrow) = effectiveEdgeMarkers(arrow.attributes)
+
+  // Mermaid links can carry an end arrow, arrows at BOTH ends, or none — but no
+  // tail-only form. A tail-only edge (the result of "Reverse Arrows Head/Tail Style"
+  // under the app's dir=both theme) is rendered with SWAPPED endpoints and a forward
+  // arrow: visually identical, though the flip becomes structural after the next
+  // parse round-trip (pinned as LossyAs in FeatureParitySpec).
+  val (src, dst, start, end) =
+    if startArrow && !endArrow then (arrow.target, arrow.source, false, true)
+    else (arrow.source, arrow.target, startArrow, endArrow)
+
+  val arrowType = mermaidLinkToken(edgeLineStyle(arrow.attributes), start, end)
 
   val labelOpt  = arrow.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val labelPart = labelOpt.map(l => s"|${escapeMermaidLabel(MermaidLabelText.fromStored(l))}|").getOrElse("")
 
-  s"${mermaidId(arrow.source.value)} $arrowType$labelPart ${mermaidId(arrow.target.value)}"
+  s"${mermaidId(src.value)} $arrowType$labelPart ${mermaidId(dst.value)}"
+
+/** Which ends of the edge actually DRAW a marker. The app's edge theme renders with
+  * dir=both (see ViewerGraph.defaultEdgeTheme), so the drawn markers are controlled by
+  * the ArrowHead (default: an arrow) and ArrowTail (default: none) shapes; an explicit
+  * `dir` attribute further masks them, matching Graphviz semantics.
+  */
+private def effectiveEdgeMarkers(attrs: Attributes): (start: Boolean, end: Boolean) =
+  val values    = attrs.values
+  val headDrawn = values.get(ArrowHead.attrId).map(_.toString).forall(_ != "none")
+  val tailDrawn = values.get(ArrowTail.attrId).map(_.toString).exists(_ != "none")
+  values.get(Dir.attrId).map(_.toString) match
+    case Some("forward") => (start = false, end = headDrawn)
+    case Some("back")    => (start = tailDrawn, end = false)
+    case Some("none")    => (start = false, end = false)
+    case _               => (start = tailDrawn, end = headDrawn) // both (theme default) / unset
 
 /** Derive the DOT line-style keyword (dashed/dotted/bold) for an edge from either a
   * collapsed `style` attribute (Mermaid-sourced) or the expanded style sub-attributes
@@ -207,15 +233,21 @@ private def dotShapeToMermaid(dotShape: String): (String, String) =
     case "stadium"                    => ("([", "])")
     case _                            => ("[", "]") // Default to rectangle
 
-/** Maps DOT edge styles to Mermaid arrow syntax. Mermaid's arrow syntax cannot
-  * distinguish dashed from dotted, so both map to `-.->` (round-tripping as dashed);
-  * finer distinctions would need a `linkStyle stroke-dasharray` directive. */
-private def dotStyleToMermaidArrow(styleOpt: Option[String]): String =
-  styleOpt match
-    case Some("dashed") => "-.->"
-    case Some("bold")   => "==>"
-    case Some("dotted") => "-.->"
-    case _              => "-->"
+/** Maps DOT edge styles + drawn markers to Mermaid link syntax. Mermaid's arrow syntax
+  * cannot distinguish dashed from dotted, so both map to the dotted family
+  * (round-tripping as dashed); finer distinctions would need a `linkStyle
+  * stroke-dasharray` directive. `start && !end` never reaches here (serializeEdge
+  * swaps such edges into the `!start && end` form).
+  */
+private def mermaidLinkToken(styleOpt: Option[String], start: Boolean, end: Boolean): String =
+  val family = styleOpt match
+    case Some("dashed") | Some("dotted") => (fwd = "-.->", both = "<-.->", open = "-.-")
+    case Some("bold")                    => (fwd = "==>", both = "<==>", open = "===")
+    case _                               => (fwd = "-->", both = "<-->", open = "---")
+  (start, end) match
+    case (true, true)   => family.both
+    case (false, false) => family.open
+    case _              => family.fwd
 
 private def shouldEmitStandaloneNode(nodeId: NodeId, node: ViewerNode, connectedNodeIds: Set[NodeId]): Boolean =
   val labelOpt         = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)

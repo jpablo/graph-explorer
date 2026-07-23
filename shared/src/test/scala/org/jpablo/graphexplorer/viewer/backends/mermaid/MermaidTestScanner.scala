@@ -12,7 +12,8 @@ import scala.collection.mutable
   */
 object MermaidTestScanner:
 
-  private val EdgeLine      = raw"""^(\S+)\s+(-->|-\.->|==>)(?:\|([^|]*)\|)?\s+(\S+)$$""".r
+  private val EdgeLine =
+    raw"""^(\S+)\s+(<-->|<-\.->|<==>|-->|-\.->|==>|---|-\.-|===)(?:\|([^|]*)\|)?\s+(\S+)$$""".r
   private val SubgraphLine  = raw"""^subgraph\s+(\S+?)(?:\s+\[(.*)\])?$$""".r
   private val StyleLine     = raw"""^style\s+(\S+)\s+(.*)$$""".r
   private val ClassDefLine  = raw"""^classDef\s+(\S+)\s+(.*)$$""".r
@@ -104,14 +105,21 @@ object MermaidTestScanner:
         nodeStyles(id) = body.split(",").map(_.trim).filter(_.nonEmpty).toList
       case EdgeLine(src, arrow, labelOrNull, dst) =>
         val stroke = arrow match
-          case "-.->" => Some("dotted")
-          case "==>"  => Some("thick")
-          case _      => None
+          case "-.->" | "<-.->" | "-.-" => Some("dotted")
+          case "==>" | "<==>" | "==="   => Some("thick")
+          case _                        => None
+        // mirror mermaid.js's destructLink typing: leading `<` = arrows at both ends,
+        // no trailing `>` = open link (no arrows)
+        val edgeType =
+          if arrow.startsWith("<") then Some("double_arrow_point")
+          else if !arrow.endsWith(">") then Some("arrow_open")
+          else Some("arrow_point")
         edges += MermaidEdge(
           start = src,
           end = dst,
           text = Option(labelOrNull).map(MermaidSourceScan.normalizeLabel).filter(_.nonEmpty),
-          stroke = stroke
+          stroke = stroke,
+          edgeType = edgeType
         )
         registerVertex(src, MermaidVertex(id = src, text = src))
         registerVertex(dst, MermaidVertex(id = dst, text = dst))

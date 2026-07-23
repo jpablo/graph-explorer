@@ -147,6 +147,28 @@ class FeatureParitySpec extends FunSuite:
         .orElse(a.attributes.get(BorderStyle.attrId).map(_.toString).filter(_.nonEmpty))
     }
 
+  /** "source->target:markers" per arrow, where markers reflects what actually DRAWS
+    * under the app's dir=both edge theme (independent re-derivation of the mermaid
+    * serializer's resolution, so the probe can't inherit its bugs).
+    */
+  private def edgeMarkerFacts(g: ViewerGraph): Vector[String] =
+    g.arrows.values.toVector.map { a =>
+      val attrs = a.attributes
+      val head  = attrs.get(AttributeId("arrowhead")).map(_.toString).forall(_ != "none")
+      val tail  = attrs.get(AttributeId("arrowtail")).map(_.toString).exists(_ != "none")
+      val (s, e) = attrs.get(AttributeId("dir")).map(_.toString) match
+        case Some("forward") => (false, head)
+        case Some("back")    => (tail, false)
+        case Some("none")    => (false, false)
+        case _               => (tail, head)
+      val markers = (s, e) match
+        case (true, true)   => "both"
+        case (false, false) => "open"
+        case (true, false)  => "start"
+        case (false, true)  => "end"
+      s"${a.source.value}->${a.target.value}:$markers"
+    }.sorted
+
   private def cssDecl(style: String, key: String): Option[String] =
     style.split(",").iterator.map(_.trim).collectFirst {
       case d if d.startsWith(s"$key:") => d.split(":", 2)(1).trim
@@ -278,10 +300,41 @@ class FeatureParitySpec extends FunSuite:
       )
     ),
     ParityRow(
+      "edge arrows at both ends",
+      graphOf(
+        Seq(n("a"), n("b")),
+        arrows = Seq(Arrow(NodeId("a"), NodeId("b"), attributes = Attributes.of("arrowtail" -> "normal")))
+      ),
+      edgeMarkerFacts
+    ),
+    ParityRow(
+      "edge without arrowheads",
+      graphOf(
+        Seq(n("a"), n("b")),
+        arrows = Seq(Arrow(NodeId("a"), NodeId("b"), attributes = Attributes.of("arrowhead" -> "none")))
+      ),
+      edgeMarkerFacts
+    ),
+    ParityRow(
+      "tail-only arrow (Reverse Head/Tail Style)",
+      graphOf(
+        Seq(n("a"), n("b")),
+        arrows = Seq(Arrow(NodeId("a"), NodeId("b"), attributes = Attributes.of("arrowhead" -> "none", "arrowtail" -> "normal")))
+      ),
+      edgeMarkerFacts,
+      mermaid = LossyAs(
+        Vector("b->a:end"),
+        "Mermaid has no tail-only link form; the serializer renders the edge with swapped endpoints + a forward arrow — visually identical, structurally flipped after a round trip"
+      )
+    ),
+    ParityRow(
       "arrow direction dir=back",
       graphOf(Seq(n("a"), n("b")), arrows = Seq(Arrow(NodeId("a"), NodeId("b"), attributes = Attributes.of("dir" -> "back")))),
       arrowAttr(_, "dir"),
-      mermaid = LossyAs(None, "dir attribute is not mapped onto Mermaid's arrow forms (candidate fix: <--)")
+      mermaid = LossyAs(
+        None,
+        "dir now masks the drawn markers (dir=back + default tail=none serializes as an open link), but the dir attribute itself has no Mermaid encoding and is dropped"
+      )
     ),
     ParityRow(
       // The app always pairs fillcolor with the filled style sub-attribute
