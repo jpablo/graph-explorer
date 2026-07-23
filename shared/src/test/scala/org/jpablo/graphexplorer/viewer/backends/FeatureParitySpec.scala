@@ -185,6 +185,17 @@ class FeatureParitySpec extends FunSuite:
   private def effectiveNodeFill(g: ViewerGraph, id: String): Option[String] =
     effectiveFill(g.nodes.get(NodeId(id)).map(_.attributes))
 
+  /** Border style regardless of encoding: the BorderStyle sub-attribute (DOT) or the
+    * css stroke-dasharray it maps to in Mermaid (distinct patterns per style).
+    */
+  private def effectiveNodeBorderStyle(g: ViewerGraph, id: String): Option[String] =
+    nodeAttr(g, id, "borderstyle").orElse(
+      nodeAttr(g, id, "style")
+        .filter(_.contains(":"))
+        .flatMap(cssDecl(_, "stroke-dasharray"))
+        .map { case "2 2" => "dotted"; case _ => "dashed" }
+    )
+
   private def effectiveGroupFill(g: ViewerGraph, id: String): Option[String] =
     effectiveFill(g.groups.get(GroupId(id)).map(_.attributes))
 
@@ -245,10 +256,21 @@ class FeatureParitySpec extends FunSuite:
       g => Vector("a", "b", "c", "d", "e").map(id => nodeAttr(g, id, "shape"))
     ),
     ParityRow(
+      // Unmapped shapes render as rectangles but the real shape survives via a
+      // reserved gx-shape-* marker class
       "node shape outside Mermaid's vocabulary",
       graphOf(Seq(n("a", Attributes.of("shape" -> "house")))),
-      nodeAttr(_, "a", "shape"),
-      mermaid = LossyAs(Some("box"), "Mermaid has no house shape; brackets collapse to a rectangle")
+      nodeAttr(_, "a", "shape")
+    ),
+    ParityRow(
+      "node dashed border (effective)",
+      graphOf(Seq(n("a", Attributes.of("borderstyle" -> "dashed")))),
+      effectiveNodeBorderStyle(_, "a")
+    ),
+    ParityRow(
+      "node rounded corners (effective)",
+      graphOf(Seq(n("a", Attributes.of("cornerstyle" -> "rounded")))),
+      g => nodeAttr(g, "a", "cornerstyle").contains("rounded")
     ),
     ParityRow(
       "edge style dashed",
@@ -291,13 +313,11 @@ class FeatureParitySpec extends FunSuite:
       mermaid = LossyAs(Some((None, None)), "Mermaid has no port syntax; ports are dropped")
     ),
     ParityRow(
+      // The record SHAPE survives via the gx-shape-* marker class (so isRecordNode and
+      // Split/Transpose Record keep working); only the drawn field structure is lost
       "record node",
       graphOf(Seq(n("a", Attributes.of("shape" -> "record", "label" -> "f0|f1")))),
-      g => (nodeAttr(g, "a", "shape"), nodeAttr(g, "a", "label")),
-      mermaid = LossyAs(
-        (Some("box"), Some("f0|f1")),
-        "Mermaid has no record shapes; the label text survives, the field structure does not"
-      )
+      g => (nodeAttr(g, "a", "shape"), nodeAttr(g, "a", "label"))
     ),
     ParityRow(
       "edge arrows at both ends",
@@ -350,11 +370,9 @@ class FeatureParitySpec extends FunSuite:
         groups = Seq(grp("G1", clusterAttrs ++ Attributes.of(FillColor -> "#bedbff", FillStyle -> true))),
         memberships = Seq(NodeId("a") -> GroupId("G1"))
       ),
-      effectiveGroupFill(_, "G1"),
-      mermaid = LossyAs(
-        None,
-        "GAP: the serializer writes `style G1 ...` but MermaidSubgraph has no styles field, so the parse side drops it"
-      )
+      // Group style directives are harvested from the vertices dictionary (mermaid.js
+      // records `style <subgraphId> ...` there) instead of dying with the phantom vertex
+      effectiveGroupFill(_, "G1")
     ),
     ParityRow(
       "mermaid class assignment + classDef",

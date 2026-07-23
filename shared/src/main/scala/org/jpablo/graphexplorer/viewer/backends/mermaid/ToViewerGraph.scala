@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, GraphType, Label, Rankdir, Shape, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, CornerStyle, GraphType, Label, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -67,11 +67,23 @@ def toViewerGraphElements(mermaidGraph: MermaidGraph): ViewerGraphElements =
       arrow.id -> arrow
     }.toMap
 
+  // `style <subgraphId> ...` directives land in the VERTICES dictionary (mermaid.js
+  // gives subgraphs a vertex entry); harvest them for the group instead of dropping
+  // them along with the phantom vertex.
+  val subgraphVertexStyles: Map[String, List[String]] =
+    mermaidGraph.vertices.iterator.flatMap { case (rawKey, v) =>
+      val sid =
+        if subgraphIds.contains(rawKey) then Some(rawKey)
+        else if subgraphIds.contains(v.id) then Some(v.id)
+        else None
+      sid.filter(_ => v.styles.nonEmpty).map(_ -> v.styles)
+    }.toMap
+
   // Convert subgraphs to groups
   val groups: Map[GroupId, ViewerGroup] =
     mermaidGraph.subgraphs.map { subgraph =>
       val groupId = GroupId(subgraph.id)
-      val attrs   = subgraphToAttributes(subgraph)
+      val attrs   = subgraphToAttributes(subgraph, subgraphVertexStyles.getOrElse(subgraph.id, Nil))
       groupId -> ViewerGroup.group(groupId, attrs)
     }.toMap
 
@@ -126,11 +138,19 @@ private def vertexToAttributes(vertex: MermaidVertex): Attributes =
   // Label (use text if different from id), converted to the stored (DOT-escaped) form
   if vertex.text != vertex.id then attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(vertex.text))
 
-  // Shape mapping from Mermaid to DOT
-  vertex.shape.foreach { shape =>
-    val dotShape = mermaidShapeToDot(shape)
-    attrs += Shape.attrId -> AttrValue(dotShape)
-  }
+  // gx-shape-* marker classes carry DOT shapes that have no Mermaid bracket form
+  // (record, house, ...); they win over the collapsed-to-rectangle bracket shape.
+  val (shapeMarkers, cssClasses) = vertex.classes.partition(_.startsWith(ShapeClassPrefix))
+  shapeMarkers.headOption.map(_.stripPrefix(ShapeClassPrefix)) match
+    case Some(dotShape) =>
+      attrs += Shape.attrId -> AttrValue(dotShape)
+    case None =>
+      vertex.shape.foreach { shape =>
+        attrs += Shape.attrId -> AttrValue(mermaidShapeToDot(shape))
+        // Mermaid's round brackets are DOT's box with rounded corners
+        if shape == "round" || shape == "rounded" then
+          attrs += CornerStyle.attrId -> AttrValue("rounded")
+      }
 
   // Store Mermaid-specific data as custom attributes
   vertex.domId.foreach(v => attrs += MermaidDomIdAttr -> AttrValue(v))
@@ -139,7 +159,7 @@ private def vertexToAttributes(vertex: MermaidVertex): Attributes =
   if vertex.styles.nonEmpty then attrs += Style.attrId -> AttrValue(vertex.styles.mkString(","))
 
   // Store classes as a custom attribute
-  if vertex.classes.nonEmpty then attrs += MermaidClassAttr -> AttrValue(vertex.classes.mkString(" "))
+  if cssClasses.nonEmpty then attrs += MermaidClassAttr -> AttrValue(cssClasses.mkString(" "))
 
   Attributes.fromOrdered(attrs)
 
@@ -172,11 +192,12 @@ private def edgeToAttributes(edge: MermaidEdge): Attributes =
 
   Attributes.fromOrdered(attrs)
 
-/** Converts a MermaidSubgraph to Attributes. */
-private def subgraphToAttributes(subgraph: MermaidSubgraph): Attributes =
+/** Converts a MermaidSubgraph (plus any harvested style directives) to Attributes. */
+private def subgraphToAttributes(subgraph: MermaidSubgraph, styles: List[String]): Attributes =
   val attrs = scala.collection.mutable.ListBuffer[(AttributeId, AttrValue)]()
 
   subgraph.title.foreach(v => attrs += Label.attrId -> AttrValue(MermaidLabelText.toStored(v)))
+  if styles.nonEmpty then attrs += Style.attrId -> AttrValue(styles.mkString(","))
   if subgraph.classes.nonEmpty then attrs += MermaidClassAttr -> AttrValue(subgraph.classes.mkString(" "))
 
   Attributes.fromOrdered(attrs)

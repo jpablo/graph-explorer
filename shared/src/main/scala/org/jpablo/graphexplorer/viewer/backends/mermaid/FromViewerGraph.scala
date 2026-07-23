@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import org.jpablo.graphexplorer.viewer.backends.mermaid.MermaidAttrKeys.*
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, BoldStyle, BorderStyle, Color, Dir, FillColor, FontColor, FontName, FontSize, Label, PenColor, PenWidth, Rankdir, Shape, Style}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, BoldStyle, BorderStyle, Color, CornerStyle, Dir, FillColor, FontColor, FontName, FontSize, InvisibleStyle, Label, PenColor, PenWidth, Rankdir, Shape, Style}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 
@@ -125,6 +125,18 @@ def viewerGraphToMermaidText(graph: ViewerGraph): String =
       lines.append(s"  style ${mermaidId(nodeId.value)} $css\n")
     }
   }
+
+  // Preserve DOT shapes with no Mermaid form through the round trip via a reserved
+  // marker class (see MermaidAttrKeys.ShapeClassPrefix). Without this, e.g. a record
+  // node came back as `shape=box` after one round trip and Split/Transpose Record
+  // became permanently unavailable.
+  graph.nodes.foreach { case (nodeId, node) =>
+    node.attributes.values
+      .get(Shape.attrId)
+      .map(_.toString)
+      .filter(s => mermaidMappedShape(s).isEmpty)
+      .foreach(s => lines.append(s"  class ${mermaidId(nodeId.value)} $ShapeClassPrefix$s\n"))
+  }
   sortedGroups.foreach { case (groupId, group) =>
     if groupId != rootGroupId then
       groupStyleDirectiveCss(group).foreach { css =>
@@ -140,14 +152,23 @@ private def serializeNode(nodeId: NodeId, node: ViewerNode): String =
   val labelOpt = node.attributes.values.get(Label.attrId).map(_.toString).filter(_.nonEmpty)
   val shapeOpt = node.attributes.values.get(Shape.attrId).map(_.toString)
   val classOpt = node.attributes.values.get(MermaidClassAttr).map(_.toString).filter(_.nonEmpty)
+  val rounded  = node.attributes.values.get(CornerStyle.attrId).exists(_.toString == "rounded")
 
-  val safeId                      = mermaidId(nodeId.value)
-  val label                       = labelOpt.getOrElse(nodeId.value)
-  val (openBracket, closeBracket) = shapeOpt.map(dotShapeToMermaid).getOrElse(("[", "]"))
-  val classSuffix                 = classOpt.map(c => s":::$c").getOrElse("")
+  val safeId = mermaidId(nodeId.value)
+  val label  = labelOpt.getOrElse(nodeId.value)
+  val (openBracket, closeBracket) = shapeOpt match
+    case Some(s) =>
+      mermaidMappedShape(s) match
+        // A rounded box is Mermaid's round-bracket form
+        case Some(("[", "]")) if rounded => ("(", ")")
+        case Some(brackets)              => brackets
+        // Unmapped DOT shape: rectangle here, the real shape rides a gx-shape class
+        case None                        => ("[", "]")
+    case None => if rounded then ("(", ")") else ("[", "]")
+  val classSuffix = classOpt.map(c => s":::$c").getOrElse("")
 
-  // Bare form only when the id is already Mermaid-safe and there is no shape/label to show.
-  if shapeOpt.isEmpty && label == nodeId.value && safeId == nodeId.value then
+  // Bare form only when the id is already Mermaid-safe and there is no shape/label/rounding to show.
+  if shapeOpt.isEmpty && !rounded && label == nodeId.value && safeId == nodeId.value then
     s"$safeId$classSuffix"
   else
     // Escape label for Mermaid (quotes need special handling); stored line breaks
@@ -214,27 +235,29 @@ private def mermaidId(id: String): String =
   if id.forall(MermaidSourceScan.isIdentifierChar) then id
   else MermaidUnsafeIdChar.replaceAllIn(id, "_")
 
-/** Maps DOT shape names to Mermaid bracket syntax (paired with `mermaidShapeToDot`).
+/** Maps DOT shape names to Mermaid bracket syntax (paired with `mermaidShapeToDot`),
+  * or None when Mermaid has no form for the shape (record, house, ...): the caller
+  * then renders a rectangle and preserves the real shape via a `gx-shape-*` class.
   *
   * Not a perfect inverse: Mermaid has fewer shapes than DOT, so several DOT shapes
   * collapse onto the same brackets (e.g. `ellipse` and `stadium` both use `([ ])`).
   * `mermaidShapeToDot` resolves each bracket to one canonical DOT shape so the
   * common shapes stay stable across a round-trip.
   */
-private def dotShapeToMermaid(dotShape: String): (String, String) =
+private def mermaidMappedShape(dotShape: String): Option[(String, String)] =
   dotShape.toLowerCase match
-    case "box" | "rect" | "rectangle" => ("[", "]")
-    case "diamond"                    => ("{", "}")
-    case "circle"                     => ("((", "))")
-    case "ellipse"                    => ("([", "])")
-    case "cylinder"                   => ("[(", ")]")
-    case "hexagon"                    => ("{{", "}}")
-    case "parallelogram"              => ("[/", "/]")
-    case "trapezium" | "trapezoid"    => ("[/", "\\]")
-    case "invtrapezium"               => ("[\\", "/]")
-    case "doublecircle"               => ("(((", ")))")
-    case "stadium"                    => ("([", "])")
-    case _                            => ("[", "]") // Default to rectangle
+    case "box" | "rect" | "rectangle" => Some(("[", "]"))
+    case "diamond"                    => Some(("{", "}"))
+    case "circle"                     => Some(("((", "))"))
+    case "ellipse"                    => Some(("([", "])"))
+    case "cylinder"                   => Some(("[(", ")]"))
+    case "hexagon"                    => Some(("{{", "}}"))
+    case "parallelogram"              => Some(("[/", "/]"))
+    case "trapezium" | "trapezoid"    => Some(("[/", "\\]"))
+    case "invtrapezium"               => Some(("[\\", "/]"))
+    case "doublecircle"               => Some(("(((", ")))"))
+    case "stadium"                    => Some(("([", "])"))
+    case _                            => None
 
 /** Maps DOT edge styles + drawn markers to Mermaid link syntax. Mermaid's arrow syntax
   * cannot distinguish dashed from dotted, so both map to the dotted family
@@ -361,7 +384,14 @@ private def nodeStyleDirectiveCss(node: ViewerNode): Option[String] =
       "stroke-width" -> cssPx(attrs, PenWidth.attrId),
       "color"        -> cssValue(attrs, FontColor.attrId),
       "font-family"  -> cssValue(attrs, FontName.attrId),
-      "font-size"    -> cssPx(attrs, FontSize.attrId)
+      "font-size"    -> cssPx(attrs, FontSize.attrId),
+      // Border style / invisibility ride on css (Mermaid has no attribute for them);
+      // the distinct dash patterns keep dashed vs dotted recoverable
+      "stroke-dasharray" -> attrs.get(BorderStyle.attrId).map(_.toString).collect {
+        case "dashed" => "6 4"
+        case "dotted" => "2 2"
+      },
+      "opacity" -> attrs.get(InvisibleStyle.attrId).map(_.toString).collect { case "true" => "0" }
     )
   )
 

@@ -136,6 +136,12 @@ object MermaidTestScanner:
         case None                        => e
     }
 
+    // mermaid.js gives ANY styled id a vertices-dictionary entry — including subgraph
+    // ids, which is where toViewerGraph harvests group styles from. Mirror that.
+    nodeStyles.keys.foreach { id =>
+      if !vertices.contains(id) then vertices(id) = MermaidVertex(id = id, text = id)
+    }
+
     val vertexMap = vertices.map { case (id, v) =>
       id -> v.copy(
         styles = nodeStyles.getOrElse(id, Nil),

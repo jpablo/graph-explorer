@@ -8,6 +8,13 @@ import org.jpablo.graphexplorer.viewer.models.AttributeId
   * must all agree on these spellings — keep them here and nowhere else.
   */
 object MermaidAttrKeys:
+  /** Reserved class-name prefix carrying DOT shapes that have no Mermaid bracket form
+    * (record, house, ...) through the round trip: the serializer emits
+    * `class <id> gx-shape-<shape>` (undefined classes are inert in Mermaid rendering)
+    * and the parser restores the Shape attribute from it — keeping shape-gated
+    * features like Split/Transpose Record available in Mermaid mode.
+    */
+  val ShapeClassPrefix = "gx-shape-"
   val MermaidClassDefPrefix     = "mermaid_classDef_"
   val MermaidClassDefTextPrefix = "mermaid_classDefText_"
 
