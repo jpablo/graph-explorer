@@ -329,6 +329,20 @@ svg {
         pointer-events: none;
       }
 
+      // ---- Focus mode ----
+      // With a selection active, the accent color alone drowns in dense graphs;
+      // figure/ground does the work instead: fade everything that is NOT selected.
+      // Keyed on DOM state via :has() — no state plumbing. Opacity only: filters
+      // and animations on many edges are a known perf trap (see note below).
+      g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link {
+        transition: opacity 150ms ease;
+      }
+      &:has(.selected) {
+        :is(g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link):not(.selected) {
+          opacity: 0.65;
+        }
+      }
+
       .edge.selected,
       .edgePath.selected {
         path, line, polygon, polyline, ellipse {
@@ -338,11 +352,23 @@ svg {
           //filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
           //animation: combinedPulse 2s infinite alternate ease-in-out;
         }
+
+        // A thicker spline reads as selected the way the node border rect does.
+        // Only where no explicit penwidth attr exists — a user-set width is already
+        // distinctive and should not be flattened by the highlight. (The hit halo
+        // also matches, but its inline 14px width beats this non-!important rule.)
+        path:not([stroke-width]) {
+          stroke-width: 2.5;
+        }
       }
 
       path.flowchart-link.selected,
       path.edgePath.selected {
         stroke: #2c70ff !important;
+        // !important: mermaid's own stylesheet sets edge widths behind an id
+        // selector (#mermaid-… .edge-thickness-normal), which outranks any
+        // class-only rule from here
+        stroke-width: 3px !important;
       }
 
       // Invisible wide hit-target clones under Mermaid edge paths (addEdgeHitAreas).

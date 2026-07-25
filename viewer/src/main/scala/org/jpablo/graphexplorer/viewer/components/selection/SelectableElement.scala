@@ -150,11 +150,33 @@ case class EdgeElement(ref0: dom.svg.Element, strat: SelectableElementStrategy)
     ref.classList.add(selectedClass)
     // For Mermaid paths with marker-end, create a selected-state marker
     styleMarkerForSelection(selected = true)
+    toggleEdgeLabelSelection(add = true)
 
   override def unselect(): Unit =
     ref.classList.remove(selectedClass)
     // Restore original marker
     styleMarkerForSelection(selected = false)
+    toggleEdgeLabelSelection(add = false)
+
+  /** Mirror the edge's selected class onto its LABEL group.
+    *
+    * Mermaid renders edge labels in a separate `g.edgeLabel`, correlated to the edge
+    * only by mermaid's `data-id` stamp on the inner `g.label` — the label carries no
+    * `.selected` of its own, so state-driven css (the focus-mode dimming) would fade
+    * the label of a selected edge. DOT needs none of this: its labels live inside the
+    * selected `g.edge` group, so the lookup finds nothing and this is a no-op.
+    */
+  private def toggleEdgeLabelSelection(add: Boolean): Unit =
+    val domId = ref.id
+    if domId.nonEmpty then
+      Option(ref.asInstanceOf[js.Dynamic].ownerSVGElement.asInstanceOf[dom.Element]).foreach { svgRoot =>
+        val inner = svgRoot.querySelector(s"""g.label[data-id="${CSSGlobal.escape(domId)}"]""")
+        if inner != null then
+          val labelGroup = inner.closest(".edgeLabel")
+          if labelGroup != null then
+            if add then labelGroup.classList.add(selectedClass)
+            else labelGroup.classList.remove(selectedClass)
+      }
 
   /** Style the arrow marker (arrowhead) for selection state.
     * Mermaid uses SVG markers which can't be styled via CSS cascade.
