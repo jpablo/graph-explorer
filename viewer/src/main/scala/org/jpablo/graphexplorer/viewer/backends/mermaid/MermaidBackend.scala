@@ -99,6 +99,11 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       .getDiagramFromText(text)
       .`then`[Unit](
         { diagram =>
+          // The watchdog tracks whether getDiagramFromText SETTLED, so flip the flag on
+          // entry: the render-only throw below settles the promise too, and flipping it
+          // only on the success path made the watchdog cry "still pending" two seconds
+          // after every render-only diagram had already been classified.
+          completed = true
           try
             val yy =
               MermaidBackend
@@ -132,7 +137,6 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
             dom.console.info(
               s"[mermaid] parsed vertices=${vertices.size} edges=${edges.size} subgraphs=${subgraphs.size} classDefs=${classDefs.size} defaultEdgeStyle=${defaultEdgeStyle.nonEmpty} dir=${direction.getOrElse("")} title=${title.getOrElse("")}"
             )
-            completed = true
             promise.success(
               MermaidGraph(
                 vertices = verticesWithSourceCoverage,
