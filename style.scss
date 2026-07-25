@@ -354,11 +354,25 @@ svg {
         }
 
         // A thicker spline reads as selected the way the node border rect does.
-        // Only where no explicit penwidth attr exists — a user-set width is already
-        // distinctive and should not be flattened by the highlight. (The hit halo
-        // also matches, but its inline 14px width beats this non-!important rule.)
-        path:not([stroke-width]) {
-          stroke-width: 2.5;
+        // SCREEN-space (non-scaling), for the same reason the border rect is: widths
+        // in svg user units are multiplied by the scale-to-fit factor, so the same
+        // number renders hairline on a dense graph and balloons on a 5-node one.
+        // Every selection decoration shares this space: border rect 2px, edge 3px,
+        // hit halo 14px. Only where no explicit penwidth attr exists — a user-set
+        // width is a deliberate diagram-space choice the highlight must not flatten.
+        // (The hit halo also matches, but its inline 14px beats this rule.)
+        path:not([stroke-width]),
+        polygon:not([stroke-width]) {
+          stroke-width: 3;
+          vector-effect: non-scaling-stroke;
+        }
+
+        // The arrowHEAD must thicken with the shaft or the highlight visibly stops
+        // at the head's base: the stroke rule above only recolors the polygon's
+        // OUTLINE, leaving its default black fill. Recolor solid heads; open
+        // markers (fill white/none) and user-colored heads keep their fill.
+        polygon[fill="black"] {
+          fill: #2c70ff !important;
         }
       }
 
@@ -367,8 +381,9 @@ svg {
         stroke: #2c70ff !important;
         // !important: mermaid's own stylesheet sets edge widths behind an id
         // selector (#mermaid-… .edge-thickness-normal), which outranks any
-        // class-only rule from here
+        // class-only rule from here. Screen-space like the DOT rule above.
         stroke-width: 3px !important;
+        vector-effect: non-scaling-stroke;
       }
 
       // Invisible wide hit-target clones under Mermaid edge paths (addEdgeHitAreas).
