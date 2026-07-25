@@ -39,6 +39,16 @@ object ProjectStorage:
   private def readLocalStorage(key: String, default: => String): String =
     Option(dom.window.localStorage.getItem(s"[StoredString]$key")).getOrElse(default)
 
+  /** Physically drop a key.
+    *
+    * Deletion must NOT go through `storedString(key, "").set("")`: laminext only syncs
+    * an OBSERVED storedString to localStorage, so a throwaway instance writes nothing
+    * and the payload outlives the project it belongs to. Those orphans then look like
+    * a live library to `storedProjectPayloadsExist`.
+    */
+  private def removeLocalStorage(key: String): Unit =
+    dom.window.localStorage.removeItem(s"[StoredString]$key")
+
   lazy val directory: Signal[ProjectsDirectory] =
     directoryStorage.signal.map(read[ProjectsDirectory](_))
 
@@ -108,7 +118,7 @@ object ProjectStorage:
     projectInfo.id
 
   def deleteProject(id: ProjectId): Unit =
-    storedString(projectKey(id), "").set("") // Clear the project data
+    removeLocalStorage(projectKey(id)) // drop the project payload
     updateDirectory: dir =>
       dir.copy(projects = dir.projects.filterNot(_.id == id))
 
@@ -134,20 +144,35 @@ object ProjectStorage:
   private def updateDirectory(f: ProjectsDirectory => ProjectsDirectory): Unit =
     val currentDir = read[ProjectsDirectory](directoryStorageNow.now())
     val updated    = f(currentDir)
-    // GUARD against catastrophic index loss: writing an EMPTY directory while real
-    // project payloads exist in storage means the read went wrong (e.g. a wrong
-    // storage key made currentDir default to empty) — persisting it would erase the
-    // whole library index while every project payload survives, which is exactly the
-    // accident that once wiped the dev library. Skip the write and complain instead.
-    if updated.projects.isEmpty && storedProjectPayloadsExist() then
-      dom.console.error(
-        "Refusing to overwrite the projects directory with an empty one while project payloads exist in storage — " +
-          "this indicates a bug (bad directory read), not a legitimate empty library."
-      )
+    // GUARD against catastrophic index loss. The accident to prevent is a BAD READ:
+    // `currentDir` coming back empty when the library is not (e.g. a wrong storage
+    // key made it default to empty), so `updated` is empty too and writing it erases
+    // the index while every payload survives.
+    //
+    // So the condition tests the READ too, not the write alone. A read that returned
+    // entries is sound, and emptying it is then the caller's intent — deleting the last
+    // project — which must go through: keying this off `updated` alone made that project
+    // undeletable, since the library kept an entry no delete could remove. With
+    // `currentDir` empty the skipped write is a no-op anyway (empty over empty).
+    if currentDir.projects.isEmpty && updated.projects.isEmpty && storedProjectPayloadsExist() then
+      if !phantomDirectoryReported then
+        phantomDirectoryReported = true
+        dom.console.warn(
+          "The projects directory read as empty while project payloads exist in storage. " +
+            "No write was needed, but if the library looks empty in the UI this is the bug to chase. " +
+            "(Reported once per session.)"
+        )
     else
       directoryStorage.set(write(updated))
 
-  /** True when any project payload key holds substantive content (deleted projects keep their key with an empty value). */
+  /** The condition above re-occurs on every state change while it holds; logging it
+    * each time trains the reader to ignore it (it fired on every viewer test). */
+  private var phantomDirectoryReported = false
+
+  /** True when any project payload key holds substantive content. `deleteProject` removes
+    * the key outright, but libraries written before that fix still hold orphaned payloads,
+    * so this can report true for projects the directory no longer lists.
+    */
   private def storedProjectPayloadsExist(): Boolean =
     val prefix = s"[StoredString]graph-explorer.project."
     (0 until dom.window.localStorage.length).exists { i =>
@@ -159,13 +184,17 @@ object ProjectStorage:
   private def projectKey(id: ProjectId): String =
     s"graph-explorer.project.${id.value}"
 
+  /** The directory as currently persisted. */
+  def directoryNow(): ProjectsDirectory =
+    read[ProjectsDirectory](directoryStorageNow.now())
+
   /** True when a project with this id exists in the directory. */
   def projectExists(id: ProjectId): Boolean =
-    read[ProjectsDirectory](directoryStorageNow.now()).projects.exists(_.id == id)
+    directoryNow().projects.exists(_.id == id)
 
   /** Find a project whose persisted source exactly matches the given DOT text. */
   def findProjectByExactSource(dot: String): Option[ProjectId] =
-    val dir = read[ProjectsDirectory](directoryStorageNow.now())
+    val dir = directoryNow()
     dir.projects.collectFirst(Function.unlift { info =>
       try
         val state = read[PersistedDiagramState](readLocalStorage(projectKey(info.id), write(PersistedDiagramState.empty)))
