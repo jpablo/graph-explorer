@@ -343,6 +343,14 @@ object MermaidBackend:
     * `data-edge-id` (ids must stay unique) — MermaidSelectionStrategy reads that first,
     * so clone and original resolve to the same ArrowId. `stroke-dasharray:none` matters:
     * with `pointer-events: stroke`, a dashed clone would only hit-test on the dashes.
+    *
+    * Edge LABELS need their own hit target: their text lives in a foreignObject, so a
+    * click on the glyphs targets an XHTML element — which the selection machinery's
+    * SVG-namespace filter drops, making the most prominent part of an edge select
+    * nothing. Cover each label with an invisible SVG rect carrying the edge's id
+    * (mermaid stamps it on `g.label` as data-id), so label clicks resolve like edge
+    * clicks. Both kinds of helper share `hitAreaClass`, which keeps them out of
+    * SelectableElement.findAll — the rendered path stays the canonical edge element.
     */
   private[mermaid] def addEdgeHitAreas(svg: dom.svg.SVG): Unit =
     svg.querySelectorAllT[dom.Element]("path.flowchart-link").foreach { p =>
@@ -362,6 +370,24 @@ object MermaidBackend:
           "pointer-events:stroke;vector-effect:non-scaling-stroke"
       )
       p.parentNode.insertBefore(hit, p)
+    }
+    svg.querySelectorAllT[dom.Element](".edgeLabel g.label[data-id]").foreach { label =>
+      val edgeId = Option(label.getAttribute("data-id")).getOrElse("")
+      // The foreignObject's width/height are set by mermaid's layout, so the rect can be
+      // sized statically — getBBox is unavailable here (the SVG is not mounted yet).
+      Option(label.querySelector("foreignObject")).foreach { fo =>
+        val w = Option(fo.getAttribute("width")).getOrElse("0")
+        val h = Option(fo.getAttribute("height")).getOrElse("0")
+        if edgeId.nonEmpty && w.toDoubleOption.exists(_ > 0) then
+          val hit = dom.document.createElementNS("http://www.w3.org/2000/svg", "rect")
+          hit.setAttribute("width", w)
+          hit.setAttribute("height", h)
+          hit.setAttribute("data-edge-id", edgeId)
+          hit.setAttribute("class", s"${SelectableElement.edgeLabelHitClass} ${SelectableElement.hitAreaClass}")
+          // appended AFTER the foreignObject so it paints (and hit-tests) on top of it
+          hit.setAttribute("style", "fill:transparent;pointer-events:all;cursor:pointer")
+          label.appendChild(hit)
+      }
     }
 
   /** Mermaid 10 emits class-level rules with `!important` for classDef, but inline `style` declarations without it.

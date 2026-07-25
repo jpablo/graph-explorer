@@ -90,7 +90,9 @@ object GraphvizSelectionStrategy extends SelectableElementStrategy:
   */
 object MermaidSelectionStrategy extends SelectableElementStrategy:
   override def nodeSelector: String    = "g.node"
-  override def edgeSelector: String    = "g.edgePath, g.edge, path.flowchart-link, path.edgePath"
+  // edge-label-hit: the invisible rect over an edge label (MermaidBackend.addEdgeHitAreas);
+  // it resolves to its edge through data-edge-id like the hit-halo clones do.
+  override def edgeSelector: String    = s"g.edgePath, g.edge, path.flowchart-link, path.edgePath, rect.${SelectableElement.edgeLabelHitClass}"
   override def clusterSelector: String = "g.cluster"
 
   // Pattern to extract node ID from Mermaid's DOM ID format
@@ -181,3 +183,4 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
 
   override def isEdge(e: dom.Element): Boolean =
     e.classList.contains("edge") || e.classList.contains("edgePath") || e.classList.contains("flowchart-link")
+      || e.classList.contains(SelectableElement.edgeLabelHitClass)

@@ -85,6 +85,13 @@ object SelectableElement:
     */
   val hitAreaClass = "edge-hit-area"
 
+  /** Invisible rect covering an edge LABEL (MermaidBackend.addEdgeHitAreas): label text
+    * lives in a foreignObject, whose XHTML content the selection machinery's namespace
+    * filter drops — the rect gives label clicks an SVG-namespace target that resolves to
+    * the edge via data-edge-id. Also carries [[hitAreaClass]], so findAll excludes it.
+    */
+  val edgeLabelHitClass = "edge-label-hit"
+
   /** Create a SelectableElement from a DOM element using the specified strategy. */
   def fromDomElement(e: dom.Element, strategy: SelectableElementStrategy): Option[SelectableElement] =
     if strategy.isNode(e) then
