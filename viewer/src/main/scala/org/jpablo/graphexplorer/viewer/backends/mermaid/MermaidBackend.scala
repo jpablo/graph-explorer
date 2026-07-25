@@ -43,7 +43,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       val defaultEdgeMarkerColor = MermaidBackend.extractDefaultEdgeMarkerColor(text)
       dom.console.info(s"[mermaid] textToSvg start id=$renderId len=${text.length}")
       renderMermaid(renderId, text).map { svgString =>
-        val svg = parseSVG(svgString)
+        val svg = parseSVG(MermaidBackend.declareMissingXlinkNamespace(svgString))
         MermaidBackend.normalizeRenderedSvg(svg.ref, defaultEdgeMarkerColor)
         val edgePositions = extractEdgePositions(svg.ref)
         // After extractEdgePositions, so the id-less clones don't pollute the positions map
@@ -76,7 +76,12 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
             // (its prefix list can lag new Mermaid diagram types), so warn but still try —
             // a genuine non-Mermaid text fails the render and recovers to None below.
             dom.console.warn(s"[mermaid] Text does not look like Mermaid (detected: $detected); attempting render anyway")
-          val futureResult = textToSvg(mermaidText).map(Some(_)).recover { case _ => None }
+          val futureResult = textToSvg(mermaidText).map(Some(_)).recover { case e =>
+            // This recover is the render pipeline's last stop: without the log, a failure
+            // here is a silently blank canvas (that's how the C4 xlink bug hid).
+            dom.console.error(s"[mermaid] render pipeline failed: ${e.getMessage}")
+            None
+          }
           Signal.fromFuture(futureResult).map(_.flatten)
 
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future. */
@@ -341,6 +346,18 @@ object MermaidBackend:
     normalizeEdgeMarkers(svg, defaultEdgeMarkerColor)
     enforceInlineStylePrecedence(svg)
     applyNodeInlineTextStyles(svg)
+
+  /** Mermaid's C4 renderer (v11.12) references `xlink:href` on the icon images embedded in
+    * Person/System shapes but never declares `xmlns:xlink` on the svg root. Browsers tolerate
+    * that in HTML, but [[parseSVG]] uses the strict XML parser, which rejects the WHOLE
+    * document over the undeclared prefix — the diagram vanished without a trace. Declare the
+    * namespace before parsing when it's referenced but missing. (C4 is the only bundled kind
+    * with this defect — probed by XML-parsing every example kind's mermaid.render output.)
+    */
+  private[mermaid] def declareMissingXlinkNamespace(svgString: String): String =
+    if svgString.contains("xlink:") && !svgString.contains("xmlns:xlink") then
+      svgString.replaceFirst("<svg", """<svg xmlns:xlink="http://www.w3.org/1999/xlink"""")
+    else svgString
 
   /** Mermaid's packet and radar renderers (v11.12) emit `viewbox` — lowercase — instead of
     * `viewBox`. SVG attribute names are case-sensitive, so the browser ignores it: the element
