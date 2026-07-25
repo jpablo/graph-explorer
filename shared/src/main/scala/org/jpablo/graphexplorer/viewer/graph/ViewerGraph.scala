@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.graph
 
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, GraphType}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{ArrowHead, ArrowTail, GraphType, GvId}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.numberToLetterId
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ViewerNode.nodeWithDefaults
@@ -465,7 +465,7 @@ object ViewerGraph:
 
   // Engine-produced layout attributes that must not be copied when duplicating an
   // element (groups additionally carry label-placement output: lp/lwidth/lheight).
-  private val nodeLayoutOnlyAttrs  = Set("_gvid", "width", "pos", "height")
+  private val nodeLayoutOnlyAttrs  = Set(GvId.attrId.value, "width", "pos", "height")
   private val groupLayoutOnlyAttrs = nodeLayoutOnlyAttrs ++ Set("lp", "lwidth", "lheight")
 
   /** omitInternal = true is useful when showing the text to the user. omitInternal = false is needed when suing the DOT text to render the

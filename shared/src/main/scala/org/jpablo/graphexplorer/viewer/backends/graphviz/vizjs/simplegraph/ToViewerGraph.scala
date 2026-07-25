@@ -21,6 +21,8 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
   FontSize,
   ForceLabels,
   GraphType,
+  GvId,
+  Head,
   HeadPort,
   Height,
   Id,
@@ -39,6 +41,9 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
   LHeight,
   Lp,
   LWidth,
+  Margin,
+  Name,
+  NoJustify,
   Normalize,
   NodeSep,
   Orientation,
@@ -63,6 +68,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{
   Splines,
   Start,
   Style,
+  Tail,
   TailClip,
   TailLp,
   TailPort,
@@ -117,10 +123,10 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
   // Attributes.fromOrdered keeps insertion order, which DOT serialization relies on.
   def attrAppender(
       attrs:   mutable.ListBuffer[(AttributeId, AttrValue)],
-      exclude: Set[String]
+      exclude: Set[AttributeId]
   ): (AttributeId, Option[String]) => Unit =
     (attrId, valueOpt) =>
-      valueOpt.foreach(v => if !exclude.contains(attrId.value) then attrs += attrId -> AttrValue(v))
+      valueOpt.foreach(v => if !exclude.contains(attrId) then attrs += attrId -> AttrValue(v))
 
   // Attributes outside the SimpleGraph schema (custom mermaid_* metadata, ...),
   // appended after the named fields in alphabetical order for determinism.
@@ -128,12 +134,12 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     extras.toVector.sortBy(_._1).foreach((k, v) => add(AttributeId(k), Some(v)))
 
   // Attribute converters for case classes
-  def toAttributesFromNode(node: SimpleGraphNode, exclude: Set[String] = Set.empty): Attributes =
+  def toAttributesFromNode(node: SimpleGraphNode, exclude: Set[AttributeId] = Set.empty): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
     val add   = attrAppender(attrs, exclude)
 
-    add(AttributeId("_gvid"), Some(node._gvid.toString))
-    add(AttributeId("name"), Some(node.name))
+    add(GvId.attrId, Some(node._gvid.toString))
+    add(Name.attrId, Some(node.name))
     // Skip \N labels as they are the default (node name)
     add(Label.attrId, Some(node.label).filter(_ != "\\N").map(sanitizeSingleLabel))
 
@@ -164,18 +170,18 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     add(Image.attrId, node.image)
     add(ImagePath.attrId, node.imagepath)
     add(ImagePos.attrId, node.imagepos)
-    add(AttributeId("margin"), node.margin)
-    add(AttributeId("nojustify"), node.nojustify)
+    add(Margin.attrId, node.margin)
+    add(NoJustify.attrId, node.nojustify)
     appendExtras(add, node.extraAttrs)
 
     Attributes.fromOrdered(attrs)
 
-  def toAttributesFromCluster(cluster: SimpleGraphCluster, exclude: Set[String] = Set.empty): Attributes =
+  def toAttributesFromCluster(cluster: SimpleGraphCluster, exclude: Set[AttributeId] = Set.empty): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
     val add   = attrAppender(attrs, exclude)
 
-    add(AttributeId("_gvid"), Some(cluster._gvid.toString))
-    add(AttributeId("name"), Some(cluster.name))
+    add(GvId.attrId, Some(cluster._gvid.toString))
+    add(Name.attrId, Some(cluster.name))
     // Skip \N labels as they are the default
     add(Label.attrId, cluster.label.filter(_ != "\\N").map(sanitizeSingleLabel))
 
@@ -210,7 +216,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
 
     Attributes.fromOrdered(attrs)
 
-  def toAttributesFromGraph(simpleGraph: SimpleGraph, exclude: Set[String] = Set.empty): Attributes =
+  def toAttributesFromGraph(simpleGraph: SimpleGraph, exclude: Set[AttributeId] = Set.empty): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
     val add   = attrAppender(attrs, exclude)
 
@@ -237,13 +243,13 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
 
     Attributes.fromOrdered(attrs)
 
-  def toAttributesFromEdge(edge: SimpleGraphEdge, exclude: Set[String] = Set.empty): Attributes =
+  def toAttributesFromEdge(edge: SimpleGraphEdge, exclude: Set[AttributeId] = Set.empty): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
     val add   = attrAppender(attrs, exclude)
 
-    add(AttributeId("_gvid"), Some(edge._gvid.toString))
-    add(AttributeId("tail"), Some(edge.tail.toString))
-    add(AttributeId("head"), Some(edge.head.toString))
+    add(GvId.attrId, Some(edge._gvid.toString))
+    add(Tail.attrId, Some(edge.tail.toString))
+    add(Head.attrId, Some(edge.head.toString))
 
     add(Pos.attrId, edge.pos)
     add(Id.attrId, edge.id)
@@ -267,7 +273,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     add(Class.attrId, edge.`class`)
     add(ColorScheme.attrId, edge.colorscheme)
     add(Layer.attrId, edge.layer)
-    add(AttributeId("nojustify"), edge.nojustify)
+    add(NoJustify.attrId, edge.nojustify)
     add(SameHead.attrId, edge.samehead)
     add(SameTail.attrId, edge.sametail)
     add(ShowBoxes.attrId, edge.showboxes)
@@ -298,11 +304,14 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
       case SimpleGraphObject.Node(node) =>
         val nodeId = NodeId(node.name)
         gvidToNodeId(node._gvid) = node.name
-        val attrs = toAttributesFromNode(node, Set("name"))
+        // `name` becomes the NodeId; keeping it as an attribute too would duplicate it
+        val attrs = toAttributesFromNode(node, Set(Name.attrId))
         rawNodesBuilder += nodeId -> attrs
       case SimpleGraphObject.Cluster(cluster) =>
         val (groupId, wasCluster) = GroupId.fromDot(cluster.name)
-        val attrs                 = toAttributesFromCluster(cluster, Set("name", "nodes", "edges", "subgraphs"))
+        // `name` becomes the GroupId (the cluster's member lists are read separately,
+        // from the SimpleGraph fields — they never reach the attribute stream)
+        val attrs                 = toAttributesFromCluster(cluster, Set(Name.attrId))
         val nodeGvids             = cluster.nodes.getOrElse(List.empty)
         val edgeGvids             = cluster.edges.getOrElse(List.empty)
         rawClusters(groupId) = (attrs, nodeGvids, edgeGvids, wasCluster)
@@ -398,7 +407,8 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     simpleGraph.edges.getOrElse(Nil).map { edge =>
       val sourceName = gvidToNodeId.getOrElse(edge.tail, edge.tail.toString)
       val targetName = gvidToNodeId.getOrElse(edge.head, edge.head.toString)
-      val attrs      = toAttributesFromEdge(edge, Set("tail", "head", "headport", "tailport"))
+      // endpoints and ports are promoted to Arrow fields below, not kept as attributes
+      val attrs = toAttributesFromEdge(edge, Set(Tail.attrId, Head.attrId, TailPort.attrId, HeadPort.attrId))
 
       edge._gvid -> Arrow(
         source = NodeId(sourceName),
@@ -434,7 +444,9 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
   val finalNodes = finalNodesBuilder.result()
 
   // Extract graph attributes
-  val graphAttrs = toAttributesFromGraph(simpleGraph, Set("name", "directed", "objects", "edges"))
+  // No exclusions needed: name/directed/objects/edges are SimpleGraph structure, and
+  // toAttributesFromGraph never emits them in the first place.
+  val graphAttrs = toAttributesFromGraph(simpleGraph)
 
   VizViewerGraphElements(
     nodes = finalNodes,

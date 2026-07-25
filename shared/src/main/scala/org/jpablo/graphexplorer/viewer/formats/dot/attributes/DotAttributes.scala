@@ -260,10 +260,12 @@ object Layout extends DotAttributeEnum[Layout]:
 
 case class Margin(x: Double, y: Double)
 
-object Margin:
-  val default = Margin(0.11, 0.055)
+object Margin extends DotAttributeSimple[Margin]:
+  val label                    = "Margin"
+  val default                  = Margin(0.11, 0.055)
+  override val placeholderText = "Enter margin as x,y"
 
-  def fromString(s: String): Option[Margin] =
+  override def fromString(s: String): Option[Margin] =
     s.split(",") match
       case Array(x, y) => Try(Margin(x.toDouble, y.toDouble)).toOption
       case _           => None
@@ -316,7 +318,8 @@ object NodeStyle extends DotAttributeEnum[NodeStyle]:
     ("Rounded", rounded)
   )
 
-object NoJustify:
+object NoJustify extends DotAttributeSimple[Boolean]:
+  val label   = "No Justify"
   val default = false
 
 object Ordering extends DotAttributeEnum[Ordering]:
@@ -780,3 +783,28 @@ object TailLp extends DotAttributeSimple[String]:
   val label                    = "Tail Label Position"
   val default                  = ""
   override val placeholderText = "Tail label position (x,y)"
+
+// dot_json structural keys
+//
+// Graphviz's json output carries these next to the real attributes: `_gvid` is an
+// object's declaration index, `name` its id, and `head`/`tail` the `_gvid` of an
+// edge's endpoints. DOT accepts none of them as input — they are engine output —
+// but the SimpleGraph converter keeps them as attributes (declaration order and
+// endpoint resolution both read them), so they need ids like everything else.
+
+object GvId extends DotAttributeSimple[Int]:
+  override val attrId = AttributeId("_gvid")
+  val label           = "Graphviz Id"
+  val default         = 0
+
+object Name extends DotAttributeSimple[String]:
+  val label   = "Name"
+  val default = ""
+
+object Head extends DotAttributeSimple[Int]:
+  val label   = "Head Node Id"
+  val default = 0
+
+object Tail extends DotAttributeSimple[Int]:
+  val label   = "Tail Node Id"
+  val default = 0

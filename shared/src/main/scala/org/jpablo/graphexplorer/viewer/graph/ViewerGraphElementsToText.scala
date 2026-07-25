@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, Label}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, GvId, Label}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.{Arrow, GroupId, NodeId, ViewerGroup, ViewerNode, Attributes as ViewerAttributes}
 
@@ -66,7 +66,7 @@ def viewerGraphElementsToText(
 
   // Declaration-order sort key: elements sort by their _gvid; missing _gvid sorts last.
   def gvidOrder(attrs: ViewerAttributes): Double =
-    attrs.values.get(AttributeId("_gvid")).map(_.toString.toDouble).getOrElse(Double.MaxValue)
+    attrs.values.get(GvId.attrId).map(_.toString.toDouble).getOrElse(Double.MaxValue)
 
   // Helper to collect attributes from ViewerNode directly
   def collectNodeAttributes(
@@ -75,7 +75,7 @@ def viewerGraphElementsToText(
   ): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
     val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + "_gvid" // Always exclude _gvid from output
+    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
 
     // Add id attribute unless excluded by omitInternal setting
     if (!allExcludeKeys.contains("id"))
@@ -97,7 +97,7 @@ def viewerGraphElementsToText(
   def collectClusterAttributes(group: ViewerGroup, excludeKeys: Set[String] = Set.empty): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
     val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + "_gvid" // Always exclude _gvid from output
+    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
 
     // Add id attribute unless excluded by omitInternal setting
     if (!allExcludeKeys.contains("id"))
@@ -147,7 +147,7 @@ def viewerGraphElementsToText(
   def collectEdgeAttributes(arrow: Arrow, excludeKeys: Set[String] = Set.empty): List[(String, String)] = {
     val attrs          = ListBuffer[(String, String)]()
     val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
-    val allExcludeKeys = excludeKeys ++ internalAttrs + "_gvid" // Always exclude _gvid from output
+    val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
 
     // Add id attribute for arrows
     if (!allExcludeKeys.contains("id"))
