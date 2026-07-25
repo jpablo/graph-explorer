@@ -316,12 +316,19 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val selectAllSuccessors = Command(
       "Select all successors",
       () => state.selection.selectSuccessors(),
+      // pairs with bare `s` (direct successors), like b/B for combine/split
+      shortcut = Some(Shortcut("s", shift = true)),
       description = Some("Select all successors of the selected nodes")
     )
 
     val selectDirectSuccessors = Command(
       "Select direct successors",
       () => state.selection.selectDirectSuccessors(),
+      // `d` was the natural pick but Duplicate owns it; `s` = successors, sitting
+      // next to the rest of the family (`+` show direct, `-` hide recursive).
+      // Bare `s` cannot collide with the desktop save bridge: that path requires
+      // meta/ctrl and is intercepted before shortcut dispatch.
+      shortcut = Some(Shortcut("s")),
       description = Some("Select direct successors of the selected nodes")
     )
 

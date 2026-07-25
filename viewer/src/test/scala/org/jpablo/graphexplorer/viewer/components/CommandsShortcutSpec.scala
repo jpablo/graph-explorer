@@ -69,3 +69,27 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
       assert(prevented, "Save shortcut should prevent browser default save behavior")
       afterMicrotasks(())
     }
+
+  test("no two commands share a shortcut (byShortcut would silently drop one)"):
+    withGraphvizAsync { graphviz =>
+      given Owner = unsafeWindowOwner
+      val state    = ViewerState(ProjectId("shortcut-dup-spec"), graphviz)
+      val commands = Commands(state, RouterCommands(Router()))
+
+      // byShortcut is a Map built with .toMap: two commands normalizing to the same
+      // shortcut would not fail — the later one would silently shadow the earlier.
+      // Dedupe first (a command may be listed under several headers), then compare.
+      val declared = commands.byHeader.values.flatten
+        .collect { case c @ Command(shortcut = Some(_)) => c }
+        .toSeq
+        .distinct
+      assertEquals(
+        commands.byShortcut.size,
+        declared.size,
+        s"shortcut collision — some of: ${declared.map(_.labelWithShortcut).mkString("; ")}"
+      )
+
+      // the binding this spec was extended for
+      assert(commands.byShortcut.contains(Shortcut("s")), "bare `s` must select direct successors")
+      afterMicrotasks(())
+    }
