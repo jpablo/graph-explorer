@@ -1,0 +1,11 @@
+requirementDiagram
+  requirement selection_visibility {
+    id: R1
+    text: selected elements must stand out
+    risk: low
+    verifymethod: inspection
+  }
+  element focus_mode {
+    type: feature
+  }
+  focus_mode - satisfies -> selection_visibility

@@ -1,0 +1,8 @@
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Selecting : click
+  Selecting --> Editing : Enter
+  Editing --> Selecting : save
+  Selecting --> Idle : Escape
+  Selecting --> Selecting : s / shift+S
+  Editing --> [*] : close

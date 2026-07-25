@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.projects
 
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.storedString
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, ViewerSettings}
 import upickle.default.*
 
@@ -187,6 +188,21 @@ object ProjectStorage:
   /** The directory as currently persisted. */
   def directoryNow(): ProjectsDirectory =
     read[ProjectsDirectory](directoryStorageNow.now())
+
+  /** The project's diagram format, for the library's kind badge and kind filter.
+    *
+    * Prefers the persisted format tag (authoritative — the user may have set it
+    * explicitly); documents saved before the tag existed fall back to detection on
+    * the source. A one-shot raw read: cheap enough to run for every card, and the
+    * expensive part of the library (thumbnail rendering) stays lazy.
+    */
+  def projectFormat(id: ProjectId): Option[DiagramFormat] =
+    try
+      val state = read[PersistedDiagramState](readLocalStorage(projectKey(id), write(PersistedDiagramState.empty)))
+      state.format
+        .flatMap(f => scala.util.Try(DiagramFormat.valueOf(f)).toOption)
+        .orElse(Some(DiagramFormat.detect(state.source)))
+    catch case _: Throwable => None
 
   /** True when a project with this id exists in the directory. */
   def projectExists(id: ProjectId): Boolean =

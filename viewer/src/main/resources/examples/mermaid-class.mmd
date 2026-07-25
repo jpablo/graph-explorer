@@ -1,0 +1,15 @@
+classDiagram
+  class ViewerGraph {
+    +nodes: VectorMap
+    +arrows: Map
+    +subgraph()
+  }
+  class DiagramBackend {
+    <<trait>>
+    +render()
+    +textToGraph()
+  }
+  DiagramBackend <|-- GraphvizBackend
+  DiagramBackend <|-- MermaidBackend
+  GraphvizBackend --> ViewerGraph
+  MermaidBackend --> ViewerGraph

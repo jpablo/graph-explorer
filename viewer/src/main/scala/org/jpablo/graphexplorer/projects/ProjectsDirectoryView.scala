@@ -7,9 +7,10 @@ import org.jpablo.graphexplorer.viewer.components.RouterCommands
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.state.ThumbnailRenderer
+import org.jpablo.graphexplorer.viewer.state.{ProjectId, ThumbnailRenderer}
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 import org.jpablo.graphexplorer.viewer.telemetry.Telemetry
 
@@ -24,9 +25,32 @@ enum SortOption derives CanEqual:
     case Title        => "Title"
     case CreationDate => "Creation Date"
 
+enum KindFilter derives CanEqual:
+  case AllKinds, Dot, Mermaid
+
+  def label: String = this match
+    case AllKinds => "All kinds"
+    case Dot      => "DOT"
+    case Mermaid  => "Mermaid"
+
+  /** The format this option keeps, or None for no filtering. */
+  def keeps: Option[DiagramFormat] = this match
+    case AllKinds => None
+    case Dot      => Some(DiagramFormat.DOT)
+    case Mermaid  => Some(DiagramFormat.Mermaid)
+
+/** Badge marking a card's diagram kind, so DOT and Mermaid documents are
+  * distinguishable at a glance in the library and the examples gallery.
+  */
+private def formatBadge(format: DiagramFormat) =
+  format match
+    case DiagramFormat.DOT     => span(cls := "badge badge-xs badge-neutral badge-outline shrink-0", "DOT")
+    case DiagramFormat.Mermaid => span(cls := "badge badge-xs badge-secondary badge-outline shrink-0", "Mermaid")
+
 def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: RouterCommands) =
-  val sortOptionVar = Var[SortOption](SortOption.CreationDate)
-  val searchTermVar = Var("")
+  val sortOptionVar  = Var[SortOption](SortOption.CreationDate)
+  val searchTermVar  = Var("")
+  val kindFilterVar  = Var[KindFilter](KindFilter.AllKinds)
 
   div(
     idAttr := "projects-view",
@@ -89,6 +113,18 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
               )
             )
           ),
+          // Kind filter dropdown
+          select(
+            cls := "select select-sm h-8",
+            KindFilter.values.toSeq.map { opt =>
+              option(
+                value := opt.toString,
+                opt.label
+              )
+            },
+            value <-- kindFilterVar.signal.map(_.toString),
+            onChange.mapToValue.map(KindFilter.valueOf) --> kindFilterVar
+          ),
           // Sort dropdown
           select(
             cls := "select select-sm h-8",
@@ -119,21 +155,29 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
             .startWith("")
 
           ProjectStorage.directory
-            .combineWithFn(debouncedSearch, sortOptionVar.signal): (directory, searchTerm, sortOption) =>
-              Telemetry.time(
-                "home.projects.computeCards",
-                "projectsTotal" -> directory.projects.size,
-                "searchLen"     -> searchTerm.length,
-                "sort"          -> sortOption.toString
-              ):
-                val filteredProjects = directory.projects.filter(_.name.toLowerCase.contains(searchTerm.toLowerCase))
-                val sorted =
-                  sortOption match
-                    case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
-                    case SortOption.Title        => filteredProjects.sortBy(_.name.toLowerCase)
-                    case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
-                Telemetry.log("home.projects.cardsReady", "projectsShown" -> sorted.size)
-                sorted.map(projectCard(graphviz, router))
+            .combineWithFn(debouncedSearch, sortOptionVar.signal, kindFilterVar.signal):
+              (directory, searchTerm, sortOption, kindFilter) =>
+                Telemetry.time(
+                  "home.projects.computeCards",
+                  "projectsTotal" -> directory.projects.size,
+                  "searchLen"     -> searchTerm.length,
+                  "sort"          -> sortOption.toString,
+                  "kind"          -> kindFilter.toString
+                ):
+                  // One cheap payload read per card; the expensive part (thumbnails)
+                  // stays lazy behind the IntersectionObserver.
+                  val formats: Map[ProjectId, Option[DiagramFormat]] =
+                    directory.projects.map(p => p.id -> ProjectStorage.projectFormat(p.id)).toMap
+                  val filteredProjects = directory.projects
+                    .filter(_.name.toLowerCase.contains(searchTerm.toLowerCase))
+                    .filter(p => kindFilter.keeps.forall(k => formats.get(p.id).flatten.contains(k)))
+                  val sorted =
+                    sortOption match
+                      case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
+                      case SortOption.Title        => filteredProjects.sortBy(_.name.toLowerCase)
+                      case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
+                  Telemetry.log("home.projects.cardsReady", "projectsShown" -> sorted.size)
+                  sorted.map(p => projectCard(graphviz, router, formats.get(p.id).flatten)(p))
         }
       ),
 
@@ -254,14 +298,15 @@ private def exampleCard(
     div(
       cls := "card-body p-2",
       h2(
-        cls := "card-title text-sm justify-center",
-        name
+        cls := "card-title text-sm justify-center gap-2",
+        name,
+        formatBadge(example.format)
       )
     )
   )
 }
 
-private def projectCard(graphviz: Graphviz, router: Router)(project: ProjectInfo) =
+private def projectCard(graphviz: Graphviz, router: Router, format: Option[DiagramFormat])(project: ProjectInfo) =
   val previewEnabled = Var(false)
   var observerOpt: Option[js.Dynamic] = None
 
@@ -353,7 +398,8 @@ private def projectCard(graphviz: Graphviz, router: Router)(project: ProjectInfo
             cls  := "flex items-center gap-2 hover:text-primary transition-colors",
             project.name,
             onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
-          )
+          ),
+          format.map(formatBadge)
         ),
         Button(
           cls := "btn btn-xs hover:bg-warning/20 hover:text-warning transition-colors",

@@ -26,7 +26,32 @@ object DotExamples:
     "Logo"                       -> ExampleSource("/examples/logo.dot", DiagramFormat.DOT),
     "Colors"                     -> ExampleSource("/examples/neato/colors.dot", DiagramFormat.DOT),
     "Twelve Colors"              -> ExampleSource("/examples/neato/twelve-colors.dot", DiagramFormat.DOT),
-    // Mermaid examples
+    // Mermaid examples — flowcharts have full model support
     "Mermaid: Microservices"     -> ExampleSource("/examples/mermaid-microservices.mmd", DiagramFormat.Mermaid),
-    "Mermaid: Feature Showcase"  -> ExampleSource("/examples/mermaid-showcase.mmd", DiagramFormat.Mermaid)
+    "Mermaid: Feature Showcase"  -> ExampleSource("/examples/mermaid-showcase.mmd", DiagramFormat.Mermaid),
+    // One example per remaining Mermaid diagram kind. These are RENDER-ONLY: the
+    // graph model (selection/editing/attributes) reads mermaid's flowchart parse
+    // db, which no other type exposes (MermaidBackend.hasFlowchartAccessors) —
+    // they draw and live-update from source, but the canvas is inert.
+    "Sequence Diagram"           -> ExampleSource("/examples/mermaid-sequence.mmd", DiagramFormat.Mermaid),
+    "Class Diagram"              -> ExampleSource("/examples/mermaid-class.mmd", DiagramFormat.Mermaid),
+    "State Diagram"              -> ExampleSource("/examples/mermaid-state.mmd", DiagramFormat.Mermaid),
+    "ER Diagram"                 -> ExampleSource("/examples/mermaid-er.mmd", DiagramFormat.Mermaid),
+    "User Journey"               -> ExampleSource("/examples/mermaid-journey.mmd", DiagramFormat.Mermaid),
+    "Gantt Chart"                -> ExampleSource("/examples/mermaid-gantt.mmd", DiagramFormat.Mermaid),
+    "Pie Chart"                  -> ExampleSource("/examples/mermaid-pie.mmd", DiagramFormat.Mermaid),
+    "Mindmap"                    -> ExampleSource("/examples/mermaid-mindmap.mmd", DiagramFormat.Mermaid),
+    "Timeline"                   -> ExampleSource("/examples/mermaid-timeline.mmd", DiagramFormat.Mermaid),
+    "Git Graph"                  -> ExampleSource("/examples/mermaid-gitgraph.mmd", DiagramFormat.Mermaid),
+    "Quadrant Chart"             -> ExampleSource("/examples/mermaid-quadrant.mmd", DiagramFormat.Mermaid),
+    "XY Chart"                   -> ExampleSource("/examples/mermaid-xychart.mmd", DiagramFormat.Mermaid),
+    "Sankey"                     -> ExampleSource("/examples/mermaid-sankey.mmd", DiagramFormat.Mermaid),
+    "Requirement Diagram"        -> ExampleSource("/examples/mermaid-requirement.mmd", DiagramFormat.Mermaid),
+    "C4 Context"                 -> ExampleSource("/examples/mermaid-c4.mmd", DiagramFormat.Mermaid),
+    "Block Diagram"              -> ExampleSource("/examples/mermaid-block.mmd", DiagramFormat.Mermaid),
+    "Kanban"                     -> ExampleSource("/examples/mermaid-kanban.mmd", DiagramFormat.Mermaid),
+    "Packet Diagram"             -> ExampleSource("/examples/mermaid-packet.mmd", DiagramFormat.Mermaid),
+    "Radar Chart"                -> ExampleSource("/examples/mermaid-radar.mmd", DiagramFormat.Mermaid),
+    "Architecture"               -> ExampleSource("/examples/mermaid-architecture.mmd", DiagramFormat.Mermaid),
+    "Treemap"                    -> ExampleSource("/examples/mermaid-treemap.mmd", DiagramFormat.Mermaid)
   )

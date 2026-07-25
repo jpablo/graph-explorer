@@ -1,0 +1,7 @@
+erDiagram
+  PROJECT ||--o{ DIAGRAM : contains
+  DIAGRAM ||--o{ NODE : has
+  DIAGRAM ||--o{ EDGE : has
+  NODE ||--o{ ATTRIBUTE : carries
+  EDGE }o--|| NODE : source
+  EDGE }o--|| NODE : target

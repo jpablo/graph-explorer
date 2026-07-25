@@ -1,0 +1,7 @@
+architecture-beta
+  group app(cloud)[Browser]
+  service ui(server)[Laminar UI] in app
+  service model(database)[ViewerGraph] in app
+  service render(disk)[Renderers] in app
+  ui:R -- L:model
+  model:R -- L:render

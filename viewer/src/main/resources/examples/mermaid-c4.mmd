@@ -1,0 +1,7 @@
+C4Context
+  title Graph Explorer context
+  Person(user, "User", "Edits diagrams")
+  System(gx, "Graph Explorer", "Browser app")
+  System_Ext(gh, "GitHub", "Source hosting")
+  Rel(user, gx, "Uses")
+  Rel(gx, gh, "Links to")

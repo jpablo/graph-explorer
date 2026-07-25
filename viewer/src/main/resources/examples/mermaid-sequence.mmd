@@ -1,0 +1,9 @@
+sequenceDiagram
+  participant Browser
+  participant API
+  participant DB
+  Browser->>API: GET /diagrams
+  API->>DB: SELECT * FROM diagrams
+  DB-->>API: rows
+  API-->>Browser: 200 OK (json)
+  Note over Browser,API: rendered, not yet editable
