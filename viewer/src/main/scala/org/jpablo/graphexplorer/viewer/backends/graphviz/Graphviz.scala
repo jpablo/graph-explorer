@@ -4,7 +4,8 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{SimpleGraph, ArrowPosition}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.{Viz, VizJS}
-import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.domUtils.{parseSVG, querySelectorAllT}
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.graphviz.Graphviz as ScalaGraphviz
 import upickle.default.*
@@ -88,7 +89,9 @@ class Graphviz(viz: Viz):
         val result_json0 = result.output("json0")
         val graph        = read[SimpleGraph](result_json0)
         val edgePos      = simplegraph.getEdgePos(graph)
-        SvgWithPositions(parseSVG(result_svg), edgePos)
+        val svg          = parseSVG(result_svg)
+        Graphviz.addEdgeHitAreas(svg.ref)
+        SvgWithPositions(svg, edgePos)
       else
         dom.console.group("Graphviz.renderToSvg")
         dom.console.error(dot.value)
@@ -98,6 +101,32 @@ class Graphviz(viz: Viz):
     }
 
 object Graphviz:
+
+  /** Graphviz edges are thin splines — a hard click target, same as Mermaid's
+    * (see MermaidBackend.addEdgeHitAreas). Clone each edge group's spline as an
+    * invisible ~14 screen px path so near-misses still select the edge. Unlike
+    * Mermaid, no id plumbing is needed: clicks resolve through
+    * `closest("g.edge")`, and the clone lives INSIDE that group. It is appended
+    * LAST so `querySelector("path")` — the endpoint-drag preview and the
+    * extractArrowId fallback — keeps resolving to the rendered spline. Labels
+    * need nothing either: Graphviz emits them as SVG `<text>` inside the group,
+    * so they already resolve (no foreignObject namespace trap here).
+    */
+  private[graphviz] def addEdgeHitAreas(svg: dom.svg.SVG): Unit =
+    svg.querySelectorAllT[dom.Element]("g.edge > path").foreach { p =>
+      val hit = p.cloneNode(false).asInstanceOf[dom.Element]
+      hit.removeAttribute("id")
+      hit.setAttribute("class", SelectableElement.hitAreaClass)
+      hit.setAttribute(
+        "style",
+        // non-scaling-stroke keeps the halo ~14 SCREEN px at any canvas zoom;
+        // dasharray:none because with pointer-events:stroke a dashed clone
+        // would only hit-test on the dashes
+        "fill:none;stroke:transparent;stroke-width:14px;stroke-dasharray:none;stroke-linecap:round;" +
+          "pointer-events:stroke;vector-effect:non-scaling-stroke"
+      )
+      p.parentNode.appendChild(hit)
+    }
 
   /** True when the graph uses the `dot` engine — the only one the Scala port
     * implements. `dot`/unset → the port, every other engine → viz-js. The

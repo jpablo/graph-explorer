@@ -355,6 +355,17 @@ svg {
         animation: none !important;
       }
 
+      // Same for the DOT-mode halos (Graphviz.addEdgeHitAreas): they live INSIDE
+      // g.edge, whose .selected rule above strokes EVERY contained path !important —
+      // without this higher-specificity counter-rule a selected edge would paint its
+      // 14px halo as a fat blue band.
+      .edge path.edge-hit-area,
+      .edge.selected path.edge-hit-area {
+        stroke: transparent !important;
+        filter: none !important;
+        animation: none !important;
+      }
+
       // Make Mermaid edge label backgrounds semi-transparent so arrows remain visible
       .edgeLabel span.edgeLabel {
         background-color: rgba(232, 232, 232, 0.7) !important;
