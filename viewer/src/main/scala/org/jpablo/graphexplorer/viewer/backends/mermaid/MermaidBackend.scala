@@ -337,9 +337,22 @@ object MermaidBackend:
 
 
   private[mermaid] def normalizeRenderedSvg(svg: dom.svg.SVG, defaultEdgeMarkerColor: Option[String]): Unit =
+    fixViewBoxCase(svg)
     normalizeEdgeMarkers(svg, defaultEdgeMarkerColor)
     enforceInlineStylePrecedence(svg)
     applyNodeInlineTextStyles(svg)
+
+  /** Mermaid's packet and radar renderers (v11.12) emit `viewbox` — lowercase — instead of
+    * `viewBox`. SVG attribute names are case-sensitive, so the browser ignores it: the element
+    * has no viewport, the canvas fit logic measures a sizeless drawing, and the diagram
+    * disappears even though every shape is present with correct coordinates. Promote the value
+    * to the real attribute. (All other diagram kinds emit `viewBox` correctly — verified by
+    * rendering every bundled example kind through mermaid.render.)
+    */
+  private def fixViewBoxCase(svg: dom.svg.SVG): Unit =
+    if !svg.hasAttribute("viewBox") && svg.hasAttribute("viewbox") then
+      svg.setAttribute("viewBox", svg.getAttribute("viewbox"))
+      svg.removeAttribute("viewbox")
 
   /** Mermaid edges are bare ~2px paths — a nearly unhittable click target. Insert an
     * invisible, wider clone underneath each edge path so clicks within a few px of the
