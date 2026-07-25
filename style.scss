@@ -106,11 +106,24 @@ svg {
   @apply flex flex-row gap-3;
 
   > .fieldset {
-    @apply flex py-0 gap-0 flex-nowrap;
+    // items-center: the label cell centers its text but .fieldset-input does not,
+    // so any group taller than one line (the Label textarea) left every input cell
+    // riding above the text baseline (edge toolbar); node toolbars never inflated,
+    // which is why only edge selections looked misaligned.
+    @apply flex py-0 gap-0 flex-nowrap items-center;
 
     &:not(:last-child) {
       @apply pr-2 border-r border-base-300;
     }
+  }
+
+  // The toolbar is a one-line surface: cap the label editor to the common control
+  // height (the dropdowns' 24px) instead of letting the textarea's intrinsic
+  // two-row height (font-dependent) stretch the whole bar taller than the node
+  // toolbar. Multiline labels scroll here — full editing lives in the Enter
+  // modal. The side-panel textarea keeps its natural sizing.
+  textarea {
+    @apply h-6 min-h-0 max-h-6 py-0.5 leading-tight overflow-y-auto;
   }
 }
 
@@ -123,7 +136,8 @@ svg {
 }
 
 .horizontal-attribute-input {
-  @apply text-[.6rem] input-ghost p-0 ml-1 mt-0.5 h-[1.25rem] w-6;
+  // no mt: the fieldset centers its cells now (the old top-alignment needed a nudge)
+  @apply text-[.6rem] input-ghost p-0 ml-1 h-[1.25rem] w-6;
 }
 
 .popup-card {
