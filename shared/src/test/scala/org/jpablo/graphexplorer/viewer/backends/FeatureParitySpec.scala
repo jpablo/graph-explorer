@@ -375,16 +375,14 @@ class FeatureParitySpec extends FunSuite:
       effectiveGroupFill(_, "G1")
     ),
     ParityRow(
+      // SimpleGraph captures unknown JSON keys into extraAttrs, so custom
+      // mermaid_* attributes survive the DOT round trip
       "mermaid class assignment + classDef",
       graphOf(
         Seq(n("a", Attributes.of("mermaid_class" -> "pink"))),
         graphAttributes = Attributes.of("mermaid_classDef_pink" -> "fill:#f9f")
       ),
-      g => (nodeAttr(g, "a", "mermaid_class"), graphAttr(g, "mermaid_classDef_pink")),
-      dot = LossyAs(
-        (None, None),
-        "GAP: custom mermaid_* attributes survive in the DOT text but not the re-parse — SimpleGraph decodes only its known attribute fields"
-      )
+      g => (nodeAttr(g, "a", "mermaid_class"), graphAttr(g, "mermaid_classDef_pink"))
     )
   )
 

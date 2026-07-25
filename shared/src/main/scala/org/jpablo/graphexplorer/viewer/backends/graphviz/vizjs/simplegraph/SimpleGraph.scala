@@ -3,6 +3,30 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.SimpleGraphObject.Node
 import upickle.default.*
 
+/** Captures JSON keys that are not part of a case class's schema, so custom
+  * attributes (e.g. `mermaid_*`) survive a DOT re-parse instead of being
+  * silently dropped by the fixed-field decode. The known-key set is derived
+  * from the case class itself (Mirror), so schema and capture cannot drift.
+  */
+private object ExtraAttrs:
+  // json0-only layout keys with no schema field: never user data, never captured
+  private val layoutOnlyKeys = Set("bb", "xlp")
+
+  inline def fieldNames[T](using m: scala.deriving.Mirror.ProductOf[T]): Set[String] =
+    scala.compiletime.constValueTuple[m.MirroredElemLabels].toList.map(_.toString).toSet
+
+  /** Unknown string-valued keys of `js` (non-strings are structural: arrays, _gvid, ...). */
+  def capture(js: ujson.Value, knownKeys: Set[String]): Map[String, String] =
+    js.obj.iterator.collect {
+      case (k, ujson.Str(v)) if !knownKeys(k) && !layoutOnlyKeys(k) => k -> v
+    }.toMap
+
+  /** Inverse of capture: fold extras back into the JSON object as plain keys. */
+  def merge(js: ujson.Value, extras: Map[String, String]): ujson.Value =
+    js.obj.remove("extraAttrs")
+    extras.foreach((k, v) => js.obj(k) = ujson.Str(v))
+    js
+
 /** Represents a single node (or vertex) in the graph.
   */
 case class SimpleGraphNode(
@@ -41,12 +65,22 @@ case class SimpleGraphNode(
     imagepath:   Option[String] = None,
     imagepos:    Option[String] = None,
     margin:      Option[String] = None,
-    nojustify:   Option[String] = None // 'true' | 'false'
-) derives ReadWriter:
+    nojustify:   Option[String] = None, // 'true' | 'false'
+    // Any attribute not named above (custom mermaid_* metadata, ...)
+    extraAttrs: Map[String, String] = Map.empty
+):
 
   /** Returns the unique identifier for this node, which is a string representation of its _gvid.
     */
   def id: String = s"node:$name"
+
+object SimpleGraphNode:
+  private val knownKeys                          = ExtraAttrs.fieldNames[SimpleGraphNode]
+  private val base: ReadWriter[SimpleGraphNode]  = macroRW
+  given ReadWriter[SimpleGraphNode] = readwriter[ujson.Value].bimap(
+    n => ExtraAttrs.merge(writeJs(n)(using base), n.extraAttrs),
+    js => read[SimpleGraphNode](js)(using base).copy(extraAttrs = ExtraAttrs.capture(js, knownKeys))
+  )
 
 /** Represents a logical grouping of nodes and edges, often rendered as a bounding box.
   */
@@ -86,8 +120,18 @@ case class SimpleGraphCluster(
     tooltip:     Option[String] = None,
     URL:         Option[String] = None,
     `class`:     Option[String] = None,
-    colorscheme: Option[String] = None
-) derives ReadWriter
+    colorscheme: Option[String] = None,
+    // Any attribute not named above (custom mermaid_* metadata, ...)
+    extraAttrs: Map[String, String] = Map.empty
+)
+
+object SimpleGraphCluster:
+  private val knownKeys                            = ExtraAttrs.fieldNames[SimpleGraphCluster]
+  private val base: ReadWriter[SimpleGraphCluster] = macroRW
+  given ReadWriter[SimpleGraphCluster] = readwriter[ujson.Value].bimap(
+    c => ExtraAttrs.merge(writeJs(c)(using base), c.extraAttrs),
+    js => read[SimpleGraphCluster](js)(using base).copy(extraAttrs = ExtraAttrs.capture(js, knownKeys))
+  )
 
 /** Represents a connection (or edge) between two nodes in the graph.
   */
@@ -134,8 +178,18 @@ case class SimpleGraphEdge(
     labelfontname:  Option[String] = None,
     tailtarget:     Option[String] = None,
     tailtooltip:    Option[String] = None,
-    tailURL:        Option[String] = None
-) derives ReadWriter
+    tailURL:        Option[String] = None,
+    // Any attribute not named above (custom mermaid_* metadata, ...)
+    extraAttrs: Map[String, String] = Map.empty
+)
+
+object SimpleGraphEdge:
+  private val knownKeys                         = ExtraAttrs.fieldNames[SimpleGraphEdge]
+  private val base: ReadWriter[SimpleGraphEdge] = macroRW
+  given ReadWriter[SimpleGraphEdge] = readwriter[ujson.Value].bimap(
+    e => ExtraAttrs.merge(writeJs(e)(using base), e.extraAttrs),
+    js => read[SimpleGraphEdge](js)(using base).copy(extraAttrs = ExtraAttrs.capture(js, knownKeys))
+  )
 
 /** A discriminated union type for any object that can appear in the 'objects' array. This represents either a SimpleGraphNode or
   * SimpleGraphCluster.
@@ -223,8 +277,10 @@ case class SimpleGraph(
     TBbalance:          Option[String] = None,
     tooltip:            Option[String] = None,
     truecolor:          Option[String] = None, // 'true' | 'false'
-    URL:                Option[String] = None
-) derives ReadWriter:
+    URL:                Option[String] = None,
+    // Any attribute not named above (custom mermaid_* metadata, ...)
+    extraAttrs: Map[String, String] = Map.empty
+):
   def nodes: List[SimpleGraphNode] =
     objects match
       case Some(objs) => objs.collect { case Node(n) => n }
@@ -232,3 +288,10 @@ case class SimpleGraph(
 
 object SimpleGraph:
   val minimal = SimpleGraph("G")
+
+  private val knownKeys                     = ExtraAttrs.fieldNames[SimpleGraph]
+  private val base: ReadWriter[SimpleGraph] = macroRW
+  given ReadWriter[SimpleGraph] = readwriter[ujson.Value].bimap(
+    g => ExtraAttrs.merge(writeJs(g)(using base), g.extraAttrs),
+    js => read[SimpleGraph](js)(using base).copy(extraAttrs = ExtraAttrs.capture(js, knownKeys))
+  )

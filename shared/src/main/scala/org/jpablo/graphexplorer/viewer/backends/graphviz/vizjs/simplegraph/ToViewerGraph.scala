@@ -122,6 +122,11 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     (attrId, valueOpt) =>
       valueOpt.foreach(v => if !exclude.contains(attrId.value) then attrs += attrId -> AttrValue(v))
 
+  // Attributes outside the SimpleGraph schema (custom mermaid_* metadata, ...),
+  // appended after the named fields in alphabetical order for determinism.
+  def appendExtras(add: (AttributeId, Option[String]) => Unit, extras: Map[String, String]): Unit =
+    extras.toVector.sortBy(_._1).foreach((k, v) => add(AttributeId(k), Some(v)))
+
   // Attribute converters for case classes
   def toAttributesFromNode(node: SimpleGraphNode, exclude: Set[String] = Set.empty): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
@@ -161,6 +166,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     add(ImagePos.attrId, node.imagepos)
     add(AttributeId("margin"), node.margin)
     add(AttributeId("nojustify"), node.nojustify)
+    appendExtras(add, node.extraAttrs)
 
     Attributes.fromOrdered(attrs)
 
@@ -200,6 +206,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     add(ColorScheme.attrId, cluster.colorscheme)
     // Add rank attribute for clusters/subgraphs
     add(Rank.attrId, cluster.rank)
+    appendExtras(add, cluster.extraAttrs)
 
     Attributes.fromOrdered(attrs)
 
@@ -226,6 +233,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     add(Overlap.attrId, simpleGraph.overlap)
     add(Normalize.attrId, simpleGraph.normalize)
     add(Start.attrId, simpleGraph.start)
+    appendExtras(add, simpleGraph.extraAttrs)
 
     Attributes.fromOrdered(attrs)
 
@@ -274,6 +282,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     add(TailTarget.attrId, edge.tailtarget)
     add(TailTooltip.attrId, edge.tailtooltip)
     add(TailURL.attrId, edge.tailURL)
+    appendExtras(add, edge.extraAttrs)
 
     Attributes.fromOrdered(attrs)
 
