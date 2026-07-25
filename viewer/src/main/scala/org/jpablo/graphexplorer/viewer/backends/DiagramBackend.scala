@@ -43,6 +43,18 @@ final case class DiagramLanguageInfo(
     documentationTitle: String
 )
 
+/** Failure of [[DiagramBackend.textToGraph]] for a diagram kind the backend can RENDER but cannot
+  * MODEL (its parse result exposes no graph accessors). The drawing on the canvas is correct and
+  * live-updates from the source; only selection/editing is unavailable. Consumers should present
+  * `getMessage` as an informational notice, not as a parse error.
+  *
+  * @param kind
+  *   The diagram kind as reported by the backend (e.g. "sequence").
+  * @param details
+  *   User-facing explanation, written by the backend (it knows which kinds ARE modelable).
+  */
+final case class RenderOnlyDiagram(kind: String, details: String) extends Exception(details)
+
 /** A backend that can parse diagram text, render it to SVG, and serialize a graph back to text.
   *
   * This trait abstracts over different diagram formats (DOT/Graphviz, Mermaid, etc.) to provide a unified interface for

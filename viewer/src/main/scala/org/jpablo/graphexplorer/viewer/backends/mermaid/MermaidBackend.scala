@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.backends.mermaid
 
 import com.raquo.airstream.core.Signal
-import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
+import org.jpablo.graphexplorer.viewer.backends.{DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs, RenderOnlyDiagram}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.{ArrowPosition, Point}
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElement, SelectableElementStrategy}
@@ -98,7 +98,12 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
             val yy =
               MermaidBackend
                 .selectDiagramYY(diagram)
-                .getOrElse(throw new Exception("Mermaid parser database missing"))
+                .getOrElse(throw RenderOnlyDiagram(
+                  kind = diagram.`type`,
+                  details =
+                    s"“${diagram.`type`}” diagrams are render-only: the canvas draws and live-updates " +
+                      "from the source, but selection and editing are available for flowcharts only."
+                ))
             val vertices  = convertVertices(MermaidBackend.jsMapToDict(yy.getVertices()))
             val jsEdges   = yy.getEdges()
             val edges     = convertEdges(jsEdges)

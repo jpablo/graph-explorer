@@ -53,10 +53,11 @@ case class ViewerState(
 
   val undoEvent: EventBus[Unit]        = EventBus()
   val redoEvent: EventBus[Unit]        = EventBus()
-  val editorError: Var[Option[String]] = Var(None)
+  val editorNotice: Var[Option[EditorNotice]] = Var(None)
 
-  // open the sources panel if there is an editor error
-  editorError.signal.changes.filter(_.isDefined)
+  // Open the sources panel only for genuine errors. Info notices (render-only diagram
+  // kinds) are expected — yanking the panel open for them would punish normal usage.
+  editorNotice.signal.changes.filter(_.exists(_.isError))
     .foreach(_ => rightPanelActiveSection.set(RightPanelSection.sources))
 
   // persisted source can be overridden by passing a non-empty initialSource
@@ -71,7 +72,7 @@ case class ViewerState(
     hiddenNodes = project.hiddenElements.signal,
     resetView = resetView,
     autoFit = autoFit.now,
-    editorError = editorError,
+    editorNotice = editorNotice,
     logLevel = logLevel
   )
 

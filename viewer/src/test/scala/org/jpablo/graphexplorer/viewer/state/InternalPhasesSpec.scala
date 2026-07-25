@@ -2,12 +2,12 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.ownership.Owner
-import com.raquo.airstream.state.Val
+import com.raquo.airstream.state.{Val, Var}
 import com.raquo.laminar.api.L.unsafeWindowOwner
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes
 import org.jpablo.graphexplorer.viewer.attributes.styleSubAttributes.StyleSubAttributes.fromExpandedAttributes
-import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramLanguages, DiagramRenderInputs}
+import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramBackend, DiagramFormat, DiagramLanguageInfo, DiagramLanguages, DiagramRenderInputs, RenderOnlyDiagram}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.SvgWithPositions
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BorderStyle, CornerStyle, FillStyle, Label, Style}
@@ -481,6 +481,30 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       )
     }
 
+  test("Parse failures are classified: render-only kinds are Info, real failures are Error"):
+    val notice = Var(Option.empty[EditorNotice])
+    val phases = new InternalPhases(ClassifyingFakeLanguages, hiddenNodes = Val(ElementIds()), editorNotice = notice)
+
+    afterMicrotasks {
+      // The initial text parses fine: no notice.
+      assertEquals(notice.now(), None)
+      phases.sourceText.set("renderonly: a sequence diagram")
+    }.flatMap { _ =>
+      afterMicrotasks {
+        assertEquals(notice.now().map(_.level), Some(EditorNotice.Level.Info))
+        assert(notice.now().exists(_.message.contains("render-only")))
+        // Info still means OUT OF SYNC: a canvas edit must not serialize over the document.
+        phases.fullGraphV.set(ViewerGraph.basic(NodeId("x") -> NodeId("y")))
+        assertEquals(phases.sourceText.now(), "renderonly: a sequence diagram")
+        phases.sourceText.set("broken: not parseable")
+      }
+    }.flatMap { _ =>
+      afterMicrotasks {
+        assertEquals(notice.now().map(_.level), Some(EditorNotice.Level.Error))
+        assert(notice.now().exists(_.message.contains("syntax error")))
+      }
+    }
+
 /** Minimal in-memory registry used to prove [[InternalPhases]] needs no real backend. */
 object FakeDiagramLanguages extends DiagramLanguages:
   private object FakeBackend extends DiagramBackend:
@@ -494,3 +518,21 @@ object FakeDiagramLanguages extends DiagramLanguages:
 
   override def all: List[DiagramBackend]                        = List(FakeBackend)
   override def forFormat(format: DiagramFormat): DiagramBackend = FakeBackend
+
+/** Fake registry whose parse outcome is driven by the text, to exercise notice classification. */
+object ClassifyingFakeLanguages extends DiagramLanguages:
+  private object Backend extends DiagramBackend:
+    override def format: DiagramFormat     = DiagramFormat.DOT
+    override def info: DiagramLanguageInfo = DiagramLanguageInfo("Fake", "fake source", "https://example.test", "Fake docs")
+    override def textToGraph(text: String): Future[ViewerGraph] =
+      if text.startsWith("renderonly") then
+        Future.failed(RenderOnlyDiagram("sequence", "“sequence” diagrams are render-only"))
+      else if text.startsWith("broken") then Future.failed(new Exception("syntax error"))
+      else Future.successful(ViewerGraph.minimal)
+    override def textToSvg(text: String): Future[SvgWithPositions]               = Future.never
+    override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String  = s"FAKE:${graph.nodeIds.size}"
+    override def selectionStrategy: SelectableElementStrategy                    = GraphvizSelectionStrategy
+    override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
+
+  override def all: List[DiagramBackend]                        = List(Backend)
+  override def forFormat(format: DiagramFormat): DiagramBackend = Backend

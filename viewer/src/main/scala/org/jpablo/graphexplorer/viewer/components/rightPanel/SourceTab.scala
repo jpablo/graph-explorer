@@ -11,7 +11,7 @@ def SourceTab(state: ViewerState) =
 
   div(
     idAttr := "source-tab",
-    cls("border-error border") <-- state.editorError.signal.map(_.isDefined),
+    cls("border-error border") <-- state.editorNotice.signal.map(_.exists(_.isError)),
     div(
       cls := "m-2 flex-none",
       div(
@@ -45,7 +45,8 @@ def SourceTab(state: ViewerState) =
         placeholder <-- currentInfo.map(_.editorPlaceholder)
       )
     ),
-    child.maybe <-- state.editorError.signal.map:
-      _.map: msg =>
-        div(role := "alert", cls := "m-1 mt-2 p-1 rounded-md flex-none alert alert-error text-sm", span(msg))
+    child.maybe <-- state.editorNotice.signal.map:
+      _.map: notice =>
+        val levelCls = if notice.isError then "alert-error" else "alert-info"
+        div(role := "alert", cls := s"m-1 mt-2 p-1 rounded-md flex-none alert $levelCls text-sm", span(notice.message))
   )

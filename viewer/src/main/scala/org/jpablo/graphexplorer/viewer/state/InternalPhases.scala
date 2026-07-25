@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.{EventStream, Signal}
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages}
+import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, RenderOnlyDiagram}
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.logging.*
@@ -37,7 +37,7 @@ class InternalPhases(
     hiddenNodes:   Signal[HiddenElements],
     resetView:     () => Unit = () => (),
     autoFit:       () => Boolean = () => false,
-    editorError:   Var[Option[String]] = Var(None),
+    editorNotice:  Var[Option[EditorNotice]] = Var(None),
     val logLevel:  Level = Level.None
 )(using Owner, ExecutionContext):
 
@@ -65,7 +65,7 @@ class InternalPhases(
   private val textChangeBus = EventBus[(String, DiagramFormat, ChangeOrigin)]()
 
   // Handle async parsing results.
-  // NOTE: all side effects (editorError included) happen in the guarded foreach below, NOT in
+  // NOTE: all side effects (editorNotice included) happen in the guarded foreach below, NOT in
   // the Future transform: flatMapSwitch abandons superseded parses, but their Futures still
   // complete — unguarded writes from them used to flash stale errors (or clear real ones).
   textChangeBus.events
@@ -78,9 +78,14 @@ class InternalPhases(
         val parseFuture =
           languages.forFormat(format).textToGraph(text).transform {
             case Success(graph) => Success((text, Right(graph), format, origin))
+            // Render-only diagram kind: expected, the drawing is fine — an INFO notice.
+            // Everything below still treats it as out-of-sync (canvas edits stay ignored).
+            case Failure(f: RenderOnlyDiagram) =>
+              simpleLog(s"[${format.displayName}] render-only diagram kind: ${f.kind}", logLevel)
+              Success((text, Left(EditorNotice.info(f.details)), format, origin))
             case Failure(f) =>
               simpleLog(s"Error parsing ${format.displayName} to ViewerGraph: ${f.getMessage}", logLevel)
-              Success((text, Left(f.getMessage), format, origin))
+              Success((text, Left(EditorNotice.error(f.getMessage)), format, origin))
           }
         EventStream.fromFuture(parseFuture)
     }
@@ -89,17 +94,18 @@ class InternalPhases(
       if state.now().text == text && formatSelection.now() == format then
         result match
           case Right(graph) =>
-            editorError.set(None)
+            editorNotice.set(None)
             simpleLog(
               s"[${format.displayName}] viewerGraph nodes=${graph.nodeIds.size} arrows=${graph.arrowIds.size} groups=${graph.groupIds.size} origin=$origin",
               logLevel
             )
             state.set(GraphState(text, graph, format, origin))
-          case Left(error) =>
-            editorError.set(Option(error))
+          case Left(notice) =>
+            editorNotice.set(Option(notice))
             // Keep the user's text; show the placeholder graph but mark it OUT OF SYNC so
             // graph edits are ignored until a successful parse (prevents overwriting the
-            // document with a serialized near-empty graph).
+            // document with a serialized near-empty graph). This applies to BOTH levels:
+            // an Info notice (render-only kind) also means the graph doesn't model the text.
             state.set(GraphState(text, ViewerGraph.minimalWithDirected, format, origin, graphInSync = false))
     }
 

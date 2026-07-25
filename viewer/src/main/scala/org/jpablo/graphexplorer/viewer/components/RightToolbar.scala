@@ -23,7 +23,7 @@ def RightToolbar(state: ViewerState) =
             cls("bg-base-300") <-- state.isSectionActive(section),
             i(
               cls := icon,
-              cls("text-error") <-- state.editorError.signal.map(_.isDefined && section == sources)
+              cls("text-error") <-- state.editorNotice.signal.map(_.exists(_.isError) && section == sources)
             ),
             onClick --> state.rightPanelActiveSection.update: curr =>
               if curr == section then none else section
