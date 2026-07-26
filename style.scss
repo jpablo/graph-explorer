@@ -200,6 +200,104 @@ svg {
   }
 }
 
+// ── Attribute rows ───────────────────────────────────────────────────────────
+// Shared by every attribute view: the side panel AND the popup cards the toolbar
+// opens. Defined at the top level on purpose — nested under #right-panel they only
+// ever reached half their call sites, and the cards silently went unstyled.
+
+// Names the group its rows belong to. Quiet by design: a landmark for scanning, not
+// a heading competing with the panel title above it.
+.attributes-section {
+  @apply px-2 pt-3 pb-1 flex items-center gap-2;
+
+  span {
+    @apply text-[0.62rem] uppercase tracking-[0.12em] text-base-content/45 whitespace-nowrap;
+  }
+
+  // The rule fills whatever the label leaves, so groups read as bands without a box.
+  &::after {
+    content: "";
+    @apply flex-1 h-px bg-base-300;
+  }
+}
+
+// Label left, control right, on one line.
+.attr-row {
+  @apply flex items-center justify-between gap-2 px-2 min-h-7;
+
+  > :first-child {
+    @apply text-xs text-base-content/70 truncate;
+  }
+
+  .attr-value {
+    @apply flex items-center justify-end gap-1 min-w-0;
+
+    > .select, > .dropdown, > .menu-with-extra-dropdown {
+      @apply w-full;
+    }
+
+    // A slider and its readout share the value column, and the split has to be stated
+    // here: daisyUI's `.input` is width:100%, which outranks a `w-12` utility and let
+    // the number swallow the whole column, leaving the track at zero width.
+    // The number is a fixed narrow readout; the track takes whatever is left.
+    > input[type="number"] {
+      @apply shrink-0;
+      width: 3.25rem;
+    }
+
+    > input[type="range"] {
+      @apply flex-1 min-w-0;
+      width: auto;
+    }
+
+    // Anything else that is a lone text input still fills the column.
+    > input.input:not([type="number"]):not([type="range"]) {
+      @apply w-full;
+    }
+  }
+}
+
+// A palette is a set to scan, not a value to read: it takes the whole row with its
+// label above, the same shape the multi-line title box already uses.
+.attr-row-stacked {
+  @apply flex flex-col items-stretch gap-1 py-1;
+
+  .attr-value {
+    @apply justify-start flex-wrap;
+  }
+}
+
+// Only the side panel pins the columns. A fixed label column exists so a long list of
+// controls shares one left edge and can be scanned; the toolbar's two-row popup cards
+// have nothing to scan, and a fixed column there would just steal width.
+//
+// The value column is CAPPED rather than stretched: dragging the panel wider should
+// give the room to the diagram, not fling every toggle 300px from its label.
+#right-panel .attr-row {
+  @apply grid;
+  grid-template-columns: minmax(0, 6.5rem) minmax(0, 14rem);
+
+  .attr-value {
+    @apply w-full;
+  }
+}
+
+#right-panel .attr-row-stacked {
+  @apply flex;
+}
+
+// Every rule above sets `display`, which outranks Tailwind's single-class `.hidden`.
+// Without this, rows Laminar marks hidden — attributes that do not apply to the
+// current layout, the title alignments before a title exists — stay on screen.
+// Anything added above that sets `display` needs to be listed here too.
+.attr-row.hidden,
+.attr-row-stacked.hidden,
+.attributes-section.hidden,
+#right-panel .attr-row.hidden,
+#right-panel .attr-row-stacked.hidden {
+  display: none;
+}
+
 #edit-label-dialog {
   .modal-box {
     @apply p-3 w-96;
@@ -601,59 +699,6 @@ svg {
         }
       }
 
-      // `display` set here outranks Tailwind's single-class `.hidden`, because these
-      // rules are nested under #top-level. Rows that Laminar marks hidden — attributes
-      // that do not apply to the current layout, the title alignments before a title
-      // exists — would stay on screen without this. Anything below that sets `display`
-      // needs the same escape hatch.
-      .attr-row.hidden, .attributes-section.hidden {
-        display: none;
-      }
-
-      // Names the group its rows belong to. Quiet by design — it is a landmark for
-      // scanning, not a heading competing with the panel title above it.
-      .attributes-section {
-        @apply px-2 pt-3 pb-1 flex items-center gap-2;
-
-        span {
-          @apply text-[0.62rem] uppercase tracking-[0.12em] text-base-content/45 whitespace-nowrap;
-        }
-
-        // The rule fills whatever the label leaves, so groups read as bands without
-        // needing a box around each one.
-        &::after {
-          content: "";
-          @apply flex-1 h-px bg-base-300;
-        }
-      }
-
-      // Label left, control right, on one line — everywhere.
-      .attr-row {
-        @apply flex items-center justify-between gap-2 px-2 min-h-7;
-
-        > :first-child {
-          @apply text-xs text-base-content/70 truncate;
-        }
-
-        .attr-value {
-          @apply flex items-center justify-end gap-1 min-w-0;
-
-          // Controls own the right column: selects and menus stretch into it, so the
-          // right edge lines up the way the left one does.
-          > .select, > .input, > .dropdown, > .menu-with-extra-dropdown {
-            @apply w-full;
-          }
-        }
-      }
-
-      // ...but only the side panel pins the label column. A fixed column exists so a
-      // long list of controls shares one left edge and can be scanned; the two-row
-      // popup cards in the toolbar have nothing to scan, and a fixed column there just
-      // steals width from the control. Same row, different job.
-      #right-panel & .attr-row {
-        @apply grid;
-        grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
-      }
     }
 
     #elements-view {

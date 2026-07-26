@@ -59,6 +59,16 @@ def VerticalAttributesView(
     children(buildFieldSets(extra)) <-- extraVisible.signal
   )
 
+/** A control showing at least this many options inline stops being a value beside a label and
+  * becomes a set to scan — a palette. Those get the row to themselves.
+  *
+  * Deliberately a count rather than a list of attribute names: what makes the colour swatches
+  * need width is that there are eight of them, so the rule should read the same fact. Grow the
+  * palette and the layout follows on its own; the alignment (2–3) and direction (4) pickers
+  * stay beside their labels.
+  */
+private val InlineOptionsNeedingFullWidth = 5
+
 /** One attribute, as a row.
   *
   * The default is two columns — label left, control right, on ONE line. Stacking the label
@@ -66,7 +76,8 @@ def VerticalAttributesView(
   * panel into scrolling; a single column of left-aligned labels is also the thing the eye
   * scans when hunting for a control.
   *
-  * Only a multi-line text box stacks, because it needs the panel's full width to be usable.
+  * Two things stack instead: a multi-line text box, and a palette — both because they are
+  * unusable squeezed into the value column.
   */
 private def AttributesViewRow(attRow: AttributeRow) =
   attRow match
@@ -80,6 +91,15 @@ private def AttributesViewRow(attRow: AttributeRow) =
             div(cls   := "fieldset-input", buildInputCell(row))
           )
 
+        case InputType.menuWithExtra(inline, _, _) if inline >= InlineOptionsNeedingFullWidth =>
+          Seq(
+            label(
+              cls := "attr-row attr-row-stacked",
+              InputLabelWithResetButton(row),
+              span(cls := "attr-value", buildInputCell(row))
+            )
+          )
+
         // A slider keeps its track, but the number beside it is the editable one: a track
         // alone cannot express "exactly 0.5", and the raw value is what people came to set.
         case InputType.range(s, e, step) =>
@@ -89,9 +109,12 @@ private def AttributesViewRow(attRow: AttributeRow) =
               InputLabelWithResetButton(row),
               span(
                 cls := "attr-value flex items-center gap-1",
-                buildInputCell(row).amend(cls := "range-nano w-20"),
+                // Sizing lives in CSS (.attr-value): the track takes what the readout
+                // leaves. Utilities cannot express it here — daisyUI's own .input rule
+                // outranks them and the number would swallow the column.
+                buildInputCell(row).amend(cls := "range-nano"),
                 buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
-                  .amend(cls := "w-12 text-[.6rem] input-ghost text-right")
+                  .amend(cls := "text-[.6rem] input-ghost text-right")
               )
             )
           )
