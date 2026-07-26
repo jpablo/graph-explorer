@@ -80,6 +80,16 @@ private val InlineOptionsNeedingFullWidth = 5
   *
   * Two things stack instead: a multi-line text box, and a palette — both because they are
   * unusable squeezed into the value column.
+  *
+  * The wrapper is a plain `div`, and MUST NOT go back to being a `<label>`. A label with no
+  * `for` forwards clicks to its first labelable descendant, and the reset button in
+  * `InputLabelWithResetButton` is exactly that — it is a `<button>`, and it comes first in
+  * tree order. So on any row that has been changed, one real click on an inert part of the
+  * row (the caption, a border-style swatch — a `div`, not interactive content) dispatched a
+  * SECOND click at the reset button, which writes `Missing` and deletes the attribute the
+  * user just set. The panel was never labelling the control anyway: with the button present
+  * it named the reset button, so the input had no accessible name at all. Names now come from
+  * `aria.label` in [[buildInputCell]], which is both correct and cannot be re-targeted.
   */
 private def AttributesViewRow(attRow: AttributeRow) =
   attRow match
@@ -89,13 +99,13 @@ private def AttributesViewRow(attRow: AttributeRow) =
       row.inputType match
         case InputType.multiText(_) =>
           Seq(
-            label(cls := "fieldset-label", InputLabelWithResetButton(row)),
-            div(cls   := "fieldset-input", buildInputCell(row))
+            div(cls := "fieldset-label", InputLabelWithResetButton(row)),
+            div(cls := "fieldset-input", buildInputCell(row))
           )
 
         case InputType.menuWithExtra(inline, _, _) if inline >= InlineOptionsNeedingFullWidth =>
           Seq(
-            label(
+            div(
               cls := "attr-row attr-row-stacked",
               InputLabelWithResetButton(row),
               span(cls := "attr-value", buildInputCell(row))
@@ -106,7 +116,7 @@ private def AttributesViewRow(attRow: AttributeRow) =
         // alone cannot express "exactly 0.5", and the raw value is what people came to set.
         case InputType.range(s, e, step) =>
           Seq(
-            label(
+            div(
               // attr-row-range: a track needs real width to be draggable. In the side
               // panel it shares the line with its label; in the toolbar's 192px popup
               // cards that left a 31px slider, so there it stacks instead.
@@ -118,8 +128,10 @@ private def AttributesViewRow(attRow: AttributeRow) =
                 // leaves. Utilities cannot express it here — daisyUI's own .input rule
                 // outranks them and the number would swallow the column.
                 buildInputCell(row).amend(cls := "range-nano"),
+                // Two controls for one attribute: the readout takes a distinct name so the
+                // pair does not announce as the same thing twice.
                 buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
-                  .amend(cls := "text-[.6rem] input-ghost text-right"),
+                  .amend(cls := "text-[.6rem] input-ghost text-right", aria.label := s"${row.label} value"),
                 row.unit.map(u => span(cls := "attr-unit", u))
               )
             )
@@ -127,7 +139,7 @@ private def AttributesViewRow(attRow: AttributeRow) =
 
         case _ =>
           Seq(
-            label(
+            div(
               cls := "attr-row",
               InputLabelWithResetButton(row),
               span(cls := "attr-value", buildInputCell(row))
@@ -177,10 +189,13 @@ private def splitIntoSections(rows: Seq[AttributeRow]): Seq[(Option[SectionHeade
       .reverse
   if leading.isEmpty then grouped else (None, leading) +: grouped
 
-private def buildInputCell(row: InputAttribute) =
-  row.inputType match
+private def buildInputCell(row: InputAttribute): HtmlElement =
+  val cell = row.inputType match
     case InputType.menuWithExtra(initial, dir, cardClass) => MenuWithExtraDropdown(row, initial, dir, cardClass)
     case InputType.select                                 => SelectWithValue(row)
     case InputType.checkbox                               => Checked(row)
     case InputType.multiText(setFocus)                    => TextAreaWithValue(row, setFocus = setFocus)
     case _                                                => InputWithValue(row)
+  // The caption is a sibling div, not a wrapping `<label>` (see AttributesViewRow for why it
+  // cannot be one), so the accessible name has to travel with the control itself.
+  cell.amend(aria.label := row.label)
