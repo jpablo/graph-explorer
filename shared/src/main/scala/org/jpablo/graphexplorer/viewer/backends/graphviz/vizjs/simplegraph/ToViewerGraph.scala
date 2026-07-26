@@ -134,7 +134,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
     extras.toVector.sortBy(_._1).foreach((k, v) => add(AttributeId(k), Some(v)))
 
   // Attribute converters for case classes
-  def toAttributesFromNode(node: SimpleGraphNode, exclude: Set[AttributeId] = Set.empty): Attributes =
+  def toAttributesFromNode(node: SimpleGraphNode, exclude: Set[AttributeId]): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
     val add   = attrAppender(attrs, exclude)
 
@@ -176,7 +176,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
 
     Attributes.fromOrdered(attrs)
 
-  def toAttributesFromCluster(cluster: SimpleGraphCluster, exclude: Set[AttributeId] = Set.empty): Attributes =
+  def toAttributesFromCluster(cluster: SimpleGraphCluster, exclude: Set[AttributeId]): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
     val add   = attrAppender(attrs, exclude)
 
@@ -216,9 +216,9 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
 
     Attributes.fromOrdered(attrs)
 
-  def toAttributesFromGraph(simpleGraph: SimpleGraph, exclude: Set[AttributeId] = Set.empty): Attributes =
+  def toAttributesFromGraph(simpleGraph: SimpleGraph): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
-    val add   = attrAppender(attrs, exclude)
+    val add   = attrAppender(attrs, Set.empty)
 
     // name/directed/strict/bb/_subgraph_cnt are intentionally not emitted (handled specially)
     add(FontName.attrId, simpleGraph.fontname)
@@ -243,7 +243,7 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
 
     Attributes.fromOrdered(attrs)
 
-  def toAttributesFromEdge(edge: SimpleGraphEdge, exclude: Set[AttributeId] = Set.empty): Attributes =
+  def toAttributesFromEdge(edge: SimpleGraphEdge, exclude: Set[AttributeId]): Attributes =
     val attrs = mutable.ListBuffer[(AttributeId, AttrValue)]()
     val add   = attrAppender(attrs, exclude)
 
@@ -344,14 +344,9 @@ def toViewerGraphElements(simpleGraph: SimpleGraph): VizViewerGraphElements =
   val objectClusters: List[SimpleGraphCluster] =
     simpleGraph.objects.getOrElse(Nil).collect { case SimpleGraphObject.Cluster(c) => c }
   val clusterFirstByGroupId: Map[GroupId, SimpleGraphCluster] =
-    objectClusters.foldLeft(Map.empty[GroupId, SimpleGraphCluster]) { (acc, c) =>
-      val gid = GroupId.fromDot(c.name)._1
-      if acc.contains(gid) then acc else acc.updated(gid, c)
-    }
+    objectClusters.distinctBy(c => GroupId.fromDot(c.name)._1).map(c => GroupId.fromDot(c.name)._1 -> c).toMap
   val clusterByGvid: Map[Int, SimpleGraphCluster] =
-    objectClusters.foldLeft(Map.empty[Int, SimpleGraphCluster]) { (acc, c) =>
-      if acc.contains(c._gvid) then acc else acc.updated(c._gvid, c)
-    }
+    objectClusters.distinctBy(_._gvid).map(c => c._gvid -> c).toMap
 
   // For each item (node or edge) gvid, find the most specific (innermost) cluster that
   // lists it — dot_json lists an item in EVERY enclosing subgraph's array, so a cluster

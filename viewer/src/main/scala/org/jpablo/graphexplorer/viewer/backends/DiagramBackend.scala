@@ -21,7 +21,9 @@ import scala.concurrent.Future
 final case class DiagramRenderInputs(
     visibleText:       Signal[String],
     sourceText:        Signal[String],
-    hasHiddenElements: Signal[Boolean] = Signal.fromValue(false)
+    // No default on purpose: Mermaid's hide/show behavior depends on this signal, and a
+    // defaulted-false caller would silently disable it.
+    hasHiddenElements: Signal[Boolean]
 )
 
 /** Presentation metadata for a diagram language, used to render the format selector UI without any

@@ -197,24 +197,26 @@ trait DiagramSelectionOps:
               }
             }
           else (Set.empty[ArrowId], classified.arrows)
-        val newGraph    = graph.reverseArrowsStyle(ElementIds(toSwap)).reverseArrows(ElementIds(toReverse))
-        val newArrowIds = newGraph.arrowIds -- graph.arrowIds
-        if newArrowIds.nonEmpty then
-          set1(classified.nodes ++ classified.groups ++ toSwap ++ newArrowIds)
+        val newGraph = graph.reverseArrowsStyle(ElementIds(toSwap)).reverseArrows(ElementIds(toReverse))
+        followNewArrows(graph, newGraph, classified.nodes ++ classified.groups ++ toSwap)
         newGraph
       }
 
     def reverseArrows() =
       phases.fullGraphV.update { graph =>
-        val classified  = now().classify
-        val newGraph    = graph.reverseArrows(now())
-        // Follow the reversed arrows: their ids change with the endpoints, so keeping
-        // the old ids would leave the selection pointing at nothing (pruned).
-        val newArrowIds = newGraph.arrowIds -- graph.arrowIds
-        if newArrowIds.nonEmpty then
-          set1(classified.nodes ++ classified.groups ++ newArrowIds)
+        val classified = now().classify
+        val newGraph   = graph.reverseArrows(now())
+        followNewArrows(graph, newGraph, classified.nodes ++ classified.groups)
         newGraph
       }
+
+    /** Follow arrows whose ids changed with their endpoints: keeping the old ids would
+      * leave the selection pointing at nothing (pruned on the next graph change).
+      */
+    private def followNewArrows(old: ViewerGraph, updated: ViewerGraph, keep: Set[ElementId]): Unit =
+      val newArrowIds = updated.arrowIds -- old.arrowIds
+      if newArrowIds.nonEmpty then
+        set1(keep ++ newArrowIds)
 
     def selectAllVisibleNodes() =
       val visibleNodes = visibleGraphNow().nodeIds

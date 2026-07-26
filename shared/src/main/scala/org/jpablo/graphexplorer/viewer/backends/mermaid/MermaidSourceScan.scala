@@ -3,8 +3,54 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 /** Shared source-text scanning helpers for the Mermaid*Fallback parsers, so the
   * directive-skip rules and label normalization cannot drift between fallbacks
   * (the whole-word prefix fix once had to be applied to two identical copies).
+  * `private[backends]` (not `[mermaid]`) so DiagramFormat.detect can delegate to
+  * [[looksLikeMermaid]] — the grammar catalogue belongs in this package.
   */
-private[mermaid] object MermaidSourceScan:
+private[backends] object MermaidSourceScan:
+
+  // Lowercased prefixes of every Mermaid diagram type bundled with mermaid 11
+  // (plus the flowchart `graph <dir>` forms, directives and YAML frontmatter).
+  private val DiagramKindPrefixes = List(
+    "flowchart",
+    "graph td",
+    "graph tb",
+    "graph bt",
+    "graph lr",
+    "graph rl",
+    "sequencediagram",
+    "classdiagram",
+    "statediagram",
+    "erdiagram",
+    "journey",
+    "gantt",
+    "pie",
+    "mindmap",
+    "timeline",
+    "gitgraph",
+    "quadrantchart",
+    "xychart",
+    "sankey",
+    "requirementdiagram",
+    "c4context",
+    "c4container",
+    "c4component",
+    "c4dynamic",
+    "c4deployment",
+    "block-beta",
+    "kanban",
+    "packet",
+    "radar",
+    "architecture",
+    "treemap",
+    "zenuml",
+    // Mermaid directive marker
+    "%%{",
+    "---" // YAML frontmatter often used in Mermaid
+  )
+
+  /** True when the given LOWERCASED, trimmed text starts like a Mermaid document. */
+  def looksLikeMermaid(lowercased: String): Boolean =
+    DiagramKindPrefixes.exists(lowercased.startsWith)
 
   private val IgnoredLinePrefixes = List(
     "%%",

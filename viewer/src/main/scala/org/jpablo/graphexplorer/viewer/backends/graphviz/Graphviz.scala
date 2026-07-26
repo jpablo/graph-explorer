@@ -114,18 +114,7 @@ object Graphviz:
     */
   private[graphviz] def addEdgeHitAreas(svg: dom.svg.SVG): Unit =
     svg.querySelectorAllT[dom.Element]("g.edge > path").foreach { p =>
-      val hit = p.cloneNode(false).asInstanceOf[dom.Element]
-      hit.removeAttribute("id")
-      hit.setAttribute("class", SelectableElement.hitAreaClass)
-      hit.setAttribute(
-        "style",
-        // non-scaling-stroke keeps the halo ~14 SCREEN px at any canvas zoom;
-        // dasharray:none because with pointer-events:stroke a dashed clone
-        // would only hit-test on the dashes
-        "fill:none;stroke:transparent;stroke-width:14px;stroke-dasharray:none;stroke-linecap:round;" +
-          "pointer-events:stroke;vector-effect:non-scaling-stroke"
-      )
-      p.parentNode.appendChild(hit)
+      p.parentNode.appendChild(SelectableElement.hitHaloClone(p))
     }
 
   /** True when the graph uses the `dot` engine — the only one the Scala port

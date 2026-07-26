@@ -27,6 +27,21 @@ private object ExtraAttrs:
     extras.foreach((k, v) => js.obj(k) = ujson.Str(v))
     js
 
+  /** The whole extras protocol as one ReadWriter: write = base encode + fold extras back
+    * as plain keys; read = base decode + capture unknown keys. One definition shared by
+    * the four SimpleGraph* companions, so the capture/merge rules cannot drift apart.
+    */
+  inline def readWriterWithExtras[T](
+      get: T => Map[String, String],
+      set: (T, Map[String, String]) => T
+  )(using scala.deriving.Mirror.ProductOf[T], scala.reflect.ClassTag[T]): ReadWriter[T] =
+    val knownKeys           = fieldNames[T]
+    val base: ReadWriter[T] = macroRW
+    readwriter[ujson.Value].bimap(
+      t => merge(writeJs(t)(using base), get(t)),
+      js => set(read[T](js)(using base), capture(js, knownKeys))
+    )
+
 /** Represents a single node (or vertex) in the graph.
   */
 case class SimpleGraphNode(
@@ -75,12 +90,8 @@ case class SimpleGraphNode(
   def id: String = s"node:$name"
 
 object SimpleGraphNode:
-  private val knownKeys                          = ExtraAttrs.fieldNames[SimpleGraphNode]
-  private val base: ReadWriter[SimpleGraphNode]  = macroRW
-  given ReadWriter[SimpleGraphNode] = readwriter[ujson.Value].bimap(
-    n => ExtraAttrs.merge(writeJs(n)(using base), n.extraAttrs),
-    js => read[SimpleGraphNode](js)(using base).copy(extraAttrs = ExtraAttrs.capture(js, knownKeys))
-  )
+  given ReadWriter[SimpleGraphNode] =
+    ExtraAttrs.readWriterWithExtras(_.extraAttrs, (n, e) => n.copy(extraAttrs = e))
 
 /** Represents a logical grouping of nodes and edges, often rendered as a bounding box.
   */
@@ -126,12 +137,8 @@ case class SimpleGraphCluster(
 )
 
 object SimpleGraphCluster:
-  private val knownKeys                            = ExtraAttrs.fieldNames[SimpleGraphCluster]
-  private val base: ReadWriter[SimpleGraphCluster] = macroRW
-  given ReadWriter[SimpleGraphCluster] = readwriter[ujson.Value].bimap(
-    c => ExtraAttrs.merge(writeJs(c)(using base), c.extraAttrs),
-    js => read[SimpleGraphCluster](js)(using base).copy(extraAttrs = ExtraAttrs.capture(js, knownKeys))
-  )
+  given ReadWriter[SimpleGraphCluster] =
+    ExtraAttrs.readWriterWithExtras(_.extraAttrs, (c, e) => c.copy(extraAttrs = e))
 
 /** Represents a connection (or edge) between two nodes in the graph.
   */
@@ -184,12 +191,8 @@ case class SimpleGraphEdge(
 )
 
 object SimpleGraphEdge:
-  private val knownKeys                         = ExtraAttrs.fieldNames[SimpleGraphEdge]
-  private val base: ReadWriter[SimpleGraphEdge] = macroRW
-  given ReadWriter[SimpleGraphEdge] = readwriter[ujson.Value].bimap(
-    e => ExtraAttrs.merge(writeJs(e)(using base), e.extraAttrs),
-    js => read[SimpleGraphEdge](js)(using base).copy(extraAttrs = ExtraAttrs.capture(js, knownKeys))
-  )
+  given ReadWriter[SimpleGraphEdge] =
+    ExtraAttrs.readWriterWithExtras(_.extraAttrs, (ed, e) => ed.copy(extraAttrs = e))
 
 /** A discriminated union type for any object that can appear in the 'objects' array. This represents either a SimpleGraphNode or
   * SimpleGraphCluster.
@@ -289,9 +292,5 @@ case class SimpleGraph(
 object SimpleGraph:
   val minimal = SimpleGraph("G")
 
-  private val knownKeys                     = ExtraAttrs.fieldNames[SimpleGraph]
-  private val base: ReadWriter[SimpleGraph] = macroRW
-  given ReadWriter[SimpleGraph] = readwriter[ujson.Value].bimap(
-    g => ExtraAttrs.merge(writeJs(g)(using base), g.extraAttrs),
-    js => read[SimpleGraph](js)(using base).copy(extraAttrs = ExtraAttrs.capture(js, knownKeys))
-  )
+  given ReadWriter[SimpleGraph] =
+    ExtraAttrs.readWriterWithExtras(_.extraAttrs, (g, e) => g.copy(extraAttrs = e))

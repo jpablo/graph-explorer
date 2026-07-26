@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.graphviz
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.components.selection.{GraphvizSelectionStrategy, SelectableElement}
 import org.jpablo.graphexplorer.viewer.models.ArrowId
+import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.scalajs.dom
 
 /** DOT-mode edge hit halos (Graphviz.addEdgeHitAreas): an invisible wide clone of the
@@ -24,10 +25,7 @@ class DotEdgeHitAreasSpec extends FunSuite:
         |    <text x="15" y="12">f</text>
         |  </g>
         |</svg>""".stripMargin
-    dom.DOMParser()
-      .parseFromString(svgText, dom.MIMEType.`image/svg+xml`)
-      .documentElement
-      .asInstanceOf[dom.svg.SVG]
+    parseSVG(svgText).ref
 
   test("addEdgeHitAreas appends an invisible halo inside the edge group"):
     val svg = fixture()

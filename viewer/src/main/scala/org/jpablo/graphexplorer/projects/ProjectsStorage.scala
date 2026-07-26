@@ -34,11 +34,14 @@ object ProjectStorage:
   private lazy val directoryStorageNow = directoryStorage.signal.observe
   private lazy val settingsStorageNow  = settingsStorage.signal.observe
 
+  // laminext's storedString namespaces its keys with a "[StoredString]" prefix
+  // (PersistenceSpec pins this); every raw localStorage access must go through rawKey
+  // so the key format cannot drift between read, remove and scan sites.
+  private def rawKey(key: String): String = s"[StoredString]$key"
+
   // One-shot read for probe-only lookups (no writes on these keys from here).
-  // NOTE: laminext's storedString namespaces its keys with a "[StoredString]" prefix
-  // (PersistenceSpec pins this), so raw reads must use the same key format.
   private def readLocalStorage(key: String, default: => String): String =
-    Option(dom.window.localStorage.getItem(s"[StoredString]$key")).getOrElse(default)
+    Option(dom.window.localStorage.getItem(rawKey(key))).getOrElse(default)
 
   /** Physically drop a key.
     *
@@ -48,7 +51,7 @@ object ProjectStorage:
     * a live library to `storedProjectPayloadsExist`.
     */
   private def removeLocalStorage(key: String): Unit =
-    dom.window.localStorage.removeItem(s"[StoredString]$key")
+    dom.window.localStorage.removeItem(rawKey(key))
 
   lazy val directory: Signal[ProjectsDirectory] =
     directoryStorage.signal.map(read[ProjectsDirectory](_))
@@ -175,7 +178,7 @@ object ProjectStorage:
     * so this can report true for projects the directory no longer lists.
     */
   private def storedProjectPayloadsExist(): Boolean =
-    val prefix = s"[StoredString]graph-explorer.project."
+    val prefix = rawKey("graph-explorer.project.")
     (0 until dom.window.localStorage.length).exists { i =>
       Option(dom.window.localStorage.key(i)).exists { k =>
         k.startsWith(prefix) && Option(dom.window.localStorage.getItem(k)).exists(_.length > 2)

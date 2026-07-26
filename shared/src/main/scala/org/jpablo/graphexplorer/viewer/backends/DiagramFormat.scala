@@ -14,61 +14,19 @@ object DiagramFormat:
   /** Detect the diagram format from the input text.
     *
     * Detection rules:
-    *   - Mermaid: starts with flowchart, graph (followed by direction), sequenceDiagram, classDiagram, etc.
+    *   - Mermaid: starts with a known Mermaid diagram-kind prefix (the catalogue lives with
+    *     the rest of the Mermaid grammar knowledge in [[mermaid.MermaidSourceScan]])
     *   - DOT: starts with digraph, graph (not followed by mermaid direction), strict digraph, strict graph
     *   - Default: DOT (backward compatibility)
     */
   def detect(text: String): DiagramFormat =
     val trimmed = text.trim.toLowerCase
-    if isMermaid(trimmed) then Mermaid
+    if mermaid.MermaidSourceScan.looksLikeMermaid(trimmed) then Mermaid
     else
       val firstContent = trimmed.linesIterator
         .map(_.trim)
         .dropWhile(line => line.isEmpty || (line.startsWith("%%") && !line.startsWith("%%{")))
         .nextOption()
         .getOrElse("")
-      if isMermaid(firstContent) then Mermaid
+      if mermaid.MermaidSourceScan.looksLikeMermaid(firstContent) then Mermaid
       else DOT
-
-  // Lowercased prefixes of every Mermaid diagram type bundled with mermaid 11
-  // (plus the flowchart `graph <dir>` forms, directives and YAML frontmatter).
-  private val mermaidPrefixes = List(
-    "flowchart",
-    "graph td",
-    "graph tb",
-    "graph bt",
-    "graph lr",
-    "graph rl",
-    "sequencediagram",
-    "classdiagram",
-    "statediagram",
-    "erdiagram",
-    "journey",
-    "gantt",
-    "pie",
-    "mindmap",
-    "timeline",
-    "gitgraph",
-    "quadrantchart",
-    "xychart",
-    "sankey",
-    "requirementdiagram",
-    "c4context",
-    "c4container",
-    "c4component",
-    "c4dynamic",
-    "c4deployment",
-    "block-beta",
-    "kanban",
-    "packet",
-    "radar",
-    "architecture",
-    "treemap",
-    "zenuml",
-    // Mermaid directive marker
-    "%%{",
-    "---" // YAML frontmatter often used in Mermaid
-  )
-
-  private def isMermaid(text: String): Boolean =
-    mermaidPrefixes.exists(text.startsWith)

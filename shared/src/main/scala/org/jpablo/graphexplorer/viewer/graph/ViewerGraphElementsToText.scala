@@ -52,8 +52,6 @@ def viewerGraphElementsToText(
   // value goes through here, so no emission site can accidentally skip the escaping.
   def quoted(value: String): String = s""""${escapeDotString(value)}""""
 
-  // Helper to format a single attribute value
-  def formatValue(value: String): String = quoted(value)
 
   // Helper to format a label value - HTML labels use <> notation, others use quotes
   def formatLabelValue(value: String): String = {
@@ -171,7 +169,7 @@ def viewerGraphElementsToText(
     else {
       val formattedAttrs = attrs.map { case (key, value) =>
         if (key == "label") s"$key=${formatLabelValue(value)}"
-        else s"$key=${formatValue(value)}"
+        else s"$key=${quoted(value)}"
       }
       s" [${formattedAttrs.mkString(", ")}]"
     }
@@ -200,7 +198,7 @@ def viewerGraphElementsToText(
         } else if (key == "label") {
           s"${padding(level + 1)}$key=${formatLabelValue(value)}$comma"
         } else {
-          s"${padding(level + 1)}$key=${formatValue(value)}$comma"
+          s"${padding(level + 1)}$key=${quoted(value)}$comma"
         }
       }
       s" [\n${formattedAttrs.mkString("\n")}\n${padding(level)}]"

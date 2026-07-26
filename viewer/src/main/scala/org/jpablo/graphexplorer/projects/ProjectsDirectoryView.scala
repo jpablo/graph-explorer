@@ -25,32 +25,26 @@ enum SortOption derives CanEqual:
     case Title        => "Title"
     case CreationDate => "Creation Date"
 
-enum KindFilter derives CanEqual:
-  case AllKinds, Dot, Mermaid
-
-  def label: String = this match
-    case AllKinds => "All kinds"
-    case Dot      => "DOT"
-    case Mermaid  => "Mermaid"
-
-  /** The format this option keeps, or None for no filtering. */
-  def keeps: Option[DiagramFormat] = this match
-    case AllKinds => None
-    case Dot      => Some(DiagramFormat.DOT)
-    case Mermaid  => Some(DiagramFormat.Mermaid)
-
 /** Badge marking a card's diagram kind, so DOT and Mermaid documents are
   * distinguishable at a glance in the library and the examples gallery.
+  * Text comes from the format itself; only the accent color is per-format,
+  * with a neutral default so a new backend is badged without editing here.
   */
+private val badgeColorByFormat = Map[DiagramFormat, String](
+  DiagramFormat.DOT     -> "badge-neutral",
+  DiagramFormat.Mermaid -> "badge-secondary"
+)
+
 private def formatBadge(format: DiagramFormat) =
-  format match
-    case DiagramFormat.DOT     => span(cls := "badge badge-xs badge-neutral badge-outline shrink-0", "DOT")
-    case DiagramFormat.Mermaid => span(cls := "badge badge-xs badge-secondary badge-outline shrink-0", "Mermaid")
+  val color = badgeColorByFormat.getOrElse(format, "badge-neutral")
+  span(cls := s"badge badge-xs $color badge-outline shrink-0", format.toString)
 
 def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: RouterCommands) =
-  val sortOptionVar  = Var[SortOption](SortOption.CreationDate)
-  val searchTermVar  = Var("")
-  val kindFilterVar  = Var[KindFilter](KindFilter.AllKinds)
+  val sortOptionVar = Var[SortOption](SortOption.CreationDate)
+  val searchTermVar = Var("")
+  // None = all kinds. Enumerated from DiagramFormat.values, so a new backend is
+  // filterable without touching this component.
+  val kindFilterVar = Var[Option[DiagramFormat]](None)
 
   div(
     idAttr := "projects-view",
@@ -113,17 +107,18 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
               )
             )
           ),
-          // Kind filter dropdown
+          // Kind filter dropdown ("" encodes All kinds)
           select(
             cls := "select select-sm h-8",
-            KindFilter.values.toSeq.map { opt =>
+            option(value := "", "All kinds"),
+            DiagramFormat.values.toSeq.map { format =>
               option(
-                value := opt.toString,
-                opt.label
+                value := format.toString,
+                format.toString
               )
             },
-            value <-- kindFilterVar.signal.map(_.toString),
-            onChange.mapToValue.map(KindFilter.valueOf) --> kindFilterVar
+            value <-- kindFilterVar.signal.map(_.fold("")(_.toString)),
+            onChange.mapToValue.map(v => Option.when(v.nonEmpty)(DiagramFormat.valueOf(v))) --> kindFilterVar
           ),
           // Sort dropdown
           select(
@@ -154,30 +149,34 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
             .debounce(300)
             .startWith("")
 
+          // Keyed on the directory alone: each entry is a synchronous localStorage read
+          // plus a full-document JSON parse, so it must NOT sit inside the search/sort/
+          // filter combine below (every debounce tick would rescan the whole library).
+          // Thumbnails stay lazy behind the IntersectionObserver regardless.
+          val formatsSignal: Signal[Map[ProjectId, DiagramFormat]] =
+            ProjectStorage.directory.map: dir =>
+              dir.projects.flatMap(p => ProjectStorage.projectFormat(p.id).map(p.id -> _)).toMap
+
           ProjectStorage.directory
-            .combineWithFn(debouncedSearch, sortOptionVar.signal, kindFilterVar.signal):
-              (directory, searchTerm, sortOption, kindFilter) =>
+            .combineWithFn(debouncedSearch, sortOptionVar.signal, kindFilterVar.signal, formatsSignal):
+              (directory, searchTerm, sortOption, kindFilter, formats) =>
                 Telemetry.time(
                   "home.projects.computeCards",
                   "projectsTotal" -> directory.projects.size,
                   "searchLen"     -> searchTerm.length,
                   "sort"          -> sortOption.toString,
-                  "kind"          -> kindFilter.toString
+                  "kind"          -> kindFilter.fold("AllKinds")(_.toString)
                 ):
-                  // One cheap payload read per card; the expensive part (thumbnails)
-                  // stays lazy behind the IntersectionObserver.
-                  val formats: Map[ProjectId, Option[DiagramFormat]] =
-                    directory.projects.map(p => p.id -> ProjectStorage.projectFormat(p.id)).toMap
                   val filteredProjects = directory.projects
                     .filter(_.name.toLowerCase.contains(searchTerm.toLowerCase))
-                    .filter(p => kindFilter.keeps.forall(k => formats.get(p.id).flatten.contains(k)))
+                    .filter(p => kindFilter.forall(k => formats.get(p.id).contains(k)))
                   val sorted =
                     sortOption match
                       case SortOption.LastModified => filteredProjects.sortBy(-_.lastModified)
                       case SortOption.Title        => filteredProjects.sortBy(_.name.toLowerCase)
                       case SortOption.CreationDate => filteredProjects.sortBy(-_.createdAt)
                   Telemetry.log("home.projects.cardsReady", "projectsShown" -> sorted.size)
-                  sorted.map(p => projectCard(graphviz, router, formats.get(p.id).flatten)(p))
+                  sorted.map(p => projectCard(graphviz, router, formats.get(p.id))(p))
         }
       ),
 

@@ -58,13 +58,6 @@ case class StyleSubAttributes(
       ).flatten.toMap
     )
 
-  /** Converts the current sub-attribute configuration into a simple style string representation. The resulting string is a comma-separated
-    * list of individual style components. This method works in "simple" mode, meaning it is used only when the style is not a combination
-    * of multiple styles.
-    *
-    * @return
-    *   A comma-separated string of style components, including fill, bold, invisible attributes, and non-default border and corner styles.
-    */
   /** Renders the sub-attributes as a comma-separated `style` value.
     *
     * @param dropDefaults

@@ -63,10 +63,14 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     // Render the raw source text for fidelity (the Mermaid round-trip is lossy) — but when
     // elements are hidden, render the serialized visible graph instead, otherwise hide/show
     // operations have no visual effect in Mermaid mode (while exports DO exclude them).
-    inputs.sourceText
-      .combineWith(inputs.hasHiddenElements, inputs.visibleText)
-      .flatMapSwitch: (sourceText, hasHidden, visibleText) =>
-        val mermaidText = if hasHidden then visibleText else sourceText
+    // visibleText is only SUBSCRIBED while elements are hidden: combining it in
+    // unconditionally serialized the whole graph on every parse just to discard the text,
+    // and its post-parse recompute echoed a second identical mermaid render per keystroke.
+    // The .distinct collapses that echo.
+    inputs.hasHiddenElements
+      .flatMapSwitch(hasHidden => if hasHidden then inputs.visibleText else inputs.sourceText)
+      .distinct
+      .flatMapSwitch: mermaidText =>
         if mermaidText.trim.isEmpty then
           Signal.fromValue(None)
         else
@@ -306,10 +310,10 @@ object MermaidBackend:
     */
   private val OperationTimeoutMs = 15000
 
-  private def withTimeout[A](f: Future[A], label: String)(using ExecutionContext): Future[A] =
+  private def withTimeout[A](f: Future[A])(using ExecutionContext): Future[A] =
     val p = Promise[A]()
     val handle = js.timers.setTimeout(OperationTimeoutMs) {
-      p.tryFailure(new RuntimeException(s"[mermaid] $label did not settle within ${OperationTimeoutMs}ms"))
+      p.tryFailure(new RuntimeException(s"[mermaid] operation did not settle within ${OperationTimeoutMs}ms"))
     }
     f.onComplete { result =>
       js.timers.clearTimeout(handle)
@@ -320,7 +324,7 @@ object MermaidBackend:
   /** Serialize Mermaid operations so parse/render don't race during lazy diagram registration. */
   private def enqueue[A](op: => Future[A])(using ExecutionContext): Future[A] = synchronized {
     val previous = operationChain.recover { case _ => () }
-    val next = previous.flatMap(_ => withTimeout(Try(op).fold(Future.failed, identity), "operation"))
+    val next = previous.flatMap(_ => withTimeout(Try(op).fold(Future.failed, identity)))
     operationChain = next.map(_ => ()).recover { case _ => () }
     next
   }
@@ -393,20 +397,15 @@ object MermaidBackend:
     */
   private[mermaid] def addEdgeHitAreas(svg: dom.svg.SVG): Unit =
     svg.querySelectorAllT[dom.Element]("path.flowchart-link").foreach { p =>
-      val hit = p.cloneNode(false).asInstanceOf[dom.Element]
-      hit.removeAttribute("id")
+      val hit = SelectableElement.hitHaloClone(p)
       hit.removeAttribute("marker-start")
       hit.removeAttribute("marker-end")
       hit.setAttribute("data-edge-id", p.id)
+      // Keep the original class list too: MermaidSelectionStrategy's edge selector
+      // matches on flowchart-link, and the halo must resolve like its edge.
       hit.setAttribute(
         "class",
         s"${Option(p.getAttribute("class")).getOrElse("")} ${SelectableElement.hitAreaClass}".trim
-      )
-      hit.setAttribute(
-        "style",
-        // non-scaling-stroke keeps the hit halo ~14 SCREEN px at any canvas zoom
-        "fill:none;stroke:transparent;stroke-width:14px;stroke-dasharray:none;stroke-linecap:round;" +
-          "pointer-events:stroke;vector-effect:non-scaling-stroke"
       )
       p.parentNode.insertBefore(hit, p)
     }

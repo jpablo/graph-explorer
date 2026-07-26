@@ -85,6 +85,28 @@ object SelectableElement:
     */
   val hitAreaClass = "edge-hit-area"
 
+  /** The one definition of the invisible edge hit-halo's presentation:
+    * non-scaling-stroke keeps the halo ~14 SCREEN px at any canvas zoom;
+    * dasharray:none because with pointer-events:stroke a dashed clone would
+    * only hit-test on the dashes. Both backends' halos share this string —
+    * style.scss's `.edge-hit-area` counter-rules assume the same 14px figure.
+    */
+  val hitHaloStyle: String =
+    "fill:none;stroke:transparent;stroke-width:14px;stroke-dasharray:none;stroke-linecap:round;" +
+      "pointer-events:stroke;vector-effect:non-scaling-stroke"
+
+  /** Clone `path` as an invisible hit halo: id stripped (never a canonical element),
+    * [[hitAreaClass]] applied, [[hitHaloStyle]] inlined. Backend-specific plumbing
+    * (data-edge-id, marker stripping, class merging, insertion position) stays with
+    * the caller.
+    */
+  def hitHaloClone(path: dom.Element): dom.Element =
+    val hit = path.cloneNode(false).asInstanceOf[dom.Element]
+    hit.removeAttribute("id")
+    hit.setAttribute("class", hitAreaClass)
+    hit.setAttribute("style", hitHaloStyle)
+    hit
+
   /** Invisible rect covering an edge LABEL (MermaidBackend.addEdgeHitAreas): label text
     * lives in a foreignObject, whose XHTML content the selection machinery's namespace
     * filter drops — the rect gives label clicks an SVG-namespace target that resolves to

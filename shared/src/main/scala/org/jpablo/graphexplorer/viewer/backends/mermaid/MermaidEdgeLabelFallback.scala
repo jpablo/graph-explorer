@@ -82,15 +82,10 @@ object MermaidEdgeLabelFallback:
     * per-pair ordinal advances once per edge regardless of whether it carries a label. */
   private def extractEdgeFromLine(line: String): Option[(String, String, Option[String])] =
     val labeled =
-      PipeLabelPattern.findPrefixMatchOf(line)
+      List(PipeLabelPattern, InlineLabelPattern).iterator
+        .flatMap(_.findPrefixMatchOf(line))
         .map(m => (m.group(1), m.group(3), normalizeLabel(m.group(2))))
-        .filter { case (_, _, label) => label.nonEmpty }
-        .orElse {
-          InlineLabelPattern.findPrefixMatchOf(line)
-            .map(m => (m.group(1), m.group(3), normalizeLabel(m.group(2))))
-            .filter { case (_, _, label) => label.nonEmpty }
-        }
-        .map { case (s, t, label) => (s, t, Some(label)) }
+        .collectFirst { case (s, t, label) if label.nonEmpty => (s, t, Some(label)) }
     labeled.orElse(
       PlainEdgePattern.findPrefixMatchOf(line).map(m => (m.group(1), m.group(2), None))
     )

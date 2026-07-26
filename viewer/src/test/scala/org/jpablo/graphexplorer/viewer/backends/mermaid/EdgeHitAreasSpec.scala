@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
 import munit.FunSuite
 import org.jpablo.graphexplorer.viewer.components.selection.{MermaidSelectionStrategy, SelectableElement}
 import org.jpablo.graphexplorer.viewer.models.ArrowId
+import org.jpablo.graphexplorer.viewer.domUtils.parseSVG
 import org.scalajs.dom
 
 /** Edge hit targets in Mermaid mode: the invisible halo clone along the path, and the
@@ -34,10 +35,7 @@ class EdgeHitAreasSpec extends FunSuite:
         |    </g>
         |  </g>
         |</svg>""".stripMargin
-    dom.DOMParser()
-      .parseFromString(svgText, dom.MIMEType.`image/svg+xml`)
-      .documentElement
-      .asInstanceOf[dom.svg.SVG]
+    parseSVG(svgText).ref
 
   test("addEdgeHitAreas covers the edge label with a rect resolving to the edge"):
     val svg = fixture()
