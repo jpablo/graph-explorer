@@ -40,7 +40,7 @@ def SourceTab(state: ViewerState) =
           text = "Documentation",
           cls := "tooltip-bottom",
           a(
-            cls    := "toolbar-btn",
+            cls    := "gx-icon-btn",
             href   <-- currentInfo.map(_.documentationUrl),
             target := "_blank",
             title  <-- currentInfo.map(_.documentationTitle),
@@ -60,7 +60,7 @@ def SourceTab(state: ViewerState) =
     child.maybe <-- state.editorNotice.signal.map:
       _.map: notice =>
         val levelCls = if notice.isError then "alert-error" else "alert-info"
-        div(role := "alert", cls := s"m-1 mt-2 p-1 rounded-md flex-none alert $levelCls text-sm", span(notice.message))
+        div(role := "alert", cls := s"m-1 mt-2 p-1 rounded-box flex-none alert $levelCls text-sm", span(notice.message))
   )
 
 private def toolbarButton(icon: String, tip: String, action: => Unit) =
@@ -68,7 +68,7 @@ private def toolbarButton(icon: String, tip: String, action: => Unit) =
     text = tip,
     cls := "tooltip-bottom",
     button(
-      cls      := "toolbar-btn",
+      cls      := "gx-icon-btn",
       typ      := "button",
       aria.label := tip,
       i(cls := icon),
@@ -81,7 +81,7 @@ private def toolbarToggle(icon: String, tip: String, flag: Var[Boolean]) =
     text = tip,
     cls := "tooltip-bottom",
     button(
-      cls      := "toolbar-btn",
+      cls      := "gx-icon-btn",
       typ      := "button",
       aria.label := tip,
       cls("active") <-- flag.signal,

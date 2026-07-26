@@ -19,8 +19,8 @@ def RightToolbar(state: ViewerState) =
           text = text,
           cls := "tooltip-left",
           span(
-            cls := "cursor-pointer p-1.5 hover:bg-base-300 rounded-lg",
-            cls("bg-base-300") <-- state.isSectionActive(section),
+            cls := "gx-icon-btn p-1.5",
+            cls("active") <-- state.isSectionActive(section),
             i(
               cls := icon,
               cls("text-error") <-- state.editorNotice.signal.map(_.exists(_.isError) && section == sources)

@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.widgets.*
 def VerticalCardWithPreview(builder: RowBuilder, id: String, iAttrs: InputAttribute*) =
   DropdownHeader(
     div(
-      cls := "flex gap-4 bg-base-100 rounded-md px-3",
+      cls := "flex gap-4 bg-base-100 rounded-box px-3",
       iAttrs.map(ia => child <-- ia.selectedOption)
     ),
     body =

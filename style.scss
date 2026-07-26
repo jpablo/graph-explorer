@@ -1,7 +1,27 @@
 @reference "./style.css";
 
 :root {
-  --control-color: #33ade6;
+  // ── Canvas signal colours ──────────────────────────────────────────────────
+  // Deliberately NOT theme tokens, and that is the whole point: these paint ON TOP
+  // of user-coloured diagrams, so they have to stay legible against arbitrary node
+  // fills rather than against the app chrome. Bound to a theme's primary, selection
+  // would vanish the moment someone picked a theme whose accent matched their nodes.
+  //
+  // The rule for this stylesheet: chrome colours come from the theme, canvas signals
+  // are fixed and named here. Nothing below should carry a raw hex.
+  --gx-select: #2c70ff; // selection stroke: node borders, edges, solid arrowheads
+  --gx-select-glow: rgba(44, 112, 255, 0.7);
+  --gx-select-fill: rgba(255, 165, 0, 0.15); // wash inside a selected node's border
+  --gx-mark: rgb(251 191 36); // hover / marked rows
+  --gx-mark-soft: rgba(251, 191, 36, 0.1);
+  --gx-control: #33ade6; // draggable handles: endpoint disks, new-arrow control
+  --gx-control-soft: #d7effa;
+  --gx-scrim: rgba(0, 0, 0, 0.3); // rubber-band selection rectangle
+  --gx-scrim-edge: #999797;
+  --gx-shadow: rgba(0, 0, 0, 0.4);
+  --gx-shadow-soft: rgba(0, 0, 0, 0.5);
+  --gx-shadow-deep: rgba(0, 0, 0, 0.6);
+  --gx-label-scrim: rgba(232, 232, 232, 0.7); // behind mermaid edge labels
 }
 
 // While a panel edge is being dragged the pointer leaves the 7px handle constantly, so the
@@ -111,7 +131,7 @@ svg {
 
 .horizontal-attributes-view {
 
-  @apply flex flex-row gap-3;
+  @apply flex flex-row gap-2;
 
   > .fieldset {
     // items-center: the label cell centers its text but .fieldset-input does not,
@@ -152,6 +172,34 @@ svg {
   @apply bg-base-100 z-1 w-86 max-h-100 overflow-y-auto shadow-md border border-base-200;
 }
 
+// ── The one icon button ──────────────────────────────────────────────────────
+// Every bare clickable icon in the chrome uses this: the right rail, the editor
+// toolbar, panel actions. Previously each site invented its own hover colour and
+// corner radius (rounded, rounded-md, rounded-lg all appeared), so the same
+// gesture looked like three different controls.
+//
+// Radii come from the THEME (--radius-field / --radius-box), not from a number
+// picked here — daisyUI themes set their own, from 0.25rem to 1rem, and chrome
+// that ignores that reads as pasted in from another app.
+.gx-icon-btn {
+  @apply flex items-center justify-center p-1 cursor-pointer leading-none
+         text-base-content/60 transition-colors;
+  border-radius: var(--radius-field);
+
+  &:hover {
+    @apply bg-base-300 text-base-content;
+  }
+
+  // A toggle that is ON must read as pressed, not merely hovered.
+  &.active {
+    @apply bg-base-300 text-base-content;
+  }
+
+  &:focus-visible {
+    @apply outline-2 outline-offset-1 outline-primary;
+  }
+}
+
 #edit-label-dialog {
   .modal-box {
     @apply p-3 w-96;
@@ -184,19 +232,22 @@ svg {
     @apply flex-initial min-w-0;
     /* cap to parent width and scroll if necessary */
     @apply max-w-full overflow-x-clip;
-    @apply border-b border-base-300 px-2 py-[2px] m-0 print:hidden min-h-auto;
+    @apply border-b border-base-300 px-2 py-0.5 m-0 print:hidden min-h-auto;
 
     .dropdown {
       @apply m-0 p-0;
       .dropdown-content {
-        @apply mt-[3px];
+        @apply mt-1;
       }
     }
 
     .tooltip {
-
+      // Off the 4px scale on purpose. daisyUI's tooltip wrapper adds its own line
+      // box, which drops a wrapped button ~1.5px below its unwrapped neighbours in
+      // this bar; measured, this nudge halves that error. Remove it and the icons
+      // in the top toolbar stop sharing a baseline.
       > button {
-        @apply mt-[-3px];
+        margin-top: -3px;
       }
     }
 
@@ -243,7 +294,7 @@ svg {
     }
 
     > .card {
-      @apply bg-base-100 w-46 shadow-lg;
+      @apply bg-base-100 w-48 shadow-lg;
       //@apply bg-base-100 h-18 shadow-lg;
     }
 
@@ -273,8 +324,8 @@ svg {
         circle {
           stroke-width: 1px;
           stroke: white;
-          fill: var(--control-color);
-          filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.5));
+          fill: var(--gx-control);
+          filter: drop-shadow(0px 1px 1px var(--gx-shadow-soft));
         }
 
       }
@@ -282,19 +333,19 @@ svg {
       .new-arrow-control {
         circle {
           stroke: white;
-          fill: #d7effa;
-          filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.6));
+          fill: var(--gx-control-soft);
+          filter: drop-shadow(0px 1px 1px var(--gx-shadow-deep));
         }
 
         path {
-          fill: var(--control-color);
+          fill: var(--gx-control);
         }
 
         &:hover {
           circle {
             stroke: white;
-            fill: var(--control-color);
-            filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.5));
+            fill: var(--gx-control);
+            filter: drop-shadow(0px 1px 1px var(--gx-shadow-soft));
           }
 
           path {
@@ -305,20 +356,19 @@ svg {
 
       #selection-rectangle {
         stroke-width: 0.5px;
-        stroke: #999797;
-        fill: #000000;
-        fill-opacity: 0.3;
+        stroke: var(--gx-scrim-edge);
+        fill: var(--gx-scrim);
       }
 
       #dragging-arrow-group {
-        stroke: #2c70ff;
+        stroke: var(--gx-select);
         stroke-width: 1;
         pointer-events: none;
-        fill: #2c70ff;
+        fill: var(--gx-select);
 
         #dragging-arrow-line {
           stroke-dasharray: 2, 2;
-          stroke: #2c70ff;
+          stroke: var(--gx-select);
         }
       }
 
@@ -328,11 +378,11 @@ svg {
       // hiding the actual node color underneath (the selection overlay becomes opaque).
       // Do not remove !important without verifying Mermaid selection still works.
       .selected-border {
-        fill: rgba(255, 165, 0, 0.15) !important;
+        fill: var(--gx-select-fill) !important;
         stroke-width: 2px;
-        stroke: #2c70ff !important;
+        stroke: var(--gx-select) !important;
         vector-effect: non-scaling-stroke;
-        filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
+        filter: drop-shadow(0px 2px 4px var(--gx-shadow));
         // decoration only — must never intercept clicks aimed at covered elements
         pointer-events: none;
       }
@@ -354,11 +404,11 @@ svg {
       .edge.selected,
       .edgePath.selected {
         path, line, polygon, polyline, ellipse {
-          stroke: #2c70ff !important;
-
-          // TODO: these two lines add significant lag when the number of edges is medium/large (say ~ 200 edges)
-          //filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
-          //animation: combinedPulse 2s infinite alternate ease-in-out;
+          stroke: var(--gx-select) !important;
+          // Colour only. A drop-shadow or a pulse animation here reads well on a
+          // handful of edges and costs visible frame time from roughly 200 up —
+          // every selected edge composites its own layer. Focus mode (the opacity
+          // fade above) carries the emphasis instead, for one paint.
         }
 
         // A thicker spline reads as selected the way the node border rect does.
@@ -380,13 +430,13 @@ svg {
         // OUTLINE, leaving its default black fill. Recolor solid heads; open
         // markers (fill white/none) and user-colored heads keep their fill.
         polygon[fill="black"] {
-          fill: #2c70ff !important;
+          fill: var(--gx-select) !important;
         }
       }
 
       path.flowchart-link.selected,
       path.edgePath.selected {
-        stroke: #2c70ff !important;
+        stroke: var(--gx-select) !important;
         // !important: mermaid's own stylesheet sets edge widths behind an id
         // selector (#mermaid-… .edge-thickness-normal), which outranks any
         // class-only rule from here. Screen-space like the DOT rule above.
@@ -417,42 +467,11 @@ svg {
 
       // Make Mermaid edge label backgrounds semi-transparent so arrows remain visible
       .edgeLabel span.edgeLabel {
-        background-color: rgba(232, 232, 232, 0.7) !important;
+        background-color: var(--gx-label-scrim) !important;
       }
 
       g#graph0 {
         transform-origin: 50% -50%;
-
-
-        //@keyframes dashFlow {
-        //  0% {
-        //    stroke-dashoffset: 200; /* Start with the "dash" completely offset */
-        //  }
-        //  100% {
-        //    stroke-dashoffset: 0; /* Move the dash completely across */
-        //  }
-        //}
-
-        @keyframes combinedPulse {
-          0% {
-            opacity: 0.8;
-            stroke: #2c70ff;
-            //stroke-width: 2px;
-            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
-          }
-          50% {
-            opacity: 1; /* Fully opaque */
-            stroke: #f800ff; /* Brighter blue */
-            //stroke-width: 3px; /* Slightly thicker */
-            filter: drop-shadow(0px 4px 10px rgba(44, 112, 255, 0.7)); /* Larger, more intense, blue-tinted shadow */
-          }
-          100% {
-            opacity: 0.8;
-            stroke: #ff2c96;
-            //stroke-width: 2px;
-            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
-          }
-        }
 
         .node {
           ellipse, polygon, path {
@@ -542,20 +561,8 @@ svg {
       // The in-page popup itself. Unknown to browsers that still use an OS menu, which
       // simply ignore the rule — the `option` colours above cover them.
       .source-format::picker(select) {
-        @apply bg-base-100 border border-base-300 rounded-md shadow-lg p-1;
-      }
-
-      .toolbar-btn {
-        @apply flex items-center p-1 rounded cursor-pointer leading-none text-base-content/60;
-
-        &:hover {
-          @apply bg-base-300 text-base-content;
-        }
-
-        // A toggle that is ON must read as pressed, not merely hovered.
-        &.active {
-          @apply bg-base-300 text-base-content;
-        }
+        @apply bg-base-100 border border-base-300 shadow-lg p-1;
+        border-radius: var(--radius-box);
       }
     }
 
@@ -567,7 +574,7 @@ svg {
       @apply overflow-y-auto overflow-x-auto rounded-box bg-base-100 h-full;
 
       .selected {
-        background-color: rgba(251, 191, 36, .1);
+        background-color: var(--gx-mark-soft);
       }
     }
 
@@ -606,46 +613,6 @@ svg {
   }
 
   #right-toolbar {
-    @apply flex flex-col m-1 gap-3 mt-2 print:hidden;
-  }
-}
-
-svg.plantuml {
-  flex-shrink: 0;
-
-  g[id ^= cluster_] {
-    &:hover {
-      outline: 3px solid rgb(251 191 36);
-      cursor: pointer;
-    }
-
-    path, line {
-      fill: #e6e6e6;
-      stroke-width: 1.0 !important;
-    }
-  }
-
-  g[id ^= elem_] {
-    text {
-    }
-
-    &:hover {
-      outline: 3px solid rgb(251 191 36);
-      cursor: pointer;
-    }
-  }
-
-  g[id ^= link_] {
-    polygon {
-      fill: white;
-    }
-
-    &:hover {
-      path, polygon {
-        stroke: rgb(251 191 36) !important;
-        stroke-width: 3.0 !important;
-        cursor: pointer;
-      }
-    }
+    @apply flex flex-col m-1 gap-2 mt-2 print:hidden;
   }
 }

@@ -43,7 +43,7 @@ def Menu[A](
 ) =
   ul(
     tabIndex := 0,
-    cls      := "menu menu-xs bg-base-100 rounded-lg z-1 shadow-lg p-1 border border-base-300",
+    cls      := "menu menu-xs bg-base-100 rounded-box z-1 shadow-lg p-1 border border-base-300",
     children <-- options.map: opts =>
       for
         entry <- opts
@@ -55,7 +55,9 @@ def Menu[A](
               case s: String        => span(s)
             li(
               a(
-                cls := "rounded-md",
+                // Menu rows take the theme's control radius, like every other
+                // interactive row in the chrome.
+                cls := "rounded-field",
                 cls := "flex justify-between",
                 title.maybe(description),
                 nameMod,
