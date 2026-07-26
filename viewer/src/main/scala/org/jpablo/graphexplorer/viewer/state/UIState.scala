@@ -21,6 +21,14 @@ trait UIState:
   val canvasContainerFocus    = EventBus[Boolean]()
   val aboutDialogOpen         = Var(false)
 
+  /** Width of the right panel in px, set by dragging its left edge. Persisted in ViewerSettings. */
+  val rightPanelWidth = Var(ViewerSettings.defaultRightPanelWidth)
+
+  /** Soft-wrap long lines in the source editor. Off by default: DOT and Mermaid are
+    * line-oriented, so wrapping trades a scrollbar for a shifting line count.
+    */
+  val wrapSourceLines = Var(false)
+
   extension (section: RightPanelSection)
     def isSectionActive: Signal[Boolean] =
       rightPanelActiveSection.signal.map(_ == section)

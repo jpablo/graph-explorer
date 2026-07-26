@@ -28,6 +28,13 @@ trait ExportOps:
     val graph = visibleGraphNow()
     writeText(write(graph.elements))
 
+  /** The editor's text verbatim, in whatever language is selected — unlike copyAsDOT, which
+    * re-serializes the VISIBLE graph and always emits DOT. What you see in the panel is what
+    * lands on the clipboard, hidden elements and formatting included.
+    */
+  def copySourceText(): Unit =
+    writeText(sourceText.now())
+
   def printVisibleGraphToConsole(): Unit =
     val graph = visibleGraphNow()
     // Don't remove this line!! it IS the actual functionality

@@ -4,6 +4,14 @@
   --control-color: #33ade6;
 }
 
+// While a panel edge is being dragged the pointer leaves the 7px handle constantly, so the
+// cursor and the selection ban have to hold document-wide or the gesture flickers and starts
+// selecting the editor's text.
+html.resizing-h, html.resizing-h * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 label[for ^= show-ns-kind-] {
   padding: 0 0 2px;
 }
@@ -339,7 +347,7 @@ svg {
       }
       &:has(.selected) {
         :is(g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link):not(.selected) {
-          opacity: 0.65;
+          opacity: 0.5;
         }
       }
 
@@ -456,7 +464,7 @@ svg {
   }
 
   #right-panel {
-    @apply border-base-300 border print:hidden;
+    @apply border-base-300 border print:hidden relative;
 
     &.floating {
       @apply absolute right-11 top-2 bg-base-100;
@@ -467,7 +475,22 @@ svg {
     &.visible {
       @apply visible flex flex-col /* h-full*/
       ;
-      width: 20rem;
+      // Driven by RightPanel from the persisted ViewerSettings width; the fallback is the
+      // 20rem this panel was fixed at before it could be dragged.
+      width: var(--right-panel-width, 20rem);
+    }
+
+    // Drag target for resizing: sits ON the panel's left border and straddles it, so the
+    // grabbable area is wider than the hairline it appears to be.
+    .right-panel-resizer {
+      @apply absolute left-0 top-0 h-full z-20;
+      width: 7px;
+      margin-left: -3px;
+      cursor: col-resize;
+
+      &:hover, &.dragging {
+        @apply bg-primary/40;
+      }
     }
 
     &.not-visible {
@@ -493,6 +516,47 @@ svg {
 
     #nodes-source {
       @apply whitespace-nowrap w-full h-full;
+    }
+
+    // Editor chrome: one strip flush against the panel top, carrying the language on the
+    // left and icon actions on the right. Its own surface plus a bottom hairline is what
+    // separates "controls" from "code" — without them the two read as one soup.
+    .source-toolbar {
+      @apply flex-none flex items-center justify-between gap-1 h-8 pl-1 pr-0.5 bg-base-200 border-b border-base-300;
+
+      // The select carries no box of its own: the chevron is affordance enough, and a
+      // bordered control here competes with the editor for attention. It takes the
+      // toolbar's own colour rather than `transparent` — see the picker note below.
+      .source-format {
+        @apply w-auto max-w-[13rem] font-medium pl-1.5 bg-base-200;
+
+        // Chrome now renders select popups IN-PAGE (`appearance: base-select`) instead of
+        // handing them to the OS, and they inherit the control's colours. A ghost select is
+        // transparent, so the open menu was see-through over the editor text. The popup and
+        // its items therefore need a surface of their own.
+        option {
+          @apply bg-base-100 text-base-content px-2 py-1;
+        }
+      }
+
+      // The in-page popup itself. Unknown to browsers that still use an OS menu, which
+      // simply ignore the rule — the `option` colours above cover them.
+      .source-format::picker(select) {
+        @apply bg-base-100 border border-base-300 rounded-md shadow-lg p-1;
+      }
+
+      .toolbar-btn {
+        @apply flex items-center p-1 rounded cursor-pointer leading-none text-base-content/60;
+
+        &:hover {
+          @apply bg-base-300 text-base-content;
+        }
+
+        // A toggle that is ON must read as pressed, not merely hovered.
+        &.active {
+          @apply bg-base-300 text-base-content;
+        }
+      }
     }
 
     #right-panel-controls, #edges-panel-controls {

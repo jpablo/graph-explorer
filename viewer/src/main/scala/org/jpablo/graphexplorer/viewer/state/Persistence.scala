@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.Signal
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.models.ElementIds
+import org.scalajs.dom
 import upickle.default.*
 
 import scala.util.Try
@@ -36,7 +37,14 @@ trait Persistence:
         RightPanelSection.none
       ),
       currentTheme -> restoredViewerSettings.currentTheme,
-      promptLabelBeforeNewNode -> restoredViewerSettings.promptLabelBeforeNewNode
+      promptLabelBeforeNewNode -> restoredViewerSettings.promptLabelBeforeNewNode,
+      // Re-clamp on restore: a width saved on a wide monitor would otherwise swallow the
+      // canvas when the same library is opened in a narrow window.
+      rightPanelWidth -> ViewerSettings.clampRightPanelWidth(
+        restoredViewerSettings.rightPanelWidth.getOrElse(ViewerSettings.defaultRightPanelWidth),
+        dom.window.innerWidth
+      ),
+      wrapSourceLines -> restoredViewerSettings.wrapSourceLines
     )
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
@@ -57,16 +65,26 @@ trait Persistence:
         )
 
     // synchronize ViewerState ~> ViewerSettings
-    Signal.combine(leftPanelVisible.signal, rightPanelActiveSection.signal, currentTheme.signal, promptLabelBeforeNewNode.signal)
+    Signal
+      .combine(
+        leftPanelVisible.signal,
+        rightPanelActiveSection.signal,
+        currentTheme.signal,
+        promptLabelBeforeNewNode.signal,
+        rightPanelWidth.signal,
+        wrapSourceLines.signal
+      )
       .changes
       .distinct
-      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode) =>
+      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines) =>
         viewerSettings.set(
           ViewerSettings(
             leftPanelVisible = leftVisible,
             rightPanelTabIndex = tabIndex.ordinal,
             currentTheme = theme,
             promptLabelBeforeNewNode = promptBeforeNewNode,
+            rightPanelWidth = Some(panelWidth),
+            wrapSourceLines = wrapLines,
             schemaVersion = ViewerSettings.currentSchemaVersion
           )
         )
@@ -108,10 +126,42 @@ case class ViewerSettings(
     rightPanelTabIndex: Int = 0,
     currentTheme:       Option[String] = None,
     promptLabelBeforeNewNode: Boolean = true,
+    // None = never dragged, resolved to defaultRightPanelWidth on restore. Option rather than
+    // a plain Int so "never chosen" stays distinguishable from a width that happens to equal
+    // the default — the restore path treats the two differently.
+    rightPanelWidth:    Option[Int] = None,
+    wrapSourceLines:    Boolean = false,
     schemaVersion:      Int = ViewerSettings.currentSchemaVersion // Add default for loading potentially older states
 ) derives ReadWriter
 
 // Add a default empty state for ViewerSettings
 object ViewerSettings:
   val currentSchemaVersion = 2 // Define the current version
-  val empty                = ViewerSettings()
+
+  /** Right panel width in px. 320 = the 20rem this panel was fixed at before it could be dragged. */
+  val defaultRightPanelWidth = 320
+
+  /** Narrow enough to tuck the panel away, wide enough that the toolbar's controls still fit. */
+  val minRightPanelWidth = 240
+
+  /** A drag can only ever be as wide as this share of the window: the canvas is the point of
+    * the app, so the panel must not be draggable over it. Recomputed per drag rather than
+    * stored, since the window can be resized between sessions.
+    */
+  val maxRightPanelWidthFraction = 0.6
+
+  /** Clamp a dragged width to something usable. Kept here, next to the bounds it enforces,
+    * so the drag handler cannot drift from the persisted default.
+    *
+    * A window reporting no width at all — a backgrounded tab, a pane that has not painted yet —
+    * caps nothing. Capping against 0 collapsed the panel to the minimum on restore, and the
+    * settings sync then WROTE that back: one restore in a hidden window permanently shrank a
+    * width the user had chosen.
+    */
+  def clampRightPanelWidth(px: Double, viewportWidth: Double): Int =
+    val upper =
+      if viewportWidth > 0 then math.max(minRightPanelWidth.toDouble, viewportWidth * maxRightPanelWidthFraction)
+      else Double.MaxValue
+    math.round(math.min(math.max(px, minRightPanelWidth.toDouble), upper)).toInt
+
+  val empty = ViewerSettings()

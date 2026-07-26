@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.codeMirror
 
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import typings.codemirrorState.anon.{Dispatch, From}
-import typings.codemirrorState.mod.{Transaction, TransactionSpec}
+import typings.codemirrorState.mod.{Compartment, Extension, Transaction, TransactionSpec}
 
 import scala.scalajs.js
 import com.raquo.laminar.api.L.*
@@ -17,11 +17,21 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
   // Create a local EventBus for debouncing text updates
   val textUpdates = new EventBus[String]
 
+  // Line wrapping lives in a compartment so it can be swapped by a transaction. Rebuilding
+  // the EditorView instead would discard the doc's history, selection and scroll position
+  // every time the toggle is pressed.
+  val wrapping = new Compartment()
+
+  // An empty array is CodeMirror's canonical "no extension".
+  def wrapExtension(enabled: Boolean): Extension =
+    if enabled then EditorView.lineWrapping else js.Array[Any]()
+
   lazy val extensions =
     js.Array[Any](
       codemirror.basicSetup,
       keymap.of(js.Array(indentWithTab)),
       dot(),
+      wrapping.of(wrapExtension(state.wrapSourceLines.now())),
       EditorView.updateListener.of(updateSource(_))
     )
 
@@ -50,6 +60,11 @@ def CodeMirror(state: ViewerState, mods: Mods*) =
           .setParent(ctx.thisNode.ref)
           .setExtensions(extensions)
       )
+
+      for wrap <- state.wrapSourceLines.signal.changes do
+        editorView.dispatch(
+          TransactionSpec().setEffects(wrapping.reconfigure(wrapExtension(wrap)))
+        )
 
       for _ <- state.undoEvent.events do
         undo(Dispatch(editorView.dispatch, editorView.state))
