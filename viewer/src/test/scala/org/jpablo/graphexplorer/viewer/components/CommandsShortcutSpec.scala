@@ -89,7 +89,14 @@ class CommandsShortcutSpec extends FunSuite with TestHelpers:
         s"shortcut collision — some of: ${declared.map(_.labelWithShortcut).mkString("; ")}"
       )
 
-      // the binding this spec was extended for
-      assert(commands.byShortcut.contains(Shortcut("s")), "bare `s` must select direct successors")
+      // the bindings this spec was extended for: each traversal family is
+      // bare = one hop, shift = transitive.
+      def labelOf(sh: Shortcut) = commands.byShortcut.get(sh).map(_.shortLabel)
+      assertEquals(labelOf(Shortcut("s")), Some("Select direct successors"))
+      assertEquals(labelOf(Shortcut("s", shift = true)), Some("Select all successors"))
+      assertEquals(labelOf(Shortcut("p")), Some("Select direct predecessors"))
+      assertEquals(labelOf(Shortcut("p", shift = true)), Some("Select all predecessors"))
+      // `p` was freed for the above; the displaced command pairs with `n` instead.
+      assertEquals(labelOf(Shortcut("n", shift = true)), Some("New backwards node"))
       afterMicrotasks(())
     }

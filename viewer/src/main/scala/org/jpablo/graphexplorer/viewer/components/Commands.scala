@@ -149,7 +149,9 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "New backwards node",
       () => state.createNodeMaybePrompt(direction = ArrowDirection.backward),
       singleNodeSelected,
-      Some(Shortcut("p")),
+      // Shift of its sibling `n` (New node), like b/B and s/S. It moved off bare `p`
+      // so the predecessor family could have the letter every user guesses for it.
+      Some(Shortcut("n", shift = true)),
       Some("Add a new node without connections")
     )
 
@@ -347,12 +349,17 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val selectAllPredecessors = Command(
       "Select all predecessors",
       () => state.selection.selectPredecessors(),
+      // mirrors S (all successors): shift = transitive, bare = one hop
+      shortcut = Some(Shortcut("p", shift = true)),
       description = Some("Select all predecessors of the selected nodes")
     )
 
     val selectDirectPredecessors = Command(
       "Select direct predecessors",
       () => state.selection.selectDirectPredecessors(),
+      // `p` = predecessors, the mirror of bare `s` for successors. Bare `p` used to
+      // create a backwards node; that command now sits on `N`, next to `n`.
+      shortcut = Some(Shortcut("p")),
       description = Some("Select direct predecessors of the selected nodes")
     )
 
