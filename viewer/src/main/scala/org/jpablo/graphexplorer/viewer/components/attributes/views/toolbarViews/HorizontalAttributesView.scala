@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, InputElement}
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, InputElement, SectionHeader}
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.number
 
@@ -21,6 +21,10 @@ private def buildFieldSets(rows: Seq[AttributeRow]) =
         row match
           case ia: InputAttribute => AttributesViewRow(ia)
           case ie: InputElement   => ie.element
+          // A section break has no horizontal equivalent yet: this bar already separates
+          // its groups with a rule between fieldsets. When the toolbar starts clustering
+          // by kind, this is where a header becomes that cluster boundary.
+          case _: SectionHeader => emptyNode
       )
     ) <-- row.hidden.not
 

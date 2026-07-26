@@ -600,6 +600,60 @@ svg {
           @apply mx-2;
         }
       }
+
+      // `display` set here outranks Tailwind's single-class `.hidden`, because these
+      // rules are nested under #top-level. Rows that Laminar marks hidden — attributes
+      // that do not apply to the current layout, the title alignments before a title
+      // exists — would stay on screen without this. Anything below that sets `display`
+      // needs the same escape hatch.
+      .attr-row.hidden, .attributes-section.hidden {
+        display: none;
+      }
+
+      // Names the group its rows belong to. Quiet by design — it is a landmark for
+      // scanning, not a heading competing with the panel title above it.
+      .attributes-section {
+        @apply px-2 pt-3 pb-1 flex items-center gap-2;
+
+        span {
+          @apply text-[0.62rem] uppercase tracking-[0.12em] text-base-content/45 whitespace-nowrap;
+        }
+
+        // The rule fills whatever the label leaves, so groups read as bands without
+        // needing a box around each one.
+        &::after {
+          content: "";
+          @apply flex-1 h-px bg-base-300;
+        }
+      }
+
+      // Label left, control right, on one line — everywhere.
+      .attr-row {
+        @apply flex items-center justify-between gap-2 px-2 min-h-7;
+
+        > :first-child {
+          @apply text-xs text-base-content/70 truncate;
+        }
+
+        .attr-value {
+          @apply flex items-center justify-end gap-1 min-w-0;
+
+          // Controls own the right column: selects and menus stretch into it, so the
+          // right edge lines up the way the left one does.
+          > .select, > .input, > .dropdown, > .menu-with-extra-dropdown {
+            @apply w-full;
+          }
+        }
+      }
+
+      // ...but only the side panel pins the label column. A fixed column exists so a
+      // long list of controls shares one left edge and can be scanned; the two-row
+      // popup cards in the toolbar have nothing to scan, and a fixed column there just
+      // steals width from the control. Same row, different job.
+      #right-panel & .attr-row {
+        @apply grid;
+        grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
+      }
     }
 
     #elements-view {

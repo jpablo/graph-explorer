@@ -29,6 +29,16 @@ object AttributeRow:
 
   case class InputElement(element: ReactiveElement.Base, hidden: Signal[Boolean] = Signal.fromValue(false)) extends AttributeRow
 
+  /** A named break in a list of rows: everything after it belongs to this section, until the
+    * next one. Purely presentational — it carries no attribute — but it lives in the row list
+    * because that is where the grouping decision belongs: beside the attributes it groups,
+    * readable as one block, rather than in the view that happens to draw it.
+    *
+    * Its own `hidden` is derived, not given: a section disappears when every row it owns is
+    * hidden, so a group whose attributes are all inapplicable leaves no dangling heading.
+    */
+  case class SectionHeader(title: String, hidden: Signal[Boolean] = Signal.fromValue(false)) extends AttributeRow
+
   def _combineDefault(row: InputAttribute): Signal[(AttrValueWithStatus, String)] =
     row.inputVar.signal.combineWith(row.default)
 
