@@ -13,7 +13,7 @@ def VerticalCardWithPreview(builder: RowBuilder, id: String, iAttrs: InputAttrib
     ),
     body =
       div(
-        cls := "card card-border card-xs bg-base-100 shadow-sm w-48",
+        cls := "card card-border card-xs bg-base-100 shadow-sm attr-card",
         div(
           cls := "card-body",
           VerticalAttributesView(
@@ -31,7 +31,7 @@ def VerticalCardWithButton(id: String, title: Modifier.Base, iars: Seq[Attribute
     title,
     body =
       div(
-        cls := "card card-border card-xs bg-base-100 shadow-sm w-48",
+        cls := "card card-border card-xs bg-base-100 shadow-sm attr-card",
         div(
           cls := "card-body",
           VerticalAttributesView(
@@ -40,6 +40,13 @@ def VerticalCardWithButton(id: String, title: Modifier.Base, iars: Seq[Attribute
           )
         )
       )
+  ).amend(
+    // Opens leftwards. This is the OVERFLOW card, so it is always the last control in the
+    // bar; hanging its left edge off the trigger and growing right ran it towards the edge
+    // of the window, and the card is wider than it used to be. Anchoring the right edge
+    // instead grows it back over the bar, which has room by construction. The other cards
+    // sit mid-bar and are fine growing rightwards.
+    cls := "dropdown-end"
   )
 
 def VerticalAttributesView(

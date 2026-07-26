@@ -22,6 +22,16 @@
   --gx-shadow-soft: rgba(0, 0, 0, 0.5);
   --gx-shadow-deep: rgba(0, 0, 0, 0.6);
   --gx-label-scrim: rgba(232, 232, 232, 0.7); // behind mermaid edge labels
+
+  // ── Attribute form columns ─────────────────────────────────────────────────
+  // The two column widths every attribute row uses, wherever it is rendered: the
+  // side panel, the floating panel, and the toolbar's popup cards. They live at the
+  // root rather than on #right-panel because a popup card is not inside the panel —
+  // it hangs off the toolbar — and the whole point is that both size to the same
+  // pair, so a row is the same shape in both. Containers derive their width from
+  // these; nothing derives these from a container.
+  --gx-attr-label: 6rem;
+  --gx-attr-value: 11rem;
 }
 
 // While a panel edge is being dragged the pointer leaves the 7px handle constantly, so the
@@ -362,16 +372,26 @@ svg {
   }
 }
 
-// A slider outside the side panel: the popup cards are 192px, so a label, a track and a
-// readout on one line left the track at 31px — inside the card, and useless. Stacking
-// gives it the card's full width. The panel overrides this back to one line below,
-// because there the value column has room.
-.attr-row-range {
-  @apply flex-col items-stretch gap-0.5 py-1;
+// A slider row is a row like any other: label left, track and readout right, ONE line.
+//
+// It used to stack in the popup cards, because a 192px card could not seat all three and
+// left the track at 31px. The cards now take their width from the same two columns the
+// panel uses, so the track has room and the exception is gone — a slider that stacked in
+// a card and sat inline in the panel made one attribute look like two different controls
+// depending on where you opened it, and cost the card 22px of height per slider.
+//
+// `justify-start` still matters: the track should begin at the value column's left edge,
+// flush with every other control, not be pushed right by the readout beside it.
+.attr-row-range .attr-value {
+  @apply justify-start w-full;
+}
 
-  .attr-value {
-    @apply justify-start w-full;
-  }
+// A popup card is a form, and a form is as wide as its rows — the same reasoning, and
+// the same arithmetic, as the floating panel. Replaces a flat w-48: 192px was narrower
+// than the two columns it had to hold, which is what forced sliders to stack and text
+// values to truncate mid-word.
+.attr-card {
+  width: calc(var(--gx-attr-label) + var(--gx-attr-value) + 1.5rem);
 }
 
 // A palette is a set to scan, not a value to read: it takes the whole row with its
@@ -384,18 +404,26 @@ svg {
   }
 }
 
-// Only the side panel pins the columns. A fixed label column exists so a long list of
-// controls shares one left edge and can be scanned; the toolbar's two-row popup cards
-// have nothing to scan, and a fixed column there would just steal width.
+// EVERY attribute form pins the columns — the side panel and the toolbar's popup cards
+// alike. A fixed label column exists so a list of controls shares one left edge and can
+// be scanned, and that is worth as much in a ten-row card as in the panel.
+//
+// This used to be scoped to #right-panel, on the reasoning that a card has "nothing to
+// scan". That held when a card meant two rows; the node overflow card has ten, and
+// reading it against the panel showed the cost — the same attribute was a different
+// shape in each place, and the card's sliders had to stack (see .attr-row-range) because
+// 192px could not seat a label, a track and a readout on one line. Sharing the columns
+// is what lets them share the layout.
 //
 // The value column is CAPPED rather than stretched: dragging the panel wider should
 // give the room to the diagram, not fling every toggle 300px from its label.
-// Both columns are sized to the CONTENT, not to the panel: --gx-attr-label fits the
-// longest label the panel uses ("Merge parallel") and --gx-attr-value fits its widest
-// control. Nothing here forces the panel wide — measured, it shrinks to its 240px
+// Both columns are sized to the CONTENT, not to the container: --gx-attr-label fits the
+// longest label used ("Merge parallel") and --gx-attr-value fits the widest control.
+// Nothing here forces a container wide — measured, the panel shrinks to its 240px
 // minimum without overflowing — so these widths exist only to keep a label and its
-// control reading as one pair. The floating panel derives its own width from them.
-#right-panel .attr-row {
+// control reading as one pair. The floating panel and the popup cards derive their own
+// width from them.
+.attributes-view .attr-row {
   @apply grid;
   grid-template-columns: minmax(0, var(--gx-attr-label)) minmax(0, var(--gx-attr-value));
 
@@ -404,7 +432,7 @@ svg {
   }
 }
 
-#right-panel .attr-row-stacked {
+.attributes-view .attr-row-stacked {
   @apply flex;
 }
 
@@ -415,8 +443,8 @@ svg {
 .attr-row.hidden,
 .attr-row-stacked.hidden,
 .attributes-section.hidden,
-#right-panel .attr-row.hidden,
-#right-panel .attr-row-stacked.hidden {
+.attributes-view .attr-row.hidden,
+.attributes-view .attr-row-stacked.hidden {
   display: none;
 }
 
@@ -711,10 +739,8 @@ svg {
   #right-panel {
     @apply border-base-300 border print:hidden relative;
 
-    // The two column widths every attribute row uses, named here so the floating
-    // panel can size itself from them instead of repeating a magic number.
-    --gx-attr-label: 6rem;
-    --gx-attr-value: 11rem;
+    // --gx-attr-label / --gx-attr-value come from :root; the floating panel below
+    // sizes itself from them instead of repeating a magic number.
 
     &.floating {
       @apply absolute right-11 top-2 bg-base-100;
