@@ -183,7 +183,12 @@ def DropdownHeader(
       title,
       icon
     ).tiny,
-    body.amend(cls := "dropdown-content")
+    // The panel has to be focusable, or it closes the moment you touch anything in it that
+    // is not itself focusable -- a row label, a card's padding, the gap between controls.
+    // daisyUI opens on `:focus-within`, so "open" means focus is somewhere in this subtree;
+    // a click on an inert child hands focus to <body> and the panel disappears mid-gesture.
+    // PopupCard already did this; DropdownHeader was the one that did not.
+    body.amend(cls := "dropdown-content", tabIndex := 0)
   )
 
 def SelectWithValue(
