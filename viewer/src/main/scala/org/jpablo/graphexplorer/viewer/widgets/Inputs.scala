@@ -284,9 +284,11 @@ def InputLabelWithResetButton(row: InputAttribute): Div =
   val multipleValues = row.inputVar.signal.map(_ == Multiple)
   div(
     cls := "flex items-center justify-start text-nowrap",
-    // title: the label column is fixed width, so a long attribute name truncates.
-    // Hover has to be able to give the whole name back.
-    div(title := row.label, cls("font-bold") <-- row.isChanged, row.label),
+    // The label column is fixed width, so a long name truncates — hover has to give it
+    // back. It also names the DOT attribute behind the row: the panel deliberately uses
+    // plainer words than Graphviz does, and someone who came here knowing `concentrate`
+    // still needs a way to find it.
+    div(title := s"${row.label} — ${row.attrId}", cls("font-bold") <-- row.isChanged, row.label),
     div(
       cls("w-6 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
       child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,

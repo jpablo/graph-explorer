@@ -114,7 +114,8 @@ private def AttributesViewRow(attRow: AttributeRow) =
                 // outranks them and the number would swallow the column.
                 buildInputCell(row).amend(cls := "range-nano"),
                 buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
-                  .amend(cls := "text-[.6rem] input-ghost text-right")
+                  .amend(cls := "text-[.6rem] input-ghost text-right"),
+                row.unit.map(u => span(cls := "attr-unit", u))
               )
             )
           )

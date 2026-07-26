@@ -43,7 +43,8 @@ class RowBuilder(
       onReset:     Option[String] = None,
       label:       Option[String] = None,
       placeholder: Option[String] = None,
-      hidden:      Option[Signal[Boolean]] = None
+      hidden:      Option[Signal[Boolean]] = None,
+      unit:        Option[String] = None
   ): AttributeRow.InputAttribute =
     inputRow(
       attr = attr -> inputType,
@@ -51,7 +52,8 @@ class RowBuilder(
       default = Signal.fromValue(attr.default.toString),
       label = label,
       placeholder = placeholder,
-      hidden = hidden.orElse(Some(invalidLayout(attr)))
+      hidden = hidden.orElse(Some(invalidLayout(attr))),
+      unit = unit
     )
 
 object RowBuilder:
@@ -74,12 +76,14 @@ object RowBuilder:
       default:     Signal[String],
       label:       Option[String] = None,
       placeholder: Option[String] = None,
-      hidden:      Option[Signal[Boolean]] = None
+      hidden:      Option[Signal[Boolean]] = None,
+      unit:        Option[String] = None
   ): InputAttribute =
     attr match
       case (attr: DotAttribute[?], it: InputType) =>
         InputAttribute(
           attrId = attr.attrId,
+          unit = unit,
           label = label.getOrElse(attr.label),
           placeholder = placeholder.getOrElse(attr.placeholderText),
           inputType = it,

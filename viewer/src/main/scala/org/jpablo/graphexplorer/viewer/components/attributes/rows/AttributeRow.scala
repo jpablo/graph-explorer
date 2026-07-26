@@ -24,7 +24,11 @@ object AttributeRow:
       validLayouts:     Set[Layout],
       hidden:           Signal[Boolean],
       singleRow:        Boolean = false,
-      missingRowOption: Option[String => ReactiveElement.Base] = None
+      missingRowOption: Option[String => ReactiveElement.Base] = None,
+      // Shown after a numeric value. Graphviz measures pad/ranksep/nodesep in inches,
+      // which the panel never said — a bare "0.5" gives no way to guess what one unit
+      // of separation is.
+      unit: Option[String] = None
   ) extends AttributeRow
 
   case class InputElement(element: ReactiveElement.Base, hidden: Signal[Boolean] = Signal.fromValue(false)) extends AttributeRow

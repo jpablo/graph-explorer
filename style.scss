@@ -241,8 +241,11 @@ svg {
     // the number swallow the whole column, leaving the track at zero width.
     // The number is a fixed narrow readout; the track takes whatever is left.
     > input[type="number"] {
-      @apply shrink-0;
+      @apply shrink-0 px-1;
       width: 3.25rem;
+      // daisyUI's .input carries px-3 — 24px of padding on a 50px field, which left
+      // 26px of text space for a value like "0.0555" that needs 36 and clipped it.
+      // A four-character readout does not need input-sized padding.
     }
 
     > input[type="range"] {
@@ -253,6 +256,12 @@ svg {
     // Anything else that is a lone text input still fills the column.
     > input.input:not([type="number"]):not([type="range"]) {
       @apply w-full;
+    }
+
+    // The unit belongs to the number, so it sits tight against it and stays quiet —
+    // it is a fact about the value, not a second value.
+    .attr-unit {
+      @apply text-[.6rem] text-base-content/45 shrink-0 -ml-0.5;
     }
   }
 }
@@ -273,9 +282,13 @@ svg {
 //
 // The value column is CAPPED rather than stretched: dragging the panel wider should
 // give the room to the diagram, not fling every toggle 300px from its label.
+// Both columns are sized to the CONTENT, not to the panel: 6rem fits the longest label
+// the panel now uses ("Merge parallel") and 12rem fits its widest control. Nothing here
+// forces the panel wide — measured, it shrinks to its 240px minimum without overflowing
+// — so the numbers exist only to keep a label and its control reading as one pair.
 #right-panel .attr-row {
   @apply grid;
-  grid-template-columns: minmax(0, 6.5rem) minmax(0, 14rem);
+  grid-template-columns: minmax(0, 6rem) minmax(0, 12rem);
 
   .attr-value {
     @apply w-full;
