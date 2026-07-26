@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.RouterCommands
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
-import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small}
+import org.jpablo.graphexplorer.viewer.widgets.{Button, IconButton, IconLink, primary, small}
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
@@ -64,16 +64,13 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
       div(
         cls := "flex-1 flex items-center gap-2 ml-2",
         img(src := "/favicon.svg", cls := "h-6 w-6"),
-        a(cls   := "btn btn-ghost text-xl pl-1", "Graph Explorer")
+        // The app's name, not a control: it carried `btn btn-ghost` and lit up on hover
+        // while having no href and no click handler — an affordance promising nothing.
+        span(cls := "text-xl font-semibold", "Graph Explorer")
       ),
       div(
-        cls := "flex-none",
-        a(
-          cls    := "btn btn-xs",
-          href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
-          target := "_blank",
-          i(cls := "bi bi-github")
-        )
+        cls := "flex-none mr-2",
+        IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
       )
     ),
     div(
@@ -405,13 +402,11 @@ private def projectCard(graphviz: Graphviz, router: Router, info: Option[Project
           ),
           info.map(i => formatBadge(i.format))
         ),
-        Button(
-          cls := "btn btn-xs hover:bg-warning/20 hover:text-warning transition-colors",
-          i(cls := "bi bi-trash"),
-          onClick --> { _ =>
-            if dom.window.confirm("Are you sure you want to delete this project?") then
-              ProjectStorage.deleteProject(project.id)
-          }
+        // Neutral until you reach for it: a wall of cards should not read as a wall of red
+        // buttons, but the hover has to say plainly that this one destroys something.
+        IconButton("bi-trash", "Delete diagram", "tooltip-left", cls := "danger")(
+          if dom.window.confirm("Are you sure you want to delete this project?") then
+            ProjectStorage.deleteProject(project.id)
         )
       ),
 

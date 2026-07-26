@@ -100,13 +100,14 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
     div(
       cls := "navbar-start gap-4",
       //
-      Button(
-        idAttr := "toggle-library",
-        title  := "Toggle Library",
-        cls("btn-active") <-- state.leftPanelVisible,
-        span().layoutSidebarIcon,
-        onClick --> state.leftPanelVisible.update(!_)
-      ).tiny,
+      // The mirror image of the right toolbar's section toggles, and drawn the same way:
+      // both open a panel, so both are an icon that stays pressed while its panel is out.
+      IconToggle(
+        "bi-layout-sidebar",
+        "Toggle Library",
+        state.leftPanelVisible,
+        mods = idAttr := "toggle-library"
+      ),
       // -------- Breadcrumbs --------
       div(
         cls := "breadcrumbs text-md py-0",
@@ -117,12 +118,7 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           li(
             cls := "text-sm",
             text <-- projectName,
-            a(
-              cls   := "btn btn-xs btn-circle btn-ghost ml-[1px] w-4 h-4",
-              title := "Change title",
-              i(cls := "text-[.6rem] text-base-content/50").pencilIcon,
-              onClick --> all.changeProjectName.execute()
-            )
+            IconButtonTitled("bi-pencil text-[.65rem]", "Change title")(all.changeProjectName.execute())
           )
         )
       )
@@ -231,50 +227,32 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       CommandsPanel(state, commands).amend(cls := "hidden lg:block")
     ),
     div(
-      cls := "navbar-end gap-0",
-      // ---------- Undo/Redo ----------
+      cls := "navbar-end gap-2",
+      // Two clusters, not eight loose buttons: history is one thought, "about this app" is
+      // another. The gap between clusters is what separates them — no dividers needed.
       div(
-        cls := "join",
-        Button(
-          cls := "text-base join-item",
-          span(cls := "bi bi-arrow-counterclockwise"),
-          onClick --> all.undo.execute()
-        ).tiny.ghost.toTooltip(all.undo.labelWithShortcut),
-        Button(
-          cls := "text-base join-item",
-          span(cls := "bi bi-arrow-clockwise"),
-          onClick --> all.redo.execute()
-        ).tiny.ghost.toTooltip(all.redo.labelWithShortcut)
+        cls := "flex items-center gap-0.5",
+        IconButton("bi-arrow-counterclockwise", all.undo.labelWithShortcut)(all.undo.execute()),
+        IconButton("bi-arrow-clockwise", all.redo.labelWithShortcut)(all.redo.execute())
       ),
-      Button(
-        cls := "text-base",
-        span(cls := "bi bi-question-circle"),
-        onClick --> all.helpKeyboardShortcuts.execute()
-      ).tiny.ghost.toTooltip(all.helpKeyboardShortcuts.labelWithShortcut, "tooltip-left"),
-      Button(
-        cls := "text-base",
-        span(cls := "bi bi-link-45deg"),
-        onClick --> all.copyShareURL.execute()
-      ).tiny.ghost.toTooltip(all.copyShareURL.labelWithShortcut, "tooltip-bottom"),
-      Button(
-        cls := "text-base",
-        span(cls := "bi bi-info-circle"),
-        onClick --> all.openAboutDialog.execute()
-      ).tiny.ghost.toTooltip(all.openAboutDialog.labelWithShortcut, "tooltip-left"),
-      a(
-        cls    := "text-base",
-        cls    := "btn btn-xs btn-ghost",
-        href   := "https://github.com/jpablo/graph-explorer/tree/viewer",
-        target := "_blank",
-        span(cls := "bi bi-github")
+      div(
+        cls := "flex items-center gap-0.5",
+        IconButton("bi-question-circle", all.helpKeyboardShortcuts.labelWithShortcut)(
+          all.helpKeyboardShortcuts.execute()
+        ),
+        IconButton("bi-link-45deg", all.copyShareURL.labelWithShortcut)(all.copyShareURL.execute()),
+        IconButton("bi-info-circle", all.openAboutDialog.labelWithShortcut)(all.openAboutDialog.execute()),
+        IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
       ),
       // -------- Theme Selector --------
+      // Ghost, like the editor's language select: a theme is a preference you set once, so it
+      // should not draw a box around itself in a bar full of actions.
       Select(
         placeholderText = Some(s"Select theme"),
         options = themeOptions.collect { case r: MenuOption[String] => (r.value, r.value) },
         onChange.mapToValue --> { theme => state.currentTheme.set(Some(theme)) },
         value <-- state.currentTheme.signal.map(_.getOrElse("light")),
-        cls := "w-24"
+        cls := "select-ghost w-24 theme-select"
       )
     )
   )

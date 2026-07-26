@@ -216,6 +216,11 @@ svg {
          text-base-content/60 transition-colors;
   border-radius: var(--radius-field);
 
+  // The square is fixed at 24px, not inherited. Icon fonts size off the local font-size, so
+  // the same control measured 24x24 in the navbar and 22x22 on a library card (which sets
+  // `text-sm`). A call site that wants a smaller glyph still puts the size on the `i`.
+  font-size: 1rem;
+
   &:hover {
     @apply bg-base-300 text-base-content;
   }
@@ -228,6 +233,23 @@ svg {
   &:focus-visible {
     @apply outline-2 outline-offset-1 outline-primary;
   }
+
+  // Destructive actions take the same square and only warm up under the pointer. Written
+  // here rather than as `hover:bg-error/15` utilities at the call site because those tie
+  // with `.gx-icon-btn:hover` on specificity, and a tie is settled by stylesheet order.
+  &.danger:hover {
+    @apply bg-error/15 text-error;
+  }
+}
+
+// "You are here" in a list of things you can open. Same signal `.gx-icon-btn.active` uses —
+// a tint plus a little weight — rather than daisyUI's `menu-active`, which inverts the row
+// to near-black and makes the quietest surface in the app the loudest thing on screen.
+// Written with `.menu` in the selector because daisyUI's own row rules would otherwise tie
+// on specificity, and a tie is decided by stylesheet order we do not control.
+.gx-row-active,
+.menu .gx-row-active {
+  @apply bg-base-300 text-base-content font-medium;
 }
 
 // ── Attribute rows ───────────────────────────────────────────────────────────
@@ -406,18 +428,24 @@ svg {
       }
     }
 
-    .tooltip {
-      // Off the 4px scale on purpose. daisyUI's tooltip wrapper adds its own line
-      // box, which drops a wrapped button ~1.5px below its unwrapped neighbours in
-      // this bar; measured, this nudge halves that error. Remove it and the icons
-      // in the top toolbar stop sharing a baseline.
-      > button {
-        margin-top: -3px;
+    // NOTE: a `.tooltip > button { margin-top: -3px }` nudge used to live here, correcting
+    // the line box daisyUI's `btn` puts inside a tooltip wrapper. `.gx-icon-btn` has no such
+    // line box, so the nudge became the bug: measured, it lifted every wrapped button 3px
+    // above the `a` beside it (buttons at y=6, the GitHub link at y=8) and pushed them out
+    // of their own wrappers. The icons share a baseline again without it.
+
+    // A theme is a preference, not an action, so its select carries no box of its own.
+    // Ghost selects are transparent, and Chrome now renders the popup in-page inheriting
+    // that transparency — so the menu needs a surface, exactly as .source-format does.
+    .theme-select {
+      option {
+        @apply bg-base-100 text-base-content px-2 py-1;
       }
     }
 
-    #toggle-library {
-      @apply btn-ghost text-sm;
+    .theme-select::picker(select) {
+      @apply bg-base-100 border border-base-300 shadow-lg p-1;
+      border-radius: var(--radius-box);
     }
   }
 

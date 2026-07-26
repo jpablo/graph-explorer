@@ -17,6 +17,12 @@ def ElementsView(state: ViewerState) =
 
   div(
     idAttr := "elements-view",
+    // Every panel names its contents before showing them — Diagram with a heading, Source
+    // with its language select. This one opened straight onto its tabs, leaving "Nodes (5)"
+    // to do double duty as both the title and a control. Same `attributes-title` as Diagram.
+    // (It does not line up with Diagram's heading to the pixel, and should not: that panel
+    // floats as a card and carries `card-body` padding this docked one has no reason to.)
+    div(cls := "attributes-title flex-none", h2("Elements")),
     div(
       role := "tablist",
       cls  := "tabs tabs-border tabs-xs",

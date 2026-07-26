@@ -18,8 +18,14 @@ def RightToolbar(state: ViewerState) =
         Tooltip(
           text = text,
           cls := "tooltip-left",
-          span(
-            cls := "gx-icon-btn p-1.5",
+          button(
+            // `p-1.5` used to sit here and never applied: `.gx-icon-btn`'s own `p-1` ties on
+            // specificity and wins on order. The padding is the vocabulary's, not this bar's.
+            cls        := "gx-icon-btn",
+            typ        := "button",
+            // Was a `span`: no accessible name, and unreachable by keyboard. Every other
+            // control in this vocabulary is a button that says what it opens.
+            aria.label := s"$text panel",
             cls("active") <-- state.isSectionActive(section),
             i(
               cls := icon,

@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
 import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
-import org.jpablo.graphexplorer.viewer.widgets.Icons.*
+import org.jpablo.graphexplorer.viewer.widgets.IconButton
 
 /** Display titles for the projects in the library, by the same rule the library page uses:
   * the stored name, or the diagram's own declared title while the project is unnamed.
@@ -45,14 +45,13 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           div(
             cls := "flex items-center justify-between w-full ml-2 mt-1.5",
             h2(
-              cls := "text-lg font-bold flex-1",
+              // Same weight and size as the right panel's heading: the two panels frame the
+              // canvas, so they should read as a matched pair rather than two designs.
+              cls := "text-lg font-semibold flex-1",
               "Library"
             ),
-            button(
-              cls   := "btn btn-ghost btn-xs",
-              title := "Create Diagram",
-              span().plusCircleIcon,
-              onClick --> commands.routerCmds.createProject.execute(Some(Some(minimalGraphText)))
+            IconButton("bi-plus-circle", "Create Diagram")(
+              commands.routerCmds.createProject.execute(Some(Some(minimalGraphText)))
             )
           )
         ),
@@ -73,7 +72,9 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
                   li(
                     a(
                       cls := "flex items-center gap-2",
-                      cls("menu-active") <-- state.project.signal.map(_.id == project.id),
+                      // Not daisyUI's `menu-active`: that inverts the row to near-black, which
+                      // shouts where the rest of the chrome marks "current" with a quiet tint.
+                      cls("gx-row-active") <-- state.project.signal.map(_.id == project.id),
                       div(cls := "truncate", shown),
                       onClick --> router.navigateTo(Route.ProjectDetail(project.id.value))
                     )
