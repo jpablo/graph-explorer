@@ -10,10 +10,10 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.models.AttrStatus.*
 import org.jpablo.graphexplorer.viewer.widgets
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
+import org.scalajs.dom
 import org.scalajs.dom.MouseEvent
 import org.jpablo.graphexplorer.viewer.utils.intersperse
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.*
-import com.raquo.laminar.api.features.unitArrows
 
 enum MenuEntry[+A] derives CanEqual:
   case MenuOption(
@@ -302,7 +302,20 @@ def InputLabelWithResetButton(row: InputAttribute): Div =
           cls   := "ml-[1px] w-4 h-4",
           title := s"reset ${row.label}",
           i(cls := "bi bi-x text-[.6rem] text-base-content/50"),
-          onClick --> row.inputVar.set(Missing)
+          // This button exists only while the row is changed, so resetting deletes the very
+          // element the click just focused and focus lands on <body>. Inside a dropdown that
+          // shuts the card mid-edit: daisyUI keeps a panel open on `:focus-within`, so undoing
+          // one attribute took the panel with it.
+          //
+          // The panel is focusable for exactly this reason (see DropdownHeader) — but it has to
+          // be focused BEFORE the write, not after. A closed panel is `display: none`, and a
+          // display:none element cannot take focus; wait until the button is gone and the panel
+          // is already closed, and there is nothing left to focus. Move first, then write.
+          onClick --> { (ev: MouseEvent) =>
+            Option(ev.currentTarget.asInstanceOf[dom.Element].closest(".dropdown-content"))
+              .foreach(_.asInstanceOf[dom.HTMLElement].focus())
+            row.inputVar.set(Missing)
+          }
         ).circle.ghost.tiny
       ) <-- row.isChanged
     )
