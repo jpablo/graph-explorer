@@ -296,7 +296,40 @@ svg {
     @apply flex flex-1 items-center justify-end gap-1 min-w-0;
 
     > .select, > .dropdown, > .menu-with-extra-dropdown {
-      @apply w-full;
+      @apply w-full min-w-0;
+    }
+
+    // A value that is a WORD rather than a swatch — a font name, a port — has no natural
+    // width, and "Times New Roman" is wider than the 192px card it sits in. So it has to
+    // truncate: the row already names the attribute, and the whole value is one click
+    // away in the menu.
+    //
+    // Left to the browser this is not reliable. A native <select> lays its selected text
+    // out with `overflow: visible`, so whether the overflow is clipped or painted across
+    // the card's edge comes down to how that UA renders selects — Chrome's newer
+    // `appearance: base-select` clips it inside a slot, older rendering does not. Say it
+    // here instead of inheriting whichever behaviour the reader's browser happens to have.
+    > .select {
+      @apply overflow-hidden text-ellipsis;
+    }
+
+    // The menu-backed pickers put their value in the trigger, so the trigger is what
+    // overflows. `truncate` cannot go on the button itself — daisyUI makes it a flex
+    // container, and text-overflow needs the text's own box.
+    > .dropdown > .btn {
+      @apply min-w-0 max-w-full;
+
+      > * {
+        @apply min-w-0 truncate;
+      }
+    }
+
+    // The menu is a list of names to READ, so it sizes to its longest one — it must not
+    // inherit the width of the truncated trigger it hangs off, which is the one width in
+    // the row chosen for not fitting. Unset, "Times New Roman" wrapped onto three lines
+    // inside an 85px column. It floats above the card, so it costs the card no width.
+    > .dropdown > .dropdown-content {
+      @apply w-max max-w-48;
     }
 
     // A slider and its readout share the value column, and the split has to be stated
