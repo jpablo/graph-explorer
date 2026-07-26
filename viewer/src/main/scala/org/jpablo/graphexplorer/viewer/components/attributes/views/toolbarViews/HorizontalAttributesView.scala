@@ -1,10 +1,8 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.*
-import org.jpablo.graphexplorer.viewer.models.AttrStatus.Missing
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.number
 
@@ -66,17 +64,13 @@ private def AttributesViewRow(row: InputAttribute) =
   * answer, and this one could not: every control looked identical whether it carried a
   * value or a default. The side panel has always known — it bolds those labels — so the
   * fact was computed and thrown away here.
+  *
+  * The marker itself is [[ResetMarker]], shared with the panel and card rows: one symbol
+  * for "reset this attribute", in all three places.
   */
 private def changedMarker(row: InputAttribute) =
   child.maybe <-- row.isChanged.map: changed =>
-    Option.when(changed):
-      button(
-        cls       := "attr-changed",
-        typ       := "button",
-        title     := s"Reset ${row.label}",
-        aria.label := s"Reset ${row.label}",
-        onClick.stopPropagation --> row.inputVar.set(Missing)
-      )
+    Option.when(changed)(ResetMarker(row))
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match

@@ -170,19 +170,12 @@ svg {
     @apply relative flex items-center;
   }
 
-  // A dot in the corner of a control whose value differs from the default. Small on
-  // purpose — it reports state, and only becomes a target when you go for it.
-  .attr-changed {
-    @apply absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary cursor-pointer
-           border border-base-100 z-10 p-0;
-
-    &:hover {
-      @apply scale-150 bg-error;
-    }
-
-    &:focus-visible {
-      @apply outline-2 outline-offset-1 outline-primary;
-    }
+  // In the bar the marker rides the CORNER of the control it belongs to — a bare icon
+  // has no label to sit beside. Offsets are measured to the ink, not to the button: the
+  // dot is centred in a 16px target, so the button sits 6px out to leave the dot 2px
+  // proud of the corner, where it was before it grew a hit area.
+  .attr-control > .attr-changed {
+    @apply absolute -top-1.5 -right-1.5 z-10;
   }
 
   // The toolbar is a one-line surface: cap the label editor to the common control
@@ -280,6 +273,42 @@ svg {
   &::after {
     content: "";
     @apply flex-1 h-px bg-base-300;
+  }
+}
+
+// ── The reset marker ─────────────────────────────────────────────────────────
+// One symbol for "this attribute is set — click to put it back", used by every surface
+// that edits an attribute: bare controls in the toolbar, rows in a popup card, rows in
+// the side panel. Placement differs (see .attr-control > .attr-changed for the corner
+// variant); the mark does not.
+//
+// It replaced a small `×` in the panel and card rows. That `×` was also the glyph on the
+// "reset ALL attributes" button at the end of the bar, so the same symbol undid one
+// attribute or every attribute depending on which one you happened to be looking at.
+// The dot now owns the singular case and `×` owns only the plural one.
+//
+// TARGET vs INK. The button is 16px and transparent; the dot inside it is 8px. A status
+// light has to be small or it stops reading as status — but 8px is a quarter of a usable
+// target, and this one sits in a toolbar next to controls you did mean to press. WCAG
+// 2.5.8 asks for 24, which the bar genuinely cannot spare between two 24px controls;
+// 16 is what fits, and it is twice what was there.
+.attr-changed {
+  @apply flex items-center justify-center w-4 h-4 p-0 border-0 bg-transparent
+         cursor-pointer shrink-0;
+
+  &::before {
+    content: "";
+    @apply block w-2 h-2 rounded-full bg-primary border border-base-100 transition-transform;
+  }
+
+  // Hover states the consequence: the dot is what you are about to remove, so it turns
+  // the colour of removal rather than merely lighting up.
+  &:hover::before {
+    @apply scale-150 bg-error;
+  }
+
+  &:focus-visible {
+    @apply outline-2 outline-offset-1 outline-primary rounded-full;
   }
 }
 

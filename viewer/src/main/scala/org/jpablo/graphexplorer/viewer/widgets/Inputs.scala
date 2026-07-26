@@ -289,6 +289,47 @@ def Checked(row: InputAttribute) =
     )
   )
 
+/** "This attribute is set, and this puts it back." The ONE marker for undoing a single
+  * attribute, wherever an attribute is edited: a bare control in the toolbar, a row in a
+  * popup card, a row in the side panel.
+  *
+  * There used to be two — this dot on toolbar controls and a small `×` in every panel and
+  * card row — which left `×` meaning both "reset this one" and, at the end of the bar and
+  * three sizes larger, "reset ALL of them". One symbol for a one-attribute undo and a
+  * wipe-everything is the wrong thing to be ambiguous about, so the dot took the singular
+  * job and `×` keeps only the plural one.
+  *
+  * A dot rather than a glyph because it does two things at once: it REPORTS that the
+  * attribute differs from its default (the row's bold label says the same thing, but a
+  * bare toolbar control has no label to bolden), and it undoes it. Sizing follows from
+  * that: 8px of ink, because a status light that shouts is a status light you stop
+  * reading — but a 16px target around it, because 8px is not a thing anyone can hit.
+  */
+def ResetMarker(row: InputAttribute): Button =
+  button(
+    cls        := "attr-changed",
+    typ        := "button",
+    title      := s"Reset ${row.label}",
+    aria.label := s"Reset ${row.label}",
+    // stopPropagation: in the toolbar this sits INSIDE the control it resets, and a click
+    // that reached the control behind it would open the dropdown it belongs to.
+    onClick.stopPropagation --> { (ev: MouseEvent) =>
+      // The marker exists only while the row is changed, so resetting deletes the very
+      // element the click just focused and focus lands on <body>. Inside a dropdown that
+      // shuts the card mid-edit: daisyUI keeps a panel open on `:focus-within`, so undoing
+      // one attribute took the panel with it.
+      //
+      // The panel is focusable for exactly this reason (see DropdownHeader) — but it has to
+      // be focused BEFORE the write, not after. A closed panel is `display: none`, and a
+      // display:none element cannot take focus; wait until the marker is gone and the panel
+      // is already closed, and there is nothing left to focus. Move first, then write.
+      // Outside a dropdown `closest` finds nothing and this is a no-op.
+      Option(ev.currentTarget.asInstanceOf[dom.Element].closest(".dropdown-content"))
+        .foreach(_.asInstanceOf[dom.HTMLElement].focus())
+      row.inputVar.set(Missing)
+    }
+  )
+
 def InputLabelWithResetButton(row: InputAttribute): Div =
   val multipleValues = row.inputVar.signal.map(_ == Multiple)
   div(
@@ -301,27 +342,7 @@ def InputLabelWithResetButton(row: InputAttribute): Div =
     div(
       cls("w-6 flex items-center justify-center") <-- multipleValues.combineWithFn(row.isChanged)(_ || _),
       child(span(title := s"Multiple values", i(cls := "bi bi-exclamation-triangle text-warning"))) <-- multipleValues,
-      child(
-        Button(
-          cls   := "ml-[1px] w-4 h-4",
-          title := s"reset ${row.label}",
-          i(cls := "bi bi-x text-[.6rem] text-base-content/50"),
-          // This button exists only while the row is changed, so resetting deletes the very
-          // element the click just focused and focus lands on <body>. Inside a dropdown that
-          // shuts the card mid-edit: daisyUI keeps a panel open on `:focus-within`, so undoing
-          // one attribute took the panel with it.
-          //
-          // The panel is focusable for exactly this reason (see DropdownHeader) — but it has to
-          // be focused BEFORE the write, not after. A closed panel is `display: none`, and a
-          // display:none element cannot take focus; wait until the button is gone and the panel
-          // is already closed, and there is nothing left to focus. Move first, then write.
-          onClick --> { (ev: MouseEvent) =>
-            Option(ev.currentTarget.asInstanceOf[dom.Element].closest(".dropdown-content"))
-              .foreach(_.asInstanceOf[dom.HTMLElement].focus())
-            row.inputVar.set(Missing)
-          }
-        ).circle.ghost.tiny
-      ) <-- row.isChanged
+      child(ResetMarker(row)) <-- row.isChanged
     )
   )
 
