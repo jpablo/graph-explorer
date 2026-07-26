@@ -64,7 +64,9 @@ case class ViewerState(
   val source = initialSource.getOrElse(persistedDiagramState.now().source)
 
   // Registry of diagram backends. InternalPhases depends only on this abstraction, not on concrete backends.
-  private val languages = DefaultDiagramLanguages(graphviz)
+  // Public so views that present OTHER projects (the library sidebar) can ask the same
+  // registry for their display titles instead of growing a second copy of the rule.
+  val languages = DefaultDiagramLanguages(graphviz)
 
   val phases = InternalPhases(
     languages = languages,

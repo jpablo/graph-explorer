@@ -74,3 +74,38 @@ class DiagramTitleScanSpec extends FunSuite:
 
   test("dot: empty label is no title"):
     assertEquals(DotSourceScan.graphTitle("""digraph G { label = ""; }"""), None)
+
+  /** The multi-line attribute form is the trap: a node's label stands alone on its
+    * line, looking exactly like a top-level `label = "..."` statement. This is the
+    * shape our own fsm example uses, and it made an untitled graph display as "LR_0".
+    */
+  test("dot: a node's label in a multi-line attribute list is NOT the graph title"):
+    val text = """digraph "finite_state_machine" {
+                 |  graph [rankdir="LR"];
+                 |  node [shape="circle"];
+                 |  "LR_0" [
+                 |      peripheries="2",
+                 |      label="LR_0"
+                 |  ];
+                 |  "LR_0" -> "LR_1" [label="SS(S)"];
+                 |}""".stripMargin
+    assertEquals(DotSourceScan.graphTitle(text), None)
+
+  test("dot: the graph's own label in a multi-line attribute list IS the title"):
+    val text = """digraph "G" {
+                 |  graph [
+                 |      rankdir="LR",
+                 |      label="Real Title"
+                 |  ];
+                 |  "a" [
+                 |      label="Node A"
+                 |  ];
+                 |}""".stripMargin
+    assertEquals(DotSourceScan.graphTitle(text), Some("Real Title"))
+
+  test("dot: a bracket inside a label does not unbalance the depth tracking"):
+    val text = """digraph "G" {
+                 |  "a" [label="arr[0]"];
+                 |  label = "After The Brackets";
+                 |}""".stripMargin
+    assertEquals(DotSourceScan.graphTitle(text), Some("After The Brackets"))

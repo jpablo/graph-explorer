@@ -6,8 +6,23 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Commands
 import org.jpablo.graphexplorer.viewer.state.PersistedDiagramState.minimalGraphText
-import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.{ProjectId, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
+
+/** Display titles for the projects in the library, by the same rule the library page uses:
+  * the stored name, or the diagram's own declared title while the project is unnamed.
+  *
+  * Keyed on the SET of project ids, not on the directory value: the directory is rewritten
+  * on every keystroke (a lastModified bump), and each name costs a payload read plus a
+  * title scan. The open project is the only one whose title can change while you type, and
+  * the list above reads that one straight from `state.displayTitle`.
+  */
+private def displayNames(state: ViewerState): Signal[Map[ProjectId, String]] =
+  ProjectStorage.directory
+    .map(_.projects.map(_.id))
+    .distinct
+    .map: ids =>
+      ids.flatMap(id => ProjectStorage.projectCardInfo(id, state.languages).map(id -> _.displayName)).toMap
 
 def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
   div(
@@ -47,18 +62,23 @@ def LeftPanel(state: ViewerState, router: Router, commands: Commands) =
           cls := "grow overflow-y-auto",
           ul(
             cls := "menu menu-sm w-full",
-            children <-- ProjectStorage.directory.map { directory =>
-              directory.projects.sortBy(-_.createdAt).map { project =>
-                li(
-                  a(
-                    cls := "flex items-center gap-2",
-                    cls("menu-active") <-- state.project.signal.map(_.id == project.id),
-                    div(cls := "truncate", project.name),
-                    onClick --> router.navigateTo(Route.ProjectDetail(project.id.value))
+            children <-- ProjectStorage.directory.combineWithFn(displayNames(state), state.displayTitle, state.project.signal):
+              (directory, names, openTitle, openProject) =>
+                directory.projects.sortBy(-_.createdAt).map { project =>
+                  // The open project's title can change as you type, so it reads live;
+                  // the rest come from the snapshot taken when the library last changed.
+                  val shown =
+                    if project.id == openProject.id then openTitle
+                    else names.getOrElse(project.id, project.name)
+                  li(
+                    a(
+                      cls := "flex items-center gap-2",
+                      cls("menu-active") <-- state.project.signal.map(_.id == project.id),
+                      div(cls := "truncate", shown),
+                      onClick --> router.navigateTo(Route.ProjectDetail(project.id.value))
+                    )
                   )
-                )
-              }
-            }
+                }
           )
         )
       )
