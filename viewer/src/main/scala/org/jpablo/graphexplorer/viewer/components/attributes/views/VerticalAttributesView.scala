@@ -107,7 +107,10 @@ private def AttributesViewRow(attRow: AttributeRow) =
         case InputType.range(s, e, step) =>
           Seq(
             label(
-              cls := "attr-row",
+              // attr-row-range: a track needs real width to be draggable. In the side
+              // panel it shares the line with its label; in the toolbar's 192px popup
+              // cards that left a 31px slider, so there it stacks instead.
+              cls := "attr-row attr-row-range",
               InputLabelWithResetButton(row),
               span(
                 cls := "attr-value flex items-center gap-1",

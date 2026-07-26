@@ -253,14 +253,25 @@ svg {
 
 // Label left, control right, on one line.
 .attr-row {
-  @apply flex items-center justify-between gap-2 px-2 min-h-7;
+  // min-w-0 is what makes the row shrinkable AT ALL. As a flex item it defaults to
+  // min-width:auto, so it cannot go below its min-content width — a slider's intrinsic
+  // 129px track plus a label plus a readout — and a row in a 192px popup card simply
+  // rendered 272px wide and spilled its sliders outside the card. Nothing further down
+  // can shrink until the row itself is allowed to.
+  @apply flex items-center justify-between gap-2 px-2 min-h-7 min-w-0;
 
   > :first-child {
     @apply text-xs text-base-content/70 truncate;
   }
 
   .attr-value {
-    @apply flex items-center justify-end gap-1 min-w-0;
+    // flex-1 is load-bearing, not cosmetic. Without a DEFINITE width to divide, a
+    // flex child with basis 0 (the slider) contributes its max-content size instead of
+    // shrinking, so the value box grew to fit a 129px track and the popup cards' slider
+    // rows ran outside the card. Taking the row's leftover width gives the slider
+    // something real to shrink into. The side panel is unaffected: there .attr-value is
+    // a grid item and gets its width from the column.
+    @apply flex flex-1 items-center justify-end gap-1 min-w-0;
 
     > .select, > .dropdown, > .menu-with-extra-dropdown {
       @apply w-full;
@@ -293,6 +304,18 @@ svg {
     .attr-unit {
       @apply text-[.6rem] text-base-content/45 shrink-0 -ml-0.5;
     }
+  }
+}
+
+// A slider outside the side panel: the popup cards are 192px, so a label, a track and a
+// readout on one line left the track at 31px — inside the card, and useless. Stacking
+// gives it the card's full width. The panel overrides this back to one line below,
+// because there the value column has room.
+.attr-row-range {
+  @apply flex-col items-stretch gap-0.5 py-1;
+
+  .attr-value {
+    @apply justify-start w-full;
   }
 }
 
