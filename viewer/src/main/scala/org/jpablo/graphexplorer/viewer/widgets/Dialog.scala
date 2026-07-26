@@ -15,8 +15,10 @@ def SimpleDialog(open: Var[Boolean], contents: Mods*) =
         onKeyDown.useCapture.filter(_.key == KeyValue.Escape) --> open.set(false),
         tabIndex := 0
       )(contents)(
+        // Dismissal, so it recedes -- and "Close", to match the sentence case every other
+        // button in the app uses. The Help and About dialogs are the two call sites.
         action =
-          Button("close", onClick --> open.set(false)).tiny
+          QuietAction("Close", onClick --> open.set(false))
       )
     ) <-- open
   )

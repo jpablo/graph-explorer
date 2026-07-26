@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Button, Dialog, primary, tiny}
+import org.jpablo.graphexplorer.viewer.widgets.{Dialog, PrimaryAction, QuietAction}
 import org.scalajs.dom.KeyValue
 
 /** Dialog to collect a label before creating a new group. It mirrors the NewNodeLabelDialog UX but triggers group creation on save. */
@@ -68,8 +68,10 @@ def NewGroupLabelDialog(state: ViewerState) =
         // --- actions ---
         div(
           cls := "flex justify-end gap-2 mt-2",
-          Button("Cancel", onClick --> closeDialog()).tiny,
-          Button("Ok", onClick --> saveAndCreate()).tiny.primary
+          // Cancel recedes: it was a filled, outlined button standing beside the
+          // primary, so the dialog offered two equally weighted ways out.
+          QuietAction("Cancel", onClick --> closeDialog()),
+          PrimaryAction("Ok", onClick --> saveAndCreate())
         )
       )
     ) <-- dialogIsOpen

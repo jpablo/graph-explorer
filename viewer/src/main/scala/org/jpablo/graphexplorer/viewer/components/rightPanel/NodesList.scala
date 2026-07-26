@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.{HiddenElements, ViewerState}
-import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckboxFormControl, Search}
+import org.jpablo.graphexplorer.viewer.widgets.{Action, Join, LabeledCheckboxFormControl, Search}
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
 import org.jpablo.graphexplorer.viewer.domUtils.open
 
@@ -178,20 +178,17 @@ def NodesList(state: ViewerState): Div =
           placeholder := "filter",
           controlled(value <-- filterVar, onInput.mapToValue --> filterVar)
         ).smallInput,
-        button(
-          cls   := "btn btn-xs",
+        Action(
           title := "Expand all groups",
           "Expand",
           onClick.preventDefault.mapTo(()) --> { _ => expandOverrideV.set(Some(true)) }
         ),
-        button(
-          cls   := "btn btn-xs",
+        Action(
           title := "Collapse all groups",
           "Collapse",
           onClick.preventDefault.mapTo(()) --> { _ => expandOverrideV.set(Some(false)) }
         ),
-        button(
-          cls   := "btn btn-xs",
+        Action(
           title := "Select filtered nodes",
           "Select",
           onClick.preventDefault(_.sample(state.fullGraph.combineWith(

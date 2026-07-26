@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Button, Dialog, tiny, primary}
+import org.jpablo.graphexplorer.viewer.widgets.{Dialog, PrimaryAction, QuietAction}
 import org.scalajs.dom.KeyValue
 
 def EditLabelDialog(state: ViewerState) =
@@ -70,8 +70,10 @@ def EditLabelDialog(state: ViewerState) =
         // --- actions ---
         div(
           cls := "flex justify-end gap-2 mt-2", // Added gap and margin-top
-          Button("Cancel", onClick --> closeDialog()).tiny,
-          Button("Ok", onClick --> saveAndClose()).tiny.primary
+          // Cancel recedes: it was a filled, outlined button standing beside the
+          // primary, so the dialog offered two equally weighted ways out.
+          QuietAction("Cancel", onClick --> closeDialog()),
+          PrimaryAction("Ok", onClick --> saveAndClose())
         )
       )
     ) <-- dialogIsOpen

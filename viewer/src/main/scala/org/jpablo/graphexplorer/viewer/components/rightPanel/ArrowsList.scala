@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.models.Arrow
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
-import org.jpablo.graphexplorer.viewer.widgets.{Join, LabeledCheckboxFormControl, Search}
+import org.jpablo.graphexplorer.viewer.widgets.{Action, Join, LabeledCheckboxFormControl, Search}
 import org.jpablo.graphexplorer.viewer.widgets.smallInput
 import com.raquo.airstream.state.Var
 
@@ -55,8 +55,7 @@ def ArrowsList(state: ViewerState): Div =
           placeholder := "filter",
           controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
         ).smallInput,
-        button(
-          cls   := "btn btn-xs",
+        Action(
           title := "Select filtered edges",
           "Select",
           onClick.preventDefault(_.sample(state.fullGraph.combineWith(
