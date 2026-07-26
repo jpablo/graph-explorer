@@ -72,7 +72,10 @@ private def resizeHandle(state: ViewerState): Div =
   div(
     cls := "right-panel-resizer",
     cls("dragging") <-- drag.signal.map(_.isDefined),
-    cls("hidden")   <-- state.rightPanelActiveSection.signal.map(!_.isVisible),
+    // Hidden unless the panel's width is actually the user's to set. The floating
+    // attributes card sizes itself from its rows, so a drag handle on it would be a
+    // control that changes nothing.
+    cls("hidden") <-- state.rightPanelActiveSection.signal.map(s => !s.isVisible || s == diagramAttributes),
     // preventDefault stops the browser's native text/image drag, which would swallow the
     // subsequent mouseup and leave the panel stuck to the pointer.
     onMouseDown.preventDefault --> { ev =>

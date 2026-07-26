@@ -282,13 +282,14 @@ svg {
 //
 // The value column is CAPPED rather than stretched: dragging the panel wider should
 // give the room to the diagram, not fling every toggle 300px from its label.
-// Both columns are sized to the CONTENT, not to the panel: 6rem fits the longest label
-// the panel now uses ("Merge parallel") and 12rem fits its widest control. Nothing here
-// forces the panel wide — measured, it shrinks to its 240px minimum without overflowing
-// — so the numbers exist only to keep a label and its control reading as one pair.
+// Both columns are sized to the CONTENT, not to the panel: --gx-attr-label fits the
+// longest label the panel uses ("Merge parallel") and --gx-attr-value fits its widest
+// control. Nothing here forces the panel wide — measured, it shrinks to its 240px
+// minimum without overflowing — so these widths exist only to keep a label and its
+// control reading as one pair. The floating panel derives its own width from them.
 #right-panel .attr-row {
   @apply grid;
-  grid-template-columns: minmax(0, 6rem) minmax(0, 12rem);
+  grid-template-columns: minmax(0, var(--gx-attr-label)) minmax(0, var(--gx-attr-value));
 
   .attr-value {
     @apply w-full;
@@ -596,18 +597,31 @@ svg {
   #right-panel {
     @apply border-base-300 border print:hidden relative;
 
+    // The two column widths every attribute row uses, named here so the floating
+    // panel can size itself from them instead of repeating a magic number.
+    --gx-attr-label: 6rem;
+    --gx-attr-value: 11rem;
+
     &.floating {
       @apply absolute right-11 top-2 bg-base-100;
     }
 
     flex-shrink: 0;
 
-    &.visible {
-      @apply visible flex flex-col /* h-full*/
-      ;
-      // Driven by RightPanel from the persisted ViewerSettings width; the fallback is the
-      // 20rem this panel was fixed at before it could be dragged.
+    // The DOCKED panel is the source editor, and its width is the user's to drag:
+    // more width means more code visible, so it remembers what they chose.
+    &.visible:not(.floating) {
+      @apply visible flex flex-col;
       width: var(--right-panel-width, 20rem);
+    }
+
+    // The FLOATING panel is a form, and a form is as wide as its rows — no wider.
+    // It used to inherit the editor's dragged width, so the attributes card was
+    // 445px for someone who had once widened the code panel and 320px for someone
+    // who had not. Nothing about editing attributes justified either number.
+    &.visible.floating {
+      @apply visible flex flex-col;
+      width: calc(var(--gx-attr-label) + var(--gx-attr-value) + 2.5rem);
     }
 
     // Drag target for resizing: sits ON the panel's left border and straddles it, so the
