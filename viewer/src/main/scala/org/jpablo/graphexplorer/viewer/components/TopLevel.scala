@@ -14,8 +14,8 @@ def TopLevel(
 ): Div =
   div(
     idAttr := "top-level",
-    Toolbar(state.project.name.signal, commands, state),
-    AttributesToolbar(state.project.name.signal, commands, state),
+    Toolbar(state.displayTitle, commands, state),
+    AttributesToolbar(state.displayTitle, commands, state),
     div(
       cls := "flex flex-1 overflow-y-auto relative",
       LeftPanel(state, router, commands),

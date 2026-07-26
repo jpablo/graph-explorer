@@ -100,6 +100,13 @@ trait DiagramBackend:
     */
   def graphToText(graph: ViewerGraph, omitInternal: Boolean): String
 
+  /** The diagram's own declared title, when the source text carries one (Mermaid
+    * frontmatter / `title` line, DOT graph-level `label`). Used as the display name for
+    * projects the user has not renamed. Must be cheap: called per keystroke while a
+    * project is still unnamed, and per library card.
+    */
+  def extractTitle(text: String): Option[String]
+
   /** Strategy for extracting element ids from the SVGs this backend produces. */
   def selectionStrategy: SelectableElementStrategy
 

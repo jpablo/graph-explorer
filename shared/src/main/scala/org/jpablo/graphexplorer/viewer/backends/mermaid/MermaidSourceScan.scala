@@ -52,6 +52,36 @@ private[backends] object MermaidSourceScan:
   def looksLikeMermaid(lowercased: String): Boolean =
     DiagramKindPrefixes.exists(lowercased.startsWith)
 
+  /** The diagram's declared title, when the source carries one: a YAML-frontmatter
+    * `title:` entry, or a standalone `title <text>` line (gantt, journey, C4, timeline,
+    * xychart, ...). Flowcharts get the frontmatter form only — they have no `title`
+    * keyword, so a node id happening to be `title` must not be read as one. Inline
+    * suffix forms (`pie showData title X`) are intentionally not chased. Only the top
+    * of the document is scanned: titles live in the header, and this runs per keystroke
+    * while a project is still unnamed.
+    */
+  def diagramTitle(text: String): Option[String] =
+    val lines = text.linesIterator.map(_.trim).take(50).toList
+    val fromFrontmatter = lines match
+      case "---" :: rest =>
+        rest.takeWhile(_ != "---").collectFirst {
+          case l if l.startsWith("title:") => l.drop("title:".length).trim
+        }
+      case _ => None
+    def firstContent = lines.find(l => l.nonEmpty && !l.startsWith("%%") && l != "---")
+    def isFlowchart  = firstContent.exists(l => l.startsWith("flowchart") || l.toLowerCase.startsWith("graph "))
+    fromFrontmatter
+      .orElse(
+        Option.unless(isFlowchart)(
+          lines.collectFirst { case l if l.startsWith("title ") => l.drop("title ".length).trim }
+        ).flatten
+      )
+      .map(stripSurroundingQuotes)
+      .filter(_.nonEmpty)
+
+  private def stripSurroundingQuotes(s: String): String =
+    if s.length >= 2 && s.head == '"' && s.last == '"' then s.substring(1, s.length - 1).trim else s
+
   private val IgnoredLinePrefixes = List(
     "%%",
     "flowchart",

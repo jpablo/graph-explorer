@@ -4,7 +4,7 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
-import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ViewerState}
 import org.scalajs.dom.{KeyValue, window}
 import org.scalajs.dom
 
@@ -82,7 +82,7 @@ class RouterCommands(router: Router):
   import Command.always
 
   private def createProjectAndNavigate(source: Option[String] = None) =
-    val id = ProjectStorage.createProjectDirectoryEntry("Untitled")
+    val id = ProjectStorage.createProjectDirectoryEntry(PersistedDiagramState.defaultProjectName)
     router.navigateTo(Route.ProjectDetail(id.value, source))
 
   val createProject =

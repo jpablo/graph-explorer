@@ -100,6 +100,16 @@ case class ViewerState(
   def setDiagramFormat(format: DiagramFormat): Unit =
     formatSelection.set(format)
 
+  /** The title shown for this project: the user's chosen name, or — while the project is
+    * still unnamed — the diagram's own declared title (Mermaid frontmatter / `title` line,
+    * DOT graph label). Display-only substitution: the stored name changes only when the
+    * user renames, so a rename always wins and a source-title change follows live.
+    */
+  val displayTitle: Signal[String] =
+    project.name.signal.combineWithFn(sourceText.signal, formatSelection.signal): (name, source, format) =>
+      if name.trim.nonEmpty && name != PersistedDiagramState.defaultProjectName then name
+      else languages.forFormat(format).extractTitle(source).getOrElse(name)
+
   /** Presentation metadata for every available format, in display order (drives the selector UI). */
   lazy val availableFormats: List[(DiagramFormat, DiagramLanguageInfo)] =
     languages.all.map(backend => backend.format -> backend.info)

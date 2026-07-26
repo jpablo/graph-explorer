@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.projects
 
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.storedString
-import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
+import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages}
 import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, ViewerSettings}
 import upickle.default.*
 
@@ -14,6 +14,9 @@ case class ProjectInfo(
 ) derives ReadWriter
 
 case class ProjectsDirectory(projects: List[ProjectInfo] = Nil) derives ReadWriter
+
+/** Presentation facts a library card needs from a project's payload. */
+case class ProjectCardInfo(format: DiagramFormat, displayName: String)
 
 object ProjectStorage:
   given owner: Owner = unsafeWindowOwner
@@ -192,19 +195,27 @@ object ProjectStorage:
   def directoryNow(): ProjectsDirectory =
     read[ProjectsDirectory](directoryStorageNow.now())
 
-  /** The project's diagram format, for the library's kind badge and kind filter.
+  /** Per-card presentation facts derived from a project's payload: the diagram format
+    * (kind badge, kind filter) and the name to display. The display name is the stored
+    * project name unless the project was never renamed, in which case the diagram's own
+    * declared title substitutes (same rule as ViewerState.displayTitle in the detail view).
     *
     * Prefers the persisted format tag (authoritative — the user may have set it
     * explicitly); documents saved before the tag existed fall back to detection on
     * the source. A one-shot raw read: cheap enough to run for every card, and the
     * expensive part of the library (thumbnail rendering) stays lazy.
     */
-  def projectFormat(id: ProjectId): Option[DiagramFormat] =
+  def projectCardInfo(id: ProjectId, languages: DiagramLanguages): Option[ProjectCardInfo] =
     try
       val state = read[PersistedDiagramState](readLocalStorage(projectKey(id), write(PersistedDiagramState.empty)))
-      state.format
+      val format = state.format
         .flatMap(f => scala.util.Try(DiagramFormat.valueOf(f)).toOption)
-        .orElse(Some(DiagramFormat.detect(state.source)))
+        .getOrElse(DiagramFormat.detect(state.source))
+      val name = state.projectName
+      val displayName =
+        if name.trim.nonEmpty && name != PersistedDiagramState.defaultProjectName then name
+        else languages.forFormat(format).extractTitle(state.source).getOrElse(name)
+      Some(ProjectCardInfo(format, displayName))
     catch case _: Throwable => None
 
   /** True when a project with this id exists in the directory. */

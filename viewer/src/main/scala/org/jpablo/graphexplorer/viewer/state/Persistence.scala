@@ -87,12 +87,18 @@ case class PersistedDiagramState(
 object PersistedDiagramState:
   val minimalGraphText = "digraph G {\n}"
 
+  /** The name given to never-renamed projects. Display sites substitute the diagram's
+    * own declared title for it (ViewerState.displayTitle, ProjectStorage.projectCardInfo);
+    * the stored name only changes when the user renames, so a rename always wins.
+    */
+  val defaultProjectName = "Untitled"
+
   val empty = minimal()
 
   def minimal(source: Option[String] = None) =
     PersistedDiagramState(
       hiddenElements = ElementIds(),
-      projectName = "Untitled",
+      projectName = defaultProjectName,
       source = source.getOrElse(minimalGraphText),
       format = None
     )

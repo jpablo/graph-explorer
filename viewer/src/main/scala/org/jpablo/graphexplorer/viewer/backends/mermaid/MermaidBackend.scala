@@ -57,6 +57,8 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     // Mermaid has no internal-only attributes, so `omitInternal` does not apply.
     viewerGraphToMermaidText(graph)
 
+  override def extractTitle(text: String): Option[String] = MermaidSourceScan.diagramTitle(text)
+
   override def selectionStrategy: SelectableElementStrategy = MermaidSelectionStrategy
 
   override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =

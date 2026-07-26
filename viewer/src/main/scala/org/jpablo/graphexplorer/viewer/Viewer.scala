@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel}
 import org.jpablo.graphexplorer.viewer.logging.Level
-import org.jpablo.graphexplorer.viewer.state.{ProjectId, RightPanelSection, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window, URLSearchParams}
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.utils.ShareUrl
@@ -89,7 +89,7 @@ object Viewer:
               router.navigateTo(Route.ProjectDetail(existingId.value))
             case None =>
               // Create a new project initialized with the provided DOT
-              val newId = ProjectStorage.createProjectDirectoryEntry("Untitled")
+              val newId = ProjectStorage.createProjectDirectoryEntry(PersistedDiagramState.defaultProjectName)
               router.navigateTo(Route.ProjectDetail(newId.value, Some(dot)))
 
     Graphviz.build().foreach: (graphviz: Graphviz) =>
