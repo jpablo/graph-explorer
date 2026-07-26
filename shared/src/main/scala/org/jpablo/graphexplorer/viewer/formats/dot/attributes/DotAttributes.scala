@@ -183,7 +183,7 @@ trait GroupLabelLocT extends DotAttributeEnum[GroupLabelLoc]:
 object Height extends DotAttributeSimple[Double]:
   val default = 0.5
   val min     = 0.02
-  def label   = "height"
+  def label   = "Height"
 
 enum CompassPoint derives CanEqual:
   case n, ne, e, se, s, sw, w, nw, c
