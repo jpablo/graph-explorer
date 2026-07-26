@@ -1,8 +1,10 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, InputElement, SectionHeader}
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.*
+import org.jpablo.graphexplorer.viewer.models.AttrStatus.Missing
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.InputType.number
 
@@ -16,35 +18,29 @@ private def buildFieldSets(rows: Seq[AttributeRow]) =
   for row <- rows
   yield
     child(
-      fieldSet(
-        cls := "fieldset",
-        row match
-          case ia: InputAttribute => AttributesViewRow(ia)
-          case ie: InputElement   => ie.element
-          // A section break has no horizontal equivalent yet: this bar already separates
-          // its groups with a rule between fieldsets. When the toolbar starts clustering
-          // by kind, this is where a header becomes that cluster boundary.
-          case _: SectionHeader => emptyNode
-      )
+      row match
+        case ia: InputAttribute => fieldSet(cls := "fieldset", AttributesViewRow(ia))
+        case ie: InputElement   => fieldSet(cls := "fieldset", ie.element)
+        // A section break IS the cluster boundary here: one rule between groups of
+        // related controls, instead of the rule after every single one that made six
+        // controls read as six equal blocks.
+        case sh: SectionHeader =>
+          div(cls := "attr-cluster-sep", role := "separator", title := sh.title)
     ) <-- row.hidden.not
 
+/** One attribute, as a toolbar control.
+  *
+  * The value IS the label here. Every control in this bar already shows its own state — a
+  * swatch for a colour, a preview for a shape, "Times New Roman 14" for a font — so the
+  * caption beside it was a second, wordier copy of what the control already said, and it
+  * cost the width: "Vertical alignment" ran about eight times the width of the icon it
+  * captioned, in the one place where horizontal space is scarcest. Names move to tooltips,
+  * where they cost nothing.
+  *
+  * A checkbox is the exception and keeps its words: an unlabelled tick box states nothing.
+  */
 private def AttributesViewRow(row: InputAttribute) =
   row.inputType match
-    case InputType.multiText(_) =>
-      Seq(
-        label(cls := "fieldset-label", InputLabelWithResetButton(row)),
-        div(cls   := "fieldset-input", buildInputCell(row))
-      )
-
-    case InputType.range(s, e, step) =>
-      Seq(
-        label(
-          cls := "fieldset-label fieldset-input flex justify-between",
-          InputLabelWithResetButton(row),
-          buildInputCell(row)
-        )
-      )
-
     case InputType.checkbox =>
       Seq(
         label(
@@ -55,19 +51,32 @@ private def AttributesViewRow(row: InputAttribute) =
       )
 
     case _ =>
-      if row.singleRow then
-        Seq(
-          label(
-            cls := "fieldset-label fieldset-input flex justify-between",
-            InputLabelWithResetButton(row),
-            buildInputCell(row).amend(cls := "w-40")
-          )
+      Seq(
+        div(
+          cls   := "attr-control",
+          title := row.label,
+          buildInputCell(row),
+          changedMarker(row)
         )
-      else
-        Seq(
-          label(cls := "fieldset-label", InputLabelWithResetButton(row)),
-          div(cls   := "fieldset-input", buildInputCell(row))
-        )
+      )
+
+/** Marks an attribute that differs from its default, and undoes it.
+  *
+  * "Which of these have I actually set?" is the question a properties bar exists to
+  * answer, and this one could not: every control looked identical whether it carried a
+  * value or a default. The side panel has always known — it bolds those labels — so the
+  * fact was computed and thrown away here.
+  */
+private def changedMarker(row: InputAttribute) =
+  child.maybe <-- row.isChanged.map: changed =>
+    Option.when(changed):
+      button(
+        cls       := "attr-changed",
+        typ       := "button",
+        title     := s"Reset ${row.label}",
+        aria.label := s"Reset ${row.label}",
+        onClick.stopPropagation --> row.inputVar.set(Missing)
+      )
 
 private def buildInputCell(row: InputAttribute) =
   row.inputType match

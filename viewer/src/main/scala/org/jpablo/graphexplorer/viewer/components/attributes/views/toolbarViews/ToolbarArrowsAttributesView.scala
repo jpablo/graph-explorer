@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.Command
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputElement
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputElement, SectionHeader}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.*
@@ -29,15 +29,10 @@ def ToolbarArrowsAttributesView(
 
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
+  // Same clustering as the node bar: paint, then the ends, then text.
   HorizontalAttributesView(
     rows = rows(
-      InputElement(
-        Button(
-          title := "Reset attributes",
-          span().bigXIcon,
-          onClick --> resetAttributes.execute()
-        ).tiny.ghost
-      ),
+      SectionHeader("Paint"),
       row(Color, InputType.currentValueWithSelector())
         .copy(
           options = mediumRows11 ++ colorOptions,
@@ -51,11 +46,13 @@ def ToolbarArrowsAttributesView(
           row(PenWidth, range(start = Some(0.0), end = Some(10.0), step = Some(0.1)))
         )
       ),
+      SectionHeader("Ends"),
       row(ArrowTail, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions(angle = 180)),
       row(ArrowHead, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions(angle = 0)),
       ArrowSize  -> InputType.number(start = Some(0), end = Some(5), step = Some(0.1)),
       Constraint -> checkbox,
       // ---------- label stuff ------------
+      SectionHeader("Text"),
       labelRow,
       row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
         options = mediumRows11 ++ colorOptions,
@@ -74,7 +71,7 @@ def ToolbarArrowsAttributesView(
       InputElement(
         VerticalCardWithButton(
           id = "extra-arrow-attributes",
-          "extra",
+          i(cls := "bi-three-dots", title := "More attributes"),
           rows(
             Decorate -> checkbox,
             row(XLabel, InputType.text),
@@ -83,6 +80,14 @@ def ToolbarArrowsAttributesView(
             HeadPort -> InputType.select
           )
         )
+      ),
+      SectionHeader("Reset"),
+      InputElement(
+        Button(
+          title := "Reset all attributes",
+          span().bigXIcon,
+          onClick --> resetAttributes.execute()
+        ).tiny.ghost
       )
     )
   )

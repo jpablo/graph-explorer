@@ -131,7 +131,7 @@ svg {
 
 .horizontal-attributes-view {
 
-  @apply flex flex-row gap-2;
+  @apply flex flex-row items-center gap-1;
 
   > .fieldset {
     // items-center: the label cell centers its text but .fieldset-input does not,
@@ -139,9 +139,39 @@ svg {
     // riding above the text baseline (edge toolbar); node toolbars never inflated,
     // which is why only edge selections looked misaligned.
     @apply flex py-0 gap-0 flex-nowrap items-center;
+  }
 
-    &:not(:last-child) {
-      @apply pr-2 border-r border-base-300;
+  // One rule per CLUSTER, drawn by a section break in the row list. Previously every
+  // fieldset carried its own right border, so eight controls read as eight equal
+  // blocks with nothing telling you which of them were related.
+  .attr-cluster-sep {
+    @apply w-px self-stretch my-1 mx-1.5 bg-base-300 shrink-0;
+
+    // A separator only separates. The first cluster names itself with a break before
+    // its controls, which would otherwise draw a rule against the edge of the bar.
+    &:first-child {
+      @apply hidden;
+    }
+  }
+
+  // The control carries its own value, so it needs somewhere to hang the marker that
+  // says "this one is set".
+  .attr-control {
+    @apply relative flex items-center;
+  }
+
+  // A dot in the corner of a control whose value differs from the default. Small on
+  // purpose — it reports state, and only becomes a target when you go for it.
+  .attr-changed {
+    @apply absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary cursor-pointer
+           border border-base-100 z-10 p-0;
+
+    &:hover {
+      @apply scale-150 bg-error;
+    }
+
+    &:focus-visible {
+      @apply outline-2 outline-offset-1 outline-primary;
     }
   }
 

@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.Command
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputElement
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputElement, SectionHeader}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
@@ -27,16 +27,13 @@ def ToolbarGroupAttributesView(
   val labelRow           = row(Label, InputType.multiText(), onReset = Some("")).copy(hidden = multiSelection)
   val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
 
+  // Same clustering as the node and arrow bars: shape, paint, text, then the group's
+  // own structural switches.
   HorizontalAttributesView(
     rows = rows(
-      InputElement(
-        Button(
-          title := "Reset attributes",
-          span().bigXIcon,
-          onClick --> resetAttributes.execute()
-        ).tiny.ghost
-      ),
+      SectionHeader("Shape"),
       row(CornerStyle, InputType.dropdown).copy(options = graphCornerStyleOptions),
+      SectionHeader("Paint"),
       row(FillColor, InputType.currentValueWithSelector())
         .copy(
           options = lightRows11 ++ colorOptions,
@@ -57,6 +54,7 @@ def ToolbarGroupAttributesView(
         )
       ),
       // ---------- label stuff ------------
+      SectionHeader("Text"),
       row(ClusterLabelLoc, InputType.dropdown).copy(
         options = clusterVerticalAlignmentOptions,
         hidden = labelRelatedHidden
@@ -79,8 +77,17 @@ def ToolbarGroupAttributesView(
         ),
         hidden = labelRelatedHidden
       ),
+      SectionHeader("Group"),
       InvisibleStyle -> checkbox,
       row(Cluster, checkbox),
-      row(Rank, InputType.select)
+      row(Rank, InputType.select),
+      SectionHeader("Reset"),
+      InputElement(
+        Button(
+          title := "Reset all attributes",
+          span().bigXIcon,
+          onClick --> resetAttributes.execute()
+        ).tiny.ghost
+      )
     )
   )

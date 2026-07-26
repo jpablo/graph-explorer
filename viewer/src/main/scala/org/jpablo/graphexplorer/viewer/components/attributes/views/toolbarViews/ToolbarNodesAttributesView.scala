@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import io.laminext.syntax.core.syntaxSignalOfBoolean
 import org.jpablo.graphexplorer.viewer.components.Command
-import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.InputElement
+import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputElement, SectionHeader}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
@@ -45,17 +45,15 @@ def ToolbarNodesAttributesView(
       )
     )
 
+  // Clustered by what the controls DO — geometry, then paint, then text — so the bar has
+  // three landmarks instead of eight equally-weighted blocks. The separators come from the
+  // section breaks; nothing else draws a rule.
   HorizontalAttributesView(
     rows = rows(
-      InputElement(
-        Button(
-          title := "Reset attributes",
-          span().bigXIcon,
-          onClick --> resetAttributes.execute()
-        ).tiny.ghost
-      ),
+      SectionHeader("Shape"),
       shapeRow,
       row(CornerStyle, InputType.dropdown).copy(options = cornerStyleOptions),
+      SectionHeader("Paint"),
       row(FillColor, InputType.currentValueWithSelector())
         .copy(
           options = lightRows11 ++ colorOptions,
@@ -76,6 +74,7 @@ def ToolbarNodesAttributesView(
         ),
         hidden = shapeIsPlainOrPlainText
       ),
+      SectionHeader("Text"),
       row(NodeLabelLoc, InputType.dropdown).copy(
         options = nodeLabelVerticalAlignOptions,
         hidden = labelRelatedHidden
@@ -95,10 +94,13 @@ def ToolbarNodesAttributesView(
         hidden = shapeIsPlainOrPlainText
       ),
       // --- Advanced or extra attributes ---
+      // "extra" named the mechanism rather than its contents, and was the only control in
+      // the bar whose label told you nothing. An overflow glyph says the same thing in the
+      // width of an icon.
       InputElement(
         VerticalCardWithButton(
           id = "extra-node-attributes",
-          "extra",
+          i(cls := "bi-three-dots", title := "More attributes"),
           rows(
             InvisibleStyle -> checkbox,
             row(XLabel, InputType.text),
@@ -112,6 +114,17 @@ def ToolbarNodesAttributesView(
             row(URL, InputType.text)
           )
         )
+      ),
+      // Reset-everything sits at the far end, not first. Leading the bar with a destructive
+      // action put it where the eye lands and where a control belongs; the per-attribute
+      // dots handle the common case of undoing one thing.
+      SectionHeader("Reset"),
+      InputElement(
+        Button(
+          title := "Reset all attributes",
+          span().bigXIcon,
+          onClick --> resetAttributes.execute()
+        ).tiny.ghost
       )
     )
   )

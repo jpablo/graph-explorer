@@ -24,7 +24,9 @@ def VerticalCardWithPreview(builder: RowBuilder, id: String, iAttrs: InputAttrib
       )
   )
 
-def VerticalCardWithButton(id: String, title: String, iars: Seq[AttributeRow]) =
+// title is a Modifier so callers can hand it an icon instead of a word — the toolbar's
+// overflow trigger says "more of these" with a glyph, not with the label "extra".
+def VerticalCardWithButton(id: String, title: Modifier.Base, iars: Seq[AttributeRow]) =
   DropdownHeader(
     title,
     body =
