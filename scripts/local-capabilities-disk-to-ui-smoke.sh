@@ -11,8 +11,18 @@
 # The final webview hop (JS receives the DOM event -> Viewer re-render) is
 # covered by the LC1-T4 bridge contract and is sub-millisecond JS.
 #
-# Acceptance (LC2-T5): median write->visible latency <= 300 ms locally.
+# Acceptance (LC2-T5): median write->visible latency <= 300 ms.
 # All per-iteration samples are printed so timing is captured in test logs.
+#
+# The sampling loop runs inside ONE python3 process, and that is load-bearing rather
+# than a style choice. It used to be bash, which cannot measure this path: every poll
+# iteration forked curl + jq to read the revision and python3 again to check the
+# deadline, and `observed` was a fourth fork whose cost landed directly in the reported
+# latency. Measured on an M-series laptop -- faster than any CI runner -- that was ~18ms
+# per curl|jq and ~22ms per python3 start: ~40ms of harness per poll, plus ~22ms baked
+# into every sample. The budget was being spent on fork(), not on disk->UI, which is why
+# macOS sat at a 239ms median with a 300ms budget and failed at 308ms on a busy runner
+# while Linux -- same code, cheaper forks -- reported 117ms.
 
 set -euo pipefail
 
@@ -49,11 +59,6 @@ require_cmd() {
 require_cmd jq
 require_cmd mktemp
 require_cmd python3
-require_cmd curl
-
-now_ms() {
-  python3 -c 'import time; print(int(time.time()*1000))'
-}
 
 if [[ ! -x "${GX_BIN}" ]]; then
   echo "missing release gx binary at ${GX_BIN}" >&2
@@ -96,70 +101,105 @@ watch_json="$("${GX_BIN}" watch "${tmpfile}" --json)"
 last_revision="$(jq -r '.revision' <<<"${watch_json}")"
 echo "watch established at revision ${last_revision}; running ${SAMPLES} samples (budget ${MEDIAN_BUDGET_MS}ms median)"
 
-# Poll the control API directly with curl instead of spawning `gx get` each
-# iteration: process-spawn cost per poll inflated the measured latency on
-# slower CI runners (it is overhead, not disk->UI time). The desktop only
-# decodes %2F in the ?path= query, so encoding just '/' is sufficient here.
 api_port="$(jq -r '.port' "${RUNTIME_FILE}")"
 api_token="$(jq -r '.token' "${RUNTIME_FILE}")"
-doc_url="http://127.0.0.1:${api_port}/v1/document?path=${tmpfile//\//%2F}"
-poll_revision() {
-  curl -s --max-time 2 -H "Authorization: Bearer ${api_token}" "${doc_url}" 2>/dev/null \
-    | jq -r '.document.revision // empty' 2>/dev/null || true
-}
 
-samples=()
-for i in $(seq 1 "${SAMPLES}"); do
-  # External edit: write to a sibling temp file then atomically rename, the way
-  # an external editor would (not a `gx set`, so no self-write suppression).
-  staging="${tmpfile}.staging"
-  printf 'digraph G {\n  n%s -> n%s\n}\n' "${i}" "$(now_ms)" > "${staging}"
-  t0="$(now_ms)"
-  mv -f "${staging}" "${tmpfile}"
-
-  deadline=$(( t0 + PER_SAMPLE_TIMEOUT_MS ))
-  observed=""
-  while :; do
-    rev="$(poll_revision)"
-    if [[ -n "${rev}" && "${rev}" -gt "${last_revision}" ]]; then
-      observed="$(now_ms)"
-      last_revision="${rev}"
-      break
-    fi
-    if [[ "$(now_ms)" -ge "${deadline}" ]]; then
-      echo "sample ${i}: no revision bump within ${PER_SAMPLE_TIMEOUT_MS}ms (last revision ${last_revision})" >&2
-      exit 1
-    fi
-    sleep 0.005
-  done
-
-  latency=$(( observed - t0 ))
-  samples+=("${latency}")
-  printf 'sample %2s: %4s ms (revision -> %s)\n' "${i}" "${latency}" "${last_revision}"
-done
-
-"${GX_BIN}" unwatch "${tmpfile}" --json >/dev/null
-
-# Stats over collected samples.
-read -r min med p95 max < <(
-  printf '%s\n' "${samples[@]}" | python3 -c '
+# Everything below the rename is timed, so nothing below the rename may fork. Failure is
+# captured rather than propagated so the watch is released either way -- the old loop
+# exited straight out of the sample and left it registered.
+set +e
+LC2T5_SAMPLES="${SAMPLES}" \
+LC2T5_MEDIAN_BUDGET_MS="${MEDIAN_BUDGET_MS}" \
+LC2T5_SAMPLE_TIMEOUT_MS="${PER_SAMPLE_TIMEOUT_MS}" \
+python3 - "${tmpfile}" "${api_port}" "${api_token}" "${last_revision}" <<'PY'
+import http.client
+import json
+import os
 import sys
-xs = sorted(int(l) for l in sys.stdin if l.strip())
+import time
+from urllib.parse import quote
+
+path, port, token, start_revision = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+samples_n = int(os.environ["LC2T5_SAMPLES"])
+budget_ms = int(os.environ["LC2T5_MEDIAN_BUDGET_MS"])
+timeout_s = int(os.environ["LC2T5_SAMPLE_TIMEOUT_MS"]) / 1000.0
+
+# The desktop only decodes %2F in the ?path= query, so quoting the whole path is safe.
+doc_path = "/v1/document?path=" + quote(path, safe="")
+headers = {"Authorization": "Bearer " + token}
+conn = None
+
+
+def poll_revision():
+    """Current revision, or None. One connection is kept alive across polls: a TCP
+    handshake per poll is small next to a fork, but it is still harness, not signal."""
+    global conn
+    for _ in range(2):
+        try:
+            if conn is None:
+                conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+            conn.request("GET", doc_path, headers=headers)
+            body = conn.getresponse().read()  # drain, or the connection cannot be reused
+            return (json.loads(body).get("document") or {}).get("revision")
+        except Exception:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            conn = None
+    return None
+
+
+staging = path + ".staging"
+last_revision = int(start_revision)
+latencies = []
+
+for i in range(1, samples_n + 1):
+    # External edit: write a sibling file then rename atomically, the way an editor
+    # would (not a `gx set`, so no self-write suppression).
+    with open(staging, "w") as handle:
+        handle.write("digraph G {\n  n%d -> n%d\n}\n" % (i, int(time.time() * 1000)))
+
+    t0 = time.monotonic()
+    os.replace(staging, path)
+    deadline = t0 + timeout_s
+
+    while True:
+        revision = poll_revision()
+        if revision is not None and int(revision) > last_revision:
+            observed = time.monotonic()
+            last_revision = int(revision)
+            break
+        if time.monotonic() >= deadline:
+            sys.exit(
+                "sample %d: no revision bump within %dms (last revision %d)"
+                % (i, timeout_s * 1000, last_revision)
+            )
+        time.sleep(0.005)
+
+    latency = int(round((observed - t0) * 1000))
+    latencies.append(latency)
+    print("sample %2d: %4d ms (revision -> %d)" % (i, latency, last_revision), flush=True)
+
+# Same statistics as the shell version it replaces, so runs stay comparable across the change.
+xs = sorted(latencies)
 n = len(xs)
-def pct(p):
-    if n == 1: return xs[0]
-    k = max(0, min(n - 1, round((p/100) * (n - 1))))
-    return xs[k]
-med = xs[n//2] if n % 2 else (xs[n//2 - 1] + xs[n//2]) // 2
-print(xs[0], med, pct(95), xs[-1])
-'
+median = xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) // 2
+p95 = xs[max(0, min(n - 1, round(0.95 * (n - 1))))]
+print(
+    "disk->UI latency over %d samples: min=%dms median=%dms p95=%dms max=%dms"
+    % (n, xs[0], median, p95, xs[-1])
 )
 
-echo "disk->UI latency over ${SAMPLES} samples: min=${min}ms median=${med}ms p95=${p95}ms max=${max}ms"
+if median > budget_ms:
+    sys.exit("assertion failed: median %dms exceeds LC2-T5 budget %dms" % (median, budget_ms))
 
-if [[ "${med}" -gt "${MEDIAN_BUDGET_MS}" ]]; then
-  echo "assertion failed: median ${med}ms exceeds LC2-T5 budget ${MEDIAN_BUDGET_MS}ms" >&2
-  exit 1
-fi
+print("disk-to-ui smoke passed (median %dms <= %dms)" % (median, budget_ms))
+PY
+sample_status=$?
+set -e
 
-echo "disk-to-ui smoke passed (median ${med}ms <= ${MEDIAN_BUDGET_MS}ms)"
+"${GX_BIN}" unwatch "${tmpfile}" --json >/dev/null 2>&1 || true
+
+exit "${sample_status}"
