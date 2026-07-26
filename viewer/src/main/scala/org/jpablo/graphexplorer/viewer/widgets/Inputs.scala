@@ -141,7 +141,11 @@ def DropdownWithCurrentValue(row: InputAttribute, dir: MenuDirection, cardClass:
 
 def DropdownForRow(row: InputAttribute) =
   Dropdown(
-    title = emptyMod,
+    // Names the TRIGGER. The row's caption beside it is a sibling div rather than a
+    // `<label>` (see AttributesViewRow), and the element this returns is a role-less
+    // wrapper, so a name left out there reaches nothing — the button announces as
+    // "button", with the attribute it edits nowhere in its name.
+    title = aria.label := row.label,
     options = Signal.fromValue(
       row.options.map(o =>
         MenuOption(

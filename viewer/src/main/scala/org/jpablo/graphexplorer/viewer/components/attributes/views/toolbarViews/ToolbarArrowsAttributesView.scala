@@ -63,7 +63,8 @@ def ToolbarArrowsAttributesView(
         VerticalCardWithPreview(
           builder,
           id = "arrow-font-attributes",
-          row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
+          // A menu rather than a native <select>; see ToolbarNodesAttributesView.
+          row(FontName, InputType.dropdown).copy(hidden = labelRelatedHidden),
           row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
         )
       ),
@@ -76,8 +77,10 @@ def ToolbarArrowsAttributesView(
             Decorate -> checkbox,
             row(XLabel, InputType.text),
             row(URL, InputType.text),
-            TailPort -> InputType.select,
-            HeadPort -> InputType.select
+            // Menus, not native selects: these live in a card, and a select's picker takes
+            // focus out of it. See ToolbarNodesAttributesView.
+            TailPort -> InputType.dropdown,
+            HeadPort -> InputType.dropdown
           )
         )
       ),

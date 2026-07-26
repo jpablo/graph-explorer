@@ -192,10 +192,14 @@ private def splitIntoSections(rows: Seq[AttributeRow]): Seq[(Option[SectionHeade
 private def buildInputCell(row: InputAttribute): HtmlElement =
   val cell = row.inputType match
     case InputType.menuWithExtra(initial, dir, cardClass) => MenuWithExtraDropdown(row, initial, dir, cardClass)
+    case InputType.dropdown                               => DropdownForRow(row)
     case InputType.select                                 => SelectWithValue(row)
     case InputType.checkbox                               => Checked(row)
     case InputType.multiText(setFocus)                    => TextAreaWithValue(row, setFocus = setFocus)
-    case _                                                => InputWithValue(row)
+    // The fallthrough builds an <input type={the input type}>, so an input type this match
+    // does not name renders as a text box with a nonsense `type` rather than failing. Add
+    // the case; do not rely on the default.
+    case _ => InputWithValue(row)
   // The caption is a sibling div, not a wrapping `<label>` (see AttributesViewRow for why it
   // cannot be one), so the accessible name has to travel with the control itself.
   cell.amend(aria.label := row.label)

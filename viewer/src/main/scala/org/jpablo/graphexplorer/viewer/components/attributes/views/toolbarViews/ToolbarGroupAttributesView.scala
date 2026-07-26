@@ -72,7 +72,8 @@ def ToolbarGroupAttributesView(
         VerticalCardWithPreview(
           builder,
           id = "group-font-attributes",
-          row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
+          // A menu rather than a native <select>; see ToolbarNodesAttributesView.
+          row(FontName, InputType.dropdown).copy(hidden = labelRelatedHidden),
           row(FontSize, InputType.range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
         ),
         hidden = labelRelatedHidden

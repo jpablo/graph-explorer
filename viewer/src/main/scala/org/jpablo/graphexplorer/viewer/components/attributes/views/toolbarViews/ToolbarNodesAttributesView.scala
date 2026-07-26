@@ -88,7 +88,10 @@ def ToolbarNodesAttributesView(
         VerticalCardWithPreview(
           builder,
           id = "nodes-font-attributes",
-          row(FontName, InputType.select).copy(hidden = labelRelatedHidden),
+          // A menu, not a native <select>. A select opens a picker the browser owns, and
+          // that picker takes focus out of this card -- which daisyUI keeps open only while
+          // focus is inside it, so reaching for a font shut the card you were reaching from.
+          row(FontName, InputType.dropdown).copy(hidden = labelRelatedHidden),
           row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
         ),
         hidden = shapeIsPlainOrPlainText

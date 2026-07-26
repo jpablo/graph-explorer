@@ -82,13 +82,17 @@ object AttributeRow:
      * This method is used to determine if the current value of the attribute is
      * one of the options in the list. If it is, it returns the corresponding
      * element. If not, it returns a span with the current value.
+     *
+     * A matching option with no preview shows its NAME, never its raw DOT value. The
+     * menu offers "South East"; a trigger reading back "se" makes the reader translate
+     * between the two vocabularies, and the raw value is the one they did not choose.
+     * Only a value matching NO option falls back to printing itself.
      */
     def selectedOption: Signal[ReactiveElement.Base] =
       row.combineDefaultString.map: attrValueStr =>
         row.options
           .find(_.value.toString == attrValueStr)
-          .flatMap(_.elem)
-          .map(_())
+          .map(option => option.elem.fold(span(option.name))(_()))
           .orElse(row.missingRowOption.map(_(attrValueStr)))
           .getOrElse(span(attrValueStr))
 
