@@ -399,7 +399,24 @@ object XCoord:
           case (Some(a), Some(b)) if a == b => Some(a)
           case _                            => None
       }
-      val w  = NSClass.weight(cls(t, chainCi), cls(h, chainCi)) * wt
+      // `interclexp` REBUILDS an inter-cluster chain's end segments when the
+      // cluster expands: make_interclust_chain → map_path swaps the rankleader
+      // endpoint for the real node by creating a fresh `virtual_edge(...)` —
+      // and cluster.c never calls `virtual_weight` (the symbol does not appear
+      // in that file at all). So a replaced END segment keeps the raw
+      // ED_weight, i.e. omega 1, while the MIDDLE segments keep the omega
+      // make_chain gave them. 191: PredictType>ExampleType is gv {1,4} —
+      // ends 1, virtual–virtual middles 4 — where scoring every segment gives
+      // the spurious {1,2,4}.
+      val interCluster = owned.exists { re =>
+        val a = clustOfX.get(re.tail); val b = clustOfX.get(re.head)
+        (a.isDefined || b.isDefined) && a != b
+      }
+      def clusteredReal(n: LayoutNode): Boolean = n match
+        case LayoutNode.Real(id) => clustOfX.contains(id)
+        case _                   => false
+      val rebuiltEnd = interCluster && (clusteredReal(t) || clusteredReal(h))
+      val w  = (if rebuiltEnd then 1 else NSClass.weight(cls(t, chainCi), cls(h, chainCi))) * wt
       val (m0, m1) =
         owned match
           case Some(re) =>

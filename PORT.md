@@ -331,15 +331,23 @@ enforce the deferral halves of it):
      weights that segment 1 where a one-shot degree gives 2. Modelled now
      (`weightClass(id, ci)` in XCoord) — `DynamicPrediction>a` and
      `PredictType>DynamicPredictType` match gv exactly as a result.
-     STILL OPEN, and the next thing to try: the two that remain
-     (`PredictType>ProgramRuntimeType` gv `{1}` vs our `{1,2}`,
-     `PredictType>ExampleType` gv `{1,4}` vs our `{1,2,4}`) are INTER-cluster.
-     Their chains are REBUILT at expand time by
-     `interclexp` → `make_interclust_chain` → `map_path`, and cluster.c calls
-     `virtual_edge(...)` there with **no `virtual_weight`** — grep confirms the
-     symbol does not appear in cluster.c at all. So a rebuilt inter-cluster
-     segment keeps the raw `ED_weight` (omega 1), which is exactly the `1` gv
-     reports and the `2` we invent.
+     CLOSED as well: the two that remained were INTER-cluster, and
+     `interclexp` → `make_interclust_chain` → `map_path` REBUILDS such a
+     chain's END segments at expand time with a bare `virtual_edge(...)` —
+     cluster.c never calls `virtual_weight` (the symbol is absent from the
+     file), so a replaced end keeps the raw `ED_weight`, omega 1, while the
+     MIDDLE segments keep what make_chain gave them. That is exactly gv's
+     `{1,4}` for `PredictType>ExampleType` against our `{1,2,4}`. All four
+     probed edges now carry gv's exact weights.
+
+  **Deduction worth acting on:** none of the omega work moved 191's
+  coordinates, and it CANNOT — omega is the NS objective, while a cluster's
+  extent is a FEASIBILITY question decided by minlens. So the outstanding
+  108pt has to live in a minlen: either the 18 missing slack pairs (1) or the
+  HTML port offsets (3), since `m0`/`m1` ARE minlens. Start with (3): the
+  differences are already measured (t=136 vs 164, 70 vs 83, h=26 vs 30,
+  t=4 vs 3) and they feed straight into `make_edge_pairs`'s
+  `m0 = head_port.p.x - tail_port.p.x`.
   3. **HTML port x-offsets** — `m0 = ED_head_port(e).p.x - ED_tail_port(e).p.x`
      differs on several edges: `DynamicValueRecord>PredictType` t=136 vs our 164,
      `LanguageModelType>PredictType` t=70 vs 83,
