@@ -355,8 +355,16 @@ svg {
     // The menu-backed pickers put their value in the trigger, so the trigger is what
     // overflows. `truncate` cannot go on the button itself — daisyUI makes it a flex
     // container, and text-overflow needs the text's own box.
+    //
+    // `w-full` is what stops the control's width from REPORTING its value. A daisyUI
+    // `.btn` is inline-flex, so left to itself the trigger is exactly as wide as the
+    // name inside it: the same Font Family row measured 55px on "Arial" and 110px on
+    // "Times New Roman", in a 158px column, and neither lined up with the slider
+    // underneath. The native selects in the diagram panel already fill the column;
+    // these are the same kind of control and now have the same footprint. `ml-0`
+    // drops the widget's own `ml-1` so the left edges agree too.
     > .dropdown > .btn {
-      @apply min-w-0 max-w-full;
+      @apply w-full min-w-0 max-w-full justify-start ml-0;
 
       > * {
         @apply min-w-0 truncate;

@@ -164,6 +164,52 @@ object Svg:
         s = s.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
       if s == "-0" then "0" else s
 
+  /** `dotneato_closest` (utils.c:342): the point on a spline nearest `pt`.
+    * The nearest CONTROL point picks which bezier to search, then a bisection
+    * walks that one segment — so this is the closest point gv would pick, not
+    * necessarily the true closest point on the curve. */
+  private def closestOnSpline(pts: IndexedSeq[Spline.XY], pt: (Double, Double)): (Double, Double) =
+    def dist2(x: Double, y: Double): Double =
+      val dx = x - pt._1; val dy = y - pt._2
+      dx * dx + dy * dy
+    var bestj = 0
+    var bestd = 0.0
+    pts.indices.foreach { j =>
+      val d = dist2(pts(j).x, pts(j).y)
+      if j == 0 || d < bestd then { bestj = j; bestd = d }
+    }
+    // if the nearest control point is the last one, back up so the bezier it
+    // starts is a whole segment
+    if bestj == pts.length - 1 then bestj -= 1
+    val j = 3 * (bestj / 3)
+    val c = Array(pts(j), pts(j + 1), pts(j + 2), pts(j + 3))
+    def at(t: Double): (Double, Double) =
+      val tri = Array.ofDim[(Double, Double)](4, 4)
+      var k   = 0
+      while k <= 3 do { tri(0)(k) = (c(k).x, c(k).y); k += 1 }
+      var i = 1
+      while i <= 3 do
+        k = 0
+        while k <= 3 - i do
+          tri(i)(k) = ((1.0 - t) * tri(i - 1)(k)._1 + t * tri(i - 1)(k + 1)._1,
+                       (1.0 - t) * tri(i - 1)(k)._2 + t * tri(i - 1)(k + 1)._2)
+          k += 1
+        i += 1
+      tri(3)(0)
+    var low    = 0.0
+    var high   = 1.0
+    var dlow2  = dist2(c(0).x, c(0).y)
+    var dhigh2 = dist2(c(3).x, c(3).y)
+    var pt2    = (0.0, 0.0)
+    var going  = true
+    while going do
+      val t = (low + high) / 2.0
+      pt2 = at(t)
+      if math.abs(dlow2 - dhigh2) < 1.0 || math.abs(high - low) < 0.00001 then going = false
+      else if dlow2 < dhigh2 then { high = t; dhigh2 = dist2(pt2._1, pt2._2) }
+      else { low = t; dlow2 = dist2(pt2._1, pt2._2) }
+    pt2
+
   /** Fixed "%.2f" (svg font-size — gv does NOT gvprintdouble-trim it). */
   private[output] def f2(x: Double): String =
     BigDecimal(x).setScale(2, BigDecimal.RoundingMode.HALF_UP).bigDecimal.toPlainString
@@ -1173,52 +1219,54 @@ object Svg:
           // arrow_gen per drawn end (emit_edge_graphics: tail arrow at sp
           // with the FIRST spline point, then head arrow at ep with the
           // LAST) — arrow_flags decides which ends draw and with what name.
-          def drawArrow(attach: Spline.XY, base: Spline.XY, name: String, aCol: String): Unit =
+          def drawArrow(attach: Spline.XY, base: Spline.XY, flag: Int, aCol: String): Unit =
             val tip = { val (x, y) = tf(attach.x, attach.y); Spline.XY(x, y) }
-            val dx = base.x - tip.x; val dy = base.y - tip.y
-            val len = math.hypot(dx, dy)
+            val len = math.hypot(base.x - tip.x, base.y - tip.y)
             if len > 1e-9 then
               val pw = Coord.penwidthOpt(e.attrs).getOrElse(1.0)
               val as = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
-              val (kind, open) = Arrow.kindOf(name)
-              // arrow_gen (arrows.c): the arrowhead vector is EPSILON(1e-4)-
-              // stabilized — `s = ARROW_LENGTH/(len + EPS)`, ±EPS added to
-              // each component BEFORE scaling, then ×(lenfact·arrowsize)
-              // (arrow_gen_type; lenfact 1.2 for diamond, 1.0 otherwise).
-              // The nudge shifts polygon corners by ~1e-4pt — visible when
-              // a corner lands exactly on a %.2f print boundary (sbt).
-              val Eps = 0.0001
-              val s   = ArrowLen / (len + Eps)
-              val lf  = if kind == "diamond" then 1.2 else 1.0
-              val u   = ((dx + (if dx >= 0.0 then Eps else -Eps)) * s * as * lf,
-                         (dy + (if dy >= 0.0 then Eps else -Eps)) * s * as * lf)
               def pt(p: (Double, Double)) = s"${d2(p._1)},${d2(-p._2)}"
-              // ARR_MOD_OPEN (`empty`/`odiamond`) ⇒ unfilled polygon.
               val (aPen, aPenOp0) = strokeSplit(aCol)
               val aFill           = fillPaint(aCol)
               // arrow_gen keeps the edge's penwidth (svg stroke-width, before
               // stroke-opacity) but resets the dash style to solid.
               val aPenOp =
                 (if pw != 1.0 then s""" stroke-width="${Output.g5(pw)}"""" else "") + aPenOp0
-              val fill = if open then "none" else aFill
-              kind match
-                case "vee" =>
-                  // crow ⇒ 8-point polygon a[0..7] (gvrender_polygon a,8,1)
-                  val (a, _) = Arrow.crow0((tip.x, tip.y), u, as, pw)
-                  val poly   = ((0 until 8).map(k => pt(a(k))) :+ pt(a(0))).mkString(" ")
-                  sb ++= s"""<polygon fill="$aFill" stroke="$aPen"$aPenOp points="$poly"/>\n"""
-                case "diamond" =>
-                  val (a, _) = Arrow.diamond0((tip.x, tip.y), u, pw)
-                  val poly   = ((0 until 4).map(k => pt(a(k))) :+ pt(a(0))).mkString(" ")
+              // The geometry knows nothing about SVG; it hands back the same
+              // gvrender_* primitives the C emits, in the same order.
+              Arrow.gen(flag, (tip.x, tip.y), (base.x, base.y), as, pw).foreach {
+                case Arrow.Prim.Polygon(a, filled) =>
+                  // svg_polygon repeats the first point ("because Adobe SVG is broken")
+                  val poly = (a.map(pt) :+ pt(a(0))).mkString(" ")
+                  val fill = if filled then aFill else "none"
                   sb ++= s"""<polygon fill="$fill" stroke="$aPen"$aPenOp points="$poly"/>\n"""
-                case _ =>
-                  val (a1, a2, a3, _) = Arrow.normal0((tip.x, tip.y), u, pw)
-                  sb ++= s"""<polygon fill="$fill" stroke="$aPen"$aPenOp points="${pt(a1)} ${pt(a2)} ${pt(a3)} ${pt(a1)}"/>\n"""
-          val (sName, eName) = Arrow.flags(g.directed, e.attrs.get("dir"),
+                case Arrow.Prim.Polyline(a) =>
+                  sb ++= s"""<polyline fill="none" stroke="$aPen"$aPenOp points="${a.map(pt).mkString(" ")}"/>\n"""
+                case Arrow.Prim.Ellipse(c, r, filled) =>
+                  val fill = if filled then aFill else "none"
+                  sb ++= s"""<ellipse fill="$fill" stroke="$aPen"$aPenOp cx="${d2(c._1)}" cy="${d2(-c._2)}" rx="${d2(r)}" ry="${d2(r)}"/>\n"""
+                case Arrow.Prim.Curve(a) =>
+                  val body = a.tail.map(pt).mkString(" ")
+                  sb ++= s"""<path fill="none" stroke="$aPen"$aPenOp d="M${pt(a(0))}C$body"/>\n"""
+              }
+          val (sFlag, eFlag) = Arrow.flags(g.directed, e.attrs.get("dir"),
             e.attrs.get("arrowhead"), e.attrs.get("arrowtail"))
-          sName.filter(_ != "none").foreach { nm => es.sp.foreach(spR => drawArrow(spR, pts.head, nm, tailArrowCol)) }
-          eName.filter(_ != "none").foreach { nm => es.ep.foreach(epR => drawArrow(epR, pts.last, nm, headArrowCol)) }
+          if sFlag != Arrow.TypeNone then es.sp.foreach(spR => drawArrow(spR, pts.head, sFlag, tailArrowCol))
+          if eFlag != Arrow.TypeNone then es.ep.foreach(epR => drawArrow(epR, pts.last, eFlag, headArrowCol))
           if eAnchored then sb ++= "</a>\n</g>\n"
+          // emit_attachment (emit.c:1920): `decorate=true` ties a label to the
+          // curve with a polyline along the label box's bottom edge and on to
+          // the nearest point of the spline. It uses the FONT colour rather
+          // than the edge's — parallel multicoloured edges would be ambiguous
+          // otherwise — and is always solid, whatever the edge style is.
+          val decorated = NodeSize.mapBool(e.attrs.get("decorate"))
+          def attachment(lpx: Double, lpy: Double, w: Double, h: Double, text: String): Unit =
+            if text.exists(c => !c.isWhitespace) then
+              val (ax, ay) = (lpx + w / 2.0, lpy - h / 2.0)
+              val cl       = closestOnSpline(pts, (lpx, lpy))
+              val (fPen, fOp) = strokeSplit(e.attrs.get("fontcolor").filter(_.nonEmpty).getOrElse("black"))
+              val pl = Seq((ax, ay), (ax - w, ay), cl).map((x, y) => s"${d2(x)},${d2(-y)}").mkString(" ")
+              sb ++= s"""<polyline fill="none" stroke="$fPen"$fOp points="$pl"/>\n"""
           // edge label text at its lp (make_chain label_vnode): HTML ⇒ the
           // parsed block, else a multi-line plain label (`\n`/`\l`/`\r`).
           e.attrs.get("label").filter(_.nonEmpty).foreach { lbl =>
@@ -1242,6 +1290,9 @@ object Svg:
               else
                 sb ++= textLines(lpx, lpy, lbl, col, "", e.attrs.getOrElse("fontname", "Times-Roman"),
                   e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(FontSize))
+              if decorated then
+                val (lw, lh) = Coord.edgeLabelDim(e, g)
+                attachment(lpx, lpy, lw, lh, lbl)
               if eLblAnchored then sb ++= "</a>\n</g>\n"
             }
           }
@@ -1253,6 +1304,9 @@ object Svg:
               val (lx, ly) = tf(p.cx, p.cy)
               sb ++= textLines(lx, ly, xl, e.attrs.get("fontcolor").getOrElse(""), "",
                 e.attrs.getOrElse("fontname", "Times-Roman"))
+              // gv passes the spline to the xlabel's emit_edge_label too, so a
+              // decorated edge attaches BOTH of its labels.
+              if decorated then attachment(lx, ly, p.w, p.h, xl)
               if eLblAnchored then sb ++= "</a>\n</g>\n"
             }
           }

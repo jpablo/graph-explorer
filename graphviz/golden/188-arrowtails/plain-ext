@@ -1,0 +1,33 @@
+graph 1 14.75 1.5
+node a 7.375 1.25 0.75 0.5 a solid ellipse black lightgrey
+node t00 0.375 0.25 0.75 0.5 t00 solid ellipse black lightgrey
+node t01 1.375 0.25 0.75 0.5 t01 solid ellipse black lightgrey
+node t02 2.375 0.25 0.75 0.5 t02 solid ellipse black lightgrey
+node t03 3.375 0.25 0.75 0.5 t03 solid ellipse black lightgrey
+node t04 4.375 0.25 0.75 0.5 t04 solid ellipse black lightgrey
+node t05 5.375 0.25 0.75 0.5 t05 solid ellipse black lightgrey
+node t06 6.375 0.25 0.75 0.5 t06 solid ellipse black lightgrey
+node t07 7.375 0.25 0.75 0.5 t07 solid ellipse black lightgrey
+node t08 8.375 0.25 0.75 0.5 t08 solid ellipse black lightgrey
+node t09 9.375 0.25 0.75 0.5 t09 solid ellipse black lightgrey
+node t10 10.375 0.25 0.75 0.5 t10 solid ellipse black lightgrey
+node t11 11.375 0.25 0.75 0.5 t11 solid ellipse black lightgrey
+node t12 12.375 0.25 0.75 0.5 t12 solid ellipse black lightgrey
+node t13 13.375 0.25 0.75 0.5 t13 solid ellipse black lightgrey
+node t14 14.375 0.25 0.75 0.5 t14 solid ellipse black lightgrey
+edge a t00 7 6.9966 1.2362 5.9836 1.2272 3.1335 1.1421 0.875 0.5 0.85249 0.4936 0.82974 0.48628 0.80699 0.47827 solid black
+edge a t01 7 6.8455 1.2192 5.8516 1.1757 3.6473 1.0233 1.875 0.5 1.8526 0.49337 1.8299 0.48587 1.8072 0.47771 solid black
+edge a t02 7 6.8405 1.1971 5.9861 1.1242 4.2675 0.93328 2.875 0.5 2.8527 0.49305 2.83 0.48528 2.8074 0.47691 solid black
+edge a t03 7 6.8491 1.1648 6.1553 1.0618 4.9021 0.84522 3.875 0.5 3.8534 0.49274 3.8315 0.48479 3.8095 0.47635 solid black
+edge a t04 7 6.9101 1.1223 6.4027 0.99276 5.5698 0.76453 4.875 0.5 4.8537 0.49189 4.832 0.48325 4.8103 0.47425 solid black
+edge a t05 4 6.9472 1.0282 6.612 0.86522 6.1475 0.63943 5.8104 0.47555 solid black
+edge a t06 4 7.0647 0.93443 6.9469 0.81993 6.8127 0.68939 6.6941 0.57411 solid black
+edge a t07 4 7.375 0.85251 7.375 0.78957 7.375 0.72423 7.375 0.66096 solid black
+edge a t08 4 7.7081 0.91222 7.8198 0.8037 7.9439 0.68299 8.0546 0.57543 solid black
+edge a t09 4 7.7828 1.0379 8.1184 0.87471 8.5933 0.64389 8.937 0.47682 solid black
+edge a t10 7 7.8658 1.1157 8.3753 0.98505 9.1919 0.76007 9.875 0.5 9.8963 0.49189 9.918 0.48325 9.9397 0.47425 solid black
+edge a t11 7 7.8121 1.1778 8.4832 1.0808 9.8024 0.86051 10.875 0.5 10.897 0.49274 10.919 0.48479 10.94 0.47635 solid black
+edge a t12 7 7.8936 1.1985 8.7424 1.1265 10.474 0.93599 11.875 0.5 11.897 0.49305 11.92 0.48528 11.943 0.47691 solid black
+edge a t13 7 7.9294 1.2181 8.9347 1.1731 11.117 1.019 12.875 0.5 12.897 0.49337 12.92 0.48587 12.943 0.47771 solid black
+edge a t14 7 7.8939 1.2345 9.0102 1.2188 11.714 1.1145 13.875 0.5 13.898 0.4936 13.92 0.48628 13.943 0.47827 solid black
+stop

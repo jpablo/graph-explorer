@@ -426,8 +426,12 @@ object Output:
       }
       spl.get(e.idx).foreach { es =>
         def m(p: Spline.XY): (Double, Double) = tf(p.x, p.y)
-        val pre = es.ep.map(p => { val (x, y) = m(p); s"e,${g5(x)},${g5(y)} " }).getOrElse("") +
-                  es.sp.map(p => { val (x, y) = m(p); s"s,${g5(x)},${g5(y)} " }).getOrElse("")
+        // output.c:355 writes the START arrow's attach point before the END
+        // one. Only an edge with arrows at BOTH ends can tell the two orders
+        // apart, which is why this went unnoticed until `dir=both` reached the
+        // corpus.
+        val pre = es.sp.map(p => { val (x, y) = m(p); s"s,${g5(x)},${g5(y)} " }).getOrElse("") +
+                  es.ep.map(p => { val (x, y) = m(p); s"e,${g5(x)},${g5(y)} " }).getOrElse("")
         val pts = es.pts.map(p => { val (x, y) = m(p); s"${g5(x)},${g5(y)}" }).mkString(" ")
         kv("pos") = s""""$pre$pts""""
       }

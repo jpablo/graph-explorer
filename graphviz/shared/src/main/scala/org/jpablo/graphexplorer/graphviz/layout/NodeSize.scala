@@ -177,7 +177,7 @@ object NodeSize:
     n.attrs.get(key).flatMap(_.toDoubleOption).getOrElse(default)
 
   /** Graphviz `mapbool`: true/yes/1(+) ⇒ true; false/no/0/absent ⇒ false. */
-  private def mapBool(v: Option[String]): Boolean = v match
+  private[graphviz] def mapBool(v: Option[String]): Boolean = v match
     case Some(s) =>
       s.toLowerCase match
         case "true" | "yes" => true

@@ -1,0 +1,12 @@
+digraph decorate {
+  // decorate=true draws a polyline from the label's bottom edge to the closest
+  // point on the spline. The attachment uses the FONT colour, not the edge
+  // colour, and is drawn solid whatever the edge style is.
+  a -> b [label="plain", decorate=true];
+  a -> c [label="angled", decorate=true, fontcolor=red];
+  a -> d [label="dashed", decorate=true, style=dashed, color=blue];
+  a -> e [label="two\nlines", decorate=true];
+  a -> f [decorate=true];
+  a -> g [xlabel="ext", decorate=true];
+  a -> h [label="off"];
+}

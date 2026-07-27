@@ -1,0 +1,17 @@
+graph 1 6.75 1.9667
+node a 3.375 1.7167 0.75 0.5 a solid ellipse black lightgrey
+node b 0.375 0.25 0.75 0.5 b solid ellipse black lightgrey
+node c 1.375 0.25 0.75 0.5 c solid ellipse black lightgrey
+node d 2.375 0.25 0.75 0.5 d solid ellipse black lightgrey
+node e 3.375 0.25 0.75 0.5 e solid ellipse black lightgrey
+node f 4.375 0.25 0.75 0.5 f solid ellipse black lightgrey
+node g 5.375 0.25 0.75 0.5 g solid ellipse black lightgrey
+node h 6.375 0.25 0.75 0.5 h solid ellipse black lightgrey
+edge a b 7 2.9959 1.6931 2.5327 1.6654 1.7401 1.5658 1.1668 1.2167 0.92797 1.0712 0.72753 0.8278 0.58806 0.62342 plain 1.3612 0.98333 solid black
+edge a c 7 3.013 1.6474 2.7077 1.5855 2.2729 1.4601 1.9678 1.2167 1.7773 1.0647 1.6314 0.83367 1.532 0.6372 angled 2.227 0.98333 solid black
+edge a d 7 3.1129 1.5323 2.9989 1.4481 2.8708 1.3383 2.7795 1.2167 2.6527 1.0477 2.557 0.83299 2.4907 0.65018 dashed 3.0495 0.98333 dashed blue
+edge a e 4 3.375 1.4652 3.375 1.2478 3.375 0.92177 3.375 0.6642 "two\nlines" 3.5586 0.98333 solid black
+edge a f 7 3.5651 1.4958 3.639 1.4117 3.7223 1.3119 3.7917 1.2167 3.9285 1.0286 4.0652 0.80758 4.1718 0.62582 solid black
+edge a g 7 3.6476 1.5376 3.7951 1.4462 3.9793 1.3286 4.1389 1.2167 4.4449 1.002 4.7801 0.74203 5.0241 0.5479 solid black
+edge a h 7 3.7021 1.5907 3.9602 1.499 4.3276 1.3612 4.6389 1.2167 5.1055 1.0001 5.6197 0.7112 5.9665 0.50852 off 5.6184 0.98333 solid black
+stop

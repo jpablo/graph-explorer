@@ -134,7 +134,7 @@ object Coord:
     * is parsed and measured by the table/text layout — measuring the raw markup
     * as plain text would count the `<b>`/`</b>` tags and grossly inflate the
     * label-vnode width (05: `<b>html</b> label` was 105.8 pt instead of ~52). */
-  private[layout] def edgeLabelDim(e: REdge, g: RGraph): (Double, Double) =
+  private[graphviz] def edgeLabelDim(e: REdge, g: RGraph): (Double, Double) =
     val lbl = e.attrs.getOrElse("label", "")
     val fs  = e.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
     val fn  = e.attrs.getOrElse("fontname", "Times")

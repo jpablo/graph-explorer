@@ -1,0 +1,30 @@
+graph 1 12.75 1.5
+node a 3.875 1.25 0.75 0.5 a solid ellipse black lightgrey
+node p0 0.375 0.25 0.75 0.5 p0 solid ellipse black lightgrey
+node p1 1.375 0.25 0.75 0.5 p1 solid ellipse black lightgrey
+node p2 2.375 0.25 0.75 0.5 p2 solid ellipse black lightgrey
+node p3 3.375 0.25 0.75 0.5 p3 solid ellipse black lightgrey
+node p4 4.375 0.25 0.75 0.5 p4 solid ellipse black lightgrey
+node p5 5.375 0.25 0.75 0.5 p5 solid ellipse black lightgrey
+node p6 6.375 0.25 0.75 0.5 p6 solid ellipse black lightgrey
+node p7 7.375 0.25 0.75 0.5 p7 solid ellipse black lightgrey
+node b 10.375 1.25 0.75 0.5 b solid ellipse black lightgrey
+node q0 8.375 0.25 0.75 0.5 q0 solid ellipse black lightgrey
+node q1 9.375 0.25 0.75 0.5 q1 solid ellipse black lightgrey
+node q2 10.375 0.25 0.75 0.5 q2 solid ellipse black lightgrey
+node q3 11.375 0.25 0.75 0.5 q3 solid ellipse black lightgrey
+node q4 12.375 0.25 0.75 0.5 q4 solid ellipse black lightgrey
+edge a p0 7 3.5126 1.1716 2.9417 1.0646 1.8025 0.82901 0.875 0.5 0.86641 0.49695 0.85776 0.4938 0.84908 0.49057 solid black
+edge a p1 7 3.5424 1.1238 3.1426 0.98654 2.4534 0.74244 1.875 0.5 1.8624 0.49471 1.8496 0.48928 1.8368 0.48374 solid black
+edge a p2 4 3.6137 1.0668 3.3796 0.91504 3.033 0.6904 2.766 0.51729 solid black
+edge a p3 4 3.759 1.0106 3.6884 0.87319 3.5974 0.6963 3.5217 0.54918 solid black
+edge a p4 4 3.991 1.0106 4.0497 0.8965 4.1223 0.75518 4.1886 0.62629 solid black
+edge a p5 4 4.1363 1.0668 4.3693 0.91573 4.7138 0.69245 4.9804 0.51966 solid black
+edge a p6 7 4.2076 1.1238 4.6074 0.98654 5.2966 0.74244 5.875 0.5 5.8813 0.49736 5.8877 0.49468 5.894 0.49196 solid black
+edge a p7 7 4.2374 1.1716 4.8083 1.0646 5.9475 0.82901 6.875 0.5 6.8943 0.49314 6.9139 0.48578 6.9336 0.47805 solid black
+edge b q0 4 10.076 1.0906 9.7749 0.94438 9.3043 0.71564 8.9343 0.53579 solid black
+edge b q1 4 10.168 1.0347 10.047 0.91734 9.8913 0.76587 9.7498 0.62829 solid black
+edge b q2 4 10.375 0.99579 10.375 0.88747 10.375 0.75706 10.375 0.63652 solid black
+edge b q3 4 10.582 1.0347 10.738 0.88345 10.952 0.67549 11.118 0.51369 solid black
+edge b q4 4 10.674 1.0906 10.975 0.94438 11.446 0.71564 11.816 0.53579 solid black
+stop

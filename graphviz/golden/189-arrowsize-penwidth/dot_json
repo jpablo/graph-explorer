@@ -1,0 +1,178 @@
+{
+  "name": "arrowsizepenwidth",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 918 108",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 1,
+      "name": "p0",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "p1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "p2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "p3",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "p4",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "p5",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "p6",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "p7",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 10,
+      "name": "q0",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 11,
+      "name": "q1",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 12,
+      "name": "q2",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 13,
+      "name": "q3",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 14,
+      "name": "q4",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowhead": "normal",
+      "penwidth": "3"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "arrowhead": "vee",
+      "penwidth": "3"
+    },
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 3,
+      "arrowhead": "dot",
+      "penwidth": "3"
+    },
+    {
+      "_gvid": 3,
+      "tail": 0,
+      "head": 4,
+      "arrowhead": "tee",
+      "penwidth": "3"
+    },
+    {
+      "_gvid": 4,
+      "tail": 0,
+      "head": 5,
+      "arrowhead": "box",
+      "penwidth": "3"
+    },
+    {
+      "_gvid": 5,
+      "tail": 0,
+      "head": 6,
+      "arrowhead": "curve",
+      "penwidth": "3"
+    },
+    {
+      "_gvid": 6,
+      "tail": 0,
+      "head": 7,
+      "arrowhead": "diamond",
+      "penwidth": "3"
+    },
+    {
+      "_gvid": 7,
+      "tail": 0,
+      "head": 8,
+      "arrowhead": "inv",
+      "penwidth": "3"
+    },
+    {
+      "_gvid": 8,
+      "tail": 9,
+      "head": 10,
+      "arrowhead": "normal",
+      "arrowsize": "2"
+    },
+    {
+      "_gvid": 9,
+      "tail": 9,
+      "head": 11,
+      "arrowhead": "dot",
+      "arrowsize": "2"
+    },
+    {
+      "_gvid": 10,
+      "tail": 9,
+      "head": 12,
+      "arrowhead": "tee",
+      "arrowsize": "2"
+    },
+    {
+      "_gvid": 11,
+      "tail": 9,
+      "head": 13,
+      "arrowhead": "crow",
+      "arrowsize": "0.5"
+    },
+    {
+      "_gvid": 12,
+      "tail": 9,
+      "head": 14,
+      "arrowhead": "box",
+      "arrowsize": "2",
+      "penwidth": "2.5"
+    }
+  ]
+}

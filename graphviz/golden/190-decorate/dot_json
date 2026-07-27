@@ -1,0 +1,103 @@
+{
+  "name": "decorate",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 486 142",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 1,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "c",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "d",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "e",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "f",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "g",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "h",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "decorate": "true",
+      "label": "plain"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "decorate": "true",
+      "fontcolor": "red",
+      "label": "angled"
+    },
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 3,
+      "color": "blue",
+      "decorate": "true",
+      "label": "dashed",
+      "style": "dashed"
+    },
+    {
+      "_gvid": 3,
+      "tail": 0,
+      "head": 4,
+      "decorate": "true",
+      "label": "two\\nlines"
+    },
+    {
+      "_gvid": 4,
+      "tail": 0,
+      "head": 5,
+      "decorate": "true",
+      "label": ""
+    },
+    {
+      "_gvid": 5,
+      "tail": 0,
+      "head": 6,
+      "decorate": "true",
+      "label": "",
+      "xlabel": "ext"
+    },
+    {
+      "_gvid": 6,
+      "tail": 0,
+      "head": 7,
+      "label": "off"
+    }
+  ]
+}

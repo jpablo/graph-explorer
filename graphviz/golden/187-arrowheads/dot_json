@@ -1,0 +1,181 @@
+{
+  "name": "arrowheads",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 1062 108",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 1,
+      "name": "h00",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "h01",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "h02",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "h03",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "h04",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "h05",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "h06",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "h07",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "h08",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 10,
+      "name": "h09",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 11,
+      "name": "h10",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 12,
+      "name": "h11",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 13,
+      "name": "h12",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 14,
+      "name": "h13",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 15,
+      "name": "h14",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowhead": "none"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "arrowhead": "vee"
+    },
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 3,
+      "arrowhead": "normal"
+    },
+    {
+      "_gvid": 3,
+      "tail": 0,
+      "head": 4,
+      "arrowhead": "onormal"
+    },
+    {
+      "_gvid": 4,
+      "tail": 0,
+      "head": 5,
+      "arrowhead": "odot"
+    },
+    {
+      "_gvid": 5,
+      "tail": 0,
+      "head": 6,
+      "arrowhead": "box"
+    },
+    {
+      "_gvid": 6,
+      "tail": 0,
+      "head": 7,
+      "arrowhead": "crow"
+    },
+    {
+      "_gvid": 7,
+      "tail": 0,
+      "head": 8,
+      "arrowhead": "curve"
+    },
+    {
+      "_gvid": 8,
+      "tail": 0,
+      "head": 9,
+      "arrowhead": "diamond"
+    },
+    {
+      "_gvid": 9,
+      "tail": 0,
+      "head": 10,
+      "arrowhead": "dot"
+    },
+    {
+      "_gvid": 10,
+      "tail": 0,
+      "head": 11,
+      "arrowhead": "inv"
+    },
+    {
+      "_gvid": 11,
+      "tail": 0,
+      "head": 12,
+      "arrowhead": "tee"
+    },
+    {
+      "_gvid": 12,
+      "tail": 0,
+      "head": 13,
+      "arrowhead": "obox"
+    },
+    {
+      "_gvid": 13,
+      "tail": 0,
+      "head": 14,
+      "arrowhead": "odiamond"
+    },
+    {
+      "_gvid": 14,
+      "tail": 0,
+      "head": 15,
+      "arrowhead": "halfvee"
+    }
+  ]
+}

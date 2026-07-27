@@ -1,0 +1,21 @@
+digraph arrowtails {
+  // The same set at the tail end, which is the mirrored orientation, and with
+  // dir=both so the head keeps its default normal — an edge whose two ends
+  // disagree is exactly where a shared-by-accident arrow flag would show up.
+  edge [dir=both];
+  a -> t00 [arrowtail=none];
+  a -> t01 [arrowtail=vee];
+  a -> t02 [arrowtail=normal];
+  a -> t03 [arrowtail=onormal];
+  a -> t04 [arrowtail=odot];
+  a -> t05 [arrowtail=box];
+  a -> t06 [arrowtail=crow];
+  a -> t07 [arrowtail=curve];
+  a -> t08 [arrowtail=diamond];
+  a -> t09 [arrowtail=dot];
+  a -> t10 [arrowtail=inv];
+  a -> t11 [arrowtail=tee];
+  a -> t12 [arrowtail=obox];
+  a -> t13 [arrowtail=odiamond];
+  a -> t14 [arrowtail=halfvee];
+}

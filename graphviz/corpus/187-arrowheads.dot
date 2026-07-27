@@ -1,0 +1,20 @@
+digraph arrowheads {
+  // Every arrow type the viewer's picker offers, fanned out from one source so
+  // each head is drawn at a different angle (the delta_tip/miter maths is
+  // rotation-dependent, and a column of vertical edges would hide that).
+  a -> h00 [arrowhead=none];
+  a -> h01 [arrowhead=vee];
+  a -> h02 [arrowhead=normal];
+  a -> h03 [arrowhead=onormal];
+  a -> h04 [arrowhead=odot];
+  a -> h05 [arrowhead=box];
+  a -> h06 [arrowhead=crow];
+  a -> h07 [arrowhead=curve];
+  a -> h08 [arrowhead=diamond];
+  a -> h09 [arrowhead=dot];
+  a -> h10 [arrowhead=inv];
+  a -> h11 [arrowhead=tee];
+  a -> h12 [arrowhead=obox];
+  a -> h13 [arrowhead=odiamond];
+  a -> h14 [arrowhead=halfvee];
+}

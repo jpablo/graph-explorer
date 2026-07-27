@@ -1823,20 +1823,22 @@ object Spline:
     // arrow_clip (arrows.c:344): arrow_flags gives the ORIG-orientation
     // (tail, head) arrow names; a reversed working edge swaps them ("swap the
     // two ends"), then arrowStartClip runs before arrowEndClip — both in the
-    // WORKING orientation. `none`/gap keeps the existing no-trim convention.
-    val (snameO, enameO) = Arrow.flags(g.directed, e.attrs.get("dir"),
+    // WORKING orientation. A bare `none` parses to no arrow at all, so it does
+    // not trim; a `none` STACKED with another shape is a gap, and that one has
+    // a length like any other type.
+    val (sflagO, eflagO) = Arrow.flags(g.directed, e.attrs.get("dir"),
       e.attrs.get("arrowhead"), e.attrs.get("arrowtail"))
-    val (sName, eName) = if reversedWork then (enameO, snameO) else (snameO, enameO)
+    val (sFlag, eFlag) = if reversedWork then (eflagO, sflagO) else (sflagO, eflagO)
     val pw  = e.attrs.get("penwidth").flatMap(_.toDoubleOption).getOrElse(1.0) // ATTR only (geometry)
     val asz = e.attrs.get("arrowsize").flatMap(_.toDoubleOption).getOrElse(1.0)
     var spAttachW: Option[XY] = None // working-start arrow attach (spl->sp)
     var epAttachW: Option[XY] = None // working-end arrow attach (spl->ep)
     // arrowStartClip (arrows.c:315): `sp` saved before the segment advance;
     // the working segment enters the clip reversed, written back reversed.
-    sName.filter(_ != "none").foreach { name =>
+    if sFlag != Arrow.TypeNone then
       // arrow type sets the trim length: `vee` (crow, ≈11.22) ≠ `normal`
       // (≈11.53) — the miter differs, so the end-side control points shift.
-      val elen  = Arrow.length(name, pw, asz).value
+      val elen  = Arrow.arrowLength(sFlag, pw, asz).value
       val elen2 = elen * elen
       val sp = ps(start)
       spAttachW = Some(sp)
@@ -1844,10 +1846,9 @@ object Spline:
       val w = Array(ps(start + 3), ps(start + 2), ps(start + 1), sp)
       bezierClip(w, false, (p: XY) => dist2(p, sp) < elen2)
       ps(start) = w(3); ps(start + 1) = w(2); ps(start + 2) = w(1); ps(start + 3) = w(0)
-    }
     // arrowEndClip
-    eName.filter(_ != "none").foreach { name =>
-      val elen  = Arrow.length(name, pw, asz).value
+    if eFlag != Arrow.TypeNone then
+      val elen  = Arrow.arrowLength(eFlag, pw, asz).value
       val elen2 = elen * elen
       val ep = ps(end + 3)
       epAttachW = Some(ep)
@@ -1855,7 +1856,6 @@ object Spline:
       val sp = Array(ep, ps(end + 2), ps(end + 1), ps(end))
       bezierClip(sp, true, (p: XY) => dist2(p, ep) < elen2)
       ps(end) = sp(3); ps(end + 1) = sp(2); ps(end + 2) = sp(1); ps(end + 3) = sp(0)
-    }
 
     // swap_spline (dotsplines.c:158): a reversed edge's spline is installed
     // flipped back into the ORIGINAL direction (points reversed, sp/ep

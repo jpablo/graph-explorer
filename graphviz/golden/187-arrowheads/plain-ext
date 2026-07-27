@@ -1,0 +1,33 @@
+graph 1 14.75 1.5
+node a 7.375 1.25 0.75 0.5 a solid ellipse black lightgrey
+node h00 0.375 0.25 0.75 0.5 h00 solid ellipse black lightgrey
+node h01 1.375 0.25 0.75 0.5 h01 solid ellipse black lightgrey
+node h02 2.375 0.25 0.75 0.5 h02 solid ellipse black lightgrey
+node h03 3.375 0.25 0.75 0.5 h03 solid ellipse black lightgrey
+node h04 4.375 0.25 0.75 0.5 h04 solid ellipse black lightgrey
+node h05 5.375 0.25 0.75 0.5 h05 solid ellipse black lightgrey
+node h06 6.375 0.25 0.75 0.5 h06 solid ellipse black lightgrey
+node h07 7.375 0.25 0.75 0.5 h07 solid ellipse black lightgrey
+node h08 8.375 0.25 0.75 0.5 h08 solid ellipse black lightgrey
+node h09 9.375 0.25 0.75 0.5 h09 solid ellipse black lightgrey
+node h10 10.375 0.25 0.75 0.5 h10 solid ellipse black lightgrey
+node h11 11.375 0.25 0.75 0.5 h11 solid ellipse black lightgrey
+node h12 12.375 0.25 0.75 0.5 h12 solid ellipse black lightgrey
+node h13 13.375 0.25 0.75 0.5 h13 solid ellipse black lightgrey
+node h14 14.375 0.25 0.75 0.5 h14 solid ellipse black lightgrey
+edge a h00 7 6.9966 1.2362 5.9836 1.2272 3.1335 1.1421 0.875 0.5 0.80298 0.47952 0.72842 0.44961 0.65957 0.4179 solid black
+edge a h01 7 6.9999 1.2255 6.0984 1.1915 3.746 1.0524 1.875 0.5 1.8503 0.49271 1.8253 0.48436 1.8003 0.47525 solid black
+edge a h02 7 6.9994 1.2102 6.2167 1.1485 4.3603 0.96217 2.875 0.5 2.8527 0.49305 2.83 0.48528 2.8074 0.47691 solid black
+edge a h03 7 7.0047 1.1873 6.3577 1.0957 4.9845 0.87289 3.875 0.5 3.8534 0.49274 3.8315 0.48479 3.8095 0.47635 solid black
+edge a h04 7 7.0257 1.1515 6.5372 1.0291 5.6255 0.78574 4.875 0.5 4.843 0.48783 4.8103 0.47448 4.7776 0.4605 solid black
+edge a h05 4 7.0756 1.0906 6.7364 0.92566 6.181 0.65569 5.7977 0.46937 solid black
+edge a h06 4 7.1678 1.0347 7.0284 0.89909 6.842 0.71791 6.685 0.56528 solid black
+edge a h07 4 7.375 0.99579 7.375 0.88983 7.375 0.76272 7.375 0.64439 solid black
+edge a h08 4 7.5822 1.0347 7.7149 0.90561 7.8902 0.73523 8.0422 0.58748 solid black
+edge a h09 4 7.6744 1.0906 8.0196 0.92278 8.5885 0.64622 8.9722 0.45968 solid black
+edge a h10 7 7.7243 1.1515 8.2128 1.0291 9.1245 0.78574 9.875 0.5 9.9006 0.49027 9.9266 0.47977 9.9528 0.46881 solid black
+edge a h11 7 7.7453 1.1873 8.3923 1.0957 9.7655 0.87289 10.875 0.5 10.925 0.48329 10.976 0.46297 11.026 0.44132 solid black
+edge a h12 7 7.7506 1.2102 8.5333 1.1485 10.39 0.96217 11.875 0.5 11.902 0.49166 11.929 0.48214 11.956 0.47182 solid black
+edge a h13 7 7.7501 1.2255 8.6516 1.1915 11.004 1.0524 12.875 0.5 12.891 0.49536 12.907 0.49029 12.922 0.48487 solid black
+edge a h14 7 7.7534 1.2362 8.7664 1.2272 11.616 1.1421 13.875 0.5 13.904 0.49168 13.934 0.48181 13.963 0.47088 solid black
+stop

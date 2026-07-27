@@ -1,0 +1,19 @@
+digraph arrowsizepenwidth {
+  // penwidth and arrowsize are what make the trim length differ from the
+  // nominal ARROW_LENGTH: penwidth feeds the miter and every per-type overlap
+  // term, arrowsize scales the whole shape. Both also decide where the spline
+  // stops, so a wrong length shows as a gap or an overshoot at the node.
+  a -> p0 [arrowhead=normal,  penwidth=3];
+  a -> p1 [arrowhead=vee,     penwidth=3];
+  a -> p2 [arrowhead=dot,     penwidth=3];
+  a -> p3 [arrowhead=tee,     penwidth=3];
+  a -> p4 [arrowhead=box,     penwidth=3];
+  a -> p5 [arrowhead=curve,   penwidth=3];
+  a -> p6 [arrowhead=diamond, penwidth=3];
+  a -> p7 [arrowhead=inv,     penwidth=3];
+  b -> q0 [arrowhead=normal,  arrowsize=2];
+  b -> q1 [arrowhead=dot,     arrowsize=2];
+  b -> q2 [arrowhead=tee,     arrowsize=2];
+  b -> q3 [arrowhead=crow,    arrowsize=0.5];
+  b -> q4 [arrowhead=box,     arrowsize=2, penwidth=2.5];
+}

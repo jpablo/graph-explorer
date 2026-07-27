@@ -1,0 +1,196 @@
+{
+  "name": "arrowtails",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 1062 108",
+  "_subgraph_cnt": 0,
+  "objects": [
+    {
+      "_gvid": 0,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 1,
+      "name": "t00",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "t01",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "t02",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "t03",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "t04",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "t05",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "t06",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "t07",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "t08",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 10,
+      "name": "t09",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 11,
+      "name": "t10",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 12,
+      "name": "t11",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 13,
+      "name": "t12",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 14,
+      "name": "t13",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 15,
+      "name": "t14",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 0,
+      "head": 1,
+      "arrowtail": "none",
+      "dir": "both"
+    },
+    {
+      "_gvid": 1,
+      "tail": 0,
+      "head": 2,
+      "arrowtail": "vee",
+      "dir": "both"
+    },
+    {
+      "_gvid": 2,
+      "tail": 0,
+      "head": 3,
+      "arrowtail": "normal",
+      "dir": "both"
+    },
+    {
+      "_gvid": 3,
+      "tail": 0,
+      "head": 4,
+      "arrowtail": "onormal",
+      "dir": "both"
+    },
+    {
+      "_gvid": 4,
+      "tail": 0,
+      "head": 5,
+      "arrowtail": "odot",
+      "dir": "both"
+    },
+    {
+      "_gvid": 5,
+      "tail": 0,
+      "head": 6,
+      "arrowtail": "box",
+      "dir": "both"
+    },
+    {
+      "_gvid": 6,
+      "tail": 0,
+      "head": 7,
+      "arrowtail": "crow",
+      "dir": "both"
+    },
+    {
+      "_gvid": 7,
+      "tail": 0,
+      "head": 8,
+      "arrowtail": "curve",
+      "dir": "both"
+    },
+    {
+      "_gvid": 8,
+      "tail": 0,
+      "head": 9,
+      "arrowtail": "diamond",
+      "dir": "both"
+    },
+    {
+      "_gvid": 9,
+      "tail": 0,
+      "head": 10,
+      "arrowtail": "dot",
+      "dir": "both"
+    },
+    {
+      "_gvid": 10,
+      "tail": 0,
+      "head": 11,
+      "arrowtail": "inv",
+      "dir": "both"
+    },
+    {
+      "_gvid": 11,
+      "tail": 0,
+      "head": 12,
+      "arrowtail": "tee",
+      "dir": "both"
+    },
+    {
+      "_gvid": 12,
+      "tail": 0,
+      "head": 13,
+      "arrowtail": "obox",
+      "dir": "both"
+    },
+    {
+      "_gvid": 13,
+      "tail": 0,
+      "head": 14,
+      "arrowtail": "odiamond",
+      "dir": "both"
+    },
+    {
+      "_gvid": 14,
+      "tail": 0,
+      "head": 15,
+      "arrowtail": "halfvee",
+      "dir": "both"
+    }
+  ]
+}
