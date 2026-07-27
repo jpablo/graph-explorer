@@ -49,7 +49,10 @@ def ToolbarGroupAttributesView(
         VerticalCardWithPreview(
           builder,
           id = "group-border-attributes",
-          row(BorderStyle, InputType.menuWithExtra(borderStyleOptions.length)).copy(options = borderStyleOptions),
+          // Three inline, like the node and arrow bars. Identical to `.length` while
+          // BorderStyle has exactly three values, but it states the intent the other two
+          // state, so a fourth style would not silently make this row a different shape.
+          row(BorderStyle, InputType.menuWithExtra(3)).copy(options = borderStyleOptions),
           row(PenWidth, InputType.range(start = Some(0.0), end = Some(10.0), step = Some(0.1)))
         )
       ),
@@ -78,10 +81,26 @@ def ToolbarGroupAttributesView(
         ),
         hidden = labelRelatedHidden
       ),
-      SectionHeader("Group"),
-      InvisibleStyle -> checkbox,
-      row(Cluster, checkbox),
-      row(Rank, InputType.select),
+      // --- Advanced or extra attributes ---
+      // These three used to sit in the bar under a "Group" heading, and all three carry
+      // words: two checkboxes, which cannot say anything without a label, and a select
+      // reading "None". That is three captions across the surface where width is scarcest,
+      // where the node and arrow bars carry none — their checkboxes, numbers and selects
+      // all live behind the overflow glyph. This is the last bar that had no overflow.
+      InputElement(
+        VerticalCardWithButton(
+          id = "extra-group-attributes",
+          i(cls := "bi-three-dots", title := "More attributes"),
+          rows(
+            InvisibleStyle -> checkbox,
+            row(Cluster, checkbox),
+            // A menu, not a native <select>: inside a card a select's picker takes focus
+            // out of the card and closes it. See ToolbarNodesAttributesView.
+            Rank -> InputType.dropdown,
+            row(URL, InputType.text)
+          )
+        )
+      ),
       SectionHeader("Reset"),
       InputElement(
         Button(
