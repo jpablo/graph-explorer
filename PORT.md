@@ -415,16 +415,32 @@ enforce the deferral halves of it):
   exact everywhere. Two clusters are offset as blocks (`core_data` by 207,
   `typed` by 214) and six nodes differ by 5–71. Since the total extent is now
   right, the constraint SET is likely complete and this is the NS objective or
-  its tie-breaks. Lead (1) is now closed too (it was the same flat labels), so
-  what remains is lead (3), the **HTML port `p.x`** offsets — `m0` for four
-  probed edges is off (`DynamicValueRecord>PredictType` t=136 vs 164,
-  `LanguageModelType>PredictType` 70 vs 83,
-  `DynamicValueRecord>SignatureLayoutCompanion` h=26 vs 30,
-  `FieldSpecType>SignatureLayoutCompanion` t=4 vs 3) — and after that the NS
-  tie-breaks. With the flat-label pairs added, 22/32 node positions are exact
-  and the residuals collapsed (`DynamicPredictType` from 21pt off to 2pt);
-  `core_data` and `typed` still sit as whole blocks 185/192pt away, which is
-  the shape of one wrong constraint, not accumulated noise.
+  its tie-breaks.
+
+  **The constraint set is now PROVEN complete (2026-07-27).** Dumped all of
+  ours and all of gv's and diffed them as multisets: **182 == 182, identical**.
+  Lead (1) closed with the flat labels. Lead (3) — the HTML port `p.x` — is
+  closed too, and was already fixed earlier in the same session: `PortAnchor`
+  measured HTML cell boxes with a hardcoded 14pt Times, and 191's tables
+  declare 10pt Helvetica. `PredictType`'s ports now read `m_withLm = -69` and
+  `m_apply = -135`, exactly gv's; the 164/83 figures above are stale.
+
+  So everything that DEFINES 191's x-solve now agrees with gv, and what is left
+  is the ORDER the constraints are built in — which fixes the slack nodes'
+  indices and so the aux NS's node order and its tie-breaks. 124 of the 182 are
+  now emitted in gv's exact sequence (`Order.Result.nlist` carries the real
+  `merge_ranks` list, and a clustered node's inter-cluster out-segments trail
+  its intra ones because `interclexp` rebuilds them after the cluster's own
+  `class2`). **The remaining 58 are the root-level chain vnodes**: gv's
+  `GD_nlist` holds them in the decompose order of the COLLAPSED graph — the one
+  where each cluster is a single rankleader — and we re-derive it by
+  decomposing the EXPANDED graph and dropping whatever the blocks already
+  covered. That is the next thing to model; `orderClustered` already builds the
+  collapsed CNode graph, so the order is available, just not exposed.
+
+  Current 191 state: bb byte-exact, 22/32 node positions exact, 8/10 cluster
+  boxes exact. `core_data` and `typed` sit as whole blocks 185/192pt off —
+  the shape of a tie-break going the other way, not accumulated noise.
 
 ## 1. Goal & locked decisions
 
