@@ -319,15 +319,27 @@ enforce the deferral halves of it):
      The count difference is real regardless. gv iterates `ND_save_out(n)` over
      `GD_nlist`; we iterate `Order.Result.segments`. Compare those two sets
      directly before assuming anything.
-  2. **omega weights** — we emit `w=2` (the real–virtual class) where gv has only
-     `w=1`, on at least `DynamicPrediction>a`, `PredictType>DynamicPredictType`,
-     `PredictType>ProgramRuntimeType`; `PredictType>ExampleType` is gv `{1,4}`
-     against our `{1,2,4}`. Note gv does NOT multiply at pair time — it passes
-     `ED_weight(e)` straight through, and the omega was already folded in by
-     `virtual_weight` when `make_chain` created the segment. A DIRECT
-     (rank-difference 1) edge never goes through `make_chain`, so it never gets
-     an omega at all. We apply `NSClass.weight` to every segment, direct ones
-     included. That asymmetry is the first thing to check.
+  2. **omega weights — HALF CLOSED.** gv does not multiply at pair time; the
+     omega was folded into `ED_weight` by `virtual_weight` when `make_chain`
+     built the segment, and `endpoint_class` reads `ND_weight_class`.
+     That counter is **never reset**, so it ACCUMULATES across every `class2`
+     call — the root's, then each cluster's own during `expand_cluster` — and
+     `virtual_weight` reads it at CHAIN-CREATION time. So an INTRA-cluster
+     edge, whose chain the cluster's own class2 builds, sees endpoints already
+     bumped a second time: 191's `a` is 1 after the root pass (SINGLETON) and 2
+     after core_data's (ORDINARY), and its chain is built in the latter, so gv
+     weights that segment 1 where a one-shot degree gives 2. Modelled now
+     (`weightClass(id, ci)` in XCoord) — `DynamicPrediction>a` and
+     `PredictType>DynamicPredictType` match gv exactly as a result.
+     STILL OPEN, and the next thing to try: the two that remain
+     (`PredictType>ProgramRuntimeType` gv `{1}` vs our `{1,2}`,
+     `PredictType>ExampleType` gv `{1,4}` vs our `{1,2,4}`) are INTER-cluster.
+     Their chains are REBUILT at expand time by
+     `interclexp` → `make_interclust_chain` → `map_path`, and cluster.c calls
+     `virtual_edge(...)` there with **no `virtual_weight`** — grep confirms the
+     symbol does not appear in cluster.c at all. So a rebuilt inter-cluster
+     segment keeps the raw `ED_weight` (omega 1), which is exactly the `1` gv
+     reports and the `2` we invent.
   3. **HTML port x-offsets** — `m0 = ED_head_port(e).p.x - ED_tail_port(e).p.x`
      differs on several edges: `DynamicValueRecord>PredictType` t=136 vs our 164,
      `LanguageModelType>PredictType` t=70 vs 83,

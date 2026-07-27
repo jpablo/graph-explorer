@@ -135,16 +135,43 @@ object XCoord:
     // virtual_weight() (mincross.c): aux edge-pair weight = ω·edgeweight
     // where ω = NSClass.weight(class(tail), class(head)). See [[NSClass]]
     // for the table and case definitions.
-    val deg = mutable.HashMap.empty[String, Int].withDefaultValue(0)
+    // `ND_weight_class` (class2.c preamble) counts, per node, the edges it
+    // touches — incrementing BOTH endpoints per out-edge (so a self-loop adds
+    // 2) and saturating at 3. `endpoint_class` then reads <= 1 as SINGLETON.
+    //
+    // The catch: it is NEVER RESET, so it ACCUMULATES across every class2
+    // call — once for the root, then again inside each cluster's own class2
+    // during expand_cluster, which re-counts that cluster's INTERNAL edges.
+    // And `virtual_weight` reads it at CHAIN-CREATION time. So an
+    // intra-cluster edge, whose chain is built by the cluster's class2, sees
+    // its endpoints already bumped a second time. 191's `a` is the clean
+    // example: 1 after the root's pass (SINGLETON), 2 after core_data's
+    // (ORDINARY) — and its chain is built in the latter, so gv weights that
+    // segment 1 (table[VIRTUAL][ORDINARY]) where a one-shot degree gives 2.
+    val clustOfX = if Cluster.clusters(g).isEmpty then Map.empty[String, Int] else Cluster.clustOf(g)
+    val rootWc = mutable.HashMap.empty[String, Int].withDefaultValue(0)
     g.edges.foreach { e =>
-      if e.tail != e.head then { deg(e.tail) = deg(e.tail) + 1; deg(e.head) = deg(e.head) + 1 }
+      rootWc(e.tail) = rootWc(e.tail) + 1
+      rootWc(e.head) = rootWc(e.head) + 1 // a self-loop bumps the same node twice
     }
-    def cls(n: LayoutNode): NSClass = n match
+    val intraWc = mutable.HashMap.empty[(String, Int), Int].withDefaultValue(0)
+    g.edges.foreach { e =>
+      (clustOfX.get(e.tail), clustOfX.get(e.head)) match
+        case (Some(a), Some(b)) if a == b =>
+          intraWc((e.tail, a)) = intraWc((e.tail, a)) + 1
+          intraWc((e.head, a)) = intraWc((e.head, a)) + 1
+        case _ => ()
+    }
+    /** `ND_weight_class` as it stands when `ci`'s class2 builds a chain —
+      * the root's count plus that cluster's own re-count, saturated at 3. */
+    def weightClass(id: String, ci: Option[Int]): Int =
+      math.min(3, rootWc(id) + ci.map(c => intraWc((id, c))).getOrElse(0))
+    def cls(n: LayoutNode, ci: Option[Int]): NSClass = n match
       case _: LayoutNode.Virtual => NSClass.Virtual
       case _: LayoutNode.Slack   => NSClass.Virtual // never queried; defensive
       case _: LayoutNode.ClusterLn | _: LayoutNode.ClusterRn => NSClass.Virtual // defensive
       case LayoutNode.Real(id)   =>
-        if deg(id) <= 1 then NSClass.Singleton else NSClass.Ordinary
+        if weightClass(id, ci) <= 1 then NSClass.Singleton else NSClass.Ordinary
 
     val edges = mutable.ArrayBuffer.empty[NetworkSimplex.NSEdge]
 
@@ -365,7 +392,14 @@ object XCoord:
         if owner >= 0 then
           res.mergedInto.indices.iterator.filter(res.mergedInto(_) == owner).map(weightAttr).sum
         else 1
-      val w  = NSClass.weight(cls(t), cls(h)) * wt
+      // which class2 built this chain: the owning edge's cluster if it is
+      // intra-cluster, else the root's.
+      val chainCi = owned.flatMap { re =>
+        (clustOfX.get(re.tail), clustOfX.get(re.head)) match
+          case (Some(a), Some(b)) if a == b => Some(a)
+          case _                            => None
+      }
+      val w  = NSClass.weight(cls(t, chainCi), cls(h, chainCi)) * wt
       val (m0, m1) =
         owned match
           case Some(re) =>
