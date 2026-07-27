@@ -35,6 +35,55 @@ object RoundCorners:
   private inline def interp(t: Double, p0: P, p1: P): P =
     (p0._1 + t * (p1._1 - p0._1), p0._2 + t * (p1._2 - p0._2))
 
+  private val RbConst = 12.0 // const.h RBCONST
+  private val RbCurve = 0.5  // const.h RBCURVE
+
+  /** `rounded_draw` (shapes.c:644) over
+    * `alloc_interpolation_points(AF, sides, style, rounded=true)`: the ROUNDED
+    * outline of a convex polygon, returned as the control sequence
+    * `gvrender_beziercurve` receives — head = the `M` point, the rest consumed
+    * three at a time as cubics (6·sides + 1 points in total).
+    *
+    * Each side contributes four interpolants at `RBCURVE·t`, `t`, `1−t`,
+    * `1−RBCURVE·t`, where `t = rbconst/sideLength` and `rbconst` is RBCONST
+    * (12) clamped to a **third of the shortest side** — so a box narrower than
+    * 36pt gets proportionally smaller corners.
+    *
+    * The caller owns the frame: pass y-up points and negate y at emit time.
+    * Shared by the `style=rounded` node box and the rounded cluster box, whose
+    * `AF` orders differ (poly_init starts top-right; emit_clusters starts at
+    * the cluster's LL corner), which is exactly why this takes the vertices. */
+  def rounded(af: Vector[P]): Vector[P] =
+    val sides = af.length
+    def nxt(s: Int): P = af((s + 1) % sides)
+    var rbconst = RbConst
+    var s = 0
+    while s < sides do
+      val p0 = af(s); val p1 = nxt(s)
+      rbconst = math.min(rbconst, math.hypot(p1._1 - p0._1, p1._2 - p0._2) / 3.0)
+      s += 1
+    val b = Array.newBuilder[P]
+    s = 0
+    while s < sides do
+      val p0 = af(s); val p1 = nxt(s)
+      val t  = rbconst / math.hypot(p1._1 - p0._1, p1._2 - p0._2)
+      b += interp(RbCurve * t, p0, p1)
+      b += interp(t, p0, p1)
+      b += interp(1.0 - t, p0, p1)
+      b += interp(1.0 - RbCurve * t, p0, p1)
+      s += 1
+    val bb  = b.result()
+    val pts = Vector.newBuilder[P]
+    s = 0
+    while s < sides do
+      pts += bb(4 * s);     pts += bb(4 * s + 1); pts += bb(4 * s + 1)
+      pts += bb(4 * s + 2); pts += bb(4 * s + 2); pts += bb(4 * s + 3)
+      s += 1
+    val p = pts.result()
+    // gvrender_beziercurve(pts + 1, i - 1, …): the run starts at pts[1] and
+    // wraps back through pts[0], pts[1].
+    p.tail :+ p.head :+ p(1)
+
   /** `alloc_interpolation_points(AF, sides, style, rounded=false)`: 3 points per
     * side — the corner, then the t and (1−t) interpolants — plus a 3-point
     * wraparound. `t = rbconst/d`, halved for DOGEAR, thirded for BOX3D/COMPONENT. */

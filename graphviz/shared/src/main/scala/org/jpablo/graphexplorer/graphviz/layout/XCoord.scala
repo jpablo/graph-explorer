@@ -433,18 +433,24 @@ object XCoord:
             // sees an already-integral value). A fractional label width like
             // 431.8 must give 447, not 448 (GP clusters 21/38).
             edges += NetworkSimplex.NSEdge(ln(ci).name, rn(ci).name,
-              cluInfos(ci).borderTopX.toInt, 0)
+              math.max(cluInfos(ci).borderTopX, cluInfos(ci).borderBottomX).toInt, 0)
       // contain_nodes: per rank, first/last member held inside the borders.
+      // The LEFT/RIGHT borders are 0 in TB; under `flip` one of them carries
+      // the rotated label box (its PADDED HEIGHT — see CInfo's GD_border
+      // block), which is how a flipped cluster reserves label space at all:
+      // clust_ht's rank-axis band is skipped for flipped roots.
       def containNodes(ci: Int): Unit =
         makeLrvn(ci)
+        val bl = cluInfos(ci).borderLeftX(flip)
+        val br = cluInfos(ci).borderRightX(flip)
         var r = cluInfos(ci).minRank
         while r <= cluInfos(ci).maxRank do
           val row = slice(ci, r)
           if row.nonEmpty then
             edges += NetworkSimplex.NSEdge(ln(ci).name, row.head.name,
-              math.round(lw(row.head) + ClOffset).toInt, 0)
+              math.round(lw(row.head) + ClOffset + bl).toInt, 0)
             edges += NetworkSimplex.NSEdge(row.last.name, rn(ci).name,
-              math.round(rw(row.last) + ClOffset).toInt, 0)
+              math.round(rw(row.last) + ClOffset + br).toInt, 0)
           r += 1
       // contain_clustnodes: containment + the weight-128 compaction edge
       // (the label edge, if present, is re-weighted instead — find_fast_edge).
@@ -499,10 +505,14 @@ object XCoord:
       // parent's (side label borders are 0 in TB — labels live on top).
       def containSubclust(ci: Int): Unit =
         makeLrvn(ci)
+        // the PARENT's side borders (the root has none) — 0 in TB, the
+        // rotated label box under flip.
+        val bl = if ci >= 0 then cluInfos(ci).borderLeftX(flip) else 0.0
+        val br = if ci >= 0 then cluInfos(ci).borderRightX(flip) else 0.0
         Cluster.childrenOf(g, ci).foreach { cc =>
           makeLrvn(cc)
-          edges += NetworkSimplex.NSEdge(ln(ci).name, ln(cc).name, math.round(ClOffset).toInt, 0)
-          edges += NetworkSimplex.NSEdge(rn(cc).name, rn(ci).name, math.round(ClOffset).toInt, 0)
+          edges += NetworkSimplex.NSEdge(ln(ci).name, ln(cc).name, math.round(ClOffset + bl).toInt, 0)
+          edges += NetworkSimplex.NSEdge(rn(cc).name, rn(ci).name, math.round(ClOffset + br).toInt, 0)
           containSubclust(cc)
         }
       // separate_subclust: rank-overlapping sibling boxes stay margin apart,

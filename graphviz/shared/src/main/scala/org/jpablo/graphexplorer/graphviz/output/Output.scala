@@ -380,13 +380,16 @@ object Output:
       kv.toVector.sortBy(_._1).foreach((k, v) => fields += s"""      "${esc(k)}": $v""")
       "    {\n" + fields.result().mkString(",\n") + "\n    }"
     // json0 cluster objects add the layout attrs (bb + label geometry),
-    // merged alphabetically into the same write_attrs stream. lp = box
-    // centre x, UR.y − border[TOP].y/2 (place_graph_label, labelloc=t).
+    // merged alphabetically into the same write_attrs stream. `lp` comes from
+    // place_graph_label, which runs in CANONICAL coordinates (before the
+    // rankdir rotation) — so it is computed there and pushed through the same
+    // transform as the box, not derived from the already-rotated bb.
     val cluLayoutAttrs: Map[String, Vector[(String, String)]] =
       val cls = org.jpablo.graphexplorer.graphviz.layout.Cluster.clusters(g)
       if cls.isEmpty then Map.empty
       else
         val cbbs = org.jpablo.graphexplorer.graphviz.layout.Cluster.bbs(g)
+        val flip = org.jpablo.graphexplorer.graphviz.layout.Rank.flip(g)
         cls.zipWithIndex.map { (c, i) =>
           // translate_bb: the CANONICAL cluster box maps corner-wise through
           // the rankdir transform (identity+offset for TB).
@@ -394,7 +397,7 @@ object Output:
           val base = Vector("bb" -> s"${g5(bb.llx)},${g5(bb.lly)},${g5(bb.urx)},${g5(bb.ury)}")
           val lbl  =
             if c.hasLabel then
-              val (lpx, lpy) = c.labelLp(bb)
+              val (lpx, lpy) = tf.tupled(c.labelLp(cbbs(i), flip))
               Vector(
                 "lheight" -> f2(c.lheightPt / 72.0),
                 "lp"      -> s"${g5(lpx)},${g5(lpy)}",

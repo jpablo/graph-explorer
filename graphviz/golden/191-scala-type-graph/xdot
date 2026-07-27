@@ -1,0 +1,1657 @@
+digraph ProgramTypeFunctionGraph {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#fbfbfd P 4 -14.4 -14.4 -14.4 2322.56 2343.54 2322.56 2343.54 -14.4 ",
+		_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 1164.57 7.3 0 34.85 6 -dspy4s ",
+		bb="0,0,2329.1,2308.2",
+		bgcolor="#FbFbFd",
+		compound=true,
+		fontname=Helvetica,
+		fontsize=11,
+		label=dspy4s,
+		lheight=0.18,
+		lp="1164.6,10.6",
+		lwidth=0.48,
+		nodesep=0.35,
+		pad=0.2,
+		rankdir=LR,
+		ranksep=0.85,
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	subgraph cluster_package_core_contracts {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 979.9 59.16 979.9 59.16 2105.9 59.16 2105.9 59.16 2111.9 59.16 2117.9 65.16 2117.9 71.16 2117.9 71.16 \
+2117.9 476.16 2117.9 476.16 2117.9 482.16 2111.9 488.16 2105.9 488.16 2105.9 488.16 979.9 488.16 979.9 488.16 973.9 488.16 967.9 \
+482.16 967.9 476.16 967.9 476.16 967.9 71.16 967.9 71.16 967.9 65.16 973.9 59.16 979.9 59.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 1029.4 474.26 0 106.99 21 -dspy4s.core.contracts ",
+			bb="967.9,59.157,2117.9,488.16",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.core.contracts",
+			labeljust=l,
+			lheight=0.18,
+			lp="1029.4,477.56",
+			lwidth=1.49,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		RuntimeContext	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 1193.99 459.16 1106.29 459.16 1106.29 423.16 1193.99 423.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1150.14 438.16 0 71.7 14 -RuntimeContext ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=RuntimeContext,
+			pos="1150.1,441.16",
+			shape=box,
+			style=filled,
+			width=1.218];
+		DspyError	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 1663.36 398.16 1602.36 398.16 1602.36 362.16 1663.36 362.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1632.86 377.16 0 45 9 -DspyError ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=DspyError,
+			pos="1632.9,380.16",
+			shape=box,
+			style=filled,
+			width=0.84729];
+		FieldSpecType	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 2109.9 281.16 2049.43 281.16 2049.43 245.16 2109.9 245.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2079.66 260.16 0 44.47 9 -FieldSpec ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=FieldSpec,
+			pos="2079.7,263.16",
+			shape=box,
+			style=filled,
+			width=0.83983];
+		SignatureLayoutCompanion	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 1324.38 398.16 975.9 398.16 975.9 282.16 1324.38 282.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 975.9 282.16 975.9 398.16 1324.38 398.16 1324.38 282.16 S 5 -solid c 9 -#fffffe00 C 7 \
+-#feefc3 P 4 975.9 370.16 975.9 398.16 1324.38 398.16 1324.38 370.16 S 5 -solid c 7 -#000000 p 4 975.9 370.16 975.9 398.16 1324.38 \
+398.16 1324.38 370.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 1110.69 385.16 -1 78.9 15 -SignatureLayout F 8 9 -Helvetica c 7 -#000000 \
+t 0 T 1081 376.96 -1 138.29 39 -companion object · public constructors S 5 -solid c 7 -#000000 p 4 975.9 348.16 975.9 370.16 1324.38 \
+370.16 1324.38 348.16 F 10 9 -Helvetica c 7 -#000000 T 980.9 356.16 -1 175.06 44 -parse(dsl: String, instructions: String) → S \
+5 -solid c 7 -#000000 p 4 975.9 326.16 975.9 348.16 1324.38 348.16 1324.38 326.16 F 10 9 -Helvetica c 7 -#000000 T 980.9 334.16 \
+-1 338.48 81 -create(name: String, fields: Vector[FieldSpec], instructions: Option[String]) → S 5 -solid c 7 -#000000 p 4 975.9 \
+304.16 975.9 326.16 1324.38 326.16 1324.38 304.16 F 10 9 -Helvetica c 7 -#000000 T 980.9 312.16 -1 187.85 41 -fromState(state: DynamicValue.Record) \
+→ S 5 -solid c 7 -#000000 p 4 975.9 282.16 975.9 304.16 1324.38 304.16 1324.38 282.16 F 10 9 -Helvetica c 7 -#000000 T 980.9 290.16 \
+-1 108.92 26 -fromJson(json: String) → ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.6111,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#FEEFC3"><b>SignatureLayout</b><br/><font point-size="8">companion object · public constructors</font></td></tr>
+              <tr><td port="m_parse" align="left">parse(dsl: String, instructions: String) &#8594;</td></tr>
+              <tr><td port="m_create" align="left">create(name: String, fields: Vector[FieldSpec], instructions: Option[String]) &#8594;</td></tr>
+              <tr><td port="m_fromState" align="left">fromState(state: DynamicValue.Record) &#8594;</td></tr>
+              <tr><td port="m_fromJson" align="left">fromJson(json: String) &#8594;</td></tr>
+              </table>
+            >,
+			pos="1150.1,340.16",
+			shape=plain,
+			style=filled,
+			width=4.84];
+		FieldSpecType -> SignatureLayoutCompanion:m_create	[_draw_="S 17 -setlinewidth(2.2) c 7 -#5f6368 B 13 2052.95 281.53 2004.02 315.23 1892.9 385.8 1786.81 411.16 1653.71 442.97 1615.07 424.8 \
+1478.91 411.16 1423.17 405.57 1401.51 417.93 1355.38 386.16 1337.97 374.17 1345.61 348.87 1334.69 340.17 ",
+			_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1335.51 337.68 1327.58 338.09 1334.04 342.72 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1632.86 431.54 0 68.03 19 -fields: Vector 0..* ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="fields: Vector 0..*",
+			lp="1632.9,434.24",
+			penwidth=2.2,
+			pos="e,1324.4,337.16 2053,281.53 2004,315.23 1892.9,385.8 1786.8,411.16 1653.7,442.97 1615.1,424.8 1478.9,411.16 1423.2,405.57 1401.5,\
+417.93 1355.4,386.16 1338,374.17 1345.6,348.87 1334.7,340.17"];
+		SignatureLayoutType	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 1753.76 337.16 1511.95 337.16 1511.95 67.16 1753.76 67.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 1511.95 67.16 1511.95 337.16 1753.76 337.16 1753.76 67.16 S 5 -solid c 9 -#fffffe00 C \
+7 -#fad2cf P 4 1511.95 309.16 1511.95 337.16 1753.76 337.16 1753.76 309.16 S 5 -solid c 7 -#000000 p 4 1511.95 309.16 1511.95 337.16 \
+1753.76 337.16 1753.76 309.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 1593.41 324.16 -1 78.9 15 -SignatureLayout F 8 9 -Helvetica c \
+7 -#000000 t 0 T 1523.14 315.96 -1 219.43 66 -final case class · private constructor · public fields + methods S 5 -solid c 9 \
+-#fffffe00 C 7 -#eff7f1 P 4 1511.95 287.16 1511.95 309.16 1753.76 309.16 1753.76 287.16 S 5 -solid c 7 -#000000 p 4 1511.95 287.16 \
+1511.95 309.16 1753.76 309.16 1753.76 287.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 295.16 -1 56.69 12 -name: String S 5 -solid \
+c 9 -#fffffe00 C 7 -#eff7f1 P 4 1511.95 265.16 1511.95 287.16 1753.76 287.16 1753.76 265.16 S 5 -solid c 7 -#000000 p 4 1511.95 \
+265.16 1511.95 287.16 1753.76 287.16 1753.76 265.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 273.16 -1 118.94 29 -fields: Vector[\
+FieldSpec] → S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P 4 1511.95 243.16 1511.95 265.16 1753.76 265.16 1753.76 243.16 S 5 -solid \
+c 7 -#000000 p 4 1511.95 243.16 1511.95 265.16 1753.76 265.16 1753.76 243.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 251.16 -1 \
+117.28 28 -instructions: Option[String] S 5 -solid c 7 -#000000 p 4 1511.95 221.16 1511.95 243.16 1753.76 243.16 1753.76 221.16 \
+F 10 9 -Helvetica c 7 -#000000 T 1516.95 229.16 -1 59.47 15 -inputFields → S 5 -solid c 7 -#000000 p 4 1511.95 199.16 1511.95 \
+221.16 1753.76 221.16 1753.76 199.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 207.16 -1 65.59 16 -outputFields → S 5 -solid c \
+7 -#000000 p 4 1511.95 177.16 1511.95 199.16 1753.76 199.16 1753.76 177.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 186.16 -1 161.17 \
+39 -withInstructions(text: Option[String])  F 8 9 -Helvetica c 7 -#9aa0a6 T 1678.13 186.16 -1 22.68 8 -→ Self S 5 -solid c 7 -#\
+000000 p 4 1511.95 155.16 1511.95 177.16 1753.76 177.16 1753.76 155.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 164.16 -1 126.15 \
+31 -withInstructions(text: String)  F 8 9 -Helvetica c 7 -#9aa0a6 T 1643.11 164.16 -1 22.68 8 -→ Self S 5 -solid c 7 -#000000 \
+p 4 1511.95 133.16 1511.95 155.16 1753.76 155.16 1753.76 133.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 141.16 -1 98.94 23 -signatureString: \
+String S 5 -solid c 7 -#000000 p 4 1511.95 111.16 1511.95 133.16 1753.76 133.16 1753.76 111.16 F 10 9 -Helvetica c 7 -#000000 T \
+1516.95 119.16 -1 231.81 50 -equalsByStructure(other: SignatureLayout): Boolean S 5 -solid c 7 -#000000 p 4 1511.95 89.16 1511.95 \
+111.16 1753.76 111.16 1753.76 89.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 97.16 -1 59.48 13 -dumpState → S 5 -solid c 7 -#000000 \
+p 4 1511.95 67.16 1511.95 89.16 1753.76 89.16 1753.76 67.16 F 10 9 -Helvetica c 7 -#000000 T 1516.95 75.16 -1 77.82 16 -dumpJson: \
+String ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=3.75,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#FAD2CF"><b>SignatureLayout</b><br/><font point-size="8">final case class · private constructor · public fields + methods</font></td></tr>
+              <tr><td port="f_name" align="left" bgcolor="#EFF7F1">name: String</td></tr>
+              <tr><td port="f_fields" align="left" bgcolor="#EFF7F1">fields: Vector[FieldSpec] &#8594;</td></tr>
+              <tr><td port="f_instructions" align="left" bgcolor="#EFF7F1">instructions: Option[String]</td></tr>
+              <tr><td port="m_inputFields" align="left">inputFields &#8594;</td></tr>
+              <tr><td port="m_outputFields" align="left">outputFields &#8594;</td></tr>
+              <tr><td port="m_withInstructionsOption" align="left">withInstructions(text: Option[String]) <font color="#9AA0A6" point-size="8">&#8594; Self</font></td></tr>
+              <tr><td port="m_withInstructionsString" align="left">withInstructions(text: String) <font color="#9AA0A6" point-size="8">&#8594; Self</font></td></tr>
+              <tr><td port="m_signatureString" align="left">signatureString: String</td></tr>
+              <tr><td port="m_equalsByStructure" align="left">equalsByStructure(other: SignatureLayout): Boolean</td></tr>
+              <tr><td port="m_dumpState" align="left">dumpState &#8594;</td></tr>
+              <tr><td port="m_dumpJson" align="left">dumpJson: String</td></tr>
+              </table>
+            >,
+			pos="1632.9,202.16",
+			shape=plain,
+			style=filled,
+			width=3.3584];
+		SignatureLayoutType:f_fields -> FieldSpecType	[_draw_="S 17 -setlinewidth(2.2) c 7 -#137333 B 4 1754.76 276.16 1857.01 276.16 1977.28 269.61 2038.48 265.81 ",
+			_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#137333 C 7 -#137333 P 3 2038.56 268.43 2045.88 265.34 2038.23 263.19 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1908.39 277.97 0 42.02 11 -Vector 0..* ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Vector 0..*",
+			lp="1908.4,280.67",
+			penwidth=2.2,
+			pos="e,2049.2,265.13 1754.8,276.16 1857,276.16 1977.3,269.61 2038.5,265.81"];
+		SignatureLayoutType:m_inputFields -> FieldSpecType	[_draw_="S 17 -setlinewidth(2.2) c 7 -#137333 B 4 1754.76 232.16 1857.4 232.16 1977.5 247.77 2038.58 256.84 ",
+			_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#137333 C 7 -#137333 P 3 2038.18 259.43 2045.99 257.95 2038.96 254.24 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1908.39 253.13 0 42.02 11 -Vector 0..* ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Vector 0..*",
+			lp="1908.4,255.83",
+			penwidth=2.2,
+			pos="e,2049.3,258.45 1754.8,232.16 1857.4,232.16 1977.5,247.77 2038.6,256.84"];
+		SignatureLayoutType:m_outputFields -> FieldSpecType	[_draw_="S 17 -setlinewidth(2.2) c 7 -#137333 B 7 1754.76 210.16 1863.35 210.16 1894.49 187.81 1998.98 217.36 2015.07 221.91 2031.35 230.41 \
+2044.95 238.86 ",
+			_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#137333 C 7 -#137333 P 3 2043.39 240.98 2051.12 242.85 2046.25 236.57 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1908.39 220.06 0 42.02 11 -Vector 0..* ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Vector 0..*",
+			lp="1908.4,222.76",
+			penwidth=2.2,
+			pos="e,2053.9,244.66 1754.8,210.16 1863.4,210.16 1894.5,187.81 1999,217.36 2015.1,221.91 2031.3,230.41 2045,238.86"];
+		SignatureLayoutType -> SignatureLayoutType:m_equalsByStructure	[_draw_="c 7 -#5f6368 B 7 1512.08 208.46 1451.02 205.78 1396.35 193.07 1396.35 162.16 1396.35 132.75 1445.81 119.82 1503.19 116.32 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1503.22 118.95 1510.57 115.94 1502.94 113.71 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1386.09 199.46 0 20.51 5 -other ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label=other,
+			lp="1386.1,202.16",
+			pos="e,1512.1,115.86 1512.1,208.46 1451,205.78 1396.3,193.07 1396.3,162.16 1396.3,132.75 1445.8,119.82 1503.2,116.32"];
+		SignatureLayoutCompanion:m_parse -> DspyError	[_draw_="c 7 -#ea4335 B 10 1324.38 359.16 1353.61 359.16 1330.31 402.13 1355.38 417.16 1390.65 438.3 1406.99 421.23 1447.91 417.16 1498.77 \
+412.09 1556.4 399.33 1593.38 390.22 ",
+			_hdraw_="S 5 -solid c 7 -#ea4335 C 7 -#ea4335 P 3 1593.75 392.83 1600.4 388.47 1592.48 387.74 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 430.22 0 15.01 4 -Left ",
+			arrowsize=0.75,
+			color="#EA4335",
+			fontname=Helvetica,
+			fontsize=9,
+			label=Left,
+			lp="1401.6,432.92",
+			pos="e,1601.9,388.1 1324.4,359.16 1353.6,359.16 1330.3,402.13 1355.4,417.16 1390.7,438.3 1407,421.23 1447.9,417.16 1498.8,412.09 1556.4,\
+399.33 1593.4,390.22"];
+		SignatureLayoutCompanion:m_create -> DspyError	[_draw_="c 7 -#ea4335 B 4 1324.38 337.16 1422.05 337.16 1535.5 358.7 1593.46 371.29 ",
+			_hdraw_="S 5 -solid c 7 -#ea4335 C 7 -#ea4335 P 3 1592.57 373.78 1600.46 372.83 1593.7 368.65 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 348.08 0 15.01 4 -Left ",
+			arrowsize=0.75,
+			color="#EA4335",
+			fontname=Helvetica,
+			fontsize=9,
+			label=Left,
+			lp="1401.6,350.78",
+			pos="e,1601.9,373.15 1324.4,337.16 1422,337.16 1535.5,358.7 1593.5,371.29"];
+		SignatureLayoutCompanion:m_fromState -> DspyError	[_draw_="c 7 -#ea4335 B 10 1324.38 315.16 1379.35 315.16 1397.26 299.98 1447.91 321.36 1465.23 328.67 1462.15 341.62 1478.91 350.16 1515.05 \
+368.57 1561.31 375.71 1593.45 378.46 ",
+			_hdraw_="S 5 -solid c 7 -#ea4335 C 7 -#ea4335 P 3 1592.93 381.05 1600.61 379.01 1593.33 375.82 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 324.06 0 15.01 4 -Left ",
+			arrowsize=0.75,
+			color="#EA4335",
+			fontname=Helvetica,
+			fontsize=9,
+			label=Left,
+			lp="1401.6,326.76",
+			pos="e,1602.1,379.12 1324.4,315.16 1379.4,315.16 1397.3,299.98 1447.9,321.36 1465.2,328.67 1462.2,341.62 1478.9,350.16 1515.1,368.57 \
+1561.3,375.71 1593.4,378.46"];
+		SignatureLayoutCompanion:m_fromJson -> DspyError	[_draw_="c 7 -#ea4335 B 10 1324.38 293.16 1379.28 293.16 1400.72 265.3 1447.91 293.36 1472.63 308.06 1455.71 333.16 1478.91 350.16 1512.03 \
+374.43 1559.62 380.47 1592.89 381.36 ",
+			_hdraw_="S 5 -solid c 7 -#ea4335 C 7 -#ea4335 P 3 1592.82 383.98 1600.36 381.46 1592.9 378.73 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 296.06 0 15.01 4 -Left ",
+			arrowsize=0.75,
+			color="#EA4335",
+			fontname=Helvetica,
+			fontsize=9,
+			label=Left,
+			lp="1401.6,298.76",
+			pos="e,1601.9,381.49 1324.4,293.16 1379.3,293.16 1400.7,265.3 1447.9,293.36 1472.6,308.06 1455.7,333.16 1478.9,350.16 1512,374.43 1559.6,\
+380.47 1592.9,381.36"];
+		SignatureLayoutCompanion:m_parse -> SignatureLayoutType	[_draw_="c 7 -#137333 B 10 1324.38 359.16 1338.22 359.16 1341.55 361.49 1355.38 362.16 1396.46 364.14 1409.39 376.56 1447.91 362.16 1467.86 \
+354.7 1487.07 343.99 1505.07 331.59 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1506.32 333.92 1510.93 327.44 1503.29 329.63 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 371.72 0 21.01 5 -Right ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label=Right,
+			lp="1401.6,374.42",
+			pos="e,1512.2,326.57 1324.4,359.16 1338.2,359.16 1341.6,361.49 1355.4,362.16 1396.5,364.14 1409.4,376.56 1447.9,362.16 1467.9,354.7 1487.1,\
+343.99 1505.1,331.59"];
+		SignatureLayoutCompanion:m_create -> SignatureLayoutType	[_draw_="c 7 -#137333 B 7 1324.38 337.16 1359.55 337.16 1328.37 286.87 1355.38 264.36 1396.47 230.12 1452.52 213.74 1503.41 206.23 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1503.62 208.85 1510.69 205.22 1502.9 203.65 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 267.06 0 21.01 5 -Right ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label=Right,
+			lp="1401.6,269.76",
+			pos="e,1512.2,205.01 1324.4,337.16 1359.5,337.16 1328.4,286.87 1355.4,264.36 1396.5,230.12 1452.5,213.74 1503.4,206.23"];
+		SignatureLayoutCompanion:m_fromState -> SignatureLayoutType	[_draw_="c 7 -#137333 B 7 1324.38 315.16 1376.37 315.16 1314.04 233.89 1355.38 202.36 1396.78 170.78 1452.73 165.93 1503.48 170.82 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1502.98 173.41 1510.72 171.6 1503.55 168.19 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 205.06 0 21.01 5 -Right ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label=Right,
+			lp="1401.6,207.76",
+			pos="e,1512.2,171.76 1324.4,315.16 1376.4,315.16 1314,233.89 1355.4,202.36 1396.8,170.78 1452.7,165.93 1503.5,170.82"];
+		SignatureLayoutCompanion:m_fromJson -> SignatureLayoutType	[_draw_="c 7 -#137333 B 7 1324.38 293.16 1388.02 293.16 1305.75 193.19 1355.38 153.36 1396.7 120.2 1452.78 123.99 1503.63 139.34 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1502.68 141.8 1510.63 141.55 1504.27 136.79 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 156.06 0 21.01 5 -Right ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label=Right,
+			lp="1401.6,158.76",
+			pos="e,1512.1,142.01 1324.4,293.16 1388,293.16 1305.7,193.19 1355.4,153.36 1396.7,120.2 1452.8,123.99 1503.6,139.34"];
+	}
+	subgraph cluster_package_core_data {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 2033.98 1605.16 2033.98 1605.16 2309.14 1605.16 2309.14 1605.16 2315.14 1605.16 2321.14 1611.16 2321.14 \
+1617.16 2321.14 1617.16 2321.14 1727.16 2321.14 1727.16 2321.14 1733.16 2315.14 1739.16 2309.14 1739.16 2309.14 1739.16 2033.98 \
+1739.16 2033.98 1739.16 2027.98 1739.16 2021.98 1733.16 2021.98 1727.16 2021.98 1727.16 2021.98 1617.16 2021.98 1617.16 2021.98 \
+1611.16 2027.98 1605.16 2033.98 1605.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 2071.87 1725.26 0 83.77 16 -dspy4s.core.data ",
+			bb="2022,1605.2,2321.1,1739.2",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.core.data",
+			labeljust=l,
+			lheight=0.18,
+			lp="2071.9,1728.6",
+			lwidth=1.16,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		DynamicPrediction	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 2129.35 1649.16 2029.98 1649.16 2029.98 1613.16 2129.35 1613.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2079.66 1628.16 0 83.36 17 -DynamicPrediction ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=DynamicPrediction,
+			pos="2079.7,1631.2",
+			shape=box,
+			style=filled,
+			width=1.3801];
+		a	[_draw_="c 7 -#000000 e 2252.74 1631.16 60.4 18 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 2252.74 1626.96 0 71.56 11 -Completions ",
+			height=0.5,
+			label=Completions,
+			pos="2252.7,1631.2",
+			width=1.6777];
+		DynamicPrediction -> a	[_draw_="c 7 -#000000 B 4 2129.69 1631.16 2145.64 1631.16 2163.69 1631.16 2180.91 1631.16 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2180.56 1634.66 2190.56 1631.16 2180.56 1627.66 ",
+			pos="e,2192.1,1631.2 2129.7,1631.2 2145.6,1631.2 2163.7,1631.2 2180.9,1631.2"];
+		ExampleType	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 2107.12 1710.16 2052.21 1710.16 2052.21 1674.16 2107.12 1674.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2079.66 1689.16 0 38.91 7 -Example ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=Example,
+			pos="2079.7,1692.2",
+			shape=box,
+			style=filled,
+			width=0.76259];
+	}
+	subgraph cluster_package_programs {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 20 1849.16 20 1849.16 731.96 1849.16 731.96 1849.16 737.96 1849.16 743.96 1855.16 743.96 1861.16 \
+743.96 1861.16 743.96 2288.16 743.96 2288.16 743.96 2294.16 737.96 2300.16 731.96 2300.16 731.96 2300.16 20 2300.16 20 2300.16 14 \
+2300.16 8 2294.16 8 2288.16 8 2288.16 8 1861.16 8 1861.16 8 1855.16 14 1849.16 20 1849.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 58.18 2286.26 0 84.37 15 -dspy4s.programs ",
+			bb="8,1849.2,743.96,2300.2",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.programs",
+			labeljust=l,
+			lheight=0.18,
+			lp="58.185,2289.6",
+			lwidth=1.17,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		RecordCodecI	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 274.12 2210.16 188.65 2210.16 188.65 2174.16 274.12 2174.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 231.39 2189.16 0 69.48 14 -RecordCodec[I] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="RecordCodec[I]",
+			pos="231.39,2192.2",
+			shape=box,
+			style=filled,
+			width=1.1872];
+		RecordCodecA	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 276.07 2271.16 186.7 2271.16 186.7 2235.16 276.07 2235.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 231.39 2250.16 0 73.37 14 -RecordCodec[A] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="RecordCodec[A]",
+			pos="231.39,2253.2",
+			shape=box,
+			style=filled,
+			width=1.2412];
+		DynamicPredictType	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 735.96 2094.16 649.94 2094.16 649.94 2058.16 735.96 2058.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 692.95 2073.16 0 70.02 14 -DynamicPredict ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=DynamicPredict,
+			pos="692.95,2076.2",
+			shape=box,
+			style=filled,
+			width=1.1947];
+		PredictType	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 446.77 2149.16 16 2149.16 16 1857.16 446.77 1857.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 16 1857.16 16 2149.16 446.77 2149.16 446.77 1857.16 S 5 -solid c 9 -#fffffe00 C 7 -#aecbfa \
+P 4 16 2121.16 16 2149.16 446.77 2149.16 446.77 2121.16 S 5 -solid c 7 -#000000 p 4 16 2121.16 16 2149.16 446.77 2149.16 446.77 \
+2121.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 203.05 2136.16 -1 56.67 13 -Predict[I, O] F 8 9 -Helvetica c 7 -#000000 t 0 T 133.57 \
+2127.96 -1 195.63 57 -final case class · Module[ProgramCall[I], Prediction[O]] S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P 4 16 2099.16 \
+16 2121.16 446.77 2121.16 446.77 2099.16 S 5 -solid c 7 -#000000 p 4 16 2099.16 16 2121.16 446.77 2121.16 446.77 2099.16 F 10 9 \
+-Helvetica c 7 -#000000 T 21 2107.16 -1 122.29 30 -signature: Signature[I, O] → S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P 4 16 \
+2077.16 16 2099.16 446.77 2099.16 446.77 2077.16 S 5 -solid c 7 -#000000 p 4 16 2077.16 16 2099.16 446.77 2099.16 446.77 2077.16 \
+F 10 9 -Helvetica c 7 -#000000 T 21 2085.16 -1 120.05 26 -demos: Vector[Example] → S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P 4 \
+16 2055.16 16 2077.16 446.77 2077.16 446.77 2055.16 S 5 -solid c 7 -#000000 p 4 16 2055.16 16 2077.16 446.77 2077.16 446.77 2055.16 \
+F 10 9 -Helvetica c 7 -#000000 T 21 2063.16 -1 91.71 20 -name: Option[String] S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P 4 16 2033.16 \
+16 2055.16 446.77 2055.16 446.77 2033.16 S 5 -solid c 7 -#000000 p 4 16 2033.16 16 2055.16 446.77 2055.16 446.77 2033.16 F 10 9 \
+-Helvetica c 7 -#000000 T 21 2041.16 -1 125.6 27 -runtime: ProgramRuntime → S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P 4 16 2011.16 \
+16 2033.16 446.77 2033.16 446.77 2011.16 S 5 -solid c 7 -#000000 p 4 16 2011.16 16 2033.16 446.77 2033.16 446.77 2011.16 F 10 9 \
+-Helvetica c 7 -#000000 T 21 2019.16 -1 142.84 31 -config: DynamicValue.Record → S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P 4 16 \
+1989.16 16 2011.16 446.77 2011.16 446.77 1989.16 S 5 -solid c 7 -#000000 p 4 16 1989.16 16 2011.16 446.77 2011.16 446.77 1989.16 \
+F 10 9 -Helvetica c 7 -#000000 T 21 1997.16 -1 133.97 29 -lm: Option[LanguageModel] → S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P \
+4 16 1967.16 16 1989.16 446.77 1989.16 446.77 1967.16 S 5 -solid c 7 -#000000 p 4 16 1967.16 16 1989.16 446.77 1989.16 446.77 1967.16 \
+F 10 9 -Helvetica c 7 -#000000 T 21 1975.16 -1 114.5 27 -tools: Vector[ToolSpec] → S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P 4 \
+16 1945.16 16 1967.16 446.77 1967.16 446.77 1945.16 S 5 -solid c 7 -#000000 p 4 16 1945.16 16 1967.16 446.77 1967.16 446.77 1945.16 \
+F 10 9 -Helvetica c 7 -#000000 T 21 1953.16 -1 91.15 18 -moduleName: String S 5 -solid c 7 -#000000 p 4 16 1923.16 16 1945.16 446.77 \
+1945.16 446.77 1923.16 F 10 9 -Helvetica c 7 -#000000 T 21 1932.16 -1 145.63 29 -withLm(model: LanguageModel)  F 8 9 -Helvetica \
+c 7 -#9aa0a6 T 166.63 1932.16 -1 22.68 8 -→ Self S 5 -solid c 7 -#000000 p 4 16 1901.16 16 1923.16 446.77 1923.16 446.77 1901.16 \
+F 10 9 -Helvetica c 7 -#000000 T 21 1909.16 -1 52.81 11 -boundLm → S 5 -solid c 7 -#000000 p 4 16 1879.16 16 1901.16 446.77 1901.16 \
+446.77 1879.16 F 10 9 -Helvetica c 7 -#000000 T 21 1887.16 -1 36.13 9 -erase → S 5 -solid c 7 -#000000 p 4 16 1857.16 16 1879.16 \
+446.77 1879.16 446.77 1857.16 F 10 9 -Helvetica c 7 -#000000 T 21 1865.16 -1 420.77 93 -apply(input: I, config: DynamicValue.Record, \
+traceEnabled: Boolean)(using RuntimeContext) → ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=4.0556,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#AECBFA"><b>Predict[I, O]</b><br/><font point-size="8">final case class · Module[ProgramCall[I], Prediction[O]]</font></td></tr>
+              <tr><td port="f_signature" align="left" bgcolor="#EFF7F1">signature: Signature[I, O] &#8594;</td></tr>
+              <tr><td port="f_demos" align="left" bgcolor="#EFF7F1">demos: Vector[Example] &#8594;</td></tr>
+              <tr><td port="f_name" align="left" bgcolor="#EFF7F1">name: Option[String]</td></tr>
+              <tr><td port="f_runtime" align="left" bgcolor="#EFF7F1">runtime: ProgramRuntime &#8594;</td></tr>
+              <tr><td port="f_config" align="left" bgcolor="#EFF7F1">config: DynamicValue.Record &#8594;</td></tr>
+              <tr><td port="f_lm" align="left" bgcolor="#EFF7F1">lm: Option[LanguageModel] &#8594;</td></tr>
+              <tr><td port="f_tools" align="left" bgcolor="#EFF7F1">tools: Vector[ToolSpec] &#8594;</td></tr>
+              <tr><td port="f_moduleName" align="left" bgcolor="#EFF7F1">moduleName: String</td></tr>
+              <tr><td port="m_withLm" align="left">withLm(model: LanguageModel) <font color="#9AA0A6" point-size="8">&#8594; Self</font></td></tr>
+              <tr><td port="m_boundLm" align="left">boundLm &#8594;</td></tr>
+              <tr><td port="m_erase" align="left">erase &#8594;</td></tr>
+              <tr><td port="m_apply" align="left">apply(input: I, config: DynamicValue.Record, traceEnabled: Boolean)(using RuntimeContext) &#8594;</td></tr>
+              </table>
+            >,
+			pos="231.39,2003.2",
+			shape=plain,
+			style=filled,
+			width=5.9829];
+		PredictType:m_erase -> DynamicPredictType	[_draw_="c 7 -#137333 B 7 446.77 1890.16 490.76 1890.16 450.79 1949.41 477.77 1984.16 517.46 2035.27 591.13 2058.42 640.84 2068.6 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 640.18 2071.15 648.04 2070.01 641.18 2066 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 2034.24 0 63.02 14 -DynamicPredict ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label=DynamicPredict,
+			lp="509.28,2036.9",
+			pos="e,649.53,2070.3 446.77,1890.2 490.76,1890.2 450.79,1949.4 477.77,1984.2 517.46,2035.3 591.13,2058.4 640.84,2068.6"];
+	}
+	subgraph cluster_package_programs_contracts {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 606.14 1585.16 606.14 1585.16 779.76 1585.16 779.76 1585.16 785.76 1585.16 791.76 1591.16 791.76 \
+1597.16 791.76 1597.16 791.76 1829.16 791.76 1829.16 791.76 1835.16 785.76 1841.16 779.76 1841.16 779.76 1841.16 606.14 1841.16 \
+606.14 1841.16 600.14 1841.16 594.14 1835.16 594.14 1829.16 594.14 1829.16 594.14 1597.16 594.14 1597.16 594.14 1591.16 600.14 1585.16 \
+606.14 1585.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 668.17 1827.26 0 132.05 25 -dspy4s.programs.contracts ",
+			bb="594.14,1585.2,791.76,1841.2",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.programs.contracts",
+			labeljust=l,
+			lheight=0.18,
+			lp="668.17,1830.6",
+			lwidth=1.83,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		ModuleBound	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 783.76 1690.16 602.14 1690.16 602.14 1654.16 783.76 1654.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 692.95 1669.16 0 165.62 37 -Module[ProgramCall[I], Prediction[O]] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Module[ProgramCall[I], Prediction[O]]",
+			pos="692.95,1672.2",
+			shape=box,
+			style=filled,
+			width=2.5225];
+		ProgramCallI	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 732.9 1629.16 653 1629.16 653 1593.16 732.9 1593.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 692.95 1608.16 0 63.91 14 -ProgramCall[I] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="ProgramCall[I]",
+			pos="692.95,1611.2",
+			shape=box,
+			style=filled,
+			width=1.1098];
+		ProgramCallRecord	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 781.26 1751.16 604.64 1751.16 604.64 1715.16 781.26 1715.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 692.95 1730.16 0 160.62 32 -ProgramCall[DynamicValue.Record] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="ProgramCall[DynamicValue.Record]",
+			pos="692.95,1733.2",
+			shape=box,
+			style=filled,
+			width=2.453];
+		ProgramRuntimeType	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 738.74 1812.16 647.16 1812.16 647.16 1776.16 738.74 1776.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 692.95 1791.16 0 75.58 14 -ProgramRuntime ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=ProgramRuntime,
+			pos="692.95,1794.2",
+			shape=box,
+			style=filled,
+			width=1.272];
+	}
+	subgraph cluster_package_programs_predictors {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 1569.5 496.16 1569.5 496.16 1697.22 496.16 1697.22 496.16 1703.22 496.16 1709.22 502.16 1709.22 508.16 \
+1709.22 508.16 1709.22 740.16 1709.22 740.16 1709.22 746.16 1703.22 752.16 1697.22 752.16 1697.22 752.16 1569.5 752.16 1569.5 752.16 \
+1563.5 752.16 1557.5 746.16 1557.5 740.16 1557.5 740.16 1557.5 508.16 1557.5 508.16 1557.5 502.16 1563.5 496.16 1569.5 496.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 1633.36 738.26 0 135.72 26 -dspy4s.programs.predictors ",
+			bb="1557.5,496.16,1709.2,752.16",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.programs.predictors",
+			labeljust=l,
+			lheight=0.18,
+			lp="1633.4,741.56",
+			lwidth=1.89,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		PredictorsRep	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 1675.32 601.16 1590.4 601.16 1590.4 565.16 1675.32 565.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1632.86 580.16 0 68.92 15 -Predictors[Rep] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Predictors[Rep]",
+			pos="1632.9,583.16",
+			shape=box,
+			style=filled,
+			width=1.1794];
+		PredictorsF	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 1669.2 540.16 1596.52 540.16 1596.52 504.16 1669.2 504.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1632.86 519.16 0 56.68 13 -Predictors[F] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Predictors[F]",
+			pos="1632.9,522.16",
+			shape=box,
+			style=filled,
+			width=1.0094];
+		PredictorView	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 1671.7 662.16 1594.01 662.16 1594.01 626.16 1671.7 626.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1632.86 641.16 0 61.69 13 -PredictorView ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=PredictorView,
+			pos="1632.9,644.16",
+			shape=box,
+			style=filled,
+			width=1.079];
+		PredictorState	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 1672.54 723.16 1593.18 723.16 1593.18 687.16 1672.54 687.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1632.86 702.16 0 63.36 14 -PredictorState ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=PredictorState,
+			pos="1632.9,705.16",
+			shape=box,
+			style=filled,
+			width=1.1023];
+	}
+	subgraph cluster_package_typed {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 1556.24 1588.16 1556.24 1588.16 1709.48 1588.16 1709.48 1588.16 1715.48 1588.16 1721.48 1594.16 1721.48 \
+1600.16 1721.48 1600.16 1721.48 1760.16 1721.48 1760.16 1721.48 1766.16 1715.48 1772.16 1709.48 1772.16 1709.48 1772.16 1556.24 \
+1772.16 1556.24 1772.16 1550.24 1772.16 1544.24 1766.16 1544.24 1760.16 1544.24 1760.16 1544.24 1600.16 1544.24 1600.16 1544.24 \
+1594.16 1550.24 1588.16 1556.24 1588.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 1584.65 1758.26 0 64.82 12 -dspy4s.typed ",
+			bb="1544.2,1588.2,1721.5,1772.2",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.typed",
+			labeljust=l,
+			lheight=0.18,
+			lp="1584.6,1761.6",
+			lwidth=0.90,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		PredictionO	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 1713.48 1681.96 1552.24 1681.96 1552.24 1596.36 1713.48 1596.36 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 1552.24 1596.36 1552.24 1681.96 1713.48 1681.96 1713.48 1596.36 S 5 -solid c 9 -#fffffe00 \
+C 7 -#c5cae9 P 4 1552.24 1649.96 1552.24 1681.96 1713.48 1681.96 1713.48 1649.96 S 5 -solid c 7 -#000000 p 4 1552.24 1649.96 1552.24 \
+1681.96 1713.48 1681.96 1713.48 1649.96 F 14 11 -Times-Roman c 7 -#000000 t 1 T 1591.65 1665.36 -1 82.42 13 -Prediction[O] F 8 11 \
+-Times-Roman c 7 -#000000 t 0 T 1584.98 1656.76 -1 95.75 33 -final case class · public fields S 5 -solid c 7 -#000000 p 4 1552.24 \
+1623.16 1552.24 1649.96 1713.48 1649.96 1713.48 1623.16 F 14 11 -Times-Roman c 7 -#000000 T 1557.24 1632.36 -1 53.28 9 -output: \
+O S 5 -solid c 7 -#000000 p 4 1552.24 1596.36 1552.24 1623.16 1713.48 1623.16 1713.48 1596.36 F 14 11 -Times-Roman c 7 -#000000 \
+T 1557.24 1605.56 -1 151.24 26 -raw: DynamicPrediction → ",
+			fillcolor="#FCE8B2",
+			height=1.1889,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#C5CAE9"><b>Prediction[O]</b><br/><font point-size="8">final case class · public fields</font></td></tr>
+              <tr><td port="f_output" align="left">output: O</td></tr>
+              <tr><td port="f_raw" align="left">raw: DynamicPrediction &#8594;</td></tr>
+              </table>>,
+			pos="1632.9,1639.2",
+			shape=plain,
+			style=filled,
+			width=2.2394];
+		SignatureIO	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 1673.1 1743.16 1592.62 1743.16 1592.62 1707.16 1673.1 1707.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1632.86 1722.16 0 64.48 15 -Signature[I, O] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Signature[I, O]",
+			pos="1632.9,1725.2",
+			shape=box,
+			style=filled,
+			width=1.1177];
+	}
+	subgraph cluster_package_adapters_contracts {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 633.25 554.16 633.25 554.16 753.65 554.16 753.65 554.16 759.65 554.16 765.65 560.16 765.65 566.16 \
+765.65 566.16 765.65 615.16 765.65 615.16 765.65 621.16 759.65 627.16 753.65 627.16 753.65 627.16 633.25 627.16 633.25 627.16 627.25 \
+627.16 621.25 621.16 621.25 615.16 621.25 615.16 621.25 566.16 621.25 566.16 621.25 560.16 627.25 554.16 633.25 554.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 693.45 613.26 0 128.4 25 -dspy4s.adapters.contracts ",
+			bb="621.25,554.16,765.65,627.16",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.adapters.contracts",
+			labeljust=l,
+			lheight=0.18,
+			lp="693.45,616.56",
+			lwidth=1.78,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		ToolSpecType	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 722.07 598.16 663.83 598.16 663.83 562.16 722.07 562.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 692.95 577.16 0 42.25 8 -ToolSpec ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=ToolSpec,
+			pos="692.95,580.16",
+			shape=box,
+			style=filled,
+			width=0.80897];
+	}
+	subgraph cluster_package_lm_contracts {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 648.85 473.16 648.85 473.16 738.05 473.16 738.05 473.16 744.05 473.16 750.05 479.16 750.05 485.16 \
+750.05 485.16 750.05 534.16 750.05 534.16 750.05 540.16 744.05 546.16 738.05 546.16 738.05 546.16 648.85 546.16 648.85 546.16 642.85 \
+546.16 636.85 540.16 636.85 534.16 636.85 534.16 636.85 485.16 636.85 485.16 636.85 479.16 642.85 473.16 648.85 473.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 693.45 532.26 0 97.2 19 -dspy4s.lm.contracts ",
+			bb="636.85,473.16,750.05,546.16",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.lm.contracts",
+			labeljust=l,
+			lheight=0.18,
+			lp="693.45,535.56",
+			lwidth=1.35,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		LanguageModelType	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 736.82 517.16 649.09 517.16 649.09 481.16 736.82 481.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 692.95 496.16 0 71.73 13 -LanguageModel ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label=LanguageModel,
+			pos="692.95,499.16",
+			shape=box,
+			style=filled,
+			width=1.2185];
+	}
+	subgraph cluster_package_zio_schema {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 639.21 635.16 639.21 635.16 746.69 635.16 746.69 635.16 752.69 635.16 758.69 641.16 758.69 647.16 \
+758.69 647.16 758.69 696.16 758.69 696.16 758.69 702.16 752.69 708.16 746.69 708.16 746.69 708.16 639.21 708.16 639.21 708.16 633.21 \
+708.16 627.21 702.16 627.21 696.16 627.21 696.16 627.21 647.16 627.21 647.16 627.21 641.16 633.21 635.16 639.21 635.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 680.14 694.26 0 89.87 17 -zio.blocks.schema ",
+			bb="627.21,635.16,758.69,708.16",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="zio.blocks.schema",
+			labeljust=l,
+			lheight=0.18,
+			lp="680.14,697.56",
+			lwidth=1.25,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		DynamicValueRecord	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 750.69 679.16 635.21 679.16 635.21 643.16 750.69 643.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 692.95 658.16 0 99.49 19 -DynamicValue.Record ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="DynamicValue.Record",
+			pos="692.95,661.16",
+			shape=box,
+			style=filled,
+			width=1.604];
+	}
+	subgraph cluster_package_programs_para {
+		graph [_draw_="c 7 -#5f6368 C 7 -#f1f3f4 b 25 575.79 760.16 575.79 760.16 2123.67 760.16 2123.67 760.16 2129.67 760.16 2135.67 766.16 2135.67 772.16 \
+2135.67 772.16 2135.67 1565.16 2135.67 1565.16 2135.67 1571.16 2129.67 1577.16 2123.67 1577.16 2123.67 1577.16 575.79 1577.16 575.79 \
+1577.16 569.79 1577.16 563.79 1571.16 563.79 1565.16 563.79 1565.16 563.79 772.16 563.79 772.16 563.79 766.16 569.79 760.16 575.79 \
+760.16 ",
+			_ldraw_="F 11 9 -Helvetica c 7 -#000000 T 626.51 1563.26 0 109.44 20 -dspy4s.programs.para ",
+			bb="563.79,760.16,2135.7,1577.2",
+			bgcolor="#FbFbFd",
+			cluster=true,
+			color="#5F6368",
+			compound=true,
+			fillcolor="#F1F3F4",
+			fontname=Helvetica,
+			fontsize=11,
+			label="dspy4s.programs.para",
+			labeljust=l,
+			lheight=0.18,
+			lp="626.51,1566.6",
+			lwidth=1.52,
+			nodesep=0.35,
+			pad=0.2,
+			ranksep=0.85,
+			style="filled,rounded"
+		];
+		ParamsHomAB	[_draw_="c 7 -#b06000 C 7 -#fce8b2 P 4 2127.67 1145.16 2031.65 1145.16 2031.65 1109.16 2127.67 1109.16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2079.66 1124.16 0 80.02 15 -ParamsHom[A, B] ",
+			color="#B06000",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="ParamsHom[A, B]",
+			pos="2079.7,1127.2",
+			shape=box,
+			style=filled,
+			width=1.3336];
+		ProgramType	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 1270.74 1287.16 1029.55 1287.16 1029.55 1193.16 1270.74 1193.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 1029.55 1193.16 1029.55 1287.16 1270.74 1287.16 1270.74 1193.16 S 5 -solid c 9 -#fffffe00 \
+C 7 -#d2e3fc P 4 1029.55 1259.16 1029.55 1287.16 1270.74 1287.16 1270.74 1259.16 S 5 -solid c 7 -#000000 p 4 1029.55 1259.16 1029.55 \
+1287.16 1270.74 1287.16 1270.74 1259.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 1118.19 1274.16 -1 63.9 13 -Program[I, O] F 8 9 -Helvetica \
+c 7 -#000000 t 0 T 1087.33 1265.96 -1 125.62 38 -sealed trait · public fields + method S 5 -solid c 9 -#fffffe00 C 7 -#eff7f1 P \
+4 1029.55 1237.16 1029.55 1259.16 1270.74 1259.16 1270.74 1237.16 S 5 -solid c 7 -#000000 p 4 1029.55 1237.16 1029.55 1259.16 1270.74 \
+1259.16 1270.74 1237.16 F 10 9 -Helvetica c 7 -#000000 T 1034.55 1245.16 -1 72.25 16 -program: Rep → S 5 -solid c 9 -#fffffe00 \
+C 7 -#eff7f1 P 4 1029.55 1215.16 1029.55 1237.16 1270.74 1237.16 1270.74 1215.16 S 5 -solid c 7 -#000000 p 4 1029.55 1215.16 1029.55 \
+1237.16 1270.74 1237.16 1270.74 1215.16 F 10 9 -Helvetica c 7 -#000000 T 1034.55 1223.16 -1 140.07 32 -addressable: Predictors[Rep] \
+→ S 5 -solid c 7 -#000000 p 4 1029.55 1193.16 1029.55 1215.16 1270.74 1215.16 1270.74 1193.16 F 10 9 -Helvetica c 7 -#000000 T \
+1034.55 1201.16 -1 231.19 53 -apply(call: ProgramCall[I])(using RuntimeContext) → ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.3056,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#D2E3FC"><b>Program[I, O]</b><br/><font point-size="8">sealed trait · public fields + method</font></td></tr>
+              <tr><td port="f_program" align="left" bgcolor="#EFF7F1">program: Rep &#8594;</td></tr>
+              <tr><td port="f_addressable" align="left" bgcolor="#EFF7F1">addressable: Predictors[Rep] &#8594;</td></tr>
+              <tr><td port="m_apply" align="left">apply(call: ProgramCall[I])(using RuntimeContext) &#8594;</td></tr>
+              </table>
+            >,
+			pos="1150.1,1240.2",
+			shape=plain,
+			style=filled,
+			width=3.3499];
+		ProgramPredictorsGiven	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 1786.81 1013.16 1478.91 1013.16 1478.91 919.16 1786.81 919.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 1478.91 919.16 1478.91 1013.16 1786.81 1013.16 1786.81 919.16 S 5 -solid c 9 -#fffffe00 \
+C 7 -#e1bee7 P 4 1478.91 985.16 1478.91 1013.16 1786.81 1013.16 1786.81 985.16 S 5 -solid c 7 -#000000 p 4 1478.91 985.16 1478.91 \
+1013.16 1786.81 1013.16 1786.81 985.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 1572.85 1000.16 -1 120.02 25 -Predictors[Program[I, \
+O]] F 8 9 -Helvetica c 7 -#000000 t 0 T 1589.28 991.96 -1 87.15 23 -given programPredictors S 5 -solid c 7 -#000000 p 4 1478.91 \
+963.16 1478.91 985.16 1786.81 985.16 1786.81 963.16 F 10 9 -Helvetica c 7 -#000000 T 1483.91 971.16 -1 152.27 35 -inspect(program: \
+Program[I, O]) → S 5 -solid c 7 -#000000 p 4 1478.91 941.16 1478.91 963.16 1786.81 963.16 1786.81 941.16 F 10 9 -Helvetica c 7 \
+-#000000 T 1483.91 949.16 -1 297.9 68 -replace(program: Program[I, O], updates: Vector[PredictorState]) → S 5 -solid c 7 -#000000 \
+p 4 1478.91 919.16 1478.91 941.16 1786.81 941.16 1786.81 919.16 F 10 9 -Helvetica c 7 -#000000 T 1483.91 927.16 -1 184.5 40 -inspectNamed(\
+program: Program[I, O]) → ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.3056,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#E1BEE7"><b>Predictors[Program[I, O]]</b><br/><font point-size="8">given programPredictors</font></td></tr>
+              <tr><td port="m_inspect" align="left">inspect(program: Program[I, O]) &#8594;</td></tr>
+              <tr><td port="m_replace" align="left">replace(program: Program[I, O], updates: Vector[PredictorState]) &#8594;</td></tr>
+              <tr><td port="m_inspectNamed" align="left">inspectNamed(program: Program[I, O]) &#8594;</td></tr>
+              </table>
+            >,
+			pos="1632.9,966.16",
+			shape=plain,
+			style=filled,
+			width=4.2764];
+		ProgramType -> ProgramPredictorsGiven:m_inspect	[_draw_="c 7 -#5f6368 B 13 1270.54 1208.78 1290.09 1199.87 1308.96 1188.53 1324.38 1174.16 1348.33 1151.84 1333.66 1131.84 1355.38 1107.36 \
+1387.47 1071.2 1416.68 1087.07 1447.91 1050.16 1469.26 1024.92 1447.41 983.01 1470.28 975.37 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1470.35 978.01 1477.41 974.37 1469.62 972.81 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1110.06 0 92.53 22 -program: Program[I, O] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="program: Program[I, O]",
+			lp="1401.6,1112.8",
+			pos="e,1478.9,974.16 1270.5,1208.8 1290.1,1199.9 1309,1188.5 1324.4,1174.2 1348.3,1151.8 1333.7,1131.8 1355.4,1107.4 1387.5,1071.2 1416.7,\
+1087.1 1447.9,1050.2 1469.3,1024.9 1447.4,983.01 1470.3,975.37"];
+		ProgramType -> ProgramPredictorsGiven:m_replace	[_draw_="c 7 -#5f6368 B 13 1270.4 1213.05 1290.79 1203.68 1310 1191.08 1324.38 1174.16 1368.96 1121.67 1310.79 1074.83 1355.38 1022.36 1383.87 \
+988.83 1411.71 1012.17 1447.91 987.16 1462.06 977.37 1459.78 959.79 1470.38 954.04 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1470.67 956.66 1477.43 952.48 1469.54 951.53 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1025.06 0 92.53 22 -program: Program[I, O] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="program: Program[I, O]",
+			lp="1401.6,1027.8",
+			pos="e,1478.9,952.16 1270.4,1213.1 1290.8,1203.7 1310,1191.1 1324.4,1174.2 1369,1121.7 1310.8,1074.8 1355.4,1022.4 1383.9,988.83 1411.7,\
+1012.2 1447.9,987.16 1462.1,977.37 1459.8,959.79 1470.4,954.04"];
+		ProgramType -> ProgramPredictorsGiven:m_inspectNamed	[_draw_="c 7 -#5f6368 B 13 1270.63 1214.37 1291.26 1204.88 1310.5 1191.9 1324.38 1174.16 1359.66 1129.05 1312.53 956.33 1355.38 918.36 1386.16 \
+891.08 1407.46 910.92 1447.91 918.36 1459.01 920.4 1462.64 926.23 1470.35 928.85 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1469.6 931.39 1477.41 929.93 1470.39 926.2 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 921.06 0 92.53 22 -program: Program[I, O] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="program: Program[I, O]",
+			lp="1401.6,923.76",
+			pos="e,1478.9,930.16 1270.6,1214.4 1291.3,1204.9 1310.5,1191.9 1324.4,1174.2 1359.7,1129.1 1312.5,956.33 1355.4,918.36 1386.2,891.08 \
+1407.5,910.92 1447.9,918.36 1459,920.4 1462.6,926.23 1470.4,928.85"];
+		ProgramRunnerGiven	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 1735.39 894.16 1530.32 894.16 1530.32 844.16 1735.39 844.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 1530.32 844.16 1530.32 894.16 1735.39 894.16 1735.39 844.16 S 5 -solid c 9 -#fffffe00 \
+C 7 -#b2dfdb P 4 1530.32 866.16 1530.32 894.16 1735.39 894.16 1735.39 866.16 S 5 -solid c 7 -#000000 p 4 1530.32 866.16 1530.32 \
+894.16 1735.39 894.16 1735.39 866.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 1559.52 881.16 -1 146.68 28 -ProgramRunner[Program[I, \
+O]] F 8 9 -Helvetica c 7 -#000000 t 0 T 1594.17 872.96 -1 77.38 19 -given programRunner S 5 -solid c 7 -#000000 p 4 1530.32 844.16 \
+1530.32 866.16 1735.39 866.16 1735.39 844.16 F 10 9 -Helvetica c 7 -#000000 T 1535.32 852.16 -1 195.07 44 -run(program, call)(using \
+RuntimeContext) → ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.69444,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#B2DFDB"><b>ProgramRunner[Program[I, O]]</b><br/><font point-size="8">given programRunner</font></td></tr>
+              <tr><td port="m_run" align="left">run(program, call)(using RuntimeContext) &#8594;</td></tr>
+              </table>
+            >,
+			pos="1632.9,869.16",
+			shape=plain,
+			style=filled,
+			width=2.8482];
+		ProgramType -> ProgramRunnerGiven:m_run	[_draw_="c 7 -#5f6368 B 13 1270.3 1215.2 1291.23 1205.65 1310.66 1192.43 1324.38 1174.16 1375.48 1106.08 1292.8 850.06 1355.38 792.36 1385.61 \
+764.48 1408.98 779.09 1447.91 792.36 1488.12 806.06 1484.43 848.56 1520.44 854.47 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1520.14 857.08 1527.81 855.04 1520.54 851.85 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 795.06 0 92.53 22 -program: Program[I, O] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="program: Program[I, O]",
+			lp="1401.6,797.76",
+			pos="e,1529.3,855.16 1270.3,1215.2 1291.2,1205.6 1310.7,1192.4 1324.4,1174.2 1375.5,1106.1 1292.8,850.06 1355.4,792.36 1385.6,764.48 \
+1409,779.09 1447.9,792.36 1488.1,806.06 1484.4,848.56 1520.4,854.47"];
+		ParaCategoryGiven	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 1732.06 1364.16 1533.66 1364.16 1533.66 1226.16 1732.06 1226.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 1533.66 1226.16 1533.66 1364.16 1732.06 1364.16 1732.06 1226.16 S 5 -solid c 9 -#fffffe00 \
+C 7 -#ffcc80 P 4 1533.66 1336.16 1533.66 1364.16 1732.06 1364.16 1732.06 1336.16 S 5 -solid c 7 -#000000 p 4 1533.66 1336.16 1533.66 \
+1364.16 1732.06 1364.16 1732.06 1336.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 1541.17 1351.16 -1 183.38 34 -ParaCategory[RecordCodec, \
+Program] F 8 9 -Helvetica c 7 -#000000 t 0 T 1582.61 1342.96 -1 100.5 25 -given paraCategoryProgram S 5 -solid c 7 -#000000 p 4 \
+1533.66 1314.16 1533.66 1336.16 1732.06 1336.16 1732.06 1314.16 F 10 9 -Helvetica c 7 -#000000 T 1538.66 1322.16 -1 137.84 31 -id[\
+A](using RecordCodec[A]) → S 5 -solid c 7 -#000000 p 4 1533.66 1292.16 1533.66 1314.16 1732.06 1314.16 1732.06 1292.16 F 10 9 \
+-Helvetica c 7 -#000000 T 1538.66 1300.16 -1 188.4 46 -fanout(f: Program[I, A], g: Program[I, B]) → S 5 -solid c 7 -#000000 p \
+4 1533.66 1270.16 1533.66 1292.16 1732.06 1292.16 1732.06 1270.16 F 10 9 -Helvetica c 7 -#000000 T 1538.66 1278.16 -1 115.32 27 \
+-f.>>>(g: Program[B, C]) → S 5 -solid c 7 -#000000 p 4 1533.66 1248.16 1533.66 1270.16 1732.06 1270.16 1732.06 1248.16 F 10 9 \
+-Helvetica c 7 -#000000 T 1538.66 1256.16 -1 50.01 12 -f.params → S 5 -solid c 7 -#000000 p 4 1533.66 1226.16 1533.66 1248.16 \
+1732.06 1248.16 1732.06 1226.16 F 10 9 -Helvetica c 7 -#000000 T 1538.66 1234.16 -1 174.51 41 -f.reparam(ps: Vector[PredictorState]) \
+→ ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.9167,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#FFCC80"><b>ParaCategory[RecordCodec, Program]</b><br/><font point-size="8">given paraCategoryProgram</font></td></tr>
+              <tr><td port="m_id" align="left">id[A](using RecordCodec[A]) &#8594;</td></tr>
+              <tr><td port="m_fanout" align="left">fanout(f: Program[I, A], g: Program[I, B]) &#8594;</td></tr>
+              <tr><td port="m_compose" align="left">f.&gt;&gt;&gt;(g: Program[B, C]) &#8594;</td></tr>
+              <tr><td port="m_params" align="left">f.params &#8594;</td></tr>
+              <tr><td port="m_reparam" align="left">f.reparam(ps: Vector[PredictorState]) &#8594;</td></tr>
+              </table>
+            >,
+			pos="1632.9,1295.2",
+			shape=plain,
+			style=filled,
+			width=2.7555];
+		ProgramType -> ParaCategoryGiven:m_fanout	[_draw_="c 7 -#5f6368 B 10 1176.64 1286.9 1209.63 1341.9 1272.81 1430.38 1355.38 1467.16 1392.95 1483.89 1412.78 1488.54 1447.91 1467.16 \
+1515.25 1426.16 1455.67 1312.52 1523.71 1303.7 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1523.82 1306.32 1531.15 1303.25 1523.5 1301.08 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1484.2 0 60.52 16 -f: Program[I, A] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="f: Program[I, A]",
+			lp="1401.6,1486.9",
+			pos="e,1532.7,1303.2 1176.6,1286.9 1209.6,1341.9 1272.8,1430.4 1355.4,1467.2 1392.9,1483.9 1412.8,1488.5 1447.9,1467.2 1515.2,1426.2 \
+1455.7,1312.5 1523.7,1303.7"];
+		ProgramType -> ParaCategoryGiven:m_fanout	[_draw_="c 7 -#5f6368 B 10 1198.76 1287.14 1237.37 1321.72 1295.1 1365.93 1355.38 1385.16 1394.56 1397.65 1409.79 1400.58 1447.91 1385.16 \
+1493.55 1366.69 1481.98 1310.55 1523.86 1303.82 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1523.87 1306.45 1531.15 1303.27 1523.47 1301.22 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1398.35 0 63.02 16 -g: Program[I, B] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="g: Program[I, B]",
+			lp="1401.6,1401.1",
+			pos="e,1532.7,1303.2 1198.8,1287.1 1237.4,1321.7 1295.1,1365.9 1355.4,1385.2 1394.6,1397.7 1409.8,1400.6 1447.9,1385.2 1493.6,1366.7 \
+1482,1310.6 1523.9,1303.8"];
+		ProgramType -> ParaCategoryGiven:m_compose	[_draw_="c 7 -#5f6368 B 10 1270.71 1283.56 1298.17 1291.69 1327.49 1298.95 1355.38 1303.16 1396.04 1309.29 1407.12 1308.37 1447.91 1303.16 \
+1483.34 1298.63 1492.35 1283.88 1523.69 1281.49 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1523.75 1284.11 1531.15 1281.21 1523.56 1278.86 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1310.12 0 64.02 16 -f: Program[A, B] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="f: Program[A, B]",
+			lp="1401.6,1312.8",
+			pos="e,1532.7,1281.2 1270.7,1283.6 1298.2,1291.7 1327.5,1299 1355.4,1303.2 1396,1309.3 1407.1,1308.4 1447.9,1303.2 1483.3,1298.6 1492.3,\
+1283.9 1523.7,1281.5"];
+		ProgramType -> ParaCategoryGiven:m_compose	[_draw_="c 7 -#5f6368 B 10 1243.57 1287.1 1277.79 1302.06 1317.49 1316.67 1355.38 1324.16 1395.72 1332.13 1407.91 1333.72 1447.91 1324.16 \
+1485.94 1315.06 1489.99 1285.95 1523.9 1281.68 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1523.82 1284.32 1531.15 1281.25 1523.5 1279.08 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1333.45 0 67.02 16 -g: Program[B, C] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="g: Program[B, C]",
+			lp="1401.6,1336.1",
+			pos="e,1532.7,1281.2 1243.6,1287.1 1277.8,1302.1 1317.5,1316.7 1355.4,1324.2 1395.7,1332.1 1407.9,1333.7 1447.9,1324.2 1485.9,1315.1 \
+1490,1286 1523.9,1281.7"];
+		ProgramType -> ParaCategoryGiven:m_params	[_draw_="c 7 -#5f6368 B 7 1270.39 1241.57 1324.61 1242.79 1389.56 1245.09 1447.91 1249.36 1482.62 1251.9 1493.07 1258.03 1523.88 1259.02 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1523.61 1261.64 1531.15 1259.13 1523.69 1256.39 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1252.06 0 64.02 16 -f: Program[A, B] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="f: Program[A, B]",
+			lp="1401.6,1254.8",
+			pos="e,1532.7,1259.2 1270.4,1241.6 1324.6,1242.8 1389.6,1245.1 1447.9,1249.4 1482.6,1251.9 1493.1,1258 1523.9,1259"];
+		ProgramType -> ParaCategoryGiven:m_reparam	[_draw_="c 7 -#5f6368 B 10 1270.7 1193.71 1304.92 1181.27 1337.72 1170.41 1355.38 1167.36 1395.9 1160.35 1409.2 1153.47 1447.91 1167.36 1490.79 \
+1182.74 1484.94 1230.24 1523.68 1236.48 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1523.47 1239.09 1531.15 1237.04 1523.87 1233.86 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1170.06 0 64.02 16 -f: Program[A, B] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="f: Program[A, B]",
+			lp="1401.6,1172.8",
+			pos="e,1532.7,1237.2 1270.7,1193.7 1304.9,1181.3 1337.7,1170.4 1355.4,1167.4 1395.9,1160.4 1409.2,1153.5 1447.9,1167.4 1490.8,1182.7 \
+1484.9,1230.2 1523.7,1236.5"];
+		ReadFunctor	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 1772.13 1166.16 1493.58 1166.16 1493.58 1116.16 1772.13 1116.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 1493.58 1116.16 1493.58 1166.16 1772.13 1166.16 1772.13 1116.16 S 5 -solid c 9 -#fffffe00 \
+C 7 -#c5cae9 P 4 1493.58 1138.16 1493.58 1166.16 1772.13 1166.16 1772.13 1138.16 S 5 -solid c 7 -#000000 p 4 1493.58 1138.16 1493.58 \
+1166.16 1772.13 1166.16 1772.13 1138.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 1602.02 1153.16 -1 61.67 11 -ReadFunctor F 8 9 -Helvetica \
+c 7 -#000000 t 0 T 1498.58 1144.96 -1 268.55 69 -object · CategoryFunctor[RecordCodec, Program, AnyObject, ParamsHom] S 5 -solid \
+c 7 -#000000 p 4 1493.58 1116.16 1493.58 1138.16 1772.13 1138.16 1772.13 1116.16 F 10 9 -Helvetica c 7 -#000000 T 1498.58 1124.16 \
+-1 108.36 25 -map(f: Program[A, B]) → ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.69444,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#C5CAE9"><b>ReadFunctor</b><br/><font point-size="8">object · CategoryFunctor[RecordCodec, Program, AnyObject, ParamsHom]</font></td></tr>
+              <tr><td port="m_map" align="left">map(f: Program[A, B]) &#8594;</td></tr>
+              </table>
+            >,
+			pos="1632.9,1141.2",
+			shape=plain,
+			style=filled,
+			width=3.8688];
+		ProgramType -> ReadFunctor:m_map	[_draw_="c 7 -#5f6368 B 10 1270.54 1202.57 1289.24 1194.48 1307.84 1185.02 1324.38 1174.16 1340.88 1163.32 1337.64 1151.02 1355.38 1142.36 \
+1407.82 1116.75 1429.13 1126.1 1483.88 1127.08 ",
+			_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1483.55 1129.7 1491.07 1127.14 1483.59 1124.45 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1145.06 0 64.02 16 -f: Program[A, B] ",
+			arrowsize=0.75,
+			color="#5F6368",
+			fontname=Helvetica,
+			fontsize=9,
+			label="f: Program[A, B]",
+			lp="1401.6,1147.8",
+			pos="e,1492.6,1127.2 1270.5,1202.6 1289.2,1194.5 1307.8,1185 1324.4,1174.2 1340.9,1163.3 1337.6,1151 1355.4,1142.4 1407.8,1116.8 1429.1,\
+1126.1 1483.9,1127.1"];
+		ProgramCompanion	[_draw_="c 9 -#fffffe00 C 7 -#fce8b2 P 4 814.11 1279.16 571.79 1279.16 571.79 1163.16 814.11 1163.16 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#fff8e1 P 4 571.79 1163.16 571.79 1279.16 814.11 1279.16 814.11 1163.16 S 5 -solid c 9 -#fffffe00 \
+C 7 -#ceead6 P 4 571.79 1251.16 571.79 1279.16 814.11 1279.16 814.11 1251.16 S 5 -solid c 7 -#000000 p 4 571.79 1251.16 571.79 1279.16 \
+814.11 1279.16 814.11 1251.16 F 10 9 -Helvetica c 7 -#000000 t 1 T 672.39 1266.16 -1 41.12 7 -Program F 8 9 -Helvetica c 7 -#000000 \
+t 0 T 621.58 1257.96 -1 142.74 40 -companion object · public API/providers S 5 -solid c 7 -#000000 p 4 571.79 1229.16 571.79 1251.16 \
+814.11 1251.16 814.11 1229.16 F 10 9 -Helvetica c 7 -#000000 T 576.79 1237.16 -1 205.62 49 -of(f: F)(using Predictors[F], RecordCodec[\
+I]) → S 5 -solid c 7 -#000000 p 4 571.79 1207.16 571.79 1229.16 814.11 1229.16 814.11 1207.16 F 10 9 -Helvetica c 7 -#000000 T \
+576.79 1215.16 -1 141.72 33 -given programPredictors[I, O] → S 5 -solid c 7 -#000000 p 4 571.79 1185.16 571.79 1207.16 814.11 \
+1207.16 814.11 1185.16 F 10 9 -Helvetica c 7 -#000000 T 576.79 1193.16 -1 232.32 51 -given programRunner[I, O](using RecordCodec[\
+I]) → S 5 -solid c 7 -#000000 p 4 571.79 1163.16 571.79 1185.16 814.11 1185.16 814.11 1163.16 F 10 9 -Helvetica c 7 -#000000 T \
+576.79 1171.16 -1 136.73 29 -given paraCategoryProgram → ",
+			fillcolor="#FCE8B2",
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.6111,
+			label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#CEEAD6"><b>Program</b><br/><font point-size="8">companion object · public API/providers</font></td></tr>
+              <tr><td port="m_of" align="left">of(f: F)(using Predictors[F], RecordCodec[I]) &#8594;</td></tr>
+              <tr><td port="m_programPredictors" align="left">given programPredictors[I, O] &#8594;</td></tr>
+              <tr><td port="m_programRunner" align="left">given programRunner[I, O](using RecordCodec[I]) &#8594;</td></tr>
+              <tr><td port="m_paraCategoryProgram" align="left">given paraCategoryProgram &#8594;</td></tr>
+              </table>
+            >,
+			pos="692.95,1221.2",
+			shape=plain,
+			style=filled,
+			width=3.3656];
+		ProgramCompanion:m_of -> ProgramType	[_draw_="c 7 -#137333 B 4 814.11 1240.16 882.44 1240.16 958.61 1240.16 1021.03 1240.16 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1020.73 1242.78 1028.23 1240.16 1020.73 1237.53 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 1242.86 0 99.79 25 -Program[I, O] { Rep = F } ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Program[I, O] { Rep = F }",
+			lp="895.01,1245.6",
+			pos="e,1029.7,1240.2 814.11,1240.2 882.44,1240.2 958.61,1240.2 1021,1240.2"];
+		ProgramCompanion:m_programPredictors -> ProgramPredictorsGiven	[_draw_="c 7 -#137333 B 16 814.11 1218.16 885.69 1218.16 897.89 1185.25 967.9 1170.36 1045.93 1153.76 1262.28 1178.22 1324.38 1128.16 1357.32 \
+1101.61 1322.31 1064.54 1355.38 1038.16 1371.55 1025.26 1427.71 1032.6 1447.91 1028.16 1463.6 1024.71 1479.84 1020.39 1495.86 1015.65 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1496.34 1018.25 1502.77 1013.57 1494.83 1013.22 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1150.14 1173.06 0 99.53 25 -Predictors[Program[I, O]] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Predictors[Program[I, O]]",
+			lp="1150.1,1175.8",
+			pos="e,1504.2,1013.1 814.11,1218.2 885.69,1218.2 897.89,1185.2 967.9,1170.4 1045.9,1153.8 1262.3,1178.2 1324.4,1128.2 1357.3,1101.6 1322.3,\
+1064.5 1355.4,1038.2 1371.5,1025.3 1427.7,1032.6 1447.9,1028.2 1463.6,1024.7 1479.8,1020.4 1495.9,1015.7"];
+		ProgramCompanion:m_programRunner -> ProgramRunnerGiven	[_draw_="c 7 -#137333 B 10 814.11 1196.16 869.21 1196.16 808.26 991.12 845.11 950.16 936.46 848.62 1312.07 815.92 1447.91 830.16 1472.74 \
+832.76 1499.15 837.29 1523.99 842.36 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1523.34 844.91 1531.22 843.87 1524.41 839.77 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1150.14 885.89 0 123.04 28 -ProgramRunner[Program[I, O]] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="ProgramRunner[Program[I, O]]",
+			lp="1150.1,888.59",
+			pos="e,1532.7,844.18 814.11,1196.2 869.21,1196.2 808.26,991.12 845.11,950.16 936.46,848.62 1312.1,815.92 1447.9,830.16 1472.7,832.76 \
+1499.2,837.29 1524,842.36"];
+		ProgramCompanion:m_paraCategoryProgram -> ParaCategoryGiven	[_draw_="c 7 -#137333 B 13 814.11 1174.16 887.29 1174.16 895.94 1128.64 967.9 1115.36 1072.8 1095.99 1357.62 1061.35 1447.91 1118.16 1473.65 \
+1134.35 1459.41 1155.82 1478.91 1179.16 1492.87 1195.86 1509.66 1211.6 1526.94 1225.77 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1525.17 1227.72 1532.66 1230.38 1528.47 1223.63 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1150.14 1118.06 0 155.07 34 -ParaCategory[RecordCodec, Program] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="ParaCategory[RecordCodec, Program]",
+			lp="1150.1,1120.8",
+			pos="e,1533.8,1231.3 814.11,1174.2 887.29,1174.2 895.94,1128.6 967.9,1115.4 1072.8,1096 1357.6,1061.3 1447.9,1118.2 1473.6,1134.4 1459.4,\
+1155.8 1478.9,1179.2 1492.9,1195.9 1509.7,1211.6 1526.9,1225.8"];
+		ProgramPredictorsGiven:m_replace -> ProgramType	[_draw_="c 7 -#137333 B 10 1478.91 952.16 1423.13 952.16 1394.35 934.45 1355.38 974.36 1292.6 1038.65 1380.91 1104.3 1324.38 1174.16 1312.18 \
+1189.24 1296.12 1200.87 1278.7 1209.85 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1277.56 1207.49 1271.96 1213.13 1279.86 1212.21 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 977.06 0 54.01 13 -Program[I, O] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Program[I, O]",
+			lp="1401.6,979.76",
+			pos="e,1270.6,1213.8 1478.9,952.16 1423.1,952.16 1394.3,934.45 1355.4,974.36 1292.6,1038.7 1380.9,1104.3 1324.4,1174.2 1312.2,1189.2 \
+1296.1,1200.9 1278.7,1209.9"];
+		ParaCategoryGiven:m_id -> ProgramType	[_draw_="c 7 -#137333 B 10 1532.66 1325.16 1447.04 1325.16 1520.56 1452.85 1447.91 1498.16 1413.01 1519.92 1392.4 1516.07 1355.38 1498.16 \
+1268.46 1456.11 1207.29 1357.12 1175.75 1294.71 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1178.23 1293.8 1172.54 1288.26 1173.53 1296.14 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1515.77 0 56.52 13 -Program[A, A] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Program[A, A]",
+			lp="1401.6,1518.5",
+			pos="e,1171.9,1286.9 1532.7,1325.2 1447,1325.2 1520.6,1452.8 1447.9,1498.2 1413,1519.9 1392.4,1516.1 1355.4,1498.2 1268.5,1456.1 1207.3,\
+1357.1 1175.8,1294.7"];
+		ParaCategoryGiven:m_fanout -> ProgramType	[_draw_="c 7 -#137333 B 10 1532.66 1303.16 1471.29 1303.16 1503.03 1385.19 1447.91 1412.16 1410.97 1430.23 1394.01 1426.26 1355.38 1412.16 \
+1290.9 1388.62 1232.68 1334.77 1195.05 1293.54 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1197.18 1291.98 1190.2 1288.16 1193.28 1295.49 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1426.96 0 70.01 18 -Program[I, (A, B)] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Program[I, (A, B)]",
+			lp="1401.6,1429.7",
+			pos="e,1189.2,1287 1532.7,1303.2 1471.3,1303.2 1503,1385.2 1447.9,1412.2 1411,1430.2 1394,1426.3 1355.4,1412.2 1290.9,1388.6 1232.7,1334.8 \
+1195.1,1293.5"];
+		ParaCategoryGiven:m_compose -> ProgramType	[_draw_="c 7 -#137333 B 4 1532.66 1281.16 1448 1281.16 1353.37 1271.05 1279.54 1260.88 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1279.93 1258.28 1272.14 1259.85 1279.21 1263.48 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1280.35 0 57.01 13 -Program[A, C] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Program[A, C]",
+			lp="1401.6,1283.1",
+			pos="e,1270.6,1259.6 1532.7,1281.2 1448,1281.2 1353.4,1271.1 1279.5,1260.9"];
+		ParaCategoryGiven:m_reparam -> ProgramType	[_draw_="c 7 -#137333 B 7 1532.66 1237.16 1494.74 1237.16 1485.76 1229.54 1447.91 1227.36 1392.79 1224.18 1331.87 1225.9 1279.65 1228.98 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1279.51 1226.35 1272.18 1229.43 1279.83 1231.59 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1230.06 0 56.52 13 -Program[A, B] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="Program[A, B]",
+			lp="1401.6,1232.8",
+			pos="e,1270.7,1229.5 1532.7,1237.2 1494.7,1237.2 1485.8,1229.5 1447.9,1227.4 1392.8,1224.2 1331.9,1225.9 1279.6,1229"];
+		ReadFunctor:m_map -> ParamsHomAB	[_draw_="c 7 -#137333 B 4 1773.13 1127.16 1860.22 1127.16 1961.26 1127.16 2022.55 1127.16 ",
+			_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 2022.28 1129.78 2029.78 1127.16 2022.28 1124.53 ",
+			_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1908.39 1129.86 0 72.02 15 -ParamsHom[A, B] ",
+			arrowsize=0.75,
+			color="#137333",
+			fontname=Helvetica,
+			fontsize=9,
+			label="ParamsHom[A, B]",
+			lp="1908.4,1132.6",
+			pos="e,2031.3,1127.2 1773.1,1127.2 1860.2,1127.2 1961.3,1127.2 2022.5,1127.2"];
+	}
+	RuntimeContext -> PredictType:m_apply	[_draw_="c 7 -#5f6368 B 16 1117.68 459.59 1079.31 483.09 1013.89 526.55 967.9 575.16 955.11 588.68 957.52 596.47 944.9 610.16 894.93 664.35 \
+882.21 683.92 814.11 712.16 744.43 741.06 527.18 701.15 477.77 758.16 439.06 802.82 502.69 1780.64 453.86 1862.69 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 452.3 1860.57 447.97 1867.23 455.51 1864.73 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 692.95 730.39 0 21.52 5 -using ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=using,
+		lp="692.95,733.09",
+		pos="e,446.77,1868.2 1117.7,459.59 1079.3,483.09 1013.9,526.55 967.9,575.16 955.11,588.68 957.52,596.47 944.9,610.16 894.93,664.35 882.21,\
+683.92 814.11,712.16 744.43,741.06 527.18,701.15 477.77,758.16 439.06,802.82 502.69,1780.6 453.86,1862.7"];
+	RuntimeContext -> ProgramType:m_apply	[_draw_="c 7 -#5f6368 B 13 1128.85 459.5 1089.56 494.71 1006.2 576.13 967.9 664.16 915.72 784.1 936.97 825.26 928.11 955.76 921.42 1054.2 \
+895.04 1107.63 967.9 1174.16 995.49 1199.34 1126 1159.17 1147.22 1183.88 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1144.67 1184.53 1149.64 1190.73 1149.62 1182.78 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 958.46 0 21.52 5 -using ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=using,
+		lp="895.01,961.16",
+		pos="e,1150.1,1192.2 1128.8,459.5 1089.6,494.71 1006.2,576.13 967.9,664.16 915.72,784.1 936.97,825.26 928.11,955.76 921.42,1054.2 895.04,\
+1107.6 967.9,1174.2 995.49,1199.3 1126,1159.2 1147.2,1183.9"];
+	RuntimeContext -> ProgramRunnerGiven:m_run	[_draw_="c 7 -#5f6368 B 10 1161.43 459.34 1187.71 504.14 1261.91 620.67 1355.38 682.16 1391.3 705.78 1414.4 683.42 1447.91 710.36 1502.97 \
+754.63 1459.59 846.79 1520.47 854.62 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1520.17 857.23 1527.81 855.07 1520.48 851.99 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 713.06 0 21.52 5 -using ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=using,
+		lp="1401.6,715.76",
+		pos="e,1529.3,855.16 1161.4,459.34 1187.7,504.14 1261.9,620.67 1355.4,682.16 1391.3,705.78 1414.4,683.42 1447.9,710.36 1503,754.63 1459.6,\
+846.79 1520.5,854.62"];
+	SignatureLayoutType:m_dumpState -> DynamicValueRecord	[_draw_="c 7 -#137333 B 10 1510.95 100.16 1200.25 100.16 1027.46 61.59 845.11 313.16 803.18 371 861.18 579.41 814.11 633.16 800.53 648.67 \
+780.17 656.47 760.06 660.18 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 759.67 657.58 752.66 661.33 760.48 662.77 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1150.14 182.97 0 89.54 19 -DynamicValue.Record ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="DynamicValue.Record",
+		lp="1150.1,185.67",
+		pos="e,751.17,661.56 1511,100.16 1200.3,100.16 1027.5,61.591 845.11,313.16 803.18,371 861.18,579.41 814.11,633.16 800.53,648.67 780.17,\
+656.47 760.06,660.18"];
+	DynamicPrediction -> PredictionO	[_draw_="c 7 -#000000 B 4 2029.74 1632.04 1956.47 1633.36 1816.97 1635.86 1724.67 1637.52 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1724.83 1634.02 1714.89 1637.7 1724.95 1641.02 ",
+		_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 1908.39 1639.84 0 181.17 31 -Prediction.from(Shape[O]).right ",
+		label="Prediction.from(Shape[O]).right",
+		lp="1908.4,1644",
+		pos="e,1713.4,1637.7 2029.7,1632 1956.5,1633.4 1817,1635.9 1724.7,1637.5"];
+	RecordCodecI -> ProgramCompanion:m_of	[_draw_="c 7 -#5f6368 B 13 274.57 2199.59 323.01 2205.49 401.59 2206.53 446.77 2162.16 509.63 2100.42 449.62 2049.85 477.77 1966.36 496.67 \
+1910.32 524.94 1906.14 540.79 1849.16 549.3 1818.56 538.45 1310.08 564.97 1246.64 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 566.72 1248.62 569.78 1241.28 562.81 1245.11 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 1969.06 0 24.02 5 -codec ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=codec,
+		lp="509.28,1971.8",
+		pos="e,570.79,1240.2 274.57,2199.6 323.01,2205.5 401.59,2206.5 446.77,2162.2 509.63,2100.4 449.62,2049.8 477.77,1966.4 496.67,1910.3 \
+524.94,1906.1 540.79,1849.2 549.3,1818.6 538.45,1310.1 564.97,1246.6"];
+	RecordCodecI -> ProgramCompanion:m_programRunner	[_draw_="c 7 -#5f6368 B 13 274.3 2200.06 323.24 2206.62 403.05 2208.48 446.77 2162.16 475.91 2131.29 471.72 1823.37 477.77 1781.36 497.4 \
+1645.13 519.48 1614.13 540.79 1478.16 545.25 1449.7 540.29 1237.65 563.47 1201.42 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 565 1203.55 569.56 1197.04 561.94 1199.29 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 1784.06 0 24.02 5 -codec ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=codec,
+		lp="509.28,1786.8",
+		pos="e,570.79,1196.2 274.3,2200.1 323.24,2206.6 403.05,2208.5 446.77,2162.2 475.91,2131.3 471.72,1823.4 477.77,1781.4 497.4,1645.1 519.48,\
+1614.1 540.79,1478.2 545.25,1449.7 540.29,1237.7 563.47,1201.4"];
+	RecordCodecA -> ParaCategoryGiven:m_id	[_draw_="c 7 -#5f6368 B 19 276.39 2260.88 325.03 2266.67 402.36 2267.24 446.77 2223.16 513.73 2156.7 412.96 2081.71 477.77 2013.16 514.17 \
+1974.65 895.15 1935.38 944.9 1917.16 1125.31 1851.1 1164.48 1816.64 1324.38 1710.16 1382.94 1671.16 1408.67 1669.56 1447.91 1611.16 \
+1520.11 1503.7 1405.68 1333.37 1523.75 1325.44 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1523.73 1328.07 1531.15 1325.21 1523.57 1322.82 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 1938.73 0 24.02 5 -codec ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=codec,
+		lp="895.01,1941.4",
+		pos="e,1532.7,1325.2 276.39,2260.9 325.03,2266.7 402.36,2267.2 446.77,2223.2 513.73,2156.7 412.96,2081.7 477.77,2013.2 514.17,1974.7 \
+895.15,1935.4 944.9,1917.2 1125.3,1851.1 1164.5,1816.6 1324.4,1710.2 1382.9,1671.2 1408.7,1669.6 1447.9,1611.2 1520.1,1503.7 1405.7,\
+1333.4 1523.8,1325.4"];
+	PredictType:m_apply -> DspyError	[_draw_="c 7 -#ea4335 B 16 446.77 1868.16 485.34 1868.16 460.65 514.71 477.77 480.16 601.14 231.22 705.04 182.12 967.9 92.16 1170.14 22.94 \
+1304.75 -36.58 1447.91 122.16 1516.4 198.1 1408.74 275.76 1478.91 350.16 1507.8 380.79 1558.07 385.27 1593.06 384.07 ",
+		_hdraw_="S 5 -solid c 7 -#ea4335 C 7 -#ea4335 P 3 1593.18 386.69 1600.54 383.7 1592.92 381.45 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 138.19 0 15.01 4 -Left ",
+		arrowsize=0.75,
+		color="#EA4335",
+		fontname=Helvetica,
+		fontsize=9,
+		label=Left,
+		lp="895.01,140.89",
+		pos="e,1602.1,383.63 446.77,1868.2 485.34,1868.2 460.65,514.71 477.77,480.16 601.14,231.22 705.04,182.12 967.9,92.157 1170.1,22.944 1304.8,\
+-36.576 1447.9,122.16 1516.4,198.1 1408.7,275.76 1478.9,350.16 1507.8,380.79 1558.1,385.27 1593.1,384.07"];
+	PredictType:f_demos -> ExampleType	[_draw_="S 17 -setlinewidth(2.2) c 7 -#137333 B 16 446.77 2088.16 527.07 2088.16 416.31 1961.84 477.77 1910.16 499.21 1892.13 512.85 1908.19 \
+540.79 1910.16 677.05 1919.74 708.85 1943.58 845.11 1953.16 1269.76 1983.01 1373.9 1881.72 1786.81 1778.16 1879.47 1754.92 1986.86 \
+1721.59 2041.93 1704.03 ",
+		_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#137333 C 7 -#137333 P 3 2042.39 1706.64 2048.73 1701.85 2040.79 1701.64 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1150.14 1961.16 0 42.02 11 -Vector 0..* ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="Vector 0..*",
+		lp="1150.1,1963.9",
+		penwidth=2.2,
+		pos="e,2051.9,1700.8 446.77,2088.2 527.07,2088.2 416.31,1961.8 477.77,1910.2 499.21,1892.1 512.85,1908.2 540.79,1910.2 677.05,1919.7 \
+708.85,1943.6 845.11,1953.2 1269.8,1983 1373.9,1881.7 1786.8,1778.2 1879.5,1754.9 1986.9,1721.6 2041.9,1704"];
+	PredictType:f_runtime -> ProgramRuntimeType	[_draw_="c 7 -#137333 B 7 446.77 2044.16 494.34 2044.16 444.66 1866.51 477.77 1832.36 518.73 1790.1 589.17 1785.13 638.03 1787.71 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 637.73 1790.32 645.38 1788.18 638.06 1785.08 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 1835.06 0 30.01 7 -runtime ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=runtime,
+		lp="509.28,1837.8",
+		pos="e,646.89,1788.3 446.77,2044.2 494.34,2044.2 444.66,1866.5 477.77,1832.4 518.73,1790.1 589.17,1785.1 638.03,1787.7"];
+	PredictType:m_apply -> PredictionO	[_draw_="c 7 -#137333 B 7 446.77 1868.16 610.35 1868.16 652.48 1870.36 814.11 1845.16 1084.4 1803.02 1395.75 1712.66 1544.24 1666.91 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1544.65 1669.53 1551.04 1664.81 1543.1 1664.52 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 1842.28 0 21.01 5 -Right ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=Right,
+		lp="895.01,1845",
+		pos="e,1552.5,1664.4 446.77,1868.2 610.35,1868.2 652.48,1870.4 814.11,1845.2 1084.4,1803 1395.7,1712.7 1544.2,1666.9"];
+	PredictType:f_signature -> SignatureIO	[_draw_="c 7 -#137333 B 10 446.77 2110.16 523.14 2110.16 420.64 1991.83 477.77 1941.16 558.57 1869.49 1347.72 1921.47 1447.91 1881.16 1518.01 \
+1852.95 1580.69 1786.98 1611.58 1750.52 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1613.56 1752.24 1616.35 1744.8 1609.53 1748.87 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 1902.94 0 37.02 9 -signature ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=signature,
+		lp="895.01,1905.6",
+		pos="e,1617.3,1743.6 446.77,2110.2 523.14,2110.2 420.64,1991.8 477.77,1941.2 558.57,1869.5 1347.7,1921.5 1447.9,1881.2 1518,1852.9 1580.7,\
+1787 1611.6,1750.5"];
+	PredictType:f_tools -> ToolSpecType	[_draw_="S 17 -setlinewidth(2.2) c 7 -#137333 B 7 446.77 1978.16 522.17 1978.16 429.1 678.94 477.77 621.36 520.27 571.08 603.82 570.09 653.07 \
+574.63 ",
+		_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#137333 C 7 -#137333 P 3 652.58 577.22 660.31 575.39 653.13 572 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 624.06 0 42.02 11 -Vector 0..* ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="Vector 0..*",
+		lp="509.28,626.76",
+		penwidth=2.2,
+		pos="e,663.62,575.74 446.77,1978.2 522.17,1978.2 429.1,678.94 477.77,621.36 520.27,571.08 603.82,570.09 653.07,574.63"];
+	PredictType:f_lm -> LanguageModelType	[_draw_="S 6 -dashed c 7 -#137333 B 13 446.77 2000.16 482.58 2000.16 458.52 741.55 477.77 711.36 494.57 685 522.08 705.19 540.79 680.16 576.44 \
+632.46 525.93 594.12 563.79 548.16 582.65 525.26 613.49 513.05 640.18 506.54 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 640.47 509.16 647.21 504.95 639.32 504.04 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 714.06 0 44.03 11 -Option 0..1 ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="Option 0..1",
+		lp="509.28,716.76",
+		pos="e,648.69,504.62 446.77,2000.2 482.58,2000.2 458.52,741.55 477.77,711.36 494.57,685 522.08,705.19 540.79,680.16 576.44,632.46 525.93,\
+594.12 563.79,548.16 582.65,525.26 613.49,513.05 640.18,506.54",
+		style=dashed];
+	PredictType:m_boundLm -> LanguageModelType	[_draw_="S 6 -dashed c 7 -#137333 B 7 446.77 1912.16 524.28 1912.16 424.71 573.85 477.77 517.36 518.26 474.25 590.71 477.54 640.02 486.3 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 639.3 488.84 647.15 487.65 640.27 483.68 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 520.06 0 44.03 11 -Option 0..1 ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="Option 0..1",
+		lp="509.28,522.76",
+		pos="e,648.64,487.93 446.77,1912.2 524.28,1912.2 424.71,573.85 477.77,517.36 518.26,474.25 590.71,477.54 640.02,486.3",
+		style=dashed];
+	PredictType:f_config -> DynamicValueRecord	[_draw_="c 7 -#137333 B 10 446.77 2022.16 478.86 2022.16 475.04 1477.33 477.77 1445.36 505.73 1117.56 361.81 969.84 563.79 710.16 579.03 \
+690.56 603.1 678.8 626.28 671.74 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 626.8 674.32 633.31 669.76 625.38 669.27 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 1448.06 0 24.02 6 -config ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=config,
+		lp="509.28,1450.8",
+		pos="e,634.76,669.35 446.77,2022.2 478.86,2022.2 475.04,1477.3 477.77,1445.4 505.73,1117.6 361.81,969.84 563.79,710.16 579.03,690.56 \
+603.1,678.8 626.28,671.74"];
+	ModuleBound -> ProgramCompanion:m_of	[_draw_="c 7 -#5f6368 B 13 601.69 1665.16 587.44 1660.34 574.06 1653.04 563.79 1642.16 465.46 1537.9 527.93 1474.31 534.73 1461.76 605.32 \
+1331.29 741.86 1408.71 814.11 1279.16 820.58 1267.56 827.89 1250.86 823.19 1243.67 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 824.43 1241.35 816.5 1240.76 822.33 1246.16 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 1464.46 0 13 4 -f: F ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label="f: F",
+		lp="509.28,1467.2",
+		pos="e,815.11,1240.2 601.69,1665.2 587.44,1660.3 574.06,1653 563.79,1642.2 465.46,1537.9 527.93,1474.3 534.73,1461.8 605.32,1331.3 741.86,\
+1408.7 814.11,1279.2 820.58,1267.6 827.89,1250.9 823.19,1243.7"];
+	ProgramCallI -> ProgramType:m_apply	[_draw_="c 7 -#5f6368 B 10 733.33 1612.06 759.58 1610.51 793.02 1604.02 814.11 1583.16 855.36 1542.36 820.7 1508.99 845.11 1456.36 873.08 \
+1396.07 952.37 1219.48 1019.95 1205.09 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1019.87 1207.74 1027.04 1204.32 1019.3 1202.52 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 1459.06 0 13.5 4 -call ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=call,
+		lp="895.01,1461.8",
+		pos="e,1028.5,1204.2 733.33,1612.1 759.58,1610.5 793.02,1604 814.11,1583.2 855.36,1542.4 820.7,1509 845.11,1456.4 873.08,1396.1 952.37,\
+1219.5 1019.9,1205.1"];
+	ProgramCallRecord -> ProgramRunnerGiven:m_run	[_draw_="c 7 -#5f6368 B 10 781.62 1722.46 961.85 1698.5 1364.15 1634.36 1447.91 1530.16 1491.33 1476.14 1451.29 970.73 1478.91 907.16 1490.48 \
+880.52 1496.01 859.61 1520.63 855.79 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1520.52 858.43 1527.81 855.27 1520.14 853.19 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1150.14 1695.73 0 13.5 4 -call ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=call,
+		lp="1150.1,1698.4",
+		pos="e,1529.3,855.16 781.62,1722.5 961.85,1698.5 1364.2,1634.4 1447.9,1530.2 1491.3,1476.1 1451.3,970.73 1478.9,907.16 1490.5,880.52 \
+1496,859.61 1520.6,855.79"];
+	PredictorsF -> ProgramCompanion:m_of	[_draw_="c 7 -#5f6368 B 7 1596.44 525.41 1466.99 539.44 1018.14 607.4 845.11 886.16 825.8 917.28 849.62 1195.34 821.64 1235.37 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 820.31 1233.1 815.39 1239.34 823.13 1237.53 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1150.14 748.23 0 9.51 2 -ev ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=ev,
+		lp="1150.1,750.93",
+		pos="e,814.11,1240.2 1596.4,525.41 1467,539.44 1018.1,607.4 845.11,886.16 825.8,917.28 849.62,1195.3 821.64,1235.4"];
+	PredictorState -> ProgramPredictorsGiven:m_replace	[_draw_="S 17 -setlinewidth(2.2) c 7 -#5f6368 B 13 1592.68 710.7 1516.47 723.2 1361.84 759.19 1400.66 841.56 1419.88 882.35 1436.75 890.15 \
+1478.91 906.16 1510.91 918.31 1762.69 892.86 1786.81 917.16 1794.35 924.75 1799.35 938.45 1796.68 946.26 ",
+		_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1795.38 943.98 1790.58 950.31 1798.28 948.35 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 833.46 0 79.05 20 -updates: Vector 0..* ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label="updates: Vector 0..*",
+		lp="1401.6,836.16",
+		penwidth=2.2,
+		pos="e,1787.8,952.16 1592.7,710.7 1516.5,723.2 1361.8,759.19 1400.7,841.56 1419.9,882.35 1436.7,890.15 1478.9,906.16 1510.9,918.31 1762.7,\
+892.86 1786.8,917.16 1794.3,924.75 1799.3,938.45 1796.7,946.26"];
+	PredictorState -> ParaCategoryGiven:m_reparam	[_draw_="S 17 -setlinewidth(2.2) c 7 -#5f6368 B 13 1592.85 709.47 1559.2 714.92 1511.5 727.11 1478.91 754.16 1427.25 797.04 1404.3 822.85 \
+1411.92 889.56 1426.9 1020.81 1388.48 1082.84 1478.91 1179.16 1525.02 1228.27 1621.14 1162.11 1631.88 1214.41 ",
+		_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 1629.26 1214.61 1632.56 1221.84 1634.49 1214.13 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 881.46 0 56.53 15 -ps: Vector 0..* ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label="ps: Vector 0..*",
+		lp="1401.6,884.16",
+		penwidth=2.2,
+		pos="e,1632.9,1225.2 1592.9,709.47 1559.2,714.92 1511.5,727.11 1478.9,754.16 1427.2,797.04 1404.3,822.85 1411.9,889.56 1426.9,1020.8 \
+1388.5,1082.8 1478.9,1179.2 1525,1228.3 1621.1,1162.1 1631.9,1214.4"];
+	PredictionO:f_raw -> DynamicPrediction	[_draw_="c 7 -#137333 B 7 1714.48 1609.76 1840.92 1609.76 1873.66 1592.52 1998.98 1609.36 2006.23 1610.33 2013.76 1611.78 2021.17 1613.48 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 2020.4 1616 2028.31 1615.22 2021.64 1610.9 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1908.39 1612.06 0 14.5 3 -raw ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=raw,
+		lp="1908.4,1614.8",
+		pos="e,2029.8,1615.6 1714.5,1609.8 1840.9,1609.8 1873.7,1592.5 1999,1609.4 2006.2,1610.3 2013.8,1611.8 2021.2,1613.5"];
+	SignatureIO -> SignatureLayoutType	[_draw_="c 7 -#137333 B 13 1592.28 1729.28 1556.81 1730.41 1506.76 1725.58 1478.91 1694.16 1382 1584.85 1422.8 1184.74 1428.17 1038.76 1439.45 \
+732.09 1348.39 627.89 1478.91 350.16 1486.16 334.73 1495.77 320.07 1506.66 306.4 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1508.41 308.4 1511.14 300.94 1504.36 305.07 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1041.46 0 24.02 6 -layout ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=layout,
+		lp="1401.6,1044.2",
+		pos="e,1512.1,299.77 1592.3,1729.3 1556.8,1730.4 1506.8,1725.6 1478.9,1694.2 1382,1584.8 1422.8,1184.7 1428.2,1038.8 1439.5,732.09 1348.4,\
+627.89 1478.9,350.16 1486.2,334.73 1495.8,320.07 1506.7,306.4"];
+	LanguageModelType -> PredictType:m_withLm	[_draw_="c 7 -#5f6368 B 7 648.79 506.62 592.42 517.34 498.44 538.87 477.77 566.36 455.94 595.4 482.25 1819.13 451.4 1926.63 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 449.26 1925.1 447.56 1932.87 453.73 1927.85 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 569.06 0 24.51 5 -model ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=model,
+		lp="509.28,571.76",
+		pos="e,446.77,1934.2 648.79,506.62 592.42,517.34 498.44,538.87 477.77,566.36 455.94,595.4 482.25,1819.1 451.4,1926.6"];
+	DynamicValueRecord -> SignatureLayoutCompanion:m_fromState	[_draw_="c 7 -#5f6368 B 7 750.98 658.03 772.59 654.39 796.26 647.18 814.11 633.16 936.23 537.24 821.21 323.71 965.94 315.41 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 965.97 318.03 973.39 315.2 965.82 312.78 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 595.95 0 19.51 5 -state ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=state,
+		lp="895.01,598.65",
+		pos="e,974.9,315.16 750.98,658.03 772.59,654.39 796.26,647.18 814.11,633.16 936.23,537.24 821.21,323.71 965.94,315.41"];
+	DynamicValueRecord -> PredictType:m_apply	[_draw_="c 7 -#5f6368 B 7 634.87 643.68 586.16 632.67 517.82 627.18 477.77 667.36 432.5 712.77 507.23 1779.73 453.92 1863.01 ",
+		_hdraw_="S 5 -solid c 7 -#5f6368 C 7 -#5f6368 P 3 452.56 1860.76 448 1867.27 455.62 1865.02 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 509.28 670.06 0 24.02 6 -config ",
+		arrowsize=0.75,
+		color="#5F6368",
+		fontname=Helvetica,
+		fontsize=9,
+		label=config,
+		lp="509.28,672.76",
+		pos="e,446.77,1868.2 634.87,643.68 586.16,632.67 517.82,627.18 477.77,667.36 432.5,712.77 507.23,1779.7 453.92,1863"];
+	ProgramType:m_apply -> DspyError	[_draw_="c 7 -#ea4335 B 13 1271.74 1204.16 1298.67 1204.16 1310.14 1197.02 1324.38 1174.16 1383.8 1078.76 1326.66 778.02 1355.38 669.36 1387.27 \
+548.69 1381.57 495.28 1478.91 417.16 1511.57 390.94 1559.96 382.86 1593.53 380.59 ",
+		_hdraw_="S 5 -solid c 7 -#ea4335 C 7 -#ea4335 P 3 1593.3 383.23 1600.64 380.19 1593.01 377.99 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 672.06 0 15.01 4 -Left ",
+		arrowsize=0.75,
+		color="#EA4335",
+		fontname=Helvetica,
+		fontsize=9,
+		label=Left,
+		lp="1401.6,674.76",
+		pos="e,1602.2,380.11 1271.7,1204.2 1298.7,1204.2 1310.1,1197 1324.4,1174.2 1383.8,1078.8 1326.7,778.02 1355.4,669.36 1387.3,548.69 1381.6,\
+495.28 1478.9,417.16 1511.6,390.94 1560,382.86 1593.5,380.59"];
+	ProgramType:f_program -> ModuleBound	[_draw_="c 7 -#137333 B 13 1028.55 1248.16 923.53 1248.16 1006.08 1383.79 944.9 1469.16 911.43 1515.86 877.81 1504.11 845.11 1551.36 820.85 \
+1586.42 845.51 1613.3 814.11 1642.16 807.64 1648.1 800.17 1652.92 792.19 1656.81 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 791.24 1654.36 785.44 1659.78 793.36 1659.16 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 895.01 1554.06 0 55.02 12 -program: Rep ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="program: Rep",
+		lp="895.01,1556.8",
+		pos="e,784.06,1660.4 1028.5,1248.2 923.53,1248.2 1006.1,1383.8 944.9,1469.2 911.43,1515.9 877.81,1504.1 845.11,1551.4 820.85,1586.4 845.51,\
+1613.3 814.11,1642.2 807.64,1648.1 800.17,1652.9 792.19,1656.8"];
+	ProgramType:f_addressable -> PredictorsRep	[_draw_="c 7 -#137333 B 16 1271.74 1226.16 1304.62 1226.16 1310.58 1204.01 1324.38 1174.16 1363.17 1090.26 1300.46 833.71 1355.38 759.36 \
+1381.62 723.84 1418.21 755.84 1447.91 723.16 1481.77 685.88 1441.95 648.37 1478.91 614.16 1506.19 588.9 1548.18 581.81 1581.26 580.67 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1580.94 583.31 1588.39 580.53 1580.84 578.06 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 762.06 0 49.03 11 -addressable ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=addressable,
+		lp="1401.6,764.76",
+		pos="e,1589.9,580.5 1271.7,1226.2 1304.6,1226.2 1310.6,1204 1324.4,1174.2 1363.2,1090.3 1300.5,833.71 1355.4,759.36 1381.6,723.84 1418.2,\
+755.84 1447.9,723.16 1481.8,685.88 1441.9,648.37 1478.9,614.16 1506.2,588.9 1548.2,581.81 1581.3,580.67"];
+	ProgramType:m_apply -> PredictionO	[_draw_="c 7 -#137333 B 7 1271.74 1204.16 1421.32 1204.16 1258.07 1416.56 1355.38 1530.16 1402.83 1585.54 1482.17 1613 1543.72 1626.48 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1542.92 1628.99 1550.8 1627.98 1544 1623.86 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 1597.39 0 21.01 5 -Right ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=Right,
+		lp="1401.6,1600.1",
+		pos="e,1552.3,1628.3 1271.7,1204.2 1421.3,1204.2 1258.1,1416.6 1355.4,1530.2 1402.8,1585.5 1482.2,1613 1543.7,1626.5"];
+	ProgramPredictorsGiven:m_inspectNamed -> PredictorView	[_draw_="S 17 -setlinewidth(2.2) c 7 -#137333 B 13 1632.86 918.16 1632.86 901.01 1495.6 911.07 1478.91 907.16 1440.56 898.17 1418.86 906.26 \
+1396.91 873.56 1343.76 794.33 1404.64 735.06 1478.91 675.16 1507.98 651.71 1550.03 644.48 1582.84 642.82 ",
+		_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1582.85 645.45 1590.25 642.57 1582.67 640.2 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 865.46 0 86.53 24 -Vector[(String, _)] 0..* ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="Vector[(String, _)] 0..*",
+		lp="1401.6,868.16",
+		penwidth=2.2,
+		pos="e,1593.6,642.46 1632.9,918.16 1632.9,901.01 1495.6,911.07 1478.9,907.16 1440.6,898.17 1418.9,906.26 1396.9,873.56 1343.8,794.33 \
+1404.6,735.06 1478.9,675.16 1508,651.71 1550,644.48 1582.8,642.82"];
+	ProgramPredictorsGiven:m_inspect -> PredictorView	[_draw_="S 17 -setlinewidth(2.2) c 7 -#137333 B 16 1787.81 974.16 1800.48 974.16 1795.68 926.2 1786.81 917.16 1774.82 904.94 1495.66 909.68 \
+1478.91 906.16 1440.53 898.09 1418.93 906.01 1396.91 873.56 1343.34 794.61 1404.64 735.06 1478.91 675.16 1507.98 651.71 1550.03 \
+644.48 1582.84 642.82 ",
+		_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1582.85 645.45 1590.25 642.57 1582.67 640.2 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 865.46 0 42.02 11 -Vector 0..* ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="Vector 0..*",
+		lp="1401.6,868.16",
+		penwidth=2.2,
+		pos="e,1593.6,642.46 1787.8,974.16 1800.5,974.16 1795.7,926.2 1786.8,917.16 1774.8,904.94 1495.7,909.68 1478.9,906.16 1440.5,898.09 1418.9,\
+906.01 1396.9,873.56 1343.3,794.61 1404.6,735.06 1478.9,675.16 1508,651.71 1550,644.48 1582.8,642.82"];
+	ProgramRunnerGiven:m_run -> DspyError	[_draw_="c 7 -#ea4335 B 10 1632.86 843.16 1632.86 753.57 1492.2 886.51 1432.67 819.56 1372.87 752.29 1419.14 484.46 1478.91 417.16 1507.26 \
+385.23 1557.89 378.43 1593.32 378.01 ",
+		_hdraw_="S 5 -solid c 7 -#ea4335 C 7 -#ea4335 P 3 1592.96 380.64 1600.46 378.03 1592.97 375.39 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 811.46 0 15.01 4 -Left ",
+		arrowsize=0.75,
+		color="#EA4335",
+		fontname=Helvetica,
+		fontsize=9,
+		label=Left,
+		lp="1401.6,814.16",
+		pos="e,1602,378.03 1632.9,843.16 1632.9,753.57 1492.2,886.51 1432.7,819.56 1372.9,752.29 1419.1,484.46 1478.9,417.16 1507.3,385.23 1557.9,\
+378.43 1593.3,378.01"];
+	ProgramRunnerGiven:m_run -> DynamicPrediction	[_draw_="c 7 -#137333 B 10 1736.39 855.16 1852.1 855.16 1779.3 1011.57 1817.81 1144.16 1877.83 1350.8 1891.46 1412.08 2021.98 1583.16 2028.58 \
+1591.81 2036.99 1599.97 2045.29 1607.03 ",
+		_hdraw_="S 5 -solid c 7 -#137333 C 7 -#137333 P 3 2043.57 1609 2051.03 1611.72 2046.89 1604.94 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1908.39 1546.78 0 21.01 5 -Right ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label=Right,
+		lp="1908.4,1549.5",
+		pos="e,2052.2,1612.7 1736.4,855.16 1852.1,855.16 1779.3,1011.6 1817.8,1144.2 1877.8,1350.8 1891.5,1412.1 2022,1583.2 2028.6,1591.8 2037,\
+1600 2045.3,1607"];
+	ParaCategoryGiven:m_params -> PredictorState	[_draw_="S 17 -setlinewidth(2.2) c 7 -#137333 B 16 1733.06 1259.16 1748.62 1259.16 1742.22 1235.94 1732.06 1224.16 1657.42 1137.62 1562.66 \
+1256.9 1478.91 1179.16 1400.36 1106.25 1432.55 1051.88 1419.17 945.56 1408.04 857.14 1415.54 816.81 1478.91 754.16 1506.44 726.93 \
+1549.05 714.82 1582.47 709.44 ",
+		_hdraw_="S 17 -setlinewidth(2.2) S 5 -solid c 7 -#137333 C 7 -#137333 P 3 1582.63 712.07 1589.67 708.4 1581.87 706.87 ",
+		_ldraw_="F 9 9 -Helvetica c 7 -#000000 T 1401.64 937.46 0 42.02 11 -Vector 0..* ",
+		arrowsize=0.75,
+		color="#137333",
+		fontname=Helvetica,
+		fontsize=9,
+		label="Vector 0..*",
+		lp="1401.6,940.16",
+		penwidth=2.2,
+		pos="e,1593,707.92 1733.1,1259.2 1748.6,1259.2 1742.2,1235.9 1732.1,1224.2 1657.4,1137.6 1562.7,1256.9 1478.9,1179.2 1400.4,1106.3 1432.5,\
+1051.9 1419.2,945.56 1408,857.14 1415.5,816.81 1478.9,754.16 1506.4,726.93 1549.1,714.82 1582.5,709.44"];
+}

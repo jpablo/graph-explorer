@@ -103,6 +103,189 @@ enforce the deferral halves of it):
   (169) made the exception EXPLICIT in code: a rank set spanning cluster
   boundaries keeps the correct global (newrank) semantics
   (`Rank.rankedImpl` dispatch).
+- **191-scala-type-graph** — NEW corpus probe (2026-07-26), the one OPEN
+  (non-intentional) corpus deferral. A user diagram: 10 clusters, HTML-table
+  nodes with ports, `rankdir=LR`, and — the part nothing else in the corpus
+  covers — every cluster setting its own `fontsize=11`, `labeljust=l`,
+  `style="filled,rounded"` through a `graph [...]` statement
+  (162-cluster-style only covers plain `filled` + `labeljust=c` at the
+  default fontsize). It arrived diverging in four ways, all rooted in the
+  cluster label; **the whole cluster-label subsystem is CLOSED (2026-07-27)**,
+  five transcriptions deep:
+  1. **label metrics** — `Cluster` measured every cluster label with the 14pt
+     Times DEFAULTS instead of the cluster's own `fontsize`/`fontname`
+     (they already inherit correctly onto `RSubgraph.attrs`). That alone made
+     each box 21.2pt short: a one-line 11pt label's
+     `fontsize*LINESPACING + 2*GAP` = 13.2 + 8.
+  2. **`GD_border` under flip** (input.c:868) — a flipped root stores the
+     PADded label box on the RIGHT/LEFT border **with x and y swapped**
+     ("when rotated, the labels will be restored to TOP or BOTTOM"). The port
+     only modelled the TOP border, so `contain_nodes`/`contain_subclust`
+     reserved nothing: under flip that side border IS the label space, since
+     `clust_ht` deliberately skips the rank-axis band (`if (!GD_flip)`).
+  3. **`adjustRanks`/`adjustSimple`** (position.c:628, run from set_ycoords
+     only when `lbl && GD_flip`) — the rotated label's WIDTH has to fit
+     between the cluster's top and bottom ranks; the shortfall is split
+     bottom/top and pushes the surrounding ranks along. Was entirely missing;
+     it is what fixes the rank-axis span of the label-wider-than-content
+     clusters (adapters_contracts 74 -> 144.4pt).
+  4. **`place_flip_graph_label`** (postproc.c:698) — `lp` is computed in
+     CANONICAL coords before the rotation, and `labeljust` moves the label
+     along canonical **y** under flip. The port derived `lp` from the already
+     rotated bb and ignored `labeljust` entirely.
+  5. **svg emission** — `round_corners`' ROUNDED bezier path for
+     `style=…,rounded` clusters (`RoundCorners.rounded`, now shared with the
+     rounded node box, whose old inline copy also had the corner radius
+     clamped to `min(rx,ry)` instead of gv's *third of the shortest side*),
+     cluster paint through `fillPaint`/colxlate (hex lowercased) rather than
+     the raw attr, and the label in the cluster's own font-size/fontcolor.
+
+  All ten clusters now match the golden on `lwidth`/`lheight`, on the label's
+  offset inside their own box, and on their rank-axis span; the rounded path
+  is congruent for the eight whose box size already matches. Pinned by three
+  position-independent tests in `ClusterSpec` (the corpus gate can't, while
+  the file is deferred).
+
+  **RANKING closed 2026-07-27, and it was an `acyclic` seed-order bug.** 2 of
+  32 nodes (`RuntimeContext`, `FieldSpecType`) had been landing one rank off
+  because the dot1 cluster-interior `acyclic` seeded its DFS in DECLARATION
+  order. gv's `dot1_rank` is `class1 → minmax_edges → **decompose** →
+  acyclic`, so the seeds walk GD_nlist *after* decompose has reordered it into
+  per-component DFS order. Which back edge of a cycle gets reversed depends
+  entirely on that: 191's `SignatureLayoutType -> FieldSpecType ->
+  SignatureLayoutCompanion` triangle is entered at FieldSpecType under
+  declaration order (reversing the three SLT→FST edges) but at the
+  *Companion* under decompose order (reversing FST→SLC, which is gv's
+  choice). The GLOBAL ranking path already seeded from its decompose order —
+  only this level had been left behind. All 32 nodes now match gv's ranks,
+  pinned by a partition test in `RankSpec` (position-independent: it groups
+  nodes by the golden's rank-axis x).
+
+  That chase also turned up a second bug, in mincross: `expand_cluster`'s
+  `build_ranks(subg, 0)` was applying the per-rank FLIP REVERSAL to cluster
+  interiors. `build_ranks` guards it on `GD_flip(g)` = `GD_rankdir(g) & 1`,
+  and `graph_init` (input.c:586, the only place rankdir is parsed) runs on the
+  ROOT alone — so a cluster subgraph's rankdir is always 0 and only the root's
+  build_ranks reverses. Removing it made two of the four cluster blocks on
+  191's 12-node rank match gv's interior order exactly.
+
+  **MINCROSS chased 2026-07-27 with an instrumented gv build (§2.5).** Probes
+  in `dot_mincross`/`mincross`/`class2` dumped gv's per-rank order and its
+  crossing trajectory; ours was dumped through temporary hooks in `Order` and
+  diffed phase by phase. Four findings, all landed:
+  1. **The collapsed adjacency was built in the wrong order.** gv creates an
+     inter-cluster chain while processing the ORIGINAL edge (`interclrep` →
+     `make_chain`), so the first virtual edge is appended to the leader's
+     `ND_out` right then. The port instead walked the finished class2 chains
+     node-by-node, ordering a leader's adjacency by whichever member owns each
+     chain's first segment — and since `interclrep` SWAPS a backward edge so
+     the chain always runs low-rank → high-rank, that member is often the
+     *head*'s cluster. In 191 `RuntimeContext→PredictType` is chain #1 but
+     hangs off `PredictType` (declared 11th), so it sank below three later
+     chains. Cost: exactly ONE crossing in the initial order (5041 vs gv's
+     5040) — enough to steer the whole search elsewhere. Fixed by threading
+     the class2 emission-ordered segment list into `orderClustered`.
+     **`build_ranks(0)` now reproduces gv's order and count exactly.**
+  2. **`reorder` was missing gv's `###` sawclust rule** (mincross.c:1487):
+     once an UNSEATED (`mval < 0`) node carrying `ND_clust` is passed, every
+     later clustered node is skipped outright. In the collapsed pass `ND_clust`
+     is set exactly on the skeleton leaders (`build_skeleton`), so `columnOf`
+     is the predicate; with no clusters the rule is inert. **With 1+2 the
+     collapsed pass now matches gv step for step and converges on the same
+     best_cross = 6** (verified against gv's `-v` trajectory).
+  3. The cluster-interior `reorder` was missing the same rule (there EVERY
+     slice member is clustered, so reorder can only ever compare an adjacent
+     seated pair). Correct per source; no observable change on 191.
+  4. The cluster-interior and ReMincross drivers were counting crossings
+     UNWEIGHTED and port-blind, while gv's `ncross` is `ED_xpenalty`-weighted
+     and carries the `local_cross` port term. Now threaded through.
+
+  **LAZY CLUSTER EXPANSION landed 2026-07-27** — the structural gap above is
+  closed. `merge2` now leaves every cluster collapsed to its rankleaders and
+  `orderClustered` loops expand-then-refine one cluster at a time, exactly like
+  `dot_mincross`'s `mincross_clust` loop, so while cluster 0 is refined the
+  other nine are still single nodes. The post-collapse pipeline works in the
+  `CNode` domain (`Nd(layout node)` | `Sk(cluster, rank)`) over a LIVE
+  adjacency re-derived after each expansion: an unexpanded cluster contributes
+  its CL_CROSS skeleton chain and swallows its own intra-cluster segments,
+  while every edge touching it lands on the rankleader — a direct model of
+  `map_interclust_node` (cluster.c:18), which is also exactly what
+  `interclexp`/`make_interclust_chain` achieve by rewiring chain ENDPOINTS and
+  leaving the intermediate vnodes alone. **Verified: 191's first cluster refine
+  now starts at 52 crossings — gv's number to the unit (it was 237).**
+
+  Three more transcription gaps fell out of the same chase, all in the
+  cluster-interior driver:
+  - `mincross_step`'s sweep bounds (mincross.c:1252): the down pass starts one
+    rank INSIDE only when the cluster's minrank IS the root's — otherwise
+    `first--` puts it on the cluster's own top rank (there is a rank above to
+    take medians from). Symmetrically for the up pass. We started one rank in
+    unconditionally, leaving both boundary ranks unordered.
+  - `transpose_step` gates `out_cross` on `GD_rank(g)[r+1].n > 0`, and for a
+    cluster that array is its own slice — zero past its maxrank, so its bottom
+    rank contributes `in_cross` only.
+  - `medians` must key on gv's `VAL = MC_SCALE*ND_order + port.order`, not the
+    raw order. Dropping the port term ties two edges into the same node that
+    gv separates, so a rank of ported HTML nodes never reordered at all
+    (191's `core_contracts` first step: 40 -> 33 crossings).
+
+  A previous entry is also CORRECTED: the `###` sawclust rule does **not**
+  apply inside a cluster's own mincross. `expand_cluster` runs `class2(subg)`
+  → `mark_clusters(subg)`, whose first loop sets `ND_clust(n) = NULL` for every
+  node of subg (re-marking only subg's own sub-clusters), so the rule is inert
+  there until `mark_lowclusters` re-stamps everything just before ReMincross —
+  where it does apply, and always did. Reverted.
+
+  **THE INTERIOR mincross_step IS CLOSED (2026-07-27).** Two more bugs, both
+  found by diffing per-rank `mval`/order dumps against an instrumented gv:
+  - **`port.order` for an edge end with NO port spec is 0, not 128.**
+    `MC_SCALE/2` is what `compassPort` (shapes.c:2863) assigns to a port that
+    IS specified and resolves to the node centre — a different thing entirely.
+    `SegPorts.default` used 128 for both, so every mid-chain segment sat half
+    a rank-slot off gv in `VAL(node, port)` whenever it competed with a real
+    HTML/record port. Symptom: our medians were EXACTLY +128 on the nodes
+    whose median came from a port-less segment, and exactly right on the ones
+    fed by ported segments. (gv only ever assigns `port.order` in
+    `compassPort` and in `dot_sameports`, which runs after mincross.)
+  - **The cluster-interior and ReMincross `in_cross`/`out_cross` were counting
+    raw unweighted inversions**, where gv (mincross.c:620) multiplies the two
+    edges' `ED_xpenalty` and breaks an equal-order tie on the endpoints'
+    canonical port `p.x`. That made `transpose` swap pairs gv leaves alone.
+
+  With those, **every crossing count matches gv exactly, end to end**: the
+  collapsed pass (5040 → … → 6, step for step), and all ten cluster refines —
+  52, 23, 77, 67, 67, 68, 68, 68, 68, 195 as the starting counts, with
+  `core_contracts` running 52→26→26→26→26→23… and `programs_para`
+  195→148→138→154→132… iteration for iteration. **5 of 6 ranks now have gv's
+  exact within-rank order** (pinned in `ClusterSpec`).
+
+  **The XCoord chase (2026-07-27) found the residue is still mincross, and
+  cleared a false lead.** The golden's final y values looked like they came in
+  two fractional families (`499.16` vs `2003.20`), which cannot come from one
+  translation of integer coordinates. Instrumenting `set_xcoords` and the end
+  of `gv_postprocess` settled it: gv's canonical x IS integral
+  (`RuntimeContext` 390, `PredictType` 1952) and the offset IS uniform
+  (`Offset.y = -51.1574`, giving 2003.1574 and 499.1574) — the two families
+  were nothing but `%.5g` output formatting. The same dump showed a large
+  group of our nodes already carries gv's canonical x EXACTLY; the rest track
+  the one remaining order difference. So there is no separate XCoord bug to
+  chase yet.
+
+  One more mincross fix came out of it: the **ReMincross pass had its own copy
+  of `medians`, still keyed on the raw order** instead of gv's
+  `VAL = MC_SCALE*ND_order + port.order`. (That was the third and last copy —
+  the root pass always had it; the cluster-interior one was fixed above.) Its
+  trajectory went from wandering — 132, 149, 125, 129, 123, … converging to
+  119, i.e. BETTER than gv's 124 and therefore differently constrained — to
+  shadowing gv within a single crossing at every iteration:
+  gv 132/132/131/130/130/138/124/124/124/128/125/124…
+  vs ours 132/133/132/131/131/139/123/123/123/129/126/125…
+
+  **What remains** is that ±1 crossing in ReMincross, which permutes the four
+  members of `programs_para` on one rank. The other 5 of 6 ranks are
+  byte-identical to gv's order, block boundaries included — `ClusterSpec` pins
+  that. The root bb is 2329.1×2199.2 against 2329.1×2308.2, with the rank axis
+  (2329.1) already exact. Fails-when-fixed guarded in `CorpusByteExactSpec`.
 
 ## 1. Goal & locked decisions
 

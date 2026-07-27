@@ -288,7 +288,18 @@ object Rank:
       val plain = induced.filter { i =>
         val e = realEdges(i); !inNested(e.tail) && !inNested(e.head)
       }
-      val rev = acyclicScoped(fastNodes, plain)
+      // dot1_rank(subg) = class1 → minmax_edges → **decompose** → acyclic:
+      // the DFS seeds walk GD_nlist AFTER decompose has reordered it into
+      // per-component DFS order, NOT declaration order. Which back edge of a
+      // cycle gets reversed depends entirely on that seed order (191's
+      // SignatureLayoutType ⇄ FieldSpecType ⇄ SignatureLayoutCompanion
+      // triangle: declaration order enters at FieldSpecType and reverses the
+      // three SLT→FST edges; gv's decompose order enters at the *Companion*
+      // and reverses FST→SLC instead). The global ranking path already seeds
+      // from its decompose order — this level had been left on declaration
+      // order. `decomposeOrderOf` ignores reversals by design: gv decomposes
+      // the ORIGINAL orientation, before any edge is flipped.
+      val rev = acyclicScoped(decomposeOrderOf(fastNodes, plain, Set.empty), plain)
       interiorRev ++= rev
       // NS edges: plain (class1 merge) + nested-crossing (interclust1 slack)
       val byPair = mutable.LinkedHashMap.empty[(String, String), NetworkSimplex.NSEdge]

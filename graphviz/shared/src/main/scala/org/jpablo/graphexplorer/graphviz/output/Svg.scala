@@ -458,7 +458,7 @@ object Svg:
     // after the background and before any node. TB clusters default to
     // fill=none / stroke=black; the label sits centred at lp (labelloc=t).
     locally {
-      import org.jpablo.graphexplorer.graphviz.layout.Cluster
+      import org.jpablo.graphexplorer.graphviz.layout.{Cluster, RoundCorners}
       val cls = Cluster.clusters(g)
       if cls.nonEmpty then
         val cbbs = Cluster.bbs(g)
@@ -495,20 +495,35 @@ object Svg:
           a.get("fillcolor").filter(_.nonEmpty).foreach(v => fillcolor = Some(v))
           if (!filled || fillcolor.isEmpty) then
             a.get("bgcolor").filter(_.nonEmpty).foreach { v => fillcolor = Some(v); filled = true }
-          val pen  = pencolor.getOrElse("black")
-          val fill = if filled then fillcolor.getOrElse("lightgrey") else "none"
+          // Cluster paint goes through the same colxlate path as nodes/edges
+          // (hex lowercased, x11-only names resolved, `#rrggbbaa` split into
+          // paint + opacity) — a cluster is not a special case in the driver.
+          val pen  = fillPaint(pencolor.getOrElse("black"))
+          val fill = if filled then fillPaint(fillcolor.getOrElse("lightgrey")) else "none"
           // cluster `penwidth` ⇒ stroke-width (gvrender set_penwidth; svg
           // omits the attr at the default 1.0).
           val cpw = Coord.penwidthOptM(a.get).getOrElse(1.0)
           val sw  = if cpw != 1.0 then s""" stroke-width="${Output.g5(cpw)}"""" else ""
+          val rounded = a.get("style").exists(_.split(",").map(_.trim).contains("rounded"))
           if !invis then
-            sb ++= s"""<polygon fill="$fill" stroke="$pen"$sw points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
+            if rounded then
+              // emit_clusters: AF = LL, (UR.x, LL.y), UR, (LL.x, UR.y) — the
+              // cluster box walked counter-clockwise from its LL corner, which
+              // is why the emitted path starts on the BOTTOM edge (a node's
+              // starts on the top: poly_init's AF begins top-right).
+              val af = Vector((llx, lly), (urx, lly), (urx, ury), (llx, ury))
+              val pts = RoundCorners.rounded(af).map((px, py) => s"${d2(px)},${d2(-py)}")
+              sb ++= s"""<path fill="$fill" stroke="$pen"$sw d="M${pts.head}C${pts.tail.mkString(" ")}"/>\n"""
+            else
+              sb ++= s"""<polygon fill="$fill" stroke="$pen"$sw points="${d2(llx)},${d2(-lly)} ${d2(llx)},${d2(-ury)} ${d2(urx)},${d2(-ury)} ${d2(urx)},${d2(-lly)} ${d2(llx)},${d2(-lly)}"/>\n"""
           if c.hasLabel && !invis then
-            // label centre = lp (place_graph_label) — the formula lives on
-            // CInfo.labelLp, shared with json0's `lp` attr.
-            val (lpx, lpy) = c.labelLp(Cluster.BB(llx, lly, urx, ury))
-            sb ++= textAt(lpx, lpy, c.label,
-              fontName = a.getOrElse("fontname", "Times-Roman"))
+            // label centre = lp (place_graph_label), computed in CANONICAL
+            // coordinates and mapped through the same transform as the box —
+            // the formula lives on CInfo.labelLp, shared with json0's `lp`.
+            // The label is drawn in the CLUSTER's own font/size/colour.
+            val (lpx, lpy) = tf.tupled(c.labelLp(cbbs(i), Rank.flip(g)))
+            sb ++= textAt(lpx, lpy, c.label, fill = c.fontColor,
+              fontName = c.fontName, fontSize = c.fontSize)
           sb ++= "</g>\n"
         }
     }
@@ -959,20 +974,11 @@ object Svg:
               val (l, rr)  = (x - rx, x + rx)
               val (t, b)   = (-(cy + ry), -(cy - ry))
               if styles.contains("rounded") then
-                val c = math.min(12.0, math.min(rx, ry)) // RBCONST, clamped
-                // 4 straight edges (cubic with endpoint controls) + 4 corner
-                // arcs (control points at c/2), CW from the top edge.
-                val segs = Seq(
-                  s"${d2(rr - c)},${d2(t)} ${d2(l + c)},${d2(t)} ${d2(l + c)},${d2(t)}",
-                  s"${d2(l + c / 2)},${d2(t)} ${d2(l)},${d2(t + c / 2)} ${d2(l)},${d2(t + c)}",
-                  s"${d2(l)},${d2(t + c)} ${d2(l)},${d2(b - c)} ${d2(l)},${d2(b - c)}",
-                  s"${d2(l)},${d2(b - c / 2)} ${d2(l + c / 2)},${d2(b)} ${d2(l + c)},${d2(b)}",
-                  s"${d2(l + c)},${d2(b)} ${d2(rr - c)},${d2(b)} ${d2(rr - c)},${d2(b)}",
-                  s"${d2(rr - c / 2)},${d2(b)} ${d2(rr)},${d2(b - c / 2)} ${d2(rr)},${d2(b - c)}",
-                  s"${d2(rr)},${d2(b - c)} ${d2(rr)},${d2(t + c)} ${d2(rr)},${d2(t + c)}",
-                  s"${d2(rr)},${d2(t + c / 2)} ${d2(rr - c / 2)},${d2(t)} ${d2(rr - c)},${d2(t)}"
-                )
-                sb ++= s"""<path fill="$fill" stroke="$stroke"$swAttr d="M${d2(rr - c)},${d2(t)}C${segs.mkString(" ")}"/>\n"""
+                // round_corners' ROUNDED branch over poly_init's box AF
+                // (TR, TL, BL, BR) ⇒ the path starts on the top edge and runs
+                // counter-clockwise. Same generator as the rounded cluster box.
+                val pts = RoundCorners.rounded(af).map(afSvg)
+                sb ++= s"""<path fill="$fill" stroke="$stroke"$swAttr d="M${pts.head}C${pts.tail.mkString(" ")}"/>\n"""
               else
                 // one rectangle per periphery (poly p_box, sides=4): innermost
                 // first and filled, each outer ring GAP larger, outlines only.

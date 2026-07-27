@@ -32,7 +32,13 @@ object Cluster:
     * @param nodeIds  transitive real-node members (declaration order).
     * @param members  layout-node *names* inside: real ids + `__v` chain names.
     * @param minRank / maxRank — rank band (over real members).
-    * @param lwidthPt / lheightPt — label box (0 if no label).
+    * @param lwidthPt / lheightPt — label box (0 if no label), measured in the
+    *                 cluster's OWN `fontsize`/`fontname` (they inherit from the
+    *                 enclosing scope, so an unstyled cluster still gets 14/Times).
+    * @param labelTop `labelloc` (input.c:844): clusters default to TOP, unlike
+    *                 the root graph, which defaults to BOTTOM.
+    * @param labelJust `labeljust` — 'l' / 'r' / 'c' (anything else ⇒ centred).
+    * @param fontName / fontColor — the cluster's label font, for the svg writer.
     */
   final case class CInfo(
       name:      String,
@@ -43,19 +49,67 @@ object Cluster:
       minRank:   Int,
       maxRank:   Int,
       lwidthPt:  Double,
-      lheightPt: Double
+      lheightPt: Double,
+      labelTop:  Boolean = true,
+      labelJust: Char    = 'c',
+      fontSize:  Double  = DefFontSize,
+      fontName:  String  = "Times-Roman",
+      fontColor: String  = ""
   ) derives CanEqual:
     def hasLabel: Boolean = label.nonEmpty
-    /** `GD_border[TOP]` (input.c:870): label `dimen` + PAD (x += 4·GAP,
-      * y += 2·GAP). Cluster labels default to `labelloc=t` ⇒ TOP border. */
-    def borderTopX: Double = if hasLabel then lwidthPt + 4 * Gap else 0.0
-    def borderTopY: Double = if hasLabel then lheightPt + 2 * Gap else 0.0
-    /** Cluster-label centre `lp` given the cluster's [[BB]]
-      * (`place_graph_label`, cluster labelloc=t default): box-centre x,
-      * `UR.y − (lheight + YPAD)/2`. The single home for the formula both
-      * writers (json0 `lp`, svg `<text>`) read. */
-    def labelLp(bb: BB): (Double, Double) =
-      ((bb.llx + bb.urx) / 2.0, bb.ury - (lheightPt + 2 * Gap) / 2.0)
+
+    // ── GD_border (input.c:868-886) ───────────────────────────────────────
+    // `dimen = GD_label->dimen; PAD(dimen)` ⇒ (lwidth + 4·GAP, lheight +
+    // 2·GAP), stored on ONE side: TOP/BOTTOM per `labelloc` when the ROOT is
+    // unflipped, else RIGHT/LEFT with **x and y swapped** ("when rotated, the
+    // labels will be restored to TOP or BOTTOM"). Every other side stays 0.
+    // The swap is what makes a flipped cluster reserve its label space along
+    // the canonical X axis — which the rankdir transform turns back into the
+    // top of the drawing.
+    private def padX: Double = lwidthPt + 4 * Gap
+    private def padY: Double = lheightPt + 2 * Gap
+    /** `GD_border[TOP]`. Non-zero only unflipped with `labelloc=t`. */
+    def borderTopX: Double = if hasLabel && labelTop then padX else 0.0
+    def borderTopY: Double = if hasLabel && labelTop then padY else 0.0
+    /** `GD_border[BOTTOM]`. Non-zero only unflipped with `labelloc=b`. */
+    def borderBottomX: Double = if hasLabel && !labelTop then padX else 0.0
+    def borderBottomY: Double = if hasLabel && !labelTop then padY else 0.0
+    /** `GD_border[RIGHT]` under `flip` (0 otherwise) — note the x/y swap. */
+    def borderRightX(flip: Boolean): Double = if flip && hasLabel && labelTop then padY else 0.0
+    def borderRightY(flip: Boolean): Double = if flip && hasLabel && labelTop then padX else 0.0
+    /** `GD_border[LEFT]` under `flip` (0 otherwise) — note the x/y swap. */
+    def borderLeftX(flip: Boolean): Double = if flip && hasLabel && !labelTop then padY else 0.0
+    def borderLeftY(flip: Boolean): Double = if flip && hasLabel && !labelTop then padX else 0.0
+
+    /** Cluster-label centre `lp` in **canonical** coordinates, given the
+      * cluster's canonical [[BB]] — `place_graph_label` (postproc.c:733) and,
+      * when the root is flipped, `place_flip_graph_label` (postproc.c:698).
+      * Both run BEFORE the rankdir rotation, so callers wanting the final `lp`
+      * must push the result through the same transform. The single home for
+      * the formula both writers (json0 `lp`, svg `<text>`) read.
+      *
+      * Unflipped: the label rides the TOP (or BOTTOM) border — y from that
+      * border's height, x centred unless `labeljust` pins it to a side.
+      * Flipped: the roles swap — x rides the RIGHT (or LEFT) border and
+      * `labeljust` moves the label along canonical y. */
+    def labelLp(bb: BB, flip: Boolean): (Double, Double) =
+      if flip then
+        val d = (if labelTop then (borderRightX(flip), borderRightY(flip))
+                 else (borderLeftX(flip), borderLeftY(flip)))
+        val x = if labelTop then bb.urx - d._1 / 2.0 else bb.llx + d._1 / 2.0
+        val y = labelJust match
+          case 'r' => bb.lly + d._2 / 2.0
+          case 'l' => bb.ury - d._2 / 2.0
+          case _   => (bb.lly + bb.ury) / 2.0
+        (x, y)
+      else
+        val d = (if labelTop then (borderTopX, borderTopY) else (borderBottomX, borderBottomY))
+        val y = if labelTop then bb.ury - d._2 / 2.0 else bb.lly + d._2 / 2.0
+        val x = labelJust match
+          case 'r' => bb.urx - d._1 / 2.0
+          case 'l' => bb.llx + d._1 / 2.0
+          case _   => (bb.llx + bb.urx) / 2.0
+        (x, y)
 
   /** Cluster bounding box in final coordinates (assembled from the X solve
     * and the Y machinery — `GD_bb` after `dot_compute_bb`/translation). */
@@ -130,16 +184,28 @@ object Cluster:
     val infos = cls.zipWithIndex.map { case ((s, parent), ci) =>
       val nIds  = transNodes(s)
       val rs    = nIds.flatMap(ranks.get)
+      // A cluster's label is measured in ITS OWN font (common_init_graph →
+      // make_label with the subgraph's `fontsize`/`fontname`), not the
+      // defaults — and `RSubgraph.attrs` already carries the enclosing
+      // scope's graph attrs, so DOT inheritance comes for free.
+      val fs = s.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(DefFontSize)
+      // DEFAULT_FONTNAME. `FontMetrics.canon` folds "Times-Roman" ≡ "Times",
+      // so the one string serves both the metrics and the svg family lookup.
+      val fn = s.attrs.getOrElse("fontname", "Times-Roman")
       val (lw, lh) =
         if s.label.nonEmpty then
-          (NodeSize.labelWidthPt(s.label, DefFontSize, "Times", g.name.getOrElse("")),
-           NodeSize.labelHeightPt(s.label, DefFontSize, g.name.getOrElse("")))
+          (NodeSize.labelWidthPt(s.label, fs, fn, g.name.getOrElse("")),
+           NodeSize.labelHeightPt(s.label, fs, g.name.getOrElse("")))
         else (0.0, 0.0)
+      // input.c:844 — a cluster's labelloc defaults to TOP (the root's to
+      // BOTTOM); labeljust takes only the first character.
+      val top  = !s.attrs.get("labelloc").exists(_.startsWith("b"))
+      val just = s.attrs.get("labeljust").flatMap(_.headOption).getOrElse('c')
       CInfo(s.id, s.label, parent, nIds,
         clustOfB.iterator.collect { case (nm, c) if c == ci => nm }.toSet,
         if rs.isEmpty then 0 else rs.min,
         if rs.isEmpty then 0 else rs.max,
-        lw, lh)
+        lw, lh, top, just, fs, fn, s.attrs.getOrElse("fontcolor", ""))
     }
     (infos, clustOfB.toMap)
 

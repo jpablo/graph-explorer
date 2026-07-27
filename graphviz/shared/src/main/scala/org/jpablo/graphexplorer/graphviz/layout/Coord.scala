@@ -257,8 +257,12 @@ object Coord:
           if cls(cc).minRank == c.minRank && clHt2(cc) + ClOffset > clHt2(ci) then
             clHt2(ci) = clHt2(cc) + ClOffset
         }
+        // clust_ht (position.c:711): only the UNFLIPPED root puts the label
+        // band on the rank axis — a flipped one reserves it on X instead
+        // (contain_nodes' side borders), so this whole branch is skipped.
         if c.hasLabel && !Rank.flip(g) then
-          clHt2(ci) += c.borderTopY // labelloc=t default (BOTTOM border = 0)
+          clHt1(ci) += c.borderBottomY // labelloc=b
+          clHt2(ci) += c.borderTopY    // labelloc=t (the cluster default)
         if clHt2(ci) > ht2(c.minRank) then ht2(c.minRank) = clHt2(ci)
         if clHt1(ci) > ht1(c.maxRank) then ht1(c.maxRank) = clHt1(ci)
       }
@@ -288,6 +292,70 @@ object Coord:
       if delta > maxht then maxht = delta
       yOf(r) = yOf(r + 1) + delta
       r -= 1
+    // ── adjustRanks (position.c:628), set_ycoords:797 ────────────────────
+    // A cluster label on a FLIPPED drawing occupies RANK space, because the
+    // label box rotates with the graph: its (padded) WIDTH has to fit between
+    // the cluster's top and bottom ranks. clust_ht deliberately skips the
+    // label band under flip, so nothing above reserved it — this pass walks
+    // the cluster tree, finds each shortfall, and spreads it across the ranks
+    // (half below, half above), pushing the ranks outside the cluster along.
+    // gv runs it here, between the initial y assignment and `ranksep=equally`.
+    if cls.exists(_.hasLabel) && Rank.flip(g) then
+      // adjustSimple: `delta` extra rank-axis room for cluster `ci`, split
+      // bottom/top; ranks inside the cluster shift up by `delbottom`, ranks
+      // ABOVE it (lower index) by `deltop` on top of that.
+      def adjustSimple(ci: Int, delta: Double, marginTotal: Double): Unit =
+        val mnR2 = cls(ci).minRank
+        val mxR2 = cls(ci).maxRank
+        val bottom    = (delta + 1) / 2 // C doubles — not integer division
+        val delbottom = clHt1(ci) + bottom - (ht1(mxR2) - marginTotal)
+        var rr = mxR2
+        if delbottom > 0 then
+          while rr >= mnR2 do { yOf.get(rr).foreach(y => yOf(rr) = y + delbottom); rr -= 1 }
+        val deltop =
+          clHt2(ci) + (delta - bottom) + (if delbottom > 0 then delbottom else 0.0) -
+            (ht2(mnR2) - marginTotal)
+        if deltop > 0 then
+          rr = mnR2 - 1
+          while rr >= minR do { yOf.get(rr).foreach(y => yOf(rr) = y + deltop); rr -= 1 }
+        clHt2(ci) += delta - bottom
+        clHt1(ci) += bottom
+      // adjustRanks: children first (their growth feeds the parent), then the
+      // parent's own label check. Note the root's margin is 0 here, unlike
+      // clust_ht's CL_OFFSET.
+      def adjustRanks(ci: Int, marginTotal: Double): Unit =
+        val margin     = if ci < 0 then 0.0 else ClOffset
+        val (mnR2, mxR2) = if ci < 0 then (minR, maxR) else (cls(ci).minRank, cls(ci).maxRank)
+        var a1 = if ci < 0 then rootHt1 else clHt1(ci)
+        var a2 = if ci < 0 then rootHt2 else clHt2(ci)
+        Cluster.childrenOf(g, ci).foreach { cc =>
+          adjustRanks(cc, margin + marginTotal)
+          if cls(cc).maxRank == mxR2 && clHt1(cc) + margin > a1 then a1 = clHt1(cc) + margin
+          if cls(cc).minRank == mnR2 && clHt2(cc) + margin > a2 then a2 = clHt2(cc) + margin
+        }
+        if ci < 0 then { rootHt1 = a1; rootHt2 = a2 } else { clHt1(ci) = a1; clHt2(ci) = a2 }
+        if ci >= 0 && cls(ci).hasLabel then
+          // lht = the rotated label's rank-axis extent = its PADDED WIDTH
+          // (GD_border[LEFT/RIGHT].y under flip — the x/y swap again).
+          val lht   = math.max(cls(ci).borderLeftY(true), cls(ci).borderRightY(true))
+          val rht   = yOf(mnR2) - yOf(mxR2)
+          val delta = lht - (rht + a1 + a2)
+          if delta > 0 then adjustSimple(ci, delta, marginTotal)
+        if ci >= 0 then
+          if clHt2(ci) > ht2(mnR2) then ht2(mnR2) = clHt2(ci)
+          if clHt1(ci) > ht1(mxR2) then ht1(mxR2) = clHt1(ci)
+      adjustRanks(-1, 0.0)
+      // the shifts above invalidate maxht; only `ranksep=equally` reads it.
+      if exactRanksep(g) then
+        maxht = 0.0
+        var prev = yOf(maxR)
+        r = maxR - 1
+        while r >= minR do
+          val cur = yOf(r)
+          if cur - prev > maxht then maxht = cur - prev
+          prev = cur
+          r -= 1
+
     // ranksep="… equally" (GD_exact_ranksep): re-space every rank uniformly
     // to the largest gap (set_ycoords:817). No effect when all gaps equal.
     if exactRanksep(g) then

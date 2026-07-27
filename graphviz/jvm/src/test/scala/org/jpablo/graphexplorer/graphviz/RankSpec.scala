@@ -90,4 +90,24 @@ class RankSpec extends FunSuite:
     assertEquals(r.keySet, g.nodes.map(_.id).toSet)
     assertEquals(r("start"), 0) // only top-level source
 
+  test("191: every node lands on gv's rank (dot1 acyclic seeds in DECOMPOSE order)"):
+    // 191 is still a corpus deferral (its within-rank ORDER differs), so the
+    // byte-exact gate can't cover its ranks. The rank axis under rankdir=LR
+    // is the golden's x, so the check is exact and needs no rank numbering:
+    // group the nodes by their golden x, and the port must group them
+    // identically. Guards the dot1 cluster-interior acyclic seed order —
+    // gv runs decompose(subg,0) BEFORE acyclic(subg), and seeding in
+    // declaration order instead reversed the other back edge of
+    // SignatureLayoutType -> FieldSpecType -> SignatureLayoutCompanion,
+    // putting RuntimeContext and FieldSpecType each one rank off.
+    val name = "191-scala-type-graph"
+    val g    = OracleHarness.corpusGraph(name)
+    val gold = ujson.read(OracleHarness.golden(name, "json0"))("objects").arr.iterator
+      .flatMap(o => o.obj.get("pos").map(p => o("name").str -> p.str.split(",")(0))).toMap
+    val ours = Rank.assign(g)
+    def partition[A](m: Map[String, A]): Set[Set[String]] =
+      m.groupBy(_._2).valuesIterator.map(_.keySet).toSet
+    assertEquals(gold.size, 32)
+    assertEquals(partition(ours.view.filterKeys(gold.contains).toMap), partition(gold))
+
 end RankSpec

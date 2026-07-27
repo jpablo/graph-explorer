@@ -75,4 +75,122 @@ class ClusterSpec extends FunSuite:
       assertEquals(dj("_subgraph_cnt").num.toInt, 0, s"$name must stay flat")
     }
 
+  // ── cluster labels: own font, labeljust, and the FLIPPED (rankdir=LR)
+  // placement (191-scala-type-graph, 2026-07-27) ─────────────────────────
+  //
+  // 191 is still a corpus deferral for an unrelated ranking reason, so the
+  // byte-exact gate cannot cover it. These assertions pin the parts that ARE
+  // byte-exact — and they are POSITION-INDEPENDENT (label box size, and the
+  // label's offset from its own cluster box), so they keep holding once the
+  // ranking lands and the boxes move.
+
+  private def json0Objects(name: String): Map[String, ujson.Value] =
+    ujson.read(Output.json0(graph(name)))("objects").arr.iterator
+      .flatMap(o => o.obj.get("name").map(_.str -> o)).toMap
+
+  private def goldenJson0Objects(name: String): Map[String, ujson.Value] =
+    ujson.read(OracleHarness.golden(name, "json0"))("objects").arr.iterator
+      .flatMap(o => o.obj.get("name").map(_.str -> o)).toMap
+
+  test("191: cluster label boxes are measured in the CLUSTER's own font"):
+    // Every cluster declares fontsize=11/fontname=Helvetica; measuring with
+    // the 14pt Times defaults made every box 21.2pt (11*LINESPACING + 2*GAP)
+    // too short and the emitted label 3pt too large.
+    val ours = json0Objects("191-scala-type-graph")
+    val gold = goldenJson0Objects("191-scala-type-graph")
+    val clusters = gold.filter((_, o) => o.obj.contains("lwidth")).keys.toVector.sorted
+    assert(clusters.length == 10, s"expected 10 labelled clusters, got ${clusters.length}")
+    clusters.foreach { c =>
+      assertEquals(ours(c)("lwidth").str, gold(c)("lwidth").str, s"$c lwidth")
+      assertEquals(ours(c)("lheight").str, gold(c)("lheight").str, s"$c lheight")
+    }
+
+  test("191: labeljust=l under rankdir=LR places lp via place_flip_graph_label"):
+    // The label sits at a fixed offset INSIDE its own box: x from the LEFT
+    // edge (labeljust=l), y down from the TOP (labelloc=t, the cluster
+    // default) — computed in canonical coords, then rotated with the drawing.
+    val ours = json0Objects("191-scala-type-graph")
+    val gold = goldenJson0Objects("191-scala-type-graph")
+    def offset(o: ujson.Value): (Double, Double) =
+      val bb = o("bb").str.split(",").map(_.toDouble)
+      val lp = o("lp").str.split(",").map(_.toDouble)
+      (lp(0) - bb(0), bb(3) - lp(1))
+    gold.filter((_, o) => o.obj.contains("lp")).keys.toVector.sorted.foreach { c =>
+      val (ox, oy) = offset(ours(c))
+      val (gx, gy) = offset(gold(c))
+      assertEqualsDouble(ox, gx, 0.005, s"$c label x-offset from its LL corner")
+      assertEqualsDouble(oy, gy, 0.005, s"$c label y-offset from its UR corner")
+    }
+
+  test("191: style=\"filled,rounded\" clusters draw round_corners' bezier path"):
+    // A rounded cluster is a <path> of 8 cubics (25 control points) starting
+    // on the BOTTOM edge — emit_clusters' AF walks from the LL corner, unlike
+    // a node's, which starts top-right. The paint goes through colxlate too
+    // (hex lowercased), and the label carries the cluster's own font-size.
+    val svg = Svg.svg(graph("191-scala-type-graph"))
+    val blocks = """(?s)<g id="[^"]*" class="cluster">.*?</g>""".r.findAllIn(svg).toVector
+    assertEquals(blocks.length, 10)
+    blocks.foreach { b =>
+      val d = """ d="([^"]+)"""".r.findFirstMatchIn(b).map(_.group(1)).getOrElse("")
+      assertEquals("""-?[\d.]+,-?[\d.]+""".r.findAllIn(d).size, 25, s"25 bezier points:\n$b")
+      assert(b.contains("""fill="#f1f3f4" stroke="#5f6368""""), s"lowercased paint:\n$b")
+      assert(b.contains("""font-size="11.00""""), s"the cluster's own font-size:\n$b")
+    }
+
+  test("191: cluster blocks come out in gv's within-rank order"):
+    // The collapsed mincross pass (skeleton graph) decides which cluster sits
+    // where inside a rank. Position-independent gate: on every rank, the
+    // sequence of clusters — ordered by their members' cross-rank coordinate —
+    // must match the golden's. Guards the two collapsed-pass fixes: building
+    // the skeleton adjacency in class2 EMISSION order, and reorder's `###`
+    // sawclust rule. (Absolute coordinates still differ, hence the deferral.)
+    val name = "191-scala-type-graph"
+    val g    = OracleHarness.corpusGraph(name)
+    val clOf = org.jpablo.graphexplorer.graphviz.layout.Cluster.clusters(g).zipWithIndex
+      .map((c, i) => i -> c.name).toMap
+    val member = org.jpablo.graphexplorer.graphviz.layout.Cluster.clustOf(g)
+    def blocksPerRank(json0: String): Map[Double, Vector[String]] =
+      ujson.read(json0)("objects").arr.iterator
+        .flatMap(o => o.obj.get("pos").map(p => o("name").str -> p.str))
+        .flatMap { (id, pos) =>
+          val Array(x, y) = pos.split(",").map(_.toDouble)
+          member.get(id).map(ci => (x, y, clOf(ci)))
+        }
+        .toVector
+        .groupBy(_._1)                                  // rankdir=LR ⇒ x is the rank
+        .view.mapValues(_.sortBy(_._2).map(_._3).foldLeft(Vector.empty[String]) {
+          (acc, c) => if acc.lastOption.contains(c) then acc else acc :+ c
+        }).toMap
+    assertEquals(
+      blocksPerRank(Output.json0(g)),
+      blocksPerRank(OracleHarness.golden(name, "json0")))
+
+  test("191: within-rank order matches gv on 5 of 6 ranks (mincross gate)"):
+    // The clustered mincross now reproduces gv's crossing trajectory for the
+    // collapsed pass AND all ten cluster refines. This pins the observable
+    // consequence — the left-to-right order of the real nodes on each rank —
+    // and records the single rank that still differs, so both a regression
+    // and the fix show up. (`ReadFunctor` sits at index 6 for us, 8 for gv,
+    // inside cluster_package_programs_para.)
+    val name = "191-scala-type-graph"
+    def orderPerRank(json0: String): Map[Double, Vector[String]] =
+      ujson.read(json0)("objects").arr.iterator
+        .flatMap(o => o.obj.get("pos").map(p => o("name").str -> p.str))
+        .map { (id, pos) => val Array(x, y) = pos.split(",").map(_.toDouble); (x, y, id) }
+        .toVector.groupBy(_._1).view.mapValues(_.sortBy(_._2).map(_._3)).toMap
+    val ours = orderPerRank(Output.json0(graph(name)))
+    val gold = orderPerRank(OracleHarness.golden(name, "json0"))
+    assertEquals(ours.keySet, gold.keySet, "the rank set itself must match")
+    val differing = gold.keys.toVector.sorted.filter(x => ours(x) != gold(x))
+    assertEquals(differing.length, 1,
+      s"expected exactly the known programs_para rank to differ, got: " +
+        differing.map(x => s"x=$x\n  ours=${ours(x)}\n  gold=${gold(x)}").mkString("\n"))
+    // …and it differs only INSIDE the programs_para block: same nodes, same
+    // block boundaries, a permutation within one cluster's four members.
+    val (o, g) = (ours(differing.head), gold(differing.head))
+    assertEquals(o.toSet, g.toSet, "same nodes on the rank")
+    val para = Set("ProgramRunnerGiven", "ProgramPredictorsGiven", "ReadFunctor", "ParaCategoryGiven")
+    assertEquals(o.filterNot(para), g.filterNot(para), "only the para block's interior differs")
+    assertEquals(o.indexWhere(para), g.indexWhere(para), "the block starts at the same slot")
+
 end ClusterSpec

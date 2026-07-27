@@ -31,7 +31,13 @@ object Order:
     * gv's undefined port: p=(0,0) → order = MC_SCALE/2 = 128. */
   final case class SegPorts(tailPX: Double, tailOrd: Int, headPX: Double, headOrd: Int) derives CanEqual
   object SegPorts:
-    val default: SegPorts = SegPorts(0.0, 128, 0.0, 128)
+    /** gv's ZEROED `port` struct — what an edge end with no port spec carries
+      * into `VAL(node, port) = MC_SCALE*ND_order + port.order`. `.order` is 0
+      * there; `MC_SCALE/2` (128) is what `compassPort` assigns to a port that
+      * IS specified and resolves to the node centre (shapes.c:2863), which is
+      * a different thing. Using 128 for both put every mid-chain segment
+      * half a rank-slot off gv whenever it competed with a real port. */
+    val default: SegPorts = SegPorts(0.0, 0, 0.0, 0)
 
   private val MaxIter     = 24    // mincross.c
   private val MinQuit     = 8
@@ -107,9 +113,10 @@ object Order:
     val realEdges = g.edges.filter(e => e.tail != e.head)
     val segPortsMap = mutable.HashMap.empty[(LayoutNode, LayoutNode), SegPorts]
     def canonOf(nodeId: String, port: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]): (Double, Int) =
-      byIdN.get(nodeId) match
+      if port.isEmpty then (0.0, 0) // no port spec ⇒ gv's zeroed struct
+      else byIdN.get(nodeId) match
         case Some(n) => val (px, _, ord) = PortAnchor.canonical(n, g, port); (px, ord)
-        case None    => (0.0, 128)
+        case None    => (0.0, 0)
     def recordSeg(t: LayoutNode, h: LayoutNode, sp: SegPorts): Unit =
       if sp != SegPorts.default then segPortsMap((t, h)) = sp
 
@@ -144,12 +151,12 @@ object Order:
           rankOf(v) = r
           connect(prev, v)
           if r == rt + 1 && wtPort.isDefined then
-            recordSeg(tail, v, SegPorts(wtPX, wtOrd, 0.0, 128))
+            recordSeg(tail, v, SegPorts(wtPX, wtOrd, 0.0, 0))
           prev = v
           r += 1
         connect(prev, head)
         if whPort.isDefined then
-          recordSeg(prev, head, SegPorts(0.0, 128, whPX, whOrd))
+          recordSeg(prev, head, SegPorts(0.0, 0, whPX, whOrd))
     // class2 multi-edge merge (class2.c:207): CONSECUTIVE out-edges (in the
     // agfstout iteration) with the SAME original endpoints merge — flat
     // parallels via merge_oneway, inter-rank parallels via merge_chain when
@@ -239,7 +246,16 @@ object Order:
           segPorts = (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
           hasPort  = ported.contains,
           flatPairs = flatPairs)
-      else orderClustered(g, out, in, rankOf, flip)
+      else
+        val portedC: Set[LayoutNode] =
+          g.edges.iterator.flatMap { e =>
+            (if e.tailPort.isDefined then Iterator(LayoutNode.Real(e.tail): LayoutNode) else Iterator.empty) ++
+              (if e.headPort.isDefined then Iterator(LayoutNode.Real(e.head): LayoutNode) else Iterator.empty)
+          }.toSet
+        orderClustered(g, out, in, rankOf, flip, segs.toVector,
+          (t, h) => segXpen.getOrElse((t, h), 1L),
+          (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
+          portedC.contains)
     Result(rank0, order, cross, segs.toVector, segOwn.toVector, mergedInto.toVector)
 
   /** Local collapsed-graph node: either a free (root-level) layout node passed
@@ -281,10 +297,21 @@ object Order:
     * per level). */
   private def orderClustered(
       g: RGraph,
-      out: collection.Map[LayoutNode, mutable.ArrayBuffer[LayoutNode]],
-      in:  collection.Map[LayoutNode, mutable.ArrayBuffer[LayoutNode]],
+      nodeOut: collection.Map[LayoutNode, mutable.ArrayBuffer[LayoutNode]],
+      nodeIn:  collection.Map[LayoutNode, mutable.ArrayBuffer[LayoutNode]],
       rankOf: collection.Map[LayoutNode, Int],
-      flip: Boolean
+      flip: Boolean,
+      /** every class2 segment in EMISSION order (per tail node in declaration
+        * order, per out-edge by (head seq, idx), then rank-ascending within a
+        * chain) — the order gv's `class2` creates its virtual edges in. */
+      segsInOrder: Vector[(LayoutNode, LayoutNode)],
+      /** `ED_xpenalty` per segment, and the port data — the cluster-interior
+        * and ReMincross passes count crossings over the whole root graph with
+        * gv's `ncross`, so they need the same weights and `local_cross` port
+        * term the flat path uses. */
+      segWeight: (LayoutNode, LayoutNode) => Long,
+      segPorts:  (LayoutNode, LayoutNode) => SegPorts,
+      hasPort:   LayoutNode => Boolean
   ): (Map[Int, Vector[LayoutNode]], Long) =
     val cinfos   = Cluster.clusters(g)
     val clustOf  = Cluster.clustOf(g) // node NAME → innermost cluster idx
@@ -302,7 +329,7 @@ object Order:
         (clustOf.get(t), clustOf.get(h)) match
           case (Some(a), Some(b)) if a == b => Some(a)
           case _                            => None
-    val allNodes = out.keysIterator.toVector
+    val allNodes = nodeOut.keysIterator.toVector
 
     // Each cluster's occupied rank band (over the class2 nodes actually present).
     val clRanks: Map[Int, (Int, Int)] =
@@ -326,7 +353,7 @@ object Order:
       }
       allNodes.foreach { t =>
         if members.contains(t) then
-          out(t).foreach { h => if members.contains(h) then { iOut(t) += h; iIn(h) += t } }
+          nodeOut(t).foreach { h => if members.contains(h) then { iOut(t) += h; iIn(h) += t } }
       }
       val declared = cinfos(ci).nodeIds.iterator.map(id => LayoutNode.Real(id): LayoutNode)
         .filter(members.contains).toVector
@@ -353,10 +380,12 @@ object Order:
             iOut(n0).foreach(w => if !mark(w) then { mark += w; q.enqueue(w) })
       }
       nlist.foreach(n => if !mark(n) then { mark += n; install(n) }) // safety net
-      if flip then rows.valuesIterator.foreach { rb =>
-        val n = rb.length; var i = 0
-        while i < n / 2 do { val t = rb(i); rb(i) = rb(n - 1 - i); rb(n - 1 - i) = t; i += 1 }
-      }
+      // NO per-rank flip reversal here. build_ranks guards it on `GD_flip(g)`
+      // = `GD_rankdir(g) & 1`, and `graph_init` (input.c:586) — the only place
+      // rankdir is parsed — runs on the ROOT alone, so a cluster subgraph's
+      // rankdir is always 0 and `expand_cluster`'s `build_ranks(subg, 0)`
+      // never reverses. Only the root's build_ranks does. Reversing here too
+      // un-mirrored each cluster's interior relative to the rank around it.
       rows.iterator.map((r, b) => r -> b.toVector).toMap
 
     // ── collapse: free nodes pass through, each cluster → a skeleton chain. ──
@@ -379,14 +408,22 @@ object Order:
     }
     // redirect every class2 segment to its leaders; drop intra-cluster ones
     // (interclrep: `else ignore intra-cluster edges` — the recursion owns them).
-    allNodes.foreach { t =>
-      out(t).foreach { h =>
-        val lt = leaderC(t); val lh = leaderC(h)
-        val intra = (lt, lh) match
-          case (CNode.Sk(c1, _), CNode.Sk(c2, _)) => c1 == c2
-          case _                                  => lt == lh
-        if !intra then { cOut(lt) += lh; cIn(lh) += lt }
-      }
+    // Walk the segments in gv's class2 EMISSION order, not per-node: gv builds
+    // an inter-cluster chain while processing the ORIGINAL edge (interclrep),
+    // and `make_chain` appends the first virtual edge to the leader's ND_out
+    // right then. Iterating the finished chains node-by-node instead orders a
+    // leader's adjacency by which member happens to own each chain's first
+    // segment — and since interclrep SWAPS a backward edge so the chain always
+    // runs low-rank → high-rank, that member is often the *head*'s cluster.
+    // (191: RuntimeContext→PredictType is chain #1 but hangs off PredictType,
+    // declared 11th, so it sank below three later chains — one crossing, which
+    // steered the whole collapsed search to a different optimum.)
+    segsInOrder.foreach { (t, h) =>
+      val lt = leaderC(t); val lh = leaderC(h)
+      val intra = (lt, lh) match
+        case (CNode.Sk(c1, _), CNode.Sk(c2, _)) => c1 == c2
+        case _                                  => lt == lh
+      if !intra then { cOut(lt) += lh; cIn(lh) += lt }
     }
 
     // decompose(g, 1) seeds from agfstnode = EVERY node in declaration
@@ -414,18 +451,97 @@ object Order:
     val (cOrder, cCross) = runMincross(cOut, cIn, cRank, cSeed, flip,
       weight = skWeight, columnOf = skColOf, columnNodes = skColNodes)
 
-    // ── expand each skeleton back to its cluster's interior install ──
-    val internal = clRanks.keysIterator.map(ci => ci -> internalInstall(ci)).toMap
-    val rows = mutable.HashMap.from(cOrder.map { case (r, row) =>
-      r -> mutable.ArrayBuffer.from(row.flatMap {
-        case CNode.Nd(n)      => Vector(n)
-        case CNode.Sk(ci, rr) => internal(ci).getOrElse(rr, Vector.empty)
-      })
-    })
-    val gpos = mutable.HashMap.empty[LayoutNode, Int]
-    rows.valuesIterator.foreach(rb => rb.iterator.zipWithIndex.foreach((n, i) => gpos(n) = i))
-    val gMinR = if rows.isEmpty then 0 else rows.keysIterator.min
-    val gMaxR = if rows.isEmpty then 0 else rows.keysIterator.max
+    // ── merge2 (mincross.c:1023): the component rank arrays merge into the
+    //    root's, but the CLUSTERS STAY COLLAPSED — each is still one rankleader
+    //    per rank. gv expands them one at a time inside the mincross_clust loop
+    //    below, so while cluster c is refined, c+1.. are still single nodes.
+    val rows = mutable.HashMap.from(cOrder.map((r, row) => r -> mutable.ArrayBuffer.from(row)))
+    val gpos = mutable.HashMap.empty[CNode, Int]
+    def reindex(): Unit =
+      gpos.clear()
+      rows.valuesIterator.foreach(rb => rb.iterator.zipWithIndex.foreach((n, i) => gpos(n) = i))
+    reindex()
+    val gMinR = if rankOf.isEmpty then 0 else rankOf.valuesIterator.min
+    val gMaxR = if rankOf.isEmpty then 0 else rankOf.valuesIterator.max
+
+    // ── the root fast graph AS IT STANDS RIGHT NOW ────────────────────────
+    // An unexpanded cluster is its skeleton column: one CL_CROSS-weighted
+    // chain edge per rank step (`build_skeleton`), and every edge touching it
+    // lands on the rankleader — that is `map_interclust_node` (cluster.c:18):
+    // "if the node has no cluster, or its cluster is EXPANDED, use the node;
+    // else use its cluster's rankleader at that rank". Expanding a cluster
+    // swaps its skeleton chain for its own interior segments and rewires the
+    // inter-cluster chain ENDPOINTS onto the real nodes
+    // (`interclexp`/`make_interclust_chain`/`map_path`), leaving the
+    // intermediate chain vnodes alone — which is exactly what re-deriving the
+    // adjacency from the class2 segments under `liveNode` reproduces.
+    val expanded = mutable.Set.empty[Int]
+    val hOut    = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+    val hIn     = mutable.LinkedHashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+    val hWeight = mutable.HashMap.empty[(CNode, CNode), Long]
+    val hPorts  = mutable.HashMap.empty[(CNode, CNode), SegPorts]
+    def liveNode(n: LayoutNode): CNode = cOf(n) match
+      case Some(ci) if !expanded(ci) => CNode.Sk(ci, rankOf(n))
+      case _                         => CNode.Nd(n)
+    def rebuildAdjacency(): Unit =
+      hOut.clear(); hIn.clear(); hWeight.clear(); hPorts.clear()
+      def touch(x: CNode): Unit =
+        hOut.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
+        hIn.getOrElseUpdate(x, mutable.ArrayBuffer.empty)
+      rows.valuesIterator.foreach(_.foreach(touch))
+      clRanks.foreach { case (ci, (lo, hi)) =>
+        if !expanded(ci) then
+          (lo until hi).foreach { r =>
+            val a = CNode.Sk(ci, r); val b = CNode.Sk(ci, r + 1)
+            touch(a); touch(b)
+            hOut(a) += b; hIn(b) += a
+            hWeight((a, b)) = 1000L // CL_CROSS (build_skeleton)
+          }
+      }
+      segsInOrder.foreach { (t, h) =>
+        val lt = liveNode(t); val lh = liveNode(h)
+        // a segment INSIDE a still-collapsed cluster IS the skeleton chain
+        val collapsedIntra = (lt, lh) match
+          case (CNode.Sk(c1, _), CNode.Sk(c2, _)) => c1 == c2
+          case _                                  => false
+        if !collapsedIntra && lt != lh then
+          touch(lt); touch(lh)
+          hOut(lt) += lh; hIn(lh) += lt
+          if !hWeight.contains((lt, lh)) then
+            hWeight((lt, lh)) = segWeight(t, h)
+            val sp = segPorts(t, h)
+            if sp != SegPorts.default then hPorts((lt, lh)) = sp
+      }
+    rebuildAdjacency()
+    val emptyRow = mutable.ArrayBuffer.empty[CNode]
+    def out(x: CNode): mutable.ArrayBuffer[CNode] = hOut.getOrElse(x, emptyRow)
+    def in(x: CNode): mutable.ArrayBuffer[CNode]  = hIn.getOrElse(x, emptyRow)
+    def wOf(t: CNode, h: CNode): Long             = hWeight.getOrElse((t, h), 1L)
+    def pOf(t: CNode, h: CNode): SegPorts         = hPorts.getOrElse((t, h), SegPorts.default)
+    def portedC(x: CNode): Boolean = x match
+      case CNode.Nd(n) => hasPort(n)
+      case _           => false
+    def clustOfC(x: CNode): Option[Int] = x match
+      case CNode.Nd(n)     => cOf(n)
+      case CNode.Sk(ci, _) => Some(ci)
+
+    /** `expand_cluster` + `merge_ranks` (cluster.c:288): the cluster's
+      * rankleaders are replaced IN PLACE by its own `build_ranks(subg, 0)`
+      * install, then the surrounding graph is rewired around it. */
+    def expandCluster(ci: Int): Unit =
+      val interior = internalInstall(ci)
+      val (lo, hi) = clRanks(ci)
+      (lo to hi).foreach { r =>
+        val rb   = rows.getOrElseUpdate(r, mutable.ArrayBuffer.empty)
+        val repl = interior.getOrElse(r, Vector.empty).map(n => CNode.Nd(n): CNode)
+        val idx  = rb.indexOf(CNode.Sk(ci, r): CNode)
+        if idx >= 0 then { rb.remove(idx); rb.insertAll(idx, repl) }
+        else rb ++= repl
+      }
+      expanded += ci
+      rebuildAdjacency()
+      reindex()
+
 
     // ── per-cluster refinement: `mincross_clust` → mincross(subg, 2). The
     //    cluster's rank arrays are SLICES of the root's (contiguous by
@@ -433,21 +549,53 @@ object Order:
     //    counts over the WHOLE root graph (gv ncross reads the Root globals),
     //    so the unavoidable cross-cluster crossings keep the iterations alive
     //    and reverse-pass tie-swaps can flip equal-median pairs. ──
+    // gv `ncross` (mincross.c:1626) over the root graph — the cluster-interior
+    // and ReMincross drivers both read this global count. It is WEIGHTED by
+    // ED_xpenalty and carries the `local_cross` term for ported nodes;
+    // counting raw inversions instead optimises a different objective.
+    def localOutG(v: CNode): Long =
+      val os = out(v)
+      var c = 0L; var i = 0
+      while i < os.length do
+        var j = i + 1
+        while j < os.length do
+          val e = os(i); val f = os(j)
+          if (gpos(f) - gpos(e)).sign * (pOf(v, f).tailPX - pOf(v, e).tailPX).sign < 0 then
+            c += wOf(v, e) * wOf(v, f)
+          j += 1
+        i += 1
+      c
+    def localInG(v: CNode): Long =
+      val is0 = in(v)
+      var c = 0L; var i = 0
+      while i < is0.length do
+        var j = i + 1
+        while j < is0.length do
+          val e = is0(i); val f = is0(j)
+          if (gpos(f) - gpos(e)).sign * (pOf(f, v).headPX - pOf(e, v).headPX).sign < 0 then
+            c += wOf(e, v) * wOf(f, v)
+          j += 1
+        i += 1
+      c
     def ncrossGlobal(): Long =
       var c = 0L
       var r = gMinR
       while r < gMaxR do
-        val segs = mutable.ArrayBuffer.empty[(Int, Int)]
+        val segs = mutable.ArrayBuffer.empty[(Int, Int, Long)]
         rows.getOrElse(r, mutable.ArrayBuffer.empty).foreach { u =>
-          out(u).foreach(w => segs += ((gpos(u), gpos(w))))
+          out(u).foreach(w => segs += ((gpos(u), gpos(w), wOf(u, w))))
         }
         var i = 0
         while i < segs.length do
           var j = i + 1
           while j < segs.length do
-            if (segs(i)._1 - segs(j)._1) * (segs(i)._2 - segs(j)._2) < 0 then c += 1
+            val (ui, wi, xi) = segs(i)
+            val (uj, wj, xj) = segs(j)
+            if (ui - uj) * (wi - wj) < 0 then c += xi * xj
             j += 1
           i += 1
+        rows.getOrElse(r, mutable.ArrayBuffer.empty).foreach(v => if portedC(v) then c += localOutG(v))
+        rows.getOrElse(r + 1, mutable.ArrayBuffer.empty).foreach(v => if portedC(v) then c += localInG(v))
         r += 1
       c
 
@@ -456,25 +604,31 @@ object Order:
       def slice(r: Int): (Int, Int) = // [from, until) of this cluster's members
         val rb   = rows(r)
         var from = 0
-        while from < rb.length && !cOf(rb(from)).contains(ci) do from += 1
+        while from < rb.length && !clustOfC(rb(from)).contains(ci) do from += 1
         var until = from
-        while until < rb.length && cOf(rb(until)).contains(ci) do until += 1
+        while until < rb.length && clustOfC(rb(until)).contains(ci) do until += 1
         (from, until)
       def exchange(r: Int, i: Int, j: Int): Unit =
         val rb = rows(r); val a = rb(i); val b = rb(j)
         rb(i) = b; rb(j) = a; gpos(a) = j; gpos(b) = i
-      val mval = mutable.HashMap.empty[LayoutNode, Double]
+      val mval = mutable.HashMap.empty[CNode, Double]
       def medians(r0: Int, r1: Int): Unit =
         val (from, until) = slice(r0)
         val rb = rows(r0)
         var k = from
         while k < until do
           val n    = rb(k)
-          val nbrs = (if r1 > r0 then out(n) else in(n)).map(gpos).sorted
+          // VAL(node, port) = MC_SCALE*ND_order + port.order (mincross.c:1709)
+          // — the same integer median key the root pass uses. Dropping the
+          // port term makes two edges into the same node tie when gv orders
+          // them, so a rank full of ported HTML nodes never reorders.
+          val nbrs =
+            (if r1 > r0 then out(n).map(w => 256 * gpos(w) + pOf(n, w).headOrd)
+             else in(n).map(x => 256 * gpos(x) + pOf(x, n).tailOrd)).sorted
           mval(n) = nbrs.length match
             case 0 => -1.0
             case 1 => nbrs(0).toDouble
-            case 2 => (nbrs(0) + nbrs(1)) / 2.0
+            case 2 => ((nbrs(0) + nbrs(1)) / 2).toDouble // C int division
             case j =>
               val rm = j / 2
               if j % 2 == 1 then nbrs(rm).toDouble
@@ -482,7 +636,7 @@ object Order:
                 val lm    = rm - 1
                 val rspan = nbrs(j - 1) - nbrs(rm)
                 val lspan = nbrs(lm) - nbrs(0)
-                if lspan == rspan then (nbrs(lm) + nbrs(rm)) / 2.0
+                if lspan == rspan then ((nbrs(lm) + nbrs(rm)) / 2).toDouble // int div
                 else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
           k += 1
       def reorder(r: Int, reverse: Boolean): Unit =
@@ -495,6 +649,13 @@ object Order:
           while lp < ep do
             while lp < ep && mval.getOrElse(rb(lp), -1.0) < 0 do lp += 1
             if lp < ep then
+              // NO sawclust here. The `###` rule keys off ND_clust, and
+              // `expand_cluster` runs `class2(subg)` → `mark_clusters(subg)`,
+              // whose first loop sets `ND_clust(n) = NULL` for every node of
+              // subg (it then re-marks only subg's OWN sub-clusters). So while
+              // a cluster's interior mincross runs, its nodes carry no cluster
+              // — the rule is inert until `mark_lowclusters` re-stamps them
+              // just before ReMincross, where it DOES apply.
               var rp = lp + 1
               while rp < ep && mval.getOrElse(rb(rp), -1.0) < 0 do rp += 1
               if rp < ep then
@@ -507,24 +668,41 @@ object Order:
             else lp = ep
           if !reverse then ep -= 1
           nelt -= 1
-      def crossIn(v: LayoutNode, w: LayoutNode): Long =
+      // in_cross/out_cross (mincross.c:620): WEIGHTED by ED_xpenalty on both
+      // edges, and an equal-order tie breaks on the endpoints' canonical port
+      // p.x — two record/HTML ports on one node still cross. Counting raw
+      // unweighted inversions makes transpose swap pairs gv leaves alone.
+      def crossIn(v: CNode, w: CNode): Long =
         var c = 0L
-        in(v).foreach(x => in(w).foreach(y => if gpos(x) > gpos(y) then c += 1))
+        in(v).foreach(x => in(w).foreach { y =>
+          if gpos(x) > gpos(y) ||
+             (gpos(x) == gpos(y) && pOf(x, v).tailPX > pOf(y, w).tailPX) then
+            c += wOf(x, v) * wOf(y, w)
+        })
         c
-      def crossOut(v: LayoutNode, w: LayoutNode): Long =
+      def crossOut(v: CNode, w: CNode): Long =
         var c = 0L
-        out(v).foreach(x => out(w).foreach(y => if gpos(x) > gpos(y) then c += 1))
+        out(v).foreach(x => out(w).foreach { y =>
+          if gpos(x) > gpos(y) ||
+             (gpos(x) == gpos(y) && pOf(v, x).headPX > pOf(w, y).headPX) then
+            c += wOf(v, x) * wOf(w, y)
+        })
         c
       def transposeStep(reverse: Boolean): Long =
         var delta = 0L
         (cLo to cHi).foreach { r =>
           val (from, until) = slice(r)
           val rb = rows(r)
+          // gv transpose_step (mincross.c:700) gates out_cross on
+          // `GD_rank(g)[r + 1].n > 0`, and for a CLUSTER that array is its own
+          // slice — zero past its maxrank. So the cluster's bottom rank
+          // contributes in_cross only.
+          val hasBelow = r < cHi
           var i = from
           while i < until - 1 do
             val v = rb(i); val w = rb(i + 1)
-            val c0 = crossIn(v, w) + crossOut(v, w)
-            val c1 = crossIn(w, v) + crossOut(w, v)
+            val c0 = crossIn(v, w) + (if hasBelow then crossOut(v, w) else 0L)
+            val c1 = crossIn(w, v) + (if hasBelow then crossOut(w, v) else 0L)
             val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
             if doSwap then { exchange(r, i, i + 1); delta += c0 - c1 }
             i += 1
@@ -534,17 +712,24 @@ object Order:
         while transposeStep(reverse) >= 1 do ()
       def mincrossStep(pass: Int): Unit =
         val reverse = pass % 4 < 2
+        // mincross_step (mincross.c:1252): the down pass normally starts one
+        // rank INSIDE (the topmost rank has nothing above to take medians
+        // from) — but a cluster whose minrank is below the root's DOES have a
+        // rank above it, so `first--` puts the sweep on the cluster's own top
+        // rank. Symmetrically for the up pass at the bottom. Starting one rank
+        // in regardless leaves the cluster's boundary ranks unordered.
         val (first, last, dir) =
-          if pass % 2 == 0 then (cLo + 1, cHi, 1) else (cHi - 1, cLo, -1)
+          if pass % 2 == 0 then ((if cLo > gMinR then cLo else cLo + 1), cHi, 1)
+          else ((if cHi < gMaxR then cHi else cHi - 1), cLo, -1)
         var r = first
         while r != last + dir do
           medians(r, r - dir)
           reorder(r, reverse)
           r += dir
         transpose(!reverse)
-      def snapshot(): Map[Int, Vector[LayoutNode]] =
+      def snapshot(): Map[Int, Vector[CNode]] =
         rows.iterator.map((r, b) => r -> b.toVector).toMap
-      def restore(s: Map[Int, Vector[LayoutNode]]): Unit =
+      def restore(s: Map[Int, Vector[CNode]]): Unit =
         s.foreach { (r, v) =>
           val rb = rows(r); rb.clear(); rb ++= v
           v.iterator.zipWithIndex.foreach((n, i) => gpos(n) = i)
@@ -570,7 +755,13 @@ object Order:
       if cur > best then restore(bst)
       if best > 0 then transpose(false) // driver tail (slice-constrained)
 
-    clRanks.keysIterator.toVector.sorted.foreach(refineCluster)
+    // mincross_clust, cluster by cluster: expand THIS one (the rest stay
+    // collapsed to their rankleaders) and immediately refine it against the
+    // graph as it now stands — gv's loop, not expand-everything-then-refine.
+    clRanks.keysIterator.toVector.sorted.foreach { ci =>
+      expandCluster(ci)
+      refineCluster(ci)
+    }
 
     // ── ReMincross (dot_mincross tail, mincross.c:381): after the interior
     //    passes, a FINAL mincross(g, 2) runs over the whole EXPANDED graph.
@@ -578,18 +769,23 @@ object Order:
     //    with DIFFERING clusters (free↔cluster or two clusters), so free
     //    nodes weave between cluster columns while boundaries hold. ──
     locally {
-      def pinned(v: LayoutNode, w: LayoutNode): Boolean = cOf(v) != cOf(w)
+      def pinned(v: CNode, w: CNode): Boolean = clustOfC(v) != clustOfC(w)
       def exchange(r: Int, i: Int, j: Int): Unit =
         val rb = rows(r); val a = rb(i); val b = rb(j)
         rb(i) = b; rb(j) = a; gpos(a) = j; gpos(b) = i
-      val mval = mutable.HashMap.empty[LayoutNode, Double]
+      val mval = mutable.HashMap.empty[CNode, Double]
       def medians(r0: Int, r1: Int): Unit =
         rows.getOrElse(r0, mutable.ArrayBuffer.empty).foreach { n =>
-          val nbrs = (if r1 > r0 then out(n) else in(n)).map(gpos).sorted
+          // VAL(node, port) = MC_SCALE*ND_order + port.order, and C INTEGER
+          // division in the even-median cases — the same key the root and
+          // cluster-interior passes use.
+          val nbrs =
+            (if r1 > r0 then out(n).map(w => 256 * gpos(w) + pOf(n, w).headOrd)
+             else in(n).map(x => 256 * gpos(x) + pOf(x, n).tailOrd)).sorted
           mval(n) = nbrs.length match
             case 0 => -1.0
             case 1 => nbrs(0).toDouble
-            case 2 => (nbrs(0) + nbrs(1)) / 2.0
+            case 2 => ((nbrs(0) + nbrs(1)) / 2).toDouble
             case j =>
               val rm = j / 2
               if j % 2 == 1 then nbrs(rm).toDouble
@@ -597,7 +793,7 @@ object Order:
                 val lm    = rm - 1
                 val rspan = nbrs(j - 1) - nbrs(rm)
                 val lspan = nbrs(lm) - nbrs(0)
-                if lspan == rspan then (nbrs(lm) + nbrs(rm)) / 2.0
+                if lspan == rspan then ((nbrs(lm) + nbrs(rm)) / 2).toDouble
                 else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
         }
       def reorder(r: Int, reverse: Boolean): Unit =
@@ -634,13 +830,22 @@ object Order:
             else lp = ep
           if !reverse then ep -= 1
           nelt -= 1
-      def crossIn(v: LayoutNode, w: LayoutNode): Long =
+      // same weighted, port-aware in_cross/out_cross as the interior pass
+      def crossIn(v: CNode, w: CNode): Long =
         var c = 0L
-        in(v).foreach(x => in(w).foreach(y => if gpos(x) > gpos(y) then c += 1))
+        in(v).foreach(x => in(w).foreach { y =>
+          if gpos(x) > gpos(y) ||
+             (gpos(x) == gpos(y) && pOf(x, v).tailPX > pOf(y, w).tailPX) then
+            c += wOf(x, v) * wOf(y, w)
+        })
         c
-      def crossOut(v: LayoutNode, w: LayoutNode): Long =
+      def crossOut(v: CNode, w: CNode): Long =
         var c = 0L
-        out(v).foreach(x => out(w).foreach(y => if gpos(x) > gpos(y) then c += 1))
+        out(v).foreach(x => out(w).foreach { y =>
+          if gpos(x) > gpos(y) ||
+             (gpos(x) == gpos(y) && pOf(v, x).headPX > pOf(w, y).headPX) then
+            c += wOf(v, x) * wOf(w, y)
+        })
         c
       val candidate = mutable.HashMap.from((gMinR to gMaxR).map(r => r -> true))
       def transposeStep(r: Int, reverse: Boolean): Long =
@@ -681,9 +886,9 @@ object Order:
           reorder(r, reverse)
           r += dir
         transpose(!reverse)
-      def snapshot(): Map[Int, Vector[LayoutNode]] =
+      def snapshot(): Map[Int, Vector[CNode]] =
         rows.iterator.map((r, b) => r -> b.toVector).toMap
-      def restore(s: Map[Int, Vector[LayoutNode]]): Unit =
+      def restore(s: Map[Int, Vector[CNode]]): Unit =
         s.foreach { (r, v) =>
           val rb = rows(r); rb.clear(); rb ++= v
           v.iterator.zipWithIndex.foreach((n, i) => gpos(n) = i)
@@ -709,7 +914,9 @@ object Order:
       if best > 0 then transpose(false)
     }
 
-    (rows.iterator.map((r, b) => r -> b.toVector).toMap, ncrossGlobal())
+    // every cluster is expanded by now, so every CNode is a plain layout node
+    (rows.iterator.map((r, b) => r -> b.toVector.collect { case CNode.Nd(n) => n }).toMap,
+      ncrossGlobal())
 
   /** The `mincross` driver proper (mincross.c:745) over a class2 graph given as
     * adjacency maps + a `GD_nlist` seed order. Extracted so both the flat graph
@@ -1059,13 +1266,24 @@ object Order:
             if lp < ep then
               // find the node that can be compared; a left2right hit on ANY
               // scanned node (incl. the comparable one) pins lp (muststay).
+              // gv's `###` sawclust rule (mincross.c:1487): once an UNSEATED
+              // (mval < 0) node with ND_clust is passed, every later clustered
+              // node is SKIPPED outright — it can neither pin lp nor become
+              // the comparison partner. In the collapsed pass ND_clust is set
+              // exactly on the cluster skeleton leaders (build_skeleton), so
+              // `columnOf` is the predicate; with no clusters it is never set
+              // and the rule is inert, matching gv.
               var rp = lp + 1
               var muststay = false
               var found    = false
+              var sawclust = false
               while rp < ep && !muststay && !found do
-                if left2right(rb(lp), rb(rp)) then muststay = true
+                if sawclust && columnOf(rb(rp)).isDefined then rp += 1
+                else if left2right(rb(lp), rb(rp)) then muststay = true
                 else if mval.getOrElse(rb(rp), -1.0) >= 0 then found = true
-                else rp += 1
+                else
+                  if columnOf(rb(rp)).isDefined then sawclust = true
+                  rp += 1
               if rp < ep then
                 if !muststay then
                   val p1 = mval.getOrElse(rb(lp), -1.0)

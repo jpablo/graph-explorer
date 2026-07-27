@@ -1,0 +1,1066 @@
+/*
+ * Type/function graph rooted in Program.scala and extended with Predict.scala,
+ * Prediction.scala, and SignatureLayout.scala.
+ * Scala mapping: non-private constructor fields and declared methods are public
+ * members; inherited/protected/private members are excluded. Parameters consume
+ * types (gray), fields/returns produce types (green), and Either's error branch
+ * is red. Vector and Option are transparent 0..* / 0..1 edge annotations.
+ * Project and non-ubiquitous external types are linked leaves, grouped by their
+ * declaring Scala package. Generic type parameters and primitives stay inline.
+ * EXCEPTION: public companion/given implementation members are included for
+ * reviewed types so their complete construction surface remains visible.
+ */
+digraph "ProgramTypeFunctionGraph" {
+    graph [
+        fontname="Helvetica",
+        fontsize="11",
+        label="dspy4s",
+        rankdir="LR",
+        bgcolor="#FbFbFd",
+        nodesep="0.35",
+        pad="0.2",
+        ranksep="0.85",
+        compound="true"
+    ];
+    subgraph "cluster_package_core_contracts" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.core.contracts",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "RuntimeContext" [
+            label="RuntimeContext",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "DspyError" [
+            label="DspyError",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "FieldSpecType" [
+            label="FieldSpec",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "SignatureLayoutType" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#FAD2CF"><b>SignatureLayout</b><br/><font point-size="8">final case class · private constructor · public fields + methods</font></td></tr>
+              <tr><td port="f_name" align="left" bgcolor="#EFF7F1">name: String</td></tr>
+              <tr><td port="f_fields" align="left" bgcolor="#EFF7F1">fields: Vector[FieldSpec] &#8594;</td></tr>
+              <tr><td port="f_instructions" align="left" bgcolor="#EFF7F1">instructions: Option[String]</td></tr>
+              <tr><td port="m_inputFields" align="left">inputFields &#8594;</td></tr>
+              <tr><td port="m_outputFields" align="left">outputFields &#8594;</td></tr>
+              <tr><td port="m_withInstructionsOption" align="left">withInstructions(text: Option[String]) <font color="#9AA0A6" point-size="8">&#8594; Self</font></td></tr>
+              <tr><td port="m_withInstructionsString" align="left">withInstructions(text: String) <font color="#9AA0A6" point-size="8">&#8594; Self</font></td></tr>
+              <tr><td port="m_signatureString" align="left">signatureString: String</td></tr>
+              <tr><td port="m_equalsByStructure" align="left">equalsByStructure(other: SignatureLayout): Boolean</td></tr>
+              <tr><td port="m_dumpState" align="left">dumpState &#8594;</td></tr>
+              <tr><td port="m_dumpJson" align="left">dumpJson: String</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "SignatureLayoutCompanion" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#FEEFC3"><b>SignatureLayout</b><br/><font point-size="8">companion object · public constructors</font></td></tr>
+              <tr><td port="m_parse" align="left">parse(dsl: String, instructions: String) &#8594;</td></tr>
+              <tr><td port="m_create" align="left">create(name: String, fields: Vector[FieldSpec], instructions: Option[String]) &#8594;</td></tr>
+              <tr><td port="m_fromState" align="left">fromState(state: DynamicValue.Record) &#8594;</td></tr>
+              <tr><td port="m_fromJson" align="left">fromJson(json: String) &#8594;</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_core_data" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.core.data",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "DynamicPrediction" [
+            label="DynamicPrediction",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "a" [
+            label="Completions"
+        ];
+        "DynamicPrediction" -> "a" [
+            label=""
+        ];
+        "ExampleType" [
+            label="Example",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_programs" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.programs",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "RecordCodecI" [
+            label="RecordCodec[I]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "RecordCodecA" [
+            label="RecordCodec[A]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "DynamicPredictType" [
+            label="DynamicPredict",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "PredictType" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#AECBFA"><b>Predict[I, O]</b><br/><font point-size="8">final case class · Module[ProgramCall[I], Prediction[O]]</font></td></tr>
+              <tr><td port="f_signature" align="left" bgcolor="#EFF7F1">signature: Signature[I, O] &#8594;</td></tr>
+              <tr><td port="f_demos" align="left" bgcolor="#EFF7F1">demos: Vector[Example] &#8594;</td></tr>
+              <tr><td port="f_name" align="left" bgcolor="#EFF7F1">name: Option[String]</td></tr>
+              <tr><td port="f_runtime" align="left" bgcolor="#EFF7F1">runtime: ProgramRuntime &#8594;</td></tr>
+              <tr><td port="f_config" align="left" bgcolor="#EFF7F1">config: DynamicValue.Record &#8594;</td></tr>
+              <tr><td port="f_lm" align="left" bgcolor="#EFF7F1">lm: Option[LanguageModel] &#8594;</td></tr>
+              <tr><td port="f_tools" align="left" bgcolor="#EFF7F1">tools: Vector[ToolSpec] &#8594;</td></tr>
+              <tr><td port="f_moduleName" align="left" bgcolor="#EFF7F1">moduleName: String</td></tr>
+              <tr><td port="m_withLm" align="left">withLm(model: LanguageModel) <font color="#9AA0A6" point-size="8">&#8594; Self</font></td></tr>
+              <tr><td port="m_boundLm" align="left">boundLm &#8594;</td></tr>
+              <tr><td port="m_erase" align="left">erase &#8594;</td></tr>
+              <tr><td port="m_apply" align="left">apply(input: I, config: DynamicValue.Record, traceEnabled: Boolean)(using RuntimeContext) &#8594;</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_programs_contracts" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.programs.contracts",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "ModuleBound" [
+            label="Module[ProgramCall[I], Prediction[O]]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ProgramCallI" [
+            label="ProgramCall[I]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ProgramCallRecord" [
+            label="ProgramCall[DynamicValue.Record]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ProgramRuntimeType" [
+            label="ProgramRuntime",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_programs_predictors" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.programs.predictors",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "PredictorsRep" [
+            label="Predictors[Rep]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "PredictorsF" [
+            label="Predictors[F]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "PredictorView" [
+            label="PredictorView",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "PredictorState" [
+            label="PredictorState",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_typed" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.typed",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "PredictionO" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#C5CAE9"><b>Prediction[O]</b><br/><font point-size="8">final case class · public fields</font></td></tr>
+              <tr><td port="f_output" align="left">output: O</td></tr>
+              <tr><td port="f_raw" align="left">raw: DynamicPrediction &#8594;</td></tr>
+              </table>>,
+            shape="plain",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "SignatureIO" [
+            label="Signature[I, O]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_adapters_contracts" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.adapters.contracts",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "ToolSpecType" [
+            label="ToolSpec",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_lm_contracts" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.lm.contracts",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "LanguageModelType" [
+            label="LanguageModel",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_zio_schema" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="zio.blocks.schema",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "DynamicValueRecord" [
+            label="DynamicValue.Record",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+    }
+    subgraph "cluster_package_programs_para" {
+        graph [
+            compound="true",
+            bgcolor="#FbFbFd",
+            style="filled,rounded",
+            label="dspy4s.programs.para",
+            color="#5F6368",
+            pad="0.2",
+            cluster="true",
+            fillcolor="#F1F3F4",
+            fontname="Helvetica",
+            nodesep="0.35",
+            fontsize="11",
+            ranksep="0.85",
+            labeljust="l"
+        ];
+        "ParamsHomAB" [
+            label="ParamsHom[A, B]",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="10",
+            color="#B06000",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ProgramType" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#D2E3FC"><b>Program[I, O]</b><br/><font point-size="8">sealed trait · public fields + method</font></td></tr>
+              <tr><td port="f_program" align="left" bgcolor="#EFF7F1">program: Rep &#8594;</td></tr>
+              <tr><td port="f_addressable" align="left" bgcolor="#EFF7F1">addressable: Predictors[Rep] &#8594;</td></tr>
+              <tr><td port="m_apply" align="left">apply(call: ProgramCall[I])(using RuntimeContext) &#8594;</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ProgramCompanion" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#CEEAD6"><b>Program</b><br/><font point-size="8">companion object · public API/providers</font></td></tr>
+              <tr><td port="m_of" align="left">of(f: F)(using Predictors[F], RecordCodec[I]) &#8594;</td></tr>
+              <tr><td port="m_programPredictors" align="left">given programPredictors[I, O] &#8594;</td></tr>
+              <tr><td port="m_programRunner" align="left">given programRunner[I, O](using RecordCodec[I]) &#8594;</td></tr>
+              <tr><td port="m_paraCategoryProgram" align="left">given paraCategoryProgram &#8594;</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ProgramPredictorsGiven" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#E1BEE7"><b>Predictors[Program[I, O]]</b><br/><font point-size="8">given programPredictors</font></td></tr>
+              <tr><td port="m_inspect" align="left">inspect(program: Program[I, O]) &#8594;</td></tr>
+              <tr><td port="m_replace" align="left">replace(program: Program[I, O], updates: Vector[PredictorState]) &#8594;</td></tr>
+              <tr><td port="m_inspectNamed" align="left">inspectNamed(program: Program[I, O]) &#8594;</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ProgramRunnerGiven" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#B2DFDB"><b>ProgramRunner[Program[I, O]]</b><br/><font point-size="8">given programRunner</font></td></tr>
+              <tr><td port="m_run" align="left">run(program, call)(using RuntimeContext) &#8594;</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ParaCategoryGiven" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#FFCC80"><b>ParaCategory[RecordCodec, Program]</b><br/><font point-size="8">given paraCategoryProgram</font></td></tr>
+              <tr><td port="m_id" align="left">id[A](using RecordCodec[A]) &#8594;</td></tr>
+              <tr><td port="m_fanout" align="left">fanout(f: Program[I, A], g: Program[I, B]) &#8594;</td></tr>
+              <tr><td port="m_compose" align="left">f.&gt;&gt;&gt;(g: Program[B, C]) &#8594;</td></tr>
+              <tr><td port="m_params" align="left">f.params &#8594;</td></tr>
+              <tr><td port="m_reparam" align="left">f.reparam(ps: Vector[PredictorState]) &#8594;</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ReadFunctor" [
+            label=<
+              <table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="#FFF8E1">
+              <tr><td bgcolor="#C5CAE9"><b>ReadFunctor</b><br/><font point-size="8">object · CategoryFunctor[RecordCodec, Program, AnyObject, ParamsHom]</font></td></tr>
+              <tr><td port="m_map" align="left">map(f: Program[A, B]) &#8594;</td></tr>
+              </table>
+            >,
+            shape="plain",
+            fontname="Helvetica",
+            fontsize="10",
+            fillcolor="#FCE8B2",
+            style="filled"
+        ];
+        "ProgramType" -> "ProgramPredictorsGiven":"m_inspect" [
+            label="program: Program[I, O]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ProgramPredictorsGiven":"m_replace" [
+            label="program: Program[I, O]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ProgramPredictorsGiven":"m_inspectNamed" [
+            label="program: Program[I, O]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ProgramRunnerGiven":"m_run" [
+            label="program: Program[I, O]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ParaCategoryGiven":"m_fanout" [
+            label="f: Program[I, A]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ParaCategoryGiven":"m_fanout" [
+            label="g: Program[I, B]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ParaCategoryGiven":"m_compose" [
+            label="f: Program[A, B]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ParaCategoryGiven":"m_compose" [
+            label="g: Program[B, C]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ParaCategoryGiven":"m_params" [
+            label="f: Program[A, B]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ParaCategoryGiven":"m_reparam" [
+            label="f: Program[A, B]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramType" -> "ReadFunctor":"m_map" [
+            label="f: Program[A, B]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#5F6368",
+            arrowsize="0.75"
+        ];
+        "ProgramCompanion":"m_of" -> "ProgramType" [
+            label="Program[I, O] { Rep = F }",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ProgramCompanion":"m_programPredictors" -> "ProgramPredictorsGiven" [
+            label="Predictors[Program[I, O]]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ProgramCompanion":"m_programRunner" -> "ProgramRunnerGiven" [
+            label="ProgramRunner[Program[I, O]]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ProgramCompanion":"m_paraCategoryProgram" -> "ParaCategoryGiven" [
+            label="ParaCategory[RecordCodec, Program]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ProgramPredictorsGiven":"m_replace" -> "ProgramType" [
+            label="Program[I, O]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ParaCategoryGiven":"m_id" -> "ProgramType" [
+            label="Program[A, A]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ParaCategoryGiven":"m_fanout" -> "ProgramType" [
+            label="Program[I, (A, B)]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ParaCategoryGiven":"m_compose" -> "ProgramType" [
+            label="Program[A, C]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ParaCategoryGiven":"m_reparam" -> "ProgramType" [
+            label="Program[A, B]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+        "ReadFunctor":"m_map" -> "ParamsHomAB" [
+            label="ParamsHom[A, B]",
+            fontname="Helvetica",
+            fontsize="9",
+            color="#137333",
+            arrowsize="0.75"
+        ];
+    }
+    "RecordCodecI" -> "ProgramCompanion":"m_of" [
+        label="codec",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "ModuleBound" -> "ProgramCompanion":"m_of" [
+        label="f: F",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "PredictorState" -> "ProgramPredictorsGiven":"m_replace" [
+        label="updates: Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "RuntimeContext" -> "ProgramRunnerGiven":"m_run" [
+        label="using",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "PredictionO":"f_raw" -> "DynamicPrediction" [
+        label="raw",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "ProgramPredictorsGiven":"m_inspectNamed" -> "PredictorView" [
+        label="Vector[(String, _)] 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "RuntimeContext" -> "ProgramType":"m_apply" [
+        label="using",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "ProgramCallI" -> "ProgramType":"m_apply" [
+        label="call",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "ProgramType":"m_apply" -> "DspyError" [
+        label="Left",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#EA4335",
+        arrowsize="0.75"
+    ];
+    "PredictorsF" -> "ProgramCompanion":"m_of" [
+        label="ev",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "RecordCodecI" -> "ProgramCompanion":"m_programRunner" [
+        label="codec",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "ProgramType":"m_apply" -> "PredictionO" [
+        label="Right",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "ProgramType":"f_program" -> "ModuleBound" [
+        label="program: Rep",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "ProgramPredictorsGiven":"m_inspect" -> "PredictorView" [
+        label="Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "PredictorState" -> "ParaCategoryGiven":"m_reparam" [
+        label="ps: Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "ProgramRunnerGiven":"m_run" -> "DynamicPrediction" [
+        label="Right",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "DynamicPrediction" -> "PredictionO" [
+        label="Prediction.from(Shape[O]).right"
+    ];
+    "ProgramCallRecord" -> "ProgramRunnerGiven":"m_run" [
+        label="call",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "ProgramRunnerGiven":"m_run" -> "DspyError" [
+        label="Left",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#EA4335",
+        arrowsize="0.75"
+    ];
+    "RecordCodecA" -> "ParaCategoryGiven":"m_id" [
+        label="codec",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "ProgramType":"f_addressable" -> "PredictorsRep" [
+        label="addressable",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "ParaCategoryGiven":"m_params" -> "PredictorState" [
+        label="Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "PredictType":"f_signature" -> "SignatureIO" [
+        label="signature",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "PredictType":"f_demos" -> "ExampleType" [
+        label="Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "PredictType":"f_runtime" -> "ProgramRuntimeType" [
+        label="runtime",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "PredictType":"f_config" -> "DynamicValueRecord" [
+        label="config",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "PredictType":"f_lm" -> "LanguageModelType" [
+        label="Option 0..1",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        style="dashed",
+        arrowsize="0.75"
+    ];
+    "PredictType":"f_tools" -> "ToolSpecType" [
+        label="Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "LanguageModelType" -> "PredictType":"m_withLm" [
+        label="model",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "PredictType":"m_boundLm" -> "LanguageModelType" [
+        label="Option 0..1",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        style="dashed",
+        arrowsize="0.75"
+    ];
+    "PredictType":"m_erase" -> "DynamicPredictType" [
+        label="DynamicPredict",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "DynamicValueRecord" -> "PredictType":"m_apply" [
+        label="config",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "RuntimeContext" -> "PredictType":"m_apply" [
+        label="using",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "PredictType":"m_apply" -> "PredictionO" [
+        label="Right",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "PredictType":"m_apply" -> "DspyError" [
+        label="Left",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#EA4335",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutType":"f_fields" -> "FieldSpecType" [
+        label="Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutType":"m_inputFields" -> "FieldSpecType" [
+        label="Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutType":"m_outputFields" -> "FieldSpecType" [
+        label="Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutType" -> "SignatureLayoutType":"m_equalsByStructure" [
+        label="other",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutType":"m_dumpState" -> "DynamicValueRecord" [
+        label="DynamicValue.Record",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "FieldSpecType" -> "SignatureLayoutCompanion":"m_create" [
+        label="fields: Vector 0..*",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        penwidth="2.2",
+        arrowsize="0.75"
+    ];
+    "DynamicValueRecord" -> "SignatureLayoutCompanion":"m_fromState" [
+        label="state",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#5F6368",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutCompanion":"m_parse" -> "SignatureLayoutType" [
+        label="Right",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutCompanion":"m_parse" -> "DspyError" [
+        label="Left",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#EA4335",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutCompanion":"m_create" -> "SignatureLayoutType" [
+        label="Right",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutCompanion":"m_create" -> "DspyError" [
+        label="Left",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#EA4335",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutCompanion":"m_fromState" -> "SignatureLayoutType" [
+        label="Right",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutCompanion":"m_fromState" -> "DspyError" [
+        label="Left",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#EA4335",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutCompanion":"m_fromJson" -> "SignatureLayoutType" [
+        label="Right",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+    "SignatureLayoutCompanion":"m_fromJson" -> "DspyError" [
+        label="Left",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#EA4335",
+        arrowsize="0.75"
+    ];
+    "SignatureIO" -> "SignatureLayoutType" [
+        label="layout",
+        fontname="Helvetica",
+        fontsize="9",
+        color="#137333",
+        arrowsize="0.75"
+    ];
+}
