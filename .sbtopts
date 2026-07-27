@@ -1,3 +1,8 @@
 -Dsbt.io.implicit.relative.glob.conversion=allow
 -J-Xmx8G
-
+# The Scala 3 compiler recurses deeply through the staging/inline phases
+# (CrossStageSafety + TreeMapWithImplicits) on shared/, and the JVM default
+# thread stack is not enough: Netlify's build (JDK 11) died with a
+# StackOverflowError compiling shared/.js while the same sources build fine on
+# JDK 17/21. -Xmx does NOT help a stack overflow — this is the knob that does.
+-J-Xss8m
