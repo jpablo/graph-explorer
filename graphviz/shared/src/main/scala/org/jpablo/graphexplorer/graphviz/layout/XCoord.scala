@@ -104,7 +104,9 @@ object XCoord:
           case _                  => false
       }.toSet
 
+    val dedgeVec = g.edges.filter(e => e.tail != e.head)
     def half(n: LayoutNode): Double = n match
+      case LayoutNode.FlatLabel(d)  => Coord.flatLabelDim(dedgeVec(d), g)._1
       case LayoutNode.Virtual(d, _) if intraVEdge(d) => 1.0
       case _: LayoutNode.Virtual => VirtualHalf
       case _: LayoutNode.Slack   => VirtualHalf // never queried; defensive
@@ -167,6 +169,7 @@ object XCoord:
     def weightClass(id: String, ci: Option[Int]): Int =
       math.min(3, rootWc(id) + ci.map(c => intraWc((id, c))).getOrElse(0))
     def cls(n: LayoutNode, ci: Option[Int]): NSClass = n match
+      case _: LayoutNode.FlatLabel => NSClass.Virtual
       case _: LayoutNode.Virtual => NSClass.Virtual
       case _: LayoutNode.Slack   => NSClass.Virtual // never queried; defensive
       case _: LayoutNode.ClusterLn | _: LayoutNode.ClusterRn => NSClass.Virtual // defensive

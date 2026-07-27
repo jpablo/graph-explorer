@@ -361,6 +361,62 @@ enforce the deferral halves of it):
   `orig-tail>orig-head`, `m0+1`, `m1+1`, `ED_weight`, and the matching hook at
   `XCoord`'s `edges += NSEdge(sn.name, ...)`; diff the two as multisets.
 
+  **The 108pt: FLAT-EDGE LABELS — CLOSED (2026-07-27).** The deduction above
+  was right (it had to be a minlen) but pointed at the wrong subsystem: the
+  minlens were fine, the rank was simply missing SEVEN NODES. Probing the LR
+  chain directly (`make_LR_constraints`, printing each aux edge's `len`/`rw`/
+  `lw`) showed gv emitting 131 constraints to our 122, with the deficit
+  concentrated entirely on the widest rank — **exactly 108** — and every
+  missing constraint touching a node of half-width `5.40`.
+
+  `5.40` is `10.8/2`, half a 14pt label's height, and only one place in gv
+  produces it: `flat.c:165`, `ND_lw(vn) = ND_rw(vn) = dimen.x/2` with `dimen`
+  SWAPped under flip. That is `flat_node` — the branch of `flat_edges` we had
+  never ported. A labelled FLAT (same-rank) edge is handled two ways:
+
+    - **adjacent** — nothing between the endpoints: fold the label's width into
+      the pair's separation (`ED_dist`). We had this.
+    - **NON-adjacent** — splice a virtual node carrying the label into rank
+      `rank(tail) - 1`, at the slot `flat_limits` picks, shifting everything
+      right of it. It is a full participant in that rank's LR chain. We had
+      nothing, so the rank came out 108pt narrow — and it was the widest rank,
+      so the whole drawing did.
+
+  Ported as `Order.flatLabelSlots` + `LayoutNode.FlatLabel` (sizes via
+  `Coord.flatLabelDim`). Three things had to be gv's, not ours:
+
+  1. **"Adjacent" is not `|i - j| == 1`.** `checkFlatAdjacent` scans the slots
+     between the endpoints and stops only at a NORMAL node or a LABELLED
+     virtual — plain chain vnodes are transparent.
+  2. **`flat_limits`' four-bound scan** (hard/soft left/right, converging from
+     both ends of the rank, with the `HRB - HLB <= 1` early break) transcribed
+     literally, including its two voter cases: an already-placed flat label
+     votes by where its own endpoints sit, a forward chain vnode by which side
+     its heads are on.
+  3. **`GD_nlist` order decides the ties.** `flat_edges` walks the node list,
+     and each insertion shifts the bounds for the next — so the walk order is
+     observable. At `dot_position` time that list is NOT the decompose order:
+     `merge_ranks` PREPENDS (`fast_node`) every expanded cluster's nodes,
+     walking ranks ascending and each rank left to right, so each block lands
+     at the head REVERSED and the last cluster expanded ends up FIRST.
+     `orderClustered` now returns that list alongside the order. With the
+     decl-order approximation two of the nine labels landed a slot off; with
+     the real nlist all nine match gv's `flat_node` probe exactly (same rank,
+     same `place`, same sequence).
+
+  **Result on 191:** graph bb is now **byte-exact** (`0,0,2329.1,2308.2`; was
+  108pt short), node positions 21/32 exact (was 12), cluster boxes 8/10 exact
+  (was 5). Whole suite 779/779, no regressions. Gated by two tests in
+  `EdgeLabel2Spec` (the nine placements, and the bb).
+
+  **What is left on 191.** Every remaining node difference is in the RENDERED
+  Y only — i.e. still the canonical-x/within-rank axis; the rank axis is
+  exact everywhere. Two clusters are offset as blocks (`core_data` by 207,
+  `typed` by 214) and six nodes differ by 5–71. Since the total extent is now
+  right, the constraint SET is likely complete and this is the NS objective or
+  its tie-breaks — which puts lead (1) (the 18 missing slack pairs) and lead
+  (3) (HTML port `p.x`) back at the front, in that order.
+
 ## 1. Goal & locked decisions
 
 Replace the `@viz-js/viz` (Graphviz-in-WASM) runtime dependency with a

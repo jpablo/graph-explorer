@@ -441,4 +441,15 @@ object Coord:
       }
     }.toMap
 
+  /** `flat_node` (flat.c:159) sizes a flat-edge label vnode from the label's
+    * dimen SWAPped under flip: `lw = rw = dimen.x/2`, `ht = dimen.y`. So under
+    * LR/BT a one-line label gives half-width `height/2` (5.4pt at 14pt) and
+    * rank-axis extent `width` — the mirror of a chain label vnode, which is
+    * asymmetric (`lw = nodesep`, `rw = height`). Keyed by dedge index.
+    * Returns (halfWidth, ht) in CANONICAL axes. */
+  def flatLabelDim(e: REdge, g: RGraph): (Double, Double) =
+    val (w, h) = edgeLabelDim(e, g)
+    val (dx, dy) = if Rank.flip(g) then (h, w) else (w, h)
+    (dx / 2.0, dy)
+
 end Coord

@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
-import org.jpablo.graphexplorer.graphviz.model.RGraph
+import org.jpablo.graphexplorer.graphviz.model.{RGraph, REdge}
 import scala.collection.mutable
 
 /** Phase 2 of the `dot` pipeline: within-rank ordering / crossing
@@ -65,6 +65,11 @@ object Order:
     def realOrder: Map[Int, Vector[String]] =
       order.view.mapValues(_.collect { case LayoutNode.Real(id) => id }).toMap
 
+  /** `GD_nlist` as it stands when `dot_position` runs. `merge_ranks`
+    * PREPENDS (`fast_node`) each expanded cluster's nodes in (rank asc,
+    * within-rank asc) order, and `expand_cluster` runs clusters in
+    * declaration order — so the head of the list is the LAST cluster's
+    * block, itself reversed. Only `flat_edges` reads it. */
   private val orderMemo = GraphMemo[Result]()
   def order(g: RGraph): Result = orderMemo(g)(orderImpl(g))
   private def orderImpl(g: RGraph): Result =
@@ -234,7 +239,7 @@ object Order:
       }.toVector
 
     val flip = Rank.flip(g)
-    val (order, cross) =
+    val (order, cross, posNlist) =
       if Cluster.clusters(g).isEmpty then
         // ND_has_port: any edge (incl. self-loops) naming a port on the node.
         val ported: Set[LayoutNode] =
@@ -242,11 +247,13 @@ object Order:
             (if e.tailPort.isDefined then Iterator(LayoutNode.Real(e.tail): LayoutNode) else Iterator.empty) ++
               (if e.headPort.isDefined then Iterator(LayoutNode.Real(e.head): LayoutNode) else Iterator.empty)
           }.toSet
-        runMincross(out, in, rankOf, gdNlist, flip,
+        val (o, c) = runMincross(out, in, rankOf, gdNlist, flip,
           weight   = (t, h) => segXpen.getOrElse((t, h), 1L),
           segPorts = (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
           hasPort  = ported.contains,
           flatPairs = flatPairs)
+        // no clusters ⇒ no merge_ranks ⇒ GD_nlist is still the decompose order
+        (o, c, gdNlist)
       else
         val portedC: Set[LayoutNode] =
           g.edges.iterator.flatMap { e =>
@@ -257,7 +264,124 @@ object Order:
           (t, h) => segXpen.getOrElse((t, h), 1L),
           (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
           portedC.contains, flatPairs)
-    Result(rank0, order, cross, segs.toVector, segOwn.toVector, mergedInto.toVector)
+    val order2 = flatLabelSlots(g, order, posNlist, g.edges.filter(e => e.tail != e.head), n => out.getOrElse(n, Seq.empty).toSeq)
+    Result(rank0, order2, cross, segs.toVector, segOwn.toVector, mergedInto.toVector)
+
+  /** `flat_edges` + `flat_node` (flat.c), the step `dot_position` runs after
+    * `set_ycoords` and before `create_aux_edges`.
+    *
+    * A labelled flat (same-rank) edge whose endpoints are ADJACENT is handled
+    * by widening the pair's separation (`ED_dist`, see [[XCoord]]). A labelled
+    * flat edge whose endpoints are NOT adjacent instead gets a real slot: a
+    * virtual node carrying the label is spliced into rank `rank(tail) - 1` at
+    * the index `flat_limits` picks, and everything to its right shifts over.
+    * That vnode is a full participant in the LR chain, so omitting it loses
+    * the label's width from the rank — 108pt on 191's widest rank.
+    *
+    * "Adjacent" is gv's notion, not ours: `checkFlatAdjacent` scans the slots
+    * BETWEEN the endpoints and stops only at a NORMAL node or a LABELLED
+    * virtual. Plain chain vnodes are transparent, so two real nodes with three
+    * chain vnodes between them still count as adjacent. */
+  private def flatLabelSlots(
+      g:      RGraph,
+      order:  Map[Int, Vector[LayoutNode]],
+      /** `GD_nlist` at `dot_position` time — the walk order of `flat_edges`,
+        * and thus the order competing flat labels claim their slots. */
+      nlist:  Vector[LayoutNode],
+      dedges: Vector[REdge],
+      outOf:  LayoutNode => Seq[LayoutNode]
+  ): Map[Int, Vector[LayoutNode]] =
+    // Candidate edges: flat (same rank), non-self, labelled.
+    val pos: Map[LayoutNode, (Int, Int)] =
+      order.iterator.flatMap((r, ids) => ids.zipWithIndex.map((n, p) => n -> (r, p))).toMap
+    val labelled = Coord.labelVnodeWidths(g).keySet // chain LABEL vnodes, by name
+    val cand = dedges.indices.filter { i =>
+      val e = dedges(i)
+      e.tail != e.head && e.attrs.get("label").exists(_.nonEmpty) && {
+        (pos.get(LayoutNode.Real(e.tail)), pos.get(LayoutNode.Real(e.head))) match
+          case (Some((rt, _)), Some((rh, _))) => rt == rh
+          case _                              => false
+      }
+    }
+    if cand.isEmpty then return order
+
+    val ranks = mutable.Map.from(order.view.mapValues(_.toBuffer))
+    def ordOf(n: LayoutNode): Int = ranks(pos(n)._1).indexOf(n)
+
+    /** `checkFlatAdjacent` (flat.c:208): only a NORMAL node or a LABELLED
+      * virtual blocks; plain chain vnodes are see-through. */
+    def adjacent(e: REdge): Boolean =
+      val t   = LayoutNode.Real(e.tail); val h = LayoutNode.Real(e.head)
+      val row = ranks(pos(t)._1)
+      val (lo, hi) = { val a = row.indexOf(t); val b = row.indexOf(h); (math.min(a, b), math.max(a, b)) }
+      !(lo + 1 until hi).exists { i =>
+        row(i) match
+          case _: LayoutNode.Real     => true
+          case v: LayoutNode.Virtual  => labelled(v.name)
+          case _: LayoutNode.FlatLabel => true // a placed flat label IS labelled
+          case _                      => false
+      }
+
+    // ── flat_limits (flat.c:101) ──────────────────────────────────────────
+    // Four bounds over rank r-1: hard/soft left/right. Each VIRTUAL slot
+    // votes: a FLAT-label vnode (no in-edges, two out-edges) by where its own
+    // endpoints sit; a forward chain vnode by which side its heads are on.
+    val HLB = 0; val HRB = 1; val SLB = 2; val SRB = 3
+    def flatLimits(rPrev: Int, lpos: Int, rpos: Int): Int =
+      val row = ranks.getOrElse(rPrev, mutable.Buffer.empty[LayoutNode])
+      val b   = Array(-1, row.length, -1, row.length)
+      def setbounds(v: LayoutNode, ord: Int): Unit = v match
+        case f: LayoutNode.FlatLabel =>
+          // ND_in.size == 0 ⇒ the two out-edges point at the flat endpoints
+          val fe = dedges(f.dedgeIdx)
+          val (l0, r0) =
+            val a = ordOf(LayoutNode.Real(fe.tail)); val c = ordOf(LayoutNode.Real(fe.head))
+            (math.min(a, c), math.max(a, c))
+          if r0 <= lpos then { b(SLB) = ord; b(HLB) = ord }
+          else if l0 >= rpos then { b(SRB) = ord; b(HRB) = ord }
+          else if l0 < lpos && r0 > rpos then () // spans this one: ignore
+          else
+            if l0 < lpos || (l0 == lpos && r0 < rpos) then b(SLB) = ord
+            if r0 > rpos || (r0 == rpos && l0 > lpos) then b(SRB) = ord
+        case v: LayoutNode.Virtual =>
+          var onleft = false; var onright = false
+          outOf(v).foreach { hd =>
+            val o = pos.get(hd).map(_._2).getOrElse(-1)
+            if o <= lpos then onleft = true else if o >= rpos then onright = true
+          }
+          if onleft && !onright then b(HLB) = ord + 1
+          if onright && !onleft then b(HRB) = ord - 1
+        case _ => ()
+      var lnode = 0
+      var rnode = row.length - 1
+      while lnode <= rnode do
+        setbounds(row(lnode), lnode)
+        if lnode != rnode then setbounds(row(rnode), rnode)
+        lnode += 1; rnode -= 1
+        if b(HRB) - b(HLB) <= 1 then { lnode = rnode + 1 }
+      if b(HLB) <= b(HRB) then (b(HLB) + b(HRB) + 1) / 2
+      else (b(SLB) + b(SRB) + 1) / 2
+
+    // gv walks GD_nlist and, per node, that node's ND_flat_out list (class2
+    // emit order: out-edges by (head node seq, decl index)).
+    val nodeSeq = g.nodes.iterator.map(_.id).zipWithIndex.toMap
+    val byTail  = cand.groupBy(i => dedges(i).tail)
+    nlist.foreach { ln =>
+      val nid = ln match { case LayoutNode.Real(id) => id; case _ => "" }
+      byTail.getOrElse(nid, Vector.empty[Int])
+        .sortBy(i => (nodeSeq.getOrElse(dedges(i).head, Int.MaxValue), i))
+        .foreach { i =>
+          val e = dedges(i)
+          if !adjacent(e) then
+            val r     = pos(LayoutNode.Real(e.tail))._1
+            val lpos  = math.min(ordOf(LayoutNode.Real(e.tail)), ordOf(LayoutNode.Real(e.head)))
+            val rpos  = math.max(ordOf(LayoutNode.Real(e.tail)), ordOf(LayoutNode.Real(e.head)))
+            val place = flatLimits(r - 1, lpos, rpos)
+            val row   = ranks.getOrElseUpdate(r - 1, mutable.Buffer.empty[LayoutNode])
+            row.insert(math.max(0, math.min(place, row.length)), LayoutNode.FlatLabel(i))
+        }
+    }
+    ranks.view.mapValues(_.toVector).toMap
 
   /** Local collapsed-graph node: either a free (root-level) layout node passed
     * through, or a cluster **skeleton** rankleader `Sk(cluster, rank)` standing
@@ -317,8 +441,13 @@ object Order:
         * rank has empty in/out fast lists, so `medians` gives it no median at
         * all and `flat_mval` is the only thing that seats it. */
       flatPairs: Vector[(LayoutNode, LayoutNode, Double)]
-  ): (Map[Int, Vector[LayoutNode]], Long) =
+  ): (Map[Int, Vector[LayoutNode]], Long, Vector[LayoutNode]) =
     val cinfos   = Cluster.clusters(g)
+    // `GD_nlist` as `dot_position` sees it: `merge_ranks` PREPENDS
+    // (`fast_node`) each expanded cluster's nodes walking ranks ascending and
+    // each rank left-to-right, so every block lands at the head reversed and
+    // the last cluster expanded ends up first. `flat_edges` walks this.
+    val mergedNlist = mutable.ListBuffer.empty[LayoutNode]
     val clustOf  = Cluster.clustOf(g) // node NAME → innermost cluster idx
     // A chain vnode belongs to a cluster iff its owning edge's ORIGINAL
     // endpoints share that cluster (gv mark_clusters sets ND_clust on the
@@ -575,6 +704,11 @@ object Order:
       * install, then the surrounding graph is rewired around it. */
     def expandCluster(ci: Int): Unit =
       val interior = internalInstall(ci)
+      // merge_ranks: fast_node PREPENDS each node, walking ranks ascending and
+      // each rank left-to-right, so this block lands at the head reversed.
+      mergedNlist.prependAll(
+        (clRanks(ci)._1 to clRanks(ci)._2)
+          .flatMap(r => interior.getOrElse(r, Vector.empty)).reverse)
       val (lo, hi) = clRanks(ci)
       (lo to hi).foreach { r =>
         val rb   = rows.getOrElseUpdate(r, mutable.ArrayBuffer.empty)
@@ -991,7 +1125,7 @@ object Order:
 
     // every cluster is expanded by now, so every CNode is a plain layout node
     (rows.iterator.map((r, b) => r -> b.toVector.collect { case CNode.Nd(n) => n }).toMap,
-      ncrossGlobal())
+      ncrossGlobal(), mergedNlist.toVector)
 
   /** The `mincross` driver proper (mincross.c:745) over a class2 graph given as
     * adjacency maps + a `GD_nlist` seed order. Extracted so both the flat graph

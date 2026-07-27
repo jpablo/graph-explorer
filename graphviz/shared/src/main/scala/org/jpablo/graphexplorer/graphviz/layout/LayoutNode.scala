@@ -28,6 +28,13 @@ enum LayoutNode derives CanEqual:
     * (created by `contain_subclust`). */
   case ClusterLn(idx: Int)
   case ClusterRn(idx: Int)
+  /** Label vnode for a labelled, NON-adjacent FLAT edge (`flat.c flat_node`).
+    * `dot_position` inserts one into rank `rank(tail) - 1` at the slot
+    * `flat_limits` picks, sized `lw = rw = dimen.x/2`, `ht = dimen.y` (dimen
+    * SWAPped under flip). Unlike a chain vnode it carries no segments — it
+    * only occupies a slot, widening the rank and its LR chain. `idx` is the
+    * dedge index (`g.edges` minus self-loops). */
+  case FlatLabel(dedgeIdx: Int)
 
   /** The historical String name used as a key in maps shared with
     * [[NetworkSimplex]] and the rest of the layout pipeline. Byte-identical
@@ -38,6 +45,7 @@ enum LayoutNode derives CanEqual:
     case Slack(i)         => s"__s$i"
     case ClusterLn(i)     => s"__cln$i"
     case ClusterRn(i)     => s"__crn$i"
+    case FlatLabel(i)     => s"__fl$i"
 
 object LayoutNode:
   /** Recover a [[LayoutNode]] from its historical String name. Real-node
@@ -53,6 +61,8 @@ object LayoutNode:
           case (Some(e), Some(r)) => Virtual(e, r)
           case _                  => Real(s)
       else Real(s)
+    else if s.startsWith("__fl") then
+      s.drop(4).toIntOption.map(FlatLabel.apply).getOrElse(Real(s))
     else if s.startsWith("__cln") then
       s.drop(5).toIntOption.map(ClusterLn.apply).getOrElse(Real(s))
     else if s.startsWith("__crn") then
