@@ -62,8 +62,13 @@ object Coord:
     points(v)
 
   /** Plain virtual node half-width — `incr_width` = 1 + nodesep/2
-    * (class2.c plain_vnode). Shared by [[XCoord]] and [[Spline]]. */
-  def virtualHalfPt(g: RGraph): Double = 1.0 + nodeSepPt(g) / 2.0
+    * (class2.c plain_vnode). Shared by [[XCoord]] and [[Spline]].
+    *
+    * `int width = GD_nodesep(g) / 2` is C INTEGER division, and GD_nodesep is
+    * itself an int (`POINTS` rounds), so an ODD nodesep truncates: 191 sets
+    * `nodesep=0.35` ⇒ 25 ⇒ 12, not 12.5. Invisible at the 18pt default (9
+    * either way), which is why no other corpus file caught it. */
+  def virtualHalfPt(g: RGraph): Double = 1.0 + (nodeSepPt(g).toInt / 2).toDouble
 
   /** `selfRightSpace(e)` (splines.c:1146): the extra RIGHT-side space a
     * self-edge needs — `SELF_EDGE_SIZE` (18) plus its label width (`dimen.y`
