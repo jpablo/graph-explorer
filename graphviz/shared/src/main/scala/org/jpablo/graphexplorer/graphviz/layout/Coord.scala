@@ -72,25 +72,33 @@ object Coord:
     * (position.c:264) inflates `ND_rw` by the SUM over a node's self-edges
     * before the x solve (the original rw is parked in `ND_mval`), and
     * `dot_compute_bb` sees the inflated value too. */
-  private def portSides(p: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]): Int =
-    // gv side bits from the compass point: n=TOP s=BOTTOM e=RIGHT w=LEFT.
-    val TOP = 1; val BOTTOM = 2; val LEFT = 4; val RIGHT = 8
-    p.flatMap(_.compass).map(_.toString.toLowerCase).map { c =>
-      var s = 0
-      if c.startsWith("n") then s |= TOP
-      if c.startsWith("s") then s |= BOTTOM
-      if c.endsWith("e") then s |= RIGHT
-      if c.endsWith("w") then s |= LEFT
-      s
-    }.getOrElse(0)
+  /** The resolved gv `port` struct for one end of an edge — the portless
+    * `Center` when there is no port. A NAMED record/HTML port carries a
+    * `side` bitmap of the node edges its field box lies along (`html_port`
+    * fills `sides`, and compass `_` takes it wholesale), which is what
+    * `selfRightSpace` tests; deriving sides from the COMPASS alone leaves a
+    * named port at 0 and silently flips the test's outcome. */
+  private def gvPortOf(g: RGraph, nodeId: String,
+                       p: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port]): PortAnchor.GvPort =
+    val gp =
+      for
+        port <- p
+        n    <- g.nodes.find(_.id == nodeId)
+        res  <- PortAnchor.gvRecordPort(n, g, port).orElse(PortAnchor.gvHtmlPort(n, g, port))
+      yield res
+    gp.getOrElse(PortAnchor.GvPort.center)
 
   def selfRightSpace(e: REdge, g: RGraph): Double =
-    val TOP = 1; val BOTTOM = 2; val LEFT = 4
-    val ts = portSides(e.tailPort); val hs = portSides(e.headPort)
-    val portless = e.tailPort.isEmpty && e.headPort.isEmpty
-    val onRight = portless ||
-      ((ts & LEFT) == 0 && (hs & LEFT) == 0 &&
-        (ts != hs || (ts & (TOP | BOTTOM)) == 0))
+    // geom.h side bits — BOTTOM/RIGHT/TOP/LEFT, not the compass order.
+    val BOTTOM = 1; val RIGHT = 2; val TOP = 4; val LEFT = 8
+    val tp = gvPortOf(g, e.tail, e.tailPort)
+    val hp = gvPortOf(g, e.head, e.headPort)
+    // splines.c:1146 verbatim: an undefined pair, or neither side on the LEFT
+    // and not the same TOP/BOTTOM side on both ends.
+    val onRight =
+      (!tp.defined && !hp.defined) ||
+        ((tp.side & LEFT) == 0 && (hp.side & LEFT) == 0 &&
+          (tp.side != hp.side || (tp.side & (TOP | BOTTOM)) == 0))
     if !onRight then 0.0
     else
       val lbl = e.attrs.get("label").filter(_.nonEmpty).map { _ =>

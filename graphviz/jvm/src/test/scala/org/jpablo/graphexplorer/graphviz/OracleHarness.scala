@@ -118,9 +118,17 @@ object OracleHarness:
     *     `flat_mval`/`hasfixed` tail — 191's PredictorView/PredictorState have
     *     NO fast edges at all, only FLAT ones, so nothing seated them and they
     *     sat where they started.
-    *     What REMAINS is the X coordinates: bb 2329.1x2215.4 vs gv's
-    *     2329.1x2308.2, with the rank axis (2329.1) exact. That is XCoord
-    *     under flip, a phase the ordering work never reached. */
+    *     XCoord chase started 2026-07-27. `selfRightSpace` was reading port
+    *     sides from the COMPASS only, so a named record/HTML port came out as
+    *     side 0 and the test flipped — 191's SignatureLayoutType self-loop
+    *     claimed 28.8pt of right-hand space gv does not give it (and Coord's
+    *     side-bit constants did not match geom.h either). With it resolved
+    *     through PortAnchor's GvPort: all 22 real-to-real aux constraints
+    *     match gv, canonical x is exact for 11 of 32 nodes (was 1), and 9 of
+    *     10 cluster boxes are exactly gv's size.
+    *     What REMAINS is one cluster: programs_para's canonical-x extent is
+    *     108pt short (709 vs 817), and its members plus everything downstream
+    *     shift with it. bb 2329.1x2200 vs 2329.1x2308.2, rank axis exact. */
   val deferredCorpus: Set[String] = Set("03-subgraph-cluster", "191-scala-type-graph")
 
   /** Image-dimension sidecar for a corpus file (`<name>.images.json`), mirroring
