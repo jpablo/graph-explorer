@@ -351,7 +351,15 @@ object PortAnchor:
     else
       HtmlParser.parse(n.attrs.getOrElse("label", "")) match
         case Some(HtmlLabel.Table(tbl)) =>
-          HtmlTableLayout.cellPortBox(tbl, name, 14.0, "Times")
+          // The cell boxes MUST be laid out in the node's own font — a row's
+          // height is `fontsize*LINESPACING + 2*cellpadding + 2*cellborder`,
+          // so the default 14 stretches every row and walks the ports apart
+          // (191 sets fontsize=10: gv's pitch is 22, the 14pt default gives
+          // 26.8). `gvHtmlPort` below already reads the node's attrs; this
+          // path did not.
+          val fs = n.attrs.get("fontsize").flatMap(_.toDoubleOption).getOrElse(14.0)
+          val fn = n.attrs.getOrElse("fontname", "Times")
+          HtmlTableLayout.cellPortBox(tbl, name, fs, fn)
             .map(b => fromBox(b.llx, b.lly, b.urx, b.ury, compass))
         case _ => None
 
