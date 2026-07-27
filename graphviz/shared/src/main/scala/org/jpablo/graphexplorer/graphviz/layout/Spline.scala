@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
-import org.jpablo.graphexplorer.graphviz.model.RGraph
+import org.jpablo.graphexplorer.graphviz.model.{RGraph, REdge}
 import org.jpablo.graphexplorer.graphviz.units.Length.Pt
 import org.jpablo.graphexplorer.graphviz.html.{HtmlParser, HtmlLabel, HtmlTableLayout}
 import scala.collection.mutable
@@ -123,8 +123,15 @@ object Spline:
     def vHalf(id: String): Double = nodeOf.get(id) match
       case Some(LayoutNode.Virtual(d, _)) if intraVEdge(d) => 1.0
       case _                                               => VirtualHalf
+    // a flat-edge label vnode is symmetric: lw = rw = dimen.x/2 (flat.c:165)
+    val flatLabelHalf: Map[String, Double] =
+      val fd = g.edges.filter(e => e.tail != e.head)
+      fd.indices.iterator
+        .map(d => LayoutNode.FlatLabel(d).name -> Coord.flatLabelDim(fd(d), g)._1)
+        .toMap
     def lw0(id: String): Double =
       if labelW.contains(id) then NodeSep
+      else if flatLabelHalf.contains(id) then flatLabelHalf(id)
       else if isV(id) then vHalf(id)
       else byId.get(id).flatMap(n => NodeSize.layoutSize(n, g)).map(_.halfWidthPt.value).getOrElse(1.0)
     def lw(id: String): Double  = lwOv.getOrElse(id, lw0(id))
@@ -316,6 +323,12 @@ object Spline:
     def maximalBboxGv(vn: String, ie: Option[(String, String)], oe: Option[(String, String)]): Box =
       maximalBboxCore(vn, neighborGv(vn, -1, ie, oe), neighborGv(vn, 1, ie, oe))
 
+    // `ND_node_type(n) == NORMAL` — a flat-edge label vnode is VIRTUAL, so it
+    // separates by Splinesep, not nodesep/2. Its name has no `__v` prefix, so
+    // `isV` alone would mis-file it as a real node (worth 6.5pt on 191's
+    // neighbouring label vnodes: nodesep/2 = 12 vs Splinesep = 6).
+    def isVirtualN(id: String): Boolean = isV(id) || flatLabelHalf.contains(id)
+
     def maximalBboxCore(vn: String, leftNb: Option[String], rightNb: Option[String]): Box =
       val r = rankOf(vn)
       val labelVn = isLabelV(vn)
@@ -331,7 +344,7 @@ object Spline:
                 // NOT the recover_slack-snapped `ND_rw`. So a snapped left-vnode
                 // still reserves its ORIGINAL half-width here (else a narrowed
                 // neighbour would let this box creep in, shortening the spline).
-                cx(left) + mvalRw(left) + (if isV(left) then Splinesep else NodeSep / 2.0)
+                cx(left) + mvalRw(left) + (if isVirtualN(left) then Splinesep else NodeSep / 2.0)
             if nb < b then b = nb
             math.round(b).toDouble
           case None => math.min(math.round(b).toDouble, leftBound)
@@ -346,7 +359,7 @@ object Spline:
             val nb = clBound(vn, right) match
               case Some(cl) => cluBBs(cl).llx - Splinesep
               case None =>
-                cx(right) - lw(right) - (if isV(right) then Splinesep else NodeSep / 2.0)
+                cx(right) - lw(right) - (if isVirtualN(right) then Splinesep else NodeSep / 2.0)
             if nb > b2 then b2 = nb
             math.round(b2).toDouble
           case None => math.max(math.round(b2).toDouble, rightBound)
@@ -509,6 +522,18 @@ object Spline:
       * clip off the ORIGINAL edge — the INITIAL resolution's flag (false for
       * explicit compass ports, true for dyna/centre) — because a dyna's
       * route-time side resolution lives only on the working copy. */
+    /** The port struct as `shapes.c` built it, BEFORE beginpath/endpath's dyna
+      * resolution narrows `side` to one bit. `makeSelfEdge` runs off this —
+      * self-edges never go through beginpath — so its dispatch sees the raw
+      * mask (a full-width cell is LEFT|RIGHT = 10, not the single side a
+      * regular edge would resolve it to). */
+    def rawPort(id: String, portOpt: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port])
+        : Option[PortAnchor.GvPort] =
+      portOpt.flatMap(pp => byId.get(id).flatMap(n =>
+        PortAnchor.gvRecordPort(n, g, pp)
+          .orElse(PortAnchor.gvHtmlPort(n, g, pp))
+          .orElse(PortAnchor.gvPolyPort(n, g, pp))))
+
     def endPort(id: String, portOpt: Option[org.jpablo.graphexplorer.graphviz.dotlang.Port],
                 otherCanon: XY): (PortAnchor.GvPort, Boolean) =
       portOpt.flatMap(pp => byId.get(id).flatMap(n =>
@@ -581,6 +606,55 @@ object Spline:
             val b = Box(nb.llx, nb.lly, nb.urx, sy) // UR.y = start.y
             sy -= 1
             (XY(sx, sy), th, Vector(b), false)
+
+    /** `makeFlatEnd` (dotsplines.c:1344) + `beginpath`/`endpath`'s FLATEDGE
+      * branch (splines.c:483 / 681). A flat edge leaves and enters through the
+      * TOP of the rank (`sidemask = TOP`), so every case here is the
+      * `sidemask == TOP` one. Returns the (nudged) endpoint and the end's box
+      * list, already carrying `makeregularend`'s extension up to the rank top —
+      * which is dropped when it comes out degenerate, as it does whenever the
+      * node's own maximal_bbox already reaches `y + ht2`. */
+    def flatEnd(id: String, gp: PortAnchor.GvPort, isBegin: Boolean,
+                oe: Option[(String, String)]): (XY, Vector[Box]) =
+      // gv passes `maximal_bbox(g, sp, n, NULL, e)` — the flat edge itself as
+      // `oe`, so `neighbor`'s pathscross can see past a virtual whose chain
+      // crosses this one. SignatureIO's right neighbour is such a vnode: gv
+      // skips it, finds nothing beyond, and falls back to `sp->RightBound`.
+      val nb  = maximalBboxGv(id, None, oe)
+      val ncx = cx(id); val ncy = cy(id)
+      val hh  = halfH(id) // HT2(n)
+      var ex  = ncx + gp.px
+      var ey  = ncy + gp.py
+      var boxes: Vector[Box] =
+        if gp.side == 0 then
+          // no port ⇒ pboxfn declines ⇒ boxes[0] = nb, then FLATEDGE/TOP
+          // pulls its floor down to the endpoint.
+          Vector(Box(nb.llx, ey, nb.urx, nb.ury))
+        else if (gp.side & RecordLabel.Top) != 0 then
+          val b = Box(nb.llx, math.min(nb.lly, ey), nb.urx, nb.ury); ey += 1; Vector(b)
+        else if (gp.side & RecordLabel.Bottom) != 0 then
+          val cut  = ncy - hh
+          val half = (Coord.gdRanksep(g) / 2).toDouble // C integer division
+          val bs =
+            if isBegin then Vector(
+              Box(ex, cut - half, nb.urx + 1, cut),
+              Box(ncx + rw(id) + (BpFudge - 2), cut, nb.urx + 1, ncy + hh))
+            else Vector(
+              Box(nb.llx - 1, cut - half, ex, cut),
+              Box(nb.llx - 1, cut, ncx - lw(id) - 2, ncy + hh))
+          ey -= 1; bs
+        else if (gp.side & RecordLabel.Left) != 0 then
+          val b = Box(nb.llx, ey - 1, ex + 1, ncy + hh); ex -= 1; Vector(b)
+        else
+          val b = if isBegin then Box(ex, ey, nb.urx, ncy + hh)
+                  else Box(ex - 1, ey - 1, nb.urx, ncy + hh)
+          ex += 1; Vector(b)
+      // makeregularend(b, TOP, y + ht2) over nb's x-range, from the last box's
+      // top; kept only when non-degenerate.
+      val lastB = boxes.last
+      val extra = Box(nb.llx, lastB.ury, nb.urx, ncy + ht2(rankOf(id)))
+      if extra.llx < extra.urx && extra.lly < extra.ury then boxes = boxes :+ extra
+      (XY(ex, ey), boxes)
 
     /** endpath (splines.c:584), REGULAREDGE — the head-side mirror. */
     def endPathR(id: String, gp: PortAnchor.GvPort, nb: Box): (XY, Option[Double], Vector[Box], Boolean) =
@@ -697,9 +771,25 @@ object Spline:
     // position (dotsplines.c:1948).
     val dedgeOrigIdx: Vector[Int] =
       g.edges.zipWithIndex.collect { case (e, oi) if e.tail != e.head => oi }
+    // `merge_oneway` folds parallel FLAT edges onto the first-declared one, and
+    // `make_flat_labeled_edge` reaches its label vnode by chasing `ED_to_virt`
+    // — which for a merged member lands on the REP. So every member of a flat
+    // class labels the rep's vnode and they share an `lp`.
+    val flatDedges = g.edges.filter(e => e.tail != e.head)
+    def isLabelledFlat(e: REdge): Boolean =
+      e.tail != e.head && e.attrs.get("label").exists(_.nonEmpty) &&
+        rankOf.get(e.tail).exists(rt => rankOf.get(e.head).contains(rt))
+    val flatLabelRep: Int => Int =
+      val byPair = flatDedges.indices.groupBy(k => (flatDedges(k).tail, flatDedges(k).head))
+      (d: Int) => byPair((flatDedges(d).tail, flatDedges(d).head)).min
     g.edges.zipWithIndex.filter { case (e, _) => e.tail != e.head }
       .zipWithIndex
-      .filter { case (_, i) => res.mergedInto.lift(i).forall(_ == i) }
+      // "edges with labels aren't multi-edges" (make_flat_edge, dotsplines.c:1594)
+      // — a LABELLED FLAT edge routes on its own even when class2 folded it
+      // onto a rep, because its ports and its label vnode are its own. 191's
+      // two ProgramPredictorsGiven→PredictorView edges are the case.
+      .filter { case (e, i) =>
+        res.mergedInto.lift(i).forall(_ == i) || isLabelledFlat(e._1) }
       .map { case ((e, origIdx), i) => (e, origIdx, i) }
       .sortBy { (e, _, i) =>
         val rt = rankOf.getOrElse(e.tail, 0); val rh = rankOf.getOrElse(e.head, 0)
@@ -1022,7 +1112,72 @@ object Spline:
           // gv routes AND clips tn→hn (left→right, the working direction) and
           // swap_spline's at install — clipInstall(reversedWork) does both.
           out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf, reversedWork = e.tail != tn)
-        // else: ported / labeled non-adjacent flat edges stay deferred (no corpus).
+        else if labelled then
+          // ── labelled non-adjacent flat edge (make_flat_labeled_edge) ──────
+          // The label already has a node: `flat_node` seated a vnode for it in
+          // the rank above, and the x-solve placed it. gv puts the label right
+          // there (`ED_label(e)->pos = ND_coord(ln)`) and threads the edge
+          // UNDER it — the channel is the tail end box, a box up to the label
+          // box's lower-left, a box spanning the label's own band, a box down
+          // the far side, then the head end box.
+          //
+          // `ln` is reached by chasing `ED_to_virt`, which for merged parallel
+          // flat edges lands on the REP's vnode — so both of 191's
+          // ProgramPredictorsGiven→PredictorView edges label the same vnode and
+          // share an `lp`, even though each got its own slot.
+          val lnIdx  = flatLabelRep(i)
+          val lnNode = LayoutNode.FlatLabel(lnIdx)
+          val lnName = lnNode.name
+          if rankOf.contains(lnName) then
+            val (tn, hn) = if cx(e.tail) <= cx(e.head) then (e.tail, e.head) else (e.head, e.tail)
+            // ports follow the WORKING orientation (MAKEFWDEDGE)
+            val (tPort, hPort) =
+              if tn == e.tail then (e.tailPort, e.headPort) else (e.headPort, e.tailPort)
+            val (tGp, _) = endPort(tn, tPort, XY(cx(hn), cy(hn)))
+            val (hGp, _) = endPort(hn, hPort, XY(cx(tn), cy(tn)))
+            val flatOe = Some((tn, hn))
+            val (tStart, tBoxes) = flatEnd(tn, tGp, isBegin = true,  flatOe)
+            val (hEnd,   hBoxes) = flatEnd(hn, hGp, isBegin = false, flatOe)
+            val lx = cx(lnName); val ly = cy(lnName)
+            val (lhw, lht) = Coord.flatLabelDim(flatDedges(lnIdx), g) // ND_lw=ND_rw, ND_ht
+            labelPos(origIdx) = XY(lx, ly)
+            val lbLLx = lx - lhw
+            val lbURx = lx + lhw
+            val lbURy = ly + lht / 2.0
+            // ydelta = (ln.y − ht1(rank) − tn.y + ht2(rank)) / 6, floored at 5
+            val ydelta = (ly - ht1(rt) - cy(tn) + ht2(rt)) / 6.0
+            val lbLLy  = lbURy - math.max(5.0, ydelta)
+            // the channel is anchored on the LAST box of each end (the one
+            // makeregularend left at the rank top), and the head boxes go in
+            // REVERSED — gv walks `hend.boxes` from boxn-1 down to 0.
+            val tLast = tBoxes.last
+            val hLast = hBoxes.last
+            val b0 = Box(tLast.llx, tLast.ury, lbLLx, lbLLy)
+            val b1 = Box(tLast.llx, lbLLy,     hLast.urx, lbURy)
+            val b2 = Box(lbURx,     hLast.ury, hLast.urx, lbLLy)
+            val boxes = mutable.ArrayBuffer.from(tBoxes) ++= Vector(b0, b1, b2) ++= hBoxes.reverse
+            val st = Array(tStart.x, tStart.y)
+            val en = Array(hEnd.x, hEnd.y)
+            // `P->start.theta`/`constrained` are set from the port BEFORE
+            // beginpath branches on edge type, so a flat edge's ported end
+            // carries the same constrained tangent a regular one does.
+            val fev0 = if tGp.constrained then XY(math.cos(tGp.theta), math.sin(tGp.theta)) else XY(0, 0)
+            val fev1 = if hGp.constrained then XY(-math.cos(hGp.theta), -math.sin(hGp.theta)) else XY(0, 0)
+            val ctrl =
+              if checkpath(boxes, st, en) then Vector(XY(st(0), st(1)), XY(en(0), en(1)))
+              else
+                val poly = buildPolygon(boxes)
+                val sp   = funnelGeneral(boxes, XY(st(0), st(1)), XY(en(0), en(1)))
+                proutespline(poly, sp, fev0, fev1)
+            // beginpath/endpath's FLATEDGE side branch clears the ORIGINAL
+            // port's clip flag ("if (n == aghead(orig)) ED_head_port(orig).clip
+            // = false") — a ported flat end stops at the port point instead of
+            // being cut back to the node boundary.
+            out(origIdx) = clipInstall(g, ctrl, e, byId, centerOf,
+              tailClip = tGp.side == 0 && tGp.clip,
+              headClip = hGp.side == 0 && hGp.clip,
+              reversedWork = e.tail != tn)
+        // else: unlabelled ported flat edges stay deferred (no corpus).
     }
 
     // ── self-edges (makeSelfEdge → selfRight, no-port case) ───────────────
@@ -1031,6 +1186,62 @@ object Spline:
     // Bottom) are a documented deferral (no corpus). `sizey` mirrors the
     // rank-position rule at the dotsplines.c call site; selfRight bows the
     // loop right of the node by `rw + (i+1)·nodesep`.
+    /** `selfTop` (splines.c:887) — the loop arcs over the TOP of the node
+      * instead of bowing right. Reached when a port side pins the loop away
+      * from the right: either both ports on top, or the "handle L-R specially"
+      * case where one port carries both LEFT and RIGHT (a cell spanning the
+      * node's full width). `dx`'s starting offset comes from
+      * `convert_sides_to_points`, a lookup over the eight node "vertices"
+      * (cumulative side values 12,4,6,2,3,1,9,8); a side of 0 — an undefined
+      * port — is not in that table, so the pair falls through to `dx = 0`. */
+    def selfTop(nid: String, group: Vector[(REdge, Int)], np: XY,
+                tGp: PortAnchor.GvPort, hGp: PortAnchor.GvPort,
+                stepy: Double, cnt: Int): Unit =
+      val sizex = NodeSep // sd.Multisep at the makeSelfEdge call site
+      val stepx = math.max(sizex / 2.0 / cnt, 2.0)
+      val tp = XY(np.x + tGp.px, np.y + tGp.py)
+      val hp = XY(np.x + hGp.px, np.y + hGp.py)
+      val sgn = if tp.x >= hp.x then 1.0 else -1.0
+      val vertices = Vector(12, 4, 6, 2, 3, 1, 9, 8)
+      val ti = vertices.indexOf(tGp.side)
+      val hi = vertices.indexOf(hGp.side)
+      val pointPair = if ti < 0 || hi < 0 then 0 else (ti + 1) * 10 + (hi + 1)
+      val nlw = lw(nid); val nrw = rw(nid)
+      var dx = pointPair match
+        case 15 => sgn * (nrw - (hp.x - np.x) + stepx)
+        case 38 => sgn * (nlw - (np.x - hp.x) + stepx)
+        case 41 | 48 => sgn * (nrw - (tp.x - np.x) + stepx)
+        case 14 | 37 | 47 | 51 | 57 | 58 =>
+          sgn * ((nlw - (np.x - tp.x) + (nrw - (hp.x - np.x))) / 3.0)
+        case 73 => sgn * (nlw - (np.x - tp.x) + stepx)
+        case 83 => sgn * (nlw - (np.x - tp.x))
+        case 84 => sgn * ((nlw - (np.x - tp.x) + (nrw - (hp.x - np.x))) / 2.0 + stepx)
+        case 74 | 75 | 85 =>
+          sgn * ((nlw - (np.x - tp.x) + (nrw - (hp.x - np.x))) / 2.0 + 2 * stepx)
+        case _ => 0.0
+      var dy = halfH(nid)
+      var ty = math.min(dy, 3 * (np.y + dy - tp.y))
+      var hy = math.min(dy, 3 * (np.y + dy - hp.y))
+      group.foreach { case (e, origIdx) =>
+        dy += stepy; ty += stepy; hy += stepy; dx += sgn * stepx
+        val pts = Vector(
+          tp,
+          XY(tp.x + dx, tp.y + ty / 3.0),
+          XY(tp.x + dx, np.y + dy),
+          XY((tp.x + hp.x) / 2.0, np.y + dy),
+          XY(hp.x - dx, np.y + dy),
+          XY(hp.x - dx, hp.y + hy / 3.0),
+          hp)
+        e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
+          val (wl, hl) = Coord.edgeLabelDim(e, g)
+          val height   = if Rank.flip(g) then wl else hl
+          labelPos(origIdx) = XY(np.x, np.y + dy + height / 2.0)
+          if height > stepy then dy += height - stepy
+        }
+        out(origIdx) = clipInstall(g, pts, e, byId, centerOf,
+          tailClip = tGp.clip, headClip = hGp.clip)
+      }
+
     val minRank = if ranksSorted.isEmpty then 0 else ranksSorted.head
     val maxRank = if ranksSorted.isEmpty then 0 else ranksSorted.last
     g.edges.zipWithIndex
@@ -1049,37 +1260,62 @@ object Spline:
         val stepy = math.max(sizeyCs / 2.0 / 2.0 / cnt, 2.0) // selfRight
         val np    = XY(cx(nid), cy(nid))
         val rw    = lw(nid)
+        // makeSelfEdge's dispatch (splines.c:1179). selfRight covers the
+        // portless case and any pair that is neither LEFT-sided nor a matching
+        // TOP/BOTTOM pair; a LEFT-sided port goes to selfLeft, or — the
+        // "handle L-R specially" case — to selfTop when the other bit is RIGHT.
+        // 191's SignatureLayoutType loop lands there: its head cell spans the
+        // node, so closestSide gives LEFT|RIGHT.
+        val e0 = group.head._1
+        val t0Raw = rawPort(nid, e0.tailPort)
+        val h0Raw = rawPort(nid, e0.headPort)
+        val t0Gp  = t0Raw.getOrElse(PortAnchor.GvPort.center)
+        val h0Gp  = h0Raw.getOrElse(PortAnchor.GvPort.center)
+        val tSide = t0Raw.map(_.side).getOrElse(0)
+        val hSide = h0Raw.map(_.side).getOrElse(0)
+        val bothUndef = !t0Raw.exists(_.defined) && !h0Raw.exists(_.defined)
+        val goesRight = bothUndef ||
+          ((tSide & RecordLabel.Left) == 0 && (hSide & RecordLabel.Left) == 0 &&
+            (tSide != hSide || (tSide & (RecordLabel.Top | RecordLabel.Bottom)) == 0))
+        val useTop = !goesRight &&
+          ((tSide & RecordLabel.Left) != 0 || (hSide & RecordLabel.Left) != 0) &&
+          ((tSide & RecordLabel.Right) != 0 || (hSide & RecordLabel.Right) != 0)
+        // the call site passes `sizey / 2`; selfRight halves AGAIN per loop
+        // (`stepy = max(sizey/2/cnt, 2)`) but selfTop takes that value as its
+        // step directly — hence the loop reaching twice as far over the top.
+        if useTop then selfTop(nid, group, np, t0Gp, h0Gp, sizeyCs / 2.0, cnt)
+        else
         // selfRight accumulates dx/tx/hx/dy ACROSS the node's loops, and a
         // LABELLED loop bumps dx by (labelWidth − stepx) so the next loop
         // clears the label. Label pos = (n.x + dx + width/2, n.y) with the
         // flip-aware width (dimen.y under LR/RL) — fsm's S(a)/S(b) lps.
-        var dx = rw; var tx = rw; var hx = rw; var dy = 0.0
-        group.foreach { case (e, origIdx) =>
-          dx += stepx; tx += stepx; hx += stepx
-          dy += stepy // sgn = +1 (tp.y == hp.y, no-port ⇒ no flip)
-          val pts = Vector(
-            np,
-            XY(np.x + tx / 3.0, np.y + dy),
-            XY(np.x + dx, np.y + dy),
-            XY(np.x + dx, np.y),
-            XY(np.x + dx, np.y - dy),
-            XY(np.x + hx / 3.0, np.y - dy),
-            np
-          )
-          e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
-            val (wl, hl) = Coord.edgeLabelDim(e, g)
-            val width    = if Rank.flip(g) then hl else wl
-            labelPos(origIdx) = XY(np.x + dx + width / 2.0, np.y)
-            if width > stepx then dx += width - stepx
+          var dx = rw; var tx = rw; var hx = rw; var dy = 0.0
+          group.foreach { case (e, origIdx) =>
+            dx += stepx; tx += stepx; hx += stepx
+            dy += stepy // sgn = +1 (tp.y == hp.y, no-port ⇒ no flip)
+            val pts = Vector(
+              np,
+              XY(np.x + tx / 3.0, np.y + dy),
+              XY(np.x + dx, np.y + dy),
+              XY(np.x + dx, np.y),
+              XY(np.x + dx, np.y - dy),
+              XY(np.x + hx / 3.0, np.y - dy),
+              np
+            )
+            e.attrs.get("label").filter(_.nonEmpty).foreach { _ =>
+              val (wl, hl) = Coord.edgeLabelDim(e, g)
+              val width    = if Rank.flip(g) then hl else wl
+              labelPos(origIdx) = XY(np.x + dx + width / 2.0, np.y)
+              if width > stepx then dx += width - stepx
+            }
+            out(origIdx) = clipInstall(g, pts, e, byId, centerOf)
           }
-          out(origIdx) = clipInstall(g, pts, e, byId, centerOf)
-        }
       }
     // any merged-away member not installed by the regular Multisep loop
     // (flat/HTML classes — no corpus) inherits its rep's spline verbatim.
     res.mergedInto.indices.foreach { d =>
       val r = res.mergedInto(d)
-      if r != d then
+      if r != d && !isLabelledFlat(flatDedges(d)) then
         val mo = dedgeOrigIdx(d)
         if !out.contains(mo) then out.get(dedgeOrigIdx(r)).foreach(sp => out(mo) = sp)
     }

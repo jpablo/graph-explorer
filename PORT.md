@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 166/167
-> (2026-07-17).** All milestones M0–M8 done. The viewer routes by layout
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 171/172
+> (2026-07-27).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 158/159 + shipped examples 8/8 = 166/167** — the SINGLE
+> **corpus 163/164 + shipped examples 8/8 = 171/172** — the SINGLE
 > remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
 > (its golden is gv's own default-mode cluster corruption; the file is
 > gated byte-exact against the 03b `newrank` oracle in ClusterSpec
@@ -481,12 +481,37 @@ enforce the deferral halves of it):
   cluster boxes to **10/10** in one step. In hindsight the whole 191 x-chase
   was one subsystem: `flat_node` and everything downstream of it.
 
-  **What is left on 191:** `json0` and `svg` still differ, in the SPLINES of
-  the labelled non-adjacent flat edges (`make_flat_edge`'s label branch in
-  dotsplines, and the `lp` that goes with it). That was already a documented
-  deferral — "labeled non-adjacent flat edges stay deferred (no corpus)" — and
-  191 is now the corpus for it. It is a routing gap, not a layout one: every
-  coordinate those splines route between is correct.
+  **191 IS CLOSED — byte-exact in all three formats (2026-07-27).** The
+  splines followed the layout, in three steps:
+
+  1. **`make_flat_labeled_edge`** (dotsplines.c:1374). The label already has a
+     node, so gv puts the label right on it (`ED_label(e)->pos = ND_coord(ln)`)
+     and threads the edge UNDER it through a five-box channel: the tail end, a
+     box up to the label box's lower-left, a box spanning the label's own band,
+     a box down the far side, the head end. `ln` is reached by chasing
+     `ED_to_virt`, which for a merged parallel flat edge lands on the REP — so
+     both of 191's `ProgramPredictorsGiven→PredictorView` edges label the same
+     vnode and share an `lp`, though each got its own slot.
+  2. **Port-aware flat ends.** Eight of the nine have a port, so `makeFlatEnd`
+     plus `beginpath`/`endpath`'s FLATEDGE branch had to be ported (sides 0,
+     BOTTOM and LEFT occur), including its `makeregularend` tail, its clearing
+     of the ORIGINAL port's `clip` flag, and the constrained tangent — which is
+     set from the port BEFORE gv branches on edge type, so it applies here too.
+     Two supporting fixes fell out: `lw0` did not recognise a `__fl` name (a
+     flat label reported half-width 1.0 instead of 5.4), and `maximal_bbox`'s
+     `ND_node_type(n) == NORMAL` test filed one as a real node, separating by
+     nodesep/2 where gv uses Splinesep — 6.5pt on every neighbouring label
+     vnode's `lp`.
+  3. **`selfTop`** (splines.c:887), for the single self-loop left over.
+     `makeSelfEdge` runs BEFORE beginpath, so it sees the RAW port side mask,
+     not the single bit a regular edge resolves to: `SignatureLayoutType`'s
+     head cell spans the node, giving LEFT|RIGHT = 10, which is gv's "handle
+     L-R specially" case. Note the call site passes `sizey / 2` and `selfRight`
+     halves it AGAIN per loop while `selfTop` takes it as the step directly —
+     that factor of two was the last wrong number in the file.
+
+  191 is out of `deferredCorpus`. The corpus gate is now **163/164**, the one
+  remaining deferral being 03, which is intentional and always will be.
 
 ## 1. Goal & locked decisions
 

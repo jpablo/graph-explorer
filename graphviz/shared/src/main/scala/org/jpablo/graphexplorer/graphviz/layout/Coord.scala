@@ -142,6 +142,11 @@ object Coord:
     * rank (`r == 0`); interior ranks derive `vspace` from the actual gap. */
   def flatVspaceTopRank(g: RGraph): Double = rankSep(g)
 
+  /** `GD_ranksep(g)` itself — an INT in gv, so callers that halve it again
+    * (`beginpath`/`endpath`'s FLATEDGE BOTTOM branch: `GD_ranksep/2`) must use
+    * C integer division. 191: ranksep 0.85 ⇒ 61 ⇒ (61+1)/2 = 31 ⇒ 31/2 = 15. */
+  def gdRanksep(g: RGraph): Int = rankSep(g).toInt
+
 
   /** Edge-label (width, height) in pt. **HTML-aware**: an HTML label (`<...>`)
     * is parsed and measured by the table/text layout — measuring the raw markup

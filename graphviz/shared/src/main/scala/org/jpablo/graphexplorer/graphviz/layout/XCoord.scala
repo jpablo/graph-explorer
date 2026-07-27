@@ -753,6 +753,9 @@ object XCoord:
     val (res, allX, _) = xSolve(g)
     (res, allX)
 
+  /** x (points) for EVERY layout node — reals, chain vnodes, flat labels. */
+  def xAll(g: RGraph): Map[LayoutNode, Pt] = xSolve(g)._2
+
   /** Solved cluster border x `[ln, rn]` per [[Cluster.clusters]] index. */
   def clusterXBounds(g: RGraph): Vector[(Double, Double)] = xSolve(g)._3
 
