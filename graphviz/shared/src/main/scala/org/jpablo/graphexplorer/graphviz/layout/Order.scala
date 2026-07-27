@@ -59,7 +59,12 @@ object Order:
         * chain of their own — the rep's chain carries the summed
         * `ED_weight`/`ED_xpenalty`; splines route the rep once and install
         * copies offset by `Multisep`. */
-      mergedInto: Vector[Int]
+      mergedInto: Vector[Int],
+      /** dedge indices of the labelled NON-adjacent FLAT edges that got a
+        * label vnode, in `flat_node` CREATION order. `make_vn_slot` calls
+        * `virtual_node` → `fast_node`, which PREPENDS, so `GD_nlist` — and
+        * therefore `make_edge_pairs` — sees them at the head REVERSED. */
+      flatLabels: Vector[Int]
   ) derives CanEqual:
     /** rank index → real-node ids (Strings), preserving left-to-right order. */
     def realOrder: Map[Int, Vector[String]] =
@@ -264,8 +269,11 @@ object Order:
           (t, h) => segXpen.getOrElse((t, h), 1L),
           (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
           portedC.contains, flatPairs)
-    val order2 = flatLabelSlots(g, order, posNlist, g.edges.filter(e => e.tail != e.head), n => out.getOrElse(n, Seq.empty).toSeq)
-    Result(rank0, order2, cross, segs.toVector, segOwn.toVector, mergedInto.toVector)
+    val (order2, flatCreation) =
+      flatLabelSlots(g, order, posNlist, g.edges.filter(e => e.tail != e.head),
+        n => out.getOrElse(n, Seq.empty).toSeq)
+    Result(rank0, order2, cross, segs.toVector, segOwn.toVector, mergedInto.toVector,
+      flatCreation)
 
   /** `flat_edges` + `flat_node` (flat.c), the step `dot_position` runs after
     * `set_ycoords` and before `create_aux_edges`.
@@ -290,7 +298,7 @@ object Order:
       nlist:  Vector[LayoutNode],
       dedges: Vector[REdge],
       outOf:  LayoutNode => Seq[LayoutNode]
-  ): Map[Int, Vector[LayoutNode]] =
+  ): (Map[Int, Vector[LayoutNode]], Vector[Int]) =
     // Candidate edges: flat (same rank), non-self, labelled.
     val pos: Map[LayoutNode, (Int, Int)] =
       order.iterator.flatMap((r, ids) => ids.zipWithIndex.map((n, p) => n -> (r, p))).toMap
@@ -303,9 +311,10 @@ object Order:
           case _                              => false
       }
     }
-    if cand.isEmpty then return order
+    if cand.isEmpty then return (order, Vector.empty)
 
-    val ranks = mutable.Map.from(order.view.mapValues(_.toBuffer))
+    val ranks   = mutable.Map.from(order.view.mapValues(_.toBuffer))
+    val created = mutable.ArrayBuffer.empty[Int]
     def ordOf(n: LayoutNode): Int = ranks(pos(n)._1).indexOf(n)
 
     /** `checkFlatAdjacent` (flat.c:208): only a NORMAL node or a LABELLED
@@ -379,9 +388,10 @@ object Order:
             val place = flatLimits(r - 1, lpos, rpos)
             val row   = ranks.getOrElseUpdate(r - 1, mutable.Buffer.empty[LayoutNode])
             row.insert(math.max(0, math.min(place, row.length)), LayoutNode.FlatLabel(i))
+            created += i
         }
     }
-    ranks.view.mapValues(_.toVector).toMap
+    (ranks.view.mapValues(_.toVector).toMap, created.toVector)
 
   /** Local collapsed-graph node: either a free (root-level) layout node passed
     * through, or a cluster **skeleton** rankleader `Sk(cluster, rank)` standing

@@ -312,13 +312,16 @@ enforce the deferral halves of it):
   keyed by each segment's originating edge so both sides can be compared) leaves
   exactly three divergences, and the remaining 108pt is among them:
 
-  1. **18 missing slack pairs** — gv emits 182, we emit 164. Per-edge attribution
-     is confounded by class2 merging (`ED_to_orig` resolves a merged chain to
-     whichever member owns the rep), so the 8 originating edges that show "gv 2,
-     ours 0" are probably re-attribution rather than 8 genuinely absent chains.
-     The count difference is real regardless. gv iterates `ND_save_out(n)` over
-     `GD_nlist`; we iterate `Order.Result.segments`. Compare those two sets
-     directly before assuming anything.
+  1. **18 missing slack pairs — CLOSED (2026-07-27), same cause.** gv emitted
+     182, we emitted 164, and the 18 were the FLAT-LABEL vnodes: `flat_node`
+     gives each one two out-edges (`vn→tail`, `vn→head`), and 9 labels × 2 = 18.
+     Now emitted, with gv's ports (`vn→tail`: `-lw(vn)` → `rw(flatTail)`;
+     `vn→head`: `rw(vn)` → `lw(flatHead)`) and at the head of the walk, since
+     `fast_node` PREPENDS so the last label created leads `GD_nlist`. All 18
+     match gv's `make_edge_pairs` probe exactly — order, `m0`, `m1` and weight,
+     including the parallel `ProgramPredictorsGiven→PredictorView` pair where
+     the `merge_oneway` REP carries the summed weight 2 and the merged-away
+     member only its own 1.
   2. **omega weights — HALF CLOSED.** gv does not multiply at pair time; the
      omega was folded into `ED_weight` by `virtual_weight` when `make_chain`
      built the segment, and `endpoint_class` reads `ND_weight_class`.
@@ -343,11 +346,9 @@ enforce the deferral halves of it):
   **Deduction worth acting on:** none of the omega work moved 191's
   coordinates, and it CANNOT — omega is the NS objective, while a cluster's
   extent is a FEASIBILITY question decided by minlens. So the outstanding
-  108pt has to live in a minlen: either the 18 missing slack pairs (1) or the
-  HTML port offsets (3), since `m0`/`m1` ARE minlens. Start with (3): the
-  differences are already measured (t=136 vs 164, 70 vs 83, h=26 vs 30,
-  t=4 vs 3) and they feed straight into `make_edge_pairs`'s
-  `m0 = head_port.p.x - tail_port.p.x`.
+  108pt has to live in a minlen. (It did — but not in a minlen VALUE: the rank
+  was missing seven nodes. See the flat-label entry below; leads 1 and 3 above
+  were both symptoms of it, and 1 is now closed.)
   3. **HTML port x-offsets** — `m0 = ED_head_port(e).p.x - ED_tail_port(e).p.x`
      differs on several edges: `DynamicValueRecord>PredictType` t=136 vs our 164,
      `LanguageModelType>PredictType` t=70 vs 83,
@@ -414,8 +415,16 @@ enforce the deferral halves of it):
   exact everywhere. Two clusters are offset as blocks (`core_data` by 207,
   `typed` by 214) and six nodes differ by 5–71. Since the total extent is now
   right, the constraint SET is likely complete and this is the NS objective or
-  its tie-breaks — which puts lead (1) (the 18 missing slack pairs) and lead
-  (3) (HTML port `p.x`) back at the front, in that order.
+  its tie-breaks. Lead (1) is now closed too (it was the same flat labels), so
+  what remains is lead (3), the **HTML port `p.x`** offsets — `m0` for four
+  probed edges is off (`DynamicValueRecord>PredictType` t=136 vs 164,
+  `LanguageModelType>PredictType` 70 vs 83,
+  `DynamicValueRecord>SignatureLayoutCompanion` h=26 vs 30,
+  `FieldSpecType>SignatureLayoutCompanion` t=4 vs 3) — and after that the NS
+  tie-breaks. With the flat-label pairs added, 22/32 node positions are exact
+  and the residuals collapsed (`DynamicPredictType` from 21pt off to 2pt);
+  `core_data` and `typed` still sit as whole blocks 185/192pt away, which is
+  the shape of one wrong constraint, not accumulated noise.
 
 ## 1. Goal & locked decisions
 

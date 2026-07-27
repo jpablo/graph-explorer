@@ -376,6 +376,46 @@ object XCoord:
       outSegs.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += i
     }
     val slackNodes = mutable.ArrayBuffer.empty[LayoutNode]
+
+    // `virtual_edge(vn, …, e)` copies `ED_weight(e)`, and parallel FLAT edges
+    // were already merged onto a rep by `merge_oneway` (which accumulates the
+    // members' weights there). So the class REP carries the sum and a
+    // merged-away member carries only its own — 191's two
+    // `ProgramPredictorsGiven→PredictorView` labels are gv's 2 and 1.
+    val flatLabelWeight: Int => Int =
+      val wOf = (i: Int) => dedgeVec(i).attrs.get("weight")
+        .flatMap(_.toDoubleOption).map(w => math.max(0, w.toInt)).getOrElse(1)
+      val byPair = dedgeVec.indices.groupBy(i => (dedgeVec(i).tail, dedgeVec(i).head))
+      (d: Int) =>
+        val cls = byPair((dedgeVec(d).tail, dedgeVec(d).head))
+        if cls.min == d then cls.map(wOf).sum else wOf(d)
+
+    // ── flat-label vnodes come FIRST (flat.c flat_node → make_vn_slot →
+    //    virtual_node → fast_node, which PREPENDS to GD_nlist, so the last one
+    //    created heads the list). Each has exactly two out-edges, vn→tail then
+    //    vn→head, carrying the ports flat_node set:
+    //      vn→tail: tail_port.p.x = -lw(vn), head_port.p.x =  rw(flatTail)
+    //      vn→head: tail_port.p.x =  rw(vn), head_port.p.x =  lw(flatHead)
+    //    so m0 is `rw(flatTail) + lw(vn)` and `lw(flatHead) - rw(vn)`.
+    res.flatLabels.reverseIterator.foreach { d =>
+      val fe   = dedgeVec(d)
+      val vn: LayoutNode = LayoutNode.FlatLabel(d)
+      val hv   = half(vn)
+      val t    = LayoutNode.Real(fe.tail): LayoutNode
+      val h    = LayoutNode.Real(fe.head): LayoutNode
+      val fw   = flatLabelWeight(d)
+      Vector((t, rw(t) + hv), (h, lw(h) - hv)).foreach { (endp, mRaw) =>
+        val sn: LayoutNode = LayoutNode.Slack(slackNodes.length + res.segments.length)
+        slackNodes += sn
+        val m = mRaw.toInt // C `int` truncation toward zero
+        val (m0, m1) = if m > 0 then (m, 0) else (0, -m)
+        edges += NetworkSimplex.NSEdge(sn.name, vn.name, m0 + 1, fw)
+        edges += NetworkSimplex.NSEdge(sn.name, endp.name, m1 + 1, fw)
+        initRank(sn.name) =
+          math.min(initRank(vn.name) - (m0 + 1), initRank(endp.name) - (m1 + 1))
+      }
+    }
+
     decomp.foreach { node =>
       outSegs.getOrElse(node, mutable.ArrayBuffer.empty).foreach { i =>
       val (t, h) = res.segments(i)
