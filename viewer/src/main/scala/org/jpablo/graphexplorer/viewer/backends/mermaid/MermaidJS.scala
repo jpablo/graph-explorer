@@ -138,18 +138,36 @@ trait MermaidSubgraphJS extends js.Object:
 
 /** Configuration options for Mermaid.initialize() */
 object MermaidConfig:
+  /** @param suppressErrorRendering
+    *   the ONLY switch that stops a failed render from injecting a "Syntax error
+    *   in text" bomb diagram into the page. Mermaid's `render` (mermaid.core.mjs)
+    *   reads it in both its catch blocks:
+    *   {{{
+    *   } catch (error) {
+    *     if (config.suppressErrorRendering) { removeTempElements(); throw error; }
+    *     diag = await Diagram.fromText("error");   // the bomb
+    *   }
+    *   }}}
+    *   so leaving it off costs twice over — the bomb is drawn AND
+    *   `removeTempElements()` is skipped, orphaning the temp div mermaid appended
+    *   to `<body>` (we pass no container). One leaked bomb per keystroke.
+    *
+    *   Do NOT confuse it with `suppressErrors`, which is an option of `run()` and
+    *   `parse()` and is silently ignored by `initialize()` — we passed that one for
+    *   a long time and it did nothing at all.
+    */
   def apply(
       startOnLoad: Boolean = false,
       securityLevel: String = "loose",
       theme: String = "default",
-      suppressErrors: Boolean = false,
+      suppressErrorRendering: Boolean = false,
       flowchart: js.UndefOr[FlowchartConfig] = js.undefined
   ): js.Object =
     val obj = js.Dynamic.literal(
       startOnLoad = startOnLoad,
       securityLevel = securityLevel,
       theme = theme,
-      suppressErrors = suppressErrors
+      suppressErrorRendering = suppressErrorRendering
     )
     flowchart.foreach(fc => obj.updateDynamic("flowchart")(fc))
     obj.asInstanceOf[js.Object]

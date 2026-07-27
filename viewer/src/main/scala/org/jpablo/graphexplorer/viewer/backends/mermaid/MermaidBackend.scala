@@ -299,7 +299,7 @@ object MermaidBackend:
           startOnLoad = false,
           securityLevel = "loose",
           theme = "default",
-          suppressErrors = true,
+          suppressErrorRendering = true,
           flowchart = FlowchartConfig(htmlLabels = true, useMaxWidth = false)
         )
       )
