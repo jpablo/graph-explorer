@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
-import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, GvId, Label}
+import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{GraphType, GvId, HeadPort, Label, TailPort}
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraphElements
 import org.jpablo.graphexplorer.viewer.models.{Arrow, GroupId, NodeId, ViewerGroup, ViewerNode, Attributes as ViewerAttributes}
 
@@ -147,9 +147,17 @@ def viewerGraphElementsToText(
     val internalAttrs  = if (omitInternal) Set("id") else Set.empty[String]
     val allExcludeKeys = excludeKeys ++ internalAttrs + GvId.attrId.value // Always exclude _gvid from output
 
-    // Add id attribute for arrows
+    // Add id attribute for arrows.
+    //
+    // From `arrow.toSvg`, NOT rebuilt from the parts. This id becomes the SVG element's id
+    // and so the id a click hands back, which is then looked up in the `arrows` map — where
+    // the key is `Arrow.id`. Deriving it a second time here let the two drift: `Arrow.id`
+    // includes the ports, this did not, so an edge with a tailport/headport was keyed
+    // `A:se->B/0` and advertised itself as `A->B/0`. Selecting it found nothing, so every
+    // control in the toolbar read its default, and edits were dropped on the floor —
+    // `updateAttributes` filters by the same key. One derivation, one id.
     if (!allExcludeKeys.contains("id"))
-      attrs += "id" -> s"arrow:${arrow.source.value}->${arrow.target.value}/${arrow.seq}"
+      attrs += "id" -> arrow.toSvg
 
     // Process arrow attributes directly
     arrow.attributes.values.foreach { case (attrId, attrValue) =>
@@ -243,10 +251,20 @@ def viewerGraphElementsToText(
   // level changes the whole layout ("wrong ownership of arrows").
   val emittedArrows = scala.collection.mutable.Set[org.jpablo.graphexplorer.viewer.models.ArrowId]()
   def emitArrow(arrow: Arrow, level: Int): Unit = {
-    val tailPort = arrow.sourcePort.map(p => ":" + quoted(p)).getOrElse("")
-    val headPort = arrow.targetPort.map(p => ":" + quoted(p)).getOrElse("")
+    // A port has two homes: the structural `sourcePort`/`targetPort`, which is what import
+    // fills in and what `Arrow.id` is built from, and the `tailport`/`headport` ATTRIBUTE,
+    // which is what the toolbar row edits. Emitting both wrote an edge that contradicted
+    // itself -- `"A":"se" -> "B" [tailport="n"]` -- and Graphviz resolves that in favour of
+    // the node-reference port, so the drawing kept the stale value the panel had just
+    // replaced. The attribute is the newer of the two by construction (import only ever
+    // produces the structural one), so it wins and the structural form stands down.
+    def portAttr(attrId: org.jpablo.graphexplorer.viewer.models.AttributeId) =
+      arrow.attributes.values.get(attrId).map(_.toString)
+    val tailPort = portAttr(TailPort.attrId).orElse(arrow.sourcePort).map(p => ":" + quoted(p)).getOrElse("")
+    val headPort = portAttr(HeadPort.attrId).orElse(arrow.targetPort).map(p => ":" + quoted(p)).getOrElse("")
 
-    val edgeAttrs = collectEdgeAttributes(arrow, Set("tail", "head"))
+    // ...and having emitted it as a port, do not also emit it as an attribute.
+    val edgeAttrs = collectEdgeAttributes(arrow, Set("tail", "head", TailPort.attrId.value, HeadPort.attrId.value))
 
     val attrFormatting = if (hasNestedSubgraphs || hasComplexHtmlLabels || edgeAttrs.length > 1)
       formatAttributesMultiLine(edgeAttrs, level, hasComplexHtmlLabels || edgeAttrs.length > 1)
