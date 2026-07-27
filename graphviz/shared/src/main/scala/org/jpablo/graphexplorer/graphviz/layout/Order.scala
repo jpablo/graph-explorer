@@ -688,28 +688,43 @@ object Order:
             c += wOf(v, x) * wOf(w, y)
         })
         c
-      def transposeStep(reverse: Boolean): Long =
+      // transpose_step (mincross.c:700) is PER RANK and carries gv's
+      // `candidate` gating: a rank clears its own flag on entry and re-arms
+      // itself and its two neighbours whenever it swaps. Sweeping every rank
+      // on every pass instead visits swaps in a different order, which decides
+      // the ties — 191's programs_para ended with ParaCategoryGiven and
+      // ProgramPredictorsGiven the wrong way round.
+      val candidate = mutable.HashMap.from((cLo to cHi).map(r => r -> true))
+      def transposeStep(r: Int, reverse: Boolean): Long =
         var delta = 0L
-        (cLo to cHi).foreach { r =>
-          val (from, until) = slice(r)
-          val rb = rows(r)
-          // gv transpose_step (mincross.c:700) gates out_cross on
-          // `GD_rank(g)[r + 1].n > 0`, and for a CLUSTER that array is its own
-          // slice — zero past its maxrank. So the cluster's bottom rank
-          // contributes in_cross only.
-          val hasBelow = r < cHi
-          var i = from
-          while i < until - 1 do
-            val v = rb(i); val w = rb(i + 1)
-            val c0 = crossIn(v, w) + (if hasBelow then crossOut(v, w) else 0L)
-            val c1 = crossIn(w, v) + (if hasBelow then crossOut(w, v) else 0L)
-            val doSwap = c1 < c0 || (c0 > 0 && reverse && c1 == c0)
-            if doSwap then { exchange(r, i, i + 1); delta += c0 - c1 }
-            i += 1
-        }
+        candidate(r) = false
+        val (from, until) = slice(r)
+        val rb = rows(r)
+        // out_cross is gated on `GD_rank(g)[r + 1].n > 0`, and for a CLUSTER
+        // that array is its own slice — zero past its maxrank, so the
+        // cluster's bottom rank contributes in_cross only.
+        val hasBelow = r < cHi
+        var i = from
+        while i < until - 1 do
+          val v = rb(i); val w = rb(i + 1)
+          val c0 = crossIn(v, w) + (if hasBelow then crossOut(v, w) else 0L)
+          val c1 = crossIn(w, v) + (if hasBelow then crossOut(w, v) else 0L)
+          if c1 < c0 || (c0 > 0 && reverse && c1 == c0) then
+            exchange(r, i, i + 1)
+            delta += c0 - c1
+            candidate(r) = true
+            if r > cLo then candidate(r - 1) = true
+            if r < cHi then candidate(r + 1) = true
+          i += 1
         delta
       def transpose(reverse: Boolean): Unit =
-        while transposeStep(reverse) >= 1 do ()
+        (cLo to cHi).foreach(r => candidate(r) = true)
+        var delta = 0L
+        while {
+          delta = 0L
+          (cLo to cHi).foreach(r => if candidate(r) then delta += transposeStep(r, reverse))
+          delta >= 1
+        } do ()
       def mincrossStep(pass: Int): Unit =
         val reverse = pass % 4 < 2
         // mincross_step (mincross.c:1252): the down pass normally starts one
