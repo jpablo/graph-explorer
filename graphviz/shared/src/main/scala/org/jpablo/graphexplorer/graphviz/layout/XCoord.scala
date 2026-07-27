@@ -345,9 +345,9 @@ object XCoord:
       val cs = Cluster.clusters(g)
       if cs.isEmpty then decomposeOrder(g, res)
       else if res.nlist.nonEmpty then
-        // `merge_ranks` order, captured where it is actually built. Anything it
-        // never touched (root-level chain vnodes of inter-cluster edges) keeps
-        // the collapsed graph's decompose order, after the blocks.
+        // `merge_ranks` blocks, then `decompose(g, 1)`'s leftovers — both
+        // captured where they are actually built (see Order.orderClustered).
+        // The filter is a safety net only; it should never add anything.
         val inN = res.nlist.toSet
         res.nlist ++ decomposeOrder(g, res).filterNot(inN)
       else
@@ -392,15 +392,25 @@ object XCoord:
     // (DspyError, PredictorsRep, PredictionO) last where a single pass puts
     // them first. Stable within each group.
     if clustOfX.nonEmpty then
-      outSegs.foreach { (_, segs) =>
-        val (intra, inter) = segs.toVector.partition { i =>
-          res.segOwner.lift(i).filter(_ >= 0).flatMap(realEdges.lift).exists { re =>
+      outSegs.foreach { (node, segs) =>
+        val nid = node match { case LayoutNode.Real(id) => id; case _ => "" }
+        def ownerOf(i: Int) =
+          res.segOwner.lift(i).filter(_ >= 0).flatMap(realEdges.lift)
+        // 0 = intra-cluster (the cluster's own class2, first pass)
+        // 1 = inter-cluster, this node is the ORIGINAL TAIL
+        // 2 = inter-cluster, this node is the ORIGINAL HEAD
+        // `interclexp` walks the rankleaders' out-edges before their in-edges,
+        // so a rebuilt chain lands in ND_out in that order; a segment that
+        // merely runs OUT of this node because `acyclic` reversed its edge is
+        // still an in-edge as far as interclexp is concerned.
+        def grp(i: Int): Int = ownerOf(i) match
+          case Some(re) =>
             (clustOfX.get(re.tail), clustOfX.get(re.head)) match
-              case (Some(a), Some(b)) => a == b
-              case _                  => false
-          }
-        }
-        if inter.nonEmpty && intra.nonEmpty then { segs.clear(); segs ++= intra; segs ++= inter }
+              case (Some(a), Some(b)) if a == b => 0
+              case _                            => if re.tail == nid then 1 else 2
+          case None => 0
+        val regrouped = segs.toVector.sortBy(grp) // stable
+        if regrouped != segs.toVector then { segs.clear(); segs ++= regrouped }
       }
     val slackNodes = mutable.ArrayBuffer.empty[LayoutNode]
 

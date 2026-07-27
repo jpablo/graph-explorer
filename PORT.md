@@ -425,22 +425,42 @@ enforce the deferral halves of it):
   declare 10pt Helvetica. `PredictType`'s ports now read `m_withLm = -69` and
   `m_apply = -135`, exactly gv's; the 164/83 figures above are stale.
 
-  So everything that DEFINES 191's x-solve now agrees with gv, and what is left
-  is the ORDER the constraints are built in — which fixes the slack nodes'
-  indices and so the aux NS's node order and its tie-breaks. 124 of the 182 are
-  now emitted in gv's exact sequence (`Order.Result.nlist` carries the real
-  `merge_ranks` list, and a clustered node's inter-cluster out-segments trail
-  its intra ones because `interclexp` rebuilds them after the cluster's own
-  `class2`). **The remaining 58 are the root-level chain vnodes**: gv's
-  `GD_nlist` holds them in the decompose order of the COLLAPSED graph — the one
-  where each cluster is a single rankleader — and we re-derive it by
-  decomposing the EXPANDED graph and dropping whatever the blocks already
-  covered. That is the next thing to model; `orderClustered` already builds the
-  collapsed CNode graph, so the order is available, just not exposed.
+  **And the build ORDER now matches too — all 182, exactly.** The order fixes
+  the slack nodes' indices and so the aux NS's node order and its tie-breaks.
+  Three things had to be right:
+
+  - **The node walk is `GD_nlist`, not a reconstruction of it.**
+    `Order.Result.nlist` now carries the real list, captured where it is built:
+    the `merge_ranks` blocks (prepended, last-expanded first) followed by what
+    `decompose(g, 1)` left — the COLLAPSED graph's DFS order, which
+    `orderClustered` already computes as `cSeed`, minus the rankleaders
+    `remove_rankleaders` deletes. `CNode.Nd` is exactly the non-rankleader part.
+  - **`ND_out` is appended to across two passes for a clustered node.** The
+    cluster's own `class2` builds its INTRA-cluster chains; only then does
+    `interclexp` → `map_path` rebuild the INTER-cluster ones with a fresh
+    `virtual_edge` that APPENDS. So inter trails intra — `ProgramType`'s three
+    inter-cluster edges are gv's last, not its first.
+  - **`interclexp` walks the rankleaders' out-edges before their in-edges.** So
+    within the inter group, segments where the node is the edge's ORIGINAL TAIL
+    precede those where it is the head — and "original" matters, because a
+    segment that merely runs out of this node since `acyclic` reversed its edge
+    is still an in-edge to `interclexp`. That is `PredictType`'s
+    `RuntimeContext>PredictType`, which we emitted 2nd and gv emits 9th.
 
   Current 191 state: bb byte-exact, 22/32 node positions exact, 8/10 cluster
-  boxes exact. `core_data` and `typed` sit as whole blocks 185/192pt off —
-  the shape of a tie-break going the other way, not accumulated noise.
+  boxes exact. Each order fix shrank the residuals without yet flipping a node
+  to exact — `core_data` went 207 → 185 → 150, `typed` 214 → 192 → 157,
+  `DynamicPredictType` 21 → 2 → 1.
+
+  **So the remaining gap is the aux NETWORK SIMPLEX itself**, not its input:
+  identical constraints, identical build order, different optimum. That points
+  at the one NS residual already on record (see the `rankdir` row in §4): gv's
+  `LR_balance` (ns.c:768) iterates `Tree_edge` in tight-tree DFS order doing
+  δ/2 reranks, while ours iterates by index, so the sequential reranks pick a
+  different entering edge. 02 hit the same thing (`end`, ~5pt) and the
+  reverse-index hack that fixed 02 broke 11-ranksame — it needs gv's actual
+  `feasible_tree` construction order. That is now the single named blocker for
+  191, and it is a NetworkSimplex change, not an XCoord one.
 
 ## 1. Goal & locked decisions
 

@@ -1140,8 +1140,15 @@ object Order:
     }
 
     // every cluster is expanded by now, so every CNode is a plain layout node
+    // GD_nlist as `dot_position` finds it: the merge_ranks blocks (prepended,
+    // so last-expanded first) followed by whatever `decompose(g, 1)` left —
+    // which is the COLLAPSED graph's DFS order, `cSeed`, minus the rankleaders
+    // `remove_rankleaders` deletes. `CNode.Nd` is precisely the non-rankleader
+    // part: every cluster member collapsed to an `Sk`, so what stays is the
+    // root-level real nodes and the inter-cluster chains' vnodes.
     (rows.iterator.map((r, b) => r -> b.toVector.collect { case CNode.Nd(n) => n }).toMap,
-      ncrossGlobal(), mergedNlist.toVector)
+      ncrossGlobal(),
+      mergedNlist.toVector ++ cSeed.collect { case CNode.Nd(n) => n })
 
   /** The `mincross` driver proper (mincross.c:745) over a class2 graph given as
     * adjacency maps + a `GD_nlist` seed order. Extracted so both the flat graph
