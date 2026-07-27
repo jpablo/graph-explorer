@@ -165,13 +165,12 @@ class ClusterSpec extends FunSuite:
       blocksPerRank(Output.json0(g)),
       blocksPerRank(OracleHarness.golden(name, "json0")))
 
-  test("191: within-rank order matches gv on 5 of 6 ranks (mincross gate)"):
-    // The clustered mincross now reproduces gv's crossing trajectory for the
-    // collapsed pass AND all ten cluster refines. This pins the observable
-    // consequence — the left-to-right order of the real nodes on each rank —
-    // and records the single rank that still differs, so both a regression
-    // and the fix show up. (`ReadFunctor` sits at index 6 for us, 8 for gv,
-    // inside cluster_package_programs_para.)
+  test("191: EVERY rank's within-rank order matches gv (mincross gate)"):
+    // The clustered mincross reproduces gv end to end — the collapsed pass,
+    // all ten cluster refines, and ReMincross — so the observable output, the
+    // left-to-right order of the real nodes on every rank, is now identical.
+    // (191 is still a corpus deferral: the X COORDINATES differ, which is a
+    // later phase. This gate is what keeps the ordering work from rotting.)
     val name = "191-scala-type-graph"
     def orderPerRank(json0: String): Map[Double, Vector[String]] =
       ujson.read(json0)("objects").arr.iterator
@@ -181,16 +180,7 @@ class ClusterSpec extends FunSuite:
     val ours = orderPerRank(Output.json0(graph(name)))
     val gold = orderPerRank(OracleHarness.golden(name, "json0"))
     assertEquals(ours.keySet, gold.keySet, "the rank set itself must match")
-    val differing = gold.keys.toVector.sorted.filter(x => ours(x) != gold(x))
-    assertEquals(differing.length, 1,
-      s"expected exactly the known programs_para rank to differ, got: " +
-        differing.map(x => s"x=$x\n  ours=${ours(x)}\n  gold=${gold(x)}").mkString("\n"))
-    // …and it differs only INSIDE the programs_para block: same nodes, same
-    // block boundaries, a permutation within one cluster's four members.
-    val (o, g) = (ours(differing.head), gold(differing.head))
-    assertEquals(o.toSet, g.toSet, "same nodes on the rank")
-    val para = Set("ProgramRunnerGiven", "ProgramPredictorsGiven", "ReadFunctor", "ParaCategoryGiven")
-    assertEquals(o.filterNot(para), g.filterNot(para), "only the para block's interior differs")
-    assertEquals(o.indexWhere(para), g.indexWhere(para), "the block starts at the same slot")
+    assertEquals(gold.size, 6)
+    gold.keys.toVector.sorted.foreach(x => assertEquals(ours(x), gold(x), s"rank x=$x"))
 
 end ClusterSpec

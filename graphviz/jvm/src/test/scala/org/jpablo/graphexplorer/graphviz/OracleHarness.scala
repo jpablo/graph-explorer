@@ -111,17 +111,16 @@ object OracleHarness:
     *     order instead of VAL. Fixing it made that pass shadow gv to within
     *     ONE crossing per iteration; it had been converging to 119, BETTER
     *     than gv's 124, i.e. differently constrained.
-    *     Narrowed again 2026-07-27: the cluster-interior `transpose` was
-    *     missing gv's `candidate` gating (a rank clears its own flag on entry
-    *     and re-arms itself + both neighbours on a swap). Sweeping every rank
-    *     every pass visits swaps in a different order, which decides ties —
-    *     with it ported, programs_para's refine now ends exactly where gv's
-    *     does. What REMAINS is one cluster earlier in the loop: for
-    *     programs_predictors, gv's medians give PredictorView/PredictorState
-    *     mval 1.0 where ours give -1.0, so gv floats them to the front of the
-    *     block and we leave them at the back. The net effect survives into
-    *     ReMincross and permutes programs_para's four members on one rank;
-    *     the other 5 of 6 ranks match gv's order exactly. */
+    *     MINCROSS IS CLOSED (2026-07-27): every rank's within-rank order now
+    *     matches gv exactly (gated in ClusterSpec). The last two were the
+    *     cluster-interior `transpose` missing gv's `candidate` gating (which
+    *     decides ties by changing the visit order), and `medians` missing its
+    *     `flat_mval`/`hasfixed` tail — 191's PredictorView/PredictorState have
+    *     NO fast edges at all, only FLAT ones, so nothing seated them and they
+    *     sat where they started.
+    *     What REMAINS is the X coordinates: bb 2329.1x2215.4 vs gv's
+    *     2329.1x2308.2, with the rank axis (2329.1) exact. That is XCoord
+    *     under flip, a phase the ordering work never reached. */
   val deferredCorpus: Set[String] = Set("03-subgraph-cluster", "191-scala-type-graph")
 
   /** Image-dimension sidecar for a corpus file (`<name>.images.json`), mirroring

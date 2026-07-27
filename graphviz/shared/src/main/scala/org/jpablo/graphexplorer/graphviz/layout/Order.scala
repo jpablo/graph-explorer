@@ -224,6 +224,15 @@ object Order:
     val segXpen: Map[(LayoutNode, LayoutNode), Long] =
       segs.iterator.zip(segOwn).map((s, o) => s -> classSize(o).toLong).toMap
 
+    // flat rep weight = Σ member `weight` attrs (merge_oneway accumulates
+    // ED_weight on the rep) — only zero/non-zero gates `constraining`.
+    val flatPairs: Vector[(LayoutNode, LayoutNode, Double)] =
+      flatReps.iterator.map { (t, h, rep) =>
+        val w = mergedInto.indices.iterator.filter(mergedInto(_) == rep)
+          .map(j => realEdges(j).attrs.get("weight").flatMap(_.toDoubleOption).getOrElse(1.0)).sum
+        (t, h, w)
+      }.toVector
+
     val flip = Rank.flip(g)
     val (order, cross) =
       if Cluster.clusters(g).isEmpty then
@@ -233,14 +242,6 @@ object Order:
             (if e.tailPort.isDefined then Iterator(LayoutNode.Real(e.tail): LayoutNode) else Iterator.empty) ++
               (if e.headPort.isDefined then Iterator(LayoutNode.Real(e.head): LayoutNode) else Iterator.empty)
           }.toSet
-        // flat rep weight = Σ member `weight` attrs (merge_oneway accumulates
-        // ED_weight on the rep) — only zero/non-zero gates `constraining`.
-        val flatPairs: Vector[(LayoutNode, LayoutNode, Double)] =
-          flatReps.iterator.map { (t, h, rep) =>
-            val w = mergedInto.indices.iterator.filter(mergedInto(_) == rep)
-              .map(j => realEdges(j).attrs.get("weight").flatMap(_.toDoubleOption).getOrElse(1.0)).sum
-            (t, h, w)
-          }.toVector
         runMincross(out, in, rankOf, gdNlist, flip,
           weight   = (t, h) => segXpen.getOrElse((t, h), 1L),
           segPorts = (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
@@ -255,7 +256,7 @@ object Order:
         orderClustered(g, out, in, rankOf, flip, segs.toVector,
           (t, h) => segXpen.getOrElse((t, h), 1L),
           (t, h) => segPortsMap.getOrElse((t, h), SegPorts.default),
-          portedC.contains)
+          portedC.contains, flatPairs)
     Result(rank0, order, cross, segs.toVector, segOwn.toVector, mergedInto.toVector)
 
   /** Local collapsed-graph node: either a free (root-level) layout node passed
@@ -311,7 +312,11 @@ object Order:
         * term the flat path uses. */
       segWeight: (LayoutNode, LayoutNode) => Long,
       segPorts:  (LayoutNode, LayoutNode) => SegPorts,
-      hasPort:   LayoutNode => Boolean
+      hasPort:   LayoutNode => Boolean,
+      /** flat (same-rank) edge reps — a node whose ONLY neighbours share its
+        * rank has empty in/out fast lists, so `medians` gives it no median at
+        * all and `flat_mval` is the only thing that seats it. */
+      flatPairs: Vector[(LayoutNode, LayoutNode, Double)]
   ): (Map[Int, Vector[LayoutNode]], Long) =
     val cinfos   = Cluster.clusters(g)
     val clustOf  = Cluster.clustOf(g) // node NAME → innermost cluster idx
@@ -525,6 +530,46 @@ object Order:
       case CNode.Nd(n)     => cOf(n)
       case CNode.Sk(ci, _) => Some(ci)
 
+    // Flat (same-rank) adjacency, in the CNode domain. A node whose only
+    // neighbours share its rank has EMPTY in/out fast lists, so `medians`
+    // records no median for it and `flat_mval` (mincross.c:1706) is the only
+    // thing that seats it — 191's PredictorView/PredictorState reach their
+    // cluster only through flat edges to ProgramPredictorsGiven.
+    val fInC  = mutable.HashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+    val fOutC = mutable.HashMap.empty[CNode, mutable.ArrayBuffer[CNode]]
+    flatPairs.foreach { (t, h, w) =>
+      if w != 0.0 then
+        val (ct, ch) = (CNode.Nd(t): CNode, CNode.Nd(h): CNode)
+        fOutC.getOrElseUpdate(ct, mutable.ArrayBuffer.empty) += ch
+        fInC.getOrElseUpdate(ch, mutable.ArrayBuffer.empty) += ct
+      }
+    /** `flat_mval` — seat an edgeless node beside its flat neighbour: one to
+      * the RIGHT of its highest-order flat-in tail, else one to the LEFT of
+      * its lowest-order flat-out head. Returns true when it could not (⇒
+      * `hasfixed`, which stops `reorder` shrinking its window).
+      *
+      * `mvalOf` reads 0.0 for a node this pass never touched — gv's ND_mval is
+      * calloc'd, and a cluster's own `medians` only walks its OWN slice, so a
+      * flat neighbour outside the cluster still carries that zero. */
+    def flatMvalOf(mval: mutable.HashMap[CNode, Double], n: CNode): Boolean =
+      def mvalOf(x: CNode): Double = mval.getOrElse(x, 0.0)
+      // `ordOf` tolerates a flat neighbour that is not installed right now:
+      // interclexp wires a flat edge to the REAL node even while that node's
+      // cluster is still collapsed, and gv just reads its stale ND_order.
+      def ordOf(x: CNode): Int = gpos.getOrElse(x, 0)
+      val fin = fInC.getOrElse(n, mutable.ArrayBuffer.empty)
+      if fin.nonEmpty then
+        var nn = fin(0)
+        fin.foreach(t => if ordOf(t) > ordOf(nn) then nn = t)
+        if mvalOf(nn) >= 0 then { mval(n) = mvalOf(nn) + 1; false } else true
+      else
+        val fout = fOutC.getOrElse(n, mutable.ArrayBuffer.empty)
+        if fout.nonEmpty then
+          var nn = fout(0)
+          fout.foreach(h => if ordOf(h) < ordOf(nn) then nn = h)
+          if mvalOf(nn) > 0 then { mval(n) = mvalOf(nn) - 1; false } else true
+        else true
+
     /** `expand_cluster` + `merge_ranks` (cluster.c:288): the cluster's
       * rankleaders are replaced IN PLACE by its own `build_ranks(subg, 0)`
       * install, then the surrounding graph is rewired around it. */
@@ -612,7 +657,7 @@ object Order:
         val rb = rows(r); val a = rb(i); val b = rb(j)
         rb(i) = b; rb(j) = a; gpos(a) = j; gpos(b) = i
       val mval = mutable.HashMap.empty[CNode, Double]
-      def medians(r0: Int, r1: Int): Unit =
+      def medians(r0: Int, r1: Int): Boolean =
         val (from, until) = slice(r0)
         val rb = rows(r0)
         var k = from
@@ -639,7 +684,17 @@ object Order:
                 if lspan == rspan then ((nbrs(lm) + nbrs(rm)) / 2).toDouble // int div
                 else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
           k += 1
-      def reorder(r: Int, reverse: Boolean): Unit =
+        // medians' tail (mincross.c:1745): a node with NO fast edges at all is
+        // seated from its FLAT neighbours instead, and `hasfixed` reports the
+        // ones that could not be — that stops reorder shrinking its window.
+        var hasfixed = false
+        k = from
+        while k < until do
+          val n = rb(k)
+          if out(n).isEmpty && in(n).isEmpty then hasfixed = flatMvalOf(mval, n) || hasfixed
+          k += 1
+        hasfixed
+      def reorder(r: Int, reverse: Boolean, hasfixed: Boolean): Unit =
         val (from, until) = slice(r)
         val rb = rows(r)
         var ep = until
@@ -666,7 +721,7 @@ object Order:
                 lp = rp
               else lp = ep
             else lp = ep
-          if !reverse then ep -= 1
+          if !hasfixed && !reverse then ep -= 1
           nelt -= 1
       // in_cross/out_cross (mincross.c:620): WEIGHTED by ED_xpenalty on both
       // edges, and an equal-order tie breaks on the endpoints' canonical port
@@ -738,8 +793,8 @@ object Order:
           else ((if cHi < gMaxR then cHi else cHi - 1), cLo, -1)
         var r = first
         while r != last + dir do
-          medians(r, r - dir)
-          reorder(r, reverse)
+          val hasfixed = medians(r, r - dir)
+          reorder(r, reverse, hasfixed)
           r += dir
         transpose(!reverse)
       def snapshot(): Map[Int, Vector[CNode]] =
@@ -789,7 +844,7 @@ object Order:
         val rb = rows(r); val a = rb(i); val b = rb(j)
         rb(i) = b; rb(j) = a; gpos(a) = j; gpos(b) = i
       val mval = mutable.HashMap.empty[CNode, Double]
-      def medians(r0: Int, r1: Int): Unit =
+      def medians(r0: Int, r1: Int): Boolean =
         rows.getOrElse(r0, mutable.ArrayBuffer.empty).foreach { n =>
           // VAL(node, port) = MC_SCALE*ND_order + port.order, and C INTEGER
           // division in the even-median cases — the same key the root and
@@ -811,7 +866,12 @@ object Order:
                 if lspan == rspan then ((nbrs(lm) + nbrs(rm)) / 2).toDouble
                 else (nbrs(lm).toDouble * rspan + nbrs(rm).toDouble * lspan) / (lspan + rspan)
         }
-      def reorder(r: Int, reverse: Boolean): Unit =
+        var hasfixed = false
+        rows.getOrElse(r0, mutable.ArrayBuffer.empty).foreach { n =>
+          if out(n).isEmpty && in(n).isEmpty then hasfixed = flatMvalOf(mval, n) || hasfixed
+        }
+        hasfixed
+      def reorder(r: Int, reverse: Boolean, hasfixed: Boolean): Unit =
         // gv reorder (mincross.c:1473) with the `sawclust ###` rule: in the
         // rp scan, once a CLUSTERED node is passed, later clustered nodes
         // are skipped. Pre-ReMincross only real cluster members are marked;
@@ -843,7 +903,7 @@ object Order:
                 lp = rp
               else lp = ep
             else lp = ep
-          if !reverse then ep -= 1
+          if !hasfixed && !reverse then ep -= 1
           nelt -= 1
       // same weighted, port-aware in_cross/out_cross as the interior pass
       def crossIn(v: CNode, w: CNode): Long =
@@ -897,8 +957,8 @@ object Order:
           if pass % 2 == 0 then (gMinR + 1, gMaxR, 1) else (gMaxR - 1, gMinR, -1)
         var r = first
         while r != last + dir do
-          medians(r, r - dir)
-          reorder(r, reverse)
+          val hasfixed = medians(r, r - dir)
+          reorder(r, reverse, hasfixed)
           r += dir
         transpose(!reverse)
       def snapshot(): Map[Int, Vector[CNode]] =
