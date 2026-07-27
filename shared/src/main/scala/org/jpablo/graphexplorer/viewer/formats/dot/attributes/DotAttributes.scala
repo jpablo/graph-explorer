@@ -105,14 +105,19 @@ object Distortion:
 object EdgeStyle extends DotAttributeEnum[EdgeStyle]:
   override def attrId = Style.attrId
   val default         = solid
-  val label           = "Border Style"
+  // "Style", matching BorderStyle on nodes. It is the same row, in the same card, under the
+  // same Border heading; calling it "Border Style" for edges made one idea read as two.
+  val label = "Style"
+  // Ordered for the picker, which shows the first three inline and the rest behind an
+  // overflow: the three anyone reaches for first, then the specialities. The old order led
+  // with Invisible, so the most common choice (Solid) was the one hidden behind the menu.
   override def valuesWithLabel = Array(
-    ("Invisible", invis),
+    ("Solid", solid),
     ("Dashed", dashed),
     ("Dotted", dotted),
-    ("Solid", solid),
     ("Bold", bold),
-    ("Tapered", tapered)
+    ("Tapered", tapered),
+    ("Invisible", invis)
   )
 
 enum EdgeStyle derives CanEqual:

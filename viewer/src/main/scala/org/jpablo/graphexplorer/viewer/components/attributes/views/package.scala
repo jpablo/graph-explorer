@@ -87,6 +87,21 @@ package object views:
       .toSeq.map: (label, style) =>
         RowOption(label, Single(AttrValue(style.toString)), Some(() => i(cls := s"bi ${nodeLabelLocIcons(style)}")))
 
+  // Which ends of an edge carry an arrowhead. Drawn rather than named, like every other
+  // picker in the bar: the glyph IS the answer, and four words would cost more width than
+  // the whole Ends cluster has.
+  val edgeDirIcons = Map(
+    DirType.forward -> "bi-arrow-right",
+    DirType.back    -> "bi-arrow-left",
+    DirType.both    -> "bi-arrow-left-right",
+    DirType.none    -> "bi-dash-lg"
+  )
+
+  val edgeDirOptions =
+    Dir.valuesWithLabel
+      .toSeq.map: (label, dir) =>
+        RowOption(label, Single(AttrValue(dir.toString)), Some(() => i(cls := s"bi ${edgeDirIcons(dir)}")))
+
   val arrowStyleOptions =
     EdgeStyle.valuesWithLabel.toSeq.map: (label, style) =>
       val elem =
