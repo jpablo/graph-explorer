@@ -452,15 +452,41 @@ enforce the deferral halves of it):
   to exact — `core_data` went 207 → 185 → 150, `typed` 214 → 192 → 157,
   `DynamicPredictType` 21 → 2 → 1.
 
-  **So the remaining gap is the aux NETWORK SIMPLEX itself**, not its input:
-  identical constraints, identical build order, different optimum. That points
-  at the one NS residual already on record (see the `rankdir` row in §4): gv's
-  `LR_balance` (ns.c:768) iterates `Tree_edge` in tight-tree DFS order doing
-  δ/2 reranks, while ours iterates by index, so the sequential reranks pick a
-  different entering edge. 02 hit the same thing (`end`, ~5pt) and the
-  reverse-index hack that fixed 02 broke 11-ranksame — it needs gv's actual
-  `feasible_tree` construction order. That is now the single named blocker for
-  191, and it is a NetworkSimplex change, not an XCoord one.
+  **191'S LAYOUT IS NOW BYTE-EXACT (2026-07-27).** `dot_json` — every node
+  position, every cluster box, the graph bb — matches gv exactly.
+
+  Two more constraints were missing, and counting per phase found them.
+  Instrument `make_aux_edge` with a phase tag and gv reports 149 / 364 / 135
+  for `make_LR_constraints` / `make_edge_pairs` / `pos_clusters`. Ours were
+  131 / 364 / 134:
+
+  - **`pos_clusters`, 1 missing.** `keepout_othernodes` scans left from a
+    cluster's leftmost node for the first with a different `ND_clust`, and a
+    flat-label vnode is made by `virtual_node` in `dot_position` — long after
+    `mark_clusters` — so its `ND_clust` is NULL and it ALWAYS differs. Our
+    `vnodeNotRelated` only knew about chain vnodes, so the scan walked past it.
+  - **`make_LR_constraints`, 18 missing — the ones that mattered.**
+    "constraints from labels of flat edges on previous rank" (position.c:308),
+    guarded by `ND_alg(u)`, which only `flat_node` sets. Each label vnode
+    pushes its edge's two endpoints APART around itself: left at least
+    `m0 + rw(left) + lw(vn)` before it, right at least `m0 + rw(vn) + lw(right)`
+    after, with `m0 = ED_minlen · GD_nodesep / 2` in C integer division and the
+    flat edge's minlen DOUBLED by the edge-label rank doubling (2 · 25 / 2 = 25
+    on 191). gv orders the vnode's two out-edges by their heads' `ND_order` so
+    `e0` is the left one, and skips either edge that would close a cycle in the
+    aux graph AS BUILT SO FAR (`canreach`, a plain DFS over `ND_out`). Nine
+    labels × 2 = 18. On 191 `canreach` never fires, but it is ported anyway.
+
+  Adding those 18 took 191 from 22/32 node positions to **32/32** and 8/10
+  cluster boxes to **10/10** in one step. In hindsight the whole 191 x-chase
+  was one subsystem: `flat_node` and everything downstream of it.
+
+  **What is left on 191:** `json0` and `svg` still differ, in the SPLINES of
+  the labelled non-adjacent flat edges (`make_flat_edge`'s label branch in
+  dotsplines, and the `lp` that goes with it). That was already a documented
+  deferral — "labeled non-adjacent flat edges stay deferred (no corpus)" — and
+  191 is now the corpus for it. It is a routing gap, not a layout one: every
+  coordinate those splines route between is correct.
 
 ## 1. Goal & locked decisions
 

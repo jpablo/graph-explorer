@@ -105,6 +105,18 @@ object XCoord:
       }.toSet
 
     val dedgeVec = g.edges.filter(e => e.tail != e.head)
+    // `virtual_edge(vn, …, e)` copies `ED_weight(e)`, and parallel FLAT edges
+    // were already merged onto a rep by `merge_oneway` (which accumulates the
+    // members' weights there). So the class REP carries the sum and a
+    // merged-away member carries only its own — 191's two
+    // `ProgramPredictorsGiven→PredictorView` labels are gv's 2 and 1.
+    val flatLabelWeight: Int => Int =
+      val wOf = (i: Int) => dedgeVec(i).attrs.get("weight")
+        .flatMap(_.toDoubleOption).map(w => math.max(0, w.toInt)).getOrElse(1)
+      val byPair = dedgeVec.indices.groupBy(i => (dedgeVec(i).tail, dedgeVec(i).head))
+      (d: Int) =>
+        val cls = byPair((dedgeVec(d).tail, dedgeVec(d).head))
+        if cls.min == d then cls.map(wOf).sum else wOf(d)
     def half(n: LayoutNode): Double = n match
       case LayoutNode.FlatLabel(d)  => Coord.flatLabelDim(dedgeVec(d), g)._1
       case LayoutNode.Virtual(d, _) if intraVEdge(d) => 1.0
@@ -271,6 +283,23 @@ object XCoord:
       }
       buf.toVector.groupBy(_._1._1).view
         .mapValues(_.map((k, b) => (k._2, b))).toMap
+    // `canreach` (position.c:188) walks ND_out over the aux graph AS BUILT SO
+    // FAR — at this point only make_LR_constraints has run — to refuse a
+    // flat-label constraint that would close a cycle. Track that adjacency.
+    val auxOut = mutable.HashMap.empty[String, mutable.ArrayBuffer[String]]
+    def addLR(t: String, h: String, ml: Int, w: Int): Unit =
+      auxOut.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += h
+      edges += NetworkSimplex.NSEdge(t, h, ml, w)
+    def canreach(from: String, to: String): Boolean =
+      val seen = mutable.Set(from)
+      val stk  = mutable.Stack(from)
+      var hit  = from == to
+      while !hit && stk.nonEmpty do
+        auxOut.getOrElse(stk.pop(), mutable.ArrayBuffer.empty).foreach { w =>
+          if w == to then hit = true
+          else if seen.add(w) then stk.push(w)
+        }
+      hit
     res.order.toList.sortBy(_._1).foreach { case (rank, ids) =>
       val nodesep = if hasEL && (rank & 1) == 1 then 5.0 else NodeSep
       ids.headOption.foreach(h => initRank(h.name) = 0)
@@ -287,9 +316,36 @@ object XCoord:
           // (the NS re-solves from the seed, which may go infeasible → init_rank).
           val width  = rw(u) + lw(v) + nodesep
           val (minlen, fw) = flatAdj(u, v, math.round(width).toInt)
-          edges += NetworkSimplex.NSEdge(u.name, v.name, minlen, fw)
+          addLR(u.name, v.name, minlen, fw)
           last = (last + width).toInt
           initRank(v.name) = last
+        // "constraints from labels of flat edges on previous rank"
+        // (position.c:308): a flat-edge LABEL vnode (`ND_alg(u)`, set only by
+        // `flat_node`) pushes its edge's two endpoints apart AROUND itself —
+        // the left one at least `m0 + rw(left) + lw(vn)` before it, the right
+        // one at least `m0 + rw(vn) + lw(right)` after, where
+        // `m0 = ED_minlen · GD_nodesep / 2` in C INTEGER division and the flat
+        // edge's minlen is DOUBLED by the edge-label rank doubling. gv takes
+        // the vnode's two out-edges and orders them by their heads' ND_order,
+        // so e0 is the LEFT endpoint. Each edge is skipped if it would close a
+        // cycle in the aux graph built so far ("these guards are needed
+        // because the flat edges work very poorly with cluster layout").
+        u match
+          case LayoutNode.FlatLabel(d) =>
+            val fe = dedgeVec(d)
+            val a  = LayoutNode.Real(fe.tail): LayoutNode
+            val b  = LayoutNode.Real(fe.head): LayoutNode
+            val (l, r) =
+              if posInRank(fe.tail)._2 <= posInRank(fe.head)._2 then (a, b) else (b, a)
+            val ml0 = math.max(0, fe.attrs.get("minlen").flatMap(_.toIntOption).getOrElse(1)) *
+                        (if hasEL then 2 else 1)
+            val m0  = (ml0 * NodeSep.toInt) / 2 // C integer division
+            val w   = flatLabelWeight(d)
+            if !canreach(u.name, l.name) then
+              addLR(l.name, u.name, math.round(m0 + rw(l) + lw(u)).toInt, w)
+            if !canreach(r.name, u.name) then
+              addLR(u.name, r.name, math.round(m0 + rw(u) + lw(r)).toInt, w)
+          case _ => ()
         // position flat edge endpoints (position.c:312): u's ND_flat_out
         // edges, t0/h0 ordered by ND_order. Adjacent pairs bump the LR
         // adjacency edge (flatAdj above); an UNLABELED flat edge between
@@ -308,7 +364,7 @@ object XCoord:
                     val width = rw(t0n) + lw(h0n)
                     val fm    = fb.minlenAttr * (if hasEL then 2 else 1)
                     val m0    = fm * NodeSep + width
-                    edges += NetworkSimplex.NSEdge(t0, h0, math.round(m0).toInt, fb.weight)
+                    addLR(t0, h0, math.round(m0).toInt, fb.weight)
                 case _ => ()
             }
           case _ => ()
@@ -414,18 +470,6 @@ object XCoord:
       }
     val slackNodes = mutable.ArrayBuffer.empty[LayoutNode]
 
-    // `virtual_edge(vn, …, e)` copies `ED_weight(e)`, and parallel FLAT edges
-    // were already merged onto a rep by `merge_oneway` (which accumulates the
-    // members' weights there). So the class REP carries the sum and a
-    // merged-away member carries only its own — 191's two
-    // `ProgramPredictorsGiven→PredictorView` labels are gv's 2 and 1.
-    val flatLabelWeight: Int => Int =
-      val wOf = (i: Int) => dedgeVec(i).attrs.get("weight")
-        .flatMap(_.toDoubleOption).map(w => math.max(0, w.toInt)).getOrElse(1)
-      val byPair = dedgeVec.indices.groupBy(i => (dedgeVec(i).tail, dedgeVec(i).head))
-      (d: Int) =>
-        val cls = byPair((dedgeVec(d).tail, dedgeVec(d).head))
-        if cls.min == d then cls.map(wOf).sum else wOf(d)
 
     // ── flat-label vnodes come FIRST (flat.c flat_node → make_vn_slot →
     //    virtual_node → fast_node, which PREPENDS to GD_nlist, so the last one
@@ -598,6 +642,11 @@ object XCoord:
         case LayoutNode.Virtual(d, _) =>
           realEdges.lift(d).forall(re =>
             !cluInfos(ci).nodeIds.contains(re.tail) && !cluInfos(ci).nodeIds.contains(re.head))
+        // gv's test is `ND_clust(u) != ND_clust(v)`, and a flat-edge label
+        // vnode is created by `virtual_node` in dot_position — long after
+        // `mark_clusters` — so its ND_clust is NULL and it ALWAYS differs.
+        // It therefore stops the scan and takes the keepout edge itself.
+        case _: LayoutNode.FlatLabel => true
         case _ => false
       def isNormal(n: LayoutNode): Boolean = n match
         case _: LayoutNode.Real => true

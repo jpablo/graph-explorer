@@ -67,6 +67,23 @@ class EdgeLabel2Spec extends FunSuite:
       (7, 23, "ParaCategoryGiven>PredictorState"),
       (7, 27, "SignatureIO>SignatureLayoutType")))
 
+  test("191: dot_json is byte-exact — the whole LAYOUT matches gv"):
+    // The strongest 191 gate there is: dot_json carries every node's position,
+    // every cluster's box, and the graph bb. Reaching it took the flat-label
+    // subsystem end to end — the vnodes themselves (flat_node), their
+    // make_edge_pairs slack pairs, their keepout_othernodes edge, and finally
+    // make_LR_constraints' "constraints from labels of flat edges on previous
+    // rank", which is what actually pins the edge's two endpoints around the
+    // label. 191's aux graph is now identical to gv's: 648 constraints, same
+    // values, same build order, same seed, same solution.
+    //
+    // json0 and svg still differ: the SPLINES for labelled non-adjacent flat
+    // edges are not routed yet (make_flat_edge's label branch). That is a
+    // dotsplines gap, not a layout one — every coordinate they route between
+    // is now correct.
+    assertEquals(Output.dotJson(g("191-scala-type-graph")),
+                 OracleHarness.golden("191-scala-type-graph", "dot_json"))
+
   test("191: the graph bb matches gv exactly (the flat labels' 108pt)"):
     // The end-to-end consequence: 191's widest rank is the one carrying seven
     // flat labels, so the whole drawing's extent depends on them. (191 is still
