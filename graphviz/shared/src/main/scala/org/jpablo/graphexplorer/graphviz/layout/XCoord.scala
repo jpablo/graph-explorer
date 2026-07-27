@@ -344,6 +344,12 @@ object XCoord:
     val decomp: Vector[LayoutNode] =
       val cs = Cluster.clusters(g)
       if cs.isEmpty then decomposeOrder(g, res)
+      else if res.nlist.nonEmpty then
+        // `merge_ranks` order, captured where it is actually built. Anything it
+        // never touched (root-level chain vnodes of inter-cluster edges) keeps
+        // the collapsed graph's decompose order, after the blocks.
+        val inN = res.nlist.toSet
+        res.nlist ++ decomposeOrder(g, res).filterNot(inN)
       else
         val directMembers: Vector[Set[String]] = cs.indices.toVector.map { ci =>
           val childIds = Cluster.childrenOf(g, ci).flatMap(cc => cs(cc).members)
@@ -375,6 +381,27 @@ object XCoord:
     res.segments.iterator.zipWithIndex.foreach { case ((t, _), i) =>
       outSegs.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += i
     }
+    // `ND_out` is ONE list per node, appended to in the order the chains are
+    // built — and for a clustered node that is two passes, not one. The
+    // cluster's own `class2` (inside `expand_cluster`) builds its INTRA-cluster
+    // chains first; only then does `interclexp` → `make_interclust_chain` →
+    // `map_path` rebuild the INTER-cluster ones, swapping the rankleader
+    // endpoint for the real node with a fresh `virtual_edge` that APPENDS. So
+    // a clustered node's inter-cluster out-segments trail all its intra ones —
+    // 191's `ProgramType` has gv emitting its three inter-cluster edges
+    // (DspyError, PredictorsRep, PredictionO) last where a single pass puts
+    // them first. Stable within each group.
+    if clustOfX.nonEmpty then
+      outSegs.foreach { (_, segs) =>
+        val (intra, inter) = segs.toVector.partition { i =>
+          res.segOwner.lift(i).filter(_ >= 0).flatMap(realEdges.lift).exists { re =>
+            (clustOfX.get(re.tail), clustOfX.get(re.head)) match
+              case (Some(a), Some(b)) => a == b
+              case _                  => false
+          }
+        }
+        if inter.nonEmpty && intra.nonEmpty then { segs.clear(); segs ++= intra; segs ++= inter }
+      }
     val slackNodes = mutable.ArrayBuffer.empty[LayoutNode]
 
     // `virtual_edge(vn, …, e)` copies `ED_weight(e)`, and parallel FLAT edges

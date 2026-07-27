@@ -64,7 +64,13 @@ object Order:
         * label vnode, in `flat_node` CREATION order. `make_vn_slot` calls
         * `virtual_node` → `fast_node`, which PREPENDS, so `GD_nlist` — and
         * therefore `make_edge_pairs` — sees them at the head REVERSED. */
-      flatLabels: Vector[Int]
+      flatLabels: Vector[Int],
+      /** `GD_nlist` as `dot_position` sees it (the flat-label vnodes excluded —
+        * they head the list and [[flatLabels]] carries them). `make_edge_pairs`
+        * walks this, and the walk fixes the slack nodes' creation order and so
+        * the aux network simplex's node indices. With clusters it is NOT the
+        * decompose order: `merge_ranks` PREPENDS each expanded cluster's block. */
+      nlist: Vector[LayoutNode]
   ) derives CanEqual:
     /** rank index → real-node ids (Strings), preserving left-to-right order. */
     def realOrder: Map[Int, Vector[String]] =
@@ -273,7 +279,7 @@ object Order:
       flatLabelSlots(g, order, posNlist, g.edges.filter(e => e.tail != e.head),
         n => out.getOrElse(n, Seq.empty).toSeq)
     Result(rank0, order2, cross, segs.toVector, segOwn.toVector, mergedInto.toVector,
-      flatCreation)
+      flatCreation, posNlist)
 
   /** `flat_edges` + `flat_node` (flat.c), the step `dot_position` runs after
     * `set_ycoords` and before `create_aux_edges`.
