@@ -281,11 +281,65 @@ enforce the deferral halves of it):
   gv 132/132/131/130/130/138/124/124/124/128/125/124…
   vs ours 132/133/132/131/131/139/123/123/123/129/126/125…
 
-  **What remains** is that ±1 crossing in ReMincross, which permutes the four
-  members of `programs_para` on one rank. The other 5 of 6 ranks are
-  byte-identical to gv's order, block boundaries included — `ClusterSpec` pins
-  that. The root bb is 2329.1×2199.2 against 2329.1×2308.2, with the rank axis
-  (2329.1) already exact. Fails-when-fixed guarded in `CorpusByteExactSpec`.
+  **MINCROSS IS CLOSED (2026-07-27).** The last two: the cluster-interior
+  `transpose` was missing gv's `candidate` gating (a rank clears its own flag on
+  entry and re-arms itself plus both neighbours on a swap — sweeping every rank
+  every pass visits swaps in a different order, and this pass is all ties), and
+  `medians` was missing its `flat_mval`/`hasfixed` tail. The clustered path had
+  never been given the FLAT edge reps at all, so a node whose only neighbours
+  share its rank — 191's PredictorView/PredictorState, `insz=0 outsz=0`,
+  reachable only through flat edges to ProgramPredictorsGiven — got no median
+  and simply stayed where it started. Note `flat_mval` reads a never-computed
+  mval as gv's calloc ZERO, not -1: a cluster's own `medians` walks only its own
+  slice, so a flat neighbour outside the cluster still carries that zero, and
+  that is exactly where the `+1` comes from. **Every rank now carries gv's exact
+  within-rank order** (gated in `ClusterSpec`).
+
+  **XCoord is the only phase left.** Two fixes so far: `selfRightSpace` was
+  deriving port sides from the COMPASS alone, so a named record/HTML port came
+  out as side 0 and the predicate always said "on the right" (it also used the
+  wrong bit values — geom.h is BOTTOM=1 RIGHT=2 TOP=4 LEFT=8); and `incr_width`
+  halves `GD_nodesep` with C INTEGER division, which only shows up when nodesep
+  is ODD (191 sets 0.35 ⇒ 25 ⇒ 12, not 12.5 — the 18pt default gives 9 either
+  way, which is why 190 corpus files never caught it). Together: all 22
+  real-to-real aux constraints match gv, canonical x is exact for 11 of 32 nodes
+  (was 1), and 9 of 10 cluster boxes are exactly gv's size.
+
+  **XCoord narrowed to `make_edge_pairs` (2026-07-27).** After the
+  `selfRightSpace` and `incr_width` fixes, every constraint that touches a
+  cluster's `ln`/`rn` matches gv — all 22 real-to-real LR-chain constraints and
+  all 40 around `programs_para`. Probing `make_edge_pairs` itself (position.c:330,
+  keyed by each segment's originating edge so both sides can be compared) leaves
+  exactly three divergences, and the remaining 108pt is among them:
+
+  1. **18 missing slack pairs** — gv emits 182, we emit 164. Per-edge attribution
+     is confounded by class2 merging (`ED_to_orig` resolves a merged chain to
+     whichever member owns the rep), so the 8 originating edges that show "gv 2,
+     ours 0" are probably re-attribution rather than 8 genuinely absent chains.
+     The count difference is real regardless. gv iterates `ND_save_out(n)` over
+     `GD_nlist`; we iterate `Order.Result.segments`. Compare those two sets
+     directly before assuming anything.
+  2. **omega weights** — we emit `w=2` (the real–virtual class) where gv has only
+     `w=1`, on at least `DynamicPrediction>a`, `PredictType>DynamicPredictType`,
+     `PredictType>ProgramRuntimeType`; `PredictType>ExampleType` is gv `{1,4}`
+     against our `{1,2,4}`. Note gv does NOT multiply at pair time — it passes
+     `ED_weight(e)` straight through, and the omega was already folded in by
+     `virtual_weight` when `make_chain` created the segment. A DIRECT
+     (rank-difference 1) edge never goes through `make_chain`, so it never gets
+     an omega at all. We apply `NSClass.weight` to every segment, direct ones
+     included. That asymmetry is the first thing to check.
+  3. **HTML port x-offsets** — `m0 = ED_head_port(e).p.x - ED_tail_port(e).p.x`
+     differs on several edges: `DynamicValueRecord>PredictType` t=136 vs our 164,
+     `LanguageModelType>PredictType` t=70 vs 83,
+     `DynamicValueRecord>SignatureLayoutCompanion` h=26 vs 30,
+     `FieldSpecType>SignatureLayoutCompanion` t=4 vs 3. So `PortAnchor`'s
+     canonical port `p.x` for HTML cell ports is off — the same subsystem whose
+     `side` field was wrong in the `selfRightSpace` fix, so the two may share a
+     cause.
+
+  Reproduce with a `getenv`-guarded probe in `make_edge_pairs` printing
+  `orig-tail>orig-head`, `m0+1`, `m1+1`, `ED_weight`, and the matching hook at
+  `XCoord`'s `edges += NSEdge(sn.name, ...)`; diff the two as multisets.
 
 ## 1. Goal & locked decisions
 
