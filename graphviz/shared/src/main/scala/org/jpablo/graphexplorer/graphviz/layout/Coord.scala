@@ -198,7 +198,19 @@ object Coord:
     val ranks = Rank.assign(g)
     if ranks.isEmpty then
       return YInfo(Map.empty, Map.empty, Map.empty, Map.empty, 0, 0, Vector.empty, Vector.empty)
-    val minR = ranks.values.min
+    // `abomination` (flat.c:184, and gv really does call it that): a LABELLED
+    // NON-ADJACENT flat edge hangs its label vnode one rank ABOVE its own, so
+    // an edge on the top rank needs a rank that does not exist yet. gv
+    // prepends one and decrements GD_minrank; the new rank starts at
+    // ht1 = ht2 = 1 and holds nothing but the label.
+    //
+    // `Order` already emits those label vnodes at their true rank (rank −1 for
+    // a top-rank flat edge), so the span comes from there rather than from a
+    // re-derivation here — deciding it locally would need the mincross order
+    // for the ADJACENCY half of gv's test. Without this, every rank below the
+    // real minimum was simply missing from `yOf`, and the first spline through
+    // such a label died on `key not found: -1`.
+    val minR = math.min(ranks.values.min, Order.order(g).order.keys.minOption.getOrElse(Int.MaxValue))
     val maxR = ranks.values.max
 
     val cls     = Cluster.clusters(g)
