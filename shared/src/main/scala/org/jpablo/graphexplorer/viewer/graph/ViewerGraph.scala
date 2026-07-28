@@ -56,6 +56,19 @@ case class ViewerGraph(
   // reset), and an eager O(arrows) set build per copy is pure waste when unused.
   lazy val arrowsSet = arrows.values.toSet
 
+  // Node → incident arrows, memoized per (immutable) graph instance — the
+  // canonical adjacency index. Amortizes across every consumer until the graph
+  // changes: keyboard navigation reads it on each keypress, and it is the home
+  // for the groupBys VisibilityOps.hideSuccessors derives locally over its
+  // differently-filtered arrow set. A self-loop appears in both maps.
+  lazy val arrowsBySource: Map[NodeId, Vector[Arrow]] = arrows.values.toVector.groupBy(_.source)
+  lazy val arrowsByTarget: Map[NodeId, Vector[Arrow]] = arrows.values.toVector.groupBy(_.target)
+
+  /** All arrows touching `n` (self-loops once). */
+  def incidentArrows(n: NodeId): Vector[Arrow] =
+    arrowsBySource.getOrElse(n, Vector.empty) ++
+      arrowsByTarget.getOrElse(n, Vector.empty).filter(a => a.source != a.target)
+
   val modifyElements               = this.modify(_.elements)
   protected[graph] val modifyNodes = this.modify(_.elements.nodes)
   protected val modifyArrows       = this.modify(_.elements.arrows)

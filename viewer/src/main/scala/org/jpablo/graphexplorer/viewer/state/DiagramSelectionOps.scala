@@ -272,8 +272,10 @@ trait DiagramSelectionOps:
         toggle(elementId)
       else
         set(ElementIds.from(elementId))
-      // keyboard navigation starts from the element last clicked
-      navCursorSet(elementId)
+      // keyboard navigation starts from the element last clicked — but only a
+      // click that leaves the element SELECTED may claim the cursor. A
+      // shift-click deselect must not clobber the previous (still valid) one.
+      if now().contains(elementId) then navCursorSet(elementId)
 
     def handleClickOnArrow(arrow: Arrow)(shiftKey: Boolean) =
       val nodeId = arrow.id
@@ -281,7 +283,7 @@ trait DiagramSelectionOps:
         toggle(nodeId)
       else
         set(ElementIds.from(nodeId))
-      navCursorSet(nodeId)
+      if now().contains(nodeId) then navCursorSet(nodeId)
 
     def selectExtendSelectionOverlappingElements(
         rect:                MouseActionRect,

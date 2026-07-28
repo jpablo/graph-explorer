@@ -86,6 +86,9 @@ case class Arrow(
   def toSvg: String = s"arrow:$id"
 
   def endpoints = Seq(source, target)
+
+  /** The endpoint that is not `n` (for a self-loop, `n` itself). */
+  def otherEnd(n: NodeId): NodeId = if source == n then target else source
 end Arrow
 
 object Arrow:

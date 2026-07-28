@@ -3,6 +3,8 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.models.*
+import org.jpablo.graphexplorer.viewer.utils.{ClientPoint, DistanceUtils}
+import org.scalajs.dom
 
 /** A keyboard-navigation direction, in SCREEN space: `dy` grows downward, like
   * client coordinates. Screen-geometric on purpose — Right means "toward what I
@@ -20,7 +22,7 @@ enum NavDirection(val dx: Double, val dy: Double) derives CanEqual:
   * its arrows.
   *
   * From a NODE, the pressed direction gathers the incident arrows whose OTHER
-  * endpoint lies in that half-plane of the screen:
+  * endpoint lies within an alignment cone around that direction:
   *   - exactly one candidate → jump straight to the far node;
   *   - several → select the best-aligned ARROW first (you see which edge you are
   *     about to follow). The fan spreads perpendicular to the travel direction,
@@ -30,115 +32,218 @@ enum NavDirection(val dx: Double, val dy: Double) derives CanEqual:
   * From an ARROW selected by hand (no pending fan), a direction key moves to the
   * endpoint lying that way.
   *
-  * All geometry is read from the rendered SVG (client rects), not the layout
-  * model — backend-agnostic and true to what the user sees at any zoom.
+  * All geometry is read from the rendered SVG (client rects), snapshotted ONCE
+  * per keypress — backend-agnostic and true to what the user sees at any zoom.
+  * The fan itself is never cached: it is a deterministic function of
+  * (origin, direction) and is recomputed per press from the current graph and
+  * geometry, so there is nothing to go stale when the diagram changes.
   */
 trait KeyboardNavOps:
   this: ViewerState =>
 
   /** Where navigation starts: the element the user last clicked or navigation
-    * last landed on. With a multi-selection this is "the last elem" the feature
-    * spec names; it must still be IN the selection to count (see [[navigate]]).
+    * last landed on. Only an element that is still IN the selection counts; a
+    * single-element selection is its own cursor; a multi-selection with no
+    * valid cursor does NOT navigate (never `Set.head` — an unordered set has no
+    * deterministic "last element", and guessing would collapse the selection
+    * from an origin the user cannot predict).
     */
   private val navCursorV = Var[Option[ElementId]](None)
 
-  /** Click paths call this so click-then-navigate starts from the click. */
+  /** Click paths call this so click-then-navigate starts from the click. Only
+    * for elements the click left SELECTED — a shift-click deselect must not
+    * claim the cursor (the previous one may still be valid).
+    */
   def navCursorSet(id: ElementId): Unit = navCursorV.set(Some(id))
 
-  /** The pending fan of a two-step move: `candidates` are (arrow, far node)
-    * ordered along the axis PERPENDICULAR to `dir`, `idx` points at the one
-    * currently selected. Valid only while that arrow is still the selection.
+  /** The pending two-step move: only the origin node and pressed direction.
+    * The candidate fan is deliberately NOT stored — see the class comment.
     */
-  private case class NavContext(
-      origin:     NodeId,
-      dir:        NavDirection,
-      candidates: Vector[(ArrowId, NodeId)],
-      idx:        Int
-  )
+  private case class NavContext(origin: NodeId, dir: NavDirection)
   private val navContextV = Var[Option[NavContext]](None)
+
+  /** Marker for the one selection write keyboardNav itself is about to make,
+    * so the invalidation subscription below can tell it apart. */
+  private var navOwnWrite: Option[ElementId] = None
+
+  // Any selection change NOT made by keyboardNav invalidates the pending fan:
+  // the guard-by-coincidence alternative (comparing the selected arrow to a
+  // remembered one) resurrects a dead fan when the user hand-clicks the same
+  // arrow much later. The marker is consumed on the first change either way.
+  locally {
+    selection.signal.changes.foreach { sel =>
+      val own = navOwnWrite
+      navOwnWrite = None
+      val isOwn = own.exists(id => sel.size == 1 && sel.contains(id))
+      if !isOwn then navContextV.set(None)
+    }(using owner)
+  }
 
   object keyboardNav:
 
+    /** Candidates must be aligned with the press, not merely in its half-plane:
+      * cos ≥ 0.17 (~80° cone per side). A lone near-vertical edge with a 1px
+      * horizontal jitter must not become "the single rightward candidate" and
+      * jump the selection visibly downward.
+      */
+    private val MinAlignment = 0.17
+
+    /** Client-px margin: a landed element closer than this to the canvas edge
+      * (or outside it) triggers a pan that brings it back inside. */
+    private val VisibleMargin = 40.0
+
     def navigate(dir: NavDirection): Unit =
       val sel = selection.now()
-      if sel.nonEmpty then
-        val cursor = navCursorV.now().filter(sel.contains).getOrElse(sel.head)
+      val cursorOpt = navCursorV
+        .now()
+        .filter(sel.contains)
+        .orElse(if sel.size == 1 then Some(sel.head) else None)
+      for cursor <- cursorOpt do
         cursor match
-          case n: NodeId  => fromNode(n, dir)
-          case a: ArrowId => fromArrow(a, dir)
           case _: GroupId => () // groups have no arrow topology to follow
+          case _ =>
+            // One geometry snapshot per press: a single findAll pass instead of
+            // one whole-SVG query per candidate (the Mermaid strategy has no id
+            // selector, so per-element queries degrade to full extractions).
+            val centers = centersSnapshot()
+            cursor match
+              case n: NodeId  => fromNode(n, dir, centers)
+              case a: ArrowId => fromArrow(a, dir, centers)
+              case _          => ()
 
-    private def fromNode(n: NodeId, dir: NavDirection): Unit =
-      for c0 <- centerOf(n) do
-        case class Cand(arrowId: ArrowId, other: NodeId, cx: Double, cy: Double)
-        val cands: Vector[Cand] =
-          visibleGraphNow().arrows.values.toVector
-            .filter(a => (a.source == n || a.target == n) && a.source != a.target)
-            .flatMap: a =>
-              val other = if a.source == n then a.target else a.source
-              centerOf(other).map((x, y) => Cand(a.id, other, x, y))
-            // the pressed half-plane, judged by the FAR endpoint's position
-            .filter(c => (c.cx - c0._1) * dir.dx + (c.cy - c0._2) * dir.dy > 0)
+    private case class Cand(arrow: ArrowId, far: NodeId, center: ClientPoint)
+
+    /** The ordered candidate fan from `n` toward `dir`, or None when the
+      * rendered geometry disagrees with the current graph (an async re-render
+      * in flight: a node in the graph but absent from — or zero-sized in — the
+      * old DOM). Navigating on partial geometry mis-aims, so the caller must
+      * abort rather than silently drop the missing candidates: dropping can
+      * leave a "lone" survivor that the single-candidate rule jumps through.
+      */
+    private def candidatesFor(
+        n: NodeId,
+        dir: NavDirection,
+        centers: Map[ElementId, ClientPoint]
+    ): Option[Vector[Cand]] =
+      centers.get(n).flatMap: c0 =>
+        val incident = visibleGraphNow().incidentArrows(n).filter(a => a.source != a.target)
+        // all-or-nothing: every incident far endpoint must resolve, or we abort
+        val resolved = incident.map: a =>
+          val far = a.otherEnd(n)
+          centers.get(far).map(c => Cand(a.id, far, c))
+        Option.unless(resolved.exists(_.isEmpty)):
+          resolved.flatten
+            .filter: c =>
+              val (vx, vy) = (c.center.x - c0.x, c.center.y - c0.y)
+              val len      = DistanceUtils.distance(c0.toTuple, c.center.toTuple) max 1e-9
+              (vx * dir.dx + vy * dir.dy) / len >= MinAlignment
+            // cycling order: along the perpendicular axis, ascending screen coord
+            .sortBy(c => if dir.horizontal then c.center.y else c.center.x)
+
+    private def fromNode(n: NodeId, dir: NavDirection, centers: Map[ElementId, ClientPoint]): Unit =
+      for
+        c0    <- centers.get(n)
+        cands <- candidatesFor(n, dir, centers)
+      do
         cands match
           case Vector() => () // nothing that way
-          case Vector(only) => moveToNode(only.other) // single arrow: follow it through
+          case Vector(only) => moveToNode(only.far, centers) // single arrow: follow it through
           case _ =>
             // initial pick: best angular alignment with the press, then nearest
             def score(c: Cand) =
-              val (vx, vy) = (c.cx - c0._1, c.cy - c0._2)
-              val len      = math.hypot(vx, vy) max 1e-9
+              val len = DistanceUtils.distance(c0.toTuple, c.center.toTuple) max 1e-9
+              val (vx, vy) = (c.center.x - c0.x, c.center.y - c0.y)
               (-(vx * dir.dx + vy * dir.dy) / len, len)
-            // cycling order: along the perpendicular axis, ascending screen coord
-            val ordered = cands.sortBy(c => if dir.horizontal then c.cy else c.cx)
-            val idx     = ordered.zipWithIndex.minBy((c, _) => score(c))._2
-            navContextV.set(Some(NavContext(n, dir, ordered.map(c => (c.arrowId, c.other)), idx)))
-            selectArrow(ordered(idx).arrowId)
+            val idx = cands.indices.minBy(i => score(cands(i)))
+            navContextV.set(Some(NavContext(n, dir)))
+            selectArrow(cands(idx).arrow, centers)
 
-    private def fromArrow(a: ArrowId, dir: NavDirection): Unit =
-      navContextV.now() match
-        case Some(ctx) if ctx.candidates.lift(ctx.idx).exists(_(0) == a) =>
+    private def fromArrow(a: ArrowId, dir: NavDirection, centers: Map[ElementId, ClientPoint]): Unit =
+      // Re-derive the fan from (origin, dir) with CURRENT graph + geometry and
+      // locate the selected arrow in it; a fan it no longer belongs to is stale.
+      val resumed =
+        for
+          ctx   <- navContextV.now()
+          cands <- candidatesFor(ctx.origin, ctx.dir, centers)
+          idx = cands.indexWhere(_.arrow == a)
+          if idx >= 0
+        yield (ctx, cands, idx)
+      resumed match
+        case Some((ctx, cands, idx)) =>
           if ctx.dir.horizontal == dir.horizontal then
             // the travel axis: continue to the far node, or back out
-            if dir == ctx.dir then moveToNode(ctx.candidates(ctx.idx)(1))
-            else moveToNode(ctx.origin)
+            if dir == ctx.dir then moveToNode(cands(idx).far, centers)
+            else moveToNode(ctx.origin, centers)
           else
             // the perpendicular axis walks the fan (ordered ascending, so
             // Down/Right advance and Up/Left retreat); no wrap-around.
-            val i2 = ctx.idx + (if dir == NavDirection.NavDown || dir == NavDirection.NavRight then 1 else -1)
-            if i2 >= 0 && i2 < ctx.candidates.length then
-              navContextV.set(Some(ctx.copy(idx = i2)))
-              selectArrow(ctx.candidates(i2)(0))
-        case _ =>
+            val i2 = idx + (if dir == NavDirection.NavDown || dir == NavDirection.NavRight then 1 else -1)
+            if i2 >= 0 && i2 < cands.length then
+              selectArrow(cands(i2).arrow, centers)
+        case None =>
+          navContextV.set(None)
           // arrow selected by hand: go to the endpoint lying in the pressed
           // direction (projection of source→target onto the press decides).
           for
             arrow <- visibleGraphNow().arrows.get(a)
-            cs    <- centerOf(arrow.source)
-            ct    <- centerOf(arrow.target)
+            cs    <- centers.get(arrow.source)
+            ct    <- centers.get(arrow.target)
           do
-            val comp = (ct._1 - cs._1) * dir.dx + (ct._2 - cs._2) * dir.dy
-            if comp > 0 then moveToNode(arrow.target)
-            else if comp < 0 then moveToNode(arrow.source)
+            val comp = (ct.x - cs.x) * dir.dx + (ct.y - cs.y) * dir.dy
+            if comp > 0 then moveToNode(arrow.target, centers)
+            else if comp < 0 then moveToNode(arrow.source, centers)
 
-    private def moveToNode(n: NodeId): Unit =
+    private def moveToNode(n: NodeId, centers: Map[ElementId, ClientPoint]): Unit =
       navContextV.set(None)
+      navOwnWrite = Some(n)
       selection.set2(n)
       navCursorV.set(Some(n))
+      ensureVisible(n, centers)
 
-    private def selectArrow(a: ArrowId): Unit =
+    private def selectArrow(a: ArrowId, centers: Map[ElementId, ClientPoint]): Unit =
+      navOwnWrite = Some(a)
       selection.set2(a)
       navCursorV.set(Some(a))
+      ensureVisible(a, centers)
 
-    /** Screen-space centre of an element's rendered box, via the same
-      * strategy-driven lookup the selection machinery uses.
+    /** Pan minimally so the landed element sits inside the canvas viewport —
+      * otherwise repeated presses walk the selection offscreen with no
+      * feedback. Wheel-delta semantics (positive = scroll right/down).
       */
-    private def centerOf(id: ElementId): Option[(Double, Double)] =
+    private def ensureVisible(id: ElementId, centers: Map[ElementId, ClientPoint]): Unit =
       for
+        p     <- centers.get(id)
+        cont  <- Option(dom.document.getElementById("canvas-container"))
         svgEl <- finalSVGNow()
-        el    <- SelectableElement.query(svgEl.ref, ElementIds.from(id), selectionStrategyNow()).headOption
-      yield
-        val r = el.ref.getBoundingClientRect()
-        ((r.left + r.right) / 2.0, (r.top + r.bottom) / 2.0)
+      do
+        val box = cont.getBoundingClientRect()
+        val m   = VisibleMargin
+        val dx =
+          if p.x > box.right - m then p.x - (box.right - m)
+          else if p.x < box.left + m then p.x - (box.left + m)
+          else 0.0
+        val dy =
+          if p.y > box.bottom - m then p.y - (box.bottom - m)
+          else if p.y < box.top + m then p.y - (box.top + m)
+          else 0.0
+        if dx != 0.0 || dy != 0.0 then
+          panByClient(dx, dy, svgEl.ref.viewBox.baseVal)
+
+    /** Screen-space centers of every rendered element, in ONE pass. Zero-sized
+      * rects (detached or not-yet-laid-out elements) are dropped so they read
+      * as "missing" and trigger the all-or-nothing abort in [[candidatesFor]].
+      */
+    private def centersSnapshot(): Map[ElementId, ClientPoint] =
+      finalSVGNow() match
+        case None => Map.empty
+        case Some(svgEl) =>
+          SelectableElement
+            .findAll(svgEl.ref, selectionStrategyNow())
+            .flatMap: el =>
+              val r = el.ref.getBoundingClientRect()
+              if r.width <= 0 && r.height <= 0 then None
+              else Some(el.elementId -> DistanceUtils.clientRectCenter(r))
+            .toMap
 
   end keyboardNav
 

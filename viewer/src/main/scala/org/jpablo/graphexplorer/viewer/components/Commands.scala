@@ -65,17 +65,19 @@ case class Command[-A](
   def labelWithShortcut =
     description.getOrElse(shortLabel) + shortcut.fold("")(s => s" (${s.toList.mkString(" + ")})")
 
-  def execute(arg: Option[A] = None): Unit =
-    // Log to GA
-    val commandIdentifier = description.getOrElse(shortLabel)
-    val p = js.Dynamic.literal(
-      "command_label"  -> commandIdentifier,
-      "event_category" -> "Command",
-      "event_label"    -> commandIdentifier
-    )
-    val gtag = js.Dynamic.global.selectDynamic("gtag")
-    if js.typeOf(gtag) == "function" then
-      gtag("event", "command_executed", p)
+  def execute(arg: Option[A] = None, logEvent: Boolean = true): Unit =
+    // Log to GA — unless the caller marks this as a repeat (a held-down arrow
+    // key auto-repeats ~30×/s; streaming one GA event per repeat is noise).
+    if logEvent then
+      val commandIdentifier = description.getOrElse(shortLabel)
+      val p = js.Dynamic.literal(
+        "command_label"  -> commandIdentifier,
+        "event_category" -> "Command",
+        "event_label"    -> commandIdentifier
+      )
+      val gtag = js.Dynamic.global.selectDynamic("gtag")
+      if js.typeOf(gtag) == "function" then
+        gtag("event", "command_executed", p)
     action.execute(arg)
 
 class RouterCommands(router: Router):
@@ -657,9 +659,13 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       return
 
     val sh = normalizeShortcut(Shortcut(ev.key, ev.shiftKey, ev.metaKey, ev.altKey, ev.ctrlKey))
-    for cmd <- byShortcut.get(sh) do
+    // A shortcut only fires — and only CONSUMES the key — when its command is
+    // applicable (same isVisible gate the palette uses). Swallowing keys for
+    // inapplicable commands broke browser defaults: bare arrow keys with an
+    // empty selection used to kill scrolling of the focused canvas pane.
+    for cmd <- byShortcut.get(sh) if cmd.isVisible(state.selection.now()) do
       // Prevent default for all handled shortcuts so the pressed key
       // does not leak into newly-focused inputs (e.g. New Node label dialog)
       ev.preventDefault()
       ev.stopPropagation()
-      cmd.execute()
+      cmd.execute(logEvent = !ev.repeat)

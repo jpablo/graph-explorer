@@ -22,6 +22,13 @@ object DistanceUtils {
    */
   def boundingBoxCenter(bbox: dom.svg.Rect): Point =
     (bbox.x + bbox.width / 2.0, bbox.y + bbox.height / 2.0)
+
+  /**
+   * Center of a CLIENT-space rect (`getBoundingClientRect`), as a [[ClientPoint]]
+   * so the type system keeps screen-space and SVG-space coordinates apart.
+   */
+  def clientRectCenter(r: dom.DOMRect): ClientPoint =
+    ClientPoint(r.left + r.width / 2.0, r.top + r.height / 2.0)
   
   /**
    * Finds the point closest to a target point from a sequence of candidate points.

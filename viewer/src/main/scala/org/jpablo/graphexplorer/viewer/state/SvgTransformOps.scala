@@ -36,6 +36,17 @@ trait SvgTransformOps:
       translateXY -> SvgPoint.origin
     )
 
+  /** Pan the canvas by a CLIENT-space delta (px), with wheel semantics: a
+    * positive `dx` scrolls the view right (content moves left). Same
+    * client→user-space conversion as [[handleWheel]]'s pan branch.
+    */
+  def panByClient(dx: Double, dy: Double, viewBox: dom.SVGRect): Unit =
+    val clientHeight = dom.window.innerHeight max 1
+    val clientWidth  = dom.window.innerWidth max 1
+    val z            = zoomValue.now()
+    val scale        = viewBox.width / clientWidth max viewBox.height / clientHeight
+    translateXY.update(_ - SvgPoint(dx * scale / z, dy * scale / z))
+
   def handleWheel(wEv: dom.WheelEvent, viewBox: dom.SVGRect) =
     val clientHeight = dom.window.innerHeight max 1
     val clientWidth  = dom.window.innerWidth max 1

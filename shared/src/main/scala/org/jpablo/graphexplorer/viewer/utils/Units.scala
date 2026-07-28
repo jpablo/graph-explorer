@@ -22,6 +22,7 @@ object SvgPoint:
     def *(b: Double): SvgPoint = SvgPoint(a.x * b, a.y * b)
 
 // Client coordinate system (screen space, pixels)
-case class ClientPoint(x: Double, y: Double)
+case class ClientPoint(x: Double, y: Double):
+  def toTuple = (x, y)
 
 case class BBox(x: Double, y: Double, width: Double, height: Double)
