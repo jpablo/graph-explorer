@@ -1,0 +1,6 @@
+digraph "FlatLabelTopRank" {
+    rankdir=TB;
+    { rank=same; a -> m -> b }
+    a -> b [label="over the top"];
+    b -> c;
+}

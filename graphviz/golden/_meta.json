@@ -3428,6 +3428,44 @@
         }
       }
     },
+    "193-flat-label-top-rank.dot": {
+      "input": "193-flat-label-top-rank.dot",
+      "sha256": "11ffdcb19c21f8e244b1f6e90c6c5a3191805eedfbafff14ef69f8e69fa4b594",
+      "formats": {
+        "dot": {
+          "status": "success",
+          "sha256": "e03a1a135937992d96a74984a50fb58302fd280f3b9bda18f341a103ac6101c6"
+        },
+        "plain": {
+          "status": "success",
+          "sha256": "c13a636a031607375b87bff93c4a313713dd100d2d08e537b1c3b4433ea51488"
+        },
+        "plain-ext": {
+          "status": "success",
+          "sha256": "c13a636a031607375b87bff93c4a313713dd100d2d08e537b1c3b4433ea51488"
+        },
+        "json": {
+          "status": "success",
+          "sha256": "c3e16b2a7f7313e3fe416c06f1cd67c332c40ba8215fe4e181747606aac21ad0"
+        },
+        "json0": {
+          "status": "success",
+          "sha256": "076f61eae36261dc6adeb854a43d94de3ba5e7d207a03188e6648468a6702f6b"
+        },
+        "dot_json": {
+          "status": "success",
+          "sha256": "442449d58e7b61a1cf9f97654af6c5bca149008c28d45dfd41cb3883ab10ed7b"
+        },
+        "xdot": {
+          "status": "success",
+          "sha256": "bbea93b9bee45d66d62c99aa833992375008aa8335b6de0d4fc0bc095cc3479c"
+        },
+        "svg": {
+          "status": "success",
+          "sha256": "81a1722e25577000dc2ac4e77fbee4c3ff4debd5781a57137c58407658436bc3"
+        }
+      }
+    },
     "20-parallelogram": {
       "input": "20-parallelogram.dot",
       "sha256": "c08c8b4f71b54d3ee358a232aa3eb37fd7edca33cc06a529bc53d8eedc2dfe87",

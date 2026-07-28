@@ -210,8 +210,10 @@ object Coord:
     // for the ADJACENCY half of gv's test. Without this, every rank below the
     // real minimum was simply missing from `yOf`, and the first spline through
     // such a label died on `key not found: -1`.
-    val minR = math.min(ranks.values.min, Order.order(g).order.keys.minOption.getOrElse(Int.MaxValue))
-    val maxR = ranks.values.max
+    val ord      = Order.order(g)
+    val realMinR = ranks.values.min
+    val minR     = math.min(realMinR, ord.order.keys.minOption.getOrElse(Int.MaxValue))
+    val maxR     = ranks.values.max
 
     val cls     = Cluster.clusters(g)
     val clustOf = if cls.isEmpty then Map.empty[String, Int] else Cluster.clustOf(g)
@@ -233,10 +235,28 @@ object Coord:
           if r == cls(ci).minRank && h + ClOffset > clHt2(ci) then clHt2(ci) = h + ClOffset
           if r == cls(ci).maxRank && h + ClOffset > clHt1(ci) then clHt1(ci) = h + ClOffset
         case None =>
-          if r == minR && h > rootHt2 then rootHt2 = h
+          // `realMinR` too: set_ycoords runs TWICE (before and after
+          // flat_edges), and the second pass STARTS from the first pass's
+          // GD_ht1/GD_ht2 (position.c:642) — so when `abomination` prepends a
+          // rank, the OLD top rank's half-height survives as the root's ht2
+          // and (:670) is pushed back into the new minrank.
+          if (r == minR || r == realMinR) && h > rootHt2 then rootHt2 = h
           if r == maxR && h > rootHt1 then rootHt1 = h
     g.nodes.foreach { n =>
       NodeSize.layoutSize(n, g).foreach(sz => scanNode(n.id, ranks(n.id), sz.halfHeightPt.value))
+    }
+
+    // Flat-edge LABEL vnodes (`flat_node`): each sits in the rank ABOVE its
+    // edge with ND_ht = the label height, and the second set_ycoords scans it
+    // like any node — the rank it occupies (possibly the `abomination` rank
+    // below realMinR) gets its half-height. Which flat edges actually got a
+    // label vnode is mincross's call (adjacency), so it comes from Order.
+    val dedges = g.edges.filter(e => e.tail != e.head)
+    ord.flatLabels.foreach { d =>
+      val fe = dedges(d)
+      for r <- ranks.get(fe.tail) do
+        val (_, lht) = flatLabelDim(fe, g)
+        scanNode(LayoutNode.FlatLabel(d).name, r - 1, lht / 2.0)
     }
 
     // Edge label_vnode (make_chain): a labelled edge seats a label-sized
@@ -302,6 +322,13 @@ object Coord:
         if cls(cc).maxRank == maxR && clHt1(cc) + ClOffset > rootHt1 then rootHt1 = clHt1(cc) + ClOffset
         if cls(cc).minRank == minR && clHt2(cc) + ClOffset > rootHt2 then rootHt2 = clHt2(cc) + ClOffset
       }
+
+    // set_ycoords:670: the root's carried-over ht2 is pushed back into the
+    // minrank (and ht1 into the maxrank). Identity in the normal case; with an
+    // `abomination` rank it is what keeps the OLD top rank's headroom above
+    // the label band (gv's bb is `y(minrank) + GD_ht2`).
+    if rootHt2 > ht2(minR) then ht2(minR) = rootHt2
+    if rootHt1 > ht1(maxR) then ht1(maxR) = rootHt1
 
     val gLabelPad = graphLabelPad(g)
     val labelTop  = graphLabelTop(g)

@@ -128,15 +128,22 @@ object GraphBB:
     // GD_ht1/GD_ht2 set the bottom/top (label bands included).
     val cls = Cluster.clusters(g)
     if cls.nonEmpty then
-      val yi   = Coord.yInfo(g)
       val cbbs = Cluster.bbs(g)
       Cluster.childrenOf(g, -1).foreach { i =>
         minX = math.min(minX, cbbs(i).llx - 8.0); maxX = math.max(maxX, cbbs(i).urx + 8.0)
       }
-      if ranks.nonEmpty then
-        val maxR = ranks.values.max; val minR = ranks.values.min
-        minY = math.min(minY, yOf(maxR).value - yi.rootHt1)
-        maxY = math.max(maxY, yOf(minR).value + yi.rootHt2)
+    // The root band GD_ht1/GD_ht2 bounds Y unconditionally (dot_compute_bb),
+    // not just when clusters exist — for a plain graph it is an identity with
+    // the node scan above, since rootHt1/rootHt2 come from the same extremes.
+    // The span is the one yInfo actually LAID OUT: an `abomination` rank sits
+    // below ranks.values.min, and its carried-over headroom (the old top
+    // rank's ht2, position.c:670) is exactly what tops gv's bb there.
+    if ranks.nonEmpty then
+      val yi      = Coord.yInfo(g)
+      val spanMin = yi.yOf.keys.min
+      val spanMax = yi.yOf.keys.max
+      minY = math.min(minY, yOf(spanMax).value - yi.rootHt1)
+      maxY = math.max(maxY, yOf(spanMin).value + yi.rootHt2)
     // Grow by each edge spline's tight curve extent (dot's per-spline
     // update_bb_bz). A no-op for node-contained regular edges; a non-adjacent
     // flat-edge arch rises above its rank and lifts the graph height here.
