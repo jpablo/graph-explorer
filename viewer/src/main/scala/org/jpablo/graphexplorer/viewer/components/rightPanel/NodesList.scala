@@ -6,8 +6,7 @@ import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.{HiddenElements, ViewerState}
-import org.jpablo.graphexplorer.viewer.widgets.{Action, Join, LabeledCheckboxFormControl, Search}
-import org.jpablo.graphexplorer.viewer.widgets.smallInput
+import org.jpablo.graphexplorer.viewer.widgets.{Action, Join, LabeledCheckbox, Search}
 import org.jpablo.graphexplorer.viewer.domUtils.open
 
 def NodesList(state: ViewerState): Div =
@@ -171,13 +170,13 @@ def NodesList(state: ViewerState): Div =
       idAttr := "right-panel-controls",
       // id must differ from ArrowsList's checkbox: both lists are mounted at once, and a
       // duplicated DOM id made a label click in one tab toggle the other tab's checkbox
-      Join(LabeledCheckboxFormControl(id = s"filter-by-active-nodes", labelStr = "only visible", isChecked = onlyActiveVar)),
+      Join(LabeledCheckbox(id = s"filter-by-active-nodes", labelStr = "only visible", isChecked = onlyActiveVar)),
       div(
         cls := "flex gap-2",
         Search(
           placeholder := "filter",
           controlled(value <-- filterVar, onInput.mapToValue --> filterVar)
-        ).smallInput,
+        ),
         Action(
           title := "Expand all groups",
           "Expand",

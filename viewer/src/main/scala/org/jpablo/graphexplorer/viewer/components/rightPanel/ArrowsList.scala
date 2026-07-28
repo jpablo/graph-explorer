@@ -5,8 +5,7 @@ import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.models.Arrow
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
-import org.jpablo.graphexplorer.viewer.widgets.{Action, Join, LabeledCheckboxFormControl, Search}
-import org.jpablo.graphexplorer.viewer.widgets.smallInput
+import org.jpablo.graphexplorer.viewer.widgets.{Action, Join, LabeledCheckbox, Search}
 import com.raquo.airstream.state.Var
 
 // Enum for sort columns
@@ -48,13 +47,13 @@ def ArrowsList(state: ViewerState): Div =
     idAttr := "arrows-list",
     form(
       idAttr := "edges-panel-controls",
-      Join(LabeledCheckboxFormControl(id = s"filter-by-active-arrows", labelStr = "only visible", isChecked = onlyActiveEdges)),
+      Join(LabeledCheckbox(id = s"filter-by-active-arrows", labelStr = "only visible", isChecked = onlyActiveEdges)),
       div(
         cls := "flex gap-2",
         Search(
           placeholder := "filter",
           controlled(value <-- filterEdgesByNodeId, onInput.mapToValue --> filterEdgesByNodeId)
-        ).smallInput,
+        ),
         Action(
           title := "Select filtered edges",
           "Select",

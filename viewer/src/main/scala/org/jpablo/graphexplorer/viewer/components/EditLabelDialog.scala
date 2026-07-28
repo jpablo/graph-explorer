@@ -28,7 +28,7 @@ def EditLabelDialog(state: ViewerState) =
     closeDialog()
 
   val textAreaElement = textArea(
-    cls         := "textarea textarea-bordered w-full", // Added border for visibility
+    cls         := "textarea w-full", // v5: the border is the default
     placeholder := "Enter label text...",
     rows        := 3,                                   // Give it a bit more initial space
     controlled(value <-- modalText, onInput.mapToValue --> modalText),
@@ -43,12 +43,7 @@ def EditLabelDialog(state: ViewerState) =
   div(
     idAttr := "edit-label-dialog",
     child(
-      Dialog(
-        mods = cls("modal-open"),
-        // useCapture to prevent the Escape key to reach DaisyUI
-        onKeyDown.useCapture.filter(_.key == KeyValue.Escape) --> dialogIsOpen.set(false),
-        tabIndex := 0
-      )(
+      Dialog(onDismiss = () => closeDialog())(
         // --- contents ---
         div(
           h3(cls := "font-bold text-md mb-2", "Edit Label"),

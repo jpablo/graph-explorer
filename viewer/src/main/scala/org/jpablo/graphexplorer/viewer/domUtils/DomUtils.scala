@@ -12,6 +12,10 @@ val details = htmlTag("details")
 val dialog  = htmlTag[HTMLDialogElement]("dialog")
 val summary = htmlTag("summary")
 
+/** `close` fires on a native `<dialog>` after Escape (via `cancel`) or a
+  * `method="dialog"` form submit — the single dismissal signal Dialog observes. */
+val onDialogClose = eventProp[org.scalajs.dom.Event]("close")
+
 val ariaLabel = htmlAttr("aria-label", StringAsIsCodec)
 val dataTabId = htmlAttr("data-tab-id", StringAsIsCodec)
 val dataTip   = htmlAttr("data-tip", StringAsIsCodec)

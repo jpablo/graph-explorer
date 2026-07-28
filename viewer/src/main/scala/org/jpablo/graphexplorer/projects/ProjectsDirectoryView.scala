@@ -225,7 +225,7 @@ private def exampleCard(
       previewEnabled.set(true)
 
   div(
-    cls := "example-card card card-compact",
+    cls := "example-card card card-sm", // v5: card-compact became card-sm
     figure(
       div(
         cls := "w-full h-32 overflow-hidden bg-base-200 flex items-center justify-center cursor-pointer",

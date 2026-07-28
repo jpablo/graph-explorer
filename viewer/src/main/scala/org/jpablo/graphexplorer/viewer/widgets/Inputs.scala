@@ -353,26 +353,26 @@ def Search(mods: Mods*): Input =
     mods
   )
 
-def LabeledCheckboxFormControl(
+def LabeledCheckbox(
     id:         String,
     labelStr:   String,
     isChecked:  Var[Boolean],
     isDisabled: Signal[Boolean] = Signal.fromValue(false),
     toggle:     Boolean = true
 ) =
-  div(
-    cls := "form-control",
-    label(
-      forId := id,
-      cls   := "label cursor-pointer",
-      span(cls := "label-text pr-1", labelStr),
-      input(
-        idAttr       := id,
-        autocomplete := "off",
-        tpe          := InputType.checkbox.toString,
-        disabled <-- isDisabled,
-        cls := (if toggle then "toggle toggle-xs" else "checkbox checkbox-xs"),
-        controlled(checked <-- isChecked, onClick.mapToChecked --> isChecked)
-      )
+  // daisyUI 5: a `label.label` wraps the text and the control directly — the
+  // `form-control` wrapper div and the `label-text` class died with v4 (both
+  // were dead CSS here since the v5 upgrade).
+  label(
+    forId := id,
+    cls   := "label cursor-pointer",
+    span(cls := "pr-1", labelStr),
+    input(
+      idAttr       := id,
+      autocomplete := "off",
+      tpe          := InputType.checkbox.toString,
+      disabled <-- isDisabled,
+      cls := (if toggle then "toggle toggle-xs" else "checkbox checkbox-xs"),
+      controlled(checked <-- isChecked, onClick.mapToChecked --> isChecked)
     )
   )
