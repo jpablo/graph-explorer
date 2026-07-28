@@ -4,7 +4,7 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
-import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{NavDirection, PersistedDiagramState, ViewerState}
 import org.scalajs.dom.{KeyValue, window}
 import org.scalajs.dom
 
@@ -494,8 +494,29 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Reverse the Head/Tail *Style* of the selected arrows")
     )
 
+    // ── Keyboard navigation (KeyboardNavOps) ──────────────────────────────
+    // The four arrow keys walk the diagram from the selected element, in
+    // SCREEN directions. One shared description; the palette shows all four
+    // but users discover this with the keys themselves.
+    private def navCommand(label: String, key: String, dir: NavDirection) =
+      Command(
+        label,
+        () => state.keyboardNav.navigate(dir),
+        shortcut = Some(Shortcut(key)),
+        description = Some(
+          s"$label: follow an arrow from the selected element " +
+            "(a lone match jumps through; several select the arrow first — " +
+            "perpendicular keys pick among them, the same key continues)"
+        )
+      )
+    val navigateLeft  = navCommand("Navigate left", "ArrowLeft", NavDirection.NavLeft)
+    val navigateRight = navCommand("Navigate right", "ArrowRight", NavDirection.NavRight)
+    val navigateUp    = navCommand("Navigate up", "ArrowUp", NavDirection.NavUp)
+    val navigateDown  = navCommand("Navigate down", "ArrowDown", NavDirection.NavDown)
+
   object headers:
     val common       = "Common"
+    val navigation   = "Navigation"
     val selection    = "Selection"
     val successors   = "Successors"
     val predecessors = "Predecessors"
@@ -517,6 +538,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.moveToGroup,
       routerCmds.createProject,
       routerCmds.navigateHome
+    ),
+    navigation -> List(
+      all.navigateLeft,
+      all.navigateRight,
+      all.navigateUp,
+      all.navigateDown
     ),
     selection -> List(
       all.hideSelection,
