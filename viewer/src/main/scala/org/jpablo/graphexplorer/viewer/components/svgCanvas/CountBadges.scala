@@ -10,46 +10,65 @@ import scala.scalajs.js
 /** The tree-view triangle, for graphs: a node with CONCEALED direct neighbors
   * wears a small count badge on the corresponding side — successors on the
   * right edge, predecessors on the left — so "navigate and expand" is not
-  * blind. Clicking a badge toggles that side (select + expand/contract),
-  * exactly like clicking a tree triangle.
+  * blind. A COLLAPSED group's box wears its member count on the top-right
+  * corner. Clicking any badge toggles what it counts (select + expand or
+  * contract), exactly like clicking a tree triangle.
   *
   * Decoration only: badges are appended INSIDE each node's `<g>` after layout,
   * so they ride pan/zoom and never perturb the diagram's geometry. Must run
   * on a MOUNTED svg — `getBBox` is meaningless on a detached element.
   */
-object HiddenNeighborBadges:
+object CountBadges:
 
-  val badgeClass = "gx-expand-badge"
+  val badgeClass    = "gx-expand-badge"
+  val collapseClass = "gx-collapse-badge"
 
   private val SvgNS = "http://www.w3.org/2000/svg"
 
   def decorate(
-      svg:      dom.svg.SVG,
-      strategy: SelectableElementStrategy,
-      counts:   Map[NodeId, (Int, Int)],
-      onToggle: (NodeId, Boolean) => Unit // (node, successorSide)
+      svg:               dom.svg.SVG,
+      strategy:          SelectableElementStrategy,
+      concealed:         Map[NodeId, (Int, Int)],
+      onToggleConcealed: (NodeId, Boolean) => Unit, // (node, successorSide)
+      collapsed:         Map[NodeId, Int],
+      onToggleCollapsed: NodeId => Unit
   ): Unit =
-    if counts.nonEmpty then
+    if concealed.nonEmpty || collapsed.nonEmpty then
       svg.querySelectorAllT[dom.Element](strategy.nodeSelector).foreach { el =>
         val id = strategy.extractNodeId(el)
-        counts.get(id).foreach { (succ, pred) =>
-          val bb = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+        lazy val bb = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+        concealed.get(id).foreach { (succ, pred) =>
           val cy = bb.y + bb.height / 2.0
-          if succ > 0 then el.appendChild(badge(bb.x + bb.width, cy, succ, id, successorSide = true, onToggle))
-          if pred > 0 then el.appendChild(badge(bb.x, cy, pred, id, successorSide = false, onToggle))
+          if succ > 0 then
+            el.appendChild(
+              badge(bb.x + bb.width, cy, succ, badgeClass, s"$succ hidden successor(s) — click to show", () => onToggleConcealed(id, true))
+            )
+          if pred > 0 then
+            el.appendChild(
+              badge(bb.x, cy, pred, badgeClass, s"$pred hidden predecessor(s) — click to show", () => onToggleConcealed(id, false))
+            )
+        }
+        collapsed.get(id).foreach { members =>
+          el.appendChild(
+            badge(bb.x + bb.width, bb.y, members, s"$badgeClass $collapseClass", s"$members member(s) — click to expand", () => onToggleCollapsed(id))
+          )
         }
       }
 
   private def badge(
-      cx:            Double,
-      cy:            Double,
-      count:         Int,
-      id:            NodeId,
-      successorSide: Boolean,
-      onToggle:      (NodeId, Boolean) => Unit
+      cx:       Double,
+      cy:       Double,
+      count:    Int,
+      cls:      String,
+      tooltip:  String,
+      onToggle: () => Unit
   ): dom.Element =
     val g = dom.document.createElementNS(SvgNS, "g")
-    g.setAttribute("class", badgeClass)
+    g.setAttribute("class", cls)
+
+    val title = dom.document.createElementNS(SvgNS, "title")
+    title.textContent = tooltip
+    g.appendChild(title)
 
     val c = dom.document.createElementNS(SvgNS, "circle")
     c.setAttribute("cx", cx.toString)
@@ -72,7 +91,7 @@ object HiddenNeighborBadges:
       "click",
       { (ev: dom.Event) =>
         ev.stopPropagation()
-        onToggle(id, successorSide)
+        onToggle()
       }
     )
     g

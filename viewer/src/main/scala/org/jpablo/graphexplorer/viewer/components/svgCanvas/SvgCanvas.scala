@@ -29,7 +29,11 @@ def SvgCanvas(
     /** Concealed-neighbor counts per visible node (successors, predecessors) —
       * the expand-badge model — and the badge click's action. */
     concealedCounts:   Map[org.jpablo.graphexplorer.viewer.models.NodeId, (Int, Int)] = Map.empty,
-    onToggleConcealed: (org.jpablo.graphexplorer.viewer.models.NodeId, Boolean) => Unit = (_, _) => ()
+    onToggleConcealed: (org.jpablo.graphexplorer.viewer.models.NodeId, Boolean) => Unit = (_, _) => (),
+    /** Member counts per collapsed-group box (keyed by proxy id) — the
+      * collapse-badge model — and the badge click's action (expand). */
+    collapsedCounts:   Map[org.jpablo.graphexplorer.viewer.models.NodeId, Int] = Map.empty,
+    onToggleCollapsed: org.jpablo.graphexplorer.viewer.models.NodeId => Unit = _ => ()
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
 
@@ -99,8 +103,10 @@ def SvgCanvas(
   rawSvg
     .amend {
       Seq(
-        // Expand badges need real geometry: getBBox only works once mounted.
-        onMountCallback(_ => HiddenNeighborBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed)),
+        // Count badges need real geometry: getBBox only works once mounted.
+        onMountCallback(_ =>
+          CountBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed)
+        ),
         svg.viewBox   := s"${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}",
         svg.width     := null,
         svg.height    := null,

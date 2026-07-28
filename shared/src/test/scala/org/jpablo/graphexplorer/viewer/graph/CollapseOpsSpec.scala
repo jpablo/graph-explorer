@@ -79,6 +79,25 @@ class CollapseOpsSpec extends FunSuite:
     // an id that no longer names a group is ignored, not crashed on
     assertEquals(sample.collapseGroups(Set(GroupId("ghost"))).nodeIds, sample.nodeIds)
 
+  test("collapsedMemberCounts: every swallowed node counts, keyed by the proxy"):
+    assertEquals(sample.collapsedMemberCounts(Set(g)), Map(proxy -> 2))
+    assertEquals(sample.collapsedMemberCounts(Set(GroupId("ghost"))), Map.empty[NodeId, Int])
+
+  test("collapsedMemberCounts: a nested collapsed group is swallowed by the outer box"):
+    val h = GroupId("h")
+    val nested = sample.modifyElements.using: e =>
+      e.copy(
+        groups = e.groups + (h -> ViewerGroup.group(h)),
+        memberships = (e.memberships - NodeId("c")) + (NodeId("c") -> h) + (h -> g)
+      )
+    assertEquals(nested.collapsedMemberCounts(Set(g, h)), Map(proxy -> 2), "only the outermost box wears a badge")
+    assertEquals(nested.collapsedMemberCounts(Set(h)), Map(CollapseOps.proxyIdFor(h) -> 1))
+
+  test("collapsedMemberCounts: an empty group still gets an entry — the box exists"):
+    val e = GroupId("empty")
+    val withEmpty = sample.modifyElements.using(el => el.copy(groups = el.groups + (e -> ViewerGroup.group(e))))
+    assertEquals(withEmpty.collapsedMemberCounts(Set(e)), Map(CollapseOps.proxyIdFor(e) -> 0))
+
   test("an inner collapsed group is swallowed by the outer one"):
     val outer = GroupId("outer")
     val nested = sample.modifyElements.using: e =>

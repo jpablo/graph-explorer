@@ -164,10 +164,15 @@ case class ViewerState(
             mouseAction = mouseAction,
             edgePositions = svgWithPos.edgePositions,
             strategy = strategy,
-            // consistent with THIS svg: any change to graph/hidden re-renders
+            // consistent with THIS svg: any change to graph/hidden/collapsed re-renders
             concealedCounts = VisibilityRules.concealedCounts(fullGraphNow(), project.hiddenElements.now()),
             onToggleConcealed =
-              (n, succSide) => if succSide then toggleSuccessors(Set(n)) else togglePredecessors(Set(n))
+              (n, succSide) => if succSide then toggleSuccessors(Set(n)) else togglePredecessors(Set(n)),
+            collapsedCounts = fullGraphNow().collapsedMemberCounts(project.collapsedGroups.now()),
+            onToggleCollapsed = { n =>
+              selection.set2(n)
+              selection.toggleCollapse()
+            }
           )
         }
 

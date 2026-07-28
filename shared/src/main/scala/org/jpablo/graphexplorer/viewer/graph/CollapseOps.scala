@@ -38,6 +38,17 @@ trait CollapseOps:
         case Some(parent) => (parent in collapsed) || hasCollapsedAncestor(parent)
     collapsed.filter(g => (g in groups) && !hasCollapsedAncestor(g))
 
+  /** How many NODES each collapsed box swallows (nested groups' members
+    * included), keyed by the box's proxy id — the badge model for collapsed
+    * groups, the way `VisibilityRules.concealedCounts` is for hidden
+    * neighbors. Empty groups count 0 and still get an entry: the box exists
+    * and can be expanded.
+    */
+  def collapsedMemberCounts(collapsed: Set[GroupId]): Map[NodeId, Int] =
+    effectiveCollapsed(collapsed).iterator
+      .map(g => CollapseOps.proxyIdFor(g) -> getAllChildren(Set(g)).collect { case n: NodeId => n }.size)
+      .toMap
+
   /** `collapsed` groups become single boxes. */
   def collapseGroups(collapsed: Set[GroupId]): ViewerGraph =
     val outermost = effectiveCollapsed(collapsed)
