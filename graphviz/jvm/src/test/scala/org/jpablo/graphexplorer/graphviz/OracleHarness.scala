@@ -75,41 +75,16 @@ object OracleHarness:
     *     FLATEDGE branch), and `selfTop` for the one self-loop whose head port
     *     spans the node (side LEFT|RIGHT ⇒ gv's "handle L-R specially").
     *     Gated by the corpus sweep itself plus EdgeLabel2Spec's placement test.
-    *   - 192-rank-gap-callgraph: OPEN WORK, added 2026-07-28. A user call graph
-    *     that CRASHED the layout outright (`key not found: 1`). Root cause was
-    *     `scan_and_normalize` (ns.c:730): gv takes its minimum over the NORMAL
-    *     nodes ONLY and then shifts every node by it, so an `interclust1`
-    *     SLACKNODE sitting above the real nodes lands at a NEGATIVE rank rather
-    *     than dragging them down (gv's own probe: root component finishes
-    *     `real min 0, slack min -8`). We minimised over every node, which pushed
-    *     192's connected body down by 8 while its isolated component stayed at
-    *     0 — so they stopped sharing rank 0, ranks 1..7 held nothing, and the
-    *     first `rows(r)` on an empty rank threw.
-    *     Fixed by threading `isNormal` into the NS. 192's ranks are now gv's
-    *     exactly (run=0, _start=2, db_table=24, span 0..32), all components
-    *     share rank 0, and `dot_json` is down to ONE differing line. As a
-    *     side-effect 191's rank numbering lost its constant +2 offset against gv.
-    *     The X chase then closed two more (2026-07-28), both about MERGED
-    *     multi-edges — 192 declares three of its edges twice:
-    *       - `merge_chain` calls `incr_width` on every intermediate vnode of the
-    *         rep's chain once PER merged edge, so a class of k parallel edges is
-    *         `1 + k·(nodesep/2)` wide, not `1 + nodesep/2` (gv: 19, not 10).
-    *         That closed the LR-constraint phase outright — 771/771 identical.
-    *       - `make_chain` sets a segment's weight to `ω · weight(rep)` and
-    *         `merge_chain` then adds each member's RAW weight, so scaling the
-    *         SUM over-weights the members (gv `ω·1 + 1 = 5` where `ω·2 = 8`).
-    *     `dot_json` is now BYTE-EXACT and the bb matches (3004.6x1962.3); node
-    *     positions are 49 of 59, up from 40.
-    *     What REMAINS is 26 of the 1728 make_edge_pairs weights, all on one
-    *     chain. `merge_chain` walks from the merge point to the END of the
-    *     chain, so when a class is merged at SEVERAL levels — 192's
-    *     `start_worker_if_fits->worker_table` is merged three times, once into
-    *     `start_worker_if_fits->%0` twice and once into `%0->%0`, as interclexp
-    *     rebuilds it at cluster expansion — different SEGMENTS absorb different
-    *     numbers of merges. We apply one class-wide count. Modelling it needs
-    *     per-segment merge tracking through interclexp, not a per-class number.
+    *   - 192-rank-gap-callgraph: CLOSED 2026-07-28, byte-exact in all three
+    *     formats. See [[MergePassSpec]] / [[PenwidthOutlineSpec]] /
+    *     [[PortSideSpec]] for what it cost. It arrived CRASHING the layout
+    *     outright (`key not found: 1`) and closed in five steps: the crash
+    *     (`scan_and_normalize` minimises over NORMAL nodes only, so a slack node
+    *     lands at a negative rank instead of dragging the graph down), two
+    *     merged-multi-edge widths/weights, then the per-PASS merge accounting,
+    *     the penwidth outline, and the dyna-port side.
     */
-  val deferredCorpus: Set[String] = Set("03-subgraph-cluster", "192-rank-gap-callgraph")
+  val deferredCorpus: Set[String] = Set("03-subgraph-cluster")
 
   /** Image-dimension sidecar for a corpus file (`<name>.images.json`), mirroring
     * the `images` option passed to viz-js at capture time. Returns natural sizes

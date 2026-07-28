@@ -586,27 +586,65 @@ enforce the deferral halves of it):
   192's `dot_json` is now **byte-exact**, its bb matches (3004.6x1962.3), and
   node positions are **49 of 59**, up from 40.
 
-  **What is left is 26 of the 1728 `make_edge_pairs` weights, all on one chain.**
-  `merge_chain` walks from the merge point to the END of the chain, so a class
-  merged at SEVERAL levels leaves different segments having absorbed different
-  numbers of merges. 192's `start_worker_if_fits->worker_table` is merged three
-  times — twice into `start_worker_if_fits->%0` and once into `%0->%0`, as
-  `interclexp` rebuilds the inter-cluster chain at expansion — and gv's segment
-  weights come out 3 and 7 (`1·1+2` and `4·1+3`) where a single class-wide count
-  gives 2 and 5. Closing it needs per-SEGMENT merge tracking through interclexp,
-  not a per-class number.
+  **What was left was 26 of the 1728 `make_edge_pairs` weights, all on one
+  chain** — and measuring it first was worth it. Hard-coding gv's 26 weights as a
+  throwaway override moved 192 only from 49/59 exact node positions to 53/59, so
+  the per-segment work was NOT the whole story and doing it blind would have
+  touched `class2`/`interclrep`/`interclexp` — the code all 163 byte-exact files
+  depend on — for a partial result. Dumping the WHOLE aux graph from both sides
+  instead (gv probe on `create_aux_edges`, 1690 nodes / 2649 edges / the seeds,
+  index-aligned) showed the two are identical **except** those 26 weights. That
+  turned "what else is wrong?" into a closed question and made the transcription
+  worth doing.
 
-  **Measured before committing to that (2026-07-28): it is not worth it yet.**
-  Hard-coding gv's 26 weights for that chain — a throwaway override, not a fix —
-  moves 192 from 49/59 exact node positions to 53/59 and `json0` from 99
-  differing lines to 66. So the per-segment transcription buys four positions and
-  does NOT finish the file; something else is also wrong. Against that: the merge
-  bookkeeping lives in `class2`/`interclrep`/`interclexp`, which is the code every
-  one of the 163 byte-exact files depends on, and `merge_chain`'s start segment
-  is only knowable by transcribing how `interclexp` rebuilds an inter-cluster
-  chain at expansion. Worth doing when the REST of 192's x-gap is understood —
-  find the other 6 positions first, then decide whether one transcription closes
-  them all together.
+  **192 CLOSED 2026-07-28, byte-exact in `dot_json` + `json0` + `svg`.** Three
+  more fixes after the aux dump, each a general rule the corpus had never
+  exercised:
+
+  1. **`merge_chain` runs once per PASS, not once per class** (`MergePassSpec`).
+     The passes are the root's `class2` plus one `interclexp` per cluster holding
+     exactly ONE endpoint (a cluster holding both makes the edge
+     `agcontains`-internal and interclexp skips it). Each pass adds the members'
+     raw weight to EVERY segment — and each cluster pass first REBUILDS the end
+     segment on its side (`make_interclust_chain` → `map_path` → `virtual_edge`,
+     which re-copies `ED_weight(orig)`), wiping every merge added so far. So one
+     chain ends up with three different weights; gv's own `merge_chain` probe on
+     192's twice-declared `start_worker_if_fits -> worker_table`:
+
+     ```
+     pass 1 (root, nodesep=18):  all 4                  -> all 5
+     pass 2 (WorkerPool, ns=0):  tail RESET to 1, 5s    -> 2, 6
+     pass 3 (external_worker):   head RESET to 1        -> 3, 7, 2
+     ```
+
+     Note `nodesep=0` on the cluster passes: the `incr_width` inside merge_chain
+     reads `GD_nodesep(g)`, never initialised on a cluster subgraph. **Widths
+     count one merge, weights count three.** With this the aux graph is
+     identical, edge for edge, and all **59 of 59** node positions are gv's.
+
+  2. **A dyna port resolves against the ADJACENT CHAIN NODE, not the far
+     endpoint** (`PortSideSpec`). `dot_splines_` collects the chain's FIRST
+     SEGMENT into `edges[]`, so `hackflag = |Δrank(edges[ind])| > 1` is false for
+     an ordinary chained edge and `endpath(P, hackflag ? &fwdedgeb.out : e, …)`
+     gets the LAST segment — gv's probe reports `tailtype=VIRTUAL` for every
+     `endpath` into a table node, never the real tail. 27 of 192's edges reach
+     `db_table`/`ws_table`/… from vnodes to the RIGHT of the node while their
+     tails are far to the LEFT, so `closestSide` had been entering every one of
+     them on the wrong side (2251.1 vs 1958.9 — opposite edges of the cell).
+
+  3. **`poly_inside` clips to the penwidth-inflated OUTLINE** (`PenwidthOutlineSpec`).
+     We hardcoded `penwidth = 1.0` in `Polygon.init` — invisible on a
+     default-penwidth corpus, wrong on any other. 192's `penwidth=2.35` Mdiamond
+     pulled EIGHTEEN splines ~2pt short in both directions. It is
+     `late_double(n, N_penwidth, …)`, i.e. the ATTRIBUTE only — not `style=bold`
+     / `setlinewidth(N)`, which `gvrender_set_style` applies at render time and
+     which never reach the shape geometry.
+
+  The last 0.27pt was the same merged class again: `beginpath`/`endpath`'s side
+  branch clears `clip` by walking `ED_to_orig` and writing to the **rep's**
+  original edge (splines.c:489/691). A merged member has no chain, so nothing
+  cleared ITS port and `clip_and_install` still clips that copy against the port
+  box. Sharing the rep's flag collapsed the two copies onto one endpoint.
 
 ## 1. Goal & locked decisions
 

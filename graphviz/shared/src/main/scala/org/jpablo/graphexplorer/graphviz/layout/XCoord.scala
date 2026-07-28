@@ -449,6 +449,21 @@ object XCoord:
         val blocks    = expansion.reverseIterator.map(ci => blockOf(ci).reverse).toVector
         val inBlocks  = blocks.iterator.flatten.toSet
         blocks.flatten ++ decomposeOrder(g, res).filterNot(inBlocks)
+    // `expand_cluster` runs `class2` (which builds the interior) and then
+    // `interclexp` (which re-does the edges LEAVING the cluster) — and
+    // `mincross_clust` recurses PREORDER over the cluster forest, so this is the
+    // order the passes happen in.
+    val cluX: Vector[Cluster.CInfo] = Cluster.clusters(g)
+    val expansionOrder: Vector[Int] =
+      def pre(ci: Int): Vector[Int] = ci +: Cluster.childrenOf(g, ci).flatMap(pre)
+      Cluster.childrenOf(g, -1).flatMap(pre)
+    /** The clusters whose `interclexp` re-merges `re`, in expansion order. A
+      * cluster holding BOTH endpoints makes the edge `agcontains`-internal and
+      * interclexp skips it (`if (agcontains(subg, e)) continue`); one holding
+      * exactly one endpoint visits it there, once. */
+    def mergeVisitors(re: org.jpablo.graphexplorer.graphviz.model.REdge): Vector[Int] =
+      expansionOrder.filter(ci => cluX(ci).members(re.tail) != cluX(ci).members(re.head))
+
     val outSegs = mutable.LinkedHashMap.empty[LayoutNode, mutable.ArrayBuffer[Int]]
     res.segments.iterator.zipWithIndex.foreach { case ((t, _), i) =>
       outSegs.getOrElseUpdate(t, mutable.ArrayBuffer.empty) += i
@@ -556,16 +571,33 @@ object XCoord:
       // make_chain gave them. 191: PredictType>ExampleType is gv {1,4} —
       // ends 1, virtual–virtual middles 4 — where scoring every segment gives
       // the spurious {1,2,4}.
-      val interCluster = owned.exists { re =>
-        val a = clustOfX.get(re.tail); val b = clustOfX.get(re.head)
-        (a.isDefined || b.isDefined) && a != b
-      }
-      def clusteredReal(n: LayoutNode): Boolean = n match
-        case LayoutNode.Real(id) => clustOfX.contains(id)
-        case _                   => false
-      val rebuiltEnd = interCluster && (clusteredReal(t) || clusteredReal(h))
-      val omega = if rebuiltEnd then 1 else NSClass.weight(cls(t, chainCi), cls(h, chainCi))
-      val w     = omega * wtRep + wtMerged
+      //
+      // The rebuild also RESETS the accumulated merge weight, which is what
+      // makes a merged multi-edge's segments disagree. `merge_chain` adds the
+      // members' raw weight to EVERY segment, and it runs once per pass that
+      // sees the class — not once per class (see `mergeVisitors`). Each pass
+      // that expands one end's cluster wipes that end back to `virtual_edge`'s
+      // copy of ED_weight(orig), so an end only carries the merges from its own
+      // rebuild onward. 192's `start_worker_if_fits->worker_table` is declared
+      // twice and merged three times (root class2, then WorkerPool's and
+      // external_worker's interclexp), which gv's own probe shows landing as:
+      //
+      //   pass 1 (root, ω=4):  all 4  → all 5
+      //   pass 2 (WorkerPool): tail RESET to 1, rest 5  → 2, 6
+      //   pass 3 (external_worker): head RESET to 1     → 3, 7, 2
+      //
+      // — one chain, three different weights. (Only pass 1 also WIDENS: the
+      // `incr_width` inside merge_chain reads GD_nodesep(g), which is 0 on a
+      // cluster subgraph. Hence `mergeExtra` still counts one merge, not three.)
+      val visits    = owned.map(mergeVisitors).getOrElse(Vector.empty)
+      val mergePasses = 1 + visits.length
+      /** 1-based index of the pass that last rebuilt this end; 0 = never. */
+      def rebornAt(n: LayoutNode): Int = n match
+        case LayoutNode.Real(id) => visits.lastIndexWhere(cluX(_).members(id)) + 1
+        case _                   => 0
+      val reborn = math.max(rebornAt(t), rebornAt(h))
+      val omega  = if reborn > 0 then 1 else NSClass.weight(cls(t, chainCi), cls(h, chainCi))
+      val w      = omega * wtRep + (mergePasses - reborn) * wtMerged
       val (m0, m1) =
         owned match
           case Some(re) =>

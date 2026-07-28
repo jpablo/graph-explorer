@@ -134,8 +134,19 @@ object Polygon:
     v(18) = v(0)
     (v, (bbX, bbY))
 
-  private val Gap       = 4.0 // const.h GAP
-  private val PenWidth  = 1.0 // DEFAULT_NODEPENWIDTH (non-default penwidth deferred)
+  private val Gap = 4.0 // const.h GAP
+
+  /** `late_double(n, N_penwidth, DEFAULT_NODEPENWIDTH, MIN_NODEPENWIDTH)` —
+    * poly_init reads the `penwidth` ATTRIBUTE only (1.0 default, floor 0.0,
+    * `atof` so garbage is 0). Deliberately NOT [[Coord.penwidthOpt]], which also
+    * honours `style=bold`/`setlinewidth(N)`: those are set by
+    * `gvrender_set_style` at RENDER time and never reach the shape geometry. */
+  def attrPenwidth(attrs: org.jpablo.graphexplorer.graphviz.model.Attrs): Double =
+    attrs.get("penwidth").filter(_.nonEmpty) match
+      case None    => 1.0
+      case Some(s) =>
+        val v = s.toDoubleOption.getOrElse(0.0)
+        if v < 0.0 then 1.0 else v
 
   /** Result of `poly_init` for a convex builtin: final node bounding box (pt),
     * the drawn peripheries (each a centred, y-up vertex ring; `rings.head` is
@@ -171,7 +182,12 @@ object Polygon:
       /** `fixedsize=true|shape` (poly_init shapes.c:2107): bb is REPLACED by
         * the user width/height attrs (minW/minH here) instead of maxed with
         * the inflated label bb — the label may overflow (gv warns). */
-      fixed:          Boolean = false
+      fixed:          Boolean = false,
+      /** `penwidth` attr (see [[attrPenwidth]]). It sets how far the OUTLINE
+        * ring sits outside the drawn polygon — and `poly_inside` clips splines
+        * to that ring, so a bold node's edges stop `penwidth/2` further out.
+        * 192's `penwidth=2.35` Mdiamond was worth ~2pt on every spline end. */
+      penwidth:       Double = 1.0
   ): Poly =
     // sides<=2 shape that is distorted/skewed ⇒ approximate by a 120-gon
     // (poly_init: "I don't know how to distort or skew ellipses in postscript").
@@ -284,7 +300,9 @@ object Polygon:
     // ── concentric peripheries + penwidth outline (poly_init bisector loop) ──
     // `outp` = # of vertex rings to synthesise beyond nothing: at least the
     // drawn peripheries, +1 for the penwidth outline when peripheries>=1.
-    val outp = if peripheries >= 1 then peripheries + 1 else math.max(peripheries, 1)
+    val outp =
+      if peripheries >= 1 && penwidth > 0 then peripheries + 1
+      else math.max(peripheries, 1)
     // rings(0)=base, rings(j)=base offset out by j*GAP along each bisector,
     // rings(outp-1)=the penwidth outline.
     val rings = Array.fill(outp)(Array.ofDim[Double](sides, 2))
@@ -331,8 +349,8 @@ object Polygon:
           rings(j)(i2)(0) = qx; rings(j)(i2)(1) = qy
           j += 1
         if outp > peripheries then
-          qx += cosx * PenWidth / 2.0 / Gap
-          qy += sinx * PenWidth / 2.0 / Gap
+          qx += cosx * penwidth / 2.0 / Gap
+          qy += sinx * penwidth / 2.0 / Gap
           rings(peripheries)(i2)(0) = qx; rings(peripheries)(i2)(1) = qy
         i2 += 1
 

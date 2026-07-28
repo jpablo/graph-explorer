@@ -880,16 +880,24 @@ object Spline:
               reversedWork = rt > rh)
           else
             // ── unified make_regular_edge channel (dotsplines.c:1820) ─────
-            // Ported or portless, adjacent or chained. beginpath resolves
-            // the working tail's dyna port vs the segment's OTHER end — the
-            // FIRST VNODE for chains (fwdedgea's head, dotsplines.c:1803);
-            // endpath resolves the head's vs the working TAIL real node
-            // (fwdedgeb keeps the real endpoints, dotsplines.c:1900). HTML
-            // cell ports resolve exactly like record ports (poly_port html
-            // branch → compassPort inside endPort).
+            // Ported or portless, adjacent or chained. Both ends resolve their
+            // dyna port against the ADJACENT NODE ON THE CHAIN, not the far
+            // real endpoint: `closestSide` is handed `agtail(e)`/`aghead(e)` of
+            // the segment beginpath/endpath is given, and dot_splines_ hands
+            // make_regular_edge the chain's FIRST SEGMENT — so `hackflag`
+            // (|Δrank| > 1 on edges[ind]) is false and the walk down
+            // `ND_out(hn).list[0]` leaves `e` at the LAST segment. gv's own
+            // probe on 192: every `endpath` into a table node reports
+            // `tailtype=VIRTUAL`, one rank above, never the real tail.
+            // Comparing against the real tail picks the wrong side whenever the
+            // chain has drifted past the node's centre — 27 of 192's edges
+            // entered `db_table`/`ws_table`/… from the left where gv enters
+            // from the right. HTML cell ports resolve exactly like record ports
+            // (poly_port html branch → compassPort inside endPort).
             val tOther = mids.headOption.map(m => XY(cx(m), cy(m))).getOrElse(XY(cx(hn0), cy(hn0)))
+            val hOther = mids.lastOption.map(m => XY(cx(m), cy(m))).getOrElse(XY(cx(tn0), cy(tn0)))
             val (tGp, tOrigClip) = endPort(tn0, wtPort, tOther)
-            val (hGp, hOrigClip) = endPort(hn0, whPort, XY(cx(tn0), cy(tn0)))
+            val (hGp, hOrigClip) = endPort(hn0, whPort, hOther)
 
             // gv's maximal_bbox (ie, oe) threading: tail (NULL, first seg),
             // chain vnode (in seg, out seg), head (last seg, NULL).
@@ -1000,10 +1008,20 @@ object Spline:
             // record port still clips, against its FIELD box (port.bp).
             // gv clips in the WORKING (top-down) parameterization and only
             // swap_spline's at install — clipInstall(reversedWork) does both.
+            /** `routed` is the REP's chain, so only the rep's ORIGINAL edge went
+              * through beginpath/endpath — and their side branches clear
+              * `clip` by walking `ED_to_orig` and writing to that edge
+              * (splines.c:489/691). A merged member has no chain of its own, so
+              * nothing ever cleared ITS port: `clip_and_install` reads the
+              * member's own `ED_head_port(orig).clip`, still true, and the copy
+              * is clipped against the port box where the rep's is not. 192's
+              * two `start_worker_if_fits -> worker_table:build_inference`
+              * declarations end 0.27pt apart for exactly this reason. */
             def install(oIx: Int, me: org.jpablo.graphexplorer.graphviz.model.REdge,
-                        pts: Vector[XY]): Unit =
+                        pts: Vector[XY], isRep: Boolean = true): Unit =
               out(oIx) = clipInstall(g, pts, me, byId, centerOf,
-                tailClip = tOrigClip && !tCleared, headClip = hOrigClip && !hCleared,
+                tailClip = tOrigClip && !(isRep && tCleared),
+                headClip = hOrigClip && !(isRep && hCleared),
                 reversedWork = rt > rh,
                 tailBp = if tGp.defined then tGp.bp else None,
                 headBp = if hGp.defined then hGp.bp else None)
@@ -1028,7 +1046,8 @@ object Spline:
                 if mi > 0 then
                   var q = 1
                   while q < base.length - 1 do { base(q) = XY(base(q).x + NodeSep, base(q).y); q += 1 }
-                install(dedgeOrigIdx(dj), g.edges(dedgeOrigIdx(dj)), base.toVector)
+                install(dedgeOrigIdx(dj), g.edges(dedgeOrigIdx(dj)), base.toVector,
+                        isRep = mi == 0)
               }
       else
         // ── flat edge (rt == rh): same-rank edge (rank=same / minlen=0) ─────

@@ -337,7 +337,7 @@ object NodeSize:
       val shape = ShapeKind(box = false, regular = reg, plain = false, supported = true)
       val m     = polyMetrics(n, g, shape)
       Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, reg, desc,
-        fixed = fixedSizeOf(n))
+        fixed = fixedSizeOf(n), penwidth = Polygon.attrPenwidth(n.attrs))
     }
 
   /** `ND_label(n)->space.y` (poly_init:2146): the vertical space available
@@ -407,7 +407,7 @@ object NodeSize:
     polyDesc match
       case Some(desc) =>
         val p = Polygon.init(m.dimenX, m.dimenY, m.minW, m.minH, m.valignCentered, shape.regular, desc,
-          fixed = fixedSizeOf(n))
+          fixed = fixedSizeOf(n), penwidth = Polygon.attrPenwidth(n.attrs))
         return Some(Size(In(p.bbX / PointsPerInch), In(p.bbY / PointsPerInch)))
       case None => ()
 
