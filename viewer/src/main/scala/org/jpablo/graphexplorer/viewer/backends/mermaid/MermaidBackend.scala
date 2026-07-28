@@ -162,7 +162,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
         },
         { (error: Any) =>
           completed = true
-          promise.failure(new Exception(s"Mermaid parsing failed: $error"))
+          promise.failure(new Exception(MermaidBackend.explain("parsing", error, text)))
           ()
         }
       )
@@ -178,8 +178,7 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
       { renderResult =>
         promise.success(renderResult.svg)
       },
-      (error: Any) =>
-        promise.failure(new Exception(s"Mermaid rendering failed: $error"))
+      (error: Any) => promise.failure(new Exception(MermaidBackend.explain("rendering", error, text)))
     )
 
     promise.future
@@ -287,6 +286,17 @@ object MermaidBackend:
   private def isInitialized: Boolean =
     !js.isUndefined(windowDyn.__mermaidInitialized) &&
       windowDyn.__mermaidInitialized.asInstanceOf[Boolean]
+
+  /** Mermaid's failure message, with our own diagnosis in front of it when the
+    * source contains something we recognise. Mermaid reports the token the
+    * grammar choked on and the line it choked at, which for a reserved
+    * participant name is neither the word the user wrote nor the line they wrote
+    * it on — so the raw message sends you to the wrong place. Keep it anyway:
+    * when we have nothing to add, it is all there is.
+    */
+  private[mermaid] def explain(phase: String, error: Any, source: String): String =
+    val raw = s"Mermaid $phase failed: $error"
+    MermaidSourceScan.explainParseFailure(source).fold(raw)(hint => s"$hint\n\n$raw")
 
   private def setInitialized(): Unit =
     windowDyn.__mermaidInitialized = true

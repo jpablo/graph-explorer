@@ -110,6 +110,83 @@ private[backends] object MermaidSourceScan:
   def isIdentifierChar(c: Char): Boolean =
     c.isLetterOrDigit || c == '_' || c == '-'
 
+  // ── diagnosing a failed parse ────────────────────────────────────────────
+  //
+  // Mermaid's sequence lexer matches these as keywords case-INSENSITIVELY and
+  // whole-word (`/^(?:actor\b)/i` and friends), so none of them can be a
+  // participant id — but `Actors` and `MyActor` are fine. Taken from the lexer
+  // rules in mermaid 11.12's sequenceDiagram chunk, then each one verified by
+  // actually feeding `participant <kw>` to the parser: 29 of the 30 keywords
+  // break, `as` being the sole survivor. The two-word forms (`left of`,
+  // `right of`) cannot appear as an id anyway and are left out.
+  private val SequenceReservedWords = Set(
+    "activate", "actor", "alt", "and", "autonumber", "box", "break", "create",
+    "critical", "deactivate", "destroy", "details", "else", "end", "link",
+    "links", "loop", "note", "off", "opt", "option", "over", "par",
+    "participant", "properties", "rect", "sequencediagram"
+  )
+
+  private val SequenceArrow = "(?:--?)(?:>>?|\\)|x)".r
+
+  /** True when the source declares a sequence diagram (the only place the
+    * reserved-word rule below applies — `Actor` is a perfectly good flowchart
+    * node id). */
+  private def isSequenceDiagram(source: String): Boolean =
+    source.linesIterator
+      .map(_.trim)
+      .find(l => l.nonEmpty && !l.startsWith("%%") && l != "---")
+      .exists(_.toLowerCase.startsWith("sequencediagram"))
+
+  /** A human explanation for a Mermaid parse failure, when the source contains
+    * something we recognise as a known trap. Runs only AFTER mermaid has
+    * rejected the text, so it can never block a diagram mermaid would accept —
+    * and returns `None` whenever it has nothing useful to add.
+    *
+    * The case it exists for: mermaid's own message names neither the offending
+    * word nor the line that introduced it. A participant called `Actor` reports
+    *
+    * {{{
+    * Parse error on line 12: ...Caller->>Actor: create/load s
+    * Expecting '+', '-', 'ACTOR', got 'participant_actor'
+    * }}}
+    *
+    * — line 12 being the first message that mentions it, while the declaration
+    * on line 4 parsed happily.
+    */
+  def explainParseFailure(source: String): Option[String] =
+    Option.when(isSequenceDiagram(source))(reservedParticipant(source)).flatten
+
+  private def reservedParticipant(source: String): Option[String] =
+    val declaration = "^\\s*(?:participant|actor)\\s+([^\\s:]+)".r
+    val hit = source.linesIterator.zipWithIndex
+      .flatMap { (line, idx) =>
+        val fromDecl = declaration.findFirstMatchIn(line).map(_.group(1))
+        // an undeclared participant is auto-created by its first message, so
+        // check both sides of an arrow too
+        val fromMessage = Option.when(fromDecl.isEmpty) {
+          SequenceArrow.findFirstMatchIn(line).flatMap { m =>
+            val lhs = line.substring(0, m.start).trim
+            val rhs = line.substring(m.end).takeWhile(_ != ':').trim
+            Vector(lhs, rhs).map(stripActivationMark).find(isReserved)
+          }
+        }.flatten
+        fromDecl.filter(isReserved).orElse(fromMessage).map(_ -> (idx + 1))
+      }
+      .nextOption()
+    hit.map { (word, line) =>
+      s"'$word' is a reserved word in Mermaid sequence diagrams (line $line), so it cannot be used " +
+        s"as a participant id — the name is matched whole-word and ignoring case. Rename the id and " +
+        s"keep the label with `as`, e.g. `participant Agent as $word`. " +
+        s"(A longer name containing it, like '${word}s', is fine.)"
+    }
+
+  /** `A->>+B` / `A->>-B`: the +/- activation marks are not part of the name. */
+  private def stripActivationMark(s: String): String =
+    s.dropWhile(c => c == '+' || c == '-').trim
+
+  private def isReserved(candidate: String): Boolean =
+    candidate.nonEmpty && SequenceReservedWords.contains(candidate.toLowerCase)
+
   /** Strip wrapping quotes and decode the `#quot;` escape used by the Mermaid writer. */
   def normalizeLabel(raw: String): String =
     val trimmed = raw.trim
