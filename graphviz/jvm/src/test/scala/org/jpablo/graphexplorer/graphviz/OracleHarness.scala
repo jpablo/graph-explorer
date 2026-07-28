@@ -76,22 +76,23 @@ object OracleHarness:
     *     spans the node (side LEFT|RIGHT ⇒ gv's "handle L-R specially").
     *     Gated by the corpus sweep itself plus EdgeLabel2Spec's placement test.
     *   - 192-rank-gap-callgraph: OPEN WORK, added 2026-07-28. A user call graph
-    *     that CRASHED the layout outright — `key not found: 1` — because its
-    *     ranking leaves a GAP. `dot` ranks each connected component separately
-    *     and offsets them, and this graph's seven isolated nodes (a legend
-    *     cluster plus two unreferenced tables) sit at rank 0 while the connected
-    *     body starts at rank 8, so ranks 1..7 hold nothing. gv's
-    *     `allocate_ranks` sizes GD_rank over the whole minrank..maxrank span, so
-    *     an empty rank still exists with `n == 0` and every mincross loop walks
-    *     past it; ours only had the ranks that carry nodes. Fixed by allocating
-    *     the full span (Order.orderClustered).
-    *     What REMAINS is multi-component PACKING. 40 of 59 node positions are
-    *     already exact and the rank axis is exact for the entire connected body
-    *     — every difference there is in x alone. The isolated component is the
-    *     outlier: we give it a rank of its own (20 ranks to gv's 19) instead of
-    *     packing it alongside, which shifts it in both axes and widens the
-    *     drawing (bb 2986.6x2165.1 vs 3004.6x1962.3). That is `pack`/component
-    *     merging, not ranking or mincross.
+    *     that CRASHED the layout outright (`key not found: 1`). Root cause was
+    *     `scan_and_normalize` (ns.c:730): gv takes its minimum over the NORMAL
+    *     nodes ONLY and then shifts every node by it, so an `interclust1`
+    *     SLACKNODE sitting above the real nodes lands at a NEGATIVE rank rather
+    *     than dragging them down (gv's own probe: root component finishes
+    *     `real min 0, slack min -8`). We minimised over every node, which pushed
+    *     192's connected body down by 8 while its isolated component stayed at
+    *     0 — so they stopped sharing rank 0, ranks 1..7 held nothing, and the
+    *     first `rows(r)` on an empty rank threw.
+    *     Fixed by threading `isNormal` into the NS. 192's ranks are now gv's
+    *     exactly (run=0, _start=2, db_table=24, span 0..32), all components
+    *     share rank 0, and `dot_json` is down to ONE differing line. As a
+    *     side-effect 191's rank numbering lost its constant +2 offset against gv.
+    *     What REMAINS is within-rank X only: the bb is 2986.6x1962.3 against
+    *     3004.6x1962.3 — height exact, 18pt narrow — and 40 of 59 node
+    *     positions match with every difference in x alone. That is mincross /
+    *     XCoord on this graph, the same class of work as the 191 campaign.
     */
   val deferredCorpus: Set[String] = Set("03-subgraph-cluster", "192-rank-gap-callgraph")
 

@@ -56,16 +56,20 @@ class EdgeLabel2Spec extends FunSuite:
       }
     }
     // rank, slot and identity as gv's own `flat_node` probe reports them
+    // rank, slot and identity as gv's own `flat_node` probe reports them. The
+    // rank numbers ARE gv's: they used to be ours+2, because a slack node was
+    // anchoring scan_and_normalize and pushing every real rank down (see
+    // SlackNormalizeSpec) — the slots never moved.
     assertEquals(placed, Vector(
-      (3,  8, "ModuleBound>ProgramCompanion"),
-      (5,  6, "RuntimeContext>ProgramType"),
-      (7, 16, "ProgramRunnerGiven>DspyError"),
-      (7, 18, "PredictorState>ProgramPredictorsGiven"),
-      (7, 19, "ProgramPredictorsGiven>PredictorView"),
-      (7, 20, "ProgramPredictorsGiven>PredictorView"),
-      (7, 21, "PredictorState>ParaCategoryGiven"),
-      (7, 23, "ParaCategoryGiven>PredictorState"),
-      (7, 27, "SignatureIO>SignatureLayoutType")))
+      (1,  8, "ModuleBound>ProgramCompanion"),
+      (3,  6, "RuntimeContext>ProgramType"),
+      (5, 16, "ProgramRunnerGiven>DspyError"),
+      (5, 18, "PredictorState>ProgramPredictorsGiven"),
+      (5, 19, "ProgramPredictorsGiven>PredictorView"),
+      (5, 20, "ProgramPredictorsGiven>PredictorView"),
+      (5, 21, "PredictorState>ParaCategoryGiven"),
+      (5, 23, "ParaCategoryGiven>PredictorState"),
+      (5, 27, "SignatureIO>SignatureLayoutType")))
 
   test("191: dot_json is byte-exact — the whole LAYOUT matches gv"):
     // The strongest 191 gate there is: dot_json carries every node's position,

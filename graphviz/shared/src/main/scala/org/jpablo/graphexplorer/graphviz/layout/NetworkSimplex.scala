@@ -41,10 +41,17 @@ object NetworkSimplex:
               * THIS sequence with musl-qsort's exact (tie-unstable)
               * permutation — the oracle's libc — instead of a stable rank
               * sort of `nodes` order. Empty ⇒ legacy stable sort. */
-            tbOrder: Seq[String] = Seq.empty): Map[String, Int] =
+            tbOrder: Seq[String] = Seq.empty,
+            /** `ND_node_type(n) == NORMAL` — `scan_and_normalize` (ns.c:730)
+              * takes its minimum over the NORMAL nodes only, then shifts EVERY
+              * node by it, so a SLACKNODE that sat above them lands at a
+              * NEGATIVE rank instead of dragging the real nodes down. Default:
+              * everything is normal, which is the flat (no-cluster) case. */
+            isNormal: String => Boolean = _ => true): Map[String, Int] =
     if nodes.isEmpty then return Map.empty
     val nodeList = nodes.toVector
     val N        = nodeList.length
+    val normal   = Array.tabulate(N)(i => isNormal(nodeList(i)))
     val idx      = nodeList.iterator.zipWithIndex.toMap
     val es       = edges.toVector
     val E        = es.length
@@ -462,7 +469,12 @@ object NetworkSimplex:
     def scanAndNormalize(): Int =
       var mn = Int.MaxValue; var mx = Int.MinValue
       var v = 0
-      while v < N do { mn = math.min(mn, rank(v)); mx = math.max(mx, rank(v)); v += 1 }
+      // the min/max scan skips non-NORMAL nodes...
+      while v < N do
+        if normal(v) then { mn = math.min(mn, rank(v)); mx = math.max(mx, rank(v)) }
+        v += 1
+      if mn == Int.MaxValue then { mn = 0; mx = 0 } // no normal node: nothing to anchor
+      // ...but the shift does not.
       v = 0; while v < N do { rank(v) -= mn; v += 1 }
       mx - mn
 

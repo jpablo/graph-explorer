@@ -531,14 +531,41 @@ enforce the deferral halves of it):
   Whether a graph gaps depends on how its edge-less clusters collapse during
   dot1's recursive cluster ranking, so the gate is 192 itself.
 
-  **What 192 still needs: multi-component PACKING.** 40 of its 59 node positions
-  are already exact, and the rank axis is exact across the entire connected body
-  — every difference there is in x alone. The isolated component is the outlier:
-  we give it a rank of its own (20 ranks against gv's 19) rather than packing it
-  alongside, which moves it in both axes and widens the drawing (bb
-  2986.6x2165.1 vs 3004.6x1962.3). That is `pack`/component merging, a phase the
-  port has not needed until now — every earlier corpus file was single-component
-  or packed trivially.
+  **It was not packing — it was `scan_and_normalize` (2026-07-28).** The
+  components were never being merged wrongly; one of them was simply in the wrong
+  place. gv (ns.c:730) takes its minimum over the NORMAL nodes ONLY and then
+  shifts EVERY node by it:
+
+  ```c
+  for (n = GD_nlist(G); n; n = ND_next(n))
+      if (ND_node_type(n) == NORMAL) Minrank = MIN(Minrank, ND_rank(n));
+  for (n = GD_nlist(G); n; n = ND_next(n)) ND_rank(n) -= Minrank;
+  ```
+
+  So an `interclust1` SLACKNODE that the solve placed above the real nodes ends
+  up at a NEGATIVE rank instead of dragging them down — gv's root component for
+  192 finishes `real min 0, slack min -8`. We minimised over every node, slack
+  included, which pushed the connected body down by 8 while the isolated
+  component stayed at 0. Both symptoms followed from that one line: the two
+  components stopped sharing rank 0 (so the legend stacked below instead of
+  beside), and ranks 1..7 became empty, which is what actually threw.
+
+  Worth recording how it was found, because the first two hypotheses were wrong.
+  The 51 `interclust1` constraints turned out to be byte-identical to gv's —
+  same count, same `t_len`/`h_len`, zero diff — which ruled out the construction
+  and pointed at the solve. Probing gv per COMPONENT (the first probe read only
+  `GD_nlist`, which `decompose` has already split, and so reported one component
+  as the whole graph) gave `real min 0, slack min -8` and named the mechanism.
+
+  192 now has gv's ranks exactly — `run=0`, `_start=2`, `db_table=24`, span
+  0..32 — every component starts at 0, and `dot_json` is down to ONE differing
+  line (bb width 2987 vs 3005). A free side-effect: 191's rank numbering lost the
+  constant +2 offset it carried against gv's probes all through that campaign.
+
+  **What 192 still needs is within-rank X.** The bb is 18pt narrow with the
+  height exact, and 40 of 59 node positions match with every difference in x
+  alone — mincross/XCoord on this graph, the same class of work as 191, not a
+  missing phase.
 
 ## 1. Goal & locked decisions
 

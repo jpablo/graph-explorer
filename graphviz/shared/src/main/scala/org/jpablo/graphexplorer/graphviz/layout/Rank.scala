@@ -201,6 +201,11 @@ object Rank:
     * init_rank floor (pprof: an isolated cluster leader + the call tree —
     * N16 stuck at its minimum feasible rank). Each component normalizes to
     * rank 0 independently, exactly like gv's per-comp `rank()` calls. */
+  /** A synthetic slack node from `interclust1` — never a NORMAL node, so
+    * `scan_and_normalize` must not anchor on it (see [[NetworkSimplex.solve]]'s
+    * `isNormal`). */
+  private def isSlackNode(n: String): Boolean = n.startsWith("%slack:")
+
   private def solvePerComponent(
       nodes: Vector[String], edges: Vector[NetworkSimplex.NSEdge],
       balance: NSBalance, tbOrder: Vector[String] = Vector.empty
@@ -217,14 +222,17 @@ object Rank:
     // components in first-appearance order over the node list
     val roots = mutable.LinkedHashSet.empty[String]
     nodes.foreach(n => roots += compOf(n))
-    if roots.size <= 1 then NetworkSimplex.solve(nodes, edges, balance = balance, tbOrder = tbOrder)
+    if roots.size <= 1 then
+      NetworkSimplex.solve(nodes, edges, balance = balance, tbOrder = tbOrder,
+        isNormal = n => !isSlackNode(n))
     else
       val out = Map.newBuilder[String, Int]
       roots.foreach { r =>
         val ns = nodes.filter(compOf(_) == r)
         val nsSet = ns.toSet
         val es = edges.filter(e => nsSet(e.tail))
-        out ++= NetworkSimplex.solve(ns, es, balance = balance, tbOrder = tbOrder.filter(nsSet))
+        out ++= NetworkSimplex.solve(ns, es, balance = balance, tbOrder = tbOrder.filter(nsSet),
+          isNormal = n => !isSlackNode(n))
       }
       out.result()
 
@@ -406,6 +414,7 @@ object Rank:
           val off = ml + localOf.getOrElse(e.tail, 0) - localOf.getOrElse(e.head, 0)
           val (tLen, hLen) = if off > 0 then (0, off) else (-off, 0)
           val v = s"%slack:$$root:${slackNames.length}"
+
           slackNames += v
           val w = weightOf(e.attrs)
           extra += NetworkSimplex.NSEdge(v, lt, tLen, 10 * w) // CL_BACK * weight
