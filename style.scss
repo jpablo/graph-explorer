@@ -34,6 +34,16 @@
   --gx-attr-value: 11rem;
 }
 
+// A two-finger horizontal scroll that reaches the viewport at its left edge is
+// classified by macOS as the history back-swipe — one overscroll on the canvas (or
+// in a sidebar/editor that has hit its own scroll edge and chained up) navigates
+// away from the diagram. The canvas also preventDefaults its own wheel events
+// (CanvasContainer); this is the guard for every other surface. -x only: vertical
+// overscroll never navigates, and inner scrollers are unaffected either way.
+html, body {
+  overscroll-behavior-x: none;
+}
+
 // While a panel edge is being dragged the pointer leaves the 7px handle constantly, so the
 // cursor and the selection ban have to hold document-wide or the gesture flickers and starts
 // selecting the editor's text.

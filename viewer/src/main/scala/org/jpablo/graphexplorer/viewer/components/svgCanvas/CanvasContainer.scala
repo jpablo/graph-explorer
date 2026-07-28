@@ -29,7 +29,14 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // Perhaps the solution is to make sure the focus is not lost when clicking on the arrow?
 //    onBlur --> state.mouseAction.inactive(),
     onKeyDown --> commands.handleKeyDown,
-    onWheel(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElemO) =>
+    // The canvas CONSUMES the wheel gesture (it pans/zooms a transform, the page
+    // never scrolls), so it must preventDefault — without it the browser sees an
+    // unconsumed horizontal scroll chaining to an unscrollable viewport, and
+    // macOS classifies the leftward overscroll as the history back-swipe.
+    // Also keeps trackpad pinch (wheel + ctrlKey) from zooming the whole page.
+    // preventDefault works here because the div's listener is non-passive —
+    // Chrome's passive-by-default applies only to window/document/body.
+    onWheel.preventDefault(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElemO) =>
       svgElemO.map(s => state.handleWheel(e, s.ref.viewBox.baseVal))
     )
   )
