@@ -5,9 +5,9 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.RouterCommands
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
-import org.jpablo.graphexplorer.viewer.domUtils.ariaLabel
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, IconButton, IconLink, primary, small}
+import org.jpablo.graphexplorer.viewer.widgets.{FilterChips, InputBox, InputVariant, SelectBox, SelectVariant, TooltipPos}
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
@@ -92,8 +92,8 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
         div(
           cls := "flex flex-wrap md:flex-nowrap justify-end items-center gap-2", // Wrap on small, no-wrap on medium+
           // Search input
-          label(
-            cls := "input input-sm",
+          InputBox(
+            InputVariant.sm,
             i(cls := "bi bi-search"),
             input(
               cls         := "grow",
@@ -105,33 +105,19 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
               )
             )
           ),
-          // Kind filter (daisyUI `filter`): one radio chip per format, one click
-          // to filter and the choice stays visible — where the old <select>
-          // ("" encoding All kinds) cost a click to open and another to choose.
-          // The component's reset button appears once a chip is active.
-          form(
-            cls := "filter flex-nowrap",
-            input(
-              cls := "btn btn-sm btn-square",
-              tpe := "reset",
-              value := "×",
-              title := "All kinds",
-              onClick --> (_ => kindFilterVar.set(None))
-            ),
-            DiagramFormat.values.toSeq.map { format =>
-              input(
-                cls  := "btn btn-sm",
-                tpe  := "radio",
-                nameAttr := "library-kind-filter",
-                ariaLabel := format.toString,
-                checked <-- kindFilterVar.signal.map(_.contains(format)),
-                onChange.mapTo(Some(format)) --> kindFilterVar
-              )
-            }
+          // Kind filter: one chip per format, one click to filter, the choice
+          // stays visible; the widget's reset button restores All kinds.
+          FilterChips(
+            groupName  = "library-kind-filter",
+            options    = DiagramFormat.values.toSeq,
+            labelOf    = _.toString,
+            selected   = kindFilterVar,
+            resetTitle = "All kinds"
           ),
           // Sort dropdown
-          select(
-            cls := "select select-sm h-8",
+          SelectBox(
+            SelectVariant.sm,
+            cls := "h-8",
             SortOption.values.toSeq.map { opt =>
               option(
                 value := opt.toString,
@@ -416,7 +402,7 @@ private def projectCard(graphviz: Graphviz, router: Router, info: Option[Project
         ),
         // Neutral until you reach for it: a wall of cards should not read as a wall of red
         // buttons, but the hover has to say plainly that this one destroys something.
-        IconButton("bi-trash", "Delete diagram", "tooltip-left", cls := "danger")(
+        IconButton("bi-trash", "Delete diagram", TooltipPos.left, cls := "danger")(
           if dom.window.confirm("Are you sure you want to delete this project?") then
             ProjectStorage.deleteProject(project.id)
         )

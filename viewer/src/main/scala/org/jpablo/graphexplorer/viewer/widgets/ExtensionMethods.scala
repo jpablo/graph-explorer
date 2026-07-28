@@ -14,6 +14,10 @@ extension (elem: HtmlElement)
   def tiny = elem.amend(cls := "btn-xs")
   def circle = elem.amend(cls := "btn-circle")
   def ghost = elem.amend(cls := "btn-ghost")
+  def soft = elem.amend(cls := "btn-soft")
+
+  /** Pressed-state that follows a signal (daisyUI `btn-active`). */
+  def activeWhen(flag: Signal[Boolean]) = elem.amend(cls("btn-active") <-- flag)
 
   inline def toTooltip(text: String, pos: String = "tooltip-bottom") =
     Tooltip(text, cls := pos, elem)

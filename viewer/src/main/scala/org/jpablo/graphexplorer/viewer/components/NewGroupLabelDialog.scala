@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Dialog, PrimaryAction, QuietAction}
+import org.jpablo.graphexplorer.viewer.widgets.{Dialog, DialogTextArea, PrimaryAction, QuietAction}
 import org.scalajs.dom.KeyValue
 
 /** Dialog to collect a label before creating a new group. It mirrors the NewNodeLabelDialog UX but triggers group creation on save. */
@@ -25,8 +25,7 @@ def NewGroupLabelDialog(state: ViewerState) =
       state.createGroupWithLabel(pending.elementIds, label)
     closeDialog()
 
-  val textAreaElement = textArea(
-    cls         := "textarea w-full",
+  val textAreaElement = DialogTextArea(
     placeholder := "Enter group label...",
     rows        := 3,
     controlled(value <-- modalText, onInput.mapToValue --> modalText),

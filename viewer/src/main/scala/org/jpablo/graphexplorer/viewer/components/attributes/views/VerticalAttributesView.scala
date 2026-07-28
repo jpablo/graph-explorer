@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components.attributes.views
 
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.widgets.{InputVariant}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{InputAttribute, InputElement, SectionHeader}
 import org.jpablo.graphexplorer.viewer.widgets.*
@@ -134,11 +135,11 @@ private def AttributesViewRow(attRow: AttributeRow) =
                 // Sizing lives in CSS (.attr-value): the track takes what the readout
                 // leaves. Utilities cannot express it here — daisyUI's own .input rule
                 // outranks them and the number would swallow the column.
-                buildInputCell(row).amend(cls := "range-nano"),
+                buildInputCell(row).amend(cls := "gx-range-nano"),
                 // Two controls for one attribute: the readout takes a distinct name so the
                 // pair does not announce as the same thing twice.
                 buildInputCell(row.copy(inputType = InputType.number(s, e, step)))
-                  .amend(cls := "text-[.6rem] input-ghost text-right", aria.label := s"${row.label} value"),
+                  .amend(InputVariant.ghost, cls := "text-[.6rem] text-right", aria.label := s"${row.label} value"),
                 row.unit.map(u => span(cls := "attr-unit", u))
               )
             )

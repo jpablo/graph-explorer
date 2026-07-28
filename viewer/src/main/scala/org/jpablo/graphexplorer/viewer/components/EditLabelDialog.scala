@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.RowBuilder
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Dialog, PrimaryAction, QuietAction}
+import org.jpablo.graphexplorer.viewer.widgets.{Dialog, DialogTextArea, PrimaryAction, QuietAction}
 import org.scalajs.dom.KeyValue
 
 def EditLabelDialog(state: ViewerState) =
@@ -27,8 +27,7 @@ def EditLabelDialog(state: ViewerState) =
     state.editingElementV.now().foreach(elementLabelVar(_).set(modalText.now()))
     closeDialog()
 
-  val textAreaElement = textArea(
-    cls         := "textarea w-full", // v5: the border is the default
+  val textAreaElement = DialogTextArea(
     placeholder := "Enter label text...",
     rows        := 3,                                   // Give it a bit more initial space
     controlled(value <-- modalText, onInput.mapToValue --> modalText),

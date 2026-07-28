@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.widgets.{TooltipPos}
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.RightPanelSection.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
@@ -17,7 +18,7 @@ def RightToolbar(state: ViewerState) =
       case (section, (icon, text)) =>
         Tooltip(
           text = text,
-          cls := "tooltip-left",
+          cls := TooltipPos.left,
           button(
             // `p-1.5` used to sit here and never applied: `.gx-icon-btn`'s own `p-1` ties on
             // specificity and wins on order. The padding is the vocabulary's, not this bar's.

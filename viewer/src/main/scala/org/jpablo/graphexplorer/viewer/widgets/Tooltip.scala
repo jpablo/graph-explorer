@@ -11,3 +11,13 @@ def Tooltip(text: String, mods: Mods*) =
     mods
   )
 
+/** Tooltip position/alignment tokens — the one spelling of `tooltip-*`.
+  * `bottomEnd` (alignment, daisyUI 5.6) is for elements at the window's right
+  * edge, where a centre-aligned bubble clips off-screen. */
+object TooltipPos:
+  val top: String       = "tooltip-top"
+  val bottom: String    = "tooltip-bottom"
+  val left: String      = "tooltip-left"
+  val right: String     = "tooltip-right"
+  val bottomEnd: String = "tooltip-bottom tooltip-end"
+

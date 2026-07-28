@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Label
 import org.jpablo.graphexplorer.viewer.models.Attributes
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{Dialog, PrimaryAction, QuietAction}
+import org.jpablo.graphexplorer.viewer.widgets.{Dialog, DialogTextArea, PrimaryAction, QuietAction}
 import org.scalajs.dom.KeyValue
 
 /** Dialog to collect a label before creating a new node. It mirrors the EditLabelDialog UX but triggers node creation on save. */
@@ -28,8 +28,7 @@ def NewNodeLabelDialog(state: ViewerState) =
       state.addNodeWithSmartConnection(attrs, dir)
     closeDialog()
 
-  val textAreaElement = textArea(
-    cls         := "textarea w-full",
+  val textAreaElement = DialogTextArea(
     placeholder := "Enter label text...",
     rows        := 3,
     controlled(value <-- modalText, onInput.mapToValue --> modalText),

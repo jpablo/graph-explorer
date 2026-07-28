@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.widgets.{SelectVariant, TooltipPos, soft}
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
@@ -220,10 +221,9 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       // -------- show all --------
       Button(
         all.showAll.shortLabel,
-        cls := "btn-soft btn-primary",
         disabled <-- hiddenNodesIsEmpty,
         onClick --> all.showAll.execute()
-      ).tiny.toTooltip(all.showAll.labelWithShortcut),
+      ).tiny.soft.primary.toTooltip(all.showAll.labelWithShortcut),
       CommandsPanel(state, commands).amend(cls := "hidden lg:block")
     ),
     div(
@@ -239,11 +239,11 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         cls := "flex items-center gap-0.5",
         // tooltip-end (daisyUI 5.6 alignment): these sit at the window's right
         // edge, where a centre-aligned bubble clips off-screen.
-        IconButton("bi-question-circle", all.helpKeyboardShortcuts.labelWithShortcut, tipPos = "tooltip-bottom tooltip-end")(
+        IconButton("bi-question-circle", all.helpKeyboardShortcuts.labelWithShortcut, tipPos = TooltipPos.bottomEnd)(
           all.helpKeyboardShortcuts.execute()
         ),
-        IconButton("bi-link-45deg", all.copyShareURL.labelWithShortcut, tipPos = "tooltip-bottom tooltip-end")(all.copyShareURL.execute()),
-        IconButton("bi-info-circle", all.openAboutDialog.labelWithShortcut, tipPos = "tooltip-bottom tooltip-end")(all.openAboutDialog.execute()),
+        IconButton("bi-link-45deg", all.copyShareURL.labelWithShortcut, tipPos = TooltipPos.bottomEnd)(all.copyShareURL.execute()),
+        IconButton("bi-info-circle", all.openAboutDialog.labelWithShortcut, tipPos = TooltipPos.bottomEnd)(all.openAboutDialog.execute()),
         IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
       ),
       // -------- Theme Selector --------
@@ -254,7 +254,8 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         options = themeOptions.collect { case r: MenuOption[String] => (r.value, r.value) },
         onChange.mapToValue --> { theme => state.currentTheme.set(Some(theme)) },
         value <-- state.currentTheme.signal.map(_.getOrElse("light")),
-        cls := "select-ghost w-24 theme-select"
+        SelectVariant.ghost,
+        cls := "w-24 theme-select"
       )
     )
   )

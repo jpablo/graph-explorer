@@ -37,6 +37,74 @@ def Select(
     mods
   )
 
+/** Bare daisyUI select for call sites that build their own `option` children
+  * ([[Select]] above is the (name, id)-pairs convenience). */
+def SelectBox(mods: Mods*) =
+  select(cls := "select", mods)
+
+/** The select family's variant tokens — the one spelling, per WidgetPolicySpec.
+  * Call sites compose these instead of writing `select-*` strings. */
+object SelectVariant:
+  val xs: Mods    = cls := "select-xs"
+  val sm: Mods    = cls := "select-sm"
+  val ghost: Mods = cls := "select-ghost"
+
+/** The input family's variant tokens (see [[SelectVariant]]). */
+object InputVariant:
+  val xs: Mods    = cls := "input-xs"
+  val sm: Mods    = cls := "input-sm"
+  val ghost: Mods = cls := "input-ghost"
+
+/** daisyUI's boxed input: a `label.input` that lays out icons/affixes around a
+  * `grow` inner input (the library search, the command palette). */
+def InputBox(mods: Mods*) =
+  label(cls := "input", mods)
+
+/** The label dialogs' multi-line input (the v5 default border applies). */
+def DialogTextArea(mods: Mods*) =
+  textArea(cls := "textarea w-full", mods)
+
+/** Class-driven daisyUI swap: the two icons cross-fade with a rotate as `active`
+  * flips — no checkbox nested inside the caller's button, which the input-driven
+  * swap idiom would require. */
+def SwapIcon(active: Signal[Boolean], onIcon: String, offIcon: String) =
+  span(
+    cls := "swap swap-rotate",
+    cls("swap-active") <-- active,
+    span(cls := s"swap-on $onIcon"),
+    span(cls := s"swap-off $offIcon")
+  )
+
+/** daisyUI `filter`: one radio chip per option, `None` = unfiltered; the
+  * component's reset button restores All. Options are enumerated by the caller,
+  * so a new value gets a chip without touching this widget. */
+def FilterChips[A](
+    groupName:  String,
+    options:    Seq[A],
+    labelOf:    A => String,
+    selected:   Var[Option[A]],
+    resetTitle: String = "All"
+)(using CanEqual[A, A]) =
+  form(
+    cls := "filter flex-nowrap",
+    input(
+      cls   := "btn btn-sm btn-square",
+      tpe   := "reset",
+      value := "×",
+      title := resetTitle,
+      onClick --> (_ => selected.set(None))
+    ),
+    options.map: opt =>
+      input(
+        cls      := "btn btn-sm",
+        tpe      := "radio",
+        nameAttr := groupName,
+        org.jpablo.graphexplorer.viewer.domUtils.ariaLabel := labelOf(opt),
+        checked <-- selected.signal.map(_.contains(opt)),
+        onChange.mapTo(Some(opt)) --> selected
+      )
+  )
+
 def Menu[A](
     options:        Signal[Seq[MenuEntry[A]]],
     onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor]

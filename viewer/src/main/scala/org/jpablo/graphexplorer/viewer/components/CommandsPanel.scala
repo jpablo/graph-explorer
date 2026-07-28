@@ -1,6 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
+import org.jpablo.graphexplorer.viewer.widgets.{InputBox, InputVariant}
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.{Selection, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.intersperse
@@ -78,8 +79,9 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
       focusSearch.emit(true)
     },
     // Search box at the top with consistent styling
-    label(
-      cls := "input input-xs px-1 w-32 transition-all duration-200 ease-in-out mt-[-3px] no-outline",
+    InputBox(
+      InputVariant.xs,
+      cls := "px-1 w-32 transition-all duration-200 ease-in-out mt-[-3px] no-outline",
       inContext { thisNode =>
         input(
           typ         := "search",

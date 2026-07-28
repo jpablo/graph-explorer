@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.components.codeMirror.CodeMirror
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.state.ViewerState
-import org.jpablo.graphexplorer.viewer.widgets.{IconButton, IconToggle, Tooltip}
+import org.jpablo.graphexplorer.viewer.widgets.{AlertBox, AlertTone, IconButton, IconToggle, SelectBox, SelectVariant, Tooltip, TooltipPos}
 
 def SourceTab(state: ViewerState) =
   // Presentation metadata for the currently selected format, resolved via the backend registry.
@@ -17,8 +17,10 @@ def SourceTab(state: ViewerState) =
       cls := "source-toolbar",
       // Ghost select: the chevron carries the affordance, so the control doesn't need a box
       // competing with the editor beneath it.
-      select(
-        cls := "select select-ghost select-xs source-format",
+      SelectBox(
+        SelectVariant.ghost,
+        SelectVariant.xs,
+        cls := "source-format",
         state.availableFormats.map: (format, info) =>
           option(
             value := format.toString,
@@ -37,7 +39,7 @@ def SourceTab(state: ViewerState) =
         // the per-language title is what the tooltip says.
         Tooltip(
           text = "Documentation",
-          cls := "tooltip-bottom",
+          cls := TooltipPos.bottom,
           a(
             cls    := "gx-icon-btn",
             href   <-- currentInfo.map(_.documentationUrl),
@@ -58,6 +60,6 @@ def SourceTab(state: ViewerState) =
     ),
     child.maybe <-- state.editorNotice.signal.map:
       _.map: notice =>
-        val levelCls = if notice.isError then "alert-error" else "alert-info"
-        div(role := "alert", cls := s"m-1 mt-2 p-1 rounded-box flex-none alert $levelCls text-sm", span(notice.message))
+        val tone = if notice.isError then AlertTone.Error else AlertTone.Info
+        AlertBox(tone, cls := "m-1 mt-2 p-1 rounded-box flex-none text-sm", span(notice.message))
   )
