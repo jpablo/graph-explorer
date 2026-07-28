@@ -716,17 +716,23 @@ svg {
         // do better. Selection is a transient screen state; the penwidth distinction
         // survives everywhere unselected, the node border rect already flattens node
         // penwidths the same way, and the Mermaid rule below was always flat.
-        path,
-        polygon {
+        // Same element list as the stroke rule above — an odot head is an
+        // ellipse, a vee/open head a polyline; leaving them out kept the old
+        // width right where the shaft had just thickened to 3.
+        path, line, polygon, polyline, ellipse {
           stroke-width: 3;
           vector-effect: non-scaling-stroke;
         }
 
-        // The arrowHEAD must thicken with the shaft or the highlight visibly stops
+        // The arrowHEAD must recolor with the shaft or the highlight visibly stops
         // at the head's base: the stroke rule above only recolors the polygon's
-        // OUTLINE, leaving its default black fill. Recolor solid heads; open
-        // markers (fill white/none) and user-colored heads keep their fill.
-        polygon[fill="black"] {
+        // OUTLINE, leaving its fill. Recolor every SOLID head — the emitter fills
+        // a solid head with the edge's own color (black by default), so an earlier
+        // [fill="black"] guard left a colored edge's head green on a blue shaft.
+        // Open markers (onormal/odot/…) are exactly fill="none": their openness is
+        // their identity, so they keep it; ellipse covers dot-family heads.
+        polygon:not([fill="none"]),
+        ellipse:not([fill="none"]) {
           fill: var(--gx-select) !important;
         }
       }
