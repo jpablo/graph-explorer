@@ -707,11 +707,17 @@ svg {
         // in svg user units are multiplied by the scale-to-fit factor, so the same
         // number renders hairline on a dense graph and balloons on a 5-node one.
         // Every selection decoration shares this space: border rect 2px, edge 3px,
-        // hit halo 14px. Only where no explicit penwidth attr exists — a user-set
-        // width is a deliberate diagram-space choice the highlight must not flatten.
-        // (The hit halo also matches, but its inline 14px beats this rule.)
-        path:not([stroke-width]),
-        polygon:not([stroke-width]) {
+        // hit halo 14px (whose inline 14px beats this rule).
+        // UNCONDITIONAL, penwidth edges included. An earlier :not([stroke-width])
+        // guard tried to preserve a user-set penwidth as "a deliberate diagram-space
+        // choice" — but a diagram-unit 2.2 collapses under the fit factor while
+        // everything else holds at 3 screen px, so on any large graph the HEAVY
+        // edges selected thinnest (inverted), and CSS can't express max(3, pw·k) to
+        // do better. Selection is a transient screen state; the penwidth distinction
+        // survives everywhere unselected, the node border rect already flattens node
+        // penwidths the same way, and the Mermaid rule below was always flat.
+        path,
+        polygon {
           stroke-width: 3;
           vector-effect: non-scaling-stroke;
         }
