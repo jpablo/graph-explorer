@@ -596,6 +596,18 @@ enforce the deferral halves of it):
   gives 2 and 5. Closing it needs per-SEGMENT merge tracking through interclexp,
   not a per-class number.
 
+  **Measured before committing to that (2026-07-28): it is not worth it yet.**
+  Hard-coding gv's 26 weights for that chain — a throwaway override, not a fix —
+  moves 192 from 49/59 exact node positions to 53/59 and `json0` from 99
+  differing lines to 66. So the per-segment transcription buys four positions and
+  does NOT finish the file; something else is also wrong. Against that: the merge
+  bookkeeping lives in `class2`/`interclrep`/`interclexp`, which is the code every
+  one of the 163 byte-exact files depends on, and `merge_chain`'s start segment
+  is only knowable by transcribing how `interclexp` rebuilds an inter-cluster
+  chain at expansion. Worth doing when the REST of 192's x-gap is understood —
+  find the other 6 positions first, then decide whether one transcription closes
+  them all together.
+
 ## 1. Goal & locked decisions
 
 Replace the `@viz-js/viz` (Graphviz-in-WASM) runtime dependency with a
