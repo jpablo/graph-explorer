@@ -1,0 +1,54 @@
+{
+  "name": "DisconnectedRankSets",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 126 252",
+  "_subgraph_cnt": 1,
+  "objects": [
+    {
+      "name": "%1",
+      "rank": "source",
+      "_gvid": 0,
+      "nodes": [
+        1,2
+      ]
+    },
+    {
+      "_gvid": 1,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 2,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "y",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "z",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 3,
+      "head": 4
+    },
+    {
+      "_gvid": 1,
+      "tail": 4,
+      "head": 5
+    }
+  ]
+}

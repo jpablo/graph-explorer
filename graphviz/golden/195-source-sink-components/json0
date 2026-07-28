@@ -1,0 +1,117 @@
+{
+  "name": "SourceSinkComponents",
+  "directed": true,
+  "strict": false,
+  "bb": "0,0,126,324",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%1",
+      "rank": "source",
+      "_gvid": 0,
+      "nodes": [
+        2,3
+      ]
+    },
+    {
+      "name": "%3",
+      "rank": "sink",
+      "_gvid": 1,
+      "nodes": [
+        4,5
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,306",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,306",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 4,
+      "name": "s",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,18",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 5,
+      "name": "t",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,18",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 6,
+      "name": "x",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,234",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 7,
+      "name": "y",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,162",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 8,
+      "name": "z",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "27,90",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 9,
+      "name": "p",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,234",
+      "width": "0.75"
+    },
+    {
+      "_gvid": 10,
+      "name": "q",
+      "height": "0.5",
+      "label": "\\N",
+      "pos": "99,162",
+      "width": "0.75"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 6,
+      "head": 7,
+      "pos": "e,27,180.1 27,215.7 27,208.41 27,199.73 27,191.54"
+    },
+    {
+      "_gvid": 1,
+      "tail": 7,
+      "head": 8,
+      "pos": "e,27,108.1 27,143.7 27,136.41 27,127.73 27,119.54"
+    },
+    {
+      "_gvid": 2,
+      "tail": 9,
+      "head": 10,
+      "pos": "e,99,180.1 99,215.7 99,208.41 99,199.73 99,191.54"
+    }
+  ]
+}

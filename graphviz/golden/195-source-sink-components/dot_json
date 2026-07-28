@@ -1,0 +1,87 @@
+{
+  "name": "SourceSinkComponents",
+  "directed": true,
+  "strict": false,
+  "bb": "0 0 126 324",
+  "_subgraph_cnt": 2,
+  "objects": [
+    {
+      "name": "%1",
+      "rank": "source",
+      "_gvid": 0,
+      "nodes": [
+        2,3
+      ]
+    },
+    {
+      "name": "%3",
+      "rank": "sink",
+      "_gvid": 1,
+      "nodes": [
+        4,5
+      ]
+    },
+    {
+      "_gvid": 2,
+      "name": "a",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 3,
+      "name": "b",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 4,
+      "name": "s",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 5,
+      "name": "t",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 6,
+      "name": "x",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 7,
+      "name": "y",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 8,
+      "name": "z",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 9,
+      "name": "p",
+      "label": "\\N"
+    },
+    {
+      "_gvid": 10,
+      "name": "q",
+      "label": "\\N"
+    }
+  ],
+  "edges": [
+    {
+      "_gvid": 0,
+      "tail": 6,
+      "head": 7
+    },
+    {
+      "_gvid": 1,
+      "tail": 7,
+      "head": 8
+    },
+    {
+      "_gvid": 2,
+      "tail": 9,
+      "head": 10
+    }
+  ]
+}

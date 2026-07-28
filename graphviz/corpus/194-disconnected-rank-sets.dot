@@ -1,0 +1,4 @@
+digraph "DisconnectedRankSets" {
+    { rank=source; a; b }
+    x -> y -> z;
+}

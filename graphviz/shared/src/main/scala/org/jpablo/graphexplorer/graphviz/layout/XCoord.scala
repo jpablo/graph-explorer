@@ -783,6 +783,14 @@ object XCoord:
     // nodes. The order-sensitive NS reproduces gv's x-solve only fed this order.
     val nodeOrder: Vector[LayoutNode] =
       clSlacks.reverseIterator.toVector ++ slackNodes.reverseIterator.toVector ++ decomp
+    // `connectGraph` (position.c:76) is deliberately NOT ported: gv needs it
+    // because its rank() hard-fails on a DISCONNECTED aux graph (rank=source/
+    // sink sets can strand a rank with no crossing edges), then retries after
+    // bridging rank heads with zero-len/zero-weight slack edges — constraints
+    // that change feasibility for gv's solver, not the optimum. Our solve
+    // tolerates the disconnection and lands on gv's exact coordinates; corpus
+    // 194/195 pin both trigger shapes byte-exact. Port it only if a future
+    // corpus case disagrees.
     val xr = NetworkSimplex.solve(nodeOrder.map(_.name), edges.toSeq, balance = NSBalance.LeftRight, initRanks = initRank)
     // NS returns String-keyed ranks; map back to LayoutNode via the
     // historical name-form parse (Order produces the same Virtual/Slack

@@ -1,0 +1,6 @@
+digraph "SourceSinkComponents" {
+    { rank=source; a; b }
+    { rank=sink; s; t }
+    x -> y -> z;
+    p -> q;
+}
