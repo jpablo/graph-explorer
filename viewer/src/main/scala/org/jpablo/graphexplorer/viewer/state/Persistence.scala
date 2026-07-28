@@ -4,7 +4,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.Signal
 import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
-import org.jpablo.graphexplorer.viewer.models.ElementIds
+import org.jpablo.graphexplorer.viewer.models.{ElementIds, GroupId}
 import org.scalajs.dom
 import upickle.default.*
 
@@ -25,6 +25,7 @@ trait Persistence:
     val restoredViewerSettings = viewerSettings.now()
 
     project.hiddenElements.set(restoredDiagramState.hiddenElements)
+    project.collapsedGroups.set(restoredDiagramState.collapsedGroups)
     restoredDiagramState.format
       .flatMap(format => Try(DiagramFormat.valueOf(format)).toOption)
       .foreach(formatSelection.set)
@@ -51,13 +52,20 @@ trait Persistence:
   private def setupStateSynchronization(): Unit =
     // synchronize ViewerState ~> PersistedState
     Signal
-      .combine(project.hiddenElements.signal, project.name.signal, sourceText.signal, formatSelection.signal)
+      .combine(
+        project.hiddenElements.signal,
+        project.collapsedGroups.signal,
+        project.name.signal,
+        sourceText.signal,
+        formatSelection.signal
+      )
       .changes
       .distinct
-      .foreach: (hidden, name, source, format) =>
+      .foreach: (hidden, collapsed, name, source, format) =>
         persistedDiagramState.set(
           PersistedDiagramState(
             hiddenElements = hidden,
+            collapsedGroups = collapsed,
             projectName = name,
             source = source,
             format = Some(format.toString)
@@ -97,6 +105,8 @@ trait Persistence:
 
 case class PersistedDiagramState(
     hiddenElements: HiddenElements = ElementIds(),
+    // Folded groups, like hiddenElements: a view setting, saved with the page.
+    collapsedGroups: Set[GroupId] = Set.empty,
     projectName:    String = "",
     source:         String = "",
     format:         Option[String] = None
@@ -116,6 +126,7 @@ object PersistedDiagramState:
   def minimal(source: Option[String] = None) =
     PersistedDiagramState(
       hiddenElements = ElementIds(),
+      collapsedGroups = Set.empty,
       projectName = defaultProjectName,
       source = source.getOrElse(minimalGraphText),
       format = None

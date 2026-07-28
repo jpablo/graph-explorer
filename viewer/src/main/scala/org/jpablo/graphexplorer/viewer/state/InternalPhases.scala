@@ -6,6 +6,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, RenderOnlyDiagram}
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.models.GroupId
 import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
 
@@ -35,6 +36,7 @@ class InternalPhases(
     languages:     DiagramLanguages,
     initialSource: Option[String] = None,
     hiddenNodes:   Signal[HiddenElements],
+    collapsedGroups: Signal[Set[GroupId]] = Signal.fromValue(Set.empty),
     resetView:     () => Unit = () => (),
     autoFit:       () => Boolean = () => false,
     editorNotice:  Var[Option[EditorNotice]] = Var(None),
@@ -171,9 +173,9 @@ class InternalPhases(
   /** Graph with hidden nodes removed: ViewerGraph ~> ViewerGraph
     */
   val visibleGraph: Signal[ViewerGraph] =
-    fullGraphV.signal.combineWithFn(hiddenNodes): (fullGraph: ViewerGraph, hiddenNodes) =>
+    fullGraphV.signal.combineWithFn(hiddenNodes, collapsedGroups): (fullGraph, hiddenNodes, collapsed) =>
       withLog("3. [fullGraphV -> visibleGraph]", level = logLevel) {
-        fullGraph.toVisibleGraph(hiddenNodes)
+        fullGraph.toVisibleGraph(hiddenNodes, collapsed)
       }
     .distinct
       .tapEach(_ => if autoFit() then resetView())

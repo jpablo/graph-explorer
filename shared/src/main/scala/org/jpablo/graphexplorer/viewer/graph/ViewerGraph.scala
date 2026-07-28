@@ -17,7 +17,7 @@ case class ViewerGraph(
     tpe:          GraphType = GraphType.default,
     nodeCounter:  Int = 0,
     groupCounter: Int = 0
-) extends AttributesOps, TraversalOps, GroupsOps, CombineNodesOps derives CanEqual:
+) extends AttributesOps, TraversalOps, GroupsOps, CollapseOps, CombineNodesOps derives CanEqual:
 
   // --- mutable stuff ----
   private var _nodeCounter  = nodeCounter
@@ -92,10 +92,16 @@ case class ViewerGraph(
   def roots: Set[NodeId] =
     nodeIds -- arrowsSet.map(_.target)
 
-  def toVisibleGraph(hiddenNodes: HiddenElements = ElementIds()) =
+  def toVisibleGraph(
+      hiddenNodes:     HiddenElements = ElementIds(),
+      collapsedGroups: Set[GroupId] = Set.empty
+  ) =
     this
       .withoutUnsupportedFeatures
       .removeElements(hiddenNodes)
+      // after hiding: a group whose members were all hidden collapses to an
+      // empty box rather than resurrecting them
+      .collapseGroups(collapsedGroups)
       .withDefaultTheme
 
   /** Creates a diagram containing the given symbols and the arrows between them.

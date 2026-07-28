@@ -117,6 +117,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val classified = selection.classify
     classified.groups.size == 1 && classified.nodes.isEmpty && classified.arrows.isEmpty
 
+  /** A group is selected — or the proxy box standing for a collapsed one, which
+    * the DOM reports as a node (see ViewerState.resolveCollapsed). */
+  private def groupOrCollapsedBox(selection: ElementIds): Boolean =
+    val resolved = state.resolveCollapsed(selection).classify
+    resolved.groups.nonEmpty && resolved.arrows.isEmpty
+
   private def singleNodeSelected(selection: ElementIds): Boolean =
     val classified = selection.classify
     classified.nodes.size == 1 && classified.groups.isEmpty && classified.arrows.isEmpty
@@ -282,6 +288,17 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       singleGroupSelected,
       shortcut = Some(Shortcut("z")),
       description = Some("Show only the selected group and its members")
+    )
+
+    val toggleCollapseGroup = Command(
+      "Collapse/expand group",
+      () => state.selection.toggleCollapse(),
+      // Also true when the COLLAPSED BOX is selected — that box is a node as
+      // far as the DOM is concerned, so the raw predicate would refuse to
+      // expand what it just collapsed.
+      groupOrCollapsedBox,
+      shortcut = Some(Shortcut("e")),
+      description = Some("Render the selected group as a single box, or unfold it again")
     )
 
     val copyAsSVG = Command(
@@ -561,6 +578,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.clearSelection,
       all.selectGroupMembers,
       all.zoomIntoGroup,
+      all.toggleCollapseGroup,
       all.copyAsSVG,
       all.editLabel,
       all.reverseArrows,

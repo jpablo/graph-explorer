@@ -105,7 +105,22 @@ trait DiagramSelectionOps:
       signal.map(ids => id in ids)
 
     def hide() =
-      project.hiddenElements.update(_ ++ selection.now())
+      project.hiddenElements.update(_ ++ resolveCollapsed(selection.now()))
+
+    /** Groups in the selection that can be folded/unfolded: a selected group, or
+      * the proxy box standing for an already-collapsed one. */
+    def collapsibleGroups(): Set[GroupId] =
+      resolveCollapsed(now()).classify.groups
+
+    /** Fold the selected groups into single boxes, or unfold them if they are
+      * already folded. A mixed selection folds — the visible outcome then
+      * matches what the command says.
+      */
+    def toggleCollapse(): Unit =
+      val gs = collapsibleGroups()
+      if gs.nonEmpty then
+        project.collapsedGroups.update: collapsed =>
+          if gs.subsetOf(collapsed) then collapsed -- gs else collapsed ++ gs
 
     def selectGroupMembers() =
       val s          = now()
@@ -236,7 +251,12 @@ trait DiagramSelectionOps:
       set1(nodes ++ edges ++ groups)
 
     def deleteSelection() =
-      phases.fullGraphV.update(_.removeElements(now()))
+      // Deleting a collapsed box deletes the GROUP it stands for, not a
+      // phantom node with the same id (see ViewerState.resolveCollapsed).
+      val toRemove = resolveCollapsed(now())
+      phases.fullGraphV.update(_.removeElements(toRemove))
+      // Nothing left to keep folded once the group itself is gone.
+      project.collapsedGroups.update(_ -- toRemove.classify.groups)
 
     /** Duplicates the currently selected nodes, arrows, and groups. Creates new elements with the same attributes as the selected ones.
       * Nodes are placed in the corresponding duplicated group if their original group was also selected. Arrows are duplicated connecting

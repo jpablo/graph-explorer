@@ -10,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStr
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph}
+import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, CollapseOps, ViewerGraph}
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
@@ -73,6 +73,7 @@ case class ViewerState(
     languages = languages,
     initialSource = if source.isEmpty then None else Some(source),
     hiddenNodes = project.hiddenElements.signal,
+    collapsedGroups = project.collapsedGroups.signal,
     resetView = resetView,
     autoFit = autoFit.now,
     editorNotice = editorNotice,
@@ -291,8 +292,25 @@ case class ViewerState(
   def diagramAttributesUpdates: Var[AttributeUpdates] =
     phases.fullGraphV.zoomLens(AttributesOps.diagramAttributesUpdates)
 
+  /** A collapsed group renders as a proxy NODE carrying the group's id string,
+    * so a click on the box selects `NodeId(g)` — but the element that actually
+    * exists in the full graph is `GroupId(g)`. Anything that READS OR WRITES the
+    * graph through a selection must translate first: `updateAttributes` mints a
+    * node for an unknown NodeId (`nodes.getOrElse(id, nodeWithDefaults(id))`),
+    * so editing a collapsed box would otherwise create a phantom node instead of
+    * restyling the group. Selection itself deliberately keeps the proxy id — the
+    * SVG element is a node, and highlighting resolves it as one.
+    */
+  def resolveCollapsed(ids: ElementIds): ElementIds =
+    val collapsed = project.collapsedGroups.now()
+    if collapsed.isEmpty then ids
+    else
+      ElementIds(ids.ids.map { id =>
+        CollapseOps.collapsedGroupFor(id, collapsed).getOrElse(id)
+      })
+
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
-    phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(elementIds))
+    phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(resolveCollapsed(elementIds)))
 
   // Theme management
   lazy val currentTheme: Var[Option[String]] = Var(None)
