@@ -17,7 +17,9 @@ def ErrorAlert(errors: EventBus[String]): HtmlElement =
           .delay(5000)
       ) --> latestError,
     // Render the alert only when there is an error
-    cls := "absolute bottom-4 right-4 z-50",
+    // daisyUI toast: the corner-notification container — fixed positioning and
+    // stacking come from the component instead of a hand-rolled absolute box.
+    cls := "toast toast-end z-50",
     child.maybe <-- latestError.signal.map:
       _.map: errorMsg =>
         div(role := "alert", cls := "alert alert-error shadow-lg", span(errorMsg))

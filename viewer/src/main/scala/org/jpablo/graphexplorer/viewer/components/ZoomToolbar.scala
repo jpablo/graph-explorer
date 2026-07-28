@@ -18,7 +18,15 @@ def ZoomToolbar(state: ViewerState, commands: Commands) =
       title  := "Auto fit",
       cls("btn-active") <-- state.autoFit,
       "Auto",
-      span(cls <-- state.autoFit.signal.map(if _ then "bi bi-check-circle" else "bi bi-circle")),
+      // daisyUI swap, class-driven (`swap-active`), so the two icons cross-fade
+      // with a rotate instead of hard-swapping — and no checkbox nested inside
+      // the button, which is what the input-driven swap idiom would require.
+      span(
+        cls := "swap swap-rotate",
+        cls("swap-active") <-- state.autoFit,
+        span(cls := "swap-on bi bi-check-circle"),
+        span(cls := "swap-off bi bi-circle")
+      ),
       onClick --> commands.all.autoFit.execute()
     ).tiny.ghost,
     Button(span().plusIcon, onClick --> commands.all.zoomIn.execute()).tiny.ghost

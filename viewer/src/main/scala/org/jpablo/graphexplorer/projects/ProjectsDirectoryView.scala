@@ -5,6 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.RouterCommands
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
+import org.jpablo.graphexplorer.viewer.domUtils.ariaLabel
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, IconButton, IconLink, primary, small}
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
@@ -104,18 +105,29 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
               )
             )
           ),
-          // Kind filter dropdown ("" encodes All kinds)
-          select(
-            cls := "select select-sm h-8",
-            option(value := "", "All kinds"),
+          // Kind filter (daisyUI `filter`): one radio chip per format, one click
+          // to filter and the choice stays visible — where the old <select>
+          // ("" encoding All kinds) cost a click to open and another to choose.
+          // The component's reset button appears once a chip is active.
+          form(
+            cls := "filter flex-nowrap",
+            input(
+              cls := "btn btn-sm btn-square",
+              tpe := "reset",
+              value := "×",
+              title := "All kinds",
+              onClick --> (_ => kindFilterVar.set(None))
+            ),
             DiagramFormat.values.toSeq.map { format =>
-              option(
-                value := format.toString,
-                format.toString
+              input(
+                cls  := "btn btn-sm",
+                tpe  := "radio",
+                nameAttr := "library-kind-filter",
+                ariaLabel := format.toString,
+                checked <-- kindFilterVar.signal.map(_.contains(format)),
+                onChange.mapTo(Some(format)) --> kindFilterVar
               )
-            },
-            value <-- kindFilterVar.signal.map(_.fold("")(_.toString)),
-            onChange.mapToValue.map(v => Option.when(v.nonEmpty)(DiagramFormat.valueOf(v))) --> kindFilterVar
+            }
           ),
           // Sort dropdown
           select(

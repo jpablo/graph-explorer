@@ -237,11 +237,13 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       ),
       div(
         cls := "flex items-center gap-0.5",
-        IconButton("bi-question-circle", all.helpKeyboardShortcuts.labelWithShortcut)(
+        // tooltip-end (daisyUI 5.6 alignment): these sit at the window's right
+        // edge, where a centre-aligned bubble clips off-screen.
+        IconButton("bi-question-circle", all.helpKeyboardShortcuts.labelWithShortcut, tipPos = "tooltip-bottom tooltip-end")(
           all.helpKeyboardShortcuts.execute()
         ),
-        IconButton("bi-link-45deg", all.copyShareURL.labelWithShortcut)(all.copyShareURL.execute()),
-        IconButton("bi-info-circle", all.openAboutDialog.labelWithShortcut)(all.openAboutDialog.execute()),
+        IconButton("bi-link-45deg", all.copyShareURL.labelWithShortcut, tipPos = "tooltip-bottom tooltip-end")(all.copyShareURL.execute()),
+        IconButton("bi-info-circle", all.openAboutDialog.labelWithShortcut, tipPos = "tooltip-bottom tooltip-end")(all.openAboutDialog.execute()),
         IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
       ),
       // -------- Theme Selector --------

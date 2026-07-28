@@ -88,7 +88,7 @@ object ThumbnailRenderer:
                     ))*
                   )
                 ThumbnailSvgCache.cloneSvg(resultTry.get) // failure → error channel, as Signal.fromTry did
-              .toSignal(svg.svg()) // empty-svg placeholder until the deferred render lands
+              .toSignal(skeletonSvg) // skeleton until the deferred render lands (one macrotask)
 
           case DiagramFormat.Mermaid =>
             // Mermaid format - use MermaidBackend (asynchronous)
@@ -106,12 +106,16 @@ object ThumbnailRenderer:
                 .textToSvg(dot.value)
                 .map(r => Option(r.svg.ref.outerHTML))
                 .recover { case _ => None }
+            // NOT flattened: `fromFuture` is None while PENDING and Some(result)
+            // when done, and the recover above makes a FAILED render Some(None).
+            // Flattening conflated the two, so the card flashed "No preview"
+            // while the render was merely in flight — pending gets a skeleton.
             Signal
               .fromFuture(svgHtmlFuture)
-              .map(_.flatten)
-              .map: (svgHtmlOpt: Option[String]) =>
-                svgHtmlOpt match
-                  case Some(svgHtml) =>
+              .map: (state: Option[Option[String]]) =>
+                state match
+                  case None => skeletonSvg // in flight
+                  case Some(Some(svgHtml)) =>
                     Telemetry.log(
                       "thumb.mermaid.done",
                       (telemetryContext ++ Seq(
@@ -129,8 +133,8 @@ object ThumbnailRenderer:
                       ))*
                     )
                     ThumbnailSvgCache.cloneSvg(proto)
-                  case None =>
-                    // pending OR failed: show the "No preview" placeholder
+                  case Some(None) =>
+                    // the render FAILED: only now is "No preview" the truth
                     emptySvg
 
   /** Empty SVG placeholder for when rendering fails */
@@ -146,5 +150,10 @@ object ThumbnailRenderer:
         "No preview"
       )
     )
+
+  /** Animated placeholder while a render is in flight (daisyUI `skeleton`). */
+  private def skeletonSvg: ReactiveSvgElement[SVG] =
+    import com.raquo.laminar.api.L.svg.*
+    svg(cls := "skeleton", width := "100", height := "100")
 
 end ThumbnailRenderer
