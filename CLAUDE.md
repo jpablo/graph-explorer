@@ -64,7 +64,7 @@ The application uses **Laminar's reactive streams** with **QuickLens** for immut
 - **Scala.js 1.19.0** compiling to ES modules
 - **Laminar 17.2.1** for reactive UI
 - **Vite 6.2.6** for build tooling and dev server
-- **Tailwind CSS 4.0.14** + **DaisyUI 5.0.22** for styling
+- **Tailwind CSS 4.0.14** + **DaisyUI 5.7.4** for styling
 - **MUnit** + **ScalaCheck** for testing
 
 ## Code Conventions
