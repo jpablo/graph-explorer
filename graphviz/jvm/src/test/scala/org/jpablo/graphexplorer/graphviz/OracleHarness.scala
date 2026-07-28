@@ -89,10 +89,25 @@ object OracleHarness:
     *     exactly (run=0, _start=2, db_table=24, span 0..32), all components
     *     share rank 0, and `dot_json` is down to ONE differing line. As a
     *     side-effect 191's rank numbering lost its constant +2 offset against gv.
-    *     What REMAINS is within-rank X only: the bb is 2986.6x1962.3 against
-    *     3004.6x1962.3 — height exact, 18pt narrow — and 40 of 59 node
-    *     positions match with every difference in x alone. That is mincross /
-    *     XCoord on this graph, the same class of work as the 191 campaign.
+    *     The X chase then closed two more (2026-07-28), both about MERGED
+    *     multi-edges — 192 declares three of its edges twice:
+    *       - `merge_chain` calls `incr_width` on every intermediate vnode of the
+    *         rep's chain once PER merged edge, so a class of k parallel edges is
+    *         `1 + k·(nodesep/2)` wide, not `1 + nodesep/2` (gv: 19, not 10).
+    *         That closed the LR-constraint phase outright — 771/771 identical.
+    *       - `make_chain` sets a segment's weight to `ω · weight(rep)` and
+    *         `merge_chain` then adds each member's RAW weight, so scaling the
+    *         SUM over-weights the members (gv `ω·1 + 1 = 5` where `ω·2 = 8`).
+    *     `dot_json` is now BYTE-EXACT and the bb matches (3004.6x1962.3); node
+    *     positions are 49 of 59, up from 40.
+    *     What REMAINS is 26 of the 1728 make_edge_pairs weights, all on one
+    *     chain. `merge_chain` walks from the merge point to the END of the
+    *     chain, so when a class is merged at SEVERAL levels — 192's
+    *     `start_worker_if_fits->worker_table` is merged three times, once into
+    *     `start_worker_if_fits->%0` twice and once into `%0->%0`, as interclexp
+    *     rebuilds it at cluster expansion — different SEGMENTS absorb different
+    *     numbers of merges. We apply one class-wide count. Modelling it needs
+    *     per-segment merge tracking through interclexp, not a per-class number.
     */
   val deferredCorpus: Set[String] = Set("03-subgraph-cluster", "192-rank-gap-callgraph")
 

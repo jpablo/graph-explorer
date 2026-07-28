@@ -562,10 +562,39 @@ enforce the deferral halves of it):
   line (bb width 2987 vs 3005). A free side-effect: 191's rank numbering lost the
   constant +2 offset it carried against gv's probes all through that campaign.
 
-  **What 192 still needs is within-rank X.** The bb is 18pt narrow with the
-  height exact, and 40 of 59 node positions match with every difference in x
-  alone — mincross/XCoord on this graph, the same class of work as 191, not a
-  missing phase.
+  **The X chase: MERGED MULTI-EDGES (2026-07-28).** Mincross was already exact —
+  all 19 of 192's ranks carry gv's within-rank order — so this was XCoord, and
+  the per-phase `make_aux_edge` count matched too (771 / 1728 / 150). Diffing the
+  constraint VALUES found two things, both about a class of parallel edges (192
+  declares three of its edges twice):
+
+  1. **`incr_width` runs once per MERGED edge, not once per chain.**
+     `merge_chain` (class2.c:147) walks the rep's chain calling
+     `incr_width(g, aghead(rep))` on every intermediate vnode, so a class of k
+     parallel edges leaves each vnode `1 + k·(nodesep/2)` wide. gv gives 192's
+     `start_worker_if_fits->worker_table` chain half-width **19** where one edge
+     would give 10. A LABEL vnode widens the same way, `nodesep + (k-1)·incr`.
+     Intra-cluster chains are exempt for the reason they are already 1 wide —
+     `incr_width` reads `GD_nodesep(subg)`, which is 0. This closed the
+     LR-constraint phase outright: **771 of 771 identical**.
+  2. **The ω scales the REP's weight only.** `make_chain` sets a segment's
+     weight to `virtual_weight(rep)` = `ω · weight(rep)`; `merge_chain` then does
+     `ED_weight(rep) += ED_weight(member)` with the member's RAW weight. Scaling
+     the SUM over-weights every member — gv gets `ω·1 + 1 = 5` where `ω·(1+1)`
+     gives 8.
+
+  192's `dot_json` is now **byte-exact**, its bb matches (3004.6x1962.3), and
+  node positions are **49 of 59**, up from 40.
+
+  **What is left is 26 of the 1728 `make_edge_pairs` weights, all on one chain.**
+  `merge_chain` walks from the merge point to the END of the chain, so a class
+  merged at SEVERAL levels leaves different segments having absorbed different
+  numbers of merges. 192's `start_worker_if_fits->worker_table` is merged three
+  times — twice into `start_worker_if_fits->%0` and once into `%0->%0`, as
+  `interclexp` rebuilds the inter-cluster chain at expansion — and gv's segment
+  weights come out 3 and 7 (`1·1+2` and `4·1+3`) where a single class-wide count
+  gives 2 and 5. Closing it needs per-SEGMENT merge tracking through interclexp,
+  not a per-class number.
 
 ## 1. Goal & locked decisions
 

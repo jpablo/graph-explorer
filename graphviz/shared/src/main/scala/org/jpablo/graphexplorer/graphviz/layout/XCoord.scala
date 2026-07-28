@@ -117,10 +117,26 @@ object XCoord:
       (d: Int) =>
         val cls = byPair((dedgeVec(d).tail, dedgeVec(d).head))
         if cls.min == d then cls.map(wOf).sum else wOf(d)
+    // `merge_chain` (class2.c:147) calls `incr_width` on EVERY intermediate
+    // vnode of the rep's chain once per merged multi-edge, so a class of k
+    // parallel edges leaves each vnode `1 + k·(nodesep/2)` wide, not
+    // `1 + nodesep/2`: 192 declares `start_worker_if_fits -> worker_table`
+    // twice, and gv gives that chain half-width 19 where one edge gives 10. A
+    // LABEL vnode widens the same way, from `nodesep` to `nodesep + (k-1)·incr`.
+    // Intra-cluster chains are unaffected — `incr_width` reads GD_nodesep(subg),
+    // which is 0 (the same quirk that leaves them at 1 in the first place).
+    val Incr = (NodeSep.toInt / 2).toDouble // incr_width: C integer division
+    val classSize: Array[Int] =
+      val a = Array.fill(math.max(1, dedgeVec.length))(0)
+      res.mergedInto.foreach(r => if r >= 0 && r < a.length then a(r) += 1)
+      a
+    def mergeExtra(d: Int): Double =
+      if intraVEdge(d) || d < 0 || d >= classSize.length then 0.0
+      else math.max(0, classSize(d) - 1) * Incr
     def half(n: LayoutNode): Double = n match
       case LayoutNode.FlatLabel(d)  => Coord.flatLabelDim(dedgeVec(d), g)._1
       case LayoutNode.Virtual(d, _) if intraVEdge(d) => 1.0
-      case _: LayoutNode.Virtual => VirtualHalf
+      case LayoutNode.Virtual(d, _) => VirtualHalf + mergeExtra(d)
       case _: LayoutNode.Slack   => VirtualHalf // never queried; defensive
       case _: LayoutNode.ClusterLn | _: LayoutNode.ClusterRn => 1.0 // virtual_node lw=rw=1
       case LayoutNode.Real(id)   =>
@@ -139,10 +155,10 @@ object XCoord:
       g.edges.filter(e => e.tail == e.head).groupBy(_.tail).view
         .mapValues(_.map(Coord.selfRightSpace(_, g)).sum).toMap
     def lw(n: LayoutNode): Double = n match
-      case v: LayoutNode.Virtual if labelW.contains(v.name) => NodeSep
+      case v: LayoutNode.Virtual if labelW.contains(v.name) => NodeSep + mergeExtra(v.edgeIdx)
       case _                                                => half(n)
     def rw(n: LayoutNode): Double = n match
-      case v: LayoutNode.Virtual if labelW.contains(v.name) => labelW(v.name)
+      case v: LayoutNode.Virtual if labelW.contains(v.name) => labelW(v.name) + mergeExtra(v.edgeIdx)
       case LayoutNode.Real(id) if selfRw.contains(id)       => half(n) + selfRw(id)
       case _                                                => half(n)
 
@@ -504,18 +520,26 @@ object XCoord:
       slackNodes += sn
       val owner = res.segOwner.lift(i).getOrElse(-1)
       val owned = if owner >= 0 && owner < realEdges.length then Some(realEdges(owner)) else None
-      // make_edge_pairs slack weight = ω-class × the **edge `weight`**
-      // (ED_weight = late_int(weight, default 1, FLOOR 0 — `weight=0` is
-      // legal and layout-visible, git; atoi ⇒ trunc). A class2-merged
-      // multi-edge class sums its members' weights onto the rep chain
-      // (merge_chain `ED_weight(rep) += ED_weight(e)`) with NO clamp.
+      // make_edge_pairs slack weight = the SEGMENT's ED_weight, and a merged
+      // multi-edge class builds that in two unequal halves:
+      //
+      //   make_chain    ED_weight(seg)  = virtual_weight(rep) = ω · weight(rep)
+      //   merge_chain   ED_weight(seg) += ED_weight(member)   — RAW, no ω
+      //
+      // so the rep's weight is ω-scaled and every merged member's is not.
+      // Scaling the SUM instead over-weights the members: 192 declares
+      // `_start_worker_with_preflight -> _fail_work_request` twice and gv gets
+      // ω·1 + 1 = 5 where ω·(1+1) gives 8. (ED_weight = late_int(weight,
+      // default 1, FLOOR 0 — `weight=0` is legal and layout-visible, git.)
       def weightAttr(d: Int): Int =
         realEdges.lift(d).flatMap(_.attrs.get("weight")).flatMap(_.toDoubleOption)
           .map(w => math.max(0, w.toInt)).getOrElse(1)
-      val wt =
+      val wtRep    = if owner >= 0 then weightAttr(owner) else 1
+      val wtMerged =
         if owner >= 0 then
-          res.mergedInto.indices.iterator.filter(res.mergedInto(_) == owner).map(weightAttr).sum
-        else 1
+          res.mergedInto.indices.iterator
+            .filter(d => d != owner && res.mergedInto(d) == owner).map(weightAttr).sum
+        else 0
       // which class2 built this chain: the owning edge's cluster if it is
       // intra-cluster, else the root's.
       val chainCi = owned.flatMap { re =>
@@ -540,7 +564,8 @@ object XCoord:
         case LayoutNode.Real(id) => clustOfX.contains(id)
         case _                   => false
       val rebuiltEnd = interCluster && (clusteredReal(t) || clusteredReal(h))
-      val w  = (if rebuiltEnd then 1 else NSClass.weight(cls(t, chainCi), cls(h, chainCi))) * wt
+      val omega = if rebuiltEnd then 1 else NSClass.weight(cls(t, chainCi), cls(h, chainCi))
+      val w     = omega * wtRep + wtMerged
       val (m0, m1) =
         owned match
           case Some(re) =>
