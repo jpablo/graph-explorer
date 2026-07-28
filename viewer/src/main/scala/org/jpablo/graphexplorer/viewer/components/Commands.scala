@@ -342,6 +342,16 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Select all successors of the selected nodes")
     )
 
+    val toggleSuccessors = Command(
+      "Expand/contract successors",
+      () => state.toggleSuccessors(),
+      description = Some(
+        "Tree-style toggle: show the selected nodes' hidden direct successors, or hide the successor layer if none are hidden"
+      ),
+      // '.' points forward, ',' backward — a mirror pair like +/- and s/p.
+      shortcut = Some(Shortcut("."))
+    )
+
     val selectDirectSuccessors = Command(
       "Select direct successors",
       () => state.selection.selectDirectSuccessors(),
@@ -351,6 +361,27 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       // meta/ctrl and is intercepted before shortcut dispatch.
       shortcut = Some(Shortcut("s")),
       description = Some("Select direct successors of the selected nodes")
+    )
+
+    val togglePredecessors = Command(
+      "Expand/contract predecessors",
+      () => state.togglePredecessors(),
+      description = Some(
+        "Tree-style toggle: show the selected nodes' hidden direct predecessors, or hide the predecessor layer if none are hidden"
+      ),
+      shortcut = Some(Shortcut(","))
+    )
+
+    val hidePredecessorsRecursive = Command(
+      "Hide predecessors (recursive)",
+      () => state.hidePredecessors(recursive = true),
+      description = Some("Hide incoming arrows; hide predecessors that lose all outgoing arrows, recursively")
+    )
+
+    val hidePredecessorLayer = Command(
+      "Hide predecessor layer",
+      () => state.hidePredecessors(recursive = false),
+      description = Some("Hide incoming arrows; hide predecessors that lose all outgoing arrows (one layer)")
     )
 
     val showAllPredecessors = Command(
@@ -595,13 +626,17 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.showAllSuccessors,
       all.showDirectSuccessors,
       all.selectAllSuccessors,
-      all.selectDirectSuccessors
+      all.selectDirectSuccessors,
+      all.toggleSuccessors
     ),
     predecessors -> List(
       all.showAllPredecessors,
       all.showDirectPredecessors,
       all.selectAllPredecessors,
-      all.selectDirectPredecessors
+      all.selectDirectPredecessors,
+      all.togglePredecessors,
+      all.hidePredecessorsRecursive,
+      all.hidePredecessorLayer
     ),
     view -> List(
       all.rootsOnly,

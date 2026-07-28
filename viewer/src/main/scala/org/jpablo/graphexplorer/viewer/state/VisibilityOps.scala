@@ -3,8 +3,9 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.extensions.notIn
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.models.{Arrow, ArrowId, ElementId, ElementIds, NodeId}
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, VisibilityRules}
+import org.jpablo.graphexplorer.viewer.graph.VisibilityRules.Direction
+import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
 import org.scalajs.dom
 
 trait VisibilityOps:
@@ -109,7 +110,7 @@ trait VisibilityOps:
 
   /** Hide successors of the currently selected nodes.
     *
-    * Semantics:
+    * Semantics (VisibilityRules.contract, pinned by VisibilityRulesSpec):
     *  - Hide all visible outgoing arrows from the selected nodes A -> B.
     *  - If a target node B loses all remaining incoming visible arrows, hide B as well.
     *  - If `recursive` is true, repeat the process from each newly hidden node B.
@@ -117,53 +118,52 @@ trait VisibilityOps:
     * This supports layer-by-layer contraction with reachability preserved from other visible sources.
     */
   def hideSuccessors(recursive: Boolean = true): Unit =
+    contractSelection(Direction.Successors, recursive)
+
+  /** The mirror: hide the selected nodes' incoming arrows, and a source that
+    * no longer points at ANY visible node hides with them. */
+  def hidePredecessors(recursive: Boolean = true): Unit =
+    contractSelection(Direction.Predecessors, recursive)
+
+  private def contractSelection(dir: Direction, recursive: Boolean): Unit =
     val selNodes = selection.now().nodeIds
-    if selNodes.isEmpty then return
+    if selNodes.nonEmpty then
+      val (arrows, nodes) =
+        VisibilityRules.contract(fullGraphNow(), hiddenElements.now(), selNodes, dir, recursive)
+      if arrows.nonEmpty || nodes.nonEmpty then
+        hiddenElements.update(_ ++ arrows ++ nodes)
 
-    // Snapshot current visible graph based on hidden elements
-    val full = fullGraphNow()
-    val hiddenNow = hiddenElements.now()
-    val hiddenNodeIds  = hiddenNow.nodeIds
-    val hiddenArrowIds = hiddenNow.classify.arrows
+  // ── tree-style toggles ────────────────────────────────────────────────────
+  // One key per direction: a node with CONCEALED direct neighbors expands
+  // (show them); an already-expanded one contracts a layer. Repeated presses
+  // walk deeper / shallower, like a tree view's triangle.
 
-    // Visible nodes and arrows
-    val visibleNodes: Set[NodeId] = full.nodeIds -- hiddenNodeIds
-    val visibleArrows = full.arrows.values
-      .filter(a => !(hiddenArrowIds.contains(a.id)) && visibleNodes.contains(a.source) && visibleNodes.contains(a.target))
-      .toVector
+  /** Expandable check for `ids` (or the selection): any concealed direct
+    * neighbor in `dir`. */
+  private def concealedFor(ids: Set[NodeId], dir: Direction): Set[NodeId] =
+    val g = fullGraphNow(); val h = hiddenElements.now()
+    ids.flatMap(VisibilityRules.concealedDirect(g, h, _, dir))
 
-    // Build adjacency in terms of arrows (we work with arrows to support multi-edges and selective hiding)
-    val outgoingBySource: Map[NodeId, Vector[Arrow]] =
-      visibleArrows.groupBy(_.source).withDefaultValue(Vector.empty)
-    val incomingByTarget: Map[NodeId, Vector[Arrow]] =
-      visibleArrows.groupBy(_.target).withDefaultValue(Vector.empty)
+  def toggleSuccessors(ids: Set[NodeId] = selection.now().nodeIds): Unit =
+    if ids.nonEmpty then
+      if concealedFor(ids, Direction.Successors).nonEmpty then
+        withSelection(ids)(showDirectSuccessors())
+      else
+        withSelection(ids)(hideSuccessors(recursive = false))
 
-    import scala.collection.mutable
-    val queue               = mutable.Queue.from(selNodes.intersect(visibleNodes))
-    val processed           = mutable.Set.empty[NodeId]
-    val newlyHiddenArrows   = mutable.Set.empty[ArrowId]
-    val newlyHiddenNodes    = mutable.Set.empty[NodeId]
+  def togglePredecessors(ids: Set[NodeId] = selection.now().nodeIds): Unit =
+    if ids.nonEmpty then
+      if concealedFor(ids, Direction.Predecessors).nonEmpty then
+        withSelection(ids)(showDirectPredecessors())
+      else
+        withSelection(ids)(hidePredecessors(recursive = false))
 
-    while queue.nonEmpty do
-      val src = queue.dequeue()
-      if !processed(src) then
-        processed += src
-        // Hide all visible outgoing arrows from src
-        val outs = outgoingBySource(src).filterNot(a => newlyHiddenArrows(a.id))
-        if outs.nonEmpty then
-          newlyHiddenArrows ++= outs.map(_.id)
-
-          // For each target, check if any other incoming arrows remain visible
-          outs.foreach: a =>
-            val tgt = a.target
-            if tgt != src && !newlyHiddenNodes(tgt) then
-              val remainingIncoming = incomingByTarget(tgt).filterNot(in => newlyHiddenArrows(in.id))
-              if remainingIncoming.isEmpty then
-                newlyHiddenNodes += tgt
-                if recursive then queue.enqueue(tgt)
-
-    if newlyHiddenArrows.nonEmpty || newlyHiddenNodes.nonEmpty then
-      hiddenElements.update(_ ++ newlyHiddenArrows.toSet ++ newlyHiddenNodes.toSet)
+  /** Run `body` with `ids` as the selection when they differ from it — the
+    * badge click passes an explicit node while the keyboard path passes the
+    * selection unchanged. */
+  private def withSelection(ids: Set[NodeId])(body: => Unit): Unit =
+    if selection.now().nodeIds != ids then selection.set1(ids)
+    body
 
   private def updateHiddenFromSelection(f: (HiddenElements, ElementIds, ViewerGraph) => HiddenElements) =
     hiddenElements.update(f(_, selection.now(), fullGraphNow()))

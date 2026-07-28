@@ -10,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStr
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, CollapseOps, ViewerGraph}
+import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, CollapseOps, ViewerGraph, VisibilityRules}
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
@@ -163,7 +163,11 @@ case class ViewerState(
             viewerOps = this,
             mouseAction = mouseAction,
             edgePositions = svgWithPos.edgePositions,
-            strategy = strategy
+            strategy = strategy,
+            // consistent with THIS svg: any change to graph/hidden re-renders
+            concealedCounts = VisibilityRules.concealedCounts(fullGraphNow(), project.hiddenElements.now()),
+            onToggleConcealed =
+              (n, succSide) => if succSide then toggleSuccessors(Set(n)) else togglePredecessors(Set(n))
           )
         }
 

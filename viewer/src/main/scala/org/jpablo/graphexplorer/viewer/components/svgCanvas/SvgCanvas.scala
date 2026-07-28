@@ -25,7 +25,11 @@ def SvgCanvas(
     viewerOps:     DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
     mouseAction:   MouseActionVar,
     edgePositions: Map[String, ArrowPosition],
-    strategy:      SelectableElementStrategy
+    strategy:      SelectableElementStrategy,
+    /** Concealed-neighbor counts per visible node (successors, predecessors) —
+      * the expand-badge model — and the badge click's action. */
+    concealedCounts:   Map[org.jpablo.graphexplorer.viewer.models.NodeId, (Int, Int)] = Map.empty,
+    onToggleConcealed: (org.jpablo.graphexplorer.viewer.models.NodeId, Boolean) => Unit = (_, _) => ()
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
 
@@ -95,6 +99,8 @@ def SvgCanvas(
   rawSvg
     .amend {
       Seq(
+        // Expand badges need real geometry: getBBox only works once mounted.
+        onMountCallback(_ => HiddenNeighborBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed)),
         svg.viewBox   := s"${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}",
         svg.width     := null,
         svg.height    := null,

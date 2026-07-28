@@ -16,6 +16,7 @@
   --gx-mark-soft: rgba(251, 191, 36, 0.1);
   --gx-control: #33ade6; // draggable handles: endpoint disks, new-arrow control
   --gx-control-soft: #d7effa;
+  --gx-control-ink: #1b6d99; // text on control-soft (expand badges)
   --gx-scrim: rgba(0, 0, 0, 0.3); // rubber-band selection rectangle
   --gx-scrim-edge: #999797;
   --gx-shadow: rgba(0, 0, 0, 0.4);
@@ -939,5 +940,38 @@ svg {
 
   #right-toolbar {
     @apply flex flex-col m-1 gap-2 mt-2 print:hidden;
+  }
+}
+
+
+// ── Expand badges (HiddenNeighborBadges) ─────────────────────────────────────
+// The tree-view triangle for graphs: a node with concealed direct neighbors
+// wears a count on the corresponding side (successors right, predecessors
+// left). Canvas signal, so fixed colours from the token block up top — badges
+// paint over user-coloured nodes and must stay legible on any of them.
+.gx-expand-badge {
+  cursor: pointer;
+
+  circle {
+    fill: var(--gx-control-soft);
+    stroke: var(--gx-control);
+    stroke-width: 1px;
+  }
+
+  text {
+    fill: var(--gx-control-ink);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 8px;
+    text-anchor: middle;
+    // the badge is one control; its glyph must not eat the click
+    pointer-events: none;
+    user-select: none;
+  }
+
+  &:hover circle {
+    fill: var(--gx-control);
+  }
+  &:hover text {
+    fill: var(--gx-control-soft);
   }
 }
