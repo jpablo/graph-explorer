@@ -190,14 +190,21 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           all.reverseArrows,
           all.reverseArrowsStyle,
           all.zoomIntoGroup,
+          all.toggleCollapseGroup,
           all.editLabel,
           all.resetSelectionAttributes,
           all.rootsOnly,
           all.hideAllNodes,
           all.showAllSuccessors,
           all.showDirectSuccessors,
+          all.hideSuccessorsRecursive,
+          all.hideSuccessorLayer,
+          all.toggleSuccessors,
           all.showAllPredecessors,
-          all.showDirectPredecessors
+          all.showDirectPredecessors,
+          all.hidePredecessorsRecursive,
+          all.hidePredecessorLayer,
+          all.togglePredecessors
         ),
         onClickHandler = _ --> (action => action())
       ),
