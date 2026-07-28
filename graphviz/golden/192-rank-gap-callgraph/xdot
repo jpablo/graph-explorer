@@ -1,0 +1,1739 @@
+digraph WorkerPool_CallGraph {
+	graph [_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 0 0 0 1962.3 3004.57 1962.3 3004.57 0 ",
+		bb="0,0,3004.6,1962.3",
+		label="",
+		rankdir=TB,
+		xdotversion=1.7
+	];
+	node [label="\N"];
+	subgraph WorkerPool {
+		graph [_draw_="c 7 -#c0c0c0 C 7 -#e6e6fa P 4 8 8 8 1913.3 1442 1913.3 1442 8 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 725 1896.7 0 102.27 16 -WorkerPool Class ",
+			bb="8,8,1442,1913.3",
+			cluster=true,
+			color=gray,
+			fillcolor=lavender,
+			label="WorkerPool Class",
+			lheight=0.23,
+			lp="725,1900.9",
+			lwidth=1.42,
+			style=filled
+		];
+		__init__	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 559 1671.5 505 1671.5 505 1635.5 559 1635.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 532 1650.5 0 35.03 8 -__init__ ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="532,1653.5",
+			shape=box,
+			style=filled,
+			width=0.75];
+		_coerce_hardware_profile	[_draw_="c 7 -#000000 C 7 -#ffffe0 P 4 147.81 1517.41 16.19 1517.41 16.19 1481.41 147.81 1481.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 82 1496.41 0 115.62 24 -_coerce_hardware_profile ",
+			fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="82,1499.4",
+			shape=box,
+			style=filled,
+			width=1.8281];
+		__init__ -> _coerce_hardware_profile	[_draw_="c 7 -#000000 B 7 504.77 1652.86 429.44 1653.4 220.01 1651.71 162 1617.5 127.71 1597.27 104.82 1555.88 92.61 1528.13 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 95.84 1526.8 88.75 1518.92 89.39 1529.5 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,88.165,1517.5 504.77,1652.9 429.44,1653.4 220.01,1651.7 162,1617.5 127.71,1597.3 104.82,1555.9 92.606,1528.1"];
+		_effective_hardware_profile	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 476.43 1033.41 337.57 1033.41 337.57 997.41 476.43 997.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 407 1012.41 0 122.85 27 -_effective_hardware_profile ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="407,1015.4",
+			shape=box,
+			style=filled,
+			width=1.9285];
+		_registry_engine_for_worker_names	[_draw_="c 7 -#000000 C 7 -#ffffe0 P 4 673.15 1033.41 494.85 1033.41 494.85 997.41 673.15 997.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 584 1012.41 0 162.31 33 -_registry_engine_for_worker_names ",
+			fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="584,1015.4",
+			shape=box,
+			style=filled,
+			width=2.4765];
+		_exact_variant_worker_name	[_draw_="c 7 -#000000 C 7 -#ffffe0 P 4 662.59 1106.41 515.41 1106.41 515.41 1070.41 662.59 1070.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 589 1085.41 0 131.18 26 -_exact_variant_worker_name ",
+			fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="589,1088.4",
+			shape=box,
+			style=filled,
+			width=2.0442];
+		_worker_env_overrides	[_draw_="c 7 -#000000 C 7 -#ffffe0 P 4 1241.97 616.6 1122.03 616.6 1122.03 580.6 1241.97 580.6 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1182 595.6 0 103.94 21 -_worker_env_overrides ",
+			fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1182,598.6",
+			shape=box,
+			style=filled,
+			width=1.6658];
+		_register_model_name_alias	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 260.2 1033.41 115.8 1033.41 115.8 997.41 260.2 997.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 188 1012.41 0 128.41 26 -_register_model_name_alias ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="188,1015.4",
+			shape=box,
+			style=filled,
+			width=2.0057];
+		_reuse_existing_fallthrough_worker	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 309.94 1190.41 136.06 1190.41 136.06 1154.41 309.94 1154.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 223 1169.41 0 157.87 34 -_reuse_existing_fallthrough_worker ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="223,1172.4",
+			shape=box,
+			style=filled,
+			width=2.4149];
+		_reuse_existing_fallthrough_worker -> _register_model_name_alias	[_draw_="c 7 -#000000 B 4 219.05 1153.94 213.06 1127.4 201.61 1076.67 194.41 1044.8 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 197.83 1044.05 192.21 1035.07 191 1045.6 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,191.88,1033.6 219.05,1153.9 213.06,1127.4 201.61,1076.7 194.41,1044.8"];
+		_get_controller	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1040.08 52 957.92 52 957.92 16 1040.08 16 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 999 31 0 66.15 15 -_get_controller ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="999,34",
+			shape=box,
+			style=filled,
+			width=1.141];
+		_get_generation_type	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1055.37 125 942.63 125 942.63 89 1055.37 89 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 999 104 0 96.75 20 -_get_generation_type ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="999,107",
+			shape=box,
+			style=filled,
+			width=1.5659];
+		_get_generation_type -> _get_controller	[_draw_="c 7 -#000000 B 4 999 88.81 999 81.23 999 72.1 999 63.54 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1002.5 63.54 999 53.54 995.5 63.54 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,999,52.029 999,88.813 999,81.226 999,72.101 999,63.539"];
+		_build_work_event_data	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 265.21 228 140.79 228 140.79 192 265.21 192 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 203 207 0 108.41 22 -_build_work_event_data ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="203,210",
+			shape=box,
+			style=filled,
+			width=1.728];
+		_build_work_event_data -> _get_generation_type	[_draw_="c 7 -#000000 B 4 265.46 201.07 412.42 182.43 779.08 135.9 931.2 116.6 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 931.23 120.13 940.71 115.4 930.35 113.18 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,942.21,115.21 265.46,201.07 412.42,182.43 779.08,135.9 931.2,116.6"];
+		build_pid_mappings	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1124.48 1033.41 1019.52 1033.41 1019.52 997.41 1124.48 997.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1072 1012.41 0 88.96 18 -build_pid_mappings ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1072,1015.4",
+			shape=box,
+			style=filled,
+			width=1.4577];
+		_collect_reclaimable_worker_run_ids	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1323.26 1033.41 1142.74 1033.41 1142.74 997.41 1323.26 997.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1233 1012.41 0 164.53 35 -_collect_reclaimable_worker_run_ids ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1233,1015.4",
+			shape=box,
+			style=filled,
+			width=2.5073];
+		_wait_for_gpu_capacity_after_eviction	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1329.05 960.41 1142.95 960.41 1142.95 924.41 1329.05 924.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1236 939.41 0 170.11 37 -_wait_for_gpu_capacity_after_eviction ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1236,942.41",
+			shape=box,
+			style=filled,
+			width=2.5848];
+		_process_message	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 679.36 1671.5 576.64 1671.5 576.64 1635.5 679.36 1635.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 628 1650.5 0 86.71 16 -_process_message ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="628,1653.5",
+			shape=box,
+			style=filled,
+			width=1.4266];
+		_process_message -> _build_work_event_data	[_draw_="c 7 -#000000 B 28 575.47 1636.9 572.96 1636.38 570.46 1635.91 568 1635.5 530.13 1629.23 255.2 1638.4 223 1617.5 181.13 1590.31 192.95 \
+1562.73 172 1517.41 164.73 1501.68 169.16 1493.77 157 1481.41 128.1 1452.05 101.17 1473.51 72 1444.41 46.92 1419.4 49.99 1405.4 \
+40 1371.41 21.73 1309.23 17 1292.23 17 1227.41 17 1227.41 17 1227.41 17 353.8 17 292.45 81.46 253.84 134.48 232.46 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 135.45 235.84 143.5 228.96 132.91 229.32 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,144.91,228.42 575.47,1636.9 572.96,1636.4 570.46,1635.9 568,1635.5 530.13,1629.2 255.2,1638.4 223,1617.5 181.13,1590.3 192.95,\
+1562.7 172,1517.4 164.73,1501.7 169.16,1493.8 157,1481.4 128.1,1452.1 101.17,1473.5 72,1444.4 46.919,1419.4 49.986,1405.4 40,1371.4 \
+21.731,1309.2 17,1292.2 17,1227.4 17,1227.4 17,1227.4 17,353.8 17,292.45 81.458,253.84 134.48,232.46"];
+		_process_message -> build_pid_mappings	[_draw_="c 7 -#000000 B 19 575.68 1637.52 573.09 1636.83 570.52 1636.15 568 1635.5 533.97 1626.71 523.69 1630.41 491 1617.5 444.01 1598.93 \
+97 1440.94 97 1390.41 97 1390.41 97 1390.41 97 1225.41 97 1191.16 100.68 1176.34 127 1154.41 276.5 1029.88 796.1 1065.68 1007.98 \
+1033.46 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1008.25 1036.96 1017.56 1031.9 1007.13 1030.05 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1019.1,1031.7 575.68,1637.5 573.09,1636.8 570.52,1636.1 568,1635.5 533.97,1626.7 523.69,1630.4 491,1617.5 444.01,1598.9 97,1440.9 \
+97,1390.4 97,1390.4 97,1390.4 97,1225.4 97,1191.2 100.68,1176.3 127,1154.4 276.5,1029.9 796.1,1065.7 1008,1033.5"];
+		_process_worker_message	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#fee685 P 4 653.14 1517.41 514.86 1517.41 514.86 1481.41 653.14 1481.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 584 1496.41 0 122.28 23 -_process_worker_message ",
+			fillcolor="#fee685",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="584,1499.4",
+			shape=box,
+			style=filled,
+			width=1.9206];
+		_process_message -> _process_worker_message	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 7 599.82 1634.52 594.43 1629.68 589.51 1623.97 586.42 1617.5 573.59 1590.66 574.63 1556.26 \
+577.88 1531.71 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 581.32 1532.38 579.42 1521.96 574.41 1531.29 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 626.71 1573.46 0 80.58 19 -via worker listener ",
+			fontname=Helvetica,
+			fontsize=10,
+			label="via worker listener",
+			lp="626.71,1576.5",
+			penwidth=2.3,
+			pos="e,579.96,1518.5 599.82,1634.5 594.43,1629.7 589.51,1624 586.42,1617.5 573.59,1590.7 574.63,1556.3 577.88,1531.7",
+			style=bold];
+		_maybe_poll	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 680.35 1444.41 607.65 1444.41 607.65 1408.41 680.35 1408.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 644 1423.41 0 56.7 11 -_maybe_poll ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="644,1426.4",
+			shape=box,
+			style=filled,
+			width=1.0098];
+		_process_message -> _maybe_poll	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 7 654.15 1634.66 659.36 1629.76 664.11 1623.98 667 1617.5 690.45 1564.95 671.67 1496.56 657.05 \
+1457.78 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 660.35 1456.61 653.41 1448.6 653.85 1459.19 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,652.13,1445.4 654.15,1634.7 659.36,1629.8 664.11,1624 667,1617.5 690.45,1565 671.67,1496.6 657.05,1457.8",
+			style=bold];
+		stop_worker	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 774.23 372.8 703.77 372.8 703.77 336.8 774.23 336.8 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 739 351.8 0 54.47 11 -stop_worker ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="739,354.8",
+			shape=box,
+			style=filled,
+			width=0.97872];
+		_process_message -> stop_worker	[_draw_="c 7 -#000000 B 28 575.79 1637.02 573.17 1636.46 570.56 1635.95 568 1635.5 512.04 1625.7 364.91 1640.58 313 1617.5 293.1 1608.65 \
+189.57 1494.28 172 1481.41 143.92 1460.86 125.37 1471.07 103 1444.41 38.2 1367.19 37 1328.22 37 1227.41 37 1227.41 37 1227.41 37 \
+978.41 37 915.89 162.18 481.37 212 443.6 251.26 413.83 608.97 442.17 655 424.6 678.78 415.53 700.84 396.89 716.38 381.3 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 718.86 383.76 723.26 374.12 713.81 378.92 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,724.31,373.03 575.79,1637 573.17,1636.5 570.56,1635.9 568,1635.5 512.04,1625.7 364.91,1640.6 313,1617.5 293.1,1608.7 189.57,1494.3 \
+172,1481.4 143.92,1460.9 125.37,1471.1 103,1444.4 38.204,1367.2 37,1328.2 37,1227.4 37,1227.4 37,1227.4 37,978.41 37,915.89 162.18,\
+481.37 212,443.6 251.26,413.83 608.97,442.17 655,424.6 678.78,415.53 700.84,396.89 716.38,381.3"];
+		get_usage_maps	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1434.36 1033.41 1341.64 1033.41 1341.64 997.41 1434.36 997.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1388 1012.41 0 76.72 14 -get_usage_maps ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1388,1015.4",
+			shape=box,
+			style=filled,
+			width=1.2878];
+		_process_message -> get_usage_maps	[_draw_="c 7 -#000000 B 16 596.05 1634.41 556.98 1609.64 496 1561.25 496 1500.41 496 1500.41 496 1500.41 496 1316.41 496 1275.34 532.5 1276.73 \
+571 1262.41 656.31 1230.69 685.34 1260.06 775 1244.41 998.4 1205.43 1246.33 1088.5 1344.54 1038.97 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1345.99 1042.16 1353.32 1034.52 1342.82 1035.92 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1354.7,1033.8 596.05,1634.4 556.98,1609.6 496,1561.2 496,1500.4 496,1500.4 496,1500.4 496,1316.4 496,1275.3 532.5,1276.7 571,1262.4 \
+656.31,1230.7 685.34,1260.1 775,1244.4 998.4,1205.4 1246.3,1088.5 1344.5,1039"];
+		_process_supervisor_message	[_draw_="c 7 -#000000 C 7 -#d8f999 P 4 1362.2 1671.5 1207.8 1671.5 1207.8 1635.5 1362.2 1635.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1285 1650.5 0 138.4 27 -_process_supervisor_message ",
+			fillcolor="#d8f999",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1285,1653.5",
+			shape=box,
+			style=filled,
+			width=2.1445];
+		_process_worker_message -> _maybe_poll	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 599.14 1480.5 605.49 1472.99 613.02 1464.07 620.08 1455.72 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 622.63 1458.13 626.41 1448.23 617.28 1453.61 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,628.66,1445.6 599.14,1480.5 605.49,1473 613.02,1464.1 620.08,1455.7",
+			style=bold];
+		_fail_work_request	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 645.97 372.8 546.03 372.8 546.03 336.8 645.97 336.8 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 596 351.8 0 83.94 18 -_fail_work_request ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="596,354.8",
+			shape=box,
+			style=filled,
+			width=1.388];
+		_process_worker_message -> _fail_work_request	[_draw_="c 7 -#000000 B 16 513.91 1494.04 404.03 1483.28 192.04 1446.04 78 1317.41 66.28 1304.2 57 1280.22 57 1227.41 57 1227.41 57 1227.41 \
+57 597.6 57 523.96 21.38 486.08 72 432.6 134.14 366.96 409.91 356.84 534.52 355.68 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 534.25 359.19 544.22 355.61 534.19 352.19 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,545.73,355.6 513.91,1494 404.03,1483.3 192.04,1446 78,1317.4 66.282,1304.2 57,1280.2 57,1227.4 57,1227.4 57,1227.4 57,597.6 57,\
+523.96 21.38,486.08 72,432.6 134.14,366.96 409.91,356.84 534.52,355.68"];
+		_process_worker_message -> stop_worker	[_draw_="c 7 -#000000 B 22 544.34 1480.27 441.74 1432.97 170.18 1305.37 92 1244.41 84.05 1238.22 77 1237.49 77 1227.41 77 1227.41 77 1227.41 \
+77 1051.41 77 902.41 217.84 730.57 609 443.6 618.14 436.9 621.52 436.91 632 432.6 642.01 428.48 645.56 429.89 655 424.6 676.37 412.63 \
+697.69 395.09 713.5 380.71 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 715.63 383.51 720.58 374.14 710.87 378.38 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,721.68,373.11 544.34,1480.3 441.74,1433 170.18,1305.4 92,1244.4 84.053,1238.2 77,1237.5 77,1227.4 77,1227.4 77,1227.4 77,1051.4 \
+77,902.41 217.84,730.57 609,443.6 618.14,436.9 621.52,436.91 632,432.6 642.01,428.48 645.56,429.89 655,424.6 676.37,412.63 697.69,\
+395.09 713.5,380.71"];
+		_start	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 1128 1755.5 1074 1755.5 1074 1719.5 1128 1719.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1101 1734.5 0 25.01 6 -_start ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="1101,1737.5",
+			shape=box,
+			style=filled,
+			width=0.75];
+		_start -> __init__	[_draw_="c 7 -#000000 B 4 1072.92 1736.2 994.04 1734.73 764.14 1725.98 570.13 1671.56 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 571.2 1668.23 560.62 1668.84 569.27 1674.96 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,559.16,1668.4 1072.9,1736.2 994.04,1734.7 764.14,1726 570.13,1671.6"];
+		_start -> _process_message	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 1072.83 1731.61 999 1718.82 798.38 1684.04 693.65 1665.88 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 694.33 1662.44 683.87 1664.18 693.13 1669.34 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 916.72 1692.5 0 47.8 12 -via listener ",
+			fontname=Helvetica,
+			fontsize=10,
+			label="via listener",
+			lp="916.72,1695.5",
+			penwidth=2.3,
+			pos="e,680.44,1663.6 1072.8,1731.6 999,1718.8 798.38,1684 693.65,1665.9",
+			style=bold];
+		_start -> _process_supervisor_message	[_draw_="c 7 -#000000 B 7 1129.1 1725.36 1145.74 1718.66 1167.18 1709.84 1186 1701.5 1203.58 1693.71 1222.7 1684.75 1239.41 1676.76 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1240.61 1680.07 1248.1 1672.58 1237.57 1673.76 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1234.54 1692.5 0 47.8 12 -via listener ",
+			fontname=Helvetica,
+			fontsize=10,
+			label="via listener",
+			lp="1234.5,1695.5",
+			pos="e,1249.5,1671.9 1129.1,1725.4 1145.7,1718.7 1167.2,1709.8 1186,1701.5 1203.6,1693.7 1222.7,1684.8 1239.4,1676.8"];
+		_ready	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1434 1671.5 1380 1671.5 1380 1635.5 1434 1635.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1407 1650.5 0 30.58 6 -_ready ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1407,1653.5",
+			shape=box,
+			style=filled,
+			width=0.75];
+		_start -> _ready	[_draw_="c 7 -#000000 B 4 1128.85 1732.05 1176.7 1723.92 1277.48 1704.74 1369.14 1671.85 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1370.08 1675.24 1378.27 1668.51 1367.68 1668.66 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1379.7,1668 1128.8,1732 1176.7,1723.9 1277.5,1704.7 1369.1,1671.9"];
+		_start_failed	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1190.24 1671.5 1119.76 1671.5 1119.76 1635.5 1190.24 1635.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1155 1650.5 0 54.48 13 -_start_failed ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1155,1653.5",
+			shape=box,
+			style=filled,
+			width=0.97885];
+		_start -> _start_failed	[_draw_="c 7 -#000000 B 4 1112.72 1718.71 1119.91 1707.78 1129.27 1693.57 1137.35 1681.3 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1140.08 1683.52 1142.66 1673.24 1134.24 1679.67 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1156.52 1692.5 0 50.58 13 -on init error ",
+			fontname=Helvetica,
+			fontsize=10,
+			label="on init error",
+			lp="1156.5,1695.5",
+			pos="e,1143.5,1672 1112.7,1718.7 1119.9,1707.8 1129.3,1693.6 1137.3,1681.3"];
+		_stop	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1182 1517.41 1128 1517.41 1128 1481.41 1182 1481.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1155 1496.41 0 24.46 5 -_stop ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1155,1499.4",
+			shape=box,
+			style=filled,
+			width=0.75];
+		_start -> _stop	[_draw_="c 7 -#000000 B 7 1101.61 1718.44 1102.57 1698.09 1104.99 1664.13 1111 1635.5 1118.98 1597.48 1133.79 1555.11 1144.01 1528.13 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1147.21 1529.58 1147.54 1518.99 1140.68 1527.06 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1148.1,1517.6 1101.6,1718.4 1102.6,1698.1 1105,1664.1 1111,1635.5 1119,1597.5 1133.8,1555.1 1144,1528.1"];
+		poll_forever	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#b9f8cf E 949 1576.46 41.04 41.04 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 949 1573.46 0 52.25 12 -poll_forever ",
+			fillcolor="#b9f8cf",
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.1401,
+			penwidth=2.35,
+			pos="949,1576.5",
+			shape=circle,
+			style=filled,
+			width=1.1401];
+		_start -> poll_forever	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 1083.86 1718.56 1060.43 1694.05 1017.77 1649.41 986.68 1616.89 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 989.29 1614.55 979.85 1609.74 984.23 1619.38 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,977.44,1607.2 1083.9,1718.6 1060.4,1694 1017.8,1649.4 986.68,1616.9",
+			style=bold];
+		_start_failed -> _stop	[_draw_="c 7 -#000000 B 4 1155 1635.05 1155 1609.15 1155 1560.25 1155 1529.05 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1158.5 1529.17 1155 1519.17 1151.5 1529.17 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1155,1517.7 1155,1635.1 1155,1609.2 1155,1560.2 1155,1529"];
+		_stop -> stop_worker	[_draw_="c 7 -#000000 B 19 1127.63 1492.21 970.96 1456.43 192.64 1275.15 127 1190.41 100.59 1156.33 83.28 1033.42 107 997.41 152.24 928.75 \
+199.68 952.4 277 924.41 303.76 914.73 750.98 801.21 768 778.4 790.24 748.58 773.91 480.33 768 443.6 764.67 422.93 757.21 400.53 \
+750.69 383.53 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 754.09 382.62 747.15 374.62 747.59 385.2 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,746.59,373.21 1127.6,1492.2 970.96,1456.4 192.64,1275.1 127,1190.4 100.59,1156.3 83.276,1033.4 107,997.41 152.24,928.75 199.68,\
+952.4 277,924.41 303.76,914.73 750.98,801.21 768,778.4 790.24,748.58 773.91,480.33 768,443.6 764.67,422.93 757.21,400.53 750.69,\
+383.53"];
+		poll_forever -> _maybe_poll	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 7 909.97 1560.63 859.54 1540.9 769.6 1503.79 697 1463.41 691.34 1460.27 685.52 1456.69 679.9 \
+1453.05 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 681.9 1450.18 671.65 1447.51 678 1455.99 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,668.76,1445.6 909.97,1560.6 859.54,1540.9 769.6,1503.8 697,1463.4 691.34,1460.3 685.52,1456.7 679.9,1453",
+			style=bold];
+		_poll_for_task_queue	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 843.81 1371.41 732.19 1371.41 732.19 1335.41 843.81 1335.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 788 1350.41 0 95.63 20 -_poll_for_task_queue ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="788,1353.4",
+			shape=box,
+			style=filled,
+			width=1.5504];
+		_maybe_poll -> _poll_for_task_queue	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 680.71 1407.31 698.57 1398.51 720.27 1387.81 739.47 1378.34 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 740.81 1381.58 748.23 1374.02 737.72 1375.3 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,751.36,1372.5 680.71,1407.3 698.57,1398.5 720.27,1387.8 739.47,1378.3",
+			style=bold];
+		_poll_for_task_queue -> _reuse_existing_fallthrough_worker	[_draw_="c 7 -#000000 B 7 731.35 1343.36 646.6 1328.71 482.66 1296.14 351 1244.41 318.57 1231.67 284.16 1212.21 259.2 1196.89 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 261.07 1193.93 250.73 1191.62 257.37 1199.87 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,249.44,1190.8 731.35,1343.4 646.6,1328.7 482.66,1296.1 351,1244.4 318.57,1231.7 284.16,1212.2 259.2,1196.9"];
+		_canonical_model_name	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1410.59 1190.41 1283.41 1190.41 1283.41 1154.41 1410.59 1154.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1347 1169.41 0 111.19 21 -_canonical_model_name ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1347,1172.4",
+			shape=box,
+			style=filled,
+			width=1.7665];
+		_poll_for_task_queue -> _canonical_model_name	[_draw_="c 7 -#000000 B 10 844.78 1350.42 973.77 1345.35 1280.29 1330.07 1314 1298.41 1343.56 1270.66 1316.24 1246.91 1329 1208.41 1329.8 \
+1205.99 1330.76 1203.53 1331.8 1201.09 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1334.93 1202.65 1336.09 1192.12 1328.61 1199.63 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1336.7,1190.8 844.78,1350.4 973.77,1345.3 1280.3,1330.1 1314,1298.4 1343.6,1270.7 1316.2,1246.9 1329,1208.4 1329.8,1206 1330.8,\
+1203.5 1331.8,1201.1"];
+		_warn_sparse_runtime_config_if_needed	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 527.73 1190.41 328.27 1190.41 328.27 1154.41 527.73 1154.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 428 1169.41 0 183.46 37 -_warn_sparse_runtime_config_if_needed ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="428,1172.4",
+			shape=box,
+			style=filled,
+			width=2.7702];
+		_poll_for_task_queue -> _warn_sparse_runtime_config_if_needed	[_draw_="c 7 -#000000 B 7 739.91 1334.38 688.74 1314.57 605.98 1280.72 538 1244.41 511.4 1230.21 482.82 1211.66 461.47 1197.08 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 463.66 1194.34 453.44 1191.55 459.69 1200.11 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 700.01 1277.41 0 99.48 24 -via start_worker_if_fits ",
+			fontname=Helvetica,
+			fontsize=10,
+			label="via start_worker_if_fits",
+			lp="700.01,1280.4",
+			pos="e,452.19,1190.7 739.91,1334.4 688.74,1314.6 605.98,1280.7 538,1244.4 511.4,1230.2 482.82,1211.7 461.47,1197.1"];
+		send_work_request	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1433.64 1244.41 1330.36 1244.41 1330.36 1208.41 1433.64 1208.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1382 1223.41 0 87.28 17 -send_work_request ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1382,1226.4",
+			shape=box,
+			style=filled,
+			width=1.4344];
+		_poll_for_task_queue -> send_work_request	[_draw_="c 7 -#000000 B 7 844.66 1351.72 975.08 1349.71 1288.52 1342.32 1329 1317.41 1351.41 1303.62 1365.45 1276.55 1373.4 1255.68 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1376.69 1256.87 1376.7 1246.27 1370.09 1254.55 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1377.2,1244.8 844.66,1351.7 975.08,1349.7 1288.5,1342.3 1329,1317.4 1351.4,1303.6 1365.4,1276.5 1373.4,1255.7"];
+		start_worker_if_fits	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 1220 1298.41 1135.03 1280.41 1220 1262.41 1304.97 1280.41 c 7 -#000000 L \
+2 1146.77 1282.9 1146.77 1277.93 c 7 -#000000 L 2 1208.26 1264.9 1231.74 1264.9 c 7 -#000000 L 2 1293.23 1277.93 1293.23 1282.9 \
+c 7 -#000000 L 2 1231.74 1295.93 1208.26 1295.93 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1220 1277.41 0 83.92 20 -start_worker_if_fits ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="1220,1280.4",
+			shape=Mdiamond,
+			style=filled,
+			width=2.3603];
+		_poll_for_task_queue -> start_worker_if_fits	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 844.92 1343.06 926.17 1329.71 1074.82 1305.28 1158.52 1291.52 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1158.88 1295.01 1168.18 1289.93 1157.75 1288.1 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,1171.6,1289.4 844.92,1343.1 926.17,1329.7 1074.8,1305.3 1158.5,1291.5",
+			style=bold];
+		_missing_required_runtime_fields	[_draw_="c 7 -#000000 C 7 -#ffffe0 P 4 731.76 1190.41 566.24 1190.41 566.24 1154.41 731.76 1154.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 649 1169.41 0 149.52 32 -_missing_required_runtime_fields ",
+			fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="649,1172.4",
+			shape=box,
+			style=filled,
+			width=2.2989];
+		_fail_work_request -> _build_work_event_data	[_draw_="c 7 -#000000 B 4 548.2 336.43 476.11 310.24 339.71 260.67 261.69 232.32 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 263.09 229.11 252.5 228.99 260.7 235.69 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,251.08,228.47 548.2,336.43 476.11,310.24 339.71,260.67 261.69,232.32"];
+		send_work_request -> _build_work_event_data	[_draw_="c 7 -#000000 B 28 1329.98 1226.01 1234.97 1226.2 1027.38 1222.47 856 1190.41 803.36 1180.57 793.58 1164.59 741 1154.41 641.2 1135.11 \
+613.65 1150.6 513 1136.41 512.74 1136.38 366.23 1106.54 366 1106.41 326.29 1084.7 324.1 1068.07 295 1033.41 282.31 1018.3 282.27 \
+1012.02 269 997.41 176.67 895.78 37 930.71 37 793.4 37 793.4 37 793.4 37 353.8 37 295.19 97.22 255.38 145.12 232.98 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 146.37 236.25 154.05 228.95 143.5 229.87 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,155.43,228.33 1330,1226 1235,1226.2 1027.4,1222.5 856,1190.4 803.36,1180.6 793.58,1164.6 741,1154.4 641.2,1135.1 613.65,1150.6 \
+513,1136.4 512.74,1136.4 366.23,1106.5 366,1106.4 326.29,1084.7 324.1,1068.1 295,1033.4 282.31,1018.3 282.27,1012 269,997.41 176.67,\
+895.78 37,930.71 37,793.4 37,793.4 37,793.4 37,353.8 37,295.19 97.217,255.38 145.12,232.98"];
+		_start_exact_variant	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 971.02 1190.41 864.98 1190.41 864.98 1154.41 971.02 1154.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 918 1169.41 0 90.05 20 -_start_exact_variant ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="918,1172.4",
+			shape=box,
+			style=filled,
+			width=1.4729];
+		_start_exact_variant -> _effective_hardware_profile	[_draw_="c 7 -#000000 B 7 864.18 1163.76 756.2 1148.29 522.04 1114.11 506 1106.41 489.33 1098.42 455.09 1065.55 431.6 1041.85 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 434.35 1039.65 424.84 1034.98 429.36 1044.56 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,423.78,1033.9 864.18,1163.8 756.2,1148.3 522.04,1114.1 506,1106.4 489.33,1098.4 455.09,1065.6 431.6,1041.8"];
+		_start_exact_variant -> _exact_variant_worker_name	[_draw_="c 7 -#000000 B 4 864.04 1157.97 811.35 1144.83 730.51 1124.68 670.09 1109.62 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 671.07 1106.26 660.52 1107.24 669.38 1113.06 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,659.05,1106.9 864.04,1158 811.35,1144.8 730.51,1124.7 670.09,1109.6"];
+		_start_exact_variant -> _fail_work_request	[_draw_="c 7 -#000000 B 19 864.02 1163.34 842.84 1160.31 818.31 1156.99 796 1154.41 644.84 1136.95 600.63 1156.67 457 1106.41 422.95 1094.5 \
+334.41 1061.68 312 1033.41 296.66 1014.07 299 1004.1 299 979.41 299 979.41 299 979.41 299 597.6 299 477.09 447.88 406.02 534.82 \
+374.78 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 535.91 378.11 544.19 371.5 533.59 371.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 316.51 939.41 0 35.01 8 -on error ",
+			fontname=Helvetica,
+			fontsize=10,
+			label="on error",
+			lp="316.51,942.41",
+			pos="e,545.62,370.99 864.02,1163.3 842.84,1160.3 818.31,1157 796,1154.4 644.84,1137 600.63,1156.7 457,1106.4 422.95,1094.5 334.41,1061.7 \
+312,1033.4 296.66,1014.1 299,1004.1 299,979.41 299,979.41 299,979.41 299,597.6 299,477.09 447.88,406.02 534.82,374.78"];
+		_maybe_register_canonical_alias	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 845.21 1106.41 680.79 1106.41 680.79 1070.41 845.21 1070.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 763 1085.41 0 148.42 31 -_maybe_register_canonical_alias ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="763,1088.4",
+			shape=box,
+			style=filled,
+			width=2.2837];
+		_start_exact_variant -> _maybe_register_canonical_alias	[_draw_="c 7 -#000000 B 4 883.98 1153.42 861.06 1141.29 830.63 1125.19 806.02 1112.18 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 807.69 1109.1 797.21 1107.51 804.41 1115.28 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,795.87,1106.8 883.98,1153.4 861.06,1141.3 830.63,1125.2 806.02,1112.2"];
+		_fit_gpu_and_start	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 971.42 1106.41 872.58 1106.41 872.58 1070.41 971.42 1070.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 922 1085.41 0 82.84 18 -_fit_gpu_and_start ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="922,1088.4",
+			shape=box,
+			style=filled,
+			width=1.3728];
+		_start_exact_variant -> _fit_gpu_and_start	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 918.87 1153.62 919.34 1144.02 919.93 1131.88 920.47 1120.75 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 923.96 1121.09 920.95 1110.93 916.97 1120.75 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,921.12,1107.5 918.87,1153.6 919.34,1144 919.93,1131.9 920.47,1120.7",
+			style=bold];
+		_maybe_register_canonical_alias -> _effective_hardware_profile	[_draw_="c 7 -#000000 B 4 680.5 1071.77 628.06 1061.72 558.47 1048.2 487.68 1033.74 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 488.75 1030.39 478.25 1031.81 487.35 1037.24 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,476.77,1031.5 680.5,1071.8 628.06,1061.7 558.47,1048.2 487.68,1033.7"];
+		_maybe_register_canonical_alias -> _registry_engine_for_worker_names	[_draw_="c 7 -#000000 B 4 719.21 1070.05 694.83 1060.38 664.27 1048.25 638.37 1037.98 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 639.95 1034.84 629.36 1034.41 637.37 1041.35 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,627.96,1033.8 719.21,1070 694.83,1060.4 664.27,1048.3 638.37,1038"];
+		_maybe_register_canonical_alias -> _register_model_name_alias	[_draw_="c 7 -#000000 B 10 680.71 1071.75 677.77 1071.28 674.86 1070.84 672 1070.41 520.3 1048.1 481.34 1050.81 329 1033.41 310.45 1031.3 \
+290.54 1028.94 271.7 1026.68 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 272.28 1023.23 261.94 1025.51 271.45 1030.18 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,260.43,1025.3 680.71,1071.7 677.77,1071.3 674.86,1070.8 672,1070.4 520.3,1048.1 481.34,1050.8 329,1033.4 310.45,1031.3 290.54,\
+1028.9 271.7,1026.7"];
+		start_worker_if_fits -> _effective_hardware_profile	[_draw_="c 7 -#000000 B 19 1142.76 1277.61 1025.44 1274.2 812.95 1265.23 785 1244.41 771.23 1234.16 778.3 1223.95 771 1208.41 759.33 1183.56 \
+763.73 1169.81 741 1154.41 714.85 1136.7 631.15 1141.66 600 1136.41 535.96 1125.63 509.27 1144.95 457 1106.41 436.34 1091.18 423.12 \
+1064.72 415.5 1044.41 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 418.83 1043.32 412.24 1035.02 412.21 1045.62 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,411.74,1033.6 1142.8,1277.6 1025.4,1274.2 812.95,1265.2 785,1244.4 771.23,1234.2 778.3,1224 771,1208.4 759.33,1183.6 763.73,1169.8 \
+741,1154.4 714.85,1136.7 631.15,1141.7 600,1136.4 535.96,1125.6 509.27,1144.9 457,1106.4 436.34,1091.2 423.12,1064.7 415.5,1044.4"];
+		start_worker_if_fits -> _register_model_name_alias	[_draw_="c 7 -#000000 B 13 1147.16 1276.66 978.05 1270.13 572.26 1253.55 561 1244.41 528.85 1218.33 566.29 1183.67 537 1154.41 522.28 1139.71 \
+375.36 1114.05 356 1106.41 309.13 1087.94 258.59 1059.61 225.32 1039.68 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 227.24 1036.74 216.87 1034.56 223.61 1042.73 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,215.57,1033.8 1147.2,1276.7 978.05,1270.1 572.26,1253.6 561,1244.4 528.85,1218.3 566.29,1183.7 537,1154.4 522.28,1139.7 375.36,\
+1114 356,1106.4 309.13,1087.9 258.59,1059.6 225.32,1039.7"];
+		start_worker_if_fits -> _reuse_existing_fallthrough_worker	[_draw_="c 7 -#000000 B 7 1131.98 1279.88 1000.53 1279.45 745.41 1274.34 531 1244.41 449.1 1232.98 356.89 1210.41 294.89 1193.77 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 296.09 1190.47 285.52 1191.23 294.26 1197.22 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,284.06,1190.8 1132,1279.9 1000.5,1279.5 745.41,1274.3 531,1244.4 449.1,1233 356.89,1210.4 294.89,1193.8"];
+		start_worker_if_fits -> _canonical_model_name	[_draw_="c 7 -#000000 B 4 1237.39 1264.9 1258.08 1247.63 1292.95 1218.53 1317.8 1197.79 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1319.86 1200.63 1325.3 1191.53 1315.38 1195.25 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1326.5,1190.6 1237.4,1264.9 1258.1,1247.6 1292.9,1218.5 1317.8,1197.8"];
+		start_worker_if_fits -> _missing_required_runtime_fields	[_draw_="c 7 -#000000 B 10 1140.79 1278.01 972.14 1274.62 591.26 1264.76 571.98 1244.41 560.98 1232.8 563.32 1221.87 571.98 1208.41 574.62 \
+1204.32 577.87 1200.69 581.53 1197.49 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 583.49 1200.39 589.48 1191.65 579.35 1194.74 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 671.49 1223.41 0 199.02 41 -via _warn_sparse_runtime_config_if_needed ",
+			fontname=Helvetica,
+			fontsize=10,
+			label="via _warn_sparse_runtime_config_if_needed",
+			lp="671.49,1226.4",
+			pos="e,590.7,1190.8 1140.8,1278 972.14,1274.6 591.26,1264.8 571.98,1244.4 560.98,1232.8 563.32,1221.9 571.98,1208.4 574.62,1204.3 577.87,\
+1200.7 581.53,1197.5"];
+		start_worker_if_fits -> _warn_sparse_runtime_config_if_needed	[_draw_="c 7 -#000000 B 10 1141.81 1277.79 969 1273.86 567.95 1262.81 545 1244.41 532.04 1234.03 546.47 1220.42 535 1208.41 530.65 1203.87 \
+525.71 1199.91 520.38 1196.47 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 522.17 1193.46 511.75 1191.55 518.71 1199.54 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,510.44,1190.8 1141.8,1277.8 969,1273.9 567.95,1262.8 545,1244.4 532.04,1234 546.47,1220.4 535,1208.4 530.65,1203.9 525.71,1199.9 \
+520.38,1196.5"];
+		start_worker_if_fits -> _start_exact_variant	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 7 1183.87 1268.96 1161.36 1262.29 1131.86 1253.26 1106 1244.41 1062 1229.37 1012.86 1210.74 \
+975.85 1196.35 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 977.13 1193.09 966.54 1192.71 974.58 1199.61 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,963.3,1191.4 1183.9,1269 1161.4,1262.3 1131.9,1253.3 1106,1244.4 1062,1229.4 1012.9,1210.7 975.85,1196.3",
+			style=bold];
+		start_worker_if_fits -> _fit_gpu_and_start	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 1199.05 1266.05 1149.66 1234.56 1025.31 1155.28 961.35 1114.5 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 963.39 1111.65 953.08 1109.23 959.63 1117.56 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,950.14,1107.4 1199,1266.1 1149.7,1234.6 1025.3,1155.3 961.35,1114.5",
+			style=bold];
+		start_worker	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ff6467 P 4 1362.51 887.41 1291.49 887.41 1291.49 816.4 1362.51 816.4 c 7 -#000000 L \
+2 1303.49 887.41 1291.49 875.41 c 7 -#000000 L 2 1291.49 828.4 1303.49 816.4 c 7 -#000000 L 2 1350.51 816.4 1362.51 828.4 c 7 -#\
+000000 L 2 1362.51 875.41 1350.51 887.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1327 848.91 0 55.01 12 -start_worker ",
+			fillcolor="#ff6467",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.98631,
+			penwidth=2.35,
+			pos="1327,851.91",
+			shape=Msquare,
+			style=filled,
+			width=0.98631];
+		start_worker_if_fits -> start_worker	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 25 1163.45 1273.22 1119.52 1267.7 1057.3 1258.32 1004 1244.41 936.25 1226.74 921.75 1214.49 \
+856 1190.41 812.43 1174.46 803.15 1165.12 758 1154.41 626.18 1123.17 583.66 1154.46 457 1106.41 387.14 1079.91 278.94 1052.89 329 \
+997.41 355.94 967.56 649.06 965.05 689 960.41 940.51 931.25 1011.02 958.61 1254 887.41 1262.03 885.06 1270.29 881.93 1278.23 878.51 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1279.56 881.75 1287.2 874.41 1276.65 875.38 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,1290.4,872.96 1163.5,1273.2 1119.5,1267.7 1057.3,1258.3 1004,1244.4 936.25,1226.7 921.75,1214.5 856,1190.4 812.43,1174.5 803.15,\
+1165.1 758,1154.4 626.18,1123.2 583.66,1154.5 457,1106.4 387.14,1079.9 278.94,1052.9 329,997.41 355.94,967.56 649.06,965.05 689,\
+960.41 940.51,931.25 1011,958.61 1254,887.41 1262,885.06 1270.3,881.93 1278.2,878.51",
+			style=bold];
+		_fit_gpu_and_start -> build_pid_mappings	[_draw_="c 7 -#000000 B 7 927.88 1069.61 930.86 1063.04 935.13 1056.07 941 1051.41 963.41 1033.65 976.63 1039.96 1008.29 1033.51 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1008.85 1036.98 1017.77 1031.27 1007.24 1030.17 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1019.2,1030.9 927.88,1069.6 930.86,1063 935.13,1056.1 941,1051.4 963.41,1033.7 976.63,1040 1008.3,1033.5"];
+		_fit_gpu_and_start -> _collect_reclaimable_worker_run_ids	[_draw_="c 7 -#000000 B 7 940.17 1069.37 948.08 1062.59 957.85 1055.54 968 1051.41 1033.13 1024.92 1057.63 1041.83 1131.08 1033.5 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1131.3 1037 1140.78 1032.27 1130.42 1030.06 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1142.3,1032.1 940.17,1069.4 948.08,1062.6 957.85,1055.5 968,1051.4 1033.1,1024.9 1057.6,1041.8 1131.1,1033.5"];
+		stop_workers_and_start_worker	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 1001.15 1033.41 842.85 1033.41 842.85 997.41 1001.15 997.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 922 1012.41 0 142.29 29 -stop_workers_and_start_worker ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="922,1015.4",
+			shape=box,
+			style=filled,
+			width=2.1985];
+		_fit_gpu_and_start -> stop_workers_and_start_worker	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 922 1069.5 922 1062.91 922 1055.23 922 1047.8 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 925.5 1048.05 922 1038.05 918.5 1048.05 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,922,1034.6 922,1069.5 922,1062.9 922,1055.2 922,1047.8",
+			style=bold];
+		_start_worker_with_preflight	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 679.53 960.41 538.47 960.41 538.47 924.41 679.53 924.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 609 939.41 0 125.06 28 -_start_worker_with_preflight ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="609,942.41",
+			shape=box,
+			style=filled,
+			width=1.9591];
+		_fit_gpu_and_start -> _start_worker_with_preflight	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 13 871.51 1074.75 865.61 1073.29 859.67 1071.81 854 1070.41 786.5 1053.76 757.3 1075.56 702 \
+1033.41 687.44 1022.32 694.08 1011.17 682 997.41 672.8 986.93 661.23 977.24 650.04 969.05 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 652.12 966.24 641.92 963.38 648.11 971.98 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,639.07,961.39 871.51,1074.8 865.61,1073.3 859.67,1071.8 854,1070.4 786.5,1053.8 757.3,1075.6 702,1033.4 687.44,1022.3 694.08,1011.2 \
+682,997.41 672.8,986.93 661.23,977.24 650.04,969.05",
+			style=bold];
+		_fit_gpu_and_start -> get_usage_maps	[_draw_="c 7 -#000000 B 7 947.43 1069.26 958.45 1062.38 971.82 1055.28 985 1051.41 1055.98 1030.58 1239.63 1045.36 1329.84 1033.29 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1330.3 1036.76 1339.65 1031.77 1329.23 1029.84 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1341.1,1031.5 947.43,1069.3 958.45,1062.4 971.82,1055.3 985,1051.4 1056,1030.6 1239.6,1045.4 1329.8,1033.3"];
+		get_multi_index_to_fit	[_draw_="c 7 -#000000 C 7 -#ffffe0 P 4 824.64 1033.41 711.36 1033.41 711.36 997.41 824.64 997.41 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 768 1012.41 0 97.29 22 -get_multi_index_to_fit ",
+			fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="768,1015.4",
+			shape=box,
+			style=filled,
+			width=1.5734];
+		_fit_gpu_and_start -> get_multi_index_to_fit	[_draw_="c 7 -#000000 B 4 882.74 1069.31 862.45 1059.96 837.51 1048.46 816.07 1038.57 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 817.78 1035.51 807.23 1034.5 814.85 1041.87 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,805.86,1033.9 882.74,1069.3 862.45,1060 837.51,1048.5 816.07,1038.6"];
+		stop_workers_and_start_worker -> _wait_for_gpu_capacity_after_eviction	[_draw_="c 7 -#000000 B 4 1002.05 996.31 1046.53 986.26 1101.96 973.72 1147.7 963.38 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1148.35 966.82 1157.33 961.2 1146.81 959.99 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1158.8,960.87 1002,996.31 1046.5,986.26 1102,973.72 1147.7,963.38"];
+		stop_workers_and_start_worker -> _start_worker_with_preflight	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 10 841.93 998.8 839.26 998.32 836.61 997.86 834 997.41 780.85 988.3 766.39 992.21 714 979.41 \
+699.09 975.77 683.29 970.91 668.6 965.94 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 669.91 962.69 659.31 962.72 667.61 969.3 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,656.02,961.57 841.93,998.8 839.26,998.32 836.61,997.86 834,997.41 780.85,988.3 766.39,992.21 714,979.41 699.09,975.77 683.29,970.91 \
+668.6,965.94",
+			style=bold];
+		stop_workers_and_start_worker -> stop_worker	[_draw_="c 7 -#000000 B 13 880.7 996.35 812.69 964.03 679.33 889.13 626 778.4 609.86 744.88 608.32 476.33 626 443.6 633.33 430.04 642.58 \
+433.72 655 424.6 674.11 410.58 694.7 393.74 710.72 380.23 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 712.6 383.22 717.96 374.08 708.07 377.89 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,719.11,373.1 880.7,996.35 812.69,964.03 679.33,889.13 626,778.4 609.86,744.88 608.32,476.33 626,443.6 633.33,430.04 642.58,433.72 \
+655,424.6 674.11,410.58 694.7,393.74 710.72,380.23"];
+		get_work_requests_for_events	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 1104.37 616.6 951.63 616.6 951.63 580.6 1104.37 580.6 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1028 595.6 0 136.75 28 -get_work_requests_for_events ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1028,598.6",
+			shape=box,
+			style=filled,
+			width=2.1215];
+		send_related_task_event	[_draw_="c 7 -#000000 C 7 -#ff0000 P 4 1244.87 869.91 1117.13 869.91 1117.13 833.91 1244.87 833.91 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#ffffff T 1181 854.91 0 111.75 23 -send_related_task_event F 10 9 -Helvetica c 7 -#ffffff T 1181 842.91 0 \
+93.92 20 -(commented-out call) ",
+			fillcolor=red,
+			fontcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="send_related_task_event\n(commented-out call)",
+			pos="1181,851.91",
+			shape=box,
+			style=filled,
+			width=1.7743];
+		send_related_task_event -> get_work_requests_for_events	[_draw_="c 7 -#000000 B 7 1161.69 833.49 1147.04 819.59 1127.1 799.07 1113 778.4 1079.22 728.86 1052 663.81 1038.1 627.39 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1041.54 626.6 1034.75 618.47 1034.99 629.07 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1034.2,617.06 1161.7,833.49 1147,819.59 1127.1,799.07 1113,778.4 1079.2,728.86 1052,663.81 1038.1,627.39"];
+		_apply_kv_cache_estimate	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 933.31 616.6 796.69 616.6 796.69 580.6 933.31 580.6 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 865 595.6 0 120.63 24 -_apply_kv_cache_estimate ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="865,598.6",
+			shape=box,
+			style=filled,
+			width=1.8976];
+		_start_worker_with_preflight -> _fail_work_request	[_draw_="c 7 -#000000 B 4 606.05 923.25 598.78 839.21 590.79 487.89 593.5 384.53 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 597 384.81 593.84 374.7 590 384.57 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,593.89,373.18 606.05,923.25 598.78,839.21 590.79,487.89 593.5,384.53"];
+		_start_worker_with_preflight -> _fail_work_request	[_draw_="c 7 -#000000 B 4 611.14 923.25 614.68 839.21 607.08 487.89 599.77 384.53 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 603.27 384.39 599 374.69 596.29 384.94 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,598.88,373.18 611.14,923.25 614.68,839.21 607.08,487.89 599.77,384.53"];
+		_start_worker_with_preflight -> _apply_kv_cache_estimate	[_draw_="c 7 -#000000 B 7 633.78 923.29 670.37 895.52 739.22 839.2 783 778.4 817.75 730.13 843.17 664.79 855.87 627.94 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 859.18 629.07 859.06 618.47 852.55 626.83 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,859.54,617.04 633.78,923.29 670.37,895.52 739.22,839.2 783,778.4 817.75,730.13 843.17,664.79 855.87,627.94"];
+		_start_worker_with_preflight -> start_worker	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 10 644.89 923.34 660.5 916.39 679.24 909.21 697 905.41 818.11 879.56 1133.62 916.48 1254 \
+887.41 1262.14 885.45 1270.45 882.52 1278.42 879.19 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1279.72 882.44 1287.4 875.14 1276.84 876.06 ",
+			fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,1290.6,873.7 644.89,923.34 660.5,916.39 679.24,909.21 697,905.41 818.11,879.56 1133.6,916.48 1254,887.41 1262.1,885.45 1270.5,\
+882.52 1278.4,879.19",
+			style=bold];
+		start_worker -> _worker_env_overrides	[_draw_="c 7 -#000000 B 7 1304.4 815.46 1300.87 809.78 1297.31 803.95 1294 798.4 1257.97 737.89 1217.96 665.54 1196.89 626.99 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1200.05 625.48 1192.19 618.37 1193.9 628.83 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1191.5,617.05 1304.4,815.46 1300.9,809.78 1297.3,803.95 1294,798.4 1258,737.89 1218,665.54 1196.9,626.99"];
+		start_worker -> get_work_requests_for_events	[_draw_="c 7 -#000000 B 10 1290.41 832.05 1278.94 826.56 1266.1 820.85 1254 816.4 1238.77 810.8 1125.46 788.79 1113 778.4 1065.89 739.11 \
+1043.16 667.71 1033.71 628.06 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1037.18 627.54 1031.57 618.55 1030.35 629.08 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,1031.2,617.08 1290.4,832.05 1278.9,826.56 1266.1,820.85 1254,816.4 1238.8,810.8 1125.5,788.79 1113,778.4 1065.9,739.11 1043.2,\
+667.71 1033.7,628.06"];
+		start_worker -> _apply_kv_cache_estimate	[_draw_="c 7 -#000000 B 10 1290.39 830.8 1279.02 825.33 1266.25 819.94 1254 816.4 1187.12 797.05 998.82 820.01 943 778.4 894.29 742.1 875.55 \
+668.89 868.69 628.31 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 872.17 627.93 867.19 618.58 865.25 628.99 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,866.96,617.08 1290.4,830.8 1279,825.33 1266.3,819.94 1254,816.4 1187.1,797.05 998.82,820.01 943,778.4 894.29,742.1 875.55,668.89 \
+868.69,628.31"];
+		_watch_worker_process	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 758.91 616.6 635.09 616.6 635.09 580.6 758.91 580.6 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 697 595.6 0 107.83 21 -_watch_worker_process ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="697,598.6",
+			shape=box,
+			style=filled,
+			width=1.7198];
+		start_worker -> _watch_worker_process	[_draw_="c 7 -#000000 B 10 1290.52 830.33 1279.15 824.84 1266.36 819.57 1254 816.4 1153.35 790.61 873.18 837.89 788 778.4 736.54 742.46 712.43 \
+668.52 702.67 627.89 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 706.14 627.35 700.52 618.37 699.31 628.9 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,700.19,616.89 1290.5,830.33 1279.2,824.84 1266.4,819.57 1254,816.4 1153.4,790.61 873.18,837.89 788,778.4 736.54,742.46 712.43,\
+668.52 702.67,627.89"];
+		_watch_worker_process -> _fail_work_request	[_draw_="c 7 -#000000 B 4 686.03 580.21 664.97 538.82 620.99 434.16 603.17 383.77 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 606.54 382.8 600 374.46 599.92 385.06 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,599.51,373.03 686.03,580.21 664.97,538.82 620.99,434.16 603.17,383.77"];
+		_watch_worker_process -> _fail_work_request	[_draw_="c 7 -#000000 B 4 693.44 580.21 679.87 538.65 636.11 433.28 611.88 383.13 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 615.13 381.8 607.56 374.39 608.86 384.9 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,606.89,373.03 693.44,580.21 679.87,538.65 636.11,433.28 611.88,383.13"];
+		_watch_worker_process -> stop_worker	[_draw_="c 7 -#000000 B 4 700.02 580.21 707.19 538.91 725.31 434.6 734.09 384.08 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 737.48 384.97 735.75 374.52 730.59 383.78 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,736.01,373.03 700.02,580.21 707.19,538.91 725.31,434.6 734.09,384.08"];
+		run	[_draw_="S 18 -setlinewidth(2.35) c 7 -#000000 C 7 -#ffc9c9 P 4 625 1880.5 571 1880.5 571 1844.5 625 1844.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 598 1859.5 0 14.45 3 -run ",
+			fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="598,1862.5",
+			shape=box,
+			style=filled,
+			width=0.75];
+		run -> __init__	[_draw_="c 7 -#000000 B 4 592.26 1843.49 580.74 1807.36 554.73 1725.8 540.96 1682.59 ",
+			_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 544.33 1681.64 537.96 1673.18 537.66 1683.77 ",
+			fontname=Helvetica,
+			fontsize=10,
+			pos="e,537.5,1671.7 592.26,1843.5 580.74,1807.4 554.73,1725.8 540.96,1682.6"];
+		run -> _start	[_draw_="S 17 -setlinewidth(2.3) c 7 -#000000 B 4 626.12 1854.62 710.4 1834.01 961.15 1772.7 1060.15 1748.49 ",
+			_hdraw_="S 17 -setlinewidth(2.3) S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1060.81 1751.93 1069.7 1746.15 1059.15 1745.13 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 962.37 1776.5 0 20 5 -calls ",
+			fontname=Helvetica,
+			fontsize=10,
+			label=calls,
+			lp="962.37,1779.5",
+			penwidth=2.3,
+			pos="e,1073.1,1745.3 626.12,1854.6 710.4,1834 961.15,1772.7 1060.1,1748.5",
+			style=bold];
+	}
+	subgraph external_db {
+		graph [_draw_="c 7 -#a020f0 C 7 -#fff0f5 P 4 1944 443.6 1944 778.4 2266 778.4 2266 443.6 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 2105 761.8 0 176.48 31 -External: Database (Controller) ",
+			bb="1944,443.6,2266,778.4",
+			cluster=true,
+			color=purple,
+			fillcolor=lavenderblush,
+			label="External: Database (Controller)",
+			lheight=0.23,
+			lp="2105,766",
+			lwidth=2.45,
+			style=filled
+		];
+		db_table	[_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 2258.08 745.6 1951.92 745.6 1951.92 451.6 2258.08 451.6 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#a020f0 P 4 1959.92 719.6 1959.92 741.6 2250.08 741.6 2250.08 719.6 S 5 -solid c 7 -#000000 p 4 1959.92 \
+719.6 1959.92 741.6 2250.08 741.6 2250.08 719.6 F 10 9 -Helvetica c 7 -#000000 t 1 T 2072.22 728.6 -1 65.55 15 -Controller.init \
+S 5 -solid c 7 -#000000 p 4 1959.92 697.6 1959.92 719.6 2250.08 719.6 2250.08 697.6 F 10 9 -Helvetica c 7 -#000000 t 0 T 2038.85 \
+705.6 -1 132.29 28 -Controller.update_worker_run S 5 -solid c 7 -#000000 p 4 1959.92 675.6 1959.92 697.6 2250.08 697.6 2250.08 675.6 \
+F 10 9 -Helvetica c 7 -#000000 T 1998.54 683.6 -1 212.92 44 -Controller.get_chat_message_generation_by_id S 5 -solid c 7 -#000000 \
+p 4 1959.92 653.6 1959.92 675.6 2250.08 675.6 2250.08 653.6 F 10 9 -Helvetica c 7 -#000000 T 2026.07 661.6 -1 157.86 32 -Controller.get_\
+model_simple_name S 5 -solid c 7 -#000000 p 4 1959.92 631.6 1959.92 653.6 2250.08 653.6 2250.08 631.6 F 10 9 -Helvetica c 7 -#000000 \
+T 2023.57 639.6 -1 162.86 38 -Controller.registry.find_variant_by_id S 5 -solid c 7 -#000000 p 4 1959.92 609.6 1959.92 631.6 2250.08 \
+631.6 2250.08 609.6 F 10 9 -Helvetica c 7 -#000000 T 2001.61 617.6 -1 206.77 48 -Controller.registry.find_startable_variant_by_id \
+S 5 -solid c 7 -#000000 p 4 1959.92 587.6 1959.92 609.6 2250.08 609.6 2250.08 587.6 F 10 9 -Helvetica c 7 -#000000 T 2013.29 595.6 \
+-1 183.42 42 -Controller.registry.find_variant_for_model S 5 -solid c 7 -#000000 p 4 1959.92 565.6 1959.92 587.6 2250.08 587.6 2250.08 \
+565.6 F 10 9 -Helvetica c 7 -#000000 T 2012.46 573.6 -1 185.08 42 -Controller.registry.resolve_runtime_config S 5 -solid c 7 -#000000 \
+p 4 1959.92 543.6 1959.92 565.6 2250.08 565.6 2250.08 543.6 F 10 9 -Helvetica c 7 -#000000 T 1996.06 551.6 -1 217.88 48 -Controller.registry.resolve_\
+deployment_overrides S 5 -solid c 7 -#000000 p 4 1959.92 521.6 1959.92 543.6 2250.08 543.6 2250.08 521.6 F 10 9 -Helvetica c 7 -#\
+000000 T 2028.85 529.6 -1 152.29 31 -Controller.get_workers_by_names S 5 -solid c 7 -#000000 p 4 1959.92 499.6 1959.92 521.6 2250.08 \
+521.6 2250.08 499.6 F 10 9 -Helvetica c 7 -#000000 T 1964.92 507.6 -1 280.15 57 -Controller.get_worker_model_support_for_model_and_\
+workers S 5 -solid c 7 -#000000 p 4 1959.92 477.6 1959.92 499.6 2250.08 499.6 2250.08 477.6 F 10 9 -Helvetica c 7 -#000000 T 2040.25 \
+485.6 -1 129.5 28 -Controller.create_worker_run S 5 -solid c 9 -#fffffe00 C 7 -#ffffe0 P 4 1959.92 455.6 1959.92 477.6 2250.08 477.6 \
+2250.08 455.6 S 5 -solid c 7 -#000000 p 4 1959.92 455.6 1959.92 477.6 2250.08 477.6 2250.08 455.6 F 10 9 -Helvetica c 7 -#000000 \
+T 2058.86 463.6 -1 92.28 18 -_sync_worker_to_db ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=4.0833,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="init" BGCOLOR="purple" FONTCOLOR="white"><B>Controller.init</B></TD></TR>
+              <TR><TD PORT="update_worker_run">Controller.update_worker_run</TD></TR>
+              <TR><TD PORT="get_chat_message">Controller.get_chat_message_generation_by_id</TD></TR>
+              <TR><TD PORT="get_model_simple_name">Controller.get_model_simple_name</TD></TR>
+              <TR><TD PORT="registry_find_variant_by_id">Controller.registry.find_variant_by_id</TD></TR>
+              <TR><TD PORT="registry_find_startable">Controller.registry.find_startable_variant_by_id</TD></TR>
+              <TR><TD PORT="registry_find_variant_for_model">Controller.registry.find_variant_for_model</TD></TR>
+              <TR><TD PORT="registry_resolve_runtime">Controller.registry.resolve_runtime_config</TD></TR>
+              <TR><TD PORT="registry_resolve_deployment">Controller.registry.resolve_deployment_overrides</TD></TR>
+              <TR><TD PORT="get_workers_by_names">Controller.get_workers_by_names</TD></TR>
+              <TR><TD PORT="get_worker_model_support">Controller.get_worker_model_support_for_model_and_workers</TD></TR>
+              <TR><TD PORT="create_worker_run">Controller.create_worker_run</TD></TR>
+              <TR><TD PORT="sync_worker_to_db" BGCOLOR="lightyellow">_sync_worker_to_db</TD></TR>
+              </TABLE>
+            >,
+			pos="2105,598.6",
+			shape=plaintext,
+			style=filled,
+			width=4.2521];
+	}
+	subgraph external_websocket {
+		graph [_draw_="c 7 -#0000ff C 7 -#f0f8ff P 4 1450 176 1450 268.8 1660 268.8 1660 176 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 1555 252.2 0 157.06 26 -External: WebSocket Client ",
+			bb="1450,176,1660,268.8",
+			cluster=true,
+			color=blue,
+			fillcolor=aliceblue,
+			label="External: WebSocket Client",
+			lheight=0.23,
+			lp="1555,256.4",
+			lwidth=2.18,
+			style=filled
+		];
+		ws_table	[_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 1652.2 236 1457.8 236 1457.8 184 1652.2 184 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#0000ff P 4 1465.8 210 1465.8 232 1644.2 232 1644.2 210 S 5 -solid c 7 -#000000 p 4 1465.8 210 1465.8 \
+232 1644.2 232 1644.2 210 F 10 9 -Helvetica c 7 -#000000 t 1 T 1470.8 219 -1 168.41 32 -record_channel_event_with_values S 5 -solid \
+c 7 -#000000 p 4 1465.8 188 1465.8 210 1644.2 210 1644.2 188 F 10 9 -Helvetica c 7 -#000000 t 0 T 1517.19 196 -1 75.62 15 -connect_\
+channel ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.72222,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="record_channel_event" BGCOLOR="blue" FONTCOLOR="white"><B>record_channel_event_with_values</B></TD></TR>
+              <TR><TD PORT="connect_channel">connect_channel</TD></TR>
+              </TABLE>
+            >,
+			pos="1555,210",
+			shape=plaintext,
+			style=filled,
+			width=2.7001];
+	}
+	subgraph external_pubsub {
+		graph [_draw_="c 7 -#008080 C 7 -#98fb98 P 4 2447 154 2447 290.8 2618 290.8 2618 154 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 2532.5 274.2 0 155.16 26 -External: PubSub/Publisher ",
+			bb="2447,154,2618,290.8",
+			cluster=true,
+			color=teal,
+			fillcolor=palegreen,
+			label="External: PubSub/Publisher",
+			lheight=0.23,
+			lp="2532.5,278.4",
+			lwidth=2.16,
+			style=filled
+		];
+		ps_table	[_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 2578.08 258 2485.92 258 2485.92 162 2578.08 162 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#008080 P 4 2493.92 232 2493.92 254 2570.08 254 2570.08 232 S 5 -solid c 7 -#000000 p 4 2493.92 232 \
+2493.92 254 2570.08 254 2570.08 232 F 10 9 -Helvetica c 7 -#000000 t 1 T 2500.05 241 -1 63.89 11 -PubSub.send S 5 -solid c 7 -#000000 \
+p 4 2493.92 210 2493.92 232 2570.08 232 2570.08 210 F 10 9 -Helvetica c 7 -#000000 t 0 T 2501.15 218 -1 61.71 13 -PubSub.listen \
+S 5 -solid c 7 -#000000 p 4 2493.92 188 2493.92 210 2570.08 210 2570.08 188 F 10 9 -Helvetica c 7 -#000000 T 2503.37 196 -1 57.27 \
+11 -PubSub.stop S 5 -solid c 7 -#000000 p 4 2493.92 166 2493.92 188 2570.08 188 2570.08 166 F 10 9 -Helvetica c 7 -#000000 T 2498.92 \
+174 -1 66.15 14 -Publisher.send ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.3333,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="send" BGCOLOR="teal" FONTCOLOR="white"><B>PubSub.send</B></TD></TR>
+              <TR><TD PORT="listen">PubSub.listen</TD></TR>
+              <TR><TD PORT="stop">PubSub.stop</TD></TR>
+              <TR><TD PORT="pub_send">Publisher.send</TD></TR>
+              </TABLE>
+            >,
+			pos="2532,210",
+			shape=plaintext,
+			style=filled,
+			width=1.2799];
+	}
+	subgraph external_gpu {
+		graph [_draw_="c 7 -#ffa500 C 7 -#ffdab9 P 4 1791 309.8 1791 424.6 1934 424.6 1934 309.8 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 1862.5 408 0 127.93 18 -External: GPU/NVML ",
+			bb="1791,309.8,1934,424.6",
+			cluster=true,
+			color=orange,
+			fillcolor=peachpuff,
+			label="External: GPU/NVML",
+			lheight=0.23,
+			lp="1862.5,412.2",
+			lwidth=1.78,
+			style=filled
+		];
+		gpu_table	[_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 1910.24 391.8 1799.76 391.8 1799.76 317.8 1910.24 317.8 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#ffa500 P 4 1807.76 365.8 1807.76 387.8 1902.24 387.8 1902.24 365.8 S 5 -solid c 7 -#000000 p 4 1807.76 \
+365.8 1807.76 387.8 1902.24 387.8 1902.24 365.8 F 10 9 -Helvetica c 7 -#000000 t 1 T 1812.76 374.8 -1 84.47 17 -get_all_gpu_stats \
+S 5 -solid c 7 -#000000 p 4 1807.76 343.8 1807.76 365.8 1902.24 365.8 1902.24 343.8 F 10 9 -Helvetica c 7 -#000000 t 0 T 1835.27 \
+351.8 -1 39.46 9 -init_nvml S 5 -solid c 7 -#000000 p 4 1807.76 321.8 1807.76 343.8 1902.24 343.8 1902.24 321.8 F 10 9 -Helvetica \
+c 7 -#000000 T 1824.15 329.8 -1 61.7 12 -cleanup_nvml ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.0278,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="get_all_gpu_stats" BGCOLOR="orange" FONTCOLOR="white"><B>get_all_gpu_stats</B></TD></TR>
+              <TR><TD PORT="init_nvml">init_nvml</TD></TR>
+              <TR><TD PORT="cleanup_nvml">cleanup_nvml</TD></TR>
+              </TABLE>
+            >,
+			pos="1855,354.8",
+			shape=plaintext,
+			style=filled,
+			width=1.5343];
+	}
+	subgraph external_process {
+		graph [_draw_="c 7 -#a52a2a C 7 -#ffe4e1 P 4 1668 165 1668 279.8 1830 279.8 1830 165 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 1749 263.2 0 146.19 27 -External: Process Utilities ",
+			bb="1668,165,1830,279.8",
+			cluster=true,
+			color=brown,
+			fillcolor=mistyrose,
+			label="External: Process Utilities",
+			lheight=0.23,
+			lp="1749,267.4",
+			lwidth=2.03,
+			style=filled
+		];
+		proc_table	[_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 1792.01 247 1675.99 247 1675.99 173 1792.01 173 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#a52a2a P 4 1683.99 221 1683.99 243 1784.01 243 1784.01 221 S 5 -solid c 7 -#000000 p 4 1683.99 221 \
+1683.99 243 1784.01 243 1784.01 221 F 10 9 -Helvetica c 7 -#000000 t 1 T 1688.99 230 -1 90.02 18 -get_pstree_for_pid S 5 -solid \
+c 7 -#000000 p 4 1683.99 199 1683.99 221 1784.01 221 1784.01 199 F 10 9 -Helvetica c 7 -#000000 t 0 T 1702.88 207 -1 62.25 14 -psutil.Process \
+S 5 -solid c 7 -#000000 p 4 1683.99 177 1683.99 199 1784.01 199 1784.01 177 F 10 9 -Helvetica c 7 -#000000 T 1704.83 185 -1 58.35 \
+13 -Process.start ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.0278,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="get_pstree" BGCOLOR="brown" FONTCOLOR="white"><B>get_pstree_for_pid</B></TD></TR>
+              <TR><TD PORT="psutil_Process">psutil.Process</TD></TR>
+              <TR><TD PORT="Process_start">Process.start</TD></TR>
+              </TABLE>
+            >,
+			pos="1734,210",
+			shape=plaintext,
+			style=filled,
+			width=1.6115];
+	}
+	subgraph external_worker {
+		graph [_draw_="c 7 -#006400 C 7 -#f0fff0 P 4 2256 309.8 2256 424.6 2474 424.6 2474 309.8 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 2365 408 0 138 22 -External: Worker/Model ",
+			bb="2256,309.8,2474,424.6",
+			cluster=true,
+			color=darkgreen,
+			fillcolor=honeydew,
+			label="External: Worker/Model",
+			lheight=0.23,
+			lp="2365,412.2",
+			lwidth=1.92,
+			style=filled
+		];
+		worker_table	[_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 2465.8 391.8 2264.2 391.8 2264.2 317.8 2465.8 317.8 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#006400 P 4 2272.2 365.8 2272.2 387.8 2457.8 387.8 2457.8 365.8 S 5 -solid c 7 -#000000 p 4 2272.2 \
+365.8 2272.2 387.8 2457.8 387.8 2457.8 365.8 F 10 9 -Helvetica c 7 -#000000 t 1 T 2277.2 374.8 -1 175.61 34 -build_inference_model_\
+from_factory S 5 -solid c 7 -#000000 p 4 2272.2 343.8 2272.2 365.8 2457.8 365.8 2457.8 343.8 F 10 9 -Helvetica c 7 -#000000 t 0 \
+T 2313.86 351.8 -1 102.27 21 -try_estimate_kv_cache S 5 -solid c 7 -#000000 p 4 2272.2 321.8 2272.2 343.8 2457.8 343.8 2457.8 321.8 \
+F 10 9 -Helvetica c 7 -#000000 T 2314.14 329.8 -1 101.72 22 -load_classes_from_file ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.0278,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="build_inference" BGCOLOR="darkgreen" FONTCOLOR="white"><B>build_inference_model_from_factory</B></TD></TR>
+              <TR><TD PORT="kv_cache">try_estimate_kv_cache</TD></TR>
+              <TR><TD PORT="load_classes">load_classes_from_file</TD></TR>
+              </TABLE>
+            >,
+			pos="2365,354.8",
+			shape=plaintext,
+			style=filled,
+			width=2.8001];
+	}
+	subgraph external_async {
+		graph [_draw_="c 7 -#c0c0c0 C 7 -#f5f5f5 P 4 1648 1828.5 1648 1921.3 1769 1921.3 1769 1828.5 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 1708.5 1904.7 0 105.36 17 -External: AsyncIO ",
+			bb="1648,1828.5,1769,1921.3",
+			cluster=true,
+			color=gray,
+			fillcolor=whitesmoke,
+			label="External: AsyncIO",
+			lheight=0.23,
+			lp="1708.5,1908.9",
+			lwidth=1.46,
+			style=filled
+		];
+		async_table	[_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 1746.85 1888.5 1669.15 1888.5 1669.15 1836.5 1746.85 1836.5 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#c0c0c0 P 4 1677.15 1862.5 1677.15 1884.5 1738.85 1884.5 1738.85 1862.5 S 5 -solid c 7 -#000000 p \
+4 1677.15 1862.5 1677.15 1884.5 1738.85 1884.5 1738.85 1862.5 F 10 9 -Helvetica c 7 -#000000 t 1 T 1695.21 1871.5 -1 25.57 5 -sleep \
+S 5 -solid c 7 -#000000 p 4 1677.15 1840.5 1677.15 1862.5 1738.85 1862.5 1738.85 1840.5 F 10 9 -Helvetica c 7 -#000000 t 0 T 1682.15 \
+1848.5 -1 51.69 11 -create_task ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.72222,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="sleep" BGCOLOR="gray" FONTCOLOR="white"><B>sleep</B></TD></TR>
+              <TR><TD PORT="create_task">create_task</TD></TR>
+              </TABLE>
+            >,
+			pos="1708,1862.5",
+			shape=plaintext,
+			style=filled,
+			width=1.0791];
+	}
+	subgraph external_misc {
+		graph [_draw_="c 7 -#000000 C 7 -#ffffff P 4 1876 1795.5 1876 1954.3 2027 1954.3 2027 1795.5 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 1951.5 1937.7 0 135.68 23 -External: Miscellaneous ",
+			bb="1876,1795.5,2027,1954.3",
+			cluster=true,
+			color=black,
+			fillcolor=white,
+			label="External: Miscellaneous",
+			lheight=0.23,
+			lp="1951.5,1941.9",
+			lwidth=1.88,
+			style=filled
+		];
+		misc_table	[_draw_="c 9 -#fffffe00 C 7 -#ffffff P 4 2013.48 1921.5 1888.52 1921.5 1888.52 1803.5 2013.48 1803.5 ",
+			_ldraw_="S 5 -solid c 9 -#fffffe00 C 7 -#000000 P 4 1896.52 1895.5 1896.52 1917.5 2005.48 1917.5 2005.48 1895.5 S 5 -solid c 7 -#000000 p \
+4 1896.52 1895.5 1896.52 1917.5 2005.48 1917.5 2005.48 1895.5 F 10 9 -Helvetica c 7 -#000000 t 1 T 1937.67 1904.5 -1 26.67 5 -uuid4 \
+S 5 -solid c 7 -#000000 p 4 1896.52 1873.5 1896.52 1895.5 2005.48 1895.5 2005.48 1873.5 F 10 9 -Helvetica c 7 -#000000 t 0 T 1910.15 \
+1881.5 -1 81.71 17 -datetime/timezone S 5 -solid c 7 -#000000 p 4 1896.52 1851.5 1896.52 1873.5 2005.48 1873.5 2005.48 1851.5 F \
+10 9 -Helvetica c 7 -#000000 T 1901.52 1859.5 -1 98.96 20 -generate_socket_path S 5 -solid c 7 -#000000 p 4 1896.52 1829.5 1896.52 \
+1851.5 2005.48 1851.5 2005.48 1829.5 F 10 9 -Helvetica c 7 -#000000 T 1912.37 1837.5 -1 77.27 16 -set_start_method S 5 -solid c \
+7 -#000000 p 4 1896.52 1807.5 1896.52 1829.5 2005.48 1829.5 2005.48 1807.5 F 10 9 -Helvetica c 7 -#000000 T 1925.43 1815.5 -1 51.14 \
+11 -asyncio.run ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.6389,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="uuid4" BGCOLOR="black" FONTCOLOR="white"><B>uuid4</B></TD></TR>
+              <TR><TD PORT="datetime">datetime/timezone</TD></TR>
+              <TR><TD PORT="generate_socket">generate_socket_path</TD></TR>
+              <TR><TD PORT="set_start_method">set_start_method</TD></TR>
+              <TR><TD PORT="run">asyncio.run</TD></TR>
+              </TABLE>
+            >,
+			pos="1951,1862.5",
+			shape=plaintext,
+			style=filled,
+			width=1.7356];
+	}
+	subgraph cluster_legend {
+		graph [_draw_="c 7 -#c0c0c0 C 7 -#ffffff P 4 2084 1836.5 2084 1913.3 2568 1913.3 2568 1836.5 ",
+			_ldraw_="F 14 11 -Times-Roman c 7 -#000000 T 2326 1896.7 0 41.98 6 -Legend ",
+			bb="2084,1836.5,2568,1913.3",
+			cluster=true,
+			color=gray,
+			fillcolor=white,
+			label=Legend,
+			lheight=0.23,
+			lp="2326,1900.9",
+			lwidth=0.58,
+			style=filled
+		];
+		legend_public	[_draw_="c 7 -#000000 C 7 -#add8e6 P 4 2171.68 1880.5 2092.32 1880.5 2092.32 1844.5 2171.68 1844.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2132 1859.5 0 63.37 13 -Public Method ",
+			fillcolor=lightblue,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Public Method",
+			pos="2132,1862.5",
+			shape=box,
+			style=filled,
+			width=1.1023];
+		legend_private	[_draw_="c 7 -#000000 C 7 -#ffffff P 4 2272.63 1880.5 2189.37 1880.5 2189.37 1844.5 2272.63 1844.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2231 1859.5 0 67.26 14 -Private Method ",
+			fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Private Method",
+			pos="2231,1862.5",
+			shape=box,
+			style=filled,
+			width=1.1563];
+		legend_static	[_draw_="c 7 -#000000 C 7 -#ffffe0 P 4 2367.57 1880.5 2290.43 1880.5 2290.43 1844.5 2367.57 1844.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2329 1859.5 0 61.14 13 -Static Method ",
+			fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Static Method",
+			pos="2329,1862.5",
+			shape=box,
+			style=filled,
+			width=1.0714];
+		legend_module	[_draw_="c 7 -#000000 C 7 -#90ee90 P 4 2475.97 1880.5 2386.03 1880.5 2386.03 1844.5 2475.97 1844.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2431 1859.5 0 73.93 15 -Module Function ",
+			fillcolor=lightgreen,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Module Function",
+			pos="2431,1862.5",
+			shape=box,
+			style=filled,
+			width=1.249];
+		legend_dead	[_draw_="c 7 -#000000 C 7 -#ff0000 P 4 2560.3 1880.5 2493.7 1880.5 2493.7 1844.5 2560.3 1844.5 ",
+			_ldraw_="F 10 9 -Helvetica c 7 -#ffffff T 2527 1859.5 0 50.59 9 -Dead Code ",
+			fillcolor=red,
+			fontcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Dead Code",
+			pos="2527,1862.5",
+			shape=box,
+			style=filled,
+			width=0.92487];
+	}
+	_get_generation_type -> db_table:get_chat_message	[_draw_="c 7 -#000000 B 10 1024.93 125.28 1079.29 161.02 1209.84 244.35 1327 299.8 1493.23 378.47 1560.09 344.48 1715 443.6 1840.62 523.98 \
+1807.72 678.5 1947.63 686.29 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1947.32 689.79 1957.41 686.56 1947.51 682.79 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,686.6 1024.9,125.28 1079.3,161.02 1209.8,244.35 1327,299.8 1493.2,378.47 1560.1,344.48 1715,443.6 1840.6,523.98 1807.7,\
+678.5 1947.6,686.29"];
+	build_pid_mappings -> proc_table:get_pstree	[_draw_="c 7 -#000000 B 13 1124.69 999.63 1127.83 998.85 1130.95 998.11 1134 997.41 1223.85 976.99 1250.17 988.29 1338 960.41 1426.67 932.27 \
+1664.69 856.66 1715 778.4 1841.45 581.71 1737.47 484.81 1734.08 255.38 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1737.58 255.49 1734.01 245.51 1730.59 255.54 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1734,244 1124.7,999.63 1127.8,998.85 1131,998.11 1134,997.41 1223.9,976.99 1250.2,988.29 1338,960.41 1426.7,932.27 1664.7,856.66 \
+1715,778.4 1841.4,581.71 1737.5,484.81 1734.1,255.38"];
+	_collect_reclaimable_worker_run_ids -> gpu_table:get_all_gpu_stats	[_draw_="c 7 -#000000 B 19 1323.69 998.54 1326.83 998.14 1329.94 997.76 1333 997.41 1368.5 993.41 1626 1001.6 1654 979.41 1713.19 932.5 1663.99 \
+881.66 1702 816.4 1711.33 800.38 1714.49 794.85 1731 786.4 1752.99 775.14 1769.36 796.66 1786 778.4 1813.69 748.02 1770.19 433.68 \
+1797.83 383.53 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1799.68 386.52 1805.55 377.71 1795.46 380.93 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1806.8,376.8 1323.7,998.54 1326.8,998.14 1329.9,997.76 1333,997.41 1368.5,993.41 1626,1001.6 1654,979.41 1713.2,932.5 1664,881.66 \
+1702,816.4 1711.3,800.38 1714.5,794.85 1731,786.4 1753,775.14 1769.4,796.66 1786,778.4 1813.7,748.02 1770.2,433.68 1797.8,383.53"];
+	_wait_for_gpu_capacity_after_eviction -> gpu_table:get_all_gpu_stats	[_draw_="c 7 -#000000 B 10 1280.98 924 1360.74 893.5 1532.54 829.6 1681 786.4 1695.91 782.06 1704.06 789.41 1715 778.4 1841.27 651.31 1632.98 \
+388.41 1795.51 377.17 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1795.37 380.68 1805.25 376.85 1795.14 373.68 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1806.8,376.8 1281,924 1360.7,893.5 1532.5,829.6 1681,786.4 1695.9,782.06 1704.1,789.41 1715,778.4 1841.3,651.31 1633,388.41 1795.5,\
+377.17"];
+	_process_message -> ws_table:record_channel_event	[_draw_="c 7 -#000000 B 19 680.45 1649.8 990.49 1633.69 2570 1549.21 2570 1500.41 2570 1500.41 2570 1500.41 2570 353.8 2570 317.05 2535.17 \
+320.44 2500 309.8 2411.27 282.96 2175.67 300.91 2083 298.8 2071.36 298.54 1673.17 297.97 1664 290.8 1642.84 274.26 1666.37 236.6 \
+1655.9 224.68 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1657.23 221.44 1646.64 221.49 1654.95 228.06 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1645.2,221 680.45,1649.8 990.49,1633.7 2570,1549.2 2570,1500.4 2570,1500.4 2570,1500.4 2570,353.8 2570,317.05 2535.2,320.44 2500,\
+309.8 2411.3,282.96 2175.7,300.91 2083,298.8 2071.4,298.54 1673.2,297.97 1664,290.8 1642.8,274.26 1666.4,236.6 1655.9,224.68"];
+	_process_message -> ps_table:send	[_draw_="c 7 -#000000 B 16 680.53 1650.46 769.23 1647.06 954.37 1640.15 1111 1635.5 1441.17 1625.69 1524.79 1644.53 1854 1617.5 2022.99 1603.62 \
+2608 1669.98 2608 1500.41 2608 1500.41 2608 1500.41 2608 353.8 2608 305.95 2620.73 252.16 2582.06 244.05 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2582.87 240.61 2572.58 243.14 2582.21 247.58 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2571.1,243 680.53,1650.5 769.23,1647.1 954.37,1640.2 1111,1635.5 1441.2,1625.7 1524.8,1644.5 1854,1617.5 2023,1603.6 2608,1670 \
+2608,1500.4 2608,1500.4 2608,1500.4 2608,353.8 2608,305.95 2620.7,252.16 2582.1,244.05"];
+	_process_supervisor_message -> db_table:sync_worker_to_db	[_draw_="c 7 -#000000 B 16 1362.25 1636.54 1365.2 1636.15 1368.12 1635.8 1371 1635.5 1405.56 1631.86 2594.53 1638.78 2622 1617.5 2664.64 \
+1584.46 2654 1554.36 2654 1500.41 2654 1500.41 2654 1500.41 2654 850.91 2654 607.18 2503.22 470.77 2262.25 466.69 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2262.62 463.2 2252.59 466.61 2262.56 470.2 ",
+		_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2720.7 1169.41 0 133.41 28 -external: _sync_worker_to_db ",
+		fontname=Helvetica,
+		fontsize=10,
+		label="external: _sync_worker_to_db",
+		lp="2720.7,1172.4",
+		pos="e,2251.1,466.6 1362.3,1636.5 1365.2,1636.2 1368.1,1635.8 1371,1635.5 1405.6,1631.9 2594.5,1638.8 2622,1617.5 2664.6,1584.5 2654,\
+1554.4 2654,1500.4 2654,1500.4 2654,1500.4 2654,850.91 2654,607.18 2503.2,470.77 2262.2,466.69"];
+	_process_supervisor_message -> worker_table:load_classes	[_draw_="c 7 -#000000 B 16 1362.25 1636.54 1365.2 1636.15 1368.12 1635.8 1371 1635.5 1441.84 1628.06 2585.39 1639.9 2653 1617.5 2737.33 1589.56 \
+2815 1589.25 2815 1500.41 2815 1500.41 2815 1500.41 2815 597.6 2815 404.09 2662.06 335.42 2470.03 332.87 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2470.34 329.38 2460.32 332.81 2470.29 336.38 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2458.8,332.8 1362.3,1636.5 1365.2,1636.2 1368.1,1635.8 1371,1635.5 1441.8,1628.1 2585.4,1639.9 2653,1617.5 2737.3,1589.6 2815,\
+1589.3 2815,1500.4 2815,1500.4 2815,1500.4 2815,597.6 2815,404.09 2662.1,335.42 2470,332.87"];
+	_process_worker_message -> db_table:update_worker_run	[_draw_="c 7 -#000000 B 10 654.21 1496.16 990.24 1485.33 2418 1438.66 2418 1427.41 2418 1427.41 2418 1427.41 2418 850.91 2418 757.23 2353.88 \
+712.18 2262.37 708.81 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2262.65 705.31 2252.59 708.63 2262.52 712.31 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,708.6 654.21,1496.2 990.24,1485.3 2418,1438.7 2418,1427.4 2418,1427.4 2418,1427.4 2418,850.91 2418,757.23 2353.9,712.18 \
+2262.4,708.81"];
+	_process_worker_message -> ws_table:record_channel_event	[_draw_="c 7 -#000000 B 22 654.11 1496.18 756.33 1492.93 952.28 1486.7 1119 1481.41 1156.15 1480.24 2456 1464.58 2456 1427.41 2456 1427.41 \
+2456 1427.41 2456 791.4 2456 628.08 2473.11 587.84 2478 424.6 2479.53 373.6 2513.65 346.3 2478 309.8 2446.39 277.44 1699.58 318.73 \
+1664 290.8 1642.88 274.22 1666.38 236.58 1655.9 224.68 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1657.23 221.44 1646.64 221.49 1654.95 228.06 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1645.2,221 654.11,1496.2 756.33,1492.9 952.28,1486.7 1119,1481.4 1156.2,1480.2 2456,1464.6 2456,1427.4 2456,1427.4 2456,1427.4 \
+2456,791.4 2456,628.08 2473.1,587.84 2478,424.6 2479.5,373.6 2513.7,346.3 2478,309.8 2446.4,277.44 1699.6,318.73 1664,290.8 1642.9,\
+274.22 1666.4,236.58 1655.9,224.68"];
+	_start -> ps_table:listen	[_draw_="c 7 -#000000 B 10 1128.98 1736 1358.97 1731.83 2929 1701.6 2929 1654.5 2929 1654.5 2929 1654.5 2929 353.8 2929 268.55 2714.19 223.59 \
+2582.38 221.11 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2582.62 217.61 2572.59 221.01 2582.56 224.61 ",
+		_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 2966.79 1127.41 0 75.57 18 -calls (subscriber) ",
+		fontname=Helvetica,
+		fontsize=10,
+		label="calls (subscriber)",
+		lp="2966.8,1130.4",
+		pos="e,2571.1,221 1129,1736 1359,1731.8 2929,1701.6 2929,1654.5 2929,1654.5 2929,1654.5 2929,353.8 2929,268.55 2714.2,223.59 2582.4,221.11"];
+	_ready -> ps_table:send	[_draw_="c 7 -#000000 B 13 1434.46 1652.39 1619.87 1651.55 2683.2 1645.54 2745 1617.5 2809.47 1588.25 2853 1571.21 2853 1500.41 2853 1500.41 \
+2853 1500.41 2853 353.8 2853 289.9 2659.63 247.48 2582.42 243.33 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2582.69 239.84 2572.59 243.04 2582.48 246.84 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2571.1,243 1434.5,1652.4 1619.9,1651.5 2683.2,1645.5 2745,1617.5 2809.5,1588.2 2853,1571.2 2853,1500.4 2853,1500.4 2853,1500.4 \
+2853,353.8 2853,289.9 2659.6,247.48 2582.4,243.33"];
+	_start_failed -> ps_table:send	[_draw_="c 7 -#000000 B 19 1190.71 1637.51 1193.48 1636.71 1196.27 1636.03 1199 1635.5 1354.26 1605.53 2467.4 1650.71 2622 1617.5 2749.48 \
+1590.12 2891 1630.8 2891 1500.41 2891 1500.41 2891 1500.41 2891 353.8 2891 331.52 2884.78 323.22 2867 309.8 2815.93 271.24 2655.92 \
+245.7 2582.15 243.2 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2582.65 239.71 2572.59 243.03 2582.52 246.71 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2571.1,243 1190.7,1637.5 1193.5,1636.7 1196.3,1636 1199,1635.5 1354.3,1605.5 2467.4,1650.7 2622,1617.5 2749.5,1590.1 2891,1630.8 \
+2891,1500.4 2891,1500.4 2891,1500.4 2891,353.8 2891,331.52 2884.8,323.22 2867,309.8 2815.9,271.24 2655.9,245.7 2582.1,243.2"];
+	_stop -> ps_table:send	[_draw_="c 7 -#000000 B 10 1182.35 1498.44 1372.86 1498.45 2494 1495.58 2494 1427.41 2494 1427.41 2494 1427.41 2494 791.4 2494 556.25 2530.79 \
+495.93 2531.97 266.41 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2535.47 266.52 2532 256.51 2528.47 266.5 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2532,255 1182.4,1498.4 1372.9,1498.4 2494,1495.6 2494,1427.4 2494,1427.4 2494,1427.4 2494,791.4 2494,556.25 2530.8,495.93 2532,\
+266.41"];
+	_stop -> gpu_table:cleanup_nvml	[_draw_="c 7 -#000000 B 16 1182.22 1498.42 1368.37 1498.36 2447.86 1496.61 2508 1463.41 2524.84 1454.12 2532 1446.64 2532 1427.41 2532 1427.41 \
+2532 1427.41 2532 597.6 2532 462.53 2393.75 497.74 2270 443.6 2117.5 376.88 2075.39 334.72 1914.52 332.86 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1914.77 329.37 1904.75 332.81 1914.73 336.37 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1903.2,332.8 1182.2,1498.4 1368.4,1498.4 2447.9,1496.6 2508,1463.4 2524.8,1454.1 2532,1446.6 2532,1427.4 2532,1427.4 2532,1427.4 \
+2532,597.6 2532,462.53 2393.7,497.74 2270,443.6 2117.5,376.88 2075.4,334.72 1914.5,332.86"];
+	_canonical_model_name -> db_table:get_model_simple_name	[_draw_="c 7 -#000000 B 16 1410.88 1167.93 1550.01 1159.49 1868 1135.2 1868 1089.41 1868 1089.41 1868 1089.41 1868 850.91 1868 820.32 1868.47 \
+805.95 1892 786.4 1907.96 773.14 1923.26 793 1938 778.4 1971.26 745.46 1918.71 678.21 1947.77 666.39 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1948.11 669.88 1957.43 664.84 1947 662.97 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,664.6 1410.9,1167.9 1550,1159.5 1868,1135.2 1868,1089.4 1868,1089.4 1868,1089.4 1868,850.91 1868,820.32 1868.5,805.95 1892,\
+786.4 1908,773.14 1923.3,793 1938,778.4 1971.3,745.46 1918.7,678.21 1947.8,666.39"];
+	_canonical_model_name -> db_table:registry_find_variant_by_id	[_draw_="c 7 -#000000 B 19 1410.87 1170.81 1496.06 1168.97 1651.21 1162.01 1781 1136.41 1839.23 1124.93 1906 1148.77 1906 1089.41 1906 1089.41 \
+1906 1089.41 1906 850.91 1906 820.32 1913.47 812.14 1930 786.4 1932.72 782.17 1935.73 782.89 1938 778.4 1949.92 754.89 1934.1 670.77 \
+1949.19 648.2 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1950.69 651.38 1957.61 643.36 1947.2 645.31 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,642.6 1410.9,1170.8 1496.1,1169 1651.2,1162 1781,1136.4 1839.2,1124.9 1906,1148.8 1906,1089.4 1906,1089.4 1906,1089.4 1906,\
+850.91 1906,820.32 1913.5,812.14 1930,786.4 1932.7,782.17 1935.7,782.89 1938,778.4 1949.9,754.89 1934.1,670.77 1949.2,648.2"];
+	_fail_work_request -> ws_table:record_channel_event	[_draw_="c 7 -#000000 B 13 630.08 336.37 648.84 327.37 672.76 316.83 695 309.8 719.19 302.16 725.77 301.4 751 298.8 770.21 296.82 1430.74 \
+302.63 1446 290.8 1467.22 274.34 1443.65 236.62 1454.11 224.69 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1455.06 228.07 1463.37 221.49 1452.77 221.45 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 630.08,336.37 648.84,327.37 672.76,316.83 695,309.8 719.19,302.16 725.77,301.4 751,298.8 770.21,296.82 1430.7,302.63 \
+1446,290.8 1467.2,274.34 1443.6,236.62 1454.1,224.69"];
+	_fail_work_request -> ps_table:pub_send	[_draw_="c 7 -#000000 B 13 626.55 336.38 645.58 326.51 670.94 315.12 695 309.8 837.58 278.29 1206 301.23 1352 298.8 1459.11 297.01 1727.35 \
+300.83 1834 290.8 2126.13 263.32 2194.02 179.17 2481.72 177.04 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2481.42 180.54 2491.41 177.01 2481.4 173.54 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2492.9,177 626.55,336.38 645.58,326.51 670.94,315.12 695,309.8 837.58,278.29 1206,301.23 1352,298.8 1459.1,297.01 1727.3,300.83 \
+1834,290.8 2126.1,263.32 2194,179.17 2481.7,177.04"];
+	send_work_request -> ws_table:record_channel_event	[_draw_="c 7 -#000000 B 28 1433.92 1223.65 1592.22 1217.58 2058 1194.36 2058 1131.41 2058 1131.41 2058 1131.41 2058 905.41 2058 850.86 2045.72 \
+820.87 2088 786.4 2103.69 773.61 2256 793.02 2270 778.4 2321.44 724.65 2311.82 505.13 2270 443.6 2257.1 424.62 2243.3 433.12 2222 \
+424.6 2095.59 374.03 2070.66 340.4 1938 309.8 1908.26 302.94 1687.57 310.19 1664 290.8 1643.26 273.74 1666.51 236.43 1655.93 224.64 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1657.23 221.39 1646.64 221.49 1654.98 228.02 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1645.2,221 1433.9,1223.6 1592.2,1217.6 2058,1194.4 2058,1131.4 2058,1131.4 2058,1131.4 2058,905.41 2058,850.86 2045.7,820.87 2088,\
+786.4 2103.7,773.61 2256,793.02 2270,778.4 2321.4,724.65 2311.8,505.13 2270,443.6 2257.1,424.62 2243.3,433.12 2222,424.6 2095.6,\
+374.03 2070.7,340.4 1938,309.8 1908.3,302.94 1687.6,310.19 1664,290.8 1643.3,273.74 1666.5,236.43 1655.9,224.64"];
+	send_work_request -> ps_table:send	[_draw_="c 7 -#000000 B 25 1434.05 1224.77 1557.98 1222.84 1867.66 1215.58 1968 1190.41 2028.76 1175.17 2096 1194.06 2096 1131.41 2096 1131.41 \
+2096 1131.41 2096 905.41 2096 797.85 2249.57 872.32 2302 778.4 2338.26 713.44 2344.24 504.84 2302 443.6 2295.25 433.82 2258.75 434.38 \
+2252 424.6 2223.03 382.6 2221.12 350.41 2252 309.8 2283.53 268.34 2418.86 245.91 2481.43 243.26 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2481.49 246.76 2491.41 243.03 2481.33 239.77 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2492.9,243 1434,1224.8 1558,1222.8 1867.7,1215.6 1968,1190.4 2028.8,1175.2 2096,1194.1 2096,1131.4 2096,1131.4 2096,1131.4 2096,\
+905.41 2096,797.85 2249.6,872.32 2302,778.4 2338.3,713.44 2344.2,504.84 2302,443.6 2295.3,433.82 2258.7,434.38 2252,424.6 2223,382.6 \
+2221.1,350.41 2252,309.8 2283.5,268.34 2418.9,245.91 2481.4,243.26"];
+	_start_exact_variant -> db_table:registry_resolve_deployment	[_draw_="c 7 -#000000 B 10 972.08 1168.52 1183.69 1157.03 1944 1114.03 1944 1089.41 1944 1089.41 1944 1089.41 1944 850.91 1944 789.1 1899.17 \
+582.75 1947.89 557.2 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1948.52 560.65 1957.45 554.95 1946.91 553.84 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,554.6 972.08,1168.5 1183.7,1157 1944,1114 1944,1089.4 1944,1089.4 1944,1089.4 1944,850.91 1944,789.1 1899.2,582.75 1947.9,\
+557.2"];
+	_start_exact_variant -> db_table:registry_resolve_runtime	[_draw_="c 7 -#000000 B 16 972.13 1168.9 1110.57 1162.43 1475.06 1145.08 1596 1136.41 1682.19 1130.24 1982 1175.83 1982 1089.41 1982 1089.41 \
+1982 1089.41 1982 850.91 1982 803.09 1965 793.15 1959.92 745.6 1952.41 675.14 1891.34 587.22 1947.5 577.49 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1947.72 580.98 1957.42 576.72 1947.17 574 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,576.6 972.13,1168.9 1110.6,1162.4 1475.1,1145.1 1596,1136.4 1682.2,1130.2 1982,1175.8 1982,1089.4 1982,1089.4 1982,1089.4 \
+1982,850.91 1982,803.09 1965,793.15 1959.9,745.6 1952.4,675.14 1891.3,587.22 1947.5,577.49"];
+	_start_exact_variant -> db_table:get_workers_by_names	[_draw_="c 7 -#000000 B 22 971.97 1168.62 1041.71 1165.07 1166.89 1158.85 1274 1154.41 1501.94 1144.97 1559.77 1156.81 1787 1136.41 1892.22 \
+1126.97 2020 1195.06 2020 1089.41 2020 1089.41 2020 1089.41 2020 850.91 2020 818.29 2001.32 814.64 1985 786.4 1974.35 767.97 1965.76 \
+766.07 1959.92 745.6 1948.11 704.17 1917.76 561.71 1948.09 536.45 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1949.25 539.75 1957.5 533.11 1946.9 533.15 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,532.6 971.97,1168.6 1041.7,1165.1 1166.9,1158.9 1274,1154.4 1501.9,1145 1559.8,1156.8 1787,1136.4 1892.2,1127 2020,1195.1 \
+2020,1089.4 2020,1089.4 2020,1089.4 2020,850.91 2020,818.29 2001.3,814.64 1985,786.4 1974.3,767.97 1965.8,766.07 1959.9,745.6 1948.1,\
+704.17 1917.8,561.71 1948.1,536.45"];
+	_maybe_register_canonical_alias -> db_table:registry_find_variant_for_model	[_draw_="c 7 -#000000 B 19 845.58 1072.76 851.8 1071.89 857.99 1071.09 864 1070.41 915.32 1064.62 1792 1068.06 1792 1016.41 1792 1016.41 \
+1792 1016.41 1792 850.91 1792 811.14 1819.45 806.09 1854 786.4 1867.49 778.71 1876.26 788.56 1888 778.4 1949.8 724.95 1880.48 610.51 \
+1947.49 599.46 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1947.71 602.96 1957.42 598.71 1947.18 595.98 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,598.6 845.58,1072.8 851.8,1071.9 857.99,1071.1 864,1070.4 915.32,1064.6 1792,1068.1 1792,1016.4 1792,1016.4 1792,1016.4 \
+1792,850.91 1792,811.14 1819.5,806.09 1854,786.4 1867.5,778.71 1876.3,788.56 1888,778.4 1949.8,724.95 1880.5,610.51 1947.5,599.46"];
+	start_worker_if_fits -> db_table:registry_find_variant_for_model	[_draw_="c 7 -#000000 B 16 1301.11 1278.45 1524.8 1274.71 2134 1256.88 2134 1173.41 2134 1173.41 2134 1173.41 2134 850.91 2134 820.32 2137.04 \
+808.68 2158 786.4 2188.67 753.8 2225.54 783.03 2250.08 745.6 2283.66 694.37 2312.58 610 2262.22 599.65 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2262.87 596.2 2252.58 598.74 2262.21 603.16 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,598.6 1301.1,1278.4 1524.8,1274.7 2134,1256.9 2134,1173.4 2134,1173.4 2134,1173.4 2134,850.91 2134,820.32 2137,808.68 2158,\
+786.4 2188.7,753.8 2225.5,783.03 2250.1,745.6 2283.7,694.37 2312.6,610 2262.2,599.65"];
+	start_worker_if_fits -> db_table:get_worker_model_support	[_draw_="c 7 -#000000 B 19 1305.14 1279.31 1481.26 1278.5 1880.21 1273.4 2013 1244.41 2088.61 1227.91 2172 1250.81 2172 1173.41 2172 1173.41 \
+2172 1173.41 2172 850.91 2172 820.32 2177.72 810.93 2196 786.4 2213.99 762.26 2236.59 772.52 2250.08 745.6 2295.07 655.77 2351.07 \
+521.32 2262.31 511.21 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2262.76 507.73 2252.59 510.68 2262.38 514.71 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,510.6 1305.1,1279.3 1481.3,1278.5 1880.2,1273.4 2013,1244.4 2088.6,1227.9 2172,1250.8 2172,1173.4 2172,1173.4 2172,1173.4 \
+2172,850.91 2172,820.32 2177.7,810.93 2196,786.4 2214,762.26 2236.6,772.52 2250.1,745.6 2295.1,655.77 2351.1,521.32 2262.3,511.21"];
+	start_worker_if_fits -> db_table:registry_resolve_runtime	[_draw_="c 7 -#000000 B 16 1302.16 1278.64 1506.6 1276.35 2027.16 1268.24 2102 1244.41 2156.74 1226.99 2210 1230.86 2210 1173.41 2210 1173.41 \
+2210 1173.41 2210 850.91 2210 800.83 2240.59 794.77 2250.08 745.6 2263.5 676.03 2319.33 587.32 2262.55 577.5 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2262.83 574.01 2252.58 576.72 2262.28 580.99 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,576.6 1302.2,1278.6 1506.6,1276.4 2027.2,1268.2 2102,1244.4 2156.7,1227 2210,1230.9 2210,1173.4 2210,1173.4 2210,1173.4 \
+2210,850.91 2210,800.83 2240.6,794.77 2250.1,745.6 2263.5,676.03 2319.3,587.32 2262.6,577.5"];
+	start_worker_if_fits -> db_table:registry_find_startable	[_draw_="c 7 -#000000 B 13 1305.74 1279.42 1523.34 1278.98 2085.33 1274.87 2164 1244.41 2209.59 1226.77 2248 1222.3 2248 1173.41 2248 1173.41 \
+2248 1173.41 2248 850.91 2248 752.64 2345.17 630.8 2262.39 621.21 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2262.76 617.72 2252.59 620.68 2262.39 624.71 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,620.6 1305.7,1279.4 1523.3,1279 2085.3,1274.9 2164,1244.4 2209.6,1226.8 2248,1222.3 2248,1173.4 2248,1173.4 2248,1173.4 \
+2248,850.91 2248,752.64 2345.2,630.8 2262.4,621.21"];
+	start_worker_if_fits -> db_table:get_workers_by_names	[_draw_="c 7 -#000000 B 13 1308.45 1279.99 1536.66 1280.95 2133.22 1279.99 2215 1244.41 2255.92 1226.61 2286 1218.04 2286 1173.41 2286 1173.41 \
+2286 1173.41 2286 850.91 2286 712.62 2387.4 542.54 2262.57 533.02 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2262.71 529.52 2252.59 532.66 2262.45 536.52 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,532.6 1308.5,1280 1536.7,1281 2133.2,1280 2215,1244.4 2255.9,1226.6 2286,1218 2286,1173.4 2286,1173.4 2286,1173.4 2286,\
+850.91 2286,712.62 2387.4,542.54 2262.6,533.02"];
+	start_worker_if_fits -> db_table:registry_resolve_deployment	[_draw_="c 7 -#000000 B 13 1301.02 1278.4 1537.97 1275.19 2215.76 1264.33 2259 1244.41 2297.86 1226.52 2324 1216.2 2324 1173.41 2324 1173.41 \
+2324 1173.41 2324 850.91 2324 719.26 2383.08 563.99 2262.49 555.01 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2262.71 551.51 2252.59 554.65 2262.46 558.51 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,554.6 1301,1278.4 1538,1275.2 2215.8,1264.3 2259,1244.4 2297.9,1226.5 2324,1216.2 2324,1173.4 2324,1173.4 2324,1173.4 2324,\
+850.91 2324,719.26 2383.1,563.99 2262.5,555.01"];
+	start_worker_if_fits -> worker_table:build_inference	[_draw_="c 7 -#000000 B 13 1300.73 1278.38 1542.52 1275.16 2246.65 1264.25 2292 1244.41 2332.6 1226.65 2362 1217.73 2362 1173.41 2362 1173.41 \
+2362 1173.41 2362 597.6 2362 508.66 2356.49 483.7 2363.94 400.14 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2367.42 400.59 2364.86 390.31 2360.45 399.94 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2365,388.8 1300.7,1278.4 1542.5,1275.2 2246.7,1264.3 2292,1244.4 2332.6,1226.7 2362,1217.7 2362,1173.4 2362,1173.4 2362,1173.4 \
+2362,597.6 2362,508.66 2356.5,483.7 2363.9,400.14"];
+	start_worker_if_fits -> worker_table:build_inference	[_draw_="c 7 -#000000 B 13 1301.19 1278.48 1546.26 1275.38 2264.2 1264.45 2310 1244.41 2350.6 1226.65 2380 1217.73 2380 1173.41 2380 1173.41 \
+2380 1173.41 2380 597.6 2380 508.75 2374.5 483.75 2366.14 400.38 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2369.64 400.19 2365.17 390.58 2362.67 400.87 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2365,389.07 1301.2,1278.5 1546.3,1275.4 2264.2,1264.5 2310,1244.4 2350.6,1226.7 2380,1217.7 2380,1173.4 2380,1173.4 2380,1173.4 \
+2380,597.6 2380,508.75 2374.5,483.75 2366.1,400.38"];
+	_fit_gpu_and_start -> gpu_table:get_all_gpu_stats	[_draw_="c 7 -#000000 B 19 972.44 1086.13 1163.22 1080.96 1830 1059.77 1830 1016.41 1830 1016.41 1830 1016.41 1830 905.41 1830 864.44 1836.25 \
+853.33 1854 816.4 1861.16 801.5 1864.05 797.83 1876 786.4 1880.63 781.97 1884.87 783.99 1888 778.4 1908.07 742.56 1941.9 432.8 1912.42 \
+383.42 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1914.62 380.69 1904.46 377.69 1910.53 386.37 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1903.2,376.8 972.44,1086.1 1163.2,1081 1830,1059.8 1830,1016.4 1830,1016.4 1830,1016.4 1830,905.41 1830,864.44 1836.2,853.33 1854,\
+816.4 1861.2,801.5 1864,797.83 1876,786.4 1880.6,781.97 1884.9,783.99 1888,778.4 1908.1,742.56 1941.9,432.8 1912.4,383.42"];
+	stop_workers_and_start_worker -> gpu_table:get_all_gpu_stats	[_draw_="c 7 -#000000 B 16 1002 998.84 1005.04 998.34 1008.05 997.86 1011 997.41 1163.69 974.23 1573.43 994.91 1700 906.41 1749.89 871.53 \
+1716.77 822.2 1766 786.4 1780.31 775.99 1792.96 791.37 1805 778.4 1861.94 717.04 1855.65 495.34 1855.04 400.28 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1858.54 400.3 1855.01 390.31 1851.54 400.33 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1855,388.8 1002,998.84 1005,998.34 1008,997.86 1011,997.41 1163.7,974.23 1573.4,994.91 1700,906.41 1749.9,871.53 1716.8,822.2 \
+1766,786.4 1780.3,775.99 1793,791.37 1805,778.4 1861.9,717.04 1855.7,495.34 1855,400.28"];
+	send_related_task_event -> ws_table:record_channel_event	[_draw_="c 7 -#000000 B 19 1205.34 833.69 1221.6 820.61 1241.66 801.05 1251 778.4 1309.6 636.3 1233.06 584.58 1256 432.6 1264.49 376.36 1252.17 \
+350.4 1292 309.8 1303.42 298.16 1310.97 301.81 1327 298.8 1340.02 296.35 1435.76 299.21 1446 290.8 1466.76 273.76 1443.49 236.43 \
+1454.07 224.64 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1455.02 228.02 1463.36 221.49 1452.77 221.39 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 1205.3,833.69 1221.6,820.61 1241.7,801.05 1251,778.4 1309.6,636.3 1233.1,584.58 1256,432.6 1264.5,376.36 1252.2,350.4 \
+1292,309.8 1303.4,298.16 1311,301.81 1327,298.8 1340,296.35 1435.8,299.21 1446,290.8 1466.8,273.76 1443.5,236.43 1454.1,224.64"];
+	_apply_kv_cache_estimate -> gpu_table:get_all_gpu_stats	[_draw_="c 7 -#000000 B 13 868.07 580.32 874.92 547.36 894.85 475.91 943 443.6 993.72 409.56 1018.99 435.71 1080 432.6 1242.49 424.31 1283.77 \
+437.08 1446 424.6 1603.48 412.48 1643.19 378.45 1795.59 376.86 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1795.27 380.36 1805.25 376.81 1795.23 373.36 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1806.8,376.8 868.07,580.32 874.92,547.36 894.85,475.91 943,443.6 993.72,409.56 1019,435.71 1080,432.6 1242.5,424.31 1283.8,437.08 \
+1446,424.6 1603.5,412.48 1643.2,378.45 1795.6,376.86"];
+	_apply_kv_cache_estimate -> worker_table:kv_cache	[_draw_="c 7 -#000000 B 10 867.84 580.32 874.35 547.01 893.76 474.51 943 443.6 966.41 428.9 1910.53 427.71 1938 424.6 2084.52 408 2118.22 \
+357.46 2259.9 354.9 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2259.72 358.4 2269.68 354.81 2259.65 351.4 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2271.2,354.8 867.84,580.32 874.35,547.01 893.76,474.51 943,443.6 966.41,428.9 1910.5,427.71 1938,424.6 2084.5,408 2118.2,357.46 \
+2259.9,354.9"];
+	start_worker -> db_table:update_worker_run	[_draw_="c 7 -#000000 B 13 1363.33 846.55 1416.69 839.59 1519.03 824.05 1603 798.4 1615.95 794.44 1617.88 789.75 1631 786.4 1667.34 777.12 \
+1678.15 785.37 1715 778.4 1822.01 758.17 1844.66 711.91 1947.68 708.77 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1947.46 712.27 1957.41 708.62 1947.36 705.27 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,708.6 1363.3,846.55 1416.7,839.59 1519,824.05 1603,798.4 1615.9,794.44 1617.9,789.75 1631,786.4 1667.3,777.12 1678.2,785.37 \
+1715,778.4 1822,758.17 1844.7,711.91 1947.7,708.77"];
+	start_worker -> db_table:create_worker_run	[_draw_="c 7 -#000000 B 7 1363.63 847.41 1448.51 838.77 1655.94 814.49 1715 778.4 1855.28 692.67 1793.65 498.01 1947.47 488.93 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1947.52 492.43 1957.41 488.64 1947.32 485.43 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,488.6 1363.6,847.41 1448.5,838.77 1655.9,814.49 1715,778.4 1855.3,692.67 1793.6,498.01 1947.5,488.93"];
+	start_worker -> ws_table:record_channel_event	[_draw_="c 7 -#000000 B 10 1321.4 815.32 1304.94 705.21 1262.13 373.07 1332 298.8 1349.4 280.3 1426.4 306.94 1446 290.8 1466.73 273.73 1443.49 \
+236.42 1454.07 224.64 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1455.02 228.02 1463.36 221.49 1452.77 221.39 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 1321.4,815.32 1304.9,705.21 1262.1,373.07 1332,298.8 1349.4,280.3 1426.4,306.94 1446,290.8 1466.7,273.73 1443.5,236.42 \
+1454.1,224.64"];
+	start_worker -> ws_table:connect_channel	[_draw_="c 7 -#000000 B 13 1330.48 815.33 1331.01 809.67 1331.53 803.87 1332 798.4 1341.5 687.46 1292.42 378.66 1370 298.8 1381.83 286.62 \
+1433.42 302.21 1446 290.8 1473.23 266.09 1434.57 213.46 1453.79 201.47 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1454.33 204.94 1463.32 199.33 1452.8 198.11 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,199 1330.5,815.33 1331,809.67 1331.5,803.87 1332,798.4 1341.5,687.46 1292.4,378.66 1370,298.8 1381.8,286.62 1433.4,302.21 \
+1446,290.8 1473.2,266.09 1434.6,213.46 1453.8,201.47"];
+	start_worker -> ps_table:listen	[_draw_="c 7 -#000000 B 13 1340.86 815.31 1342.76 809.71 1344.55 803.93 1346 798.4 1386.48 643.75 1302.1 565.93 1405 443.6 1520.8 305.93 \
+1611.89 350.99 1787 309.8 2091.06 238.28 2174.67 221.41 2481.45 221.01 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2481.41 224.51 2491.41 221 2481.41 217.51 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2492.9,221 1340.9,815.31 1342.8,809.71 1344.6,803.93 1346,798.4 1386.5,643.75 1302.1,565.93 1405,443.6 1520.8,305.93 1611.9,350.99 \
+1787,309.8 2091.1,238.28 2174.7,221.41 2481.4,221.01"];
+	start_worker -> proc_table:Process_start	[_draw_="c 7 -#000000 B 13 1363.51 832.17 1376.5 823.64 1389.9 812.31 1398 798.4 1477.93 661.13 1358.61 579.4 1441 443.6 1503.32 340.88 1598.52 \
+391.54 1664 290.8 1674.43 274.75 1664.79 215.32 1674.08 194.92 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1676.05 197.83 1681.79 188.93 1671.75 192.3 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1683,188 1363.5,832.17 1376.5,823.64 1389.9,812.31 1398,798.4 1477.9,661.13 1358.6,579.4 1441,443.6 1503.3,340.88 1598.5,391.54 \
+1664,290.8 1674.4,274.75 1664.8,215.32 1674.1,194.92"];
+	resolve_worker_max_batch_size	[_draw_="c 7 -#000000 C 7 -#90ee90 P 4 1611.81 616.6 1450.19 616.6 1450.19 580.6 1611.81 580.6 ",
+		_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1531 595.6 0 145.62 29 -resolve_worker_max_batch_size ",
+		fillcolor=lightgreen,
+		fontname=Helvetica,
+		fontsize=10,
+		height=0.5,
+		pos="1531,598.6",
+		shape=box,
+		style=filled,
+		width=2.2448];
+	start_worker -> resolve_worker_max_batch_size	[_draw_="c 7 -#000000 B 7 1363.5 840.14 1386.59 831.82 1415.8 818.3 1436 798.4 1485.46 749.67 1512.54 670.1 1524.11 627.92 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1527.49 628.86 1526.65 618.3 1520.72 627.07 ",
+		_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1454.16 789.4 0 20 5 -calls ",
+		fontname=Helvetica,
+		fontsize=10,
+		label=calls,
+		lp="1454.2,792.4",
+		pos="e,1527,616.83 1363.5,840.14 1386.6,831.82 1415.8,818.3 1436,798.4 1485.5,749.67 1512.5,670.1 1524.1,627.92"];
+	_scoped_env	[_draw_="c 7 -#000000 C 7 -#90ee90 P 4 1705.75 616.6 1630.25 616.6 1630.25 580.6 1705.75 580.6 ",
+		_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1668 595.6 0 59.49 11 -_scoped_env ",
+		fillcolor=lightgreen,
+		fontname=Helvetica,
+		fontsize=10,
+		height=0.5,
+		pos="1668,598.6",
+		shape=box,
+		style=filled,
+		width=1.0485];
+	start_worker -> _scoped_env	[_draw_="c 7 -#000000 B 10 1363.35 841.27 1412.88 828.24 1504.4 804.57 1583 786.4 1599.81 782.51 1608.5 790.3 1621 778.4 1662.32 739.08 1668.92 \
+668.2 1669.09 628.52 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1672.59 628.51 1668.98 618.55 1665.6 628.59 ",
+		_ldraw_="F 10 9 -Helvetica c 7 -#000000 T 1593 789.4 0 20 5 -calls ",
+		fontname=Helvetica,
+		fontsize=10,
+		label=calls,
+		lp="1593,792.4",
+		pos="e,1669,617.04 1363.3,841.27 1412.9,828.24 1504.4,804.57 1583,786.4 1599.8,782.51 1608.5,790.3 1621,778.4 1662.3,739.08 1668.9,668.2 \
+1669.1,628.52"];
+	_watch_worker_process -> ws_table:record_channel_event	[_draw_="c 7 -#000000 B 13 702.62 580.33 713.79 548.64 741.79 481.04 788 443.6 944.68 316.65 1019.6 334.89 1218 298.8 1230.47 296.53 1436.08 \
+298.68 1446 290.8 1467.03 274.09 1443.58 236.54 1454.09 224.67 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1455.04 228.05 1463.36 221.49 1452.77 221.42 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 702.62,580.33 713.79,548.64 741.79,481.04 788,443.6 944.68,316.65 1019.6,334.89 1218,298.8 1230.5,296.53 1436.1,298.68 \
+1446,290.8 1467,274.09 1443.6,236.54 1454.1,224.67"];
+	stop_worker -> ws_table:record_channel_event	[_draw_="c 7 -#000000 B 10 739.29 336.37 740.53 323.74 744.47 307.41 756 298.8 786.72 275.87 1415.71 314.29 1446 290.8 1467.22 274.34 1443.65 \
+236.62 1454.11 224.69 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1455.06 228.07 1463.37 221.49 1452.77 221.45 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 739.29,336.37 740.53,323.74 744.47,307.41 756,298.8 786.72,275.87 1415.7,314.29 1446,290.8 1467.2,274.34 1443.6,236.62 \
+1454.1,224.69"];
+	stop_worker -> ps_table:stop	[_draw_="c 7 -#000000 B 10 774.52 349.83 870.42 339.3 1142.68 310.65 1370 298.8 1575.97 288.06 1628.37 306.84 1834 290.8 2125.05 268.1 2195.47 \
+200.74 2481.77 199.03 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 2481.42 202.53 2491.41 199 2481.4 195.53 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,2492.9,199 774.52,349.83 870.42,339.3 1142.7,310.65 1370,298.8 1576,288.06 1628.4,306.84 1834,290.8 2125,268.1 2195.5,200.74 2481.8,\
+199.03"];
+	stop_worker -> proc_table:psutil_Process	[_draw_="c 7 -#000000 B 10 754.88 336.47 768.15 323.34 788.35 306.32 810 298.8 832.41 291.02 1645.47 305.62 1664 290.8 1688.76 271 1657.74 \
+225.56 1671.94 213.17 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1672.89 216.54 1681.53 210.42 1670.96 209.81 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1683,210 754.88,336.47 768.15,323.34 788.35,306.32 810,298.8 832.41,291.02 1645.5,305.62 1664,290.8 1688.8,271 1657.7,225.56 1671.9,\
+213.17"];
+	get_usage_maps -> gpu_table:get_all_gpu_stats	[_draw_="c 7 -#000000 B 16 1434.59 1012.56 1522.94 1008.62 1708 998.22 1730 979.41 1797.45 921.77 1713.45 843.93 1781 786.4 1794.77 774.67 \
+1849.85 791.8 1862 778.4 1913.6 721.46 1868.08 509.2 1862 432.6 1860.79 417.4 1857.27 411.3 1855.73 400.2 ",
+		_hdraw_="S 5 -solid c 7 -#000000 C 7 -#000000 P 3 1859.23 400.07 1855.1 390.31 1852.24 400.51 ",
+		fontname=Helvetica,
+		fontsize=10,
+		pos="e,1855,388.8 1434.6,1012.6 1522.9,1008.6 1708,998.22 1730,979.41 1797.4,921.77 1713.4,843.93 1781,786.4 1794.8,774.67 1849.9,791.8 \
+1862,778.4 1913.6,721.46 1868.1,509.2 1862,432.6 1860.8,417.4 1857.3,411.3 1855.7,400.2"];
+}

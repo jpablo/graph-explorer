@@ -606,6 +606,19 @@ object Order:
     //    per rank. gv expands them one at a time inside the mincross_clust loop
     //    below, so while cluster c is refined, c+1.. are still single nodes.
     val rows = mutable.HashMap.from(cOrder.map((r, row) => r -> mutable.ArrayBuffer.from(row)))
+    // `allocate_ranks` (mincross.c) sizes GD_rank over the WHOLE span
+    // GD_minrank..GD_maxrank, so a rank with no nodes still exists, just with
+    // `n == 0`; every mincross loop then walks the span and does nothing for
+    // those. Ours only had the ranks that actually carry nodes, so a graph with
+    // a GAP crashed on the first `rows(r)` — `key not found: 1`.
+    //
+    // A gap is ordinary: `dot` ranks each connected component separately and
+    // offsets them, so a graph whose isolated nodes land at rank 0 while its
+    // connected body starts at rank 8 leaves 1..7 empty. (A call graph with a
+    // legend cluster and a couple of unreferenced tables is exactly that shape.)
+    if rankOf.nonEmpty then
+      (rankOf.valuesIterator.min to rankOf.valuesIterator.max)
+        .foreach(r => rows.getOrElseUpdate(r, mutable.ArrayBuffer.empty))
     val gpos = mutable.HashMap.empty[CNode, Int]
     def reindex(): Unit =
       gpos.clear()

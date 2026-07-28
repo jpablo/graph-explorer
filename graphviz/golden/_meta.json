@@ -3390,6 +3390,44 @@
         }
       }
     },
+    "192-rank-gap-callgraph.dot": {
+      "input": "192-rank-gap-callgraph.dot",
+      "sha256": "932d687cbc5c503fb51daa3becbb3d241ebfe0ec1a764560aa541318182b5161",
+      "formats": {
+        "dot": {
+          "status": "success",
+          "sha256": "2eac700f69294bde1908975e3cdc1141bbfcb403cc434d5a40c106d5065d7be9"
+        },
+        "plain": {
+          "status": "success",
+          "sha256": "164d8423268ddfa5049c4b660bb1b9eaa7bb1aeed2ddf51ea3670e4d25d34485"
+        },
+        "plain-ext": {
+          "status": "success",
+          "sha256": "b403c284174141c448e1d08b6be4c0e77ae1dcad7cff9cb1aadf26bacaba01f8"
+        },
+        "json": {
+          "status": "success",
+          "sha256": "a4ffa3484e0ab5bfd63e322ca62248da2ce702777e4ce9688d4dfb4c5c8f2d33"
+        },
+        "json0": {
+          "status": "success",
+          "sha256": "7f6b6f2471ab7c17e3d059807f64bd448b781647770ec2e4951860f7ee0345a1"
+        },
+        "dot_json": {
+          "status": "success",
+          "sha256": "93ba2703770e4e90fd74ca2253bd350c6589a6186cbef7df40d4eaccc497ec6a"
+        },
+        "xdot": {
+          "status": "success",
+          "sha256": "611bb3b0808ac2c033272d2c808018438580e5ccd2ba84540c8f8aa99a40ce27"
+        },
+        "svg": {
+          "status": "success",
+          "sha256": "6ed0231e6a4c74cd1bc33f0479261b1c0079371f4690a6cdb5a88fb505492ac3"
+        }
+      }
+    },
     "20-parallelogram": {
       "input": "20-parallelogram.dot",
       "sha256": "c08c8b4f71b54d3ee358a232aa3eb37fd7edca33cc06a529bc53d8eedc2dfe87",

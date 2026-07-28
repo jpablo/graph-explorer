@@ -1,14 +1,14 @@
 # Graphviz `dot` → Scala Port — Plan & Conformance Tracker
 
 > **STATUS: ✅ LAYOUT PIPELINE COMPLETE · ✅ SHAPE CATALOG COMPLETE · ✅ `dot`
-> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 171/172
-> (2026-07-27).** All milestones M0–M8 done. The viewer routes by layout
+> engine is pure-Scala (2026-07-12) · ✅ BYTE-EXACT 171/173
+> (2026-07-28).** All milestones M0–M8 done. The viewer routes by layout
 > engine: `dot`/unset → the pure-Scala port (the default and common case,
 > byte-exact), and the **non-`dot` engines** (`neato`/`fdp`/`sfdp`/`twopi`/
 > `circo`/`osage`/`patchwork`) → viz-js, which stays as a runtime dependency
 > because those layout algorithms are **not ported**. Full exact-string
 > gate vs `@viz-js/viz` 13.0.1 (dot_json + json0 + svg):
-> **corpus 163/164 + shipped examples 8/8 = 171/172** — the SINGLE
+> **corpus 163/165 + shipped examples 8/8 = 171/173** — the SINGLE
 > remaining diff anywhere is 03-subgraph-cluster, an intentional deferral
 > (its golden is gv's own default-mode cluster corruption; the file is
 > gated byte-exact against the 03b `newrank` oracle in ClusterSpec
@@ -512,6 +512,33 @@ enforce the deferral halves of it):
 
   191 is out of `deferredCorpus`. The corpus gate is now **163/164**, the one
   remaining deferral being 03, which is intentional and always will be.
+
+  **Rank GAPS crashed the layout (2026-07-28, 192-rank-gap-callgraph).** A user
+  call graph failed outright with `key not found: 1`. `dot` ranks each connected
+  component separately and offsets them, so 192's seven isolated nodes (a legend
+  cluster plus two unreferenced tables) sit at rank 0 while its connected body
+  starts at rank 8 — ranks 1..7 hold nothing at all, real or virtual.
+  `allocate_ranks` (mincross.c) sizes `GD_rank` over the WHOLE minrank..maxrank
+  span, so an empty rank still exists with `n == 0` and every mincross loop walks
+  past it doing nothing. Ours built `rows` from the ranks that actually carry
+  nodes, so the first `rows(r)` on a gap threw — and the whole render failed with
+  a message naming nothing. Fixed by allocating the full span in
+  `orderClustered`; `RankGapSpec` gates it, including a test that 192 still gaps,
+  because a gate on a graph that stopped exercising the bug is worse than none.
+
+  Worth noting for the next reader: several attempts at a SMALL stand-in (cluster
+  plus isolated nodes, with and without edge labels) all ranked without a gap.
+  Whether a graph gaps depends on how its edge-less clusters collapse during
+  dot1's recursive cluster ranking, so the gate is 192 itself.
+
+  **What 192 still needs: multi-component PACKING.** 40 of its 59 node positions
+  are already exact, and the rank axis is exact across the entire connected body
+  — every difference there is in x alone. The isolated component is the outlier:
+  we give it a rank of its own (20 ranks against gv's 19) rather than packing it
+  alongside, which moves it in both axes and widens the drawing (bb
+  2986.6x2165.1 vs 3004.6x1962.3). That is `pack`/component merging, a phase the
+  port has not needed until now — every earlier corpus file was single-component
+  or packed trivially.
 
 ## 1. Goal & locked decisions
 

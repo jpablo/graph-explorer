@@ -75,8 +75,25 @@ object OracleHarness:
     *     FLATEDGE branch), and `selfTop` for the one self-loop whose head port
     *     spans the node (side LEFT|RIGHT ⇒ gv's "handle L-R specially").
     *     Gated by the corpus sweep itself plus EdgeLabel2Spec's placement test.
+    *   - 192-rank-gap-callgraph: OPEN WORK, added 2026-07-28. A user call graph
+    *     that CRASHED the layout outright — `key not found: 1` — because its
+    *     ranking leaves a GAP. `dot` ranks each connected component separately
+    *     and offsets them, and this graph's seven isolated nodes (a legend
+    *     cluster plus two unreferenced tables) sit at rank 0 while the connected
+    *     body starts at rank 8, so ranks 1..7 hold nothing. gv's
+    *     `allocate_ranks` sizes GD_rank over the whole minrank..maxrank span, so
+    *     an empty rank still exists with `n == 0` and every mincross loop walks
+    *     past it; ours only had the ranks that carry nodes. Fixed by allocating
+    *     the full span (Order.orderClustered).
+    *     What REMAINS is multi-component PACKING. 40 of 59 node positions are
+    *     already exact and the rank axis is exact for the entire connected body
+    *     — every difference there is in x alone. The isolated component is the
+    *     outlier: we give it a rank of its own (20 ranks to gv's 19) instead of
+    *     packing it alongside, which shifts it in both axes and widens the
+    *     drawing (bb 2986.6x2165.1 vs 3004.6x1962.3). That is `pack`/component
+    *     merging, not ranking or mincross.
     */
-  val deferredCorpus: Set[String] = Set("03-subgraph-cluster")
+  val deferredCorpus: Set[String] = Set("03-subgraph-cluster", "192-rank-gap-callgraph")
 
   /** Image-dimension sidecar for a corpus file (`<name>.images.json`), mirroring
     * the `images` option passed to viz-js at capture time. Returns natural sizes

@@ -1,0 +1,306 @@
+digraph "WorkerPool_CallGraph" {
+    graph [
+        label="", 
+        rankdir="TB"
+    ];
+    subgraph "WorkerPool" {
+        graph [
+            style="filled", 
+            label="WorkerPool Class", 
+            color="gray", 
+            cluster="true", 
+            fillcolor="lavender"
+        ];
+        "__init__" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_coerce_hardware_profile" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightyellow", style="filled"];
+        "_effective_hardware_profile" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_registry_engine_for_worker_names" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightyellow", style="filled"];
+        "_exact_variant_worker_name" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightyellow", style="filled"];
+        "_worker_env_overrides" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightyellow", style="filled"];
+        "_register_model_name_alias" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_reuse_existing_fallthrough_worker" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_get_controller" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_get_generation_type" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_build_work_event_data" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "build_pid_mappings" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_collect_reclaimable_worker_run_ids" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_wait_for_gpu_capacity_after_eviction" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_process_message" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "_process_supervisor_message" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#d8f999", style="filled"];
+        "_process_worker_message" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#fee685", penwidth="2.35", style="filled"];
+        "_start" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "_ready" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_start_failed" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_stop" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "poll_forever" [shape="circle", fontname="Helvetica", fontsize="10", fillcolor="#b9f8cf", penwidth="2.35", style="filled"];
+        "_maybe_poll" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "_poll_for_task_queue" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "_canonical_model_name" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_missing_required_runtime_fields" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightyellow", style="filled"];
+        "_warn_sparse_runtime_config_if_needed" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_fail_work_request" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "send_work_request" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_start_exact_variant" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "_maybe_register_canonical_alias" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "start_worker_if_fits" [shape="Mdiamond", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "_fit_gpu_and_start" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "stop_workers_and_start_worker" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "get_work_requests_for_events" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "send_related_task_event" [label="send_related_task_event\n(commented-out call)", shape="box", fontname="Helvetica", fontsize="10", fontcolor="white", fillcolor="red", style="filled"];
+        "_apply_kv_cache_estimate" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "_start_worker_with_preflight" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+        "start_worker" [shape="Msquare", fontname="Helvetica", fontsize="10", fillcolor="#ff6467", penwidth="2.35", style="filled"];
+        "_watch_worker_process" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "stop_worker" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "get_usage_maps" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "get_multi_index_to_fit" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightyellow", style="filled"];
+        "run" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="#ffc9c9", penwidth="2.35", style="filled"];
+    }
+    subgraph "external_db" {
+        graph [style="filled", label="External: Database (Controller)", color="purple", cluster="true", fillcolor="lavenderblush"];
+        "db_table" [
+            label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="init" BGCOLOR="purple" FONTCOLOR="white"><B>Controller.init</B></TD></TR>
+              <TR><TD PORT="update_worker_run">Controller.update_worker_run</TD></TR>
+              <TR><TD PORT="get_chat_message">Controller.get_chat_message_generation_by_id</TD></TR>
+              <TR><TD PORT="get_model_simple_name">Controller.get_model_simple_name</TD></TR>
+              <TR><TD PORT="registry_find_variant_by_id">Controller.registry.find_variant_by_id</TD></TR>
+              <TR><TD PORT="registry_find_startable">Controller.registry.find_startable_variant_by_id</TD></TR>
+              <TR><TD PORT="registry_find_variant_for_model">Controller.registry.find_variant_for_model</TD></TR>
+              <TR><TD PORT="registry_resolve_runtime">Controller.registry.resolve_runtime_config</TD></TR>
+              <TR><TD PORT="registry_resolve_deployment">Controller.registry.resolve_deployment_overrides</TD></TR>
+              <TR><TD PORT="get_workers_by_names">Controller.get_workers_by_names</TD></TR>
+              <TR><TD PORT="get_worker_model_support">Controller.get_worker_model_support_for_model_and_workers</TD></TR>
+              <TR><TD PORT="create_worker_run">Controller.create_worker_run</TD></TR>
+              <TR><TD PORT="sync_worker_to_db" BGCOLOR="lightyellow">_sync_worker_to_db</TD></TR>
+              </TABLE>
+            >, 
+            shape="plaintext", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"
+        ];
+    }
+    subgraph "external_websocket" {
+        graph [style="filled", label="External: WebSocket Client", color="blue", cluster="true", fillcolor="aliceblue"];
+        "ws_table" [
+            label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="record_channel_event" BGCOLOR="blue" FONTCOLOR="white"><B>record_channel_event_with_values</B></TD></TR>
+              <TR><TD PORT="connect_channel">connect_channel</TD></TR>
+              </TABLE>
+            >, 
+            shape="plaintext", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"
+        ];
+    }
+    subgraph "external_pubsub" {
+        graph [style="filled", label="External: PubSub/Publisher", color="teal", cluster="true", fillcolor="palegreen"];
+        "ps_table" [
+            label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="send" BGCOLOR="teal" FONTCOLOR="white"><B>PubSub.send</B></TD></TR>
+              <TR><TD PORT="listen">PubSub.listen</TD></TR>
+              <TR><TD PORT="stop">PubSub.stop</TD></TR>
+              <TR><TD PORT="pub_send">Publisher.send</TD></TR>
+              </TABLE>
+            >, 
+            shape="plaintext", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"
+        ];
+    }
+    subgraph "external_gpu" {
+        graph [style="filled", label="External: GPU/NVML", color="orange", cluster="true", fillcolor="peachpuff"];
+        "gpu_table" [
+            label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="get_all_gpu_stats" BGCOLOR="orange" FONTCOLOR="white"><B>get_all_gpu_stats</B></TD></TR>
+              <TR><TD PORT="init_nvml">init_nvml</TD></TR>
+              <TR><TD PORT="cleanup_nvml">cleanup_nvml</TD></TR>
+              </TABLE>
+            >, 
+            shape="plaintext", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"
+        ];
+    }
+    subgraph "external_process" {
+        graph [style="filled", label="External: Process Utilities", color="brown", cluster="true", fillcolor="mistyrose"];
+        "proc_table" [
+            label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="get_pstree" BGCOLOR="brown" FONTCOLOR="white"><B>get_pstree_for_pid</B></TD></TR>
+              <TR><TD PORT="psutil_Process">psutil.Process</TD></TR>
+              <TR><TD PORT="Process_start">Process.start</TD></TR>
+              </TABLE>
+            >, 
+            shape="plaintext", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"
+        ];
+    }
+    subgraph "external_worker" {
+        graph [style="filled", label="External: Worker/Model", color="darkgreen", cluster="true", fillcolor="honeydew"];
+        "worker_table" [
+            label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="build_inference" BGCOLOR="darkgreen" FONTCOLOR="white"><B>build_inference_model_from_factory</B></TD></TR>
+              <TR><TD PORT="kv_cache">try_estimate_kv_cache</TD></TR>
+              <TR><TD PORT="load_classes">load_classes_from_file</TD></TR>
+              </TABLE>
+            >, 
+            shape="plaintext", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"
+        ];
+    }
+    subgraph "external_async" {
+        graph [style="filled", label="External: AsyncIO", color="gray", cluster="true", fillcolor="whitesmoke"];
+        "async_table" [
+            label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="sleep" BGCOLOR="gray" FONTCOLOR="white"><B>sleep</B></TD></TR>
+              <TR><TD PORT="create_task">create_task</TD></TR>
+              </TABLE>
+            >, 
+            shape="plaintext", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"
+        ];
+    }
+    subgraph "external_misc" {
+        graph [style="filled", label="External: Miscellaneous", color="black", cluster="true", fillcolor="white"];
+        "misc_table" [
+            label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="uuid4" BGCOLOR="black" FONTCOLOR="white"><B>uuid4</B></TD></TR>
+              <TR><TD PORT="datetime">datetime/timezone</TD></TR>
+              <TR><TD PORT="generate_socket">generate_socket_path</TD></TR>
+              <TR><TD PORT="set_start_method">set_start_method</TD></TR>
+              <TR><TD PORT="run">asyncio.run</TD></TR>
+              </TABLE>
+            >, 
+            shape="plaintext", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"
+        ];
+    }
+    subgraph "cluster_legend" {
+        graph [style="filled", label="Legend", color="gray", cluster="true", fillcolor="white"];
+        "legend_public" [label="Public Method", shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightblue", style="filled"];
+        "legend_private" [label="Private Method", shape="box", fontname="Helvetica", fontsize="10", fillcolor="white", style="filled"];
+        "legend_static" [label="Static Method", shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightyellow", style="filled"];
+        "legend_module" [label="Module Function", shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightgreen", style="filled"];
+        "legend_dead" [label="Dead Code", shape="box", fontname="Helvetica", fontsize="10", fontcolor="white", fillcolor="red", style="filled"];
+    }
+    "resolve_worker_max_batch_size" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightgreen", style="filled"];
+    "_scoped_env" [shape="box", fontname="Helvetica", fontsize="10", fillcolor="lightgreen", style="filled"];
+    "_maybe_poll" -> "_poll_for_task_queue" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "start_worker_if_fits" -> "db_table":"registry_find_variant_for_model" [label="", fontname="Helvetica", fontsize="10"];
+    "_maybe_register_canonical_alias" -> "_register_model_name_alias" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_worker_message" -> "_maybe_poll" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "start_worker_if_fits" -> "start_worker" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "send_related_task_event" -> "get_work_requests_for_events" [label="", fontname="Helvetica", fontsize="10"];
+    "_start" -> "__init__" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "_missing_required_runtime_fields" [label="via _warn_sparse_runtime_config_if_needed", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "db_table":"get_worker_model_support" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "get_work_requests_for_events" [label="", fontname="Helvetica", fontsize="10"];
+    "_ready" -> "ps_table":"send" [label="", fontname="Helvetica", fontsize="10"];
+    "_watch_worker_process" -> "stop_worker" [label="", fontname="Helvetica", fontsize="10"];
+    "_fit_gpu_and_start" -> "_start_worker_with_preflight" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_maybe_register_canonical_alias" -> "_registry_engine_for_worker_names" [label="", fontname="Helvetica", fontsize="10"];
+    "_start" -> "_start_failed" [label="on init error", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "ws_table":"record_channel_event" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_exact_variant" -> "_maybe_register_canonical_alias" [label="", fontname="Helvetica", fontsize="10"];
+    "_build_work_event_data" -> "_get_generation_type" [label="", fontname="Helvetica", fontsize="10"];
+    "_reuse_existing_fallthrough_worker" -> "_register_model_name_alias" [label="", fontname="Helvetica", fontsize="10"];
+    "_canonical_model_name" -> "db_table":"get_model_simple_name" [label="", fontname="Helvetica", fontsize="10"];
+    "stop_workers_and_start_worker" -> "_start_worker_with_preflight" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_start_worker_with_preflight" -> "_fail_work_request" [label="", fontname="Helvetica", fontsize="10"];
+    "run" -> "_start" [label="calls", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_stop" -> "gpu_table":"cleanup_nvml" [label="", fontname="Helvetica", fontsize="10"];
+    "stop_workers_and_start_worker" -> "stop_worker" [label="", fontname="Helvetica", fontsize="10"];
+    "_start" -> "_stop" [label="", fontname="Helvetica", fontsize="10"];
+    "_poll_for_task_queue" -> "send_work_request" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_message" -> "build_pid_mappings" [label="", fontname="Helvetica", fontsize="10"];
+    "_maybe_register_canonical_alias" -> "db_table":"registry_find_variant_for_model" [label="", fontname="Helvetica", fontsize="10"];
+    "_start" -> "_process_supervisor_message" [label="via listener", fontname="Helvetica", fontsize="10"];
+    "_poll_for_task_queue" -> "_reuse_existing_fallthrough_worker" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_message" -> "ws_table":"record_channel_event" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_exact_variant" -> "_effective_hardware_profile" [label="", fontname="Helvetica", fontsize="10"];
+    "send_work_request" -> "_build_work_event_data" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "db_table":"update_worker_run" [label="", fontname="Helvetica", fontsize="10"];
+    "stop_worker" -> "ws_table":"record_channel_event" [label="", fontname="Helvetica", fontsize="10"];
+    "_stop" -> "ps_table":"send" [label="", fontname="Helvetica", fontsize="10"];
+    "_fail_work_request" -> "ps_table":"pub_send" [label="", fontname="Helvetica", fontsize="10"];
+    "stop_workers_and_start_worker" -> "_wait_for_gpu_capacity_after_eviction" [label="", fontname="Helvetica", fontsize="10"];
+    "_start" -> "_process_message" [label="via listener", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_start_exact_variant" -> "db_table":"registry_resolve_deployment" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "db_table":"registry_resolve_runtime" [label="", fontname="Helvetica", fontsize="10"];
+    "send_related_task_event" -> "ws_table":"record_channel_event" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_worker_with_preflight" -> "_fail_work_request" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_message" -> "stop_worker" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "_start_exact_variant" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "send_work_request" -> "ps_table":"send" [label="", fontname="Helvetica", fontsize="10"];
+    "_wait_for_gpu_capacity_after_eviction" -> "gpu_table":"get_all_gpu_stats" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_worker_message" -> "db_table":"update_worker_run" [label="", fontname="Helvetica", fontsize="10"];
+    "run" -> "__init__" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "ws_table":"connect_channel" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "db_table":"registry_find_startable" [label="", fontname="Helvetica", fontsize="10"];
+    "stop_workers_and_start_worker" -> "gpu_table":"get_all_gpu_stats" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "_warn_sparse_runtime_config_if_needed" [label="", fontname="Helvetica", fontsize="10"];
+    "_poll_for_task_queue" -> "start_worker_if_fits" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_start_exact_variant" -> "db_table":"registry_resolve_runtime" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_message" -> "get_usage_maps" [label="", fontname="Helvetica", fontsize="10"];
+    "stop_worker" -> "proc_table":"psutil_Process" [label="", fontname="Helvetica", fontsize="10"];
+    "__init__" -> "_coerce_hardware_profile" [label="", fontname="Helvetica", fontsize="10"];
+    "_apply_kv_cache_estimate" -> "gpu_table":"get_all_gpu_stats" [label="", fontname="Helvetica", fontsize="10"];
+    "_fit_gpu_and_start" -> "get_usage_maps" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "_canonical_model_name" [label="", fontname="Helvetica", fontsize="10"];
+    "_stop" -> "stop_worker" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "_effective_hardware_profile" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_worker_message" -> "ws_table":"record_channel_event" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_failed" -> "_stop" [label="", fontname="Helvetica", fontsize="10"];
+    "_get_generation_type" -> "db_table":"get_chat_message" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "_worker_env_overrides" [label="", fontname="Helvetica", fontsize="10"];
+    "_fit_gpu_and_start" -> "gpu_table":"get_all_gpu_stats" [label="", fontname="Helvetica", fontsize="10"];
+    "poll_forever" -> "_maybe_poll" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_start_worker_with_preflight" -> "start_worker" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_canonical_model_name" -> "db_table":"registry_find_variant_by_id" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_exact_variant" -> "_exact_variant_worker_name" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_message" -> "ps_table":"send" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "worker_table":"build_inference" [label="", fontname="Helvetica", fontsize="10"];
+    "_fit_gpu_and_start" -> "build_pid_mappings" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_worker_message" -> "_fail_work_request" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "_fit_gpu_and_start" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "start_worker_if_fits" -> "db_table":"get_workers_by_names" [label="", fontname="Helvetica", fontsize="10"];
+    "_start" -> "ps_table":"listen" [label="calls (subscriber)", fontname="Helvetica", fontsize="10"];
+    "_start" -> "poll_forever" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "start_worker" -> "resolve_worker_max_batch_size" [label="calls", fontname="Helvetica", fontsize="10"];
+    "_fit_gpu_and_start" -> "_collect_reclaimable_worker_run_ids" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_supervisor_message" -> "worker_table":"load_classes" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "db_table":"create_worker_run" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "ps_table":"listen" [label="", fontname="Helvetica", fontsize="10"];
+    "_fail_work_request" -> "ws_table":"record_channel_event" [label="", fontname="Helvetica", fontsize="10"];
+    "_maybe_register_canonical_alias" -> "_effective_hardware_profile" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "_reuse_existing_fallthrough_worker" [label="", fontname="Helvetica", fontsize="10"];
+    "send_work_request" -> "ws_table":"record_channel_event" [label="", fontname="Helvetica", fontsize="10"];
+    "_poll_for_task_queue" -> "_warn_sparse_runtime_config_if_needed" [label="via start_worker_if_fits", fontname="Helvetica", fontsize="10"];
+    "_get_generation_type" -> "_get_controller" [label="", fontname="Helvetica", fontsize="10"];
+    "build_pid_mappings" -> "proc_table":"get_pstree" [label="", fontname="Helvetica", fontsize="10"];
+    "_apply_kv_cache_estimate" -> "worker_table":"kv_cache" [label="", fontname="Helvetica", fontsize="10"];
+    "_fit_gpu_and_start" -> "get_multi_index_to_fit" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "_scoped_env" [label="calls", fontname="Helvetica", fontsize="10"];
+    "_process_message" -> "_process_worker_message" [label="via worker listener", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "start_worker_if_fits" -> "_register_model_name_alias" [label="", fontname="Helvetica", fontsize="10"];
+    "_watch_worker_process" -> "_fail_work_request" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "_watch_worker_process" [label="", fontname="Helvetica", fontsize="10"];
+    "get_usage_maps" -> "gpu_table":"get_all_gpu_stats" [label="", fontname="Helvetica", fontsize="10"];
+    "_collect_reclaimable_worker_run_ids" -> "gpu_table":"get_all_gpu_stats" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_failed" -> "ps_table":"send" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_supervisor_message" -> "db_table":"sync_worker_to_db" [label="external: _sync_worker_to_db", fontname="Helvetica", fontsize="10"];
+    "_process_message" -> "_maybe_poll" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_start_exact_variant" -> "_fit_gpu_and_start" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "_fail_work_request" -> "_build_work_event_data" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_exact_variant" -> "_fail_work_request" [label="on error", fontname="Helvetica", fontsize="10"];
+    "_process_worker_message" -> "stop_worker" [label="", fontname="Helvetica", fontsize="10"];
+    "_process_message" -> "_build_work_event_data" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "db_table":"registry_resolve_deployment" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_worker_with_preflight" -> "_apply_kv_cache_estimate" [label="", fontname="Helvetica", fontsize="10"];
+    "_watch_worker_process" -> "_fail_work_request" [label="", fontname="Helvetica", fontsize="10"];
+    "_watch_worker_process" -> "ws_table":"record_channel_event" [label="", fontname="Helvetica", fontsize="10"];
+    "_start" -> "_ready" [label="", fontname="Helvetica", fontsize="10"];
+    "_fit_gpu_and_start" -> "stop_workers_and_start_worker" [label="", fontname="Helvetica", fontsize="10", penwidth="2.3", style="bold"];
+    "start_worker" -> "proc_table":"Process_start" [label="", fontname="Helvetica", fontsize="10"];
+    "_start_exact_variant" -> "db_table":"get_workers_by_names" [label="", fontname="Helvetica", fontsize="10"];
+    "_poll_for_task_queue" -> "_canonical_model_name" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker" -> "_apply_kv_cache_estimate" [label="", fontname="Helvetica", fontsize="10"];
+    "start_worker_if_fits" -> "worker_table":"build_inference" [label="", fontname="Helvetica", fontsize="10"];
+    "stop_worker" -> "ps_table":"stop" [label="", fontname="Helvetica", fontsize="10"];
+}

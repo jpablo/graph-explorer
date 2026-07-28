@@ -1,0 +1,1192 @@
+digraph WorkerPool_CallGraph {
+	graph [bb="0,0,3004.6,1962.3",
+		label="",
+		rankdir=TB
+	];
+	node [label="\N"];
+	subgraph WorkerPool {
+		graph [bb="8,8,1442,1913.3",
+			cluster=true,
+			color=gray,
+			fillcolor=lavender,
+			label="WorkerPool Class",
+			lheight=0.23,
+			lp="725,1900.9",
+			lwidth=1.42,
+			style=filled
+		];
+		__init__	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="532,1653.5",
+			shape=box,
+			style=filled,
+			width=0.75];
+		_coerce_hardware_profile	[fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="82,1499.4",
+			shape=box,
+			style=filled,
+			width=1.8281];
+		__init__ -> _coerce_hardware_profile	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,88.165,1517.5 504.77,1652.9 429.44,1653.4 220.01,1651.7 162,1617.5 127.71,1597.3 104.82,1555.9 92.606,1528.1"];
+		_effective_hardware_profile	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="407,1015.4",
+			shape=box,
+			style=filled,
+			width=1.9285];
+		_registry_engine_for_worker_names	[fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="584,1015.4",
+			shape=box,
+			style=filled,
+			width=2.4765];
+		_exact_variant_worker_name	[fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="589,1088.4",
+			shape=box,
+			style=filled,
+			width=2.0442];
+		_worker_env_overrides	[fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1182,598.6",
+			shape=box,
+			style=filled,
+			width=1.6658];
+		_register_model_name_alias	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="188,1015.4",
+			shape=box,
+			style=filled,
+			width=2.0057];
+		_reuse_existing_fallthrough_worker	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="223,1172.4",
+			shape=box,
+			style=filled,
+			width=2.4149];
+		_reuse_existing_fallthrough_worker -> _register_model_name_alias	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,191.88,1033.6 219.05,1153.9 213.06,1127.4 201.61,1076.7 194.41,1044.8"];
+		_get_controller	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="999,34",
+			shape=box,
+			style=filled,
+			width=1.141];
+		_get_generation_type	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="999,107",
+			shape=box,
+			style=filled,
+			width=1.5659];
+		_get_generation_type -> _get_controller	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,999,52.029 999,88.813 999,81.226 999,72.101 999,63.539"];
+		_build_work_event_data	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="203,210",
+			shape=box,
+			style=filled,
+			width=1.728];
+		_build_work_event_data -> _get_generation_type	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,942.21,115.21 265.46,201.07 412.42,182.43 779.08,135.9 931.2,116.6"];
+		build_pid_mappings	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1072,1015.4",
+			shape=box,
+			style=filled,
+			width=1.4577];
+		_collect_reclaimable_worker_run_ids	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1233,1015.4",
+			shape=box,
+			style=filled,
+			width=2.5073];
+		_wait_for_gpu_capacity_after_eviction	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1236,942.41",
+			shape=box,
+			style=filled,
+			width=2.5848];
+		_process_message	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="628,1653.5",
+			shape=box,
+			style=filled,
+			width=1.4266];
+		_process_message -> _build_work_event_data	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,144.91,228.42 575.47,1636.9 572.96,1636.4 570.46,1635.9 568,1635.5 530.13,1629.2 255.2,1638.4 223,1617.5 181.13,1590.3 192.95,\
+1562.7 172,1517.4 164.73,1501.7 169.16,1493.8 157,1481.4 128.1,1452.1 101.17,1473.5 72,1444.4 46.919,1419.4 49.986,1405.4 40,1371.4 \
+21.731,1309.2 17,1292.2 17,1227.4 17,1227.4 17,1227.4 17,353.8 17,292.45 81.458,253.84 134.48,232.46"];
+		_process_message -> build_pid_mappings	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1019.1,1031.7 575.68,1637.5 573.09,1636.8 570.52,1636.1 568,1635.5 533.97,1626.7 523.69,1630.4 491,1617.5 444.01,1598.9 97,1440.9 \
+97,1390.4 97,1390.4 97,1390.4 97,1225.4 97,1191.2 100.68,1176.3 127,1154.4 276.5,1029.9 796.1,1065.7 1008,1033.5"];
+		_process_worker_message	[fillcolor="#fee685",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="584,1499.4",
+			shape=box,
+			style=filled,
+			width=1.9206];
+		_process_message -> _process_worker_message	[fontname=Helvetica,
+			fontsize=10,
+			label="via worker listener",
+			lp="626.71,1576.5",
+			penwidth=2.3,
+			pos="e,579.96,1518.5 599.82,1634.5 594.43,1629.7 589.51,1624 586.42,1617.5 573.59,1590.7 574.63,1556.3 577.88,1531.7",
+			style=bold];
+		_maybe_poll	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="644,1426.4",
+			shape=box,
+			style=filled,
+			width=1.0098];
+		_process_message -> _maybe_poll	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,652.13,1445.4 654.15,1634.7 659.36,1629.8 664.11,1624 667,1617.5 690.45,1565 671.67,1496.6 657.05,1457.8",
+			style=bold];
+		stop_worker	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="739,354.8",
+			shape=box,
+			style=filled,
+			width=0.97872];
+		_process_message -> stop_worker	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,724.31,373.03 575.79,1637 573.17,1636.5 570.56,1635.9 568,1635.5 512.04,1625.7 364.91,1640.6 313,1617.5 293.1,1608.7 189.57,1494.3 \
+172,1481.4 143.92,1460.9 125.37,1471.1 103,1444.4 38.204,1367.2 37,1328.2 37,1227.4 37,1227.4 37,1227.4 37,978.41 37,915.89 162.18,\
+481.37 212,443.6 251.26,413.83 608.97,442.17 655,424.6 678.78,415.53 700.84,396.89 716.38,381.3"];
+		get_usage_maps	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1388,1015.4",
+			shape=box,
+			style=filled,
+			width=1.2878];
+		_process_message -> get_usage_maps	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1354.7,1033.8 596.05,1634.4 556.98,1609.6 496,1561.2 496,1500.4 496,1500.4 496,1500.4 496,1316.4 496,1275.3 532.5,1276.7 571,1262.4 \
+656.31,1230.7 685.34,1260.1 775,1244.4 998.4,1205.4 1246.3,1088.5 1344.5,1039"];
+		_process_supervisor_message	[fillcolor="#d8f999",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1285,1653.5",
+			shape=box,
+			style=filled,
+			width=2.1445];
+		_process_worker_message -> _maybe_poll	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,628.66,1445.6 599.14,1480.5 605.49,1473 613.02,1464.1 620.08,1455.7",
+			style=bold];
+		_fail_work_request	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="596,354.8",
+			shape=box,
+			style=filled,
+			width=1.388];
+		_process_worker_message -> _fail_work_request	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,545.73,355.6 513.91,1494 404.03,1483.3 192.04,1446 78,1317.4 66.282,1304.2 57,1280.2 57,1227.4 57,1227.4 57,1227.4 57,597.6 57,\
+523.96 21.38,486.08 72,432.6 134.14,366.96 409.91,356.84 534.52,355.68"];
+		_process_worker_message -> stop_worker	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,721.68,373.11 544.34,1480.3 441.74,1433 170.18,1305.4 92,1244.4 84.053,1238.2 77,1237.5 77,1227.4 77,1227.4 77,1227.4 77,1051.4 \
+77,902.41 217.84,730.57 609,443.6 618.14,436.9 621.52,436.91 632,432.6 642.01,428.48 645.56,429.89 655,424.6 676.37,412.63 697.69,\
+395.09 713.5,380.71"];
+		_start	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="1101,1737.5",
+			shape=box,
+			style=filled,
+			width=0.75];
+		_start -> __init__	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,559.16,1668.4 1072.9,1736.2 994.04,1734.7 764.14,1726 570.13,1671.6"];
+		_start -> _process_message	[fontname=Helvetica,
+			fontsize=10,
+			label="via listener",
+			lp="916.72,1695.5",
+			penwidth=2.3,
+			pos="e,680.44,1663.6 1072.8,1731.6 999,1718.8 798.38,1684 693.65,1665.9",
+			style=bold];
+		_start -> _process_supervisor_message	[fontname=Helvetica,
+			fontsize=10,
+			label="via listener",
+			lp="1234.5,1695.5",
+			pos="e,1249.5,1671.9 1129.1,1725.4 1145.7,1718.7 1167.2,1709.8 1186,1701.5 1203.6,1693.7 1222.7,1684.8 1239.4,1676.8"];
+		_ready	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1407,1653.5",
+			shape=box,
+			style=filled,
+			width=0.75];
+		_start -> _ready	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1379.7,1668 1128.8,1732 1176.7,1723.9 1277.5,1704.7 1369.1,1671.9"];
+		_start_failed	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1155,1653.5",
+			shape=box,
+			style=filled,
+			width=0.97885];
+		_start -> _start_failed	[fontname=Helvetica,
+			fontsize=10,
+			label="on init error",
+			lp="1156.5,1695.5",
+			pos="e,1143.5,1672 1112.7,1718.7 1119.9,1707.8 1129.3,1693.6 1137.3,1681.3"];
+		_stop	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1155,1499.4",
+			shape=box,
+			style=filled,
+			width=0.75];
+		_start -> _stop	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1148.1,1517.6 1101.6,1718.4 1102.6,1698.1 1105,1664.1 1111,1635.5 1119,1597.5 1133.8,1555.1 1144,1528.1"];
+		poll_forever	[fillcolor="#b9f8cf",
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.1401,
+			penwidth=2.35,
+			pos="949,1576.5",
+			shape=circle,
+			style=filled,
+			width=1.1401];
+		_start -> poll_forever	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,977.44,1607.2 1083.9,1718.6 1060.4,1694 1017.8,1649.4 986.68,1616.9",
+			style=bold];
+		_start_failed -> _stop	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1155,1517.7 1155,1635.1 1155,1609.2 1155,1560.2 1155,1529"];
+		_stop -> stop_worker	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,746.59,373.21 1127.6,1492.2 970.96,1456.4 192.64,1275.1 127,1190.4 100.59,1156.3 83.276,1033.4 107,997.41 152.24,928.75 199.68,\
+952.4 277,924.41 303.76,914.73 750.98,801.21 768,778.4 790.24,748.58 773.91,480.33 768,443.6 764.67,422.93 757.21,400.53 750.69,\
+383.53"];
+		poll_forever -> _maybe_poll	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,668.76,1445.6 909.97,1560.6 859.54,1540.9 769.6,1503.8 697,1463.4 691.34,1460.3 685.52,1456.7 679.9,1453",
+			style=bold];
+		_poll_for_task_queue	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="788,1353.4",
+			shape=box,
+			style=filled,
+			width=1.5504];
+		_maybe_poll -> _poll_for_task_queue	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,751.36,1372.5 680.71,1407.3 698.57,1398.5 720.27,1387.8 739.47,1378.3",
+			style=bold];
+		_poll_for_task_queue -> _reuse_existing_fallthrough_worker	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,249.44,1190.8 731.35,1343.4 646.6,1328.7 482.66,1296.1 351,1244.4 318.57,1231.7 284.16,1212.2 259.2,1196.9"];
+		_canonical_model_name	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1347,1172.4",
+			shape=box,
+			style=filled,
+			width=1.7665];
+		_poll_for_task_queue -> _canonical_model_name	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1336.7,1190.8 844.78,1350.4 973.77,1345.3 1280.3,1330.1 1314,1298.4 1343.6,1270.7 1316.2,1246.9 1329,1208.4 1329.8,1206 1330.8,\
+1203.5 1331.8,1201.1"];
+		_warn_sparse_runtime_config_if_needed	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="428,1172.4",
+			shape=box,
+			style=filled,
+			width=2.7702];
+		_poll_for_task_queue -> _warn_sparse_runtime_config_if_needed	[fontname=Helvetica,
+			fontsize=10,
+			label="via start_worker_if_fits",
+			lp="700.01,1280.4",
+			pos="e,452.19,1190.7 739.91,1334.4 688.74,1314.6 605.98,1280.7 538,1244.4 511.4,1230.2 482.82,1211.7 461.47,1197.1"];
+		send_work_request	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1382,1226.4",
+			shape=box,
+			style=filled,
+			width=1.4344];
+		_poll_for_task_queue -> send_work_request	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1377.2,1244.8 844.66,1351.7 975.08,1349.7 1288.5,1342.3 1329,1317.4 1351.4,1303.6 1365.4,1276.5 1373.4,1255.7"];
+		start_worker_if_fits	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="1220,1280.4",
+			shape=Mdiamond,
+			style=filled,
+			width=2.3603];
+		_poll_for_task_queue -> start_worker_if_fits	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,1171.6,1289.4 844.92,1343.1 926.17,1329.7 1074.8,1305.3 1158.5,1291.5",
+			style=bold];
+		_missing_required_runtime_fields	[fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="649,1172.4",
+			shape=box,
+			style=filled,
+			width=2.2989];
+		_fail_work_request -> _build_work_event_data	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,251.08,228.47 548.2,336.43 476.11,310.24 339.71,260.67 261.69,232.32"];
+		send_work_request -> _build_work_event_data	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,155.43,228.33 1330,1226 1235,1226.2 1027.4,1222.5 856,1190.4 803.36,1180.6 793.58,1164.6 741,1154.4 641.2,1135.1 613.65,1150.6 \
+513,1136.4 512.74,1136.4 366.23,1106.5 366,1106.4 326.29,1084.7 324.1,1068.1 295,1033.4 282.31,1018.3 282.27,1012 269,997.41 176.67,\
+895.78 37,930.71 37,793.4 37,793.4 37,793.4 37,353.8 37,295.19 97.217,255.38 145.12,232.98"];
+		_start_exact_variant	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="918,1172.4",
+			shape=box,
+			style=filled,
+			width=1.4729];
+		_start_exact_variant -> _effective_hardware_profile	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,423.78,1033.9 864.18,1163.8 756.2,1148.3 522.04,1114.1 506,1106.4 489.33,1098.4 455.09,1065.6 431.6,1041.8"];
+		_start_exact_variant -> _exact_variant_worker_name	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,659.05,1106.9 864.04,1158 811.35,1144.8 730.51,1124.7 670.09,1109.6"];
+		_start_exact_variant -> _fail_work_request	[fontname=Helvetica,
+			fontsize=10,
+			label="on error",
+			lp="316.51,942.41",
+			pos="e,545.62,370.99 864.02,1163.3 842.84,1160.3 818.31,1157 796,1154.4 644.84,1137 600.63,1156.7 457,1106.4 422.95,1094.5 334.41,1061.7 \
+312,1033.4 296.66,1014.1 299,1004.1 299,979.41 299,979.41 299,979.41 299,597.6 299,477.09 447.88,406.02 534.82,374.78"];
+		_maybe_register_canonical_alias	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="763,1088.4",
+			shape=box,
+			style=filled,
+			width=2.2837];
+		_start_exact_variant -> _maybe_register_canonical_alias	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,795.87,1106.8 883.98,1153.4 861.06,1141.3 830.63,1125.2 806.02,1112.2"];
+		_fit_gpu_and_start	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="922,1088.4",
+			shape=box,
+			style=filled,
+			width=1.3728];
+		_start_exact_variant -> _fit_gpu_and_start	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,921.12,1107.5 918.87,1153.6 919.34,1144 919.93,1131.9 920.47,1120.7",
+			style=bold];
+		_maybe_register_canonical_alias -> _effective_hardware_profile	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,476.77,1031.5 680.5,1071.8 628.06,1061.7 558.47,1048.2 487.68,1033.7"];
+		_maybe_register_canonical_alias -> _registry_engine_for_worker_names	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,627.96,1033.8 719.21,1070 694.83,1060.4 664.27,1048.3 638.37,1038"];
+		_maybe_register_canonical_alias -> _register_model_name_alias	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,260.43,1025.3 680.71,1071.7 677.77,1071.3 674.86,1070.8 672,1070.4 520.3,1048.1 481.34,1050.8 329,1033.4 310.45,1031.3 290.54,\
+1028.9 271.7,1026.7"];
+		start_worker_if_fits -> _effective_hardware_profile	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,411.74,1033.6 1142.8,1277.6 1025.4,1274.2 812.95,1265.2 785,1244.4 771.23,1234.2 778.3,1224 771,1208.4 759.33,1183.6 763.73,1169.8 \
+741,1154.4 714.85,1136.7 631.15,1141.7 600,1136.4 535.96,1125.6 509.27,1144.9 457,1106.4 436.34,1091.2 423.12,1064.7 415.5,1044.4"];
+		start_worker_if_fits -> _register_model_name_alias	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,215.57,1033.8 1147.2,1276.7 978.05,1270.1 572.26,1253.6 561,1244.4 528.85,1218.3 566.29,1183.7 537,1154.4 522.28,1139.7 375.36,\
+1114 356,1106.4 309.13,1087.9 258.59,1059.6 225.32,1039.7"];
+		start_worker_if_fits -> _reuse_existing_fallthrough_worker	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,284.06,1190.8 1132,1279.9 1000.5,1279.5 745.41,1274.3 531,1244.4 449.1,1233 356.89,1210.4 294.89,1193.8"];
+		start_worker_if_fits -> _canonical_model_name	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1326.5,1190.6 1237.4,1264.9 1258.1,1247.6 1292.9,1218.5 1317.8,1197.8"];
+		start_worker_if_fits -> _missing_required_runtime_fields	[fontname=Helvetica,
+			fontsize=10,
+			label="via _warn_sparse_runtime_config_if_needed",
+			lp="671.49,1226.4",
+			pos="e,590.7,1190.8 1140.8,1278 972.14,1274.6 591.26,1264.8 571.98,1244.4 560.98,1232.8 563.32,1221.9 571.98,1208.4 574.62,1204.3 577.87,\
+1200.7 581.53,1197.5"];
+		start_worker_if_fits -> _warn_sparse_runtime_config_if_needed	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,510.44,1190.8 1141.8,1277.8 969,1273.9 567.95,1262.8 545,1244.4 532.04,1234 546.47,1220.4 535,1208.4 530.65,1203.9 525.71,1199.9 \
+520.38,1196.5"];
+		start_worker_if_fits -> _start_exact_variant	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,963.3,1191.4 1183.9,1269 1161.4,1262.3 1131.9,1253.3 1106,1244.4 1062,1229.4 1012.9,1210.7 975.85,1196.3",
+			style=bold];
+		start_worker_if_fits -> _fit_gpu_and_start	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,950.14,1107.4 1199,1266.1 1149.7,1234.6 1025.3,1155.3 961.35,1114.5",
+			style=bold];
+		start_worker	[fillcolor="#ff6467",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.98631,
+			penwidth=2.35,
+			pos="1327,851.91",
+			shape=Msquare,
+			style=filled,
+			width=0.98631];
+		start_worker_if_fits -> start_worker	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,1290.4,872.96 1163.5,1273.2 1119.5,1267.7 1057.3,1258.3 1004,1244.4 936.25,1226.7 921.75,1214.5 856,1190.4 812.43,1174.5 803.15,\
+1165.1 758,1154.4 626.18,1123.2 583.66,1154.5 457,1106.4 387.14,1079.9 278.94,1052.9 329,997.41 355.94,967.56 649.06,965.05 689,\
+960.41 940.51,931.25 1011,958.61 1254,887.41 1262,885.06 1270.3,881.93 1278.2,878.51",
+			style=bold];
+		_fit_gpu_and_start -> build_pid_mappings	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1019.2,1030.9 927.88,1069.6 930.86,1063 935.13,1056.1 941,1051.4 963.41,1033.7 976.63,1040 1008.3,1033.5"];
+		_fit_gpu_and_start -> _collect_reclaimable_worker_run_ids	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1142.3,1032.1 940.17,1069.4 948.08,1062.6 957.85,1055.5 968,1051.4 1033.1,1024.9 1057.6,1041.8 1131.1,1033.5"];
+		stop_workers_and_start_worker	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="922,1015.4",
+			shape=box,
+			style=filled,
+			width=2.1985];
+		_fit_gpu_and_start -> stop_workers_and_start_worker	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,922,1034.6 922,1069.5 922,1062.9 922,1055.2 922,1047.8",
+			style=bold];
+		_start_worker_with_preflight	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="609,942.41",
+			shape=box,
+			style=filled,
+			width=1.9591];
+		_fit_gpu_and_start -> _start_worker_with_preflight	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,639.07,961.39 871.51,1074.8 865.61,1073.3 859.67,1071.8 854,1070.4 786.5,1053.8 757.3,1075.6 702,1033.4 687.44,1022.3 694.08,1011.2 \
+682,997.41 672.8,986.93 661.23,977.24 650.04,969.05",
+			style=bold];
+		_fit_gpu_and_start -> get_usage_maps	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1341.1,1031.5 947.43,1069.3 958.45,1062.4 971.82,1055.3 985,1051.4 1056,1030.6 1239.6,1045.4 1329.8,1033.3"];
+		get_multi_index_to_fit	[fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="768,1015.4",
+			shape=box,
+			style=filled,
+			width=1.5734];
+		_fit_gpu_and_start -> get_multi_index_to_fit	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,805.86,1033.9 882.74,1069.3 862.45,1060 837.51,1048.5 816.07,1038.6"];
+		stop_workers_and_start_worker -> _wait_for_gpu_capacity_after_eviction	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1158.8,960.87 1002,996.31 1046.5,986.26 1102,973.72 1147.7,963.38"];
+		stop_workers_and_start_worker -> _start_worker_with_preflight	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,656.02,961.57 841.93,998.8 839.26,998.32 836.61,997.86 834,997.41 780.85,988.3 766.39,992.21 714,979.41 699.09,975.77 683.29,970.91 \
+668.6,965.94",
+			style=bold];
+		stop_workers_and_start_worker -> stop_worker	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,719.11,373.1 880.7,996.35 812.69,964.03 679.33,889.13 626,778.4 609.86,744.88 608.32,476.33 626,443.6 633.33,430.04 642.58,433.72 \
+655,424.6 674.11,410.58 694.7,393.74 710.72,380.23"];
+		get_work_requests_for_events	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="1028,598.6",
+			shape=box,
+			style=filled,
+			width=2.1215];
+		send_related_task_event	[fillcolor=red,
+			fontcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="send_related_task_event\n(commented-out call)",
+			pos="1181,851.91",
+			shape=box,
+			style=filled,
+			width=1.7743];
+		send_related_task_event -> get_work_requests_for_events	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1034.2,617.06 1161.7,833.49 1147,819.59 1127.1,799.07 1113,778.4 1079.2,728.86 1052,663.81 1038.1,627.39"];
+		_apply_kv_cache_estimate	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="865,598.6",
+			shape=box,
+			style=filled,
+			width=1.8976];
+		_start_worker_with_preflight -> _fail_work_request	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,593.89,373.18 606.05,923.25 598.78,839.21 590.79,487.89 593.5,384.53"];
+		_start_worker_with_preflight -> _fail_work_request	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,598.88,373.18 611.14,923.25 614.68,839.21 607.08,487.89 599.77,384.53"];
+		_start_worker_with_preflight -> _apply_kv_cache_estimate	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,859.54,617.04 633.78,923.29 670.37,895.52 739.22,839.2 783,778.4 817.75,730.13 843.17,664.79 855.87,627.94"];
+		_start_worker_with_preflight -> start_worker	[fontname=Helvetica,
+			fontsize=10,
+			penwidth=2.3,
+			pos="e,1290.6,873.7 644.89,923.34 660.5,916.39 679.24,909.21 697,905.41 818.11,879.56 1133.6,916.48 1254,887.41 1262.1,885.45 1270.5,\
+882.52 1278.4,879.19",
+			style=bold];
+		start_worker -> _worker_env_overrides	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1191.5,617.05 1304.4,815.46 1300.9,809.78 1297.3,803.95 1294,798.4 1258,737.89 1218,665.54 1196.9,626.99"];
+		start_worker -> get_work_requests_for_events	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,1031.2,617.08 1290.4,832.05 1278.9,826.56 1266.1,820.85 1254,816.4 1238.8,810.8 1125.5,788.79 1113,778.4 1065.9,739.11 1043.2,\
+667.71 1033.7,628.06"];
+		start_worker -> _apply_kv_cache_estimate	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,866.96,617.08 1290.4,830.8 1279,825.33 1266.3,819.94 1254,816.4 1187.1,797.05 998.82,820.01 943,778.4 894.29,742.1 875.55,668.89 \
+868.69,628.31"];
+		_watch_worker_process	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			pos="697,598.6",
+			shape=box,
+			style=filled,
+			width=1.7198];
+		start_worker -> _watch_worker_process	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,700.19,616.89 1290.5,830.33 1279.2,824.84 1266.4,819.57 1254,816.4 1153.4,790.61 873.18,837.89 788,778.4 736.54,742.46 712.43,\
+668.52 702.67,627.89"];
+		_watch_worker_process -> _fail_work_request	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,599.51,373.03 686.03,580.21 664.97,538.82 620.99,434.16 603.17,383.77"];
+		_watch_worker_process -> _fail_work_request	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,606.89,373.03 693.44,580.21 679.87,538.65 636.11,433.28 611.88,383.13"];
+		_watch_worker_process -> stop_worker	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,736.01,373.03 700.02,580.21 707.19,538.91 725.31,434.6 734.09,384.08"];
+		run	[fillcolor="#ffc9c9",
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			penwidth=2.35,
+			pos="598,1862.5",
+			shape=box,
+			style=filled,
+			width=0.75];
+		run -> __init__	[fontname=Helvetica,
+			fontsize=10,
+			pos="e,537.5,1671.7 592.26,1843.5 580.74,1807.4 554.73,1725.8 540.96,1682.6"];
+		run -> _start	[fontname=Helvetica,
+			fontsize=10,
+			label=calls,
+			lp="962.37,1779.5",
+			penwidth=2.3,
+			pos="e,1073.1,1745.3 626.12,1854.6 710.4,1834 961.15,1772.7 1060.1,1748.5",
+			style=bold];
+	}
+	subgraph external_db {
+		graph [bb="1944,443.6,2266,778.4",
+			cluster=true,
+			color=purple,
+			fillcolor=lavenderblush,
+			label="External: Database (Controller)",
+			lheight=0.23,
+			lp="2105,766",
+			lwidth=2.45,
+			style=filled
+		];
+		db_table	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=4.0833,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="init" BGCOLOR="purple" FONTCOLOR="white"><B>Controller.init</B></TD></TR>
+              <TR><TD PORT="update_worker_run">Controller.update_worker_run</TD></TR>
+              <TR><TD PORT="get_chat_message">Controller.get_chat_message_generation_by_id</TD></TR>
+              <TR><TD PORT="get_model_simple_name">Controller.get_model_simple_name</TD></TR>
+              <TR><TD PORT="registry_find_variant_by_id">Controller.registry.find_variant_by_id</TD></TR>
+              <TR><TD PORT="registry_find_startable">Controller.registry.find_startable_variant_by_id</TD></TR>
+              <TR><TD PORT="registry_find_variant_for_model">Controller.registry.find_variant_for_model</TD></TR>
+              <TR><TD PORT="registry_resolve_runtime">Controller.registry.resolve_runtime_config</TD></TR>
+              <TR><TD PORT="registry_resolve_deployment">Controller.registry.resolve_deployment_overrides</TD></TR>
+              <TR><TD PORT="get_workers_by_names">Controller.get_workers_by_names</TD></TR>
+              <TR><TD PORT="get_worker_model_support">Controller.get_worker_model_support_for_model_and_workers</TD></TR>
+              <TR><TD PORT="create_worker_run">Controller.create_worker_run</TD></TR>
+              <TR><TD PORT="sync_worker_to_db" BGCOLOR="lightyellow">_sync_worker_to_db</TD></TR>
+              </TABLE>
+            >,
+			pos="2105,598.6",
+			shape=plaintext,
+			style=filled,
+			width=4.2521];
+	}
+	subgraph external_websocket {
+		graph [bb="1450,176,1660,268.8",
+			cluster=true,
+			color=blue,
+			fillcolor=aliceblue,
+			label="External: WebSocket Client",
+			lheight=0.23,
+			lp="1555,256.4",
+			lwidth=2.18,
+			style=filled
+		];
+		ws_table	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.72222,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="record_channel_event" BGCOLOR="blue" FONTCOLOR="white"><B>record_channel_event_with_values</B></TD></TR>
+              <TR><TD PORT="connect_channel">connect_channel</TD></TR>
+              </TABLE>
+            >,
+			pos="1555,210",
+			shape=plaintext,
+			style=filled,
+			width=2.7001];
+	}
+	subgraph external_pubsub {
+		graph [bb="2447,154,2618,290.8",
+			cluster=true,
+			color=teal,
+			fillcolor=palegreen,
+			label="External: PubSub/Publisher",
+			lheight=0.23,
+			lp="2532.5,278.4",
+			lwidth=2.16,
+			style=filled
+		];
+		ps_table	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.3333,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="send" BGCOLOR="teal" FONTCOLOR="white"><B>PubSub.send</B></TD></TR>
+              <TR><TD PORT="listen">PubSub.listen</TD></TR>
+              <TR><TD PORT="stop">PubSub.stop</TD></TR>
+              <TR><TD PORT="pub_send">Publisher.send</TD></TR>
+              </TABLE>
+            >,
+			pos="2532,210",
+			shape=plaintext,
+			style=filled,
+			width=1.2799];
+	}
+	subgraph external_gpu {
+		graph [bb="1791,309.8,1934,424.6",
+			cluster=true,
+			color=orange,
+			fillcolor=peachpuff,
+			label="External: GPU/NVML",
+			lheight=0.23,
+			lp="1862.5,412.2",
+			lwidth=1.78,
+			style=filled
+		];
+		gpu_table	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.0278,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="get_all_gpu_stats" BGCOLOR="orange" FONTCOLOR="white"><B>get_all_gpu_stats</B></TD></TR>
+              <TR><TD PORT="init_nvml">init_nvml</TD></TR>
+              <TR><TD PORT="cleanup_nvml">cleanup_nvml</TD></TR>
+              </TABLE>
+            >,
+			pos="1855,354.8",
+			shape=plaintext,
+			style=filled,
+			width=1.5343];
+	}
+	subgraph external_process {
+		graph [bb="1668,165,1830,279.8",
+			cluster=true,
+			color=brown,
+			fillcolor=mistyrose,
+			label="External: Process Utilities",
+			lheight=0.23,
+			lp="1749,267.4",
+			lwidth=2.03,
+			style=filled
+		];
+		proc_table	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.0278,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="get_pstree" BGCOLOR="brown" FONTCOLOR="white"><B>get_pstree_for_pid</B></TD></TR>
+              <TR><TD PORT="psutil_Process">psutil.Process</TD></TR>
+              <TR><TD PORT="Process_start">Process.start</TD></TR>
+              </TABLE>
+            >,
+			pos="1734,210",
+			shape=plaintext,
+			style=filled,
+			width=1.6115];
+	}
+	subgraph external_worker {
+		graph [bb="2256,309.8,2474,424.6",
+			cluster=true,
+			color=darkgreen,
+			fillcolor=honeydew,
+			label="External: Worker/Model",
+			lheight=0.23,
+			lp="2365,412.2",
+			lwidth=1.92,
+			style=filled
+		];
+		worker_table	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.0278,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="build_inference" BGCOLOR="darkgreen" FONTCOLOR="white"><B>build_inference_model_from_factory</B></TD></TR>
+              <TR><TD PORT="kv_cache">try_estimate_kv_cache</TD></TR>
+              <TR><TD PORT="load_classes">load_classes_from_file</TD></TR>
+              </TABLE>
+            >,
+			pos="2365,354.8",
+			shape=plaintext,
+			style=filled,
+			width=2.8001];
+	}
+	subgraph external_async {
+		graph [bb="1648,1828.5,1769,1921.3",
+			cluster=true,
+			color=gray,
+			fillcolor=whitesmoke,
+			label="External: AsyncIO",
+			lheight=0.23,
+			lp="1708.5,1908.9",
+			lwidth=1.46,
+			style=filled
+		];
+		async_table	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.72222,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="sleep" BGCOLOR="gray" FONTCOLOR="white"><B>sleep</B></TD></TR>
+              <TR><TD PORT="create_task">create_task</TD></TR>
+              </TABLE>
+            >,
+			pos="1708,1862.5",
+			shape=plaintext,
+			style=filled,
+			width=1.0791];
+	}
+	subgraph external_misc {
+		graph [bb="1876,1795.5,2027,1954.3",
+			cluster=true,
+			color=black,
+			fillcolor=white,
+			label="External: Miscellaneous",
+			lheight=0.23,
+			lp="1951.5,1941.9",
+			lwidth=1.88,
+			style=filled
+		];
+		misc_table	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=1.6389,
+			label=<
+              <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+              <TR><TD PORT="uuid4" BGCOLOR="black" FONTCOLOR="white"><B>uuid4</B></TD></TR>
+              <TR><TD PORT="datetime">datetime/timezone</TD></TR>
+              <TR><TD PORT="generate_socket">generate_socket_path</TD></TR>
+              <TR><TD PORT="set_start_method">set_start_method</TD></TR>
+              <TR><TD PORT="run">asyncio.run</TD></TR>
+              </TABLE>
+            >,
+			pos="1951,1862.5",
+			shape=plaintext,
+			style=filled,
+			width=1.7356];
+	}
+	subgraph cluster_legend {
+		graph [bb="2084,1836.5,2568,1913.3",
+			cluster=true,
+			color=gray,
+			fillcolor=white,
+			label=Legend,
+			lheight=0.23,
+			lp="2326,1900.9",
+			lwidth=0.58,
+			style=filled
+		];
+		legend_public	[fillcolor=lightblue,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Public Method",
+			pos="2132,1862.5",
+			shape=box,
+			style=filled,
+			width=1.1023];
+		legend_private	[fillcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Private Method",
+			pos="2231,1862.5",
+			shape=box,
+			style=filled,
+			width=1.1563];
+		legend_static	[fillcolor=lightyellow,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Static Method",
+			pos="2329,1862.5",
+			shape=box,
+			style=filled,
+			width=1.0714];
+		legend_module	[fillcolor=lightgreen,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Module Function",
+			pos="2431,1862.5",
+			shape=box,
+			style=filled,
+			width=1.249];
+		legend_dead	[fillcolor=red,
+			fontcolor=white,
+			fontname=Helvetica,
+			fontsize=10,
+			height=0.5,
+			label="Dead Code",
+			pos="2527,1862.5",
+			shape=box,
+			style=filled,
+			width=0.92487];
+	}
+	_get_generation_type -> db_table:get_chat_message	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,686.6 1024.9,125.28 1079.3,161.02 1209.8,244.35 1327,299.8 1493.2,378.47 1560.1,344.48 1715,443.6 1840.6,523.98 1807.7,\
+678.5 1947.6,686.29"];
+	build_pid_mappings -> proc_table:get_pstree	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1734,244 1124.7,999.63 1127.8,998.85 1131,998.11 1134,997.41 1223.9,976.99 1250.2,988.29 1338,960.41 1426.7,932.27 1664.7,856.66 \
+1715,778.4 1841.4,581.71 1737.5,484.81 1734.1,255.38"];
+	_collect_reclaimable_worker_run_ids -> gpu_table:get_all_gpu_stats	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1806.8,376.8 1323.7,998.54 1326.8,998.14 1329.9,997.76 1333,997.41 1368.5,993.41 1626,1001.6 1654,979.41 1713.2,932.5 1664,881.66 \
+1702,816.4 1711.3,800.38 1714.5,794.85 1731,786.4 1753,775.14 1769.4,796.66 1786,778.4 1813.7,748.02 1770.2,433.68 1797.8,383.53"];
+	_wait_for_gpu_capacity_after_eviction -> gpu_table:get_all_gpu_stats	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1806.8,376.8 1281,924 1360.7,893.5 1532.5,829.6 1681,786.4 1695.9,782.06 1704.1,789.41 1715,778.4 1841.3,651.31 1633,388.41 1795.5,\
+377.17"];
+	_process_message -> ws_table:record_channel_event	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1645.2,221 680.45,1649.8 990.49,1633.7 2570,1549.2 2570,1500.4 2570,1500.4 2570,1500.4 2570,353.8 2570,317.05 2535.2,320.44 2500,\
+309.8 2411.3,282.96 2175.7,300.91 2083,298.8 2071.4,298.54 1673.2,297.97 1664,290.8 1642.8,274.26 1666.4,236.6 1655.9,224.68"];
+	_process_message -> ps_table:send	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2571.1,243 680.53,1650.5 769.23,1647.1 954.37,1640.2 1111,1635.5 1441.2,1625.7 1524.8,1644.5 1854,1617.5 2023,1603.6 2608,1670 \
+2608,1500.4 2608,1500.4 2608,1500.4 2608,353.8 2608,305.95 2620.7,252.16 2582.1,244.05"];
+	_process_supervisor_message -> db_table:sync_worker_to_db	[fontname=Helvetica,
+		fontsize=10,
+		label="external: _sync_worker_to_db",
+		lp="2720.7,1172.4",
+		pos="e,2251.1,466.6 1362.3,1636.5 1365.2,1636.2 1368.1,1635.8 1371,1635.5 1405.6,1631.9 2594.5,1638.8 2622,1617.5 2664.6,1584.5 2654,\
+1554.4 2654,1500.4 2654,1500.4 2654,1500.4 2654,850.91 2654,607.18 2503.2,470.77 2262.2,466.69"];
+	_process_supervisor_message -> worker_table:load_classes	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2458.8,332.8 1362.3,1636.5 1365.2,1636.2 1368.1,1635.8 1371,1635.5 1441.8,1628.1 2585.4,1639.9 2653,1617.5 2737.3,1589.6 2815,\
+1589.3 2815,1500.4 2815,1500.4 2815,1500.4 2815,597.6 2815,404.09 2662.1,335.42 2470,332.87"];
+	_process_worker_message -> db_table:update_worker_run	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,708.6 654.21,1496.2 990.24,1485.3 2418,1438.7 2418,1427.4 2418,1427.4 2418,1427.4 2418,850.91 2418,757.23 2353.9,712.18 \
+2262.4,708.81"];
+	_process_worker_message -> ws_table:record_channel_event	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1645.2,221 654.11,1496.2 756.33,1492.9 952.28,1486.7 1119,1481.4 1156.2,1480.2 2456,1464.6 2456,1427.4 2456,1427.4 2456,1427.4 \
+2456,791.4 2456,628.08 2473.1,587.84 2478,424.6 2479.5,373.6 2513.7,346.3 2478,309.8 2446.4,277.44 1699.6,318.73 1664,290.8 1642.9,\
+274.22 1666.4,236.58 1655.9,224.68"];
+	_start -> ps_table:listen	[fontname=Helvetica,
+		fontsize=10,
+		label="calls (subscriber)",
+		lp="2966.8,1130.4",
+		pos="e,2571.1,221 1129,1736 1359,1731.8 2929,1701.6 2929,1654.5 2929,1654.5 2929,1654.5 2929,353.8 2929,268.55 2714.2,223.59 2582.4,221.11"];
+	_ready -> ps_table:send	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2571.1,243 1434.5,1652.4 1619.9,1651.5 2683.2,1645.5 2745,1617.5 2809.5,1588.2 2853,1571.2 2853,1500.4 2853,1500.4 2853,1500.4 \
+2853,353.8 2853,289.9 2659.6,247.48 2582.4,243.33"];
+	_start_failed -> ps_table:send	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2571.1,243 1190.7,1637.5 1193.5,1636.7 1196.3,1636 1199,1635.5 1354.3,1605.5 2467.4,1650.7 2622,1617.5 2749.5,1590.1 2891,1630.8 \
+2891,1500.4 2891,1500.4 2891,1500.4 2891,353.8 2891,331.52 2884.8,323.22 2867,309.8 2815.9,271.24 2655.9,245.7 2582.1,243.2"];
+	_stop -> ps_table:send	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2532,255 1182.4,1498.4 1372.9,1498.4 2494,1495.6 2494,1427.4 2494,1427.4 2494,1427.4 2494,791.4 2494,556.25 2530.8,495.93 2532,\
+266.41"];
+	_stop -> gpu_table:cleanup_nvml	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1903.2,332.8 1182.2,1498.4 1368.4,1498.4 2447.9,1496.6 2508,1463.4 2524.8,1454.1 2532,1446.6 2532,1427.4 2532,1427.4 2532,1427.4 \
+2532,597.6 2532,462.53 2393.7,497.74 2270,443.6 2117.5,376.88 2075.4,334.72 1914.5,332.86"];
+	_canonical_model_name -> db_table:get_model_simple_name	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,664.6 1410.9,1167.9 1550,1159.5 1868,1135.2 1868,1089.4 1868,1089.4 1868,1089.4 1868,850.91 1868,820.32 1868.5,805.95 1892,\
+786.4 1908,773.14 1923.3,793 1938,778.4 1971.3,745.46 1918.7,678.21 1947.8,666.39"];
+	_canonical_model_name -> db_table:registry_find_variant_by_id	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,642.6 1410.9,1170.8 1496.1,1169 1651.2,1162 1781,1136.4 1839.2,1124.9 1906,1148.8 1906,1089.4 1906,1089.4 1906,1089.4 1906,\
+850.91 1906,820.32 1913.5,812.14 1930,786.4 1932.7,782.17 1935.7,782.89 1938,778.4 1949.9,754.89 1934.1,670.77 1949.2,648.2"];
+	_fail_work_request -> ws_table:record_channel_event	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 630.08,336.37 648.84,327.37 672.76,316.83 695,309.8 719.19,302.16 725.77,301.4 751,298.8 770.21,296.82 1430.7,302.63 \
+1446,290.8 1467.2,274.34 1443.6,236.62 1454.1,224.69"];
+	_fail_work_request -> ps_table:pub_send	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2492.9,177 626.55,336.38 645.58,326.51 670.94,315.12 695,309.8 837.58,278.29 1206,301.23 1352,298.8 1459.1,297.01 1727.3,300.83 \
+1834,290.8 2126.1,263.32 2194,179.17 2481.7,177.04"];
+	send_work_request -> ws_table:record_channel_event	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1645.2,221 1433.9,1223.6 1592.2,1217.6 2058,1194.4 2058,1131.4 2058,1131.4 2058,1131.4 2058,905.41 2058,850.86 2045.7,820.87 2088,\
+786.4 2103.7,773.61 2256,793.02 2270,778.4 2321.4,724.65 2311.8,505.13 2270,443.6 2257.1,424.62 2243.3,433.12 2222,424.6 2095.6,\
+374.03 2070.7,340.4 1938,309.8 1908.3,302.94 1687.6,310.19 1664,290.8 1643.3,273.74 1666.5,236.43 1655.9,224.64"];
+	send_work_request -> ps_table:send	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2492.9,243 1434,1224.8 1558,1222.8 1867.7,1215.6 1968,1190.4 2028.8,1175.2 2096,1194.1 2096,1131.4 2096,1131.4 2096,1131.4 2096,\
+905.41 2096,797.85 2249.6,872.32 2302,778.4 2338.3,713.44 2344.2,504.84 2302,443.6 2295.3,433.82 2258.7,434.38 2252,424.6 2223,382.6 \
+2221.1,350.41 2252,309.8 2283.5,268.34 2418.9,245.91 2481.4,243.26"];
+	_start_exact_variant -> db_table:registry_resolve_deployment	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,554.6 972.08,1168.5 1183.7,1157 1944,1114 1944,1089.4 1944,1089.4 1944,1089.4 1944,850.91 1944,789.1 1899.2,582.75 1947.9,\
+557.2"];
+	_start_exact_variant -> db_table:registry_resolve_runtime	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,576.6 972.13,1168.9 1110.6,1162.4 1475.1,1145.1 1596,1136.4 1682.2,1130.2 1982,1175.8 1982,1089.4 1982,1089.4 1982,1089.4 \
+1982,850.91 1982,803.09 1965,793.15 1959.9,745.6 1952.4,675.14 1891.3,587.22 1947.5,577.49"];
+	_start_exact_variant -> db_table:get_workers_by_names	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,532.6 971.97,1168.6 1041.7,1165.1 1166.9,1158.9 1274,1154.4 1501.9,1145 1559.8,1156.8 1787,1136.4 1892.2,1127 2020,1195.1 \
+2020,1089.4 2020,1089.4 2020,1089.4 2020,850.91 2020,818.29 2001.3,814.64 1985,786.4 1974.3,767.97 1965.8,766.07 1959.9,745.6 1948.1,\
+704.17 1917.8,561.71 1948.1,536.45"];
+	_maybe_register_canonical_alias -> db_table:registry_find_variant_for_model	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,598.6 845.58,1072.8 851.8,1071.9 857.99,1071.1 864,1070.4 915.32,1064.6 1792,1068.1 1792,1016.4 1792,1016.4 1792,1016.4 \
+1792,850.91 1792,811.14 1819.5,806.09 1854,786.4 1867.5,778.71 1876.3,788.56 1888,778.4 1949.8,724.95 1880.5,610.51 1947.5,599.46"];
+	start_worker_if_fits -> db_table:registry_find_variant_for_model	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,598.6 1301.1,1278.4 1524.8,1274.7 2134,1256.9 2134,1173.4 2134,1173.4 2134,1173.4 2134,850.91 2134,820.32 2137,808.68 2158,\
+786.4 2188.7,753.8 2225.5,783.03 2250.1,745.6 2283.7,694.37 2312.6,610 2262.2,599.65"];
+	start_worker_if_fits -> db_table:get_worker_model_support	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,510.6 1305.1,1279.3 1481.3,1278.5 1880.2,1273.4 2013,1244.4 2088.6,1227.9 2172,1250.8 2172,1173.4 2172,1173.4 2172,1173.4 \
+2172,850.91 2172,820.32 2177.7,810.93 2196,786.4 2214,762.26 2236.6,772.52 2250.1,745.6 2295.1,655.77 2351.1,521.32 2262.3,511.21"];
+	start_worker_if_fits -> db_table:registry_resolve_runtime	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,576.6 1302.2,1278.6 1506.6,1276.4 2027.2,1268.2 2102,1244.4 2156.7,1227 2210,1230.9 2210,1173.4 2210,1173.4 2210,1173.4 \
+2210,850.91 2210,800.83 2240.6,794.77 2250.1,745.6 2263.5,676.03 2319.3,587.32 2262.6,577.5"];
+	start_worker_if_fits -> db_table:registry_find_startable	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,620.6 1305.7,1279.4 1523.3,1279 2085.3,1274.9 2164,1244.4 2209.6,1226.8 2248,1222.3 2248,1173.4 2248,1173.4 2248,1173.4 \
+2248,850.91 2248,752.64 2345.2,630.8 2262.4,621.21"];
+	start_worker_if_fits -> db_table:get_workers_by_names	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,532.6 1308.5,1280 1536.7,1281 2133.2,1280 2215,1244.4 2255.9,1226.6 2286,1218 2286,1173.4 2286,1173.4 2286,1173.4 2286,\
+850.91 2286,712.62 2387.4,542.54 2262.6,533.02"];
+	start_worker_if_fits -> db_table:registry_resolve_deployment	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2251.1,554.6 1301,1278.4 1538,1275.2 2215.8,1264.3 2259,1244.4 2297.9,1226.5 2324,1216.2 2324,1173.4 2324,1173.4 2324,1173.4 2324,\
+850.91 2324,719.26 2383.1,563.99 2262.5,555.01"];
+	start_worker_if_fits -> worker_table:build_inference	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2365,388.8 1300.7,1278.4 1542.5,1275.2 2246.7,1264.3 2292,1244.4 2332.6,1226.7 2362,1217.7 2362,1173.4 2362,1173.4 2362,1173.4 \
+2362,597.6 2362,508.66 2356.5,483.7 2363.9,400.14"];
+	start_worker_if_fits -> worker_table:build_inference	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2365,389.07 1301.2,1278.5 1546.3,1275.4 2264.2,1264.5 2310,1244.4 2350.6,1226.7 2380,1217.7 2380,1173.4 2380,1173.4 2380,1173.4 \
+2380,597.6 2380,508.75 2374.5,483.75 2366.1,400.38"];
+	_fit_gpu_and_start -> gpu_table:get_all_gpu_stats	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1903.2,376.8 972.44,1086.1 1163.2,1081 1830,1059.8 1830,1016.4 1830,1016.4 1830,1016.4 1830,905.41 1830,864.44 1836.2,853.33 1854,\
+816.4 1861.2,801.5 1864,797.83 1876,786.4 1880.6,781.97 1884.9,783.99 1888,778.4 1908.1,742.56 1941.9,432.8 1912.4,383.42"];
+	stop_workers_and_start_worker -> gpu_table:get_all_gpu_stats	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1855,388.8 1002,998.84 1005,998.34 1008,997.86 1011,997.41 1163.7,974.23 1573.4,994.91 1700,906.41 1749.9,871.53 1716.8,822.2 \
+1766,786.4 1780.3,775.99 1793,791.37 1805,778.4 1861.9,717.04 1855.7,495.34 1855,400.28"];
+	send_related_task_event -> ws_table:record_channel_event	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 1205.3,833.69 1221.6,820.61 1241.7,801.05 1251,778.4 1309.6,636.3 1233.1,584.58 1256,432.6 1264.5,376.36 1252.2,350.4 \
+1292,309.8 1303.4,298.16 1311,301.81 1327,298.8 1340,296.35 1435.8,299.21 1446,290.8 1466.8,273.76 1443.5,236.43 1454.1,224.64"];
+	_apply_kv_cache_estimate -> gpu_table:get_all_gpu_stats	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1806.8,376.8 868.07,580.32 874.92,547.36 894.85,475.91 943,443.6 993.72,409.56 1019,435.71 1080,432.6 1242.5,424.31 1283.8,437.08 \
+1446,424.6 1603.5,412.48 1643.2,378.45 1795.6,376.86"];
+	_apply_kv_cache_estimate -> worker_table:kv_cache	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2271.2,354.8 867.84,580.32 874.35,547.01 893.76,474.51 943,443.6 966.41,428.9 1910.5,427.71 1938,424.6 2084.5,408 2118.2,357.46 \
+2259.9,354.9"];
+	start_worker -> db_table:update_worker_run	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,708.6 1363.3,846.55 1416.7,839.59 1519,824.05 1603,798.4 1615.9,794.44 1617.9,789.75 1631,786.4 1667.3,777.12 1678.2,785.37 \
+1715,778.4 1822,758.17 1844.7,711.91 1947.7,708.77"];
+	start_worker -> db_table:create_worker_run	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1958.9,488.6 1363.6,847.41 1448.5,838.77 1655.9,814.49 1715,778.4 1855.3,692.67 1793.6,498.01 1947.5,488.93"];
+	start_worker -> ws_table:record_channel_event	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 1321.4,815.32 1304.9,705.21 1262.1,373.07 1332,298.8 1349.4,280.3 1426.4,306.94 1446,290.8 1466.7,273.73 1443.5,236.42 \
+1454.1,224.64"];
+	start_worker -> ws_table:connect_channel	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,199 1330.5,815.33 1331,809.67 1331.5,803.87 1332,798.4 1341.5,687.46 1292.4,378.66 1370,298.8 1381.8,286.62 1433.4,302.21 \
+1446,290.8 1473.2,266.09 1434.6,213.46 1453.8,201.47"];
+	start_worker -> ps_table:listen	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2492.9,221 1340.9,815.31 1342.8,809.71 1344.6,803.93 1346,798.4 1386.5,643.75 1302.1,565.93 1405,443.6 1520.8,305.93 1611.9,350.99 \
+1787,309.8 2091.1,238.28 2174.7,221.41 2481.4,221.01"];
+	start_worker -> proc_table:Process_start	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1683,188 1363.5,832.17 1376.5,823.64 1389.9,812.31 1398,798.4 1477.9,661.13 1358.6,579.4 1441,443.6 1503.3,340.88 1598.5,391.54 \
+1664,290.8 1674.4,274.75 1664.8,215.32 1674.1,194.92"];
+	resolve_worker_max_batch_size	[fillcolor=lightgreen,
+		fontname=Helvetica,
+		fontsize=10,
+		height=0.5,
+		pos="1531,598.6",
+		shape=box,
+		style=filled,
+		width=2.2448];
+	start_worker -> resolve_worker_max_batch_size	[fontname=Helvetica,
+		fontsize=10,
+		label=calls,
+		lp="1454.2,792.4",
+		pos="e,1527,616.83 1363.5,840.14 1386.6,831.82 1415.8,818.3 1436,798.4 1485.5,749.67 1512.5,670.1 1524.1,627.92"];
+	_scoped_env	[fillcolor=lightgreen,
+		fontname=Helvetica,
+		fontsize=10,
+		height=0.5,
+		pos="1668,598.6",
+		shape=box,
+		style=filled,
+		width=1.0485];
+	start_worker -> _scoped_env	[fontname=Helvetica,
+		fontsize=10,
+		label=calls,
+		lp="1593,792.4",
+		pos="e,1669,617.04 1363.3,841.27 1412.9,828.24 1504.4,804.57 1583,786.4 1599.8,782.51 1608.5,790.3 1621,778.4 1662.3,739.08 1668.9,668.2 \
+1669.1,628.52"];
+	_watch_worker_process -> ws_table:record_channel_event	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 702.62,580.33 713.79,548.64 741.79,481.04 788,443.6 944.68,316.65 1019.6,334.89 1218,298.8 1230.5,296.53 1436.1,298.68 \
+1446,290.8 1467,274.09 1443.6,236.54 1454.1,224.67"];
+	stop_worker -> ws_table:record_channel_event	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1464.8,221 739.29,336.37 740.53,323.74 744.47,307.41 756,298.8 786.72,275.87 1415.7,314.29 1446,290.8 1467.2,274.34 1443.6,236.62 \
+1454.1,224.69"];
+	stop_worker -> ps_table:stop	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,2492.9,199 774.52,349.83 870.42,339.3 1142.7,310.65 1370,298.8 1576,288.06 1628.4,306.84 1834,290.8 2125,268.1 2195.5,200.74 2481.8,\
+199.03"];
+	stop_worker -> proc_table:psutil_Process	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1683,210 754.88,336.47 768.15,323.34 788.35,306.32 810,298.8 832.41,291.02 1645.5,305.62 1664,290.8 1688.8,271 1657.7,225.56 1671.9,\
+213.17"];
+	get_usage_maps -> gpu_table:get_all_gpu_stats	[fontname=Helvetica,
+		fontsize=10,
+		pos="e,1855,388.8 1434.6,1012.6 1522.9,1008.6 1708,998.22 1730,979.41 1797.4,921.77 1713.4,843.93 1781,786.4 1794.8,774.67 1849.9,791.8 \
+1862,778.4 1913.6,721.46 1868.1,509.2 1862,432.6 1860.8,417.4 1857.3,411.3 1855.7,400.2"];
+}
