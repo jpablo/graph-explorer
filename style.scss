@@ -989,3 +989,10 @@ svg {
 .gx-fold-badge text {
   font-size: 10px;
 }
+
+// While a layout tween runs, badges would ride their element's scale channel
+// and smear (a stretched ellipse mid-flight). visibility (not display) so
+// getBBox-based measurements stay identical with and without the class.
+svg.gx-transitioning .gx-expand-badge {
+  visibility: hidden;
+}

@@ -37,7 +37,12 @@ object LayoutTransition:
   private val Samples    = 24
   private val DurationMs = 300.0
 
-  val ghostClass = "gx-exit-ghost"
+  val ghostClass = SelectableElement.exitGhostClass
+
+  /** On the svg root while the tween runs: overlay controls (count badges) ride
+    * their element's scale tween and smear — the stylesheet hides them under
+    * this class until the layout settles. */
+  val transitioningClass = "gx-transitioning"
 
   def reducedMotion: Boolean =
     dom.window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -295,7 +300,11 @@ object LayoutTransition:
           )
           wrap.asInstanceOf[dom.html.Element].style.pointerEvents = "none"
           el.removeAttribute("id")
-          el.setAttribute("class", ghostClass)
+          // ADD the marker, never replace the class list: Mermaid's styling is
+          // class-scoped CSS inside the svg, and a re-classed ghost rendered
+          // with default fills — solid black rects and filled edge paths.
+          // findAll excludes ghosts by this marker (SelectableElement).
+          el.setAttribute("class", s"${Option(el.getAttribute("class")).getOrElse("")} $ghostClass".trim)
           wrap.appendChild(el)
           mainGroup.appendChild(wrap)
           wrap
@@ -355,6 +364,7 @@ object LayoutTransition:
       edges.foreach(et => et.path.setAttribute("d", et.finalD))
       entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = "")
       ghosts.foreach(w => if w.parentNode != null then w.parentNode.removeChild(w))
+      newSvg.classList.remove(transitioningClass)
 
     var rafId = 0
     var done  = false
@@ -372,6 +382,7 @@ object LayoutTransition:
           done = true
           finish()
 
+    newSvg.classList.add(transitioningClass)
     applyFrame(0.0)
     rafId = dom.window.requestAnimationFrame(step)
 

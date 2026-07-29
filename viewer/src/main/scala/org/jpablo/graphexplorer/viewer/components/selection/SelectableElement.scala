@@ -134,14 +134,25 @@ object SelectableElement:
   // omits the strategy would compile fine and silently extract nothing from Mermaid
   // SVGs, undoing the strategy injection. The compiler forces callers to pass one.
 
+  /** Marks a layout-transition exit ghost (the wrap AND the adopted element).
+    * Ghosts KEEP their original classes — Mermaid styles nodes/edges through
+    * class-scoped CSS inside the svg, and stripping the class made every
+    * ghosted rect/path render with SVG's default black fill — so exclusion
+    * from selection/capture happens here, by marker, not by re-classing.
+    */
+  val exitGhostClass = "gx-exit-ghost"
+
   /** Find all selectable elements in a container using the specified strategy.
     * Hit-area clones are excluded: they duplicate their original's id, and being
     * inserted BEFORE it they would otherwise win headOption-style lookups.
+    * Exit ghosts are excluded: they are scenery from the PREVIOUS layout, and
+    * capturing or selecting one would resurrect a departed element.
     */
   def findAll(ref: dom.Element, strategy: SelectableElementStrategy): Seq[SelectableElement] =
     ref
       .querySelectorAllT[dom.Element](strategy.allSelector)
       .filterNot(_.classList.contains(hitAreaClass))
+      .filterNot(_.closest(s".$exitGhostClass") != null)
       .flatMap(fromDomElement(_, strategy))
 
   /** Query specific elements by ID using the specified strategy. */

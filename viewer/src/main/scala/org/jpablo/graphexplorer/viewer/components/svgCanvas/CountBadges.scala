@@ -36,8 +36,12 @@ object CountBadges:
       onToggleCollapsed: NodeId => Unit,
       onCollapseGroup:   GroupId => Unit
   ): Unit =
+    // Adopted exit ghosts keep their node/cluster classes (styling) — a badge on
+    // one would decorate scenery from the previous layout.
+    def isGhost(el: dom.Element): Boolean =
+      el.closest(s".${LayoutTransition.ghostClass}") != null
     if concealed.nonEmpty || collapsed.nonEmpty then
-      svg.querySelectorAllT[dom.Element](strategy.nodeSelector).foreach { el =>
+      svg.querySelectorAllT[dom.Element](strategy.nodeSelector).filterNot(isGhost).foreach { el =>
         val id = strategy.extractNodeId(el)
         lazy val bb = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
         concealed.get(id).foreach { (succ, pred) =>
@@ -60,7 +64,7 @@ object CountBadges:
     // Every rendered cluster is a group that CAN collapse — the affordance the
     // collapsed box's count badge promises in reverse. Same corner, so the
     // control stays put when the group folds.
-    svg.querySelectorAllT[dom.Element](strategy.clusterSelector).foreach { el =>
+    svg.querySelectorAllT[dom.Element](strategy.clusterSelector).filterNot(isGhost).foreach { el =>
       val gid = strategy.extractGroupId(el)
       val bb  = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
       el.appendChild(
