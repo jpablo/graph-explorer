@@ -564,9 +564,10 @@ svg {
 
   #view-only-chip {
     @apply top-2 left-2/4 -translate-x-2/4 px-2.5 py-1 text-xs cursor-default select-none;
-    // The info tint sets the chip apart from the neutral zoom pill and ties it
-    // to the sources-panel alert, which announces the same condition.
-    @apply bg-info text-info-content border-info;
+    // The warning tint sets the chip apart from the neutral zoom pill and says
+    // "your expectation won't hold here" — closer to what view-only means for
+    // someone who came to edit.
+    @apply bg-warning text-warning-content border-warning;
   }
 
   #commands-panel {
