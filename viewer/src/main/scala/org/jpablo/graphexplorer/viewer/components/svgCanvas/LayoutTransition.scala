@@ -73,6 +73,11 @@ object LayoutTransition:
       edges:     Map[String, Vector[(Double, Double)]],
       edgeParts: Map[String, (Double, Double, Double, Double)],
       ghosts:    Map[String, dom.Element],
+      // Local (user-space) bbox per element, measured while the OLD svg is still
+      // mounted: getBBox() on a detached element silently returns 0×0 in Chrome,
+      // which placed every exit ghost at raw old-layout coordinates — visibly
+      // displaced (typically to the right) before fading.
+      ghostBBoxes: Map[String, (Double, Double, Double, Double)],
       sheet:     Option[(Double, Double, Double, Double)]
   ):
     def isEmpty: Boolean = boxes.isEmpty && edges.isEmpty
@@ -119,15 +124,18 @@ object LayoutTransition:
   private def edgeHeadKey(edgeKey: String, i: Int): String = s"$edgeKey##h$i"
 
   def capture(oldSvg: dom.svg.SVG, strategy: SelectableElementStrategy): Snapshot =
-    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, Map.empty, None)
-    val els       = SelectableElement.findAll(oldSvg, strategy)
-    val boxes     = Map.newBuilder[String, (Double, Double, Double, Double)]
-    val edges     = Map.newBuilder[String, Vector[(Double, Double)]]
-    val edgeParts = Map.newBuilder[String, (Double, Double, Double, Double)]
-    val ghosts    = Map.newBuilder[String, dom.Element]
+    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, None)
+    val els         = SelectableElement.findAll(oldSvg, strategy)
+    val boxes       = Map.newBuilder[String, (Double, Double, Double, Double)]
+    val edges       = Map.newBuilder[String, Vector[(Double, Double)]]
+    val edgeParts   = Map.newBuilder[String, (Double, Double, Double, Double)]
+    val ghosts      = Map.newBuilder[String, dom.Element]
+    val ghostBBoxes = Map.newBuilder[String, (Double, Double, Double, Double)]
     els.foreach { se =>
       val key = se.elementId.value
       ghosts += key -> se.ref
+      val bb = se.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+      ghostBBoxes += key -> (bb.x, bb.y, bb.width, bb.height)
       if se.arrowId.isDefined then
         edgePathOf(se.ref).foreach { path =>
           for ctm <- ctmOf(path); samples <- samplePath(path) do
@@ -146,7 +154,7 @@ object LayoutTransition:
       val r = p.getBoundingClientRect()
       (r.left, r.top, r.width, r.height)
     }
-    Snapshot(boxes.result(), edges.result(), edgeParts.result(), ghosts.result(), sheet)
+    Snapshot(boxes.result(), edges.result(), edgeParts.result(), ghosts.result(), ghostBBoxes.result(), sheet)
 
   /** Start the transition on the NEW svg (mounted, transform applied).
     * Returns a cancel function, or None when there is nothing to animate.
@@ -269,14 +277,16 @@ object LayoutTransition:
           (key, el)    <- snap.ghosts.toVector.sortBy(_._1)
           if !newKeys.contains(key)
           oldClient    <- snap.boxes.get(key).toVector
+          // bbox from capture time: el is detached by now, and getBBox() on a
+          // detached element is 0×0 — the ghost then rendered displaced.
+          (bbX, bbY, bbW, bbH) <- snap.ghostBBoxes.get(key).toVector
         yield
-          val bb          = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
-          val localCenter = (bb.x + bb.width / 2, bb.y + bb.height / 2)
+          val localCenter = (bbX + bbW / 2, bbY + bbH / 2)
           val (tx, ty)    = frame.toLocal(oldClient._1, oldClient._2)
           // Rendered in the NEW frame, the ghost's size would be newScale ×
           // its local size — scale it so it keeps its OLD on-screen size.
-          val kgx  = if bb.width > 0 && frame.a != 0 then oldClient._3 / (bb.width * frame.a) else 1.0
-          val kgy  = if bb.height > 0 && frame.d != 0 then oldClient._4 / (bb.height * frame.d) else 1.0
+          val kgx  = if bbW > 0 && frame.a != 0 then oldClient._3 / (bbW * frame.a) else 1.0
+          val kgy  = if bbH > 0 && frame.d != 0 then oldClient._4 / (bbH * frame.d) else 1.0
           val wrap = dom.document.createElementNS("http://www.w3.org/2000/svg", "g")
           wrap.setAttribute("class", ghostClass)
           wrap.setAttribute(
