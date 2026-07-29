@@ -75,8 +75,6 @@ case class ViewerState(
     initialSource = if source.isEmpty then None else Some(source),
     hiddenNodes = project.hiddenElements.signal,
     collapsedGroups = project.collapsedGroups.signal,
-    resetView = resetView,
-    autoFit = autoFit.now,
     editorNotice = editorNotice,
     logLevel = logLevel
   )
@@ -149,7 +147,11 @@ case class ViewerState(
   )
 
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
-    phases.currentFormat.flatMapSwitch(languages.forFormat(_).render(renderInputs))
+    // .distinct matters: the Mermaid backend HOLDS its previous value while an
+    // async render is pending (see MermaidBackend.render), and re-emitting the
+    // same instance would re-amend the mounted svg — duplicate binders and
+    // event listeners piling up on every render cycle.
+    phases.currentFormat.flatMapSwitch(languages.forFormat(_).render(renderInputs)).distinct
 
   // Extract just the SVG for compatibility
   // 6. SVG with extra elements: selection rect, etc.

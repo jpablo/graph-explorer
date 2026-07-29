@@ -84,7 +84,11 @@ trait LayoutStabilityOps:
     */
   def afterLayoutSwap(newSvg: dom.svg.SVG, strategy: SelectableElementStrategy): Unit =
     lastRenderedSvg = Some(newSvg)
-    if !autoFit.now() then
+    // Under auto-fit, FIT is the framing policy: re-frame the new drawing now
+    // (synchronously, pre-paint) and let the transition glide elements from
+    // their old screen positions into the refit frame. Anchoring stands aside.
+    if autoFit.now() then resetView()
+    else
       pendingAnchor.foreach { (id, oldX, oldY) =>
         SelectableElement
           .query(newSvg, ElementIds.from(id), strategy)

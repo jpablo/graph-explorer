@@ -37,8 +37,6 @@ class InternalPhases(
     initialSource: Option[String] = None,
     hiddenNodes:   Signal[HiddenElements],
     collapsedGroups: Signal[Set[GroupId]] = Signal.fromValue(Set.empty),
-    resetView:     () => Unit = () => (),
-    autoFit:       () => Boolean = () => false,
     editorNotice:  Var[Option[EditorNotice]] = Var(None),
     val logLevel:  Level = Level.None
 )(using Owner, ExecutionContext):
@@ -178,7 +176,11 @@ class InternalPhases(
         fullGraph.toVisibleGraph(hiddenNodes, collapsed)
       }
     .distinct
-      .tapEach(_ => if autoFit() then resetView())
+    // NOTE: auto-fit's resetView used to be tapped HERE — but this signal
+    // fires while the PREVIOUS svg is still mounted, so the old drawing
+    // visibly jumped to the reset frame before the new one arrived. The
+    // reset now happens in LayoutStabilityOps.afterLayoutSwap, on the NEW
+    // svg's mount, pre-paint.
 
   /** Signal for the current diagram format. */
   val currentFormat: Signal[DiagramFormat] =
