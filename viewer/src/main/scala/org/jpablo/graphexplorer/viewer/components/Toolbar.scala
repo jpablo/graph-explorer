@@ -152,60 +152,17 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       // -------- actions --------
       Dropdown(
         title = span("Add"),
-        options = filteredMenu(
-          all.newNode,
-          all.newBackwardsNode
-        ),
+        options = filteredMenu(sections.add*),
         onClickHandler = _ --> (action => action())
       ),
       Dropdown(
         title = span("Select"),
-        options = filteredMenu(
-          all.selectAll,
-          all.selectAllNodes,
-          all.selectAllArrows,
-          all.selectAllGroups,
-          all.selectGroupMembers,
-          all.selectAllSuccessors,
-          all.selectDirectSuccessors,
-          all.selectAllPredecessors,
-          all.selectDirectPredecessors
-        ),
+        options = filteredMenu(sections.select*),
         onClickHandler = _ --> (action => action())
       ),
       Dropdown(
         title = span("Actions"),
-        options = filteredMenu(
-          all.group,
-          all.ungroup,
-          all.moveToGroup,
-          all.hideSelection,
-          all.showAll,
-          all.keep,
-          all.delete,
-          all.duplicate,
-          all.combineIntoRecord,
-          all.splitRecord,
-          all.transposeRecord,
-          all.reverseArrows,
-          all.reverseArrowsStyle,
-          all.zoomIntoGroup,
-          all.toggleCollapseGroup,
-          all.editLabel,
-          all.resetSelectionAttributes,
-          all.rootsOnly,
-          all.hideAllNodes,
-          all.showAllSuccessors,
-          all.showDirectSuccessors,
-          all.hideSuccessorsRecursive,
-          all.hideSuccessorLayer,
-          all.toggleSuccessors,
-          all.showAllPredecessors,
-          all.showDirectPredecessors,
-          all.hidePredecessorsRecursive,
-          all.hidePredecessorLayer,
-          all.togglePredecessors
-        ),
+        options = filteredMenu(sections.actions*),
         onClickHandler = _ --> (action => action())
       ),
       Dropdown(

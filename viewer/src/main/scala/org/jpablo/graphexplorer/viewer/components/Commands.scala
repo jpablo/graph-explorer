@@ -567,6 +567,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   object headers:
     val common       = "Common"
     val navigation   = "Navigation"
+    val add          = "Add"
+    val select       = "Select"
     val selection    = "Selection"
     val successors   = "Successors"
     val predecessors = "Predecessors"
@@ -595,48 +597,54 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.navigateUp,
       all.navigateDown
     ),
+    add -> List(
+      all.newNode,
+      all.newBackwardsNode
+    ),
+    select -> List(
+      all.selectAll,
+      all.selectAllNodes,
+      all.selectAllArrows,
+      all.selectAllGroups,
+      all.selectGroupMembers,
+      all.selectAllSuccessors,
+      all.selectDirectSuccessors,
+      all.selectAllPredecessors,
+      all.selectDirectPredecessors
+    ),
     selection -> List(
+      all.group,
+      all.ungroup,
+      all.moveToGroup,
+      all.zoomIntoGroup,
+      all.toggleCollapseGroup,
+      all.editLabel,
       all.hideSelection,
       all.keep,
       all.delete,
       all.duplicate,
-      all.group,
-      all.ungroup,
       all.combineIntoRecord,
       all.splitRecord,
       all.transposeRecord,
-      all.resetSelectionAttributes,
-      all.clearSelection,
-      all.selectGroupMembers,
-      all.zoomIntoGroup,
-      all.toggleCollapseGroup,
-      all.copyAsSVG,
-      all.editLabel,
       all.reverseArrows,
       all.reverseArrowsStyle,
-      all.selectAll,
-      all.selectAllNodes,
-      all.selectAllArrows,
-      all.selectAllGroups
+      all.resetSelectionAttributes,
+      all.clearSelection
 //      all.resetLayout
     ),
     successors -> List(
-      all.hideSuccessorsRecursive,
-      all.hideSuccessorLayer,
       all.showAllSuccessors,
       all.showDirectSuccessors,
-      all.selectAllSuccessors,
-      all.selectDirectSuccessors,
+      all.hideSuccessorsRecursive,
+      all.hideSuccessorLayer,
       all.toggleSuccessors
     ),
     predecessors -> List(
       all.showAllPredecessors,
       all.showDirectPredecessors,
-      all.selectAllPredecessors,
-      all.selectDirectPredecessors,
-      all.togglePredecessors,
       all.hidePredecessorsRecursive,
-      all.hidePredecessorLayer
+      all.hidePredecessorLayer,
+      all.togglePredecessors
     ),
     view -> List(
       all.rootsOnly,
@@ -678,7 +686,16 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     )
   )
 
+  /** The toolbar dropdowns, DERIVED from the palette sections above so a new
+    * command registered in `byHeader` reaches the menus without a second,
+    * hand-curated list to remember (the menus filter by each command's own
+    * visibility predicate, so over-inclusion is harmless).
+    */
   object sections:
+    val add      = byHeader(headers.add)
+    val select   = byHeader(headers.select)
+    val actions  = byHeader(headers.selection) ++ byHeader(headers.view) ++
+      byHeader(headers.successors) ++ byHeader(headers.predecessors)
     val exportAs = byHeader(headers.exportAs)
 
   // Normalize shortcut matching to reduce layout-specific hacks:
