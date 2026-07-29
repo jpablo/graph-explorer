@@ -10,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStr
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, CollapseOps, ViewerGraph, ViewerGraphElements, VisibilityRules}
+import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, CollapseOps, ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
@@ -166,8 +166,10 @@ case class ViewerState(
             mouseAction = mouseAction,
             edgePositions = svgWithPos.edgePositions,
             strategy = strategy,
-            // consistent with THIS svg: any change to graph/hidden/collapsed re-renders
-            concealedCounts = VisibilityRules.concealedCounts(fullGraphNow(), project.hiddenElements.now()),
+            // consistent with THIS svg: any change to graph/hidden/collapsed re-renders.
+            // Computed on the COLLAPSE-APPLIED view, so a box whose members have
+            // concealed outside neighbors wears the badge itself.
+            concealedCounts = concealedCountsNow(),
             onToggleConcealed =
               (n, succSide) => if succSide then toggleSuccessors(Set(n)) else togglePredecessors(Set(n)),
             collapsedCounts = fullGraphNow().collapsedMemberCounts(project.collapsedGroups.now()),

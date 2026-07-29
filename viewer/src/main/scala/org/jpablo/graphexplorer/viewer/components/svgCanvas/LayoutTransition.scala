@@ -77,10 +77,18 @@ object LayoutTransition:
         }
       )
 
+  /** True when `svg` has no rendered geometry (hidden tab/pane): every client
+    * measurement would be zeros, and a transition built from those flies the
+    * content across the canvas. */
+  private def unmeasurable(svg: dom.svg.SVG): Boolean =
+    val r = svg.getBoundingClientRect()
+    r.width == 0 && r.height == 0
+
   /** Measure the OLD svg (still mounted) in client space. The element
     * references are kept: they become the exit ghosts.
     */
   def capture(oldSvg: dom.svg.SVG, strategy: SelectableElementStrategy): Snapshot =
+    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty)
     val els    = SelectableElement.findAll(oldSvg, strategy)
     val boxes  = Map.newBuilder[String, (Double, Double)]
     val edges  = Map.newBuilder[String, Vector[(Double, Double)]]
@@ -102,8 +110,9 @@ object LayoutTransition:
     * Returns a cancel function, or None when there is nothing to animate.
     */
   def animate(newSvg: dom.svg.SVG, strategy: SelectableElementStrategy, snap: Snapshot): Option[() => Unit] =
+    if snap.isEmpty || unmeasurable(newSvg) then return None
     val els = SelectableElement.findAll(newSvg, strategy)
-    if snap.isEmpty || els.isEmpty then None
+    if els.isEmpty then None
     else
       val newKeys = els.map(_.elementId.value).toSet
       // No overlap ⇒ a different document, not an edit — don't animate.

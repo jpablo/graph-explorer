@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.state
 import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.viewer.extensions.notIn
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, VisibilityRules}
+import org.jpablo.graphexplorer.viewer.graph.{CollapseOps, ViewerGraph, VisibilityRules}
 import org.jpablo.graphexplorer.viewer.graph.VisibilityRules.Direction
 import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
 import org.scalajs.dom
@@ -85,13 +85,13 @@ trait VisibilityOps:
     }
 
   def showDirectSuccessors() =
-    val g   = fullGraphNow()
-    val sel = selection.now()
-    val h0  = hiddenElements.now()
-    val sub = g.directSuccessorsGraph(sel.nodeIds)
-    val newlyShownNodes = sub.nodeIds intersect h0.nodeIds
-    // Unhide nodes and connecting arrows for the direct successors
-    hiddenElements.update(_ -- sub.nodeIds -- sub.arrowIds)
+    val view = collapsedViewNow()
+    val sel  = selection.now()
+    val sub  = view.graph.directSuccessorsGraph(sel.nodeIds)
+    val newlyShownNodes = sub.nodeIds intersect view.hidden.nodeIds
+    // Unhide nodes and connecting arrows for the direct successors — spelled
+    // in FULL-graph ids (underlying arrows; a box unfolds group + members).
+    hiddenElements.update(_ -- view.originalArrows(sub.arrowIds) -- boxAwareIds(sub.nodeIds))
     // If we actually revealed new nodes, select them to allow stepwise expansion
     if newlyShownNodes.nonEmpty then
       selection.set1(newlyShownNodes)
@@ -103,10 +103,9 @@ trait VisibilityOps:
     }
 
   def showDirectPredecessors() =
-    updateHiddenFromSelection { (h, sel, g) =>
-      val sub = g.directPredecessorsGraph(sel.nodeIds)
-      h -- sub.nodeIds -- sub.arrowIds
-    }
+    val view = collapsedViewNow()
+    val sub  = view.graph.directPredecessorsGraph(selection.now().nodeIds)
+    hiddenElements.update(_ -- view.originalArrows(sub.arrowIds) -- boxAwareIds(sub.nodeIds))
 
   /** Hide successors of the currently selected nodes.
     *
@@ -128,21 +127,50 @@ trait VisibilityOps:
   private def contractSelection(dir: Direction, recursive: Boolean): Unit =
     val selNodes = selection.now().nodeIds
     if selNodes.nonEmpty then
+      val view = collapsedViewNow()
       val (arrows, nodes) =
-        VisibilityRules.contract(fullGraphNow(), hiddenElements.now(), selNodes, dir, recursive)
+        VisibilityRules.contract(view.graph, view.hidden, selNodes, dir, recursive)
       if arrows.nonEmpty || nodes.nonEmpty then
-        hiddenElements.update(_ ++ arrows ++ nodes)
+        hiddenElements.update(_ ++ view.originalArrows(arrows) ++ boxAwareIds(nodes))
 
   // ── tree-style toggles ────────────────────────────────────────────────────
   // One key per direction: a node with CONCEALED direct neighbors expands
   // (show them); an already-expanded one contracts a layer. Repeated presses
   // walk deeper / shallower, like a tree view's triangle.
 
+  /** The graph and hidden-set the neighbor machinery operates on: collapsed
+    * groups fold to proxy boxes so a box participates like any node — the
+    * badge model, the toggles, and contraction all consult THIS view, never
+    * the raw full graph (where proxies don't exist).
+    */
+  private def collapsedViewNow(): CollapseOps.CollapsedView =
+    fullGraphNow().collapsedView(project.collapsedGroups.now(), hiddenElements.now())
+
+  /** The full-graph spelling of hiding/unhiding VIEW nodes: a real node is
+    * itself; a collapsed box is its GROUP plus everything the box swallowed —
+    * the shell alone would merely ungroup (removeElements re-parents
+    * surviving members), leaving them all visible.
+    */
+  private def boxAwareIds(viewNodes: Set[NodeId]): Set[ElementId] =
+    val collapsed = project.collapsedGroups.now()
+    val g         = fullGraphNow()
+    viewNodes.flatMap { n =>
+      CollapseOps.collapsedGroupFor(n, collapsed) match
+        case Some(grp) => g.getAllChildren(Set(grp)).toSet[ElementId] + grp
+        case None      => Set[ElementId](n)
+    }
+
   /** Expandable check for `ids` (or the selection): any concealed direct
     * neighbor in `dir`. */
   private def concealedFor(ids: Set[NodeId], dir: Direction): Set[NodeId] =
-    val g = fullGraphNow(); val h = hiddenElements.now()
-    ids.flatMap(VisibilityRules.concealedDirect(g, h, _, dir))
+    val view = collapsedViewNow()
+    ids.flatMap(VisibilityRules.concealedDirect(view.graph, view.hidden, _, dir))
+
+  /** The badge model: concealed-neighbor counts over the SAME view the
+    * toggles use, so a badge always predicts what its click will do. */
+  def concealedCountsNow(): Map[NodeId, (Int, Int)] =
+    val view = collapsedViewNow()
+    VisibilityRules.concealedCounts(view.graph, view.hidden)
 
   def toggleSuccessors(ids: Set[NodeId] = selection.now().nodeIds): Unit =
     if ids.nonEmpty then

@@ -98,6 +98,43 @@ class CollapseOpsSpec extends FunSuite:
     val withEmpty = sample.modifyElements.using(el => el.copy(groups = el.groups + (e -> ViewerGroup.group(e))))
     assertEquals(withEmpty.collapsedMemberCounts(Set(e)), Map(CollapseOps.proxyIdFor(e) -> 0))
 
+  // ── collapsedView: the neighbor machinery's picture ──────────────────────
+
+  test("collapse then hide an external neighbor — the box is expandable"):
+    // g = {b, c}; hide d (outside). The box must advertise ONE concealed
+    // successor — this is exactly the badge that used to be computed on the
+    // full graph, where the proxy does not exist, and therefore never showed.
+    val view = sample.collapsedView(Set(g), ElementIds.from(NodeId("d")))
+    val counts = VisibilityRules.concealedCounts(view.graph, view.hidden)
+    assertEquals(counts.get(proxy), Some((1, 0)))
+    // and contraction FROM the box hides the crossing arrow's ORIGINAL id
+    val (arrows, nodes) =
+      VisibilityRules.contract(view.graph, ElementIds(), Set(proxy), VisibilityRules.Direction.Successors, recursive = false)
+    assertEquals(nodes, Set(NodeId("d")))
+    val cToD = sample.arrows.values.find(a => a.source == NodeId("c") && a.target == NodeId("d")).get
+    assertEquals(view.originalArrows(arrows), Set(cToD.id))
+
+  test("collapsedView: a rewritten arrow is hidden only when ALL its originals are"):
+    // b→d and c→d both cross the border and merge into one box arrow.
+    val extra = Arrow(NodeId("b"), NodeId("d"))
+    val withTwo = sample.modifyElements.using(e => e.copy(arrows = e.arrows + (extra.id -> extra)))
+    val cToD = withTwo.arrows.values.find(a => a.source == NodeId("c") && a.target == NodeId("d")).get
+    val boxArrowId = withTwo
+      .collapseGroups(Set(g))
+      .arrows.values.find(a => a.source == proxy && a.target == NodeId("d")).get.id
+
+    // one of the two hidden: the box arrow still stands (the other original shows)
+    val half = withTwo.collapsedView(Set(g), ElementIds.from(extra.id))
+    assert(!half.hidden.classify.arrows.contains(boxArrowId), "one visible original keeps the box arrow visible")
+    // both hidden: the box arrow is concealed, and it stands for BOTH originals
+    val full = withTwo.collapsedView(Set(g), ElementIds(Set[ElementId](extra.id, cToD.id)))
+    assert(full.hidden.classify.arrows.contains(boxArrowId))
+    assertEquals(full.originalArrows(Set(boxArrowId)), Set(extra.id, cToD.id))
+
+  test("collapsedView: a group hidden as a GroupId re-spells as its proxy"):
+    val view = sample.collapsedView(Set(g), ElementIds.from(g))
+    assert(view.hidden.nodeIds.contains(proxy), "the box counts as hidden")
+
   test("an inner collapsed group is swallowed by the outer one"):
     val outer = GroupId("outer")
     val nested = sample.modifyElements.using: e =>

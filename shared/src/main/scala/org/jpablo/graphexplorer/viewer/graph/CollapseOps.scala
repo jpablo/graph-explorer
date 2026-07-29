@@ -38,6 +38,36 @@ trait CollapseOps:
         case Some(parent) => (parent in collapsed) || hasCollapsedAncestor(parent)
     collapsed.filter(g => (g in groups) && !hasCollapsedAncestor(g))
 
+  /** The collapse-applied graph as the NEIGHBOR MACHINERY (badges, expand/
+    * contract toggles) must see it. Three things travel together:
+    *
+    *   - the graph itself, where a collapsed box is an ordinary node;
+    *   - `hidden` re-spelled into that graph: a group hidden as a GroupId
+    *     becomes its proxy node, and a REWRITTEN box arrow counts as hidden
+    *     only when ALL the original arrows it stands for are hidden (arrow
+    *     ids derive from their endpoints, so rewriting mints new ids the
+    *     original hidden set cannot name);
+    *   - the map back from each rewritten arrow to those originals, for
+    *     translating a hide/show decision into ids the render pipeline
+    *     (which hides BEFORE collapsing) actually honors.
+    */
+  def collapsedView(collapsed: Set[GroupId], hidden: ElementIds): CollapseOps.CollapsedView =
+    val outermost = effectiveCollapsed(collapsed)
+    val g2        = collapseGroups(collapsed)
+    if outermost.isEmpty then CollapseOps.CollapsedView(g2, hidden, Map.empty)
+    else
+      val changed = rewriteArrows(proxyMapFor(outermost)).filter((o, r) => o.id != r.id)
+      val underlying: Map[ArrowId, Set[ArrowId]] =
+        changed
+          .groupBy((_, r) => (r.source, r.target, r.sourcePort, r.targetPort))
+          .map((_, grp) => grp.head._2.id -> grp.map(_._1.id).toSet)
+      val hiddenArrowIds = hidden.classify.arrows
+      val hiddenViewArrows =
+        underlying.collect { case (vid, orig) if orig.subsetOf(hiddenArrowIds) => vid }.toSet
+      val hiddenProxies =
+        hidden.classify.groups.filter(outermost.contains).map(CollapseOps.proxyIdFor)
+      CollapseOps.CollapsedView(g2, hidden ++ hiddenViewArrows ++ hiddenProxies, underlying)
+
   /** How many NODES each collapsed box swallows (nested groups' members
     * included), keyed by the box's proxy id — the badge model for collapsed
     * groups, the way `VisibilityRules.concealedCounts` is for hidden
@@ -49,18 +79,48 @@ trait CollapseOps:
       .map(g => CollapseOps.proxyIdFor(g) -> getAllChildren(Set(g)).collect { case n: NodeId => n }.size)
       .toMap
 
+  /** node → the proxy that now stands for it. Built per collapsed group so
+    * nested members all land on the same outermost box.
+    */
+  private def proxyMapFor(outermost: Set[GroupId]): Map[NodeId, NodeId] =
+    outermost.flatMap { g =>
+      val proxy = CollapseOps.proxyIdFor(g)
+      getAllChildren(Set(g)).collect { case n: NodeId => n -> proxy }
+    }.toMap
+
+  /** Original → rewritten pairs for the arrows that survive collapsing
+    * (untouched arrows pair with themselves; wholly-internal ones drop out),
+    * in collapse emission order. Shared by [[collapseGroups]] and
+    * [[collapsedView]] so the two can never disagree about which original
+    * arrows a box arrow stands for.
+    */
+  private def rewriteArrows(proxyOf: Map[NodeId, NodeId]): Vector[(Arrow, Arrow)] =
+    arrows.toVector
+      .sortBy((id, _) => id.value)
+      .flatMap: (_, a) =>
+        val s = proxyOf.getOrElse(a.source, a.source)
+        val t = proxyOf.getOrElse(a.target, a.target)
+        // wholly inside one collapsed group ⇒ it has no border to cross
+        if s == t && (a.source in proxyOf) && (a.target in proxyOf) then None
+        else if s == a.source && t == a.target then Some(a -> a)
+        else
+          // A port names a field of the node that is no longer drawn; the
+          // proxy has no such field, so the rewritten end loses its port.
+          Some(
+            a -> a.copy(
+              source = s,
+              target = t,
+              sourcePort = if s == a.source then a.sourcePort else None,
+              targetPort = if t == a.target then a.targetPort else None
+            )
+          )
+
   /** `collapsed` groups become single boxes. */
   def collapseGroups(collapsed: Set[GroupId]): ViewerGraph =
     val outermost = effectiveCollapsed(collapsed)
     if outermost.isEmpty then this
     else
-      // node → the proxy that now stands for it. Built per collapsed group so
-      // nested members all land on the same outermost box.
-      val proxyOf: Map[NodeId, NodeId] =
-        outermost.flatMap { g =>
-          val proxy = CollapseOps.proxyIdFor(g)
-          getAllChildren(Set(g)).collect { case n: NodeId => n -> proxy }
-        }.toMap
+      val proxyOf = proxyMapFor(outermost)
 
       val swallowedGroups: Set[GroupId] =
         outermost.flatMap(g => getAllChildren(Set(g)).collect { case gg: GroupId => gg }) ++ outermost
@@ -79,32 +139,15 @@ trait CollapseOps:
         outermost.flatMap(g => membership(g).map(CollapseOps.proxyIdFor(g) -> _)).toMap
 
       // ── the arrows ─────────────────────────────────────────────────────────
-      // Sorted so the winner of a merge is stable across renders (Map iteration
-      // order is not); the survivor keeps its own attributes, and the arrows it
-      // stands for are untouched in the full graph.
+      // Sorted (in rewriteArrows) so the winner of a merge is stable across
+      // renders (Map iteration order is not); the survivor keeps its own
+      // attributes, and the arrows it stands for are untouched in the full
+      // graph. "Merge into one": one arrow per (source, target, ports) —
+      // several members pointing at the same outside node read as a single
+      // edge from the box.
       val rewritten =
-        arrows.toVector
-          .sortBy((id, _) => id.value)
-          .flatMap: (_, a) =>
-            val s = proxyOf.getOrElse(a.source, a.source)
-            val t = proxyOf.getOrElse(a.target, a.target)
-            // wholly inside one collapsed group ⇒ it has no border to cross
-            if s == t && (a.source in proxyOf) && (a.target in proxyOf) then None
-            else if s == a.source && t == a.target then Some(a)
-            else
-              // A port names a field of the node that is no longer drawn; the
-              // proxy has no such field, so the rewritten end loses its port.
-              Some(
-                a.copy(
-                  source = s,
-                  target = t,
-                  sourcePort = if s == a.source then a.sourcePort else None,
-                  targetPort = if t == a.target then a.targetPort else None
-                )
-              )
-          // "merge into one": one arrow per (source, target, ports) — several
-          // members pointing at the same outside node read as a single edge
-          // from the box.
+        rewriteArrows(proxyOf)
+          .map(_._2)
           .distinctBy(a => (a.source, a.target, a.sourcePort, a.targetPort))
 
       val remainingArrows = rewritten.map(a => a.id -> a).toMap
@@ -134,6 +177,19 @@ object CollapseOps:
   /** The proxy node's id is the group's id string: one identity, two spellings,
     * so a click on the box resolves back to the group it stands for. */
   def proxyIdFor(g: GroupId): NodeId = NodeId(g.value)
+
+  /** See [[CollapseOps.collapsedView]]. `underlyingArrows` maps each REWRITTEN
+    * arrow id to the original arrows it stands for; arrows collapse left
+    * untouched are absent (their ids already name full-graph arrows).
+    */
+  final case class CollapsedView(
+      graph:            ViewerGraph,
+      hidden:           ElementIds,
+      underlyingArrows: Map[ArrowId, Set[ArrowId]]
+  ):
+    /** The full-graph arrow ids behind `ids` (identity for untouched arrows). */
+    def originalArrows(ids: Set[ArrowId]): Set[ArrowId] =
+      ids.flatMap(id => underlyingArrows.getOrElse(id, Set(id)))
 
   /** Is `id` the proxy for one of `collapsed`? */
   def collapsedGroupFor(id: ElementId, collapsed: Set[GroupId]): Option[GroupId] =

@@ -34,9 +34,14 @@ trait LayoutStabilityOps:
   private var pendingTransition: Option[LayoutTransition.Snapshot] = None
   private var cancelTransition:  Option[() => Unit]               = None
 
-  private def clientCenter(e: dom.Element): (Double, Double) =
+  /** None when the element has no rendered geometry (a hidden tab/pane makes
+    * getBoundingClientRect return zeros) — anchoring on a degenerate
+    * measurement computes a garbage delta and throws the viewport off-screen.
+    */
+  private def clientCenter(e: dom.Element): Option[(Double, Double)] =
     val r = e.getBoundingClientRect()
-    (r.left + r.width / 2, r.top + r.height / 2)
+    if r.width == 0 && r.height == 0 then None
+    else Some((r.left + r.width / 2, r.top + r.height / 2))
 
   /** While the OLD svg is still mounted: choose the focal node and remember its
     * screen position.
@@ -50,7 +55,10 @@ trait LayoutStabilityOps:
       // continues from wherever it was instead of snapping.
       if animateLayoutChanges.now() && !LayoutTransition.reducedMotion then
         pendingTransition = Some(LayoutTransition.capture(old, strategy))
-      val nodes = SelectableElement.findAll(old, strategy).flatMap(se => se.nodeId.map(_ -> se.ref))
+      val nodes =
+        SelectableElement
+          .findAll(old, strategy)
+          .flatMap(se => se.nodeId.flatMap(id => clientCenter(se.ref).map(c => (id, c))))
       if nodes.nonEmpty then
         val selected = selection.now().nodeIds
         val focal = nodes
@@ -58,17 +66,13 @@ trait LayoutStabilityOps:
           .orElse {
             val cx = dom.window.innerWidth / 2.0
             val cy = dom.window.innerHeight / 2.0
-            nodes.minByOption { (_, el) =>
-              val (x, y) = clientCenter(el)
-              val dx     = x - cx
-              val dy     = y - cy
+            nodes.minByOption { (_, c) =>
+              val dx = c._1 - cx
+              val dy = c._2 - cy
               dx * dx + dy * dy
             }
           }
-        pendingAnchor = focal.map { (id, el) =>
-          val (x, y) = clientCenter(el)
-          (id, x, y)
-        }
+        pendingAnchor = focal.map((id, c) => (id, c._1, c._2))
     }
     // All measurements are done — a still-running previous animation can stop.
     cancelTransition.foreach(_())
@@ -86,16 +90,24 @@ trait LayoutStabilityOps:
           .query(newSvg, ElementIds.from(id), strategy)
           .headOption
           .foreach { se =>
-            val (newX, newY) = clientCenter(se.ref)
-            val dx           = newX - oldX
-            val dy           = newY - oldY
-            if dx.abs > 0.5 || dy.abs > 0.5 then
-              // The node's <g> carries no transform of its own, so its screen
-              // CTM is exactly (viewBox mapping ∘ zoom): client px per layout
-              // unit, the precise factor the compensation needs.
-              val ctm = se.ref.asInstanceOf[js.Dynamic].getScreenCTM()
-              if ctm != null then
-                panCompensateClient(dx, dy, ctm.a.asInstanceOf[Double], ctm.d.asInstanceOf[Double])
+            clientCenter(se.ref).foreach { (newX, newY) =>
+              val dx = newX - oldX
+              val dy = newY - oldY
+              // Anchoring exists to damp SMALL jumps. When the focal moved a
+              // large fraction of the viewport, the layout reorganized
+              // globally (e.g. expanding a corner-dwelling box back into a
+              // big drawing) — chasing the focal would drag the rest of the
+              // diagram off-canvas. Let the default framing stand and leave
+              // continuity to the animated transition.
+              val limit = (dom.window.innerWidth min dom.window.innerHeight) * 0.4
+              if (dx.abs max dy.abs) <= limit && (dx.abs > 0.5 || dy.abs > 0.5) then
+                // The node's <g> carries no transform of its own, so its screen
+                // CTM is exactly (viewBox mapping ∘ zoom): client px per layout
+                // unit, the precise factor the compensation needs.
+                val ctm = se.ref.asInstanceOf[js.Dynamic].getScreenCTM()
+                if ctm != null then
+                  panCompensateClient(dx, dy, ctm.a.asInstanceOf[Double], ctm.d.asInstanceOf[Double])
+            }
           }
       }
     pendingAnchor = None
