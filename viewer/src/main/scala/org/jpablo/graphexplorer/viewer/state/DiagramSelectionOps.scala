@@ -122,6 +122,18 @@ trait DiagramSelectionOps:
         project.collapsedGroups.update: collapsed =>
           if gs.subsetOf(collapsed) then collapsed -- gs else collapsed ++ gs
 
+    /** The one-directional versions of toggleCollapse, for when the selection
+      * is mixed and "toggle" would guess: fold the selected groups (no-op for
+      * ones already folded), or unfold them.
+      */
+    def collapse(): Unit =
+      val gs = collapsibleGroups()
+      if gs.nonEmpty then project.collapsedGroups.update(_ ++ gs)
+
+    def expand(): Unit =
+      val gs = collapsibleGroups()
+      if gs.nonEmpty then project.collapsedGroups.update(_ -- gs)
+
     def selectGroupMembers() =
       val s          = now()
       val classified = s.classify

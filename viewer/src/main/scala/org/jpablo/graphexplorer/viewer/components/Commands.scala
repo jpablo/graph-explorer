@@ -301,6 +301,36 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Render the selected group as a single box, or unfold it again")
     )
 
+    // The one-directional versions, for a mixed selection where "toggle" would
+    // guess — and the graph-wide pair, which needs no selection at all.
+    val collapseSelectedGroups = Command(
+      "Collapse selected groups",
+      () => state.selection.collapse(),
+      groupOrCollapsedBox,
+      description = Some("Render each selected group as a single box")
+    )
+
+    val expandSelectedGroups = Command(
+      "Expand selected groups",
+      () => state.selection.expand(),
+      groupOrCollapsedBox,
+      description = Some("Unfold the selected collapsed groups")
+    )
+
+    val collapseAllGroups = Command(
+      "Collapse all groups",
+      () => state.collapseAllGroups(),
+      always,
+      description = Some("Render every group in the diagram as a single box")
+    )
+
+    val expandAllGroups = Command(
+      "Expand all groups",
+      () => state.expandAllGroups(),
+      always,
+      description = Some("Unfold every collapsed group")
+    )
+
     val copyAsSVG = Command(
       "Copy selection as SVG",
       () => state.copySelectionAsSVG(),
@@ -618,6 +648,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.moveToGroup,
       all.zoomIntoGroup,
       all.toggleCollapseGroup,
+      all.collapseSelectedGroups,
+      all.expandSelectedGroups,
       all.editLabel,
       all.hideSelection,
       all.keep,
@@ -650,6 +682,8 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.rootsOnly,
       all.showAll,
       all.hideAllNodes,
+      all.collapseAllGroups,
+      all.expandAllGroups,
       all.deleteHiddenElements
     ),
     document -> List(

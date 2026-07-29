@@ -10,7 +10,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStr
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, CollapseOps, ViewerGraph, VisibilityRules}
+import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, CollapseOps, ViewerGraph, ViewerGraphElements, VisibilityRules}
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
@@ -317,6 +317,15 @@ case class ViewerState(
       ElementIds(ids.ids.map { id =>
         CollapseOps.collapsedGroupFor(id, collapsed).getOrElse(id)
       })
+
+  /** Every group folds to its box (nesting resolves to the outermost ones at
+    * render time); the inverse restores the full structure.
+    */
+  def collapseAllGroups(): Unit =
+    project.collapsedGroups.set(fullGraphNow().groupIds - ViewerGraphElements.defaultRootId)
+
+  def expandAllGroups(): Unit =
+    project.collapsedGroups.set(Set.empty)
 
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
     phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(resolveCollapsed(elementIds)))
