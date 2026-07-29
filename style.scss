@@ -562,6 +562,10 @@ svg {
     @apply bottom-2 left-2/4 -translate-x-2/4;
   }
 
+  #view-only-chip {
+    @apply top-2 left-2/4 -translate-x-2/4 px-2.5 py-1 text-xs cursor-default select-none;
+  }
+
   #commands-panel {
     @apply flex flex-col w-[12rem] max-h-[26rem] z-10;
     @apply print:hidden bg-base-100 rounded-box;

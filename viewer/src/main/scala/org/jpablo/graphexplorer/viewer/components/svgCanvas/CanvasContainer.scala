@@ -3,8 +3,11 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.components.Commands
-import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.{EditorNotice, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
+import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
+
+import scala.scalajs.js
 
 /** Creates a container div for the SVG canvas with mouse and keyboard interaction handlers
   *
@@ -16,12 +19,24 @@ import org.jpablo.graphexplorer.viewer.utils.ClientPoint
   *   A div element containing the SVG canvas with interaction handlers
   */
 def CanvasContainer(state: ViewerState, commands: Commands) =
+  // A press on the inert canvas of a view-only diagram pulses the chip: the
+  // answer to "why won't it select?" arrives at the moment the question is asked.
+  val viewOnlyNudge = EventBus[Unit]()
   div(
     idAttr   := "canvas-container",
     tabIndex := 0,
     state.fitDiagram.events --> state.resetView(),
     // the main canvas!!
     child.maybe <-- state.finalSVG,
+    // Render-only diagram kinds (Mermaid beyond flowcharts): the notice used to
+    // live only inside the sources panel, invisible unless that panel was open.
+    // The chip sits on the canvas itself — the place where the limitation bites.
+    child.maybe <-- state.editorNotice.signal
+      .map(_.filter(n => !n.isError))
+      .map(_.map(ViewOnlyChip(_, viewOnlyNudge.events))),
+    onMouseDown --> { _ =>
+      if state.editorNotice.now().exists(n => !n.isError) then viewOnlyNudge.emit(())
+    },
     // we need a way to move the focus here after certain events
     focus <-- state.canvasContainerFocus,
     // abort ongoing mouse actions when the focus is lost
@@ -39,6 +54,36 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     onWheel.preventDefault(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElemO) =>
       svgElemO.map(s => state.handleWheel(e, s.ref.viewBox.baseVal))
     )
+  )
+
+/** The persistent "this diagram is view-only" pill, floating top-center on the
+  * canvas. The full explanation lives in its tooltip; a nudge (a click on the
+  * inert canvas) plays a small scale pulse to draw the eye.
+  */
+private def ViewOnlyChip(notice: EditorNotice, nudge: EventStream[Unit]) =
+  div(
+    idAttr := "view-only-chip",
+    cls    := "floating-toolbar",
+    Tooltip(
+      text = notice.message,
+      cls := TooltipPos.bottom,
+      span(cls := "flex items-center gap-1.5", i(cls := "bi bi-eye"), "View-only")
+    ),
+    inContext { el =>
+      nudge --> { _ =>
+        if !dom.window.matchMedia("(prefers-reduced-motion: reduce)").matches then
+          el.ref
+            .asInstanceOf[js.Dynamic]
+            .animate(
+              js.Array(
+                js.Dynamic.literal(transform = "translateX(-50%) scale(1)"),
+                js.Dynamic.literal(transform = "translateX(-50%) scale(1.15)"),
+                js.Dynamic.literal(transform = "translateX(-50%) scale(1)")
+              ),
+              js.Dynamic.literal(duration = 350, easing = "ease-out")
+            )
+      }
+    }
   )
 
 extension (e: dom.MouseEvent)
