@@ -12,7 +12,7 @@ trait SvgTransformOps:
   private val zoomValue   = Var(1.0)
   private val minZoom     = 0.05
 
-  val autoFit = Var(false)
+  val autoFit = Var(true)
 
   val fitDiagram = EventBus[Unit]()
 
