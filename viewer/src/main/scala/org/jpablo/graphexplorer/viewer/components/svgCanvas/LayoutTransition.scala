@@ -59,9 +59,10 @@ object LayoutTransition:
     (r.left + r.width / 2, r.top + r.height / 2)
 
   final case class Snapshot(
-      boxes:  Map[String, (Double, Double)],
-      edges:  Map[String, Vector[(Double, Double)]],
-      ghosts: Map[String, dom.Element]
+      boxes:   Map[String, (Double, Double)],
+      edges:   Map[String, Vector[(Double, Double)]],
+      ghosts:  Map[String, dom.Element],
+      viewBox: Option[(Double, Double, Double, Double)]
   ):
     def isEmpty: Boolean = boxes.isEmpty && edges.isEmpty
 
@@ -97,8 +98,10 @@ object LayoutTransition:
     * references are kept: they become the exit ghosts.
     */
   def capture(oldSvg: dom.svg.SVG, strategy: SelectableElementStrategy): Snapshot =
-    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty)
-    val els    = SelectableElement.findAll(oldSvg, strategy)
+    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, None)
+    val vb      = oldSvg.viewBox.baseVal
+    val viewBox = Some((vb.x, vb.y, vb.width, vb.height))
+    val els     = SelectableElement.findAll(oldSvg, strategy)
     val boxes  = Map.newBuilder[String, (Double, Double)]
     val edges  = Map.newBuilder[String, Vector[(Double, Double)]]
     val ghosts = Map.newBuilder[String, dom.Element]
@@ -113,7 +116,7 @@ object LayoutTransition:
         boxes += key -> clientCenter(se.ref) // fallback correlation for edges without a path
       else boxes += key -> clientCenter(se.ref)
     }
-    Snapshot(boxes.result(), edges.result(), ghosts.result())
+    Snapshot(boxes.result(), edges.result(), ghosts.result(), viewBox)
 
   /** Start the transition on the NEW svg (mounted, transform applied).
     * Returns a cancel function, or None when there is nothing to animate.
@@ -227,11 +230,26 @@ object LayoutTransition:
     val entered = enters.result()
     entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = "0")
 
+    // The viewBox pops too: a diagram that grew a rank rescales EVERYTHING in
+    // one frame while positions glide — the most visible jump of all. Tween
+    // the frame along with the content.
+    val vbFinal = newSvg.viewBox.baseVal
+    val vbTween: Option[((Double, Double, Double, Double), (Double, Double, Double, Double))] =
+      snap.viewBox
+        .map(from => (from, (vbFinal.x, vbFinal.y, vbFinal.width, vbFinal.height)))
+        .filter((from, to) => from != to)
+
     def ease(t: Double): Double =
       if t < 0.5 then 4 * t * t * t else 1 - math.pow(-2 * t + 2, 3) / 2
 
     def applyFrame(e: Double): Unit =
       val r = 1 - e
+      vbTween.foreach { (f, t) =>
+        newSvg.setAttribute(
+          "viewBox",
+          s"${f._1 + (t._1 - f._1) * e} ${f._2 + (t._2 - f._2) * e} ${f._3 + (t._3 - f._3) * e} ${f._4 + (t._4 - f._4) * e}"
+        )
+      }
       boxes.foreach(b => b.g.setAttribute("transform", s"${b.base} translate(${b.dx * r} ${b.dy * r})".trim))
       edges.foreach { et =>
         val pts = et.from.indices.map { i =>
@@ -246,6 +264,7 @@ object LayoutTransition:
       ghosts.foreach(_.asInstanceOf[dom.html.Element].style.opacity = ((1 - e * 2) max 0.0).toString)
 
     def finish(): Unit =
+      vbTween.foreach((_, t) => newSvg.setAttribute("viewBox", s"${t._1} ${t._2} ${t._3} ${t._4}"))
       boxes.foreach(b => restore(b.g, b.base))
       edges.foreach { et =>
         et.path.setAttribute("d", et.finalD)
