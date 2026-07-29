@@ -54,22 +54,26 @@ object LayoutTransition:
     if m == null then None
     else Some(Ctm(m.a.asInstanceOf[Double], m.d.asInstanceOf[Double], m.e.asInstanceOf[Double], m.f.asInstanceOf[Double]))
 
-  private def clientCenter(el: dom.Element): (Double, Double) =
+  /** Client rect as (center x, center y, width, height). */
+  private def clientBox(el: dom.Element): (Double, Double, Double, Double) =
     val r = el.getBoundingClientRect()
-    (r.left + r.width / 2, r.top + r.height / 2)
+    (r.left + r.width / 2, r.top + r.height / 2, r.width, r.height)
 
-  /** `frameScale` is the old render's client-px-per-local-unit (any node's
-    * ctm.a): the ratio to the new render's scale drives the SIZE channel of
-    * the morph. `sheet` is the old background sheet's client rect (graphviz
-    * draws the graph bb as a filled polygon — its instant resize was a very
-    * visible pop).
+  /** `boxes` are client rects (cx, cy, w, h): the size channel of the morph is
+    * PER ELEMENT (old measured size over new measured size), which covers both
+    * the global frame rescale and elements whose intrinsic size changed (a
+    * cluster that grew a member). `edgeParts` are edge-label client rects,
+    * keyed by edge and child index — labels are not on the sampled path and
+    * would otherwise snap. `sheet` is the old background sheet's client rect
+    * (graphviz draws the graph bb as a filled polygon — its instant resize
+    * was a very visible pop).
     */
   final case class Snapshot(
-      boxes:      Map[String, (Double, Double)],
-      edges:      Map[String, Vector[(Double, Double)]],
-      ghosts:     Map[String, dom.Element],
-      frameScale: Option[Double],
-      sheet:      Option[(Double, Double, Double, Double)]
+      boxes:     Map[String, (Double, Double, Double, Double)],
+      edges:     Map[String, Vector[(Double, Double)]],
+      edgeParts: Map[String, (Double, Double, Double, Double)],
+      ghosts:    Map[String, dom.Element],
+      sheet:     Option[(Double, Double, Double, Double)]
   ):
     def isEmpty: Boolean = boxes.isEmpty && edges.isEmpty
 
@@ -109,12 +113,18 @@ object LayoutTransition:
   private def sheetOf(svg: dom.svg.SVG): Option[dom.Element] =
     Option(svg.querySelector(":scope > g > polygon"))
 
+  /** Keys for an edge's decorations: its i-th `<text>` (labels) and i-th
+    * `<polygon>`/`<ellipse>` (arrowheads), paired by index across renders. */
+  private def edgeTextKey(edgeKey: String, i: Int): String = s"$edgeKey##t$i"
+  private def edgeHeadKey(edgeKey: String, i: Int): String = s"$edgeKey##h$i"
+
   def capture(oldSvg: dom.svg.SVG, strategy: SelectableElementStrategy): Snapshot =
-    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, None, None)
-    val els    = SelectableElement.findAll(oldSvg, strategy)
-    val boxes  = Map.newBuilder[String, (Double, Double)]
-    val edges  = Map.newBuilder[String, Vector[(Double, Double)]]
-    val ghosts = Map.newBuilder[String, dom.Element]
+    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, Map.empty, None)
+    val els       = SelectableElement.findAll(oldSvg, strategy)
+    val boxes     = Map.newBuilder[String, (Double, Double, Double, Double)]
+    val edges     = Map.newBuilder[String, Vector[(Double, Double)]]
+    val edgeParts = Map.newBuilder[String, (Double, Double, Double, Double)]
+    val ghosts    = Map.newBuilder[String, dom.Element]
     els.foreach { se =>
       val key = se.elementId.value
       ghosts += key -> se.ref
@@ -123,15 +133,20 @@ object LayoutTransition:
           for ctm <- ctmOf(path); samples <- samplePath(path) do
             edges += key -> samples.map(ctm.toClient)
         }
-        boxes += key -> clientCenter(se.ref) // fallback correlation for edges without a path
-      else boxes += key -> clientCenter(se.ref)
+        se.ref.querySelectorAll("text").zipWithIndex.foreach { (t, i) =>
+          edgeParts += edgeTextKey(key, i) -> clientBox(t)
+        }
+        se.ref.querySelectorAll("polygon, ellipse").zipWithIndex.foreach { (h, i) =>
+          edgeParts += edgeHeadKey(key, i) -> clientBox(h)
+        }
+        boxes += key -> clientBox(se.ref) // fallback correlation for edges without a path
+      else boxes += key -> clientBox(se.ref)
     }
-    val frameScale = els.iterator.filter(_.arrowId.isEmpty).flatMap(se => ctmOf(se.ref)).map(_.a).nextOption()
     val sheet = sheetOf(oldSvg).map { p =>
       val r = p.getBoundingClientRect()
       (r.left, r.top, r.width, r.height)
     }
-    Snapshot(boxes.result(), edges.result(), ghosts.result(), frameScale, sheet)
+    Snapshot(boxes.result(), edges.result(), edgeParts.result(), ghosts.result(), sheet)
 
   /** Start the transition on the NEW svg (mounted, transform applied).
     * Returns a cancel function, or None when there is nothing to animate.
@@ -159,18 +174,20 @@ object LayoutTransition:
   //     ctm — the viewBox never animates, so frame 0 reproduces the old
   //     client position to the pixel. (Animating the viewBox instead put a
   //     frame-origin error into every frame-0 position: the "shifted double".)
-  //   - size: scale(κ) about its own center, κ running from oldScale/newScale
-  //     to 1 — the size continuity the viewBox tween was trying to buy.
+  //   - size: scale about its own center, running from oldSize/newSize
+  //     (measured per element, per axis) to 1 — covering both the global
+  //     frame rescale and intrinsic size changes (a cluster that grew).
+  // The same tween serves nodes, clusters, arrowheads and edge labels.
 
   private final case class BoxTween(
       g:    dom.Element,
       base: String,
-      inv:  Ctm,               // the element's constant local↔client mapping
+      inv:  Ctm,                 // the element's constant local↔client mapping
       cfx:  Double, cfy: Double, // final local center
-      oldC: (Double, Double),   // client centers
-      newC: (Double, Double)
+      oldC: (Double, Double),    // client centers
+      newC: (Double, Double),
+      kx0:  Double, ky0: Double  // frame-0 scale: old client size / new client size
   )
-  private final case class HeadTween(el: dom.Element, base: String, dx: Double, dy: Double)
   private final case class SheetTween(
       el:   dom.Element,
       inv:  Ctm,
@@ -189,8 +206,7 @@ object LayoutTransition:
       path:   dom.Element,
       finalD: String,
       from:   Vector[(Double, Double)],
-      to:     Vector[(Double, Double)],
-      heads:  Seq[HeadTween]
+      to:     Vector[(Double, Double)]
   )
 
   private def start(
@@ -203,6 +219,16 @@ object LayoutTransition:
     val edgeTweens = Vector.newBuilder[EdgeTween]
     val enters     = Vector.newBuilder[dom.Element]
 
+    def rectTween(el: dom.Element, old: (Double, Double, Double, Double)): Unit =
+      ctmOf(el).foreach { ctm =>
+        val (oldX, oldY, oldW, oldH)     = old
+        val (newX, newY, newW, newH)     = clientBox(el)
+        val (cfx, cfy)                   = ctm.toLocal(newX, newY)
+        val kx0                          = if newW > 0 then oldW / newW else 1.0
+        val ky0                          = if newH > 0 then oldH / newH else 1.0
+        boxTweens += BoxTween(el, baseTransformOf(el), ctm, cfx, cfy, (oldX, oldY), (newX, newY), kx0, ky0)
+      }
+
     els.foreach { se =>
       val key = se.elementId.value
       se.arrowId match
@@ -212,25 +238,22 @@ object LayoutTransition:
               ctm       <- ctmOf(path)
               to        <- samplePath(path)
               oldClient <- snap.edges.get(key)
-            yield
-              val finalD = path.getAttribute("d")
-              val from   = oldClient.map(ctm.toLocal)
-              val d0     = (from.last._1 - to.last._1, from.last._2 - to.last._2)
-              val heads = se.ref
-                .querySelectorAll("polygon, ellipse")
-                .map(h => HeadTween(h, baseTransformOf(h), d0._1, d0._2))
-                .toSeq
-              edgeTweens += EdgeTween(path, finalD, from, to, heads)
+            yield edgeTweens += EdgeTween(path, path.getAttribute("d"), oldClient.map(ctm.toLocal), to)
             ).isDefined
+          }
+          // Arrowheads and labels morph as rects of their own — a head that
+          // only translated kept its NEW size and orientation at frame 0.
+          se.ref.querySelectorAll("text").zipWithIndex.foreach { (t, i) =>
+            snap.edgeParts.get(edgeTextKey(key, i)).foreach(rectTween(t, _))
+          }
+          se.ref.querySelectorAll("polygon, ellipse").zipWithIndex.foreach { (h, i) =>
+            snap.edgeParts.get(edgeHeadKey(key, i)).foreach(rectTween(h, _))
           }
           if !tweened then if !snap.boxes.contains(key) then enters += se.ref
         case None =>
-          (snap.boxes.get(key), ctmOf(se.ref)) match
-            case (Some((oldX, oldY)), Some(ctm)) =>
-              val (newX, newY) = clientCenter(se.ref)
-              val (cfx, cfy)   = ctm.toLocal(newX, newY)
-              boxTweens += BoxTween(se.ref, baseTransformOf(se.ref), ctm, cfx, cfy, (oldX, oldY), (newX, newY))
-            case _ => enters += se.ref
+          snap.boxes.get(key) match
+            case Some(old) => rectTween(se.ref, old)
+            case None      => enters += se.ref
     }
 
     // Exit ghosts: everything that had a place in the old layout and none in
@@ -247,12 +270,19 @@ object LayoutTransition:
           if !newKeys.contains(key)
           oldClient    <- snap.boxes.get(key).toVector
         yield
-          val bb           = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
-          val localCenter  = (bb.x + bb.width / 2, bb.y + bb.height / 2)
-          val (tx, ty)     = frame.toLocal(oldClient._1, oldClient._2)
-          val wrap         = dom.document.createElementNS("http://www.w3.org/2000/svg", "g")
+          val bb          = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+          val localCenter = (bb.x + bb.width / 2, bb.y + bb.height / 2)
+          val (tx, ty)    = frame.toLocal(oldClient._1, oldClient._2)
+          // Rendered in the NEW frame, the ghost's size would be newScale ×
+          // its local size — scale it so it keeps its OLD on-screen size.
+          val kgx  = if bb.width > 0 && frame.a != 0 then oldClient._3 / (bb.width * frame.a) else 1.0
+          val kgy  = if bb.height > 0 && frame.d != 0 then oldClient._4 / (bb.height * frame.d) else 1.0
+          val wrap = dom.document.createElementNS("http://www.w3.org/2000/svg", "g")
           wrap.setAttribute("class", ghostClass)
-          wrap.setAttribute("transform", s"translate(${tx - localCenter._1} ${ty - localCenter._2})")
+          wrap.setAttribute(
+            "transform",
+            s"translate(${tx - kgx * localCenter._1} ${ty - kgy * localCenter._2}) scale($kgx $kgy)"
+          )
           wrap.asInstanceOf[dom.html.Element].style.pointerEvents = "none"
           el.removeAttribute("id")
           el.setAttribute("class", ghostClass)
@@ -265,15 +295,6 @@ object LayoutTransition:
     val edges   = edgeTweens.result()
     val entered = enters.result()
     entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = "0")
-
-    // The SIZE channel: old-frame scale over new-frame scale. κ runs σ → 1,
-    // so at frame 0 every box paints at its old on-screen size and position.
-    val sigma: Double =
-      (for
-        oldS <- snap.frameScale
-        newS <- els.iterator.filter(_.arrowId.isEmpty).flatMap(se => ctmOf(se.ref)).map(_.a).nextOption()
-        if newS > 0
-      yield oldS / newS).getOrElse(1.0)
 
     // The background sheet (the graph's white bounding-box polygon) resizes
     // instantly at swap otherwise — a full-canvas pop.
@@ -291,13 +312,13 @@ object LayoutTransition:
       if t < 0.5 then 4 * t * t * t else 1 - math.pow(-2 * t + 2, 3) / 2
 
     def applyFrame(e: Double): Unit =
-      val r = 1 - e
-      val k = sigma + (1 - sigma) * e
       boxes.foreach { b =>
         val cx       = b.oldC._1 + (b.newC._1 - b.oldC._1) * e
         val cy       = b.oldC._2 + (b.newC._2 - b.oldC._2) * e
         val (lx, ly) = b.inv.toLocal(cx, cy)
-        b.g.setAttribute("transform", s"${b.base} translate(${lx - k * b.cfx} ${ly - k * b.cfy}) scale($k)".trim)
+        val kx       = b.kx0 + (1 - b.kx0) * e
+        val ky       = b.ky0 + (1 - b.ky0) * e
+        b.g.setAttribute("transform", s"${b.base} translate(${lx - kx * b.cfx} ${ly - ky * b.cfy}) scale($kx $ky)".trim)
       }
       sheetTween.foreach { st =>
         val x  = st.oldR._1 + (st.newR._1 - st.oldR._1) * e
@@ -314,7 +335,6 @@ object LayoutTransition:
           s"${fx + (tx - fx) * e},${fy + (ty - fy) * e}"
         }
         et.path.setAttribute("d", "M" + pts.head + "L" + pts.tail.mkString(" "))
-        et.heads.foreach(h => h.el.setAttribute("transform", s"${h.base} translate(${h.dx * r} ${h.dy * r})".trim))
       }
       entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = (((e - 0.4) / 0.6) max 0.0 min 1.0).toString)
       ghosts.foreach(_.asInstanceOf[dom.html.Element].style.opacity = ((1 - e * 2) max 0.0).toString)
@@ -322,10 +342,7 @@ object LayoutTransition:
     def finish(): Unit =
       boxes.foreach(b => restore(b.g, b.base))
       sheetTween.foreach(st => st.el.removeAttribute("transform"))
-      edges.foreach { et =>
-        et.path.setAttribute("d", et.finalD)
-        et.heads.foreach(h => restore(h.el, h.base))
-      }
+      edges.foreach(et => et.path.setAttribute("d", et.finalD))
       entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = "")
       ghosts.foreach(w => if w.parentNode != null then w.parentNode.removeChild(w))
 
