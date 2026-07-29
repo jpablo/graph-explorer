@@ -69,12 +69,19 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     // unconditionally serialized the whole graph on every parse just to discard the text,
     // and its post-parse recompute echoed a second identical mermaid render per keystroke.
     // The .distinct collapses that echo.
+    // Inner protocol: None = STILL RENDERING, Some(x) = settled (x is None for
+    // empty text or a failed render). Signal.fromFuture emits None until the
+    // future completes — flattening that into the output used to blank the
+    // canvas for every async gap, which unmounted the previous svg and starved
+    // the layout-stability hooks (no connected old svg ⇒ no anchoring, no
+    // transition; also the visible re-render blink). The scanLeft holds the
+    // previous drawing through the gap and honors every settled value.
     inputs.hasHiddenElements
       .flatMapSwitch(hasHidden => if hasHidden then inputs.visibleText else inputs.sourceText)
       .distinct
       .flatMapSwitch: mermaidText =>
         if mermaidText.trim.isEmpty then
-          Signal.fromValue(None)
+          Signal.fromValue(Some(None): Option[Option[SvgWithPositions]])
         else
           val detected = DiagramFormat.detect(mermaidText)
           if detected != DiagramFormat.Mermaid then
@@ -88,7 +95,9 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
             dom.console.error(s"[mermaid] render pipeline failed: ${e.getMessage}")
             None
           }
-          Signal.fromFuture(futureResult).map(_.flatten)
+          Signal.fromFuture(futureResult)
+      .scanLeft((first: Option[Option[SvgWithPositions]]) => first.getOrElse(None)):
+        (last, next) => next.getOrElse(last)
 
   /** Parse Mermaid text asynchronously, converting the JS Promise to a Scala Future. */
   private def parseMermaid(text: String): Future[MermaidGraph] =

@@ -65,6 +65,15 @@ object LayoutTransition:
   ):
     def isEmpty: Boolean = boxes.isEmpty && edges.isEmpty
 
+  /** The drawable `<path>` of an edge element. Graphviz wraps it in a
+    * `<g class="edge">`; a Mermaid flowchart edge IS the path itself. Only
+    * real paths qualify — rects also implement getTotalLength, and sampling a
+    * label-hit rect's perimeter makes a garbage tween source.
+    */
+  private def edgePathOf(ref: dom.Element): Option[dom.Element] =
+    if ref.tagName.equalsIgnoreCase("path") then Some(ref)
+    else Option(ref.querySelector("path"))
+
   private def samplePath(path: dom.Element): Option[Vector[(Double, Double)]] =
     val p   = path.asInstanceOf[js.Dynamic]
     val len = p.getTotalLength().asInstanceOf[Double]
@@ -97,10 +106,10 @@ object LayoutTransition:
       val key = se.elementId.value
       ghosts += key -> se.ref
       if se.arrowId.isDefined then
-        val path = se.ref.querySelector("path")
-        if path != null then
+        edgePathOf(se.ref).foreach { path =>
           for ctm <- ctmOf(path); samples <- samplePath(path) do
             edges += key -> samples.map(ctm.toClient)
+        }
         boxes += key -> clientCenter(se.ref) // fallback correlation for edges without a path
       else boxes += key -> clientCenter(se.ref)
     }
@@ -120,9 +129,21 @@ object LayoutTransition:
       else Some(start(newSvg, els, newKeys, snap))
 
   // ── the tween model ──────────────────────────────────────────────────────
+  // `base` is the element's OWN transform attribute ("" if absent): Mermaid
+  // positions nodes through it, so the tween must COMPOSE — write
+  // "base translate(delta)" per frame and restore base at the end. Clobbering
+  // it (the original implementation) worked for graphviz only by accident of
+  // its absolute coordinates.
 
-  private final case class BoxTween(g: dom.Element, dx: Double, dy: Double)
-  private final case class HeadTween(el: dom.Element, dx: Double, dy: Double)
+  private final case class BoxTween(g: dom.Element, base: String, dx: Double, dy: Double)
+  private final case class HeadTween(el: dom.Element, base: String, dx: Double, dy: Double)
+
+  private def baseTransformOf(el: dom.Element): String =
+    Option(el.getAttribute("transform")).getOrElse("")
+
+  private def restore(el: dom.Element, base: String): Unit =
+    if base.isEmpty then el.removeAttribute("transform")
+    else el.setAttribute("transform", base)
   private final case class EdgeTween(
       path:   dom.Element,
       finalD: String,
@@ -145,24 +166,22 @@ object LayoutTransition:
       val key = se.elementId.value
       se.arrowId match
         case Some(_) =>
-          val path = se.ref.querySelector("path")
-          val tweened =
-            if path == null then false
-            else
-              (for
-                ctm       <- ctmOf(path)
-                to        <- samplePath(path)
-                oldClient <- snap.edges.get(key)
-              yield
-                val finalD = path.getAttribute("d")
-                val from   = oldClient.map(ctm.toLocal)
-                val d0     = (from.last._1 - to.last._1, from.last._2 - to.last._2)
-                val heads = se.ref
-                  .querySelectorAll("polygon, ellipse")
-                  .map(h => HeadTween(h, d0._1, d0._2))
-                  .toSeq
-                edgeTweens += EdgeTween(path, finalD, from, to, heads)
-              ).isDefined
+          val tweened = edgePathOf(se.ref).exists { path =>
+            (for
+              ctm       <- ctmOf(path)
+              to        <- samplePath(path)
+              oldClient <- snap.edges.get(key)
+            yield
+              val finalD = path.getAttribute("d")
+              val from   = oldClient.map(ctm.toLocal)
+              val d0     = (from.last._1 - to.last._1, from.last._2 - to.last._2)
+              val heads = se.ref
+                .querySelectorAll("polygon, ellipse")
+                .map(h => HeadTween(h, baseTransformOf(h), d0._1, d0._2))
+                .toSeq
+              edgeTweens += EdgeTween(path, finalD, from, to, heads)
+            ).isDefined
+          }
           if !tweened then if !snap.boxes.contains(key) then enters += se.ref
         case None =>
           (snap.boxes.get(key), ctmOf(se.ref)) match
@@ -170,7 +189,8 @@ object LayoutTransition:
               val (newX, newY) = clientCenter(se.ref)
               val dx           = (oldX - newX) / ctm.a
               val dy           = (oldY - newY) / ctm.d
-              if dx.abs > 0.01 || dy.abs > 0.01 then boxTweens += BoxTween(se.ref, dx, dy)
+              if dx.abs > 0.01 || dy.abs > 0.01 then
+                boxTweens += BoxTween(se.ref, baseTransformOf(se.ref), dx, dy)
             case _ => enters += se.ref
     }
 
@@ -212,7 +232,7 @@ object LayoutTransition:
 
     def applyFrame(e: Double): Unit =
       val r = 1 - e
-      boxes.foreach(b => b.g.setAttribute("transform", s"translate(${b.dx * r} ${b.dy * r})"))
+      boxes.foreach(b => b.g.setAttribute("transform", s"${b.base} translate(${b.dx * r} ${b.dy * r})".trim))
       edges.foreach { et =>
         val pts = et.from.indices.map { i =>
           val (fx, fy) = et.from(i)
@@ -220,16 +240,16 @@ object LayoutTransition:
           s"${fx + (tx - fx) * e},${fy + (ty - fy) * e}"
         }
         et.path.setAttribute("d", "M" + pts.head + "L" + pts.tail.mkString(" "))
-        et.heads.foreach(h => h.el.setAttribute("transform", s"translate(${h.dx * r} ${h.dy * r})"))
+        et.heads.foreach(h => h.el.setAttribute("transform", s"${h.base} translate(${h.dx * r} ${h.dy * r})".trim))
       }
       entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = (((e - 0.4) / 0.6) max 0.0 min 1.0).toString)
       ghosts.foreach(_.asInstanceOf[dom.html.Element].style.opacity = ((1 - e * 2) max 0.0).toString)
 
     def finish(): Unit =
-      boxes.foreach(_.g.removeAttribute("transform"))
+      boxes.foreach(b => restore(b.g, b.base))
       edges.foreach { et =>
         et.path.setAttribute("d", et.finalD)
-        et.heads.foreach(_.el.removeAttribute("transform"))
+        et.heads.foreach(h => restore(h.el, h.base))
       }
       entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = "")
       ghosts.foreach(w => if w.parentNode != null then w.parentNode.removeChild(w))
