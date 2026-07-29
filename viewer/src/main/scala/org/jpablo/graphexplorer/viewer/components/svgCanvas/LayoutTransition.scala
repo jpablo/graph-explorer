@@ -58,11 +58,18 @@ object LayoutTransition:
     val r = el.getBoundingClientRect()
     (r.left + r.width / 2, r.top + r.height / 2)
 
+  /** `frameScale` is the old render's client-px-per-local-unit (any node's
+    * ctm.a): the ratio to the new render's scale drives the SIZE channel of
+    * the morph. `sheet` is the old background sheet's client rect (graphviz
+    * draws the graph bb as a filled polygon — its instant resize was a very
+    * visible pop).
+    */
   final case class Snapshot(
-      boxes:   Map[String, (Double, Double)],
-      edges:   Map[String, Vector[(Double, Double)]],
-      ghosts:  Map[String, dom.Element],
-      viewBox: Option[(Double, Double, Double, Double)]
+      boxes:      Map[String, (Double, Double)],
+      edges:      Map[String, Vector[(Double, Double)]],
+      ghosts:     Map[String, dom.Element],
+      frameScale: Option[Double],
+      sheet:      Option[(Double, Double, Double, Double)]
   ):
     def isEmpty: Boolean = boxes.isEmpty && edges.isEmpty
 
@@ -97,11 +104,14 @@ object LayoutTransition:
   /** Measure the OLD svg (still mounted) in client space. The element
     * references are kept: they become the exit ghosts.
     */
+  /** The background sheet: graphviz emits the graph's bounding box as a
+    * polygon directly under the root group. */
+  private def sheetOf(svg: dom.svg.SVG): Option[dom.Element] =
+    Option(svg.querySelector(":scope > g > polygon"))
+
   def capture(oldSvg: dom.svg.SVG, strategy: SelectableElementStrategy): Snapshot =
-    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, None)
-    val vb      = oldSvg.viewBox.baseVal
-    val viewBox = Some((vb.x, vb.y, vb.width, vb.height))
-    val els     = SelectableElement.findAll(oldSvg, strategy)
+    if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, None, None)
+    val els    = SelectableElement.findAll(oldSvg, strategy)
     val boxes  = Map.newBuilder[String, (Double, Double)]
     val edges  = Map.newBuilder[String, Vector[(Double, Double)]]
     val ghosts = Map.newBuilder[String, dom.Element]
@@ -116,7 +126,12 @@ object LayoutTransition:
         boxes += key -> clientCenter(se.ref) // fallback correlation for edges without a path
       else boxes += key -> clientCenter(se.ref)
     }
-    Snapshot(boxes.result(), edges.result(), ghosts.result(), viewBox)
+    val frameScale = els.iterator.filter(_.arrowId.isEmpty).flatMap(se => ctmOf(se.ref)).map(_.a).nextOption()
+    val sheet = sheetOf(oldSvg).map { p =>
+      val r = p.getBoundingClientRect()
+      (r.left, r.top, r.width, r.height)
+    }
+    Snapshot(boxes.result(), edges.result(), ghosts.result(), frameScale, sheet)
 
   /** Start the transition on the NEW svg (mounted, transform applied).
     * Returns a cancel function, or None when there is nothing to animate.
@@ -134,12 +149,35 @@ object LayoutTransition:
   // ── the tween model ──────────────────────────────────────────────────────
   // `base` is the element's OWN transform attribute ("" if absent): Mermaid
   // positions nodes through it, so the tween must COMPOSE — write
-  // "base translate(delta)" per frame and restore base at the end. Clobbering
-  // it (the original implementation) worked for graphviz only by accident of
+  // "base <tween>" per frame and restore base at the end. Clobbering it
+  // (the original implementation) worked for graphviz only by accident of
   // its absolute coordinates.
+  //
+  // A box morphs on two channels, both EXACT at frame 0:
+  //   - position: its center lerps in CLIENT space from the old center to the
+  //     new one, converted into local units through the element's (constant)
+  //     ctm — the viewBox never animates, so frame 0 reproduces the old
+  //     client position to the pixel. (Animating the viewBox instead put a
+  //     frame-origin error into every frame-0 position: the "shifted double".)
+  //   - size: scale(κ) about its own center, κ running from oldScale/newScale
+  //     to 1 — the size continuity the viewBox tween was trying to buy.
 
-  private final case class BoxTween(g: dom.Element, base: String, dx: Double, dy: Double)
+  private final case class BoxTween(
+      g:    dom.Element,
+      base: String,
+      inv:  Ctm,               // the element's constant local↔client mapping
+      cfx:  Double, cfy: Double, // final local center
+      oldC: (Double, Double),   // client centers
+      newC: (Double, Double)
+  )
   private final case class HeadTween(el: dom.Element, base: String, dx: Double, dy: Double)
+  private final case class SheetTween(
+      el:   dom.Element,
+      inv:  Ctm,
+      flx:  Double, fly: Double, // final local top-left
+      oldR: (Double, Double, Double, Double), // client rects (x, y, w, h)
+      newR: (Double, Double, Double, Double)
+  )
 
   private def baseTransformOf(el: dom.Element): String =
     Option(el.getAttribute("transform")).getOrElse("")
@@ -190,10 +228,8 @@ object LayoutTransition:
           (snap.boxes.get(key), ctmOf(se.ref)) match
             case (Some((oldX, oldY)), Some(ctm)) =>
               val (newX, newY) = clientCenter(se.ref)
-              val dx           = (oldX - newX) / ctm.a
-              val dy           = (oldY - newY) / ctm.d
-              if dx.abs > 0.01 || dy.abs > 0.01 then
-                boxTweens += BoxTween(se.ref, baseTransformOf(se.ref), dx, dy)
+              val (cfx, cfy)   = ctm.toLocal(newX, newY)
+              boxTweens += BoxTween(se.ref, baseTransformOf(se.ref), ctm, cfx, cfy, (oldX, oldY), (newX, newY))
             case _ => enters += se.ref
     }
 
@@ -230,27 +266,47 @@ object LayoutTransition:
     val entered = enters.result()
     entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = "0")
 
-    // The viewBox pops too: a diagram that grew a rank rescales EVERYTHING in
-    // one frame while positions glide — the most visible jump of all. Tween
-    // the frame along with the content.
-    val vbFinal = newSvg.viewBox.baseVal
-    val vbTween: Option[((Double, Double, Double, Double), (Double, Double, Double, Double))] =
-      snap.viewBox
-        .map(from => (from, (vbFinal.x, vbFinal.y, vbFinal.width, vbFinal.height)))
-        .filter((from, to) => from != to)
+    // The SIZE channel: old-frame scale over new-frame scale. κ runs σ → 1,
+    // so at frame 0 every box paints at its old on-screen size and position.
+    val sigma: Double =
+      (for
+        oldS <- snap.frameScale
+        newS <- els.iterator.filter(_.arrowId.isEmpty).flatMap(se => ctmOf(se.ref)).map(_.a).nextOption()
+        if newS > 0
+      yield oldS / newS).getOrElse(1.0)
+
+    // The background sheet (the graph's white bounding-box polygon) resizes
+    // instantly at swap otherwise — a full-canvas pop.
+    val sheetTween: Option[SheetTween] =
+      for
+        oldR  <- snap.sheet
+        el    <- sheetOf(newSvg)
+        inv   <- ctmOf(el)
+      yield
+        val r          = el.getBoundingClientRect()
+        val (flx, fly) = inv.toLocal(r.left, r.top)
+        SheetTween(el, inv, flx, fly, oldR, (r.left, r.top, r.width, r.height))
 
     def ease(t: Double): Double =
       if t < 0.5 then 4 * t * t * t else 1 - math.pow(-2 * t + 2, 3) / 2
 
     def applyFrame(e: Double): Unit =
       val r = 1 - e
-      vbTween.foreach { (f, t) =>
-        newSvg.setAttribute(
-          "viewBox",
-          s"${f._1 + (t._1 - f._1) * e} ${f._2 + (t._2 - f._2) * e} ${f._3 + (t._3 - f._3) * e} ${f._4 + (t._4 - f._4) * e}"
-        )
+      val k = sigma + (1 - sigma) * e
+      boxes.foreach { b =>
+        val cx       = b.oldC._1 + (b.newC._1 - b.oldC._1) * e
+        val cy       = b.oldC._2 + (b.newC._2 - b.oldC._2) * e
+        val (lx, ly) = b.inv.toLocal(cx, cy)
+        b.g.setAttribute("transform", s"${b.base} translate(${lx - k * b.cfx} ${ly - k * b.cfy}) scale($k)".trim)
       }
-      boxes.foreach(b => b.g.setAttribute("transform", s"${b.base} translate(${b.dx * r} ${b.dy * r})".trim))
+      sheetTween.foreach { st =>
+        val x  = st.oldR._1 + (st.newR._1 - st.oldR._1) * e
+        val y  = st.oldR._2 + (st.newR._2 - st.oldR._2) * e
+        val kx = (st.oldR._3 + (st.newR._3 - st.oldR._3) * e) / st.newR._3
+        val ky = (st.oldR._4 + (st.newR._4 - st.oldR._4) * e) / st.newR._4
+        val (lx, ly) = st.inv.toLocal(x, y)
+        st.el.setAttribute("transform", s"translate(${lx - kx * st.flx} ${ly - ky * st.fly}) scale($kx $ky)")
+      }
       edges.foreach { et =>
         val pts = et.from.indices.map { i =>
           val (fx, fy) = et.from(i)
@@ -264,8 +320,8 @@ object LayoutTransition:
       ghosts.foreach(_.asInstanceOf[dom.html.Element].style.opacity = ((1 - e * 2) max 0.0).toString)
 
     def finish(): Unit =
-      vbTween.foreach((_, t) => newSvg.setAttribute("viewBox", s"${t._1} ${t._2} ${t._3} ${t._4}"))
       boxes.foreach(b => restore(b.g, b.base))
+      sheetTween.foreach(st => st.el.removeAttribute("transform"))
       edges.foreach { et =>
         et.path.setAttribute("d", et.finalD)
         et.heads.foreach(h => restore(h.el, h.base))
