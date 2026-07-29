@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.widgets.{SelectVariant, TooltipPos, soft}
+import org.jpablo.graphexplorer.viewer.widgets.{TooltipPos, soft}
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
@@ -52,47 +52,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
               shortcut = cmd.shortcut.map(_.toList)
             )
           case _ => Sep
-
-  val daisyThemes = Seq(
-    "light",
-    "dark",
-    "abyss",
-    "acid",
-    "aqua",
-    "autumn",
-    "black",
-    "bumblebee",
-    "business",
-    "caramellatte",
-    "cmyk",
-    "coffee",
-    "corporate",
-    "cupcake",
-    "cyberpunk",
-    "dim",
-    "dracula",
-    "emerald",
-    "fantasy",
-    "forest",
-    "garden",
-    "halloween",
-    "lemonade",
-    "lofi",
-    "luxury",
-    "night",
-    "nord",
-    "pastel",
-    "retro",
-    "silk",
-    "sunset",
-    "synthwave",
-    "valentine",
-    "winter",
-    "wireframe"
-  )
-
-  val themeOptions: Seq[MenuEntry[String]] =
-    daisyThemes.map(theme => MenuOption(theme, theme, None, None))
 
   div(
     idAttr := "toolbar",
@@ -211,15 +170,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
       ),
       // -------- Theme Selector --------
-      // Ghost, like the editor's language select: a theme is a preference you set once, so it
-      // should not draw a box around itself in a bar full of actions.
-      Select(
-        placeholderText = Some(s"Select theme"),
-        options = themeOptions.collect { case r: MenuOption[String] => (r.value, r.value) },
-        onChange.mapToValue --> { theme => state.currentTheme.set(Some(theme)) },
-        value <-- state.currentTheme.signal.map(_.getOrElse("light")),
-        SelectVariant.ghost,
-        cls := "w-24 theme-select"
-      )
+      ThemeSelect(state.currentTheme.signal, theme => state.currentTheme.set(Some(theme)))
     )
   )

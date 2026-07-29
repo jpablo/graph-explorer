@@ -3,7 +3,8 @@ package org.jpablo.graphexplorer.projects
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.components.RouterCommands
+import org.jpablo.graphexplorer.viewer.components.{AboutDialog, RouterCommands, ThemeSelect}
+import org.jpablo.graphexplorer.viewer.state.ViewerSettings
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.{Button, IconButton, IconLink, primary, small}
@@ -40,16 +41,28 @@ private def formatBadge(format: DiagramFormat) =
   val color = badgeColorByFormat.getOrElse(format, "badge-neutral")
   span(cls := s"badge badge-xs $color badge-outline shrink-0", format.toString)
 
-def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: RouterCommands) =
+def ProjectsDirectoryView(
+    graphviz:       Graphviz,
+    router:         Router,
+    routerCmds:     RouterCommands,
+    viewerSettings: Var[ViewerSettings],
+    setTheme:       String => Unit
+) =
   val sortOptionVar = Var[SortOption](SortOption.CreationDate)
   val searchTermVar = Var("")
   // None = all kinds. Enumerated from DiagramFormat.values, so a new backend is
   // filterable without touching this component.
   val kindFilterVar = Var[Option[DiagramFormat]](None)
+  val aboutDialogOpen = Var(false)
 
   div(
     idAttr := "projects-view",
     onMountCallback: _ =>
+      // The detail page persists settings through its own Var, so the one we
+      // were handed can be stale by now (e.g. a theme picked while viewing a
+      // diagram). Refresh from storage so the selector shows the truth and a
+      // write from here cannot clobber other settings with stale values.
+      viewerSettings.set(ProjectStorage.readViewerSettings())
       val t0 = Telemetry.nowMs()
       val navDtMs = Telemetry.consumeNavigationStartMs("/")
       Telemetry.log(
@@ -70,10 +83,26 @@ def ProjectsDirectoryView(graphviz: Graphviz, router: Router, routerCmds: Router
         span(cls := "text-xl font-semibold", "Graph Explorer")
       ),
       div(
-        cls := "flex-none mr-2",
-        IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
+        cls := "flex-none mr-2 flex items-center gap-2",
+        // The detail toolbar's "about this app" cluster, mirrored here: info,
+        // source link, theme. Same order, same widgets, so switching pages
+        // doesn't reshuffle the furniture.
+        div(
+          cls := "flex items-center gap-0.5",
+          IconButton("bi-info-circle", "Show application information", tipPos = TooltipPos.bottomEnd)(
+            aboutDialogOpen.set(true)
+          ),
+          IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
+        ),
+        ThemeSelect(
+          viewerSettings.signal.map(_.currentTheme),
+          theme =>
+            viewerSettings.update(_.copy(currentTheme = Some(theme)))
+            setTheme(theme)
+        )
       )
     ),
+    AboutDialog(aboutDialogOpen),
     div(
       idAttr := "projects-body",
       // Projects navbar with background

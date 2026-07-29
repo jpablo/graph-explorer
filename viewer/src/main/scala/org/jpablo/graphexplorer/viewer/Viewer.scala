@@ -101,7 +101,7 @@ object Viewer:
         div(
           child <-- router.currentRoute.map:
             case Route.Home =>
-              ProjectsDirectoryView(graphviz, router, routerCmds)
+              ProjectsDirectoryView(graphviz, router, routerCmds, viewerSettings, setTheme)
 
             case Route.ProjectDetail(id, source) =>
               // Owner scoped to this project visit: killed when the view unmounts, so the

@@ -118,6 +118,20 @@ object ProjectStorage:
       settingsStorage.set(write(settings))
     viewerSettings
 
+  /** One-shot read of the persisted viewer settings — no new storage
+    * subscription. For call sites that need current values at mount (the
+    * library navbar's theme select) without allocating another synced Var:
+    * pages persist through their own Var, so a long-lived Var from elsewhere
+    * goes stale, and writing other settings through a stale copy would clobber
+    * them.
+    */
+  def readViewerSettings(): ViewerSettings =
+    try read[ViewerSettings](settingsStorageNow.now())
+    catch
+      case e: Throwable =>
+        dom.console.error(s"Error reading viewer settings: $e")
+        ViewerSettings.empty
+
   def createProjectDirectoryEntry(name: String): ProjectId =
     val now         = System.currentTimeMillis()
     val projectInfo = ProjectInfo(ProjectId.random, name, lastModified = now, createdAt = now)
