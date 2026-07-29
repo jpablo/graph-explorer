@@ -34,6 +34,8 @@ def SvgCanvas(
       * collapse-badge model — and the badge click's action (expand). */
     collapsedCounts:   Map[org.jpablo.graphexplorer.viewer.models.NodeId, Int] = Map.empty,
     onToggleCollapsed: org.jpablo.graphexplorer.viewer.models.NodeId => Unit = _ => (),
+    /** The fold badge's action on an EXPANDED group (collapse it). */
+    onCollapseGroup: org.jpablo.graphexplorer.viewer.models.GroupId => Unit = _ => (),
     /** Runs once the svg is MOUNTED (viewport anchoring, transitions — anything
       * needing real client geometry). */
     onRendered: dom.svg.SVG => Unit = _ => ()
@@ -116,7 +118,7 @@ def SvgCanvas(
         // mount runs modifiers in order, and onRendered's screen measurements
         // are garbage until the pan/zoom transform has been applied.
         onMountCallback { _ =>
-          CountBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed)
+          CountBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
           onRendered(rawSvg.ref)
         },
         // --------------------------------------------------------

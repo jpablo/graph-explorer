@@ -143,7 +143,9 @@ case class ViewerState(
   private val renderInputs = DiagramRenderInputs(
     visibleText = visibleText,
     sourceText = sourceText.signal,
-    hasHiddenElements = project.hiddenElements.signal.map(_.nonEmpty).distinct
+    viewDiffersFromSource = project.hiddenElements.signal
+      .combineWithFn(project.collapsedGroups.signal)((hidden, collapsed) => hidden.nonEmpty || collapsed.nonEmpty)
+      .distinct
   )
 
   private[state] val svgWithPositions: Signal[Option[SvgWithPositions]] =
@@ -177,6 +179,10 @@ case class ViewerState(
             collapsedCounts = fullGraphNow().collapsedMemberCounts(project.collapsedGroups.now()),
             onToggleCollapsed = { n =>
               selection.set2(n)
+              selection.toggleCollapse()
+            },
+            onCollapseGroup = { g =>
+              selection.set2(g)
               selection.toggleCollapse()
             },
             onRendered = afterLayoutSwap(_, strategy)

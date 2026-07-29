@@ -247,6 +247,10 @@ private def mermaidId(id: String): String =
 private def mermaidMappedShape(dotShape: String): Option[(String, String)] =
   dotShape.toLowerCase match
     case "box" | "rect" | "rectangle" => Some(("[", "]"))
+    // The collapsed-group proxy's shape (CollapseOps.proxyAttributes). Mermaid has no
+    // folder; the subroutine's double-struck rectangle is its "more inside" figure, so
+    // a collapsed box stays visually distinct from a plain node in Mermaid mode too.
+    case "folder"                     => Some(("[[", "]]"))
     case "diamond"                    => Some(("{", "}"))
     case "circle"                     => Some(("((", "))"))
     case "ellipse"                    => Some(("([", "])"))

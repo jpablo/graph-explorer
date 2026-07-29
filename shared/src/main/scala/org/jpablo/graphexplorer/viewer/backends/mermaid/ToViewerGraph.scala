@@ -211,7 +211,10 @@ private def mermaidShapeToDot(mermaidShape: String): String =
     // (dotShapeToMermaid), so map stadium back to `ellipse` (a valid graphviz shape)
     // to keep ellipse/stadium stable across a round-trip instead of collapsing to box.
     case "stadium"                 => "ellipse"
-    case "subroutine"              => "box"
+    // `[[ ]]` is what a DOT `folder` serializes to (dotShapeToMermaid), so folder is
+    // the canonical DOT shape for subroutine — keeping folder (the collapsed-group
+    // figure) stable across a round-trip instead of collapsing to box.
+    case "subroutine"              => "folder"
     case "cylinder" | "database"   => "cylinder"
     case "circle"                  => "circle"
     case "ellipse"                 => "ellipse"

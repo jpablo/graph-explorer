@@ -27,6 +27,7 @@ object MermaidTestScanner:
     ("(((", ")))", "doublecircle"),
     ("((", "))", "circle"),
     ("([", "])", "stadium"),
+    ("[[", "]]", "subroutine"),
     ("[(", ")]", "cylinder"),
     ("{{", "}}", "hexagon"),
     ("[/", "/]", "parallelogram"),

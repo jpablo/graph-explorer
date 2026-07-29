@@ -983,3 +983,9 @@ svg {
     fill: var(--gx-control-soft);
   }
 }
+
+// The fold badge (an expanded group's collapse control) draws a glyph, not a
+// count — a touch larger so the "−" reads at a glance.
+.gx-fold-badge text {
+  font-size: 10px;
+}

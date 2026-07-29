@@ -10,20 +10,23 @@ import scala.concurrent.Future
 /** The reactive text sources a backend may choose to render from.
   *
   * @param visibleText
-  *   The visible graph (hidden nodes removed) serialized in the current language.
+  *   The visible graph (hidden nodes removed, groups collapsed) serialized in the current
+  *   language.
   * @param sourceText
   *   The raw editor source text, exactly as the user typed it.
-  * @param hasHiddenElements
-  *   True when some elements are hidden. Backends that prefer rendering the raw source for
-  *   fidelity (Mermaid) must switch to `visibleText` while this is true, otherwise
-  *   hide/show operations have no visual effect in that format.
+  * @param viewDiffersFromSource
+  *   True when the visible graph is not the source graph — elements hidden OR groups
+  *   collapsed. Backends that prefer rendering the raw source for fidelity (Mermaid) must
+  *   switch to `visibleText` while this is true, otherwise hide/show and collapse/expand
+  *   operations have no visual effect in that format. (This used to track hidden elements
+  *   alone, which made collapsing a group a silent no-op in Mermaid mode.)
   */
 final case class DiagramRenderInputs(
-    visibleText:       Signal[String],
-    sourceText:        Signal[String],
-    // No default on purpose: Mermaid's hide/show behavior depends on this signal, and a
-    // defaulted-false caller would silently disable it.
-    hasHiddenElements: Signal[Boolean]
+    visibleText: Signal[String],
+    sourceText:  Signal[String],
+    // No default on purpose: Mermaid's hide/show/collapse behavior depends on this signal,
+    // and a defaulted-false caller would silently disable it.
+    viewDiffersFromSource: Signal[Boolean]
 )
 
 /** Presentation metadata for a diagram language, used to render the format selector UI without any

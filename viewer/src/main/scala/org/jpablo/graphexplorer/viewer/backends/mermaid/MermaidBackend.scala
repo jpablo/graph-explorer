@@ -63,9 +63,10 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
   override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =
     // Render the raw source text for fidelity (the Mermaid round-trip is lossy) — but when
-    // elements are hidden, render the serialized visible graph instead, otherwise hide/show
-    // operations have no visual effect in Mermaid mode (while exports DO exclude them).
-    // visibleText is only SUBSCRIBED while elements are hidden: combining it in
+    // the view differs from the source (hidden elements, collapsed groups), render the
+    // serialized visible graph instead, otherwise hide/show and collapse/expand operations
+    // have no visual effect in Mermaid mode (while exports DO exclude them).
+    // visibleText is only SUBSCRIBED while the view differs: combining it in
     // unconditionally serialized the whole graph on every parse just to discard the text,
     // and its post-parse recompute echoed a second identical mermaid render per keystroke.
     // The .distinct collapses that echo.
@@ -76,8 +77,8 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
     // the layout-stability hooks (no connected old svg ⇒ no anchoring, no
     // transition; also the visible re-render blink). The scanLeft holds the
     // previous drawing through the gap and honors every settled value.
-    inputs.hasHiddenElements
-      .flatMapSwitch(hasHidden => if hasHidden then inputs.visibleText else inputs.sourceText)
+    inputs.viewDiffersFromSource
+      .flatMapSwitch(differs => if differs then inputs.visibleText else inputs.sourceText)
       .distinct
       .flatMapSwitch: mermaidText =>
         if mermaidText.trim.isEmpty then

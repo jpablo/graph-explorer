@@ -250,10 +250,13 @@ class FeatureParitySpec extends FunSuite:
           n("b", Attributes.of("shape" -> "diamond")),
           n("c", Attributes.of("shape" -> "circle")),
           n("d", Attributes.of("shape" -> "hexagon")),
-          n("e", Attributes.of("shape" -> "cylinder"))
+          n("e", Attributes.of("shape" -> "cylinder")),
+          // folder ⇄ subroutine `[[ ]]`: the collapsed-group proxy's figure must stay
+          // distinct (and stable) in Mermaid, not fall back to a plain rectangle.
+          n("f", Attributes.of("shape" -> "folder"))
         )
       ),
-      g => Vector("a", "b", "c", "d", "e").map(id => nodeAttr(g, id, "shape"))
+      g => Vector("a", "b", "c", "d", "e", "f").map(id => nodeAttr(g, id, "shape"))
     ),
     ParityRow(
       // Unmapped shapes render as rectangles but the real shape survives via a
