@@ -41,6 +41,7 @@ case class ViewerState(
 ) extends SvgTransformOps,
       DiagramSelectionOps,
       KeyboardNavOps,
+      LayoutStabilityOps,
       VisibilityOps,
       ExportOps,
       AddNewArrowOps,
@@ -157,6 +158,7 @@ case class ViewerState(
     svgWithPositions.combineWith(selectionStrategy).map: (svgOpt, strategy) =>
       svgOpt.map: svgWithPos =>
         withLog("5. [visibleText -> SVG]", level = phases.logLevel) {
+          beforeLayoutSwap(strategy) // the OLD svg is still mounted here
           SvgCanvas(
             rawSvg = svgWithPos.svg,
             transform = transform,
@@ -172,7 +174,8 @@ case class ViewerState(
             onToggleCollapsed = { n =>
               selection.set2(n)
               selection.toggleCollapse()
-            }
+            },
+            onRendered = afterLayoutSwap(_, strategy)
           )
         }
 

@@ -36,6 +36,18 @@ trait SvgTransformOps:
       translateXY -> SvgPoint.origin
     )
 
+  /** Cancel a CLIENT-space delta (px) EXACTLY: content that moved right by
+    * `dx` on screen moves back left by the same amount. `scaleX`/`scaleY` are
+    * client px per user unit — getScreenCTM().a/.d of an element whose parent
+    * chain ends at the transformed main group (a node's `<g>`), so they
+    * already include both the viewBox mapping and the zoom. Contrast
+    * [[panByClient]], whose window-based scale is a wheel-feel approximation,
+    * not an exact compensation.
+    */
+  def panCompensateClient(dx: Double, dy: Double, scaleX: Double, scaleY: Double): Unit =
+    if scaleX > 0 && scaleY > 0 then
+      translateXY.update(_ - SvgPoint(dx / scaleX, dy / scaleY))
+
   /** Pan the canvas by a CLIENT-space delta (px), with wheel semantics: a
     * positive `dx` scrolls the view right (content moves left). Same
     * client→user-space conversion as [[handleWheel]]'s pan branch.

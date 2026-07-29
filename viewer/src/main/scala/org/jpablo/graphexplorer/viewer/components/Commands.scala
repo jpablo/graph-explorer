@@ -331,6 +331,13 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Unfold every collapsed group")
     )
 
+    val toggleLayoutAnimation = Command(
+      "Toggle layout animation",
+      () => state.animateLayoutChanges.update(!_),
+      always,
+      description = Some("Animate elements to their new place when the layout changes")
+    )
+
     val copyAsSVG = Command(
       "Copy selection as SVG",
       () => state.copySelectionAsSVG(),
@@ -684,6 +691,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.hideAllNodes,
       all.collapseAllGroups,
       all.expandAllGroups,
+      all.toggleLayoutAnimation,
       all.deleteHiddenElements
     ),
     document -> List(

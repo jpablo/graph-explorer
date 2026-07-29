@@ -33,7 +33,10 @@ def SvgCanvas(
     /** Member counts per collapsed-group box (keyed by proxy id) — the
       * collapse-badge model — and the badge click's action (expand). */
     collapsedCounts:   Map[org.jpablo.graphexplorer.viewer.models.NodeId, Int] = Map.empty,
-    onToggleCollapsed: org.jpablo.graphexplorer.viewer.models.NodeId => Unit = _ => ()
+    onToggleCollapsed: org.jpablo.graphexplorer.viewer.models.NodeId => Unit = _ => (),
+    /** Runs once the svg is MOUNTED (viewport anchoring, transitions — anything
+      * needing real client geometry). */
+    onRendered: dom.svg.SVG => Unit = _ => ()
 ): ReactiveSvgElement[dom.svg.SVG] =
   import viewerOps.selection
 
@@ -103,15 +106,19 @@ def SvgCanvas(
   rawSvg
     .amend {
       Seq(
-        // Count badges need real geometry: getBBox only works once mounted.
-        onMountCallback(_ =>
-          CountBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed)
-        ),
         svg.viewBox   := s"${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}",
         svg.width     := null,
         svg.height    := null,
         svg.className := "graphviz",
         transform --> { tr => mainGroup.setAttribute(svg.transform.name, tr) },
+        // Post-mount work needing real geometry (badges: getBBox; onRendered:
+        // client rects). Registered AFTER the transform binder on purpose —
+        // mount runs modifiers in order, and onRendered's screen measurements
+        // are garbage until the pan/zoom transform has been applied.
+        onMountCallback { _ =>
+          CountBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed)
+          onRendered(rawSvg.ref)
+        },
         // --------------------------------------------------------
         // Mouse events
         // --------------------------------------------------------
