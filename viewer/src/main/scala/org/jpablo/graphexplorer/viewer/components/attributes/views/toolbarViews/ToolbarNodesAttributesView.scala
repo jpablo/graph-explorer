@@ -9,7 +9,7 @@ import org.jpablo.graphexplorer.viewer.components.attributes.rows.AttributeRow.{
 import org.jpablo.graphexplorer.viewer.components.attributes.rows.{AttributeRow, RowBuilder}
 import org.jpablo.graphexplorer.viewer.components.attributes.views.*
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.models.AttributeUpdates
+import org.jpablo.graphexplorer.viewer.models.{AttrStatus, AttributeUpdates}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.Icons.bigXIcon
 import org.jpablo.graphexplorer.viewer.widgets.InputType.{checkbox, number, range}
@@ -27,7 +27,16 @@ def ToolbarNodesAttributesView(
 
   val labelRow = row(Label, InputType.multiText(), onReset = Some("")).copy(hidden = multiSelection)
 
-  val labelRelatedHidden = labelRow.combineDefaultString.map(_.isEmpty) && multiSelection.not
+  // A node with NO label attribute still RENDERS its name as the label (DOT's \N
+  // default, Mermaid's bare id) — its text is real and stays stylable. Only a label
+  // EXPLICITLY set to "" means there is no text; treating Missing as empty hid the
+  // align/font-color/font controls on every bare node, so the bar's contents seemed
+  // to change at random with the selection.
+  val labelRelatedHidden =
+    labelRow.inputVar.signal
+      .combineWithFn(labelRow.combineDefaultString): (status, str) =>
+        status != AttrStatus.Missing && str.isEmpty
+      && multiSelection.not
 
   val shapeRow = row(Shape, InputType.currentValueWithSelector(cardClass = Some("narrow-card")))
     .copy(options = shapesOptions)
@@ -97,7 +106,10 @@ def ToolbarNodesAttributesView(
           row(FontName, InputType.dropdown).copy(hidden = labelRelatedHidden),
           row(FontSize, range(start = Some(1), end = Some(100), step = Some(1))).copy(hidden = labelRelatedHidden)
         ),
-        hidden = shapeIsPlainOrPlainText
+        // The CARD hides with its contents (like the arrow and group bars): a visible
+        // trigger over all-hidden rows opened an empty white panel. NOT tied to the
+        // plain/plaintext shapes — those draw no BOX, but their text still has a font.
+        hidden = labelRelatedHidden
       ),
       // --- Advanced or extra attributes ---
       // "extra" named the mechanism rather than its contents, and was the only control in
