@@ -15,11 +15,18 @@ def TopLevel(
   div(
     idAttr := "top-level",
     Toolbar(state.displayTitle, commands, state),
-    AttributesToolbar(state.displayTitle, commands, state),
     div(
       cls := "flex flex-1 overflow-y-auto relative",
       LeftPanel(state, router, commands),
-      CanvasContainer(state, commands),
+      // The context strip OVERLAYS the canvas (absolute, inside this wrapper)
+      // instead of occupying a layout row: appearing must not shift the canvas —
+      // the push-down/snap-back on every selection was genuinely annoying. Scoped
+      // to the canvas area, so it never covers the library panel.
+      div(
+        cls := "relative flex flex-1 min-w-0",
+        AttributesToolbar(state.displayTitle, commands, state),
+        CanvasContainer(state, commands)
+      ),
       ZoomToolbar(state, commands),
       RightPanel(state),
       HelpDialog(state.helpDialogOpen, commands),

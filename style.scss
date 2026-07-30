@@ -607,7 +607,24 @@ svg {
     // separate thoughts — space is their separator (no dividers).
     // py/px: the controls need air from the strip's edges — flush against the
     // top and bottom borders was one of the "unprofessional" tells.
-    @apply border-b-0 bg-base-200/60 gap-3 px-3 py-1.5;
+    //
+    // An OVERLAY, not a layout row: appearing must never shift the canvas (the
+    // push-down/snap-back on every selection was the complaint). Anchored to the
+    // canvas wrapper's top edge; frosted so the covered band stays readable.
+    @apply absolute top-0 inset-x-0 z-20 border-b-0 gap-3 px-3 py-1.5;
+    @apply bg-base-200/80 backdrop-blur-sm;
+    // Fade the overlay itself in — the canvas beneath does not move.
+    opacity: 1;
+    transition: opacity 120ms ease;
+    @starting-style {
+      opacity: 0;
+    }
+  }
+
+  // The floating cards anchor to the same top edge the strip overlays; while the
+  // strip is showing they start below it instead of underneath it.
+  &:has(#selection-toolbar:not(.hidden)) #right-panel.floating {
+    @apply top-14;
   }
 
   // Color-row TRIGGER anatomy (the Docs/Canva idiom): identity glyph over a
