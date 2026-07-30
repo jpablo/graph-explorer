@@ -811,6 +811,26 @@ svg {
         pointer-events: none;
       }
 
+      // Record CELL selection: one level below the element selection, drawn as
+      // a model-geometry overlay (RecordCellOverlay) — the engine SVG has no
+      // per-field markup. Shares the selection palette so the levels read as
+      // one system; the wash is on the CELL while the record keeps its border.
+      .record-cell-selected {
+        fill: var(--gx-select-fill);
+        stroke: var(--gx-select);
+        stroke-width: 2px;
+        vector-effect: non-scaling-stroke;
+        pointer-events: none;
+      }
+
+      // The selected cell's port name, floated just above the cell.
+      .record-cell-port {
+        fill: var(--gx-select);
+        font-family: monospace;
+        font-size: 8px;
+        pointer-events: none;
+      }
+
       // ---- Focus mode ----
       // With a selection active, the accent color alone drowns in dense graphs;
       // figure/ground does the work instead: fade everything that is NOT selected.

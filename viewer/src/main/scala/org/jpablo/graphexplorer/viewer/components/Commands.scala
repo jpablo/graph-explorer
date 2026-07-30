@@ -143,6 +143,9 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     classified.nodes.size == 1 && classified.arrows.isEmpty && classified.groups.isEmpty &&
       state.fullGraphNow().isRecordNode(classified.nodes.head)
 
+  private def cellSelected(selection: ElementIds): Boolean =
+    state.selectedCellV.now().isDefined
+
   object all:
     val newNode =
       Command(
@@ -165,10 +168,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val editLabel = Command(
       "Edit label",
-      () => state.selection.editSelectedLabel(),
+      // On a record node Enter first descends into cell selection, then edits
+      // the selected cell; everything else opens the whole-label dialog.
+      () => if !state.recordCells.enterOrEdit() then state.selection.editSelectedLabel(),
       single,
       Some(Shortcut(KeyValue.Enter)),
-      description = Some("Edit the label of the selected element")
+      description = Some("Edit the label of the selected element (records: select/edit the cell)")
     )
 
     val selectAll = Command(
@@ -213,9 +218,10 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
 
     val delete = Command(
       "Delete selection",
-      () => state.selection.deleteSelection(),
+      // With a record CELL selected, Backspace removes the cell — not the node.
+      () => if !state.recordCells.removeSelectedCell() then state.selection.deleteSelection(),
       shortcut = Some(Shortcut(KeyValue.Backspace)),
-      description = Some("Delete selected nodes")
+      description = Some("Delete selected nodes (records: the selected cell)")
     )
 
     val duplicate = Command(
@@ -248,7 +254,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       description = Some("Remove selected nodes from their current group")
     )
 
-    val clearSelection = Command("Clear selection", () => state.selection.clear(), shortcut = Some(Shortcut(KeyValue.Escape)))
+    val clearSelection = Command(
+      "Clear selection",
+      // Escape pops ONE level: a selected record cell first, then the selection.
+      () => if !state.recordCells.escapeCell() then state.selection.clear(),
+      shortcut = Some(Shortcut(KeyValue.Escape))
+    )
 
     val combineIntoRecord = Command(
       "Combine into Record",
@@ -595,10 +606,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     // The four arrow keys walk the diagram from the selected element, in
     // SCREEN directions. One shared description; the palette shows all four
     // but users discover this with the keys themselves.
-    private def navCommand(label: String, key: String, dir: NavDirection) =
+    private def navCommand(label: String, key: String, dir: NavDirection, cellDelta: Int) =
       Command(
         label,
-        () => state.keyboardNav.navigate(dir),
+        // With a record CELL selected, arrows walk the record's cells instead
+        // of the graph (wrapping at the ends).
+        () => if !state.recordCells.moveCell(cellDelta) then state.keyboardNav.navigate(dir),
         shortcut = Some(Shortcut(key)),
         description = Some(
           s"$label: follow an arrow from the selected element " +
@@ -606,10 +619,49 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
             "perpendicular keys pick among them, the same key continues)"
         )
       )
-    val navigateLeft  = navCommand("Navigate left", "ArrowLeft", NavDirection.NavLeft)
-    val navigateRight = navCommand("Navigate right", "ArrowRight", NavDirection.NavRight)
-    val navigateUp    = navCommand("Navigate up", "ArrowUp", NavDirection.NavUp)
-    val navigateDown  = navCommand("Navigate down", "ArrowDown", NavDirection.NavDown)
+    val navigateLeft  = navCommand("Navigate left", "ArrowLeft", NavDirection.NavLeft, cellDelta = -1)
+    val navigateRight = navCommand("Navigate right", "ArrowRight", NavDirection.NavRight, cellDelta = 1)
+    val navigateUp    = navCommand("Navigate up", "ArrowUp", NavDirection.NavUp, cellDelta = -1)
+    val navigateDown  = navCommand("Navigate down", "ArrowDown", NavDirection.NavDown, cellDelta = 1)
+
+    // ── Record cells (RecordCellOps) ──────────────────────────────────────
+    // Structured record-label editing: the cell selection level. Buttons live
+    // in the context strip; the shortcuts mirror the record syntax itself.
+    val insertCellAfter = Command(
+      "Insert cell after",
+      () => state.recordCells.insertSibling(after = true),
+      cellSelected,
+      shortcut = Some(Shortcut("|")),
+      description = Some("Insert an empty record cell after the selected cell")
+    )
+
+    val insertCellBefore = Command(
+      "Insert cell before",
+      () => state.recordCells.insertSibling(after = false),
+      cellSelected,
+      description = Some("Insert an empty record cell before the selected cell")
+    )
+
+    val splitCell = Command(
+      "Split cell",
+      () => state.recordCells.splitSelectedCell(),
+      cellSelected,
+      description = Some("Split the selected cell perpendicular to its group ({…} nesting)")
+    )
+
+    val removeCell = Command(
+      "Remove cell",
+      () => { state.recordCells.removeSelectedCell(); () },
+      cellSelected,
+      description = Some("Remove the selected record cell")
+    )
+
+    val editRecordLabelRaw = Command(
+      "Edit record label (raw)",
+      () => state.selection.editSelectedLabel(),
+      canSplitRecordVisible,
+      description = Some("Edit the record's whole label as raw record syntax")
+    )
 
   object headers:
     val common       = "Common"
@@ -675,6 +727,11 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.combineIntoRecord,
       all.splitRecord,
       all.transposeRecord,
+      all.insertCellBefore,
+      all.insertCellAfter,
+      all.splitCell,
+      all.removeCell,
+      all.editRecordLabelRaw,
       all.reverseArrows,
       all.reverseArrowsStyle,
       all.resetSelectionAttributes,

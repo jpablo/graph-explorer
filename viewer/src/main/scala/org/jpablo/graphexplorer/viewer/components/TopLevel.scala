@@ -35,6 +35,7 @@ def TopLevel(
       RenameProjectDialog(state),
       InfoAlert(state.infoBus),
       EditLabelDialog(state),
+      EditCellDialog(state),
       NewNodeLabelDialog(state),
       NewGroupLabelDialog(state),
       ErrorAlert(state.errorBus)

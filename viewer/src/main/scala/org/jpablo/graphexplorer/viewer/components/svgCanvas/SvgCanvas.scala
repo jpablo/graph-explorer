@@ -6,10 +6,10 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils.getTranslate
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorT
-import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds}
+import org.jpablo.graphexplorer.viewer.models.{ElementId, ElementIds, NodeId}
 import org.jpablo.graphexplorer.viewer.state.mouseActions.*
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.*
-import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, UIState}
+import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, RecordCellOps, SelectedCell, UIState}
 import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
 
 import scala.scalajs.js
@@ -22,7 +22,7 @@ import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.Arrow
 def SvgCanvas(
     rawSvg:        ReactiveSvgElement[dom.svg.SVG],
     transform:     Signal[String],
-    viewerOps:     DiagramSelectionOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
+    viewerOps:     DiagramSelectionOps & RecordCellOps & AddNewArrowOps & MoveArrowEndpointOps & ExtendSelectionOps & UIState,
     mouseAction:   MouseActionVar,
     edgePositions: Map[String, ArrowPosition],
     strategy:      SelectableElementStrategy,
@@ -54,35 +54,78 @@ def SvgCanvas(
   var lastClickTimestamp: Double              = 0.0
   var lastClickedElementId: Option[ElementId] = None
 
-  // --- Helper for double-click logic ---
+  // --- Helpers for click / double-click logic ---
   // Defined locally within SvgCanvas
-  def handleDoubleClick(ev: dom.MouseEvent, now: Double, currentElementIdO: Option[ElementId]): Boolean =
-    currentElementIdO match
-      case Some(currentElementId) =>
-        val previousTimestamp = lastClickTimestamp
-        val previousElementId = lastClickedElementId
-        if previousElementId.contains(currentElementId) && (now - previousTimestamp) < doubleClickThreshold then
-          // Double click detected on a selectable element
-          ev.preventDefault()
-          ev.stopPropagation()
-          // Ensure the element is selected before editing (in case the first click didn't select it)
-          viewerOps.selection.set(ElementIds.from(currentElementId))
-          viewerOps.selection.editSelectedLabel()
-          // Reset the double-click state immediately
-          lastClickTimestamp = 0.0
-          lastClickedElementId = None
-          true // double-click was handled
-        else
-          // Single click on an element, update state for a potential next click
-          lastClickTimestamp = now
-          lastClickedElementId = Some(currentElementId)
-          false // double-click was not handled
 
-      case None =>
+  /** The node group the event landed in (the frame its geometry is written in). */
+  def nodeGroupOf(ev: dom.MouseEvent): Option[dom.svg.G] =
+    ev.target match
+      case el: dom.Element => Option(el.closest(strategy.nodeSelector)).collect { case g: dom.svg.G => g }
+      case _               => None
+
+  /** Client coords → the group's local frame (getScreenCTM covers viewBox + pan/zoom). */
+  def localPointIn(group: dom.svg.G, ev: dom.MouseEvent): Option[(Double, Double)] =
+    for
+      svgEl <- Option(group.ownerSVGElement)
+      ctm   <- Option(group.getScreenCTM())
+    yield
+      val pt = svgEl.createSVGPoint()
+      pt.x = ev.clientX
+      pt.y = ev.clientY
+      val local = pt.matrixTransform(ctm.inverse())
+      (local.x, local.y)
+
+  /** The record cell under the pointer, in node-local gv coords (y-up, centre origin). */
+  def cellUnderPointer(nodeId: NodeId, ev: dom.MouseEvent) =
+    for
+      group    <- nodeGroupOf(ev)
+      (lx, ly) <- localPointIn(group, ev)
+      bbox = RecordCellOverlay.ownGeometryBBox(group)
+      path <- viewerOps.recordCells.cellNearestLocalPoint(
+        nodeId,
+        lx - (bbox.x + bbox.width / 2),
+        (bbox.y + bbox.height / 2) - ly
+      )
+    yield path
+
+  def handleElementClick(ev: dom.MouseEvent, now: Double, currentElementIdO: Option[ElementId]): Boolean =
+    val isRepeatClick = currentElementIdO.exists: id =>
+      lastClickedElementId.contains(id) && (now - lastClickTimestamp) < doubleClickThreshold
+    val handled = currentElementIdO match
+      case Some(nodeId: NodeId)
+          if viewerOps.recordCells.isEditableRecord(nodeId) &&
+            viewerOps.selection.now().size == 1 &&
+            viewerOps.selection.now().contains(nodeId) =>
+        // A click on the already-selected record descends to the CELL under the
+        // pointer (draw.io's two-level model); a fast second click edits it.
+        cellUnderPointer(nodeId, ev) match
+          case Some(path) =>
+            ev.preventDefault()
+            ev.stopPropagation()
+            viewerOps.recordCells.selectCell(nodeId, path)
+            if isRepeatClick then viewerOps.recordCells.editCell(SelectedCell(nodeId, path))
+            true
+          case None => false
+      case Some(currentElementId) if isRepeatClick =>
+        // Double click detected on a selectable element
+        ev.preventDefault()
+        ev.stopPropagation()
+        // Ensure the element is selected before editing (in case the first click didn't select it)
+        viewerOps.selection.set(ElementIds.from(currentElementId))
+        viewerOps.selection.editSelectedLabel()
+        true
+      case _ => false
+    // Bookkeeping for the next click: a consumed double-click resets (so a triple
+    // click does not re-open the editor); anything else arms the element clicked.
+    currentElementIdO match
+      case Some(id) if !(handled && isRepeatClick) =>
+        lastClickTimestamp = now
+        lastClickedElementId = Some(id)
+      case _ =>
         lastClickTimestamp = 0.0
         lastClickedElementId = None
-        false
-  end handleDoubleClick
+    handled
+  end handleElementClick
 
   def queryElements(elems: ElementIds) =
     SelectableElement.query(rawSvg.ref, elems, strategy)
@@ -146,7 +189,7 @@ def SvgCanvas(
         // --------------------------------------------------------
         // 1. Drawing a selecting rectangle (OR dbl-click) starts here. Other actions start in their respective elements.
         onMouseDown.filter(leftButton).map(ev => (ev, clientCoords(ev))) --> { case (ev, (pos, shift)) =>
-          val handled = handleDoubleClick(
+          val handled = handleElementClick(
             ev,
             js.Date.now(),
             findClosestElementId(js.Array(ev.target.asInstanceOf[dom.Element]), strategy = strategy)
@@ -183,6 +226,22 @@ def SvgCanvas(
             refreshOverlayControls(elem, action)
             CountBadges.rescale(rawSvg.ref)
         },
+        // --------------------------------------------------------
+        // record CELL selection (one level below the element selection)
+        // --------------------------------------------------------
+        // The overlay draws from model geometry; it re-renders on every cell
+        // change (the signal also fires once on bind, covering mount).
+        viewerOps.selectedCellV.signal.distinct --> { cellOpt =>
+          RecordCellOverlay.refresh(mainGroup, strategy, cellOpt, viewerOps.recordCells.cellBoxes)
+        },
+        // ...and once more when a layout transition settles (frame-0 geometry
+        // may be the OLD layout, same as the badges).
+        layoutSettled.events.sample(viewerOps.selectedCellV.signal) --> { cellOpt =>
+          RecordCellOverlay.refresh(mainGroup, strategy, cellOpt, viewerOps.recordCells.cellBoxes)
+        },
+        // The cell selection exists only while its record stays the single
+        // selected element.
+        selection.signal --> { sel => viewerOps.recordCells.pruneAgainstSelection(sel) },
         // UI elements reflecting the current mouse action
         viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),
         // dynamic arrow that follows the pointer when creating a new arrow or moving an arrow endpoint

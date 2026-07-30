@@ -7,9 +7,10 @@ import org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews.
   ToolbarGroupAttributesView,
   ToolbarNodesAttributesView
 }
+import org.jpablo.graphexplorer.viewer.formats.dot.RecordTree
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, IdsByKind}
 import org.jpablo.graphexplorer.viewer.selection.{ElementKind, SelectByKind}
-import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.state.{SelectedCell, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 /** The CONTEXT STRIP: a second row that exists only while it has something to
@@ -48,7 +49,14 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
     // inflated the filter select to the full 20rem cap.
     div(
       cls := "flex-1 min-w-0 flex items-center",
-      child <-- state.selection.signal.distinct.map(selectionView(state, commands, _))
+      // A selected record CELL is one selection level below the element
+      // selection: while it exists, the strip shows the cell's structural
+      // controls instead of the record's attribute rows.
+      child <-- state.selection.signal.distinct
+        .combineWithFn(state.selectedCellV.signal.distinct): (sel, cellOpt) =>
+          cellOpt match
+            case Some(cell) => recordCellView(state, commands, cell)
+            case None       => selectionView(state, commands, sel)
     ),
     // Hidden elements are invisible by definition — this chip is their one
     // visible trace, and the way back. Lives here (not in the toolbar) because
@@ -71,6 +79,41 @@ private def selectionSummary(sel: ElementIds): String =
     case (None, Some(s), None) => s
     case (None, None, Some(s)) => s
     case _                     => s"${sel.size} objects"
+
+/** Structural controls for the selected record CELL. Insert labels follow the
+  * cell's actual flow (rows vs columns are relative in record syntax: the top
+  * level flows with rankdir and each `{}` flips).
+  */
+private def recordCellView(state: ViewerState, commands: Commands, cell: SelectedCell) =
+  import commands.all
+  val lr                    = RecordTree.parentIsLR(cell.path, state.recordCells.topLRNow())
+  val (beforeLbl, afterLbl) = if lr then ("bi-arrow-bar-left", "bi-arrow-bar-right") else ("bi-arrow-bar-up", "bi-arrow-bar-down")
+
+  def cmdButton(command: Command[?], iconCls: String, label: String) =
+    Button(
+      i(cls := s"bi $iconCls"),
+      label,
+      onClick --> { _ =>
+        command.execute()
+        // Hand focus back to the canvas so the next keystroke (Escape, arrows,
+        // Backspace) reaches the command dispatcher instead of this button.
+        state.canvasContainerFocus.emit(true)
+      }
+    ).tiny.ghost.toTooltip(command.labelWithShortcut)
+
+  div(
+    cls := "flex flex-row items-center gap-1",
+    span(
+      cls := "gx-selection-count",
+      "cell",
+      state.recordCells.selectedCellPort.map(p => span(cls := "ml-1 font-mono text-xs opacity-60", s"<$p>"))
+    ),
+    cmdButton(all.editLabel, "bi-pencil", "Edit"),
+    cmdButton(all.insertCellBefore, beforeLbl, "Insert"),
+    cmdButton(all.insertCellAfter, afterLbl, "Insert"),
+    cmdButton(all.splitCell, if lr then "bi-hr" else "bi-vr", "Split"),
+    cmdButton(all.removeCell, "bi-x-lg", "Remove")
+  )
 
 private def selectionView(state: ViewerState, commands: Commands, selectedNodes: ElementIds) =
   import commands.all
