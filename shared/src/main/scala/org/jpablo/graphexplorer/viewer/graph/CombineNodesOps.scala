@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
+import org.jpablo.graphexplorer.viewer.formats.dot.RecordTree
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrValue
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, Shape, Rankdir}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -97,23 +98,16 @@ trait CombineNodesOps:
     * - LR/RL graphs: no wrapping for horizontal stacking (saves vertical space)
     */
   private def createRecordLabel(nodes: Seq[ViewerNode], rankdir: Rankdir): String =
-    val fields = nodes.zipWithIndex.map { case (node, idx) =>
-      val label = node.label.toString
-      // Escape special characters in labels for record format
-      val escapedLabel = label
-        .replace("|", "\\|")
-        .replace("<", "\\<")
-        .replace(">", "\\>")
-        .replace("{", "\\{")
-        .replace("}", "\\}")
-      s"<f$idx> $escapedLabel"
-    }.mkString(" | ")
+    val fields: Vector[RecordTree] = nodes.zipWithIndex.map { case (node, idx) =>
+      RecordTree.Leaf(Some(s"f$idx"), RecordTree.storedText(node.label.toString))
+    }.toVector
 
     // For TB/BT graphs, wrap in {} to force vertical stacking
     // For LR/RL graphs, keep horizontal (default behavior)
-    rankdir match
-      case Rankdir.TB | Rankdir.BT => s"{$fields}"
-      case Rankdir.LR | Rankdir.RL => fields
+    val root = rankdir match
+      case Rankdir.TB | Rankdir.BT => RecordTree.Group(None, Vector(RecordTree.Group(None, fields)))
+      case Rankdir.LR | Rankdir.RL => RecordTree.Group(None, fields)
+    RecordTree.serialize(root)
 
   /** Checks if a node is a record node (has shape=record or shape=Mrecord). */
   def isRecordNode(nodeId: NodeId): Boolean =
@@ -140,24 +134,29 @@ trait CombineNodesOps:
         case None => this  // Node not found
         case Some(recordNode) =>
           val recordLabel = recordNode.label.toString
-          val fieldLabels = parseRecordLabel(recordLabel)
+          // Every leaf becomes a node, positionally, nested groups flattened in
+          // field order. Empty fields are KEPT: dropping one would misalign the
+          // positional f<index> fallback below and re-home edges wrongly.
+          val recordLeaves = RecordTree.leaves(RecordTree.parse(recordLabel))
 
-          if fieldLabels.forall(_.isEmpty) then
+          if recordLeaves.forall(_.text.isEmpty) then
             this  // Nothing meaningful to split into, return unchanged
           else
             // Get the group membership of the record node
             val groupMembership = memberships.get(nodeId)
 
             // Create new nodes for each field
-            val newNodes = fieldLabels.map { label =>
+            val newNodes = recordLeaves.map { leaf =>
               val newId = nextNodeId()
-              newId -> nodeWithDefaults(newId, Attributes.of(Label -> label))
+              newId -> nodeWithDefaults(newId, Attributes.of(Label -> RecordTree.unescapeSpecials(leaf.text)))
             }
 
-            // Create reverse port mapping: port name -> new node ID
-            val portToNodeMap: Map[String, NodeId] = newNodes.zipWithIndex.map {
-              case ((newId, _), idx) => s"f$idx" -> newId
-            }.toMap
+            // Reverse port mapping: the label's REAL port names win; positional
+            // f<index> names fill the gaps so hand-edited ports still resolve.
+            val portToNodeMap: Map[String, NodeId] =
+              val positional = newNodes.zipWithIndex.map { case ((newId, _), idx) => s"f$idx" -> newId }
+              val real       = recordLeaves.zip(newNodes).flatMap { case (leaf, (newId, _)) => leaf.port.map(_ -> newId) }
+              (positional ++ real).toMap
 
             // Fallback for edges that touch the record without a resolvable port
             // (a port-less edge, or a port name not present because the label was
@@ -202,33 +201,15 @@ trait CombineNodesOps:
               )
             )
 
-  /** Parses a record label to extract individual field labels.
-    * Handles both formats:
-    * - Vertical: "{<f0> Label1 | <f1> Label2 | <f2> Label3}"
-    * - Horizontal: "<f0> Label1 | <f1> Label2 | <f2> Label3"
-    * Returns: Seq("Label1", "Label2", "Label3")
+  /** Replaces the label of a record node — the single write path for cell-level
+    * (structured) record edits, which parse/serialize through [[RecordTree]].
     */
-  private def parseRecordLabel(recordLabel: String): Seq[String] =
-    // Remove outer curly braces if present (vertical format)
-    val cleanLabel = if recordLabel.startsWith("{") && recordLabel.endsWith("}") then
-      recordLabel.substring(1, recordLabel.length - 1)
-    else
-      recordLabel
-
-    // Keep every field positionally (do NOT drop empty labels): the f<index> ports
-    // on edges are positional, so dropping an empty field would misalign the indices
-    // and send an edge into the wrong (or a deleted) node when splitting.
-    cleanLabel.split(" \\| ").toSeq.map { field =>
-      // Remove port identifier (e.g., "<f0> ")
-      val labelPart = field.replaceFirst("^<f\\d+>\\s*", "")
-      // Unescape special characters
-      labelPart
-        .replace("\\|", "|")
-        .replace("\\<", "<")
-        .replace("\\>", ">")
-        .replace("\\{", "{")
-        .replace("\\}", "}")
-    }
+  def withRecordLabel(nodeId: NodeId, newLabel: String): ViewerGraph =
+    getNode(nodeId) match
+      case Some(node) if isRecordNode(nodeId) =>
+        val updatedNode = ViewerNode.nodeNoDefaults(node.id, node.attributes + (Label.attrId -> AttrValue(newLabel)))
+        copy(elements = elements.copy(nodes = nodes.updated(nodeId, updatedNode)))
+      case _ => this
 
   /** Transposes a record node between horizontal and vertical orientations.
     * Toggles between wrapped (vertical) and unwrapped (horizontal) formats.
@@ -245,22 +226,12 @@ trait CombineNodesOps:
         case Some(recordNode) =>
           val currentLabel = recordNode.label.toString
 
-          // Toggle between vertical (with {}) and horizontal (without {})
-          val newLabel = if currentLabel.startsWith("{") && currentLabel.endsWith("}") then
-            // Currently vertical, make horizontal
-            currentLabel.substring(1, currentLabel.length - 1)
-          else
-            // Currently horizontal, make vertical
-            s"{$currentLabel}"
-
-          // Update the node with the new label
-          val updatedNode = ViewerNode.nodeNoDefaults(
-            recordNode.id,
-            recordNode.attributes + (Label.attrId -> AttrValue(newLabel))
-          )
-
-          copy(
-            elements = elements.copy(
-              nodes = nodes.updated(nodeId, updatedNode)
-            )
-          )
+          // Toggle the outer {} through the parsed tree — string slicing would
+          // corrupt labels like "{a}|{b}" whose braces don't span the whole label.
+          // A single ported group child is wrapped rather than unwrapped: dropping
+          // the group would lose its port.
+          val root = RecordTree.parse(currentLabel)
+          val newRoot = root.children match
+            case Vector(RecordTree.Group(None, inner)) => RecordTree.Group(None, inner)
+            case cs => RecordTree.Group(None, Vector(RecordTree.Group(None, cs)))
+          withRecordLabel(nodeId, RecordTree.serialize(newRoot))
