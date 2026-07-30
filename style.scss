@@ -1132,19 +1132,24 @@ svg {
 // wears a count on the corresponding side (successors right, predecessors
 // left). Canvas signal, so fixed colours from the token block up top — badges
 // paint over user-coloured nodes and must stay legible on any of them.
+// !important throughout: badges are appended INSIDE Mermaid node groups, and
+// Mermaid ships an ID-scoped stylesheet in its own svg (`#id .node circle`,
+// specificity 1-1-1) that silently restyled the badge — periwinkle circle,
+// invisible count. We don't control that sheet, so importance is the only
+// lever; among our own rules the :hover pair still wins by specificity.
 .gx-expand-badge {
   cursor: pointer;
 
   circle {
-    fill: var(--gx-control-soft);
-    stroke: var(--gx-control);
-    stroke-width: 1px;
+    fill: var(--gx-control-soft) !important;
+    stroke: var(--gx-control) !important;
+    stroke-width: 1px !important;
   }
 
   text {
-    fill: var(--gx-control-ink);
-    font-family: ui-sans-serif, system-ui, sans-serif;
-    font-size: 8px;
+    fill: var(--gx-control-ink) !important;
+    font-family: ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 8px !important;
     text-anchor: middle;
     // the badge is one control; its glyph must not eat the click
     pointer-events: none;
@@ -1152,17 +1157,18 @@ svg {
   }
 
   &:hover circle {
-    fill: var(--gx-control);
+    fill: var(--gx-control) !important;
   }
   &:hover text {
-    fill: var(--gx-control-soft);
+    fill: var(--gx-control-soft) !important;
   }
 }
 
 // The fold badge (an expanded group's collapse control) draws a glyph, not a
-// count — a touch larger so the "−" reads at a glance.
+// count — a touch larger so the "−" reads at a glance. (!important to outrank
+// the expand badge's now-important size, same-importance later rule wins.)
 .gx-fold-badge text {
-  font-size: 10px;
+  font-size: 10px !important;
 }
 
 // While a layout tween runs, badges would ride their element's scale channel
