@@ -11,8 +11,7 @@ import org.jpablo.graphexplorer.viewer.selection.{ElementKind, SelectByKind}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 
-def AttributesToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) = {
-  import commands.all
+def AttributesToolbar(projectName: Signal[String], commands: Commands, state: ViewerState) =
   div(
     idAttr := "selection-toolbar",
     cls    := "navbar",
@@ -27,59 +26,71 @@ def AttributesToolbar(projectName: Signal[String], commands: Commands, state: Vi
     // a zoomLens Var over the live graph, so they track edits on their own. The one branch that
     // genuinely reads the graph — "select by kind", shown when nothing is selected and so never
     // mid-gesture — takes it from an inner `child <--`.
-    child <--
-      state.selection.signal.distinct.map: selectedNodes =>
-        val IdsByKind(clusterIds, nodeIds, arrowIds) = selectedNodes.classify
-
-        (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
-          case (true, false, false) =>
-            ToolbarArrowsAttributesView(
-              state,
-              all.resetSelectionAttributes,
-              updates = state.elementAttributesUpdates(ElementIds(arrowIds))
-            )
-
-          case (false, true, false) =>
-            ToolbarNodesAttributesView(
-              state,
-              all.resetSelectionAttributes,
-              updates = state.elementAttributesUpdates(ElementIds(nodeIds))
-            )
-
-          case (false, false, true) =>
-            ToolbarGroupAttributesView(
-              state,
-              all.resetSelectionAttributes,
-              updates = state.elementAttributesUpdates(ElementIds(clusterIds))
-            )
-
-          case (false, false, false) =>
-            div(
-              cls := "flex flex-row gap-2",
-              child <-- state.visibleGraph.distinct.map: visibleGraph =>
-                val options = SelectByKind.optionsForGraph(visibleGraph)
-                Select(
-                  placeholderText = Some("Select by kind"),
-                  options = options.map(option => option.label -> option.kind.id),
-                  onChange.mapToValue --> { value =>
-                    ElementKind.fromId(value).foreach: kind =>
-                      state.selection.set(SelectByKind.idsForGraph(visibleGraph, kind))
-                  }
-                )
-            )
-
-          case _ =>
-            val options = SelectByKind.optionsForSelection(selectedNodes.classify)
-            div(
-              cls := "flex flex-row gap-2",
-              Select(
-                placeholderText = Some(s"Filter ${selectedNodes.size} objects"),
-                options = options.map(option => option.label -> option.kind.id),
-                onChange.mapToValue --> { value =>
-                  ElementKind.fromId(value).foreach: kind =>
-                    state.selection.set(SelectByKind.idsForSelection(selectedNodes.classify, kind))
-                }
-              )
-            )
+    // A flex row, not a plain block: the selection views were designed as
+    // shrink-to-fit flex items of the navbar, and daisyUI's select resolves its
+    // `100%` width cap against a definite block width — a stretched wrapper
+    // inflated "Select by kind" to the full 20rem cap.
+    div(
+      cls := "flex-1 min-w-0 flex items-center",
+      child <--
+        state.selection.signal.distinct.map(selectionView(state, commands, _))
+    ),
+    // The panel toggles live OUTSIDE the selection-driven swap above: they are chrome,
+    // not selection UI, and rebuilding them mid-click would eat the click.
+    PanelSectionToggles(state)
   )
-}
+
+private def selectionView(state: ViewerState, commands: Commands, selectedNodes: ElementIds) =
+  import commands.all
+  val IdsByKind(clusterIds, nodeIds, arrowIds) = selectedNodes.classify
+
+  (arrowIds.nonEmpty, nodeIds.nonEmpty, clusterIds.nonEmpty) match
+    case (true, false, false) =>
+      ToolbarArrowsAttributesView(
+        state,
+        all.resetSelectionAttributes,
+        updates = state.elementAttributesUpdates(ElementIds(arrowIds))
+      )
+
+    case (false, true, false) =>
+      ToolbarNodesAttributesView(
+        state,
+        all.resetSelectionAttributes,
+        updates = state.elementAttributesUpdates(ElementIds(nodeIds))
+      )
+
+    case (false, false, true) =>
+      ToolbarGroupAttributesView(
+        state,
+        all.resetSelectionAttributes,
+        updates = state.elementAttributesUpdates(ElementIds(clusterIds))
+      )
+
+    case (false, false, false) =>
+      div(
+        cls := "flex flex-row gap-2",
+        child <-- state.visibleGraph.distinct.map: visibleGraph =>
+          val options = SelectByKind.optionsForGraph(visibleGraph)
+          Select(
+            placeholderText = Some("Select by kind"),
+            options = options.map(option => option.label -> option.kind.id),
+            onChange.mapToValue --> { value =>
+              ElementKind.fromId(value).foreach: kind =>
+                state.selection.set(SelectByKind.idsForGraph(visibleGraph, kind))
+            }
+          )
+      )
+
+    case _ =>
+      val options = SelectByKind.optionsForSelection(selectedNodes.classify)
+      div(
+        cls := "flex flex-row gap-2",
+        Select(
+          placeholderText = Some(s"Filter ${selectedNodes.size} objects"),
+          options = options.map(option => option.label -> option.kind.id),
+          onChange.mapToValue --> { value =>
+            ElementKind.fromId(value).foreach: kind =>
+              state.selection.set(SelectByKind.idsForSelection(selectedNodes.classify, kind))
+          }
+        )
+      )

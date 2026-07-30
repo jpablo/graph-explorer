@@ -1,31 +1,33 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.widgets.{TooltipPos}
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.state.RightPanelSection.*
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 
-def RightToolbar(state: ViewerState) =
+/** The right panel's section toggles: Diagram, Elements, Source. Formerly a
+  * vertical bar pinned to the right edge (#right-toolbar); now a horizontal
+  * cluster the attributes toolbar right-justifies — so a fully collapsed
+  * workspace shows no rail at all and the canvas owns the right edge.
+  */
+def PanelSectionToggles(state: ViewerState) =
   div(
-    idAttr := "right-toolbar",
+    idAttr := "panel-toggles",
+    cls    := "flex items-center gap-2 shrink-0 print:hidden",
     List(
-      diagramAttributes -> ("bi-sliders", "Diagram"),
-      elements          -> ("bi-list-ul", "Elements"),
-      sources           -> ("bi-code-square", "Source")
+      diagramAttributes -> ("bi-sliders", "Diagram", TooltipPos.bottom),
+      elements          -> ("bi-list-ul", "Elements", TooltipPos.bottom),
+      // The last toggle sits by the window edge; an end-aligned bubble stays on screen.
+      sources -> ("bi-code-square", "Source", TooltipPos.bottomEnd)
     ).map:
-      case (section, (icon, text)) =>
+      case (section, (icon, text, tipPos)) =>
         Tooltip(
           text = text,
-          cls := TooltipPos.left,
+          cls := tipPos,
           button(
-            // `p-1.5` used to sit here and never applied: `.gx-icon-btn`'s own `p-1` ties on
-            // specificity and wins on order. The padding is the vocabulary's, not this bar's.
             cls        := "gx-icon-btn",
             typ        := "button",
-            // Was a `span`: no accessible name, and unreachable by keyboard. Every other
-            // control in this vocabulary is a button that says what it opens.
             aria.label := s"$text panel",
             cls("active") <-- state.isSectionActive(section),
             i(

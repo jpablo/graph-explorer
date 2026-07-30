@@ -849,8 +849,10 @@ svg {
     // --gx-attr-label / --gx-attr-value come from :root; the floating panel below
     // sizes itself from them instead of repeating a magic number.
 
+    // right-2: the floating cards hug the window edge now that the vertical
+    // toggle bar is gone (right-11 existed only to clear it).
     &.floating {
-      @apply absolute right-11 top-2 bg-base-100;
+      @apply absolute right-2 top-2 bg-base-100;
     }
 
     flex-shrink: 0;
@@ -1103,9 +1105,6 @@ svg {
 
   }
 
-  #right-toolbar {
-    @apply flex flex-col m-1 gap-2 mt-2 print:hidden;
-  }
 }
 
 

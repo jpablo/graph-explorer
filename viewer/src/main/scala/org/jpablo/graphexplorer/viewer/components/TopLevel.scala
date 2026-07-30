@@ -22,7 +22,6 @@ def TopLevel(
       CanvasContainer(state, commands),
       ZoomToolbar(state, commands),
       RightPanel(state),
-      RightToolbar(state),
       HelpDialog(state.helpDialogOpen, commands),
       AboutDialog(state.aboutDialogOpen),
       InfoAlert(state.infoBus),
