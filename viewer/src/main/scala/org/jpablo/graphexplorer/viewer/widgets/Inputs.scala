@@ -105,6 +105,29 @@ def FilterChips[A](
       )
   )
 
+/** A joined run of icon buttons acting as a radio group: exactly one is pressed
+  * at a time, and pressing it again changes nothing. For mode switchers (the
+  * library's cards/rows toggle) where the vocabulary is icons, not words —
+  * unlike [[FilterChips]] there is no "none of these" state to reset to.
+  */
+def IconRadioGroup[A](
+    options:  Seq[(A, String, String)], // (value, bootstrap icon, accessible label)
+    selected: Var[A]
+)(using CanEqual[A, A]) =
+  div(
+    cls := "join",
+    options.map: (value, icon, label) =>
+      button(
+        typ   := "button",
+        cls   := "join-item btn btn-sm btn-square",
+        title := label,
+        org.jpablo.graphexplorer.viewer.domUtils.ariaLabel := label,
+        cls("btn-active") <-- selected.signal.map(_ == value),
+        i(cls := icon),
+        onClick --> (_ => selected.set(value))
+      )
+  )
+
 def Menu[A](
     options:        Signal[Seq[MenuEntry[A]]],
     onClickHandler: EventProcessor[MouseEvent, A] => Modifier[Anchor]

@@ -81,19 +81,23 @@ trait Persistence:
         currentTheme.signal,
         promptLabelBeforeNewNode.signal,
         rightPanelWidth.signal,
-        wrapSourceLines.signal
+        wrapSourceLines.signal,
+        elementsPinned.signal
       )
       .changes
       .distinct
-      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines) =>
-        viewerSettings.set(
-          ViewerSettings(
+      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned) =>
+        // copy, not a fresh ViewerSettings: fields this page does not own (the library's
+        // view mode) must survive a detail-page sync instead of resetting to defaults.
+        viewerSettings.update(
+          _.copy(
             leftPanelVisible = leftVisible,
             rightPanelTabIndex = tabIndex.ordinal,
             currentTheme = theme,
             promptLabelBeforeNewNode = promptBeforeNewNode,
             rightPanelWidth = Some(panelWidth),
             wrapSourceLines = wrapLines,
+            elementsPinned = pinned,
             schemaVersion = ViewerSettings.currentSchemaVersion
           )
         )
