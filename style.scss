@@ -21,6 +21,15 @@
   --gx-scrim-edge: #999797;
   --gx-shadow: rgba(0, 0, 0, 0.4);
   --gx-shadow-soft: rgba(0, 0, 0, 0.5);
+
+  // ── Canvas surface ─────────────────────────────────────────────────────────
+  // The drawing surface behind the diagram (canvas + card thumbnails). Follows
+  // the theme by default; app-native themes override it — Workbench inverts
+  // figure/ground (paper-white canvas in dark chrome), Drafting swaps the dot
+  // field for a vellum grid — without touching the three sites that paint it.
+  --gx-canvas-bg: var(--color-base-200);
+  --gx-canvas-img: radial-gradient(circle, var(--color-base-300) 0.5px, transparent 0.5px);
+  --gx-canvas-size: 5px 5px;
   --gx-shadow-deep: rgba(0, 0, 0, 0.6);
   --gx-label-scrim: rgba(232, 232, 232, 0.7); // behind mermaid edge labels
 
@@ -88,9 +97,9 @@ label[for ^= show-ns-kind-] {
         @apply bg-base-100 border border-base-300 max-w-xl shadow-xs;
 
         svg {
-          background-color: var(--color-base-200);
-          background-image: radial-gradient(circle, var(--color-base-300) .5px, transparent .5px);
-          background-size: 5px 5px;
+          background-color: var(--gx-canvas-bg);
+          background-image: var(--gx-canvas-img);
+          background-size: var(--gx-canvas-size);
         }
 
       }
@@ -616,9 +625,9 @@ svg {
   #canvas-container {
     @apply p-1 grow overflow-hidden flex;
     position: relative;
-    background-color: var(--color-base-200);
-    background-image: radial-gradient(circle, var(--color-base-300) .5px, transparent .5px);
-    background-size: 5px 5px;
+    background-color: var(--gx-canvas-bg);
+    background-image: var(--gx-canvas-img);
+    background-size: var(--gx-canvas-size);
 
     justify-content: center;
 
@@ -995,4 +1004,51 @@ svg {
 // getBBox-based measurements stay identical with and without the class.
 svg.gx-transitioning .gx-expand-badge {
   visibility: hidden;
+}
+
+// ── App-native themes: beyond-token treatments ───────────────────────────────
+// The daisyUI token sheets live in style.css (@plugin "daisyui/theme"); these
+// scopes carry what tokens cannot express — canvas surface, chrome typeface,
+// and per-direction signature effects. Values come verbatim from the specimen
+// sheet ("Graph Explorer — five visual directions").
+
+// 03 · Workbench: the inversion IS the theme — dark chrome, and the canvas is
+// paper, the only lit object in the room. Mono chrome type, instrument-like.
+[data-theme="workbench"] {
+  --gx-canvas-bg: #f6f5f1;
+  --gx-canvas-img: none;
+
+  body {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+}
+
+// 02 · Drafting table: the app becomes the surface you draw on — gridded
+// vellum instead of a dot field. (The in-diagram ink-on-paper nodes are the
+// deferred half of this direction.)
+[data-theme="drafting"] {
+  --gx-canvas-bg: #dfe7ea;
+  --gx-canvas-img: linear-gradient(#cfdbe0 1px, transparent 1px),
+    linear-gradient(90deg, #cfdbe0 1px, transparent 1px);
+  --gx-canvas-size: 14px 14px;
+
+  body {
+    font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  }
+}
+
+// 05 · Signal: geometric sans set heavy, and the source panel casts a hard
+// offset shadow — a solid object, not a translucent layer.
+[data-theme="signal"] {
+  --gx-canvas-bg: #ffffff;
+  --gx-canvas-img: radial-gradient(circle, #e2ded0 1.4px, transparent 1.4px);
+  --gx-canvas-size: 16px 16px;
+
+  body {
+    font-family: Futura, "Avenir Next", "Century Gothic", system-ui, sans-serif;
+  }
+
+  #right-panel.visible {
+    box-shadow: -6px 0 0 -2px #111111;
+  }
 }

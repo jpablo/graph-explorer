@@ -2,3 +2,124 @@
 @plugin "daisyui" {
     themes: all;
 }
+
+/* ── App-native themes ─────────────────────────────────────────────────────
+ * The three adoptable directions from the July visual-direction study
+ * ("Graph Explorer — five visual directions"), expressed as daisyUI themes.
+ * Chrome only: palette, radii, border weight. Each theme's beyond-token
+ * treatments (canvas surface, chrome typeface, hard shadows) live in
+ * style.scss under the matching [data-theme] scope; the diagram's own look
+ * (node ink, drafting typography) is a later, separate layer.
+ */
+
+/* 03 · Workbench — dark chrome, the canvas is the only lit object.
+ * Amber marks the single active thing; mono chrome type via style.scss. */
+@plugin "daisyui/theme" {
+    name: "workbench";
+    default: false;
+    prefersdark: false;
+    color-scheme: dark;
+    --color-base-100: #1d2021;
+    --color-base-200: #191b1c;
+    --color-base-300: #2f3436;
+    --color-base-content: #e6e4df;
+    --color-primary: #d9a441;
+    --color-primary-content: #191b1c;
+    --color-secondary: #7fb2d9;
+    --color-secondary-content: #191b1c;
+    --color-accent: #8fbf7f;
+    --color-accent-content: #191b1c;
+    --color-neutral: #242829;
+    --color-neutral-content: #e6e4df;
+    --color-info: #7fb2d9;
+    --color-info-content: #191b1c;
+    --color-success: #8fbf7f;
+    --color-success-content: #191b1c;
+    --color-warning: #d9a441;
+    --color-warning-content: #191b1c;
+    --color-error: #d9776b;
+    --color-error-content: #191b1c;
+    --radius-selector: 0.125rem;
+    --radius-field: 0.125rem;
+    --radius-box: 0.125rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
+/* 02 · Drafting table — vellum surfaces, cyan drafting ink, zero radii.
+ * The gridded canvas and condensed labels ride style.scss; the in-diagram
+ * "ink on paper" nodes are the deferred half of this direction. */
+@plugin "daisyui/theme" {
+    name: "drafting";
+    default: false;
+    prefersdark: false;
+    color-scheme: light;
+    --color-base-100: #f7f8f6;
+    --color-base-200: #f2f4f2;
+    --color-base-300: #c3ccc6;
+    --color-base-content: #1d3640;
+    --color-primary: #0b5e7d;
+    --color-primary-content: #eaf3f7;
+    --color-secondary: #5c7480;
+    --color-secondary-content: #f7f8f6;
+    --color-accent: #8a5a12;
+    --color-accent-content: #f7f8f6;
+    --color-neutral: #1d3640;
+    --color-neutral-content: #f2f4f2;
+    --color-info: #0b5e7d;
+    --color-info-content: #eaf3f7;
+    --color-success: #4a6b2f;
+    --color-success-content: #f7f8f6;
+    --color-warning: #8a5a12;
+    --color-warning-content: #f7f8f6;
+    --color-error: #a8322a;
+    --color-error-content: #f7f8f6;
+    --radius-selector: 0rem;
+    --radius-field: 0rem;
+    --radius-box: 0rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
+/* 05 · Signal — flat primaries, 2px black keylines, state unmissable.
+ * Hard offset shadows and the geometric sans are style.scss treatments. */
+@plugin "daisyui/theme" {
+    name: "signal";
+    default: false;
+    prefersdark: false;
+    color-scheme: light;
+    --color-base-100: #ffffff;
+    --color-base-200: #f5f2e8;
+    --color-base-300: #e2ded0;
+    --color-base-content: #111111;
+    --color-primary: #1f4fd8;
+    --color-primary-content: #ffffff;
+    --color-secondary: #e4322b;
+    --color-secondary-content: #ffffff;
+    --color-accent: #f5c518;
+    --color-accent-content: #111111;
+    --color-neutral: #111111;
+    --color-neutral-content: #ffffff;
+    --color-info: #1f4fd8;
+    --color-info-content: #ffffff;
+    --color-success: #0f7b3a;
+    --color-success-content: #ffffff;
+    --color-warning: #f5c518;
+    --color-warning-content: #111111;
+    --color-error: #e4322b;
+    --color-error-content: #ffffff;
+    --radius-selector: 0rem;
+    --radius-field: 0rem;
+    --radius-box: 0rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 2px;
+    --depth: 0;
+    --noise: 0;
+}
