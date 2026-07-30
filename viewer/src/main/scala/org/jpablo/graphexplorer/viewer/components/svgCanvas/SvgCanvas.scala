@@ -104,6 +104,16 @@ def SvgCanvas(
   val allSelectable =
     SelectableElement.findAll(rawSvg.ref, strategy)
 
+  // Fires when a layout transition lands (LayoutTransition.finish dispatches it
+  // on this svg). Overlay controls built at mount were positioned at frame 0 —
+  // the OLD layout, by the transition's pixel-exact contract — so they must be
+  // rebuilt from the settled geometry.
+  val layoutSettled = EventBus[Unit]()
+
+  def refreshOverlayControls(elem: Option[SelectableElement], action: MouseAction): Unit =
+    viewerOps.handleNewArrowControls(mainGroup, elem, action)
+    viewerOps.handleArrowEndpointControl(mainGroup, elem, action, edgePositions)
+
   // render all selected elements the first time
   rawSvg
     .amend {
@@ -118,6 +128,9 @@ def SvgCanvas(
         // mount runs modifiers in order, and onRendered's screen measurements
         // are garbage until the pan/zoom transform has been applied.
         onMountCallback { _ =>
+          // Registered BEFORE onRendered: the transition starts inside onRendered,
+          // so the listener must already exist when finish() eventually fires.
+          rawSvg.ref.addEventListener(LayoutTransition.transitionEndEvent, (_: dom.Event) => layoutSettled.emit(()))
           CountBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
           onRendered(rawSvg.ref)
         },
@@ -152,8 +165,11 @@ def SvgCanvas(
         // b) arrow endpoint controls
         // c) for the "selection" action, the whole canvas is the "control"
         singleSelection.combineWith(mouseAction.signal) --> { (elem: Option[SelectableElement], action: MouseAction) =>
-          viewerOps.handleNewArrowControls(mainGroup, elem, action)
-          viewerOps.handleArrowEndpointControl(mainGroup, elem, action, edgePositions)
+          refreshOverlayControls(elem, action)
+        },
+        // ...and once more when a layout transition settles, from final geometry.
+        layoutSettled.events.sample(singleSelection.combineWith(mouseAction.signal)) --> {
+          (elem: Option[SelectableElement], action: MouseAction) => refreshOverlayControls(elem, action)
         },
         // UI elements reflecting the current mouse action
         viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),

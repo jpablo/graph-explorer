@@ -44,6 +44,12 @@ object LayoutTransition:
     * this class until the layout settles. */
   val transitioningClass = "gx-transitioning"
 
+  /** Dispatched on the svg when a transition ends (completed OR cancelled):
+    * anything positioned from mount-time geometry — which the transition's
+    * frame-0 contract pins to the OLD layout — recomputes on this signal.
+    */
+  val transitionEndEvent = "gx-transition-end"
+
   def reducedMotion: Boolean =
     dom.window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
@@ -365,6 +371,7 @@ object LayoutTransition:
       entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = "")
       ghosts.foreach(w => if w.parentNode != null then w.parentNode.removeChild(w))
       newSvg.classList.remove(transitioningClass)
+      newSvg.dispatchEvent(new dom.Event(transitionEndEvent))
 
     var rafId = 0
     var done  = false

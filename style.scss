@@ -1174,7 +1174,12 @@ svg {
 // While a layout tween runs, badges would ride their element's scale channel
 // and smear (a stretched ellipse mid-flight). visibility (not display) so
 // getBBox-based measurements stay identical with and without the class.
-svg.gx-transitioning .gx-expand-badge {
+// The overlay controls (new-arrow circles, endpoint disks) hide too: they were
+// positioned at frame 0 — the OLD layout — and reappear once the transition
+// lands and SvgCanvas recomputes them (gx-transition-end).
+svg.gx-transitioning .gx-expand-badge,
+svg.gx-transitioning .new-arrow-control,
+svg.gx-transitioning .edge-endpoint-disk {
   visibility: hidden;
 }
 
