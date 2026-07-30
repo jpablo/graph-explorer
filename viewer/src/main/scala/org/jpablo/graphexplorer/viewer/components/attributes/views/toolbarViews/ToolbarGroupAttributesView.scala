@@ -38,12 +38,14 @@ def ToolbarGroupAttributesView(
         .copy(
           options = lightRows11 ++ colorOptions,
           hidden = builder.invalidLayout(FillColor),
-          missingRowOption = Some(missingColorHandler)
+          missingRowOption = Some(missingColorHandler),
+          triggerGlyph = Some(() => i(cls := "bi bi-paint-bucket"))
         ),
       row(PenColor, InputType.currentValueWithSelector())
         .copy(
           options = mediumRows11 ++ colorOptions,
-          missingRowOption = Some(missingColorHandler)
+          missingRowOption = Some(missingColorHandler),
+          triggerGlyph = Some(() => i(cls := "bi bi-square"))
         ),
       InputElement(
         VerticalCardWithPreview(
@@ -69,7 +71,8 @@ def ToolbarGroupAttributesView(
       row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
         options = mediumRows11 ++ colorOptions,
         hidden = labelRelatedHidden,
-        missingRowOption = Some(missingColorHandler)
+        missingRowOption = Some(missingColorHandler),
+        triggerGlyph = Some(() => span(cls := "gx-glyph-a", "A"))
       ),
       InputElement(
         VerticalCardWithPreview(

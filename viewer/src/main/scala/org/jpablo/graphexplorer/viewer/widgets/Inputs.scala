@@ -239,7 +239,32 @@ def DropdownWithCurrentValue(row: InputAttribute, dir: MenuDirection, cardClass:
     else
       Seq(
         // current value button
-        div(tabIndex := 0, role := "button", cls := "btn btn-ghost btn-xs p-1 ml-1", child <-- row.selectedOption),
+        div(
+          tabIndex := 0,
+          role     := "button",
+          cls      := "btn btn-ghost btn-xs p-1 ml-1",
+          row.triggerGlyph match
+            // Identity trigger (the Docs/Canva idiom): a glyph naming WHAT the row
+            // colors, over a bar showing the CURRENT color — legible without hover.
+            // The menu keeps its plain swatch grid; only the trigger needs identity.
+            case Some(glyph) =>
+              div(
+                cls := "gx-color-trigger",
+                glyph(),
+                div(
+                  cls := "gx-color-bar",
+                  cls("gx-color-bar-none") <-- row.combineDefaultString.map(v => v == "none" || v.isEmpty),
+                  styleAttr <-- row.combineDefaultString.map { v =>
+                    if v == "none" || v.isEmpty then ""
+                    else
+                      scala.util
+                        .Try(s"background-color: ${ColorFormat.toHex(ColorFormat.fromString(v)).value}")
+                        .getOrElse("")
+                  }
+                )
+              )
+            case None => child <-- row.selectedOption
+        ),
         PopupCard(row, row.options, cardClass)
       )
   )

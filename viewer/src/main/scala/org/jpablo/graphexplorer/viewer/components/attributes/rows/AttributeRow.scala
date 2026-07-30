@@ -28,7 +28,12 @@ object AttributeRow:
       // Shown after a numeric value. Graphviz measures pad/ranksep/nodesep in inches,
       // which the panel never said — a bare "0.5" gives no way to guess what one unit
       // of separation is.
-      unit: Option[String] = None
+      unit: Option[String] = None,
+      // Identity glyph for the dropdown TRIGGER (the Docs/Canva idiom): a symbol naming
+      // WHAT the row affects, drawn over a bar showing the current color. Without it,
+      // three color rows in a toolbar are three anonymous circles — you had to hover to
+      // learn which one paints the fill, the border, or the text.
+      triggerGlyph: Option[() => ReactiveElement.Base] = None
   ) extends AttributeRow
 
   case class InputElement(element: ReactiveElement.Base, hidden: Signal[Boolean] = Signal.fromValue(false)) extends AttributeRow

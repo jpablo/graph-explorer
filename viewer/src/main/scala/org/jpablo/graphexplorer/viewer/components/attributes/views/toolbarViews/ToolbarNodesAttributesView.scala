@@ -58,12 +58,14 @@ def ToolbarNodesAttributesView(
         .copy(
           options = lightRows11 ++ colorOptions,
           hidden = builder.invalidLayout(FillColor),
-          missingRowOption = Some(missingColorHandler)
+          missingRowOption = Some(missingColorHandler),
+          triggerGlyph = Some(() => i(cls := "bi bi-paint-bucket"))
         ),
       row(Color, InputType.currentValueWithSelector()).copy(
         options = mediumRows11 ++ colorOptions,
         hidden = shapeIsPlainOrPlainText,
-        missingRowOption = Some(missingColorHandler)
+        missingRowOption = Some(missingColorHandler),
+        triggerGlyph = Some(() => i(cls := "bi bi-square"))
       ),
       InputElement(
         VerticalCardWithPreview(
@@ -82,7 +84,8 @@ def ToolbarNodesAttributesView(
       row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
         options = mediumRows11 ++ colorOptions,
         hidden = labelRelatedHidden,
-        missingRowOption = Some(missingColorHandler)
+        missingRowOption = Some(missingColorHandler),
+        triggerGlyph = Some(() => span(cls := "gx-glyph-a", "A"))
       ),
       InputElement(
         VerticalCardWithPreview(

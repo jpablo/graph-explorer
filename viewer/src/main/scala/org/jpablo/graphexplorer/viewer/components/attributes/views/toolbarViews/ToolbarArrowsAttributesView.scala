@@ -36,7 +36,9 @@ def ToolbarArrowsAttributesView(
       row(Color, InputType.currentValueWithSelector())
         .copy(
           options = mediumRows11 ++ colorOptions,
-          missingRowOption = Some(missingColorHandler)
+          missingRowOption = Some(missingColorHandler),
+          // The edge's stroke: a line glyph, where nodes use the outlined square.
+          triggerGlyph = Some(() => i(cls := "bi bi-dash-lg"))
         ),
       InputElement(
         VerticalCardWithPreview(
@@ -61,7 +63,8 @@ def ToolbarArrowsAttributesView(
       row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
         options = mediumRows11 ++ colorOptions,
         hidden = labelRelatedHidden,
-        missingRowOption = Some(missingColorHandler)
+        missingRowOption = Some(missingColorHandler),
+        triggerGlyph = Some(() => span(cls := "gx-glyph-a", "A"))
       ),
       InputElement(
         VerticalCardWithPreview(

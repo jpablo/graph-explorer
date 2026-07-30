@@ -567,7 +567,9 @@ svg {
     @apply flex-initial min-w-0;
     /* cap to parent width and scroll if necessary */
     @apply max-w-full overflow-x-clip;
-    @apply border-b border-base-300 px-2 py-0.5 m-0 print:hidden min-h-auto;
+    // border at HALF opacity: a boundary should register, not draw the eye —
+    // full base-300 read as a thick dark rule between bar and canvas.
+    @apply border-b border-base-300/50 px-2 py-0.5 m-0 print:hidden min-h-auto;
 
     .dropdown {
       @apply m-0 p-0;
@@ -603,7 +605,44 @@ svg {
   #selection-toolbar {
     // gap-3: the "2 nodes" count, the controls, and the hidden chip are
     // separate thoughts — space is their separator (no dividers).
-    @apply border-b-0 bg-base-200/60 gap-3;
+    // py/px: the controls need air from the strip's edges — flush against the
+    // top and bottom borders was one of the "unprofessional" tells.
+    @apply border-b-0 bg-base-200/60 gap-3 px-3 py-1.5;
+  }
+
+  // Color-row TRIGGER anatomy (the Docs/Canva idiom): identity glyph over a
+  // live color bar. The glyph says what gets painted (bucket = fill, square =
+  // border, line = edge stroke, A = text); the bar says which color, and takes
+  // a hatch when the value is "none".
+  .gx-color-trigger {
+    @apply flex flex-col items-center justify-center;
+    width: 1.25rem;
+
+    i, .gx-glyph-a {
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .gx-glyph-a {
+      @apply font-semibold;
+      font-family: ui-serif, Georgia, serif;
+    }
+
+    .gx-color-bar {
+      @apply rounded-full mt-0.5;
+      width: 0.9rem;
+      height: 3px;
+
+      &.gx-color-bar-none {
+        background: repeating-linear-gradient(
+          45deg,
+          var(--color-base-300),
+          var(--color-base-300) 2px,
+          transparent 2px,
+          transparent 4px
+        );
+      }
+    }
   }
 
   .gx-selection-count {
