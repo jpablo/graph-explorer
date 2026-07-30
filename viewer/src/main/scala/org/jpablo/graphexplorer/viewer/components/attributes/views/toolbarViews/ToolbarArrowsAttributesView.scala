@@ -58,8 +58,11 @@ def ToolbarArrowsAttributesView(
       row(ArrowTail, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions(angle = 180)),
       row(ArrowHead, InputType.currentValueWithSelector(cardClass = Some("narrow-card"))).copy(options = arrowTypeOptions(angle = 0)),
       // ---------- label stuff ------------
+      // labelRow itself is NOT rendered: a bare "Enter label here" box was the only
+      // free-text input in the strip and read as noise (and made the arrow bar differ
+      // from the node bar). Labels are edited where they live — double-click / Edit
+      // label; the row still exists above to drive the text-controls visibility.
       SectionHeader("Text"),
-      labelRow,
       row(FontColor, InputType.currentValueWithSelector(MenuDirection.end)).copy(
         options = mediumRows11 ++ colorOptions,
         hidden = labelRelatedHidden,
