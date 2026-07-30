@@ -27,6 +27,43 @@ object CountBadges:
 
   private val SvgNS = "http://www.w3.org/2000/svg"
 
+  // Badges are CONTROLS, not diagram content: like the new-arrow circles they keep a
+  // constant size ON SCREEN regardless of zoom (drawn at design size around the
+  // origin, then scaled so those units land at a fixed client size). Previously they
+  // lived in SVG units and ballooned as the user zoomed in.
+  private val designRadius   = 7.0
+  private val clientDiameter = 18.0 // px on screen, whatever the zoom
+
+  /** None when the element has no usable CTM — a hidden/pre-layout svg. Writing a
+    * scale from the getCtmScale fallback of 1 in that state inflated the badge to
+    * diagram-units size until the next pan/zoom event; skipping keeps the last
+    * good scale instead.
+    */
+  private def badgeScale(reference: dom.Element): Option[Double] =
+    val ctm = reference.asInstanceOf[dom.svg.Locatable].getScreenCTM()
+    Option(ctm)
+      .map(m => math.abs(m.a))
+      .filter(_ > 0)
+      .map(s => clientDiameter / (designRadius * 2) / s)
+
+  private def place(g: dom.Element, cx: Double, cy: Double, reference: dom.Element): Unit =
+    g.setAttribute("data-cx", cx.toString)
+    g.setAttribute("data-cy", cy.toString)
+    val k = badgeScale(reference).getOrElse(1.0)
+    g.setAttribute("transform", s"translate($cx, $cy) scale($k)")
+
+  /** Re-apply the screen-constant scale after a pan/zoom change (SvgCanvas calls
+    * this from its transform binder — the badges themselves never rebuild).
+    */
+  def rescale(svg: dom.svg.SVG): Unit =
+    svg.querySelectorAllT[dom.Element](s"g.$badgeClass").foreach { g =>
+      val parent = g.parentNode.asInstanceOf[dom.Element]
+      val cx     = g.getAttribute("data-cx")
+      val cy     = g.getAttribute("data-cy")
+      if cx != null && cy != null && parent != null then
+        badgeScale(parent).foreach(k => g.setAttribute("transform", s"translate($cx, $cy) scale($k)"))
+    }
+
   def decorate(
       svg:               dom.svg.SVG,
       strategy:          SelectableElementStrategy,
@@ -44,21 +81,19 @@ object CountBadges:
       svg.querySelectorAllT[dom.Element](strategy.nodeSelector).filterNot(isGhost).foreach { el =>
         val id = strategy.extractNodeId(el)
         lazy val bb = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+        def addBadge(cx: Double, cy: Double, label: String, cls: String, tooltip: String, onToggle: () => Unit): Unit =
+          val b = badge(label, cls, tooltip, onToggle)
+          el.appendChild(b)
+          place(b, cx, cy, el)
         concealed.get(id).foreach { (succ, pred) =>
           val cy = bb.y + bb.height / 2.0
           if succ > 0 then
-            el.appendChild(
-              badge(bb.x + bb.width, cy, countLabel(succ), badgeClass, s"$succ hidden successor(s) — click to show", () => onToggleConcealed(id, true))
-            )
+            addBadge(bb.x + bb.width, cy, countLabel(succ), badgeClass, s"$succ hidden successor(s) — click to show", () => onToggleConcealed(id, true))
           if pred > 0 then
-            el.appendChild(
-              badge(bb.x, cy, countLabel(pred), badgeClass, s"$pred hidden predecessor(s) — click to show", () => onToggleConcealed(id, false))
-            )
+            addBadge(bb.x, cy, countLabel(pred), badgeClass, s"$pred hidden predecessor(s) — click to show", () => onToggleConcealed(id, false))
         }
         collapsed.get(id).foreach { members =>
-          el.appendChild(
-            badge(bb.x + bb.width, bb.y, countLabel(members), s"$badgeClass $collapseClass", s"$members member(s) — click to expand", () => onToggleCollapsed(id))
-          )
+          addBadge(bb.x + bb.width, bb.y, countLabel(members), s"$badgeClass $collapseClass", s"$members member(s) — click to expand", () => onToggleCollapsed(id))
         }
       }
     // Every rendered cluster is a group that CAN collapse — the affordance the
@@ -67,17 +102,17 @@ object CountBadges:
     svg.querySelectorAllT[dom.Element](strategy.clusterSelector).filterNot(isGhost).foreach { el =>
       val gid = strategy.extractGroupId(el)
       val bb  = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
-      el.appendChild(
-        badge(bb.x + bb.width, bb.y, "−", s"$badgeClass $foldClass", "Collapse group into one box", () => onCollapseGroup(gid))
-      )
+      val b   = badge("−", s"$badgeClass $foldClass", "Collapse group into one box", () => onCollapseGroup(gid))
+      el.appendChild(b)
+      place(b, bb.x + bb.width, bb.y, el)
     }
 
   private def countLabel(count: Int): String =
     if count > 99 then "99+" else count.toString
 
+  // Geometry is origin-centered: the group's transform (see [[place]]) carries both
+  // the position and the screen-constant scale.
   private def badge(
-      cx:       Double,
-      cy:       Double,
       label:    String,
       cls:      String,
       tooltip:  String,
@@ -91,14 +126,14 @@ object CountBadges:
     g.appendChild(title)
 
     val c = dom.document.createElementNS(SvgNS, "circle")
-    c.setAttribute("cx", cx.toString)
-    c.setAttribute("cy", cy.toString)
-    c.setAttribute("r", "7")
+    c.setAttribute("cx", "0")
+    c.setAttribute("cy", "0")
+    c.setAttribute("r", designRadius.toString)
     g.appendChild(c)
 
     val t = dom.document.createElementNS(SvgNS, "text")
-    t.setAttribute("x", cx.toString)
-    t.setAttribute("y", cy.toString)
+    t.setAttribute("x", "0")
+    t.setAttribute("y", "0")
     t.setAttribute("dy", "0.34em")
     t.textContent = label
     g.appendChild(t)

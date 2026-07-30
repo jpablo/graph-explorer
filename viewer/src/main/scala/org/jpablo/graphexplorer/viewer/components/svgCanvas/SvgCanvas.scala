@@ -122,7 +122,14 @@ def SvgCanvas(
         svg.width     := null,
         svg.height    := null,
         svg.className := "graphviz",
-        transform --> { tr => mainGroup.setAttribute(svg.transform.name, tr) },
+        transform --> { tr =>
+          mainGroup.setAttribute(svg.transform.name, tr)
+          // Badges hold their SCREEN size across pan/zoom (they never rebuild).
+          CountBadges.rescale(rawSvg.ref)
+        },
+        // A window resize rescales the viewBox→client mapping with no transform
+        // event — the third way the CTM moves under the badges' feet.
+        windowEvents(_.onResize) --> { _ => CountBadges.rescale(rawSvg.ref) },
         // Post-mount work needing real geometry (badges: getBBox; onRendered:
         // client rects). Registered AFTER the transform binder on purpose —
         // mount runs modifiers in order, and onRendered's screen measurements
@@ -168,8 +175,13 @@ def SvgCanvas(
           refreshOverlayControls(elem, action)
         },
         // ...and once more when a layout transition settles, from final geometry.
+        // Badges too: they are decorated at frame 0, when the viewBox still shows
+        // the OLD frame — the transition tweens the viewBox, which changes the CTM
+        // scale without ever touching the transform signal.
         layoutSettled.events.sample(singleSelection.combineWith(mouseAction.signal)) --> {
-          (elem: Option[SelectableElement], action: MouseAction) => refreshOverlayControls(elem, action)
+          (elem: Option[SelectableElement], action: MouseAction) =>
+            refreshOverlayControls(elem, action)
+            CountBadges.rescale(rawSvg.ref)
         },
         // UI elements reflecting the current mouse action
         viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),
