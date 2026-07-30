@@ -49,6 +49,13 @@ private def formatBadge(format: DiagramFormat) =
   val color = badgeColorByFormat.getOrElse(format, "badge-neutral")
   span(cls := s"badge badge-xs $color badge-outline shrink-0", format.toString)
 
+/** The diagram's kind beside its format: `digraph`/`graph` for DOT, the header
+  * keyword (flowchart, sequence, ...) for Mermaid. Ghost, not outline — it
+  * qualifies the format badge rather than competing with it.
+  */
+private def kindBadge(info: ProjectCardInfo) =
+  info.diagramKind.map(kind => span(cls := "badge badge-xs badge-ghost shrink-0", kind))
+
 def ProjectsDirectoryView(
     graphviz:       Graphviz,
     router:         Router,
@@ -454,7 +461,8 @@ private def projectCard(graphviz: Graphviz, router: Router, info: Option[Project
             info.map(_.displayName).getOrElse(project.name),
             onClick.preventDefault --> router.navigateTo(Route.ProjectDetail(project.id.value))
           ),
-          info.map(i => formatBadge(i.format))
+          info.map(i => formatBadge(i.format)),
+          info.flatMap(kindBadge)
         ),
         // Neutral until you reach for it: a wall of cards should not read as a wall of red
         // buttons, but the hover has to say plainly that this one destroys something.
@@ -515,7 +523,8 @@ private def projectRow(graphviz: Graphviz, router: Router, info: Option[ProjectC
         // "open in new tab" keep their usual meaning.
         onClick.preventDefault.stopPropagation --> router.navigateTo(Route.ProjectDetail(project.id.value))
       ),
-      info.map(i => formatBadge(i.format))
+      info.map(i => formatBadge(i.format)),
+      info.flatMap(kindBadge)
     ),
     span(cls := "row-date hidden sm:block", s"Modified ${formatDate(project.lastModified)}"),
     span(cls := "row-date hidden md:block", s"Created ${formatDate(project.createdAt)}"),

@@ -8,49 +8,69 @@ package org.jpablo.graphexplorer.viewer.backends.mermaid
   */
 private[backends] object MermaidSourceScan:
 
-  // Lowercased prefixes of every Mermaid diagram type bundled with mermaid 11
-  // (plus the flowchart `graph <dir>` forms, directives and YAML frontmatter).
-  private val DiagramKindPrefixes = List(
-    "flowchart",
-    "graph td",
-    "graph tb",
-    "graph bt",
-    "graph lr",
-    "graph rl",
-    "sequencediagram",
-    "classdiagram",
-    "statediagram",
-    "erdiagram",
-    "journey",
-    "gantt",
-    "pie",
-    "mindmap",
-    "timeline",
-    "gitgraph",
-    "quadrantchart",
-    "xychart",
-    "sankey",
-    "requirementdiagram",
-    "c4context",
-    "c4container",
-    "c4component",
-    "c4dynamic",
-    "c4deployment",
-    "block-beta",
-    "kanban",
-    "packet",
-    "radar",
-    "architecture",
-    "treemap",
-    "zenuml",
-    // Mermaid directive marker
-    "%%{",
-    "---" // YAML frontmatter often used in Mermaid
+  // Display name by lowercased header prefix, for every Mermaid diagram type
+  // bundled with mermaid 11 (plus the flowchart `graph <dir>` forms). ONE table
+  // for both detection ([[looksLikeMermaid]]) and naming ([[diagramKind]]), so a
+  // type we detect always has a name and vice versa.
+  private val KindByPrefix: List[(String, String)] = List(
+    "flowchart"          -> "flowchart",
+    "graph td"           -> "flowchart",
+    "graph tb"           -> "flowchart",
+    "graph bt"           -> "flowchart",
+    "graph lr"           -> "flowchart",
+    "graph rl"           -> "flowchart",
+    "sequencediagram"    -> "sequence",
+    "classdiagram"       -> "class",
+    "statediagram"       -> "state",
+    "erdiagram"          -> "ER",
+    "journey"            -> "journey",
+    "gantt"              -> "gantt",
+    "pie"                -> "pie",
+    "mindmap"            -> "mindmap",
+    "timeline"           -> "timeline",
+    "gitgraph"           -> "git",
+    "quadrantchart"      -> "quadrant",
+    "xychart"            -> "xy chart",
+    "sankey"             -> "sankey",
+    "requirementdiagram" -> "requirement",
+    "c4context"          -> "C4",
+    "c4container"        -> "C4",
+    "c4component"        -> "C4",
+    "c4dynamic"          -> "C4",
+    "c4deployment"       -> "C4",
+    "block-beta"         -> "block",
+    "kanban"             -> "kanban",
+    "packet"             -> "packet",
+    "radar"              -> "radar",
+    "architecture"       -> "architecture",
+    "treemap"            -> "treemap",
+    "zenuml"             -> "zenUML"
   )
+
+  private val DiagramKindPrefixes =
+    KindByPrefix.map(_._1) ++ List(
+      "%%{", // Mermaid directive marker
+      "---"  // YAML frontmatter often used in Mermaid
+    )
 
   /** True when the given LOWERCASED, trimmed text starts like a Mermaid document. */
   def looksLikeMermaid(lowercased: String): Boolean =
     DiagramKindPrefixes.exists(lowercased.startsWith)
+
+  /** The diagram's kind (flowchart, sequence, class, ...): the header keyword
+    * [[looksLikeMermaid]] detects, as a display name. Frontmatter and directive/
+    * comment lines are skipped — the header may follow them. Same cheapness
+    * contract as [[diagramTitle]]: shown per library card.
+    */
+  def diagramKind(text: String): Option[String] =
+    val lines = text.linesIterator.map(_.trim).take(50).toList
+    val body = lines match
+      case "---" :: rest => rest.dropWhile(_ != "---").drop(1)
+      case _             => lines
+    body
+      .find(l => l.nonEmpty && !l.startsWith("%%"))
+      .map(_.toLowerCase)
+      .flatMap(header => KindByPrefix.collectFirst { case (p, kind) if header.startsWith(p) => kind })
 
   /** The diagram's declared title, when the source carries one: a YAML-frontmatter
     * `title:` entry, or a standalone `title <text>` line (gantt, journey, C4, timeline,

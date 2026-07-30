@@ -16,7 +16,7 @@ case class ProjectInfo(
 case class ProjectsDirectory(projects: List[ProjectInfo] = Nil) derives ReadWriter
 
 /** Presentation facts a library card needs from a project's payload. */
-case class ProjectCardInfo(format: DiagramFormat, displayName: String)
+case class ProjectCardInfo(format: DiagramFormat, displayName: String, diagramKind: Option[String])
 
 object ProjectStorage:
   given owner: Owner = unsafeWindowOwner
@@ -225,11 +225,12 @@ object ProjectStorage:
       val format = state.format
         .flatMap(f => scala.util.Try(DiagramFormat.valueOf(f)).toOption)
         .getOrElse(DiagramFormat.detect(state.source))
-      val name = state.projectName
+      val name    = state.projectName
+      val backend = languages.forFormat(format)
       val displayName =
         if name.trim.nonEmpty && name != PersistedDiagramState.defaultProjectName then name
-        else languages.forFormat(format).extractTitle(state.source).getOrElse(name)
-      Some(ProjectCardInfo(format, displayName))
+        else backend.extractTitle(state.source).getOrElse(name)
+      Some(ProjectCardInfo(format, displayName, backend.diagramKind(state.source)))
     catch case _: Throwable => None
 
   /** True when a project with this id exists in the directory. */

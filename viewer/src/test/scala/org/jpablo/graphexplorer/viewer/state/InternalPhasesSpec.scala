@@ -514,6 +514,7 @@ object FakeDiagramLanguages extends DiagramLanguages:
     override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String = s"FAKE:${graph.nodeIds.size}"
     override def extractTitle(text: String): Option[String]        = None
+    override def diagramKind(text: String): Option[String]         = None
     override def selectionStrategy: SelectableElementStrategy      = GraphvizSelectionStrategy
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 
@@ -533,6 +534,7 @@ object ClassifyingFakeLanguages extends DiagramLanguages:
     override def textToSvg(text: String): Future[SvgWithPositions]               = Future.never
     override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String  = s"FAKE:${graph.nodeIds.size}"
     override def extractTitle(text: String): Option[String]                      = None
+    override def diagramKind(text: String): Option[String]                       = None
     override def selectionStrategy: SelectableElementStrategy                    = GraphvizSelectionStrategy
     override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
 

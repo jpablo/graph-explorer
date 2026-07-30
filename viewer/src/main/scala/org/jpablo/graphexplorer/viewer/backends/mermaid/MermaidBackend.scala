@@ -59,6 +59,8 @@ class MermaidBackend(using ExecutionContext) extends DiagramBackend:
 
   override def extractTitle(text: String): Option[String] = MermaidSourceScan.diagramTitle(text)
 
+  override def diagramKind(text: String): Option[String] = MermaidSourceScan.diagramKind(text)
+
   override def selectionStrategy: SelectableElementStrategy = MermaidSelectionStrategy
 
   override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =

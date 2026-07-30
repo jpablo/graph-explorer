@@ -37,6 +37,8 @@ class GraphvizBackend(graphviz: Graphviz) extends DiagramBackend:
 
   override def extractTitle(text: String): Option[String] = DotSourceScan.graphTitle(text)
 
+  override def diagramKind(text: String): Option[String] = DotSourceScan.diagramKind(text)
+
   override def selectionStrategy: SelectableElementStrategy = GraphvizSelectionStrategy
 
   override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] =

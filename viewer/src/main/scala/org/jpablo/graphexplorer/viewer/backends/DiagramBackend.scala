@@ -110,6 +110,12 @@ trait DiagramBackend:
     */
   def extractTitle(text: String): Option[String]
 
+  /** The kind of diagram the source declares (DOT: `digraph` vs `graph`; Mermaid:
+    * flowchart, sequence, class, ...), for display beside the format badge. Same
+    * cheapness contract as [[extractTitle]]: runs per library card.
+    */
+  def diagramKind(text: String): Option[String]
+
   /** Strategy for extracting element ids from the SVGs this backend produces. */
   def selectionStrategy: SelectableElementStrategy
 

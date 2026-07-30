@@ -16,6 +16,21 @@ private[backends] object DotSourceScan:
   // (`label="a[b"`) cannot skew the nesting depth.
   private val QuotedSpan = """"[^"]*"""".r
 
+  // The graph declaration keyword, optionally preceded by `strict`. Whole-word and
+  // case-independent, like DOT's own keywords — so a line starting `graph_config`
+  // (or, inside the body, nothing: the declaration always comes first) cannot match.
+  private val GraphDecl = """(?i)^(?:strict\s+)?(digraph|graph)\b.*""".r
+
+  /** `digraph` vs `graph`: DOT's own vocabulary for its two diagram kinds (directed
+    * vs undirected edges), read from the graph declaration. Comment lines ahead of
+    * the declaration are skipped by anchoring, not by parsing them.
+    */
+  def diagramKind(text: String): Option[String] =
+    text.linesIterator
+      .map(_.trim)
+      .take(50)
+      .collectFirst { case GraphDecl(kw) => kw.toLowerCase }
+
   /** The graph's declared title: its top-level `label` attribute, when present.
     *
     * Only the top of the document is scanned — the graph label conventionally sits in
