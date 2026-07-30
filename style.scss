@@ -1227,6 +1227,19 @@ svg {
   font-size: 10px !important;
 }
 
+// The "−" is an ACTION with no information content, so it earns its pixels only
+// when the group is the current subject: badges sit inside the cluster element
+// that carries .selected, so DOM state drives this with no plumbing. The count
+// badges stay always-on — they report something (hidden members/neighbors).
+// visibility (not display) also kills pointer events, so there is no invisible
+// click target.
+.gx-fold-badge {
+  visibility: hidden;
+}
+.selected > .gx-fold-badge {
+  visibility: visible;
+}
+
 // While a layout tween runs, badges would ride their element's scale channel
 // and smear (a stretched ellipse mid-flight). visibility (not display) so
 // getBBox-based measurements stay identical with and without the class.
