@@ -20,6 +20,8 @@ trait UIState:
   val leftPanelVisible        = Var(initialLeftPanelVisible)
   val canvasContainerFocus    = EventBus[Boolean]()
   val aboutDialogOpen         = Var(false)
+  val preferencesDialogOpen   = Var(false)
+  val renameDialogOpen        = Var(false)
 
   /** Width of the right panel in px, set by dragging its left edge. Persisted in ViewerSettings. */
   val rightPanelWidth = Var(ViewerSettings.defaultRightPanelWidth)

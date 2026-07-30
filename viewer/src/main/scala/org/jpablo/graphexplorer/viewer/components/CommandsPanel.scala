@@ -78,19 +78,22 @@ def CommandsPanel(state: ViewerState, commands: Commands) =
       e.preventDefault()
       focusSearch.emit(true)
     },
-    // Search box at the top with consistent styling
+    // The palette's front door, shaped like what it is: a search box. Promoted
+    // from an anonymous "Command.." stub per the top-bar study — ⌘K is the
+    // intended home for every occasional action, so it has to read as one.
     InputBox(
       InputVariant.xs,
-      cls := "px-1 w-32 transition-all duration-200 ease-in-out mt-[-3px] no-outline",
+      cls := "px-1.5 w-44 transition-all duration-200 ease-in-out mt-[-3px] no-outline",
+      i(cls := "bi bi-search opacity-40 text-xs"),
       inContext { thisNode =>
         input(
           typ         := "search",
           cls         := "grow",
-          placeholder := "Command...",
+          placeholder := "Search commands…",
           onFocus.mapTo(true) --> searchHasFocus,
           onBlur.mapTo(false) --> searchHasFocus,
-          onFocus --> thisNode.ref.classList.add("w-40"),
-          onBlur --> thisNode.ref.classList.remove("w-40"),
+          onFocus --> thisNode.ref.classList.add("w-60"),
+          onBlur --> thisNode.ref.classList.remove("w-60"),
           onInput.mapToValue --> searchTerm,
           focus <-- focusSearch.events,
           // Handle keyboard navigation directly in the input

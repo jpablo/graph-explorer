@@ -1,10 +1,8 @@
 package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
-import org.jpablo.graphexplorer.viewer.widgets.{TooltipPos, soft}
 import com.raquo.laminar.api.features.unitArrows
 import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples.examples
 import org.jpablo.graphexplorer.viewer.components.attributes.previews.ShapePreview
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Shape
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph.minimal.defaultNodeTheme
@@ -13,18 +11,21 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
+import org.scalajs.dom
 import org.scalajs.dom.svg.SVG
 
+/** The single bar of chrome, zoned by frequency of use (see the top-bar design
+  * study): navigation left · creation center · search/history/panels/settings
+  * right. Occasional actions live inside menus or ⌘K, preferences behind the
+  * gear — the bar itself carries only what gets hourly use.
+  */
 def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState): Div =
   import commands.{all, routerCmds, sections}
-
-  val hiddenNodesIsEmpty =
-    state.hiddenElements.signal.map(_.isEmpty)
 
   def shapePreview(shape: Shape): ReactiveSvgElement[SVG] | String =
     ShapePreview(shape, 16).map(_()).getOrElse(shape.toString)
 
-  val defaultShapePreview: ReactiveSvgElement[SVG] | String = 
+  val defaultShapePreview: ReactiveSvgElement[SVG] | String =
     shapePreview((defaultNodeTheme.getAs(Shape): Shape))
 
   val shapePreviews: Seq[MenuEntry[() => Unit]] =
@@ -53,19 +54,37 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
             )
           case _ => Sep
 
+  // Application-level entries, not document actions: preferences, help, about,
+  // source. One gear instead of five loose icons + a theme select in the bar.
+  val gearMenu: Signal[Seq[MenuEntry[() => Unit]]] =
+    Signal.fromValue(
+      Seq(
+        MenuOption("Preferences…", () => state.preferencesDialogOpen.set(true), Some("Theme and editing preferences"), None),
+        MenuOption(
+          all.helpKeyboardShortcuts.shortLabel,
+          () => all.helpKeyboardShortcuts.execute(),
+          Some(all.helpKeyboardShortcuts.description.getOrElse("")),
+          all.helpKeyboardShortcuts.shortcut.map(_.toList)
+        ),
+        Sep,
+        MenuOption("About Graph Explorer", () => all.openAboutDialog.execute(), None, None),
+        MenuOption("Source on GitHub", () => { dom.window.open("https://github.com/jpablo/graph-explorer/tree/viewer", "_blank"); () }, None, None)
+      )
+    )
+
   div(
     idAttr := "toolbar",
     cls    := "navbar",
     // -------- Navigation --------
     div(
       cls := "navbar-start gap-4",
-      //
-      // The mirror image of the right toolbar's section toggles, and drawn the same way:
-      // both open a panel, so both are an icon that stays pressed while its panel is out.
       IconToggle(
         "bi-layout-sidebar",
         "Toggle Library",
         state.leftPanelVisible,
+        // Start-aligned: this sits at the window's left edge, where the default
+        // centre-aligned bubble clips off-screen.
+        tipPos = TooltipPos.bottomStart,
         mods = idAttr := "toggle-library"
       ),
       // -------- Breadcrumbs --------
@@ -73,20 +92,25 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         cls := "breadcrumbs text-md py-0",
         ul(
           li(
-            a(cls := "text-xs", title := "Home", span().houseIcon, onClick --> routerCmds.navigateHome.execute())
+            a(cls := "text-sm opacity-60", "Library", onClick --> routerCmds.navigateHome.execute())
           ),
           li(
             cls := "text-sm",
-            text <-- projectName,
+            // The title itself is the rename affordance; the pencil is the hint.
+            span(
+              cls   := "cursor-pointer hover:underline decoration-dotted underline-offset-4",
+              title := "Rename diagram",
+              text <-- projectName,
+              onClick --> all.changeProjectName.execute()
+            ),
             IconButtonTitled("bi-pencil text-[.65rem]", "Change title")(all.changeProjectName.execute())
           )
         )
       )
     ),
-    // -------- new node button --------
+    // -------- Creation --------
     div(
       cls := "navbar-center gap-2",
-      // ---
       div(
         cls := "flex-nowrap",
         Button(
@@ -108,7 +132,6 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
           menuCls = "items-center"
         ).amend(cls := "dropdown-center ml-[-1px]")
       ),
-      // -------- actions --------
       Dropdown(
         title = span("Add"),
         options = filteredMenu(sections.add*),
@@ -119,57 +142,34 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
         options = filteredMenu(sections.select*),
         onClickHandler = _ --> (action => action())
       ),
+      // Actions absorbs the old "Copy as" menu: exporting IS an action, and two
+      // top-level menus for it was one of the junk-drawer symptoms.
       Dropdown(
         title = span("Actions"),
-        options = filteredMenu(sections.actions*),
+        options = {
+          val actionsWithExport: List[Command[?] | Sep.type] =
+            sections.actions ++ (Sep :: sections.exportAs)
+          filteredMenu(actionsWithExport*)
+        },
         onClickHandler = _ --> (action => action())
-      ),
-      Dropdown(
-        title = span("Copy as"),
-        options = filteredMenu(sections.exportAs*),
-        onClickHandler = _ --> (action => action())
-      ),
-      // -------- examples --------
-      Dropdown(
-        title = span("Examples"),
-        options = Signal.fromValue(examples.toSeq.map((a, b) => MenuOption(a, b, None, None))),
-        onClickHandler =
-          _.flatMap(example => FetchStream.get(example.path).map(example -> _)) --> {
-            case (example, source) =>
-              state.showAll()
-              state.setDiagramFormat(example.format)
-              state.sourceText.set(source)
-          }
-      ).amend(cls := "hidden lg:block"),
-      // -------- show all --------
-      Button(
-        all.showAll.shortLabel,
-        disabled <-- hiddenNodesIsEmpty,
-        onClick --> all.showAll.execute()
-      ).tiny.soft.primary.toTooltip(all.showAll.labelWithShortcut),
-      CommandsPanel(state, commands).amend(cls := "hidden lg:block")
+      )
     ),
+    // -------- Search · history · panels · settings --------
     div(
       cls := "navbar-end gap-2",
-      // Two clusters, not eight loose buttons: history is one thought, "about this app" is
-      // another. The gap between clusters is what separates them — no dividers needed.
+      CommandsPanel(state, commands).amend(cls := "hidden lg:block"),
       div(
-        cls := "flex items-center gap-0.5",
+        cls := "gx-tool-group",
         IconButton("bi-arrow-counterclockwise", all.undo.labelWithShortcut)(all.undo.execute()),
         IconButton("bi-arrow-clockwise", all.redo.labelWithShortcut)(all.redo.execute())
       ),
-      div(
-        cls := "flex items-center gap-0.5",
-        // tooltip-end (daisyUI 5.6 alignment): these sit at the window's right
-        // edge, where a centre-aligned bubble clips off-screen.
-        IconButton("bi-question-circle", all.helpKeyboardShortcuts.labelWithShortcut, tipPos = TooltipPos.bottomEnd)(
-          all.helpKeyboardShortcuts.execute()
-        ),
-        IconButton("bi-link-45deg", all.copyShareURL.labelWithShortcut, tipPos = TooltipPos.bottomEnd)(all.copyShareURL.execute()),
-        IconButton("bi-info-circle", all.openAboutDialog.labelWithShortcut, tipPos = TooltipPos.bottomEnd)(all.openAboutDialog.execute()),
-        IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
-      ),
-      // -------- Theme Selector --------
-      ThemeSelect(state.currentTheme.signal, theme => state.currentTheme.set(Some(theme)))
+      PanelSectionToggles(state).amend(cls := "gx-tool-group"),
+      Dropdown(
+        title = emptyMod,
+        options = gearMenu,
+        onClickHandler = _ --> (action => action()),
+        icon = i(cls := "bi bi-gear"),
+        menuCls = "w-56"
+      ).amend(cls := "dropdown-end")
     )
   )

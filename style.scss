@@ -597,6 +597,25 @@ svg {
     }
   }
 
+  // The context strip: a second row that only exists while a selection or
+  // hidden elements do. A different SURFACE, not a hairline — the divider
+  // between two same-colored bars was the "strange middle line".
+  #selection-toolbar {
+    // gap-3: the "2 nodes" count, the controls, and the hidden chip are
+    // separate thoughts — space is their separator (no dividers).
+    @apply border-b-0 bg-base-200/60 gap-3;
+  }
+
+  .gx-selection-count {
+    @apply text-xs font-semibold opacity-60 shrink-0 whitespace-nowrap;
+  }
+
+  // Boxed control clusters in the toolbar's right zone (history, panel
+  // toggles): the box is the group boundary, so no dividers are needed.
+  .gx-tool-group {
+    @apply flex items-center gap-0.5 rounded-lg bg-base-200/60 p-0.5;
+  }
+
   #zoom-toolbar {
     @apply bottom-2 left-2/4 -translate-x-2/4;
   }

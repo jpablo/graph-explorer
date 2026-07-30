@@ -60,9 +60,23 @@ object InputVariant:
 def InputBox(mods: Mods*) =
   label(cls := "input", mods)
 
+/** daisyUI toggle bound to a Boolean Var (the preferences switches). */
+def Toggle(flag: Var[Boolean], mods: Mods*) =
+  input(
+    tpe := "checkbox",
+    cls := "toggle toggle-sm",
+    checked <-- flag,
+    onChange.mapToChecked --> flag,
+    mods
+  )
+
 /** The label dialogs' multi-line input (the v5 default border applies). */
 def DialogTextArea(mods: Mods*) =
   textArea(cls := "textarea w-full", mods)
+
+/** Single-line dialog input (the rename dialog). */
+def DialogInput(mods: Mods*) =
+  input(tpe := "text", cls := "input w-full", mods)
 
 /** Class-driven daisyUI swap: the two icons cross-fade with a rotate as `active`
   * flips — no checkbox nested inside the caller's button, which the input-driven

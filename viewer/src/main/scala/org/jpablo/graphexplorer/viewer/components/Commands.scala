@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
 import org.jpablo.graphexplorer.viewer.state.{NavDirection, PersistedDiagramState, RightPanelSection, ViewerState}
-import org.scalajs.dom.{KeyValue, window}
+import org.scalajs.dom.KeyValue
 import org.scalajs.dom
 
 import scala.scalajs.js
@@ -105,9 +105,9 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   // miscellaneous actions
   // -----------------------------------
   private def changeProjectNameAction(): Unit =
-    val newName = window.prompt("Enter project Name", state.project.name.now())
-    if newName != null then
-      state.project.name.set(newName)
+    // Opens the app's own rename dialog (RenameProjectDialog) — the native
+    // window.prompt was the one browser-chrome interruption left in the flow.
+    state.renameDialogOpen.set(true)
 
   private def moveToGroupActionVisible(selection: ElementIds): Boolean =
     val classified = selection.classify

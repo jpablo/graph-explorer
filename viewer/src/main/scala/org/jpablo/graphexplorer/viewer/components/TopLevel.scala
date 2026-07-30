@@ -24,6 +24,8 @@ def TopLevel(
       RightPanel(state),
       HelpDialog(state.helpDialogOpen, commands),
       AboutDialog(state.aboutDialogOpen),
+      PreferencesDialog(state),
+      RenameProjectDialog(state),
       InfoAlert(state.infoBus),
       EditLabelDialog(state),
       NewNodeLabelDialog(state),

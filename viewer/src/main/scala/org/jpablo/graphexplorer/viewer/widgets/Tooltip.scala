@@ -20,4 +20,6 @@ object TooltipPos:
   val left: String      = "tooltip-left"
   val right: String     = "tooltip-right"
   val bottomEnd: String = "tooltip-bottom tooltip-end"
+  // For controls at the window's LEFT edge, where a centre-aligned bubble clips.
+  val bottomStart: String = "tooltip-bottom tooltip-start"
 

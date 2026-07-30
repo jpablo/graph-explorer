@@ -7,14 +7,14 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 
 /** The right panel's section toggles: Diagram, Elements, Source. Formerly a
-  * vertical bar pinned to the right edge (#right-toolbar); now a horizontal
-  * cluster the attributes toolbar right-justifies — so a fully collapsed
-  * workspace shows no rail at all and the canvas owns the right edge.
+  * vertical bar pinned to the right edge (#right-toolbar); now a boxed cluster
+  * in the main toolbar's right zone — a fully collapsed workspace shows no
+  * rail at all and the canvas owns the right edge.
   */
 def PanelSectionToggles(state: ViewerState) =
   div(
     idAttr := "panel-toggles",
-    cls    := "flex items-center gap-2 shrink-0 print:hidden",
+    cls    := "flex items-center gap-0.5 shrink-0 print:hidden",
     List(
       diagramAttributes -> ("bi-sliders", "Diagram", TooltipPos.bottom),
       elements          -> ("bi-list-ul", "Elements", TooltipPos.bottom),
