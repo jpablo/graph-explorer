@@ -481,6 +481,42 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       )
     }
 
+  test("Switching format on an EMPTY diagram swaps in the new format's empty source"):
+    val notice = Var(Option.empty[EditorNotice])
+    val phases = new InternalPhases(
+      TwoFormatFakeLanguages,
+      initialSource = Some("digraph G {\n}"),
+      hiddenNodes = Val(ElementIds()),
+      editorNotice = notice
+    )
+
+    afterMicrotasks {
+      assertEquals(phases.formatSelection.now(), DiagramFormat.DOT)
+      phases.formatSelection.set(DiagramFormat.Mermaid)
+    }.flatMap { _ =>
+      afterMicrotasks {
+        // The old DOT template was NOT re-parsed as Mermaid; the new backend's own
+        // empty source replaced it, and no syntax error was manufactured.
+        assertEquals(phases.sourceText.now(), "FAKEMMD:empty")
+        assertEquals(notice.now(), None)
+      }
+    }
+
+  test("Switching format on a NON-empty diagram keeps the text (reinterpret, don't rewrite)"):
+    val phases = new InternalPhases(
+      TwoFormatFakeLanguages,
+      initialSource = Some("digraph G { n1 }"),
+      hiddenNodes = Val(ElementIds())
+    )
+
+    afterMicrotasks {
+      phases.formatSelection.set(DiagramFormat.Mermaid)
+    }.flatMap { _ =>
+      afterMicrotasks {
+        assertEquals(phases.sourceText.now(), "digraph G { n1 }")
+      }
+    }
+
   test("Parse failures are classified: render-only kinds are Info, real failures are Error"):
     val notice = Var(Option.empty[EditorNotice])
     val phases = new InternalPhases(ClassifyingFakeLanguages, hiddenNodes = Val(ElementIds()), editorNotice = notice)
@@ -504,6 +540,34 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
         assert(notice.now().exists(_.message.contains("syntax error")))
       }
     }
+
+/** Two-format fake registry: proves format-SWITCHING behavior without real backends.
+  * Parses are text-driven (a source mentioning `n1` has content, anything else is empty);
+  * serialization is tagged per format, so a test can see WHICH backend produced the text.
+  */
+object TwoFormatFakeLanguages extends DiagramLanguages:
+  private def graphFor(text: String): ViewerGraph =
+    if text.contains("n1") then ViewerGraph.basic(NodeId("n1") -> NodeId("n2"))
+    else ViewerGraph.minimalWithDirected
+
+  private class Backend(override val format: DiagramFormat, tag: String) extends DiagramBackend:
+    override def info: DiagramLanguageInfo = DiagramLanguageInfo(tag, s"$tag source", "https://example.test", s"$tag docs")
+    override def textToGraph(text: String): Future[ViewerGraph]    = Future.successful(graphFor(text))
+    override def textToSvg(text: String): Future[SvgWithPositions] = Future.never
+    override def graphToText(graph: ViewerGraph, omitInternal: Boolean): String =
+      s"$tag:${if graph.nodeIds.isEmpty then "empty" else graph.nodeIds.size.toString}"
+    override def extractTitle(text: String): Option[String]   = None
+    override def diagramKind(text: String): Option[String]    = None
+    override def selectionStrategy: SelectableElementStrategy = GraphvizSelectionStrategy
+    override def render(inputs: DiagramRenderInputs): Signal[Option[SvgWithPositions]] = Signal.fromValue(None)
+
+  private val dotBackend     = Backend(DiagramFormat.DOT, "FAKEDOT")
+  private val mermaidBackend = Backend(DiagramFormat.Mermaid, "FAKEMMD")
+
+  override def all: List[DiagramBackend] = List(dotBackend, mermaidBackend)
+  override def forFormat(format: DiagramFormat): DiagramBackend = format match
+    case DiagramFormat.Mermaid => mermaidBackend
+    case _                     => dotBackend
 
 /** Minimal in-memory registry used to prove [[InternalPhases]] needs no real backend. */
 object FakeDiagramLanguages extends DiagramLanguages:

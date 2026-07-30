@@ -5,7 +5,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat, DiagramLanguages, RenderOnlyDiagram}
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.GroupId
 import org.jpablo.graphexplorer.viewer.logging.*
 import org.jpablo.graphexplorer.viewer.utils.ChangeOrigin
@@ -210,11 +210,30 @@ class InternalPhases(
     simpleLog(s"[${format.displayName}] parseTextToGraphAsync len=${text.length} origin=$origin", logLevel)
     textChangeBus.writer.onNext((text, format, origin))
 
+  /** No drawable content: nothing but (at most) the materialized root group. Graph-level
+    * attributes are deliberately NOT part of the test — they live on the graph and survive
+    * a re-serialization, so they don't make a diagram "non-empty" for switching purposes.
+    */
+  private def hasNoElements(g: ViewerGraph): Boolean =
+    g.nodeIds.isEmpty && g.arrowIds.isEmpty &&
+      g.groupIds.forall(_ == GroupId(ViewerGraphElements.defaultRootId.value))
+
   // Re-parse the current text when the user switches the selected format.
   formatSelection.signal.changes.foreach: newFormat =>
     val currentState = state.now()
     if currentState.format != newFormat then
-      state.set(currentState.copy(format = newFormat))
-      parseTextToGraphAsync(currentState.text, newFormat, currentState.lastOrigin)
+      // An EMPTY diagram switches languages instead of reinterpreting its text: the text
+      // is just the old format's empty template (`digraph G {}`), and re-parsing it as
+      // the new language manufactures a syntax error over a document with nothing to
+      // lose. Serializing the (empty) graph through the new backend yields that
+      // backend's own canonical empty source. Out-of-sync or blank documents keep the
+      // reinterpret path: the first can't be trusted as empty, the second parses clean.
+      if currentState.graphInSync && currentState.text.trim.nonEmpty && hasNoElements(currentState.viewerGraph) then
+        val newText = languages.forFormat(newFormat).graphToText(currentState.viewerGraph, omitInternal = true)
+        state.set(GraphState(newText, currentState.viewerGraph, newFormat, currentState.lastOrigin))
+        parseTextToGraphAsync(newText, newFormat, currentState.lastOrigin)
+      else
+        state.set(currentState.copy(format = newFormat))
+        parseTextToGraphAsync(currentState.text, newFormat, currentState.lastOrigin)
 
 end InternalPhases
