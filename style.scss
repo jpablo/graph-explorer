@@ -841,6 +841,17 @@ svg {
       width: calc(var(--gx-attr-label) + var(--gx-attr-value) + 2.5rem);
     }
 
+    // The Elements PALETTE: unpinned, the list floats by the rail like the
+    // attributes card, but sized as a palette — fixed width, capped height,
+    // rows scrolling inside. Pinning docks this same content into the panel.
+    // overflow-hidden is the card honoring its own border: without it the
+    // max-height clamps the box but the row list paints right past it.
+    &.visible.floating.elements-palette {
+      width: 22rem;
+      max-height: min(70vh, 34rem);
+      overflow: hidden;
+    }
+
     // Drag target for resizing: sits ON the panel's left border and straddles it, so the
     // grabbable area is wider than the hairline it appears to be.
     .right-panel-resizer {
@@ -868,10 +879,129 @@ svg {
     }
 
     #right-panel-content {
-      @apply flex flex-col h-full flex-grow;
+      // min-h-0: a flex child's min-height defaults to its content size, so the
+      // palette's max-height clamped the CARD while this column refused to
+      // shrink — the rows painted past the border instead of scrolling.
+      @apply flex flex-col h-full flex-grow min-h-0;
+    }
 
-      #nodes-list, #arrows-list {
-        @apply m-2;
+    #elements-list {
+      @apply mx-2 mb-2 min-h-0;
+
+      .el-tools {
+        @apply pb-1.5;
+      }
+
+      .el-contents {
+        @apply min-h-0;
+      }
+
+      // One row shape for everything listable: node, arrow, group head, section
+      // head. Anatomy: [swatch|kind] label [id-tag] ................ [eye]
+      .el-row {
+        @apply flex items-center gap-1.5 px-1.5 rounded-sm cursor-pointer select-none relative;
+        min-height: 1.6rem;
+        font-size: 0.8rem;
+
+        &:hover {
+          @apply bg-base-200;
+        }
+
+        .el-label {
+          @apply truncate;
+        }
+
+        .el-id {
+          @apply font-mono opacity-50;
+          font-size: 10px;
+        }
+
+        .el-kind {
+          @apply opacity-50 shrink-0;
+          font-size: 11px;
+        }
+
+        // The node's canvas fill, travelling into the list — as a glyph in the
+        // same slot the arrow rows use, so it reads as a pictogram rather than
+        // a checkbox. Outline = no fill attribute; solid+colored = the fill.
+        .el-swatch {
+          @apply shrink-0;
+          font-size: 11px;
+
+          // The no-fill outline: smaller and quieter than the colored chip, so
+          // it reads as a faint pictogram — any bigger and a square outline
+          // starts to look like a checkbox again.
+          i.bi-square {
+            font-size: 8px;
+            opacity: 0.35;
+          }
+        }
+
+        // Hover reveals the eye; a hidden row pins it (struck) — visibility is
+        // now an explicit control, not a font weight.
+        .el-eye {
+          @apply ml-auto shrink-0 px-0.5 opacity-0;
+        }
+        &:hover .el-eye, &.el-hidden .el-eye {
+          @apply opacity-60;
+        }
+        .el-eye:hover {
+          @apply opacity-100 text-primary;
+        }
+
+        &.el-hidden {
+          .el-swatch, .el-label, .el-id, .el-kind {
+            @apply opacity-40;
+          }
+        }
+
+        // Selection mirrors the canvas language: accent bar + wash, not a grey box.
+        &.el-selected {
+          background-color: var(--gx-mark-soft);
+
+          &::before {
+            content: "";
+            @apply absolute left-0 rounded-full;
+            top: 0.3rem;
+            bottom: 0.3rem;
+            width: 2.5px;
+            background-color: var(--gx-select);
+          }
+        }
+      }
+
+      .el-nested {
+        @apply ml-4;
+      }
+
+      .el-section {
+        @apply font-semibold sticky top-0 z-10 bg-base-100;
+      }
+
+      .el-chevron i {
+        @apply inline-block transition-transform motion-reduce:transition-none;
+      }
+      .el-section.el-closed .el-chevron i,
+      .el-group:not([open]) > summary .el-chevron i {
+        transform: rotate(-90deg);
+      }
+
+      .el-group > summary {
+        list-style: none;
+        &::-webkit-details-marker {
+          display: none;
+        }
+      }
+      .el-group > div {
+        @apply ml-3;
+      }
+
+      .el-footer {
+        @apply pt-1.5 mt-1 border-t border-base-300 text-xs;
+
+        .el-select-shown {
+          @apply cursor-pointer font-semibold text-primary;
+        }
       }
     }
 
@@ -905,18 +1035,6 @@ svg {
       .source-format::picker(select) {
         @apply bg-base-100 border border-base-300 shadow-lg p-1;
         border-radius: var(--radius-box);
-      }
-    }
-
-    #right-panel-controls, #edges-panel-controls {
-      @apply bg-base-100 pb-2 rounded-box sticky top-0;
-    }
-
-    #right-panel-contents, #edges-panel-contents {
-      @apply overflow-y-auto overflow-x-auto rounded-box bg-base-100 h-full;
-
-      .selected {
-        background-color: var(--gx-mark-soft);
       }
     }
 

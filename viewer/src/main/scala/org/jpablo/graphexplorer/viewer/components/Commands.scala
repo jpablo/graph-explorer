@@ -4,7 +4,7 @@ import org.jpablo.graphexplorer.projects.ProjectStorage
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.components.Command.{and, selectionNonEmpty, single}
 import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, ElementIds}
-import org.jpablo.graphexplorer.viewer.state.{NavDirection, PersistedDiagramState, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{NavDirection, PersistedDiagramState, RightPanelSection, ViewerState}
 import org.scalajs.dom.{KeyValue, window}
 import org.scalajs.dom
 
@@ -501,6 +501,16 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val undo    = Command("Undo", () => state.undoEvent.emit(()), always, description = Some("Undo the last action"))
     val redo    = Command("Redo", () => state.redoEvent.emit(()), always, description = Some("Redo the last action"))
 
+    val findElements = Command(
+      "Find elements",
+      // Setting the section (even when it is already active) re-fires the
+      // palette's focus-the-filter reaction, so `/` is open-or-refocus.
+      () => state.rightPanelActiveSection.set(RightPanelSection.elements),
+      always,
+      shortcut = Some(Shortcut("/")),
+      description = Some("Open the Elements palette with the filter focused")
+    )
+
     val helpKeyboardShortcuts = Command(
       "Help - Keyboard Shortcuts",
       () => state.helpDialogOpen.set(true),
@@ -686,6 +696,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.togglePredecessors
     ),
     view -> List(
+      all.findElements,
       all.rootsOnly,
       all.showAll,
       all.hideAllNodes,

@@ -45,7 +45,8 @@ trait Persistence:
         restoredViewerSettings.rightPanelWidth.getOrElse(ViewerSettings.defaultRightPanelWidth),
         dom.window.innerWidth
       ),
-      wrapSourceLines -> restoredViewerSettings.wrapSourceLines
+      wrapSourceLines -> restoredViewerSettings.wrapSourceLines,
+      elementsPinned -> restoredViewerSettings.elementsPinned
     )
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
@@ -142,6 +143,10 @@ case class ViewerSettings(
     // the default — the restore path treats the two differently.
     rightPanelWidth:    Option[Int] = None,
     wrapSourceLines:    Boolean = false,
+    // Palette-first Elements list: false = floating card, true = docked in the panel.
+    elementsPinned:     Boolean = false,
+    // Library page: false = thumbnail cards, true = compact rows.
+    libraryListMode:    Boolean = false,
     schemaVersion:      Int = ViewerSettings.currentSchemaVersion // Add default for loading potentially older states
 ) derives ReadWriter
 

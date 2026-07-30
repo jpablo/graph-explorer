@@ -2,7 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.rightPanel
 
 import com.raquo.laminar.api.L.*
 import io.laminext.syntax.core.*
-import org.jpablo.graphexplorer.viewer.components.attributes.views.{DiagramAttributesViews, ElementsView}
+import org.jpablo.graphexplorer.viewer.components.attributes.views.DiagramAttributesViews
 import org.jpablo.graphexplorer.viewer.state.RightPanelSection.{diagramAttributes, elements, sources}
 import org.jpablo.graphexplorer.viewer.state.{ViewerSettings, ViewerState}
 import org.scalajs.dom
@@ -14,13 +14,22 @@ def RightPanel(state: ViewerState): Div =
   val activeSectionPair =
     activeSection.scanLeft(x0 => (x0, x0)) { case ((x, y), next) => (y, next) }
 
+  // Elements is palette-first: unpinned it floats like the attributes card;
+  // pinned it docks. The pin toggles this LIVE, which is the whole gesture —
+  // the floating card visibly becomes the panel.
+  val elementsFloating =
+    state.elementsPinned.signal.not
+
   val useTransition =
-    activeSectionPair.map: (curr, next) =>
-      val open  = (curr.isVisible || (curr == diagramAttributes)) && ((next == elements) || next == sources)
-      val close = next.isVisible && ((next == elements) || next == sources)
+    activeSectionPair.combineWithFn(state.elementsPinned.signal): (pair, pinned) =>
+      val (curr, next) = pair
+      val open  = (curr.isVisible || (curr == diagramAttributes)) && ((next == elements && pinned) || next == sources)
+      val close = next.isVisible && ((next == elements && pinned) || next == sources)
       open || close
 
-  val isFloating = activeSection.map(_ == diagramAttributes)
+  val isFloating =
+    activeSection.combineWithFn(elementsFloating): (section, elFloating) =>
+      section == diagramAttributes || (section == elements && elFloating)
 
   // Diagram attributes view resolved for the current format (no per-format match here).
   val diagramAttributesContent =
@@ -32,6 +41,7 @@ def RightPanel(state: ViewerState): Div =
     idAttr := "right-panel",
     cls <-- state.rightPanelActiveSection.signal.map(s => if s.isVisible then "visible" else "not-visible"),
     cls("floating card card-xs") <-- isFloating,
+    cls("elements-palette") <-- activeSection.combineWithFn(elementsFloating)(_ == elements && _),
     cls("transition-all duration-200") <-- useTransition,
     // Width travels as a custom property rather than an inline `width`, so the drag writes
     // ONE property per frame and the open/close transition above stays a pure CSS concern.
@@ -42,7 +52,7 @@ def RightPanel(state: ViewerState): Div =
       cls("card-body") <-- isFloating,
       List(
         diagramAttributes -> diagramAttributesContent,
-        elements          -> ElementsView(state),
+        elements          -> ElementsList(state),
         sources           -> SourceTab(state)
       ).map: (section, child) =>
         child.amend(cls := "h-full max-h-full flex flex-col", cls("hidden") <-- state.isSectionActive(section).not)

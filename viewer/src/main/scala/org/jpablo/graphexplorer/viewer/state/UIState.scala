@@ -24,6 +24,11 @@ trait UIState:
   /** Width of the right panel in px, set by dragging its left edge. Persisted in ViewerSettings. */
   val rightPanelWidth = Var(ViewerSettings.defaultRightPanelWidth)
 
+  /** The Elements list is palette-first: it opens as a floating card by the right
+    * rail, and PINNING docks it into the panel. Persisted in ViewerSettings.
+    */
+  val elementsPinned = Var(false)
+
   /** Soft-wrap long lines in the source editor. Off by default: DOT and Mermaid are
     * line-oriented, so wrapping trades a scrollbar for a shifting line count.
     */
