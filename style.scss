@@ -1196,10 +1196,14 @@ svg {
 .gx-expand-badge {
   cursor: pointer;
 
+  // Same chip treatment as .new-arrow-control (white ring + lift): the blue
+  // hairline alone read as translucent against a colored group fill — controls
+  // sit ON the canvas, so they share one elevation language.
   circle {
     fill: var(--gx-control-soft) !important;
-    stroke: var(--gx-control) !important;
+    stroke: white !important;
     stroke-width: 1px !important;
+    filter: drop-shadow(0px 1px 1px var(--gx-shadow-deep));
   }
 
   text {

@@ -58,9 +58,25 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
         ref.insertBefore(newRect, labelGroup)
       else
         ref.appendChild(newRect)
+      // Decorations paint ABOVE the selection wash: with no g.label anchor
+      // (mermaid clusters name theirs cluster-label) the rect lands after the
+      // badge, and its translucent fill + border drew OVER the control — the
+      // badge read as see-through. appendChild MOVES the existing nodes to the
+      // end, listeners intact.
+      ref
+        .querySelectorAllT[dom.Element](s".${SelectableElement.decorationClass}")
+        .foreach(d => ref.appendChild(d))
 
   private def SelectedRect() =
+    // The element's OWN geometry, not its decorations: badges live inside the
+    // element (to ride its transform) and would inflate the measured box — a
+    // selected group's border visibly included the fold badge circle. display
+    // ="none" removes them from getBBox for the duration of the measurement;
+    // no frame is produced in between, so nothing flashes.
+    val decorations = ref.querySelectorAllT[dom.Element](s".${SelectableElement.decorationClass}")
+    decorations.foreach(_.setAttribute("display", "none"))
     val bbox = ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
+    decorations.foreach(_.removeAttribute("display"))
     svg.rect(
       svg.cls := selectionRectClass,
       // Selection decorations must be invisible to hit-testing: the rect has a painted
@@ -76,6 +92,12 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
     )
 
 object SelectableElement:
+
+  /** Class marking overlay CONTROLS drawn inside a diagram element (the count/fold
+    * badges): they ride the element's transform but are not part of its geometry —
+    * measurements of the element itself (the selection border) must exclude them.
+    */
+  val decorationClass = "gx-decoration"
 
   /** Class marking invisible pointer-target decorations (MermaidBackend.addEdgeHitAreas).
     * They exist ONLY to catch clicks near thin edges: click resolution may go through

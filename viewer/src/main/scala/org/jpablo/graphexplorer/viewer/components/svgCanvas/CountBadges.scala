@@ -1,6 +1,6 @@
 package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
-import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
+import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.models.{GroupId, NodeId}
 import org.scalajs.dom
@@ -119,7 +119,9 @@ object CountBadges:
       onToggle: () => Unit
   ): dom.Element =
     val g = dom.document.createElementNS(SvgNS, "g")
-    g.setAttribute("class", cls)
+    // gx-decoration: a control riding the element, not part of its geometry —
+    // the selection border's measurement excludes it.
+    g.setAttribute("class", s"$cls ${SelectableElement.decorationClass}")
 
     val title = dom.document.createElementNS(SvgNS, "title")
     title.textContent = tooltip
