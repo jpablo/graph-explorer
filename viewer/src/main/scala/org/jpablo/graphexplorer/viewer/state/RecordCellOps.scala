@@ -416,11 +416,20 @@ trait RecordCellOps:
         tbl  <- HtmlLabelOps.parseTable(node.label.toString)
         old  <- HtmlLabelOps.cellAt(tbl, cell.path).map(_.attrs)
       yield
-        val newAttrs = updates
+        val applied = updates
           .applyTo(Attributes(old.map((k, v) => AttributeId(k) -> AttrValue(v))))
           .values
           .map((k, v) => k.value -> v.toString)
           .filter((_, v) => v.nonEmpty)
+        // Colouring a cell whose effective border width is 0 paints NOTHING —
+        // the engine only strokes a border it has a width for (gv does the
+        // same). Setting a colour states intent to see a border, so mint the
+        // minimum width that makes it visible.
+        val newAttrs =
+          if applied.get("color").exists(c => !old.get("color").contains(c)) &&
+            HtmlLabelOps.effectiveCellBorder(tbl, applied) == 0
+          then applied + ("border" -> "1")
+          else applied
         val newTbl = newAttrs.keySet
           .union(old.keySet)
           .foldLeft(tbl): (acc, key) =>

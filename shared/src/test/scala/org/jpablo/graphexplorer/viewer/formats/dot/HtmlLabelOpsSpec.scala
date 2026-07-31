@@ -173,6 +173,18 @@ class HtmlLabelOpsSpec extends ScalaCheckSuite:
     assertEquals(HtmlLabelOps.ports(t2), Set("f0"))
     assertEquals(HtmlLabelOps.ports(HtmlLabelOps.setCellAttr(t2, List(1, 1), "port", None)), Set.empty[String])
 
+  test("effectiveCellBorder: cell wins, then cellborder, then the table border"):
+    val plain = HtmlLabelOps.parseTable("<table><tr><td>a</td></tr></table>").get
+    // the parser substitutes gv's DEFAULT_BORDER when the attr is absent
+    assertEquals(HtmlLabelOps.effectiveCellBorder(plain, Map.empty), 1)
+
+    val borderless = HtmlLabelOps.parseTable("""<table border="0"><tr><td>a</td></tr></table>""").get
+    assertEquals(HtmlLabelOps.effectiveCellBorder(borderless, Map.empty), 0)
+
+    val viaCellBorder = HtmlLabelOps.parseTable("""<table border="0" cellborder="2"><tr><td>a</td></tr></table>""").get
+    assertEquals(HtmlLabelOps.effectiveCellBorder(viaCellBorder, Map.empty), 2)
+    assertEquals(HtmlLabelOps.effectiveCellBorder(viaCellBorder, Map("border" -> "0")), 0)
+
   test("nearestPath clamps after structure changes"):
     val t = HtmlLabelOps.parseTable(simple).get
     assertEquals(HtmlLabelOps.nearestPath(t, List(5, 7)), List(1, 1))

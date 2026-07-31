@@ -204,6 +204,20 @@ object HtmlLabelOps:
       case r :: c :: Nil => tbl.rows.lift(r).flatMap(_.lift(c))
       case _             => None
 
+  /** The border width actually drawn for a cell: its own `border`, else the
+    * table's `cellborder`, else the table's `border` (mirrors the engine's
+    * `HtmlTableLayout.borderOf`, gv `size_html_cell`).
+    *
+    * Zero means the cell is never stroked — so a `color` on it paints nothing,
+    * which is why the editor mints a width when colouring a borderless cell.
+    */
+  def effectiveCellBorder(tbl: HtmlTable, cellAttrs: Map[String, String]): Int =
+    cellAttrs
+      .get("border")
+      .flatMap(_.toIntOption)
+      .filter(b => 0 <= b && b <= 255)
+      .getOrElse(tbl.cellborder.getOrElse(tbl.border))
+
   /** Every port name in the table, nested tables included. */
   def ports(tbl: HtmlTable): Set[String] =
     def goCell(cell: HtmlCell): Set[String] =
