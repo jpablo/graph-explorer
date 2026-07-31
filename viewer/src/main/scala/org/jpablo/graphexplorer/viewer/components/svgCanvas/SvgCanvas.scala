@@ -270,7 +270,15 @@ def SvgCanvas(
         // After mounting we just render the already selected elements
         // this happens when the diagram is changed and the selection is not empty
         onMountCallback: ctx =>
-          queryElements(selection.now()).foreach(_.select()),
+          queryElements(selection.now()).foreach(_.select())
+          // …and size what select() just made, exactly as the change path does.
+          // A re-render (an edit, a layout change) comes through HERE, not
+          // through selectionElementChanges — that stream carries CHANGES, and
+          // the selection did not change, only the svg under it. Without this
+          // the decorations land unsized: a selected edge kept its endpoint
+          // disks and its recoloured arrowhead, both driven by signals that
+          // re-fire on subscribe, while its casing silently went missing.
+          SelectionCasing.refit(mainGroup, force = true),
         // subsequent selection changes don't trigger onMountCallback, so we can be more
         // precise and only select/unselect the elements that actually changed
         selectionElementChanges --> { groups =>
