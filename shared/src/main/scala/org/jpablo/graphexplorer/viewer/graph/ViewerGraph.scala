@@ -183,9 +183,14 @@ case class ViewerGraph(
       .toList
     if seqs.isEmpty then 0 else seqs.max
 
-  def addArrow(source: NodeId, target: NodeId): (ViewerGraph, Arrow) =
+  def addArrow(
+      source:     NodeId,
+      target:     NodeId,
+      sourcePort: Option[String] = None,
+      targetPort: Option[String] = None
+  ): (ViewerGraph, Arrow) =
     val newSeq = maxArrowSequence(source, target)
-    val arrow  = Arrow(source, target, seq = newSeq + 1)
+    val arrow  = Arrow(source, target, sourcePort = sourcePort, targetPort = targetPort, seq = newSeq + 1)
     (modifyArrows.using(_ + (arrow.id -> arrow)), arrow)
 
   def addNodeWithId(
@@ -239,12 +244,14 @@ case class ViewerGraph(
           case None          => am
       }
 
-  def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId): (ViewerGraph, ArrowId) =
+  def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId, port: Option[String] = None): (ViewerGraph, ArrowId) =
     val arrow = arrows(arrowId)
+    // The port names a cell of the NEW endpoint node — the old one must never
+    // carry over (it used to: retargeting away from a record left a stale port).
     val newArrow =
       newEndpoint match
-        case ArrowEndpointId.SourceId(id) => arrow.copy(source = id)
-        case ArrowEndpointId.TargetId(id) => arrow.copy(target = id)
+        case ArrowEndpointId.SourceId(id) => arrow.copy(source = id, sourcePort = port)
+        case ArrowEndpointId.TargetId(id) => arrow.copy(target = id, targetPort = port)
     val updated = modifyArrows.using(_ + (newArrow.id -> newArrow) - arrowId)
       .rekeyArrowMembership(arrowId, newArrow.id)
     (updated, newArrow.id)

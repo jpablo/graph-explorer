@@ -16,7 +16,14 @@ enum ArrowEndpoint derives CanEqual:
 enum MouseAction derives CanEqual:
   case Inactive
   case ExtendSelectionAction(rect: MouseActionRect)
-  case AddNewArrowAction(rect: MouseActionRect, originator: SelectableElement, direction: ArrowDirection)
+  case AddNewArrowAction(
+      rect:       MouseActionRect,
+      originator: SelectableElement,
+      direction:  ArrowDirection,
+      /** The record CELL selected when the drag started — the new arrow's port
+        * on the originator side (minted into the label on drop if needed). */
+      sourceCellPath: Option[List[Int]] = None
+  )
   case MoveArrowEndpointAction(rect: MouseActionRect, originator: SelectableElement, endpoint: ArrowEndpoint)
 
   def name: String =

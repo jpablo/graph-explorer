@@ -13,7 +13,7 @@ import org.jpablo.graphexplorer.viewer.state.{DiagramSelectionOps, RecordCellOps
 import org.jpablo.graphexplorer.viewer.utils.{BBox, MouseActionRect}
 
 import scala.scalajs.js
-//import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
+import org.jpablo.graphexplorer.viewer.domUtils.elementsFromPoint
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.ArrowPosition
 
@@ -57,36 +57,15 @@ def SvgCanvas(
   // --- Helpers for click / double-click logic ---
   // Defined locally within SvgCanvas
 
-  /** The node group the event landed in (the frame its geometry is written in). */
-  def nodeGroupOf(ev: dom.MouseEvent): Option[dom.svg.G] =
-    ev.target match
-      case el: dom.Element => Option(el.closest(strategy.nodeSelector)).collect { case g: dom.svg.G => g }
-      case _               => None
-
-  /** Client coords → the group's local frame (getScreenCTM covers viewBox + pan/zoom). */
-  def localPointIn(group: dom.svg.G, ev: dom.MouseEvent): Option[(Double, Double)] =
-    for
-      svgEl <- Option(group.ownerSVGElement)
-      ctm   <- Option(group.getScreenCTM())
-    yield
-      val pt = svgEl.createSVGPoint()
-      pt.x = ev.clientX
-      pt.y = ev.clientY
-      val local = pt.matrixTransform(ctm.inverse())
-      (local.x, local.y)
-
-  /** The record cell under the pointer, in node-local gv coords (y-up, centre origin). */
+  /** The record cell under the pointer (model hit-test via RecordCellOps). */
   def cellUnderPointer(nodeId: NodeId, ev: dom.MouseEvent) =
-    for
-      group    <- nodeGroupOf(ev)
-      (lx, ly) <- localPointIn(group, ev)
-      bbox = RecordCellOverlay.ownGeometryBBox(group)
-      path <- viewerOps.recordCells.cellNearestLocalPoint(
-        nodeId,
-        lx - (bbox.x + bbox.width / 2),
-        (bbox.y + bbox.height / 2) - ly
-      )
-    yield path
+    viewerOps.recordCells.cellPathAtClientPoint(nodeId, ev.clientX, ev.clientY)
+
+  /** The record cell an arrow drag is hovering: node under the point, then its cell. */
+  def dropCellAt(end: org.jpablo.graphexplorer.viewer.utils.ClientPoint): Option[(NodeId, List[Int])] =
+    findClosestElementId(dom.document.elementsFromPoint(end.x, end.y), strategy, Some(strategy.nodeSelector))
+      .flatMap(_.asNodeId)
+      .flatMap(nodeId => viewerOps.recordCells.cellPathAtClientPoint(nodeId, end.x, end.y).map(nodeId -> _))
 
   def handleElementClick(ev: dom.MouseEvent, now: Double, currentElementIdO: Option[ElementId]): Boolean =
     val isRepeatClick = currentElementIdO.exists: id =>
@@ -252,6 +231,13 @@ def SvgCanvas(
             case a: AddNewArrowAction if !a.rect.isEmpty       => viewerOps.addArrowFromSourceToPointer(mainGroup, a)
             case a: MoveArrowEndpointAction if !a.rect.isEmpty => viewerOps.addArrowBetweenPointerAndEndpoint(mainGroup, a)
             case _                                             =>
+          // While the drag hovers a record, outline the CELL under the pointer —
+          // the exact attach target (its port, minted on drop).
+          val dropCell = action match
+            case a: AddNewArrowAction if !a.rect.isEmpty       => dropCellAt(a.rect.end)
+            case a: MoveArrowEndpointAction if !a.rect.isEmpty => dropCellAt(a.rect.end)
+            case _                                             => None
+          RecordCellOverlay.refreshDropHighlight(mainGroup, strategy, dropCell, viewerOps.recordCells.cellBoxes)
         },
         // Updates selection as a result of ongoing mouse actions
         mouseAction.signal --> {

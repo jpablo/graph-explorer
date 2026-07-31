@@ -133,6 +133,20 @@ object RecordTree:
       case l: Leaf  => l.copy(text = storedText(display))
       case g: Group => g
 
+  /** Set (or clear) the port of the cell at `path`. */
+  def setPort(root: Group, path: Path, port: Option[String]): Group =
+    val clean = port.map(_.trim).filter(_.nonEmpty)
+    modifyCellAt(root, path):
+      case l: Leaf  => l.copy(port = clean)
+      case g: Group => g.copy(port = clean)
+
+  /** Every port name in the tree (leaves and groups). */
+  def ports(root: Group): Set[String] =
+    def go(t: RecordTree): Set[String] = t match
+      case Leaf(p, _)   => p.toSet
+      case Group(p, cs) => p.toSet ++ cs.flatMap(go)
+    go(root)
+
   /** Insert an empty cell next to the cell at `path`, in the same group.
     * @return the new tree and the new cell's path
     */

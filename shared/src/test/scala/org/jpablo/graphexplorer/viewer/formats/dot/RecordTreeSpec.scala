@@ -159,6 +159,15 @@ class RecordTreeSpec extends ScalaCheckSuite:
     assertEquals(r, Group(None, Vector(Leaf(None, ""))))
     assertEquals(p, List(0))
 
+  test("setPort sets (trimmed), and clears back"):
+    val withPort = RecordTree.setPort(abTree, List(0), Some(" p0 "))
+    assertEquals(withPort, Group(None, Vector(Leaf(Some("p0"), "a"), Leaf(None, "b"))))
+    assertEquals(RecordTree.setPort(withPort, List(0), None), abTree)
+
+  test("ports collects leaf and group ports"):
+    val root = RecordTree.parse("<g>{<f0> a | b} | <f1> c")
+    assertEquals(RecordTree.ports(root), Set("g", "f0", "f1"))
+
   test("setText escapes and canonicalizes"):
     val r = RecordTree.setText(abTree, List(0), "x | {y}  z")
     assertEquals(r, Group(None, Vector(Leaf(None, "x \\| \\{y\\} z"), Leaf(None, "b"))))

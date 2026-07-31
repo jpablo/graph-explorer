@@ -100,11 +100,16 @@ trait MoveArrowEndpointOps:
     if selectionNow.size == 2 && !isMouseInsideSourceNode then
       // move the arrow endpoint to the new position
       (selectionNow - originator.elementId).head.asNodeId.foreach: endpointId =>
+        // Dropping on a record re-anchors the endpoint at the CELL under the
+        // pointer (its port, minted on commit when the cell has none).
+        val dropCell = recordCells.cellPathAtClientPoint(endpointId, ev.clientX, ev.clientY)
         moveArrowEndpoint(
           originator.arrowId.get,
           action.endpoint match
             case ArrowEndpoint.source => ArrowEndpointId.SourceId(endpointId)
             case ArrowEndpoint.target => ArrowEndpointId.TargetId(endpointId)
+          ,
+          dropCell
         )
 
   def addArrowBetweenPointerAndEndpoint(rootGroup: dom.svg.G, action: MoveArrowEndpointAction): Unit =

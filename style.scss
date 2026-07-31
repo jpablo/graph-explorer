@@ -841,6 +841,17 @@ svg {
         pointer-events: none;
       }
 
+      // The attach target while an arrow drag hovers a record: dashed =
+      // prospective, vs the solid rect of an actually selected cell.
+      .record-cell-drop {
+        fill: none;
+        stroke: var(--gx-select);
+        stroke-width: 2px;
+        stroke-dasharray: 4, 3;
+        vector-effect: non-scaling-stroke;
+        pointer-events: none;
+      }
+
       // ---- Focus mode ----
       // With a selection active, the accent color alone drowns in dense graphs;
       // figure/ground does the work instead: fade everything that is NOT selected.

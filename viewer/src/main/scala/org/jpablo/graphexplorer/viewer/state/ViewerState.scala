@@ -275,17 +275,32 @@ case class ViewerState(
       selection.set2(newNodeId)
       newGraph
 
-  def addArrow(from: NodeId, to: NodeId)(using name: sourcecode.FullName) =
+  /** `fromCell`/`toCell` name record CELLS on either end: their ports (minted
+    * into the label when the cell has none) become the arrow's ports — mint
+    * and arrow land in ONE update, so undo reverts them together.
+    */
+  def addArrow(
+      from:     NodeId,
+      to:       NodeId,
+      fromCell: Option[List[Int]] = None,
+      toCell:   Option[List[Int]] = None
+  )(using name: sourcecode.FullName) =
     phases.fullGraphV.update: g =>
-      val (g2, _) = g.addArrow(from, to)
+      val (g1, fromPort) = recordCells.resolvePortIn(g, from, fromCell)
+      val (g2, toPort)   = recordCells.resolvePortIn(g1, to, toCell)
+      val (g3, _)        = g2.addArrow(from, to, fromPort, toPort)
       selection.set(ElementIds.from(from))
-      g2
+      g3
 
-  def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId) =
+  def moveArrowEndpoint(arrowId: ArrowId, newEndpoint: ArrowEndpointId, cell: Option[List[Int]] = None) =
     phases.fullGraphV.update: g =>
-      val (g1, newArrowId) = g.moveArrowEndpoint(arrowId, newEndpoint)
+      val endpointNode = newEndpoint match
+        case ArrowEndpointId.SourceId(id) => id
+        case ArrowEndpointId.TargetId(id) => id
+      val (g1, port)       = recordCells.resolvePortIn(g, endpointNode, cell)
+      val (g2, newArrowId) = g1.moveArrowEndpoint(arrowId, newEndpoint, port)
       selection.set(ElementIds.from(newArrowId))
-      g1
+      g2
 
   // -------- Attribute management -----------
 

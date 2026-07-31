@@ -32,12 +32,19 @@ trait AddNewArrowOps:
     val isMouseInsideSourceNode = pointInsideBox(pt = (ev.clientX, ev.clientY), bbox = start.ref.getBoundingClientRect())
     // Single selection and mouse released on the source node: add a self-loop
     if current.size == 1 && isMouseInsideSourceNode then
-      start.nodeId.foreach(nodeId => addArrow(nodeId, nodeId))
+      start.nodeId.foreach: nodeId =>
+        // A record self-loop can still be cell-to-cell: the drag started from
+        // the selected cell, the drop point picks the other end's cell.
+        val dropCell = recordCells.cellPathAtClientPoint(nodeId, ev.clientX, ev.clientY)
+        addArrow(nodeId, nodeId, action.sourceCellPath, dropCell)
     else if current.size == 2 then
       (current - start.elementId).head.asNodeId.foreach: end =>
+        // Dropping on a record attaches to the CELL under the pointer (its
+        // port, minted on commit when the cell has none).
+        val dropCell = recordCells.cellPathAtClientPoint(end, ev.clientX, ev.clientY)
         action.direction match
-          case ArrowDirection.forward  => addArrow(start.nodeId.get, end)
-          case ArrowDirection.backward => addArrow(end, start.nodeId.get)
+          case ArrowDirection.forward  => addArrow(start.nodeId.get, end, action.sourceCellPath, dropCell)
+          case ArrowDirection.backward => addArrow(end, start.nodeId.get, dropCell, action.sourceCellPath)
 
   def onAddNewArrowAction(action: AddNewArrowAction) =
     selectWithClosestNode(
@@ -91,7 +98,10 @@ trait AddNewArrowOps:
           (ev: dom.MouseEvent) => {
             ev.stopPropagation()
             val pos = ClientPoint(ev.clientX, ev.clientY)
-            mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem, direction))
+            // Capture the selected CELL now: the drag's live selection updates
+            // will prune it (two elements selected ≠ single record).
+            val sourceCell = selectedCellV.now().filter(_.nodeId == elem.elementId).map(_.path)
+            mouseAction.start(AddNewArrowAction(MouseActionRect(pos, pos, shift = false), selectedElem, direction, sourceCell))
           }
         )
 

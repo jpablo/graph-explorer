@@ -2,9 +2,13 @@ package org.jpablo.graphexplorer.viewer.state
 
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.graphviz.layout.RecordLabel
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.RecordCellOverlay
+import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.formats.dot.RecordTree
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrEq
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
+import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
 
 /** One selected CELL of a record node — a selection level below the element
@@ -64,10 +68,7 @@ trait RecordCellOps:
     /** Structured editing covers labels in the RECORD grammar; HTML-in-record
       * labels use different escaping and stay raw-text-edited. */
     def isEditableRecord(nodeId: NodeId): Boolean =
-      getRecordNode(nodeId).exists: node =>
-        node.label.value match
-          case eq: AttrEq => !eq.html
-          case _: String  => true
+      getRecordNode(nodeId).exists(node => !labelIsHtml(node))
 
     private def rankdirNow(): Rankdir =
       fullGraphNow().elements.graphAttributes.values
@@ -115,6 +116,67 @@ trait RecordCellOps:
     def cellNearestLocalPoint(nodeId: NodeId, x: Double, y: Double): Option[RecordTree.Path] =
       val boxes = cellBoxes(nodeId)
       boxes.find(_.contains(x, y)).orElse(boxes.minByOption(_.distanceTo(x, y))).map(_.path)
+
+    /** The record cell under a CLIENT point (click and drop targeting): finds
+      * the node's group in the DOM, converts the point to node-local gv coords
+      * (getScreenCTM covers viewBox + pan/zoom), hit-tests the model boxes.
+      */
+    def cellPathAtClientPoint(nodeId: NodeId, clientX: Double, clientY: Double): Option[RecordTree.Path] =
+      if !isEditableRecord(nodeId) then None
+      else
+        for
+          group      <- nodeGroupInDom(nodeId)
+          (lx, ly)   <- clientToLocal(group, clientX, clientY)
+          path <- {
+            val bbox = RecordCellOverlay.ownGeometryBBox(group)
+            cellNearestLocalPoint(nodeId, lx - (bbox.x + bbox.width / 2), (bbox.y + bbox.height / 2) - ly)
+          }
+        yield path
+
+    private def nodeGroupInDom(nodeId: NodeId): Option[dom.svg.G] =
+      dom.document.documentElement
+        .querySelectorAllT[dom.Element](s"[id='${nodeId.toSvg}']")
+        // an exit ghost keeps the id but wears the PREVIOUS layout's geometry
+        .filterNot(_.closest(s".${SelectableElement.exitGhostClass}") != null)
+        .collectFirst { case g: dom.svg.G => g }
+
+    private def clientToLocal(group: dom.svg.G, clientX: Double, clientY: Double): Option[(Double, Double)] =
+      for
+        svgEl <- Option(group.ownerSVGElement)
+        ctm   <- Option(group.getScreenCTM())
+      yield
+        val pt = svgEl.createSVGPoint()
+        pt.x = clientX
+        pt.y = clientY
+        val local = pt.matrixTransform(ctm.inverse())
+        (local.x, local.y)
+
+    /** The port of the cell at `path`, MINTED into the label when the cell has
+      * none (a fresh `f<n>`). Pure on the given graph, so arrow ops can compose
+      * the mint and the arrow write in one update (one undo step).
+      */
+    def resolvePortIn(g: ViewerGraph, nodeId: NodeId, path: Option[RecordTree.Path]): (ViewerGraph, Option[String]) =
+      val resolved =
+        for
+          p    <- path
+          node <- g.getNode(nodeId) if g.isRecordNode(nodeId) && !labelIsHtml(node)
+          root  = RecordTree.parse(node.label.toString)
+          leaf <- RecordTree.at(root, p).collect { case l: RecordTree.Leaf => l }
+        yield leaf.port match
+          case some @ Some(_) => (g, some)
+          case None =>
+            val fresh = freshPortName(root)
+            (g.withRecordLabel(nodeId, RecordTree.serialize(RecordTree.setPort(root, p, Some(fresh)))), Some(fresh))
+      resolved.getOrElse((g, None))
+
+    private def labelIsHtml(node: ViewerNode): Boolean =
+      node.label.value match
+        case eq: AttrEq => eq.html
+        case _: String  => false
+
+    private def freshPortName(root: RecordTree.Group): String =
+      val used = RecordTree.ports(root)
+      Iterator.from(0).map(i => s"f$i").filterNot(used).next()
 
     // ── selection ─────────────────────────────────────────────────────────
 
