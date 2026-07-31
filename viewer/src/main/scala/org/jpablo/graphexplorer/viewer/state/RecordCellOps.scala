@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.state
 
+import com.raquo.airstream.core.Signal
 import com.raquo.airstream.state.Var
 import org.jpablo.graphexplorer.graphviz.html.{HtmlTable, HtmlTableLayout}
 import org.jpablo.graphexplorer.graphviz.layout.RecordLabel
@@ -7,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.RecordCellOverlay
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.formats.dot.{HtmlLabelOps, HtmlLabels, RecordTree}
-import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrEq
+import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.models.*
@@ -355,11 +356,83 @@ trait RecordCellOps:
         case None => ()
 
     def selectedCellPort: Option[String] =
+      selectedCellV.now().flatMap(cell => portOfIn(fullGraphNow(), cell))
+
+    /** The selected cell's port, tracking BOTH the selection and the graph:
+      * renaming a port must update the chip showing it, and the context strip
+      * deliberately does not rebuild on graph changes (that would destroy the
+      * very control being typed into).
+      */
+    def selectedCellPortSignal: Signal[Option[String]] =
+      selectedCellV.signal
+        .combineWith(phases.fullGraphV.signal)
+        .map((cellOpt, g) => cellOpt.flatMap(portOfIn(g, _)))
+
+    private def portOfIn(g: ViewerGraph, cell: SelectedCell): Option[String] =
+      g.getNode(cell.nodeId).flatMap: node =>
+        if labelIsHtml(node) then
+          for
+            tbl <- HtmlLabelOps.parseTable(node.label.toString)
+            c   <- HtmlLabelOps.cellAt(tbl, cell.path)
+            p   <- c.attrs.get("port").filter(_.nonEmpty)
+          yield p
+        else if g.isRecordNode(cell.nodeId) then
+          RecordTree
+            .at(RecordTree.parse(node.label.toString), cell.path)
+            .collect { case l: RecordTree.Leaf => l }
+            .flatMap(_.port)
+        else None
+
+    // ── cell attributes (html cells) ──────────────────────────────────────
+
+    /** The selected html cell's markup attributes, as the same
+      * `AttributeUpdates` map element attributes use — so every attribute row
+      * (color picker, dropdown, number, reset dot) works on a `<td>` unchanged.
+      *
+      * Reads ALL of the cell's attributes, not just the managed ones, so an
+      * attribute the editor has no row for (`sides`, `href`, …) survives an
+      * edit instead of being dropped by the write-back.
+      */
+    def cellAttributeUpdates(cell: SelectedCell): Var[AttributeUpdates] =
+      phases.fullGraphV.zoomLazy(readCellAttrs(_, cell))((g, updates) => writeCellAttrs(g, cell, updates))
+
+    private def cellAttrsIn(g: ViewerGraph, cell: SelectedCell): Option[Map[String, String]] =
       for
-        cell <- selectedCellV.now()
-        box  <- cellBoxes(cell.nodeId).find(_.path == clamped(cell).path)
-        p    <- box.port
-      yield p
+        node <- g.getNode(cell.nodeId)
+        tbl  <- HtmlLabelOps.parseTable(node.label.toString)
+        c    <- HtmlLabelOps.cellAt(tbl, cell.path)
+      yield c.attrs
+
+    private def readCellAttrs(g: ViewerGraph, cell: SelectedCell): AttributeUpdates =
+      AttributeUpdates(
+        cellAttrsIn(g, cell)
+          .getOrElse(Map.empty)
+          .map((k, v) => AttributeId(k) -> AttrStatus.Single(AttrValue(v)))
+      )
+
+    private def writeCellAttrs(g: ViewerGraph, cell: SelectedCell, updates: AttributeUpdates): ViewerGraph =
+      (for
+        node <- g.getNode(cell.nodeId)
+        tbl  <- HtmlLabelOps.parseTable(node.label.toString)
+        old  <- HtmlLabelOps.cellAt(tbl, cell.path).map(_.attrs)
+      yield
+        val newAttrs = updates
+          .applyTo(Attributes(old.map((k, v) => AttributeId(k) -> AttrValue(v))))
+          .values
+          .map((k, v) => k.value -> v.toString)
+          .filter((_, v) => v.nonEmpty)
+        val newTbl = newAttrs.keySet
+          .union(old.keySet)
+          .foldLeft(tbl): (acc, key) =>
+            HtmlLabelOps.setCellAttr(acc, cell.path, key, newAttrs.get(key))
+        // A port rename must follow the edges that name it, or they silently
+        // fall back to the whole node (the cell they point at is gone).
+        val withLabel = g.withHtmlLabel(cell.nodeId, HtmlLabelOps.printTable(newTbl))
+        (old.get("port"), newAttrs.get("port")) match
+          case (Some(before), after) if !after.contains(before) =>
+            withLabel.renamePort(cell.nodeId, before, after)
+          case _ => withLabel
+      ).getOrElse(g)
 
     // ── structure ─────────────────────────────────────────────────────────
 

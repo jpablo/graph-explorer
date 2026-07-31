@@ -211,6 +211,25 @@ trait CombineNodesOps:
         copy(elements = elements.copy(nodes = nodes.updated(nodeId, updatedNode)))
       case _ => this
 
+  /** Re-points every edge endpoint that names `oldPort` on `nodeId` at
+    * `newPort` (or drops the port when `newPort` is None).
+    *
+    * A port name lives in the LABEL but is referenced by edges, so renaming it
+    * without this leaves `node:port` endpoints pointing at a cell that no
+    * longer exists — the edge silently re-anchors to the whole node. Arrow ids
+    * embed their ports, so this goes through `remapArrows`, which carries
+    * cluster ownership across the id change.
+    */
+  def renamePort(nodeId: NodeId, oldPort: String, newPort: Option[String]): ViewerGraph =
+    if oldPort.isEmpty then this
+    else
+      val (remapped, memberships) = remapArrows: arrow =>
+        arrow.copy(
+          sourcePort = if arrow.source == nodeId && arrow.sourcePort.contains(oldPort) then newPort else arrow.sourcePort,
+          targetPort = if arrow.target == nodeId && arrow.targetPort.contains(oldPort) then newPort else arrow.targetPort
+        )
+      copy(elements = elements.copy(arrows = remapped, arrowMemberships = memberships))
+
   /** Replaces a node's HTML-like label (stored with the html flag, serialized
     * in DOT's `<...>` form) — the write path for html-table cell edits, which
     * parse/print through [[org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabelOps]].

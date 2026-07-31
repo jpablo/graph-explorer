@@ -260,6 +260,47 @@ class CombineNodesOpsSpec extends FunSuite:
     val label2 = transposed2.getNode(a).get.label.toString
     assertEquals(label2, horizontalLabel, "Should remove curly braces for horizontal")
 
+  test("renamePort follows the edges that name the port"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(
+          a -> ViewerNode.nodeWithDefaults(a, Attributes.of(Shape -> Shape.record, Label -> "<f0> A | <f1> B")),
+          x -> ViewerNode.nodeWithDefaults(x)
+        ),
+        arrows = VectorMap(
+          ArrowId("x->a:f0") -> Arrow(x, a, targetPort = Some("f0")),
+          ArrowId("a:f0->x") -> Arrow(a, x, sourcePort = Some("f0")),
+          ArrowId("x->a:f1") -> Arrow(x, a, targetPort = Some("f1"))
+        )
+      )
+    )
+
+    val renamed = graph.renamePort(a, "f0", Some("head"))
+
+    assertEquals(renamed.arrows.size, 3, "no arrow is lost")
+    val ports = renamed.arrows.values.map(ar => (ar.sourcePort, ar.targetPort)).toSet
+    assert(ports.contains((None, Some("head"))), "incoming edge re-points at the new name")
+    assert(ports.contains((Some("head"), None)), "outgoing edge re-points at the new name")
+    assert(ports.contains((None, Some("f1"))), "an edge on another port is untouched")
+
+  test("renamePort with None drops the port (edge attaches to the whole node)"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(a -> ViewerNode.nodeWithDefaults(a), x -> ViewerNode.nodeWithDefaults(x)),
+        arrows = VectorMap(ArrowId("x->a:f0") -> Arrow(x, a, targetPort = Some("f0")))
+      )
+    )
+    assertEquals(graph.renamePort(a, "f0", None).arrows.values.head.targetPort, None)
+
+  test("renamePort ignores a port belonging to a different node"):
+    val graph = ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap(a -> ViewerNode.nodeWithDefaults(a), b -> ViewerNode.nodeWithDefaults(b)),
+        arrows = VectorMap(ArrowId("a:f0->b") -> Arrow(a, b, sourcePort = Some("f0")))
+      )
+    )
+    assertEquals(graph.renamePort(b, "f0", Some("z")).arrows.values.head.sourcePort, Some("f0"))
+
   test("transposeRecord does nothing for non-record nodes"):
     val graph = ViewerGraph(
       ViewerGraphElements(

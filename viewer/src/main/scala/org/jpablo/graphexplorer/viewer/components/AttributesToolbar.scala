@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews.ToolbarHtmlCellAttributesView
 import org.jpablo.graphexplorer.viewer.components.attributes.views.toolbarViews.{
   ToolbarArrowsAttributesView,
   ToolbarGroupAttributesView,
@@ -105,12 +106,17 @@ private def recordCellView(state: ViewerState, commands: Commands, cell: Selecte
     span(
       cls := "gx-selection-count",
       "cell",
-      state.recordCells.selectedCellPort.map(p => span(cls := "ml-1 font-mono text-xs opacity-60", s"<$p>"))
+      // Only the chip tracks the graph: the strip itself must NOT rebuild on
+      // graph changes (it would destroy the control being used), but a renamed
+      // port has to show its new name.
+      child.maybe <-- state.recordCells.selectedCellPortSignal.map(
+        _.map(p => span(cls := "ml-1 font-mono text-xs opacity-60", s"<$p>"))
+      )
     )
 
   if state.recordCells.selectedCellIsHtml then
     div(
-      cls := "flex flex-row items-center gap-1",
+      cls := "flex flex-row items-center gap-1 min-w-0",
       chip,
       cmdButton(all.editLabel, "bi-pencil", "Edit"),
       cmdButton(all.insertRowAbove, "bi-arrow-bar-up", "Row"),
@@ -119,7 +125,9 @@ private def recordCellView(state: ViewerState, commands: Commands, cell: Selecte
       cmdButton(all.insertCellAfter, "bi-arrow-bar-right", "Col"),
       cmdButton(all.deleteTableRow, "bi-dash-square", "Row"),
       cmdButton(all.deleteTableCol, "bi-dash-square", "Col"),
-      cmdButton(all.removeCell, "bi-eraser", "Clear")
+      cmdButton(all.removeCell, "bi-eraser", "Clear"),
+      // What html tables buy over records: the cell's OWN paint and alignment.
+      ToolbarHtmlCellAttributesView(state, state.recordCells.cellAttributeUpdates(cell))
     )
   else
     val lr                    = RecordTree.parentIsLR(cell.path, state.recordCells.topLRNow())
