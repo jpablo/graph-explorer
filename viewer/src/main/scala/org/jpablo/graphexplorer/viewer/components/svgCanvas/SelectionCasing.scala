@@ -28,11 +28,22 @@ import scala.scalajs.js
 object SelectionCasing:
 
   /** Floors: below these a marker stops reading as one, however thin its subject
-    * is. The casing's floor is the hit halo's own width — growing it is free,
-    * shrinking it would shrink the click target of a selected edge.
+    * is. The FLOOR is what a dense overview sees — zoomed out, an edge shrinks
+    * toward nothing while the casing holds its screen width, so a floor set for
+    * the hit halo's convenience (14px, chosen to make hairlines clickable) drew
+    * a band an order of magnitude wider than the edge inside it and turned a
+    * large selection into a wash of blue.
+    *
+    * Consequence to know about: the casing IS the halo, so this is also the
+    * click target of a SELECTED edge — 7px rather than 14. Acquiring a thin
+    * edge, which is what the halo exists for, is unaffected; the halo is only
+    * narrowed once the edge is already selected, and [[clear]] restores it.
     */
   private val MinRingPx   = 2.0
-  private val MinCasingPx = 14.0
+  private val MinCasingPx = 7.0
+
+  /** Restored to a deselected edge — the width hit-testing wants. */
+  private val HitHaloPx = 14.0
 
   /** The ring's ceiling. It sits OUTSIDE the border rather than on it, so it
     * only has to be seen BESIDE it — matching a 9pt border stroke for stroke
@@ -47,7 +58,7 @@ object SelectionCasing:
     * sides, so it needs more.
     */
   private val RingDeltaPx   = 1.0
-  private val CasingDeltaPx = 6.0
+  private val CasingDeltaPx = 5.0
 
   /** Read by the stylesheet for anything the width reaches by inheritance —
     * today the solid arrowhead's halo, a descendant of the selected `g.edge`.
@@ -115,11 +126,13 @@ object SelectionCasing:
           ring.setAttribute("width", (bw + 2 * out).toString)
           ring.setAttribute("height", (bh + 2 * out).toString)
 
-  /** Give a deselected element its halo back at the hit-testing width — a
-    * casing widened for a heavy edge would otherwise linger as an oversized
-    * invisible click target over its neighbours. */
+  /** Give a deselected element its halo back at the hit-testing width. The
+    * casing leaves it either narrower (a thin edge, at the floor) or wider (a
+    * heavy one), and neither should outlive the selection: one makes the edge
+    * hard to pick up again, the other leaves an oversized invisible target
+    * lying over its neighbours. */
   def clear(el: dom.Element): Unit =
-    casingsOf(el).foreach(setStyle(_, "stroke-width", s"${MinCasingPx}px"))
+    casingsOf(el).foreach(setStyle(_, "stroke-width", s"${HitHaloPx}px"))
 
   /** What the marker is standing for. A Mermaid halo carries the selected class
     * in its own right and is a SIBLING of the link it clones (inserted directly

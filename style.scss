@@ -904,7 +904,7 @@ svg {
         // NOT --gx-casing-w: only the outer half of a stroke around a filled
         // shape is visible, so the head takes twice the shaft's overhang to
         // extend as far as the band does.
-        stroke-width: var(--gx-casing-halo, 13px);
+        stroke-width: var(--gx-casing-halo, 6px);
         stroke-linejoin: round;
         vector-effect: non-scaling-stroke;
       }
