@@ -26,6 +26,11 @@ on:
 permissions:
   contents: read
 
+# Opt JavaScript actions into Node 24, same as release-binaries.yml — otherwise
+# every run carries a Node 20 deprecation annotation.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 # A push that supersedes an in-flight run makes that run irrelevant; cancel it
 # rather than pay for it. But never cancel on the default branch itself, where
 # each commit's status is a fact worth keeping.
@@ -60,6 +65,16 @@ jobs:
           distribution: 'temurin'
           cache: 'sbt'
 
+      # REQUIRED. setup-java's `cache: 'sbt'` caches sbt's dependencies but does
+      # not install sbt, and the Ubuntu runner images no longer ship it — the
+      # first run of this workflow died with exit 127 on exactly that. The
+      # inherited dev.yml had the same gap and nobody could know, because it
+      # watched a branch that does not exist and had never run once.
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
+      # MUST precede any sbt task: ScalablyTyped generates its facades in-build
+      # from node_modules, so the viewer does not compile without them.
       - name: Install npm modules
         run: npm install
 
