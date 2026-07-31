@@ -46,7 +46,7 @@ def RightPanel(state: ViewerState): Div =
     // Width travels as a custom property rather than an inline `width`, so the drag writes
     // ONE property per frame and the open/close transition above stays a pure CSS concern.
     styleAttr <-- state.rightPanelWidth.signal.map(px => s"--right-panel-width: ${px}px"),
-    resizeHandle(state),
+    resizeHandle(state, isFloating),
     div(
       idAttr := "right-panel-content",
       cls("card-body") <-- isFloating,
@@ -66,7 +66,7 @@ def RightPanel(state: ViewerState): Div =
 private case class PanelDrag(startX: Double, startWidth: Int)
 
 /** The panel's left edge, as a drag target. */
-private def resizeHandle(state: ViewerState): Div =
+private def resizeHandle(state: ViewerState, isFloating: Signal[Boolean]): Div =
   val drag = Var(Option.empty[PanelDrag])
 
   // Window-level listeners exist only for the duration of a drag: mousemove fires on every
@@ -82,10 +82,14 @@ private def resizeHandle(state: ViewerState): Div =
   div(
     cls := "right-panel-resizer",
     cls("dragging") <-- drag.signal.map(_.isDefined),
-    // Hidden unless the panel's width is actually the user's to set. The floating
-    // attributes card sizes itself from its rows, so a drag handle on it would be a
-    // control that changes nothing.
-    cls("hidden") <-- state.rightPanelActiveSection.signal.map(s => !s.isVisible || s == diagramAttributes),
+    // Hidden unless the panel's width is actually the user's to set — that is,
+    // only when DOCKED. Every floating form sizes itself: the attributes card
+    // from its rows, the elements palette from its own fixed width, and the CSS
+    // applies the dragged width to `.visible:not(.floating)` alone. Keyed on
+    // `isFloating` rather than naming the attributes card, which left the
+    // palette showing a col-resize handle that moved nothing.
+    cls("hidden") <-- state.rightPanelActiveSection.signal
+      .combineWithFn(isFloating)((s, floating) => !s.isVisible || floating),
     // preventDefault stops the browser's native text/image drag, which would swallow the
     // subsequent mouseup and leave the panel stuck to the pointer.
     onMouseDown.preventDefault --> { ev =>
