@@ -599,6 +599,16 @@ svg {
     }
   }
 
+  // Toolbar menus must beat the context strip: #selection-toolbar is a z-20
+  // OVERLAY on the canvas, and the navbar is not a stacking context, so an
+  // unraised dropdown painted UNDER the strip — only the menu's tail showed
+  // below the bar. Scoped to #toolbar on purpose: the strip's own dropdowns
+  // live inside its stacking context and need nothing. Also outranks the
+  // command palette's inline z-1 (id+class beats a bare utility).
+  #toolbar .dropdown-content {
+    @apply z-30;
+  }
+
   // The context strip: a second row that only exists while a selection or
   // hidden elements do. A different SURFACE, not a hairline — the divider
   // between two same-colored bars was the "strange middle line".
