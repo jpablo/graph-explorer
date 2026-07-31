@@ -59,3 +59,6 @@ vite.config.js.timestamp-*.mjs
 
 .claude-trace/tmp/
 desktop/src-tauri/gen/
+
+# Claude Code: machine-local permission grants stay local; launch.json is shared
+.claude/settings.local.json
