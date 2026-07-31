@@ -14,7 +14,12 @@ import org.jpablo.graphexplorer.graphviz.html.HtmlParser
   */
 object LabelSummary:
 
-  val DefaultMaxLen = 40
+  /** Generous on purpose: the lists that show summaries scroll sideways, so a
+    * character cap here would hide what no amount of scrolling could reveal —
+    * it exists only to bound a pathological label (a whole paragraph in a
+    * cell), not to fit a column.
+    */
+  val DefaultMaxLen = 120
 
   /** A cell/field carries the summary on its own once it has a letter and a
     * little length; below that (`1`, `#`, `✓` — a numbering or icon column)

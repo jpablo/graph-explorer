@@ -426,7 +426,15 @@ def ElementsList(state: ViewerState): Div =
       )
     ),
     div(
-      cls := "el-contents grow overflow-y-auto",
+      // Scrolls BOTH ways: long names (a fully-qualified type, a table's first
+      // cell) used to truncate with no way to read the rest.
+      cls := "el-contents grow overflow-y-auto overflow-x-auto",
+      div(
+      // Sizes to the WIDEST row so every row can be `width: 100%` of it. Without
+      // this each row would size to its own content, and a short row would end
+      // mid-scroll — its background stopping short and its eye control scrolled
+      // out of reach.
+      cls := "el-rows",
       children <-- state.fullGraph.combineWithFn(
         kindVar.signal,
         filterVar.signal,
@@ -455,6 +463,7 @@ def ElementsList(state: ViewerState): Div =
               +: Seq(div(cls("hidden") <-- nodesOpenV.signal.not, renderGroupsSection(graph, filter)))
         nodesSection ++ arrowsSection ++ groupsSection
       }
+      )
     ),
     div(
       cls := "el-footer flex-none flex items-center justify-between",

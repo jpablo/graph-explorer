@@ -1044,19 +1044,37 @@ svg {
         @apply min-h-0;
       }
 
+      // The scroll CONTENT: as wide as the widest row (so the list scrolls to
+      // reveal it), never narrower than the viewport (so rows fill it).
+      .el-rows {
+        width: max-content;
+        min-width: 100%;
+      }
+
       // One row shape for everything listable: node, arrow, group head, section
       // head. Anatomy: [swatch|kind] label [id-tag] ................ [eye]
       .el-row {
         @apply flex items-center gap-1.5 px-1.5 rounded-sm cursor-pointer select-none relative;
         min-height: 1.6rem;
         font-size: 0.8rem;
+        // Full width of .el-rows — which is the WIDEST row — so every row's
+        // hover/selection background spans the scrolled area, and short rows
+        // do not end mid-scroll.
+        width: 100%;
+        // An explicit surface, so the sticky eye below can inherit it and mask
+        // the text sliding under it. base-100 is what the panel already paints,
+        // so nothing looks different.
+        background-color: var(--color-base-100);
 
         &:hover {
           @apply bg-base-200;
         }
 
         .el-label {
-          @apply truncate;
+          // NOT truncated: the row grows and the list scrolls sideways instead,
+          // the way a file tree does. Truncation here hid the end of every
+          // fully-qualified name with no way to reveal it.
+          @apply whitespace-nowrap;
         }
 
         .el-id {
@@ -1089,6 +1107,13 @@ svg {
         // now an explicit control, not a font weight.
         .el-eye {
           @apply ml-auto shrink-0 px-0.5 opacity-0;
+          // Pinned to the visible right edge while the row scrolls under it:
+          // hide/show is a primary action and must not scroll out of reach on a
+          // long name. `inherit` takes the row's current surface (base-100,
+          // hover, selection) so the name passes behind it, not through it.
+          position: sticky;
+          right: 0;
+          background-color: inherit;
         }
         &:hover .el-eye, &.el-hidden .el-eye {
           @apply opacity-60;
