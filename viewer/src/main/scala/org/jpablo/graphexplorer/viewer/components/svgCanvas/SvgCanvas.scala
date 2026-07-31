@@ -72,11 +72,12 @@ def SvgCanvas(
       lastClickedElementId.contains(id) && (now - lastClickTimestamp) < doubleClickThreshold
     val handled = currentElementIdO match
       case Some(nodeId: NodeId)
-          if viewerOps.recordCells.isEditableRecord(nodeId) &&
+          if viewerOps.recordCells.isCellEditable(nodeId) &&
             viewerOps.selection.now().size == 1 &&
             viewerOps.selection.now().contains(nodeId) =>
-        // A click on the already-selected record descends to the CELL under the
-        // pointer (draw.io's two-level model); a fast second click edits it.
+        // A click on the already-selected record/table descends to the CELL
+        // under the pointer (draw.io's two-level model); a fast second click
+        // edits it.
         cellUnderPointer(nodeId, ev) match
           case Some(path) =>
             ev.preventDefault()

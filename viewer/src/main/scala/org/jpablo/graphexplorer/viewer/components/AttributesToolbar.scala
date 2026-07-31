@@ -80,14 +80,14 @@ private def selectionSummary(sel: ElementIds): String =
     case (None, None, Some(s)) => s
     case _                     => s"${sel.size} objects"
 
-/** Structural controls for the selected record CELL. Insert labels follow the
-  * cell's actual flow (rows vs columns are relative in record syntax: the top
-  * level flows with rankdir and each `{}` flips).
+/** Structural controls for the selected CELL — of a record node or an
+  * html-table label. Record insert labels follow the cell's actual flow (rows
+  * vs columns are relative in record syntax: the top level flows with rankdir
+  * and each `{}` flips); html tables are true grids, so they get the full
+  * row/column set.
   */
 private def recordCellView(state: ViewerState, commands: Commands, cell: SelectedCell) =
   import commands.all
-  val lr                    = RecordTree.parentIsLR(cell.path, state.recordCells.topLRNow())
-  val (beforeLbl, afterLbl) = if lr then ("bi-arrow-bar-left", "bi-arrow-bar-right") else ("bi-arrow-bar-up", "bi-arrow-bar-down")
 
   def cmdButton(command: Command[?], iconCls: String, label: String) =
     Button(
@@ -101,19 +101,38 @@ private def recordCellView(state: ViewerState, commands: Commands, cell: Selecte
       }
     ).tiny.ghost.toTooltip(command.labelWithShortcut)
 
-  div(
-    cls := "flex flex-row items-center gap-1",
+  val chip =
     span(
       cls := "gx-selection-count",
       "cell",
       state.recordCells.selectedCellPort.map(p => span(cls := "ml-1 font-mono text-xs opacity-60", s"<$p>"))
-    ),
-    cmdButton(all.editLabel, "bi-pencil", "Edit"),
-    cmdButton(all.insertCellBefore, beforeLbl, "Insert"),
-    cmdButton(all.insertCellAfter, afterLbl, "Insert"),
-    cmdButton(all.splitCell, if lr then "bi-hr" else "bi-vr", "Split"),
-    cmdButton(all.removeCell, "bi-x-lg", "Remove")
-  )
+    )
+
+  if state.recordCells.selectedCellIsHtml then
+    div(
+      cls := "flex flex-row items-center gap-1",
+      chip,
+      cmdButton(all.editLabel, "bi-pencil", "Edit"),
+      cmdButton(all.insertRowAbove, "bi-arrow-bar-up", "Row"),
+      cmdButton(all.insertRowBelow, "bi-arrow-bar-down", "Row"),
+      cmdButton(all.insertCellBefore, "bi-arrow-bar-left", "Col"),
+      cmdButton(all.insertCellAfter, "bi-arrow-bar-right", "Col"),
+      cmdButton(all.deleteTableRow, "bi-dash-square", "Row"),
+      cmdButton(all.deleteTableCol, "bi-dash-square", "Col"),
+      cmdButton(all.removeCell, "bi-eraser", "Clear")
+    )
+  else
+    val lr                    = RecordTree.parentIsLR(cell.path, state.recordCells.topLRNow())
+    val (beforeLbl, afterLbl) = if lr then ("bi-arrow-bar-left", "bi-arrow-bar-right") else ("bi-arrow-bar-up", "bi-arrow-bar-down")
+    div(
+      cls := "flex flex-row items-center gap-1",
+      chip,
+      cmdButton(all.editLabel, "bi-pencil", "Edit"),
+      cmdButton(all.insertCellBefore, beforeLbl, "Insert"),
+      cmdButton(all.insertCellAfter, afterLbl, "Insert"),
+      cmdButton(all.splitCell, if lr then "bi-hr" else "bi-vr", "Split"),
+      cmdButton(all.removeCell, "bi-x-lg", "Remove")
+    )
 
 private def selectionView(state: ViewerState, commands: Commands, selectedNodes: ElementIds) =
   import commands.all

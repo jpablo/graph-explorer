@@ -211,6 +211,18 @@ trait CombineNodesOps:
         copy(elements = elements.copy(nodes = nodes.updated(nodeId, updatedNode)))
       case _ => this
 
+  /** Replaces a node's HTML-like label (stored with the html flag, serialized
+    * in DOT's `<...>` form) — the write path for html-table cell edits, which
+    * parse/print through [[org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabelOps]].
+    */
+  def withHtmlLabel(nodeId: NodeId, newLabel: String): ViewerGraph =
+    getNode(nodeId) match
+      case Some(node) =>
+        val value       = AttrValue(org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrEq(newLabel, html = true))
+        val updatedNode = ViewerNode.nodeNoDefaults(node.id, node.attributes + (Label.attrId -> value))
+        copy(elements = elements.copy(nodes = nodes.updated(nodeId, updatedNode)))
+      case None => this
+
   /** Transposes a record node between horizontal and vertical orientations.
     * Toggles between wrapped (vertical) and unwrapped (horizontal) formats.
     *

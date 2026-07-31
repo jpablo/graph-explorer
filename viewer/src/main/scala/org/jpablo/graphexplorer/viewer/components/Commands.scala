@@ -146,6 +146,12 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
   private def cellSelected(selection: ElementIds): Boolean =
     state.selectedCellV.now().isDefined
 
+  private def htmlCellSelected(selection: ElementIds): Boolean =
+    cellSelected(selection) && state.recordCells.selectedCellIsHtml
+
+  private def recordCellSelected(selection: ElementIds): Boolean =
+    cellSelected(selection) && !state.recordCells.selectedCellIsHtml
+
   object all:
     val newNode =
       Command(
@@ -645,7 +651,7 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     val splitCell = Command(
       "Split cell",
       () => state.recordCells.splitSelectedCell(),
-      cellSelected,
+      recordCellSelected,
       description = Some("Split the selected cell perpendicular to its group ({…} nesting)")
     )
 
@@ -653,7 +659,36 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       "Remove cell",
       () => { state.recordCells.removeSelectedCell(); () },
       cellSelected,
-      description = Some("Remove the selected record cell")
+      description = Some("Remove the selected record cell (html tables: clear the cell)")
+    )
+
+    // ── Html-table cells: true grid operations ────────────────────────────
+    val insertRowAbove = Command(
+      "Insert row above",
+      () => state.recordCells.insertHtmlRow(below = false),
+      htmlCellSelected,
+      description = Some("Insert a row of empty cells above the selected table cell")
+    )
+
+    val insertRowBelow = Command(
+      "Insert row below",
+      () => state.recordCells.insertHtmlRow(below = true),
+      htmlCellSelected,
+      description = Some("Insert a row of empty cells below the selected table cell")
+    )
+
+    val deleteTableRow = Command(
+      "Delete row",
+      () => state.recordCells.deleteHtmlRow(),
+      htmlCellSelected,
+      description = Some("Delete the selected table cell's row")
+    )
+
+    val deleteTableCol = Command(
+      "Delete column",
+      () => state.recordCells.deleteHtmlCol(),
+      htmlCellSelected,
+      description = Some("Delete the selected table cell's column")
     )
 
     val editRecordLabelRaw = Command(
@@ -731,6 +766,10 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
       all.insertCellAfter,
       all.splitCell,
       all.removeCell,
+      all.insertRowAbove,
+      all.insertRowBelow,
+      all.deleteTableRow,
+      all.deleteTableCol,
       all.editRecordLabelRaw,
       all.reverseArrows,
       all.reverseArrowsStyle,
