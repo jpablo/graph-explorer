@@ -947,6 +947,17 @@ svg {
         stroke: var(--gx-select-casing) !important;
         filter: none !important;
         animation: none !important;
+        // Exempt from focus mode. A Mermaid halo keeps its link's class list,
+        // so `path.flowchart-link` matches it — and being a SIBLING of the
+        // link, never the link itself, it is never `.selected`, so the dim
+        // rule above halved the casing of the very edge it marks (0.55 alpha
+        // became 0.275; at the old 0.32 it was 0.16 — invisible, which is the
+        // whole bug). The exemption lives HERE, on three classes, rather than
+        // as a `:not()` on the shared dim selector: adding one there made the
+        // rule stop applying altogether and un-dimmed the entire canvas.
+        // DOT never showed this — its halo sits inside `g.edge.selected`,
+        // which the dim rule already exempts.
+        opacity: 1;
       }
 
       // Make Mermaid edge label backgrounds semi-transparent so arrows remain visible
