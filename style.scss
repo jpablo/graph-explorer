@@ -11,10 +11,12 @@
   // are fixed and named here. Nothing below should carry a raw hex.
   --gx-select: #2c70ff; // selection stroke: node borders, edges, solid arrowheads
   --gx-select-glow: rgba(44, 112, 255, 0.7);
-  // The casing: a band UNDER a selected edge and behind its arrowhead. Low
-  // alpha on purpose — it must read as a highlighter swipe, with the edge's own
-  // colour still the thing you see.
-  --gx-select-casing: rgba(44, 112, 255, 0.32);
+  // The casing: a band UNDER a selected edge and behind its arrowhead. Alpha
+  // does the work that width used to: the band is only ~2.5px per side on a
+  // thin edge, and at 0.32 that much blue was invisible against a light canvas.
+  // Still translucent, so the edge's own colour stays the thing you see — but
+  // opaque enough that the band is one.
+  --gx-select-casing: rgba(44, 112, 255, 0.55);
   --gx-select-fill: rgba(255, 165, 0, 0.15); // wash inside a selected node's border
   --gx-mark: rgb(251 191 36); // hover / marked rows
   --gx-mark-soft: rgba(251, 191, 36, 0.1);
