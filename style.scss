@@ -11,6 +11,10 @@
   // are fixed and named here. Nothing below should carry a raw hex.
   --gx-select: #2c70ff; // selection stroke: node borders, edges, solid arrowheads
   --gx-select-glow: rgba(44, 112, 255, 0.7);
+  // The casing: a band UNDER a selected edge and behind its arrowhead. Low
+  // alpha on purpose — it must read as a highlighter swipe, with the edge's own
+  // colour still the thing you see.
+  --gx-select-casing: rgba(44, 112, 255, 0.32);
   --gx-select-fill: rgba(255, 165, 0, 0.15); // wash inside a selected node's border
   --gx-mark: rgb(251 191 36); // hover / marked rows
   --gx-mark-soft: rgba(251, 191, 36, 0.1);
@@ -826,7 +830,11 @@ svg {
       // Do not remove !important without verifying Mermaid selection still works.
       .selected-border {
         fill: var(--gx-select-fill) !important;
-        stroke-width: 2px;
+        // Sized from the object it marks (SelectionCasing writes --gx-ring-w):
+        // a flat 2px ring is thicker than a default border at 1x and THINNER
+        // from 2x up, so zoom alone used to turn the marker into the quieter
+        // line. The fallback is the old constant, for anything not yet sized.
+        stroke-width: var(--gx-ring-w, 2px);
         stroke: var(--gx-select) !important;
         vector-effect: non-scaling-stroke;
         filter: drop-shadow(0px 2px 4px var(--gx-shadow));
@@ -879,78 +887,48 @@ svg {
         }
       }
 
-      .edge.selected,
-      .edgePath.selected {
-        path, line, polygon, polyline, ellipse {
-          stroke: var(--gx-select) !important;
-          // Colour only. A drop-shadow or a pulse animation here reads well on a
-          // handful of edges and costs visible frame time from roughly 200 up —
-          // every selected edge composites its own layer. Focus mode (the opacity
-          // fade above) carries the emphasis instead, for one paint.
-        }
-
-        // A thicker spline reads as selected the way the node border rect does.
-        // SCREEN-space (non-scaling), for the same reason the border rect is: widths
-        // in svg user units are multiplied by the scale-to-fit factor, so the same
-        // number renders hairline on a dense graph and balloons on a 5-node one.
-        // Every selection decoration shares this space: border rect 2px, edge 3px,
-        // hit halo 14px (whose inline 14px beats this rule).
-        // UNCONDITIONAL, penwidth edges included. An earlier :not([stroke-width])
-        // guard tried to preserve a user-set penwidth as "a deliberate diagram-space
-        // choice" — but a diagram-unit 2.2 collapses under the fit factor while
-        // everything else holds at 3 screen px, so on any large graph the HEAVY
-        // edges selected thinnest (inverted), and CSS can't express max(3, pw·k) to
-        // do better. Selection is a transient screen state; the penwidth distinction
-        // survives everywhere unselected, the node border rect already flattens node
-        // penwidths the same way, and the Mermaid rule below was always flat.
-        // Same element list as the stroke rule above — an odot head is an
-        // ellipse, a vee/open head a polyline; leaving them out kept the old
-        // width right where the shaft had just thickened to 3.
-        path, line, polygon, polyline, ellipse {
-          stroke-width: 3;
-          vector-effect: non-scaling-stroke;
-        }
-
-        // The arrowHEAD must recolor with the shaft or the highlight visibly stops
-        // at the head's base: the stroke rule above only recolors the polygon's
-        // OUTLINE, leaving its fill. Recolor every SOLID head — the emitter fills
-        // a solid head with the edge's own color (black by default), so an earlier
-        // [fill="black"] guard left a colored edge's head green on a blue shaft.
-        // Open markers (onormal/odot/…) are exactly fill="none": their openness is
-        // their identity, so they keep it; ellipse covers dot-family heads.
-        polygon:not([fill="none"]),
-        ellipse:not([fill="none"]) {
-          fill: var(--gx-select) !important;
-        }
-      }
-
-      path.flowchart-link.selected,
-      path.edgePath.selected {
-        stroke: var(--gx-select) !important;
-        // !important: mermaid's own stylesheet sets edge widths behind an id
-        // selector (#mermaid-… .edge-thickness-normal), which outranks any
-        // class-only rule from here. Screen-space like the DOT rule above.
-        stroke-width: 3px !important;
+      // A selected edge KEEPS ITS OWN PAINT. It used to be restyled — accent
+      // colour, flat 3 screen px — which cost twice: a hand-set penwidth
+      // rendered THINNER selected than idle, and selecting an edge to edit its
+      // colour hid the colour you were editing. The signal is a casing instead
+      // (below): a translucent band under the spline, always wider than it.
+      .edge.selected polygon:not([fill="none"]),
+      .edge.selected ellipse:not([fill="none"]) {
+        // paint-order puts the stroke BEHIND the fill, so a wide accent stroke
+        // becomes a halo around the head while its own fill stays on top — the
+        // casing carried across the gap where the spline stops and the head
+        // begins. Open markers (onormal/odot/…) are exactly fill="none": their
+        // openness IS their identity, and a wide stroke would fill them in.
+        paint-order: stroke;
+        stroke: var(--gx-select-casing) !important;
+        // NOT --gx-casing-w: only the outer half of a stroke around a filled
+        // shape is visible, so the head takes twice the shaft's overhang to
+        // extend as far as the band does.
+        stroke-width: var(--gx-casing-halo, 13px);
+        stroke-linejoin: round;
         vector-effect: non-scaling-stroke;
       }
 
-      // Invisible wide hit-target clones under Mermaid edge paths (addEdgeHitAreas).
-      // Must never paint — including when the selection sync tags them .selected
-      // (three classes outrank the two-class .selected rule above).
+      // The hit halo: an invisible wide clone under every edge, in both backends
+      // (Graphviz/MermaidBackend.addEdgeHitAreas), there so a hairline spline
+      // can be clicked. Idle it must never paint.
       path.flowchart-link.edge-hit-area,
-      path.flowchart-link.edge-hit-area.selected {
+      .edge path.edge-hit-area {
         stroke: transparent !important;
         filter: none !important;
         animation: none !important;
       }
 
-      // Same for the DOT-mode halos (Graphviz.addEdgeHitAreas): they live INSIDE
-      // g.edge, whose .selected rule above strokes EVERY contained path !important —
-      // without this higher-specificity counter-rule a selected edge would paint its
-      // 14px halo as a fat blue band.
-      .edge path.edge-hit-area,
-      .edge.selected path.edge-hit-area {
-        stroke: transparent !important;
+      // Selected, it IS the casing. Already screen-constant, already exactly
+      // aligned, already under the spline — the band we would otherwise clone a
+      // second path to draw. SelectionCasing widens it to clear the edge's own
+      // stroke (never narrows it: this is also the click target).
+      // (Width is set INLINE by SelectionCasing — in Mermaid the halo is a
+      // sibling of its link, so a custom property on the link would not reach
+      // it. Colour is all this rule owes.)
+      .edge.selected path.edge-hit-area,
+      path.flowchart-link.edge-hit-area.selected {
+        stroke: var(--gx-select-casing) !important;
         filter: none !important;
         animation: none !important;
       }

@@ -8,9 +8,10 @@ import org.scalajs.dom
 
 /** DOT-mode edge hit halos (Graphviz.addEdgeHitAreas): an invisible wide clone of the
   * spline INSIDE each g.edge group. Resolution rides `closest("g.edge")`, so the halo
-  * needs no id plumbing — but it must be appended AFTER the rendered spline, because
-  * `querySelector("path")` on the group (endpoint-drag preview, extractArrowId
-  * fallback) must keep returning the real one.
+  * needs no id plumbing — but it goes in BEFORE the rendered spline, because a selected
+  * edge paints it as the casing and a band drawn over the spline would tint the colour
+  * the casing exists to preserve. Geometry consumers therefore name the spline by CLASS
+  * ([[SelectableElement.splineSelector]]); "the group's first path" is no longer it.
   */
 class DotEdgeHitAreasSpec extends FunSuite:
 
@@ -41,16 +42,25 @@ class DotEdgeHitAreasSpec extends FunSuite:
     assert(halo.getAttribute("style").contains("stroke-dasharray:none"))
     assert(!halo.hasAttribute("id"), "the halo must not duplicate the group's child ids")
 
-  test("querySelector(path) on the group still returns the rendered spline"):
+  test("the halo goes in UNDER the spline — a casing must not paint over it"):
     val svg = fixture()
     Graphviz.addEdgeHitAreas(svg)
 
     val group = svg.querySelector("g.edge")
-    val first = group.querySelector("path")
     assert(
-      !first.classList.contains(SelectableElement.hitAreaClass),
-      "the halo must be appended AFTER the spline: endpoint-drag clones the group's first path"
+      group.querySelector("path").classList.contains(SelectableElement.hitAreaClass),
+      "the halo comes first in the group: svg paints in document order, and a selected " +
+        "edge shows this clone as the casing"
     )
+
+  test("the spline is found by class, not by being first"):
+    val svg = fixture()
+    Graphviz.addEdgeHitAreas(svg)
+
+    // What the endpoint-drag preview and the layout tween both ask for.
+    val spline = svg.querySelector("g.edge").querySelector(SelectableElement.splineSelector)
+    assert(!spline.classList.contains(SelectableElement.hitAreaClass))
+    assertEquals(spline.getAttribute("stroke-dasharray"), "5,2", "the REAL spline keeps its dashes")
 
   test("halo clicks resolve to the edge through the group, id extraction unchanged"):
     val svg = fixture()

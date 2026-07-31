@@ -114,7 +114,13 @@ object Graphviz:
     */
   private[graphviz] def addEdgeHitAreas(svg: dom.svg.SVG): Unit =
     svg.querySelectorAllT[dom.Element]("g.edge > path").foreach { p =>
-      p.parentNode.appendChild(SelectableElement.hitHaloClone(p))
+      // BEFORE the spline, not after: the halo is invisible while idle, but a
+      // selected edge paints it as the casing — a band that has to sit UNDER
+      // the spline or its 32% blue would tint the edge's own colour. (Mermaid's
+      // halo has always gone in ahead of its link, for the same reason its
+      // link must stay on top.) Hit-testing is unaffected: both paths are in
+      // the same `g.edge` and resolve to the same id.
+      p.parentNode.insertBefore(SelectableElement.hitHaloClone(p), p)
     }
 
   /** True when the graph uses the `dot` engine — the only one the Scala port

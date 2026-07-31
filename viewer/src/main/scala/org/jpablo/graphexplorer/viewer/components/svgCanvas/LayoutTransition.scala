@@ -100,7 +100,7 @@ object LayoutTransition:
     */
   private def edgePathOf(ref: dom.Element): Option[dom.Element] =
     if ref.tagName.equalsIgnoreCase("path") then Some(ref)
-    else Option(ref.querySelector("path"))
+    else Option(ref.querySelector(SelectableElement.splineSelector))
 
   private def samplePath(path: dom.Element): Option[Vector[(Double, Double)]] =
     val p   = path.asInstanceOf[js.Dynamic]

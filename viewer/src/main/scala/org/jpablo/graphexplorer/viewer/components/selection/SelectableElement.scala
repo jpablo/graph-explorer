@@ -1,6 +1,8 @@
 package org.jpablo.graphexplorer.viewer.components.selection
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.codecs.StringAsIsCodec
+import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
@@ -37,7 +39,7 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
   def arrowId: Option[models.ArrowId] = elementId match { case a: models.ArrowId => Some(a); case _ => None }
   def groupId: Option[models.GroupId] = elementId match { case g: models.GroupId => Some(g); case _ => None }
 
-  val selectionRectClass = "selected-border"
+  val selectionRectClass = SelectableElement.selectionRectClass
 
   def unselect(): Unit =
     ref.classList.remove(selectedClass)
@@ -90,7 +92,12 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
       svg.x             := bbox.x.toString,
       svg.y             := bbox.y.toString,
       svg.width         := bbox.width.toString,
-      svg.height        := bbox.height.toString
+      svg.height        := bbox.height.toString,
+      // The measured box, kept: SelectionCasing sizes the ring from the
+      // object's OWN stroke and pushes it just outside this box, both of which
+      // change with the zoom. Re-measuring per frame would mean toggling the
+      // decorations' display on every pan — this is four numbers instead.
+      SelectableElement.baseBoxMods(bbox)
     )
 
 object SelectableElement:
@@ -101,6 +108,23 @@ object SelectableElement:
     */
   val decorationClass = "gx-decoration"
 
+  /** The ring drawn around a selected element (SelectionCasing sizes it). */
+  val selectionRectClass = "selected-border"
+
+  /** The selection rect's measured box, written at select time and read back by
+    * SelectionCasing. Names live here, next to the rect that carries them. */
+  val baseBoxAttr = (x = "data-bx", y = "data-by", w = "data-bw", h = "data-bh")
+
+  private def boxAttr(name: String) = svg.svgAttr(name, StringAsIsCodec, None)
+
+  def baseBoxMods(bbox: dom.SVGRect): Seq[Modifier[ReactiveSvgElement.Base]] =
+    Seq(
+      boxAttr(baseBoxAttr.x) := bbox.x.toString,
+      boxAttr(baseBoxAttr.y) := bbox.y.toString,
+      boxAttr(baseBoxAttr.w) := bbox.width.toString,
+      boxAttr(baseBoxAttr.h) := bbox.height.toString
+    )
+
   /** Class marking invisible pointer-target decorations (MermaidBackend.addEdgeHitAreas).
     * They exist ONLY to catch clicks near thin edges: click resolution may go through
     * them (fromDomElement), but they must never be surfaced as the CANONICAL element
@@ -108,6 +132,15 @@ object SelectableElement:
     * preview which clones the path, bbox readers) need the real rendered element.
     */
   val hitAreaClass = "edge-hit-area"
+
+  /** An edge's RENDERED spline, inside its group — the one every geometry
+    * consumer wants (the endpoint-drag preview clones it, the layout tween
+    * samples it, SelectionCasing measures it). Says so by CLASS: it used to be
+    * "the group's first path", which held only while the halo was appended
+    * last, and the halo now goes in FIRST so a selected edge's casing paints
+    * under the spline instead of tinting it.
+    */
+  val splineSelector = s"path:not(.$hitAreaClass)"
 
   /** The one definition of the invisible edge hit-halo's presentation:
     * non-scaling-stroke keeps the halo ~14 SCREEN px at any canvas zoom;

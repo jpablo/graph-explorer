@@ -2,6 +2,7 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.arrowHeadMarker
 import org.jpablo.graphexplorer.viewer.components.toSvgPoint
 import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
@@ -15,7 +16,7 @@ def ArrowBetweenPointerAndEndpoint(
   val basePath =
     action.originator.ref match
       case path: dom.svg.Path => path
-      case _                  => action.originator.ref.querySelector("path").asInstanceOf[dom.svg.Path]
+      case _ => action.originator.ref.querySelector(SelectableElement.splineSelector).asInstanceOf[dom.svg.Path]
   val clonedPath = basePath.cloneNode().asInstanceOf[dom.svg.Path]
   // The preview must not inherit the source path's inline styles: Mermaid promotes
   // linkStyle declarations to inline `!important` (and hit-area clones are inline

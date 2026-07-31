@@ -137,6 +137,14 @@ def SvgCanvas(
     viewerOps.handleNewArrowControls(mainGroup, elem, action)
     viewerOps.handleArrowEndpointControl(mainGroup, elem, action, edgePositions)
 
+  /** Everything whose size is a SCREEN quantity: the controls, which hold a
+    * constant size, and the selection decorations, which hold a constant
+    * relationship to the object they mark. Both go stale the moment the canvas
+    * transform moves. */
+  def refitChrome(): Unit =
+    ScreenConstant.refitAll(rawSvg.ref)
+    SelectionCasing.refit(mainGroup)
+
   // render all selected elements the first time
   rawSvg
     .amend {
@@ -149,11 +157,11 @@ def SvgCanvas(
           mainGroup.setAttribute(svg.transform.name, tr)
           // Every control holds its SCREEN size across pan/zoom (none of them
           // rebuild here — a re-fit keeps listeners and drag state intact).
-          ScreenConstant.refitAll(rawSvg.ref)
+          refitChrome()
         },
         // A window resize rescales the viewBox→client mapping with no transform
         // event — the third way the CTM moves under the controls' feet.
-        windowEvents(_.onResize) --> { _ => ScreenConstant.refitAll(rawSvg.ref) },
+        windowEvents(_.onResize) --> { _ => refitChrome() },
         // Post-mount work needing real geometry (badges: getBBox; onRendered:
         // client rects). Registered AFTER the transform binder on purpose —
         // mount runs modifiers in order, and onRendered's screen measurements
@@ -205,7 +213,7 @@ def SvgCanvas(
         layoutSettled.events.sample(singleSelection.combineWith(mouseAction.signal)) --> {
           (elem: Option[SelectableElement], action: MouseAction) =>
             refreshOverlayControls(elem, action)
-            ScreenConstant.refitAll(rawSvg.ref)
+            refitChrome()
         },
         // --------------------------------------------------------
         // record CELL selection (one level below the element selection)
@@ -267,8 +275,12 @@ def SvgCanvas(
         // precise and only select/unselect the elements that actually changed
         selectionElementChanges --> { groups =>
           // This should only happen when the selection groups are non-empty (see dropWhile above)
-          groups.toUnselect.foreach(_.unselect())
+          groups.toUnselect.foreach { e => e.unselect(); SelectionCasing.clear(e.ref) }
           groups.toSelect.foreach(_.select())
+          // The decorations select() just created are sized from the object
+          // they mark, at the CURRENT zoom — nothing about that is knowable
+          // from inside select().
+          SelectionCasing.refit(mainGroup, force = true)
           // select/unselect modify the DOM directly, which seems to make the focus go to the
           // document body. We need the focus back to the canvas container to process handle keys —
           // but NOT while the user is typing in an editable element (e.g. the source editor):
