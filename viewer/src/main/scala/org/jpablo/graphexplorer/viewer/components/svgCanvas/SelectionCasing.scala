@@ -61,6 +61,24 @@ object SelectionCasing:
   private val RingDeltaPx   = 1.0
   private val CasingDeltaPx = 5.0
 
+  /** The casing's overhang as a MULTIPLE of the spline it wraps, with
+    * [[CasingDeltaPx]] as its floor.
+    *
+    * A flat delta is the same mistake this object exists to avoid, one level
+    * up: `ownPx` is screen px and grows with the zoom, so `own + 5` pinned the
+    * visible band at 2.5px per side at EVERY zoom and every penwidth. Around a
+    * hairline that is emphatic; around the same edge at 4x — where its own
+    * stroke is drawing 8px of solid colour — it is a fringe, and the selection
+    * reads as "that line got thicker" rather than as a casing. Stated as a
+    * ratio, the band keeps its PROPORTION to the spline, which is the thing the
+    * eye actually judges.
+    *
+    * Chosen so the floor still wins below ~3.1px of own stroke: everything
+    * already tuned at 1x on a default edge renders exactly as before, and only
+    * the heavy/zoomed-in case changes.
+    */
+  private val CasingRatio = 1.6
+
   /** Read by the stylesheet for anything the width reaches by inheritance —
     * today the solid arrowhead's halo, a descendant of the selected `g.edge`.
     *
@@ -103,7 +121,8 @@ object SelectionCasing:
   def size(el: dom.Element): Unit =
     ScreenConstant.userPerPx(el).foreach: upp =>
       val ownPx    = ownStrokePx(subjectOf(el), upp)
-      val casingPx = math.max(MinCasingPx, ownPx + CasingDeltaPx)
+      val overhang = math.max(CasingDeltaPx, ownPx * CasingRatio)
+      val casingPx = math.max(MinCasingPx, ownPx + overhang)
       // Every var below is consumed by the stylesheet as a stroke-width on an
       // element carrying `vector-effect: non-scaling-stroke`, so each is written
       // through the browser correction — see ScreenConstant.strokeWidthFor. The
