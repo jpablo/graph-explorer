@@ -828,6 +828,18 @@ svg {
       // Without !important here, Mermaid's classDef fill paints over this rect,
       // hiding the actual node color underneath (the selection overlay becomes opaque).
       // Do not remove !important without verifying Mermaid selection still works.
+      // The node's casing: the band the solid ring runs down the middle of.
+      // Same idea as an edge's, and for the same reason — a ring alone was a
+      // couple of px of line on a hairline-bordered node and got lost in a busy
+      // drawing. fill:none, or it would double the wash the ring already paints.
+      .selection-casing {
+        fill: none !important;
+        stroke: var(--gx-select-casing) !important;
+        stroke-width: var(--gx-node-casing-w, 7px);
+        vector-effect: non-scaling-stroke;
+        pointer-events: none;
+      }
+
       .selected-border {
         fill: var(--gx-select-fill) !important;
         // Sized from the object it marks (SelectionCasing writes --gx-ring-w):

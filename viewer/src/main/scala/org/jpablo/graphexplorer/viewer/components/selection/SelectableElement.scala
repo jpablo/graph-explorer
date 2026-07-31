@@ -43,23 +43,28 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
 
   def unselect(): Unit =
     ref.classList.remove(selectedClass)
-    val rect = ref.querySelector(s"rect.$selectionRectClass")
-    if rect != null then
-      rect.remove()
+    ref
+      .querySelectorAllT[dom.Element](s"rect.$selectionRectClass, rect.${SelectableElement.selectionCasingClass}")
+      .foreach(_.remove())
 
   def select(): Unit =
     ref.classList.add(selectedClass)
     val rect = ref.querySelector(s"rect.$selectionRectClass")
     if rect == null then
-      val newRect = SelectedRect().ref
+      // TWO rects on one box: a translucent CASING for mass and a solid ring
+      // down its middle for definition — the same pairing an edge gets, where
+      // the band supplies the presence and the spline the crisp line. A ring
+      // alone was 2-3px of hairline on a hairline-bordered node and simply got
+      // lost in a busy drawing.
+      val bbox     = ownGeometryBBox()
+      val newRects = Seq(SelectedRect(bbox, SelectableElement.selectionCasingClass), SelectedRect(bbox, selectionRectClass))
       // Mermaid nodes render text inside foreignObject (within g.label).
       // Appending the rect after foreignObject hides the HTML text content.
       // Insert before the label group so text renders on top of the highlight.
       val labelGroup = ref.querySelector("g.label")
-      if labelGroup != null then
-        ref.insertBefore(newRect, labelGroup)
-      else
-        ref.appendChild(newRect)
+      newRects.foreach: r =>
+        if labelGroup != null then ref.insertBefore(r.ref, labelGroup)
+        else ref.appendChild(r.ref)
       // Decorations paint ABOVE the selection wash: with no g.label anchor
       // (mermaid clusters name theirs cluster-label) the rect lands after the
       // decoration, and its translucent fill + border drew OVER the control —
@@ -71,18 +76,22 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
         .querySelectorAllT[dom.Element](s".${SelectableElement.decorationClass}")
         .foreach(d => ref.appendChild(d))
 
-  private def SelectedRect() =
-    // The element's OWN geometry, not its decorations: a decoration inside the
-    // element (to ride its transform) inflates the measured box — a selected
-    // group's border visibly included the fold badge circle back when the badge
-    // lived here. display="none" removes them from getBBox for the duration of
-    // the measurement; no frame is produced in between, so nothing flashes.
+  /** The element's OWN geometry, not its decorations: a decoration inside the
+    * element (to ride its transform) inflates the measured box — a selected
+    * group's border visibly included the fold badge circle back when the badge
+    * lived here. display="none" removes them from getBBox for the duration of
+    * the measurement; no frame is produced in between, so nothing flashes.
+    */
+  private def ownGeometryBBox(): dom.SVGRect =
     val decorations = ref.querySelectorAllT[dom.Element](s".${SelectableElement.decorationClass}")
     decorations.foreach(_.setAttribute("display", "none"))
     val bbox = ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
     decorations.foreach(_.removeAttribute("display"))
+    bbox
+
+  private def SelectedRect(bbox: dom.SVGRect, cls: String) =
     svg.rect(
-      svg.cls := selectionRectClass,
+      svg.cls := cls,
       // Selection decorations must be invisible to hit-testing: the rect has a painted
       // fill, so without this it becomes an elementsFromPoint target over the whole
       // bbox (for clusters, the entire group area) and click resolution can steer back
@@ -108,8 +117,12 @@ object SelectableElement:
     */
   val decorationClass = "gx-decoration"
 
-  /** The ring drawn around a selected element (SelectionCasing sizes it). */
+  /** The solid ring drawn around a selected element (SelectionCasing sizes it). */
   val selectionRectClass = "selected-border"
+
+  /** The translucent band the ring runs down the middle of — a node's version
+    * of an edge's casing, and the reason a selected node reads at a glance. */
+  val selectionCasingClass = "selection-casing"
 
   /** The selection rect's measured box, written at select time and read back by
     * SelectionCasing. Names live here, next to the rect that carries them. */

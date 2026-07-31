@@ -69,9 +69,10 @@ object SelectionCasing:
     * a 10px bulge on the head beside a 3px band on the shaft. `halo` is stated
     * as twice the shaft's overhang, which makes the two extend equally.
     */
-  private val casingVar = "--gx-casing-w"
-  private val haloVar   = "--gx-casing-halo"
-  private val ringVar   = "--gx-ring-w"
+  private val casingVar     = "--gx-casing-w"
+  private val haloVar       = "--gx-casing-halo"
+  private val ringVar       = "--gx-ring-w"
+  private val nodeCasingVar = "--gx-node-casing-w"
 
   /** Marks the scale the decorations were last sized at, so a pan can be
     * recognised as the no-op it is. */
@@ -105,26 +106,29 @@ object SelectionCasing:
       // would inherit it there.
       casingsOf(el).foreach(setStyle(_, "stroke-width", s"${casingPx}px"))
 
-      Option(el.querySelector(s"rect.${SelectableElement.selectionRectClass}")).foreach: ring =>
-        val w = math.min(MaxRingPx, math.max(MinRingPx, ownPx + RingDeltaPx))
-        setStyle(el, ringVar, s"${w}px")
-        // Clear of the object's OUTER edge, which is half its own stroke past
-        // the measured box — getBBox reports geometry and ignores stroke, so a
-        // ring offset by its own half-width alone landed INSIDE a 9pt border.
-        // Plus half the ring, to put its inner edge exactly on that outer edge:
-        // the border stays fully visible instead of being painted over by the
-        // thing marking it.
-        val out = (ownPx / 2 + w / 2) * upp
+      val ringPx = math.min(MaxRingPx, math.max(MinRingPx, ownPx + RingDeltaPx))
+      setStyle(el, ringVar, s"${ringPx}px")
+      setStyle(el, nodeCasingVar, s"${casingPx}px")
+      // ONE centre line for both rects: the band and the ring share it, so the
+      // solid line runs down the middle of the band instead of beside it, and
+      // the whole marker costs only the band's width. That line sits clear of
+      // the object's OUTER edge — half its own stroke past the measured box,
+      // since getBBox reports geometry and ignores stroke (a ring offset by its
+      // own half-width alone landed INSIDE a 9pt border) — plus half the band.
+      val out = (ownPx / 2 + casingPx / 2) * upp
+      el.querySelectorAllT[dom.Element](
+        s"rect.${SelectableElement.selectionRectClass}, rect.${SelectableElement.selectionCasingClass}"
+      ).foreach: r =>
         for
-          bx <- num(ring, SelectableElement.baseBoxAttr.x)
-          by <- num(ring, SelectableElement.baseBoxAttr.y)
-          bw <- num(ring, SelectableElement.baseBoxAttr.w)
-          bh <- num(ring, SelectableElement.baseBoxAttr.h)
+          bx <- num(r, SelectableElement.baseBoxAttr.x)
+          by <- num(r, SelectableElement.baseBoxAttr.y)
+          bw <- num(r, SelectableElement.baseBoxAttr.w)
+          bh <- num(r, SelectableElement.baseBoxAttr.h)
         do
-          ring.setAttribute("x", (bx - out).toString)
-          ring.setAttribute("y", (by - out).toString)
-          ring.setAttribute("width", (bw + 2 * out).toString)
-          ring.setAttribute("height", (bh + 2 * out).toString)
+          r.setAttribute("x", (bx - out).toString)
+          r.setAttribute("y", (by - out).toString)
+          r.setAttribute("width", (bw + 2 * out).toString)
+          r.setAttribute("height", (bh + 2 * out).toString)
 
   /** Give a deselected element its halo back at the hit-testing width. The
     * casing leaves it either narrower (a thin edge, at the floor) or wider (a
