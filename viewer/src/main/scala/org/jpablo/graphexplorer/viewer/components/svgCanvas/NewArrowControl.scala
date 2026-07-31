@@ -17,7 +17,14 @@ def NewArrowControl(
     direction:  ArrowDirection,
     clientSize: ClientSize,
     screenCtm:  Option[dom.SVGMatrix] = None,
-    svgMods:    SvgMods*
+    /** Which of the node's SIDE edges a count badge already straddles.
+      * CountBadges puts the successor count on the right and the predecessor
+      * count on the left whatever the rankdir, so under LR/RL a control lands
+      * on exactly the edge a badge occupies — it takes the lane outside the
+      * badge rather than sitting on top of it.
+      */
+    occupiedSides: (left: Boolean, right: Boolean) = (left = false, right = false),
+    svgMods:       SvgMods*
 ): ReactiveSvgElement[dom.svg.G] =
   val radius  = 8
   val centerX = 8
@@ -55,6 +62,23 @@ def NewArrowControl(
 
   val scale = SvgUtils.calculateSimpleScale(elem.ref.asInstanceOf[dom.svg.Locatable], w.toDouble, clientSize = currentClientSize)
 
+  // User units per CLIENT pixel. The control holds a constant SCREEN size, so
+  // the gaps around it must be screen-constant too: they are all stated in px
+  // below and converted here. (The clearance used to carry a bare `+ 1` in USER
+  // units — a gap that shrank as the canvas zoomed out, until the control
+  // climbed onto whatever sat on the node's edge.)
+  val userPerPx = SvgUtils.calculateSimpleScale(elem.ref.asInstanceOf[dom.svg.Locatable], svgSize = 1, clientSize = 1)
+
+  // Air between the node's edge and the control, proportional to the control
+  // itself (a bigger touch target on a small screen wants more room).
+  val edgeGapPx = currentClientSize / 4.0
+
+  // The OUTER LANE: a count badge is centred ON the edge it marks, reaching
+  // half its diameter past it, so a control sharing that edge starts beyond
+  // the badge's rim — the two read as a sequence ([node][4]→( → )) instead of
+  // two overlapping circles.
+  val badgeLanePx = CountBadges.clientDiameter / 2.0 + 3.0
+
   // Get the rankdir value from graph attributes
   val rankdir = getRankdir()
 
@@ -64,11 +88,15 @@ def NewArrowControl(
   val nodeCenterX = bboxX + bboxWidth / 2
   val nodeCenterY = bboxY + bboxHeight / 2
 
-  // Pre-calculate potential positions
-  val posAbove = (nodeCenterX - scaledW / 2, bboxY - scaledH - scaledH / 4 - 1)
-  val posBelow = (nodeCenterX - scaledW / 2, bboxY + bboxHeight + scaledH / 4 + 1)
-  val posLeft  = (bboxX - scaledW - scaledW / 4 - 1, nodeCenterY - scaledH / 2)
-  val posRight = (bboxX + bboxWidth + scaledW / 4 + 1, nodeCenterY - scaledH / 2)
+  def clearance(occupied: Boolean): Double =
+    (edgeGapPx + (if occupied then badgeLanePx else 0.0)) * userPerPx
+
+  // Pre-calculate potential positions. Only the sides take a lane: badges never
+  // sit on the top or bottom edge, so TB/BT keep today's spacing exactly.
+  val posAbove = (nodeCenterX - scaledW / 2, bboxY - scaledH - clearance(false))
+  val posBelow = (nodeCenterX - scaledW / 2, bboxY + bboxHeight + clearance(false))
+  val posLeft  = (bboxX - scaledW - clearance(occupiedSides.left), nodeCenterY - scaledH / 2)
+  val posRight = (bboxX + bboxWidth + clearance(occupiedSides.right), nodeCenterY - scaledH / 2)
 
   // Determine position based on rankdir and direction
   val (trX, trY) = (rankdir, direction) match

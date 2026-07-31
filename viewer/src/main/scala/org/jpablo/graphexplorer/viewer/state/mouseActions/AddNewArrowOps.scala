@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.state.mouseActions
 import org.jpablo.graphexplorer.viewer.components.selection.{NodeElement, SelectableElement}
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.{ArrowFromSourceToPointer, NewArrowControl}
 import org.jpablo.graphexplorer.viewer.domUtils.{DomEvent, elementsFromPoint}
-import org.jpablo.graphexplorer.viewer.models.ArrowDirection
+import org.jpablo.graphexplorer.viewer.models.{ArrowDirection, NodeId}
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.state.mouseActions.MouseAction.{AddNewArrowAction, Inactive}
@@ -66,10 +66,14 @@ trait AddNewArrowOps:
   val dirs = ArrowDirection.values.toSeq
 
   def handleNewArrowControls(parent: dom.svg.G, selection: Option[SelectableElement], action: MouseAction): Unit =
+    // Read the badge model ONCE, and read the SAME one CountBadges drew from:
+    // a control decides where to stand by which edges carry a count, so the two
+    // must never disagree about that.
+    val concealed = concealedCountsNow()
     val controls =
       for
         elem <- selection.toSeq
-        c    <- dirs.flatMap(buildNewArrowControl(parent, elem, action, _))
+        c    <- dirs.flatMap(buildNewArrowControl(parent, elem, action, _, concealed))
       yield c
 
     // Always clear previous controls to avoid duplicates lingering after selection changes
@@ -80,7 +84,10 @@ trait AddNewArrowOps:
       parent:       dom.svg.G,
       selectedElem: SelectableElement,
       action:       MouseAction,
-      direction:    ArrowDirection
+      direction:    ArrowDirection,
+      /** Concealed-neighbor counts (successors, predecessors) — the badge
+        * model, consulted here only to learn which edges are already taken. */
+      concealed: Map[NodeId, (Int, Int)] = Map.empty
   ): Option[dom.svg.G] =
     val showControl =
       action match
@@ -91,7 +98,19 @@ trait AddNewArrowOps:
     selectedElem match
       case elem: NodeElement if showControl =>
         val parentCtm = Option(parent.asInstanceOf[js.Dynamic].getScreenCTM().asInstanceOf[dom.SVGMatrix])
-        val control = NewArrowControl(elem, graphRankDirNow, direction, clientSize, screenCtm = parentCtm).ref
+        // (successors, predecessors): the successor count badges the RIGHT
+        // edge and the predecessor count the LEFT, whatever the rankdir —
+        // those are the edges a control has to step around.
+        val (succ, pred) = elem.nodeId.flatMap(concealed.get).getOrElse((0, 0))
+        val control =
+          NewArrowControl(
+            elem,
+            graphRankDirNow,
+            direction,
+            clientSize,
+            screenCtm = parentCtm,
+            occupiedSides = (left = pred > 0, right = succ > 0)
+          ).ref
 
         control.addEventListener(
           DomEvent.mousedown,

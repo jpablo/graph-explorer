@@ -48,8 +48,12 @@ object CountBadges:
   // constant size ON SCREEN regardless of zoom (drawn at design size around the
   // origin, then scaled so those units land at a fixed client size). Previously they
   // lived in SVG units and ballooned as the user zoomed in.
-  private val designRadius   = 7.0
-  private val clientDiameter = 18.0 // px on screen, whatever the zoom
+  private val designRadius = 7.0
+
+  /** The badge's size ON SCREEN, whatever the zoom. Public because a badge
+    * OCCUPIES the edge it marks — it straddles the border, reaching half of
+    * this beyond it — and NewArrowControl has to step around one. */
+  val clientDiameter = 18.0
 
   /** None when the element has no usable CTM — a hidden/pre-layout svg. Writing a
     * scale from the getCtmScale fallback of 1 in that state inflated the badge to
