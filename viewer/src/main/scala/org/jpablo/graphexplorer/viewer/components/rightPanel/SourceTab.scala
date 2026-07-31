@@ -33,13 +33,19 @@ def SourceTab(state: ViewerState) =
       ),
       div(
         cls := "flex items-center gap-0.5",
-        IconToggle("bi-text-wrap", "Wrap long lines", state.wrapSourceLines),
-        IconButton("bi-clipboard", "Copy source")(state.copySourceText()),
+        // END-aligned bubbles: these icons sit against the panel's right edge, and a
+        // CENTRED daisyUI tooltip is a pseudo-element wider than its 26px trigger — it
+        // spilled ~43px past the edge, and since no ancestor clips, the app's main flex
+        // row (overflow-y-auto, so the x axis computes to `auto` too) became
+        // horizontally scrollable: a scrollbar under the whole window and empty space
+        // to scroll into. Same trap IconButtonTitled documents for the breadcrumbs.
+        IconToggle("bi-text-wrap", "Wrap long lines", state.wrapSourceLines, TooltipPos.bottomEnd),
+        IconButton("bi-clipboard", "Copy source", TooltipPos.bottomEnd)(state.copySourceText()),
         // The docs link speaks the same icon-and-tooltip language as the rest of the app;
         // the per-language title is what the tooltip says.
         Tooltip(
           text = "Documentation",
-          cls := TooltipPos.bottom,
+          cls := TooltipPos.bottomEnd,
           a(
             cls    := "gx-icon-btn",
             href   <-- currentInfo.map(_.documentationUrl),
