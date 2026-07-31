@@ -609,6 +609,19 @@ svg {
     @apply z-30;
   }
 
+  // Same stacking story, for the bubbles: daisyUI gives a tooltip z-index 2, and
+  // `.tooltip` (position:relative, z-index auto) is no stacking context — so a
+  // bottom-positioned tooltip on a toolbar button, which lands exactly ON the
+  // z-20 strip, was painted UNDER it and came out frosted by the strip's own
+  // backdrop-blur. A tooltip explains the control under the pointer; it is the
+  // one thing that must never be covered, so this is scoped to the whole
+  // #top-level rather than any one bar.
+  .tooltip {
+    &[data-tip]:before, &:after, > .tooltip-content {
+      @apply z-30;
+    }
+  }
+
   // The context strip: a second row that only exists while a selection or
   // hidden elements do. A different SURFACE, not a hairline — the divider
   // between two same-colored bars was the "strange middle line".
