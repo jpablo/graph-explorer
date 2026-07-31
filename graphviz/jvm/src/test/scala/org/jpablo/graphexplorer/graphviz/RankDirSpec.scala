@@ -42,7 +42,10 @@ class RankDirSpec extends FunSuite:
     }
 
   // golden 02 final node positions (dot, points).
-  private val golden02 = Map(
+  // `def`, not `val`: munit registers every `test(...)` body during class
+  // construction, so a val declared below the first one is still null when
+  // -Wsafe-init traces that path. Same shape as `g` above.
+  private def golden02 = Map(
     "start"  -> (27.0, 52.0),
     "middle" -> (131.44, 52.0),
     "end"    -> (222.88, 18.0)

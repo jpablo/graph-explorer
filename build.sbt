@@ -80,9 +80,12 @@ lazy val graphviz = crossProject(JSPlatform, JVMPlatform)
       "org.scalameta" %%% "munit-scalacheck" % "1.0.0" % Test,
       "com.lihaoyi"   %%% "ujson"            % "4.2.1" % Test // M7 output gate
     ),
-    // M0 tech-debt: the fastparse front-end trips fatal-warnings / pure-function
-    // inference. Relaxed here only; re-tighten once the parser stabilises (PORT.md §6).
-    scalacOptions --= Seq("-Xfatal-warnings", "-language:experimental.pureFunctions"),
+    // The fastparse front-end still trips pure-function inference. `-Xfatal-warnings`
+    // came off with it (M0 tech-debt, PORT.md §6) and is back: the parser no longer
+    // needs it, and dropping it module-wide had quietly exempted the whole layout
+    // engine — where -Wsafe-init and exhaustivity warnings are worth the most, and
+    // where five had accumulated unnoticed.
+    scalacOptions --= Seq("-language:experimental.pureFunctions"),
     testFrameworks := Seq(new TestFramework("munit.Framework"))
   )
   .jsSettings(

@@ -1,7 +1,6 @@
 package org.jpablo.graphexplorer.graphviz
 
 import munit.FunSuite
-import org.jpablo.graphexplorer.graphviz.output.{Output, Svg}
 
 /** Shape-catalog build-out gate (the `1XX-*` corpus probes). Every gv 13.0.1
   * builtin node shape beyond the original convex-polygon set — periphery-driven
