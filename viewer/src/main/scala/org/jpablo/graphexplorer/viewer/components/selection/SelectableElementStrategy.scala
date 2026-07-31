@@ -104,6 +104,20 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
   // which the stale-selection pruner immediately dropped — edges were unselectable.
   private val mermaidEdgeIdPattern    = """L-(.+)-(.+)-(\d+)""".r
   private val mermaidEdgeIdPatternV11 = """L_(.+)_(.+)_(\d+)""".r
+  // A SELF-LOOP is the one edge Mermaid does not render as a single path. It
+  // emits three siblings — `<node>-cyclic-special-1`, `-mid`, `-2` — matching
+  // neither form above, so this fell through to the `edge-${hashCode}` fallback
+  // and cost two bugs at once: an id matching no arrow in the model (Backspace
+  // deleted nothing), and a DIFFERENT garbage id per segment, so selecting the
+  // loop marked only the segment clicked and the casing covered a third of it.
+  //
+  // The id is keyed on the NODE, not the edge: two `a --> a` edges produce one
+  // set of paths and one drawn loop, so there is no sequence to recover and
+  // seq is 1. Selecting either duplicate therefore resolves to the first.
+  //
+  // `(.+)` is greedy so a hyphenated node keeps its whole name —
+  // `my-node-cyclic-special-mid` is `my-node`, not `my`.
+  private val mermaidSelfLoopIdPattern = """(.+)-cyclic-special-(?:\d+|mid)""".r
 
   private def classList(e: dom.Element): Seq[String] =
     (0 until e.classList.length).flatMap(i => Option(e.classList.item(i)))
@@ -137,6 +151,10 @@ object MermaidSelectionStrategy extends SelectableElementStrategy:
       val domId = dataAttr(edgeElem, "data-edge-id").getOrElse(edgeElem.id)
       val idParts =
         domId match
+          // FIRST: a node literally named `L` would make `L-cyclic-special-1`
+          // match the old `L-(.+)-(.+)-(\d+)` form as source "cyclic",
+          // target "special".
+          case mermaidSelfLoopIdPattern(n)        => Some((n, n, 1))
           case mermaidEdgeIdPatternV11(s, t, idx) => Some((s, t, idx.toInt + 1))
           case mermaidEdgeIdPattern(s, t, idx)    => Some((s, t, idx.toInt + 1))
           case _                                  => None
