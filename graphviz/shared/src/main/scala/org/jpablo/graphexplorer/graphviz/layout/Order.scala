@@ -479,6 +479,16 @@ object Order:
         (clustOf.get(t), clustOf.get(h)) match
           case (Some(a), Some(b)) if a == b => Some(a)
           case _                            => None
+      // The class2 adjacency this walks is keyed by SEGMENT endpoints, so it
+      // holds real nodes and chain vnodes and nothing else. The other kinds
+      // arrive later or elsewhere: Slack/ClusterLn/ClusterRn are XCoord's aux
+      // graph, and a FlatLabel (inserted into a RANK row a few lines above)
+      // carries no segments, so it is never a key here. Fail loudly rather
+      // than answering None — guessing "no cluster" for a node that reached
+      // this by mistake would bend the layout silently, which is the one
+      // failure mode a byte-exact port cannot afford.
+      case other =>
+        sys.error(s"Order.cOf: $other is not a mincross node (class2 holds Real/Virtual only)")
     val allNodes = nodeOut.keysIterator.toVector
 
     // Each cluster's occupied rank band (over the class2 nodes actually present).

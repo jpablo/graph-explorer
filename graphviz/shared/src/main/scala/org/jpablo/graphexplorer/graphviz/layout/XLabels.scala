@@ -1,7 +1,7 @@
 package org.jpablo.graphexplorer.graphviz.layout
 
 import org.jpablo.graphexplorer.graphviz.html.{HtmlLayout, HtmlParser}
-import org.jpablo.graphexplorer.graphviz.model.{REdge, RGraph, RNode}
+import org.jpablo.graphexplorer.graphviz.model.{REdge, RGraph}
 import scala.collection.mutable
 
 /** External-label (`xlabel`) placement — port of `addXLabels`

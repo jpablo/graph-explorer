@@ -319,7 +319,9 @@ object PortAnchor:
           case NE => Some((1.0, 1.0));  case NW => Some((-1.0, 1.0))
           case SE => Some((1.0, -1.0)); case SW => Some((-1.0, -1.0))
           case _  => None
-        (if ellipseLike then ray else None) match
+        // Ascribed: without it the branches infer `ray.type | None.type`, a
+        // union the exhaustivity checker cannot see Some/None as covering.
+        ((if ellipseLike then ray else None): Option[(Double, Double)]) match
           case Some((rx, ry)) =>
             val pw   = n.attrs.get("penwidth").flatMap(_.toDoubleOption).map(math.max(0.0, _)).getOrElse(1.0) // ATTR only
             val urx  = w2 + pw / 2.0

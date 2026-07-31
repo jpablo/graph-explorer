@@ -2,7 +2,6 @@ package org.jpablo.graphexplorer.graphviz.output
 
 import org.jpablo.graphexplorer.graphviz.model.RGraph
 import org.jpablo.graphexplorer.graphviz.layout.{Coord, NodeSize, Spline, XCoord}
-import org.jpablo.graphexplorer.graphviz.units.Length.Pt
 
 /** Phase 5 of the `dot` pipeline: output writers (increment 1 — `dot_json`
   * and `json0`).

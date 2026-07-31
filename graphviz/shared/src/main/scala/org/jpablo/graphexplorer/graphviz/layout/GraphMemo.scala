@@ -19,9 +19,13 @@ import org.jpablo.graphexplorer.graphviz.model.RGraph
   * life of a long-lived (browser) session.
   */
 private[graphviz] final class GraphMemo[V]:
-  GraphMemo.register(this)
   private var key:   RGraph = null
   private var value: V      = null.asInstanceOf[V]
+  // Registered LAST, not first: `register` publishes `this` to a module-level
+  // buffer whose only consumer (`clearAll`) writes both fields, so handing it
+  // over before they exist is a leak of a half-built object — harmless today
+  // (the instances are singletons built at class-init, and Scala.js is
+  // single-threaded) but exactly what -Wsafe-init is for.
   def apply(g: RGraph)(compute: => V): V = synchronized {
     if g eq key then value
     else
@@ -32,6 +36,7 @@ private[graphviz] final class GraphMemo[V]:
   private[layout] def clear(): Unit = synchronized {
     key = null; value = null.asInstanceOf[V]
   }
+  GraphMemo.register(this)
 
 private[graphviz] object GraphMemo:
   // The instances are a fixed set of module-level singletons (one per layout
