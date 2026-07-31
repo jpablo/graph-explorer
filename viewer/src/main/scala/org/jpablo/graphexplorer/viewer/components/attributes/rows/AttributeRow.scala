@@ -3,7 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.attributes.rows
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveElement
 import com.raquo.laminar.nodes.ReactiveElement.Base
-import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
+import org.jpablo.graphexplorer.viewer.formats.dot.{HtmlLabels, TextUtils}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.{AttrEq, AttrValue}
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Layout
 import org.jpablo.graphexplorer.viewer.models.{AttrStatus, AttrValueWithStatus, AttributeId}
@@ -51,20 +51,30 @@ object AttributeRow:
   def _combineDefault(row: InputAttribute): Signal[(AttrValueWithStatus, String)] =
     row.inputVar.signal.combineWith(row.default)
 
-  val htmlRegex         = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
-  def isHtml(s: String) = htmlRegex.matches(s)
+  def isHtml(s: String) = HtmlLabels.isHtml(s)
 
   /** Converts a Var[AttrValueWithStatus] to a String, escaping HTML entities.
+    *
+    * Html markup passes through VERBATIM in both directions: DOT's `<...>`
+    * form keeps real newlines, so running the `\n` escaping over a multi-line
+    * `<table>` label corrupted it (the old newline-blind regex never detected
+    * it as html in the first place).
     */
   def toRawText(inputVar: Var[AttrValueWithStatus], default: String) = inputVar
     .bimap(
       // DOT -> UI
-      getThis = dotText => TextUtils.unescape(dotText.getOrElse(default).toString)
+      getThis = dotText =>
+        val raw = dotText.getOrElse(default).toString
+        if isHtml(raw) then raw else TextUtils.unescape(raw)
     )(
       // UI -> DOT
       getParent = uiText =>
-        val dotText = TextUtils.escape(uiText)
-        AttrStatus.Single(AttrValue(if isHtml(uiText) then AttrEq(dotText, true) else dotText))
+        AttrStatus.Single(
+          AttrValue(
+            if isHtml(uiText) then AttrEq(uiText, true)
+            else TextUtils.escape(uiText)
+          )
+        )
     )
 
   extension (row: InputAttribute)

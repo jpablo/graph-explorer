@@ -345,10 +345,6 @@ def InputWithValue(
     row:      InputAttribute,
     setFocus: Boolean = false
 ) =
-  // hack
-  val htmlRegex         = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
-  def isHtml(s: String) = htmlRegex.matches(s)
-
   val extra =
     row.inputType match
       case InputType.number(start, end, step) =>
@@ -389,8 +385,7 @@ def InputWithValue(
     extra
   )
 
-val htmlRegex         = """<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?</\1>""".r
-def isHtml(s: String) = htmlRegex.matches(s)
+def isHtml(s: String) = org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels.isHtml(s)
 
 def TextAreaWithValue(
     row:      InputAttribute,

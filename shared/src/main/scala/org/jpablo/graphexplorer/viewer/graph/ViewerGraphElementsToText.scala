@@ -16,13 +16,9 @@ def viewerGraphElementsToText(
 
   val lines = ListBuffer[String]()
 
-  // Helper to detect if a string contains HTML-like content
-  def isHtmlLabel(value: String): Boolean = {
-    value.contains("<") && value.contains(">") &&
-    (value.contains("<table") || value.contains("<b>") || value.contains("<i>") ||
-      value.contains("<font") || value.contains("<br") || value.contains("<hr") ||
-      value.contains("<td") || value.contains("<tr") || value.contains("</"))
-  }
+  // The one html-ness predicate (shared with the editing UI — see HtmlLabels)
+  def isHtmlLabel(value: String): Boolean =
+    org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels.isHtml(value)
 
   // Detect if this is a complex graph with nested subgraphs or has HTML labels
   // (a nested subgraph = a membership whose child is itself a group)

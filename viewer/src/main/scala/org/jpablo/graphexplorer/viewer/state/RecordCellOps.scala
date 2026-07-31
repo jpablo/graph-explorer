@@ -5,7 +5,7 @@ import org.jpablo.graphexplorer.graphviz.layout.RecordLabel
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElement
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.RecordCellOverlay
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
-import org.jpablo.graphexplorer.viewer.formats.dot.RecordTree
+import org.jpablo.graphexplorer.viewer.formats.dot.{HtmlLabels, RecordTree}
 import org.jpablo.graphexplorer.viewer.formats.dot.ast.AttrEq
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
@@ -172,7 +172,8 @@ trait RecordCellOps:
     private def labelIsHtml(node: ViewerNode): Boolean =
       node.label.value match
         case eq: AttrEq => eq.html
-        case _: String  => false
+        // the html flag never survives the dot_json import — sniff content
+        case s: String  => HtmlLabels.isHtml(s)
 
     private def freshPortName(root: RecordTree.Group): String =
       val used = RecordTree.ports(root)
