@@ -60,19 +60,21 @@ sealed trait SelectableElement(val ref: dom.svg.Element, val strategy: Selectabl
         ref.appendChild(newRect)
       // Decorations paint ABOVE the selection wash: with no g.label anchor
       // (mermaid clusters name theirs cluster-label) the rect lands after the
-      // badge, and its translucent fill + border drew OVER the control — the
-      // badge read as see-through. appendChild MOVES the existing nodes to the
-      // end, listeners intact.
+      // decoration, and its translucent fill + border drew OVER the control —
+      // which read as see-through. appendChild MOVES the existing nodes to the
+      // end, listeners intact. (The count/fold badges have since moved to their
+      // own overlay layer, above every edge; this stays for any decoration that
+      // does ride an element.)
       ref
         .querySelectorAllT[dom.Element](s".${SelectableElement.decorationClass}")
         .foreach(d => ref.appendChild(d))
 
   private def SelectedRect() =
-    // The element's OWN geometry, not its decorations: badges live inside the
-    // element (to ride its transform) and would inflate the measured box — a
-    // selected group's border visibly included the fold badge circle. display
-    // ="none" removes them from getBBox for the duration of the measurement;
-    // no frame is produced in between, so nothing flashes.
+    // The element's OWN geometry, not its decorations: a decoration inside the
+    // element (to ride its transform) inflates the measured box — a selected
+    // group's border visibly included the fold badge circle back when the badge
+    // lived here. display="none" removes them from getBBox for the duration of
+    // the measurement; no frame is produced in between, so nothing flashes.
     val decorations = ref.querySelectorAllT[dom.Element](s".${SelectableElement.decorationClass}")
     decorations.foreach(_.setAttribute("display", "none"))
     val bbox = ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]

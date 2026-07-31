@@ -1254,11 +1254,13 @@ svg {
 // wears a count on the corresponding side (successors right, predecessors
 // left). Canvas signal, so fixed colours from the token block up top — badges
 // paint over user-coloured nodes and must stay legible on any of them.
-// !important throughout: badges are appended INSIDE Mermaid node groups, and
-// Mermaid ships an ID-scoped stylesheet in its own svg (`#id .node circle`,
-// specificity 1-1-1) that silently restyled the badge — periwinkle circle,
-// invisible count. We don't control that sheet, so importance is the only
-// lever; among our own rules the :hover pair still wins by specificity.
+// !important throughout: Mermaid ships an ID-scoped stylesheet inside its own
+// svg (`#id .node circle`, specificity 1-1-1) which silently restyled badges
+// back when they were appended INSIDE Mermaid node groups — periwinkle circle,
+// invisible count. The overlay layer is outside `.node`, so those selectors no
+// longer reach; the importance stays because we don't control that sheet and
+// its next version may reach further. Among our own rules the :hover pair still
+// wins by specificity.
 .gx-expand-badge {
   cursor: pointer;
 
@@ -1298,15 +1300,16 @@ svg {
 }
 
 // The "−" is an ACTION with no information content, so it earns its pixels only
-// when the group is the current subject: badges sit inside the cluster element
-// that carries .selected, so DOM state drives this with no plumbing. The count
-// badges stay always-on — they report something (hidden members/neighbors).
-// visibility (not display) also kills pointer events, so there is no invisible
-// click target.
+// when the group is the current subject. Badges ride an overlay layer (so they
+// paint above the edges), which put them out of reach of the `.selected` class
+// on the cluster — CountBadges.reflectSelection carries the state across. The
+// count badges stay always-on — they report something (hidden members/
+// neighbors). visibility (not display) also kills pointer events, so there is
+// no invisible click target.
 .gx-fold-badge {
   visibility: hidden;
 }
-.selected > .gx-fold-badge {
+.gx-fold-badge.gx-badge-active {
   visibility: visible;
 }
 

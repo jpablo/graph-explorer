@@ -84,8 +84,9 @@ object RecordCellOverlay:
     rect.setAttribute("height", box.height.toString)
     rect
 
-  /** The element's OWN geometry: badges/decorations are display:none'd for the
-    * measurement (same trick as SelectableElement.SelectedRect). */
+  /** The element's OWN geometry: any decoration riding the element is
+    * display:none'd for the measurement (same trick as
+    * SelectableElement.SelectedRect). */
   def ownGeometryBBox(ref: dom.Element): dom.SVGRect =
     val decorations = ref.querySelectorAllT[dom.Element](s".${SelectableElement.decorationClass}")
     decorations.foreach(_.setAttribute("display", "none"))

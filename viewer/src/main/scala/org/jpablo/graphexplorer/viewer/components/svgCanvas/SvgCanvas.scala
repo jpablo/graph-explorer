@@ -161,7 +161,7 @@ def SvgCanvas(
           // Registered BEFORE onRendered: the transition starts inside onRendered,
           // so the listener must already exist when finish() eventually fires.
           rawSvg.ref.addEventListener(LayoutTransition.transitionEndEvent, (_: dom.Event) => layoutSettled.emit(()))
-          CountBadges.decorate(rawSvg.ref, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
+          CountBadges.decorate(mainGroup, strategy, concealedCounts, onToggleConcealed, collapsedCounts, onToggleCollapsed, onCollapseGroup)
           onRendered(rawSvg.ref)
         },
         // --------------------------------------------------------
@@ -220,8 +220,13 @@ def SvgCanvas(
           RecordCellOverlay.refresh(mainGroup, strategy, cellOpt, viewerOps.recordCells.cellBoxes)
         },
         // The cell selection exists only while its record stays the single
-        // selected element.
-        selection.signal --> { sel => viewerOps.recordCells.pruneAgainstSelection(sel) },
+        // selected element. The fold badges follow the selection too: they sit
+        // in the overlay layer now, out of reach of the `.selected` class the
+        // cluster wears.
+        selection.signal --> { sel =>
+          viewerOps.recordCells.pruneAgainstSelection(sel)
+          CountBadges.reflectSelection(mainGroup, sel.classify.groups)
+        },
         // UI elements reflecting the current mouse action
         viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),
         // dynamic arrow that follows the pointer when creating a new arrow or moving an arrow endpoint
