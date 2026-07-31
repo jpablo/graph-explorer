@@ -34,9 +34,14 @@ Run these and stop if any fails.
    build `…+YYYYMMDD-HHMM`, which is how a "release" build ends up self-identifying as a dev build.
 2. **Full suite green — locally.** `sbt --client test`
    Expect **1673** tests: `377 + 96 + 810 + 390`, `Failed 0` on each line.
-   This matters more than it looks: **no GitHub workflow runs on `viewer`.** `dev.yml` watches
-   `dev`, `release.yml` watches `release`. Nothing watches `viewer`. Local tests are the *only*
-   gate before the tag.
+   Since v0.6.21, `ci.yml` also runs the suite and the optimized frontend build on every push to
+   `viewer`, so check that the commit you are about to tag is green:
+   ```bash
+   gh run list --workflow=ci.yml --branch viewer --limit 1
+   ```
+   Run the suite locally anyway — CI reports *after* the push, and the tag is the irreversible
+   step. Before v0.6.21 there was no CI on `viewer` at all: `dev.yml` and `release.yml` watched
+   `dev` and `release`, **neither of which exists**, so the tests had never once run in CI.
 3. **The 810 are the graphviz byte-exact corpus.** If those moved, stop and ask — the port is an
    exact transcription of the dot engine and a corpus diff is a real regression, never a rebaseline.
 4. **Confirm the branch.** Releases are cut on `viewer`, which is the default branch
@@ -127,15 +132,25 @@ sbt server keeps reporting whatever it computed when it started. In practice:
   appeared to go *backwards* between two consecutive builds.
 - The compiled output was current; only the stamped string was stale.
 
-So after tagging, to get a build that honestly says `0.6.21`:
+So after tagging, refresh the build definition — `reload` re-evaluates it and re-runs dynver:
 
 ```bash
-sbt --client shutdown
+sbt --client reload
 ```
 
-then rebuild (`sbt "viewer/fastLinkJS"`, or `make build` for production) and **hard-reload** the
-browser tab. Without the restart the tag is invisible to the version string and you will be
-verifying blind.
+```bash
+sbt --client "show version"
+```
+
+Confirm it prints the new tag before rebuilding. **Prefer `reload` over `shutdown`**: it is
+non-destructive, takes about five seconds, and does not kill a server that may be running the
+user's `~viewer/fastLinkJS` watch. Verified on the v0.6.21 release — a server reporting
+`0.6.20+13-2b8d0a46+20260730-2334` printed `0.6.21` immediately after `reload`. Fall back to
+`sbt --client shutdown` only if `reload` somehow does not take.
+
+Then rebuild (`sbt --client "viewer/fastLinkJS"`, or `make build` for production) and
+**hard-reload** the browser tab. Skip this and the tag is invisible to the version string, and
+you will be verifying blind.
 
 Related: `dynver` needs tags *and* full history. `scripts/build-viewer-netlify.sh` runs
 `git fetch --force --unshallow --tags` for exactly this reason — a shallow clone with no tags
@@ -169,5 +184,7 @@ tag (above), or the smoke workflows — never a throwaway tag, which would publi
 - Version flows: `sbt-dynver` → `sbt-buildinfo` (`buildInfoKeys := Seq(name, version, scalaVersion, sbtVersion)`) → console banner.
 - `Makefile`: `make test` (`sbt test`), `make build` (`sbt "viewer/fullLinkJS"` + `npm run build`).
 - All GitHub workflows pin **JDK 17**; the Netlify script matches deliberately so the site is built like the binaries.
-- `release.yml` (branch `release`) is **dead**, not merely secondary: its "Create Artifact" step runs `scripts/build-package.sh`, which does not exist in the repo. Pushing to `release` would fail there. Ignore it; `release-binaries.yml` is what cuts binaries.
+- `ci.yml` (added v0.6.21) is the default-branch gate: suite + optimized frontend build on push/PR to `viewer`, plus `workflow_dispatch`. It replaced `dev.yml`, which watched a non-existent `dev` branch and had therefore never run.
+- `release.yml` (branch `release`) is **dead**, not merely secondary: the `release` branch does not exist, *and* its "Create Artifact" step runs `scripts/build-package.sh`, which is not in the repo. Ignore it; `release-binaries.yml` is what cuts binaries.
+- `release-binaries.yml` runs **no unit tests** — it compiles, bundles, builds Rust and runs runtime smokes. The suite is `ci.yml`'s job.
 - Run every sbt command from the repo root, and prefer `sbt --client`.

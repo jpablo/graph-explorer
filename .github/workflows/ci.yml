@@ -1,0 +1,78 @@
+# Verification for the DEFAULT branch.
+#
+# This replaces the old "Scala CI - dev" workflow, which watched a `dev` branch
+# that does not exist — so it had never run. `release.yml` watches `release`,
+# which does not exist either. The result was that the only workflow ever to
+# execute in this repo was release-binaries.yml, on a tag, and that one builds
+# and smoke-tests binaries without running a single unit test. Every commit
+# reached `viewer` unverified, and the first CI a change met was the one
+# publishing it to the public.
+#
+# So this runs the two things a release actually depends on, in the order that
+# fails fastest: the suite (~1673 tests, including the 810-case graphviz
+# byte-exact corpus), then the optimized frontend build that
+# release-binaries.yml will later redo on a tag.
+
+name: CI
+
+on:
+  push:
+    branches: [ "viewer" ]
+  pull_request:
+    branches: [ "viewer" ]
+  # Lets a red default branch be re-checked without an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A push that supersedes an in-flight run makes that run irrelevant; cancel it
+# rather than pay for it. But never cancel on the default branch itself, where
+# each commit's status is a fact worth keeping.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/viewer' }}
+
+jobs:
+  verify:
+    name: Tests + frontend build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # sbt-dynver derives the version from `git describe`; a shallow clone
+          # without tags yields a garbage version. Same reason
+          # scripts/build-viewer-netlify.sh unshallows.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # JDK 17 everywhere: release-binaries.yml, the smoke workflow and the
+      # Netlify script all pin 17, and CI that builds on a different JDK than
+      # the artifacts we ship is not verifying what we ship.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'sbt'
+
+      - name: Install npm modules
+        run: npm install
+
+      # First, because it is the cheap signal. A graphviz corpus failure here
+      # is a real regression, never a rebaseline: that module is a byte-exact
+      # transcription of the dot engine.
+      - name: Run tests
+        run: sbt -J-Xmx2G test
+
+      # Then the build the release depends on, reusing the compilation above.
+      # fullLinkJS breakage is otherwise invisible until a tag is already
+      # pushed and the release is already public.
+      - name: Build frontend bundle (optimized)
+        run: |
+          sbt -J-Xmx2G "viewer/fullLinkJS"
+          npm run build
