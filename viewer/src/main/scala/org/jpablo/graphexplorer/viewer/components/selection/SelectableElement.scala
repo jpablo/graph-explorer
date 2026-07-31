@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components.selection
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.codecs.StringAsIsCodec
 import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.jpablo.graphexplorer.viewer.components.svgCanvas.ScreenConstant
 import org.jpablo.graphexplorer.viewer.domUtils.querySelectorAllT
 import org.jpablo.graphexplorer.viewer.models
 import org.jpablo.graphexplorer.viewer.models.*
@@ -161,15 +162,25 @@ object SelectableElement:
     */
   val splineSelector = s"path:not(.$hitAreaClass)"
 
+  /** The halo's intended width in CLIENT px — the figure SelectionCasing
+    * restores on deselect, and the one style.scss's `.edge-hit-area`
+    * counter-rules assume. */
+  val hitHaloPx = 14.0
+
   /** The one definition of the invisible edge hit-halo's presentation:
     * non-scaling-stroke keeps the halo ~14 SCREEN px at any canvas zoom;
     * dasharray:none because with pointer-events:stroke a dashed clone would
-    * only hit-test on the dashes. Both backends' halos share this string —
-    * style.scss's `.edge-hit-area` counter-rules assume the same 14px figure.
+    * only hit-test on the dashes. Both backends' halos share this string.
+    *
+    * A `def`, not a `val`: the width goes through the non-scaling-stroke
+    * correction, which is measured from the live document and is not known at
+    * class-init. Uncorrected, the halo was 7 client px on a HiDPI screen — half
+    * the click target thin edges depend on, which is the bug the halo exists to
+    * prevent.
     */
-  val hitHaloStyle: String =
-    "fill:none;stroke:transparent;stroke-width:14px;stroke-dasharray:none;stroke-linecap:round;" +
-      "pointer-events:stroke;vector-effect:non-scaling-stroke"
+  def hitHaloStyle: String =
+    s"fill:none;stroke:transparent;stroke-width:${ScreenConstant.strokeWidthFor(hitHaloPx)}px;" +
+      "stroke-dasharray:none;stroke-linecap:round;pointer-events:stroke;vector-effect:non-scaling-stroke"
 
   /** Clone `path` as an invisible hit halo: id stripped (never a canonical element),
     * [[hitAreaClass]] applied, [[hitHaloStyle]] inlined. Backend-specific plumbing

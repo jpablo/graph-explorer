@@ -42,8 +42,9 @@ object SelectionCasing:
   private val MinRingPx   = 2.0
   private val MinCasingPx = 7.0
 
-  /** Restored to a deselected edge — the width hit-testing wants. */
-  private val HitHaloPx = 14.0
+  /** Restored to a deselected edge — the width hit-testing wants. Shared with
+    * the halo's own definition so the two can never drift. */
+  private val HitHaloPx = SelectableElement.hitHaloPx
 
   /** The ring's ceiling. It sits OUTSIDE the border rather than on it, so it
     * only has to be seen BESIDE it — matching a 9pt border stroke for stroke
@@ -90,7 +91,11 @@ object SelectionCasing:
   // zoom.
   def refit(root: dom.Element, force: Boolean = false): Unit =
     ScreenConstant.userPerPx(root).foreach: upp =>
-      val key = upp.toString
+      // The correction belongs in the key as much as the zoom does: dragging
+      // the window to a monitor with a different devicePixelRatio changes what
+      // a given stroke-width renders as while the zoom stays put, and a
+      // zoom-only key would hold the stale widths until the next pan.
+      val key = s"$upp/${ScreenConstant.nonScalingStrokeFactor}"
       if force || root.getAttribute(scaleAttr) != key then
         root.setAttribute(scaleAttr, key)
         root.querySelectorAllT[dom.Element](".selected").foreach(size)
@@ -99,20 +104,25 @@ object SelectionCasing:
     ScreenConstant.userPerPx(el).foreach: upp =>
       val ownPx    = ownStrokePx(subjectOf(el), upp)
       val casingPx = math.max(MinCasingPx, ownPx + CasingDeltaPx)
-      setStyle(el, casingVar, s"${casingPx}px")
-      setStyle(el, haloVar, s"${casingPx - ownPx}px")
+      // Every var below is consumed by the stylesheet as a stroke-width on an
+      // element carrying `vector-effect: non-scaling-stroke`, so each is written
+      // through the browser correction — see ScreenConstant.strokeWidthFor. The
+      // px figures themselves stay UNCORRECTED, because the rect geometry below
+      // is real client-space offset and must match what actually renders.
+      setStyle(el, casingVar, px(casingPx))
+      setStyle(el, haloVar, px(casingPx - ownPx))
       // Marked and sized on the halo ITSELF. In Mermaid it is a SIBLING of its
       // link and is never tagged selected, so neither an inherited property nor
       // a `.selected` CSS rule reaches it — this resolves the halo once, in the
       // one place that knows both backends' shapes, and the stylesheet just
       // paints whatever carries the mark.
       casingsOf(el).foreach: c =>
-        setStyle(c, "stroke-width", s"${casingPx}px")
+        setStyle(c, "stroke-width", px(casingPx))
         c.classList.add(SelectableElement.casingOnClass)
 
       val ringPx = math.min(MaxRingPx, math.max(MinRingPx, ownPx + RingDeltaPx))
-      setStyle(el, ringVar, s"${ringPx}px")
-      setStyle(el, nodeCasingVar, s"${casingPx}px")
+      setStyle(el, ringVar, px(ringPx))
+      setStyle(el, nodeCasingVar, px(casingPx))
       // ONE centre line for both rects: the band and the ring share it, so the
       // solid line runs down the middle of the band instead of beside it, and
       // the whole marker costs only the band's width. That line sits clear of
@@ -141,8 +151,12 @@ object SelectionCasing:
     * lying over its neighbours. */
   def clear(el: dom.Element): Unit =
     casingsOf(el).foreach: c =>
-      setStyle(c, "stroke-width", s"${HitHaloPx}px")
+      setStyle(c, "stroke-width", px(HitHaloPx))
       c.classList.remove(SelectableElement.casingOnClass)
+
+  /** A client-px length, written for an element that carries
+    * `vector-effect: non-scaling-stroke`. */
+  private def px(clientPx: Double): String = s"${ScreenConstant.strokeWidthFor(clientPx)}px"
 
   /** What the marker is standing for. A Mermaid halo carries the selected class
     * in its own right and is a SIBLING of the link it clones (inserted directly
@@ -183,7 +197,11 @@ object SelectionCasing:
       val w  = cs.strokeWidth.replace("px", "").toDoubleOption.getOrElse(1.0)
       // Computed stroke-width reads in USER units (with a px suffix) — unless
       // the shape opted out of the canvas scale, where it is already screen px.
-      if cs.getPropertyValue("vector-effect") == "non-scaling-stroke" then w else w / upp
+      // A shape that opted out is subject to the browser's non-scaling-stroke
+      // bug too, so what it RENDERS is not what it specifies: measure the
+      // marker against the stroke actually on screen, not the requested one.
+      if cs.getPropertyValue("vector-effect") == "non-scaling-stroke" then ScreenConstant.renderedStrokePx(w)
+      else w / upp
 
   /** SVGElement carries `style` at runtime; scala-js-dom does not type it. */
   private def setStyle(el: dom.Element, prop: String, value: String): Unit =
