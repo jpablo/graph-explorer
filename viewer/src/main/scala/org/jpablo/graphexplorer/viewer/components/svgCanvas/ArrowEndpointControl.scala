@@ -5,7 +5,6 @@ import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.backends.graphviz.vizjs.simplegraph.ArrowPosition
 import org.jpablo.graphexplorer.viewer.components.selection.{EdgeElement, SelectableElement}
-import org.jpablo.graphexplorer.viewer.domUtils.SvgUtils
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.state.mouseActions.ArrowEndpoint
 
@@ -40,11 +39,14 @@ def ArrowEndpointControl(
     case ClientSize.Small  => 24.0
     case ClientSize.Normal => 12.0
 
-  // Calculate the scaling factor based on the edge group's overall transform
-  val scale = SvgUtils.calculateSimpleScale(edge.ref.asInstanceOf[dom.svg.Locatable], w.toDouble, clientSize = currentClientSize)
+  // User units per CLIENT pixel — the disk keeps a constant SCREEN size, and
+  // ScreenConstant.refit re-derives it from this same reading when the zoom
+  // moves under it.
+  val userPerPx = ScreenConstant.userPerPx(edge.ref).getOrElse(1.0)
 
-  // Get translation coordinates from precise position data
-  val (trX, trY) = {
+  // The anchor is the arrow's endpoint from the LAYOUT — a point on the
+  // drawing, so it needs no screen-space offset of its own.
+  val (trX, trY) =
     edgePositions
       .get(edge.elementId.value)
       .map { arrowPos =>
@@ -54,15 +56,17 @@ def ArrowEndpointControl(
       .getOrElse {
         (0.0, 0.0) // Fallback if no position data available
       }
-  }
+
+  val anchored =
+    ScreenConstant.Anchored(trX, trY, oxPx = 0, oyPx = 0, sizePx = currentClientSize, designBox = w.toDouble)
 
   svg.g(
     svg.cls           := s"edge-endpoint-disk edge-endpoint-disk-${if (isSource) "source" else "target"}",
-    svg.pointerEvents := "all",                    // Keep interactive
-    svg.transform     := s"translate($trX, $trY)", // Apply translation first
-    svg.g(
-      svg.transform := s"scale($scale)",
-      svg.circle(svg.r := radius.toString)
-    ),
+    svg.pointerEvents := "all", // Keep interactive
+    // One transform, not a translate wrapping a scale: the disk is drawn
+    // around the origin, so translate-then-scale places and sizes it in one
+    // step — the shape [[ScreenConstant.refit]] knows how to rewrite.
+    svg.circle(svg.r := radius.toString),
+    ScreenConstant.mods(anchored, userPerPx),
     svgMods
   )

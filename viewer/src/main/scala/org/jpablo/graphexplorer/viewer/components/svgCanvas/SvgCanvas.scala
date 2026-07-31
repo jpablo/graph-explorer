@@ -147,12 +147,13 @@ def SvgCanvas(
         svg.className := "graphviz",
         transform --> { tr =>
           mainGroup.setAttribute(svg.transform.name, tr)
-          // Badges hold their SCREEN size across pan/zoom (they never rebuild).
-          CountBadges.rescale(rawSvg.ref)
+          // Every control holds its SCREEN size across pan/zoom (none of them
+          // rebuild here — a re-fit keeps listeners and drag state intact).
+          ScreenConstant.refitAll(rawSvg.ref)
         },
         // A window resize rescales the viewBox→client mapping with no transform
-        // event — the third way the CTM moves under the badges' feet.
-        windowEvents(_.onResize) --> { _ => CountBadges.rescale(rawSvg.ref) },
+        // event — the third way the CTM moves under the controls' feet.
+        windowEvents(_.onResize) --> { _ => ScreenConstant.refitAll(rawSvg.ref) },
         // Post-mount work needing real geometry (badges: getBBox; onRendered:
         // client rects). Registered AFTER the transform binder on purpose —
         // mount runs modifiers in order, and onRendered's screen measurements
@@ -204,7 +205,7 @@ def SvgCanvas(
         layoutSettled.events.sample(singleSelection.combineWith(mouseAction.signal)) --> {
           (elem: Option[SelectableElement], action: MouseAction) =>
             refreshOverlayControls(elem, action)
-            CountBadges.rescale(rawSvg.ref)
+            ScreenConstant.refitAll(rawSvg.ref)
         },
         // --------------------------------------------------------
         // record CELL selection (one level below the element selection)

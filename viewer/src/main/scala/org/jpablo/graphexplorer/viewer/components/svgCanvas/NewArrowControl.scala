@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.SvgMods
 import org.jpablo.graphexplorer.viewer.components.selection.NodeElement
-import org.jpablo.graphexplorer.viewer.domUtils.{DOMPoint, SvgUtils}
+import org.jpablo.graphexplorer.viewer.domUtils.DOMPoint
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.Rankdir.*
 import org.jpablo.graphexplorer.viewer.models.ArrowDirection
@@ -60,14 +60,10 @@ def NewArrowControl(
     case ClientSize.Small => 32.0
     case ClientSize.Normal => 16.0
 
-  val scale = SvgUtils.calculateSimpleScale(elem.ref.asInstanceOf[dom.svg.Locatable], w.toDouble, clientSize = currentClientSize)
-
-  // User units per CLIENT pixel. The control holds a constant SCREEN size, so
-  // the gaps around it must be screen-constant too: they are all stated in px
-  // below and converted here. (The clearance used to carry a bare `+ 1` in USER
-  // units — a gap that shrank as the canvas zoomed out, until the control
-  // climbed onto whatever sat on the node's edge.)
-  val userPerPx = SvgUtils.calculateSimpleScale(elem.ref.asInstanceOf[dom.svg.Locatable], svgSize = 1, clientSize = 1)
+  // User units per CLIENT pixel, taken from the frame the control is APPENDED
+  // to — the same frame ScreenConstant.refit reads when the zoom moves.
+  val userPerPx =
+    rootCtm.map(m => 1.0 / math.abs(m.a)).filter(_.isFinite).getOrElse(1.0)
 
   // Air between the node's edge and the control, proportional to the control
   // itself (a bigger touch target on a small screen wants more room).
@@ -82,24 +78,27 @@ def NewArrowControl(
   // Get the rankdir value from graph attributes
   val rankdir = getRankdir()
 
-  // Calculate scaled dimensions and node center
-  val scaledW     = w * scale
-  val scaledH     = h * scale
   val nodeCenterX = bboxX + bboxWidth / 2
   val nodeCenterY = bboxY + bboxHeight / 2
 
-  def clearance(occupied: Boolean): Double =
-    (edgeGapPx + (if occupied then badgeLanePx else 0.0)) * userPerPx
+  def sideGapPx(occupied: Boolean): Double =
+    edgeGapPx + (if occupied then badgeLanePx else 0.0)
 
-  // Pre-calculate potential positions. Only the sides take a lane: badges never
-  // sit on the top or bottom edge, so TB/BT keep today's spacing exactly.
-  val posAbove = (nodeCenterX - scaledW / 2, bboxY - scaledH - clearance(false))
-  val posBelow = (nodeCenterX - scaledW / 2, bboxY + bboxHeight + clearance(false))
-  val posLeft  = (bboxX - scaledW - clearance(occupiedSides.left), nodeCenterY - scaledH / 2)
-  val posRight = (bboxX + bboxWidth + clearance(occupiedSides.right), nodeCenterY - scaledH / 2)
+  // Each candidate is an ANCHOR on the node's edge (user units — it does not
+  // move with zoom) plus an offset in SCREEN px, which is the whole of the
+  // control's zoom-dependence. Only the sides take a lane: badges never sit on
+  // the top or bottom edge, so TB/BT keep their usual spacing.
+  val size = currentClientSize
+  def at(ax: Double, ay: Double, oxPx: Double, oyPx: Double) =
+    ScreenConstant.Anchored(ax, ay, oxPx, oyPx, sizePx = size, designBox = w.toDouble)
+
+  val posAbove = at(nodeCenterX, bboxY, -size / 2, -size - edgeGapPx)
+  val posBelow = at(nodeCenterX, bboxY + bboxHeight, -size / 2, edgeGapPx)
+  val posLeft  = at(bboxX, nodeCenterY, -size - sideGapPx(occupiedSides.left), -size / 2)
+  val posRight = at(bboxX + bboxWidth, nodeCenterY, sideGapPx(occupiedSides.right), -size / 2)
 
   // Determine position based on rankdir and direction
-  val (trX, trY) = (rankdir, direction) match
+  val anchored = (rankdir, direction) match
     case (TB, ArrowDirection.forward)  => posBelow
     case (TB, ArrowDirection.backward) => posAbove
     case (LR, ArrowDirection.forward)  => posRight
@@ -127,10 +126,10 @@ def NewArrowControl(
     )
 
   svg.g(
-    svg.cls           := s"new-arrow-control",
+    svg.cls           := "new-arrow-control",
     svg.pointerEvents := "all",
     svg.circle(svg.r := radius.toString, svg.cx := centerX.toString, svg.cy := centerY.toString),
     arrowGroup,
-    svg.transform := s"translate($trX, $trY) scale($scale)",
+    ScreenConstant.mods(anchored, userPerPx),
     svgMods
   )

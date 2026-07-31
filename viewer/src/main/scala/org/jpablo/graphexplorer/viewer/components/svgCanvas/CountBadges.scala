@@ -55,23 +55,13 @@ object CountBadges:
     * this beyond it — and NewArrowControl has to step around one. */
   val clientDiameter = 18.0
 
-  /** None when the element has no usable CTM — a hidden/pre-layout svg. Writing a
-    * scale from the getCtmScale fallback of 1 in that state inflated the badge to
-    * diagram-units size until the next pan/zoom event; skipping keeps the last
-    * good scale instead.
-    */
-  private def badgeScale(reference: dom.Element): Option[Double] =
-    val ctm = reference.asInstanceOf[dom.svg.Locatable].getScreenCTM()
-    Option(ctm)
-      .map(m => math.abs(m.a))
-      .filter(_ > 0)
-      .map(s => clientDiameter / (designRadius * 2) / s)
-
+  /** A badge is anchored ON the point it marks, with no offset of its own. */
   private def place(g: dom.Element, cx: Double, cy: Double, reference: dom.Element): Unit =
-    g.setAttribute("data-cx", cx.toString)
-    g.setAttribute("data-cy", cy.toString)
-    val k = badgeScale(reference).getOrElse(1.0)
-    g.setAttribute("transform", s"translate($cx, $cy) scale($k)")
+    val anchored =
+      ScreenConstant.Anchored(cx, cy, oxPx = 0, oyPx = 0, sizePx = clientDiameter, designBox = designRadius * 2)
+    // A missing CTM (hidden/pre-layout svg) leaves the badge at scale 1 for
+    // now; the next refit corrects it rather than freezing it diagram-sized.
+    ScreenConstant.place(g, anchored, ScreenConstant.userPerPx(reference).getOrElse(1.0))
 
   /** The overlay layer, created on first use as the LAST child of the main
     * group — its position in document order is the whole point. */
@@ -94,18 +84,6 @@ object CountBadges:
         val p = new DOMPoint(x, y).matrixTransform(e).matrixTransform(l.inverse())
         (p.x, p.y)
       case _ => (x, y)
-
-  /** Re-apply the screen-constant scale after a pan/zoom change (SvgCanvas calls
-    * this from its transform binder — the badges themselves never rebuild).
-    */
-  def rescale(svg: dom.svg.SVG): Unit =
-    svg.querySelectorAllT[dom.Element](s"g.$badgeClass").foreach { g =>
-      val parent = g.parentNode.asInstanceOf[dom.Element]
-      val cx     = g.getAttribute("data-cx")
-      val cy     = g.getAttribute("data-cy")
-      if cx != null && cy != null && parent != null then
-        badgeScale(parent).foreach(k => g.setAttribute("transform", s"translate($cx, $cy) scale($k)"))
-    }
 
   def decorate(
       mainGroup:         dom.Element,
