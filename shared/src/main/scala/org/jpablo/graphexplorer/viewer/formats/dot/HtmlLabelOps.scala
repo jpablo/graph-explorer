@@ -192,6 +192,23 @@ object HtmlLabelOps:
 
   // ── queries ─────────────────────────────────────────────────────────────
 
+  /** All the text a label renders, markup gone — runs concatenated, lines and
+    * cells separated by a space. Nested tables flatten in document order.
+    */
+  def plainText(label: HtmlLabel): String = label match
+    case HtmlLabel.Text(t)     => t.spans.map(_.items.map(_.str).mkString).mkString(" ")
+    case HtmlLabel.Table(tbl)  => cellTexts(tbl).mkString(" ")
+    case HtmlLabel.Image(s, _) => s
+
+  /** Each cell's text in document order (nested tables flattened into place) —
+    * the reading order a summary should follow.
+    */
+  def cellTexts(tbl: HtmlTable): Vector[String] =
+    tbl.rows.toVector.flatten.flatMap: cell =>
+      cell.content match
+        case HtmlLabel.Table(inner) => cellTexts(inner)
+        case other                  => Vector(plainText(other))
+
   /** Declared paths in the SAME order as `HtmlTableLayout.layout(...).cells`
     * (both traverse rows/cells in declaration order) — flat index k here is
     * flat index k there.

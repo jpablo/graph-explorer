@@ -4,6 +4,7 @@ import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.domUtils.open
 import org.jpablo.graphexplorer.viewer.extensions.*
+import org.jpablo.graphexplorer.viewer.formats.dot.LabelSummary
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, FillColor}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.models.*
@@ -40,11 +41,23 @@ def ElementsList(state: ViewerState): Div =
 
   // ── model helpers ──────────────────────────────────────────────────────────
 
+  /** The one line a row shows for a node. A structured label is MARKUP — shown
+    * raw, every table node read as `<table border="1" cellborder="0" cellsp…`,
+    * which is long, mostly boilerplate, and identical to its neighbours.
+    */
   def nodeLabel(graph: ViewerGraph, nodeId: NodeId): String =
     graph.getNode(nodeId).map { n =>
-      val lbl = n.label.toString
+      val lbl = LabelSummary.short(n.label.toString, graph.isRecordNode(nodeId))
       if lbl.nonEmpty then lbl else nodeId.toString
     }.getOrElse(nodeId.toString)
+
+  /** Everything the node's label renders, markup gone — what the FILTER reads.
+    * Searching the summary would hide matches in the rest of a table (typing
+    * "Cook" would stop finding the task whose second row says it); searching
+    * the raw markup matches attribute names like `cellborder` in every node.
+    */
+  def nodeSearchText(graph: ViewerGraph, nodeId: NodeId): String =
+    graph.getNode(nodeId).map(n => LabelSummary.full(n.label.toString, graph.isRecordNode(nodeId))).getOrElse("")
 
   def nodeFill(graph: ViewerGraph, nodeId: NodeId): Option[String] =
     graph.getNode(nodeId).flatMap(_.attributes.values.get(FillColor.attrId)).map(_.toString).filter(_.nonEmpty)
@@ -52,7 +65,9 @@ def ElementsList(state: ViewerState): Div =
   def groupLabel(graph: ViewerGraph, groupId: GroupId): String =
     graph.groups
       .get(groupId)
-      .map(g => if g.label.toString.nonEmpty then g.label.toString else groupId.value)
+      .map: g =>
+        val lbl = LabelSummary.short(g.label.toString)
+        if lbl.nonEmpty then lbl else groupId.value
       .getOrElse(groupId.value)
 
   /** A cluster's background is `bgcolor`; `fillcolor` also paints one. Either
@@ -87,14 +102,14 @@ def ElementsList(state: ViewerState): Div =
     val f = filter.trim.toLowerCase
     f.isEmpty
       || nodeId.value.toLowerCase.contains(f)
-      || nodeLabel(graph, nodeId).toLowerCase.contains(f)
+      || nodeSearchText(graph, nodeId).toLowerCase.contains(f)
 
   def arrowMatches(graph: ViewerGraph, arrow: Arrow, filter: String): Boolean =
     val f = filter.trim.toLowerCase
     f.isEmpty
-      || arrow.label.toString.toLowerCase.contains(f)
-      || nodeLabel(graph, arrow.source).toLowerCase.contains(f)
-      || nodeLabel(graph, arrow.target).toLowerCase.contains(f)
+      || LabelSummary.full(arrow.label.toString).toLowerCase.contains(f)
+      || nodeSearchText(graph, arrow.source).toLowerCase.contains(f)
+      || nodeSearchText(graph, arrow.target).toLowerCase.contains(f)
 
   def listed(id: ElementId, showHidden: Boolean, hidden: HiddenElements): Boolean =
     showHidden || (id notIn hidden)
@@ -174,7 +189,17 @@ def ElementsList(state: ViewerState): Div =
           case Some(c) => i(cls := "bi bi-square-fill", styleAttr := s"color: $c")
           case None    => i(cls := "bi bi-square")
       ),
-      span(cls := "el-label", title := nodeId.toString, label),
+      // The tooltip carries what the row had to drop: a summarized label keeps
+      // the rest of the table reachable on hover, and a label that fits shows
+      // the id, as before.
+      span(
+        cls := "el-label",
+        title := {
+          val full = nodeSearchText(graph, nodeId)
+          if full.nonEmpty && full != label then full else nodeId.toString
+        },
+        label
+      ),
       Option.when(colliding.contains(label) && nodeId.value != label)(span(cls := "el-id", s"#${nodeId.value}")),
       eyeControl(nodeId, () => state.hideNodes(Set(nodeId)), () => state.showNodes(Set(nodeId))),
       onMouseDown.preventDefault --> Observer.empty,
@@ -185,7 +210,7 @@ def ElementsList(state: ViewerState): Div =
     )
 
   def arrowRow(graph: ViewerGraph, arrow: Arrow): Div =
-    val lbl = arrow.label.toString
+    val lbl = LabelSummary.short(arrow.label.toString)
     div(
       cls := "el-row el-nested",
       cls("el-hidden") <-- state.isElementVisible(arrow.id).not,
