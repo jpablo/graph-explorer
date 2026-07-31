@@ -85,3 +85,48 @@ class VisibilityRulesSpec extends FunSuite:
     assertEquals(nodes, ids("b"))
     val counts = VisibilityRules.concealedCounts(g, ElementIds(ids("b").toSet[ElementId]))
     assertEquals(counts.get(NodeId("a")), Some((1, 0)))
+
+  // ── groups ────────────────────────────────────────────────────────────────
+  // A group is as visible as its members: the Elements panel kept listing
+  // clusters whose every member had been hidden, bright and clickable, standing
+  // for nothing on the canvas.
+
+  private def cluster = GroupId("cluster_0")
+  private def empty   = GroupId("cluster_empty")
+
+  /** a→b with both in `cluster`, plus a member-less cluster and a loose node. */
+  private def grouped: ViewerGraph =
+    ViewerGraph(
+      ViewerGraphElements(
+        nodes = VectorMap.from(
+          Seq("a", "b", "loose").map(id => NodeId(id) -> ViewerNode.nodeWithDefaults(NodeId(id)))
+        ),
+        arrows      = Map.from(Seq(Arrow(NodeId("a"), NodeId("b"))).map(x => x.id -> x)),
+        groups      = Map(cluster -> ViewerGroup.group(cluster), empty -> ViewerGroup.group(empty)),
+        memberships = Map(NodeId("a") -> cluster, NodeId("b") -> cluster)
+      )
+    )
+
+  test("a group is visible while ANY member is"):
+    assert(VisibilityRules.groupVisible(grouped, cluster, ElementIds()))
+    val oneHidden = ElementIds(ids("a").toSet[ElementId])
+    assert(VisibilityRules.groupVisible(grouped, cluster, oneHidden), "b still carries it")
+
+  test("a group whose every member is hidden is hidden too"):
+    val allHidden = ElementIds(ids("a", "b").toSet[ElementId])
+    assert(!VisibilityRules.groupVisible(grouped, cluster, allHidden))
+
+  test("hiding an unrelated node leaves the group alone"):
+    val elsewhere = ElementIds(ids("loose").toSet[ElementId])
+    assert(VisibilityRules.groupVisible(grouped, cluster, elsewhere))
+
+  test("a member-less group answers for itself"):
+    assert(VisibilityRules.groupVisible(grouped, empty, ElementIds()), "nothing hides it")
+    assert(
+      !VisibilityRules.groupVisible(grouped, empty, ElementIds.from(empty)),
+      "…but it can be hidden directly — with no members, no one else can vouch for it"
+    )
+
+  test("memberNodes reaches every depth, and stops at the group's edge"):
+    assertEquals(VisibilityRules.memberNodes(grouped, cluster), ids("a", "b"))
+    assertEquals(VisibilityRules.memberNodes(grouped, empty), Set.empty[NodeId])

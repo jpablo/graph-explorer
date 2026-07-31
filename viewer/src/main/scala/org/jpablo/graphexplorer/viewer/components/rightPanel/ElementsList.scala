@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.domUtils.open
 import org.jpablo.graphexplorer.viewer.extensions.*
 import org.jpablo.graphexplorer.viewer.formats.dot.LabelSummary
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, FillColor}
-import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements}
+import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements, VisibilityRules}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.{HiddenElements, RightPanelSection, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.{FilterChips, IconButton, IconToggle, Search}
@@ -86,7 +86,15 @@ def ElementsList(state: ViewerState): Div =
       || groupLabel(graph, groupId).toLowerCase.contains(f)
 
   def descendantNodeIds(graph: ViewerGraph, groupId: GroupId): Set[NodeId] =
-    graph.getAllChildren(Set(groupId)).collect { case id: GroupMemberId if id.isNodeId => NodeId(id.value) }
+    VisibilityRules.memberNodes(graph, groupId)
+
+  def groupVisible(graph: ViewerGraph, groupId: GroupId): Signal[Boolean] =
+    state.hiddenElements.signal.map(VisibilityRules.groupVisible(graph, groupId, _))
+
+  /** [[listed]] one level up: a fully hidden group drops out with its members
+    * unless hidden elements are being listed. */
+  def groupListed(graph: ViewerGraph, groupId: GroupId, showHidden: Boolean, hidden: HiddenElements): Boolean =
+    showHidden || VisibilityRules.groupVisible(graph, groupId, hidden)
 
   def realGroupIds(graph: ViewerGraph): Set[GroupId] =
     graph.groupIds - ViewerGraphElements.defaultRootId
@@ -136,7 +144,10 @@ def ElementsList(state: ViewerState): Div =
           .toSet
     val groups: Set[ElementId] =
       if kind.exists(_ != ElementKind.Groups) then Set.empty
-      else realGroupIds(graph).filter(g => groupMatches(graph, g, filter)).toSet
+      else
+        realGroupIds(graph)
+          .filter(g => groupMatches(graph, g, filter) && groupListed(graph, g, showHidden, hidden))
+          .toSet
     nodes ++ arrows ++ groups
 
   val shownSignal =
@@ -246,17 +257,14 @@ def ElementsList(state: ViewerState): Div =
     * (The old panel had this as an invisible double-click on the group row.)
     */
   def groupEye(graph: ViewerGraph, groupId: GroupId) =
-    val anyMemberVisible =
-      state.hiddenElements.signal.map { hidden =>
-        descendantNodeIds(graph, groupId).exists(n => n notIn hidden)
-      }
+    val visible = groupVisible(graph, groupId)
     span(
       cls := "el-eye",
-      title <-- anyMemberVisible.map(v => if v then "Hide members" else "Show members"),
-      i(cls("bi bi-eye") <-- anyMemberVisible, cls("bi bi-eye-slash") <-- anyMemberVisible.not),
-      onClick.stopPropagation(_.sample(anyMemberVisible)) --> { visible =>
+      title <-- visible.map(v => if v then "Hide members" else "Show members"),
+      i(cls("bi bi-eye") <-- visible, cls("bi bi-eye-slash") <-- visible.not),
+      onClick.stopPropagation(_.sample(visible)) --> { isVisible =>
         val members = descendantNodeIds(graph, groupId)
-        if visible then state.hideNodes(members) else state.showNodes(members)
+        if isVisible then state.hideNodes(members) else state.showNodes(members)
       }
     )
 
@@ -278,9 +286,15 @@ def ElementsList(state: ViewerState): Div =
               Option.when(nodeMatches(graph, nid, filter) && listed(nid, showHidden, hidden))(
                 nodeRow(graph, nid, colliding, nested = true)
               )
-      // A group earns its row when members match OR its own name does — a
-      // name-only match shows the (childless) folder rather than dropping it.
-      if children.isEmpty && !groupMatches(graph, groupId, filter) then None
+      // A group with no listed members earns its row when its own name matches
+      // the query AND it is itself listed — a name-only match shows the
+      // (childless) folder rather than dropping it. The visibility conjunct is
+      // what was missing: an empty query matches every name, so a cluster whose
+      // members had all been hidden away stayed on the list as a bright, empty
+      // folder — present, clickable, and standing for nothing.
+      if children.isEmpty
+        && !(groupMatches(graph, groupId, filter) && groupListed(graph, groupId, showHidden, hidden))
+      then None
       else
         Some(
           div(
@@ -292,6 +306,9 @@ def ElementsList(state: ViewerState): Div =
               },
               summaryTag(
                 cls := "el-row el-group-head",
+                // Dimmed + struck eye on the same terms as a node row: a group
+                // is as hidden as its members are.
+                cls("el-hidden") <-- groupVisible(graph, groupId).not,
                 cls("el-selected") <-- state.selection.contains(groupId),
                 span(cls := "el-kind el-chevron", i(cls := "bi bi-chevron-down")),
                 groupSwatch(graph, groupId),
@@ -310,13 +327,14 @@ def ElementsList(state: ViewerState): Div =
         )
 
   /** The Groups facet: the flat inventory (structure lives in the All tree). */
-  def renderGroupsSection(graph: ViewerGraph, filter: String): Seq[Div] =
+  def renderGroupsSection(graph: ViewerGraph, filter: String, showHidden: Boolean, hidden: HiddenElements): Seq[Div] =
     realGroupIds(graph).toSeq
-      .filter(groupMatches(graph, _, filter))
+      .filter(g => groupMatches(graph, g, filter) && groupListed(graph, g, showHidden, hidden))
       .sortBy(g => groupLabel(graph, g).toLowerCase)
       .map { groupId =>
         div(
           cls := "el-row el-nested",
+          cls("el-hidden") <-- groupVisible(graph, groupId).not,
           cls("el-selected") <-- state.selection.contains(groupId),
           groupSwatch(graph, groupId),
           span(cls := "el-label", title := groupId.toString, groupLabel(graph, groupId)),
@@ -457,10 +475,12 @@ def ElementsList(state: ViewerState): Div =
         val groupsSection =
           if !kind.contains(ElementKind.Groups) then Seq.empty
           else
-            // Counted from the same definition the rows use — summary.groups
+            // The graph's group INVENTORY, like the Nodes/Arrows heads (the
+            // rows below may list fewer — hidden ones drop out; the footer is
+            // what counts those). realGroupIds, not summary.groups, which
             // assumes a materialized root group and undercounts without one.
             sectionHead("Groups", state.fullGraph.map(g => realGroupIds(g).size), nodesOpenV)
-              +: Seq(div(cls("hidden") <-- nodesOpenV.signal.not, renderGroupsSection(graph, filter)))
+              +: Seq(div(cls("hidden") <-- nodesOpenV.signal.not, renderGroupsSection(graph, filter, showHidden, hidden)))
         nodesSection ++ arrowsSection ++ groupsSection
       }
       )

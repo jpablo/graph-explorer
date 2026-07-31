@@ -1,5 +1,6 @@
 package org.jpablo.graphexplorer.viewer.graph
 
+import org.jpablo.graphexplorer.viewer.extensions.notIn
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.HiddenElements
 
@@ -111,3 +112,17 @@ object VisibilityRules:
       }
       .filter((_, c) => c._1 > 0 || c._2 > 0)
       .toMap
+
+  /** The nodes a group contains, at any depth. */
+  def memberNodes(g: ViewerGraph, groupId: GroupId): Set[NodeId] =
+    g.getAllChildren(Set(groupId)).collect { case id: GroupMemberId if id.isNodeId => NodeId(id.value) }
+
+  /** Is a group visible? It stands for its members: hide every one of them and
+    * the cluster leaves the drawing too, so it counts as hidden — a list that
+    * says otherwise offers a row standing for nothing. A group with NO members
+    * has nothing to speak for it and answers for itself.
+    */
+  def groupVisible(g: ViewerGraph, groupId: GroupId, hidden: HiddenElements): Boolean =
+    val members = memberNodes(g, groupId)
+    if members.isEmpty then groupId notIn hidden
+    else members.exists(n => n notIn hidden)
