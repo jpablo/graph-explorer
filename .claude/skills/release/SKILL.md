@@ -185,6 +185,6 @@ tag (above), or the smoke workflows — never a throwaway tag, which would publi
 - `Makefile`: `make test` (`sbt test`), `make build` (`sbt "viewer/fullLinkJS"` + `npm run build`).
 - All GitHub workflows pin **JDK 17**; the Netlify script matches deliberately so the site is built like the binaries.
 - `ci.yml` (added v0.6.21) is the default-branch gate: suite + optimized frontend build on push/PR to `viewer`, plus `workflow_dispatch`. It replaced `dev.yml`, which watched a non-existent `dev` branch and had therefore never run.
-- `release.yml` (branch `release`) is **dead**, not merely secondary: the `release` branch does not exist, *and* its "Create Artifact" step runs `scripts/build-package.sh`, which is not in the repo. Ignore it; `release-binaries.yml` is what cuts binaries.
+- `release.yml` **was deleted** in v0.6.22. If you find a reference to it, it is stale. It was broken four ways at once — watched a `release` branch that does not exist, called `scripts/build-package.sh` (deleted 2025-04-28), uploaded `backend/target/universal/*.zip` from a `backend` module removed when the zio-http server was dropped, and used the retired `actions/upload-artifact@v2`. `release-binaries.yml` is what cuts binaries.
 - `release-binaries.yml` runs **no unit tests** — it compiles, bundles, builds Rust and runs runtime smokes. The suite is `ci.yml`'s job.
 - Run every sbt command from the repo root, and prefer `sbt --client`.

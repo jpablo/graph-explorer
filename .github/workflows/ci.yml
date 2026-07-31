@@ -91,3 +91,49 @@ jobs:
         run: |
           sbt -J-Xmx2G "viewer/fullLinkJS"
           npm run build
+
+  # Submits the sbt dependency graph to GitHub, which is what makes Dependabot
+  # alerts work for Scala dependencies — without it, GitHub only sees this
+  # repo's npm and cargo manifests and every JVM dependency is invisible to
+  # security advisories.
+  #
+  # The idea was inherited: a commented-out sbt-dependency-submission step sat
+  # in both dev.yml and release.yml, in neither case on a workflow that could
+  # run. Revived here on the branch that actually executes, at the current major
+  # (v3) rather than the 2022-era pinned SHA it was parked at.
+  dependency-graph:
+    name: Submit dependency graph
+    runs-on: ubuntu-latest
+    # Push only. The submission API writes to the repo, which a fork's PR token
+    # cannot do, and a graph submitted from an unmerged branch is noise anyway.
+    if: github.event_name == 'push'
+    # Overrides the workflow-level `contents: read`: submitting the graph is a
+    # write to the repository's dependency data.
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'sbt'
+
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
+      # The action loads the build to resolve dependencies, and this build
+      # generates ScalablyTyped facades from node_modules.
+      - name: Install npm modules
+        run: npm install
+
+      - uses: scalacenter/sbt-dependency-submission@v3
