@@ -54,6 +54,24 @@ class EdgeHitAreasSpec extends FunSuite:
     // Paint (and hit-test) order: the rect must come after the foreignObject
     assertEquals(rect.previousElementSibling.tagName.toLowerCase, "foreignobject")
 
+  test("the halo is the link's immediately-PRECEDING sibling"):
+    // SelectionCasing finds a Mermaid edge's casing this way, and it has to:
+    // the link is a bare path (nothing inside it to find) and Mermaid tags only
+    // the LINK as selected, never the halo — so neither a descendant query nor
+    // a `.selected` rule reaches it. Adjacency is what is left, and it is what
+    // insertBefore guarantees. Order also puts the casing UNDER the link, where
+    // a band has to be so it does not tint the colour it exists to preserve.
+    val svg = fixture()
+    MermaidBackend.addEdgeHitAreas(svg)
+
+    val link = svg.querySelector("path.flowchart-link:not(.edge-hit-area)")
+    val prev = link.previousElementSibling
+    assert(prev != null, "the link must have a preceding sibling")
+    assert(
+      prev.classList.contains(SelectableElement.hitAreaClass),
+      "the halo goes in directly before the link it clones — SelectionCasing.casingsOf reads it there"
+    )
+
   test("the label rect and the halo clone resolve to the SAME ArrowId as the path"):
     val svg = fixture()
     MermaidBackend.addEdgeHitAreas(svg)

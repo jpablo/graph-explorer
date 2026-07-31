@@ -124,6 +124,12 @@ object SelectableElement:
     * of an edge's casing, and the reason a selected node reads at a glance. */
   val selectionCasingClass = "selection-casing"
 
+  /** On a hit halo that is currently serving as an edge's casing. SelectionCasing
+    * puts it there because only it knows where an edge's halo lives — inside the
+    * group in graphviz, a sibling of the link in Mermaid, and tagged selected in
+    * neither. The stylesheet paints what carries this and asks no questions. */
+  val casingOnClass = "gx-casing-on"
+
   /** The selection rect's measured box, written at select time and read back by
     * SelectionCasing. Names live here, next to the rect that carries them. */
   val baseBoxAttr = (x = "data-bx", y = "data-by", w = "data-bw", h = "data-bh")

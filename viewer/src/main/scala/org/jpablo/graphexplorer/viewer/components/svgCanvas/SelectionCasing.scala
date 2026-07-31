@@ -101,10 +101,14 @@ object SelectionCasing:
       val casingPx = math.max(MinCasingPx, ownPx + CasingDeltaPx)
       setStyle(el, casingVar, s"${casingPx}px")
       setStyle(el, haloVar, s"${casingPx - ownPx}px")
-      // The width goes on the halo ITSELF rather than through the property: in
-      // Mermaid the halo is a sibling of its link, not a descendant, so nothing
-      // would inherit it there.
-      casingsOf(el).foreach(setStyle(_, "stroke-width", s"${casingPx}px"))
+      // Marked and sized on the halo ITSELF. In Mermaid it is a SIBLING of its
+      // link and is never tagged selected, so neither an inherited property nor
+      // a `.selected` CSS rule reaches it — this resolves the halo once, in the
+      // one place that knows both backends' shapes, and the stylesheet just
+      // paints whatever carries the mark.
+      casingsOf(el).foreach: c =>
+        setStyle(c, "stroke-width", s"${casingPx}px")
+        c.classList.add(SelectableElement.casingOnClass)
 
       val ringPx = math.min(MaxRingPx, math.max(MinRingPx, ownPx + RingDeltaPx))
       setStyle(el, ringVar, s"${ringPx}px")
@@ -136,7 +140,9 @@ object SelectionCasing:
     * hard to pick up again, the other leaves an oversized invisible target
     * lying over its neighbours. */
   def clear(el: dom.Element): Unit =
-    casingsOf(el).foreach(setStyle(_, "stroke-width", s"${HitHaloPx}px"))
+    casingsOf(el).foreach: c =>
+      setStyle(c, "stroke-width", s"${HitHaloPx}px")
+      c.classList.remove(SelectableElement.casingOnClass)
 
   /** What the marker is standing for. A Mermaid halo carries the selected class
     * in its own right and is a SIBLING of the link it clones (inserted directly
@@ -146,9 +152,19 @@ object SelectionCasing:
     if el.classList.contains(SelectableElement.hitAreaClass) then Option(el.nextElementSibling).getOrElse(el)
     else el
 
+  /** The halo(s) standing in for `el`, in either backend's shape: a graphviz
+    * edge CONTAINS its halo; a Mermaid link is a bare path whose halo is the
+    * sibling inserted directly before it. (Mermaid tags only the link as
+    * selected, never the halo — a CSS rule keyed on the halo being `.selected`
+    * matched nothing there, which is how Mermaid edges ended up with no casing
+    * at all once the old recolour was removed.)
+    */
   private def casingsOf(el: dom.Element): Seq[dom.Element] =
     if el.classList.contains(SelectableElement.hitAreaClass) then Seq(el)
-    else el.querySelectorAllT[dom.Element](s"path.${SelectableElement.hitAreaClass}")
+    else
+      val inside = el.querySelectorAllT[dom.Element](s"path.${SelectableElement.hitAreaClass}")
+      if inside.nonEmpty then inside
+      else Option(el.previousElementSibling).filter(_.classList.contains(SelectableElement.hitAreaClass)).toSeq
 
   /** The screen width of the object's OWN outline — the shape the user drew,
     * never one of our decorations. Falls back to a hairline, which the floors

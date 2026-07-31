@@ -931,15 +931,17 @@ svg {
         animation: none !important;
       }
 
-      // Selected, it IS the casing. Already screen-constant, already exactly
+      // Selected, it IS the casing: already screen-constant, already exactly
       // aligned, already under the spline — the band we would otherwise clone a
-      // second path to draw. SelectionCasing widens it to clear the edge's own
-      // stroke (never narrows it: this is also the click target).
-      // (Width is set INLINE by SelectionCasing — in Mermaid the halo is a
-      // sibling of its link, so a custom property on the link would not reach
-      // it. Colour is all this rule owes.)
-      .edge.selected path.edge-hit-area,
-      path.flowchart-link.edge-hit-area.selected {
+      // second path to draw. The MARK comes from SelectionCasing, the only place
+      // that knows where an edge's halo lives in each backend (inside the group
+      // in graphviz, a sibling of the link in Mermaid, tagged `.selected` in
+      // neither); this rule paints whatever carries it and asks no questions.
+      // Written to outrank the idle rule above by SPECIFICITY rather than by
+      // source order — same-!important ties go to whichever is written last,
+      // which is not a property worth depending on.
+      path.flowchart-link.edge-hit-area.gx-casing-on,
+      .edge path.edge-hit-area.gx-casing-on {
         stroke: var(--gx-select-casing) !important;
         filter: none !important;
         animation: none !important;
