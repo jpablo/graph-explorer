@@ -278,8 +278,16 @@ object LayoutTransition:
     // Exit ghosts: everything that had a place in the old layout and none in
     // the new. Adopted (not cloned) — the old svg is on its way out anyway.
     val mainGroup = newSvg.querySelector("g")
-    val ghostRefFrame =
-      els.headOption.flatMap(se => ctmOf(se.ref)) // frame of mainGroup's children
+    // The frame a ghost's transform is READ IN — mainGroup's user space, since
+    // that is what the wrap is appended to. Take it from mainGroup itself, not
+    // from `els.head`: an element only shares mainGroup's frame when it carries
+    // no transform of its own, which is true of an edge path and false of a
+    // `g.node`. Mermaid emits `g.edgePaths` before `g.nodes`, so `els.head` was
+    // an untransformed path as long as ANY edge survived, and the old reading
+    // was accidentally right. Delete the last edge and `els.head` became the
+    // node — whose `translate(...)` then offset every ghost by exactly that
+    // much, parking the departing edge up and to the left of the drawing.
+    val ghostRefFrame = Option(mainGroup).flatMap(ctmOf)
     val ghosts: Vector[dom.Element] =
       if mainGroup == null then Vector.empty
       else
