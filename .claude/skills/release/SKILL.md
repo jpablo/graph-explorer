@@ -52,7 +52,11 @@ Run these and stop if any fails.
 1. **Clean tree.** `git status --short` must be empty. A dirty tree makes `dynver` stamp the
    build `…+YYYYMMDD-HHMM`, which is how a "release" build ends up self-identifying as a dev build.
 2. **Full suite green — locally.** `sbt --client test`
-   Expect **1673** tests: `377 + 96 + 810 + 390`, `Failed 0` on each line.
+   Expect **1677** tests: `377 + 100 + 810 + 390`, `Failed 0` on each line.
+   Pipe to `grep -E "Passed: Total|\[error\]"` rather than `tail` — `tail` keeps only the last
+   module's tally, which looks exactly like a suite that ran one module and passed.
+   `sbt --client` attaches to whatever project the server has current, so confirm it is `root`
+   (`sbt --client projects`, the starred entry) or the aggregate never runs.
    Since v0.6.21, `ci.yml` also runs the suite and the optimized frontend build on every push to
    `viewer`, so check that the commit you are about to tag is green:
    ```bash
@@ -219,7 +223,7 @@ tag (above), or the smoke workflows — never a throwaway tag, which would publi
 
 ## Facts worth not re-deriving
 
-- Latest tag as of this writing: `v0.6.20` at `28061287`.
+- Latest tag as of this writing: `v0.6.22`.
 - Version flows: `sbt-dynver` → `sbt-buildinfo` (`buildInfoKeys := Seq(name, version, scalaVersion, sbtVersion)`) → console banner.
 - `Makefile`: `make test` (`sbt test`), `make build` (`sbt "viewer/fullLinkJS"` + `npm run build`).
 - All GitHub workflows pin **JDK 17**; the Netlify script matches deliberately so the site is built like the binaries.
