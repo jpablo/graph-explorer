@@ -165,7 +165,9 @@ def Toolbar(projectName: Signal[String], commands: Commands, state: ViewerState)
       ),
       PanelSectionToggles(state).amend(cls := "gx-tool-group"),
       Dropdown(
-        title = emptyMod,
+        // Glyph-only trigger: names the button for screen readers, which
+        // otherwise get "button". Matches the library navbar's gear.
+        title = aria.label := "Settings",
         options = gearMenu,
         onClickHandler = _ --> (action => action()),
         icon = i(cls := "bi bi-gear"),

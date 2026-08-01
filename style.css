@@ -1,6 +1,13 @@
 @import "tailwindcss";
+/* Only the built-ins the theme selector actually offers. `all` compiled CSS for
+ * 35 themes, of which the menu offered 35 and most were a slightly different
+ * pastel; the curated set lives in ThemeSelect.daisyThemes and these two lists
+ * must agree — a name here that is missing there is dead CSS, a name there that
+ * is missing here selects but does not paint. The app-native themes
+ * (workbench / drafting / signal) are declared below via `daisyui/theme` and
+ * are not affected by this list. */
 @plugin "daisyui" {
-    themes: all;
+    themes: light, dark, cupcake, nord, retro, night, synthwave;
 }
 
 /* ── App-native themes ─────────────────────────────────────────────────────
@@ -54,7 +61,11 @@
  * "ink on paper" nodes are the deferred half of this direction. */
 @plugin "daisyui/theme" {
     name: "drafting";
-    default: false;
+    /* The app's default theme: what an install with nothing stored lands on, and
+     * what an unrecognized stored theme falls back to (ThemeSelect.defaultTheme,
+     * index.html's data-theme seed). Marked here too so the CSS default matches,
+     * rather than daisyUI falling back to `light` if data-theme were ever absent. */
+    default: true;
     prefersdark: false;
     color-scheme: light;
     --color-base-100: #f7f8f6;

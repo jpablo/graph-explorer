@@ -7,7 +7,7 @@ import org.jpablo.graphexplorer.projects.{ProjectStorage, ProjectsDirectoryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
-import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel}
+import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window, URLSearchParams}
@@ -62,7 +62,10 @@ object Viewer:
           errors.emit(s"Clipboard unavailable: ${e.getMessage}")
 
     val viewerSettings = ProjectStorage.loadViewerSettings()
-    viewerSettings.now().currentTheme.foreach(setTheme)
+    // Unconditionally, not `foreach`: with nothing stored the app has to land on
+    // the default theme, and a stored theme we no longer ship has to fall back
+    // to it rather than leaving `data-theme` pointing at absent CSS.
+    setTheme(resolveTheme(viewerSettings.now().currentTheme))
 
     // Determine ClientSize based on viewport width
     val mediaQueryList = window.matchMedia("(max-width: 768px)")

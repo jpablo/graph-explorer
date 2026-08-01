@@ -6,6 +6,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveSvgElement
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat, DiagramLanguageInfo, DiagramRenderInputs}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.{Graphviz, SvgWithPositions}
+import org.jpablo.graphexplorer.viewer.components.resolveTheme
 import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStrategy
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
@@ -363,6 +364,6 @@ case class ViewerState(
   lazy val currentTheme: Var[Option[String]] = Var(None)
 
   currentTheme.signal.foreach: themeName =>
-    themeName.foreach(setTheme)
+    setTheme(resolveTheme(themeName))
 
 end ViewerState

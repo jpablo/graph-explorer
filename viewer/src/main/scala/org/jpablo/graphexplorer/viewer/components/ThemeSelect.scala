@@ -4,12 +4,43 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.widgets.{Dropdown, MenuEntry}
 import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.MenuOption
 
-/** The daisyUI themes offered by the theme selector. Shared by the detail
-  * toolbar and the library navbar, so the two lists cannot drift.
+/** The theme applied when nothing is stored — the app's own drafting-paper
+  * direction rather than daisyUI's plain `light`. Also what a stored theme we
+  * no longer offer falls back to; see [[resolveTheme]]. `style.css` marks the
+  * same theme `default: true` and index.html seeds `data-theme` with it, so the
+  * first paint doesn't flash a different palette before Scala.js boots.
+  */
+val defaultTheme = "drafting"
+
+/** The themes offered by the theme selector. Shared by the detail toolbar and
+  * the library navbar, so the two lists cannot drift.
   *
-  * The first block are the app-native themes (style.css defines them via
-  * `@plugin "daisyui/theme"`, style.scss carries their beyond-token
-  * treatments); the rest are daisyUI's built-ins.
+  * A curated set, not everything daisyUI ships: 35 built-ins meant a long menu
+  * where most rows were a slightly different pastel, and the ones worth picking
+  * were buried. What survives is one entry per visual direction —
+  *
+  *   - `light` / `dark`   the neutral baselines people expect to find
+  *   - `workbench` / `drafting` / `signal`
+  *                        app-native (style.css defines them via
+  *                        `@plugin "daisyui/theme"`, style.scss carries their
+  *                        beyond-token treatments: canvas surface, chrome
+  *                        typeface, hard shadows)
+  *   - `cupcake`          soft pastel light
+  *   - `nord`             muted cool light
+  *   - `retro`            warm cream light
+  *   - `night`            navy dark
+  *   - `synthwave`        neon dark
+  *
+  * Two more were cut after comparing what they actually paint rather than what
+  * their names suggest: `corporate` is white-on-blue, which is `signal` almost
+  * exactly (and `signal` is ours, with style.scss treatments behind it), and
+  * `dracula` is a dark purple base with a pink primary, which `synthwave` does
+  * more distinctly. Judge a candidate by its resolved `--color-base-100` /
+  * `--color-primary`, not by its name.
+  *
+  * Keep this in step with the `themes:` list in style.css — daisyUI only
+  * compiles CSS for the built-ins named there, so adding a row here without
+  * adding it there yields a theme that selects but does not paint.
   */
 val daisyThemes = Seq(
   "light",
@@ -17,40 +48,20 @@ val daisyThemes = Seq(
   "workbench",
   "drafting",
   "signal",
-  "abyss",
-  "acid",
-  "aqua",
-  "autumn",
-  "black",
-  "bumblebee",
-  "business",
-  "caramellatte",
-  "cmyk",
-  "coffee",
-  "corporate",
   "cupcake",
-  "cyberpunk",
-  "dim",
-  "dracula",
-  "emerald",
-  "fantasy",
-  "forest",
-  "garden",
-  "halloween",
-  "lemonade",
-  "lofi",
-  "luxury",
-  "night",
   "nord",
-  "pastel",
   "retro",
-  "silk",
-  "sunset",
-  "synthwave",
-  "valentine",
-  "winter",
-  "wireframe"
+  "night",
+  "synthwave"
 )
+
+/** The theme to actually apply for a stored preference. A theme that has been
+  * dropped from [[daisyThemes]] no longer has CSS compiled for it, so honoring
+  * an old preference for one would leave the app with no palette at all —
+  * every call site resolves through here instead of reading the raw Option.
+  */
+def resolveTheme(stored: Option[String]): String =
+  stored.filter(daisyThemes.contains).getOrElse(defaultTheme)
 
 /** A theme's palette at a glance: a chip painted in the theme's OWN tokens.
   * daisyUI scopes `data-theme` per element, so the chip's base-100 background
@@ -75,7 +86,7 @@ private def themeRow(theme: String, current: Signal[Option[String]]): HtmlElemen
     span(theme),
     span(
       cls := "ml-auto",
-      child.maybe <-- current.map(c => Option.when(c.getOrElse("light") == theme)(i(cls := "bi bi-check-lg")))
+      child.maybe <-- current.map(c => Option.when(resolveTheme(c) == theme)(i(cls := "bi bi-check-lg")))
     )
   )
 
@@ -86,7 +97,7 @@ private def themeRow(theme: String, current: Signal[Option[String]]): HtmlElemen
   * itself in a bar full of actions.
   */
 def ThemeSelect(current: Signal[Option[String]], onSelect: String => Unit) =
-  val currentName = current.map(_.getOrElse("light"))
+  val currentName = current.map(resolveTheme)
   Dropdown(
     title = span(
       cls := "flex items-center gap-1.5 font-normal",

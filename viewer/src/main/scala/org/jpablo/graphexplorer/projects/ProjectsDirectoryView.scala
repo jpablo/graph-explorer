@@ -3,11 +3,12 @@ package org.jpablo.graphexplorer.projects
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.router.{Route, Router}
-import org.jpablo.graphexplorer.viewer.components.{AboutDialog, RouterCommands, ThemeSelect}
+import org.jpablo.graphexplorer.viewer.components.{AboutDialog, PreferencesDialog, RouterCommands}
 import org.jpablo.graphexplorer.viewer.state.ViewerSettings
 import org.jpablo.graphexplorer.viewer.formats.dot.DotText
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
-import org.jpablo.graphexplorer.viewer.widgets.{Button, IconButton, IconLink, primary, small}
+import org.jpablo.graphexplorer.viewer.widgets.{Button, Dropdown, IconButton, MenuEntry, primary, small}
+import org.jpablo.graphexplorer.viewer.widgets.MenuEntry.{MenuOption, Sep}
 import org.jpablo.graphexplorer.viewer.widgets.{FilterChips, IconRadioGroup, InputBox, InputVariant, SelectBox, SelectVariant, TooltipPos}
 import org.jpablo.graphexplorer.viewer.backends.{DefaultDiagramLanguages, DiagramFormat}
 import org.jpablo.graphexplorer.viewer.backends.graphviz.DotExamples
@@ -68,12 +69,35 @@ def ProjectsDirectoryView(
   // None = all kinds. Enumerated from DiagramFormat.values, so a new backend is
   // filterable without touching this component.
   val kindFilterVar = Var[Option[DiagramFormat]](None)
-  val aboutDialogOpen = Var(false)
+  val aboutDialogOpen       = Var(false)
+  val preferencesDialogOpen = Var(false)
   // A zoom over the settings Var rather than a separate Var: the mount-time
   // settings refresh below and the persistence sync both see it for free.
   val viewModeVar: Var[LibraryViewMode] =
     viewerSettings.zoomLazy(s => if s.libraryListMode then LibraryViewMode.Rows else LibraryViewMode.Cards)((s, m) =>
       s.copy(libraryListMode = m == LibraryViewMode.Rows)
+    )
+  // Same zoom trick for the one editing preference the dialog carries. It only
+  // takes effect on the detail page, but a preference the user can see in one
+  // place and not the other is the inconsistency this whole change is about.
+  val promptLabelVar: Var[Boolean] =
+    viewerSettings.zoomLazy(_.promptLabelBeforeNewNode)((s, b) => s.copy(promptLabelBeforeNewNode = b))
+
+  // The detail toolbar's gear menu minus the entries that need a diagram open
+  // (keyboard shortcuts). Same labels and order as Toolbar.gearMenu.
+  val gearMenu: Signal[Seq[MenuEntry[() => Unit]]] =
+    Signal.fromValue(
+      Seq(
+        MenuOption("Preferences…", () => preferencesDialogOpen.set(true), Some("Theme and editing preferences"), None),
+        Sep,
+        MenuOption("About Graph Explorer", () => aboutDialogOpen.set(true), None, None),
+        MenuOption(
+          "Source on GitHub",
+          () => { dom.window.open("https://github.com/jpablo/graph-explorer/tree/viewer", "_blank"); () },
+          None,
+          None
+        )
+      )
     )
 
   div(
@@ -105,25 +129,34 @@ def ProjectsDirectoryView(
       ),
       div(
         cls := "flex-none mr-2 flex items-center gap-2",
-        // The detail toolbar's "about this app" cluster, mirrored here: info,
-        // source link, theme. Same order, same widgets, so switching pages
-        // doesn't reshuffle the furniture.
-        div(
-          cls := "flex items-center gap-0.5",
-          IconButton("bi-info-circle", "Show application information", tipPos = TooltipPos.bottomEnd)(
-            aboutDialogOpen.set(true)
-          ),
-          IconLink("bi-github", "Source on GitHub", "https://github.com/jpablo/graph-explorer/tree/viewer")
-        ),
-        ThemeSelect(
-          viewerSettings.signal.map(_.currentTheme),
-          theme =>
-            viewerSettings.update(_.copy(currentTheme = Some(theme)))
-            setTheme(theme)
-        )
+        // The detail toolbar's gear, mirrored here — same entries, same order.
+        // Previously this was two loose icons plus a theme select sitting in the
+        // bar, which is the arrangement the detail page had already abandoned
+        // ("one gear instead of five loose icons + a theme select", Toolbar):
+        // the theme was a page-level control here and a preference there, so the
+        // same setting lived in two unrelated places. Behind the gear on both.
+        Dropdown(
+          // The trigger is a bare glyph, so without this it announces as
+          // "button" — and the two controls it replaced here (info, source) both
+          // had names. Same label on the detail toolbar's gear.
+          title = aria.label := "Settings",
+          options = gearMenu,
+          onClickHandler = _ --> (action => action()),
+          icon = i(cls := "bi bi-gear"),
+          menuCls = "w-56"
+        ).amend(cls := "dropdown-end")
       )
     ),
     AboutDialog(aboutDialogOpen),
+    PreferencesDialog(
+      open = preferencesDialogOpen,
+      currentTheme = viewerSettings.signal.map(_.currentTheme),
+      onSelectTheme = theme =>
+        viewerSettings.update(_.copy(currentTheme = Some(theme)))
+        setTheme(theme)
+      ,
+      promptLabelBeforeNewNode = promptLabelVar
+    ),
     div(
       idAttr := "projects-body",
       // Projects navbar with background
