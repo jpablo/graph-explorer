@@ -884,10 +884,24 @@ svg {
       // a model-geometry overlay (RecordCellOverlay) — the engine SVG has no
       // per-field markup. Shares the selection palette so the levels read as
       // one system; the wash is on the CELL while the record keeps its border.
+      // The veil that isolates the selected row: the record's own box with the
+      // cell punched out (RecordCellOverlay.ringPath, fill-rule evenodd). Paints
+      // the canvas surface OVER the rest of the record, so the row keeps its own
+      // colours at full strength instead of everything competing at once.
+      .record-cell-veil {
+        fill: var(--color-base-100);
+        opacity: 0.62;
+        pointer-events: none;
+      }
+
+      // stroke-width is written INLINE by RecordCellOverlay, through
+      // ScreenConstant: `non-scaling-stroke` is halved by Chrome on a HiDPI
+      // display, so a flat value here rendered at half the intended width and
+      // the outline all but disappeared. Nothing is declared here on purpose —
+      // a value would just be overridden, and reading one would mislead.
       .record-cell-selected {
         fill: var(--gx-select-fill);
         stroke: var(--gx-select);
-        stroke-width: 2px;
         vector-effect: non-scaling-stroke;
         pointer-events: none;
       }
@@ -902,10 +916,10 @@ svg {
 
       // The attach target while an arrow drag hovers a record: dashed =
       // prospective, vs the solid rect of an actually selected cell.
+      // stroke-width inline, same HiDPI reason as .record-cell-selected.
       .record-cell-drop {
         fill: none;
         stroke: var(--gx-select);
-        stroke-width: 2px;
         stroke-dasharray: 4, 3;
         vector-effect: non-scaling-stroke;
         pointer-events: none;
@@ -1406,7 +1420,12 @@ svg {
 // lands and SvgCanvas recomputes them (gx-transition-end).
 svg.gx-transitioning .gx-expand-badge,
 svg.gx-transitioning .new-arrow-control,
-svg.gx-transitioning .edge-endpoint-disk {
+svg.gx-transitioning .edge-endpoint-disk,
+// The cell overlay belongs here for the same reason — it is placed from frame-0
+// geometry, so mid-flight it marks where the row USED to be. It was tolerable
+// while the overlay was a thin outline; the veil is a record-sized translucent
+// slab, and a slab parked over the wrong node is not a subtle artifact.
+svg.gx-transitioning #record-cell-overlay {
   visibility: hidden;
 }
 

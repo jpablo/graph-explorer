@@ -19,6 +19,19 @@ object RecordCellOverlay:
   private val dropId    = "record-cell-drop-overlay"
   private val SvgNS     = "http://www.w3.org/2000/svg"
 
+  /** The cell outline's width in CLIENT px, written inline rather than left to
+    * the stylesheet's flat `stroke-width`.
+    *
+    * `vector-effect: non-scaling-stroke` keeps a width constant on screen, but
+    * Chrome DIVIDES it by devicePixelRatio — so the sheet's 2px rendered as 1px
+    * on a Retina display, which is the "almost imperceptible" outline this
+    * replaces. ScreenConstant measures the browser's actual behaviour and
+    * corrects for it, so this many px is what you get. See
+    * ScreenConstant.strokeWidthFor.
+    */
+  private val SelectedStrokePx = 3.0
+  private val DropStrokePx     = 2.5
+
   def refresh(
       mainGroup: dom.Element,
       strategy:  SelectableElementStrategy,
@@ -26,12 +39,26 @@ object RecordCellOverlay:
       boxesFor:  NodeId => Vector[RecordCellBox]
   ): Unit =
     Option(mainGroup.querySelector(s"#$overlayId")).foreach(_.remove())
-    withCellGeometry(mainGroup, strategy, cellOpt.map(c => (c.nodeId, c.path)), boxesFor): (box, cx, cy) =>
+    withCellGeometry(mainGroup, strategy, cellOpt.map(c => (c.nodeId, c.path)), boxesFor): (box, cx, cy, nodeBBox) =>
       val g = dom.document.createElementNS(SvgNS, "g")
       g.setAttribute("id", overlayId)
       g.setAttribute("pointer-events", "none")
 
+      // A cell selection lives INSIDE a node, and the node still read as the
+      // subject at a glance. Veil the record's own box with the selected cell
+      // punched out, so the row is the only part left at full strength. Drawn,
+      // not styled: the engine SVG has no per-field markup to dim individually
+      // (same reason the cell box is reconstructed from model geometry above).
+      // One even-odd path rather than four bands around the cell — bands meet at
+      // seams, and two translucent fills overlapping at a corner paint darker.
+      val veil = dom.document.createElementNS(SvgNS, "path")
+      veil.setAttribute("class", "record-cell-veil")
+      veil.setAttribute("fill-rule", "evenodd")
+      veil.setAttribute("d", ringPath(nodeBBox, cx + box.llx, cy - box.ury, box.width, box.height))
+      g.appendChild(veil)
+
       val rect = cellRect(box, cx, cy, "record-cell-selected")
+      rect.asInstanceOf[js.Dynamic].style.strokeWidth = s"${ScreenConstant.strokeWidthFor(SelectedStrokePx)}px"
       g.appendChild(rect)
 
       box.port.foreach: p =>
@@ -53,26 +80,35 @@ object RecordCellOverlay:
       boxesFor:  NodeId => Vector[RecordCellBox]
   ): Unit =
     Option(mainGroup.querySelector(s"#$dropId")).foreach(_.remove())
-    withCellGeometry(mainGroup, strategy, cellOpt, boxesFor): (box, cx, cy) =>
+    withCellGeometry(mainGroup, strategy, cellOpt, boxesFor): (box, cx, cy, _) =>
       val g = dom.document.createElementNS(SvgNS, "g")
       g.setAttribute("id", dropId)
       g.setAttribute("pointer-events", "none")
-      g.appendChild(cellRect(box, cx, cy, "record-cell-drop"))
+      val rect = cellRect(box, cx, cy, "record-cell-drop")
+      // Same HiDPI correction as the selection outline — a drop target you
+      // cannot see is worse than one you can.
+      rect.asInstanceOf[js.Dynamic].style.strokeWidth = s"${ScreenConstant.strokeWidthFor(DropStrokePx)}px"
+      g.appendChild(rect)
       mainGroup.appendChild(g)
+
+  /** The area between `outer` and the cell rect, as ONE even-odd subpath pair. */
+  private def ringPath(outer: dom.SVGRect, x: Double, y: Double, w: Double, h: Double): String =
+    s"M${outer.x},${outer.y} h${outer.width} v${outer.height} h${-outer.width} Z " +
+      s"M$x,$y h$w v$h h${-w} Z"
 
   private def withCellGeometry(
       mainGroup: dom.Element,
       strategy:  SelectableElementStrategy,
       cellOpt:   Option[(NodeId, List[Int])],
       boxesFor:  NodeId => Vector[RecordCellBox]
-  )(draw: (RecordCellBox, Double, Double) => Unit): Unit =
+  )(draw: (RecordCellBox, Double, Double, dom.SVGRect) => Unit): Unit =
     for
       (nodeId, path) <- cellOpt
       elem           <- SelectableElement.query(mainGroup, ElementIds(Set(nodeId)), strategy).headOption
       box            <- boxesFor(nodeId).find(_.path == path)
     do
       val bbox = ownGeometryBBox(elem.ref)
-      draw(box, bbox.x + bbox.width / 2, bbox.y + bbox.height / 2)
+      draw(box, bbox.x + bbox.width / 2, bbox.y + bbox.height / 2, bbox)
 
   private def cellRect(box: RecordCellBox, cx: Double, cy: Double, cls: String): dom.Element =
     val rect = dom.document.createElementNS(SvgNS, "rect")
