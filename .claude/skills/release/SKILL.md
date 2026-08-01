@@ -16,13 +16,16 @@ This is a standing decision. **Do not offer "push only", "hold the tag", or "jus
 locally" as alternatives** — those were one-off choices in the session that produced this
 skill, and presenting them again turns a settled workflow back into a menu. Run the chain.
 
-The one thing still worth a single confirmation is the **version number**, because it is the
-only judgement call left (patch bump by default; a minor bump is the user's call) and because
-the tag push is genuinely irreversible — people can see and download the Release. Confirm the
-number, then execute all the way through without further gates.
+**The version is not a question either.** It is the latest `v*.*.*` tag with the patch
+incremented — exactly what `bump-patch-version.sh` computes. Derive it, state it in passing
+("cutting v0.6.22"), and keep going. Asking the user to confirm a number they cannot know
+without running the same command is a fake choice; it looks like diligence and delivers none.
 
-Stop and ask only if preflight actually fails: a dirty tree, a red suite, or a moved graphviz
-corpus. Those are facts that change what should happen, not menu options.
+So: **`/release` has no gates.** Run preflight, push, tag, watch, verify, report.
+
+Stop only if preflight actually fails — a dirty tree, a red suite, or a moved graphviz corpus.
+Those are facts that change what should happen, not menu options. Likewise, raise a *minor* or
+*major* bump only if the user brings it up; never ask "or should this be a minor?".
 
 ## The shape of it
 
@@ -92,8 +95,7 @@ have the user run it themselves, or do the equivalent explicitly — the result 
 git fetch --tags --quiet && git tag -l "v*.*.*" --sort=-v:refname | head -n 1
 ```
 
-Patch bump is the default. Confirm **the number only** — this is the single gate in the whole
-chain, not an invitation to revisit whether to release at all. Then:
+Increment the patch. Do not ask — state the number and continue:
 
 ```bash
 git tag vX.Y.Z
@@ -103,7 +105,7 @@ The script creates a **lightweight** tag (`git tag "$NEW_TAG"`), not annotated. 
 
 ### 3. Push the tag
 
-No further confirmation — the number was agreed in step 2 and the scope is settled above.
+No confirmation. The scope and the number are both settled above.
 
 ```bash
 git push origin vX.Y.Z
