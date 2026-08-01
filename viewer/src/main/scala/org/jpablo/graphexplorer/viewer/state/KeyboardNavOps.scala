@@ -126,7 +126,20 @@ trait KeyboardNavOps:
         centers: Map[ElementId, ClientPoint]
     ): Option[Vector[Cand]] =
       centers.get(n).flatMap: c0 =>
-        val incident = visibleGraphNow().incidentArrows(n).filter(a => a.source != a.target)
+        val g = visibleGraphNow()
+        // A selected ROW of a record/table narrows the topology to its own
+        // edges: the arrows attached at its port, not every arrow the record
+        // carries. Without this, arrowing off a selected row followed whichever
+        // of the whole node's edges happened to point that way — a row with one
+        // outgoing edge could hand you an edge belonging to a different row.
+        // `None` = no row scope (no cell selected, or a portless row, which has
+        // no edges of its own); see recordCells.selectedCellArrows.
+        val incident =
+          recordCells
+            .selectedCellArrows(g)
+            .filter(_ => recordCells.selectedCellNode.contains(n))
+            .getOrElse(g.incidentArrows(n))
+            .filter(a => a.source != a.target)
         // all-or-nothing: every incident far endpoint must resolve, or we abort
         val resolved = incident.map: a =>
           val far = a.otherEnd(n)

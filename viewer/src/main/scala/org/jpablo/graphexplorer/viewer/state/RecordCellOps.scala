@@ -316,17 +316,47 @@ trait RecordCellOps:
       else None
 
     /** Move the cell selection to the previous/next cell, wrapping around.
-      * @return true when a cell was selected (the key was consumed). */
-    def moveCell(delta: Int): Boolean =
+      *
+      * Cycling claims only the record's OWN axis. All four keys used to cycle,
+      * which left a selected row with no way to follow its edges — the keyboard
+      * could reach a row and then only ever walk to a sibling row. Now the
+      * PERPENDICULAR keys fall through to keyboardNav, which (scoped by
+      * selectedCellArrows) walks that row's arrows: on a vertical record
+      * Up/Down cycles rows and Left/Right leaves along an edge.
+      *
+      * @return true when the key was consumed by cell cycling.
+      */
+    def moveCell(dir: NavDirection): Boolean =
       selectedCellV.now() match
         case Some(cell) =>
-          val paths = cellBoxes(cell.nodeId).map(_.path)
-          if paths.nonEmpty then
-            val cur  = paths.indexOf(clamped(cell).path).max(0)
-            val next = ((cur + delta) % paths.length + paths.length) % paths.length
-            selectCell(cell.nodeId, paths(next))
-          true
+          if dir.horizontal == cellsStackVertically(cell.nodeId) then false
+          else
+            val paths = cellBoxes(cell.nodeId).map(_.path)
+            if paths.nonEmpty then
+              val delta = if dir == NavDirection.NavDown || dir == NavDirection.NavRight then 1 else -1
+              val cur   = paths.indexOf(clamped(cell).path).max(0)
+              val next  = ((cur + delta) % paths.length + paths.length) % paths.length
+              selectCell(cell.nodeId, paths(next))
+            true
         case None => false
+
+    /** Which axis the record's cells are laid out along, measured from the
+      * RENDERED boxes rather than read off `rankdir`: a record's own `{...}`
+      * nesting flips orientation independently of the graph's direction, so the
+      * geometry is the only honest answer. True = cells stacked vertically (the
+      * usual `a|b|c` in a top-to-bottom graph, one row per line).
+      *
+      * A record with fewer than two cells has no axis; `true` keeps the vertical
+      * keys inert-but-consumed there, which is the status quo for a single cell.
+      */
+    private def cellsStackVertically(nodeId: NodeId): Boolean =
+      val boxes = cellBoxes(nodeId)
+      if boxes.size < 2 then true
+      else
+        def spread(centre: RecordCellBox => Double): Double =
+          val vs = boxes.map(centre)
+          vs.max - vs.min
+        spread(b => (b.lly + b.ury) / 2) >= spread(b => (b.llx + b.urx) / 2)
 
     // ── cell text (dialog plumbing) ───────────────────────────────────────
 
@@ -355,8 +385,46 @@ trait RecordCellOps:
             selectCell(cell.nodeId, cell.path)
         case None => ()
 
+    /** The node whose row is currently selected, if any. */
+    def selectedCellNode: Option[NodeId] = selectedCellV.now().map(_.nodeId)
+
     def selectedCellPort: Option[String] =
       selectedCellV.now().flatMap(cell => portOfIn(fullGraphNow(), cell))
+
+    /** The arrows attached AT the selected cell — the ROW's own topology rather
+      * than the whole record's. Navigation and successor/predecessor selection
+      * both route through this, so they cannot disagree about what "this row's
+      * edges" means.
+      *
+      * `None` means no row scope applies, and the caller should treat the whole
+      * node as the subject: either no cell is selected, or the selected cell
+      * carries no PORT. That second case is not a degenerate one to guard
+      * against — in DOT an edge reaches a row only through `node:port`, so a
+      * portless row genuinely has no edges of its own. Returning an empty scope
+      * there would turn every arrow key and every "select successors" into a
+      * silent no-op on a row that looks perfectly connected.
+      *
+      * `Some(Vector())` is different and is honoured: the row HAS a port and
+      * nothing is attached to it, so there is nowhere to go and that is the
+      * truthful answer.
+      */
+    def selectedCellArrows(g: ViewerGraph): Option[Vector[Arrow]] =
+      for
+        cell <- selectedCellV.now()
+        port <- portOfIn(g, cell)
+      yield g.arrows.values.iterator
+        .filter: a =>
+          (a.source == cell.nodeId && a.sourcePort.contains(port)) ||
+          (a.target == cell.nodeId && a.targetPort.contains(port))
+        .toVector
+
+    /** The selected row's first hop in one direction: the arrows leaving (or
+      * arriving at) the row, and the nodes on their far side. */
+    def selectedCellHop(g: ViewerGraph, outgoing: Boolean): Option[(Set[ArrowId], Set[NodeId])] =
+      selectedCellV.now().flatMap: cell =>
+        selectedCellArrows(g).map: arrows =>
+          val scoped = arrows.filter(a => if outgoing then a.source == cell.nodeId else a.target == cell.nodeId)
+          (scoped.map(_.id).toSet, scoped.map(a => if outgoing then a.target else a.source).toSet)
 
     /** The selected cell's port, tracking BOTH the selection and the graph:
       * renaming a port must update the chip showing it, and the context strip

@@ -40,18 +40,41 @@ trait DiagramSelectionOps:
         .distinct
         .changes
 
-    val _selectSuccessors         = selectRelated((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
-    val _selectPredecessors       = selectRelated((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
-    val _selectDirectSuccessors   = selectRelated((graph, nodes) => graph.directSuccessorsGraph(nodes.nodeIds))
-    val _selectDirectPredecessors = selectRelated((graph, nodes) => graph.directPredecessorsGraph(nodes.nodeIds))
+    val _selectSuccessors =
+      selectRelated(outgoing = true, transitive = true)((graph, nodes) => graph.allSuccessorsGraph(nodes.nodeIds))
+    val _selectPredecessors =
+      selectRelated(outgoing = false, transitive = true)((graph, nodes) => graph.allPredecessorsGraph(nodes.nodeIds))
+    val _selectDirectSuccessors =
+      selectRelated(outgoing = true, transitive = false)((graph, nodes) => graph.directSuccessorsGraph(nodes.nodeIds))
+    val _selectDirectPredecessors =
+      selectRelated(outgoing = false, transitive = false)((graph, nodes) => graph.directPredecessorsGraph(nodes.nodeIds))
 
-    private def selectRelated(
+    /** `outgoing` and `transitive` describe the same operation the selector
+      * already performs; they exist because the ROW-scoped path has to take the
+      * first hop itself (only that hop is constrained by the port) and therefore
+      * needs to know which way it points and whether to keep going.
+      */
+    private def selectRelated(outgoing: Boolean, transitive: Boolean)(
         selector: (ViewerGraph, Selection) => ViewerGraph
     )(fullGraph: ViewerGraph, hiddenNodes: HiddenElements): Unit =
       val visibleSubGraph: ViewerGraph = fullGraph.removeElements(hiddenNodes)
-      val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selection.now())
-      // Corrected: relatedSubGraph.allArrowIds selects the correct arrowIds
-      selection.add(relatedSubGraph.nodeIds ++ relatedSubGraph.arrowIds)
+      recordCells.selectedCellHop(visibleSubGraph, outgoing) match
+        // A row of a record/table is the subject: only the arrows attached at
+        // its port count, so take that hop by hand. A PORT constrains the first
+        // hop and nothing after it — once past the row, "all successors" is the
+        // ordinary question about the nodes it reached, so the transitive
+        // variants hand off to the usual traversal from there.
+        case Some((arrowIds, farNodes)) =>
+          val beyond =
+            if transitive then
+              val g = selector(visibleSubGraph, ElementIds(farNodes.map(x => x: ElementId)))
+              g.nodeIds ++ g.arrowIds
+            else Set.empty[ElementId]
+          selection.add(ElementIds(arrowIds.map(x => x: ElementId) ++ farNodes ++ beyond))
+        case None =>
+          val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selection.now())
+          // Corrected: relatedSubGraph.allArrowIds selects the correct arrowIds
+          selection.add(relatedSubGraph.nodeIds ++ relatedSubGraph.arrowIds)
 
     def editSelectedLabel(): Unit =
       val current = now()

@@ -612,12 +612,13 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
     // The four arrow keys walk the diagram from the selected element, in
     // SCREEN directions. One shared description; the palette shows all four
     // but users discover this with the keys themselves.
-    private def navCommand(label: String, key: String, dir: NavDirection, cellDelta: Int) =
+    private def navCommand(label: String, key: String, dir: NavDirection) =
       Command(
         label,
-        // With a record CELL selected, arrows walk the record's cells instead
-        // of the graph (wrapping at the ends).
-        () => if !state.recordCells.moveCell(cellDelta) then state.keyboardNav.navigate(dir),
+        // With a record CELL selected, the keys along the record's OWN axis walk
+        // its cells (wrapping at the ends) and the perpendicular ones fall
+        // through to the graph — where navigation is scoped to that row's edges.
+        () => if !state.recordCells.moveCell(dir) then state.keyboardNav.navigate(dir),
         shortcut = Some(Shortcut(key)),
         description = Some(
           s"$label: follow an arrow from the selected element " +
@@ -625,10 +626,10 @@ class Commands(state: ViewerState, val routerCmds: RouterCommands):
             "perpendicular keys pick among them, the same key continues)"
         )
       )
-    val navigateLeft  = navCommand("Navigate left", "ArrowLeft", NavDirection.NavLeft, cellDelta = -1)
-    val navigateRight = navCommand("Navigate right", "ArrowRight", NavDirection.NavRight, cellDelta = 1)
-    val navigateUp    = navCommand("Navigate up", "ArrowUp", NavDirection.NavUp, cellDelta = -1)
-    val navigateDown  = navCommand("Navigate down", "ArrowDown", NavDirection.NavDown, cellDelta = 1)
+    val navigateLeft  = navCommand("Navigate left", "ArrowLeft", NavDirection.NavLeft)
+    val navigateRight = navCommand("Navigate right", "ArrowRight", NavDirection.NavRight)
+    val navigateUp    = navCommand("Navigate up", "ArrowUp", NavDirection.NavUp)
+    val navigateDown  = navCommand("Navigate down", "ArrowDown", NavDirection.NavDown)
 
     // ── Record cells (RecordCellOps) ──────────────────────────────────────
     // Structured record-label editing: the cell selection level. Buttons live
