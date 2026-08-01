@@ -34,13 +34,20 @@ object CountBadges:
   val collapseClass = "gx-collapse-badge"
   val foldClass     = "gx-fold-badge"
 
-  /** On a fold badge whose group is the current subject — the stylesheet shows
+  /** On a fold badge whose group is UNDER THE POINTER — the stylesheet shows
     * only those. It used to be read off the DOM (`.selected > .gx-fold-badge`),
-    * which the move out of the cluster group took away. */
+    * which the move out of the cluster group took away; then off the selection,
+    * which meant you had to select a group to discover it could fold at all. */
   val activeClass = "gx-badge-active"
 
   private val layerClass = "gx-badge-layer"
   private val gidAttr    = "data-gid"
+
+  /** Install-once marker for the delegated hover listener, and the group the
+    * pointer is currently over — both parked on the svg rather than in object
+    * state, so nothing survives a diagram switch that shouldn't. */
+  private val hoverInstalledAttr = "data-gx-fold-hover"
+  private val hoveredAttr        = "data-gx-fold-hovered"
 
   private val SvgNS = "http://www.w3.org/2000/svg"
 
@@ -129,20 +136,71 @@ object CountBadges:
       val bb  = el.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
       val b = addBadge(el, bb.x + bb.width, bb.y, "−", s"$badgeClass $foldClass", "Collapse group into one box", () => onCollapseGroup(gid))
       // The badge no longer sits inside the cluster it folds, so it carries the
-      // group's id and [[reflectSelection]] does what descendant CSS did.
+      // group's id and [[installHover]] does what descendant CSS did.
       b.setAttribute(gidAttr, gid.value)
     }
+    // These are BRAND NEW badges, with no active class on any of them. If the
+    // pointer is resting inside a group while the layout re-renders (folding a
+    // sibling does exactly that), the badge under it would go dark and stay dark
+    // until the pointer crossed a boundary — so re-apply what hover already knows.
+    Option(mainGroup.closest("svg")).foreach: root =>
+      Option(root.getAttribute(hoveredAttr)).filter(_.nonEmpty).foreach(applyHovered(root, _))
 
-  /** Show the fold badges of the selected groups and no others — the "−" is an
-    * ACTION with no information content, so it earns its pixels only while its
-    * group is the current subject. (The count badges stay always-on: they
-    * report something.)
+  /** Reveal a group's fold badge while the pointer is over that group.
+    *
+    * The "−" is an ACTION with no information content, so it earns its pixels
+    * only while you are looking at its group — but keying that to SELECTION got
+    * the affordance backwards: you had to select a group to find out it could
+    * fold, and folding one meant selecting it first. Hover asks nothing and
+    * reaches every group, selected or not. (The count badges stay always-on:
+    * they report something.)
+    *
+    * Delegated from the svg rather than a listener per cluster: `decorate` runs
+    * once per layout and the cluster elements it walks are replaced wholesale by
+    * the next render, so per-element listeners would need tracking and removal.
+    * One listener on the svg outlives every re-render — hence the install-once
+    * flag rather than an add/remove dance.
     */
-  def reflectSelection(mainGroup: dom.Element, selected: Set[GroupId]): Unit =
-    val ids = selected.map(_.value)
-    mainGroup.querySelectorAllT[dom.Element](s"g.$foldClass").foreach { b =>
-      val gid = b.getAttribute(gidAttr)
-      if gid != null && ids.contains(gid) then b.classList.add(activeClass)
+  def installHover(mainGroup: dom.Element, strategy: SelectableElementStrategy): Unit =
+    val root = Option(mainGroup.closest("svg")).getOrElse(mainGroup)
+    if root.getAttribute(hoverInstalledAttr) == null then
+      root.setAttribute(hoverInstalledAttr, "1")
+      // `mouseover` bubbles and re-fires on every boundary crossing, so entering
+      // ANY element reports the new target — including the empty canvas, which
+      // is how the badge learns to hide again. `mouseleave` covers the pointer
+      // leaving the svg altogether, where no further mouseover ever arrives.
+      root.addEventListener(
+        "mouseover",
+        ((e: dom.Event) => setHovered(root, groupUnder(e.target.asInstanceOf[dom.Element], strategy))): js.Function1[dom.Event, Unit]
+      )
+      root.addEventListener("mouseleave", ((_: dom.Event) => setHovered(root, None)): js.Function1[dom.Event, Unit])
+
+  /** Which group the pointer counts as being over.
+    *
+    * The badge is NOT a descendant of the cluster it folds — it rides the
+    * overlay layer so it paints above the edges — so `closest(clusterSelector)`
+    * from the badge finds nothing. That matters because the badge STRADDLES the
+    * group's border: reaching for it means leaving the group, and the control
+    * would vanish from under the cursor on the way to the click. So a fold badge
+    * counts as hovering its own group, and is checked first.
+    */
+  private def groupUnder(target: dom.Element, strategy: SelectableElementStrategy): Option[String] =
+    Option(target.closest(s"g.$foldClass"))
+      .map(_.getAttribute(gidAttr))
+      .orElse(Option(target.closest(strategy.clusterSelector)).map(strategy.extractGroupId(_).value))
+      .filter(_ != null)
+
+  /** Memoized on the svg so a drag across a dozen nodes inside one cluster does
+    * not rewrite every badge's class list a dozen times. */
+  private def setHovered(root: dom.Element, gid: Option[String]): Unit =
+    val next = gid.getOrElse("")
+    if root.getAttribute(hoveredAttr) != next then
+      root.setAttribute(hoveredAttr, next)
+      applyHovered(root, next)
+
+  private def applyHovered(root: dom.Element, gid: String): Unit =
+    root.querySelectorAllT[dom.Element](s"g.$foldClass").foreach { b =>
+      if gid.nonEmpty && b.getAttribute(gidAttr) == gid then b.classList.add(activeClass)
       else b.classList.remove(activeClass)
     }
 
