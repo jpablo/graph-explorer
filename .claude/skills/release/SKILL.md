@@ -1,22 +1,33 @@
 ---
 name: release
-description: Cut a Graph Explorer release — bump the patch tag, publish desktop/gx binaries to a public GitHub Release, and verify the running build reports the new version. Use when the user asks to cut a release, bump the version, tag a version, publish binaries, or "new release".
+description: Cut a Graph Explorer release — push all commits to origin/viewer, then tag and push the next patch version, which publishes desktop/gx binaries to a public GitHub Release; then verify the running build reports the new version. "Release" always means the whole chain (push AND tag), never one half. Use when the user asks to cut a release, bump the version, tag a version, publish binaries, ship, or "new release".
 ---
 
 # Cutting a Graph Explorer release
 
-A "release" here is **one thing: pushing a `vX.Y.Z` tag.** Everything else follows from it.
-Pushing that tag builds desktop + `gx` binaries on three platforms and creates a **public
-GitHub Release** on `jpablo/graph-explorer`. That is irreversible in the sense that matters —
-people can see and download it.
+## What "release" means here — settled, do not re-ask
 
-**Always confirm with the user before pushing the tag.** Pushing commits is recoverable;
-publishing a Release is not.
+When the user says **release**, they mean the **whole chain**:
+
+> push every local commit to `origin/viewer`, **then** tag the next patch version and push the
+> tag, which publishes a public GitHub Release with desktop + `gx` binaries for three platforms.
+
+This is a standing decision. **Do not offer "push only", "hold the tag", or "just rebuild
+locally" as alternatives** — those were one-off choices in the session that produced this
+skill, and presenting them again turns a settled workflow back into a menu. Run the chain.
+
+The one thing still worth a single confirmation is the **version number**, because it is the
+only judgement call left (patch bump by default; a minor bump is the user's call) and because
+the tag push is genuinely irreversible — people can see and download the Release. Confirm the
+number, then execute all the way through without further gates.
+
+Stop and ask only if preflight actually fails: a dirty tree, a red suite, or a moved graphviz
+corpus. Those are facts that change what should happen, not menu options.
 
 ## The shape of it
 
 ```
-commits on `viewer`  ──push──>  origin/viewer     (no GitHub CI runs; Netlify may deploy)
+commits on `viewer`  ──push──>  origin/viewer     (ci.yml runs; Netlify deploys graph-explorer.net)
         │
         └── git tag vX.Y.Z ──push──> release-binaries.yml
                                         ├── build-frontend (ubuntu, JDK 17): Scala.js fullLinkJS + vite build
@@ -25,6 +36,11 @@ commits on `viewer`  ──push──>  origin/viewer     (no GitHub CI runs; Ne
                                               ├── per-platform runtime smoke  ← publish gate
                                               └── softprops/action-gh-release  → attaches assets
 ```
+
+Both halves matter, and they reach different audiences: the **push** updates the live site
+`graph-explorer.net`, the **tag** updates the downloadable binaries. Doing only the first is
+how the site and the artifacts drift apart — which is exactly what happened around v0.6.21,
+where the tag ended up four commits behind the branch.
 
 ## Preflight
 
@@ -56,10 +72,13 @@ Run these and stop if any fails.
 git push origin viewer
 ```
 
-No GitHub CI fires. Netlify does build the web app from this repo via
-`scripts/build-viewer-netlify.sh`; there is **no `netlify.toml` in the repo**, so the branch and
-trigger live in the Netlify UI. Treat a push to `viewer` as *possibly* publishing the web app,
-and say so to the user rather than promising it either way.
+This half of the release is what updates the **live site**. `ci.yml` fires (suite + optimized
+frontend build), and Netlify builds the web app via `scripts/build-viewer-netlify.sh` — there is
+**no `netlify.toml` in the repo**, so the exact branch and trigger live in the Netlify UI; say
+"this deploys `graph-explorer.net`" rather than promising a specific mechanism.
+
+Push **everything**, not a subset. A tag can only point at a commit origin already has, and a
+release whose tag trails the branch is the drift this skill exists to prevent.
 
 ### 2. Pick the version
 
@@ -73,7 +92,8 @@ have the user run it themselves, or do the equivalent explicitly — the result 
 git fetch --tags --quiet && git tag -l "v*.*.*" --sort=-v:refname | head -n 1
 ```
 
-Then, after the user confirms the new number:
+Patch bump is the default. Confirm **the number only** — this is the single gate in the whole
+chain, not an invitation to revisit whether to release at all. Then:
 
 ```bash
 git tag vX.Y.Z
@@ -81,9 +101,9 @@ git tag vX.Y.Z
 
 The script creates a **lightweight** tag (`git tag "$NEW_TAG"`), not annotated. Match that.
 
-### 3. Push the tag — the point of no return
+### 3. Push the tag
 
-Confirm with the user first. Then:
+No further confirmation — the number was agreed in step 2 and the scope is settled above.
 
 ```bash
 git push origin vX.Y.Z
@@ -116,6 +136,23 @@ Expect six assets, named per platform:
 
 `fail_on_unmatched_files: true`, so a platform that produced nothing fails its own job loudly
 rather than publishing a half-empty Release.
+
+Note the Release publishes **incrementally** — `action-gh-release` attaches per platform as each
+matrix job finishes, and with `fail-fast: false` a slow platform never blocks the others. "The
+Release page exists" and "the Release is complete" are different states. Check the asset count.
+
+### 6. Confirm all three levels agree
+
+"Published" is three separate states in this repo, and they drift. Report them explicitly rather
+than saying "released":
+
+```bash
+git status -sb | head -1 && git log --oneline @{u}.. && git log --oneline vX.Y.Z..HEAD
+```
+
+A finished release means: branch **not ahead**, `vX.Y.Z..HEAD` **empty** (the tag is at HEAD),
+and six assets attached. If any differs, say which — "the site has it, the binaries do not" is a
+real and confusing state, and the user should never have to ask which one they are looking at.
 
 ## Verifying the app reports the new version
 
