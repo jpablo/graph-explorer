@@ -256,6 +256,43 @@ object LayoutTransition:
       to:     Vector[(Double, Double)]
   )
 
+  /** A departing element, pinned to the DRAWING rather than to the glass.
+    *
+    * It used to be pinned to the glass: the transform was written once, with
+    * `kg*` cancelling the new frame's scale so the ghost held its old on-screen
+    * size, and only opacity animated after that. Exact at frame 0 — which is
+    * what the compensation is for — but it also froze the ghost for its whole
+    * life, and a re-fit then slid the drawing out from under it. Deleting a
+    * node zooms auto-fit in, so the departing arrow's stem stayed put while the
+    * node it hung from grew across it: measured off a 60fps capture, the stem
+    * held one screen position for 8 frames while the node's bottom edge swept
+    * ~38px past it and ended up INSIDE the node. A remnant beside the drawing
+    * reads as "that's leaving"; one crossing a node's border reads as a fault.
+    *
+    * So interpolate the compensation away rather than holding it. At t=0 the
+    * ghost is exactly where it was on screen — frame-0 exactness preserved — and
+    * at t=1 it carries no compensation at all, sitting at its own diagram
+    * coordinates under the new framing, which is where the drawing has moved to.
+    * In between it glides and scales with its neighbours while it fades.
+    */
+  private final case class GhostTween(
+      wrap: dom.Element,
+      cx:   Double, // the ghost's own bbox centre, in its local coordinates
+      cy:   Double,
+      tx:   Double, // where that centre sat on screen, mapped into mainGroup
+      ty:   Double,
+      kgx:  Double, // scale cancelling the new frame; 1 means "no correction"
+      kgy:  Double
+  ):
+    def transformAt(t: Double): String =
+      val kx = kgx + (1 - kgx) * t
+      val ky = kgy + (1 - kgy) * t
+      // The centre travels from its old screen spot to its natural one; the
+      // translate is then whatever puts it there at the current scale.
+      val px = tx + (cx - tx) * t
+      val py = ty + (cy - ty) * t
+      s"translate(${px - kx * cx} ${py - ky * cy}) scale($kx $ky)"
+
   private def start(
       newSvg:  dom.svg.SVG,
       // Already paired with their correlation keys — see [[correlationKeys]].
@@ -317,7 +354,7 @@ object LayoutTransition:
     // node — whose `translate(...)` then offset every ghost by exactly that
     // much, parking the departing edge up and to the left of the drawing.
     val ghostRefFrame = Option(mainGroup).flatMap(ctmOf)
-    val ghosts: Vector[dom.Element] =
+    val ghosts: Vector[GhostTween] =
       if mainGroup == null then Vector.empty
       else
         (for
@@ -337,10 +374,8 @@ object LayoutTransition:
           val kgy  = if bbH > 0 && frame.d != 0 then oldClient._4 / (bbH * frame.d) else 1.0
           val wrap = dom.document.createElementNS("http://www.w3.org/2000/svg", "g")
           wrap.setAttribute("class", ghostClass)
-          wrap.setAttribute(
-            "transform",
-            s"translate(${tx - kgx * localCenter._1} ${ty - kgy * localCenter._2}) scale($kgx $kgy)"
-          )
+          val tween = GhostTween(wrap, localCenter._1, localCenter._2, tx, ty, kgx, kgy)
+          wrap.setAttribute("transform", tween.transformAt(0.0))
           wrap.asInstanceOf[dom.html.Element].style.pointerEvents = "none"
           el.removeAttribute("id")
           // ADD the marker, never replace the class list: Mermaid's styling is
@@ -350,7 +385,7 @@ object LayoutTransition:
           el.setAttribute("class", s"${Option(el.getAttribute("class")).getOrElse("")} $ghostClass".trim)
           wrap.appendChild(el)
           mainGroup.appendChild(wrap)
-          wrap
+          tween
         )
 
     val boxes   = boxTweens.result()
@@ -399,14 +434,18 @@ object LayoutTransition:
         et.path.setAttribute("d", "M" + pts.head + "L" + pts.tail.mkString(" "))
       }
       entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = (((e - 0.4) / 0.6) max 0.0 min 1.0).toString)
-      ghosts.foreach(_.asInstanceOf[dom.html.Element].style.opacity = ((1 - e * 2) max 0.0).toString)
+      // Ghosts move as well as fade: holding the compensation still would park
+      // them on the glass while the drawing re-fits out from under them.
+      ghosts.foreach: g =>
+        g.wrap.setAttribute("transform", g.transformAt(e))
+        g.wrap.asInstanceOf[dom.html.Element].style.opacity = ((1 - e * 2) max 0.0).toString
 
     def finish(): Unit =
       boxes.foreach(b => restore(b.g, b.base))
       sheetTween.foreach(st => st.el.removeAttribute("transform"))
       edges.foreach(et => et.path.setAttribute("d", et.finalD))
       entered.foreach(_.asInstanceOf[dom.html.Element].style.opacity = "")
-      ghosts.foreach(w => if w.parentNode != null then w.parentNode.removeChild(w))
+      ghosts.foreach(g => if g.wrap.parentNode != null then g.wrap.parentNode.removeChild(g.wrap))
       newSvg.classList.remove(transitioningClass)
       newSvg.dispatchEvent(new dom.Event(transitionEndEvent))
 
