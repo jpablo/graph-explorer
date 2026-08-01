@@ -60,6 +60,30 @@ html, body {
   overscroll-behavior-x: none;
 }
 
+// `mermaid.render(id, text)` called without a container element appends its scratch
+// element — `div#d<id>`, with NO style attribute at all — straight to <body>, draws the
+// whole diagram inside it, and only removes it after an `await`. So for at least one
+// frame the document is taller than the viewport by the height of the diagram: a
+// vertical scrollbar flashes, the viewport narrows by its width, and the entire UI
+// jumps sideways and back. Height zero plus `overflow: hidden` keeps the scratch
+// element's tall content out of the document's scrollable overflow while leaving its
+// *layout* untouched — clipping never moves a box, so every getBBox/getBoundingClientRect
+// Mermaid takes while measuring is exactly what it was before. `width: 100%` preserves
+// the full-body containing block the in-flow div had (position alone would have made it
+// shrink-to-fit, which can rewrap html labels), and `pointer-events: none` keeps it away
+// from ScreenConstant's elementFromPoint probe, which hit-tests the same top-left corner.
+//
+// The prefix is `d` + whatever id we pass; see MermaidBackend.nextRenderId.
+body > div[id^="dmermaid-render-"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 // While a panel edge is being dragged the pointer leaves the 7px handle constantly, so the
 // cursor and the selection ban have to hold document-wide or the gesture flickers and starts
 // selecting the editor's text.

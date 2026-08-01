@@ -685,6 +685,11 @@ object MermaidBackend:
       else currentColor
     }
 
+  /** Mermaid derives the id of the scratch element it appends to `<body>` while
+    * rendering by prefixing this with `d`. style.scss neutralizes that element via
+    * `body > div[id^="dmermaid-render-"]` — keep the two in step, or the layout it
+    * causes (a one-frame document scrollbar) comes back.
+    */
   def nextRenderId(): String =
     val id = renderCounter.incrementAndGet()
     s"mermaid-render-$id"
