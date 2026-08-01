@@ -233,6 +233,19 @@ trait KeyboardNavOps:
       * rects (detached or not-yet-laid-out elements) are dropped so they read
       * as "missing" and trigger the all-or-nothing abort in [[candidatesFor]].
       */
+    /** One point per element, at the centre of the UNION of that id's rects.
+      *
+      * An ElementId can name SEVERAL elements. Mermaid draws a self-loop as
+      * three sibling paths that deliberately resolve to one ArrowId (see
+      * MermaidSelectionStrategy.extractArrowId), so the `.toMap` this replaces
+      * kept whichever segment came last: a loop's navigation point sat on its
+      * right-hand arc, and every directional distance to it was measured from
+      * a corner of the shape rather than its middle.
+      *
+      * The union's centre, not the mean of the segments' centres — the three
+      * arcs are unequal, so averaging leans toward whichever end of the loop
+      * happens to be cut into more pieces.
+      */
     private def centersSnapshot(): Map[ElementId, ClientPoint] =
       finalSVGNow() match
         case None => Map.empty
@@ -241,8 +254,13 @@ trait KeyboardNavOps:
             .findAll(svgEl.ref, selectionStrategyNow())
             .flatMap: el =>
               val r = el.ref.getBoundingClientRect()
+              // A zero-size rect has no position worth merging into a union.
               if r.width <= 0 && r.height <= 0 then None
-              else Some(el.elementId -> DistanceUtils.clientRectCenter(r))
+              else Some(el.elementId -> (r.left, r.top, r.right, r.bottom))
+            .groupMapReduce(_._1)(_._2): (a, b) =>
+              (math.min(a._1, b._1), math.min(a._2, b._2), math.max(a._3, b._3), math.max(a._4, b._4))
+            .view
+            .mapValues { case (l, t, r, b) => ClientPoint((l + r) / 2.0, (t + b) / 2.0) }
             .toMap
 
   end keyboardNav
