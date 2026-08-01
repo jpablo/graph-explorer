@@ -65,12 +65,20 @@ trait DiagramSelectionOps:
         // ordinary question about the nodes it reached, so the transitive
         // variants hand off to the usual traversal from there.
         case Some((arrowIds, farNodes)) =>
-          val beyond =
-            if transitive then
-              val g = selector(visibleSubGraph, ElementIds(farNodes.map(x => x: ElementId)))
-              g.nodeIds ++ g.arrowIds
-            else Set.empty[ElementId]
-          selection.add(ElementIds(arrowIds.map(x => x: ElementId) ++ farNodes ++ beyond))
+          val keptCell = recordCells.selectedCell
+          // The record is ALREADY expanded — through this row. Re-expanding it
+          // would drag in every OTHER row's edges, which is exactly what the row
+          // scope exists to prevent, and is what made a second press select the
+          // whole table. So the seed is everything else that is selected, minus
+          // the record, plus (when transitive) wherever the row's hop landed.
+          val rest = selection.now().nodeIds -- recordCells.selectedCellNode.toSet
+          val seed = rest ++ (if transitive then farNodes else Set.empty)
+          val g    = selector(visibleSubGraph, ElementIds(seed.map(x => x: ElementId)))
+          selection.add(ElementIds(arrowIds.map(x => x: ElementId) ++ farNodes) ++ g.nodeIds ++ g.arrowIds)
+          // The write above always grows the selection past the record alone, so
+          // pruneAgainstSelection has just cleared the row. Put it back, or the
+          // NEXT press loses the scope and falls back to the whole table.
+          keptCell.foreach(recordCells.restoreCell)
         case None =>
           val relatedSubGraph: ViewerGraph = selector(visibleSubGraph, selection.now())
           // Corrected: relatedSubGraph.allArrowIds selects the correct arrowIds

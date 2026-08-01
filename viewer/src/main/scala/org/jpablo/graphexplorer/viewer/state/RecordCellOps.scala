@@ -388,6 +388,19 @@ trait RecordCellOps:
     /** The node whose row is currently selected, if any. */
     def selectedCellNode: Option[NodeId] = selectedCellV.now().map(_.nodeId)
 
+    /** The selected row itself, for callers that must put it back. */
+    def selectedCell: Option[SelectedCell] = selectedCellV.now()
+
+    /** Re-assert a row after an operation that necessarily grew the selection.
+      *
+      * [[pruneAgainstSelection]] drops a cell the moment its node stops being
+      * the WHOLE selection. That is right when the user selects other things,
+      * and wrong when a row-scoped operation is the very thing that grew the
+      * selection: "select this row's successors" would destroy the row context
+      * it just used, so a second press would silently act on the whole record.
+      */
+    def restoreCell(cell: SelectedCell): Unit = selectedCellV.set(Some(cell))
+
     def selectedCellPort: Option[String] =
       selectedCellV.now().flatMap(cell => portOfIn(fullGraphNow(), cell))
 
