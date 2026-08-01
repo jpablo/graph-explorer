@@ -895,6 +895,27 @@ svg {
       g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link {
         transition: opacity 150ms ease;
       }
+      // …but a LAYOUT TRANSITION owns opacity while it runs, and it writes per
+      // frame expecting each write to land immediately: entering elements are
+      // set to 0 up front and then ramped in from 40%.
+      //
+      // With the ease above still armed, `opacity = "0"` on a new node does not
+      // hide it — it starts a 150ms glide from 1 DOWN to 0. So the node was
+      // painted at full opacity in its final spot while the rest of the drawing
+      // was still gliding (reading as "the wrong position"), eased away, and
+      // only then ramped back in. Measured off a 60fps capture: visible at
+      // frame 1 after the swap, ~117ms fading out, ~65ms gone, then the ramp.
+      //
+      // Scoped to the svg carrying LayoutTransition.transitioningClass, so
+      // focus mode keeps its ease at every other moment — the two animations
+      // simply must not both own this property at once.
+      //
+      // `&.gx-transitioning`, not `svg.gx-transitioning`: the enclosing block
+      // IS `svg.graphviz`, so the latter compiles to `svg.graphviz svg…` and
+      // matches nothing.
+      &.gx-transitioning :is(g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link) {
+        transition: none;
+      }
       &:has(.selected) {
         :is(g.node, g.edge, g.cluster, g.edgeLabel, path.flowchart-link):not(.selected) {
           opacity: 0.5;
