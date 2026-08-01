@@ -134,6 +134,34 @@ object LayoutTransition:
   private def edgeTextKey(edgeKey: String, i: Int): String = s"$edgeKey##t$i"
   private def edgeHeadKey(edgeKey: String, i: Int): String = s"$edgeKey##h$i"
 
+  /** Correlation keys for one render's elements, in document order.
+    *
+    * An ElementId is NOT unique in the DOM. Mermaid renders a self-loop as
+    * three sibling paths — `<node>-cyclic-special-1`, `-mid`, `-2` — which all
+    * resolve to the same ArrowId on purpose, so that selecting any of them
+    * selects the whole loop. Every Snapshot map is keyed by that id, so two of
+    * the three were silently overwritten: a departing self-loop had one segment
+    * fade while the other two vanished on the spot, and a SURVIVING one tweened
+    * all three segments away from whichever geometry happened to be written
+    * last.
+    *
+    * Disambiguated by occurrence rather than by anything intrinsic, because the
+    * segments have nothing else to tell them apart — and occurrence is stable:
+    * Mermaid emits a loop's three paths in the same order every render. The
+    * first occurrence keeps the bare id so single-element ids (every node, and
+    * every ordinary edge) key exactly as before.
+    *
+    * `##s` and not `##`: [[edgeTextKey]] and [[edgeHeadKey]] already use
+    * `##t$i` / `##h$i` in the same key space.
+    */
+  private def correlationKeys(els: Seq[SelectableElement]): Seq[(String, SelectableElement)] =
+    val seen = scala.collection.mutable.Map.empty[String, Int]
+    els.map: se =>
+      val id = se.elementId.value
+      val n  = seen.getOrElse(id, 0)
+      seen(id) = n + 1
+      (if n == 0 then id else s"$id##s$n", se)
+
   def capture(oldSvg: dom.svg.SVG, strategy: SelectableElementStrategy): Snapshot =
     if unmeasurable(oldSvg) then return Snapshot(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, None)
     val els         = SelectableElement.findAll(oldSvg, strategy)
@@ -142,8 +170,7 @@ object LayoutTransition:
     val edgeParts   = Map.newBuilder[String, (Double, Double, Double, Double)]
     val ghosts      = Map.newBuilder[String, dom.Element]
     val ghostBBoxes = Map.newBuilder[String, (Double, Double, Double, Double)]
-    els.foreach { se =>
-      val key = se.elementId.value
+    correlationKeys(els).foreach { (key, se) =>
       ghosts += key -> se.ref
       val bb = se.ref.asInstanceOf[js.Dynamic].getBBox().asInstanceOf[dom.SVGRect]
       ghostBBoxes += key -> (bb.x, bb.y, bb.width, bb.height)
@@ -175,10 +202,11 @@ object LayoutTransition:
     val els = SelectableElement.findAll(newSvg, strategy)
     if els.isEmpty then None
     else
-      val newKeys = els.map(_.elementId.value).toSet
+      val keyed   = correlationKeys(els)
+      val newKeys = keyed.map(_._1).toSet
       // No overlap ⇒ a different document, not an edit — don't animate.
-      if !els.exists(se => snap.boxes.contains(se.elementId.value)) then None
-      else Some(start(newSvg, els, newKeys, snap))
+      if !newKeys.exists(snap.boxes.contains) then None
+      else Some(start(newSvg, keyed, newKeys, snap))
 
   // ── the tween model ──────────────────────────────────────────────────────
   // `base` is the element's OWN transform attribute ("" if absent): Mermaid
@@ -230,7 +258,9 @@ object LayoutTransition:
 
   private def start(
       newSvg:  dom.svg.SVG,
-      els:     Seq[SelectableElement],
+      // Already paired with their correlation keys — see [[correlationKeys]].
+      // Recomputing them here would work but invites the two sides drifting.
+      keyed:   Seq[(String, SelectableElement)],
       newKeys: Set[String],
       snap:    Snapshot
   ): () => Unit =
@@ -248,8 +278,7 @@ object LayoutTransition:
         boxTweens += BoxTween(el, baseTransformOf(el), ctm, cfx, cfy, (oldX, oldY), (newX, newY), kx0, ky0)
       }
 
-    els.foreach { se =>
-      val key = se.elementId.value
+    keyed.foreach { (key, se) =>
       se.arrowId match
         case Some(_) =>
           val tweened = edgePathOf(se.ref).exists { path =>
