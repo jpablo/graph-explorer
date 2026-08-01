@@ -184,14 +184,24 @@ trait KeyboardNavOps:
           navContextV.set(None)
           // arrow selected by hand: go to the endpoint lying in the pressed
           // direction (projection of source→target onto the press decides).
-          for
-            arrow <- visibleGraphNow().arrows.get(a)
-            cs    <- centers.get(arrow.source)
-            ct    <- centers.get(arrow.target)
-          do
-            val comp = (ct.x - cs.x) * dir.dx + (ct.y - cs.y) * dir.dy
-            if comp > 0 then moveToNode(arrow.target, centers)
-            else if comp < 0 then moveToNode(arrow.source, centers)
+          for arrow <- visibleGraphNow().arrows.get(a) do
+            if arrow.source == arrow.target then
+              // A SELF-LOOP has one endpoint, so no direction tells its ends
+              // apart: source→target is the zero vector and the projection
+              // below is exactly 0, which took neither branch. Every arrow key
+              // did nothing and the selection was stranded on the loop — the
+              // one element you could reach by clicking and not leave by
+              // keyboard. Any direction lands on its node, and navigation
+              // continues from there as usual.
+              moveToNode(arrow.source, centers)
+            else
+              for
+                cs <- centers.get(arrow.source)
+                ct <- centers.get(arrow.target)
+              do
+                val comp = (ct.x - cs.x) * dir.dx + (ct.y - cs.y) * dir.dy
+                if comp > 0 then moveToNode(arrow.target, centers)
+                else if comp < 0 then moveToNode(arrow.source, centers)
 
     private def moveToNode(n: NodeId, centers: Map[ElementId, ClientPoint]): Unit =
       navContextV.set(None)
