@@ -268,6 +268,34 @@ def ElementsList(state: ViewerState): Div =
       }
     )
 
+  /** Fold state, as a control that is also the marker.
+    *
+    * A folded group is a single small box on the canvas, which is easy to lose
+    * in a large diagram — and its panel row used to be indistinguishable from an
+    * unfolded group's, so the list could not answer "which one did I collapse?".
+    * Rather than add a separate badge AND a separate button, this one control
+    * does both: it follows the eye's rules (quiet, appears on hover) with one
+    * exception — a folded group keeps it lit, exactly as a hidden row pins its
+    * struck eye. So an unfolded list stays clean and a folded group announces
+    * itself.
+    *
+    * The arrows point the way the click goes: inward to fold, outward to unfold.
+    */
+  def groupCollapse(groupId: GroupId) =
+    val collapsed = state.isGroupCollapsed(groupId)
+    span(
+      cls                   := "el-collapse",
+      cls("el-is-collapsed") <-- collapsed,
+      title <-- collapsed.map(c => if c then "Expand group" else "Collapse group"),
+      i(
+        cls("bi bi-arrows-angle-expand")   <-- collapsed,
+        cls("bi bi-arrows-angle-contract") <-- collapsed.not
+      ),
+      // preventDefault as well as stopPropagation: on the tree's group head this
+      // sits inside a <summary>, where a plain click also toggles the <details>.
+      onClick.preventDefault.stopPropagation --> { _ => state.toggleGroupCollapsed(groupId) }
+    )
+
   def renderGroup(
       graph:      ViewerGraph,
       groupId:    GroupId,
@@ -313,6 +341,7 @@ def ElementsList(state: ViewerState): Div =
                 span(cls := "el-kind el-chevron", i(cls := "bi bi-chevron-down")),
                 groupSwatch(graph, groupId),
                 span(cls := "el-label", title := groupId.toString, groupLabel(graph, groupId)),
+                groupCollapse(groupId),
                 groupEye(graph, groupId),
                 onMouseDown.preventDefault --> Observer.empty,
                 onClick.preventDefault --> { e =>
@@ -339,6 +368,7 @@ def ElementsList(state: ViewerState): Div =
           groupSwatch(graph, groupId),
           span(cls := "el-label", title := groupId.toString, groupLabel(graph, groupId)),
           span(cls := "el-id", descendantNodeIds(graph, groupId).size.toString),
+          groupCollapse(groupId),
           groupEye(graph, groupId),
           onMouseDown.preventDefault --> Observer.empty,
           onClick --> { e => state.selection.updateSelectionStatus(groupId)(e.shiftKey) }

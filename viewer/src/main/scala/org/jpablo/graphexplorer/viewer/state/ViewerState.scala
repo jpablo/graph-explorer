@@ -357,6 +357,23 @@ case class ViewerState(
   def expandAllGroups(): Unit =
     project.collapsedGroups.set(Set.empty)
 
+  /** Fold or unfold ONE group. Deliberately independent of the selection, unlike
+    * `selection.toggleCollapse()`: the Elements panel acts on the row you click,
+    * and making a row's control depend on what happens to be selected elsewhere
+    * would be its own bug.
+    */
+  def toggleGroupCollapsed(groupId: GroupId): Unit =
+    project.collapsedGroups.update(gs => if gs.contains(groupId) then gs - groupId else gs + groupId)
+
+  /** Whether `groupId` is folded IN ITS OWN RIGHT. A group nested inside a
+    * folded ancestor is not reported here — it draws no box of its own (see
+    * `CollapseOps.effectiveCollapsed`), so unfolding it alone would change
+    * nothing on the canvas until the ancestor unfolds, and a marker promising
+    * otherwise would lie.
+    */
+  def isGroupCollapsed(groupId: GroupId): Signal[Boolean] =
+    project.collapsedGroups.signal.map(_.contains(groupId))
+
   def elementAttributesUpdates(elementIds: ElementIds): Var[AttributeUpdates] =
     phases.fullGraphV.zoomLens(AttributesOps.elementAttributesUpdates(resolveCollapsed(elementIds)))
 
