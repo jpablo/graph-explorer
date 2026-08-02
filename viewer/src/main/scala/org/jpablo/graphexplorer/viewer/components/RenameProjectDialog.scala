@@ -9,7 +9,11 @@ import org.scalajs.dom.KeyValue
 /** Renaming, in the app's own dialog vocabulary — the native `window.prompt`
   * was the one browser-chrome interruption left in the flow. Same contract as
   * the prompt it replaces: prefilled with the current name, Enter/Ok commits,
-  * Escape/Cancel leaves the name untouched.
+  * Escape/Cancel leaves the name untouched. A blank Ok also leaves it
+  * untouched: no flow may produce a nameless project — the persistence sync
+  * refuses to store a blank name over a real one (ProjectStorage's
+  * guardedProjectName), so committing one here would only desync the
+  * on-screen title from the stored name until the next reload.
   */
 def RenameProjectDialog(state: ViewerState) =
   val modalText: Var[String] = Var("")
@@ -18,7 +22,9 @@ def RenameProjectDialog(state: ViewerState) =
     state.renameDialogOpen.set(false)
 
   def saveAndClose(): Unit =
-    state.project.name.set(modalText.now())
+    // Blank input is not a rename — same outcome as Cancel (see above).
+    val newName = modalText.now()
+    if newName.trim.nonEmpty then state.project.name.set(newName)
     closeDialog()
 
   div(

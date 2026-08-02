@@ -93,14 +93,26 @@ object ProjectStorage:
           dom.console.error(s"Error reading state: $e, defaulting to initial state")
           Var(initialState)
 
+    // The stored name for the guard below, parsed only when needed: this sync
+    // runs per keystroke, and only a blank incoming name (the accident path)
+    // has to look at the old payload.
+    def storedPayloadName: String =
+      try read[PersistedDiagramState](projectStorageNow.now()).projectName
+      catch case _: Throwable => ""
+
     // synchronize PersistedDiagramState ~> storage
     persistedDiagramState.signal.distinct.changes.foreach: state =>
+      val guarded = state.copy(projectName = guardedProjectName(state.projectName, storedPayloadName))
       // update project entry
-      projectStorage.set(write(state))
+      projectStorage.set(write(guarded))
       // update all directory fields
       updateDirectory: dir =>
         dir.modify(_.projects.eachWhere(_.id == id))
-          .using(_.copy(lastModified = System.currentTimeMillis(), name = state.projectName))
+          .using: entry =>
+            entry.copy(
+              lastModified = System.currentTimeMillis(),
+              name = guardedProjectName(guarded.projectName, entry.name)
+            )
     persistedDiagramState
 
   /** Retrieves the persisted viewer settings.
@@ -214,6 +226,26 @@ object ProjectStorage:
   /** The condition above re-occurs on every state change while it holds; logging it
     * each time trains the reader to ignore it (it fired on every viewer test). */
   private var phantomDirectoryReported = false
+
+  /** GUARD against name loss — [[updateDirectory]]'s empty-index guard, scaled down
+    * to one field. The accident to prevent is the same shape: a half-initialized
+    * viewer (a stale incremental bundle that crashed during render, 2026-08-02)
+    * ran the state sync while `projectName` still held its pre-restore "" and
+    * blanked a real stored name in the payload AND the directory entry
+    * ("Groups" became ""). No user flow renames a project to a blank name
+    * (RenameProjectDialog drops a blank commit), so blank-over-nonblank is
+    * always an accident and the stored name wins. A real incoming name always
+    * goes through — that is also the repair path for a name the accident
+    * already blanked — and so does blank-over-blank: nothing becomes unwritable.
+    *
+    * `stored` is by-name because answering it can cost a payload parse, on a
+    * per-keystroke path the common case never needs.
+    */
+  private def guardedProjectName(incoming: String, stored: => String): String =
+    if incoming.trim.nonEmpty then incoming
+    else
+      val storedName = stored
+      if storedName.trim.nonEmpty then storedName else incoming
 
   /** True when any project payload key holds substantive content. `deleteProject` removes
     * the key outright, but libraries written before that fix still hold orphaned payloads,
