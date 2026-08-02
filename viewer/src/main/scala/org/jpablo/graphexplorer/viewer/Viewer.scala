@@ -125,7 +125,7 @@ object Viewer:
             initialLeftPanelVisible = lastLeftPanelVisible,
             clientSize = clientSize,
             logLevel = logLevel,
-            ephemeral = exampleName.isDefined
+            exampleName = exampleName
           )(using viewOwner)
         // A bit hacky: we need to keep track of the last right panel section selected,
         // otherwise there's a noticeable transition none => something when switching diagrams

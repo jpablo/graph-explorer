@@ -33,11 +33,16 @@ case class ViewerState(
     initialLeftPanelVisible:  Boolean = false,
     clientSize:               ClientSize = Normal,
     logLevel:                 Level = Level.None,
-    /** Nothing this state does reaches localStorage or the library directory —
-      * the mode the built-in examples open in. Everything else works normally;
-      * the diagram simply has no home to be saved to (see [[Persistence]]).
+    /** The built-in example this state is showing, if it is showing one.
+      *
+      * ONE field rather than an `ephemeral` flag beside a name, because the two
+      * could never legitimately disagree: being an example is what makes the
+      * state ephemeral (nothing reaches localStorage or the library directory,
+      * see [[Persistence]]) AND what supplies the title — an example has no
+      * project name of its own, and a DOT graph id like `logo` is not a
+      * declared title, so `displayTitle` had nothing to fall back to.
       */
-    ephemeral:                Boolean = false
+    exampleName:              Option[String] = None
 )(
     // All of this state's subscriptions hang off this owner. Pass a killable owner
     // (e.g. ManualOwner killed on unmount) so navigating away releases the whole
