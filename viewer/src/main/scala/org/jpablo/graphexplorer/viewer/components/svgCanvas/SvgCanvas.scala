@@ -236,6 +236,7 @@ def SvgCanvas(
         // here; they follow the pointer now — see CountBadges.installHover.)
         selection.signal --> { sel =>
           viewerOps.recordCells.pruneAgainstSelection(sel)
+          SelectionZOrder.reflectSelection(mainGroup, strategy, sel)
         },
         // UI elements reflecting the current mouse action
         viewerOps.SelectionRect(rawSvg.ref.getScreenCTM),
