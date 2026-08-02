@@ -170,21 +170,35 @@ trait KeyboardNavOps:
         c0    <- centers.get(n)
         cands <- candidatesFor(n, dir, centers)
       do
-        cands match
-          case Vector() => stepAbreast(n, dir, centers, boxes) // no arrow that way — try the peer beside us
-          case Vector(only) => moveToNode(only.far, centers) // single arrow: follow it through
-          case _ =>
-            // initial pick: best angular alignment with the press, then nearest
-            def score(c: Cand) =
-              val len = DistanceUtils.distance(c0.toTuple, c.center.toTuple) max 1e-9
-              val (vx, vy) = (c.center.x - c0.x, c.center.y - c0.y)
-              (-(vx * dir.dx + vy * dir.dy) / len, len)
-            val idx = cands.indices.minBy(i => score(cands(i)))
-            navContextV.set(Some(NavContext(n, dir)))
-            selectArrow(cands(idx).arrow, centers)
+        // An arrow candidate is not necessarily "that way" in the sense the eye
+        // means. The cone admits anything within ~80°, so from a child the
+        // PARENT — up and across — qualifies as a rightward neighbour and, being
+        // the only one, was followed: pressing Right off UI landed on `now`
+        // instead of the sibling sitting beside it.
+        //
+        // So a peer genuinely ON THIS ROW outranks an arrow candidate that is
+        // merely inside the cone. When an arrow candidate is itself on the row
+        // the edge wins — a real relation beats mere adjacency, and the fan
+        // below still gets to do its job.
+        val edgeOnMyRow = cands.exists(c => sameRow(n, c.far, dir, boxes))
+        val peer        = if edgeOnMyRow then None else abreastPeer(n, dir, boxes)
+        peer match
+          case Some(p) => moveToNode(p, centers)
+          case None =>
+            cands match
+              case Vector()     => () // nothing that way, and nobody beside us
+              case Vector(only) => moveToNode(only.far, centers) // single arrow: follow it through
+              case _ =>
+                // initial pick: best angular alignment with the press, then nearest
+                def score(c: Cand) =
+                  val len = DistanceUtils.distance(c0.toTuple, c.center.toTuple) max 1e-9
+                  val (vx, vy) = (c.center.x - c0.x, c.center.y - c0.y)
+                  (-(vx * dir.dx + vy * dir.dy) / len, len)
+                val idx = cands.indices.minBy(i => score(cands(i)))
+                navContextV.set(Some(NavContext(n, dir)))
+                selectArrow(cands(idx).arrow, centers)
 
-    /** No arrow leads that way, so step to the node that simply LIES that way —
-      * the peer abreast of this one.
+    /** The node that simply LIES that way — the peer abreast of this one.
       *
       * Siblings in a tree share a parent and nothing else: there is no edge
       * between them, so following arrows meant going UP to the parent and back
@@ -209,16 +223,14 @@ trait KeyboardNavOps:
       * Among the peers on that side, the nearest by GAP wins, so a press steps
       * one column at a time instead of leaping to the far edge.
       *
-      * A pure fallback: it runs only where a press does nothing today, so no
-      * existing move changes.
+      * Outranks an arrow candidate that is not itself on the row; see [[fromNode]].
       */
-    private def stepAbreast(
+    private def abreastPeer(
         n: NodeId,
         dir: NavDirection,
-        centers: Map[ElementId, ClientPoint],
         boxes: Map[ElementId, NavBox]
-    ): Unit =
-      for o <- boxes.get(n) do
+    ): Option[NodeId] =
+      boxes.get(n).flatMap: o =>
         // Strictly past this node's edge, so an overlapping neighbour never
         // counts as "beside" — and this node can never be its own answer.
         def beyond(b: NavBox) = dir match
@@ -226,19 +238,25 @@ trait KeyboardNavOps:
           case NavDirection.NavRight => b.l >= o.r
           case NavDirection.NavUp    => b.b <= o.t
           case NavDirection.NavDown  => b.t >= o.b
-        def onMyRow(b: NavBox) =
-          if dir.horizontal then b.t < o.b && b.b > o.t else b.l < o.r && b.r > o.l
         def gap(b: NavBox) = dir match
           case NavDirection.NavLeft  => o.l - b.r
           case NavDirection.NavRight => b.l - o.r
           case NavDirection.NavUp    => o.t - b.b
           case NavDirection.NavDown  => b.t - o.b
-        val peers = visibleGraphNow().nodeIds.iterator
+        visibleGraphNow().nodeIds.iterator
           .filter(_ != n)
           .flatMap(id => boxes.get(id).map(id -> _))
-          .filter((_, b) => onMyRow(b) && beyond(b))
-          .toVector
-        if peers.nonEmpty then moveToNode(peers.minBy((_, b) => gap(b))._1, centers)
+          .filter((_, b) => overlaps(o, b, dir) && beyond(b))
+          .minByOption((_, b) => gap(b))
+          .map(_._1)
+
+    /** Do these two boxes share the press's PERPENDICULAR extent — "same row"
+      * for a horizontal press, "same column" for a vertical one. */
+    private def overlaps(o: NavBox, b: NavBox, dir: NavDirection): Boolean =
+      if dir.horizontal then b.t < o.b && b.b > o.t else b.l < o.r && b.r > o.l
+
+    private def sameRow(n: NodeId, other: NodeId, dir: NavDirection, boxes: Map[ElementId, NavBox]): Boolean =
+      (for o <- boxes.get(n); b <- boxes.get(other) yield overlaps(o, b, dir)).getOrElse(false)
 
     private def fromArrow(a: ArrowId, dir: NavDirection, centers: Map[ElementId, ClientPoint]): Unit =
       // Re-derive the fan from (origin, dir) with CURRENT graph + geometry and
