@@ -105,13 +105,20 @@ trait KeyboardNavOps:
             // One geometry snapshot per press: a single findAll pass instead of
             // one whole-SVG query per candidate (the Mermaid strategy has no id
             // selector, so per-element queries degrade to full extractions).
-            val centers = centersSnapshot()
+            val boxes   = boxesSnapshot()
+            val centers = boxes.view.mapValues(_.center).toMap
             cursor match
-              case n: NodeId  => fromNode(n, dir, centers)
+              case n: NodeId  => fromNode(n, dir, centers, boxes)
               case a: ArrowId => fromArrow(a, dir, centers)
               case _          => ()
 
     private case class Cand(arrow: ArrowId, far: NodeId, center: ClientPoint)
+
+    /** An element's screen box. Centres alone cannot answer "is that node
+      * BESIDE this one" — see [[stepAbreast]], where a 45° cone over centres
+      * happily jumped from a node to one a whole rank above it. */
+    private case class NavBox(l: Double, t: Double, r: Double, b: Double):
+      def center: ClientPoint = ClientPoint((l + r) / 2.0, (t + b) / 2.0)
 
     /** The ordered candidate fan from `n` toward `dir`, or None when the
       * rendered geometry disagrees with the current graph (an async re-render
@@ -153,13 +160,18 @@ trait KeyboardNavOps:
             // cycling order: along the perpendicular axis, ascending screen coord
             .sortBy(c => if dir.horizontal then c.center.y else c.center.x)
 
-    private def fromNode(n: NodeId, dir: NavDirection, centers: Map[ElementId, ClientPoint]): Unit =
+    private def fromNode(
+        n: NodeId,
+        dir: NavDirection,
+        centers: Map[ElementId, ClientPoint],
+        boxes: Map[ElementId, NavBox]
+    ): Unit =
       for
         c0    <- centers.get(n)
         cands <- candidatesFor(n, dir, centers)
       do
         cands match
-          case Vector() => () // nothing that way
+          case Vector() => stepAbreast(n, dir, centers, boxes) // no arrow that way — try the peer beside us
           case Vector(only) => moveToNode(only.far, centers) // single arrow: follow it through
           case _ =>
             // initial pick: best angular alignment with the press, then nearest
@@ -170,6 +182,63 @@ trait KeyboardNavOps:
             val idx = cands.indices.minBy(i => score(cands(i)))
             navContextV.set(Some(NavContext(n, dir)))
             selectArrow(cands(idx).arrow, centers)
+
+    /** No arrow leads that way, so step to the node that simply LIES that way —
+      * the peer abreast of this one.
+      *
+      * Siblings in a tree share a parent and nothing else: there is no edge
+      * between them, so following arrows meant going UP to the parent and back
+      * DOWN through its fan just to reach the box next door. That is the move
+      * this removes.
+      *
+      * Deliberately not defined as "shares a predecessor". This module is
+      * screen-geometric throughout — Right means "toward what I see on the
+      * right", identically for rankdir=LR, TB or Mermaid — and the graph
+      * relation gets the obvious cases wrong in both directions: two boxes side
+      * by side under DIFFERENT parents are visually peers and would be excluded,
+      * while a sibling that layout placed far away would be included.
+      *
+      * "Beside" is EXTENT OVERLAP, not an angle. A cone over centres — even a
+      * tight 45° one — is not the same question, and gets it visibly wrong: a
+      * node one rank down and one column left sits at almost exactly 45°, so
+      * Right teleported from the bottom of one branch to the middle of another
+      * (measured: cos 0.707 against a 0.7 threshold). Requiring the candidate's
+      * perpendicular extent to overlap this node's asks the question actually
+      * being asked — is it on my row? — and has no threshold to tune.
+      *
+      * Among the peers on that side, the nearest by GAP wins, so a press steps
+      * one column at a time instead of leaping to the far edge.
+      *
+      * A pure fallback: it runs only where a press does nothing today, so no
+      * existing move changes.
+      */
+    private def stepAbreast(
+        n: NodeId,
+        dir: NavDirection,
+        centers: Map[ElementId, ClientPoint],
+        boxes: Map[ElementId, NavBox]
+    ): Unit =
+      for o <- boxes.get(n) do
+        // Strictly past this node's edge, so an overlapping neighbour never
+        // counts as "beside" — and this node can never be its own answer.
+        def beyond(b: NavBox) = dir match
+          case NavDirection.NavLeft  => b.r <= o.l
+          case NavDirection.NavRight => b.l >= o.r
+          case NavDirection.NavUp    => b.b <= o.t
+          case NavDirection.NavDown  => b.t >= o.b
+        def onMyRow(b: NavBox) =
+          if dir.horizontal then b.t < o.b && b.b > o.t else b.l < o.r && b.r > o.l
+        def gap(b: NavBox) = dir match
+          case NavDirection.NavLeft  => o.l - b.r
+          case NavDirection.NavRight => b.l - o.r
+          case NavDirection.NavUp    => o.t - b.b
+          case NavDirection.NavDown  => b.t - o.b
+        val peers = visibleGraphNow().nodeIds.iterator
+          .filter(_ != n)
+          .flatMap(id => boxes.get(id).map(id -> _))
+          .filter((_, b) => onMyRow(b) && beyond(b))
+          .toVector
+        if peers.nonEmpty then moveToNode(peers.minBy((_, b) => gap(b))._1, centers)
 
     private def fromArrow(a: ArrowId, dir: NavDirection, centers: Map[ElementId, ClientPoint]): Unit =
       // Re-derive the fan from (origin, dir) with CURRENT graph + geometry and
@@ -269,7 +338,7 @@ trait KeyboardNavOps:
       * arcs are unequal, so averaging leans toward whichever end of the loop
       * happens to be cut into more pieces.
       */
-    private def centersSnapshot(): Map[ElementId, ClientPoint] =
+    private def boxesSnapshot(): Map[ElementId, NavBox] =
       finalSVGNow() match
         case None => Map.empty
         case Some(svgEl) =>
@@ -283,7 +352,7 @@ trait KeyboardNavOps:
             .groupMapReduce(_._1)(_._2): (a, b) =>
               (math.min(a._1, b._1), math.min(a._2, b._2), math.max(a._3, b._3), math.max(a._4, b._4))
             .view
-            .mapValues { case (l, t, r, b) => ClientPoint((l + r) / 2.0, (t + b) / 2.0) }
+            .mapValues { case (l, t, r, b) => NavBox(l, t, r, b) }
             .toMap
 
   end keyboardNav
