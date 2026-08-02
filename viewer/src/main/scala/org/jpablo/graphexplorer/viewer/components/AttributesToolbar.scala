@@ -174,7 +174,14 @@ private def selectionView(state: ViewerState, commands: Commands, selectedNodes:
       div()
 
     case _ =>
-      val options = SelectByKind.optionsForSelection(selectedNodes.classify)
+      // A folded group is selected as its proxy NODE, so classifying the raw
+      // ids counts it under Nodes and the Groups option silently omits it —
+      // "Select all" then "Groups" lost the very groups whose boxes are most
+      // visible. Classify the MODEL spelling (resolveCollapsed), and hand back
+      // the CANVAS spelling (renderedId), or the filter would select GroupIds
+      // with no rendered element behind them.
+      val classified = state.resolveCollapsed(selectedNodes).classify
+      val options    = SelectByKind.optionsForSelection(classified)
       div(
         cls := "flex flex-row gap-2",
         Select(
@@ -182,7 +189,8 @@ private def selectionView(state: ViewerState, commands: Commands, selectedNodes:
           options = options.map(option => option.label -> option.kind.id),
           onChange.mapToValue --> { value =>
             ElementKind.fromId(value).foreach: kind =>
-              state.selection.set(SelectByKind.idsForSelection(selectedNodes.classify, kind))
+              val picked = SelectByKind.idsForSelection(classified, kind)
+              state.selection.set(ElementIds(picked.ids.map(state.renderedId)))
           }
         )
       )
