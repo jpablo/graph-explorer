@@ -62,6 +62,7 @@ object SelectionZOrder:
       // is no longer a child by throwing, so fall back to the end.
       try mainGroup.insertBefore(el, before.orNull)
       catch case _: Throwable => mainGroup.appendChild(el)
+      el.classList.remove(raisedClass)
       raised.remove(el)
 
     // Before the badge layer, which must stay the topmost thing: its controls
@@ -69,4 +70,10 @@ object SelectionZOrder:
     val ceiling = Option(mainGroup.querySelector("g.gx-badge-layer"))
     for el <- wanted if !raised.contains(el) do
       raised(el) = Option(el.nextSibling)
+      el.classList.add(raisedClass)
       mainGroup.insertBefore(el, ceiling.orNull)
+
+  /** Marks an element this object has lifted. RecordCellOverlay parks itself
+    * BELOW these, so its veil never dims the very arrow the selection is
+    * pointing at. */
+  val raisedClass = "gx-raised"

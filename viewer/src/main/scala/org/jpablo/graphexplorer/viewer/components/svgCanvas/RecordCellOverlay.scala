@@ -69,7 +69,23 @@ object RecordCellOverlay:
         label.textContent = s"<$p>"
         g.appendChild(label)
 
-      mainGroup.appendChild(g)
+      insertBelowRaised(mainGroup, g)
+
+  /** Overlays park BELOW anything SelectionZOrder has lifted, and below the
+    * badge layer.
+    *
+    * The veil is a record-sized translucent slab. Appended last it covered a
+    * SELECTED arrow crossing the record — the arrow the selection was pointing
+    * at, dimmed by the marker for a different selection. The slot is computed
+    * from the DOM at insertion time rather than fixed, so it does not matter
+    * whether a raise or an overlay refresh runs last: both orders converge on
+    * veil < raised arrows < badge layer.
+    */
+  private def insertBelowRaised(mainGroup: dom.Element, g: dom.Element): Unit =
+    val anchor =
+      Option(mainGroup.querySelector(s".${SelectionZOrder.raisedClass}"))
+        .orElse(Option(mainGroup.querySelector("g.gx-badge-layer")))
+    mainGroup.insertBefore(g, anchor.orNull)
 
   /** The attach target while an arrow drag hovers a record: a dashed outline
     * on the cell under the pointer. Pass None to clear. */
@@ -89,7 +105,7 @@ object RecordCellOverlay:
       // cannot see is worse than one you can.
       rect.asInstanceOf[js.Dynamic].style.strokeWidth = s"${ScreenConstant.strokeWidthFor(DropStrokePx)}px"
       g.appendChild(rect)
-      mainGroup.appendChild(g)
+      insertBelowRaised(mainGroup, g)
 
   /** The area between `outer` and the cell rect, as ONE even-odd subpath pair. */
   private def ringPath(outer: dom.SVGRect, x: Double, y: Double, w: Double, h: Double): String =
