@@ -16,6 +16,7 @@ import scala.scalajs.js.typedarray.Float32Array
 class Object3D extends js.Object:
   val position: Vector3                 = js.native
   val scale: Vector3                    = js.native
+  val matrixWorld: Matrix4              = js.native
   var visible: Boolean                  = js.native
   var frustumCulled: Boolean            = js.native
   val userData: js.Dictionary[js.Any]   = js.native
@@ -23,6 +24,8 @@ class Object3D extends js.Object:
   def add(objects: Object3D*): this.type    = js.native
   def remove(objects: Object3D*): this.type = js.native
   def lookAt(x: Double, y: Double, z: Double): Unit = js.native
+  // From three's EventDispatcher (not the DOM's): controller select events etc.
+  def addEventListener(tpe: String, listener: js.Function1[js.Any, Unit]): Unit = js.native
 
 @js.native
 @JSImport("three", "Scene")
@@ -49,7 +52,15 @@ class Vector3 extends js.Object:
   var x: Double = js.native
   var y: Double = js.native
   var z: Double = js.native
-  def set(x: Double, y: Double, z: Double): this.type = js.native
+  def set(x: Double, y: Double, z: Double): this.type    = js.native
+  def setFromMatrixPosition(m: Matrix4): this.type       = js.native
+  def applyMatrix4(m: Matrix4): this.type                = js.native
+
+@js.native
+@JSImport("three", "Matrix4")
+class Matrix4 extends js.Object:
+  def identity(): this.type              = js.native
+  def extractRotation(m: Matrix4): this.type = js.native
 
 @js.native
 @JSImport("three", "Color")
@@ -111,9 +122,17 @@ object LineBasicMaterial:
 class LineSegments(geometry: BufferGeometry, lineMaterial: LineBasicMaterial) extends Object3D
 
 @js.native
+trait WebXRManager extends js.Object:
+  var enabled: Boolean         = js.native
+  val isPresenting: Boolean    = js.native
+  def getController(index: Int): Object3D = js.native
+  def addEventListener(tpe: String, listener: js.Function1[js.Any, Unit]): Unit = js.native
+
+@js.native
 @JSImport("three", "WebGLRenderer")
 class WebGLRenderer(parameters: js.Object) extends js.Object:
   val domElement: dom.html.Canvas = js.native
+  val xr: WebXRManager            = js.native
   def setPixelRatio(value: Double): Unit          = js.native
   def setSize(width: Double, height: Double): Unit = js.native
   def render(scene: Object3D, camera: PerspectiveCamera): Unit = js.native
@@ -131,12 +150,29 @@ trait Intersection extends js.Object:
   val hitObject: Object3D    = js.native
 
 @js.native
+trait Ray extends js.Object:
+  val origin: Vector3    = js.native
+  val direction: Vector3 = js.native
+
+@js.native
 @JSImport("three", "Raycaster")
 class Raycaster extends js.Object:
+  val ray: Ray = js.native
   def setFromCamera(coords: Vector2, camera: PerspectiveCamera): Unit = js.native
   def intersectObjects(objects: js.Array[Object3D], recursive: Boolean): js.Array[Intersection] = js.native
 
 // three maps "three/addons/*" to its examples/jsm/* via the package's export map.
+
+/** three's stock session-management button: requests/ends the immersive
+  * session and reflects its state. We append it only after our own
+  * isSessionSupported check — its built-in "XR NOT SUPPORTED" placeholder
+  * would be noise on every desktop.
+  */
+@js.native
+@JSImport("three/addons/webxr/XRButton.js", "XRButton")
+object XRButton extends js.Object:
+  def createButton(renderer: WebGLRenderer): dom.html.Element = js.native
+
 @js.native
 @JSImport("three/addons/controls/OrbitControls.js", "OrbitControls")
 class OrbitControls(camera: PerspectiveCamera, domElement: dom.Element) extends js.Object:

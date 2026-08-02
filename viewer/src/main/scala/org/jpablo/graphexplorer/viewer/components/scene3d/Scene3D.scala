@@ -9,7 +9,9 @@ import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
+import scala.scalajs.js.Thenable.Implicits.*
 import scala.scalajs.js.typedarray.Float32Array
 
 /** The 3D canvas: renders `visibleGraph` as a three.js scene, bypassing the
@@ -27,7 +29,8 @@ def Scene3D(state: ViewerState): Div =
   val scene = GraphScene3D(state)
   div(
     idAttr := "scene3d-container",
-    cls    := "h-full w-full overflow-hidden",
+    // relative: the XRButton positions itself absolutely within this box.
+    cls    := "relative h-full w-full overflow-hidden",
     onMountUnmountCallback(
       ctx => scene.start(ctx.thisNode.ref),
       _ => scene.dispose()
@@ -56,13 +59,20 @@ final class GraphScene3D(state: ViewerState):
   private val renderer   = three.WebGLRenderer(three.WebGLRenderer.params(antialias = true, alpha = true))
   private val scene      = three.Scene()
   private val camera     = three.PerspectiveCamera(50, 1, 0.1, 2000)
+  /** Everything the graph draws hangs off this one group, so an XR session can
+    * move/scale the whole drawing to a comfortable spot (WebXR's origin is the
+    * FLOOR — at identity the graph would sit half underground).
+    */
+  private val graphRoot  = three.Group()
   private val nodesGroup = three.Group()
   private val raycaster  = three.Raycaster()
   private val pointerNdc = three.Vector2()
+  private val tempMatrix = three.Matrix4()
   private val lineMaterial =
     three.LineBasicMaterial(three.LineBasicMaterial.params(vertexColors = true, transparent = true, opacity = 0.95))
 
-  scene.add(nodesGroup)
+  scene.add(graphRoot)
+  graphRoot.add(nodesGroup)
 
   private var algo: Layout3D        = ForceLayout3D
   private var layout: LayoutState3D = algo.initial(LayoutGraph(Vector.empty, Vector.empty))
@@ -73,6 +83,7 @@ final class GraphScene3D(state: ViewerState):
 
   private var controlsOpt: Option[three.OrbitControls]        = None
   private var resizeObserverOpt: Option[dom.ResizeObserver]   = None
+  private var xrButtonOpt: Option[dom.html.Element]           = None
   private var lineSegmentsOpt: Option[three.LineSegments]     = None
   private var lineGeometryOpt: Option[three.BufferGeometry]   = None
   private var linePosAttrOpt: Option[three.BufferAttribute]   = None
@@ -189,7 +200,7 @@ final class GraphScene3D(state: ViewerState):
     * layout step into a preallocated buffer.
     */
   private def rebuildLines(): Unit =
-    lineSegmentsOpt.foreach(scene.remove(_))
+    lineSegmentsOpt.foreach(graphRoot.remove(_))
     lineGeometryOpt.foreach(_.dispose())
     lineSegmentsOpt = None
     lineGeometryOpt = None
@@ -209,7 +220,7 @@ final class GraphScene3D(state: ViewerState):
       // Positions mutate every frame; skip bounding-sphere culling instead of
       // recomputing it per step.
       segments.frustumCulled = false
-      scene.add(segments)
+      graphRoot.add(segments)
       lineSegmentsOpt = Some(segments)
       lineGeometryOpt = Some(geometry)
       linePosAttrOpt = Some(posAttr)
@@ -256,7 +267,65 @@ final class GraphScene3D(state: ViewerState):
     resizeObserverOpt = Some(observer)
 
     attachPointerHandlers()
+    setupXR(container)
     renderer.setAnimationLoop(frame)
+
+  /** WebXR is a progressive enhancement of this ordinary WebGL page: the
+    * Enter-VR button only materializes when the browser reports a device that
+    * can run an immersive-vr session (visionOS Safari says yes; desktops say
+    * no and see nothing). The camera is the headset's during a session, so the
+    * only spatial work is placing the graph at a comfortable spot: WebXR's
+    * origin is the floor, so the drawing lifts to chest height, arm-and-a-half
+    * away, scaled so its radius reads about a meter.
+    */
+  private def setupXR(container: dom.Element): Unit =
+    renderer.xr.enabled = true
+    renderer.xr.addEventListener("sessionstart", _ => enterXRLayout())
+    renderer.xr.addEventListener("sessionend", _ => exitXRLayout())
+    // On visionOS every pinch is a transient input source whose target ray is
+    // the gaze at pinch time — three surfaces them through the controller
+    // slots, so binding both covers one- and two-handed pinches.
+    bindController(0)
+    bindController(1)
+    val navXr = js.Dynamic.global.navigator.selectDynamic("xr")
+    if !js.isUndefined(navXr) then
+      navXr
+        .applyDynamic("isSessionSupported")("immersive-vr")
+        .asInstanceOf[js.Promise[Boolean]]
+        .foreach: supported =>
+          if supported then
+            val button = three.XRButton.createButton(renderer)
+            container.appendChild(button)
+            xrButtonOpt = Some(button)
+
+  private def enterXRLayout(): Unit =
+    val radius = layout.positions.values.map(_.length).maxOption.getOrElse(1.0)
+    val s      = math.min(1.0, 1.1 / math.max(0.5, radius))
+    graphRoot.scale.set(s, s, s)
+    graphRoot.position.set(0, 1.3, -1.6)
+
+  private def exitXRLayout(): Unit =
+    graphRoot.scale.set(1, 1, 1)
+    graphRoot.position.set(0, 0, 0)
+
+  private def bindController(index: Int): Unit =
+    val controller = renderer.xr.getController(index)
+    scene.add(controller)
+    controller.addEventListener("select", _ => pickFromController(controller))
+
+  /** A pinch TOGGLES the gazed-at node. Deliberately no clear-on-miss in VR:
+    * with gaze-driven rays a stray pinch is common, and losing a selection to
+    * one would be maddening.
+    */
+  private def pickFromController(controller: three.Object3D): Unit =
+    tempMatrix.identity().extractRotation(controller.matrixWorld)
+    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld)
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix)
+    raycaster
+      .intersectObjects(nodesGroup.children, recursive = false)
+      .headOption
+      .flatMap(_.hitObject.userData.get("nodeId"))
+      .foreach(raw => state.selection.toggle(NodeId(raw.asInstanceOf[String])))
 
   private def frame(@annotation.unused time: Double): Unit =
     if !layout.done then
@@ -266,7 +335,9 @@ final class GraphScene3D(state: ViewerState):
         s += 1
       writePositions()
       if layout.done then fitCameraToLayout()
-    controlsOpt.foreach(_.update())
+    // During a session the headset owns the camera; OrbitControls' damping
+    // writes would fight it.
+    if !renderer.xr.isPresenting then controlsOpt.foreach(_.update())
     renderer.render(scene, camera)
 
   /** Once the simulation settles, dolly the camera along its current view ray
@@ -275,7 +346,7 @@ final class GraphScene3D(state: ViewerState):
     * orbit the user already started is respected.
     */
   private def fitCameraToLayout(): Unit =
-    if layout.positions.nonEmpty then
+    if layout.positions.nonEmpty && !renderer.xr.isPresenting then
       val r = layout.positions.values.map(_.length).max + NodeHeight * 2
       val d = math.max(4.0, r * 2.4)
       val p = camera.position
@@ -333,6 +404,7 @@ final class GraphScene3D(state: ViewerState):
   def dispose(): Unit =
     renderer.setAnimationLoop(null)
     resizeObserverOpt.foreach(_.disconnect())
+    xrButtonOpt.foreach(_.remove())
     controlsOpt.foreach(_.dispose())
     sprites.values.foreach(disposeSprite)
     sprites = Map.empty
