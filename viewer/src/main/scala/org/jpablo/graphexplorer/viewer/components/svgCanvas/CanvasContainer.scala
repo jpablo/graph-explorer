@@ -2,7 +2,9 @@ package org.jpablo.graphexplorer.viewer.components.svgCanvas
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.api.features.unitArrows
+import com.raquo.laminar.nodes.ChildNode
 import org.jpablo.graphexplorer.viewer.components.Commands
+import org.jpablo.graphexplorer.viewer.components.scene3d.Scene3D
 import org.jpablo.graphexplorer.viewer.state.{EditorNotice, ViewerState}
 import org.jpablo.graphexplorer.viewer.utils.ClientPoint
 import org.jpablo.graphexplorer.viewer.widgets.{Tooltip, TooltipPos}
@@ -26,8 +28,12 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     idAttr   := "canvas-container",
     tabIndex := 0,
     state.fitDiagram.events --> state.resetView(),
-    // the main canvas!!
-    child.maybe <-- state.finalSVG,
+    // the main canvas!! Either the engine's SVG or the experimental three.js
+    // scene — a fresh Scene3D per toggle-on, so 3D state never outlives the mode.
+    child.maybe <-- state.view3D.signal.distinct.flatMapSwitch:
+      case true  => Signal.fromValue(Some(Scene3D(state)): Option[ChildNode.Base])
+      case false => state.finalSVG.map(svg => svg: Option[ChildNode.Base])
+    ,
     // Render-only diagram kinds (Mermaid beyond flowcharts): the notice used to
     // live only inside the sources panel, invisible unless that panel was open.
     // The chip sits on the canvas itself — the place where the limitation bites.
@@ -51,8 +57,12 @@ def CanvasContainer(state: ViewerState, commands: Commands) =
     // Also keeps trackpad pinch (wheel + ctrlKey) from zooming the whole page.
     // preventDefault works here because the div's listener is non-passive —
     // Chrome's passive-by-default applies only to window/document/body.
-    onWheel.preventDefault(_.withCurrentValueOf(state.finalSVG)) --> ((e, svgElemO) =>
-      svgElemO.map(s => state.handleWheel(e, s.ref.viewBox.baseVal))
+    // In 3D, OrbitControls owns the wheel gesture; the guard keeps the 2D
+    // transform from silently mutating under an unmounted SVG. preventDefault
+    // still applies (it runs at the listener, before the filter), so the
+    // back-swipe protection above holds in both modes.
+    onWheel.preventDefault(_.filter(_ => !state.view3D.now()).withCurrentValueOf(state.finalSVG)) --> (
+      (e, svgElemO) => svgElemO.map(s => state.handleWheel(e, s.ref.viewBox.baseVal))
     )
   )
 

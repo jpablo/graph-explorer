@@ -36,6 +36,12 @@ trait UIState:
     */
   val wrapSourceLines = Var(false)
 
+  /** Experimental 3D canvas: render the visible graph as a three.js scene
+    * (Scene3D) instead of the engine's SVG. A Boolean, not an enum — a third
+    * render mode can introduce one when it exists. Persisted in ViewerSettings.
+    */
+  val view3D = Var(false)
+
   extension (section: RightPanelSection)
     def isSectionActive: Signal[Boolean] =
       rightPanelActiveSection.signal.map(_ == section)

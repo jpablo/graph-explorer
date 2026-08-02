@@ -64,7 +64,8 @@ trait Persistence:
         dom.window.innerWidth
       ),
       wrapSourceLines -> restoredViewerSettings.wrapSourceLines,
-      elementsPinned -> restoredViewerSettings.elementsPinned
+      elementsPinned -> restoredViewerSettings.elementsPinned,
+      view3D -> restoredViewerSettings.view3D
     )
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
@@ -100,11 +101,12 @@ trait Persistence:
         promptLabelBeforeNewNode.signal,
         rightPanelWidth.signal,
         wrapSourceLines.signal,
-        elementsPinned.signal
+        elementsPinned.signal,
+        view3D.signal
       )
       .changes
       .distinct
-      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned) =>
+      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D) =>
         // copy, not a fresh ViewerSettings: fields this page does not own (the library's
         // view mode) must survive a detail-page sync instead of resetting to defaults.
         viewerSettings.update(
@@ -116,6 +118,7 @@ trait Persistence:
             rightPanelWidth = Some(panelWidth),
             wrapSourceLines = wrapLines,
             elementsPinned = pinned,
+            view3D = in3D,
             schemaVersion = ViewerSettings.currentSchemaVersion
           )
         )
@@ -167,6 +170,8 @@ case class ViewerSettings(
     wrapSourceLines:    Boolean = false,
     // Palette-first Elements list: false = floating card, true = docked in the panel.
     elementsPinned:     Boolean = false,
+    // Experimental 3D canvas (three.js scene instead of the engine's SVG).
+    view3D:             Boolean = false,
     // Library page: false = thumbnail cards, true = compact rows.
     libraryListMode:    Boolean = false,
     // Library page: the sort column, and the format the list is filtered to.

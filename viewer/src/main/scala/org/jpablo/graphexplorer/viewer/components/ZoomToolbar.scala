@@ -21,5 +21,12 @@ def ZoomToolbar(state: ViewerState, commands: Commands) =
       SwapIcon(state.autoFit.signal, onIcon = "bi bi-check-circle", offIcon = "bi bi-circle"),
       onClick --> commands.all.autoFit.execute()
     ).tiny.ghost.activeWhen(state.autoFit.signal),
-    Button(span().plusIcon, onClick --> commands.all.zoomIn.execute()).tiny.ghost
+    Button(span().plusIcon, onClick --> commands.all.zoomIn.execute()).tiny.ghost,
+    // ---------- render mode ----------
+    Button(
+      title := "3D view (experimental)",
+      "3D",
+      SwapIcon(state.view3D.signal, onIcon = "bi bi-check-circle", offIcon = "bi bi-circle"),
+      onClick --> state.view3D.update(!_)
+    ).tiny.ghost.activeWhen(state.view3D.signal)
   )

@@ -128,6 +128,9 @@ lazy val viewer =
         "dot-parser",
         "@scala-js/vite-plugin-scalajs",
         "mermaid",
+        // three ships its own (huge) .d.ts surface; the viewer binds to a
+        // hand-written narrow facade instead (backends/threejs/ThreeJS.scala).
+        "three",
         "uuid"
       ),
       libraryDependencies ++= Seq(
