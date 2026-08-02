@@ -268,11 +268,22 @@ trait RecordCellOps:
     def clearCell(): Unit =
       if selectedCellV.now().isDefined then selectedCellV.set(None)
 
-    /** Escape pops one level: cell → node. @return true when consumed. */
+    /** Escape pops one level: cell → node. @return true when consumed.
+      *
+      * "To the node" means the node is what ends up selected — not the node plus
+      * whatever the row's successors were. Clearing only the cell left a
+      * multi-selection with no cursor in it, so the record was still buried in
+      * its own results and the only way back to it was the mouse. Now Escape
+      * lands you on the record with the keyboard still in charge, and a second
+      * Escape clears the selection (Commands.clearSelection).
+      */
     def escapeCell(): Boolean =
-      val had = selectedCellV.now().isDefined
-      clearCell()
-      had
+      selectedCellV.now() match
+        case Some(cell) =>
+          clearCell()
+          selection.set2(cell.nodeId)
+          true
+        case None => false
 
     /** The cell selection exists only while its node is the single selected
       * element — called on every element-selection change. */
@@ -336,6 +347,11 @@ trait RecordCellOps:
               val delta = if dir == NavDirection.NavDown || dir == NavDirection.NavRight then 1 else -1
               val cur   = paths.indexOf(clamped(cell).path).max(0)
               val next  = ((cur + delta) % paths.length + paths.length) % paths.length
+              // The cursor OWNS what it derived: row A's successors are not row
+              // B's, so moving the cursor drops them. Without this the canvas
+              // showed one row's neighbourhood while the cursor sat on another,
+              // and comparing two rows meant re-clicking the record between them.
+              selection.set2(cell.nodeId)
               selectCell(cell.nodeId, paths(next))
             true
         case None => false
