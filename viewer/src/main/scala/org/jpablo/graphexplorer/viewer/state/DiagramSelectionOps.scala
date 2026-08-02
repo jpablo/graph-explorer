@@ -6,7 +6,7 @@ import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.backends.mermaid.effectiveEdgeMarkers
 import org.jpablo.graphexplorer.viewer.components.selection.{SelectableElement, SelectableElementStrategy}
 import org.jpablo.graphexplorer.viewer.extensions.in
-import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
+import org.jpablo.graphexplorer.viewer.graph.{CollapseOps, ViewerGraph}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.state.DiagramSelectionOps.findClosestElementId
 import org.jpablo.graphexplorer.viewer.utils.MouseActionRect
@@ -283,8 +283,15 @@ trait DiagramSelectionOps:
     def selectAllVisibleArrows() =
       set1(visibleGraphNow().arrowIds)
 
+    /** Every group, folded or not. `visibleGraphNow().groupIds` alone misses the
+      * folded ones — collapsing REPLACES a group with a proxy node, so a folded
+      * group is not a group in the visible graph at all, and this command used
+      * to skip exactly the groups whose boxes are most visible.
+      */
     def selectAllVisibleGroups() =
-      set1(visibleGraphNow().groupIds)
+      val visible = visibleGraphNow()
+      val boxes   = visible.nodeIds.filter(n => CollapseOps.collapsedGroupFor(n, project.collapsedGroups.now()).isDefined)
+      set1(visible.groupIds.map(g => g: ElementId) ++ boxes)
 
     def selectAll() =
       val visibleGraph = visibleGraphNow()

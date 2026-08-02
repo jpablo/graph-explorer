@@ -441,7 +441,8 @@ def ElementsList(state: ViewerState): Div =
           groupCollapse(groupId),
           groupEye(graph, groupId),
           onMouseDown.preventDefault --> Observer.empty,
-          onClick --> { e => state.selection.updateSelectionStatus(groupId)(e.shiftKey) }
+          // A folded group is drawn as a proxy node; select the id the canvas uses.
+          onClick --> { e => state.selection.updateSelectionStatus(state.renderedId(groupId))(e.shiftKey) }
         )
       }
 

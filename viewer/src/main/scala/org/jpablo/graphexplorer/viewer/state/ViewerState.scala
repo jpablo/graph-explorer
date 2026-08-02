@@ -348,6 +348,23 @@ case class ViewerState(
         CollapseOps.collapsedGroupFor(id, collapsed).getOrElse(id)
       })
 
+  /** The id the CANVAS uses for `id` — the exact inverse of [[resolveCollapsed]].
+    *
+    * A collapsed group is drawn as a proxy NODE carrying the group's id string,
+    * and selection deliberately holds THAT id because the rendered element is a
+    * node. So anything that names a group from the model side — "select all
+    * groups", a group row in the Elements panel — must translate, or a folded
+    * group is silently skipped by the very command that claims to include it.
+    *
+    * Only the OUTERMOST folded groups draw a box; one nested inside another
+    * folded group renders nothing at all, so it keeps its GroupId and simply has
+    * nothing to highlight either way.
+    */
+  def renderedId(id: ElementId): ElementId = id match
+    case g: GroupId if fullGraphNow().effectiveCollapsed(project.collapsedGroups.now()).contains(g) =>
+      CollapseOps.proxyIdFor(g)
+    case other => other
+
   /** Every group folds to its box (nesting resolves to the outermost ones at
     * render time); the inverse restores the full structure.
     */
