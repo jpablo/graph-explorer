@@ -42,6 +42,11 @@ trait UIState:
     */
   val view3D = Var(false)
 
+  /** Which 3D layout algorithm drives Scene3D, by [[Layout3D.id]]. Persisted
+    * in ViewerSettings; unknown stored ids fall back to the force layout.
+    */
+  val layout3D = Var(org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id)
+
   extension (section: RightPanelSection)
     def isSectionActive: Signal[Boolean] =
       rightPanelActiveSection.signal.map(_ == section)

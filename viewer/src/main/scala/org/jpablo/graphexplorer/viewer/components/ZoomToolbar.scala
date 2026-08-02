@@ -3,6 +3,7 @@ package org.jpablo.graphexplorer.viewer.components
 import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.widgets.{SwapIcon, activeWhen}
 import com.raquo.laminar.api.features.unitArrows
+import org.jpablo.graphexplorer.viewer.layout3d.Layout3D
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.*
 import org.jpablo.graphexplorer.viewer.widgets.Icons.*
@@ -28,5 +29,19 @@ def ZoomToolbar(state: ViewerState, commands: Commands) =
       "3D",
       SwapIcon(state.view3D.signal, onIcon = "bi bi-check-circle", offIcon = "bi bi-circle"),
       onClick --> state.view3D.update(!_)
-    ).tiny.ghost.activeWhen(state.view3D.signal)
+    ).tiny.ghost.activeWhen(state.view3D.signal),
+    // The layout picker only means something while the 3D scene is up.
+    // Switching morphs the drawing live from one shape to the other.
+    child.maybe <-- state.view3D.signal.map(on => Option.when(on)(layout3DSelect(state)))
+  )
+
+private def layout3DSelect(state: ViewerState) =
+  select(
+    cls   := "select select-ghost select-xs w-auto",
+    title := "3D layout algorithm",
+    Layout3D.all.map(algo => option(value := algo.id, algo.label)),
+    controlled(
+      value <-- state.layout3D.signal,
+      onChange.mapToValue --> state.layout3D.writer
+    )
   )

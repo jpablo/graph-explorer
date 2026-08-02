@@ -65,7 +65,10 @@ trait Persistence:
       ),
       wrapSourceLines -> restoredViewerSettings.wrapSourceLines,
       elementsPinned -> restoredViewerSettings.elementsPinned,
-      view3D -> restoredViewerSettings.view3D
+      view3D -> restoredViewerSettings.view3D,
+      layout3D -> restoredViewerSettings.layout3D.getOrElse(
+        org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id
+      )
     )
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
@@ -102,11 +105,12 @@ trait Persistence:
         rightPanelWidth.signal,
         wrapSourceLines.signal,
         elementsPinned.signal,
-        view3D.signal
+        view3D.signal,
+        layout3D.signal
       )
       .changes
       .distinct
-      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D) =>
+      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D, layout3DId) =>
         // copy, not a fresh ViewerSettings: fields this page does not own (the library's
         // view mode) must survive a detail-page sync instead of resetting to defaults.
         viewerSettings.update(
@@ -119,6 +123,7 @@ trait Persistence:
             wrapSourceLines = wrapLines,
             elementsPinned = pinned,
             view3D = in3D,
+            layout3D = Some(layout3DId),
             schemaVersion = ViewerSettings.currentSchemaVersion
           )
         )
@@ -172,6 +177,10 @@ case class ViewerSettings(
     elementsPinned:     Boolean = false,
     // Experimental 3D canvas (three.js scene instead of the engine's SVG).
     view3D:             Boolean = false,
+    // 3D layout algorithm by Layout3D.id. Stored loosely like librarySort:
+    // None = default (force), and an unknown id degrades to the default
+    // instead of costing the user every other setting.
+    layout3D:           Option[String] = None,
     // Library page: false = thumbnail cards, true = compact rows.
     libraryListMode:    Boolean = false,
     // Library page: the sort column, and the format the list is filtered to.

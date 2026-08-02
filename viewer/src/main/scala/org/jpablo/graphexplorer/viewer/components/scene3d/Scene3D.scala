@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.viewer.backends.threejs as three
 import org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, LayoutGraph, LayoutState3D}
+import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.scalajs.dom
@@ -33,7 +33,8 @@ def Scene3D(state: ViewerState): Div =
       _ => scene.dispose()
     ),
     state.visibleGraph --> scene.setGraph,
-    state.selection.signal --> scene.setSelection
+    state.selection.signal --> scene.setSelection,
+    state.layout3D.signal --> scene.setAlgorithm
   )
 
 final class GraphScene3D(state: ViewerState):
@@ -63,7 +64,8 @@ final class GraphScene3D(state: ViewerState):
 
   scene.add(nodesGroup)
 
-  private var layout: LayoutState3D = ForceLayout3D.initial(LayoutGraph(Vector.empty, Vector.empty))
+  private var algo: Layout3D        = ForceLayout3D
+  private var layout: LayoutState3D = algo.initial(LayoutGraph(Vector.empty, Vector.empty))
   private var sprites               = Map.empty[NodeId, NodeSprite]
   private var edges                 = Vector.empty[(NodeId, NodeId)]
   private var selectedNodes         = Set.empty[NodeId]
@@ -81,7 +83,7 @@ final class GraphScene3D(state: ViewerState):
   def setGraph(g: ViewerGraph): Unit =
     val nodeIds = g.nodes.keys.toVector
     edges = g.arrows.values.map(a => (a.source, a.target)).toVector
-    layout = ForceLayout3D.sync(layout, LayoutGraph(nodeIds, edges))
+    layout = algo.sync(layout, LayoutGraph(nodeIds, edges))
 
     val labels: Map[NodeId, String] =
       g.nodes.map((id, node) => id -> displayLabel(id, node)).toMap
@@ -101,6 +103,16 @@ final class GraphScene3D(state: ViewerState):
   def setSelection(sel: ElementIds): Unit =
     selectedNodes = sel.ids.collect { case n: NodeId => n }.toSet
     applySelection()
+
+  /** Switch layout algorithms. The new algorithm adopts the CURRENT state —
+    * its sync sees a foreign algoId and re-adopts even though the graph is
+    * unchanged — so the drawing morphs live from one shape to the other.
+    */
+  def setAlgorithm(algoId: String): Unit =
+    val next = Layout3D.byId(algoId).getOrElse(ForceLayout3D)
+    if next.id != algo.id then
+      algo = next
+      layout = algo.sync(layout, layout.graph)
 
   /** What the sprite shows: the label attribute when it is plain text, the id
     * otherwise. Record/HTML markup would render as raw source, so it falls back
@@ -250,7 +262,7 @@ final class GraphScene3D(state: ViewerState):
     if !layout.done then
       var s = 0
       while s < StepsPerFrame && !layout.done do
-        layout = ForceLayout3D.step(layout)
+        layout = algo.step(layout)
         s += 1
       writePositions()
       if layout.done then fitCameraToLayout()

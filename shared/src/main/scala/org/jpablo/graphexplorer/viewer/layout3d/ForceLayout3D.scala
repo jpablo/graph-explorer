@@ -1,29 +1,5 @@
 package org.jpablo.graphexplorer.viewer.layout3d
 
-import org.jpablo.graphexplorer.viewer.models.NodeId
-
-/** The layout's view of a graph: node identity and connectivity, nothing else.
-  * Equality on this type is what decides whether a re-emitted `visibleGraph`
-  * restarts the simulation — attribute-only edits (colors, labels) produce the
-  * same LayoutGraph and must leave a settled layout untouched.
-  */
-case class LayoutGraph(
-    nodes: Vector[NodeId],
-    edges: Vector[(NodeId, NodeId)]
-) derives CanEqual
-
-/** A simulation snapshot. `step` is pure (state => state) so the caller decides
-  * pacing: N steps per animation frame, or `run` to convergence in a test.
-  * temperature == 0 means settled; `step` is then the identity.
-  */
-case class LayoutState3D(
-    graph:       LayoutGraph,
-    positions:   Map[NodeId, Vec3],
-    temperature: Double,
-    iteration:   Int
-) derives CanEqual:
-  def done: Boolean = temperature <= 0
-
 /** Fruchterman–Reingold force layout in three dimensions.
   *
   * Deliberately deterministic: initial placement is a Fibonacci sphere (evenly
@@ -32,7 +8,10 @@ case class LayoutState3D(
   * hundreds of nodes the viewer draws; revisit (Barnes–Hut) before pointing it
   * at thousands.
   */
-object ForceLayout3D:
+object ForceLayout3D extends Layout3D:
+
+  val id    = "force"
+  val label = "Force"
 
   case class Params(
       /** Ideal edge length, in world units. Everything else scales off it. */
@@ -68,51 +47,58 @@ object ForceLayout3D:
     val theta       = goldenAngle * i
     Vec3(math.cos(theta) * r, y, math.sin(theta) * r)
 
-  def initial(graph: LayoutGraph, params: Params = defaultParams): LayoutState3D =
+  def initial(graph: LayoutGraph): LayoutState3D = initial(graph, defaultParams)
+
+  def initial(graph: LayoutGraph, params: Params): LayoutState3D =
     val n = graph.nodes.size
     val r = radiusFor(n, params.k)
     val positions =
       graph.nodes.iterator.zipWithIndex
-        .map((id, i) => id -> fibonacciSphere(i, n) * r)
+        .map((nodeId, i) => nodeId -> fibonacciSphere(i, n) * r)
         .toMap
-    LayoutState3D(graph, positions, r * params.initialTempFactor, 0)
+    LayoutState3D(id, graph, positions, r * params.initialTempFactor, 0)
 
-  /** Adopt a new graph while keeping the layout the user is looking at:
-    * surviving nodes keep their positions exactly; a new node starts at the
-    * barycenter of its already-placed neighbors (nudged off it so the spring
-    * force is well-defined), or on the placement sphere when it has none.
-    * Reheats to half the initial temperature so the change animates in instead
-    * of teleporting the whole drawing.
+  /** Adopt a new graph (or a foreign algorithm's state) while keeping the
+    * layout the user is looking at: surviving nodes keep their positions
+    * exactly; a new node starts at the barycenter of its already-placed
+    * neighbors (nudged off it so the spring force is well-defined), or on the
+    * placement sphere when it has none. Reheats to half the initial
+    * temperature so the change animates in instead of teleporting.
     *
-    * Identity when the topology is unchanged — attribute edits must not wiggle
-    * a settled layout.
+    * Identity when the topology is unchanged and the state is already this
+    * algorithm's — attribute edits must not wiggle a settled layout.
     */
-  def sync(state: LayoutState3D, newGraph: LayoutGraph, params: Params = defaultParams): LayoutState3D =
-    if state.graph == newGraph then state
+  def sync(state: LayoutState3D, newGraph: LayoutGraph): LayoutState3D =
+    sync(state, newGraph, defaultParams)
+
+  def sync(state: LayoutState3D, newGraph: LayoutGraph, params: Params): LayoutState3D =
+    if state.graph == newGraph && state.algoId == id then state
     else
       val n       = newGraph.nodes.size
       val r       = radiusFor(n, params.k)
       val nodeSet = newGraph.nodes.toSet
-      val kept    = state.positions.filter((id, _) => nodeSet.contains(id))
+      val kept    = state.positions.filter((nodeId, _) => nodeSet.contains(nodeId))
       val positions = newGraph.nodes.iterator.zipWithIndex.foldLeft(kept):
-        case (acc, (id, i)) =>
-          if acc.contains(id) then acc
+        case (acc, (nodeId, i)) =>
+          if acc.contains(nodeId) then acc
           else
             val placedNeighbors =
               newGraph.edges.iterator
                 .collect:
-                  case (s, t) if s == id && acc.contains(t) => acc(t)
-                  case (s, t) if t == id && acc.contains(s) => acc(s)
+                  case (s, t) if s == nodeId && acc.contains(t) => acc(t)
+                  case (s, t) if t == nodeId && acc.contains(s) => acc(s)
                 .toVector
             val pos =
               if placedNeighbors.isEmpty then fibonacciSphere(i, n) * r
               else
                 val barycenter = placedNeighbors.reduce(_ + _) * (1.0 / placedNeighbors.size)
                 barycenter + fibonacciSphere(i, n.max(2)) * (params.k * 0.5)
-            acc.updated(id, pos)
-      LayoutState3D(newGraph, positions, r * params.initialTempFactor * 0.5, 0)
+            acc.updated(nodeId, pos)
+      LayoutState3D(id, newGraph, positions, r * params.initialTempFactor * 0.5, 0)
 
-  def step(state: LayoutState3D, params: Params = defaultParams): LayoutState3D =
+  def step(state: LayoutState3D): LayoutState3D = step(state, defaultParams)
+
+  def step(state: LayoutState3D, params: Params): LayoutState3D =
     val nodes = state.graph.nodes
     val n     = nodes.size
     if state.done then state
@@ -151,11 +137,11 @@ object ForceLayout3D:
       val t = state.temperature
       val newPositions =
         nodes.iterator.zipWithIndex
-          .map: (id, i) =>
+          .map: (nodeId, i) =>
             val d    = disp(i) - pos(i) * params.gravity
             val len  = d.length
             val move = if len <= t then d else d * (t / len)
-            id -> (pos(i) + move)
+            nodeId -> (pos(i) + move)
           .toMap
 
       val floor  = k * params.minTempFactor
@@ -166,8 +152,8 @@ object ForceLayout3D:
         iteration = state.iteration + 1
       )
 
-  /** Run to convergence (tests, one-shot layouts). `maxSteps` is a backstop,
-    * not a tuning knob — cooling guarantees termination well before it.
+  /** Run to convergence with specific params (tests). Prefer [[Layout3D.run]]
+    * for the default-params case.
     */
   def run(graph: LayoutGraph, params: Params = defaultParams, maxSteps: Int = 2000): LayoutState3D =
     var state = initial(graph, params)
