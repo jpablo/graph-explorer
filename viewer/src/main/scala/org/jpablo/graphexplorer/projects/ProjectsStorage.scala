@@ -46,6 +46,13 @@ object ProjectStorage:
   private def readLocalStorage(key: String, default: => String): String =
     Option(dom.window.localStorage.getItem(rawKey(key))).getOrElse(default)
 
+  /** Physically write a key, for the same reason [[removeLocalStorage]] exists:
+    * laminext only syncs an OBSERVED storedString, so a throwaway instance
+    * created just to write would store nothing at all.
+    */
+  private def writeLocalStorage(key: String, value: String): Unit =
+    dom.window.localStorage.setItem(rawKey(key), value)
+
   /** Physically drop a key.
     *
     * Deletion must NOT go through `storedString(key, "").set("")`: laminext only syncs
@@ -137,6 +144,24 @@ object ProjectStorage:
     val projectInfo = ProjectInfo(ProjectId.random, name, lastModified = now, createdAt = now)
     updateDirectory(_.modify(_.projects).using(projectInfo :: _))
     projectInfo.id
+
+  /** A new project whose payload is written UP FRONT, named and populated.
+    *
+    * The ordinary create path seeds the source through the route and leaves the
+    * name to `defaultProjectName`, which cannot carry a name: the payload sync
+    * writes `name = state.projectName` back into the directory entry on the
+    * first change, so a name set only on the entry is overwritten within a tick.
+    * Writing the payload first means both agree from the start, and the detail
+    * page simply restores it — `createProjectPersistence` treats its
+    * `initialState` as a default, so an existing payload wins.
+    */
+  def createNamedProject(name: String, source: String): ProjectId =
+    val id = createProjectDirectoryEntry(name)
+    writeLocalStorage(
+      projectKey(id),
+      write(PersistedDiagramState.minimal(Some(source)).copy(projectName = name))
+    )
+    id
 
   def deleteProject(id: ProjectId): Unit =
     removeLocalStorage(projectKey(id)) // drop the project payload

@@ -95,6 +95,24 @@ class RouterCommands(router: Router):
       description = Some("Create a new project and navigate to it")
     )
 
+  /** Copy the example being viewed into the library, under the gallery's name
+    * for it. Not `createProject`, which can only make an "Untitled": the copy
+    * of "Finite State Machine" should say so in the library.
+    */
+  val copyExampleToLibrary =
+    Command(
+      "Copy example to library",
+      (nameAndSource: (String, String)) =>
+        val (name, source) = nameAndSource
+        val id             = ProjectStorage.createNamedProject(name, source)
+        // No source through the route: the payload is already written, so the
+        // detail page restores the named diagram rather than seeding a fresh one.
+        router.navigateTo(Route.ProjectDetail(id.value))
+      ,
+      always,
+      description = Some("Add a copy of this example to your library")
+    )
+
   /** Open a built-in example. Deliberately NOT `createProject`: browsing the
     * examples used to leave a copy of every one you looked at in the library.
     */

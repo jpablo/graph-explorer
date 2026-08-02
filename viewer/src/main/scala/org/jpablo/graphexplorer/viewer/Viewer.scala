@@ -180,7 +180,7 @@ object Viewer:
         "Copy to my library",
         // The text as it stands, not the file: whatever the reader tried out
         // while poking at the example comes with them into their copy.
-        onClick --> (_ => routerCmds.createProject.execute(Some(Some(state.sourceText.now()))))
+        onClick --> (_ => routerCmds.copyExampleToLibrary.execute(Some((name, state.sourceText.now()))))
       ).primary.tiny
     )
 
