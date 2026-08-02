@@ -8,7 +8,7 @@ import org.jpablo.graphexplorer.viewer.formats.dot.LabelSummary
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{BgColor, FillColor}
 import org.jpablo.graphexplorer.viewer.graph.{ViewerGraph, ViewerGraphElements, VisibilityRules}
 import org.jpablo.graphexplorer.viewer.models.*
-import org.jpablo.graphexplorer.viewer.state.{HiddenElements, RightPanelSection, ViewerState}
+import org.jpablo.graphexplorer.viewer.state.{HiddenElements, RecordCellBox, RightPanelSection, SelectedCell, ViewerState}
 import org.jpablo.graphexplorer.viewer.widgets.{FilterChips, IconButton, IconToggle, Search}
 
 /** Which kind the segmented filter narrows to; `None` in the Var means All. */
@@ -35,6 +35,9 @@ def ElementsList(state: ViewerState): Div =
   // group tree state (same model NodesList used)
   val expandOverrideV = Var[Option[Boolean]](Some(true))
   val expandedGroupsV = Var(Set.empty[GroupId])
+  // Records disclose their cells the same way groups disclose members, but keyed
+  // by NodeId — a record is a node, not a group.
+  val expandedRecordsV = Var(Set.empty[NodeId])
   val knownGroupsV    = Var(Set.empty[GroupId])
   val nodesOpenV      = Var(true)
   val arrowsOpenV     = Var(true)
@@ -185,10 +188,76 @@ def ElementsList(state: ViewerState): Div =
     )
 
   def nodeRow(graph: ViewerGraph, nodeId: NodeId, colliding: Set[String], nested: Boolean): Div =
-    val label = nodeLabel(graph, nodeId)
+    div(cls := "el-row", cls("el-nested") := nested, nodeRowMods(graph, nodeId, colliding))
+
+  /** A record/table node listed as a PARENT of its rows.
+    *
+    * Cells were a whole level of structure the inventory did not show: you can
+    * select one on the canvas, act on it, navigate by it — and the panel still
+    * called the record a leaf, so the only way to reach a row was to find the
+    * node in the drawing and click it twice.
+    *
+    * Only nodes that actually have cells become expandable; everything else
+    * stays the plain row it was. `cellBoxes` is gated on `kindOf`, so a diagram
+    * of ordinary nodes pays a label sniff per node and nothing more.
+    */
+  def nodeEntry(graph: ViewerGraph, nodeId: NodeId, colliding: Set[String], nested: Boolean): Div =
+    // Fewer than TWO cells is not a structure worth disclosing: `shape=record`
+    // is often a graph-wide default, so an ordinary one-line node is a
+    // single-cell record, and expanding it would just repeat its own label back
+    // as a lone child.
+    val boxes = state.recordCells.cellBoxes(nodeId)
+    if boxes.sizeIs < 2 then nodeRow(graph, nodeId, colliding, nested)
+    else
+      div(
+        detailsTag(
+          cls := "el-group",
+          open <-- expandOverrideV.signal.combineWith(expandedRecordsV.signal).map {
+            case (Some(value), _) => value
+            case (None, set)      => set.contains(nodeId)
+          },
+          summaryTag(
+            cls := "el-row el-group-head",
+            cls("el-nested") := nested,
+            span(cls := "el-kind el-chevron", i(cls := "bi bi-chevron-down")),
+            nodeRowMods(graph, nodeId, colliding),
+            // The row's own click already selects the node; this only adds the
+            // disclosure, and preventDefault stops <summary>'s native toggle from
+            // fighting the explicit one (same shape as the group head).
+            onClick.preventDefault --> { _ =>
+              expandOverrideV.set(None)
+              expandedRecordsV.update(set => if set.contains(nodeId) then set - nodeId else set + nodeId)
+            }
+          ),
+          div(boxes.map(cellRow(nodeId, _)))
+        )
+      )
+
+  /** One row of a record/table. Selecting it has to claim the NODE as well: a
+    * cell selection only survives while its node is the whole selection
+    * (RecordCellOps.pruneAgainstSelection), so setting the cell alone would be
+    * undone the moment the selection signal fired.
+    */
+  def cellRow(nodeId: NodeId, box: RecordCellBox): Div =
+    val text = state.recordCells.cellDisplayText(SelectedCell(nodeId, box.path))
+    val isSelected =
+      state.selectedCellV.signal.map(_.exists(c => c.nodeId == nodeId && c.path == box.path))
     div(
-      cls := "el-row",
-      cls("el-nested") := nested,
+      cls := "el-row el-nested el-cell-row",
+      cls("el-selected") <-- isSelected,
+      span(cls := "el-kind", i(cls := "bi bi-dash-lg")),
+      span(cls := "el-label", title := text, if text.nonEmpty then text else "—"),
+      box.port.map(p => span(cls := "el-id", s"<$p>")),
+      onMouseDown.preventDefault --> Observer.empty,
+      onClick.stopPropagation --> { _ =>
+        state.selection.set2(nodeId)
+        state.recordCells.selectCell(nodeId, box.path)
+      }
+    )
+
+  def nodeRowMods(graph: ViewerGraph, nodeId: NodeId, colliding: Set[String]): Seq[Modifier[HtmlElement]] =
+    val label = nodeLabel(graph, nodeId)
+    Seq(
       cls("el-hidden") <-- state.isElementVisible(nodeId).not,
       cls("el-selected") <-- state.selection.contains(nodeId),
       // A node pictogram, not a control: the same glyph slot the arrow rows use.
@@ -219,6 +288,7 @@ def ElementsList(state: ViewerState): Div =
         if visible then state.hideNodes(Set(nodeId)) else state.showNodes(Set(nodeId))
       }
     )
+  end nodeRowMods
 
   def arrowRow(graph: ViewerGraph, arrow: Arrow): Div =
     val lbl = LabelSummary.short(arrow.label.toString)
@@ -312,7 +382,7 @@ def ElementsList(state: ViewerState): Div =
             case gid: GroupId => renderGroup(graph, gid, colliding, filter, showHidden, hidden)
             case nid: NodeId =>
               Option.when(nodeMatches(graph, nid, filter) && listed(nid, showHidden, hidden))(
-                nodeRow(graph, nid, colliding, nested = true)
+                nodeEntry(graph, nid, colliding, nested = true)
               )
       // A group with no listed members earns its row when its own name matches
       // the query AND it is itself listed — a name-only match shows the
@@ -389,7 +459,7 @@ def ElementsList(state: ViewerState): Div =
     val renderedNodes = nodes.toSeq
       .collect { case id if id.isNodeId => NodeId(id.value) }
       .filter(nid => nodeMatches(graph, nid, filter) && listed(nid, showHidden, hidden))
-      .map(nid => nodeRow(graph, nid, colliding, nested = true))
+      .map(nid => nodeEntry(graph, nid, colliding, nested = true))
     renderedGroups ++ renderedNodes
 
   def renderArrowsSection(
