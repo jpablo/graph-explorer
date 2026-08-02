@@ -154,7 +154,13 @@ case class ViewerState(
   // sourceText, validated), so the format dispatch lives in the registry, not here.
   private val renderInputs = DiagramRenderInputs(
     visibleText = visibleText,
-    sourceText = sourceText.signal,
+    // Paced. `visibleText` already is, by way of the parse behind it, but a
+    // Mermaid diagram with nothing hidden renders straight from the SOURCE
+    // (MermaidBackend picks that branch when the view does not differ), which
+    // would leave that one path re-rendering on every keystroke. This is the
+    // RENDER's view of the text, never the document — persistence keeps
+    // reading `sourceText` itself, unpaced.
+    sourceText = EditorPacing.paceSignal(sourceText.signal),
     viewDiffersFromSource = project.hiddenElements.signal
       .combineWithFn(project.collapsedGroups.signal)((hidden, collapsed) => hidden.nonEmpty || collapsed.nonEmpty)
       .distinct

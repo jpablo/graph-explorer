@@ -27,7 +27,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
   test("Sanity check"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()), pace = identity)
 
       afterMicrotasks {
         assertEquals(phases.fullGraphV.now(), ViewerGraph.minimal)
@@ -59,7 +59,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
           |  "a" -> "b" [label="f"];
           |}""".stripMargin
 
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()), pace = identity)
 
       afterMicrotasks {
         val expected =
@@ -100,7 +100,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
           |  "complexNode" [label="Complex Label", shape="ellipse", fontsize="12", width="1.5", height="0.8"];
           |}""".stripMargin
 
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()), pace = identity)
 
       afterMicrotasks {
         val expected =
@@ -150,7 +150,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
           |    "a" -> "b";
           |}""".stripMargin
 
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()), pace = identity)
 
       afterMicrotasks {
         val expected =
@@ -228,7 +228,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
           |    "b" -> "c";
           |}""".stripMargin
 
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()), pace = identity)
 
       afterMicrotasks {
         val expected =
@@ -317,7 +317,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
            |}
            |""".stripMargin
 
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), initialSource = Some(simpleDot), hiddenNodes = Val(ElementIds()), pace = identity)
 
       afterMicrotasks {
         val simpleGraph = graphviz.textToSimpleGraph(simpleDot).get
@@ -395,7 +395,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
   test("Updating the source text should update the graph"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()), pace = identity)
 
       val newSource =
         """|digraph "G" {
@@ -464,7 +464,7 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
   test("Reactive text <-> graph sync works with a fake backend (no real Graphviz/Mermaid)"):
     // The engine now depends only on the DiagramLanguages abstraction, so we can drive it with an
     // in-memory backend and no async WASM/JS initialization.
-    val phases = new InternalPhases(FakeDiagramLanguages, hiddenNodes = Val(ElementIds()))
+    val phases = new InternalPhases(FakeDiagramLanguages, hiddenNodes = Val(ElementIds()), pace = identity)
 
     afterMicrotasks {
       // Initial text was parsed through the fake backend, producing its canned graph.
@@ -487,7 +487,8 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
       TwoFormatFakeLanguages,
       initialSource = Some("digraph G {\n}"),
       hiddenNodes = Val(ElementIds()),
-      editorNotice = notice
+      editorNotice = notice,
+      pace = identity
     )
 
     afterMicrotasks {
@@ -506,7 +507,8 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
     val phases = new InternalPhases(
       TwoFormatFakeLanguages,
       initialSource = Some("digraph G { n1 }"),
-      hiddenNodes = Val(ElementIds())
+      hiddenNodes = Val(ElementIds()),
+      pace = identity
     )
 
     afterMicrotasks {
@@ -519,7 +521,8 @@ class InternalPhasesSpec extends FunSuite with TestHelpers:
 
   test("Parse failures are classified: render-only kinds are Info, real failures are Error"):
     val notice = Var(Option.empty[EditorNotice])
-    val phases = new InternalPhases(ClassifyingFakeLanguages, hiddenNodes = Val(ElementIds()), editorNotice = notice)
+    val phases =
+      new InternalPhases(ClassifyingFakeLanguages, hiddenNodes = Val(ElementIds()), editorNotice = notice, pace = identity)
 
     afterMicrotasks {
       // The initial text parses fine: no notice.

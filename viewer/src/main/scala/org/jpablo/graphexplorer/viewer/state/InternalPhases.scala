@@ -38,7 +38,13 @@ class InternalPhases(
     hiddenNodes:   Signal[HiddenElements],
     collapsedGroups: Signal[Set[GroupId]] = Signal.fromValue(Set.empty),
     editorNotice:  Var[Option[EditorNotice]] = Var(None),
-    val logLevel:  Level = Level.None
+    val logLevel:  Level = Level.None,
+    /** Pacing applied to CodeMirror-origin re-parses — see [[EditorPacing]].
+      * Injected so tests can pass `identity` and keep asserting synchronously:
+      * what they are pinning is the text <-> graph contract, not the schedule
+      * on which typing reaches it. */
+    pace: EventStream[(String, DiagramFormat, ChangeOrigin)] => EventStream[(String, DiagramFormat, ChangeOrigin)] =
+      EditorPacing.pace(_)
 )(using Owner, ExecutionContext):
 
   simpleLog(s"InternalPhases: Initializing with $initialSource", logLevel)
@@ -109,6 +115,22 @@ class InternalPhases(
             state.set(GraphState(text, ViewerGraph.minimalWithDirected, format, origin, graphInSync = false))
     }
 
+  /** Typing, paced. Only the CodeMirror-origin path goes through here: a
+    * keystroke is one of a burst, and re-laying the graph out for each one is
+    * what made Interaction to Next Paint "poor". Every other trigger — the
+    * initial parse, a format change, a canvas edit — is a discrete action the
+    * reader is waiting on, and stays immediate.
+    *
+    * Deliberately downstream of `sourceText`: the text reaches GraphState (and
+    * therefore persistence) on every keystroke, and only the parse that follows
+    * it waits. See [[EditorPacing]] for why the other order loses data.
+    */
+  private val pacedParse = EventBus[(String, DiagramFormat, ChangeOrigin)]()
+
+  pace(pacedParse.events).foreach { case (text, format, origin) =>
+    EditorPacing.timing(() => parseTextToGraphAsync(text, format, origin))
+  }
+
   // Trigger initial async parsing (must be after subscription is set up)
   parseTextToGraphAsync(initialText, initialFormat, ChangeOrigin.CodeMirror)
 
@@ -125,7 +147,9 @@ class InternalPhases(
         // New source of truth: incoming text
         if newText != currentState.text then
           val selectedFormat = formatSelection.now()
-          parseTextToGraphAsync(newText, selectedFormat, ChangeOrigin.CodeMirror)
+          // The text lands NOW (this is what persistence observes); the parse
+          // it implies is paced.
+          pacedParse.emit((newText, selectedFormat, ChangeOrigin.CodeMirror))
           currentState.copy(text = newText, format = selectedFormat, lastOrigin = ChangeOrigin.CodeMirror)
         else
           currentState

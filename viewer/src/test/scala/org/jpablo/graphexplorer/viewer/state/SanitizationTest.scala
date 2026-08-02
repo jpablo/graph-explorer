@@ -19,7 +19,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
 
   test("should sanitize leading newlines in labels"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()), pace = identity)
 
       val dotWithLeadingNewline =
         """digraph "G" {
@@ -56,7 +56,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
 
   test("should not modify labels without leading newlines"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()), pace = identity)
 
       val normalDot =
         """digraph "G" {
@@ -83,7 +83,7 @@ class SanitizationTest extends FunSuite with TestHelpers:
 
   test("should handle multiple leading newlines"):
     withGraphvizAsync { graphviz =>
-      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()))
+      val phases = new InternalPhases(DefaultDiagramLanguages(graphviz), hiddenNodes = Val(ElementIds()), pace = identity)
 
       val multipleNewlines =
         """digraph "G" {
