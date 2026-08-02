@@ -6,13 +6,14 @@ import com.raquo.laminar.api.L.*
 import org.jpablo.graphexplorer.projects.{ProjectStorage, ProjectsDirectoryView}
 import org.jpablo.graphexplorer.router.{Route, Router}
 import org.jpablo.graphexplorer.viewer.backends.{DiagramFormat}
-import org.jpablo.graphexplorer.viewer.backends.graphviz.Graphviz
+import org.jpablo.graphexplorer.viewer.backends.graphviz.{DotExamples, Graphviz}
 import org.jpablo.graphexplorer.viewer.components.{Commands, RouterCommands, TopLevel, resolveTheme}
 import org.jpablo.graphexplorer.viewer.logging.Level
 import org.jpablo.graphexplorer.viewer.state.{PersistedDiagramState, ProjectId, RightPanelSection, ViewerState}
 import org.scalajs.dom.{document, window, URLSearchParams}
 import org.jpablo.graphexplorer.viewer.models.ClientSize
 import org.jpablo.graphexplorer.viewer.utils.ShareUrl
+import org.jpablo.graphexplorer.viewer.widgets.{Button, primary, small, tiny}
 import scala.scalajs.js
 
 import scala.scalajs.js.Date
@@ -100,6 +101,42 @@ object Viewer:
       printBanner()
       // Start the app after Graphviz is initialized
 
+      /** The diagram page. `exampleName` is what makes it a read-only visit: it
+        * turns off persistence and puts the "copy to my library" strip on top.
+        * Both routes share this so an example is the SAME viewer, not a
+        * second, weaker one.
+        */
+      def diagramView(id: String, source: Option[String], exampleName: Option[String]) =
+        // Owner scoped to this project visit: killed when the view unmounts, so the
+        // ViewerState's subscriptions (phases, persistence, theme, panels...) — and the
+        // whole object graph they retain — are released instead of leaking one full
+        // ViewerState per navigation on the never-killed window owner.
+        val viewOwner = new ManualOwner
+        val state =
+          ViewerState(
+            projectId = ProjectId(id),
+            graphviz = graphviz,
+            writeText = clipboardWrite,
+            setTheme = setTheme,
+            errorBus = errors,
+            infoBus = infos,
+            initialSource = source,
+            initialRightPanelSection = lastRightPanelSection,
+            initialLeftPanelVisible = lastLeftPanelVisible,
+            clientSize = clientSize,
+            logLevel = logLevel,
+            ephemeral = exampleName.isDefined
+          )(using viewOwner)
+        // A bit hacky: we need to keep track of the last right panel section selected,
+        // otherwise there's a noticeable transition none => something when switching diagrams
+        state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)(using viewOwner)
+        // Similarly track the left panel visibility state between diagrams
+        state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
+        attachDesktopBridge(state)
+
+        TopLevel(state, router, Commands(state, routerCmds), exampleName.map(exampleBanner(_, state, routerCmds)))
+          .amend(onUnmountCallback(_ => viewOwner.killSubscriptions()))
+
       val app =
         div(
           child <-- router.currentRoute.map:
@@ -107,37 +144,56 @@ object Viewer:
               ProjectsDirectoryView(graphviz, router, routerCmds, viewerSettings, setTheme)
 
             case Route.ProjectDetail(id, source) =>
-              // Owner scoped to this project visit: killed when the view unmounts, so the
-              // ViewerState's subscriptions (phases, persistence, theme, panels...) — and the
-              // whole object graph they retain — are released instead of leaking one full
-              // ViewerState per navigation on the never-killed window owner.
-              val viewOwner = new ManualOwner
-              val state =
-                ViewerState(
-                  projectId = ProjectId(id),
-                  graphviz = graphviz,
-                  writeText = clipboardWrite,
-                  setTheme = setTheme,
-                  errorBus = errors,
-                  infoBus = infos,
-                  initialSource = source,
-                  initialRightPanelSection = lastRightPanelSection,
-                  initialLeftPanelVisible = lastLeftPanelVisible,
-                  clientSize = clientSize,
-                  logLevel = logLevel
-                )(using viewOwner)
-              // A bit hacky: we need to keep track of the last right panel section selected,
-              // otherwise there's a noticeable transition none => something when switching diagrams
-              state.rightPanelActiveSection.signal.changes.distinct.foreach(lastRightPanelSection = _)(using viewOwner)
-              // Similarly track the left panel visibility state between diagrams
-              state.leftPanelVisible.signal.changes.distinct.foreach(lastLeftPanelVisible = _)(using viewOwner)
-              attachDesktopBridge(state)
+              diagramView(id, source, exampleName = None)
 
-              TopLevel(state, router, Commands(state, routerCmds))
-                .amend(onUnmountCallback(_ => viewOwner.killSubscriptions()))
+            case Route.Example(slug) =>
+              DotExamples.bySlug.get(slug) match
+                case Some((name, example)) =>
+                  // The text is fetched HERE rather than at click time, so the
+                  // route survives a reload and a pasted link: an example is a
+                  // real address, not a transient side effect of a click.
+                  div(
+                    cls := "contents",
+                    child <-- FetchStream
+                      .get(example.path)
+                      .map(text => diagramView(s"example-$slug", Some(text), exampleName = Some(name)))
+                  )
+                case None =>
+                  // A renamed or removed example. Say so and offer the way back,
+                  // rather than redirecting mid-render (a route change inside the
+                  // route signal's own propagation) or drawing an empty viewer
+                  // that just looks broken.
+                  unknownExample(slug, routerCmds)
         )
 
       render(document.querySelector("#app"), app)
+
+  /** The strip that makes an ephemeral visit legible: what you are looking at,
+    * that it is not yours, and the one click that changes that.
+    */
+  private def exampleBanner(name: String, state: ViewerState, routerCmds: RouterCommands) =
+    div(
+      cls := "example-banner",
+      span(cls := "example-banner-title", "Example: ", b(name)),
+      span(cls := "example-banner-note", "Not saved to your library"),
+      Button(
+        "Copy to my library",
+        // The text as it stands, not the file: whatever the reader tried out
+        // while poking at the example comes with them into their copy.
+        onClick --> (_ => routerCmds.createProject.execute(Some(Some(state.sourceText.now()))))
+      ).primary.tiny
+    )
+
+  private def unknownExample(slug: String, routerCmds: RouterCommands) =
+    div(
+      cls := "unknown-example",
+      h2("No such example"),
+      p("There is no example named ", code(slug), " any more."),
+      Button(
+        "Back to the library",
+        onClick --> (_ => routerCmds.navigateHome.execute())
+      ).primary.small
+    )
 
   private def setupErrorHandling()(using Owner): EventBus[String] =
     val errors = EventBus[String]()

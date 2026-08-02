@@ -10,11 +10,15 @@ import org.jpablo.graphexplorer.viewer.state.ViewerState
 def TopLevel(
     state:    ViewerState,
     router:   Router,
-    commands: Commands
+    commands: Commands,
+    // Under the toolbar and above everything else: an ephemeral visit has to
+    // announce itself before the reader invests edits in it.
+    banner:   Option[Div] = None
 ): Div =
   div(
     idAttr := "top-level",
     Toolbar(state.displayTitle, commands, state),
+    banner.toSeq,
     div(
       cls := "flex flex-1 overflow-y-auto relative",
       LeftPanel(state, router, commands),

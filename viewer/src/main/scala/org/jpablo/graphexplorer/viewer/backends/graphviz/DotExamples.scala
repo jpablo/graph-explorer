@@ -55,3 +55,22 @@ object DotExamples:
     "Architecture"               -> ExampleSource("/examples/mermaid-architecture.mmd", DiagramFormat.Mermaid),
     "Treemap"                    -> ExampleSource("/examples/mermaid-treemap.mmd", DiagramFormat.Mermaid)
   )
+
+  /** URL slug for an example, so `/example/<slug>` is a real, shareable route.
+    *
+    * Derived from the display name rather than stored beside it: adding an entry
+    * to `examples` then needs no second registration to stay linkable, and a
+    * renamed example simply gets a new URL instead of a stale mapping. Uniqueness
+    * is what makes this safe, and DotExamplesSpec asserts it — `bySlug` is a Map,
+    * so a collision would silently swallow an example rather than fail.
+    */
+  def slugFor(name: String): String =
+    name.toLowerCase
+      .map(c => if c.isLetterOrDigit then c else '-')
+      .split('-')
+      .filter(_.nonEmpty)
+      .mkString("-")
+
+  /** slug → (display name, source). */
+  lazy val bySlug: Map[String, (String, ExampleSource)] =
+    examples.map((name, source) => slugFor(name) -> (name, source)).toMap

@@ -32,7 +32,12 @@ case class ViewerState(
     initialRightPanelSection: RightPanelSection = RightPanelSection.none,
     initialLeftPanelVisible:  Boolean = false,
     clientSize:               ClientSize = Normal,
-    logLevel:                 Level = Level.None
+    logLevel:                 Level = Level.None,
+    /** Nothing this state does reaches localStorage or the library directory —
+      * the mode the built-in examples open in. Everything else works normally;
+      * the diagram simply has no home to be saved to (see [[Persistence]]).
+      */
+    ephemeral:                Boolean = false
 )(
     // All of this state's subscriptions hang off this owner. Pass a killable owner
     // (e.g. ManualOwner killed on unmount) so navigating away releases the whole

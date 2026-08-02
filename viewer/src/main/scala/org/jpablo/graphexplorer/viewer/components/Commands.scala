@@ -95,6 +95,17 @@ class RouterCommands(router: Router):
       description = Some("Create a new project and navigate to it")
     )
 
+  /** Open a built-in example. Deliberately NOT `createProject`: browsing the
+    * examples used to leave a copy of every one you looked at in the library.
+    */
+  val openExample =
+    Command(
+      "Open example",
+      (slug: String) => router.navigateTo(Route.Example(slug)),
+      always,
+      description = Some("Open a built-in example without adding it to the library")
+    )
+
   val navigateHome =
     Command("Navigate home", () => router.navigateTo(Route.Home), always, description = Some("Navigate to the home page"))
 

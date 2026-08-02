@@ -354,6 +354,12 @@ private def enableWhenFirstVisible(enable: () => Unit): Seq[Modifier[HtmlElement
       observerOpt = None
   )
 
+/** Clicking an example OPENS it; it lands in the library only if the reader asks
+  * for it from the banner there. It used to create a copy on the way in, so
+  * browsing the gallery silently filled the library with diagrams nobody chose.
+  */
+private val openExampleTitle = "Open this example (it is not added to your library)"
+
 private def exampleCard(
     graphviz:   Graphviz,
     routerCmds: RouterCommands,
@@ -380,8 +386,8 @@ private def exampleCard(
             div(
               cls := "w-full h-full p-1 flex items-center justify-center text-base-content/40 text-xs",
               "Loading preview…",
-              title := "Click to create a new diagram with this example (copied to clipboard)",
-              onClick.flatMap(_ => FetchStream.get(example.path)) --> (str => routerCmds.createProject.execute(Some(Some(str))))
+              title := openExampleTitle,
+              onClick --> routerCmds.openExample.execute(Some(DotExamples.slugFor(name)))
             )
           case true =>
             div(
@@ -400,8 +406,7 @@ private def exampleCard(
                           "path"    -> example.path
                         )
                       )
-                      .map((_, str))
-                  .map: (svgElement, str) =>
+                  .map: svgElement =>
                     div(
                       cls := "w-full h-full p-1 flex items-center justify-center",
                       div(
@@ -415,8 +420,8 @@ private def exampleCard(
                           )
                         )
                       ),
-                      title := "Click to create a new diagram with this example (copied to clipboard)",
-                      onClick --> routerCmds.createProject.execute(Some(Some(str)))
+                      title := openExampleTitle,
+                      onClick --> routerCmds.openExample.execute(Some(DotExamples.slugFor(name)))
                     )
             )
       )

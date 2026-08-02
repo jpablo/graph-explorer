@@ -167,6 +167,40 @@ label[for ^= show-ns-kind-] {
   }
 }
 
+// The ephemeral-visit strip: sits between the toolbar and the canvas, so it is
+// read before any edit is invested in a diagram that has nowhere to be saved.
+// A full-width row rather than a floating toast — a toast that has dismissed
+// itself leaves the page indistinguishable from an ordinary diagram.
+.example-banner {
+  @apply flex items-center gap-3 px-4 py-1.5 shrink-0 border-b border-base-300 bg-base-200 text-sm;
+
+  .example-banner-title {
+    @apply truncate;
+  }
+
+  .example-banner-note {
+    @apply text-base-content/60 truncate;
+  }
+
+  // Push the action to the far end: the sentence is the context, the button the
+  // one thing to do about it.
+  button {
+    @apply ml-auto shrink-0;
+  }
+}
+
+.unknown-example {
+  @apply flex flex-col items-center justify-center gap-3 p-12 text-center;
+
+  h2 {
+    @apply text-lg font-semibold;
+  }
+
+  code {
+    @apply px-1 rounded bg-base-200;
+  }
+}
+
 .inline-input {
   @apply text-[10px] w-full h-full text-center align-middle bg-base-200/0 flex items-center;
 

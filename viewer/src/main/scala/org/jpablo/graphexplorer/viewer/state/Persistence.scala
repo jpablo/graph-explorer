@@ -13,8 +13,19 @@ import scala.util.Try
 trait Persistence:
   this: ViewerState =>
 
+  /** An ephemeral state gets a PLAIN Var: `createProjectPersistence` is the only
+    * thing that opens a localStorage handle for a project AND stamps its
+    * directory entry, so not calling it is what keeps an example out of the
+    * library entirely. The rest of the app reads this Var identically either
+    * way, so no other code has to know which mode it is in.
+    *
+    * ViewerSettings below is deliberately NOT branched: theme, panel widths and
+    * the like are app-wide preferences, and losing a theme change because it was
+    * made while looking at an example would be its own bug.
+    */
   protected val persistedDiagramState: Var[PersistedDiagramState] =
-    ProjectStorage.createProjectPersistence(projectId, initialSource)
+    if ephemeral then Var(PersistedDiagramState.minimal(initialSource))
+    else ProjectStorage.createProjectPersistence(projectId, initialSource)
 
   private val viewerSettings: Var[ViewerSettings] =
     ProjectStorage.loadViewerSettings()
