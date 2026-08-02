@@ -1,6 +1,8 @@
 package org.jpablo.graphexplorer.viewer.state
 
 import munit.FunSuite
+import org.jpablo.graphexplorer.projects.SortOption
+import org.jpablo.graphexplorer.viewer.backends.DiagramFormat
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.utils.TestHelpers
 import upickle.default.{read, write}
@@ -61,6 +63,32 @@ class PersistenceSpec extends FunSuite with TestHelpers:
   test("a stored width round-trips"):
     val settings = read[ViewerSettings](write(ViewerSettings(rightPanelWidth = Some(512))))
     assertEquals(settings.rightPanelWidth, Some(512))
+
+  test("the library's sort and kind filter round-trip"):
+    val stored = ViewerSettings(
+      librarySort = Some(SortOption.Title.toString),
+      libraryFormatFilter = Some(DiagramFormat.Mermaid.toString),
+      libraryListMode = true
+    )
+    val settings = read[ViewerSettings](write(stored))
+    assertEquals(SortOption.parse(settings.librarySort), SortOption.Title)
+    assertEquals(settings.libraryFormatFilter, Some("Mermaid"))
+    assertEquals(settings.libraryListMode, true)
+
+  /** The library controls must degrade to their defaults rather than throwing:
+    * `read[ViewerSettings]` failing anywhere resets EVERY setting to `empty`,
+    * and the settings sync then writes that back over the user's theme and
+    * panel width.
+    */
+  test("an unrecognised sort name falls back to the default, it does not throw"):
+    assertEquals(SortOption.parse(Some("ByVibes")), SortOption.default)
+    assertEquals(SortOption.parse(None), SortOption.default)
+    assertEquals(SortOption.parse(Some("")), SortOption.default)
+    // settings written before these fields existed
+    val old = read[ViewerSettings]("""{"rightPanelTabIndex":3}""")
+    assertEquals(old.librarySort, None)
+    assertEquals(old.libraryFormatFilter, None)
+    assertEquals(SortOption.parse(old.librarySort), SortOption.CreationDate)
 
   test("panel width clamps to the minimum and to a share of the viewport"):
     import ViewerSettings.{clampRightPanelWidth, defaultRightPanelWidth, minRightPanelWidth}

@@ -28,6 +28,18 @@ enum SortOption derives CanEqual:
     case Title        => "Title"
     case CreationDate => "Creation Date"
 
+object SortOption:
+  /** Newest first, so a diagram you just made is at the top of the library. */
+  val default = CreationDate
+
+  /** Reads a persisted name, tolerating one this build no longer has. `valueOf`
+    * would throw, and the caller is `ViewerSettings` — where one bad field costs
+    * the user every OTHER setting, since a failed parse falls back to `empty`
+    * and the sync writes that back.
+    */
+  def parse(stored: Option[String]): SortOption =
+    stored.flatMap(name => values.find(_.toString == name)).getOrElse(default)
+
 /** How the library section draws its projects: thumbnail cards for browsing by
   * shape, compact rows for scanning by name and date. Persisted as
   * `ViewerSettings.libraryListMode`, so it names the two renderers rather than
@@ -64,11 +76,20 @@ def ProjectsDirectoryView(
     viewerSettings: Var[ViewerSettings],
     setTheme:       String => Unit
 ) =
-  val sortOptionVar = Var[SortOption](SortOption.CreationDate)
+  // Sort and kind filter are zooms over the settings Var, like the view mode
+  // below: how you left the library is how you find it. Deliberately NOT the
+  // search term — a persisted query would greet you with a library that looks
+  // half-empty for a reason scrolled off the screen.
+  val sortOptionVar: Var[SortOption] =
+    viewerSettings.zoomLazy(s => SortOption.parse(s.librarySort))((s, o) => s.copy(librarySort = Some(o.toString)))
   val searchTermVar = Var("")
   // None = all kinds. Enumerated from DiagramFormat.values, so a new backend is
-  // filterable without touching this component.
-  val kindFilterVar = Var[Option[DiagramFormat]](None)
+  // filterable without touching this component; stored by name for the same
+  // reason (see ViewerSettings.libraryFormatFilter).
+  val kindFilterVar: Var[Option[DiagramFormat]] =
+    viewerSettings.zoomLazy(s => s.libraryFormatFilter.flatMap(name => DiagramFormat.values.find(_.toString == name)))(
+      (s, f) => s.copy(libraryFormatFilter = f.map(_.toString))
+    )
   val aboutDialogOpen       = Var(false)
   val preferencesDialogOpen = Var(false)
   // A zoom over the settings Var rather than a separate Var: the mount-time

@@ -151,6 +151,14 @@ case class ViewerSettings(
     elementsPinned:     Boolean = false,
     // Library page: false = thumbnail cards, true = compact rows.
     libraryListMode:    Boolean = false,
+    // Library page: the sort column, and the format the list is filtered to.
+    // Stored as enum NAMES rather than the enums themselves, and tolerated
+    // loosely on read: a ViewerSettings that fails to parse falls back to
+    // `empty` and the sync then WRITES that back, so one stale name here would
+    // cost the user every other setting. None = never chosen, matching
+    // rightPanelWidth above (no filter / the default sort).
+    librarySort:         Option[String] = None,
+    libraryFormatFilter: Option[String] = None,
     schemaVersion:      Int = ViewerSettings.currentSchemaVersion // Add default for loading potentially older states
 ) derives ReadWriter
 
