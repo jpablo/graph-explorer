@@ -52,7 +52,8 @@ Run these and stop if any fails.
 1. **Clean tree.** `git status --short` must be empty. A dirty tree makes `dynver` stamp the
    build `…+YYYYMMDD-HHMM`, which is how a "release" build ends up self-identifying as a dev build.
 2. **Full suite green — locally.** `sbt --client test`
-   Expect **1677** tests: `377 + 100 + 810 + 390`, `Failed 0` on each line.
+   Expect **1685** tests: `381 + 100 + 810 + 394`, `Failed 0` on each line.
+   (`shared` cross-compiles, so a test added there raises TWO of those tallies.)
    Pipe to `grep -E "Passed: Total|\[error\]"` rather than `tail` — `tail` keeps only the last
    module's tally, which looks exactly like a suite that ran one module and passed.
    `sbt --client` attaches to whatever project the server has current, so confirm it is `root`

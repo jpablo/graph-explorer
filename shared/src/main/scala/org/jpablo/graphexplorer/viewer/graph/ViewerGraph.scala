@@ -16,7 +16,15 @@ case class ViewerGraph(
     id:           String = ViewerGraphElements.defaultRootId.value,
     tpe:          GraphType = GraphType.default,
     nodeCounter:  Int = 0,
-    groupCounter: Int = 0
+    groupCounter: Int = 0,
+    /** Proxy box → the group it stands for, for the boxes THIS graph actually
+      * draws. Written by [[CollapseOps.collapseGroups]] and empty in every
+      * other graph, so its presence is exactly "this is a collapse-applied
+      * view". Deliberately NOT part of `elements`: elements is what serializes
+      * to DOT and what round-trip equality compares, and provenance must not
+      * reach the text. See [[CollapseOps.resolveProxies]].
+      */
+    proxyOrigins: Map[NodeId, GroupId] = Map.empty
 ) extends AttributesOps, TraversalOps, GroupsOps, CollapseOps, CombineNodesOps derives CanEqual:
 
   // --- mutable stuff ----

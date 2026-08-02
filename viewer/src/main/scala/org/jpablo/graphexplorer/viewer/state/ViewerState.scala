@@ -11,7 +11,7 @@ import org.jpablo.graphexplorer.viewer.components.selection.SelectableElementStr
 import org.jpablo.graphexplorer.viewer.components.svgCanvas.SvgCanvas
 import org.jpablo.graphexplorer.viewer.formats.dot.TextUtils
 import org.jpablo.graphexplorer.viewer.formats.dot.attributes.{Label, *}
-import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, CollapseOps, ViewerGraph, ViewerGraphElements}
+import org.jpablo.graphexplorer.viewer.graph.{AttributesOps, ViewerGraph, ViewerGraphElements}
 import org.jpablo.graphexplorer.viewer.logging.{Level, withLog}
 import org.jpablo.graphexplorer.viewer.models.*
 import org.jpablo.graphexplorer.viewer.models.ClientSize.Normal
@@ -341,12 +341,7 @@ case class ViewerState(
     * SVG element is a node, and highlighting resolves it as one.
     */
   def resolveCollapsed(ids: ElementIds): ElementIds =
-    val collapsed = project.collapsedGroups.now()
-    if collapsed.isEmpty then ids
-    else
-      ElementIds(ids.ids.map { id =>
-        CollapseOps.collapsedGroupFor(id, collapsed).getOrElse(id)
-      })
+    visibleGraphNow().resolveProxies(ids)
 
   /** The id the CANVAS uses for `id` — the exact inverse of [[resolveCollapsed]].
     *
@@ -360,10 +355,8 @@ case class ViewerState(
     * folded group renders nothing at all, so it keeps its GroupId and simply has
     * nothing to highlight either way.
     */
-  def renderedId(id: ElementId): ElementId = id match
-    case g: GroupId if fullGraphNow().effectiveCollapsed(project.collapsedGroups.now()).contains(g) =>
-      CollapseOps.proxyIdFor(g)
-    case other => other
+  def renderedId(id: ElementId): ElementId =
+    visibleGraphNow().renderedId(id)
 
   /** Every group folds to its box (nesting resolves to the outermost ones at
     * render time); the inverse restores the full structure.

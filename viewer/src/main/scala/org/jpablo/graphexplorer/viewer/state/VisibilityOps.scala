@@ -152,10 +152,13 @@ trait VisibilityOps:
     * surviving members), leaving them all visible.
     */
   private def boxAwareIds(viewNodes: Set[NodeId]): Set[ElementId] =
-    val collapsed = project.collapsedGroups.now()
-    val g         = fullGraphNow()
+    // The boxes named by THIS view, not a set reconstructed from collapsedGroups:
+    // `viewNodes` are nodes of `collapsedViewNow().graph`, so that graph is the
+    // one whose proxyOrigins can neither invent nor miss a box.
+    val view = collapsedViewNow().graph
+    val g    = fullGraphNow()
     viewNodes.flatMap { n =>
-      CollapseOps.collapsedGroupFor(n, collapsed) match
+      view.proxyOrigin(n) match
         case Some(grp) => g.getAllChildren(Set(grp)).toSet[ElementId] + grp
         case None      => Set[ElementId](n)
     }

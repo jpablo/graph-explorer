@@ -26,6 +26,49 @@ import scala.annotation.tailrec
 trait CollapseOps:
   this: ViewerGraph =>
 
+  // ── the two spellings ──────────────────────────────────────────────────────
+  // A folded group is a GroupId in the model and a NodeId on the canvas. The
+  // graph that DREW the boxes is the one that knows which is which, so both
+  // directions read `proxyOrigins` rather than reconstructing the mapping from
+  // a `Set[GroupId]` the caller has to remember to pass. Reconstruction was the
+  // recurring bug: every new consumer of a selection started out wrong, because
+  // forgetting to translate is invisible until a folded group is in the picture.
+
+  /** The group `id` stands for, when it is one of the boxes THIS graph draws. */
+  def proxyOrigin(id: ElementId): Option[GroupId] =
+    id match
+      case n: NodeId => proxyOrigins.get(n)
+      case _         => None
+
+  /** CANVAS spelling → MODEL spelling: proxy boxes become the groups they stand
+    * for, everything else passes through. Anything that reads or writes the
+    * graph through a selection must do this first — `updateAttributes` mints a
+    * node for an unknown NodeId, so editing a box would otherwise create a
+    * phantom node instead of restyling the group.
+    */
+  def resolveProxies(ids: ElementIds): ElementIds =
+    if proxyOrigins.isEmpty then ids
+    else ElementIds(ids.ids.map(id => proxyOrigin(id).getOrElse(id)))
+
+  /** MODEL spelling → CANVAS spelling: the inverse of [[resolveProxies]].
+    *
+    * Anything that names a group from the model side — "select all groups", a
+    * group row in the Elements panel — must translate, or a folded group is
+    * silently skipped by the very command that claims to include it. A group
+    * nested inside another folded group has no box of its own and so passes
+    * through unchanged: there is nothing to highlight either way.
+    */
+  def renderedId(id: ElementId): ElementId =
+    id match
+      case g: GroupId => proxyForGroup.getOrElse(g, g)
+      case other      => other
+
+  /** group → its box; empty unless this graph is a collapse-applied view. */
+  lazy val proxyForGroup: Map[GroupId, NodeId] = proxyOrigins.map(_.swap)
+
+  /** The boxes this graph draws, as the canvas names them. */
+  def proxyIds: Set[NodeId] = proxyOrigins.keySet
+
   /** The groups that actually collapse: a group nested inside another collapsed
     * group is already swallowed by it, so only the OUTERMOST ones do any work.
     * Ids that no longer name a group (deleted since) drop out.
@@ -159,6 +202,12 @@ trait CollapseOps:
             memberId.asGroupId.exists(_ in swallowedGroups) ||
             memberId.asNodeId.exists(proxyOf.contains)
 
+      // Recorded here rather than recomputed by callers: `outermost` is the set
+      // that actually produced boxes, so the map can never claim a box that was
+      // not drawn (a group nested inside another folded one) or miss one.
+      val origins: Map[NodeId, GroupId] =
+        outermost.map(g => CollapseOps.proxyIdFor(g) -> g).toMap
+
       modifyElements.using(
         _.copy(
           nodes = remainingNodes ++ proxies,
@@ -169,7 +218,7 @@ trait CollapseOps:
           arrowMemberships = elements.arrowMemberships.filterNot: (arrowId, groupId) =>
             (groupId in swallowedGroups) || !remainingArrows.contains(arrowId)
         )
-      )
+      ).copy(proxyOrigins = origins)
 
 end CollapseOps
 
@@ -190,12 +239,6 @@ object CollapseOps:
     /** The full-graph arrow ids behind `ids` (identity for untouched arrows). */
     def originalArrows(ids: Set[ArrowId]): Set[ArrowId] =
       ids.flatMap(id => underlyingArrows.getOrElse(id, Set(id)))
-
-  /** Is `id` the proxy for one of `collapsed`? */
-  def collapsedGroupFor(id: ElementId, collapsed: Set[GroupId]): Option[GroupId] =
-    id match
-      case n: NodeId => Some(GroupId(n.value)).filter(collapsed.contains)
-      case _         => None
 
   /** The box wears the group's clothes — its label, fill and border — so it
     * still reads as a group rather than as a new node, plus `shape=folder`,

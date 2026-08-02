@@ -98,6 +98,44 @@ class CollapseOpsSpec extends FunSuite:
     val withEmpty = sample.modifyElements.using(el => el.copy(groups = el.groups + (e -> ViewerGroup.group(e))))
     assertEquals(withEmpty.collapsedMemberCounts(Set(e)), Map(CollapseOps.proxyIdFor(e) -> 0))
 
+  // ── proxyOrigins: the two spellings, carried by the graph ────────────────
+
+  test("proxyOrigins names the boxes this graph drew — and only a collapsed view has any"):
+    assertEquals(sample.proxyOrigins, Map.empty[NodeId, GroupId], "an uncollapsed graph draws no boxes")
+    assertEquals(sample.collapseGroups(Set(g)).proxyOrigins, Map(proxy -> g))
+    assertEquals(sample.collapseGroups(Set(GroupId("ghost"))).proxyOrigins, Map.empty[NodeId, GroupId])
+
+  test("proxyOrigins skips a nested folded group — it draws no box of its own"):
+    // The old reconstruct-from-a-Set helper answered from `collapsed` alone, so
+    // it claimed a box for `h` that effectiveCollapsed never emitted.
+    val h = GroupId("h")
+    val nested = sample.modifyElements.using: e =>
+      e.copy(
+        groups = e.groups + (h -> ViewerGroup.group(h)),
+        memberships = (e.memberships - NodeId("c")) + (NodeId("c") -> h) + (h -> g)
+      )
+    val out = nested.collapseGroups(Set(g, h))
+    assertEquals(out.proxyOrigins, Map(proxy -> g), "only the outermost box exists")
+    assertEquals(out.proxyOrigin(CollapseOps.proxyIdFor(h)), None)
+
+  test("resolveProxies and renderedId are inverses over a folded group"):
+    val out = sample.collapseGroups(Set(g))
+    // canvas → model
+    assertEquals(out.resolveProxies(ElementIds(Set(proxy))), ElementIds(Set(g: ElementId)))
+    // model → canvas
+    assertEquals(out.renderedId(g), proxy: ElementId)
+    // and back again
+    assertEquals(out.resolveProxies(ElementIds(Set(out.renderedId(g)))), ElementIds(Set(g: ElementId)))
+
+  test("translation leaves everything that is not a box alone"):
+    val out   = sample.collapseGroups(Set(g))
+    val other = ElementIds(Set(NodeId("a"): ElementId, NodeId("d"), out.arrowIds.head))
+    assertEquals(out.resolveProxies(other), other)
+    assertEquals(out.renderedId(NodeId("a")), NodeId("a"): ElementId)
+    // an uncollapsed graph is a no-op in both directions
+    assertEquals(sample.resolveProxies(ElementIds(Set(proxy))), ElementIds(Set(proxy: ElementId)))
+    assertEquals(sample.renderedId(g), g: ElementId)
+
   // ── collapsedView: the neighbor machinery's picture ──────────────────────
 
   test("collapse then hide an external neighbor — the box is expandable"):
