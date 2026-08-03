@@ -13,6 +13,38 @@ object ForceLayout3D extends Layout3D:
   val id    = "force"
   val label = "Force"
 
+  override val knobs: List[Knob3D] = List(
+    Knob3D("k", "Edge length", 0.4, 3.0, 0.05, 1.0),
+    Knob3D("gravity", "Gravity", 0.0, 0.3, 0.005, 0.05)
+  )
+
+  def paramsFrom(values: Map[String, Double]): Params =
+    Params(
+      k = values.getOrElse("k", defaultParams.k),
+      gravity = values.getOrElse("gravity", defaultParams.gravity)
+    )
+
+  override def withKnobs(values: Map[String, Double]): Layout3D =
+    Configured(paramsFrom(values))
+
+  def reheat(state: LayoutState3D): LayoutState3D = reheat(state, defaultParams)
+
+  def reheat(state: LayoutState3D, params: Params): LayoutState3D =
+    state.copy(temperature = math.max(state.temperature, params.k * 0.35))
+
+  /** ForceLayout3D under specific parameters; same id, so a knob change is
+    * not an algorithm switch.
+    */
+  private final class Configured(params: Params) extends Layout3D:
+    def id    = ForceLayout3D.id
+    def label = ForceLayout3D.label
+    override def knobs = ForceLayout3D.knobs
+    override def withKnobs(values: Map[String, Double]) = ForceLayout3D.withKnobs(values)
+    def initial(graph: LayoutGraph)                     = ForceLayout3D.initial(graph, params)
+    def sync(state: LayoutState3D, newGraph: LayoutGraph) = ForceLayout3D.sync(state, newGraph, params)
+    def step(state: LayoutState3D)                      = ForceLayout3D.step(state, params)
+    def reheat(state: LayoutState3D)                    = ForceLayout3D.reheat(state, params)
+
   case class Params(
       /** Ideal edge length, in world units. Everything else scales off it. */
       k: Double = 1.0,

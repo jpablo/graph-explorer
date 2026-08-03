@@ -78,6 +78,22 @@ class ForceLayout3DSpec extends munit.FunSuite:
     val synced = ForceLayout3D.sync(s, graph("a", "b")(("a", "b")))
     assertEquals(synced.positions.keySet, Set(NodeId("a"), NodeId("b")))
 
+  test("the edge-length knob is the equilibrium distance: k=2 spreads a pair to ~2"):
+    val g  = graph("a", "b")(("a", "b"))
+    val s1 = ForceLayout3D.run(g, ForceLayout3D.paramsFrom(Map("k" -> 1.0)))
+    val s2 = ForceLayout3D.run(g, ForceLayout3D.paramsFrom(Map("k" -> 2.0)))
+    // gravity pulls slightly under the pure equilibrium d = k
+    assert(math.abs(dist(s1, "a", "b") - 1.0) < 0.25, s"got ${dist(s1, "a", "b")}")
+    assert(math.abs(dist(s2, "a", "b") - 2.0) < 0.5, s"got ${dist(s2, "a", "b")}")
+
+  test("withKnobs keeps the id, and reheat rewarms a settled state"):
+    val g        = graph("a", "b")(("a", "b"))
+    val settled  = ForceLayout3D.run(g)
+    val adjusted = ForceLayout3D.withKnobs(Map("k" -> 2.0))
+    assertEquals(adjusted.id, ForceLayout3D.id)
+    val reheated = adjusted.reheat(settled)
+    assert(!reheated.done)
+
   test("a pinned node holds its position exactly while others keep moving"):
     val g      = graph("a", "b", "c")(("a", "b"), ("b", "c"))
     val s0     = ForceLayout3D.initial(g)

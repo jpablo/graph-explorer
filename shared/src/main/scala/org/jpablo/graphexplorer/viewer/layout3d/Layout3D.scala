@@ -40,6 +40,18 @@ case class LayoutState3D(
 ) derives CanEqual:
   def done: Boolean = temperature <= 0
 
+/** A user-tunable layout parameter: enough metadata for a generic slider.
+  * Ids are algorithm-scoped; values live in the viewer session, not the state.
+  */
+case class Knob3D(
+    id:      String,
+    label:   String,
+    min:     Double,
+    max:     Double,
+    step:    Double,
+    default: Double
+) derives CanEqual
+
 /** A 3D layout algorithm. Implementations must be deterministic — the same
   * graph always produces the same layout — so tests can assert on geometry
   * and a reload never surprises.
@@ -50,6 +62,21 @@ trait Layout3D:
 
   /** Short human label for the layout selector. */
   def label: String
+
+  /** The tunable parameters this algorithm exposes, in display order. */
+  def knobs: List[Knob3D] = Nil
+
+  /** This algorithm with the given knob values applied. The returned instance
+    * keeps the same `id` — knob changes are not an algorithm switch, so sync's
+    * identity semantics are unaffected; pair with [[reheat]] to make a change
+    * take effect on a live state.
+    */
+  def withKnobs(values: Map[String, Double]): Layout3D = this
+
+  /** Make freshly-changed parameters take effect on a live state: recompute
+    * what is closed-form, warm what simulates.
+    */
+  def reheat(state: LayoutState3D): LayoutState3D
 
   /** Fresh layout for a graph, from nothing. */
   def initial(graph: LayoutGraph): LayoutState3D

@@ -44,7 +44,38 @@ def Scene3D(state: ViewerState): Div =
     // with the right panel open its tail reaches the canvas's right edge — the
     // left corner is the one spot no floating chrome owns. Only rendered when
     // an immersive session is actually available, so desktops never see it.
-    child.maybe <-- scene.vrSupported.signal.map(av => Option.when(av)(vrButton(scene)))
+    child.maybe <-- scene.vrSupported.signal.map(av => Option.when(av)(vrButton(scene))),
+    // Top-right: sliders for the current algorithm's knobs, applied to the
+    // RUNNING simulation (each change reheats, so the drawing re-equilibrates
+    // live). Rebuilt per algorithm; hidden when there is nothing to tune.
+    child.maybe <-- state.layout3D.signal.map: algoId =>
+      val algo = Layout3D.byId(algoId).getOrElse(ForceLayout3D)
+      Option.when(algo.knobs.nonEmpty)(knobPanel(scene, algo))
+  )
+
+private def knobPanel(scene: GraphScene3D, algo: Layout3D) =
+  div(
+    cls := "floating-toolbar top-2 right-2 flex-col items-stretch gap-1.5 w-60 px-3 py-2",
+    algo.knobs.map: knob =>
+      div(
+        cls := "flex items-center gap-2",
+        span(cls := "text-xs w-20 shrink-0 opacity-70", knob.label),
+        input(
+          typ      := "range",
+          cls      := "range range-xs flex-1",
+          minAttr  := knob.min.toString,
+          maxAttr  := knob.max.toString,
+          stepAttr := knob.step.toString,
+          controlled(
+            value <-- scene.knobValuesV.signal.map(_.getOrElse(knob.id, knob.default).toString),
+            onInput.mapToValue --> (v => scene.setKnob(knob.id, v.toDouble))
+          )
+        ),
+        span(
+          cls := "text-xs w-9 text-right tabular-nums opacity-70",
+          text <-- scene.knobValuesV.signal.map(vs => f"${vs.getOrElse(knob.id, knob.default)}%.2f")
+        )
+      )
   )
 
 /** App-styled replacement for three's stock XRButton (which is translucent,
@@ -98,8 +129,25 @@ final class GraphScene3D(state: ViewerState):
   scene.add(graphRoot)
   graphRoot.add(nodesGroup)
 
-  private var algo: Layout3D        = ForceLayout3D
+  /** The registry algorithm (knob defaults) and its currently-configured
+    * instance; `algo` is what actually steps.
+    */
+  private var baseAlgo: Layout3D    = ForceLayout3D
+  private var algo: Layout3D        = baseAlgo
   private var layout: LayoutState3D = algo.initial(LayoutGraph(Vector.empty, Vector.empty))
+
+  /** Knob values for the CURRENT algorithm (reset to defaults on switch).
+    * Session-only on purpose: knobs are for playing, not configuration.
+    */
+  val knobValuesV: Var[Map[String, Double]] = Var(defaultKnobValues(baseAlgo))
+
+  private def defaultKnobValues(a: Layout3D): Map[String, Double] =
+    a.knobs.map(k => k.id -> k.default).toMap
+
+  def setKnob(knobId: String, value: Double): Unit =
+    knobValuesV.update(_.updated(knobId, value))
+    algo = baseAlgo.withKnobs(knobValuesV.now())
+    layout = algo.reheat(layout)
   private var sprites               = Map.empty[NodeId, NodeSprite]
   private var edges                 = Vector.empty[(NodeId, NodeId)]
   private var selectedNodes         = Set.empty[NodeId]
@@ -154,7 +202,9 @@ final class GraphScene3D(state: ViewerState):
     */
   def setAlgorithm(algoId: String): Unit =
     val next = Layout3D.byId(algoId).getOrElse(ForceLayout3D)
-    if next.id != algo.id then
+    if next.id != baseAlgo.id then
+      baseAlgo = next
+      knobValuesV.set(defaultKnobValues(next))
       algo = next
       layout = algo.sync(layout, layout.graph)
 

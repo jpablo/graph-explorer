@@ -23,6 +23,39 @@ object LayeredLayout3D extends Layout3D:
   val id    = "layers"
   val label = "Layers"
 
+  override val knobs: List[Knob3D] = List(
+    Knob3D("layerGap", "Layer gap", 0.6, 4.0, 0.05, 1.6),
+    Knob3D("k", "Spacing", 0.4, 3.0, 0.05, 1.0)
+  )
+
+  def paramsFrom(values: Map[String, Double]): Params =
+    Params(
+      k = values.getOrElse("k", defaultParams.k),
+      layerGap = values.getOrElse("layerGap", defaultParams.layerGap)
+    )
+
+  override def withKnobs(values: Map[String, Double]): Layout3D =
+    Configured(paramsFrom(values))
+
+  def reheat(state: LayoutState3D): LayoutState3D = reheat(state, defaultParams)
+
+  /** New parameters mean new closed-form targets; distance to them is the new
+    * remaining animation.
+    */
+  def reheat(state: LayoutState3D, params: Params): LayoutState3D =
+    val t = targets(state.graph, params)
+    state.copy(targets = t, temperature = maxDistanceToTargets(state.positions, t))
+
+  private final class Configured(params: Params) extends Layout3D:
+    def id    = LayeredLayout3D.id
+    def label = LayeredLayout3D.label
+    override def knobs = LayeredLayout3D.knobs
+    override def withKnobs(values: Map[String, Double]) = LayeredLayout3D.withKnobs(values)
+    def initial(graph: LayoutGraph)                     = LayeredLayout3D.initial(graph, params)
+    def sync(state: LayoutState3D, newGraph: LayoutGraph) = LayeredLayout3D.sync(state, newGraph, params)
+    def step(state: LayoutState3D)                      = LayeredLayout3D.step(state, params)
+    def reheat(state: LayoutState3D)                    = LayeredLayout3D.reheat(state, params)
+
   case class Params(
       /** Within-layer separation unit; matches ForceLayout3D's k scale. */
       k: Double = 1.0,

@@ -67,6 +67,21 @@ class LayeredLayout3DSpec extends munit.FunSuite:
     assert(s.positions.values.forall(_.isFinite))
     assert(s.positions(NodeId("a")).y > s.positions(NodeId("b")).y)
 
+  test("changing the layer-gap knob re-targets a settled layout to the new planes"):
+    val g       = graph("a", "b")(("a", "b"))
+    val settled = LayeredLayout3D.initial(g)
+    val wider   = LayeredLayout3D.withKnobs(Map("layerGap" -> 3.0))
+    assertEquals(wider.id, LayeredLayout3D.id)
+    val reheated = wider.reheat(settled)
+    assert(!reheated.done)
+    val s = {
+      var st = reheated
+      var i  = 0
+      while !st.done && i < 2000 do { st = wider.step(st); i += 1 }
+      st
+    }
+    assertEqualsDouble(s.positions(NodeId("a")).y - s.positions(NodeId("b")).y, 3.0, 1e-9)
+
   test("a pinned node resists the tween, then returns on release"):
     val g    = graph("a", "b")(("a", "b"))
     val s    = LayeredLayout3D.initial(g)
