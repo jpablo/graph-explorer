@@ -60,6 +60,13 @@ object ForceLayout3D extends Layout3D:
         * keeps a group reading as a group in space.
         */
       cohesion: Double = 0.15,
+      /** Repulsion acts only within this many k (FR's grid variant). Without
+        * a cutoff, disconnected components — which share no attracting edge —
+        * repel each other clear to the gravity horizon, exiling singletons to
+        * the fringes. With it, components gather under gravity until their
+        * borders meet and settle adjacent.
+        */
+      repulsionRange: Double = 2.5,
       /** Starting temperature as a fraction of the layout radius. */
       initialTempFactor: Double = 0.3,
       /** Geometric cooling per step. */
@@ -149,16 +156,20 @@ object ForceLayout3D extends Layout3D:
       val pos  = nodes.iterator.map(state.positions).toArray
       val disp = Array.fill(n)(Vec3.zero)
 
-      // Repulsion, all pairs: |f| = k²/d away from each other.
+      // Repulsion: |f| = k²/d away from each other, but only within
+      // repulsionRange·k — see Params.repulsionRange for why the cutoff.
+      val rangeSq = (params.repulsionRange * k) * (params.repulsionRange * k)
       var i = 0
       while i < n do
         var j = i + 1
         while j < n do
-          val delta = pos(i) - pos(j)
-          val d     = math.max(delta.length, 1e-4)
-          val push  = delta * ((k * k) / (d * d))
-          disp(i) = disp(i) + push
-          disp(j) = disp(j) - push
+          val delta  = pos(i) - pos(j)
+          val distSq = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z
+          if distSq < rangeSq then
+            val d    = math.max(math.sqrt(distSq), 1e-4)
+            val push = delta * ((k * k) / (d * d))
+            disp(i) = disp(i) + push
+            disp(j) = disp(j) - push
           j += 1
         i += 1
 

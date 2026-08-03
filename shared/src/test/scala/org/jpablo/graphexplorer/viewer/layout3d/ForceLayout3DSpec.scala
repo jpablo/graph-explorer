@@ -97,6 +97,22 @@ class ForceLayout3DSpec extends munit.FunSuite:
     val jitter = tail.zip(tail.tail).map((x, y) => math.abs(x - y)).max
     assert(jitter < 0.08, s"per-step jitter $jitter (pre-fix: ~1.3)")
 
+  test("disconnected components settle adjacent, not exiled"):
+    // Two unrelated pairs and a singleton share no attracting edge; without
+    // the repulsion cutoff they repel each other to the gravity horizon and
+    // the singleton lands on the fringe.
+    val s = ForceLayout3D.run(
+      graph("a", "b", "c", "d", "s")(("a", "b"), ("c", "d"))
+    )
+    def mid(x: String, y: String) =
+      (s.positions(NodeId(x)) + s.positions(NodeId(y))) * 0.5
+    val pairGap = (mid("a", "b") - mid("c", "d")).length
+    // intra-component geometry unharmed by the cutoff
+    assert(math.abs(dist(s, "a", "b") - 1.0) < 0.4, s"ab ${dist(s, "a", "b")}")
+    // components sit near each other and the singleton stays in the neighborhood
+    assert(pairGap < 4.0, s"pair centroids $pairGap apart")
+    assert(s.positions(NodeId("s")).length < 4.0, s"singleton at ${s.positions(NodeId("s")).length}")
+
   test("cohesion pulls cluster members together across the same edge structure"):
     // Two 2-node clusters joined by one edge; the only intra-cluster bond is
     // the cohesion force itself, so its effect is directly measurable.
