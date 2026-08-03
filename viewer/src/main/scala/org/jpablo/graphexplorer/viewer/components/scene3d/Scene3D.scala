@@ -644,6 +644,31 @@ final class GraphScene3D(state: ViewerState):
   /** One-shot exact fit — the toolbar's Fit button. */
   def fitNow(): Unit = fitCamera(1.0)
 
+  /** The depth-cue fog, re-anchored to the drawing EVERY frame: near at the
+    * drawing's current front face, far one depth-spread behind its back face,
+    * so the fade discriminates within the drawing (front crisp, back at most
+    * ~50%) and never punishes zoom — dollying out shrinks nodes but does not
+    * dim them. Anchoring only at fit time froze the band at the fitted
+    * distance, and a manual zoom-out (Auto off) pushed the whole drawing past
+    * it into invisibility.
+    */
+  private def updateFog(): Unit =
+    if layout.positions.nonEmpty then
+      controlsOpt.foreach: controls =>
+        val camP = Vec3(camera.position.x, camera.position.y, camera.position.z)
+        val t    = Vec3(controls.target.x, controls.target.y, controls.target.z)
+        val toT  = t - camP
+        val view = toT * (1.0 / math.max(1e-9, toT.length))
+        var minD = Double.MaxValue
+        var maxD = -Double.MaxValue
+        layout.positions.values.foreach: p =>
+          val d = (localToWorld(p) - camP).dot(view)
+          minD = math.min(minD, d)
+          maxD = math.max(maxD, d)
+        val spread = math.max(1.0, maxD - minD)
+        scene.fog.near = math.max(0.1, minD)
+        scene.fog.far = maxD + spread
+
   /** Screen basis for an orbit pose: `dir` is target→camera; view = where the
     * camera looks, right/up span the screen (matching three's lookAt).
     */
@@ -744,8 +769,6 @@ final class GraphScene3D(state: ViewerState):
         val camC = center1 + dir * dist1
         var minNX = Double.MaxValue; var maxNX = -Double.MaxValue
         var minNY = Double.MaxValue; var maxNY = -Double.MaxValue
-        var minDepth = Double.MaxValue
-        var maxDepth = -Double.MaxValue
         layout.positions.foreach: (nodeId, p) =>
           val rel = p - camC
           val dz  = math.max(0.1, rel.dot(view))
@@ -755,8 +778,6 @@ final class GraphScene3D(state: ViewerState):
           val hh  = halfH(nodeId) / (dz * tanV)
           minNX = math.min(minNX, nx - hw); maxNX = math.max(maxNX, nx + hw)
           minNY = math.min(minNY, ny - hh); maxNY = math.max(maxNY, ny + hh)
-          minDepth = math.min(minDepth, rel.dot(view) - dist1)
-          maxDepth = math.max(maxDepth, rel.dot(view) - dist1)
         val center =
           center1 +
             right * ((minNX + maxNX) / 2 * dist1 * tanH) +
@@ -773,11 +794,6 @@ final class GraphScene3D(state: ViewerState):
           newTarget.y + dir.y * newDist,
           newTarget.z + dir.z * newDist
         )
-        // Front face crisp; the far side recedes but never vanishes (the
-        // farthest node sits at ~half fog).
-        val depthSpread = math.max(1.0, maxDepth - minDepth)
-        scene.fog.near = newDist + minDepth
-        scene.fog.far = newDist + maxDepth + depthSpread
 
   // ---------------- lifecycle ----------------
 
@@ -820,6 +836,7 @@ final class GraphScene3D(state: ViewerState):
             while !layout.done do layout = algo.step(layout)
             writePositions()
             if autoFitOn then fitCamera(1.0)
+            updateFog()
             controlsOpt.foreach(_.update())
             renderer.render(scene, camera)
         )
@@ -949,6 +966,7 @@ final class GraphScene3D(state: ViewerState):
     // grab-plane mapping assumes a still camera, and a creeping fit would
     // slide the node off the pointer.
     if autoFitOn && mouseDragNode.isEmpty && vrDrag.isEmpty then fitCamera(0.2)
+    updateFog()
     // During a session the headset owns the camera; OrbitControls' damping
     // writes would fight it.
     if !renderer.xr.isPresenting then controlsOpt.foreach(_.update())
