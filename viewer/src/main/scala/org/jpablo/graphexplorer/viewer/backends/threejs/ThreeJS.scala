@@ -175,10 +175,16 @@ trait WebXRManager extends js.Object:
 class WebGLRenderer(parameters: js.Object) extends js.Object:
   val domElement: dom.html.Canvas = js.native
   val xr: WebXRManager            = js.native
+  var autoClear: Boolean          = js.native
   def setPixelRatio(value: Double): Unit          = js.native
   def setSize(width: Double, height: Double): Unit = js.native
   def render(scene: Object3D, camera: PerspectiveCamera): Unit = js.native
   def setAnimationLoop(callback: js.Function1[Double, Unit] | Null): Unit = js.native
+  // Secondary-viewport pass (corner gizmo): CSS-pixel units, origin bottom-left.
+  def setViewport(x: Double, y: Double, w: Double, h: Double): Unit = js.native
+  def setScissor(x: Double, y: Double, w: Double, h: Double): Unit  = js.native
+  def setScissorTest(enabled: Boolean): Unit = js.native
+  def clearDepth(): Unit = js.native
   def dispose(): Unit = js.native
 
 object WebGLRenderer:

@@ -205,6 +205,83 @@ final class GraphScene3D(state: ViewerState):
   private var clusterSets = Vector.empty[Vector[NodeId]]
   private var hullMeshes  = Vector.empty[(three.Mesh, three.MeshBasicMaterial)]
 
+  // ---------------- orientation gizmo: a tiny wired globe ----------------
+  // Rendered as a second viewport pass in the corner; its camera copies the
+  // orbit direction, so the globe reads as "the world, seen from where you
+  // are". Lat/long polylines rather than a wireframe sphere — triangulated
+  // wireframes show their diagonal seams.
+
+  private val GizmoSizePx  = 84.0
+  private val gizmoScene   = three.Scene()
+  private val gizmoCamera  = three.PerspectiveCamera(40, 1, 0.1, 10)
+  private val gizmoLines   = buildGizmo()
+
+  private def buildGizmo(): (three.BufferGeometry, three.LineBasicMaterial) =
+    val pts    = scala.collection.mutable.ArrayBuffer.empty[Float]
+    val cols   = scala.collection.mutable.ArrayBuffer.empty[Float]
+    val StepsN = 48
+    def addSegment(a: (Double, Double, Double), b: (Double, Double, Double), c: (Double, Double, Double)): Unit =
+      pts ++= Seq(a._1.toFloat, a._2.toFloat, a._3.toFloat, b._1.toFloat, b._2.toFloat, b._3.toFloat)
+      cols ++= Seq(c._1.toFloat, c._2.toFloat, c._3.toFloat, 0.55f, c._1.toFloat, c._2.toFloat, c._3.toFloat, 0.55f)
+    val wire = (0.55, 0.60, 0.68)
+    // meridians every 30° (each circle covers m and m+180°)
+    for m <- 0 until 6 do
+      val az = m * math.Pi / 6
+      for i <- 0 until StepsN do
+        val t0 = 2 * math.Pi * i / StepsN
+        val t1 = 2 * math.Pi * (i + 1) / StepsN
+        addSegment(
+          (math.sin(t0) * math.sin(az), math.cos(t0), math.sin(t0) * math.cos(az)),
+          (math.sin(t1) * math.sin(az), math.cos(t1), math.sin(t1) * math.cos(az)),
+          wire
+        )
+    // parallels at 0°, ±30°, ±60°
+    for lat <- Seq(-60, -30, 0, 30, 60) do
+      val y = math.sin(math.toRadians(lat))
+      val r = math.cos(math.toRadians(lat))
+      for i <- 0 until StepsN do
+        val a0 = 2 * math.Pi * i / StepsN
+        val a1 = 2 * math.Pi * (i + 1) / StepsN
+        addSegment((r * math.sin(a0), y, r * math.cos(a0)), (r * math.sin(a1), y, r * math.cos(a1)), wire)
+    // axis ticks, the r/g/b convention: x red, y green, z blue
+    addSegment((0, 0, 0), (1.2, 0, 0), (0.94, 0.35, 0.35))
+    addSegment((0, 0, 0), (0, 1.2, 0), (0.42, 0.85, 0.45))
+    addSegment((0, 0, 0), (0, 0, 1.2), (0.38, 0.62, 0.95))
+
+    val geometry = three.BufferGeometry()
+    geometry.setAttribute("position", three.BufferAttribute(Float32Array.from(js.Array(pts.toSeq*)), 3))
+    geometry.setAttribute("color", three.BufferAttribute(Float32Array.from(js.Array(cols.toSeq*)), 4))
+    val material = three.LineBasicMaterial(
+      three.LineBasicMaterial.params(vertexColors = true, transparent = true, opacity = 1.0)
+    )
+    val lines = three.LineSegments(geometry, material)
+    lines.frustumCulled = false
+    gizmoScene.add(lines)
+    (geometry, material)
+
+  /** Second render pass into the corner: the gizmo camera copies the orbit
+    * direction at a fixed radius, so the static globe appears exactly as
+    * rotated as the world.
+    */
+  private def renderGizmo(): Unit =
+    controlsOpt.foreach: controls =>
+      val camP  = Vec3(camera.position.x, camera.position.y, camera.position.z)
+      val t     = Vec3(controls.target.x, controls.target.y, controls.target.z)
+      val toCam = camP - t
+      val dir   = toCam * (1.0 / math.max(1e-9, toCam.length))
+      gizmoCamera.position.set(dir.x * 3.2, dir.y * 3.2, dir.z * 3.2)
+      gizmoCamera.lookAt(0, 0, 0)
+      val w = renderer.domElement.clientWidth.toDouble
+      renderer.autoClear = false
+      renderer.setViewport(w - GizmoSizePx - 10, 52, GizmoSizePx, GizmoSizePx)
+      renderer.setScissor(w - GizmoSizePx - 10, 52, GizmoSizePx, GizmoSizePx)
+      renderer.setScissorTest(true)
+      renderer.clearDepth()
+      renderer.render(gizmoScene, gizmoCamera)
+      renderer.setScissorTest(false)
+      renderer.setViewport(0, 0, w, renderer.domElement.clientHeight.toDouble)
+      renderer.autoClear = true
+
   // ---------------- graph -> scene ----------------
 
   def setGraph(g: ViewerGraph): Unit =
@@ -824,6 +901,8 @@ final class GraphScene3D(state: ViewerState):
     // writes would fight it.
     if !renderer.xr.isPresenting then controlsOpt.foreach(_.update())
     renderer.render(scene, camera)
+    // The corner viewport pass makes no sense inside a headset.
+    if !renderer.xr.isPresenting then renderGizmo()
 
   /** A hidden or not-yet-painted pane reports zero sizes; sizing the renderer
     * from those would bake a 0×0 viewport. Skip — the observer fires again when
@@ -1017,6 +1096,8 @@ final class GraphScene3D(state: ViewerState):
     hullMeshes = Vector.empty
     coneGeometry.dispose()
     coneMaterial.dispose()
+    gizmoLines._1.dispose()
+    gizmoLines._2.dispose()
     lineGeometryOpt.foreach(_.dispose())
     lineMaterial.dispose()
     renderer.dispose()
