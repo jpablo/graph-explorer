@@ -504,40 +504,120 @@ final class GraphScene3D(state: ViewerState):
     */
   private var userNavigated = false
 
-  /** Frame the drawing the way the 2D canvas fits a diagram: bounding sphere
-    * centered on the DRAWING (not the origin — a drifted graph must not
-    * inflate its own radius), sized to include the label pills, tangent to the
-    * narrower field of view — as large as possible while fully visible.
+  /** Frame the drawing the way the 2D canvas fits a diagram: as large as the
+    * viewport allows while fully visible. Not a bounding-sphere heuristic —
+    * that leaves acres of slack around anything non-spherical (a wide, shallow
+    * dependency graph most of all). Instead every node is projected into the
+    * camera's basis, each with its OWN pill half-extents, and the distance is
+    * solved exactly: for a pill edge at lateral offset x and depth offset z,
+    * visibility requires |x| <= (D + z)·tanθ, so D = max(|x|/tanθ − z) over
+    * both axes of every pill. The outermost pill ends up touching the frustum.
+    *
     * `alpha` lerps toward that framing, so calling this every animation frame
     * makes the camera FOLLOW the converging layout instead of jumping after
-    * it; alpha = 1 snaps (fresh graph load). The fog rides along: the front of
-    * the drawing stays clear, depth fades behind it.
+    * it; alpha = 1 snaps (fresh graph load). The fog rides along: clear
+    * through the drawing's front face, fading behind it.
     */
   private def fitCamera(alpha: Double): Unit =
     if layout.positions.nonEmpty && !renderer.xr.isPresenting then
       controlsOpt.foreach: controls =>
-        val ps = layout.positions.values
-        var minX = Double.MaxValue; var minY = Double.MaxValue; var minZ = Double.MaxValue
-        var maxX = -Double.MaxValue; var maxY = -Double.MaxValue; var maxZ = -Double.MaxValue
-        ps.foreach: p =>
-          minX = math.min(minX, p.x); maxX = math.max(maxX, p.x)
-          minY = math.min(minY, p.y); maxY = math.max(maxY, p.y)
-          minZ = math.min(minZ, p.z); maxZ = math.max(maxZ, p.z)
-        val center = Vec3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)
-        val pillMargin =
-          sprites.values.map(_.sprite.scale.x).maxOption.getOrElse(NodeHeight) / 2 + NodeHeight / 2
-        val r = ps.map(p => (p - center).length).max + pillMargin
-
-        val vHalf   = math.toRadians(CameraFovDeg / 2)
-        val hHalf   = math.atan(math.tan(vHalf) * math.max(0.3, camera.aspect))
-        val fitDist = math.max(2.0, r / math.sin(math.min(vHalf, hHalf)) * 1.06)
-
         val target0 = Vec3(controls.target.x, controls.target.y, controls.target.z)
         val camP    = Vec3(camera.position.x, camera.position.y, camera.position.z)
         val dirRaw  = camP - target0
-        val dir =
+        val dir = // target -> camera, the orbit direction we preserve
           if dirRaw.length < 1e-6 then DefaultCamDir * (1.0 / DefaultCamDir.length)
           else dirRaw * (1.0 / dirRaw.length)
+
+        // Camera basis: view = where the camera looks, right/up span the screen.
+        val view    = dir * -1.0
+        val worldUp = if math.abs(view.y) > 0.99 then Vec3(0, 0, 1) else Vec3(0, 1, 0)
+        val right0  = Vec3(
+          view.y * worldUp.z - view.z * worldUp.y,
+          view.z * worldUp.x - view.x * worldUp.z,
+          view.x * worldUp.y - view.y * worldUp.x
+        )
+        val right = right0 * (1.0 / math.max(1e-9, right0.length))
+        val up    = Vec3(
+          right.y * view.z - right.z * view.y,
+          right.z * view.x - right.x * view.z,
+          right.x * view.y - right.y * view.x
+        )
+
+        var minX = Double.MaxValue; var minY = Double.MaxValue; var minZ = Double.MaxValue
+        var maxX = -Double.MaxValue; var maxY = -Double.MaxValue; var maxZ = -Double.MaxValue
+        layout.positions.values.foreach: p =>
+          minX = math.min(minX, p.x); maxX = math.max(maxX, p.x)
+          minY = math.min(minY, p.y); maxY = math.max(maxY, p.y)
+          minZ = math.min(minZ, p.z); maxZ = math.max(maxZ, p.z)
+        val roughCenter = Vec3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)
+
+        def halfW(nodeId: NodeId) =
+          sprites.get(nodeId).map(_.sprite.scale.x / 2).getOrElse(NodeHeight) + NodeHeight * 0.25
+        def halfH(nodeId: NodeId) =
+          sprites.get(nodeId).map(_.sprite.scale.y / 2).getOrElse(NodeHeight) + NodeHeight * 0.25
+
+        // Exact perspective-correct fit, solved per screen axis. Each pill
+        // imposes two one-sided visibility constraints on the camera axis:
+        //   right edge:  x + hw − c ≤ (D + z)·tanθ   →  D ≥ a − c/tanθ
+        //   left edge:  −(x − hw − c) ≤ (D + z)·tanθ →  D ≥ b + c/tanθ
+        // with a = (x+hw)/tanθ − z and b = (−x+hw)/tanθ − z. The minimal
+        // distance is D = (max a + max b)/2 at axis offset c = tanθ·(max a −
+        // max b)/2 — which centers the PROJECTED image, magnification and
+        // asymmetric pill widths included, where centering the 3D bbox
+        // (measured: 0.18 NDC off) never could.
+        val tanV = math.tan(math.toRadians(CameraFovDeg / 2))
+        val tanH = tanV * math.max(0.3, camera.aspect)
+
+        // (maxAX, maxBX, maxAY, maxBY): the four one-sided constraint maxima
+        // about a given axis point; D = (maxA + maxB)/2 per axis is the
+        // minimal distance with the axis offset (maxA − maxB)/2 centering it.
+        def solveAbout(c: Vec3): (Double, Double, Double, Double) =
+          var aX = Double.MinValue; var bX = Double.MinValue
+          var aY = Double.MinValue; var bY = Double.MinValue
+          layout.positions.foreach: (nodeId, p) =>
+            val rel = p - c
+            val x   = rel.dot(right)
+            val y   = rel.dot(up)
+            val z   = rel.dot(view) // positive = farther from the camera
+            aX = math.max(aX, (x + halfW(nodeId)) / tanH - z)
+            bX = math.max(bX, (-x + halfW(nodeId)) / tanH - z)
+            aY = math.max(aY, (y + halfH(nodeId)) / tanV - z)
+            bY = math.max(bY, (-y + halfH(nodeId)) / tanV - z)
+          (aX, bX, aY, bY)
+
+        val (aX1, bX1, aY1, bY1) = solveAbout(roughCenter)
+        val center1 =
+          roughCenter + right * (tanH * (aX1 - bX1) / 2) + up * (tanV * (aY1 - bY1) / 2)
+        val dist1 = math.max(2.0, math.max((aX1 + bX1) / 2, (aY1 + bY1) / 2))
+
+        // Refinement: equal world-space slack is not equal PROJECTED slack
+        // when the extreme pills sit at different depths (measured 0.14 NDC of
+        // residual). Project everything from the candidate camera, shift the
+        // aim by the measured NDC offset, then re-solve the distance about the
+        // shifted center so the tightened side cannot clip.
+        val camC = center1 + dir * dist1
+        var minNX = Double.MaxValue; var maxNX = -Double.MaxValue
+        var minNY = Double.MaxValue; var maxNY = -Double.MaxValue
+        var minDepth = Double.MaxValue
+        var maxDepth = -Double.MaxValue
+        layout.positions.foreach: (nodeId, p) =>
+          val rel = p - camC
+          val dz  = math.max(0.1, rel.dot(view))
+          val nx  = rel.dot(right) / (dz * tanH)
+          val ny  = rel.dot(up) / (dz * tanV)
+          val hw  = halfW(nodeId) / (dz * tanH)
+          val hh  = halfH(nodeId) / (dz * tanV)
+          minNX = math.min(minNX, nx - hw); maxNX = math.max(maxNX, nx + hw)
+          minNY = math.min(minNY, ny - hh); maxNY = math.max(maxNY, ny + hh)
+          minDepth = math.min(minDepth, rel.dot(view) - dist1)
+          maxDepth = math.max(maxDepth, rel.dot(view) - dist1)
+        val center =
+          center1 +
+            right * ((minNX + maxNX) / 2 * dist1 * tanH) +
+            up * ((minNY + maxNY) / 2 * dist1 * tanV)
+        val (aX2, bX2, aY2, bY2) = solveAbout(center)
+        val fitDist =
+          math.max(2.0, math.max((aX2 + bX2) / 2, (aY2 + bY2) / 2)) * 1.04
 
         val newTarget = target0 + (center - target0) * alpha
         val newDist   = dirRaw.length + (fitDist - dirRaw.length) * alpha
@@ -547,8 +627,11 @@ final class GraphScene3D(state: ViewerState):
           newTarget.y + dir.y * newDist,
           newTarget.z + dir.z * newDist
         )
-        scene.fog.near = newDist
-        scene.fog.far = newDist + 4 * r
+        // Front face crisp; the far side recedes but never vanishes (the
+        // farthest node sits at ~half fog).
+        val depthSpread = math.max(1.0, maxDepth - minDepth)
+        scene.fog.near = newDist + minDepth
+        scene.fog.far = newDist + maxDepth + depthSpread
 
   // ---------------- lifecycle ----------------
 
@@ -571,6 +654,29 @@ final class GraphScene3D(state: ViewerState):
     attachPointerHandlers()
     setupXR()
     renderer.setAnimationLoop(frame)
+    // Dev-only introspection, off unless localStorage["gx3d-debug"] is set:
+    // drives the simulation to completion synchronously and exposes state.
+    // Exists because animation cannot be verified through a background pane —
+    // rAF freezes there — and this handle has been re-invented for every 3D
+    // debugging session so far.
+    if dom.window.localStorage.getItem("gx3d-debug") != null then
+      dom.window.asInstanceOf[js.Dynamic].updateDynamic("__gx3d")(
+        js.Dynamic.literal(
+          scene = scene,
+          camera = camera,
+          info = () =>
+            s"algo=${algo.id} done=${layout.done} temp=${layout.temperature} iter=${layout.iteration} " +
+              s"pinned=${layout.pinned.mkString(",")} navigated=$userNavigated",
+          posOf = (id: String) =>
+            layout.positions.get(NodeId(id)).map(p => js.Array(p.x, p.y, p.z)).getOrElse(js.Array[Double]()),
+          settle = () =>
+            while !layout.done do layout = algo.step(layout)
+            writePositions()
+            if !userNavigated then fitCamera(1.0)
+            controlsOpt.foreach(_.update())
+            renderer.render(scene, camera)
+        )
+      )
 
   /** WebXR is a progressive enhancement of this ordinary WebGL page: the
     * Enter-VR button only materializes when the browser reports a device that
