@@ -132,6 +132,14 @@ final class GraphScene3D(state: ViewerState):
   private val lineMaterial =
     three.LineBasicMaterial(three.LineBasicMaterial.params(vertexColors = true, transparent = true, opacity = 0.95))
 
+  // 3D mode gets its own fixed dark environment, like a DCC viewport, instead
+  // of inheriting the document's paper-and-grid: label pills pop against it in
+  // any app theme, and the matched fog turns depth into a gentle fade (its
+  // distances follow the camera in fitCamera).
+  private val EnvBackground = 0x151a21
+  scene.background = three.Color().setHex(EnvBackground)
+  scene.fog = three.Fog(EnvBackground, 10, 60)
+
   scene.add(graphRoot)
   graphRoot.add(nodesGroup)
 
@@ -182,7 +190,7 @@ final class GraphScene3D(state: ViewerState):
   // One shared cone geometry/material for every arrowhead; meshes per edge.
   private val coneGeometry = three.ConeGeometry(0.05, 0.14, 10)
   private val coneMaterial = three.MeshBasicMaterial(
-    three.MeshBasicMaterial.params(color = 0x296bc7, transparent = true, opacity = 0.9, depthWrite = true, side = 0)
+    three.MeshBasicMaterial.params(color = 0x5a9df2, transparent = true, opacity = 0.95, depthWrite = true, side = 0)
   )
   private var coneMeshes = Vector.empty[three.Mesh]
   private val coneUp     = three.Vector3().set(0, 1, 0)
@@ -218,7 +226,8 @@ final class GraphScene3D(state: ViewerState):
     writePositions()
     if nodeIds.size != lastNodeCount then
       lastNodeCount = nodeIds.size
-      frameCamera(nodeIds.size)
+      userNavigated = false
+      fitCamera(1.0) // snap: a fresh graph frames correctly from its very first paint
 
   /** Each visible group's NODE members, ≥ 2 of them, sorted for stable colors
     * and determinism. A folded group has no visible members (its proxy is a
@@ -263,6 +272,7 @@ final class GraphScene3D(state: ViewerState):
       knobValuesV.set(defaultKnobValues(next))
       algo = next
       layout = algo.sync(layout, layout.graph)
+      userNavigated = false // a chosen layout switch deserves a fresh framing of the morph
 
   /** What the sprite shows: the label attribute when it is plain text, the id
     * otherwise. Record/HTML markup would render as raw source, so it falls back
@@ -382,11 +392,13 @@ final class GraphScene3D(state: ViewerState):
     for i <- edges.indices do
       val (s, t) = edges(i)
       brightEdges(i) = selectedNodes.isEmpty || selectedNodes.contains(s) || selectedNodes.contains(t)
-      val alpha = if brightEdges(i) then 0.95f else 0.08f
-      lineColors(i * 8 + 0) = 0.42f; lineColors(i * 8 + 1) = 0.45f
-      lineColors(i * 8 + 2) = 0.50f; lineColors(i * 8 + 3) = alpha
-      lineColors(i * 8 + 4) = 0.16f; lineColors(i * 8 + 5) = 0.42f
-      lineColors(i * 8 + 6) = 0.78f; lineColors(i * 8 + 7) = alpha
+      val alpha = if brightEdges(i) then 0.95f else 0.10f
+      // Brighter than the old paper-background values: these must read on the
+      // dark environment.
+      lineColors(i * 8 + 0) = 0.55f; lineColors(i * 8 + 1) = 0.58f
+      lineColors(i * 8 + 2) = 0.64f; lineColors(i * 8 + 3) = alpha
+      lineColors(i * 8 + 4) = 0.35f; lineColors(i * 8 + 5) = 0.62f
+      lineColors(i * 8 + 6) = 0.95f; lineColors(i * 8 + 7) = alpha
     lineColorAttrOpt.foreach(_.needsUpdate = true)
 
   /** One translucent hull mesh per cluster; the geometry is re-hulled on every
@@ -403,7 +415,7 @@ final class GraphScene3D(state: ViewerState):
         three.MeshBasicMaterial.params(
           color = HullPalette(i % HullPalette.size),
           transparent = true,
-          opacity = 0.10,
+          opacity = 0.16, // reads dimmer against the dark environment than on paper
           depthWrite = false, // a veil, not a wall: nodes and lines behind stay visible
           side = 2            // DoubleSide, so the inside reads when the camera is within
         )
@@ -483,11 +495,60 @@ final class GraphScene3D(state: ViewerState):
     writeLineColors()
     writePositions() // cone visibility follows brightEdges
 
-  private def frameCamera(nodeCount: Int): Unit =
-    val r = ForceLayout3D.radiusFor(nodeCount, ForceLayout3D.defaultParams.k)
-    val d = math.max(4.0, r * 2.6)
-    camera.position.set(d * 0.7, d * 0.45, d * 0.7)
-    camera.lookAt(0, 0, 0)
+  /** Camera field of view, degrees (vertical) — mirrored here for fit math. */
+  private val CameraFovDeg  = 50.0
+  private val DefaultCamDir = Vec3(0.62, 0.4, 0.62)
+
+  /** True since the user last took the camera (orbit/dolly); auto-fit stands
+    * down until the next graph load or algorithm switch.
+    */
+  private var userNavigated = false
+
+  /** Frame the drawing the way the 2D canvas fits a diagram: bounding sphere
+    * centered on the DRAWING (not the origin — a drifted graph must not
+    * inflate its own radius), sized to include the label pills, tangent to the
+    * narrower field of view — as large as possible while fully visible.
+    * `alpha` lerps toward that framing, so calling this every animation frame
+    * makes the camera FOLLOW the converging layout instead of jumping after
+    * it; alpha = 1 snaps (fresh graph load). The fog rides along: the front of
+    * the drawing stays clear, depth fades behind it.
+    */
+  private def fitCamera(alpha: Double): Unit =
+    if layout.positions.nonEmpty && !renderer.xr.isPresenting then
+      controlsOpt.foreach: controls =>
+        val ps = layout.positions.values
+        var minX = Double.MaxValue; var minY = Double.MaxValue; var minZ = Double.MaxValue
+        var maxX = -Double.MaxValue; var maxY = -Double.MaxValue; var maxZ = -Double.MaxValue
+        ps.foreach: p =>
+          minX = math.min(minX, p.x); maxX = math.max(maxX, p.x)
+          minY = math.min(minY, p.y); maxY = math.max(maxY, p.y)
+          minZ = math.min(minZ, p.z); maxZ = math.max(maxZ, p.z)
+        val center = Vec3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)
+        val pillMargin =
+          sprites.values.map(_.sprite.scale.x).maxOption.getOrElse(NodeHeight) / 2 + NodeHeight / 2
+        val r = ps.map(p => (p - center).length).max + pillMargin
+
+        val vHalf   = math.toRadians(CameraFovDeg / 2)
+        val hHalf   = math.atan(math.tan(vHalf) * math.max(0.3, camera.aspect))
+        val fitDist = math.max(2.0, r / math.sin(math.min(vHalf, hHalf)) * 1.06)
+
+        val target0 = Vec3(controls.target.x, controls.target.y, controls.target.z)
+        val camP    = Vec3(camera.position.x, camera.position.y, camera.position.z)
+        val dirRaw  = camP - target0
+        val dir =
+          if dirRaw.length < 1e-6 then DefaultCamDir * (1.0 / DefaultCamDir.length)
+          else dirRaw * (1.0 / dirRaw.length)
+
+        val newTarget = target0 + (center - target0) * alpha
+        val newDist   = dirRaw.length + (fitDist - dirRaw.length) * alpha
+        controls.target.set(newTarget.x, newTarget.y, newTarget.z)
+        camera.position.set(
+          newTarget.x + dir.x * newDist,
+          newTarget.y + dir.y * newDist,
+          newTarget.z + dir.z * newDist
+        )
+        scene.fog.near = newDist
+        scene.fog.far = newDist + 4 * r
 
   // ---------------- lifecycle ----------------
 
@@ -499,6 +560,7 @@ final class GraphScene3D(state: ViewerState):
     val controls = three.OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     controls.dampingFactor = 0.08
+    controls.addEventListener("start", _ => userNavigated = true)
     controlsOpt = Some(controls)
 
     resize(container)
@@ -628,25 +690,15 @@ final class GraphScene3D(state: ViewerState):
         layout = algo.step(layout)
         s += 1
       writePositions()
-      if layout.done then fitCameraToLayout()
+    // The camera follows the drawing until the user takes over: no giant
+    // first frame, no post-convergence jump — the framing converges WITH the
+    // layout. Suspended during a node drag: the grab-plane mapping assumes a
+    // still camera, and a creeping fit would slide the node off the pointer.
+    if !userNavigated && mouseDragNode.isEmpty && vrDrag.isEmpty then fitCamera(0.2)
     // During a session the headset owns the camera; OrbitControls' damping
     // writes would fight it.
     if !renderer.xr.isPresenting then controlsOpt.foreach(_.update())
     renderer.render(scene, camera)
-
-  /** Once the simulation settles, dolly the camera along its current view ray
-    * so the whole drawing fits — the equilibrium spreads well past the initial
-    * placement sphere that frameCamera assumed. Direction is preserved, so an
-    * orbit the user already started is respected.
-    */
-  private def fitCameraToLayout(): Unit =
-    if layout.positions.nonEmpty && !renderer.xr.isPresenting then
-      val r = layout.positions.values.map(_.length).max + NodeHeight * 2
-      val d = math.max(4.0, r * 2.4)
-      val p = camera.position
-      val len = math.max(1e-6, math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z))
-      val f = d / len
-      p.set(p.x * f, p.y * f, p.z * f)
 
   /** A hidden or not-yet-painted pane reports zero sizes; sizing the renderer
     * from those would bake a 0×0 viewport. Skip — the observer fires again when

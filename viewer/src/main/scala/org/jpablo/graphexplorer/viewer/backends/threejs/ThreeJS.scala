@@ -30,8 +30,16 @@ class Object3D extends js.Object:
   def addEventListener(tpe: String, listener: js.Function1[js.Any, Unit]): Unit = js.native
 
 @js.native
+@JSImport("three", "Fog")
+class Fog(color: Double, fogNear: Double, fogFar: Double) extends js.Object:
+  var near: Double = js.native
+  var far: Double  = js.native
+
+@js.native
 @JSImport("three", "Scene")
-class Scene extends Object3D
+class Scene extends Object3D:
+  var background: Color = js.native
+  var fog: Fog          = js.native
 
 @js.native
 @JSImport("three", "Group")
@@ -202,5 +210,8 @@ class OrbitControls(camera: PerspectiveCamera, domElement: dom.Element) extends 
   var enabled: Boolean       = js.native
   var enableDamping: Boolean = js.native
   var dampingFactor: Double  = js.native
+  val target: Vector3        = js.native
   def update(): Boolean      = js.native
   def dispose(): Unit        = js.native
+  // EventDispatcher: 'start' fires on user-initiated camera interaction.
+  def addEventListener(tpe: String, listener: js.Function1[js.Any, Unit]): Unit = js.native
