@@ -41,6 +41,10 @@ def Scene3D(state: ViewerState): Div =
     state.selection.signal --> scene.setSelection,
     state.layout3D.signal --> scene.setAlgorithm,
     state.nav3DTrackpad.signal --> scene.setNavMode,
+    // The toolbar's Auto and Fit speak to the 3D camera exactly as they do to
+    // the 2D transform.
+    state.autoFit.signal --> scene.setAutoFit,
+    state.fitDiagram.events --> (_ => scene.fitNow()),
     // Labels bake theme colors into their textures at paint time, so a theme
     // switch must repaint them. setTheme's own observer registered first, so
     // the CSS variables are already the new theme's when this fires.
@@ -347,7 +351,6 @@ final class GraphScene3D(state: ViewerState):
     writePositions()
     if nodeIds.size != lastNodeCount then
       lastNodeCount = nodeIds.size
-      userNavigated = false
       fitCamera(1.0) // snap: a fresh graph frames correctly from its very first paint
 
   /** Each visible group's NODE members, ≥ 2 of them, sorted for stable colors
@@ -403,7 +406,6 @@ final class GraphScene3D(state: ViewerState):
       knobValuesV.set(defaultKnobValues(next))
       algo = next
       layout = algo.sync(layout, layout.graph)
-      userNavigated = false // a chosen layout switch deserves a fresh framing of the morph
 
   /** What the sprite shows: the label attribute when it is plain text, the id
     * otherwise. Record/HTML markup would render as raw source, so it falls back
@@ -630,10 +632,17 @@ final class GraphScene3D(state: ViewerState):
   private val CameraFovDeg  = 50.0
   private val DefaultCamDir = Vec3(0.62, 0.4, 0.62)
 
-  /** True since the user last took the camera (orbit/dolly); auto-fit stands
-    * down until the next graph load or algorithm switch.
+  /** Mirrors the toolbar's Auto toggle (the same Var the 2D canvas honors).
+    * ON: the fit runs every frame — the user owns the ROTATION, the fit owns
+    * target and distance, so every part of the drawing stays visible through
+    * orbits, morphs and simulation alike. OFF: only a graph load frames.
     */
-  private var userNavigated = false
+  private var autoFitOn = true
+
+  def setAutoFit(on: Boolean): Unit = autoFitOn = on
+
+  /** One-shot exact fit — the toolbar's Fit button. */
+  def fitNow(): Unit = fitCamera(1.0)
 
   /** Screen basis for an orbit pose: `dir` is target→camera; view = where the
     * camera looks, right/up span the screen (matching three's lookAt).
@@ -781,7 +790,6 @@ final class GraphScene3D(state: ViewerState):
     controls.enableDamping = true
     controls.dampingFactor = 0.08
     controls.enableZoom = !trackpadNav
-    controls.addEventListener("start", _ => userNavigated = true)
     controlsOpt = Some(controls)
     attachWheelNavigation(controls)
 
@@ -805,13 +813,13 @@ final class GraphScene3D(state: ViewerState):
           camera = camera,
           info = () =>
             s"algo=${algo.id} done=${layout.done} temp=${layout.temperature} iter=${layout.iteration} " +
-              s"pinned=${layout.pinned.mkString(",")} navigated=$userNavigated",
+              s"pinned=${layout.pinned.mkString(",")} autoFit=$autoFitOn",
           posOf = (id: String) =>
             layout.positions.get(NodeId(id)).map(p => js.Array(p.x, p.y, p.z)).getOrElse(js.Array[Double]()),
           settle = () =>
             while !layout.done do layout = algo.step(layout)
             writePositions()
-            if !userNavigated then fitCamera(1.0)
+            if autoFitOn then fitCamera(1.0)
             controlsOpt.foreach(_.update())
             renderer.render(scene, camera)
         )
@@ -935,11 +943,12 @@ final class GraphScene3D(state: ViewerState):
         layout = algo.step(layout)
         s += 1
       writePositions()
-    // The camera follows the drawing until the user takes over: no giant
-    // first frame, no post-convergence jump — the framing converges WITH the
-    // layout. Suspended during a node drag: the grab-plane mapping assumes a
-    // still camera, and a creeping fit would slide the node off the pointer.
-    if !userNavigated && mouseDragNode.isEmpty && vrDrag.isEmpty then fitCamera(0.2)
+    // With Auto on, the framing follows the drawing CONTINUOUSLY — through
+    // simulation, morphs, and the user's own orbiting (rotation is theirs;
+    // target and distance are the fit's). Suspended during a node drag: the
+    // grab-plane mapping assumes a still camera, and a creeping fit would
+    // slide the node off the pointer.
+    if autoFitOn && mouseDragNode.isEmpty && vrDrag.isEmpty then fitCamera(0.2)
     // During a session the headset owns the camera; OrbitControls' damping
     // writes would fight it.
     if !renderer.xr.isPresenting then controlsOpt.foreach(_.update())
@@ -984,7 +993,6 @@ final class GraphScene3D(state: ViewerState):
       (e: dom.WheelEvent) =>
         if trackpadNav && !renderer.xr.isPresenting then
           e.preventDefault()
-          userNavigated = true
           val target = Vec3(controls.target.x, controls.target.y, controls.target.z)
           val camP   = Vec3(camera.position.x, camera.position.y, camera.position.z)
           val toCam  = camP - target
