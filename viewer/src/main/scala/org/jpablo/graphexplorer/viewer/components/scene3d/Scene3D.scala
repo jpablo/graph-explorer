@@ -211,14 +211,20 @@ final class GraphScene3D(state: ViewerState):
   // are". Lat/long polylines rather than a wireframe sphere — triangulated
   // wireframes show their diagonal seams.
 
-  private val GizmoSizePx  = 84.0
+  private val GizmoSizePx = 96.0
+  // Camera distance and fov sized so the FULL axis extent (lines to 1.4 plus
+  // the cone tips) fits the frustum with margin: 3.8·tan(23°) ≈ 1.61 of
+  // lateral room against ~1.55 of content. At the old 3.2/40° the frustum
+  // covered only 1.16 — an axis swinging toward the viewport edge had its
+  // arrowhead sliced off by the scissor.
+  private val GizmoCamDist = 3.8
   private val gizmoScene   = three.Scene()
-  private val gizmoCamera  = three.PerspectiveCamera(40, 1, 0.1, 10)
-  // Depth cue: the gizmo camera orbits at 3.2, so the sphere's near face sits
-  // ~2.2 away and the far face ~4.2. Fog across that range fades the far
-  // hemisphere toward the environment color — without it a wire sphere is a
-  // Necker illusion (front and back read as interchangeable).
-  gizmoScene.fog = three.Fog(EnvBackground, 2.6, 5.0)
+  private val gizmoCamera  = three.PerspectiveCamera(46, 1, 0.1, 12)
+  // Depth cue: at orbit radius 3.8 the sphere's near face sits ~2.8 away and
+  // the far face ~4.8. Fog across that range fades the far hemisphere toward
+  // the environment color — without it a wire sphere is a Necker illusion
+  // (front and back read as interchangeable).
+  gizmoScene.fog = three.Fog(EnvBackground, 3.2, 5.6)
   private val AxisRed   = (1.0, 0.45, 0.45)
   private val AxisGreen = (0.45, 0.95, 0.52)
   private val AxisBlue  = (0.48, 0.72, 1.0)
@@ -306,7 +312,7 @@ final class GraphScene3D(state: ViewerState):
       val t     = Vec3(controls.target.x, controls.target.y, controls.target.z)
       val toCam = camP - t
       val dir   = toCam * (1.0 / math.max(1e-9, toCam.length))
-      gizmoCamera.position.set(dir.x * 3.2, dir.y * 3.2, dir.z * 3.2)
+      gizmoCamera.position.set(dir.x * GizmoCamDist, dir.y * GizmoCamDist, dir.z * GizmoCamDist)
       gizmoCamera.lookAt(0, 0, 0)
       val w = renderer.domElement.clientWidth.toDouble
       renderer.autoClear = false
