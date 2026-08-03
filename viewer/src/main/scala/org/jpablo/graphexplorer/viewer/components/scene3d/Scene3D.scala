@@ -214,15 +214,33 @@ final class GraphScene3D(state: ViewerState):
   private val GizmoSizePx  = 84.0
   private val gizmoScene   = three.Scene()
   private val gizmoCamera  = three.PerspectiveCamera(40, 1, 0.1, 10)
-  private val gizmoLines   = buildGizmo()
+  // Depth cue: the gizmo camera orbits at 3.2, so the sphere's near face sits
+  // ~2.2 away and the far face ~4.2. Fog across that range fades the far
+  // hemisphere toward the environment color — without it a wire sphere is a
+  // Necker illusion (front and back read as interchangeable).
+  gizmoScene.fog = three.Fog(EnvBackground, 2.6, 5.0)
+  private val AxisRed   = (1.0, 0.45, 0.45)
+  private val AxisGreen = (0.45, 0.95, 0.52)
+  private val AxisBlue  = (0.48, 0.72, 1.0)
+  private val AxisLen   = 1.4
+  private var gizmoAxisTips = Vector.empty[(three.Mesh, three.MeshBasicMaterial)]
+  private val gizmoLines    = buildGizmo()
 
   private def buildGizmo(): (three.BufferGeometry, three.LineBasicMaterial) =
     val pts    = scala.collection.mutable.ArrayBuffer.empty[Float]
     val cols   = scala.collection.mutable.ArrayBuffer.empty[Float]
     val StepsN = 48
-    def addSegment(a: (Double, Double, Double), b: (Double, Double, Double), c: (Double, Double, Double)): Unit =
+    def addSegment(
+        a: (Double, Double, Double),
+        b: (Double, Double, Double),
+        c: (Double, Double, Double),
+        alpha: Double
+    ): Unit =
       pts ++= Seq(a._1.toFloat, a._2.toFloat, a._3.toFloat, b._1.toFloat, b._2.toFloat, b._3.toFloat)
-      cols ++= Seq(c._1.toFloat, c._2.toFloat, c._3.toFloat, 0.55f, c._1.toFloat, c._2.toFloat, c._3.toFloat, 0.55f)
+      cols ++= Seq(
+        c._1.toFloat, c._2.toFloat, c._3.toFloat, alpha.toFloat,
+        c._1.toFloat, c._2.toFloat, c._3.toFloat, alpha.toFloat
+      )
     val wire = (0.55, 0.60, 0.68)
     // meridians every 30° (each circle covers m and m+180°)
     for m <- 0 until 6 do
@@ -233,7 +251,8 @@ final class GraphScene3D(state: ViewerState):
         addSegment(
           (math.sin(t0) * math.sin(az), math.cos(t0), math.sin(t0) * math.cos(az)),
           (math.sin(t1) * math.sin(az), math.cos(t1), math.sin(t1) * math.cos(az)),
-          wire
+          wire,
+          0.55
         )
     // parallels at 0°, ±30°, ±60°
     for lat <- Seq(-60, -30, 0, 30, 60) do
@@ -242,11 +261,12 @@ final class GraphScene3D(state: ViewerState):
       for i <- 0 until StepsN do
         val a0 = 2 * math.Pi * i / StepsN
         val a1 = 2 * math.Pi * (i + 1) / StepsN
-        addSegment((r * math.sin(a0), y, r * math.cos(a0)), (r * math.sin(a1), y, r * math.cos(a1)), wire)
-    // axis ticks, the r/g/b convention: x red, y green, z blue
-    addSegment((0, 0, 0), (1.2, 0, 0), (0.94, 0.35, 0.35))
-    addSegment((0, 0, 0), (0, 1.2, 0), (0.42, 0.85, 0.45))
-    addSegment((0, 0, 0), (0, 0, 1.2), (0.38, 0.62, 0.95))
+        addSegment((r * math.sin(a0), y, r * math.cos(a0)), (r * math.sin(a1), y, r * math.cos(a1)), wire, 0.55)
+    // axis lines, the r/g/b convention: x red, y green, z blue — full alpha,
+    // reaching past the sphere so they always break the silhouette
+    addSegment((0, 0, 0), (AxisLen, 0, 0), AxisRed, 1.0)
+    addSegment((0, 0, 0), (0, AxisLen, 0), AxisGreen, 1.0)
+    addSegment((0, 0, 0), (0, 0, AxisLen), AxisBlue, 1.0)
 
     val geometry = three.BufferGeometry()
     geometry.setAttribute("position", three.BufferAttribute(Float32Array.from(js.Array(pts.toSeq*)), 3))
@@ -257,6 +277,23 @@ final class GraphScene3D(state: ViewerState):
     val lines = three.LineSegments(geometry, material)
     lines.frustumCulled = false
     gizmoScene.add(lines)
+
+    // A 1px line can't get "bigger": visual weight comes from a cone tip on
+    // each axis (the shared arrowhead geometry, scaled up and colored).
+    gizmoAxisTips = Vector(
+      ((AxisLen, 0.0, 0.0), 0xff7373, (1.0, 0.0, 0.0)),
+      ((0.0, AxisLen, 0.0), 0x74f284, (0.0, 1.0, 0.0)),
+      ((0.0, 0.0, AxisLen), 0x7ab8ff, (0.0, 0.0, 1.0))
+    ).map: (tip, color, axis) =>
+      val mat = three.MeshBasicMaterial(
+        three.MeshBasicMaterial.params(color = color, transparent = true, opacity = 1.0, depthWrite = true, side = 0)
+      )
+      val cone = three.Mesh(coneGeometry, mat)
+      cone.scale.set(1.6, 1.6, 1.6)
+      cone.position.set(tip._1, tip._2, tip._3)
+      cone.quaternion.setFromUnitVectors(coneUp, scratchVec.set(axis._1, axis._2, axis._3))
+      gizmoScene.add(cone)
+      (cone, mat)
     (geometry, material)
 
   /** Second render pass into the corner: the gizmo camera copies the orbit
@@ -1098,6 +1135,7 @@ final class GraphScene3D(state: ViewerState):
     coneMaterial.dispose()
     gizmoLines._1.dispose()
     gizmoLines._2.dispose()
+    gizmoAxisTips.foreach((_, mat) => mat.dispose()) // cone geometry is the shared one
     lineGeometryOpt.foreach(_.dispose())
     lineMaterial.dispose()
     renderer.dispose()
