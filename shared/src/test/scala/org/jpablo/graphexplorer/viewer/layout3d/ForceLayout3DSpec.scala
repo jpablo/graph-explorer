@@ -113,6 +113,15 @@ class ForceLayout3DSpec extends munit.FunSuite:
     assert(pairGap < 4.0, s"pair centroids $pairGap apart")
     assert(s.positions(NodeId("s")).length < 4.0, s"singleton at ${s.positions(NodeId("s")).length}")
 
+  test("the Spread knob is the packing distance between components"):
+    val g = graph("a", "b", "c", "d")(("a", "b"), ("c", "d"))
+    def pairGap(s: LayoutState3D) =
+      ((s.positions(NodeId("a")) + s.positions(NodeId("b"))) * 0.5 -
+        (s.positions(NodeId("c")) + s.positions(NodeId("d"))) * 0.5).length
+    val near = pairGap(ForceLayout3D.run(g, ForceLayout3D.paramsFrom(Map("repulsionRange" -> 1.5))))
+    val far  = pairGap(ForceLayout3D.run(g, ForceLayout3D.paramsFrom(Map("repulsionRange" -> 5.0))))
+    assert(near < far, s"near $near vs far $far")
+
   test("cohesion pulls cluster members together across the same edge structure"):
     // Two 2-node clusters joined by one edge; the only intra-cluster bond is
     // the cohesion force itself, so its effect is directly measurable.

@@ -18,14 +18,18 @@ object ForceLayout3D extends Layout3D:
   override val knobs: List[Knob3D] = List(
     Knob3D("k", "Edge length", 0.4, 3.0, 0.05, 1.0),
     Knob3D("gravity", "Gravity", 0.0, 0.3, 0.005, 0.05),
-    Knob3D("cohesion", "Cohesion", 0.0, 0.6, 0.01, 0.15)
+    Knob3D("cohesion", "Cohesion", 0.0, 0.6, 0.01, 0.15),
+    // How far repulsion reaches (in k): the packing distance between
+    // disconnected components — from touching to comfortably spaced.
+    Knob3D("repulsionRange", "Spread", 1.5, 6.0, 0.1, 2.5)
   )
 
   def paramsFrom(values: Map[String, Double]): Params =
     Params(
       k = values.getOrElse("k", defaultParams.k),
       gravity = values.getOrElse("gravity", defaultParams.gravity),
-      cohesion = values.getOrElse("cohesion", defaultParams.cohesion)
+      cohesion = values.getOrElse("cohesion", defaultParams.cohesion),
+      repulsionRange = values.getOrElse("repulsionRange", defaultParams.repulsionRange)
     )
 
   override def withKnobs(values: Map[String, Double]): Layout3D =
