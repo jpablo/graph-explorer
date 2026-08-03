@@ -35,6 +35,12 @@ case class LayoutGraph(
   * `pinned` nodes are held exactly where they are — a drag in progress. The
   * simulation keeps running around them (that is the point: neighbors react
   * live), so a caller pinning a node should also keep `temperature` warm.
+  *
+  * `motion` is the force simulation's per-node memory: the previous move (to
+  * detect a force reversing against it — oscillation, not travel) and a step
+  * scale that halves on reversal and only slowly recovers, so oscillation
+  * collapses geometrically instead of ping-ponging at the temperature cap —
+  * see ForceLayout3D.step.
   */
 case class LayoutState3D(
     algoId:      String,
@@ -43,7 +49,8 @@ case class LayoutState3D(
     temperature: Double,
     iteration:   Int,
     targets:     Map[NodeId, Vec3] = Map.empty,
-    pinned:      Set[NodeId] = Set.empty
+    pinned:      Set[NodeId] = Set.empty,
+    motion:      Map[NodeId, (move: Vec3, scale: Double)] = Map.empty
 ) derives CanEqual:
   def done: Boolean = temperature <= 0
 

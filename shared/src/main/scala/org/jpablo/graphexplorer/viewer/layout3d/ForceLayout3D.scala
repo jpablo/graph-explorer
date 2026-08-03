@@ -1,5 +1,7 @@
 package org.jpablo.graphexplorer.viewer.layout3d
 
+import org.jpablo.graphexplorer.viewer.models.NodeId
+
 /** Fruchterman–Reingold force layout in three dimensions.
   *
   * Deliberately deterministic: initial placement is a Fibonacci sphere (evenly
@@ -186,15 +188,39 @@ object ForceLayout3D extends Layout3D:
       // Pinned nodes (a drag in progress) stay exactly put; they still exert
       // forces on everyone else, which is what makes tugging one node feel
       // like tugging the graph.
-      val t = state.temperature
+      //
+      // Oscillation damping (after GEM): where the force gradient is steep on
+      // both sides of equilibrium (a tight pair: repulsion k²/d one way,
+      // attraction d²/k the other), |force| exceeds the temperature cap
+      // throughout, so every step is a full-cap jump landing past equilibrium
+      // on the other slope — a constant-amplitude ping-pong that a warm
+      // temperature (knob drags reheat every input event) sustains
+      // indefinitely. The cure is a PERSISTENT per-node step scale: halved
+      // whenever the force reverses against the node's previous move, and
+      // recovered only slowly while movement stays aligned. A single-shot
+      // reduction is not enough — the very next aligned step would restore
+      // full amplitude (a period-4 cycle, measured); persistence is what
+      // makes the oscillation collapse geometrically while genuine travel,
+      // which never reverses, keeps the full cap.
+      val t       = state.temperature
+      val motionB = Map.newBuilder[NodeId, (move: Vec3, scale: Double)]
       val newPositions =
         nodes.iterator.zipWithIndex
           .map: (nodeId, i) =>
-            if state.pinned.contains(nodeId) then nodeId -> pos(i)
+            if state.pinned.contains(nodeId) then
+              motionB += nodeId -> (Vec3.zero, 1.0)
+              nodeId -> pos(i)
             else
-              val d    = disp(i) - pos(i) * params.gravity
-              val len  = d.length
-              val move = if len <= t then d else d * (t / len)
+              val d                  = disp(i) - pos(i) * params.gravity
+              val len                = d.length
+              val (lastMove, scale0) = state.motion.getOrElse(nodeId, (Vec3.zero, 1.0))
+              val reversed           = d.dot(lastMove) < 0
+              val scale =
+                if reversed then math.max(0.05, scale0 * 0.5)
+                else math.min(1.0, scale0 * 1.15)
+              val cap  = t * scale
+              val move = if len <= cap then d else d * (cap / len)
+              motionB += nodeId -> (move, scale)
               nodeId -> (pos(i) + move)
           .toMap
 
@@ -203,7 +229,8 @@ object ForceLayout3D extends Layout3D:
       state.copy(
         positions = newPositions,
         temperature = if cooled < floor then 0 else cooled,
-        iteration = state.iteration + 1
+        iteration = state.iteration + 1,
+        motion = motionB.result()
       )
 
   /** Run to convergence with specific params (tests). Prefer [[Layout3D.run]]

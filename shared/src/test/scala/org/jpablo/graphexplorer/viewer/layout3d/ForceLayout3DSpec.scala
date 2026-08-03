@@ -78,6 +78,25 @@ class ForceLayout3DSpec extends munit.FunSuite:
     val synced = ForceLayout3D.sync(s, graph("a", "b")(("a", "b")))
     assertEquals(synced.positions.keySet, Set(NodeId("a"), NodeId("b")))
 
+  test("a held knob drag (reheat every step) does not make a tight pair vibrate"):
+    // The screen-recording scenario: a settled a->b pair, then the edge-length
+    // slider is HELD — every input event reheats, so temperature never cools.
+    // Around a tight pair the force exceeds the temperature cap on both sides
+    // of equilibrium; without oscillation damping every step is a full-cap
+    // jump and the pair ping-pongs with constant amplitude (~1.3 world units
+    // of per-step jitter) for as long as the slider moves.
+    val g      = graph("a", "b")(("a", "b"))
+    val params = ForceLayout3D.paramsFrom(Map("k" -> 1.85))
+    var s      = ForceLayout3D.run(g)
+    s = ForceLayout3D.reheat(s, params)
+    val distances =
+      (1 to 60).map: _ =>
+        s = ForceLayout3D.reheat(ForceLayout3D.step(s, params), params)
+        dist(s, "a", "b")
+    val tail   = distances.drop(30) // past the legitimate transit to the new equilibrium
+    val jitter = tail.zip(tail.tail).map((x, y) => math.abs(x - y)).max
+    assert(jitter < 0.08, s"per-step jitter $jitter (pre-fix: ~1.3)")
+
   test("cohesion pulls cluster members together across the same edge structure"):
     // Two 2-node clusters joined by one edge; the only intra-cluster bond is
     // the cohesion force itself, so its effect is directly measurable.
