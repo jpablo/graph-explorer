@@ -1,12 +1,14 @@
 package org.jpablo.graphexplorer.viewer.components.scene3d
 
 import com.raquo.laminar.api.L.*
+import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.backends.threejs as three
 import org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
 import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
+import org.jpablo.graphexplorer.viewer.widgets.{Button, ghost, tiny}
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,7 +39,28 @@ def Scene3D(state: ViewerState): Div =
     ),
     state.visibleGraph --> scene.setGraph,
     state.selection.signal --> scene.setSelection,
-    state.layout3D.signal --> scene.setAlgorithm
+    state.layout3D.signal --> scene.setAlgorithm,
+    // Bottom-LEFT: the zoom toolbar centers over the whole middle area, and
+    // with the right panel open its tail reaches the canvas's right edge — the
+    // left corner is the one spot no floating chrome owns. Only rendered when
+    // an immersive session is actually available, so desktops never see it.
+    child.maybe <-- scene.vrSupported.signal.map(av => Option.when(av)(vrButton(scene)))
+  )
+
+/** App-styled replacement for three's stock XRButton (which is translucent,
+  * pins itself to bottom-center over the zoom toolbar, and ignores the theme).
+  * Session request must run inside the click's user activation, which it does:
+  * toggleVR is called synchronously from the handler.
+  */
+private def vrButton(scene: GraphScene3D) =
+  div(
+    cls := "floating-toolbar bottom-2 left-2",
+    Button(
+      cls := "gap-1.5",
+      i(cls := "bi bi-badge-vr"),
+      text <-- scene.vrPresenting.signal.map(p => if p then "Exit VR" else "Enter VR"),
+      onClick --> scene.toggleVR()
+    ).tiny.ghost
   )
 
 final class GraphScene3D(state: ViewerState):
@@ -83,7 +106,16 @@ final class GraphScene3D(state: ViewerState):
 
   private var controlsOpt: Option[three.OrbitControls]        = None
   private var resizeObserverOpt: Option[dom.ResizeObserver]   = None
-  private var xrButtonOpt: Option[dom.html.Element]           = None
+
+  /** True once the browser reports an immersive-vr-capable device; gates the
+    * Enter-VR button so desktops never render it.
+    */
+  val vrSupported = Var(false)
+
+  /** Mirrors renderer.xr session state for the button label. */
+  val vrPresenting = Var(false)
+
+  private var xrSessionOpt: Option[js.Dynamic] = None
   private var lineSegmentsOpt: Option[three.LineSegments]     = None
   private var lineGeometryOpt: Option[three.BufferGeometry]   = None
   private var linePosAttrOpt: Option[three.BufferAttribute]   = None
@@ -267,7 +299,7 @@ final class GraphScene3D(state: ViewerState):
     resizeObserverOpt = Some(observer)
 
     attachPointerHandlers()
-    setupXR(container)
+    setupXR()
     renderer.setAnimationLoop(frame)
 
   /** WebXR is a progressive enhancement of this ordinary WebGL page: the
@@ -278,10 +310,21 @@ final class GraphScene3D(state: ViewerState):
     * origin is the floor, so the drawing lifts to chest height, arm-and-a-half
     * away, scaled so its radius reads about a meter.
     */
-  private def setupXR(container: dom.Element): Unit =
+  private def setupXR(): Unit =
     renderer.xr.enabled = true
-    renderer.xr.addEventListener("sessionstart", _ => enterXRLayout())
-    renderer.xr.addEventListener("sessionend", _ => exitXRLayout())
+    renderer.xr.addEventListener(
+      "sessionstart",
+      _ =>
+        vrPresenting.set(true)
+        enterXRLayout()
+    )
+    renderer.xr.addEventListener(
+      "sessionend",
+      _ =>
+        xrSessionOpt = None
+        vrPresenting.set(false)
+        exitXRLayout()
+    )
     // On visionOS every pinch is a transient input source whose target ray is
     // the gaze at pinch time — three surfaces them through the controller
     // slots, so binding both covers one- and two-handed pinches.
@@ -292,11 +335,27 @@ final class GraphScene3D(state: ViewerState):
       navXr
         .applyDynamic("isSessionSupported")("immersive-vr")
         .asInstanceOf[js.Promise[Boolean]]
-        .foreach: supported =>
-          if supported then
-            val button = three.XRButton.createButton(renderer)
-            container.appendChild(button)
-            xrButtonOpt = Some(button)
+        .foreach(supported => if supported then vrSupported.set(true))
+
+  /** Start or end the immersive session. The request happens synchronously
+    * inside the button click — WebXR only grants sessions from a user
+    * activation. The same session-init features three's own button asks for.
+    */
+  def toggleVR(): Unit =
+    xrSessionOpt match
+      case Some(session) =>
+        session.applyDynamic("end")()
+        () // cleanup happens in the sessionend listener
+      case None =>
+        val sessionInit = js.Dynamic.literal(
+          optionalFeatures = js.Array("local-floor", "bounded-floor", "hand-tracking", "layers")
+        )
+        js.Dynamic.global.navigator.xr
+          .applyDynamic("requestSession")("immersive-vr", sessionInit)
+          .asInstanceOf[js.Promise[js.Dynamic]]
+          .foreach: session =>
+            xrSessionOpt = Some(session)
+            renderer.xr.setSession(session)
 
   private def enterXRLayout(): Unit =
     val radius = layout.positions.values.map(_.length).maxOption.getOrElse(1.0)
@@ -404,7 +463,7 @@ final class GraphScene3D(state: ViewerState):
   def dispose(): Unit =
     renderer.setAnimationLoop(null)
     resizeObserverOpt.foreach(_.disconnect())
-    xrButtonOpt.foreach(_.remove())
+    xrSessionOpt.foreach(_.applyDynamic("end")())
     controlsOpt.foreach(_.dispose())
     sprites.values.foreach(disposeSprite)
     sprites = Map.empty

@@ -126,6 +126,7 @@ trait WebXRManager extends js.Object:
   var enabled: Boolean         = js.native
   val isPresenting: Boolean    = js.native
   def getController(index: Int): Object3D = js.native
+  def setSession(session: js.Any): js.Promise[Unit] = js.native
   def addEventListener(tpe: String, listener: js.Function1[js.Any, Unit]): Unit = js.native
 
 @js.native
@@ -162,17 +163,6 @@ class Raycaster extends js.Object:
   def intersectObjects(objects: js.Array[Object3D], recursive: Boolean): js.Array[Intersection] = js.native
 
 // three maps "three/addons/*" to its examples/jsm/* via the package's export map.
-
-/** three's stock session-management button: requests/ends the immersive
-  * session and reflects its state. We append it only after our own
-  * isSessionSupported check — its built-in "XR NOT SUPPORTED" placeholder
-  * would be noise on every desktop.
-  */
-@js.native
-@JSImport("three/addons/webxr/XRButton.js", "XRButton")
-object XRButton extends js.Object:
-  def createButton(renderer: WebGLRenderer): dom.html.Element = js.native
-
 @js.native
 @JSImport("three/addons/controls/OrbitControls.js", "OrbitControls")
 class OrbitControls(camera: PerspectiveCamera, domElement: dom.Element) extends js.Object:
