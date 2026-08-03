@@ -208,6 +208,7 @@ class Raycaster extends js.Object:
 @JSImport("three/addons/controls/OrbitControls.js", "OrbitControls")
 class OrbitControls(camera: PerspectiveCamera, domElement: dom.Element) extends js.Object:
   var enabled: Boolean       = js.native
+  var enableZoom: Boolean    = js.native
   var enableDamping: Boolean = js.native
   var dampingFactor: Double  = js.native
   val target: Vector3        = js.native

@@ -40,6 +40,7 @@ def Scene3D(state: ViewerState): Div =
     state.visibleGraph --> scene.setGraph,
     state.selection.signal --> scene.setSelection,
     state.layout3D.signal --> scene.setAlgorithm,
+    state.nav3DTrackpad.signal --> scene.setNavMode,
     // Labels bake theme colors into their textures at paint time, so a theme
     // switch must repaint them. setTheme's own observer registered first, so
     // the CSS variables are already the new theme's when this fires.
@@ -265,6 +266,16 @@ final class GraphScene3D(state: ViewerState):
     * its sync sees a foreign algoId and re-adopts even though the graph is
     * unchanged — so the drawing morphs live from one shape to the other.
     */
+  /** Trackpad navigation: two-finger scroll pans, pinch (ctrl/meta-wheel)
+    * zooms — the 2D canvas's idiom. Off = mouse idiom: wheel zooms via
+    * OrbitControls, drag orbits (drag orbits in both modes).
+    */
+  private var trackpadNav = true
+
+  def setNavMode(trackpad: Boolean): Unit =
+    trackpadNav = trackpad
+    controlsOpt.foreach(_.enableZoom = !trackpad)
+
   def setAlgorithm(algoId: String): Unit =
     val next = Layout3D.byId(algoId).getOrElse(ForceLayout3D)
     if next.id != baseAlgo.id then
@@ -504,6 +515,25 @@ final class GraphScene3D(state: ViewerState):
     */
   private var userNavigated = false
 
+  /** Screen basis for an orbit pose: `dir` is target→camera; view = where the
+    * camera looks, right/up span the screen (matching three's lookAt).
+    */
+  private def basisFor(dir: Vec3): (Vec3, Vec3, Vec3) =
+    val view    = dir * -1.0
+    val worldUp = if math.abs(view.y) > 0.99 then Vec3(0, 0, 1) else Vec3(0, 1, 0)
+    val right0 = Vec3(
+      view.y * worldUp.z - view.z * worldUp.y,
+      view.z * worldUp.x - view.x * worldUp.z,
+      view.x * worldUp.y - view.y * worldUp.x
+    )
+    val right = right0 * (1.0 / math.max(1e-9, right0.length))
+    val up = Vec3(
+      right.y * view.z - right.z * view.y,
+      right.z * view.x - right.x * view.z,
+      right.x * view.y - right.y * view.x
+    )
+    (right, up, view)
+
   /** Frame the drawing the way the 2D canvas fits a diagram: as large as the
     * viewport allows while fully visible. Not a bounding-sphere heuristic —
     * that leaves acres of slack around anything non-spherical (a wide, shallow
@@ -528,20 +558,7 @@ final class GraphScene3D(state: ViewerState):
           if dirRaw.length < 1e-6 then DefaultCamDir * (1.0 / DefaultCamDir.length)
           else dirRaw * (1.0 / dirRaw.length)
 
-        // Camera basis: view = where the camera looks, right/up span the screen.
-        val view    = dir * -1.0
-        val worldUp = if math.abs(view.y) > 0.99 then Vec3(0, 0, 1) else Vec3(0, 1, 0)
-        val right0  = Vec3(
-          view.y * worldUp.z - view.z * worldUp.y,
-          view.z * worldUp.x - view.x * worldUp.z,
-          view.x * worldUp.y - view.y * worldUp.x
-        )
-        val right = right0 * (1.0 / math.max(1e-9, right0.length))
-        val up    = Vec3(
-          right.y * view.z - right.z * view.y,
-          right.z * view.x - right.x * view.z,
-          right.x * view.y - right.y * view.x
-        )
+        val (right, up, view) = basisFor(dir)
 
         var minX = Double.MaxValue; var minY = Double.MaxValue; var minZ = Double.MaxValue
         var maxX = -Double.MaxValue; var maxY = -Double.MaxValue; var maxZ = -Double.MaxValue
@@ -643,8 +660,10 @@ final class GraphScene3D(state: ViewerState):
     val controls = three.OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     controls.dampingFactor = 0.08
+    controls.enableZoom = !trackpadNav
     controls.addEventListener("start", _ => userNavigated = true)
     controlsOpt = Some(controls)
+    attachWheelNavigation(controls)
 
     resize(container)
     val observer = dom.ResizeObserver((_, _) => resize(container))
@@ -830,6 +849,37 @@ final class GraphScene3D(state: ViewerState):
   private var dragPlaneNormal = Vec3.zero // camera direction at grab
   private var downX = 0.0
   private var downY = 0.0
+
+  /** Trackpad-mode wheel: scroll pans in the view plane, pinch dollies.
+    * Mirrors the 2D canvas exactly — there, content translates by +delta, so
+    * here the CAMERA moves by the opposite (−deltaX right, +deltaY up: screen
+    * y points down). World-per-pixel is taken at the orbit target's depth,
+    * which makes the pan finger-accurate for content at that depth.
+    */
+  private def attachWheelNavigation(controls: three.OrbitControls): Unit =
+    renderer.domElement.addEventListener(
+      "wheel",
+      (e: dom.WheelEvent) =>
+        if trackpadNav && !renderer.xr.isPresenting then
+          e.preventDefault()
+          userNavigated = true
+          val target = Vec3(controls.target.x, controls.target.y, controls.target.z)
+          val camP   = Vec3(camera.position.x, camera.position.y, camera.position.z)
+          val toCam  = camP - target
+          val dist   = math.max(0.5, toCam.length)
+          val dir    = toCam * (1.0 / math.max(1e-9, toCam.length))
+          if e.ctrlKey || e.metaKey then
+            // pinch (browsers report it as ctrl+wheel) or meta+scroll: dolly
+            val nd = math.min(400.0, math.max(0.6, dist * math.exp(e.deltaY * 0.01)))
+            camera.position.set(target.x + dir.x * nd, target.y + dir.y * nd, target.z + dir.z * nd)
+          else
+            val (right, up, _) = basisFor(dir)
+            val heightPx = math.max(1, renderer.domElement.clientHeight)
+            val wpp      = 2 * dist * math.tan(math.toRadians(CameraFovDeg / 2)) / heightPx
+            val off      = right * (-e.deltaX * wpp) + up * (e.deltaY * wpp)
+            controls.target.set(target.x + off.x, target.y + off.y, target.z + off.z)
+            camera.position.set(camP.x + off.x, camP.y + off.y, camP.z + off.z)
+    )
 
   /** Pointer down on a node begins a drag (orbit is suspended for its
     * duration); on empty space it is the start of an orbit. Which one it was

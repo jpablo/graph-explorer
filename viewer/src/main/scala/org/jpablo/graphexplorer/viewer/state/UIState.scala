@@ -47,6 +47,12 @@ trait UIState:
     */
   val layout3D = Var(org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id)
 
+  /** 3D navigation idiom: true = trackpad (two-finger scroll pans, pinch
+    * zooms — the 2D canvas's idiom, hence the default); false = mouse (wheel
+    * zooms). Drag orbits in both. Persisted in ViewerSettings.
+    */
+  val nav3DTrackpad = Var(true)
+
   extension (section: RightPanelSection)
     def isSectionActive: Signal[Boolean] =
       rightPanelActiveSection.signal.map(_ == section)

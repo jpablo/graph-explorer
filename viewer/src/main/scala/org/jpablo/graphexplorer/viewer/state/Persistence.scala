@@ -68,7 +68,8 @@ trait Persistence:
       view3D -> restoredViewerSettings.view3D,
       layout3D -> restoredViewerSettings.layout3D.getOrElse(
         org.jpablo.graphexplorer.viewer.layout3d.ForceLayout3D.id
-      )
+      ),
+      nav3DTrackpad -> restoredViewerSettings.nav3DTrackpad
     )
 
   /** Sets up bidirectional synchronization between ViewerState and persisted storage. */
@@ -108,9 +109,11 @@ trait Persistence:
         view3D.signal,
         layout3D.signal
       )
+      // combineWith rather than a 10th combine slot: Signal.combine tops out at 9.
+      .combineWith(nav3DTrackpad.signal)
       .changes
       .distinct
-      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D, layout3DId) =>
+      .foreach((leftVisible, tabIndex, theme, promptBeforeNewNode, panelWidth, wrapLines, pinned, in3D, layout3DId, navTrackpad) =>
         // copy, not a fresh ViewerSettings: fields this page does not own (the library's
         // view mode) must survive a detail-page sync instead of resetting to defaults.
         viewerSettings.update(
@@ -124,6 +127,7 @@ trait Persistence:
             elementsPinned = pinned,
             view3D = in3D,
             layout3D = Some(layout3DId),
+            nav3DTrackpad = navTrackpad,
             schemaVersion = ViewerSettings.currentSchemaVersion
           )
         )
@@ -181,6 +185,8 @@ case class ViewerSettings(
     // None = default (force), and an unknown id degrades to the default
     // instead of costing the user every other setting.
     layout3D:           Option[String] = None,
+    // 3D navigation idiom: true = trackpad (scroll pans), false = mouse (wheel zooms).
+    nav3DTrackpad:      Boolean = true,
     // Library page: false = thumbnail cards, true = compact rows.
     libraryListMode:    Boolean = false,
     // Library page: the sort column, and the format the list is filtered to.

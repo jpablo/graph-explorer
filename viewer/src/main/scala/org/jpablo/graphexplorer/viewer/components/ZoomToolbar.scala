@@ -30,9 +30,20 @@ def ZoomToolbar(state: ViewerState, commands: Commands) =
       SwapIcon(state.view3D.signal, onIcon = "bi bi-check-circle", offIcon = "bi bi-circle"),
       onClick --> state.view3D.update(!_)
     ).tiny.ghost.activeWhen(state.view3D.signal),
-    // The layout picker only means something while the 3D scene is up.
-    // Switching morphs the drawing live from one shape to the other.
-    child.maybe <-- state.view3D.signal.map(on => Option.when(on)(layout3DSelect(state)))
+    // The layout picker and navigation toggle only mean something while the
+    // 3D scene is up. Switching layouts morphs the drawing live.
+    child.maybe <-- state.view3D.signal.map(on => Option.when(on)(threeDControls(state)))
+  )
+
+private def threeDControls(state: ViewerState) =
+  div(
+    cls := "flex items-center gap-1",
+    layout3DSelect(state),
+    IconToggle(
+      "bi-arrows-move",
+      "Trackpad navigation: scroll pans, pinch zooms (off: wheel zooms)",
+      state.nav3DTrackpad
+    )
   )
 
 private def layout3DSelect(state: ViewerState) =
