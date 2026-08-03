@@ -75,9 +75,11 @@ object LayeredLayout3D extends Layout3D:
     else
       val moved =
         state.positions.map: (nodeId, p) =>
-          state.targets.get(nodeId) match
-            case Some(t) => nodeId -> (p + (t - p) * params.tweenRate)
-            case None    => nodeId -> p
+          if state.pinned.contains(nodeId) then nodeId -> p
+          else
+            state.targets.get(nodeId) match
+              case Some(t) => nodeId -> (p + (t - p) * params.tweenRate)
+              case None    => nodeId -> p
       val remaining = maxDistanceToTargets(moved, state.targets)
       if remaining <= params.k * params.settleEpsFactor then
         state.copy(positions = state.targets, temperature = 0, iteration = state.iteration + 1)

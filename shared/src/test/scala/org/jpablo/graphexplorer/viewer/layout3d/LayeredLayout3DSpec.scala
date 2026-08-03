@@ -67,6 +67,20 @@ class LayeredLayout3DSpec extends munit.FunSuite:
     assert(s.positions.values.forall(_.isFinite))
     assert(s.positions(NodeId("a")).y > s.positions(NodeId("b")).y)
 
+  test("a pinned node resists the tween, then returns on release"):
+    val g    = graph("a", "b")(("a", "b"))
+    val s    = LayeredLayout3D.initial(g)
+    val held = Vec3(3, 3, 3)
+    val dragged = s.copy(
+      positions = s.positions.updated(NodeId("a"), held),
+      pinned = Set(NodeId("a")),
+      temperature = (held - s.targets(NodeId("a"))).length
+    )
+    val stillHeld = LayeredLayout3D.step(LayeredLayout3D.step(dragged))
+    assertEquals(stillHeld.positions(NodeId("a")), held)
+    val released = settle(stillHeld.copy(pinned = Set.empty))
+    assertEquals(released.positions(NodeId("a")), s.targets(NodeId("a")))
+
   test("a new node tweens in from sync without disturbing survivors' targets"):
     val g1 = graph("a", "b")(("a", "b"))
     val g2 = graph("a", "b", "c")(("a", "b"), ("b", "c"))

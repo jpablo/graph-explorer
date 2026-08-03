@@ -77,3 +77,35 @@ class ForceLayout3DSpec extends munit.FunSuite:
     val s      = ForceLayout3D.run(graph("a", "b", "c")(("a", "b"), ("b", "c")))
     val synced = ForceLayout3D.sync(s, graph("a", "b")(("a", "b")))
     assertEquals(synced.positions.keySet, Set(NodeId("a"), NodeId("b")))
+
+  test("a pinned node holds its position exactly while others keep moving"):
+    val g      = graph("a", "b", "c")(("a", "b"), ("b", "c"))
+    val s0     = ForceLayout3D.initial(g)
+    val held   = Vec3(5, 5, 5)
+    val pinned = s0.copy(
+      positions = s0.positions.updated(NodeId("a"), held),
+      pinned = Set(NodeId("a"))
+    )
+    var s = pinned
+    for _ <- 1 to 20 do s = ForceLayout3D.step(s)
+    assertEquals(s.positions(NodeId("a")), held)
+    assert(s.positions(NodeId("b")) != pinned.positions(NodeId("b")))
+
+  test("releasing a pin lets the simulation pull the node back"):
+    val g    = graph("a", "b")(("a", "b"))
+    val s    = ForceLayout3D.run(g)
+    val held = Vec3(8, 0, 0)
+    val dragged = s.copy(
+      positions = s.positions.updated(NodeId("a"), held),
+      pinned = Set(NodeId("a")),
+      temperature = 0.3
+    )
+    val released = dragged.copy(pinned = Set.empty)
+    var r = released
+    var steps = 0
+    while !r.done && steps < 2000 do
+      r = ForceLayout3D.step(r)
+      steps += 1
+    val distBefore = (held - s.positions(NodeId("b"))).length
+    val distAfter  = (r.positions(NodeId("a")) - r.positions(NodeId("b"))).length
+    assert(distAfter < distBefore)

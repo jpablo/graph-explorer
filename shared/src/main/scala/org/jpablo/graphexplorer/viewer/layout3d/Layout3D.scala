@@ -24,6 +24,10 @@ case class LayoutGraph(
   *
   * `targets` is used by direct layouts (positions computed in closed form,
   * then tweened toward); simulation layouts leave it empty.
+  *
+  * `pinned` nodes are held exactly where they are — a drag in progress. The
+  * simulation keeps running around them (that is the point: neighbors react
+  * live), so a caller pinning a node should also keep `temperature` warm.
   */
 case class LayoutState3D(
     algoId:      String,
@@ -31,7 +35,8 @@ case class LayoutState3D(
     positions:   Map[NodeId, Vec3],
     temperature: Double,
     iteration:   Int,
-    targets:     Map[NodeId, Vec3] = Map.empty
+    targets:     Map[NodeId, Vec3] = Map.empty,
+    pinned:      Set[NodeId] = Set.empty
 ) derives CanEqual:
   def done: Boolean = temperature <= 0
 

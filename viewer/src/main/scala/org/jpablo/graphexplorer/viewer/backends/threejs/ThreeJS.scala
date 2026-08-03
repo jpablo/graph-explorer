@@ -24,6 +24,7 @@ class Object3D extends js.Object:
   def add(objects: Object3D*): this.type    = js.native
   def remove(objects: Object3D*): this.type = js.native
   def lookAt(x: Double, y: Double, z: Double): Unit = js.native
+  def getWorldDirection(target: Vector3): Vector3   = js.native
   // From three's EventDispatcher (not the DOM's): controller select events etc.
   def addEventListener(tpe: String, listener: js.Function1[js.Any, Unit]): Unit = js.native
 
@@ -166,6 +167,7 @@ class Raycaster extends js.Object:
 @js.native
 @JSImport("three/addons/controls/OrbitControls.js", "OrbitControls")
 class OrbitControls(camera: PerspectiveCamera, domElement: dom.Element) extends js.Object:
+  var enabled: Boolean       = js.native
   var enableDamping: Boolean = js.native
   var dampingFactor: Double  = js.native
   def update(): Boolean      = js.native

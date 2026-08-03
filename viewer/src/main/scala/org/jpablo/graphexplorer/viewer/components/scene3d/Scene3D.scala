@@ -5,7 +5,7 @@ import com.raquo.laminar.api.features.unitArrows
 import org.jpablo.graphexplorer.viewer.backends.threejs as three
 import org.jpablo.graphexplorer.viewer.formats.dot.HtmlLabels
 import org.jpablo.graphexplorer.viewer.graph.ViewerGraph
-import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D}
+import org.jpablo.graphexplorer.viewer.layout3d.{ForceLayout3D, Layout3D, LayoutGraph, LayoutState3D, Vec3}
 import org.jpablo.graphexplorer.viewer.models.{ElementIds, NodeId, ViewerNode}
 import org.jpablo.graphexplorer.viewer.state.ViewerState
 import org.jpablo.graphexplorer.viewer.widgets.{Button, ghost, tiny}
@@ -91,6 +91,7 @@ final class GraphScene3D(state: ViewerState):
   private val raycaster  = three.Raycaster()
   private val pointerNdc = three.Vector2()
   private val tempMatrix = three.Matrix4()
+  private val scratchVec = three.Vector3()
   private val lineMaterial =
     three.LineBasicMaterial(three.LineBasicMaterial.params(vertexColors = true, transparent = true, opacity = 0.95))
 
@@ -367,26 +368,53 @@ final class GraphScene3D(state: ViewerState):
     graphRoot.scale.set(1, 1, 1)
     graphRoot.position.set(0, 0, 0)
 
+  // ------------- VR pinch: a quick pinch selects, a held pinch drags -------------
+
+  private var vrDrag: Option[(three.Object3D, NodeId, Double)] = None // controller, node, grab distance
+  private var vrStartDirection = Vec3.zero
+
   private def bindController(index: Int): Unit =
     val controller = renderer.xr.getController(index)
     scene.add(controller)
-    controller.addEventListener("select", _ => pickFromController(controller))
+    controller.addEventListener("selectstart", _ => vrSelectStart(controller))
+    controller.addEventListener("selectend", _ => vrSelectEnd(controller))
 
-  /** A pinch TOGGLES the gazed-at node. Deliberately no clear-on-miss in VR:
-    * with gaze-driven rays a stray pinch is common, and losing a selection to
-    * one would be maddening.
-    */
-  private def pickFromController(controller: three.Object3D): Unit =
+  private def setRayFromController(controller: three.Object3D): Unit =
     tempMatrix.identity().extractRotation(controller.matrixWorld)
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld)
     raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix)
+
+  private def vrSelectStart(controller: three.Object3D): Unit =
+    setRayFromController(controller)
+    vrStartDirection = rayDirection
     raycaster
       .intersectObjects(nodesGroup.children, recursive = false)
       .headOption
-      .flatMap(_.hitObject.userData.get("nodeId"))
-      .foreach(raw => state.selection.toggle(NodeId(raw.asInstanceOf[String])))
+      .foreach: hit =>
+        hit.hitObject.userData
+          .get("nodeId")
+          .foreach(raw => vrDrag = Some((controller, NodeId(raw.asInstanceOf[String]), hit.distance)))
+
+  /** Pinch released. If the ray barely turned it was a CLICK — toggle the node
+    * (deliberately no clear-on-miss in VR: with gaze-driven rays a stray pinch
+    * is common, and losing a selection to one would be maddening). A ray that
+    * travelled was a drag; just release the pin.
+    */
+  private def vrSelectEnd(controller: three.Object3D): Unit =
+    vrDrag match
+      case Some((c, id, _)) if c eq controller =>
+        vrDrag = None
+        setRayFromController(controller)
+        val wasClick = vrStartDirection.dot(rayDirection) > 0.9985 // ray turned < ~3 degrees
+        releasePins()
+        if wasClick then state.selection.toggle(id)
+      case _ => ()
 
   private def frame(@annotation.unused time: Double): Unit =
+    // A live VR drag follows the (gaze) ray at the grab distance, every frame.
+    vrDrag.foreach: (controller, id, dist) =>
+      setRayFromController(controller)
+      pinNodeAt(id, worldToLocal(rayOrigin + rayDirection * dist))
     if !layout.done then
       var s = 0
       while s < StepsPerFrame && !layout.done do
@@ -425,40 +453,135 @@ final class GraphScene3D(state: ViewerState):
       camera.aspect = w / h
       camera.updateProjectionMatrix()
 
-  /** Click = pointer travelled under a few px between down and up; anything
-    * longer is an orbit drag and must not change the selection.
+  // ---------------- desktop pointer: click selects, drag tugs ----------------
+
+  /** Fraction of k the simulation is kept warmed to while a drag is live, so
+    * neighbors visibly respond to the tug.
+    */
+  private val DragHeat      = 0.3
+  private val ClickSlopPx   = 5.0
+  private var mouseDragNode: Option[NodeId] = None
+  private var dragPlanePoint  = Vec3.zero // world-space grab point
+  private var dragPlaneNormal = Vec3.zero // camera direction at grab
+  private var downX = 0.0
+  private var downY = 0.0
+
+  /** Pointer down on a node begins a drag (orbit is suspended for its
+    * duration); on empty space it is the start of an orbit. Which one it was
+    * only becomes a CLICK at pointer-up, if the pointer never travelled.
     */
   private def attachPointerHandlers(): Unit =
-    var downX = 0.0
-    var downY = 0.0
     renderer.domElement.addEventListener(
       "pointerdown",
       (e: dom.PointerEvent) =>
         downX = e.clientX
         downY = e.clientY
+        setRayFromPointer(e)
+        hitNodeId() match
+          case Some(id) =>
+            mouseDragNode = Some(id)
+            dragPlanePoint = localToWorld(layout.positions.getOrElse(id, Vec3.zero))
+            dragPlaneNormal = cameraDirection()
+            controlsOpt.foreach(_.enabled = false)
+            renderer.domElement.asInstanceOf[js.Dynamic].setPointerCapture(e.pointerId)
+          case None => ()
     )
     renderer.domElement.addEventListener(
-      "click",
-      (e: dom.MouseEvent) =>
-        if math.hypot(e.clientX - downX, e.clientY - downY) < 5 then pick(e)
+      "pointermove",
+      (e: dom.PointerEvent) =>
+        mouseDragNode.foreach: id =>
+          setRayFromPointer(e)
+          // The node slides in the camera-facing plane through its grab point:
+          // the one mapping from a 2D pointer to 3D that never surprises.
+          planeIntersect(dragPlanePoint, dragPlaneNormal).foreach: world =>
+            pinNodeAt(id, worldToLocal(world))
+    )
+    renderer.domElement.addEventListener(
+      "pointerup",
+      (e: dom.PointerEvent) =>
+        val wasClick = math.hypot(e.clientX - downX, e.clientY - downY) < ClickSlopPx
+        val additive = e.shiftKey || e.metaKey
+        mouseDragNode match
+          case Some(id) =>
+            mouseDragNode = None
+            controlsOpt.foreach(_.enabled = true)
+            releasePins()
+            if wasClick then
+              if additive then state.selection.toggle(id) else state.selection.set2(id)
+          case None =>
+            if wasClick && !additive then state.selection.set(ElementIds())
     )
 
-  private def pick(e: dom.MouseEvent): Unit =
+  private def setRayFromPointer(e: dom.MouseEvent): Unit =
     val rect = renderer.domElement.getBoundingClientRect()
     val ndcX = (e.clientX - rect.left) / rect.width * 2 - 1
     val ndcY = -((e.clientY - rect.top) / rect.height * 2 - 1)
     raycaster.setFromCamera(pointerNdc.set(ndcX, ndcY), camera)
-    val hits = raycaster.intersectObjects(nodesGroup.children, recursive = false)
-    val hitNodeId =
-      hits.headOption
-        .flatMap(_.hitObject.userData.get("nodeId"))
-        .map(raw => NodeId(raw.asInstanceOf[String]))
-    val additive = e.shiftKey || e.metaKey
-    hitNodeId match
-      case Some(id) if additive => state.selection.toggle(id)
-      case Some(id)             => state.selection.set2(id)
-      case None if !additive    => state.selection.set(ElementIds())
-      case None                 => ()
+
+  /** First node the current raycaster ray hits. */
+  private def hitNodeId(): Option[NodeId] =
+    raycaster
+      .intersectObjects(nodesGroup.children, recursive = false)
+      .headOption
+      .flatMap(_.hitObject.userData.get("nodeId"))
+      .map(raw => NodeId(raw.asInstanceOf[String]))
+
+  private def rayOrigin: Vec3 =
+    Vec3(raycaster.ray.origin.x, raycaster.ray.origin.y, raycaster.ray.origin.z)
+
+  private def rayDirection: Vec3 =
+    Vec3(raycaster.ray.direction.x, raycaster.ray.direction.y, raycaster.ray.direction.z)
+
+  private def cameraDirection(): Vec3 =
+    camera.getWorldDirection(scratchVec)
+    Vec3(scratchVec.x, scratchVec.y, scratchVec.z)
+
+  private def planeIntersect(p0: Vec3, n: Vec3): Option[Vec3] =
+    val o     = rayOrigin
+    val d     = rayDirection
+    val denom = n.dot(d)
+    if math.abs(denom) < 1e-6 then None
+    else
+      val t = n.dot(p0 - o) / denom
+      if t <= 0 then None else Some(o + d * t)
+
+  /** graphRoot is identity on the desktop but scaled/lifted inside an XR
+    * session; layout coordinates are its LOCAL space.
+    */
+  private def localToWorld(local: Vec3): Vec3 =
+    val s = graphRoot.scale.x
+    Vec3(
+      local.x * s + graphRoot.position.x,
+      local.y * s + graphRoot.position.y,
+      local.z * s + graphRoot.position.z
+    )
+
+  private def worldToLocal(world: Vec3): Vec3 =
+    val s = math.max(1e-9, graphRoot.scale.x)
+    Vec3(
+      (world.x - graphRoot.position.x) / s,
+      (world.y - graphRoot.position.y) / s,
+      (world.z - graphRoot.position.z) / s
+    )
+
+  /** Hold the node exactly here and keep the simulation warm so everyone else
+    * reacts to the tug in real time.
+    */
+  private def pinNodeAt(id: NodeId, local: Vec3): Unit =
+    layout = layout.copy(
+      positions = layout.positions.updated(id, local),
+      pinned = Set(id),
+      temperature = math.max(layout.temperature, DragHeat)
+    )
+
+  /** Release with residual heat: the graph resettles around wherever the node
+    * was left (force), or the node tweens home (layers).
+    */
+  private def releasePins(): Unit =
+    layout = layout.copy(
+      pinned = Set.empty,
+      temperature = math.max(layout.temperature, DragHeat)
+    )
 
   def dispose(): Unit =
     renderer.setAnimationLoop(null)

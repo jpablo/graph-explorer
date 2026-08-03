@@ -8,6 +8,8 @@ final case class Vec3(x: Double, y: Double, z: Double) derives CanEqual:
   def -(o: Vec3): Vec3   = Vec3(x - o.x, y - o.y, z - o.z)
   def *(k: Double): Vec3 = Vec3(x * k, y * k, z * k)
 
+  def dot(o: Vec3): Double = x * o.x + y * o.y + z * o.z
+
   def length: Double = math.sqrt(x * x + y * y + z * z)
 
   def isFinite: Boolean =

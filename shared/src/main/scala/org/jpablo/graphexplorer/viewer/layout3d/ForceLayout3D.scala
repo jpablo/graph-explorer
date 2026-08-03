@@ -134,14 +134,19 @@ object ForceLayout3D extends Layout3D:
         disp(ti) = disp(ti) + pull
 
       // Gravity toward the origin, then displace — capped by temperature.
+      // Pinned nodes (a drag in progress) stay exactly put; they still exert
+      // forces on everyone else, which is what makes tugging one node feel
+      // like tugging the graph.
       val t = state.temperature
       val newPositions =
         nodes.iterator.zipWithIndex
           .map: (nodeId, i) =>
-            val d    = disp(i) - pos(i) * params.gravity
-            val len  = d.length
-            val move = if len <= t then d else d * (t / len)
-            nodeId -> (pos(i) + move)
+            if state.pinned.contains(nodeId) then nodeId -> pos(i)
+            else
+              val d    = disp(i) - pos(i) * params.gravity
+              val len  = d.length
+              val move = if len <= t then d else d * (t / len)
+              nodeId -> (pos(i) + move)
           .toMap
 
       val floor  = k * params.minTempFactor
