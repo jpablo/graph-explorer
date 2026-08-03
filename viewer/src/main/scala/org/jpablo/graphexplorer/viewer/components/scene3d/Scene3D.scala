@@ -134,8 +134,6 @@ final class GraphScene3D(state: ViewerState):
   private val pointerNdc = three.Vector2()
   private val tempMatrix = three.Matrix4()
   private val scratchVec = three.Vector3()
-  private val lineMaterial =
-    three.LineBasicMaterial(three.LineBasicMaterial.params(vertexColors = true, transparent = true, opacity = 0.95))
 
   // 3D mode gets its own fixed dark environment, like a DCC viewport, instead
   // of inheriting the document's paper-and-grid: label pills pop against it in
@@ -192,13 +190,7 @@ final class GraphScene3D(state: ViewerState):
   val vrPresenting = Var(false)
 
   private var xrSessionOpt: Option[js.Dynamic] = None
-  private var lineSegmentsOpt: Option[three.LineSegments]     = None
-  private var lineGeometryOpt: Option[three.BufferGeometry]   = None
-  private var linePosAttrOpt: Option[three.BufferAttribute]   = None
-  private var linePositions: Float32Array                     = new Float32Array(0)
-  private var lineColorAttrOpt: Option[three.BufferAttribute] = None
-  private var lineColors: Float32Array                        = new Float32Array(0)
-  private var brightEdges: Array[Boolean]                     = Array.empty
+  private var brightEdges: Array[Boolean]      = Array.empty
 
   // One shared cone geometry/material for every arrowhead; meshes per edge.
   private val coneGeometry = three.ConeGeometry(0.05, 0.14, 10)
@@ -208,6 +200,26 @@ final class GraphScene3D(state: ViewerState):
   private var coneMeshes = Vector.empty[three.Mesh]
   private val coneUp     = three.Vector3().set(0, 1, 0)
   private val coneDir    = three.Vector3()
+
+  // Edge stems are MESHES, not GL lines: `linewidth` on a WebGL line is
+  // silently ignored by essentially every platform, so LineSegments could
+  // only ever draw a 1px hairline — near-invisible on a HiDPI desktop and
+  // worse in a headset. One shared unit cylinder (r=1, h=1), one mesh per
+  // edge scaled to (radius, length, radius) and aimed like the cones. The
+  // radius is world-space on purpose: an edge is a 3D object that thins
+  // with distance, which the constant-px hairline never did.
+  private val StemRadius   = 0.011
+  private val stemGeometry = three.CylinderGeometry(1, 1, 1, 8)
+  private val stemMaterial = three.MeshBasicMaterial(
+    three.MeshBasicMaterial.params(color = 0x8a92a0, transparent = true, opacity = 0.95, depthWrite = true, side = 0)
+  )
+  // The neighborhood dim, formerly per-vertex alpha in the line buffer: now a
+  // swap to this shared faint material. depthWrite off — a dimmed stem is
+  // context, and must not punch holes into things behind it.
+  private val stemDimMaterial = three.MeshBasicMaterial(
+    three.MeshBasicMaterial.params(color = 0x8a92a0, transparent = true, opacity = 0.10, depthWrite = false, side = 0)
+  )
+  private var stemMeshes = Vector.empty[three.Mesh]
 
   /** Soft, distinguishable hull tints; assigned by cluster order (stable —
     * clusters are sorted by group id).
@@ -486,63 +498,39 @@ final class GraphScene3D(state: ViewerState):
     val v = dom.window.getComputedStyle(dom.document.documentElement).getPropertyValue(cssVar).trim
     if v.isEmpty then fallback else v
 
-  /** One LineSegments object for all edges: a single draw call, with per-vertex
-    * colors giving each edge a dim source end and an accent target end — the
-    * direction cue until real arrowheads exist. Positions are (re)written every
-    * layout step into a preallocated buffer.
+  /** One stem mesh and one cone mesh per edge; geometry and materials are
+    * shared, so a rebuild only creates/removes the meshes. Their transforms
+    * are (re)written every layout step in writePositions.
     */
   private def rebuildLines(): Unit =
-    lineSegmentsOpt.foreach(graphRoot.remove(_))
-    lineGeometryOpt.foreach(_.dispose())
-    coneMeshes.foreach(graphRoot.remove(_)) // geometry/material are shared — only the meshes go
+    stemMeshes.foreach(graphRoot.remove(_))
+    coneMeshes.foreach(graphRoot.remove(_))
+    stemMeshes = Vector.empty
     coneMeshes = Vector.empty
-    lineSegmentsOpt = None
-    lineGeometryOpt = None
-    linePosAttrOpt = None
-    lineColorAttrOpt = None
     if edges.nonEmpty then
-      linePositions = new Float32Array(edges.size * 6)
-      // RGBA per vertex: alpha is how the neighborhood dim reaches lines
-      // without a second material (needs material.transparent, which is on).
-      lineColors = new Float32Array(edges.size * 8)
       brightEdges = Array.fill(edges.size)(true)
-      val geometry = three.BufferGeometry()
-      val posAttr  = three.BufferAttribute(linePositions, 3)
-      val colAttr  = three.BufferAttribute(lineColors, 4)
-      geometry.setAttribute("position", posAttr)
-      geometry.setAttribute("color", colAttr)
-      val segments = three.LineSegments(geometry, lineMaterial)
-      // Positions mutate every frame; skip bounding-sphere culling instead of
-      // recomputing it per step.
-      segments.frustumCulled = false
-      graphRoot.add(segments)
-      lineSegmentsOpt = Some(segments)
-      lineGeometryOpt = Some(geometry)
-      linePosAttrOpt = Some(posAttr)
-      lineColorAttrOpt = Some(colAttr)
+      stemMeshes = edges.map: _ =>
+        val stem = three.Mesh(stemGeometry, stemMaterial)
+        stem.frustumCulled = false // transforms mutate every frame; skip stale-sphere culling
+        graphRoot.add(stem)
+        stem
       coneMeshes = edges.map: _ =>
         val cone = three.Mesh(coneGeometry, coneMaterial)
         graphRoot.add(cone)
         cone
-      writeLineColors()
+      writeEdgeHighlight()
 
-  /** Rewrites the RGBA line buffer from the current highlight: with a
-    * selection, only edges incident to a selected node stay opaque (they ARE
-    * the neighborhood); with none, everything is. Arrowheads follow their
-    * edge by visibility.
+  /** Applies the current highlight to edges: with a selection, only edges
+    * incident to a selected node stay opaque (they ARE the neighborhood) —
+    * the rest swap to the faint material. Arrowheads follow their edge by
+    * visibility.
     */
-  private def writeLineColors(): Unit =
+  private def writeEdgeHighlight(): Unit =
     for i <- edges.indices do
       val (s, t) = edges(i)
       brightEdges(i) = selectedNodes.isEmpty || selectedNodes.contains(s) || selectedNodes.contains(t)
-      val alpha = if brightEdges(i) then 0.95f else 0.10f
-      // Brighter than the old paper-background values: these must read on the
-      // dark environment.
-      lineColors(i * 8 + 0) = 0.55f; lineColors(i * 8 + 1) = 0.58f
-      lineColors(i * 8 + 2) = 0.64f; lineColors(i * 8 + 3) = alpha
-      lineColors(i * 8 + 4) = 0.35f; lineColors(i * 8 + 5) = 0.62f
-      lineColors(i * 8 + 6) = 0.95f; lineColors(i * 8 + 7) = alpha
-    lineColorAttrOpt.foreach(_.needsUpdate = true)
+      if i < stemMeshes.size then
+        stemMeshes(i).material = if brightEdges(i) then stemMaterial else stemDimMaterial
 
   /** One translucent hull mesh per cluster; the geometry is re-hulled on every
     * position write (QuickHull over tens of points — cheap), the mesh and
@@ -597,17 +585,28 @@ final class GraphScene3D(state: ViewerState):
     for i <- edges.indices do
       val (s, t) = edges(i)
       for sp <- layout.positions.get(s); tp <- layout.positions.get(t) do
-        linePositions(i * 6 + 0) = sp.x.toFloat
-        linePositions(i * 6 + 1) = sp.y.toFloat
-        linePositions(i * 6 + 2) = sp.z.toFloat
-        linePositions(i * 6 + 3) = tp.x.toFloat
-        linePositions(i * 6 + 4) = tp.y.toFloat
-        linePositions(i * 6 + 5) = tp.z.toFloat
+        val d   = tp - sp
+        val len = d.length
+        if i < stemMeshes.size then
+          val stem = stemMeshes(i)
+          if len < 1e-6 then stem.visible = false
+          else
+            stem.visible = true
+            val dir = d * (1.0 / len)
+            // Stop short of both pills: the hairline vanished into a label
+            // unnoticed, but a stem with real girth crossing INTO the pill
+            // reads as a smudge on the text.
+            val inset = math.min(len * 0.3, NodeHeight * 0.4)
+            val a     = sp + dir * inset
+            val b     = tp - dir * inset
+            // The unit cylinder is y-aligned and centered: midpoint + length
+            // scale + the same aim quaternion the cone uses.
+            stem.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2)
+            stem.scale.set(StemRadius, len - 2 * inset, StemRadius)
+            stem.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
         // Arrowhead: a cone just short of the target pill, aimed along the edge.
         if i < coneMeshes.size then
           val cone = coneMeshes(i)
-          val d    = tp - sp
-          val len  = d.length
           if len < 1e-6 || !brightEdges(i) then cone.visible = false
           else
             cone.visible = true
@@ -615,7 +614,6 @@ final class GraphScene3D(state: ViewerState):
             val back = math.min(len * 0.5, NodeHeight * 0.55)
             cone.position.set(tp.x - dir.x * back, tp.y - dir.y * back, tp.z - dir.z * back)
             cone.quaternion.setFromUnitVectors(coneUp, coneDir.set(dir.x, dir.y, dir.z))
-    linePosAttrOpt.foreach(_.needsUpdate = true)
     updateHulls()
 
   /** Selection tint plus neighborhood focus: with a selection, everything not
@@ -635,7 +633,7 @@ final class GraphScene3D(state: ViewerState):
     sprites.foreach: (id, ns) =>
       ns.material.color.setHex(if selectedNodes.contains(id) then SelectedTint else NormalTint)
       ns.material.opacity = if neighborhood.forall(_.contains(id)) then 1.0 else DimOpacity
-    writeLineColors()
+    writeEdgeHighlight()
     writePositions() // cone visibility follows brightEdges
 
   /** Camera field of view, degrees (vertical) — mirrored here for fit math. */
@@ -1213,8 +1211,9 @@ final class GraphScene3D(state: ViewerState):
     gizmoLines._1.dispose()
     gizmoLines._2.dispose()
     gizmoAxisTips.foreach((_, mat) => mat.dispose()) // cone geometry is the shared one
-    lineGeometryOpt.foreach(_.dispose())
-    lineMaterial.dispose()
+    stemGeometry.dispose()
+    stemMaterial.dispose()
+    stemDimMaterial.dispose()
     renderer.dispose()
     renderer.domElement.remove()
 end GraphScene3D

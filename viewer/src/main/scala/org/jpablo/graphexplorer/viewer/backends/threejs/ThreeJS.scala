@@ -152,7 +152,8 @@ object MeshBasicMaterial:
 @js.native
 @JSImport("three", "Mesh")
 class Mesh(geom: BufferGeometry, meshMaterial: MeshBasicMaterial) extends Object3D:
-  var geometry: BufferGeometry = js.native
+  var geometry: BufferGeometry     = js.native
+  var material: MeshBasicMaterial  = js.native
 
 // QuickHull over a point cloud; needs 4+ non-coplanar points.
 @js.native
@@ -162,6 +163,11 @@ class ConvexGeometry(points: js.Array[Vector3]) extends BufferGeometry
 @js.native
 @JSImport("three", "ConeGeometry")
 class ConeGeometry(radius: Double, height: Double, radialSegments: Int) extends BufferGeometry
+
+@js.native
+@JSImport("three", "CylinderGeometry")
+class CylinderGeometry(radiusTop: Double, radiusBottom: Double, height: Double, radialSegments: Int)
+    extends BufferGeometry
 
 @js.native
 trait WebXRManager extends js.Object:
