@@ -1043,7 +1043,13 @@ final class GraphScene3D(state: ViewerState):
       (e: dom.WheelEvent) =>
         if !renderer.xr.isPresenting then
           e.preventDefault()
-          if e.ctrlKey || e.metaKey || !trackpadNav then dollyBy(math.exp(e.deltaY * 0.01))
+          if e.ctrlKey || e.metaKey || !trackpadNav then
+            // A zoom states an intent about framing that Auto's per-frame
+            // re-fit would immediately undo — so zooming disengages Auto
+            // (the toolbar button follows, via the shared Var). Rotation
+            // stays compatible with Auto and leaves it alone.
+            if state.autoFit.now() then state.autoFit.set(false)
+            dollyBy(math.exp(e.deltaY * 0.01))
           else rotateBy(-e.deltaX, -e.deltaY)
     )
 
